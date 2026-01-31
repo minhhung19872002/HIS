@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -22,6 +22,7 @@ import {
   Tooltip,
   Progress,
   Descriptions,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -40,6 +41,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import * as receptionApi from '../api/reception';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -199,16 +201,85 @@ const mockRoomStats: RoomStatistics[] = [
 ];
 
 const Reception: React.FC = () => {
-  const [data] = useState<ReceptionRecord[]>(mockData);
-  const [roomStats] = useState<RoomStatistics[]>(mockRoomStats);
+  const [data, setData] = useState<ReceptionRecord[]>(mockData);
+  const [roomStats, setRoomStats] = useState<RoomStatistics[]>(mockRoomStats);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ReceptionRecord | null>(null);
   const [insuranceVerification, setInsuranceVerification] = useState<InsuranceVerification | null>(null);
   const [verifyingInsurance, setVerifyingInsurance] = useState(false);
+  const [rooms, setRooms] = useState<receptionApi.RoomOverviewDto[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [verifyForm] = Form.useForm();
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchRooms();
+    fetchAdmissions();
+  }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const response = await receptionApi.getRoomOverview();
+      if (response.data) {
+        setRooms(response.data);
+        // Convert to room stats format
+        const stats: RoomStatistics[] = response.data.map(r => ({
+          roomId: r.roomId,
+          roomName: r.roomName,
+          departmentName: r.departmentName,
+          totalWaiting: r.waitingCount,
+          totalServing: r.inProgressCount,
+          totalCompleted: r.completedCount,
+          currentNumber: undefined,
+          doctorName: r.currentDoctorName,
+        }));
+        if (stats.length > 0) {
+          setRoomStats(stats);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch rooms:', error);
+    }
+  };
+
+  const fetchAdmissions = async () => {
+    try {
+      setLoading(true);
+      const response = await receptionApi.getTodayAdmissions();
+      if (response.data) {
+        // Convert AdmissionDto to ReceptionRecord
+        const records: ReceptionRecord[] = response.data.map(a => ({
+          id: a.id,
+          queueNumber: a.queueNumber,
+          patientCode: a.patientCode,
+          patientName: a.patientName,
+          gender: a.gender === 'Nam' ? 1 : a.gender === 'Nữ' ? 2 : 0,
+          dateOfBirth: a.dateOfBirth,
+          phoneNumber: a.phoneNumber,
+          identityNumber: a.identityNumber,
+          patientType: a.insuranceNumber ? 1 : 2, // 1=BHYT, 2=Viện phí
+          insuranceNumber: a.insuranceNumber,
+          departmentName: a.departmentName,
+          roomName: a.roomName,
+          roomId: a.roomId,
+          status: a.status === 'Waiting' ? 0 : a.status === 'InProgress' ? 1 : a.status === 'WaitingResult' ? 2 : 3,
+          admissionDate: a.admissionDate,
+          address: a.address,
+          priority: a.priority,
+        }));
+        setData(records);
+      }
+    } catch (error) {
+      console.error('Failed to fetch admissions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusTag = (status: number) => {
     switch (status) {
@@ -338,12 +409,51 @@ const Reception: React.FC = () => {
     },
   ];
 
-  const handleCreate = () => {
-    form.validateFields().then(() => {
+  const handleCreate = async () => {
+    try {
+      const values = await form.validateFields();
+      setSubmitting(true);
+
+      // Prepare registration DTO based on patient type
+      const patientType = values.patientType;
+
+      if (patientType === 1 && values.insuranceNumber) {
+        // BHYT registration
+        const dto: receptionApi.InsuranceRegistrationDto = {
+          insuranceNumber: values.insuranceNumber,
+          roomId: values.roomId,
+          identityNumber: values.identityNumber,
+        };
+        await receptionApi.registerInsurancePatient(dto);
+      } else {
+        // Fee/Service registration
+        const dto: receptionApi.FeeRegistrationDto = {
+          newPatient: {
+            fullName: values.fullName,
+            gender: values.gender,
+            dateOfBirth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : undefined,
+            phoneNumber: values.phoneNumber,
+            address: values.address,
+            identityNumber: values.identityNumber,
+          },
+          serviceType: patientType === 2 ? 2 : 3, // 2: Viện phí, 3: Dịch vụ
+          roomId: values.roomId,
+        };
+        await receptionApi.registerFeePatient(dto);
+      }
+
       message.success('Đăng ký khám thành công!');
       setIsModalOpen(false);
       form.resetFields();
-    });
+      // Refresh data
+      fetchRooms();
+      fetchAdmissions();
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      message.error(error?.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCallNumber = (record: ReceptionRecord) => {
@@ -375,29 +485,43 @@ const Reception: React.FC = () => {
     setIsHistoryModalOpen(true);
   };
 
-  const handleVerifyInsurance = () => {
-    verifyForm.validateFields().then((values) => {
+  const handleVerifyInsurance = async () => {
+    try {
+      const values = await verifyForm.validateFields();
       setVerifyingInsurance(true);
-      // Simulate API call
-      setTimeout(() => {
-        const mockVerification: InsuranceVerification = {
-          insuranceNumber: values.insuranceNumber,
-          isValid: true,
-          patientName: 'Nguyễn Văn A',
-          dateOfBirth: '1985-05-15',
-          facilityName: 'BV Đa khoa Trung ương',
-          startDate: '2025-01-01',
-          endDate: '2026-12-31',
-          isExpired: false,
-          isRightRoute: true,
-          paymentRate: 80,
-          validationMessage: 'Thẻ BHYT hợp lệ',
+
+      const response = await receptionApi.verifyInsurance({
+        insuranceNumber: values.insuranceNumber,
+      });
+
+      if (response.data) {
+        const result = response.data;
+        const verification: InsuranceVerification = {
+          insuranceNumber: result.insuranceNumber,
+          isValid: result.isValid,
+          patientName: result.patientName,
+          dateOfBirth: result.dateOfBirth,
+          facilityName: result.facilityName,
+          startDate: result.startDate,
+          endDate: result.endDate,
+          isExpired: result.isExpired,
+          isRightRoute: result.rightRoute === 1,
+          paymentRate: result.paymentRate,
+          validationMessage: result.isValid ? 'Thẻ BHYT hợp lệ' : result.errorMessage,
         };
-        setInsuranceVerification(mockVerification);
-        setVerifyingInsurance(false);
-        message.success('Xác minh thẻ BHYT thành công!');
-      }, 1500);
-    });
+        setInsuranceVerification(verification);
+        if (result.isValid) {
+          message.success('Xác minh thẻ BHYT thành công!');
+        } else {
+          message.warning(result.errorMessage || 'Thẻ BHYT không hợp lệ');
+        }
+      }
+    } catch (error: any) {
+      console.error('Insurance verification error:', error);
+      message.error(error?.response?.data?.message || 'Không thể xác minh thẻ BHYT');
+    } finally {
+      setVerifyingInsurance(false);
+    }
   };
 
   const getPriorityTag = (priority?: number) => {
@@ -509,6 +633,7 @@ const Reception: React.FC = () => {
                     dataSource={data}
                     rowKey="id"
                     size="small"
+                    loading={loading}
                     scroll={{ x: 1500 }}
                     pagination={{
                       showSizeChanger: true,
@@ -518,6 +643,13 @@ const Reception: React.FC = () => {
                     rowClassName={(record) =>
                       record.priority === 2 ? 'emergency-row' : record.priority === 1 ? 'priority-row' : ''
                     }
+                    onRow={(record) => ({
+                      onClick: () => {
+                        setSelectedRecord(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -717,6 +849,91 @@ const Reception: React.FC = () => {
         />
       </Modal>
 
+      {/* Modal Chi tiết bệnh nhân */}
+      <Modal
+        title={
+          <Space>
+            <UserOutlined />
+            Chi tiết bệnh nhân - {selectedRecord?.patientName}
+          </Space>
+        }
+        open={isDetailModalOpen}
+        onCancel={() => setIsDetailModalOpen(false)}
+        footer={[
+          <Button key="history" icon={<HistoryOutlined />} onClick={() => {
+            setIsDetailModalOpen(false);
+            setIsHistoryModalOpen(true);
+          }}>
+            Lịch sử khám
+          </Button>,
+          <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
+            Đóng
+          </Button>,
+        ]}
+        width={700}
+      >
+        {selectedRecord && (
+          <Descriptions bordered column={2} size="small">
+            <Descriptions.Item label="Số thứ tự" span={1}>
+              <Text strong style={{ fontSize: 18 }}>{selectedRecord.queueNumber}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Mã BN" span={1}>
+              <Text strong>{selectedRecord.patientCode}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Họ tên" span={2}>
+              {selectedRecord.patientName}
+            </Descriptions.Item>
+            <Descriptions.Item label="Giới tính" span={1}>
+              {selectedRecord.gender === 1 ? 'Nam' : selectedRecord.gender === 2 ? 'Nữ' : 'Khác'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngày sinh" span={1}>
+              {selectedRecord.dateOfBirth ? dayjs(selectedRecord.dateOfBirth).format('DD/MM/YYYY') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="SĐT" span={1}>
+              {selectedRecord.phoneNumber || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="CMND/CCCD" span={1}>
+              {selectedRecord.identityNumber || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Địa chỉ" span={2}>
+              {selectedRecord.address || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Loại khám" span={1}>
+              {selectedRecord.patientType === 1 ? (
+                <Tag color="green">BHYT</Tag>
+              ) : selectedRecord.patientType === 2 ? (
+                <Tag color="blue">Viện phí</Tag>
+              ) : (
+                <Tag color="purple">Dịch vụ</Tag>
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Số BHYT" span={1}>
+              {selectedRecord.insuranceNumber || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Phòng khám" span={1}>
+              {selectedRecord.roomName || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Khoa" span={1}>
+              {selectedRecord.departmentName || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái" span={1}>
+              {selectedRecord.status === 0 ? (
+                <Tag color="orange">Chờ khám</Tag>
+              ) : selectedRecord.status === 1 ? (
+                <Tag color="blue">Đang khám</Tag>
+              ) : selectedRecord.status === 2 ? (
+                <Tag color="cyan">Chờ kết quả</Tag>
+              ) : (
+                <Tag color="green">Hoàn thành</Tag>
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngày đăng ký" span={1}>
+              {dayjs(selectedRecord.admissionDate).format('DD/MM/YYYY HH:mm')}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
       {/* Modal Đăng ký khám */}
       <Modal
         title={
@@ -731,6 +948,7 @@ const Reception: React.FC = () => {
         width={900}
         okText="Đăng ký"
         cancelText="Hủy"
+        confirmLoading={submitting}
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
@@ -798,12 +1016,22 @@ const Reception: React.FC = () => {
               <Form.Item
                 name="roomId"
                 label="Phòng khám"
-                rules={[{ required: true }]}
+                rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
               >
                 <Select placeholder="Chọn phòng khám">
-                  <Select.Option value="1">Phòng khám Nội 1</Select.Option>
-                  <Select.Option value="2">Phòng khám Nội 2</Select.Option>
-                  <Select.Option value="3">Phòng khám Ngoại 1</Select.Option>
+                  {rooms.length > 0 ? (
+                    rooms.map(room => (
+                      <Select.Option key={room.roomId} value={room.roomId}>
+                        {room.roomName} - {room.departmentName}
+                      </Select.Option>
+                    ))
+                  ) : (
+                    <>
+                      <Select.Option value="room-1">Phòng khám Nội 1</Select.Option>
+                      <Select.Option value="room-2">Phòng khám Nội 2</Select.Option>
+                      <Select.Option value="room-3">Phòng khám Ngoại 1</Select.Option>
+                    </>
+                  )}
                 </Select>
               </Form.Item>
             </Col>

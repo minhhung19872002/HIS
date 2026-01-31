@@ -363,6 +363,11 @@ export const getRoomOverview = (departmentId?: string, date?: string) =>
     params: { departmentId, date }
   });
 
+export const getTodayAdmissions = (roomId?: string, date?: string) =>
+  api.get<AdmissionDto[]>('/reception/admissions/today', {
+    params: { roomId, date }
+  });
+
 export const getRoomDetail = (roomId: string, date?: string) =>
   api.get<RoomOverviewDto>(`/reception/rooms/${roomId}/detail`, {
     params: { date }
