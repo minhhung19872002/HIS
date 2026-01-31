@@ -1,0 +1,191 @@
+using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+using HIS.Core.Entities;
+
+namespace HIS.Infrastructure.Data;
+
+public class HISDbContext : DbContext
+{
+    public HISDbContext(DbContextOptions<HISDbContext> options) : base(options)
+    {
+    }
+
+    // Quản lý bệnh nhân
+    public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
+    public DbSet<Examination> Examinations => Set<Examination>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<AppointmentService> AppointmentServices => Set<AppointmentService>();
+
+    // Quản lý người dùng
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+
+    // Khoa/Phòng/Giường
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Room> Rooms => Set<Room>();
+    public DbSet<Bed> Beds => Set<Bed>();
+
+    // Dịch vụ
+    public DbSet<ServiceGroup> ServiceGroups => Set<ServiceGroup>();
+    public DbSet<Service> Services => Set<Service>();
+    public DbSet<ServicePrice> ServicePrices => Set<ServicePrice>();
+    public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
+    public DbSet<ServiceRequestDetail> ServiceRequestDetails => Set<ServiceRequestDetail>();
+
+    // Thuốc/Vật tư
+    public DbSet<Medicine> Medicines => Set<Medicine>();
+    public DbSet<MedicalSupply> MedicalSupplies => Set<MedicalSupply>();
+    public DbSet<Prescription> Prescriptions => Set<Prescription>();
+    public DbSet<PrescriptionDetail> PrescriptionDetails => Set<PrescriptionDetail>();
+
+    // Kho
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+    public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+    public DbSet<ImportReceipt> ImportReceipts => Set<ImportReceipt>();
+    public DbSet<ImportReceiptDetail> ImportReceiptDetails => Set<ImportReceiptDetail>();
+    public DbSet<ExportReceipt> ExportReceipts => Set<ExportReceipt>();
+    public DbSet<ExportReceiptDetail> ExportReceiptDetails => Set<ExportReceiptDetail>();
+
+    // Viện phí
+    public DbSet<Receipt> Receipts => Set<Receipt>();
+    public DbSet<ReceiptDetail> ReceiptDetails => Set<ReceiptDetail>();
+    public DbSet<InvoiceSummary> InvoiceSummaries => Set<InvoiceSummary>();
+    public DbSet<CashBook> CashBooks => Set<CashBook>();
+
+    // Hàng đợi
+    public DbSet<Queue> Queues => Set<Queue>();
+
+    // Giữ giấy tờ
+    public DbSet<DocumentHold> DocumentHolds => Set<DocumentHold>();
+
+    // Khám sức khỏe
+    public DbSet<HealthCheckContract> HealthCheckContracts => Set<HealthCheckContract>();
+    public DbSet<HealthCheckPackage> HealthCheckPackages => Set<HealthCheckPackage>();
+    public DbSet<HealthCheckPackageService> HealthCheckPackageServices => Set<HealthCheckPackageService>();
+
+    // Danh mục
+    public DbSet<IcdCode> IcdCodes => Set<IcdCode>();
+    public DbSet<Ethnic> Ethnics => Set<Ethnic>();
+    public DbSet<Country> Countries => Set<Country>();
+    public DbSet<Province> Provinces => Set<Province>();
+    public DbSet<District> Districts => Set<District>();
+    public DbSet<Ward> Wards => Set<Ward>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+
+    // Xét nghiệm (LIS)
+    public DbSet<LabRequest> LabRequests => Set<LabRequest>();
+    public DbSet<LabRequestItem> LabRequestItems => Set<LabRequestItem>();
+    public DbSet<LabResult> LabResults => Set<LabResult>();
+
+    // Chẩn đoán hình ảnh (RIS/PACS)
+    public DbSet<RadiologyRequest> RadiologyRequests => Set<RadiologyRequest>();
+    public DbSet<RadiologyExam> RadiologyExams => Set<RadiologyExam>();
+    public DbSet<RadiologyReport> RadiologyReports => Set<RadiologyReport>();
+    public DbSet<RadiologyModality> RadiologyModalities => Set<RadiologyModality>();
+    public DbSet<DicomStudy> DicomStudies => Set<DicomStudy>();
+
+    // Dược/Cấp phát
+    public DbSet<DispenseRequest> DispenseRequests => Set<DispenseRequest>();
+    public DbSet<DispenseRequestItem> DispenseRequestItems => Set<DispenseRequestItem>();
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<StockThreshold> StockThresholds => Set<StockThreshold>();
+    public DbSet<ExpiryAlert> ExpiryAlerts => Set<ExpiryAlert>();
+    public DbSet<LowStockAlert> LowStockAlerts => Set<LowStockAlert>();
+    public DbSet<WarehouseTransfer> WarehouseTransfers => Set<WarehouseTransfer>();
+    public DbSet<WarehouseTransferItem> WarehouseTransferItems => Set<WarehouseTransferItem>();
+    public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
+    public DbSet<StockAdjustmentItem> StockAdjustmentItems => Set<StockAdjustmentItem>();
+
+    // Nội trú (IPD)
+    public DbSet<Admission> Admissions => Set<Admission>();
+    public DbSet<BedAssignment> BedAssignments => Set<BedAssignment>();
+    public DbSet<DailyProgress> DailyProgresses => Set<DailyProgress>();
+    public DbSet<NursingCare> NursingCares => Set<NursingCare>();
+    public DbSet<Discharge> Discharges => Set<Discharge>();
+
+    // Phẫu thuật (Surgery)
+    public DbSet<SurgeryRequest> SurgeryRequests => Set<SurgeryRequest>();
+    public DbSet<SurgerySchedule> SurgerySchedules => Set<SurgerySchedule>();
+    public DbSet<SurgeryRecord> SurgeryRecords => Set<SurgeryRecord>();
+    public DbSet<OperatingRoom> OperatingRooms => Set<OperatingRoom>();
+    public DbSet<SurgeryTeamMember> SurgeryTeamMembers => Set<SurgeryTeamMember>();
+
+    // Audit
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    // System Administration
+    public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
+
+    // Ngân hàng máu (Blood Bank)
+    public DbSet<BloodUnit> BloodUnits => Set<BloodUnit>();
+    public DbSet<BloodDonor> BloodDonors => Set<BloodDonor>();
+    public DbSet<BloodRequest> BloodRequests => Set<BloodRequest>();
+    public DbSet<BloodTransfusion> BloodTransfusions => Set<BloodTransfusion>();
+
+    // Báo cáo (Reports)
+    public DbSet<ReportTemplate> ReportTemplates => Set<ReportTemplate>();
+    public DbSet<GeneratedReport> GeneratedReports => Set<GeneratedReport>();
+    public DbSet<DashboardWidget> DashboardWidgets => Set<DashboardWidget>();
+    public DbSet<ReportAccessLog> ReportAccessLogs => Set<ReportAccessLog>();
+
+    // Bảo hiểm (Insurance)
+    public DbSet<InsuranceClaim> InsuranceClaims => Set<InsuranceClaim>();
+    public DbSet<InsuranceClaimDetail> InsuranceClaimDetails => Set<InsuranceClaimDetail>();
+    public DbSet<InsuranceRejection> InsuranceRejections => Set<InsuranceRejection>();
+    public DbSet<InsuranceStatistics> InsuranceStatisticsRecords => Set<InsuranceStatistics>();
+    public DbSet<InsurancePriceConfig> InsurancePriceConfigs => Set<InsurancePriceConfig>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Apply configurations
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(HISDbContext).Assembly);
+
+        // Global query filter for soft delete
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                modelBuilder.Entity(entityType.ClrType)
+                    .HasQueryFilter(CreateSoftDeleteFilter(entityType.ClrType));
+            }
+        }
+    }
+
+    private static LambdaExpression CreateSoftDeleteFilter(Type type)
+    {
+        var parameter = System.Linq.Expressions.Expression.Parameter(type, "e");
+        var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+        var condition = System.Linq.Expressions.Expression.Equal(property, System.Linq.Expressions.Expression.Constant(false));
+        return System.Linq.Expressions.Expression.Lambda(condition, parameter);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        {
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    entry.Entity.Id = entry.Entity.Id == Guid.Empty ? Guid.NewGuid() : entry.Entity.Id;
+                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                    break;
+                case EntityState.Modified:
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    break;
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
+}

@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet new:*)",
+      "Bash(dotnet sln add:*)",
+      "Bash(dotnet add:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(dotnet build:*)",
+      "Bash(npm run build:*)",
+      "Bash(sqlcmd:*)",
+      "Bash(npm run dev:*)",
+      "Bash(dotnet run)",
+      "Bash(curl:*)",
+      "Bash(dotnet run:*)",
+      "Bash(findstr:*)",
+      "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\")",
+      "Bash(taskkill:*)",
+      "Bash(exit 0)",
+      "Bash(dir \"C:\\Source\\HIS\\frontend\")",
+      "Bash(dir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(timeout /t:*)",
+      "Bash(xargs cat:*)",
+      "Bash(done)",
+      "Bash(__NEW_LINE__ echo \"Module 7 (Laboratory): Lines 1011-1067\")",
+      "Bash(__NEW_LINE__ echo \"Module 8 (Radiology): Lines 1068-1171\")",
+      "Bash(__NEW_LINE__ echo \"Module 9 (Blood Bank): Lines 1172-1189\")",
+      "Bash(__NEW_LINE__ echo \"Module 10 (Billing): Lines 1190-1239\")",
+      "Bash(del \"\\?\\C:\\Source\\HIS\\nul\")",
+      "Bash(rm:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

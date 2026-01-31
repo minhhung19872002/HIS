@@ -1,0 +1,16 @@
+C:\Source\HIS\backend\src\HIS.Application\bin\Debug\net9.0\HIS.Application.deps.json
+C:\Source\HIS\backend\src\HIS.Application\bin\Debug\net9.0\HIS.Application.dll
+C:\Source\HIS\backend\src\HIS.Application\bin\Debug\net9.0\HIS.Application.pdb
+C:\Source\HIS\backend\src\HIS.Application\bin\Debug\net9.0\HIS.Core.dll
+C:\Source\HIS\backend\src\HIS.Application\bin\Debug\net9.0\HIS.Core.pdb
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.csproj.AssemblyReference.cache
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.AssemblyInfoInputs.cache
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.AssemblyInfo.cs
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.csproj.CoreCompileInputs.cache
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.sourcelink.json
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Appl.B536FE33.Up2Date
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.dll
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\refint\HIS.Application.dll
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\HIS.Application.pdb
+C:\Source\HIS\backend\src\HIS.Application\obj\Debug\net9.0\ref\HIS.Application.dll
