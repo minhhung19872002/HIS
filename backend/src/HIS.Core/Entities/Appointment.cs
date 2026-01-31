@@ -27,6 +27,7 @@ public class Appointment : BaseEntity
     public int AppointmentType { get; set; } // 1-Tái khám, 2-Khám mới, 3-Khám sức khỏe
     public string? Reason { get; set; } // Lý do hẹn
     public string? Note { get; set; }
+    public string? Notes { get; set; } // Ghi chú chi tiết
 
     public int Status { get; set; } // 0-Chờ xác nhận, 1-Đã xác nhận, 2-Đã đến khám, 3-Không đến, 4-Hủy
     public bool IsReminderSent { get; set; } // Đã gửi nhắc
@@ -91,6 +92,8 @@ public class HealthCheckContract : BaseEntity
     public string ContractCode { get; set; } = string.Empty;
     public string ContractName { get; set; } = string.Empty;
     public string? CompanyName { get; set; } // Tên công ty
+    public string? CompanyAddress { get; set; } // Dia chi cong ty
+    public string? CompanyPhone { get; set; } // SDT cong ty
     public string? ContactPerson { get; set; }
     public string? ContactPhone { get; set; }
     public string? Address { get; set; }
@@ -104,8 +107,10 @@ public class HealthCheckContract : BaseEntity
 
     public string? Note { get; set; }
     public int Status { get; set; } // 0-Chờ duyệt, 1-Đang thực hiện, 2-Hoàn thành, 3-Hủy
+    public Guid? CreatedByUserId { get; set; } // Nguoi tao
 
     // Navigation
+    public virtual User? CreatedByUser { get; set; }
     public virtual ICollection<HealthCheckPackage> Packages { get; set; } = new List<HealthCheckPackage>();
 }
 
@@ -119,8 +124,13 @@ public class HealthCheckPackage : BaseEntity
 
     public string PackageCode { get; set; } = string.Empty;
     public string PackageName { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public int Gender { get; set; } // 0-Cả 2, 1-Nam, 2-Nữ
+    public int? ApplicableGender { get; set; } // Alias for Gender (nullable)
+    public int? MinAge { get; set; }
+    public int? MaxAge { get; set; }
     public decimal PackagePrice { get; set; }
+    public bool IsActive { get; set; } = true;
 
     // Navigation
     public virtual ICollection<HealthCheckPackageService> PackageServices { get; set; } = new List<HealthCheckPackageService>();

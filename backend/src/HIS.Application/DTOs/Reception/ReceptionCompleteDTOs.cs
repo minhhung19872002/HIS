@@ -449,10 +449,12 @@ public class HealthCheckContractDto
 {
     public Guid Id { get; set; }
     public string ContractNumber { get; set; } = string.Empty;
+    public string? ContractCode { get; set; } // Ma hop dong (alias)
     public string ContractName { get; set; } = string.Empty;
 
     public string CompanyName { get; set; } = string.Empty;
     public string? CompanyAddress { get; set; }
+    public string? CompanyPhone { get; set; } // SDT cong ty
     public string? CompanyTaxCode { get; set; }
     public string? ContactPerson { get; set; }
     public string? ContactPhone { get; set; }
@@ -464,6 +466,7 @@ public class HealthCheckContractDto
 
     public decimal TotalAmount { get; set; }
     public decimal DiscountPercent { get; set; }
+    public decimal DiscountRate { get; set; } // Ty le chiet khau (alias)
     public decimal FinalAmount { get; set; }
 
     public List<HealthCheckPackageDto> Packages { get; set; } = new();
@@ -479,13 +482,16 @@ public class HealthCheckPackageDto
     public Guid Id { get; set; }
     public string PackageCode { get; set; } = string.Empty;
     public string PackageName { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
     public int? ForGender { get; set; } // null-Cả 2, 1-Nam, 2-Nữ
+    public int? ApplicableGender { get; set; } // Alias for ForGender
     public int? MinAge { get; set; }
     public int? MaxAge { get; set; }
 
     public decimal Price { get; set; }
     public List<HealthCheckServiceDto> Services { get; set; } = new();
+    public List<HealthCheckPackageServiceDto> PackageServices { get; set; } = new();
 }
 
 public class HealthCheckServiceDto
@@ -495,6 +501,18 @@ public class HealthCheckServiceDto
     public string ServiceName { get; set; } = string.Empty;
     public Guid? RoomId { get; set; }
     public string? RoomName { get; set; }
+}
+
+/// <summary>
+/// DTO dich vu trong goi kham suc khoe (alias)
+/// </summary>
+public class HealthCheckPackageServiceDto
+{
+    public Guid ServiceId { get; set; }
+    public string ServiceCode { get; set; } = string.Empty;
+    public string ServiceName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public bool IsMandatory { get; set; }
 }
 
 /// <summary>
@@ -521,12 +539,14 @@ public class HealthCheckImportDto
 
 public class HealthCheckPatientImportDto
 {
+    public int RowNumber { get; set; } // So thu tu dong trong file import
     public string FullName { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
     public int? YearOfBirth { get; set; }
     public int Gender { get; set; }
     public string? IdentityNumber { get; set; }
     public string? PhoneNumber { get; set; }
+    public string? Address { get; set; } // Dia chi
     public string? Department { get; set; } // Phòng ban trong công ty
     public string? EmployeeCode { get; set; }
     public Guid PackageId { get; set; }
@@ -625,9 +645,17 @@ public class OtherPayerDto
     public string PayerCode { get; set; } = string.Empty;
     public string PayerName { get; set; } = string.Empty;
     public int PayerType { get; set; } // 1-Bảo hiểm tư nhân, 2-Cơ quan, 3-Dự án, 4-Khác
+    public string? TaxCode { get; set; }
+    public string? Address { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? Email { get; set; }
+    public string? ContactPerson { get; set; }
     public string? ContractNumber { get; set; }
     public decimal? CoveragePercent { get; set; }
     public decimal? MaxAmount { get; set; }
+    public decimal? CreditLimit { get; set; }
+    public decimal? CurrentDebt { get; set; }
+    public bool IsActive { get; set; } = true;
 }
 
 /// <summary>
@@ -747,6 +775,21 @@ public class ServiceGroupDto
     public string GroupName { get; set; } = string.Empty;
     public List<Guid> ServiceIds { get; set; } = new();
     public bool IsDefault { get; set; }
+    public bool IsPublic { get; set; }
+    public List<ServiceGroupItemDto> Services { get; set; } = new();
+}
+
+/// <summary>
+/// DTO chi tiet dich vu trong nhom
+/// </summary>
+public class ServiceGroupItemDto
+{
+    public Guid ServiceId { get; set; }
+    public string ServiceCode { get; set; } = string.Empty;
+    public string ServiceName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public string? Notes { get; set; }
 }
 
 /// <summary>
@@ -761,13 +804,20 @@ public class OptimalPathResultDto
 public class PathStepDto
 {
     public int Order { get; set; }
+    public int StepNumber { get; set; } // So buoc
+    public Guid ServiceId { get; set; }
+    public string ServiceName { get; set; } = string.Empty;
     public Guid RoomId { get; set; }
+    public string RoomCode { get; set; } = string.Empty;
     public string RoomName { get; set; } = string.Empty;
+    public string? DepartmentName { get; set; }
     public string? Building { get; set; }
     public string? Floor { get; set; }
     public List<string> Services { get; set; } = new();
     public int EstimatedWaitMinutes { get; set; }
     public int EstimatedServiceMinutes { get; set; }
+    public int EstimatedMinutes { get; set; } // Tong thoi gian du kien
+    public int WaitingCount { get; set; } // So nguoi dang cho
 }
 
 #endregion
@@ -843,6 +893,9 @@ public class ReceptionPaymentDto
     public Guid MedicalRecordId { get; set; }
     public List<Guid> ServiceIds { get; set; } = new();
     public decimal TotalAmount { get; set; }
+    public decimal InsuranceAmount { get; set; }
+    public decimal PatientAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal PaidAmount { get; set; }
     public int PaymentMethod { get; set; }
     public string? TransactionReference { get; set; }

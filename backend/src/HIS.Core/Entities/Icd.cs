@@ -8,6 +8,8 @@ public class IcdCode : BaseEntity
     public string Code { get; set; } = string.Empty; // Mã ICD
     public string Name { get; set; } = string.Empty; // Tên bệnh
     public string? NameEnglish { get; set; } // Tên tiếng Anh
+    public string? NameVn { get; set; } // Tên tiếng Việt (alias)
+    public string? NameEn { get; set; } // Tên tiếng Anh (alias)
     public string? ChapterCode { get; set; } // Mã chương
     public string? ChapterName { get; set; } // Tên chương
     public string? GroupCode { get; set; } // Mã nhóm

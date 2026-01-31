@@ -492,6 +492,7 @@ public record SurgeryCompletionResult(bool Success, string? Message);
 public record RecoveryResult(bool Success, Guid? RecoveryId, string? Message);
 public record WardTransferResult(bool Success, DateTime? TransferTime, string? Message);
 public record SurgeryResult(bool Success, Guid? SurgeryRecordId, string? Message);
+public record SurgeryRecordDto(Guid SurgeryId, string Procedure, string Findings, DateTime StartTime, DateTime EndTime, string? Complications);
 public record SurgeryCostResult(bool Success, decimal? TotalCost, string? Message);
 public record TeamFeeResult(bool Success, decimal? TotalFee, string? Message);
 

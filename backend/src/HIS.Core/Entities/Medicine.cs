@@ -37,6 +37,7 @@ public class Medicine : BaseEntity
     // Nhà sản xuất
     public string? Manufacturer { get; set; }
     public string? ManufacturerCountry { get; set; }
+    public string? Country { get; set; } // Nước sản xuất (alias)
     public string? Supplier { get; set; }
 
     // Giá
@@ -46,8 +47,10 @@ public class Medicine : BaseEntity
 
     // BHYT
     public bool IsInsuranceCovered { get; set; } = true;
+    public bool IsBhytCovered { get; set; } = true; // Alias for IsInsuranceCovered
     public int InsurancePaymentRate { get; set; } = 100;
     public string? InsuranceCondition { get; set; } // Điều kiện thanh toán BHYT
+    public Guid? MedicineGroupId { get; set; } // Nhom thuoc (FK)
 
     // Cảnh báo
     public string? Contraindications { get; set; } // Chống chỉ định

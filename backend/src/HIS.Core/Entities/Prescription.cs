@@ -29,6 +29,8 @@ public class Prescription : BaseEntity
     // Chẩn đoán
     public string? Diagnosis { get; set; }
     public string? IcdCode { get; set; }
+    public string? DiagnosisCode { get; set; } // Mã chẩn đoán (ICD-10)
+    public string? DiagnosisName { get; set; } // Tên chẩn đoán
 
     // Loại đơn
     public int PrescriptionType { get; set; } // 1-Ngoại trú, 2-Nội trú, 3-Nhà thuốc, 4-YHCT
@@ -47,6 +49,7 @@ public class Prescription : BaseEntity
     public Guid? DispensedBy { get; set; }
 
     public string? Note { get; set; } // Lời dặn
+    public string? Instructions { get; set; } // Hướng dẫn sử dụng chi tiết
 
     // Navigation
     public virtual ICollection<PrescriptionDetail> Details { get; set; } = new List<PrescriptionDetail>();
@@ -85,6 +88,9 @@ public class PrescriptionDetail : BaseEntity
     public string? Frequency { get; set; } // Tần suất (3 lần/ngày)
     public string? Route { get; set; } // Đường dùng (Uống, Tiêm...)
     public string? Usage { get; set; } // Cách dùng chi tiết
+    public string? UsageInstructions { get; set; } // Hướng dẫn sử dụng
+    public int Days { get; set; } // Số ngày dùng
+    public decimal TotalPrice { get; set; } // Tổng giá
     public decimal? MorningDose { get; set; } // Sáng
     public decimal? NoonDose { get; set; } // Trưa
     public decimal? EveningDose { get; set; } // Chiều

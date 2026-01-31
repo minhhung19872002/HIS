@@ -34,6 +34,9 @@ public class Room : BaseEntity
     public string? RoomCodeBYT { get; set; } // Mã phòng theo BYT
     public int RoomType { get; set; } // 1-Phòng khám, 2-Phòng bệnh, 3-Phòng mổ, 4-Phòng xét nghiệm...
     public string? Location { get; set; }
+    public string? Floor { get; set; } // Tang
+    public string? Building { get; set; } // Toa nha
+    public string? ServiceTypes { get; set; } // JSON list cac loai dich vu phong ho tro
     public int MaxPatients { get; set; } // Số bệnh nhân tối đa
     public int MaxInsurancePatients { get; set; } // Số BN BHYT tối đa
     public bool IsActive { get; set; } = true;

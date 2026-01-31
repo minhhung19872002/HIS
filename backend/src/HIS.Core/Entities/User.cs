@@ -6,6 +6,7 @@ namespace HIS.Core.Entities;
 public class User : BaseEntity
 {
     public string Username { get; set; } = string.Empty;
+    public string? UserCode { get; set; } // Mã người dùng
     public string PasswordHash { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string? Email { get; set; }
@@ -16,6 +17,7 @@ public class User : BaseEntity
     public string? Degree { get; set; } // Học vị: Thạc sĩ, Tiến sĩ...
     public string? Specialty { get; set; } // Chuyên khoa
     public string? SignaturePath { get; set; } // Đường dẫn chữ ký số
+    public int UserType { get; set; } // 1-Bác sĩ, 2-Điều dưỡng, 3-Kỹ thuật viên, 4-Dược sĩ, 5-Nhân viên, 6-Admin
 
     public Guid? DepartmentId { get; set; } // Khoa/phòng làm việc
     public virtual Department? Department { get; set; }

@@ -40,6 +40,11 @@ public interface IReceptionCompleteService
     /// </summary>
     Task<List<RoomOverviewDto>> GetAvailableRoomsAsync(Guid departmentId, int patientType, DateTime date);
 
+    /// <summary>
+    /// Lấy danh sách bệnh nhân đăng ký trong ngày theo phòng
+    /// </summary>
+    Task<List<AdmissionDto>> GetTodayAdmissionsAsync(Guid? roomId, DateTime date);
+
     #endregion
 
     #region 1.2 Hệ thống xếp hàng

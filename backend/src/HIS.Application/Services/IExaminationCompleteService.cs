@@ -814,16 +814,6 @@ public class BmiCalculationResult
     public string ColorCode { get; set; } = string.Empty;
 }
 
-public class WaitingRoomDisplayConfigDto
-{
-    public string? BackgroundColor { get; set; }
-    public string? TextColor { get; set; }
-    public int RefreshIntervalSeconds { get; set; } = 5;
-    public int DisplayCount { get; set; } = 10;
-    public bool ShowPatientPhoto { get; set; }
-    public bool ShowInsuranceStatus { get; set; }
-}
-
 public class PatientFilterDto
 {
     public bool? IsInsurance { get; set; }
@@ -901,14 +891,6 @@ public class ExaminationValidationResult
     public List<string> Warnings { get; set; } = new();
 }
 
-public class CommunicableDiseaseReportDto
-{
-    public string IcdCode { get; set; } = string.Empty;
-    public string DiseaseName { get; set; } = string.Empty;
-    public int CaseCount { get; set; }
-    public DateTime ReportDate { get; set; }
-}
-
 public class RoomExaminationConfigDto
 {
     public Guid RoomId { get; set; }
@@ -926,16 +908,6 @@ public class SignatureVerificationResult
     public string? SignerName { get; set; }
     public DateTime? SignedAt { get; set; }
     public string? CertificateInfo { get; set; }
-}
-
-public class ExaminationActivityLogDto
-{
-    public Guid Id { get; set; }
-    public DateTime Timestamp { get; set; }
-    public string Action { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string? UserName { get; set; }
-    public string? IpAddress { get; set; }
 }
 
 public class MedicineDto

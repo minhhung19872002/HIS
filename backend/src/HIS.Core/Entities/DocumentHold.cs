@@ -16,6 +16,8 @@ public class DocumentHold : BaseEntity
     public int DocumentType { get; set; }
     public string DocumentNumber { get; set; } = string.Empty; // Số giấy tờ
     public string? DocumentDescription { get; set; } // Mô tả chi tiết
+    public string? Description { get; set; } // Mô tả ngắn
+    public string? Notes { get; set; } // Ghi chú
     public int Quantity { get; set; } = 1; // Số lượng
 
     // Trạng thái - Status
@@ -25,11 +27,13 @@ public class DocumentHold : BaseEntity
     // Thông tin giữ - Hold Information
     public DateTime HoldDate { get; set; }
     public string HoldBy { get; set; } = string.Empty; // Người nhận giữ
+    public Guid? HeldByUserId { get; set; } // ID người giữ
     public string? HoldNotes { get; set; }
 
     // Thông tin trả - Return Information
     public DateTime? ReturnDate { get; set; }
     public string? ReturnBy { get; set; } // Người trả
+    public Guid? ReturnedByUserId { get; set; } // ID người trả
     public string? ReturnNotes { get; set; }
     public string? ReturnToPersonName { get; set; } // Tên người nhận lại
     public string? ReturnToPersonPhone { get; set; } // SĐT người nhận lại

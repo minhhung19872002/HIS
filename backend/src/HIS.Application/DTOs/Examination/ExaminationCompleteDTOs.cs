@@ -105,9 +105,15 @@ public class RoomPatientListDto
 
 public class LabStatusDto
 {
+    public Guid RequestId { get; set; }
+    public string TestCode { get; set; } = string.Empty;
+    public string TestName { get; set; } = string.Empty;
     public string ServiceName { get; set; } = string.Empty;
     public int Status { get; set; } // 0-Chờ, 1-Đang làm, 2-Có kết quả
+    public string StatusName { get; set; } = string.Empty;
     public bool HasResult { get; set; }
+    public DateTime? RequestedAt { get; set; }
+    public DateTime? EstimatedCompletionTime { get; set; }
 }
 
 /// <summary>
@@ -124,9 +130,16 @@ public class PatientLabResultsDto
 
 public class LabResultSummaryDto
 {
+    public Guid Id { get; set; }
     public Guid OrderId { get; set; }
+    public string TestCode { get; set; } = string.Empty;
+    public string TestName { get; set; } = string.Empty;
     public string ServiceCode { get; set; } = string.Empty;
     public string ServiceName { get; set; } = string.Empty;
+    public string? ResultValue { get; set; }
+    public string? Unit { get; set; }
+    public string? ReferenceRange { get; set; }
+    public bool IsAbnormal { get; set; }
     public DateTime? ResultDate { get; set; }
     public int Status { get; set; }
     public List<LabResultItemDto> Items { get; set; } = new();
@@ -144,11 +157,17 @@ public class LabResultItemDto
 
 public class ImagingResultSummaryDto
 {
+    public Guid Id { get; set; }
     public Guid OrderId { get; set; }
+    public string ExamCode { get; set; } = string.Empty;
+    public string ExamName { get; set; } = string.Empty;
     public string ServiceCode { get; set; } = string.Empty;
     public string ServiceName { get; set; } = string.Empty;
+    public string? Modality { get; set; }
+    public string? Findings { get; set; }
     public DateTime? ResultDate { get; set; }
     public string? Conclusion { get; set; }
+    public int Status { get; set; }
     public List<string> ImageUrls { get; set; } = new();
 }
 
@@ -258,6 +277,7 @@ public class MedicalInterviewDto
 /// </summary>
 public class PhysicalExaminationDto
 {
+    public string? ChiefComplaint { get; set; } // Lý do đến khám
     public string? GeneralAppearance { get; set; } // Tổng quát
     public string? Skin { get; set; } // Da, niêm mạc
     public string? HeadNeck { get; set; } // Đầu, cổ
@@ -285,10 +305,12 @@ public class ExaminationTemplateDto
 {
     public Guid Id { get; set; }
     public string TemplateName { get; set; } = string.Empty;
+    public string? TemplateCode { get; set; }
     public string? Description { get; set; }
     public int TemplateType { get; set; } // 1-Cá nhân, 2-Khoa, 3-Bệnh viện
     public Guid? DepartmentId { get; set; }
     public Guid? CreatedByUserId { get; set; }
+    public bool IsPublic { get; set; }
 
     public PhysicalExaminationDto Content { get; set; } = new();
     public bool IsDefault { get; set; }
@@ -303,9 +325,11 @@ public class AllergyDto
     public Guid PatientId { get; set; }
     public int AllergyType { get; set; } // 1-Thuốc, 2-Thức ăn, 3-Khác
     public string AllergenName { get; set; } = string.Empty;
+    public string? AllergenCode { get; set; }
     public string? Reaction { get; set; }
     public int Severity { get; set; } // 1-Nhẹ, 2-Trung bình, 3-Nặng
     public DateTime? ReportedDate { get; set; }
+    public string? Notes { get; set; }
     public bool IsActive { get; set; }
 }
 
@@ -318,7 +342,11 @@ public class ContraindicationDto
     public Guid PatientId { get; set; }
     public int ContraindicationType { get; set; } // 1-Thuốc, 2-Dịch vụ, 3-Khác
     public string Name { get; set; } = string.Empty;
+    public string? ItemName { get; set; }
+    public string? ItemCode { get; set; }
     public string? Description { get; set; }
+    public string? Reason { get; set; }
+    public string? Notes { get; set; }
     public DateTime? ReportedDate { get; set; }
     public bool IsActive { get; set; }
 }
@@ -330,18 +358,26 @@ public class TreatmentSheetDto
 {
     public Guid Id { get; set; }
     public Guid ExaminationId { get; set; }
-    public DateTime TreatmentDate { get; set; }
+    public DateTime? TreatmentDate { get; set; }
     public int DayNumber { get; set; }
+    public int Day { get; set; }
 
     public string? DailyProgress { get; set; } // Diễn biến trong ngày
     public string? TreatmentOrders { get; set; } // Y lệnh điều trị
+    public string? DoctorOrders { get; set; } // Y lệnh bác sĩ
+    public string? DietOrders { get; set; } // Chế độ ăn
+    public string? NursingCare { get; set; } // Chăm sóc điều dưỡng
+    public string? PatientCondition { get; set; } // Tình trạng bệnh nhân
     public string? DoctorNotes { get; set; } // Ghi chú của bác sĩ
+    public string? Notes { get; set; }
 
     public VitalSignsFullDto? VitalSigns { get; set; }
     public List<MedicationOrderDto> Medications { get; set; } = new();
 
-    public Guid DoctorId { get; set; }
+    public Guid? DoctorId { get; set; }
     public string? DoctorName { get; set; }
+    public Guid? NurseId { get; set; }
+    public string? NurseName { get; set; }
 }
 
 /// <summary>
@@ -351,14 +387,21 @@ public class ConsultationRecordDto
 {
     public Guid Id { get; set; }
     public Guid ExaminationId { get; set; }
-    public DateTime ConsultationDate { get; set; }
+    public DateTime? ConsultationDate { get; set; }
+    public int ConsultationType { get; set; } // 1-Hội chẩn khoa, 2-Liên khoa, 3-Bệnh viện
 
-    public string Reason { get; set; } = string.Empty;
-    public string Summary { get; set; } = string.Empty;
-    public string Conclusion { get; set; } = string.Empty;
-    public string Recommendations { get; set; } = string.Empty;
+    public string? Reason { get; set; }
+    public string? Summary { get; set; }
+    public string? Conclusion { get; set; }
+    public string? Recommendations { get; set; }
+    public string? TreatmentPlan { get; set; }
+    public string? Participants { get; set; }
 
     public List<ConsultantDto> Consultants { get; set; } = new();
+    public Guid? PresidedByUserId { get; set; }
+    public string? PresidedByName { get; set; }
+    public Guid? SecretaryUserId { get; set; }
+    public string? SecretaryName { get; set; }
     public string? Chairman { get; set; }
     public string? Secretary { get; set; }
 }
@@ -378,17 +421,29 @@ public class NursingCareSheetDto
 {
     public Guid Id { get; set; }
     public Guid ExaminationId { get; set; }
-    public DateTime CareDate { get; set; }
+    public DateTime? CareDate { get; set; }
+    public TimeSpan? CareTime { get; set; }
     public int Shift { get; set; } // 1-Sáng, 2-Chiều, 3-Đêm
+
+    // Vital signs
+    public decimal? Temperature { get; set; }
+    public int? Pulse { get; set; }
+    public int? BloodPressureSystolic { get; set; }
+    public int? BloodPressureDiastolic { get; set; }
+    public int? RespiratoryRate { get; set; }
+    public decimal? SpO2 { get; set; }
 
     public string? PatientCondition { get; set; }
     public string? NursingAssessment { get; set; }
+    public string? NursingDiagnosis { get; set; }
     public string? NursingInterventions { get; set; }
+    public string? Evaluation { get; set; }
     public string? PatientResponse { get; set; }
+    public string? Notes { get; set; }
 
     public VitalSignsFullDto? VitalSigns { get; set; }
 
-    public Guid NurseId { get; set; }
+    public Guid? NurseId { get; set; }
     public string? NurseName { get; set; }
 }
 
@@ -401,12 +456,17 @@ public class InjuryInfoDto
     public Guid ExaminationId { get; set; }
 
     public int InjuryType { get; set; } // 1-Tai nạn giao thông, 2-Tai nạn lao động, 3-Bạo lực, 4-Khác
-    public DateTime InjuryTime { get; set; }
+    public DateTime? InjuryDate { get; set; }
+    public TimeSpan? InjuryTime { get; set; }
     public string? InjuryLocation { get; set; }
+    public string? InjuryCause { get; set; }
     public string? InjuryDescription { get; set; }
+    public string? FirstAid { get; set; }
     public string? Witness { get; set; }
+    public string? Notes { get; set; }
 
     // Báo cáo công an (nếu có)
+    public bool IsReportedToPolice { get; set; }
     public bool HasPoliceReport { get; set; }
     public string? PoliceReportNumber { get; set; }
 }
@@ -621,14 +681,27 @@ public class ServiceOrderItemDto
 public class ServiceGroupTemplateDto
 {
     public Guid Id { get; set; }
+    public string? TemplateCode { get; set; }
+    public string TemplateName { get; set; } = string.Empty;
     public string GroupCode { get; set; } = string.Empty;
     public string GroupName { get; set; } = string.Empty;
     public int GroupType { get; set; } // 1-Cá nhân, 2-Khoa, 3-Bệnh viện
     public Guid? DepartmentId { get; set; }
     public Guid? CreatedByUserId { get; set; }
+    public bool IsPublic { get; set; }
 
     public List<Guid> ServiceIds { get; set; } = new();
+    public List<ServiceGroupTemplateItemDto> Services { get; set; } = new();
     public bool IsDefault { get; set; }
+}
+
+public class ServiceGroupTemplateItemDto
+{
+    public Guid ServiceId { get; set; }
+    public string ServiceCode { get; set; } = string.Empty;
+    public string ServiceName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public string? Notes { get; set; }
 }
 
 /// <summary>
@@ -814,15 +887,33 @@ public class CreatePrescriptionItemDto
 public class PrescriptionTemplateDto
 {
     public Guid Id { get; set; }
+    public string? TemplateCode { get; set; }
     public string TemplateName { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int TemplateType { get; set; } // 1-Cá nhân, 2-Khoa, 3-Bệnh viện
     public Guid? DepartmentId { get; set; }
     public Guid? CreatedByUserId { get; set; }
+    public string? DiagnosisCode { get; set; }
+    public string? DiagnosisName { get; set; }
+    public bool IsPublic { get; set; }
 
     public List<CreatePrescriptionItemDto> Items { get; set; } = new();
+    public List<PrescriptionTemplateItemDto> TemplateItems { get; set; } = new();
     public string? Instructions { get; set; }
     public bool IsShared { get; set; }
+}
+
+public class PrescriptionTemplateItemDto
+{
+    public Guid MedicineId { get; set; }
+    public string MedicineCode { get; set; } = string.Empty;
+    public string MedicineName { get; set; } = string.Empty;
+    public decimal Quantity { get; set; }
+    public int Days { get; set; }
+    public string? Dosage { get; set; }
+    public string? Route { get; set; }
+    public string? Frequency { get; set; }
+    public string? UsageInstructions { get; set; }
 }
 
 /// <summary>
@@ -830,11 +921,16 @@ public class PrescriptionTemplateDto
 /// </summary>
 public class DrugInteractionDto
 {
+    public Guid Medicine1Id { get; set; }
+    public string Medicine1Name { get; set; } = string.Empty;
+    public Guid Medicine2Id { get; set; }
+    public string Medicine2Name { get; set; } = string.Empty;
     public Guid Drug1Id { get; set; }
     public string Drug1Name { get; set; } = string.Empty;
     public Guid Drug2Id { get; set; }
     public string Drug2Name { get; set; } = string.Empty;
 
+    public string? InteractionType { get; set; }
     public int Severity { get; set; } // 1-Nhẹ, 2-Trung bình, 3-Nặng, 4-Chống chỉ định
     public string SeverityName => Severity switch
     {
@@ -862,8 +958,11 @@ public class DrugInteractionDto
 /// </summary>
 public class PrescriptionWarningDto
 {
-    public int WarningType { get; set; }
-    public string WarningTypeName => WarningType switch
+    public Guid MedicineId { get; set; }
+    public string MedicineName { get; set; } = string.Empty;
+    public string WarningType { get; set; } = string.Empty;
+    public int WarningTypeCode { get; set; }
+    public string WarningTypeName => WarningTypeCode switch
     {
         1 => "Ngoài phác đồ",
         2 => "Trùng thuốc trong ngày",
@@ -878,6 +977,7 @@ public class PrescriptionWarningDto
     };
     public string Message { get; set; } = string.Empty;
     public int Severity { get; set; }
+    public string? Recommendation { get; set; }
     public bool IsBlocking { get; set; }
     public Guid? RelatedMedicineId { get; set; }
 }
@@ -888,8 +988,12 @@ public class PrescriptionWarningDto
 public class InstructionLibraryDto
 {
     public Guid Id { get; set; }
+    public string? Code { get; set; }
     public string Category { get; set; } = string.Empty;
+    public string Instruction { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
     public bool IsDefault { get; set; }
     public Guid? CreatedByUserId { get; set; }
 }
@@ -1017,10 +1121,65 @@ public class ExaminationStatisticsDto
 public class DoctorExaminationStatDto
 {
     public Guid DoctorId { get; set; }
+    public string DoctorCode { get; set; } = string.Empty;
     public string DoctorName { get; set; } = string.Empty;
     public int TotalExaminations { get; set; }
     public int InsuranceExaminations { get; set; }
+    public int FeeExaminations { get; set; }
+    public int ServiceExaminations { get; set; }
+    public int CompletedCount { get; set; }
+    public int PendingCount { get; set; }
     public double AverageExaminationTime { get; set; }
+}
+
+/// <summary>
+/// DTO báo cáo bệnh truyền nhiễm
+/// </summary>
+public class CommunicableDiseaseReportDto
+{
+    public Guid ExaminationId { get; set; }
+    public string PatientCode { get; set; } = string.Empty;
+    public string PatientName { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public string Gender { get; set; } = string.Empty;
+    public string? Address { get; set; }
+    public string IcdCode { get; set; } = string.Empty;
+    public string DiseaseName { get; set; } = string.Empty;
+    public DateTime DiagnosisDate { get; set; }
+    public string? Notes { get; set; }
+}
+
+/// <summary>
+/// DTO nhật ký hoạt động khám bệnh
+/// </summary>
+public class ExaminationActivityLogDto
+{
+    public Guid Id { get; set; }
+    public Guid ExaminationId { get; set; }
+    public string ActionType { get; set; } = string.Empty;
+    public string ActionDescription { get; set; } = string.Empty;
+    public string? OldValue { get; set; }
+    public string? NewValue { get; set; }
+    public DateTime ActionTime { get; set; }
+    public Guid? UserId { get; set; }
+    public string? UserName { get; set; }
+    public string? IpAddress { get; set; }
+}
+
+/// <summary>
+/// DTO cấu hình màn hình chờ
+/// </summary>
+public class WaitingRoomDisplayConfigDto
+{
+    public Guid RoomId { get; set; }
+    public string? DisplayTitle { get; set; }
+    public int DisplayRows { get; set; }
+    public bool ShowPatientName { get; set; }
+    public bool ShowPatientCode { get; set; }
+    public bool EnableVoiceCall { get; set; }
+    public int CallIntervalSeconds { get; set; }
+    public string? BackgroundColor { get; set; }
+    public string? TextColor { get; set; }
 }
 
 /// <summary>

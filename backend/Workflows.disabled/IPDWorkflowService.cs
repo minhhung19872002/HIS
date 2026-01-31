@@ -883,6 +883,3 @@ public class IPDWorkflowService : IIPDWorkflowService
 
     #endregion
 }
-
-// Supporting records for Surgery
-public record SurgeryRecordDto(DateTime StartTime, DateTime EndTime, string Procedure, string Findings, string? Complications);

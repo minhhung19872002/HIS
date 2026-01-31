@@ -783,17 +783,17 @@ public class InsuranceWorkflowService : IInsuranceWorkflowService
         return sb.ToString();
     }
 
-    private string GenerateXml4210Content(Visit visit)
+    private string GenerateXml4210Content(MedicalRecord medicalRecord)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         sb.AppendLine("<GIAMDINHBHYT>");
         sb.AppendLine("  <THONGTINHOSO>");
-        sb.AppendLine($"    <MA_LK>{visit.Id}</MA_LK>");
-        sb.AppendLine($"    <MA_BN>{visit.Patient?.PatientCode}</MA_BN>");
-        sb.AppendLine($"    <HO_TEN>{visit.Patient?.FullName}</HO_TEN>");
-        sb.AppendLine($"    <MA_THE>{visit.InsuranceInfo?.CardNumber}</MA_THE>");
-        sb.AppendLine($"    <NGAY_KCB>{visit.VisitDate:yyyyMMdd}</NGAY_KCB>");
+        sb.AppendLine($"    <MA_LK>{medicalRecord.Id}</MA_LK>");
+        sb.AppendLine($"    <MA_BN>{medicalRecord.Patient?.PatientCode}</MA_BN>");
+        sb.AppendLine($"    <HO_TEN>{medicalRecord.Patient?.FullName}</HO_TEN>");
+        sb.AppendLine($"    <MA_THE>{medicalRecord.InsuranceNumber}</MA_THE>");
+        sb.AppendLine($"    <NGAY_KCB>{medicalRecord.AdmissionDate:yyyyMMdd}</NGAY_KCB>");
         sb.AppendLine("  </THONGTINHOSO>");
         sb.AppendLine("  <THONGTINBENHNHAN>");
         sb.AppendLine("  </THONGTINBENHNHAN>");

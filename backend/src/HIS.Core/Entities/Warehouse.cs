@@ -33,6 +33,10 @@ public class InventoryItem : BaseEntity
     public Guid WarehouseId { get; set; }
     public virtual Warehouse Warehouse { get; set; } = null!;
 
+    // Generic item reference
+    public Guid? ItemId { get; set; } // ID chung (Medicine hoac Supply)
+    public string ItemType { get; set; } = "Medicine"; // "Medicine" hoac "Supply"
+
     // Thuốc hoặc Vật tư
     public Guid? MedicineId { get; set; }
     public virtual Medicine? Medicine { get; set; }

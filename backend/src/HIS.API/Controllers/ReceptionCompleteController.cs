@@ -91,6 +91,18 @@ public class ReceptionCompleteController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Lấy danh sách bệnh nhân đăng ký trong ngày
+    /// </summary>
+    [HttpGet("admissions/today")]
+    public async Task<ActionResult<List<AdmissionDto>>> GetTodayAdmissions(
+        [FromQuery] Guid? roomId,
+        [FromQuery] DateTime? date)
+    {
+        var result = await _receptionService.GetTodayAdmissionsAsync(roomId, date ?? DateTime.Today);
+        return Ok(result);
+    }
+
     #endregion
 
     #region 1.2 Hệ thống xếp hàng

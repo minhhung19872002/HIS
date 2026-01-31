@@ -58,9 +58,58 @@ public class HISDbContext : DbContext
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();
+    public DbSet<QueueTicket> QueueTickets => Set<QueueTicket>();
+    public DbSet<QueueConfiguration> QueueConfigurations => Set<QueueConfiguration>();
+    public DbSet<DisplayScreen> DisplayScreens => Set<DisplayScreen>();
+    public DbSet<InsuranceCard> InsuranceCards => Set<InsuranceCard>();
 
     // Giữ giấy tờ
     public DbSet<DocumentHold> DocumentHolds => Set<DocumentHold>();
+
+    // Di ung / Chong chi dinh
+    public DbSet<Allergy> Allergies => Set<Allergy>();
+    public DbSet<Contraindication> Contraindications => Set<Contraindication>();
+
+    // Mau kham / Phieu dieu tri
+    public DbSet<ExaminationTemplate> ExaminationTemplates => Set<ExaminationTemplate>();
+    public DbSet<TreatmentSheet> TreatmentSheets => Set<TreatmentSheet>();
+    public DbSet<ConsultationRecord> ConsultationRecords => Set<ConsultationRecord>();
+    public DbSet<NursingCareSheet> NursingCareSheets => Set<NursingCareSheet>();
+
+    // Anh benh nhan
+    public DbSet<PatientPhoto> PatientPhotos => Set<PatientPhoto>();
+
+    // The bao hiem bi khoa
+    public DbSet<BlockedInsurance> BlockedInsurances => Set<BlockedInsurance>();
+
+    // Doi tuong thanh toan khac
+    public DbSet<OtherPayer> OtherPayers => Set<OtherPayer>();
+
+    // Tam ung / Thanh toan
+    public DbSet<Deposit> Deposits => Set<Deposit>();
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    // Mau don thuoc / dich vu
+    public DbSet<ServiceGroupTemplate> ServiceGroupTemplates => Set<ServiceGroupTemplate>();
+    public DbSet<ServiceGroupTemplateItem> ServiceGroupTemplateItems => Set<ServiceGroupTemplateItem>();
+    public DbSet<PrescriptionTemplate> PrescriptionTemplates => Set<PrescriptionTemplate>();
+    public DbSet<PrescriptionTemplateItem> PrescriptionTemplateItems => Set<PrescriptionTemplateItem>();
+
+    // Thu vien huong dan
+    public DbSet<InstructionLibrary> InstructionLibraries => Set<InstructionLibrary>();
+
+    // Tuong tac thuoc
+    public DbSet<DrugInteraction> DrugInteractions => Set<DrugInteraction>();
+
+    // Thong tin chan thuong
+    public DbSet<InjuryInfo> InjuryInfos => Set<InjuryInfo>();
+
+    // Cau hinh
+    public DbSet<CameraConfiguration> CameraConfigurations => Set<CameraConfiguration>();
+    public DbSet<WaitingRoomDisplayConfig> WaitingRoomDisplayConfigs => Set<WaitingRoomDisplayConfig>();
+
+    // Nhat ky hoat dong
+    public DbSet<ExaminationActivityLog> ExaminationActivityLogs => Set<ExaminationActivityLog>();
 
     // Khám sức khỏe
     public DbSet<HealthCheckContract> HealthCheckContracts => Set<HealthCheckContract>();

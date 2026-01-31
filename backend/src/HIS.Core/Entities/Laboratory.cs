@@ -50,6 +50,8 @@ public class LabRequestItem : BaseEntity
 {
     public Guid LabRequestId { get; set; }
     public Guid ServiceId { get; set; }
+    public string TestCode { get; set; } = string.Empty; // Ma xet nghiem
+    public string TestName { get; set; } = string.Empty; // Ten xet nghiem
     public string? SampleType { get; set; } // Máu, Nước tiểu, Phân, Dịch...
     public string? SampleBarcode { get; set; }
     public string? SampleLocation { get; set; }
@@ -91,6 +93,9 @@ public class LabResult : BaseEntity
     public string ParameterName { get; set; } = string.Empty;
     public int SequenceNumber { get; set; }
     public string? Result { get; set; }
+    public string? ResultValue { get; set; } // Gia tri ket qua (string)
+    public DateTime? ResultDate { get; set; } // Ngay tra ket qua
+    public int Status { get; set; } // 0=Pending, 1=Completed, 2=Approved
     public decimal? NumericResult { get; set; }
     public string? TextResult { get; set; }
     public string? Unit { get; set; }

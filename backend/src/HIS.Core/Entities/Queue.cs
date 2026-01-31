@@ -56,6 +56,29 @@ public class QueueConfiguration : BaseEntity
 }
 
 /// <summary>
+/// Thẻ bảo hiểm y tế - InsuranceCard
+/// </summary>
+public class InsuranceCard : BaseEntity
+{
+    public Guid PatientId { get; set; }
+    public virtual Patient Patient { get; set; } = null!;
+
+    public string CardNumber { get; set; } = string.Empty; // Số thẻ BHYT
+    public DateTime? StartDate { get; set; } // Ngày bắt đầu
+    public DateTime? EndDate { get; set; } // Ngày hết hạn
+    public string? FacilityCode { get; set; } // Mã CSKCB ban đầu
+    public string? FacilityName { get; set; } // Tên CSKCB
+
+    public int CardType { get; set; } // Loại thẻ
+    public int PaymentRate { get; set; } = 80; // Tỷ lệ thanh toán mặc định 80%
+
+    public string? Note { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime? VerifiedAt { get; set; } // Thời gian xác thực
+    public string? VerificationStatus { get; set; } // Kết quả xác thực
+}
+
+/// <summary>
 /// Màn hình chờ - Display Screen
 /// </summary>
 public class DisplayScreen : BaseEntity

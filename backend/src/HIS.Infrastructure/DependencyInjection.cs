@@ -26,12 +26,11 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IPatientService, PatientService>();
 
-        // TODO: Module Services - Cần implement đúng interface trước khi enable
-        // Phân hệ 1: Tiếp đón (105+ methods)
-        // services.AddScoped<IReceptionCompleteService, ReceptionCompleteService>();
+        // Phân hệ 1: Tiếp đón (Reception) - 105+ methods
+        services.AddScoped<IReceptionCompleteService, ReceptionCompleteService>();
 
-        // Phân hệ 2: Khám bệnh (180+ methods)
-        // services.AddScoped<IExaminationCompleteService, ExaminationCompleteService>();
+        // Phân hệ 2: Khám bệnh OPD (Examination) - 180+ methods
+        services.AddScoped<IExaminationCompleteService, ExaminationCompleteService>();
 
         // TODO: Workflow Services - Các luồng làm việc liên kết 17 phân hệ HIS
         // Theo HIS_DataFlow_Architecture.md

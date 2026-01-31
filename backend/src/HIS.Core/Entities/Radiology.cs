@@ -10,6 +10,8 @@ public class RadiologyRequest : BaseEntity
     public virtual Patient Patient { get; set; } = null!;
     public Guid? ExaminationId { get; set; }
     public virtual Examination? Examination { get; set; }
+    public Guid? MedicalRecordId { get; set; } // Ma ho so benh an
+    public virtual MedicalRecord? MedicalRecord { get; set; }
 
     public DateTime RequestDate { get; set; } // Ngày chỉ định
 
@@ -57,6 +59,8 @@ public class RadiologyExam : BaseEntity
     public Guid RadiologyRequestId { get; set; }
     public virtual RadiologyRequest RadiologyRequest { get; set; } = null!;
 
+    public string ExamCode { get; set; } = string.Empty; // Ma luot chup
+    public string ExamName { get; set; } = string.Empty; // Ten loai chup
     public DateTime ExamDate { get; set; } // Ngày thực hiện
 
     // Máy móc và phòng

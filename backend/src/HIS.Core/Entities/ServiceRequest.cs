@@ -38,7 +38,21 @@ public class ServiceRequest : BaseEntity
     public bool IsPriority { get; set; } // Ưu tiên
 
     public string? Note { get; set; }
+    public string? Notes { get; set; } // Ghi chú chi tiết
     public int Status { get; set; } // 0-Chờ TT, 1-Đã TT, 2-Đang thực hiện, 3-Có kết quả, 4-Đã hủy
+
+    // Quick access properties (denormalized for convenience)
+    public Guid? ServiceId { get; set; } // Dịch vụ chính
+    public virtual Service? Service { get; set; } // Navigation property
+    public Guid? RoomId { get; set; } // Phòng thực hiện
+    public virtual Room? Room { get; set; } // Navigation property for Room
+    public int Quantity { get; set; } = 1;
+    public decimal UnitPrice { get; set; }
+    public decimal TotalPrice { get; set; }
+
+    // Additional request info
+    public DateTime? RequestedDate { get; set; } // Ngày yêu cầu
+    public Guid? RequestedByUserId { get; set; } // Người yêu cầu
 
     // Chi phí
     public decimal TotalAmount { get; set; }
