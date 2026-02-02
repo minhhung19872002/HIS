@@ -1798,13 +1798,18 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<PrescriptionFullDto> CreatePrescriptionAsync(Application.DTOs.Examination.CreatePrescriptionDto dto)
     {
-        var examination = await _examinationRepo.GetByIdAsync(dto.ExaminationId);
+        var examination = await _context.Examinations
+            .Include(e => e.MedicalRecord)
+            .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
         if (examination == null) throw new Exception("Examination not found");
 
         var prescription = new Prescription
         {
             Id = Guid.NewGuid(),
             MedicalRecordId = examination.MedicalRecordId,
+            ExaminationId = dto.ExaminationId, // Set ExaminationId
+            DoctorId = examination.DoctorId ?? Guid.Empty, // Set DoctorId from examination
+            DepartmentId = examination.DepartmentId,
             PrescriptionCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
             PrescriptionDate = DateTime.Now,
             PrescriptionType = dto.PrescriptionType,
@@ -2801,7 +2806,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
             PatientCode = e.MedicalRecord.Patient.PatientCode,
             PatientName = e.MedicalRecord.Patient.FullName,
             Age = CalculateAge(e.MedicalRecord.Patient.DateOfBirth, e.MedicalRecord.Patient.YearOfBirth),
-            Gender = e.MedicalRecord.Patient.Gender == 1 ? "Nam" : "Nu",
+            Gender = e.MedicalRecord.Patient.Gender == 1 ? "Nam" : e.MedicalRecord.Patient.Gender == 2 ? "Nữ" : "Khác",
             Address = e.MedicalRecord.Patient.Address,
             InsuranceNumber = e.MedicalRecord.InsuranceNumber,
             DiagnosisCode = e.MainIcdCode,
@@ -2884,7 +2889,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
             PatientCode = e.MedicalRecord.Patient.PatientCode,
             PatientName = e.MedicalRecord.Patient.FullName,
             Age = CalculateAge(e.MedicalRecord.Patient.DateOfBirth, e.MedicalRecord.Patient.YearOfBirth),
-            Gender = e.MedicalRecord.Patient.Gender == 1 ? "Nam" : "Nu",
+            Gender = e.MedicalRecord.Patient.Gender == 1 ? "Nam" : e.MedicalRecord.Patient.Gender == 2 ? "Nữ" : "Khác",
             Address = e.MedicalRecord.Patient.Address,
             IcdCode = e.MainIcdCode ?? "",
             DiseaseName = e.MainDiagnosis ?? "",
@@ -3101,26 +3106,43 @@ public class ExaminationCompleteService : IExaminationCompleteService
     {
         var patient = examination.MedicalRecord?.Patient;
 
+        var gender = patient?.Gender ?? 0;
+        var patientType = examination.MedicalRecord?.PatientType ?? 0;
+
         return new RoomPatientListDto
         {
             ExaminationId = examination.Id,
             PatientId = patient?.Id ?? Guid.Empty,
             PatientCode = patient?.PatientCode ?? "",
             PatientName = patient?.FullName ?? "",
-            Gender = patient?.Gender ?? 0,
+            Gender = gender,
+            GenderName = gender switch
+            {
+                1 => "Nam",
+                2 => "Nữ",
+                _ => "Không xác định"
+            },
             Age = CalculateAge(patient?.DateOfBirth, patient?.YearOfBirth),
-            PatientType = examination.MedicalRecord?.PatientType ?? 0,
+            PatientType = patientType,
+            PatientTypeName = patientType switch
+            {
+                0 => "Viện phí",
+                1 => "BHYT",
+                2 => "Dịch vụ",
+                3 => "Miễn phí",
+                _ => "Khác"
+            },
             InsuranceNumber = examination.MedicalRecord?.InsuranceNumber,
             IsInsuranceValid = true,
             QueueNumber = examination.QueueNumber,
             Status = examination.Status,
             StatusName = examination.Status switch
             {
-                0 => "Cho kham",
-                1 => "Dang kham",
-                2 => "Cho CLS",
-                3 => "Cho ket luan",
-                4 => "Hoan thanh",
+                0 => "Chờ khám",
+                1 => "Đang khám",
+                2 => "Chờ CLS",
+                3 => "Chờ kết luận",
+                4 => "Hoàn thành",
                 _ => ""
             },
             PreliminaryDiagnosis = examination.InitialDiagnosis
@@ -3138,7 +3160,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
             PatientId = patient?.Id ?? Guid.Empty,
             PatientCode = patient?.PatientCode ?? "",
             PatientName = patient?.FullName ?? "",
-            Gender = patient?.Gender == 1 ? "Nam" : "Nu",
+            Gender = patient?.Gender == 1 ? "Nam" : "Nữ",
             DateOfBirth = patient?.DateOfBirth,
             Age = CalculateAge(patient?.DateOfBirth, patient?.YearOfBirth),
             PhoneNumber = patient?.PhoneNumber ?? "",
@@ -3178,7 +3200,9 @@ public class ExaminationCompleteService : IExaminationCompleteService
         return new PrescriptionFullDto
         {
             Id = prescription.Id,
-            ExaminationId = Guid.Empty, // Need to look up
+            ExaminationId = prescription.ExaminationId ?? Guid.Empty,
+            PrescribedById = prescription.DoctorId,
+            PrescribedByName = prescription.Doctor?.FullName,
             PrescriptionDate = prescription.PrescriptionDate,
             PrescriptionType = prescription.PrescriptionType,
             DiagnosisCode = prescription.DiagnosisCode,
@@ -3215,19 +3239,19 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     private static string GetLabStatusName(int status) => status switch
     {
-        0 => "Cho thuc hien",
-        1 => "Dang lay mau",
-        2 => "Dang xet nghiem",
-        3 => "Co ket qua",
+        0 => "Chờ thực hiện",
+        1 => "Đang lấy mẫu",
+        2 => "Đang xét nghiệm",
+        3 => "Có kết quả",
         _ => ""
     };
 
     private static string GetImagingStatusName(int status) => status switch
     {
-        0 => "Cho thuc hien",
-        1 => "Dang chup",
-        2 => "Cho doc ket qua",
-        3 => "Co ket qua",
+        0 => "Chờ thực hiện",
+        1 => "Đang chụp",
+        2 => "Chờ đọc kết quả",
+        3 => "Có kết quả",
         _ => ""
     };
 

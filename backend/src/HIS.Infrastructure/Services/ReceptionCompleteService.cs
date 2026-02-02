@@ -2547,7 +2547,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
             PatientName = patient.FullName,
             DateOfBirth = patient.DateOfBirth,
             YearOfBirth = patient.YearOfBirth,
-            Gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nu" : "Khac",
+            Gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "Khác",
             Address = patient.Address ?? "",
             PhoneNumber = patient.PhoneNumber ?? "",
             IdentityNumber = patient.IdentityNumber ?? "",

@@ -410,6 +410,11 @@ public class InsuranceCardVerificationDto
 
     public DateTime VerificationTime { get; set; }
     public string VerificationToken { get; set; } = string.Empty;
+
+    // English property aliases for compatibility
+    public bool IsValid => DuDkKcb;
+    public decimal CoverageRate => decimal.TryParse(MucHuong, out var rate) ? rate / 100 : 0;
+    public DateTime ExpireDate => GtTheDen;
 }
 
 /// <summary>

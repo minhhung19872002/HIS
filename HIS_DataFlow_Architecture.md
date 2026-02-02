@@ -522,6 +522,1173 @@
 
 ---
 
+## 2.7 LUỒNG 7: CHẨN ĐOÁN HÌNH ẢNH (RIS/PACS Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                     LUỒNG CHẨN ĐOÁN HÌNH ẢNH (RIS/PACS)                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Từ Phòng khám/Khoa LS]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. CHỈ ĐỊNH │────▶│ Phiếu yêu  │────▶│ Gửi Modality│
+│             │     │ cầu CĐHA   │     │ Worklist    │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                                               ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         8. CĐHA/TDCN (RIS/PACS)                                 │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                        │
+│  │ Tiếp nhận  │────▶│ Thực hiện  │────▶│ Lưu ảnh    │                        │
+│  │ BN vào     │     │ chụp/chiếu │     │ PACS       │                        │
+│  └─────────────┘     └─────────────┘     └──────┬──────┘                        │
+│                                                 │                               │
+│       ┌─────────────────────────────────────────┘                               │
+│       │                                                                         │
+│       ▼                                                                         │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                        │
+│  │ BS đọc kết │────▶│ Viết báo   │────▶│ Duyệt KQ   │                        │
+│  │ quả        │     │ cáo        │     │ (BS CK)    │                        │
+│  └─────────────┘     └─────────────┘     └──────┬──────┘                        │
+│                                                 │                               │
+└─────────────────────────────────────────────────┼───────────────────────────────┘
+                                                  │
+                                                  ▼
+                                           ┌─────────────┐
+                                           │ Trả KQ về  │
+                                           │ Khoa LS    │
+                                           └─────────────┘
+```
+
+### Chi tiết Luồng RIS/PACS:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | Chỉ định | Tạo yêu cầu CĐHA | examination_id | imaging_order | Chọn loại chụp |
+| 2 | RIS | Gửi Worklist | imaging_order | study_uid | DICOM Worklist |
+| 3 | RIS | Tiếp nhận BN | imaging_order_id | - | Xác nhận BN đến |
+| 4 | RIS | Thực hiện chụp | study_uid | images | Máy chụp thực hiện |
+| 5 | PACS | Lưu ảnh | images | dicom_path | DICOM Storage |
+| 6 | RIS | Đọc kết quả | study_uid | draft_report | BS CĐHA đọc |
+| 7 | RIS | Duyệt KQ | draft_report | final_report | BS CK duyệt |
+| 8 | RIS | Trả kết quả | final_report | - | Thông báo khoa LS |
+
+---
+
+## 2.8 LUỒNG 8: NGÂN HÀNG MÁU (Blood Bank Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          LUỒNG NGÂN HÀNG MÁU                                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌─────────────────────────────────────┐
+                    │         NGUỒN NHẬP MÁU              │
+                    ├─────────────────────────────────────┤
+                    │ • Trung tâm truyền máu              │
+                    │ • Người hiến máu tại viện           │
+                    │ • Chuyển từ BV khác                 │
+                    └──────────────┬──────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           9. KHO MÁU                                            │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
+│  │ Nhập máu   │────▶│ Xét nghiệm │────▶│ Duyệt chất │────▶│ Lưu kho    │   │
+│  │ (túi máu)  │     │ sàng lọc   │     │ lượng      │     │ (theo T°)  │   │
+│  └─────────────┘     └─────────────┘     └─────────────┘     └──────┬──────┘   │
+│                                                                     │          │
+│  ┌──────────────────────────────────────────────────────────────────┘          │
+│  │                                                                              │
+│  │    ┌─────────────────────────────────────────────────────────────┐          │
+│  │    │                    YÊU CẦU MÁU                              │          │
+│  │    ├─────────────────────────────────────────────────────────────┤          │
+│  │    │                                                             │          │
+│  │    │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐   │          │
+│  │    │  │ Yêu cầu từ   │  │ Yêu cầu từ   │  │ Yêu cầu từ   │   │          │
+│  │    │  │ Nội trú      │  │ Phòng mổ     │  │ Cấp cứu      │   │          │
+│  │    │  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘   │          │
+│  │    │          │                  │                  │           │          │
+│  │    └──────────┼──────────────────┼──────────────────┼───────────┘          │
+│  │               │                  │                  │                       │
+│  └───────────────┼──────────────────┼──────────────────┼───────────────────────┘
+                   │                  │                  │
+                   └────────┬─────────┴─────────┬────────┘
+                            │                   │
+                            ▼                   ▼
+                     ┌─────────────┐     ┌─────────────┐
+                     │ Cross-match │────▶│ Xuất máu   │
+                     │ (phản ứng)  │     │ truyền     │
+                     └─────────────┘     └──────┬──────┘
+                                                │
+                                                ▼
+                                         ┌─────────────┐
+                                         │ Ghi nhận   │
+                                         │ truyền máu │
+                                         └─────────────┘
+```
+
+### Chi tiết Luồng Blood Bank:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | Kho Máu | Nhập máu | blood_receipt | blood_units | Nhập từ NCC |
+| 2 | Kho Máu | Xét nghiệm sàng lọc | blood_unit_id | test_result | HIV, HBV, HCV... |
+| 3 | Kho Máu | Duyệt chất lượng | test_result | approval | Đạt/Không đạt |
+| 4 | Kho Máu | Lưu kho | blood_unit_id | storage_location | Theo nhiệt độ |
+| 5 | Nội trú/PTTT | Yêu cầu máu | blood_request | request_id | Loại máu, số lượng |
+| 6 | Kho Máu | Cross-match | request_id, unit_id | compatibility | Phản ứng chéo |
+| 7 | Kho Máu | Xuất máu | request_id | issue_record | FIFO theo HSD |
+| 8 | Khoa LS | Truyền máu | issue_record | transfusion | Ghi nhận phản ứng |
+
+### Quy tắc Kho Máu:
+
+```
+RULE_BLOOD_001: Lưu trữ
+- Máu toàn phần: 2-6°C, tối đa 35 ngày
+- Tiểu cầu: 20-24°C, tối đa 5 ngày
+- Huyết tương: -18°C, tối đa 1 năm
+
+RULE_BLOOD_002: Xuất máu
+- Bắt buộc Cross-match trước khi xuất
+- Kiểm tra nhóm máu ABO + Rh
+- Ưu tiên túi máu gần hết hạn (FEFO)
+
+RULE_BLOOD_003: Theo dõi
+- Ghi nhận phản ứng truyền máu (nếu có)
+- Truy xuất nguồn gốc túi máu
+- Báo cáo sự cố truyền máu
+```
+
+---
+
+## 2.9 LUỒNG 9: BẢO HIỂM Y TẾ CHI TIẾT (Insurance Extended Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG BẢO HIỂM Y TẾ CHI TIẾT                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Tiếp đón BN BHYT]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Quét thẻ   │────▶│ Gọi API    │────▶│ Xác minh   │
+│ BHYT       │     │ Cổng BHXH  │     │ thông tuyến │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+              ┌────────────────────────────────┤
+              │                                │
+              ▼                                ▼
+       ┌─────────────┐                  ┌─────────────┐
+       │ Đúng tuyến │                  │ Trái tuyến │
+       │ (100% rate) │                  │ (giảm rate) │
+       └──────┬──────┘                  └──────┬──────┘
+              │                                │
+              └────────────────┬───────────────┘
+                               │
+                               ▼
+                        ┌─────────────┐
+                        │ Lưu mã xác │
+                        │ nhận BHXH  │
+                        └──────┬──────┘
+                               │
+     ┌─────────────────────────┼─────────────────────────┐
+     │                         │                         │
+     ▼                         ▼                         ▼
+[Điều trị]              [Chỉ định CLS]            [Kê đơn thuốc]
+     │                         │                         │
+     └─────────────────────────┼─────────────────────────┘
+                               │
+                               ▼
+                        ┌─────────────┐
+                        │ Tổng hợp   │
+                        │ chi phí    │
+                        └──────┬──────┘
+                               │
+              ┌────────────────┴────────────────┐
+              │                                 │
+              ▼                                 ▼
+       ┌─────────────┐                   ┌─────────────┐
+       │ Trong danh  │                   │ Ngoài danh │
+       │ mục BHYT    │                   │ mục (BN trả)│
+       └──────┬──────┘                   └─────────────┘
+              │
+              ▼
+       ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+       │ Tính tỷ lệ │────▶│ Áp trần    │────▶│ Tách nguồn │
+       │ chi trả    │     │ thanh toán │     │ chi trả    │
+       └─────────────┘     └─────────────┘     └──────┬──────┘
+                                                      │
+                                                      ▼
+                                               ┌─────────────┐
+                                               │ 12. BHYT   │
+                                               │ Xuất XML   │
+                                               └──────┬──────┘
+                                                      │
+              ┌───────────────────────────────────────┼───────────────────────┐
+              │                                       │                       │
+              ▼                                       ▼                       ▼
+       ┌─────────────┐                         ┌─────────────┐         ┌─────────────┐
+       │ XML 130    │                         │ XML 4210   │         │ XML 4750/  │
+       │ (Nội trú)  │                         │ (Ngoại trú)│         │ 3176       │
+       └──────┬──────┘                         └──────┬──────┘         └──────┬──────┘
+              │                                       │                       │
+              └───────────────────┬───────────────────┴───────────────────────┘
+                                  │
+                                  ▼
+                           ┌─────────────┐
+                           │ Validate   │
+                           │ XML Schema │
+                           └──────┬──────┘
+                                  │
+                                  ▼
+                           ┌─────────────┐
+                           │ Gửi cổng   │
+                           │ BHXH       │
+                           └──────┬──────┘
+                                  │
+                                  ▼
+                           ┌─────────────┐
+                           │ Nhận phản  │
+                           │ hồi/Giám định│
+                           └─────────────┘
+```
+
+### Quy tắc BHYT mở rộng:
+
+```
+RULE_INS_EXT_001: Kiểm tra 5 năm liên tục
+- Nếu đóng BHYT >= 5 năm liên tục
+- Được hưởng 100% chi phí vượt trần
+
+RULE_INS_EXT_002: Đa tuyến trong ngày
+- Kiểm tra đã KCB nơi khác trong ngày
+- Cảnh báo trùng lượt khám
+
+RULE_INS_EXT_003: Thuốc ngoài danh mục
+- Tách riêng phần BN tự trả
+- Yêu cầu BN ký xác nhận
+```
+
+---
+
+## 2.10 LUỒNG 10: BÁO CÁO & THỐNG KÊ (Reporting Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                       LUỒNG BÁO CÁO & THỐNG KÊ                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          NGUỒN DỮ LIỆU                                          │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐         │
+│  │ Tiếp đón │ │ Khám bệnh │ │ Nội trú  │ │ Kho Dược │ │ Thu ngân │         │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘         │
+│        │             │             │             │             │               │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐         │
+│  │ XN/CĐHA  │ │ PTTT     │ │ Kho Máu  │ │ BHYT     │ │ Tài chính│         │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘         │
+│        │             │             │             │             │               │
+└────────┴─────────────┴─────────────┴─────────────┴─────────────┴───────────────┘
+                                     │
+                                     ▼
+                              ┌─────────────┐
+                              │ Data       │
+                              │ Aggregation│
+                              └──────┬──────┘
+                                     │
+        ┌────────────────────────────┼────────────────────────────┐
+        │                            │                            │
+        ▼                            ▼                            ▼
+┌───────────────┐            ┌───────────────┐            ┌───────────────┐
+│  BC LÂM SÀNG  │            │  BC TÀI CHÍNH │            │   BC DƯỢC     │
+├───────────────┤            ├───────────────┤            ├───────────────┤
+│ • BN theo khoa│            │ • Doanh thu   │            │ • Tồn kho     │
+│ • Bệnh ICD-10 │            │ • Công nợ     │            │ • Xuất/Nhập   │
+│ • PTTT        │            │ • Lợi nhuận   │            │ • Thuốc GN/HT │
+│ • Tử vong     │            │ • BHYT        │            │ • Hết hạn     │
+└───────────────┘            └───────────────┘            └───────────────┘
+        │                            │                            │
+        └────────────────────────────┼────────────────────────────┘
+                                     │
+                                     ▼
+                              ┌─────────────┐
+                              │ Dashboard  │
+                              │ & KPI      │
+                              └──────┬──────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              │                      │                      │
+              ▼                      ▼                      ▼
+       ┌─────────────┐        ┌─────────────┐        ┌─────────────┐
+       │ Excel/PDF  │        │ Biểu đồ    │        │ Realtime   │
+       │ Export     │        │ Chart      │        │ Monitor    │
+       └─────────────┘        └─────────────┘        └─────────────┘
+```
+
+### Danh mục Báo cáo chính:
+
+| Nhóm | Báo cáo | Tần suất | Đầu ra |
+|------|---------|----------|--------|
+| **Lâm sàng** | Thống kê BN theo khoa | Ngày/Tháng | Excel |
+| | Top 10 bệnh ICD-10 | Tháng/Quý | Chart |
+| | Tỷ lệ tử vong | Tháng | PDF |
+| | Thống kê PTTT | Ngày/Tháng | Excel |
+| **Tài chính** | Báo cáo doanh thu | Ngày/Tháng | Excel |
+| | Công nợ BN | Realtime | Dashboard |
+| | Báo cáo BHYT | Tháng | XML + Excel |
+| | Lợi nhuận khoa | Tháng | PDF |
+| **Dược** | Tồn kho hiện tại | Realtime | Dashboard |
+| | Xuất nhập tồn | Ngày/Tháng | Excel |
+| | Thuốc gây nghiện | Tháng | PDF |
+| | Thuốc sắp hết hạn | Tuần | Alert |
+| **Quản trị** | KPI Dashboard | Realtime | Dashboard |
+| | Audit Log | Realtime | Log |
+| | Thống kê user | Tháng | Excel |
+
+### Quy tắc Báo cáo:
+
+```
+RULE_RPT_001: Quyền truy cập
+- Báo cáo tài chính: Chỉ BGĐ + Kế toán
+- Báo cáo khoa: Trưởng khoa + BGĐ
+- Dashboard KPI: BGĐ
+
+RULE_RPT_002: Lưu trữ
+- Lưu lịch sử báo cáo đã xuất
+- Snapshot dữ liệu cuối tháng
+- Audit trail cho báo cáo quan trọng
+
+RULE_RPT_003: Tự động hóa
+- Báo cáo BHYT tự động cuối tháng
+- Email cảnh báo thuốc hết hạn
+- Thông báo công nợ quá hạn
+```
+
+---
+
+## 2.11 LUỒNG 11: TELEMEDICINE (Khám bệnh từ xa)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         LUỒNG TELEMEDICINE                                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[BN đăng ký từ xa]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ App/Portal │────▶│ Xác thực   │────▶│ Đăng ký    │
+│ BN         │     │ định danh  │     │ lịch hẹn   │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Thanh toán │────▶│ Phòng chờ  │────▶│ Video Call │
+│ trước      │     │ ảo         │     │ BS-BN      │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Khám bệnh  │────▶│ Chẩn đoán  │────▶│ Kê đơn     │
+│ qua video  │     │ sơ bộ      │     │ điện tử    │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+              ┌────────────────────────────────┼────────────────┐
+              │                                │                │
+              ▼                                ▼                ▼
+       ┌─────────────┐                  ┌─────────────┐  ┌─────────────┐
+       │ Chỉ định   │                  │ Gửi đơn    │  │ Hẹn tái    │
+       │ đến viện   │                  │ nhà thuốc  │  │ khám       │
+       └─────────────┘                  └─────────────┘  └─────────────┘
+```
+
+### Chi tiết Luồng Telemedicine:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | Portal | Đăng ký tài khoản | CCCD/SĐT | patient_id | Xác thực OTP |
+| 2 | Portal | Đặt lịch khám | speciality, doctor | appointment_id | Chọn khung giờ |
+| 3 | Portal | Thanh toán | appointment_id | payment_id | VNPay/Momo/Card |
+| 4 | Telehealth | Tham gia phòng chờ | appointment_id | waiting_room | 15 phút trước |
+| 5 | Telehealth | Bắt đầu cuộc gọi | appointment_id | session_id | WebRTC |
+| 6 | Khám bệnh | Khám bệnh | session_id | examination | Record video |
+| 7 | Khám bệnh | Chẩn đoán | examination | diagnosis | ICD-10 |
+| 8 | Khám bệnh | Kê đơn | diagnosis | e_prescription | Chữ ký số |
+| 9 | Portal | Gửi đơn thuốc | e_prescription | pharmacy_order | Nhà thuốc liên kết |
+
+### Quy tắc Telemedicine:
+
+```
+RULE_TELE_001: Điều kiện khám
+- Chỉ áp dụng: Tái khám, tư vấn, bệnh mạn tính ổn định
+- Không áp dụng: Cấp cứu, PTTT, thủ thuật xâm lấn
+
+RULE_TELE_002: Bảo mật
+- End-to-end encryption cho video call
+- Lưu trữ record có mã hóa
+- Xác thực 2 yếu tố cho BS và BN
+
+RULE_TELE_003: Đơn thuốc điện tử
+- Chữ ký số theo NĐ 130/2018
+- Thuốc kiểm soát đặc biệt: Không được kê online
+- Liên kết cơ sở dữ liệu quốc gia
+```
+
+---
+
+## 2.12 LUỒNG 12: DINH DƯỠNG LÂM SÀNG (Clinical Nutrition)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                       LUỒNG DINH DƯỠNG LÂM SÀNG                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[BN Nội trú]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Đánh giá   │────▶│ Sàng lọc   │────▶│ Phân loại  │
+│ dinh dưỡng │     │ SGA/NRS    │     │ nguy cơ DD │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+              ┌────────────────────────────────┼────────────────┐
+              │                                │                │
+              ▼                                ▼                ▼
+       ┌─────────────┐                  ┌─────────────┐  ┌─────────────┐
+       │ Nguy cơ    │                  │ Nguy cơ    │  │ Nguy cơ    │
+       │ THẤP       │                  │ VỪA        │  │ CAO        │
+       └──────┬──────┘                  └──────┬──────┘  └──────┬──────┘
+              │                                │                │
+              ▼                                ▼                ▼
+       ┌─────────────┐                  ┌─────────────┐  ┌─────────────┐
+       │ Chế độ    │                  │ Tư vấn DD  │  │ Can thiệp  │
+       │ ăn thường │                  │ chuyên sâu │  │ DD tích cực│
+       └──────┬──────┘                  └──────┬──────┘  └──────┬──────┘
+              │                                │                │
+              └────────────────────────────────┼────────────────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │ Y lệnh     │
+                                        │ dinh dưỡng │
+                                        └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Lên thực   │────▶│ Nhà bếp    │────▶│ Phân phối  │
+│ đơn        │     │ chế biến   │     │ suất ăn    │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │ Theo dõi   │
+                                        │ DD hàng ngày│
+                                        └─────────────┘
+```
+
+### Chi tiết Luồng Dinh dưỡng:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | Nội trú | Sàng lọc | admission_id | nutrition_screening | SGA/NRS-2002 |
+| 2 | DD | Đánh giá chi tiết | screening_id | assessment | BMI, Albumin... |
+| 3 | DD | Phân loại | assessment | risk_level | Thấp/Vừa/Cao |
+| 4 | DD | Lập kế hoạch | risk_level | nutrition_plan | Mục tiêu calo/protein |
+| 5 | DD | Y lệnh DD | nutrition_plan | diet_order | Loại chế độ ăn |
+| 6 | DD | Thực đơn | diet_order | meal_plan | Bữa sáng/trưa/tối |
+| 7 | Bếp | Chế biến | meal_plan | prepared_meals | Theo số lượng BN |
+| 8 | DD | Phân phối | prepared_meals | distribution | Ghi nhận BN nhận |
+| 9 | DD | Theo dõi | admission_id | progress_note | Hàng ngày |
+
+### Quy tắc Dinh dưỡng:
+
+```
+RULE_NUT_001: Sàng lọc bắt buộc
+- Mọi BN nội trú phải được sàng lọc trong 24h
+- Tái sàng lọc mỗi 7 ngày
+
+RULE_NUT_002: Chế độ ăn đặc biệt
+- Đái tháo đường: Giảm đường
+- Suy thận: Giảm đạm, giảm Kali
+- Xơ gan: Giảm muối, protein thực vật
+- Sau mổ: Chia nhỏ bữa, từ lỏng sang đặc
+
+RULE_NUT_003: Dinh dưỡng tĩnh mạch (TPN)
+- Chỉ định khi không thể ăn đường miệng
+- Tính toán calo/protein theo cân nặng
+- Theo dõi đường huyết, điện giải
+```
+
+---
+
+## 2.13 LUỒNG 13: KIỂM SOÁT NHIỄM KHUẨN (Infection Control)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                     LUỒNG KIỂM SOÁT NHIỄM KHUẨN                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           GIÁM SÁT NHIỄM KHUẨN                                  │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ NKBV Vết mổ │  │ NKBV Hô hấp │  │ NKBV Tiết   │  │ NKBV Máu    │    │
+│  │ (SSI)        │  │ (VAP)        │  │ niệu (CAUTI)│  │ (CLABSI)    │    │
+│  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘    │
+│          │                  │                  │                  │            │
+└──────────┴──────────────────┴──────────────────┴──────────────────┴────────────┘
+                                     │
+                                     ▼
+                              ┌─────────────┐
+                              │ Phát hiện  │
+                              │ ca NK mới  │
+                              └──────┬──────┘
+                                     │
+     ┌───────────────────────────────┼───────────────────────────────┐
+     │                               │                               │
+     ▼                               ▼                               ▼
+┌─────────────┐               ┌─────────────┐               ┌─────────────┐
+│ Xác định   │               │ Điều tra   │               │ Báo cáo    │
+│ nguồn lây  │               │ dịch tễ    │               │ Sở Y tế   │
+└──────┬──────┘               └──────┬──────┘               └─────────────┘
+       │                             │
+       └──────────────┬──────────────┘
+                      │
+                      ▼
+               ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+               │ Biện pháp  │────▶│ Cách ly    │────▶│ Khử khuẩn  │
+               │ phòng ngừa │     │ BN (nếu cần)│     │ môi trường │
+               └─────────────┘     └─────────────┘     └──────┬──────┘
+                                                              │
+     ┌────────────────────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Giám sát   │────▶│ Đánh giá   │────▶│ Cải tiến   │
+│ tuân thủ   │     │ hiệu quả   │     │ quy trình  │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+### Chi tiết Luồng IC:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | IC | Giám sát thường quy | all_patients | surveillance_data | Tiêu chí CDC |
+| 2 | IC | Phát hiện ca mới | lab_result, symptom | infection_case | Tự động + thủ công |
+| 3 | IC | Phân loại NKBV | infection_case | infection_type | SSI/VAP/CAUTI/CLABSI |
+| 4 | IC | Điều tra dịch tễ | infection_case | investigation | Nguồn lây, yếu tố nguy cơ |
+| 5 | IC | Cách ly (nếu cần) | investigation | isolation_order | Loại cách ly |
+| 6 | IC | Khử khuẩn | isolation_order | disinfection_log | Buồng bệnh, dụng cụ |
+| 7 | IC | Giám sát tuân thủ | department | compliance_rate | Rửa tay, PPE |
+| 8 | IC | Báo cáo | period | ic_report | Theo TT 16/2018 |
+
+### Quy tắc Kiểm soát Nhiễm khuẩn:
+
+```
+RULE_IC_001: Cách ly
+- Cách ly tiếp xúc: MDRO, Clostridium difficile
+- Cách ly giọt bắn: Cúm, RSV, Pertussis
+- Cách ly không khí: TB, Measles, Varicella, COVID-19
+
+RULE_IC_002: Giám sát NKBV
+- Theo dõi SSI trong 30 ngày (90 ngày với implant)
+- VAP: Thở máy > 48h
+- CAUTI: Đặt sonde > 48h
+- CLABSI: Catheter TM trung tâm > 48h
+
+RULE_IC_003: Cảnh báo tự động
+- Kháng sinh phổ rộng > 7 ngày
+- Vi khuẩn đa kháng (MDRO)
+- Cụm ca bệnh (>= 3 ca cùng nguồn)
+```
+
+---
+
+## 2.14 LUỒNG 14: VẬT LÝ TRỊ LIỆU/PHCN (Rehabilitation)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG VẬT LÝ TRỊ LIỆU / PHCN                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Từ Khoa LS/Ngoại trú]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Chỉ định   │────▶│ Tiếp nhận  │────▶│ Đánh giá   │
+│ VLTL/PHCN  │     │ khoa PHCN  │     │ chức năng  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Lập kế    │────▶│ Mục tiêu   │────▶│ Chương trình│
+│ hoạch PHCN │     │ PHCN       │     │ can thiệp  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+              ┌────────────────────────────────┼────────────────┐
+              │                                │                │
+              ▼                                ▼                ▼
+       ┌─────────────┐                  ┌─────────────┐  ┌─────────────┐
+       │ Vật lý    │                  │ Hoạt động  │  │ Ngôn ngữ  │
+       │ trị liệu  │                  │ trị liệu   │  │ trị liệu  │
+       └──────┬──────┘                  └──────┬──────┘  └──────┬──────┘
+              │                                │                │
+              └────────────────────────────────┼────────────────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │ Thực hiện  │
+                                        │ can thiệp  │
+                                        └──────┬──────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │ Theo dõi   │◀──── [Lặp theo lịch]
+                                        │ tiến triển │
+                                        └──────┬──────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │ Đánh giá   │
+                                        │ kết quả    │
+                                        └─────────────┘
+```
+
+### Chi tiết Luồng PHCN:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | Khám bệnh | Chỉ định PHCN | diagnosis | rehab_order | Loại PHCN |
+| 2 | PHCN | Tiếp nhận | rehab_order | rehab_case | Mở hồ sơ PHCN |
+| 3 | PHCN | Đánh giá | rehab_case | functional_assessment | Thang điểm chuẩn |
+| 4 | PHCN | Lập kế hoạch | assessment | rehab_plan | Mục tiêu SMART |
+| 5 | PHCN | Lên lịch | rehab_plan | session_schedule | Buổi tập |
+| 6 | PHCN | Thực hiện | session_id | treatment_record | Bài tập, kỹ thuật |
+| 7 | PHCN | Theo dõi | treatment_record | progress_note | Mỗi buổi/tuần |
+| 8 | PHCN | Đánh giá lại | rehab_case | reassessment | Định kỳ |
+
+### Quy tắc PHCN:
+
+```
+RULE_REHAB_001: Đánh giá chức năng
+- Sử dụng thang điểm chuẩn: Barthel, FIM, MoCA
+- Đánh giá đầu vào và định kỳ mỗi 2 tuần
+
+RULE_REHAB_002: Loại can thiệp
+- PT (Physical Therapy): Vận động, điện trị liệu
+- OT (Occupational Therapy): Sinh hoạt hàng ngày
+- ST (Speech Therapy): Ngôn ngữ, nuốt
+
+RULE_REHAB_003: Chống chỉ định
+- Sốt cao, nhiễm trùng cấp
+- Huyết áp không ổn định
+- Đau ngực, khó thở
+```
+
+---
+
+## 2.15 LUỒNG 15: QUẢN LÝ TRANG THIẾT BỊ Y TẾ (Medical Equipment)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG QUẢN LÝ TRANG THIẾT BỊ Y TẾ                            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         VÒNG ĐỜI THIẾT BỊ                                       │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────┐    ┌───────────┐    ┌───────────┐    ┌───────────┐              │
+│  │ Mua sắm  │───▶│ Tiếp nhận│───▶│ Sử dụng  │───▶│ Bảo trì  │              │
+│  │ (Đấu thầu)│    │ Kiểm định│    │ Vận hành │    │ Bảo dưỡng│              │
+│  └───────────┘    └───────────┘    └─────┬─────┘    └─────┬─────┘              │
+│                                          │                │                     │
+│  ┌───────────┐    ┌───────────┐         │                │                     │
+│  │ Thanh lý │◀───│ Hỏng/Hết │◀─────────┴────────────────┘                     │
+│  │          │    │ vòng đời │                                                  │
+│  └───────────┘    └───────────┘                                                │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         QUY TRÌNH BẢO TRÌ                                       │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐              ┌───────────────┐              ┌───────────────┐│
+│  │ Bảo trì      │              │ Bảo trì      │              │ Kiểm định    ││
+│  │ phòng ngừa   │              │ sửa chữa     │              │ định kỳ      ││
+│  │ (Định kỳ)    │              │ (Khi hỏng)   │              │ (Pháp quy)   ││
+│  └───────┬───────┘              └───────┬───────┘              └───────┬───────┘│
+│          │                              │                              │        │
+│          └──────────────────────────────┼──────────────────────────────┘        │
+│                                         │                                       │
+└─────────────────────────────────────────┼───────────────────────────────────────┘
+                                          │
+                                          ▼
+                                   ┌─────────────┐
+                                   │ Lịch sử    │
+                                   │ thiết bị   │
+                                   └─────────────┘
+```
+
+### Chi tiết Luồng TTBYT:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | TTBYT | Tiếp nhận TB | purchase_order | equipment_id | Mã số, vị trí |
+| 2 | TTBYT | Kiểm định đầu vào | equipment_id | initial_calibration | Chứng chỉ |
+| 3 | TTBYT | Phân bổ | equipment_id | allocation | Khoa/Phòng |
+| 4 | TTBYT | Lập lịch bảo trì | equipment_id | maintenance_schedule | Theo nhà SX |
+| 5 | TTBYT | Thực hiện bảo trì | schedule_id | maintenance_record | Nội bộ/Ngoại |
+| 6 | TTBYT | Kiểm định định kỳ | equipment_id | calibration_cert | Theo NĐ 36 |
+| 7 | TTBYT | Báo hỏng | equipment_id | repair_request | Từ khoa |
+| 8 | TTBYT | Sửa chữa | repair_request | repair_record | Chi phí |
+| 9 | TTBYT | Thanh lý | equipment_id | disposal_record | Khi hết vòng đời |
+
+### Quy tắc TTBYT:
+
+```
+RULE_MED_001: Kiểm định bắt buộc
+- Danh mục A: Kiểm định mỗi 1 năm (X-quang, CT, MRI)
+- Danh mục B: Kiểm định mỗi 2 năm
+- Danh mục C: Kiểm định khi cần
+
+RULE_MED_002: Bảo trì phòng ngừa
+- Theo khuyến cáo nhà sản xuất
+- Lưu log vận hành (runtime)
+- Cảnh báo đến hạn bảo trì
+
+RULE_MED_003: Quản lý vòng đời
+- Khấu hao theo quy định
+- Đánh giá hiệu suất sử dụng
+- Lập kế hoạch thay thế
+```
+
+---
+
+## 2.16 LUỒNG 16: QUẢN LÝ NHÂN SỰ Y TẾ (Medical HR)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      LUỒNG QUẢN LÝ NHÂN SỰ Y TẾ                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          HỒ SƠ NHÂN VIÊN Y TẾ                                   │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ Thông tin   │  │ Bằng cấp/   │  │ Chứng chỉ  │  │ Đào tạo    │    │
+│  │ cá nhân     │  │ Chứng chỉ   │  │ hành nghề  │  │ liên tục   │    │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          PHÂN CÔNG CÔNG VIỆC                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐              ┌───────────────┐              ┌───────────────┐│
+│  │ Lịch trực   │              │ Phân ca     │              │ Phân công   ││
+│  │ (Duty Roster)│              │ (Shift)     │              │ phòng khám  ││
+│  └───────┬───────┘              └───────┬───────┘              └───────┬───────┘│
+│          │                              │                              │        │
+│          └──────────────────────────────┼──────────────────────────────┘        │
+│                                         │                                       │
+└─────────────────────────────────────────┼───────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          ĐÁNH GIÁ & ĐÀO TẠO                                     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐     ┌───────────────┐     ┌───────────────┐                  │
+│  │ Đánh giá    │────▶│ Xác định    │────▶│ Lập kế hoạch│                  │
+│  │ năng lực    │     │ gap năng lực │     │ đào tạo     │                  │
+│  └───────────────┘     └───────────────┘     └───────────────┘                  │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Chi tiết Luồng HR Y tế:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | HR | Tạo hồ sơ NV | employee_info | employee_id | Mã nhân viên |
+| 2 | HR | Cập nhật bằng cấp | employee_id | qualification | Scan bằng gốc |
+| 3 | HR | Quản lý CCHN | employee_id | license | Số CCHN, hạn |
+| 4 | HR | Lập lịch trực | department | duty_roster | Theo tháng |
+| 5 | HR | Phân ca | duty_roster | shift_assignment | Sáng/Chiều/Đêm |
+| 6 | HR | Phân phòng khám | shift_assignment | room_assignment | BS-Phòng khám |
+| 7 | HR | Đánh giá | employee_id | competency_assessment | Định kỳ |
+| 8 | HR | Đào tạo | assessment | training_record | CME credits |
+
+### Quy tắc HR Y tế:
+
+```
+RULE_HR_001: Chứng chỉ hành nghề
+- Cảnh báo hết hạn CCHN trước 90 ngày
+- Không cho phép thao tác nếu CCHN hết hạn
+- Liên kết với Cổng DVC Bộ Y tế
+
+RULE_HR_002: Ca trực
+- Đảm bảo định mức trực (BS + ĐD + KTV)
+- Giới hạn giờ làm tối đa/tuần
+- Nghỉ bù sau trực đêm
+
+RULE_HR_003: Đào tạo liên tục (CME)
+- Tối thiểu 48 tiết/năm cho BS
+- Tối thiểu 24 tiết/năm cho ĐD
+- Lưu chứng chỉ đào tạo
+```
+
+---
+
+## 2.17 LUỒNG 17: QUẢN LÝ CHẤT LƯỢNG (Quality Management)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      LUỒNG QUẢN LÝ CHẤT LƯỢNG                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                       TIÊU CHUẨN CHẤT LƯỢNG                                     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ JCI         │  │ ISO 9001    │  │ 83 tiêu chí │  │ HA          │    │
+│  │ (Quốc tế)   │  │ (Quy trình) │  │ (Bộ Y tế)   │  │ (Việt Nam)  │    │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         QUY TRÌNH CHẤT LƯỢNG                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
+│  │ Thu thập   │───▶│ Phân tích  │───▶│ Cải tiến   │───▶│ Giám sát   │      │
+│  │ dữ liệu    │    │ đánh giá   │    │ quy trình  │    │ kết quả    │      │
+│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘      │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                       QUẢN LÝ SỰ CỐ Y KHOA                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
+│  │ Báo cáo   │───▶│ Điều tra   │───▶│ Phân tích  │───▶│ Khắc phục  │      │
+│  │ sự cố     │    │ nguyên nhân│    │ RCA        │    │ phòng ngừa │      │
+│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘      │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+                              ┌─────────────┐
+                              │ KPI Chất   │
+                              │ lượng      │
+                              └─────────────┘
+```
+
+### Chi tiết Luồng QM:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | QM | Thu thập chỉ số | all_modules | quality_metrics | Tự động |
+| 2 | QM | Đánh giá nội bộ | quality_metrics | audit_report | Định kỳ |
+| 3 | QM | Báo cáo sự cố | incident_report | incident_id | Ẩn danh |
+| 4 | QM | Điều tra RCA | incident_id | root_cause | 5 Whys, Fishbone |
+| 5 | QM | Lập kế hoạch | root_cause | improvement_plan | CAPA |
+| 6 | QM | Thực hiện | improvement_plan | action_record | Theo dõi tiến độ |
+| 7 | QM | Đánh giá hiệu quả | action_record | effectiveness | Đạt/Không đạt |
+| 8 | QM | Báo cáo KPI | all_data | kpi_dashboard | Cho BGĐ |
+
+### Quy tắc Chất lượng:
+
+```
+RULE_QM_001: Báo cáo sự cố
+- Báo cáo trong 24h với sự cố nghiêm trọng
+- Bảo mật danh tính người báo cáo
+- Không trừng phạt người báo cáo (Just Culture)
+
+RULE_QM_002: Chỉ số chất lượng bắt buộc
+- Tỷ lệ NKBV < 5%
+- Tỷ lệ té ngã = 0
+- Tỷ lệ sai sót thuốc < 0.1%
+- Thời gian chờ khám < 30 phút
+
+RULE_QM_003: Audit nội bộ
+- Audit đột xuất mỗi quý
+- Audit định kỳ theo tiêu chuẩn
+- Chuẩn bị audit ngoại (JCI, ISO)
+```
+
+---
+
+## 2.18 LUỒNG 18: PATIENT PORTAL (Cổng Bệnh nhân)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         LUỒNG PATIENT PORTAL                                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Bệnh nhân]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Đăng ký   │────▶│ Xác thực   │────▶│ Đăng nhập  │
+│ tài khoản │     │ OTP/eKYC   │     │            │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         CHỨC NĂNG PATIENT PORTAL                                │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ Đặt lịch    │  │ Xem kết quả │  │ Xem hồ sơ  │  │ Thanh toán  │    │
+│  │ khám        │  │ XN/CĐHA     │  │ sức khỏe   │  │ online      │    │
+│  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘    │
+│          │                  │                  │                  │            │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ Nhắc lịch   │  │ Tải đơn    │  │ Chat với  │  │ Đánh giá   │    │
+│  │ tái khám    │  │ thuốc      │  │ BS (nếu có)│  │ dịch vụ    │    │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         TÍCH HỢP HỆ THỐNG                                       │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ HIS Core    │  │ LIS/RIS     │  │ Cổng TT    │  │ Nhà thuốc  │    │
+│  │             │  │             │  │ (VNPay...)  │  │ liên kết   │    │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Chi tiết Luồng Portal:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | Portal | Đăng ký | CCCD, SĐT | patient_account | OTP verification |
+| 2 | Portal | Liên kết hồ sơ | patient_account | patient_id | Match với HIS |
+| 3 | Portal | Đặt lịch khám | patient_id | appointment | Chọn BS, giờ |
+| 4 | Portal | Thanh toán | appointment | payment | VNPay, Momo |
+| 5 | Portal | Xem kết quả | patient_id | results | XN, CĐHA |
+| 6 | Portal | Tải hồ sơ | patient_id | pdf_export | Tóm tắt HSSK |
+| 7 | Portal | Nhắc hẹn | patient_id | notification | SMS, Push |
+| 8 | Portal | Đánh giá | visit_id | feedback | Survey |
+
+### Quy tắc Portal:
+
+```
+RULE_PORTAL_001: Xác thực
+- OTP qua SMS/Email
+- eKYC (nhận dạng khuôn mặt) cho giao dịch tài chính
+- Session timeout 30 phút
+
+RULE_PORTAL_002: Bảo mật dữ liệu
+- Chỉ hiển thị dữ liệu của chính BN
+- Mã hóa dữ liệu nhạy cảm
+- Audit log mọi truy cập
+
+RULE_PORTAL_003: Đặt lịch
+- Giới hạn đặt lịch tối đa 3 lần/ngày
+- Hủy lịch trước 24h
+- Phạt nếu không đến (blacklist)
+```
+
+---
+
+## 2.19 LUỒNG 19: LIÊN THÔNG Y TẾ (Health Information Exchange)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                       LUỒNG LIÊN THÔNG Y TẾ (HIE)                               │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         CÁC CỔNG KẾT NỐI                                        │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ Cổng BHXH   │  │ Cổng Bộ YT  │  │ HSSK Quốc gia│  │ Sở Y tế    │    │
+│  │ (Giám định) │  │ (Dịch vụ CY)│  │ (EHR)        │  │ (Báo cáo)  │    │
+│  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘    │
+│          │                  │                  │                  │            │
+└──────────┴──────────────────┴──────────────────┴──────────────────┴────────────┘
+                                     │
+                                     ▼
+                              ┌─────────────┐
+                              │ HIS Gateway │
+                              │ (API Hub)   │
+                              └──────┬──────┘
+                                     │
+     ┌───────────────────────────────┼───────────────────────────────┐
+     │                               │                               │
+     ▼                               ▼                               ▼
+┌─────────────┐               ┌─────────────┐               ┌─────────────┐
+│ Chuyển viện│               │ Hội chẩn   │               │ Trao đổi   │
+│ điện tử    │               │ từ xa      │               │ HSSK       │
+└──────┬──────┘               └──────┬──────┘               └──────┬──────┘
+       │                             │                             │
+       ▼                             ▼                             ▼
+┌─────────────┐               ┌─────────────┐               ┌─────────────┐
+│ BV Tiếp    │               │ BV Tuyến   │               │ CSYT khác  │
+│ nhận       │               │ trên       │               │            │
+└─────────────┘               └─────────────┘               └─────────────┘
+```
+
+### Chi tiết Luồng HIE:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | HIE | Đăng ký kết nối | credentials | api_key | OAuth 2.0 |
+| 2 | HIE | Tra cứu thẻ BHYT | insurance_card | patient_info | Từ BHXH |
+| 3 | HIE | Gửi XML 4210/130 | xml_data | submission_id | BHXH |
+| 4 | HIE | Chuyển viện điện tử | referral_data | referral_id | BV tiếp nhận |
+| 5 | HIE | Yêu cầu hội chẩn | consultation_req | session_id | BV tuyến trên |
+| 6 | HIE | Chia sẻ HSSK | patient_consent | health_record | HSSK quốc gia |
+| 7 | HIE | Báo cáo Sở | report_data | submission_id | Định kỳ |
+
+### Quy tắc HIE:
+
+```
+RULE_HIE_001: Chuẩn dữ liệu
+- XML theo QĐ 4210/130/4750/3176 (BHXH)
+- HL7 FHIR cho HSSK quốc gia
+- Mã hóa theo quy định ATTT
+
+RULE_HIE_002: Chuyển viện điện tử
+- Gửi thông tin trước khi BN đến
+- Bao gồm: Tóm tắt bệnh án, CLS, thuốc đang dùng
+- Xác nhận tiếp nhận từ BV đến
+
+RULE_HIE_003: Đồng ý của BN
+- BN phải đồng ý chia sẻ thông tin
+- Ghi nhận consent trong hệ thống
+- Cho phép BN thu hồi consent
+```
+
+---
+
+## 2.20 LUỒNG 20: CẤP CỨU THẢM HỌA (Disaster/Mass Casualty)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                     LUỒNG CẤP CỨU THẢM HỌA (MCI)                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Nhận tin thảm họa]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Kích hoạt  │────▶│ Huy động   │────▶│ Mở rộng    │
+│ Code MCI   │     │ nhân lực   │     │ trang thiết│
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          PHÂN LOẠI NẠNG NHÂN (TRIAGE)                           │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ 🔴 ĐỎ        │  │ 🟡 VÀNG      │  │ 🟢 XANH      │  │ ⚫ ĐEN       │    │
+│  │ Cấp cứu ngay │  │ Trì hoãn được│  │ Nhẹ          │  │ Tử vong/     │    │
+│  │ (Immediate)  │  │ (Delayed)    │  │ (Minor)      │  │ Không cứu    │    │
+│  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘  └───────────────┘    │
+│          │                  │                  │                               │
+│          ▼                  ▼                  ▼                               │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐                       │
+│  │ Phòng mổ/   │  │ Khu điều trị│  │ Khu chờ    │                       │
+│  │ ICU         │  │ tạm          │  │            │                       │
+│  └───────────────┘  └───────────────┘  └───────────────┘                       │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         THEO DÕI & BÁO CÁO                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐    │
+│  │ Dashboard   │  │ Báo cáo    │  │ Điều phối  │  │ Liên lạc   │    │
+│  │ realtime    │  │ Sở/Bộ Y tế │  │ chuyển viện│  │ thân nhân  │    │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘    │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Chi tiết Luồng MCI:
+
+| Bước | Phân hệ | Action | Input | Output | Ghi chú |
+|------|---------|--------|-------|--------|---------|
+| 1 | MCI | Kích hoạt Code | alert_source | mci_event | Cấp độ 1/2/3 |
+| 2 | MCI | Huy động nhân lực | mci_event | staff_notification | SMS, App |
+| 3 | MCI | Chuẩn bị tài nguyên | mci_event | resource_allocation | Giường, máu, VT |
+| 4 | MCI | Tiếp nhận nạn nhân | victim_arrival | triage_id | Tag màu |
+| 5 | MCI | Phân loại START | victim | triage_category | Đỏ/Vàng/Xanh/Đen |
+| 6 | MCI | Xử trí theo mức | triage_category | treatment_record | Ưu tiên đỏ |
+| 7 | MCI | Tracking | victim_id | location, status | Realtime |
+| 8 | MCI | Báo cáo | mci_event | situation_report | Cho Sở Y tế |
+| 9 | MCI | Liên lạc thân nhân | victim_id | family_contact | Hotline |
+
+### Quy tắc Cấp cứu Thảm họa:
+
+```
+RULE_MCI_001: Kích hoạt Code
+- Code Yellow: 5-10 nạn nhân
+- Code Orange: 10-50 nạn nhân
+- Code Red: >50 nạn nhân hoặc CBRN
+
+RULE_MCI_002: Phân loại START
+- Đi lại được? → XANH
+- Thở được? Không → ĐEN, Có → tiếp
+- Nhịp thở >30? → ĐỎ
+- Mạch quay? Không → ĐỎ
+- Làm theo lệnh? Không → ĐỎ, Có → VÀNG
+
+RULE_MCI_003: Tài nguyên
+- Dự trữ máu nhóm O
+- Kit cấp cứu thảm họa
+- Danh sách nhân viên gọi khẩn
+- Kế hoạch mở rộng giường bệnh
+```
+
+---
+
 # PHẦN 3: MA TRẬN QUAN HỆ GIỮA CÁC PHÂN HỆ
 
 ## 3.1 Ma trận Tương tác (Interaction Matrix)

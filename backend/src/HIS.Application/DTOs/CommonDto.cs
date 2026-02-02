@@ -27,6 +27,10 @@ public class ApiResponse<T>
     {
         return new ApiResponse<T> { Success = false, Message = message, Errors = errors };
     }
+
+    // Aliases for compatibility
+    public static ApiResponse<T> SuccessResponse(T data, string? message = null) => Ok(data, message);
+    public static ApiResponse<T> ErrorResponse(string message, List<string>? errors = null) => Fail(message, errors);
 }
 
 public class SelectItemDto

@@ -71,6 +71,7 @@ public class RoomPatientListDto
     public string PatientCode { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
     public int Gender { get; set; }
+    public string GenderName { get; set; } = string.Empty;
     public int Age { get; set; }
 
     // Ảnh chân dung
@@ -78,6 +79,7 @@ public class RoomPatientListDto
 
     // Thông tin BHYT
     public int PatientType { get; set; }
+    public string PatientTypeName { get; set; } = string.Empty;
     public string? InsuranceNumber { get; set; }
     public bool IsInsuranceValid { get; set; }
 
