@@ -1,7 +1,7 @@
 /**
  * API Client cho Phân hệ 5: Kho Dược - Vật tư
  */
-import apiClient from './apiClient';
+import apiClient from './client';
 
 // ============================================================================
 // Types/Interfaces

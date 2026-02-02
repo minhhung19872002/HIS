@@ -3,7 +3,7 @@
  * Covers Modules: 11 (Tài chính), 13 (Danh mục), 15 (Báo cáo Dược), 16 (HSBA & Thống kê), 17 (Quản trị)
  */
 
-import { apiClient } from './apiClient';
+import { apiClient } from './client';
 
 // ============================================================================
 // Module 11: Quản lý Tài chính Kế toán - DTOs

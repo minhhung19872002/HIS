@@ -2,7 +2,7 @@
  * API Client cho Phân hệ 3: Quản lý Điều trị Nội trú
  * Bao gồm 100+ chức năng
  */
-import apiClient from './apiClient';
+import apiClient from './client';
 
 // ============================================================================
 // Types/Interfaces

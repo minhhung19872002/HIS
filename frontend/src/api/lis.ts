@@ -3,7 +3,7 @@
  * Module 7: Xét nghiệm - 31+ chức năng
  */
 
-import apiClient from './apiClient';
+import apiClient from './client';
 
 // #region Interfaces
 

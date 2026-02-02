@@ -21,6 +21,7 @@ import {
   Spin,
   Alert,
   Tooltip,
+  Select,
 } from 'antd';
 import {
   SaveOutlined,
@@ -36,18 +37,23 @@ import {
   FileTextOutlined,
   AimOutlined,
   OrderedListOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { patientApi, type Patient } from '../api/patient';
 import {
   examinationApi,
-  type QueuePatient,
+  type RoomPatientListDto,
+  type RoomDto,
   type Examination,
   type Diagnosis,
   type TreatmentOrder,
   type Service,
 } from '../api/examination';
+
+// Use RoomPatientListDto as QueuePatient for compatibility
+type QueuePatient = RoomPatientListDto;
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -66,6 +72,11 @@ interface ServiceOption {
 }
 
 const OPD: React.FC = () => {
+  // State for room selection
+  const [rooms, setRooms] = useState<RoomDto[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('');
+  const [loadingRooms, setLoadingRooms] = useState(false);
+
   // State for patient selection
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [queueList, setQueueList] = useState<QueuePatient[]>([]);
@@ -92,20 +103,49 @@ const OPD: React.FC = () => {
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [patientHistory, setPatientHistory] = useState<Examination[]>([]);
 
-  // Load queue on mount
+  // Load rooms on mount
   useEffect(() => {
-    loadQueue();
+    loadRooms();
   }, []);
 
-  const loadQueue = async () => {
+  // Load queue when room is selected
+  useEffect(() => {
+    if (selectedRoomId) {
+      loadQueue(selectedRoomId);
+    }
+  }, [selectedRoomId]);
+
+  const loadRooms = async () => {
+    try {
+      setLoadingRooms(true);
+      const response = await examinationApi.getActiveExaminationRooms();
+      if (response.success && response.data) {
+        setRooms(response.data);
+        // Auto-select first room if available
+        if (response.data.length > 0) {
+          setSelectedRoomId(response.data[0].id);
+        }
+      }
+    } catch (error) {
+      message.error('Không thể tải danh sách phòng khám');
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  const loadQueue = async (roomId: string) => {
+    if (!roomId) return;
     try {
       setLoadingQueue(true);
-      const response = await examinationApi.getQueue();
+      const response = await examinationApi.getRoomPatientList(roomId);
       if (response.success && response.data) {
         setQueueList(response.data);
+      } else {
+        setQueueList([]);
       }
     } catch (error) {
       message.error('Không thể tải danh sách chờ khám');
+      setQueueList([]);
     } finally {
       setLoadingQueue(false);
     }
@@ -116,7 +156,20 @@ const OPD: React.FC = () => {
       const response = await patientApi.getById(queuePatient.patientId);
       if (response.success && response.data) {
         setSelectedPatient(response.data);
-        initializeNewExamination(response.data, queuePatient);
+        // Map RoomPatientListDto to examination format
+        const examInfo = {
+          id: queuePatient.examinationId,
+          patientId: queuePatient.patientId,
+          patientCode: queuePatient.patientCode,
+          patientName: queuePatient.patientName,
+          queueNumber: queuePatient.queueNumber,
+          roomId: selectedRoomId,
+          roomName: rooms.find(r => r.id === selectedRoomId)?.name || '',
+          departmentId: rooms.find(r => r.id === selectedRoomId)?.departmentId || '',
+          departmentName: rooms.find(r => r.id === selectedRoomId)?.departmentName || '',
+          status: queuePatient.status,
+        };
+        initializeNewExamination(response.data, examInfo);
         message.success(`Đã chọn bệnh nhân: ${queuePatient.patientName}`);
       }
     } catch (error) {
@@ -159,20 +212,20 @@ const OPD: React.FC = () => {
     }
   };
 
-  const initializeNewExamination = (patient: Patient, queue?: QueuePatient) => {
+  const initializeNewExamination = (patient: Patient, queue?: { id?: string; patientId?: string; patientCode?: string; patientName?: string; queueNumber?: number; departmentId?: string; departmentName?: string; roomId?: string; roomName?: string; status?: number }) => {
     const newExam: Examination = {
+      id: queue?.id,
       examinationDate: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       patientId: patient.id,
       patientCode: patient.patientCode,
       patientName: patient.fullName,
-      queueId: queue?.id,
       queueNumber: queue?.queueNumber,
       departmentId: queue?.departmentId || '',
       departmentName: queue?.departmentName,
-      roomId: queue?.roomId || '',
-      roomName: queue?.roomName,
+      roomId: queue?.roomId || selectedRoomId || '',
+      roomName: queue?.roomName || rooms.find(r => r.id === selectedRoomId)?.name || '',
       doctorId: '', // Should be from current user
-      status: 0, // Draft
+      status: queue?.status ?? 0, // Draft
       vitalSigns: {},
       medicalHistory: {},
       physicalExamination: {},
@@ -413,7 +466,7 @@ const OPD: React.FC = () => {
           if (response.success) {
             message.success('Đã hoàn thành khám bệnh');
             setExamination(response.data || null);
-            loadQueue(); // Reload queue
+            loadQueue(selectedRoomId); // Reload queue
           }
         } catch (error: any) {
           message.error(error.message || 'Lỗi khi hoàn thành khám bệnh');
@@ -578,22 +631,23 @@ const OPD: React.FC = () => {
     },
     {
       title: 'Tuổi',
-      key: 'age',
+      dataIndex: 'age',
       width: 60,
-      render: (_, record) => calculateAge(record.dateOfBirth, record.yearOfBirth),
+      render: (age) => age ? `${age}` : 'N/A',
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      width: 100,
-      render: (status) => {
-        const statusMap = {
-          0: { text: 'Chờ khám', color: 'orange' },
-          1: { text: 'Đang khám', color: 'blue' },
-          2: { text: 'Hoàn thành', color: 'green' },
+      dataIndex: 'statusName',
+      width: 110,
+      render: (statusName, record) => {
+        const colorMap: Record<number, string> = {
+          0: 'orange',   // Chờ khám
+          1: 'blue',     // Đang khám
+          2: 'cyan',     // Chờ CLS
+          3: 'purple',   // Chờ kết luận
+          4: 'green',    // Hoàn thành
         };
-        const s = statusMap[status as keyof typeof statusMap] || statusMap[0];
-        return <Tag color={s.color}>{s.text}</Tag>;
+        return <Tag color={colorMap[record.status] || 'default'}>{statusName || 'Chờ khám'}</Tag>;
       },
     },
   ];
@@ -678,18 +732,34 @@ const OPD: React.FC = () => {
               <Button
                 type="text"
                 size="small"
-                icon={<SearchOutlined />}
-                onClick={loadQueue}
+                icon={<ReloadOutlined />}
+                onClick={() => loadQueue(selectedRoomId)}
+                loading={loadingQueue}
               >
                 Làm mới
               </Button>
             }
           >
+            <Select
+              placeholder="Chọn phòng khám"
+              style={{ width: '100%', marginBottom: 12 }}
+              value={selectedRoomId || undefined}
+              onChange={(value) => setSelectedRoomId(value)}
+              loading={loadingRooms}
+              showSearch
+              optionFilterProp="children"
+            >
+              {rooms.map((room) => (
+                <Select.Option key={room.id} value={room.id}>
+                  {room.name} {room.departmentName ? `(${room.departmentName})` : ''}
+                </Select.Option>
+              ))}
+            </Select>
             <Spin spinning={loadingQueue}>
               <Table
                 columns={queueColumns}
                 dataSource={queueList}
-                rowKey="id"
+                rowKey="examinationId"
                 size="small"
                 pagination={false}
                 scroll={{ y: 400 }}
@@ -697,6 +767,7 @@ const OPD: React.FC = () => {
                   onClick: () => handleSelectPatientFromQueue(record),
                   style: { cursor: 'pointer' },
                 })}
+                locale={{ emptyText: selectedRoomId ? 'Không có bệnh nhân' : 'Vui lòng chọn phòng khám' }}
               />
             </Spin>
           </Card>

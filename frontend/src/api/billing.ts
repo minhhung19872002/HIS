@@ -3,7 +3,7 @@
  * Module: Billing Complete
  */
 
-import apiClient from './apiClient';
+import apiClient from './client';
 
 // ==================== INTERFACES ====================
 

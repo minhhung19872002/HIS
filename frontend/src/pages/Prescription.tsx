@@ -22,6 +22,7 @@ import {
   message,
   Descriptions,
   Drawer,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -35,9 +36,12 @@ import {
   FileTextOutlined,
   MedicineBoxOutlined,
   InfoCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '../api/examination';
+import { patientApi, type Patient as ApiPatient } from '../api/patient';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -58,6 +62,7 @@ interface Patient {
   insuranceNumber?: string;
 }
 
+// Medicine interface compatible with API
 interface Medicine {
   id: string;
   code: string;
@@ -71,6 +76,21 @@ interface Medicine {
   manufacturer?: string;
   insuranceCovered: boolean;
 }
+
+// Helper to convert MedicineDto to local Medicine interface
+const convertMedicineDto = (dto: MedicineDto): Medicine => ({
+  id: dto.id,
+  code: dto.code,
+  name: dto.name,
+  activeIngredient: dto.activeIngredient || '',
+  dosageForm: dto.unit || 'Viên',
+  strength: '',
+  unit: dto.unit || 'Viên',
+  unitPrice: dto.unitPrice,
+  stock: dto.availableQuantity,
+  manufacturer: dto.manufacturer,
+  insuranceCovered: dto.insurancePrice > 0,
+});
 
 interface DosageInstruction {
   morning: number;
@@ -127,90 +147,8 @@ interface Prescription {
   overrideReason?: string;
 }
 
-// ==================== MOCK DATA ====================
-
-const mockPatient: Patient = {
-  id: '1',
-  patientCode: 'BN26000001',
-  fullName: 'Nguyễn Văn A',
-  dateOfBirth: '1985-05-15',
-  gender: 1,
-  phoneNumber: '0912345678',
-  address: 'Số 10, Phường Tân Định, Quận 1, TP.HCM',
-  allergies: ['Penicillin', 'Aspirin'],
-  currentMedications: ['Metformin 500mg - 2 viên/ngày'],
-  insuranceNumber: 'DN1234567890',
-};
-
-const mockMedicines: Medicine[] = [
-  {
-    id: '1',
-    code: 'PARA500',
-    name: 'Paracetamol',
-    activeIngredient: 'Paracetamol',
-    dosageForm: 'Viên nén',
-    strength: '500mg',
-    unit: 'Viên',
-    unitPrice: 500,
-    stock: 1000,
-    manufacturer: 'DHG Pharma',
-    insuranceCovered: true,
-  },
-  {
-    id: '2',
-    code: 'AMOX500',
-    name: 'Amoxicillin',
-    activeIngredient: 'Amoxicillin',
-    dosageForm: 'Viên nang',
-    strength: '500mg',
-    unit: 'Viên',
-    unitPrice: 1200,
-    stock: 500,
-    manufacturer: 'Domesco',
-    insuranceCovered: true,
-  },
-  {
-    id: '3',
-    code: 'OMEP20',
-    name: 'Omeprazole',
-    activeIngredient: 'Omeprazole',
-    dosageForm: 'Viên nang',
-    strength: '20mg',
-    unit: 'Viên',
-    unitPrice: 2500,
-    stock: 300,
-    manufacturer: 'Teva',
-    insuranceCovered: true,
-  },
-  {
-    id: '4',
-    code: 'IBUPR400',
-    name: 'Ibuprofen',
-    activeIngredient: 'Ibuprofen',
-    dosageForm: 'Viên nén',
-    strength: '400mg',
-    unit: 'Viên',
-    unitPrice: 800,
-    stock: 800,
-    manufacturer: 'Sanofi',
-    insuranceCovered: true,
-  },
-  {
-    id: '5',
-    code: 'VITA-C',
-    name: 'Vitamin C',
-    activeIngredient: 'Acid ascorbic',
-    dosageForm: 'Viên sủi',
-    strength: '1000mg',
-    unit: 'Viên',
-    unitPrice: 3000,
-    stock: 200,
-    manufacturer: 'Roche',
-    insuranceCovered: false,
-  },
-];
-
-const mockTemplates: PrescriptionTemplate[] = [
+// Mock templates - will be loaded from API
+const defaultTemplates: PrescriptionTemplate[] = [
   {
     id: '1',
     name: 'Cảm cúm thông thường',
@@ -221,12 +159,6 @@ const mockTemplates: PrescriptionTemplate[] = [
     id: '2',
     name: 'Viêm họng cấp',
     diagnosis: 'Viêm họng do vi khuẩn',
-    items: [],
-  },
-  {
-    id: '3',
-    name: 'Đau dạ dày',
-    diagnosis: 'Viêm loét dạ dày',
     items: [],
   },
 ];
@@ -290,10 +222,14 @@ const checkDrugInteractions = (medicines: Medicine[]): DrugInteraction[] => {
 const Prescription: React.FC = () => {
   const [form] = Form.useForm();
   const [medicineForm] = Form.useForm();
+  const [patientSearchForm] = Form.useForm();
 
   // State
-  const [patient, _setPatient] = useState<Patient | null>(mockPatient);
-  void _setPatient;
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loadingPatient, setLoadingPatient] = useState(false);
+  const [patientSearchResults, setPatientSearchResults] = useState<ApiPatient[]>([]);
+  const [isPatientSearchModalOpen, setIsPatientSearchModalOpen] = useState(false);
+
   const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([]);
   const [interactions, setInteractions] = useState<DrugInteraction[]>([]);
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
@@ -303,6 +239,7 @@ const Prescription: React.FC = () => {
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
   const [medicineSearchResults, setMedicineSearchResults] = useState<Medicine[]>([]);
+  const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [isInteractionDrawerOpen, setIsInteractionDrawerOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
 
@@ -324,24 +261,72 @@ const Prescription: React.FC = () => {
 
   // ==================== HANDLERS ====================
 
-  const handleSearchMedicine = (value: string) => {
-    if (!value) {
+  // Patient search
+  const handleSearchPatient = async (keyword: string) => {
+    if (!keyword || keyword.length < 2) {
+      setPatientSearchResults([]);
+      return;
+    }
+    try {
+      setLoadingPatient(true);
+      const response = await patientApi.search({ keyword, pageSize: 10 });
+      if (response.success && response.data?.items) {
+        setPatientSearchResults(response.data.items);
+      } else {
+        setPatientSearchResults([]);
+      }
+    } catch (error) {
+      message.error('Không thể tìm kiếm bệnh nhân');
+      setPatientSearchResults([]);
+    } finally {
+      setLoadingPatient(false);
+    }
+  };
+
+  const handleSelectPatient = (apiPatient: ApiPatient) => {
+    const p: Patient = {
+      id: apiPatient.id,
+      patientCode: apiPatient.patientCode,
+      fullName: apiPatient.fullName,
+      dateOfBirth: apiPatient.dateOfBirth,
+      gender: apiPatient.gender,
+      phoneNumber: apiPatient.phoneNumber,
+      address: apiPatient.address,
+      allergies: [],
+      currentMedications: [],
+      insuranceNumber: apiPatient.insuranceNumber,
+    };
+    setPatient(p);
+    setIsPatientSearchModalOpen(false);
+    setPatientSearchResults([]);
+    message.success(`Đã chọn bệnh nhân: ${p.fullName}`);
+  };
+
+  // Medicine search - using real API
+  const handleSearchMedicine = async (value: string) => {
+    if (!value || value.length < 2) {
       setMedicineSearchResults([]);
       return;
     }
-
-    // Mock search - filter medicines by name or code
-    const results = mockMedicines.filter(
-      m =>
-        m.name.toLowerCase().includes(value.toLowerCase()) ||
-        m.code.toLowerCase().includes(value.toLowerCase()) ||
-        m.activeIngredient.toLowerCase().includes(value.toLowerCase())
-    );
-    setMedicineSearchResults(results);
+    try {
+      setLoadingMedicines(true);
+      const response = await examinationApi.searchMedicines(value, undefined, 20);
+      if (response.success && response.data) {
+        const medicines = response.data.map(convertMedicineDto);
+        setMedicineSearchResults(medicines);
+      } else {
+        setMedicineSearchResults([]);
+      }
+    } catch (error) {
+      // Fallback: show empty results
+      setMedicineSearchResults([]);
+    } finally {
+      setLoadingMedicines(false);
+    }
   };
 
   const handleSelectMedicine = (medicineId: string) => {
-    const medicine = mockMedicines.find(m => m.id === medicineId);
+    const medicine = medicineSearchResults.find(m => m.id === medicineId);
     if (medicine) {
       setSelectedMedicine(medicine);
       medicineForm.setFieldsValue({
@@ -639,28 +624,42 @@ const Prescription: React.FC = () => {
             style={{ marginBottom: 16 }}
           >
             {patient ? (
-              <Descriptions column={1} size="small" bordered>
-                <Descriptions.Item label="Mã BN">
-                  <strong>{patient.patientCode}</strong>
-                </Descriptions.Item>
-                <Descriptions.Item label="Họ tên">
-                  <strong>{patient.fullName}</strong>
-                </Descriptions.Item>
-                <Descriptions.Item label="Ngày sinh">
-                  {patient.dateOfBirth && dayjs(patient.dateOfBirth).format('DD/MM/YYYY')}
-                  {' - '}
-                  {patient.gender === 1 ? 'Nam' : 'Nữ'}
-                </Descriptions.Item>
-                <Descriptions.Item label="SĐT">{patient.phoneNumber}</Descriptions.Item>
-                <Descriptions.Item label="Địa chỉ">{patient.address}</Descriptions.Item>
-                {patient.insuranceNumber && (
-                  <Descriptions.Item label="Số thẻ BHYT">
-                    <Tag color="green">{patient.insuranceNumber}</Tag>
+              <>
+                <Descriptions column={1} size="small" bordered>
+                  <Descriptions.Item label="Mã BN">
+                    <strong>{patient.patientCode}</strong>
                   </Descriptions.Item>
-                )}
-              </Descriptions>
+                  <Descriptions.Item label="Họ tên">
+                    <strong>{patient.fullName}</strong>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ngày sinh">
+                    {patient.dateOfBirth && dayjs(patient.dateOfBirth).format('DD/MM/YYYY')}
+                    {' - '}
+                    {patient.gender === 1 ? 'Nam' : 'Nữ'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="SĐT">{patient.phoneNumber}</Descriptions.Item>
+                  <Descriptions.Item label="Địa chỉ">{patient.address}</Descriptions.Item>
+                  {patient.insuranceNumber && (
+                    <Descriptions.Item label="Số thẻ BHYT">
+                      <Tag color="green">{patient.insuranceNumber}</Tag>
+                    </Descriptions.Item>
+                  )}
+                </Descriptions>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => setIsPatientSearchModalOpen(true)}
+                  style={{ marginTop: 8, padding: 0 }}
+                >
+                  Đổi bệnh nhân
+                </Button>
+              </>
             ) : (
-              <Button block icon={<SearchOutlined />}>
+              <Button
+                block
+                icon={<SearchOutlined />}
+                onClick={() => setIsPatientSearchModalOpen(true)}
+              >
                 Tìm bệnh nhân
               </Button>
             )}
@@ -1062,6 +1061,60 @@ const Prescription: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* Patient Search Modal */}
+      <Modal
+        title="Tìm kiếm bệnh nhân"
+        open={isPatientSearchModalOpen}
+        onCancel={() => {
+          setIsPatientSearchModalOpen(false);
+          setPatientSearchResults([]);
+        }}
+        footer={null}
+        width={700}
+      >
+        <Input.Search
+          placeholder="Tìm theo mã BN, họ tên, SĐT..."
+          enterButton
+          allowClear
+          onSearch={handleSearchPatient}
+          loading={loadingPatient}
+          style={{ marginBottom: 16 }}
+        />
+        <Spin spinning={loadingPatient}>
+          <List
+            dataSource={patientSearchResults}
+            locale={{ emptyText: 'Nhập từ khóa để tìm kiếm bệnh nhân' }}
+            renderItem={(p) => (
+              <List.Item
+                actions={[
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => handleSelectPatient(p)}
+                    key="select"
+                  >
+                    Chọn
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={`${p.patientCode} - ${p.fullName}`}
+                  description={
+                    <>
+                      <div>
+                        {p.gender === 1 ? 'Nam' : 'Nữ'}
+                        {p.dateOfBirth && ` - ${dayjs(p.dateOfBirth).format('DD/MM/YYYY')}`}
+                      </div>
+                      {p.phoneNumber && <div>SĐT: {p.phoneNumber}</div>}
+                    </>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Spin>
+      </Modal>
+
       {/* Template Modal */}
       <Modal
         title="Chọn mẫu đơn thuốc"
@@ -1071,7 +1124,7 @@ const Prescription: React.FC = () => {
         width={600}
       >
         <List
-          dataSource={mockTemplates}
+          dataSource={defaultTemplates}
           renderItem={(template) => (
             <List.Item
               actions={[

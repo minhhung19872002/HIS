@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -17,6 +17,7 @@ import {
   Tabs,
   Badge,
   Divider,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -24,173 +25,121 @@ import {
   EyeOutlined,
   SwapOutlined,
   ExportOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import {
+  getInpatientList,
+  getBedStatus,
+  type InpatientListDto,
+  type BedStatusDto,
+  type InpatientSearchDto,
+} from '../api/inpatient';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
-// Interfaces
-interface Admission {
-  id: string;
-  patientCode: string;
-  patientName: string;
-  gender: number;
-  dateOfBirth?: string;
-  phoneNumber?: string;
-  medicalRecordCode: string;
-  admissionDate: string;
-  admissionType: number;
-  departmentName: string;
-  roomName: string;
-  bedName?: string;
-  diagnosisOnAdmission?: string;
-  status: number;
-  daysOfStay: number;
-}
-
-interface BedStatus {
-  bedId: string;
-  bedCode: string;
-  bedName: string;
-  roomName: string;
-  departmentName: string;
-  bedStatus: number;
-  patientName?: string;
-  patientCode?: string;
-  admissionDate?: string;
-  daysOfStay?: number;
-}
-
-// Mock data
-const mockAdmissions: Admission[] = [
-  {
-    id: '1',
-    patientCode: 'BN26000001',
-    patientName: 'Nguyễn Văn A',
-    gender: 1,
-    dateOfBirth: '1985-05-15',
-    phoneNumber: '0912345678',
-    medicalRecordCode: 'HS260130001',
-    admissionDate: '2026-01-28T10:00:00',
-    admissionType: 1,
-    departmentName: 'Khoa Nội',
-    roomName: 'Phòng Nội 1',
-    bedName: 'Giường 01',
-    diagnosisOnAdmission: 'Viêm phổi',
-    status: 0,
-    daysOfStay: 2,
-  },
-  {
-    id: '2',
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    gender: 2,
-    dateOfBirth: '1990-10-20',
-    phoneNumber: '0987654321',
-    medicalRecordCode: 'HS260130002',
-    admissionDate: '2026-01-29T14:30:00',
-    admissionType: 3,
-    departmentName: 'Khoa Ngoại',
-    roomName: 'Phòng Ngoại 2',
-    bedName: 'Giường 05',
-    diagnosisOnAdmission: 'Viêm ruột thừa cấp',
-    status: 0,
-    daysOfStay: 1,
-  },
-];
-
-const mockBeds: BedStatus[] = [
-  {
-    bedId: '1',
-    bedCode: 'B01',
-    bedName: 'Giường 01',
-    roomName: 'Phòng Nội 1',
-    departmentName: 'Khoa Nội',
-    bedStatus: 1,
-    patientName: 'Nguyễn Văn A',
-    patientCode: 'BN26000001',
-    admissionDate: '2026-01-28T10:00:00',
-    daysOfStay: 2,
-  },
-  {
-    bedId: '2',
-    bedCode: 'B02',
-    bedName: 'Giường 02',
-    roomName: 'Phòng Nội 1',
-    departmentName: 'Khoa Nội',
-    bedStatus: 0,
-  },
-  {
-    bedId: '3',
-    bedCode: 'B03',
-    bedName: 'Giường 03',
-    roomName: 'Phòng Nội 1',
-    departmentName: 'Khoa Nội',
-    bedStatus: 0,
-  },
-];
-
 const Inpatient: React.FC = () => {
-  const [admissions] = useState<Admission[]>(mockAdmissions);
-  const [beds] = useState<BedStatus[]>(mockBeds);
+  const [admissions, setAdmissions] = useState<InpatientListDto[]>([]);
+  const [beds, setBeds] = useState<BedStatusDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingBeds, setLoadingBeds] = useState(false);
+  const [searchParams, setSearchParams] = useState<InpatientSearchDto>({
+    page: 1,
+    pageSize: 20,
+  });
+  const [total, setTotal] = useState(0);
+
   const [isAdmitModalOpen, setIsAdmitModalOpen] = useState(false);
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isCareModalOpen, setIsCareModalOpen] = useState(false);
   const [isDischargeModalOpen, setIsDischargeModalOpen] = useState(false);
-  const [_selectedAdmission, setSelectedAdmission] = useState<Admission | null>(null);
+  const [_selectedAdmission, setSelectedAdmission] = useState<InpatientListDto | null>(null);
   const [form] = Form.useForm();
 
+  // Load data on mount
+  useEffect(() => {
+    loadAdmissions();
+    loadBeds();
+  }, []);
+
+  // Reload when search params change
+  useEffect(() => {
+    loadAdmissions();
+  }, [searchParams]);
+
+  const loadAdmissions = async () => {
+    try {
+      setLoading(true);
+      const response = await getInpatientList(searchParams);
+      if (response.success && response.data) {
+        setAdmissions(response.data.items || []);
+        setTotal(response.data.totalCount || 0);
+      } else {
+        setAdmissions([]);
+      }
+    } catch (error) {
+      message.error('Không thể tải danh sách bệnh nhân nội trú');
+      setAdmissions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadBeds = async () => {
+    try {
+      setLoadingBeds(true);
+      const response = await getBedStatus();
+      if (response.success && response.data) {
+        setBeds(response.data);
+      } else {
+        setBeds([]);
+      }
+    } catch (error) {
+      message.error('Không thể tải danh sách giường');
+      setBeds([]);
+    } finally {
+      setLoadingBeds(false);
+    }
+  };
+
+  const handleSearch = (keyword: string) => {
+    setSearchParams(prev => ({ ...prev, keyword, page: 1 }));
+  };
+
   // Status tags
-  const getStatusTag = (status: number) => {
-    switch (status) {
-      case 0:
-        return <Tag color="blue">Đang điều trị</Tag>;
-      case 1:
-        return <Tag color="orange">Chuyển khoa</Tag>;
-      case 2:
-        return <Tag color="green">Xuất viện</Tag>;
-      case 3:
-        return <Tag color="red">Tử vong</Tag>;
-      case 4:
-        return <Tag color="default">Bỏ về</Tag>;
-      default:
-        return <Tag>Không xác định</Tag>;
-    }
+  const getStatusTag = (status: number, statusName?: string) => {
+    const colorMap: Record<number, string> = {
+      0: 'blue',     // Đang điều trị
+      1: 'orange',   // Chuyển khoa
+      2: 'green',    // Xuất viện
+      3: 'red',      // Tử vong
+      4: 'default',  // Bỏ về
+    };
+    const defaultNames: Record<number, string> = {
+      0: 'Đang điều trị',
+      1: 'Chuyển khoa',
+      2: 'Xuất viện',
+      3: 'Tử vong',
+      4: 'Bỏ về',
+    };
+    return <Tag color={colorMap[status] || 'default'}>{statusName || defaultNames[status] || 'Không xác định'}</Tag>;
   };
 
-  const getAdmissionTypeTag = (type: number) => {
-    switch (type) {
-      case 1:
-        return <Tag color="red">Cấp cứu</Tag>;
-      case 2:
-        return <Tag color="orange">Chuyển tuyến</Tag>;
-      case 3:
-        return <Tag color="blue">Điều trị</Tag>;
-      case 4:
-        return <Tag color="default">Khác</Tag>;
-      default:
-        return <Tag>Không xác định</Tag>;
-    }
+  const getBedStatusBadge = (status: number, statusName?: string) => {
+    const statusMap: Record<number, { status: 'success' | 'processing' | 'warning' | 'default'; text: string }> = {
+      0: { status: 'success', text: statusName || 'Trống' },
+      1: { status: 'processing', text: statusName || 'Đang sử dụng' },
+      2: { status: 'warning', text: statusName || 'Bảo trì' },
+    };
+    const s = statusMap[status] || { status: 'default' as const, text: statusName || 'Không xác định' };
+    return <Badge status={s.status} text={s.text} />;
   };
 
-  const getBedStatusBadge = (status: number) => {
-    switch (status) {
-      case 0:
-        return <Badge status="success" text="Trống" />;
-      case 1:
-        return <Badge status="processing" text="Đang sử dụng" />;
-      case 2:
-        return <Badge status="warning" text="Bảo trì" />;
-      default:
-        return <Badge status="default" text="Không xác định" />;
-    }
-  };
-
-  // Admission columns
-  const admissionColumns: ColumnsType<Admission> = [
+  // Admission columns - matches InpatientListDto
+  const admissionColumns: ColumnsType<InpatientListDto> = [
     {
       title: 'Mã BN',
       dataIndex: 'patientCode',
@@ -211,11 +160,11 @@ const Inpatient: React.FC = () => {
       render: (gender) => (gender === 1 ? 'Nam' : 'Nữ'),
     },
     {
-      title: 'Ngày sinh',
-      dataIndex: 'dateOfBirth',
-      key: 'dateOfBirth',
-      width: 100,
-      render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : ''),
+      title: 'Tuổi',
+      dataIndex: 'age',
+      key: 'age',
+      width: 60,
+      render: (age) => age || 'N/A',
     },
     {
       title: 'Mã HS',
@@ -228,14 +177,14 @@ const Inpatient: React.FC = () => {
       dataIndex: 'admissionDate',
       key: 'admissionDate',
       width: 140,
-      render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm'),
+      render: (date) => date ? dayjs(date).format('DD/MM/YYYY HH:mm') : '',
     },
     {
-      title: 'Loại NV',
-      dataIndex: 'admissionType',
-      key: 'admissionType',
-      width: 110,
-      render: (type) => getAdmissionTypeTag(type),
+      title: 'BHYT',
+      dataIndex: 'isInsurance',
+      key: 'isInsurance',
+      width: 80,
+      render: (isInsurance) => isInsurance ? <Tag color="green">Có</Tag> : <Tag>Không</Tag>,
     },
     {
       title: 'Khoa',
@@ -266,10 +215,10 @@ const Inpatient: React.FC = () => {
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'statusName',
+      key: 'statusName',
       width: 120,
-      render: (status) => getStatusTag(status),
+      render: (statusName, record) => getStatusTag(record.status, statusName),
     },
     {
       title: 'Thao tác',
@@ -293,8 +242,8 @@ const Inpatient: React.FC = () => {
     },
   ];
 
-  // Bed columns
-  const bedColumns: ColumnsType<BedStatus> = [
+  // Bed columns - matches BedStatusDto
+  const bedColumns: ColumnsType<BedStatusDto> = [
     {
       title: 'Mã giường',
       dataIndex: 'bedCode',
@@ -324,14 +273,14 @@ const Inpatient: React.FC = () => {
       dataIndex: 'bedStatus',
       key: 'bedStatus',
       width: 120,
-      render: (status) => getBedStatusBadge(status),
+      render: (status, record) => getBedStatusBadge(status, record.bedStatusName),
     },
     {
       title: 'Bệnh nhân',
       key: 'patient',
       width: 200,
       render: (_, record) =>
-        record.bedStatus === 1 ? (
+        record.bedStatus === 1 && record.patientName ? (
           <div>
             <div>
               <strong>{record.patientName}</strong>
@@ -436,17 +385,35 @@ const Inpatient: React.FC = () => {
                           allowClear
                           enterButton={<SearchOutlined />}
                           style={{ width: 300 }}
+                          onSearch={handleSearch}
                         />
-                        <Select placeholder="Khoa" style={{ width: 150 }} allowClear>
+                        <Select
+                          placeholder="Khoa"
+                          style={{ width: 150 }}
+                          allowClear
+                          onChange={(value) => setSearchParams(prev => ({ ...prev, departmentId: value, page: 1 }))}
+                        >
                           <Select.Option value="1">Khoa Nội</Select.Option>
                           <Select.Option value="2">Khoa Ngoại</Select.Option>
                           <Select.Option value="3">Khoa Sản</Select.Option>
                         </Select>
-                        <Select placeholder="Trạng thái" style={{ width: 150 }} allowClear>
-                          <Select.Option value="0">Đang điều trị</Select.Option>
-                          <Select.Option value="1">Chuyển khoa</Select.Option>
-                          <Select.Option value="2">Xuất viện</Select.Option>
+                        <Select
+                          placeholder="Trạng thái"
+                          style={{ width: 150 }}
+                          allowClear
+                          onChange={(value) => setSearchParams(prev => ({ ...prev, status: value, page: 1 }))}
+                        >
+                          <Select.Option value={0}>Đang điều trị</Select.Option>
+                          <Select.Option value={1}>Chuyển khoa</Select.Option>
+                          <Select.Option value={2}>Xuất viện</Select.Option>
                         </Select>
+                        <Button
+                          icon={<ReloadOutlined />}
+                          onClick={loadAdmissions}
+                          loading={loading}
+                        >
+                          Làm mới
+                        </Button>
                       </Space>
                     </Col>
                     <Col>
@@ -460,18 +427,25 @@ const Inpatient: React.FC = () => {
                     </Col>
                   </Row>
 
-                  <Table
-                    columns={admissionColumns}
-                    dataSource={admissions}
-                    rowKey="id"
-                    size="small"
-                    scroll={{ x: 1400 }}
-                    pagination={{
-                      showSizeChanger: true,
-                      showQuickJumper: true,
-                      showTotal: (total) => `Tổng: ${total} bệnh nhân`,
-                    }}
-                  />
+                  <Spin spinning={loading}>
+                    <Table
+                      columns={admissionColumns}
+                      dataSource={admissions}
+                      rowKey="admissionId"
+                      size="small"
+                      scroll={{ x: 1400 }}
+                      pagination={{
+                        current: searchParams.page,
+                        pageSize: searchParams.pageSize,
+                        total: total,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total) => `Tổng: ${total} bệnh nhân`,
+                        onChange: (page, pageSize) => setSearchParams(prev => ({ ...prev, page, pageSize })),
+                      }}
+                      locale={{ emptyText: 'Không có bệnh nhân nội trú' }}
+                    />
+                  </Spin>
                 </>
               ),
             },
@@ -493,25 +467,35 @@ const Inpatient: React.FC = () => {
                           <Select.Option value="2">Phòng Nội 2</Select.Option>
                         </Select>
                         <Select placeholder="Trạng thái" style={{ width: 150 }} allowClear>
-                          <Select.Option value="0">Trống</Select.Option>
-                          <Select.Option value="1">Đang sử dụng</Select.Option>
-                          <Select.Option value="2">Bảo trì</Select.Option>
+                          <Select.Option value={0}>Trống</Select.Option>
+                          <Select.Option value={1}>Đang sử dụng</Select.Option>
+                          <Select.Option value={2}>Bảo trì</Select.Option>
                         </Select>
+                        <Button
+                          icon={<ReloadOutlined />}
+                          onClick={loadBeds}
+                          loading={loadingBeds}
+                        >
+                          Làm mới
+                        </Button>
                       </Space>
                     </Col>
                   </Row>
 
-                  <Table
-                    columns={bedColumns}
-                    dataSource={beds}
-                    rowKey="bedId"
-                    size="small"
-                    scroll={{ x: 1200 }}
-                    pagination={{
-                      showSizeChanger: true,
-                      showTotal: (total) => `Tổng: ${total} giường`,
-                    }}
-                  />
+                  <Spin spinning={loadingBeds}>
+                    <Table
+                      columns={bedColumns}
+                      dataSource={beds}
+                      rowKey="bedId"
+                      size="small"
+                      scroll={{ x: 1200 }}
+                      pagination={{
+                        showSizeChanger: true,
+                        showTotal: (total) => `Tổng: ${total} giường`,
+                      }}
+                      locale={{ emptyText: 'Không có giường' }}
+                    />
+                  </Spin>
                 </>
               ),
             },

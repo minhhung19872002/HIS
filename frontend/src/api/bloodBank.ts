@@ -3,7 +3,7 @@
  * Module 9: Quản lý máu, chế phẩm máu - 10 chức năng
  */
 
-import apiClient from './apiClient';
+import apiClient from './client';
 
 // #region Interfaces
 

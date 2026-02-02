@@ -3,7 +3,7 @@
  * Module 8: Chẩn đoán hình ảnh, Thăm dò chức năng - 28+ chức năng
  */
 
-import apiClient from './apiClient';
+import apiClient from './client';
 
 // #region Interfaces
 
