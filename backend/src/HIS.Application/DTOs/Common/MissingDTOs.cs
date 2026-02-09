@@ -293,12 +293,13 @@ namespace HIS.Application.DTOs
         public string RoomName { get; set; }
         public Guid DepartmentId { get; set; }
         public string DepartmentName { get; set; }
-        public bool IsOccupied { get; set; }
-        public Guid? CurrentPatientId { get; set; }
-        public string CurrentPatientName { get; set; }
-        public DateTime? OccupiedSince { get; set; }
-        public string BedType { get; set; }
-        public decimal DailyRate { get; set; }
+        public int BedStatus { get; set; } // 0=Empty, 1=Occupied, 2=Maintenance
+        public string BedStatusName { get; set; }
+        public Guid? CurrentAdmissionId { get; set; }
+        public string PatientName { get; set; }
+        public string PatientCode { get; set; }
+        public DateTime? AdmissionDate { get; set; }
+        public int? DaysOfStay { get; set; }
     }
 
     public class DischargeDto

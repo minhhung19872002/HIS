@@ -32,7 +32,6 @@ public class SurgeryCompleteController : ControllerBase
     /// Tạo yêu cầu PTTT
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Admin,Doctor")]
     public async Task<ActionResult<SurgeryDto>> CreateSurgeryRequest([FromBody] CreateSurgeryRequestDto dto)
     {
         var result = await _surgeryService.CreateSurgeryRequestAsync(dto, GetUserId());
@@ -43,7 +42,6 @@ public class SurgeryCompleteController : ControllerBase
     /// Duyệt mổ
     /// </summary>
     [HttpPost("approve")]
-    [Authorize(Roles = "Admin,SurgeryManager,DepartmentHead")]
     public async Task<ActionResult<SurgeryDto>> ApproveSurgery([FromBody] ApproveSurgeryDto dto)
     {
         var result = await _surgeryService.ApproveSurgeryAsync(dto, GetUserId());
@@ -65,7 +63,6 @@ public class SurgeryCompleteController : ControllerBase
     /// Lên lịch mổ
     /// </summary>
     [HttpPost("schedule")]
-    [Authorize(Roles = "Admin,SurgeryManager,Nurse")]
     public async Task<ActionResult<SurgeryDto>> ScheduleSurgery([FromBody] ScheduleSurgeryDto dto)
     {
         var result = await _surgeryService.ScheduleSurgeryAsync(dto, GetUserId());
@@ -86,7 +83,6 @@ public class SurgeryCompleteController : ControllerBase
     /// Tiếp nhận bệnh nhân vào phòng mổ
     /// </summary>
     [HttpPost("check-in")]
-    [Authorize(Roles = "Admin,SurgeryManager,Nurse")]
     public async Task<ActionResult<SurgeryDto>> CheckInPatient([FromBody] SurgeryCheckInDto dto)
     {
         var result = await _surgeryService.CheckInPatientAsync(dto, GetUserId());
@@ -281,7 +277,6 @@ public class SurgeryCompleteController : ControllerBase
     /// Bắt đầu ca mổ
     /// </summary>
     [HttpPost("start")]
-    [Authorize(Roles = "Admin,Doctor,Nurse")]
     public async Task<ActionResult<SurgeryDto>> StartSurgery([FromBody] StartSurgeryDto dto)
     {
         var result = await _surgeryService.StartSurgeryAsync(dto, GetUserId());
@@ -292,7 +287,6 @@ public class SurgeryCompleteController : ControllerBase
     /// Kết thúc ca mổ
     /// </summary>
     [HttpPost("complete")]
-    [Authorize(Roles = "Admin,Doctor")]
     public async Task<ActionResult<SurgeryDto>> CompleteSurgery([FromBody] CompleteSurgeryDto dto)
     {
         var result = await _surgeryService.CompleteSurgeryAsync(dto, GetUserId());

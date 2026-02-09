@@ -10,7 +10,7 @@ using ServiceDto = HIS.Application.Services.ServiceDto;
 using RoomDto = HIS.Application.Services.RoomDto;
 using MedicineDto = HIS.Application.Services.MedicineDto;
 using DoctorDto = HIS.Application.Services.DoctorDto;
-using WarehouseDto = HIS.Application.Services.WarehouseDto;
+using ExamWarehouseDto = HIS.Application.Services.ExamWarehouseDto;
 
 namespace HIS.Infrastructure.Services;
 
@@ -2462,13 +2462,13 @@ public class ExaminationCompleteService : IExaminationCompleteService
         return source;
     }
 
-    public async Task<List<WarehouseDto>> GetDispensaryWarehousesAsync()
+    public async Task<List<ExamWarehouseDto>> GetDispensaryWarehousesAsync()
     {
         var warehouses = await _context.Warehouses
             .Where(w => w.IsActive && w.WarehouseType == 2) // Dispensary type
             .ToListAsync();
 
-        return warehouses.Select(w => new WarehouseDto
+        return warehouses.Select(w => new ExamWarehouseDto
         {
             Id = w.Id,
             Code = w.WarehouseCode,

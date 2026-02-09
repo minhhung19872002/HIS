@@ -1196,7 +1196,7 @@ export interface PagedResult<T> {
 // API Functions
 // ============================================================================
 
-const BASE_URL = '/api/inpatient';
+const BASE_URL = '/inpatient';
 
 // #region 3.1 Màn hình chờ buồng bệnh
 

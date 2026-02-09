@@ -311,8 +311,9 @@ const Prescription: React.FC = () => {
     try {
       setLoadingMedicines(true);
       const response = await examinationApi.searchMedicines(value, undefined, 20);
-      if (response.success && response.data) {
-        const medicines = response.data.map(convertMedicineDto);
+      const data = response.data;
+      if (data) {
+        const medicines = data.map(convertMedicineDto);
         setMedicineSearchResults(medicines);
       } else {
         setMedicineSearchResults([]);
@@ -837,6 +838,30 @@ const Prescription: React.FC = () => {
               scroll={{ x: 1200 }}
               pagination={false}
               locale={{ emptyText: 'Chưa có thuốc nào trong đơn' }}
+              onRow={(record) => ({
+                onDoubleClick: () => {
+                  Modal.info({
+                    title: `Chi tiết thuốc: ${record.medicine.name}`,
+                    width: 600,
+                    content: (
+                      <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                        <Descriptions.Item label="Tên thuốc" span={2}>{record.medicine.name}</Descriptions.Item>
+                        <Descriptions.Item label="Hoạt chất" span={2}>{record.medicine.activeIngredient}</Descriptions.Item>
+                        <Descriptions.Item label="Dạng bào chế">{record.dosageForm}</Descriptions.Item>
+                        <Descriptions.Item label="Hàm lượng">{record.strength}</Descriptions.Item>
+                        <Descriptions.Item label="Số lượng">{record.quantity} {record.medicine.unit}</Descriptions.Item>
+                        <Descriptions.Item label="Đường dùng">{record.route}</Descriptions.Item>
+                        <Descriptions.Item label="Liều dùng">{record.dosage.morning}-{record.dosage.noon}-{record.dosage.afternoon}-{record.dosage.evening}</Descriptions.Item>
+                        <Descriptions.Item label="Số ngày">{record.duration} ngày</Descriptions.Item>
+                        <Descriptions.Item label="Đơn giá">{record.medicine.price?.toLocaleString('vi-VN')}đ</Descriptions.Item>
+                        <Descriptions.Item label="Thành tiền">{record.totalCost?.toLocaleString('vi-VN')}đ</Descriptions.Item>
+                        <Descriptions.Item label="Ghi chú" span={2}>{record.notes || '-'}</Descriptions.Item>
+                      </Descriptions>
+                    ),
+                  });
+                },
+                style: { cursor: 'pointer' },
+              })}
             />
 
             <Divider />

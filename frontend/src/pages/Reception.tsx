@@ -258,7 +258,7 @@ const Reception: React.FC = () => {
           queueNumber: a.queueNumber,
           patientCode: a.patientCode,
           patientName: a.patientName,
-          gender: a.gender === 'Nam' ? 1 : a.gender === 'Nữ' ? 2 : 0,
+          gender: typeof a.gender === 'number' ? a.gender : (a.gender === 'Nam' ? 1 : 2),
           dateOfBirth: a.dateOfBirth,
           phoneNumber: a.phoneNumber,
           identityNumber: a.identityNumber,
@@ -267,7 +267,7 @@ const Reception: React.FC = () => {
           departmentName: a.departmentName,
           roomName: a.roomName,
           roomId: a.roomId,
-          status: a.status === 'Waiting' ? 0 : a.status === 'InProgress' ? 1 : a.status === 'WaitingResult' ? 2 : 3,
+          status: typeof a.status === 'number' ? a.status : 0,
           admissionDate: a.admissionDate,
           address: a.address,
           priority: a.priority,
@@ -644,7 +644,7 @@ const Reception: React.FC = () => {
                       record.priority === 2 ? 'emergency-row' : record.priority === 1 ? 'priority-row' : ''
                     }
                     onRow={(record) => ({
-                      onClick: () => {
+                      onDoubleClick: () => {
                         setSelectedRecord(record);
                         setIsDetailModalOpen(true);
                       },

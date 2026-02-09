@@ -747,7 +747,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/SurgeryComplete';
+const BASE_URL = '/SurgeryComplete';
 
 // #region 6.1 Quản lý PTTT
 

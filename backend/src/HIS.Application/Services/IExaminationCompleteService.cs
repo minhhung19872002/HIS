@@ -613,7 +613,7 @@ public interface IExaminationCompleteService
     /// <summary>
     /// Lấy danh sách kho xuất thuốc
     /// </summary>
-    Task<List<WarehouseDto>> GetDispensaryWarehousesAsync();
+    Task<List<ExamWarehouseDto>> GetDispensaryWarehousesAsync();
 
     #endregion
 
@@ -925,7 +925,7 @@ public class MedicineDto
     public bool IsActive { get; set; }
 }
 
-public class WarehouseDto
+public class ExamWarehouseDto
 {
     public Guid Id { get; set; }
     public string Code { get; set; } = string.Empty;

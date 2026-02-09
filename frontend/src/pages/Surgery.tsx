@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -21,6 +21,7 @@ import {
   Descriptions,
   Alert,
   Divider,
+  Spin,
 } from 'antd';
 import {
   SearchOutlined,
@@ -35,6 +36,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { getSurgeries, getOperatingRooms, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto } from '../api/surgery';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -187,10 +189,11 @@ const mockOperatingRooms: OperatingRoom[] = [
 
 const Surgery: React.FC = () => {
   const [activeTab, setActiveTab] = useState('requests');
-  const [surgeryRequests, setSurgeryRequests] = useState<SurgeryRequest[]>(mockSurgeryRequests);
-  const [surgerySchedules, setSurgerySchedules] = useState<SurgerySchedule[]>(mockSurgerySchedules);
-  const [operatingRooms, _setOperatingRooms] = useState<OperatingRoom[]>(mockOperatingRooms);
+  const [surgeryRequests, setSurgeryRequests] = useState<SurgeryRequest[]>([]);
+  const [surgerySchedules, setSurgerySchedules] = useState<SurgerySchedule[]>([]);
+  const [operatingRooms, setOperatingRooms] = useState<OperatingRoom[]>([]);
   const [_surgeryRecords, _setSurgeryRecords] = useState<SurgeryRecord[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [selectedRequest, setSelectedRequest] = useState<SurgeryRequest | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<SurgerySchedule | null>(null);
@@ -198,6 +201,60 @@ const Surgery: React.FC = () => {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isStartSurgeryModalOpen, setIsStartSurgeryModalOpen] = useState(false);
+
+  // Fetch data from backend API
+  const fetchSurgeries = async (searchDto?: SurgerySearchDto) => {
+    setLoading(true);
+    try {
+      const response = await getSurgeries(searchDto || { page: 1, pageSize: 20 });
+      // Map API response to local SurgeryRequest format
+      const requests: SurgeryRequest[] = response.data.items.map((s: SurgeryDto) => ({
+        id: s.id,
+        requestCode: s.surgeryCode,
+        patientCode: s.patientCode,
+        patientName: s.patientName,
+        gender: s.gender === 'Nam' ? 1 : 2,
+        dateOfBirth: s.dateOfBirth,
+        requestDate: s.createdAt,
+        surgeryType: s.surgeryTypeName,
+        plannedProcedure: s.surgeryServiceName,
+        requestingDoctorName: s.requestDoctorName || 'N/A',
+        priority: s.surgeryNature,
+        status: s.status,
+        preOpDiagnosis: s.preOperativeDiagnosis,
+        estimatedDuration: s.durationMinutes,
+        anesthesiaType: s.anesthesiaType,
+      }));
+      setSurgeryRequests(requests);
+    } catch (error) {
+      console.error('Error fetching surgeries:', error);
+      message.error('Không thể tải danh sách phẫu thuật');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOperatingRooms = async () => {
+    try {
+      const response = await getOperatingRooms();
+      const rooms: OperatingRoom[] = response.data.map((r: OperatingRoomDto) => ({
+        id: r.id,
+        roomCode: r.code,
+        roomName: r.name,
+        roomType: r.roomType,
+        status: r.status === 0 ? 1 : 2, // Map: 0=Trống->1=Available, 1=Đang sử dụng->2=InUse
+        location: r.description || '',
+      }));
+      setOperatingRooms(rooms);
+    } catch (error) {
+      console.error('Error fetching operating rooms:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSurgeries();
+    fetchOperatingRooms();
+  }, []);
 
   const [requestForm] = Form.useForm();
   const [scheduleForm] = Form.useForm();
@@ -689,11 +746,38 @@ const Surgery: React.FC = () => {
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1600 }}
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} yêu cầu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        Modal.info({
+                          title: `Chi tiết yêu cầu: ${record.requestCode}`,
+                          width: 700,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Mã yêu cầu">{record.requestCode}</Descriptions.Item>
+                              <Descriptions.Item label="Mã BN">{record.patientCode}</Descriptions.Item>
+                              <Descriptions.Item label="Họ tên">{record.patientName}</Descriptions.Item>
+                              <Descriptions.Item label="Giới tính">{record.gender === 1 ? 'Nam' : 'Nữ'}</Descriptions.Item>
+                              <Descriptions.Item label="Loại PT">{record.surgeryType}</Descriptions.Item>
+                              <Descriptions.Item label="Độ ưu tiên">{getPriorityBadge(record.priority)}</Descriptions.Item>
+                              <Descriptions.Item label="Phương pháp PT" span={2}>{record.plannedProcedure}</Descriptions.Item>
+                              <Descriptions.Item label="Chẩn đoán trước mổ" span={2}>{record.preOpDiagnosis}</Descriptions.Item>
+                              <Descriptions.Item label="BS chỉ định">{record.requestingDoctorName}</Descriptions.Item>
+                              <Descriptions.Item label="Thời gian dự kiến">{record.estimatedDuration ? `${record.estimatedDuration} phút` : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày yêu cầu">{dayjs(record.requestDate).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{getRequestStatusTag(record.status)}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -749,6 +833,31 @@ const Surgery: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} ca phẫu thuật`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedSchedule(record);
+                        Modal.info({
+                          title: `Chi tiết lịch mổ: ${record.requestCode}`,
+                          width: 700,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Mã yêu cầu">{record.requestCode}</Descriptions.Item>
+                              <Descriptions.Item label="Mã BN">{record.patientCode}</Descriptions.Item>
+                              <Descriptions.Item label="Họ tên">{record.patientName}</Descriptions.Item>
+                              <Descriptions.Item label="Loại PT">{record.surgeryType}</Descriptions.Item>
+                              <Descriptions.Item label="Phòng mổ">{record.operatingRoomName}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày giờ mổ">{dayjs(record.scheduledDateTime).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+                              <Descriptions.Item label="Phương pháp PT" span={2}>{record.plannedProcedure}</Descriptions.Item>
+                              <Descriptions.Item label="Thời gian dự kiến">{record.estimatedDuration ? `${record.estimatedDuration} phút` : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Phẫu thuật viên">{record.surgeonName}</Descriptions.Item>
+                              <Descriptions.Item label="BS gây mê">{record.anesthesiologistName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{getScheduleStatusTag(record.status)}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -777,6 +886,27 @@ const Surgery: React.FC = () => {
                     rowKey="id"
                     size="small"
                     pagination={false}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiết phòng mổ: ${record.roomCode}`,
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Mã phòng">{record.roomCode}</Descriptions.Item>
+                              <Descriptions.Item label="Tên phòng">{record.roomName}</Descriptions.Item>
+                              <Descriptions.Item label="Loại phòng">
+                                {record.roomType === 1 ? 'Phòng mổ lớn' : record.roomType === 2 ? 'Phòng mổ nhỏ' : record.roomType === 3 ? 'Phòng mổ cấp cứu' : 'Phòng mổ chuyên khoa'}
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Vị trí">{record.location || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{getRoomStatusTag(record.status)}</Descriptions.Item>
+                              <Descriptions.Item label="Lịch hôm nay">{record.todaySchedules?.length || 0} ca</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -808,6 +938,27 @@ const Surgery: React.FC = () => {
                     rowKey="id"
                     size="small"
                     pagination={false}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedSchedule(record);
+                        Modal.info({
+                          title: `Ca mổ đang thực hiện: ${record.requestCode}`,
+                          width: 600,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Mã yêu cầu">{record.requestCode}</Descriptions.Item>
+                              <Descriptions.Item label="Mã BN">{record.patientCode}</Descriptions.Item>
+                              <Descriptions.Item label="Họ tên">{record.patientName}</Descriptions.Item>
+                              <Descriptions.Item label="Phòng mổ">{record.operatingRoomName}</Descriptions.Item>
+                              <Descriptions.Item label="Phương pháp PT" span={2}>{record.plannedProcedure}</Descriptions.Item>
+                              <Descriptions.Item label="Phẫu thuật viên">{record.surgeonName}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{getScheduleStatusTag(record.status)}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),

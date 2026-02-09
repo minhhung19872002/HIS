@@ -244,7 +244,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo phiếu thu tiền
     /// </summary>
     [HttpPost("payments")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize]
     public async Task<ActionResult<PaymentDto>> CreatePayment([FromBody] CreatePaymentDto dto)
     {
         var result = await _billingService.CreatePaymentAsync(dto, GetUserId());

@@ -1237,7 +1237,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Lấy danh sách kho xuất thuốc
     /// </summary>
     [HttpGet("dispensary-warehouses")]
-    public async Task<ActionResult<List<WarehouseDto>>> GetDispensaryWarehouses()
+    public async Task<ActionResult<List<ExamWarehouseDto>>> GetDispensaryWarehouses()
     {
         var result = await _examinationService.GetDispensaryWarehousesAsync();
         return Ok(result);

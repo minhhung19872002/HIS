@@ -101,7 +101,7 @@ namespace HIS.Application.Registration
             // Module 5: Kho Dược
             // services.AddScoped<IWarehouseCompleteService, WarehouseCompleteService>();
 
-            // Module 6: PTTT
+            // Module 6: PTTT - Registered in Infrastructure layer
             // services.AddScoped<ISurgeryCompleteService, SurgeryCompleteService>();
 
             // Module 7: Xét nghiệm LIS

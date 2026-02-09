@@ -18,6 +18,7 @@ import {
   Badge,
   Divider,
   Spin,
+  Descriptions,
 } from 'antd';
 import {
   PlusOutlined,
@@ -56,7 +57,8 @@ const Inpatient: React.FC = () => {
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isCareModalOpen, setIsCareModalOpen] = useState(false);
   const [isDischargeModalOpen, setIsDischargeModalOpen] = useState(false);
-  const [_selectedAdmission, setSelectedAdmission] = useState<InpatientListDto | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedAdmission, setSelectedAdmission] = useState<InpatientListDto | null>(null);
   const [form] = Form.useForm();
 
   // Load data on mount
@@ -74,13 +76,16 @@ const Inpatient: React.FC = () => {
     try {
       setLoading(true);
       const response = await getInpatientList(searchParams);
-      if (response.success && response.data) {
-        setAdmissions(response.data.items || []);
-        setTotal(response.data.totalCount || 0);
+      // axios returns data in response.data
+      const data = response.data;
+      if (data) {
+        setAdmissions(data.items || []);
+        setTotal(data.totalCount || 0);
       } else {
         setAdmissions([]);
       }
     } catch (error) {
+      console.error('Load admissions error:', error);
       message.error('Không thể tải danh sách bệnh nhân nội trú');
       setAdmissions([]);
     } finally {
@@ -92,12 +97,15 @@ const Inpatient: React.FC = () => {
     try {
       setLoadingBeds(true);
       const response = await getBedStatus();
-      if (response.success && response.data) {
-        setBeds(response.data);
+      // axios returns data in response.data
+      const data = response.data;
+      if (data) {
+        setBeds(Array.isArray(data) ? data : []);
       } else {
         setBeds([]);
       }
     } catch (error) {
+      console.error('Load beds error:', error);
       message.error('Không thể tải danh sách giường');
       setBeds([]);
     } finally {
@@ -232,7 +240,7 @@ const Inpatient: React.FC = () => {
             icon={<EyeOutlined />}
             onClick={() => {
               setSelectedAdmission(record);
-              message.info('Xem chi tiết bệnh án');
+              setIsDetailModalOpen(true);
             }}
           >
             Chi tiết
@@ -444,6 +452,13 @@ const Inpatient: React.FC = () => {
                         onChange: (page, pageSize) => setSearchParams(prev => ({ ...prev, page, pageSize })),
                       }}
                       locale={{ emptyText: 'Không có bệnh nhân nội trú' }}
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          setSelectedAdmission(record);
+                          setIsDetailModalOpen(true);
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
                     />
                   </Spin>
                 </>
@@ -494,6 +509,26 @@ const Inpatient: React.FC = () => {
                         showTotal: (total) => `Tổng: ${total} giường`,
                       }}
                       locale={{ emptyText: 'Không có giường' }}
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          Modal.info({
+                            title: `Chi tiết giường: ${record.bedCode}`,
+                            width: 500,
+                            content: (
+                              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                                <Descriptions.Item label="Mã giường">{record.bedCode}</Descriptions.Item>
+                                <Descriptions.Item label="Tên giường">{record.bedName}</Descriptions.Item>
+                                <Descriptions.Item label="Phòng">{record.roomName}</Descriptions.Item>
+                                <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
+                                <Descriptions.Item label="Trạng thái">{getBedStatusBadge(record.bedStatus, record.bedStatusName)}</Descriptions.Item>
+                                <Descriptions.Item label="Bệnh nhân">{record.patientName || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Mã BN">{record.patientCode || '-'}</Descriptions.Item>
+                              </Descriptions>
+                            ),
+                          });
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
                     />
                   </Spin>
                 </>
@@ -941,6 +976,147 @@ const Inpatient: React.FC = () => {
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Detail Modal */}
+      <Modal
+        title="Chi tiết bệnh nhân nội trú"
+        open={isDetailModalOpen}
+        onCancel={() => {
+          setIsDetailModalOpen(false);
+          setSelectedAdmission(null);
+        }}
+        footer={[
+          <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
+            Đóng
+          </Button>,
+        ]}
+        width={900}
+      >
+        {selectedAdmission && (
+          <div>
+            <Row gutter={[16, 16]}>
+              <Col span={24}>
+                <Card size="small" title="Thông tin bệnh nhân">
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Mã bệnh nhân:</Text>
+                      <div><strong>{selectedAdmission.patientCode}</strong></div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Họ tên:</Text>
+                      <div><strong>{selectedAdmission.patientName}</strong></div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Giới tính / Tuổi:</Text>
+                      <div>
+                        <strong>
+                          {selectedAdmission.gender === 1 ? 'Nam' : 'Nữ'} / {selectedAdmission.age || 'N/A'} tuổi
+                        </strong>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Mã hồ sơ:</Text>
+                      <div><strong>{selectedAdmission.medicalRecordCode}</strong></div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">BHYT:</Text>
+                      <div>
+                        {selectedAdmission.isInsurance ? (
+                          <Tag color="green">{selectedAdmission.insuranceNumber || 'Có BHYT'}</Tag>
+                        ) : (
+                          <Tag>Không có BHYT</Tag>
+                        )}
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Trạng thái:</Text>
+                      <div>{getStatusTag(selectedAdmission.status, selectedAdmission.statusName)}</div>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+
+              <Col span={24}>
+                <Card size="small" title="Thông tin nhập viện">
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Ngày nhập viện:</Text>
+                      <div>
+                        <strong>
+                          {selectedAdmission.admissionDate
+                            ? dayjs(selectedAdmission.admissionDate).format('DD/MM/YYYY HH:mm')
+                            : 'N/A'}
+                        </strong>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Số ngày điều trị:</Text>
+                      <div><strong>{selectedAdmission.daysOfStay} ngày</strong></div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Bác sĩ điều trị:</Text>
+                      <div><strong>{selectedAdmission.attendingDoctorName || 'N/A'}</strong></div>
+                    </Col>
+                  </Row>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Khoa:</Text>
+                      <div><strong>{selectedAdmission.departmentName}</strong></div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Phòng:</Text>
+                      <div><strong>{selectedAdmission.roomName}</strong></div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Giường:</Text>
+                      <div><strong>{selectedAdmission.bedName || 'Chưa phân giường'}</strong></div>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+
+              <Col span={24}>
+                <Card size="small" title="Chẩn đoán">
+                  <Text>{selectedAdmission.mainDiagnosis || 'Chưa có chẩn đoán'}</Text>
+                </Card>
+              </Col>
+
+              <Col span={24}>
+                <Card size="small" title="Cảnh báo">
+                  <Space wrap>
+                    {selectedAdmission.hasPendingOrders && (
+                      <Tag color="orange">Có y lệnh chờ xử lý</Tag>
+                    )}
+                    {selectedAdmission.hasPendingLabResults && (
+                      <Tag color="blue">Có kết quả XN chờ</Tag>
+                    )}
+                    {selectedAdmission.hasUnclaimedMedicine && (
+                      <Tag color="red">Thuốc chưa lĩnh</Tag>
+                    )}
+                    {selectedAdmission.isDebtWarning && (
+                      <Tag color="red">Cảnh báo nợ: {selectedAdmission.totalDebt?.toLocaleString()} VNĐ</Tag>
+                    )}
+                    {selectedAdmission.isInsuranceExpiring && (
+                      <Tag color="orange">BHYT sắp hết hạn</Tag>
+                    )}
+                    {!selectedAdmission.hasPendingOrders &&
+                      !selectedAdmission.hasPendingLabResults &&
+                      !selectedAdmission.hasUnclaimedMedicine &&
+                      !selectedAdmission.isDebtWarning &&
+                      !selectedAdmission.isInsuranceExpiring && (
+                        <Text type="secondary">Không có cảnh báo</Text>
+                      )}
+                  </Space>
+                </Card>
+              </Col>
+            </Row>
+          </div>
+        )}
       </Modal>
     </div>
   );

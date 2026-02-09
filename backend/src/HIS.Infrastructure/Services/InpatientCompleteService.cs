@@ -51,19 +51,129 @@ public class InpatientCompleteService : IInpatientCompleteService
 
     #region 3.1 Waiting Room Display
 
-    public Task<WardLayoutDto> GetWardLayoutAsync(Guid departmentId)
+    public async Task<WardLayoutDto> GetWardLayoutAsync(Guid departmentId)
     {
-        throw new NotImplementedException();
+        var department = await _context.Departments.FindAsync(departmentId);
+        if (department == null)
+            return new WardLayoutDto { DepartmentId = departmentId };
+
+        // Get all rooms in the department
+        var rooms = await _context.Rooms
+            .Where(r => r.DepartmentId == departmentId && r.IsActive)
+            .ToListAsync();
+
+        var roomIds = rooms.Select(r => r.Id).ToList();
+
+        // Get all beds in those rooms
+        var beds = await _context.Beds
+            .Where(b => roomIds.Contains(b.RoomId) && b.IsActive)
+            .ToListAsync();
+
+        var bedIds = beds.Select(b => b.Id).ToList();
+
+        // Get current bed assignments
+        var currentAssignments = await _context.Set<BedAssignment>()
+            .Include(ba => ba.Admission)
+            .ThenInclude(a => a.Patient)
+            .Where(ba => bedIds.Contains(ba.BedId) && ba.Status == 0)
+            .ToListAsync();
+
+        var assignmentsByBed = currentAssignments.ToDictionary(a => a.BedId, a => a);
+
+        // Build room layouts
+        var roomLayouts = new List<RoomLayoutDto>();
+        foreach (var room in rooms)
+        {
+            var roomBeds = beds.Where(b => b.RoomId == room.Id).ToList();
+            var occupiedCount = roomBeds.Count(b => assignmentsByBed.ContainsKey(b.Id));
+
+            var bedLayouts = roomBeds.Select(bed =>
+            {
+                var assignment = assignmentsByBed.GetValueOrDefault(bed.Id);
+                var patient = assignment?.Admission?.Patient;
+                return new BedLayoutDto
+                {
+                    BedId = bed.Id,
+                    BedCode = bed.BedCode,
+                    BedName = bed.BedName,
+                    BedType = bed.BedType,
+                    Status = assignment != null ? 1 : 0,
+                    CurrentAdmissionId = assignment?.AdmissionId,
+                    PatientName = patient?.FullName,
+                    PatientCode = patient?.PatientCode,
+                    Gender = patient?.Gender,
+                    AdmissionDate = assignment?.AssignedAt,
+                    DaysOfStay = assignment != null ? (int)(DateTime.Now - assignment.AssignedAt).TotalDays : null
+                };
+            }).ToList();
+
+            roomLayouts.Add(new RoomLayoutDto
+            {
+                RoomId = room.Id,
+                RoomCode = room.RoomCode,
+                RoomName = room.RoomName,
+                RoomType = room.RoomType,
+                TotalBeds = roomBeds.Count,
+                OccupiedBeds = occupiedCount,
+                AvailableBeds = roomBeds.Count - occupiedCount,
+                Beds = bedLayouts
+            });
+        }
+
+        return new WardLayoutDto
+        {
+            DepartmentId = department.Id,
+            DepartmentName = department.DepartmentName,
+            DepartmentCode = department.DepartmentCode,
+            TotalRooms = rooms.Count,
+            TotalBeds = beds.Count,
+            OccupiedBeds = currentAssignments.Count,
+            AvailableBeds = beds.Count - currentAssignments.Count,
+            MaintenanceBeds = 0,
+            Rooms = roomLayouts
+        };
     }
 
-    public Task<List<RoomLayoutDto>> GetRoomLayoutsAsync(Guid departmentId)
+    public async Task<List<RoomLayoutDto>> GetRoomLayoutsAsync(Guid departmentId)
     {
-        throw new NotImplementedException();
+        var wardLayout = await GetWardLayoutAsync(departmentId);
+        return wardLayout?.Rooms ?? new List<RoomLayoutDto>();
     }
 
-    public Task<List<BedLayoutDto>> GetBedLayoutsAsync(Guid roomId)
+    public async Task<List<BedLayoutDto>> GetBedLayoutsAsync(Guid roomId)
     {
-        throw new NotImplementedException();
+        var beds = await _context.Beds
+            .Where(b => b.RoomId == roomId && b.IsActive)
+            .ToListAsync();
+
+        var bedIds = beds.Select(b => b.Id).ToList();
+        var currentAssignments = await _context.Set<BedAssignment>()
+            .Include(ba => ba.Admission)
+            .ThenInclude(a => a.Patient)
+            .Where(ba => bedIds.Contains(ba.BedId) && ba.Status == 0)
+            .ToListAsync();
+
+        var assignmentsByBed = currentAssignments.ToDictionary(a => a.BedId, a => a);
+
+        return beds.Select(bed =>
+        {
+            var assignment = assignmentsByBed.GetValueOrDefault(bed.Id);
+            var patient = assignment?.Admission?.Patient;
+            return new BedLayoutDto
+            {
+                BedId = bed.Id,
+                BedCode = bed.BedCode,
+                BedName = bed.BedName,
+                BedType = bed.BedType,
+                Status = assignment != null ? 1 : 0,
+                CurrentAdmissionId = assignment?.AdmissionId,
+                PatientName = patient?.FullName,
+                PatientCode = patient?.PatientCode,
+                Gender = patient?.Gender,
+                AdmissionDate = assignment?.AssignedAt,
+                DaysOfStay = assignment != null ? (int)(DateTime.Now - assignment.AssignedAt).TotalDays : null
+            };
+        }).ToList();
     }
 
     public Task<List<SharedBedPatientDto>> GetSharedBedPatientsAsync(Guid bedId)
@@ -230,6 +340,10 @@ public class InpatientCompleteService : IInpatientCompleteService
         var result = beds.Select(bed =>
         {
             var assignment = currentAssignments.FirstOrDefault(ba => ba.BedId == bed.Id);
+            var bedStatus = assignment != null ? 1 : 0; // 0=Empty, 1=Occupied, 2=Maintenance
+            var daysOfStay = assignment?.AssignedAt != null
+                ? (int)(DateTime.Now - assignment.AssignedAt).TotalDays
+                : (int?)null;
 
             return new BedStatusDto
             {
@@ -240,27 +354,113 @@ public class InpatientCompleteService : IInpatientCompleteService
                 RoomName = bed.Room.RoomName,
                 DepartmentId = bed.Room.DepartmentId,
                 DepartmentName = bed.Room.Department.DepartmentName,
-                IsOccupied = assignment != null,
-                CurrentPatientId = assignment?.Admission?.PatientId,
-                CurrentPatientName = assignment?.Admission?.Patient?.FullName,
-                OccupiedSince = assignment?.AssignedAt,
-                BedType = bed.BedType switch
+                BedStatus = bedStatus,
+                BedStatusName = bedStatus switch
                 {
-                    1 => "Thường",
-                    2 => "Dịch vụ",
-                    3 => "ICU",
-                    _ => "Khác"
+                    0 => "Trống",
+                    1 => "Có bệnh nhân",
+                    2 => "Bảo trì",
+                    _ => "Không xác định"
                 },
-                DailyRate = bed.DailyPrice
+                CurrentAdmissionId = assignment?.AdmissionId,
+                PatientName = assignment?.Admission?.Patient?.FullName,
+                PatientCode = assignment?.Admission?.Patient?.PatientCode,
+                AdmissionDate = assignment?.AssignedAt,
+                DaysOfStay = daysOfStay
             };
         }).ToList();
 
         return result;
     }
 
-    public Task<AdmissionDto> AdmitFromOpdAsync(AdmitFromOpdDto dto, Guid userId)
+    public async Task<AdmissionDto> AdmitFromOpdAsync(AdmitFromOpdDto dto, Guid userId)
     {
-        throw new NotImplementedException();
+        // Get the medical record
+        var medicalRecord = await _context.MedicalRecords
+            .Include(m => m.Patient)
+            .FirstOrDefaultAsync(m => m.Id == dto.MedicalRecordId);
+
+        if (medicalRecord == null)
+            throw new Exception("Medical record not found");
+
+        // Update medical record to IPD type
+        medicalRecord.TreatmentType = 2; // Inpatient
+        medicalRecord.DepartmentId = dto.DepartmentId;
+        medicalRecord.RoomId = dto.RoomId;
+        medicalRecord.BedId = dto.BedId;
+        medicalRecord.DoctorId = dto.AttendingDoctorId;
+        medicalRecord.InitialDiagnosis = dto.DiagnosisOnAdmission;
+        medicalRecord.UpdatedAt = DateTime.Now;
+
+        // Create admission record
+        var admission = new Admission
+        {
+            Id = Guid.NewGuid(),
+            PatientId = medicalRecord.PatientId,
+            MedicalRecordId = medicalRecord.Id,
+            AdmissionDate = DateTime.Now,
+            AdmissionType = dto.AdmissionType,
+            AdmittingDoctorId = dto.AttendingDoctorId,
+            DepartmentId = dto.DepartmentId,
+            RoomId = dto.RoomId,
+            BedId = dto.BedId,
+            DiagnosisOnAdmission = dto.DiagnosisOnAdmission,
+            ReasonForAdmission = dto.ReasonForAdmission,
+            Status = 0, // 0 = Active
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        _context.Set<Admission>().Add(admission);
+
+        // Create bed assignment if bed is specified
+        if (dto.BedId.HasValue)
+        {
+            var bedAssignment = new BedAssignment
+            {
+                Id = Guid.NewGuid(),
+                AdmissionId = admission.Id,
+                BedId = dto.BedId.Value,
+                AssignedAt = DateTime.Now,
+                Status = 0, // Active
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString()
+            };
+            _context.Set<BedAssignment>().Add(bedAssignment);
+        }
+
+        await _context.SaveChangesAsync();
+
+        // Get department and room names for response
+        var department = await _context.Departments.FindAsync(dto.DepartmentId);
+        var room = await _context.Rooms.FindAsync(dto.RoomId);
+        var bed = dto.BedId.HasValue ? await _context.Beds.FindAsync(dto.BedId.Value) : null;
+
+        return new AdmissionDto
+        {
+            Id = admission.Id,
+            PatientId = admission.PatientId,
+            PatientCode = medicalRecord.Patient.PatientCode,
+            PatientName = medicalRecord.Patient.FullName,
+            DateOfBirth = medicalRecord.Patient.DateOfBirth,
+            Gender = medicalRecord.Patient.Gender == 1 ? "Nam" : "Nữ",
+            Address = medicalRecord.Patient.Address,
+            PhoneNumber = medicalRecord.Patient.PhoneNumber,
+            IdentityNumber = medicalRecord.Patient.IdentityNumber,
+            AdmissionDate = admission.AdmissionDate,
+            AdmissionType = GetAdmissionTypeName(admission.AdmissionType),
+            DepartmentId = admission.DepartmentId,
+            DepartmentName = department?.DepartmentName ?? "",
+            RoomId = admission.RoomId,
+            RoomName = room?.RoomName ?? "",
+            BedId = admission.BedId,
+            BedName = bed?.BedName ?? "",
+            InitialDiagnosis = admission.DiagnosisOnAdmission,
+            ChiefComplaint = admission.ReasonForAdmission,
+            AttendingDoctorId = admission.AdmittingDoctorId,
+            Status = GetAdmissionStatusName(admission.Status),
+            CreatedDate = admission.CreatedAt
+        };
     }
 
     public Task<AdmissionDto> AdmitFromDepartmentAsync(AdmitFromDepartmentDto dto, Guid userId)
@@ -995,6 +1195,34 @@ public class InpatientCompleteService : IInpatientCompleteService
     public Task<byte[]> PrintMedicineSupplyUsageReportAsync(ReportSearchDto searchDto)
     {
         throw new NotImplementedException();
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static string GetAdmissionTypeName(int admissionType)
+    {
+        return admissionType switch
+        {
+            1 => "Cấp cứu",
+            2 => "Chuyển viện",
+            3 => "Từ ngoại trú",
+            4 => "Nhập viện trực tiếp",
+            _ => "Khác"
+        };
+    }
+
+    private static string GetAdmissionStatusName(int status)
+    {
+        return status switch
+        {
+            0 => "Đang điều trị",
+            1 => "Đã xuất viện",
+            2 => "Đã chuyển viện",
+            3 => "Đã tử vong",
+            _ => "Không xác định"
+        };
     }
 
     #endregion

@@ -35,6 +35,15 @@ public static class DependencyInjection
         // Phân hệ 3: Điều trị Nội trú (Inpatient) - 100+ methods
         services.AddScoped<IInpatientCompleteService, InpatientCompleteService>();
 
+        // Phân hệ 5: Kho Dược (Warehouse/Pharmacy)
+        services.AddScoped<IWarehouseCompleteService, WarehouseCompleteService>();
+
+        // Phân hệ 10: Thu ngân (Billing)
+        services.AddScoped<IBillingCompleteService, BillingCompleteService>();
+
+        // Phân hệ 6: Phẫu thuật Thủ thuật (Surgery)
+        services.AddScoped<ISurgeryCompleteService, SurgeryCompleteService>();
+
         // TODO: Workflow Services - Các luồng làm việc liên kết 17 phân hệ HIS
         // Theo HIS_DataFlow_Architecture.md
 

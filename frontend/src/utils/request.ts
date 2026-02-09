@@ -30,7 +30,14 @@ request.interceptors.request.use(
 // Response interceptor
 request.interceptors.response.use(
   (response: AxiosResponse) => {
-    return response.data;
+    const data = response.data;
+    // Normalize response format: wrap raw data in { success: true, data: ... } if needed
+    if (data && typeof data === 'object' && !Array.isArray(data) && 'success' in data) {
+      // Already in ApiResponse format
+      return data;
+    }
+    // Raw data from API - wrap in standard format
+    return { success: true, data: data };
   },
   (error) => {
     if (error.response) {
