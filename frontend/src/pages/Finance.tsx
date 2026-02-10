@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -66,140 +66,55 @@ interface DepartmentRevenue {
   growth: number;
 }
 
-// Mock data
-const mockRevenueRecords: RevenueRecord[] = [
-  {
-    id: '1',
-    date: '2026-01-30',
-    department: 'Khoa Nội',
-    serviceType: 'Khám bệnh',
-    totalAmount: 15000000,
-    insuranceAmount: 12000000,
-    patientAmount: 3000000,
-    transactionCount: 45,
-  },
-  {
-    id: '2',
-    date: '2026-01-30',
-    department: 'Khoa Ngoại',
-    serviceType: 'Phẫu thuật',
-    totalAmount: 85000000,
-    insuranceAmount: 60000000,
-    patientAmount: 25000000,
-    transactionCount: 5,
-  },
-  {
-    id: '3',
-    date: '2026-01-30',
-    department: 'Khoa Xét nghiệm',
-    serviceType: 'Xét nghiệm',
-    totalAmount: 25000000,
-    insuranceAmount: 20000000,
-    patientAmount: 5000000,
-    transactionCount: 120,
-  },
-  {
-    id: '4',
-    date: '2026-01-30',
-    department: 'Khoa CĐHA',
-    serviceType: 'Chẩn đoán hình ảnh',
-    totalAmount: 35000000,
-    insuranceAmount: 28000000,
-    patientAmount: 7000000,
-    transactionCount: 80,
-  },
-];
+// API functions (placeholder - to be implemented)
+const fetchRevenueRecords = async () => {
+  // TODO: Implement API call to fetch revenue records
+  return [];
+};
 
-const mockExpenseRecords: ExpenseRecord[] = [
-  {
-    id: '1',
-    date: '2026-01-30',
-    category: 'Thuốc',
-    description: 'Nhập thuốc kháng sinh',
-    amount: 150000000,
-    supplier: 'Công ty Dược ABC',
-    invoiceNumber: 'HD260100001',
-    status: 2,
-  },
-  {
-    id: '2',
-    date: '2026-01-30',
-    category: 'Vật tư y tế',
-    description: 'Nhập vật tư tiêu hao',
-    amount: 50000000,
-    supplier: 'Công ty Thiết bị y tế XYZ',
-    invoiceNumber: 'HD260100002',
-    status: 1,
-  },
-  {
-    id: '3',
-    date: '2026-01-29',
-    category: 'Thiết bị',
-    description: 'Bảo trì máy CT Scanner',
-    amount: 25000000,
-    supplier: 'Công ty Kỹ thuật Y tế',
-    invoiceNumber: 'HD260100003',
-    status: 0,
-  },
-];
+const fetchExpenseRecords = async () => {
+  // TODO: Implement API call to fetch expense records
+  return [];
+};
 
-const mockDepartmentRevenue: DepartmentRevenue[] = [
-  {
-    department: 'Khoa Nội',
-    totalRevenue: 450000000,
-    insuranceRevenue: 360000000,
-    selfPayRevenue: 60000000,
-    serviceRevenue: 30000000,
-    patientCount: 1350,
-    growth: 12.5,
-  },
-  {
-    department: 'Khoa Ngoại',
-    totalRevenue: 850000000,
-    insuranceRevenue: 600000000,
-    selfPayRevenue: 150000000,
-    serviceRevenue: 100000000,
-    patientCount: 320,
-    growth: 8.3,
-  },
-  {
-    department: 'Khoa Sản',
-    totalRevenue: 380000000,
-    insuranceRevenue: 280000000,
-    selfPayRevenue: 60000000,
-    serviceRevenue: 40000000,
-    patientCount: 180,
-    growth: -2.1,
-  },
-  {
-    department: 'Khoa Xét nghiệm',
-    totalRevenue: 750000000,
-    insuranceRevenue: 600000000,
-    selfPayRevenue: 100000000,
-    serviceRevenue: 50000000,
-    patientCount: 3600,
-    growth: 15.2,
-  },
-  {
-    department: 'Khoa CĐHA',
-    totalRevenue: 1050000000,
-    insuranceRevenue: 840000000,
-    selfPayRevenue: 150000000,
-    serviceRevenue: 60000000,
-    patientCount: 2400,
-    growth: 10.8,
-  },
-];
+const fetchDepartmentRevenue = async () => {
+  // TODO: Implement API call to fetch department revenue
+  return [];
+};
 
 const Finance: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [_revenueRecords] = useState<RevenueRecord[]>(mockRevenueRecords);
-  const [_expenseRecords] = useState<ExpenseRecord[]>(mockExpenseRecords);
-  const [departmentRevenue] = useState<DepartmentRevenue[]>(mockDepartmentRevenue);
+  const [revenueRecords, setRevenueRecords] = useState<RevenueRecord[]>([]);
+  const [expenseRecords, setExpenseRecords] = useState<ExpenseRecord[]>([]);
+  const [departmentRevenue, setDepartmentRevenue] = useState<DepartmentRevenue[]>([]);
   const [_dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().startOf('month'),
     dayjs(),
   ]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [revenueData, expenseData, departmentData] = await Promise.all([
+          fetchRevenueRecords(),
+          fetchExpenseRecords(),
+          fetchDepartmentRevenue(),
+        ]);
+        setRevenueRecords(revenueData);
+        setExpenseRecords(expenseData);
+        setDepartmentRevenue(departmentData);
+      } catch (error) {
+        message.error('Lỗi khi tải dữ liệu tài chính');
+        console.error('Error loading finance data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -228,7 +143,7 @@ const Finance: React.FC = () => {
   const totalInsurance = departmentRevenue.reduce((sum, d) => sum + d.insuranceRevenue, 0);
   const totalSelfPay = departmentRevenue.reduce((sum, d) => sum + d.selfPayRevenue, 0);
   const totalService = departmentRevenue.reduce((sum, d) => sum + d.serviceRevenue, 0);
-  const totalExpense = mockExpenseRecords.reduce((sum, e) => sum + e.amount, 0);
+  const totalExpense = expenseRecords.reduce((sum, e) => sum + e.amount, 0);
   const profit = totalRevenue - totalExpense;
 
   // Revenue columns
@@ -560,6 +475,7 @@ const Finance: React.FC = () => {
                           dataSource={departmentRevenue}
                           rowKey="department"
                           size="small"
+                          loading={loading}
                           pagination={false}
                           scroll={{ x: 1100 }}
                         />
@@ -602,9 +518,10 @@ const Finance: React.FC = () => {
 
                   <Table
                     columns={revenueColumns}
-                    dataSource={mockRevenueRecords}
+                    dataSource={revenueRecords}
                     rowKey="id"
                     size="small"
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
@@ -671,9 +588,10 @@ const Finance: React.FC = () => {
 
                   <Table
                     columns={expenseColumns}
-                    dataSource={mockExpenseRecords}
+                    dataSource={expenseRecords}
                     rowKey="id"
                     size="small"
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,

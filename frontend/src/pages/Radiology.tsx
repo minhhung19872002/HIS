@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import risApi from '../api/ris';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -95,83 +96,11 @@ interface RadiologyReport {
   approvedAt?: string;
 }
 
-// Mock data
-const mockRadiologyRequests: RadiologyRequest[] = [
-  {
-    id: '1',
-    requestCode: 'CDHA26010001',
-    patientCode: 'BN26000001',
-    patientName: 'Nguyễn Văn A',
-    gender: 1,
-    dateOfBirth: '1985-05-15',
-    serviceName: 'Chụp X-quang ngực thẳng',
-    bodyPart: 'Ngực',
-    contrast: false,
-    priority: 3,
-    requestDate: '2026-01-30T08:00:00',
-    status: 0,
-    departmentName: 'Khoa Nội',
-    doctorName: 'BS. Trần Văn B',
-    clinicalInfo: 'Ho, khó thở, nghi viêm phổi',
-  },
-  {
-    id: '2',
-    requestCode: 'CDHA26010002',
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    gender: 2,
-    dateOfBirth: '1990-10-20',
-    serviceName: 'Siêu âm ổ bụng tổng quát',
-    bodyPart: 'Ổ bụng',
-    contrast: false,
-    priority: 1,
-    requestDate: '2026-01-30T08:15:00',
-    scheduledDate: '2026-01-30T10:00:00',
-    status: 1,
-    departmentName: 'Khoa Ngoại',
-    doctorName: 'BS. Lê Thị C',
-    clinicalInfo: 'Đau bụng trên, nghi viêm túi mật',
-    modalityName: 'Siêu âm',
-  },
-];
-
-const mockRadiologyExams: RadiologyExam[] = [
-  {
-    id: '1',
-    requestId: '3',
-    requestCode: 'CDHA26010003',
-    patientCode: 'BN26000003',
-    patientName: 'Phạm Văn C',
-    serviceName: 'CT Scanner sọ não không cản quang',
-    modalityCode: 'CT',
-    modalityName: 'CT Scanner',
-    accessionNumber: '202601300001',
-    examDate: '2026-01-30T09:00:00',
-    technicianName: 'KTV. Hoàng Văn D',
-    status: 1,
-    startTime: '2026-01-30T09:15:00',
-  },
-];
-
-const mockRadiologyReports: RadiologyReport[] = [
-  {
-    id: '1',
-    examId: '2',
-    requestCode: 'CDHA26010004',
-    patientCode: 'BN26000004',
-    patientName: 'Lê Thị D',
-    serviceName: 'Chụp X-quang cột sống thắt lưng',
-    status: 1,
-    radiologistName: 'BS. Nguyễn Văn E',
-    reportDate: '2026-01-30T10:30:00',
-  },
-];
-
 const Radiology: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending');
-  const [radiologyRequests, setRadiologyRequests] = useState<RadiologyRequest[]>(mockRadiologyRequests);
-  const [radiologyExams, setRadiologyExams] = useState<RadiologyExam[]>(mockRadiologyExams);
-  const [radiologyReports, setRadiologyReports] = useState<RadiologyReport[]>(mockRadiologyReports);
+  const [radiologyRequests, setRadiologyRequests] = useState<RadiologyRequest[]>([]);
+  const [radiologyExams, setRadiologyExams] = useState<RadiologyExam[]>([]);
+  const [radiologyReports, setRadiologyReports] = useState<RadiologyReport[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<RadiologyRequest | null>(null);
   const [selectedExam, setSelectedExam] = useState<RadiologyExam | null>(null);
   const [selectedReport, setSelectedReport] = useState<RadiologyReport | null>(null);
@@ -181,6 +110,45 @@ const Radiology: React.FC = () => {
   const [scheduleForm] = Form.useForm();
   const [reportForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Fetch radiology data from API
+  const fetchRadiologyData = async () => {
+    setLoading(true);
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const response = await risApi.getWaitingList(today);
+      if (response && response.data) {
+        // Map API data to local RadiologyRequest format
+        const requests: RadiologyRequest[] = ((response as any).data || []).map((item: any) => ({
+          id: item.orderId,
+          requestCode: item.orderCode,
+          patientCode: item.patientCode,
+          patientName: item.patientName,
+          gender: item.gender === 'Nam' ? 1 : 2,
+          serviceName: item.serviceName,
+          contrast: false,
+          priority: item.priority === 'Emergency' ? 3 : item.priority === 'Urgent' ? 2 : 1,
+          requestDate: item.orderTime,
+          scheduledDate: item.calledTime,
+          status: item.status === 'Pending' ? 0 : item.status === 'Scheduled' ? 1 : item.status === 'InProgress' ? 2 : 3,
+          departmentName: item.departmentName,
+          doctorName: item.orderDoctorName,
+          modalityName: item.serviceTypeName,
+        }));
+        setRadiologyRequests(requests);
+      }
+    } catch (error) {
+      console.error('Error fetching radiology data:', error);
+      message.error('Không thể tải danh sách chẩn đoán hình ảnh');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRadiologyData();
+  }, []);
 
   // Get priority badge
   const getPriorityBadge = (priority: number) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -32,6 +32,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { adminApi } from '../api/system';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -39,7 +40,7 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
-// User Management Interfaces
+// User Management Interfaces (mapped from API DTOs)
 interface User {
   id: string;
   username: string;
@@ -105,138 +106,112 @@ interface NotificationItem {
   createdAt: string;
 }
 
-// Mock Data
-const mockUsers: User[] = [
-  {
-    id: '1',
-    username: 'admin',
-    fullName: 'Quản trị viên',
-    email: 'admin@hospital.vn',
-    phoneNumber: '0901234567',
-    employeeCode: 'NV001',
-    title: 'Giám đốc',
-    departmentName: 'Ban Giám đốc',
-    isActive: true,
-    lastLoginAt: '2026-01-30T08:00:00',
-    roles: [{ id: '1', roleCode: 'ADMIN', roleName: 'Quản trị viên', permissions: [], userCount: 1 }],
-    createdAt: '2026-01-01T00:00:00',
-  },
-  {
-    id: '2',
-    username: 'bs.nguyenvana',
-    fullName: 'BS. Nguyễn Văn A',
-    email: 'nguyenvana@hospital.vn',
-    phoneNumber: '0912345678',
-    employeeCode: 'BS001',
-    title: 'Bác sĩ',
-    departmentName: 'Khoa Nội',
-    isActive: true,
-    lastLoginAt: '2026-01-30T07:30:00',
-    roles: [{ id: '2', roleCode: 'DOCTOR', roleName: 'Bác sĩ', permissions: [], userCount: 5 }],
-    createdAt: '2026-01-15T00:00:00',
-  },
-];
-
-const mockRoles: Role[] = [
-  {
-    id: '1',
-    roleCode: 'ADMIN',
-    roleName: 'Quản trị viên',
-    description: 'Toàn quyền hệ thống',
-    permissions: [],
-    userCount: 1,
-  },
-  {
-    id: '2',
-    roleCode: 'DOCTOR',
-    roleName: 'Bác sĩ',
-    description: 'Khám bệnh, kê đơn',
-    permissions: [],
-    userCount: 5,
-  },
-  {
-    id: '3',
-    roleCode: 'NURSE',
-    roleName: 'Điều dưỡng',
-    description: 'Tiếp đón, chăm sóc bệnh nhân',
-    permissions: [],
-    userCount: 10,
-  },
-  {
-    id: '4',
-    roleCode: 'PHARMACIST',
-    roleName: 'Dược sĩ',
-    description: 'Quản lý thuốc, cấp phát',
-    permissions: [],
-    userCount: 3,
-  },
-];
-
-const mockPermissions: Permission[] = [
-  { id: '1', permissionCode: 'USER_VIEW', permissionName: 'Xem người dùng', module: 'System' },
-  { id: '2', permissionCode: 'USER_CREATE', permissionName: 'Tạo người dùng', module: 'System' },
-  { id: '3', permissionCode: 'PATIENT_VIEW', permissionName: 'Xem bệnh nhân', module: 'Patient' },
-  { id: '4', permissionCode: 'PATIENT_CREATE', permissionName: 'Tạo bệnh nhân', module: 'Patient' },
-  { id: '5', permissionCode: 'OPD_VIEW', permissionName: 'Xem phòng khám', module: 'OPD' },
-  { id: '6', permissionCode: 'OPD_EXAM', permissionName: 'Khám bệnh', module: 'OPD' },
-  { id: '7', permissionCode: 'PHARMACY_VIEW', permissionName: 'Xem kho thuốc', module: 'Pharmacy' },
-  { id: '8', permissionCode: 'PHARMACY_DISPENSE', permissionName: 'Cấp phát thuốc', module: 'Pharmacy' },
-];
-
-const mockConfigs: SystemConfig[] = [
-  { id: '1', configKey: 'HOSPITAL_NAME', configValue: 'Bệnh viện Đa khoa ABC', configType: 'String', description: 'Tên bệnh viện', isActive: true },
-  { id: '2', configKey: 'HOSPITAL_ADDRESS', configValue: 'Số 123 Đường ABC, Quận XYZ, TP. HCM', configType: 'String', description: 'Địa chỉ bệnh viện', isActive: true },
-  { id: '3', configKey: 'HOSPITAL_PHONE', configValue: '028.3xxx.xxxx', configType: 'String', description: 'Số điện thoại', isActive: true },
-  { id: '4', configKey: 'SESSION_TIMEOUT', configValue: '30', configType: 'Number', description: 'Thời gian timeout phiên (phút)', isActive: true },
-  { id: '5', configKey: 'ALLOW_DUPLICATE_PATIENT', configValue: 'false', configType: 'Boolean', description: 'Cho phép tạo bệnh nhân trùng', isActive: true },
-];
-
-const mockAuditLogs: AuditLog[] = [
-  {
-    id: '1',
-    tableName: 'Users',
-    action: 'UPDATE',
-    oldValue: '{"isActive": true}',
-    newValue: '{"isActive": false}',
-    userId: '1',
-    username: 'admin',
-    userFullName: 'Quản trị viên',
-    createdAt: '2026-01-30T08:00:00',
-  },
-  {
-    id: '2',
-    tableName: 'Patients',
-    action: 'CREATE',
-    newValue: '{"patientCode": "BN26000001", "fullName": "Nguyễn Văn A"}',
-    userId: '2',
-    username: 'bs.nguyenvana',
-    userFullName: 'BS. Nguyễn Văn A',
-    createdAt: '2026-01-30T07:30:00',
-  },
-];
-
-const mockNotifications: NotificationItem[] = [
-  {
-    id: '1',
-    title: 'Bảo trì hệ thống',
-    content: 'Hệ thống sẽ được bảo trì vào 23:00 ngày 31/01/2026',
-    notificationType: 'Warning',
-    isRead: false,
-    createdAt: '2026-01-30T08:00:00',
-  },
-  {
-    id: '2',
-    title: 'Cập nhật phiên bản',
-    content: 'Phiên bản mới v2.0.0 đã được cập nhật',
-    notificationType: 'Info',
-    isRead: true,
-    readAt: '2026-01-30T08:30:00',
-    createdAt: '2026-01-29T10:00:00',
-  },
-];
-
 const SystemAdmin: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [configs, setConfigs] = useState<SystemConfig[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activeTab, setActiveTab] = useState('users');
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [usersData, rolesData, permissionsData, configsData, auditLogsData, notificationsData] = await Promise.all([
+        adminApi.getUsers().catch(() => ({ data: [] })),
+        adminApi.getRoles().catch(() => ({ data: [] })),
+        adminApi.getPermissions().catch(() => ({ data: [] })),
+        adminApi.getSystemConfigs().catch(() => ({ data: [] })),
+        adminApi.getAuditLogs({}).catch(() => ({ data: [] })),
+        adminApi.getSystemNotifications().catch(() => ({ data: [] })),
+      ]);
+
+      // Map API DTOs to local interfaces
+      setUsers((usersData.data || []).map((u: any) => ({
+        id: u.id || '',
+        username: u.username,
+        fullName: u.fullName,
+        email: u.email,
+        phoneNumber: u.phoneNumber,
+        employeeCode: u.employeeCode,
+        title: '',
+        departmentName: u.departmentName,
+        isActive: u.isActive,
+        lastLoginAt: u.lastLoginDate,
+        roles: (u.roles || []).map((r: any) => ({
+          id: r.id || '',
+          roleCode: r.code,
+          roleName: r.name,
+          description: r.description,
+          permissions: r.permissions || [],
+          userCount: r.userCount || 0,
+        })),
+        createdAt: u.createdDate,
+      })));
+
+      setRoles((rolesData.data || []).map((r: any) => ({
+        id: r.id || '',
+        roleCode: r.code,
+        roleName: r.name,
+        description: r.description,
+        permissions: r.permissions || [],
+        userCount: r.userCount || 0,
+      })));
+
+      setPermissions((permissionsData.data || []).map((p: any) => ({
+        id: p.id || '',
+        permissionCode: p.code,
+        permissionName: p.name,
+        module: p.module,
+        description: p.description,
+      })));
+
+      setConfigs((configsData.data || []).map((c: any) => ({
+        id: c.configKey,
+        configKey: c.configKey,
+        configValue: c.configValue,
+        configType: c.dataType || 'String',
+        description: c.description,
+        isActive: !c.isEditable ? true : c.isActive !== false,
+      })));
+
+      setAuditLogs((auditLogsData.data || []).map((a: any) => ({
+        id: a.id,
+        tableName: a.entityType || '',
+        action: a.action,
+        oldValue: a.oldValues,
+        newValue: a.newValues,
+        userId: a.userId,
+        username: a.username,
+        userFullName: a.fullName,
+        createdAt: a.timestamp,
+      })));
+
+      setNotifications((notificationsData.data || []).map((n: any) => ({
+        id: n.id || '',
+        title: n.title,
+        content: n.content,
+        notificationType: n.notificationType,
+        targetUserId: n.targetUsers?.[0],
+        targetRoleId: n.targetRoles?.[0],
+        isRead: !n.isActive,
+        readAt: undefined,
+        createdAt: n.createdDate,
+      })));
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      message.error('Không thể tải dữ liệu!');
+    } finally {
+      setLoading(false);
+    }
+  };
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -691,10 +666,11 @@ const SystemAdmin: React.FC = () => {
 
                   <Table
                     columns={userColumns}
-                    dataSource={mockUsers}
+                    dataSource={users}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1500 }}
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
@@ -724,9 +700,10 @@ const SystemAdmin: React.FC = () => {
 
                   <Table
                     columns={roleColumns}
-                    dataSource={mockRoles}
+                    dataSource={roles}
                     rowKey="id"
                     size="small"
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showTotal: (total) => `Tổng: ${total} vai trò`,
@@ -745,9 +722,10 @@ const SystemAdmin: React.FC = () => {
               children: (
                 <Table
                   columns={configColumns}
-                  dataSource={mockConfigs}
+                  dataSource={configs}
                   rowKey="id"
                   size="small"
+                  loading={loading}
                   pagination={{
                     showSizeChanger: true,
                     showTotal: (total) => `Tổng: ${total} cấu hình`,
@@ -786,10 +764,11 @@ const SystemAdmin: React.FC = () => {
 
                   <Table
                     columns={auditLogColumns}
-                    dataSource={mockAuditLogs}
+                    dataSource={auditLogs}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1200 }}
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showTotal: (total) => `Tổng: ${total} bản ghi`,
@@ -818,9 +797,10 @@ const SystemAdmin: React.FC = () => {
 
                   <Table
                     columns={notificationColumns}
-                    dataSource={mockNotifications}
+                    dataSource={notifications}
                     rowKey="id"
                     size="small"
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showTotal: (total) => `Tổng: ${total} thông báo`,
@@ -916,7 +896,7 @@ const SystemAdmin: React.FC = () => {
 
           <Form.Item name="roleIds" label="Vai trò" rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}>
             <Select mode="multiple" placeholder="Chọn vai trò">
-              {mockRoles.map((role) => (
+              {roles.map((role) => (
                 <Option key={role.id} value={role.id}>
                   {role.roleName}
                 </Option>
@@ -968,7 +948,7 @@ const SystemAdmin: React.FC = () => {
 
           <Form.Item name="permissionIds" label="Phân quyền">
             <Select mode="multiple" placeholder="Chọn quyền">
-              {mockPermissions.map((permission) => (
+              {permissions.map((permission) => (
                 <Option key={permission.id} value={permission.id}>
                   [{permission.module}] {permission.permissionName}
                 </Option>
@@ -1047,7 +1027,7 @@ const SystemAdmin: React.FC = () => {
             <Col span={12}>
               <Form.Item name="targetUserId" label="Gửi đến người dùng">
                 <Select placeholder="Chọn người dùng" allowClear>
-                  {mockUsers.map((user) => (
+                  {users.map((user) => (
                     <Option key={user.id} value={user.id}>
                       {user.fullName}
                     </Option>
@@ -1058,7 +1038,7 @@ const SystemAdmin: React.FC = () => {
             <Col span={12}>
               <Form.Item name="targetRoleId" label="Gửi đến vai trò">
                 <Select placeholder="Chọn vai trò" allowClear>
-                  {mockRoles.map((role) => (
+                  {roles.map((role) => (
                     <Option key={role.id} value={role.id}>
                       {role.roleName}
                     </Option>

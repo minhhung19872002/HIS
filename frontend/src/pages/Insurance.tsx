@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -37,6 +37,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import * as insuranceApi from '../api/insurance';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -75,102 +76,75 @@ interface XmlBatch {
   xmlType: string;
 }
 
-// Mock data
-const mockClaims: InsuranceClaim[] = [
-  {
-    id: '1',
-    claimCode: 'GD26010001',
-    patientCode: 'BN26000001',
-    patientName: 'Nguyễn Văn A',
-    insuranceNumber: 'HS4012345678901',
-    visitDate: '2026-01-30',
-    department: 'Khoa Nội',
-    diagnosis: 'J06.9 - Nhiễm khuẩn đường hô hấp trên cấp',
-    totalAmount: 850000,
-    insuranceAmount: 680000,
-    patientAmount: 170000,
-    status: 3,
-    submittedDate: '2026-01-30',
-    approvedDate: '2026-01-30',
-  },
-  {
-    id: '2',
-    claimCode: 'GD26010002',
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    insuranceNumber: 'HS4098765432101',
-    visitDate: '2026-01-30',
-    dischargeDate: '2026-01-30',
-    department: 'Khoa Ngoại',
-    diagnosis: 'K35.9 - Viêm ruột thừa cấp',
-    totalAmount: 15000000,
-    insuranceAmount: 12000000,
-    patientAmount: 3000000,
-    status: 2,
-    submittedDate: '2026-01-30',
-  },
-  {
-    id: '3',
-    claimCode: 'GD26010003',
-    patientCode: 'BN26000003',
-    patientName: 'Phạm Văn C',
-    insuranceNumber: 'HS4011122233344',
-    visitDate: '2026-01-30',
-    department: 'Khoa Cấp cứu',
-    diagnosis: 'I10 - Tăng huyết áp nguyên phát',
-    totalAmount: 1200000,
-    insuranceAmount: 960000,
-    patientAmount: 240000,
-    status: 1,
-  },
-  {
-    id: '4',
-    claimCode: 'GD26010004',
-    patientCode: 'BN26000004',
-    patientName: 'Lê Thị D',
-    insuranceNumber: 'HS4055566677788',
-    visitDate: '2026-01-29',
-    department: 'Khoa Sản',
-    diagnosis: 'O80 - Đẻ thường',
-    totalAmount: 8500000,
-    insuranceAmount: 6800000,
-    patientAmount: 1700000,
-    status: 4,
-    rejectReason: 'Thiếu giấy chuyển viện',
-  },
-];
-
-const mockXmlBatches: XmlBatch[] = [
-  {
-    id: '1',
-    batchCode: 'XML260100001',
-    period: '01/2026',
-    claimCount: 1250,
-    totalAmount: 2500000000,
-    createdDate: '2026-01-30',
-    submittedDate: '2026-01-30',
-    status: 3,
-    xmlType: 'QĐ 4210',
-  },
-  {
-    id: '2',
-    batchCode: 'XML260100002',
-    period: '01/2026',
-    claimCount: 320,
-    totalAmount: 850000000,
-    createdDate: '2026-01-30',
-    status: 1,
-    xmlType: 'QĐ 130',
-  },
-];
-
 const Insurance: React.FC = () => {
   const [activeTab, setActiveTab] = useState('claims');
-  const [claims] = useState<InsuranceClaim[]>(mockClaims);
-  const [xmlBatches] = useState<XmlBatch[]>(mockXmlBatches);
+  const [claims, setClaims] = useState<InsuranceClaim[]>([]);
+  const [xmlBatches, setXmlBatches] = useState<XmlBatch[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<InsuranceClaim | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchClaims();
+    fetchXmlBatches();
+  }, []);
+
+  const fetchClaims = async () => {
+    try {
+      setLoading(true);
+      const result = await insuranceApi.searchInsuranceClaims({
+        pageNumber: 1,
+        pageSize: 100,
+      });
+      const mappedClaims: InsuranceClaim[] = ((result as any).data?.items || []).map((item: any) => ({
+        id: item.id,
+        claimCode: item.maLk,
+        patientCode: item.patientCode,
+        patientName: item.patientName,
+        insuranceNumber: item.insuranceNumber,
+        visitDate: item.admissionDate,
+        dischargeDate: item.dischargeDate,
+        department: '',
+        diagnosis: `${item.diagnosisCode} - ${item.diagnosisName}`,
+        totalAmount: item.totalAmount,
+        insuranceAmount: item.insuranceAmount,
+        patientAmount: item.patientAmount,
+        status: item.status,
+        submittedDate: item.submitDate,
+        rejectReason: item.rejectReason,
+      }));
+      setClaims(mappedClaims);
+    } catch (error) {
+      message.error('Không thể tải danh sách hồ sơ giám định');
+      console.error('Failed to fetch claims:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchXmlBatches = async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const batches = await insuranceApi.getSettlementBatches(currentYear);
+      const mappedBatches: XmlBatch[] = ((batches as any).data || []).map((batch: any) => ({
+        id: batch.id,
+        batchCode: batch.batchCode,
+        period: `${batch.month.toString().padStart(2, '0')}/${batch.year}`,
+        claimCount: batch.totalRecords,
+        totalAmount: batch.totalAmount,
+        createdDate: batch.createdAt,
+        submittedDate: batch.submitDate,
+        status: batch.status,
+        xmlType: 'QĐ 4210',
+      }));
+      setXmlBatches(mappedBatches);
+    } catch (error) {
+      message.error('Không thể tải danh sách lô XML');
+      console.error('Failed to fetch XML batches:', error);
+    }
+  };
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -574,6 +548,7 @@ const Insurance: React.FC = () => {
                     dataSource={claims}
                     rowKey="id"
                     size="small"
+                    loading={loading}
                     scroll={{ x: 1600 }}
                     pagination={{
                       showSizeChanger: true,
@@ -631,6 +606,7 @@ const Insurance: React.FC = () => {
                     dataSource={xmlBatches}
                     rowKey="id"
                     size="small"
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,

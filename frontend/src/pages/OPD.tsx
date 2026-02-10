@@ -735,9 +735,9 @@ const OPD: React.FC = () => {
                           <Descriptions.Item label="Số thứ tự">{record.queueNumber}</Descriptions.Item>
                           <Descriptions.Item label="Họ tên">{record.patientName}</Descriptions.Item>
                           <Descriptions.Item label="Giới tính">{record.gender === 1 ? 'Nam' : 'Nữ'}</Descriptions.Item>
-                          <Descriptions.Item label="Ngày sinh">{record.dateOfBirth}</Descriptions.Item>
+                          <Descriptions.Item label="Ngày sinh">{(record as any).dateOfBirth || '-'}</Descriptions.Item>
                           <Descriptions.Item label="Tuổi">{record.age}</Descriptions.Item>
-                          <Descriptions.Item label="Lý do khám" span={2}>{record.visitReason || '-'}</Descriptions.Item>
+                          <Descriptions.Item label="Lý do khám" span={2}>{(record as any).visitReason || '-'}</Descriptions.Item>
                           <Descriptions.Item label="Trạng thái" span={2}>
                             <Tag color={record.status === 0 ? 'orange' : record.status === 1 ? 'blue' : 'green'}>
                               {record.status === 0 ? 'Chờ khám' : record.status === 1 ? 'Đang khám' : 'Đã khám'}

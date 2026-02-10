@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -36,6 +36,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import laboratoryApi from '../api/laboratory';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -95,136 +96,12 @@ interface TestParameter {
   inputType: 'number' | 'text';
 }
 
-// Mock data
-const mockLabRequests: LabRequest[] = [
-  {
-    id: '1',
-    requestCode: 'XN26010001',
-    patientCode: 'BN26000001',
-    patientName: 'Nguyễn Văn A',
-    gender: 1,
-    dateOfBirth: '1985-05-15',
-    requestedTests: ['Công thức máu', 'Sinh hóa máu'],
-    priority: 2,
-    requestDate: '2026-01-30T08:00:00',
-    status: 0,
-    departmentName: 'Khoa Nội',
-    doctorName: 'BS. Trần Văn B',
-  },
-  {
-    id: '2',
-    requestCode: 'XN26010002',
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    gender: 2,
-    dateOfBirth: '1990-10-20',
-    requestedTests: ['Nước tiểu tổng quát'],
-    priority: 0,
-    requestDate: '2026-01-30T08:15:00',
-    status: 1,
-    departmentName: 'Khoa Ngoại',
-    doctorName: 'BS. Lê Thị C',
-    sampleBarcode: 'BC26010001',
-    sampleType: 'Nước tiểu',
-    collectionTime: '2026-01-30T08:30:00',
-    collectorName: 'Điều dưỡng Nguyễn D',
-  },
-  {
-    id: '3',
-    requestCode: 'XN26010003',
-    patientCode: 'BN26000003',
-    patientName: 'Phạm Văn C',
-    gender: 1,
-    dateOfBirth: '1975-03-10',
-    requestedTests: ['Đông máu cơ bản'],
-    priority: 1,
-    requestDate: '2026-01-30T09:00:00',
-    status: 2,
-    departmentName: 'Khoa Cấp cứu',
-    doctorName: 'BS. Hoàng Văn E',
-    sampleBarcode: 'BC26010002',
-    sampleType: 'Máu tĩnh mạch',
-    collectionTime: '2026-01-30T09:15:00',
-    collectorName: 'Điều dưỡng Trần F',
-    analyzer: 'Máy đông máu ACL TOP 500',
-    processingStartTime: '2026-01-30T09:30:00',
-  },
-];
-
-const mockTestResults: TestResult[] = [
-  {
-    id: '1',
-    requestId: '3',
-    requestCode: 'XN26010003',
-    patientName: 'Phạm Văn C',
-    patientCode: 'BN26000003',
-    testName: 'Công thức máu',
-    status: 0,
-    parameters: [
-      {
-        id: '1',
-        name: 'Hồng cầu (RBC)',
-        value: null,
-        unit: '10^12/L',
-        referenceRange: '4.5 - 5.5',
-        normalMin: 4.5,
-        normalMax: 5.5,
-        criticalLow: 3.0,
-        criticalHigh: 7.0,
-        status: null,
-        previousValue: 4.8,
-        inputType: 'number',
-      },
-      {
-        id: '2',
-        name: 'Bạch cầu (WBC)',
-        value: null,
-        unit: '10^9/L',
-        referenceRange: '4.0 - 10.0',
-        normalMin: 4.0,
-        normalMax: 10.0,
-        criticalLow: 2.0,
-        criticalHigh: 30.0,
-        status: null,
-        previousValue: 7.2,
-        inputType: 'number',
-      },
-      {
-        id: '3',
-        name: 'Hemoglobin (HGB)',
-        value: null,
-        unit: 'g/L',
-        referenceRange: '130 - 170',
-        normalMin: 130,
-        normalMax: 170,
-        criticalLow: 70,
-        criticalHigh: 200,
-        status: null,
-        previousValue: 145,
-        inputType: 'number',
-      },
-      {
-        id: '4',
-        name: 'Tiểu cầu (PLT)',
-        value: null,
-        unit: '10^9/L',
-        referenceRange: '150 - 400',
-        normalMin: 150,
-        normalMax: 400,
-        criticalLow: 50,
-        criticalHigh: 1000,
-        status: null,
-        previousValue: 250,
-        inputType: 'number',
-      },
-    ],
-  },
-];
+// No mock data - using real API
 
 const Laboratory: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending');
-  const [labRequests, setLabRequests] = useState<LabRequest[]>(mockLabRequests);
-  const [testResults, setTestResults] = useState<TestResult[]>(mockTestResults);
+  const [labRequests, setLabRequests] = useState<LabRequest[]>([]);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<LabRequest | null>(null);
   const [selectedResult, setSelectedResult] = useState<TestResult | null>(null);
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
@@ -233,6 +110,51 @@ const Laboratory: React.FC = () => {
   const [collectionForm] = Form.useForm();
   const [_resultForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Fetch data from API
+  const fetchLabRequests = async () => {
+    setLoading(true);
+    try {
+      const response = await laboratoryApi.getLabRequests({ search: searchText || undefined });
+      const data = (response as any)?.data || response;
+      if (data && Array.isArray(data)) {
+        setLabRequests(data);
+      }
+    } catch (error) {
+      console.error('Error fetching lab requests:', error);
+      message.error('Không thể tải danh sách yêu cầu xét nghiệm');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTestResults = async () => {
+    try {
+      const response = await laboratoryApi.getTestResults({ search: searchText || undefined });
+      const data = (response as any)?.data || response;
+      if (data && Array.isArray(data)) {
+        setTestResults(data);
+      }
+    } catch (error) {
+      console.error('Error fetching test results:', error);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    fetchLabRequests();
+    fetchTestResults();
+  }, []);
+
+  // Reload when search text changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchLabRequests();
+      fetchTestResults();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   // Get priority tag
   const getPriorityBadge = (priority: number) => {
@@ -381,7 +303,7 @@ const Laboratory: React.FC = () => {
         patientCode: record.patientCode,
         testName: record.requestedTests[0],
         status: 0,
-        parameters: mockTestResults[0].parameters, // Use mock parameters
+        parameters: [], // Parameters will be loaded from API
       };
       setTestResults(prev => [...prev, result!]);
     }

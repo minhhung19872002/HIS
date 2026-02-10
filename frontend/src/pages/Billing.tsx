@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -35,6 +35,16 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
+import {
+  searchPatients,
+  getUnpaidServices,
+  getPatientDeposits,
+  searchRefunds,
+  type PatientBillingStatusDto,
+  type UnpaidServiceItemDto,
+  type DepositDto,
+  type RefundDto,
+} from '../api/billing';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -101,136 +111,6 @@ interface RefundRecord {
 
 // DailyReport interface - reserved for future use
 
-// ============= MOCK DATA =============
-
-const mockPatients: Patient[] = [
-  {
-    id: '1',
-    code: 'BN26000001',
-    name: 'Nguyễn Văn A',
-    gender: 1,
-    dateOfBirth: '1985-05-15',
-    phoneNumber: '0912345678',
-    insuranceNumber: 'DN1234567890',
-    patientType: 1,
-  },
-  {
-    id: '2',
-    code: 'BN26000002',
-    name: 'Trần Thị B',
-    gender: 2,
-    dateOfBirth: '1990-10-20',
-    phoneNumber: '0987654321',
-    patientType: 2,
-  },
-];
-
-const mockUnpaidServices: UnpaidService[] = [
-  {
-    id: '1',
-    serviceCode: 'DV001',
-    serviceName: 'Khám nội tổng quát',
-    quantity: 1,
-    unitPrice: 200000,
-    totalPrice: 200000,
-    insuranceCoverage: 80,
-    insuranceAmount: 160000,
-    patientAmount: 40000,
-    serviceDate: '2026-01-30T08:00:00',
-    departmentName: 'Khoa Nội',
-    doctorName: 'BS. Nguyễn Văn C',
-    serviceType: 'Khám bệnh',
-  },
-  {
-    id: '2',
-    serviceCode: 'XN001',
-    serviceName: 'Xét nghiệm máu tổng quát',
-    quantity: 1,
-    unitPrice: 150000,
-    totalPrice: 150000,
-    insuranceCoverage: 80,
-    insuranceAmount: 120000,
-    patientAmount: 30000,
-    serviceDate: '2026-01-30T09:00:00',
-    departmentName: 'Phòng Xét nghiệm',
-    doctorName: 'KTV. Lê Thị D',
-    serviceType: 'Xét nghiệm',
-  },
-  {
-    id: '3',
-    serviceCode: 'TH001',
-    serviceName: 'Thuốc Paracetamol 500mg',
-    quantity: 20,
-    unitPrice: 500,
-    totalPrice: 10000,
-    insuranceCoverage: 100,
-    insuranceAmount: 10000,
-    patientAmount: 0,
-    serviceDate: '2026-01-30T10:00:00',
-    departmentName: 'Nhà thuốc',
-    doctorName: 'DS. Phạm Văn E',
-    serviceType: 'Thuốc',
-  },
-  {
-    id: '4',
-    serviceCode: 'CĐHA001',
-    serviceName: 'Chụp X-Quang phổi',
-    quantity: 1,
-    unitPrice: 300000,
-    totalPrice: 300000,
-    insuranceCoverage: 80,
-    insuranceAmount: 240000,
-    patientAmount: 60000,
-    serviceDate: '2026-01-30T11:00:00',
-    departmentName: 'Khoa CĐHA',
-    doctorName: 'BS. Hoàng Văn F',
-    serviceType: 'Chẩn đoán hình ảnh',
-  },
-];
-
-const mockDeposits: Deposit[] = [
-  {
-    id: '1',
-    patientId: '1',
-    patientName: 'Nguyễn Văn A',
-    patientCode: 'BN26000001',
-    amount: 5000000,
-    remainingAmount: 3500000,
-    depositDate: '2026-01-28T10:00:00',
-    cashier: 'Thu ngân 1',
-    status: 1,
-    note: 'Tạm ứng nội trú',
-  },
-  {
-    id: '2',
-    patientId: '2',
-    patientName: 'Trần Thị B',
-    patientCode: 'BN26000002',
-    amount: 3000000,
-    remainingAmount: 0,
-    depositDate: '2026-01-29T14:00:00',
-    cashier: 'Thu ngân 2',
-    status: 2,
-    note: 'Đã sử dụng hết',
-  },
-];
-
-const mockRefunds: RefundRecord[] = [
-  {
-    id: '1',
-    patientId: '1',
-    patientName: 'Nguyễn Văn A',
-    patientCode: 'BN26000001',
-    amount: 500000,
-    reason: 'Hủy dịch vụ chụp MRI',
-    refundDate: '2026-01-29T15:00:00',
-    requestedBy: 'Thu ngân 1',
-    approvedBy: 'Kế toán trưởng',
-    status: 2,
-    paymentMethod: 'Tiền mặt',
-  },
-];
-
 // ============= MAIN COMPONENT =============
 
 const Billing: React.FC = () => {
@@ -242,37 +122,146 @@ const Billing: React.FC = () => {
   const [depositModalVisible, setDepositModalVisible] = useState(false);
   const [refundModalVisible, setRefundModalVisible] = useState(false);
   const [receiptDrawerVisible, setReceiptDrawerVisible] = useState(false);
-  const [deposits] = useState<Deposit[]>(mockDeposits);
-  const [refunds] = useState<RefundRecord[]>(mockRefunds);
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [refunds, setRefunds] = useState<RefundRecord[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [paymentForm] = Form.useForm();
   const [depositForm] = Form.useForm();
   const [refundForm] = Form.useForm();
 
+  // ============= FETCH DATA ON TAB CHANGE =============
+
+  useEffect(() => {
+    if (activeTab === 'deposits') {
+      fetchDeposits();
+    } else if (activeTab === 'refunds') {
+      fetchRefunds();
+    }
+  }, [activeTab]);
+
+  const fetchDeposits = async () => {
+    try {
+      setLoading(true);
+      const response = await searchPatients({ pageSize: 1000 });
+      const allDeposits: Deposit[] = [];
+
+      for (const patient of (response as any).data?.items || []) {
+        const patientDeposits = await getPatientDeposits(patient.patientId);
+        const mappedDeposits = ((patientDeposits as any).data || []).map((d: DepositDto) => ({
+          id: d.id,
+          patientId: d.patientId,
+          patientName: d.patientName,
+          patientCode: d.patientCode,
+          amount: d.amount,
+          remainingAmount: d.remainingAmount,
+          depositDate: d.createdAt,
+          cashier: d.cashierName,
+          status: d.status,
+          note: d.notes,
+        }));
+        allDeposits.push(...mappedDeposits);
+      }
+
+      setDeposits(allDeposits);
+    } catch (error) {
+      message.error('Không thể tải dữ liệu tạm ứng');
+      console.error('Error fetching deposits:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRefunds = async () => {
+    try {
+      setLoading(true);
+      const response = await searchRefunds({ pageSize: 1000 });
+      const mappedRefunds = ((response as any).data?.items || []).map((r: RefundDto) => ({
+        id: r.id,
+        patientId: r.patientId,
+        patientName: r.patientName,
+        patientCode: r.patientCode,
+        amount: r.refundAmount,
+        reason: r.reason,
+        refundDate: r.createdAt,
+        requestedBy: r.cashierName,
+        approvedBy: r.approvedByName,
+        status: r.status,
+        paymentMethod: r.refundMethodName,
+      }));
+      setRefunds(mappedRefunds);
+    } catch (error) {
+      message.error('Không thể tải dữ liệu hoàn tiền');
+      console.error('Error fetching refunds:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ============= UNPAID SERVICES TAB =============
 
-  const handleSearchPatient = (value: string) => {
+  const handleSearchPatient = async (value: string) => {
     if (!value) {
       setSelectedPatient(null);
       setUnpaidServices([]);
       return;
     }
 
-    const patient = mockPatients.find(
-      (p) =>
-        p.code.toLowerCase().includes(value.toLowerCase()) ||
-        p.name.toLowerCase().includes(value.toLowerCase()) ||
-        p.phoneNumber.includes(value)
-    );
+    try {
+      setLoading(true);
+      const response = await searchPatients({ keyword: value, pageSize: 10 });
 
-    if (patient) {
+      if (((response as any).data?.items || []).length === 0) {
+        message.warning('Không tìm thấy bệnh nhân');
+        setSelectedPatient(null);
+        setUnpaidServices([]);
+        return;
+      }
+
+      const patientData = ((response as any).data?.items || [])[0];
+
+      // Map API patient data to local interface
+      const patient: Patient = {
+        id: patientData.patientId,
+        code: patientData.patientCode,
+        name: patientData.patientName,
+        gender: 1, // Default, API doesn't provide this in billing status
+        dateOfBirth: '', // API doesn't provide in billing status
+        phoneNumber: '', // API doesn't provide in billing status
+        insuranceNumber: '',
+        patientType: 1, // Default
+      };
+
       setSelectedPatient(patient);
-      setUnpaidServices(mockUnpaidServices);
+
+      // Fetch unpaid services for the patient
+      const unpaidServicesData = await getUnpaidServices(patientData.patientId);
+
+      const mappedServices: UnpaidService[] = ((unpaidServicesData as any).data || []).map((s: UnpaidServiceItemDto) => ({
+        id: s.id,
+        serviceCode: s.serviceCode,
+        serviceName: s.serviceName,
+        quantity: s.quantity,
+        unitPrice: s.unitPrice,
+        totalPrice: s.amount,
+        insuranceCoverage: s.insuranceRate,
+        insuranceAmount: s.insuranceAmount,
+        patientAmount: s.patientAmount,
+        serviceDate: s.orderedAt,
+        departmentName: s.executeDepartmentName || s.orderDepartmentName || '',
+        doctorName: '',
+        serviceType: s.serviceGroup,
+      }));
+
+      setUnpaidServices(mappedServices);
       message.success(`Tìm thấy bệnh nhân: ${patient.name}`);
-    } else {
-      message.warning('Không tìm thấy bệnh nhân');
+    } catch (error) {
+      message.error('Lỗi khi tìm kiếm bệnh nhân');
+      console.error('Error searching patient:', error);
       setSelectedPatient(null);
       setUnpaidServices([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -418,6 +407,7 @@ const Billing: React.FC = () => {
             size="small"
             scroll={{ x: 1200 }}
             pagination={false}
+            loading={loading}
             rowSelection={{
               selectedRowKeys: selectedServices,
               onChange: (keys) => setSelectedServices(keys as string[]),
@@ -884,6 +874,7 @@ const Billing: React.FC = () => {
         rowKey="id"
         size="small"
         scroll={{ x: 1200 }}
+        loading={loading}
         pagination={{
           showSizeChanger: true,
           showTotal: (total) => `Tổng: ${total} bản ghi`,
@@ -1080,6 +1071,7 @@ const Billing: React.FC = () => {
         rowKey="id"
         size="small"
         scroll={{ x: 1400 }}
+        loading={loading}
         pagination={{
           showSizeChanger: true,
           showTotal: (total) => `Tổng: ${total} bản ghi`,

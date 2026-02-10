@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -35,6 +35,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import bloodBankApi from '../api/bloodBank';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -71,95 +72,10 @@ interface BloodRequest {
   reason: string;
 }
 
-// Mock data
-const mockBloodInventory: BloodUnit[] = [
-  {
-    id: '1',
-    unitCode: 'BU26010001',
-    bloodType: 'A+',
-    component: 'Hồng cầu khối',
-    volume: 350,
-    expiryDate: '2026-03-15',
-    receiveDate: '2026-01-15',
-    supplier: 'Viện Huyết học',
-    status: 0,
-    location: 'Kho A - Ngăn 1',
-  },
-  {
-    id: '2',
-    unitCode: 'BU26010002',
-    bloodType: 'O-',
-    component: 'Hồng cầu khối',
-    volume: 350,
-    expiryDate: '2026-02-28',
-    receiveDate: '2026-01-20',
-    supplier: 'Viện Huyết học',
-    status: 0,
-    location: 'Kho A - Ngăn 2',
-  },
-  {
-    id: '3',
-    unitCode: 'BU26010003',
-    bloodType: 'B+',
-    component: 'Tiểu cầu',
-    volume: 250,
-    expiryDate: '2026-02-05',
-    receiveDate: '2026-01-30',
-    supplier: 'Ngân hàng máu TP',
-    status: 1,
-    location: 'Kho B - Ngăn 1',
-  },
-  {
-    id: '4',
-    unitCode: 'BU26010004',
-    bloodType: 'AB+',
-    component: 'Huyết tương tươi',
-    volume: 200,
-    expiryDate: '2026-12-30',
-    receiveDate: '2026-01-25',
-    supplier: 'Viện Huyết học',
-    status: 0,
-    location: 'Kho C - Ngăn 1',
-  },
-];
-
-const mockBloodRequests: BloodRequest[] = [
-  {
-    id: '1',
-    requestCode: 'YCM26010001',
-    patientCode: 'BN26000001',
-    patientName: 'Nguyễn Văn A',
-    bloodType: 'A+',
-    component: 'Hồng cầu khối',
-    quantity: 2,
-    urgency: 2,
-    requestDate: '2026-01-30T08:00:00',
-    requestedBy: 'BS. Trần Văn B',
-    department: 'Khoa Cấp cứu',
-    status: 0,
-    reason: 'Mất máu cấp do tai nạn',
-  },
-  {
-    id: '2',
-    requestCode: 'YCM26010002',
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    bloodType: 'O+',
-    component: 'Hồng cầu khối',
-    quantity: 1,
-    urgency: 0,
-    requestDate: '2026-01-30T09:00:00',
-    requestedBy: 'BS. Lê Thị C',
-    department: 'Khoa Nội',
-    status: 1,
-    reason: 'Thiếu máu mạn tính',
-  },
-];
-
 const BloodBank: React.FC = () => {
   const [activeTab, setActiveTab] = useState('inventory');
-  const [inventory, setInventory] = useState<BloodUnit[]>(mockBloodInventory);
-  const [requests, setRequests] = useState<BloodRequest[]>(mockBloodRequests);
+  const [inventory, setInventory] = useState<BloodUnit[]>([]);
+  const [requests, setRequests] = useState<BloodRequest[]>([]);
   const [_selectedUnit, _setSelectedUnit] = useState<BloodUnit | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<BloodRequest | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
@@ -167,6 +83,72 @@ const BloodBank: React.FC = () => {
   const [isRequestDetailModalOpen, setIsRequestDetailModalOpen] = useState(false);
   const [receiveForm] = Form.useForm();
   const [issueForm] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+
+  // Fetch blood inventory data from API
+  const fetchBloodInventory = async () => {
+    setLoading(true);
+    try {
+      const response = await bloodBankApi.getBloodStockDetail();
+      if (response && response.data) {
+        // Map API data to local BloodUnit format
+        const units: BloodUnit[] = response.data.map((item: any) => ({
+          id: item.bloodBagId,
+          unitCode: item.bagCode,
+          bloodType: item.bloodType + item.rhFactor,
+          component: item.productTypeName,
+          volume: item.volume,
+          expiryDate: item.expiryDate,
+          receiveDate: item.collectionDate,
+          supplier: '',
+          status: item.status === 'Available' ? 0 : item.status === 'Reserved' ? 1 : item.status === 'Used' ? 2 : item.status === 'Expired' ? 3 : 4,
+          location: item.storageLocation || '',
+        }));
+        setInventory(units);
+      }
+    } catch (error) {
+      console.error('Error fetching blood inventory:', error);
+      message.error('Không thể tải danh sách tồn kho máu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch blood requests data from API
+  const fetchBloodRequests = async () => {
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const monthAgo = dayjs().subtract(30, 'day').format('YYYY-MM-DD');
+      const response = await bloodBankApi.getIssueRequests(monthAgo, today);
+      if (response && response.data) {
+        // Map API data to local BloodRequest format
+        const reqs: BloodRequest[] = response.data.map((item: any) => ({
+          id: item.id,
+          requestCode: item.requestCode,
+          patientCode: item.patientCode || '',
+          patientName: item.patientName || '',
+          bloodType: item.bloodType + item.rhFactor,
+          component: item.productTypeName,
+          quantity: item.requestedQuantity,
+          urgency: item.urgency === 'Emergency' ? 2 : item.urgency === 'Urgent' ? 1 : 0,
+          requestDate: item.requestDate,
+          requestedBy: item.requestedByName,
+          department: item.departmentName,
+          status: item.status === 'Pending' ? 0 : item.status === 'Approved' ? 1 : item.status === 'Issued' ? 2 : item.status === 'Transfused' ? 3 : 4,
+          reason: item.clinicalIndication || '',
+        }));
+        setRequests(reqs);
+      }
+    } catch (error) {
+      console.error('Error fetching blood requests:', error);
+      message.error('Không thể tải danh sách yêu cầu máu');
+    }
+  };
+
+  useEffect(() => {
+    fetchBloodInventory();
+    fetchBloodRequests();
+  }, []);
 
   // Get status tag for blood unit
   const getUnitStatusTag = (status: number) => {

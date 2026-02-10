@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -40,6 +40,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import pharmacyApi from '../api/pharmacy';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -120,229 +121,50 @@ interface AlertItem {
   acknowledged: boolean;
 }
 
-// ==================== MOCK DATA ====================
-
-const mockPendingPrescriptions: PendingPrescription[] = [
-  {
-    id: '1',
-    prescriptionCode: 'PT26010001',
-    patientName: 'Nguyễn Văn A',
-    patientCode: 'BN26000001',
-    doctorName: 'BS. Trần Văn B',
-    itemsCount: 5,
-    totalAmount: 450000,
-    status: 'pending',
-    priority: 'urgent',
-    createdDate: '2026-01-30T08:30:00',
-    department: 'Khoa Nội',
-  },
-  {
-    id: '2',
-    prescriptionCode: 'PT26010002',
-    patientName: 'Trần Thị C',
-    patientCode: 'BN26000002',
-    doctorName: 'BS. Lê Thị D',
-    itemsCount: 3,
-    totalAmount: 280000,
-    status: 'accepted',
-    priority: 'normal',
-    createdDate: '2026-01-30T09:00:00',
-    department: 'Khoa Ngoại',
-  },
-  {
-    id: '3',
-    prescriptionCode: 'PT26010003',
-    patientName: 'Phạm Văn E',
-    patientCode: 'BN26000003',
-    doctorName: 'BS. Hoàng Văn F',
-    itemsCount: 7,
-    totalAmount: 650000,
-    status: 'pending',
-    priority: 'normal',
-    createdDate: '2026-01-30T09:15:00',
-    department: 'Khoa Nhi',
-  },
-];
-
-const mockMedicationItems: MedicationItem[] = [
-  {
-    id: '1',
-    medicationCode: 'TH001',
-    medicationName: 'Paracetamol 500mg',
-    unit: 'Viên',
-    quantity: 60,
-    dispensedQuantity: 0,
-    dosage: '1 viên x 3 lần/ngày',
-    instruction: 'Uống sau ăn 30 phút',
-    batches: [
-      {
-        batchNumber: 'LOT2024001',
-        expiryDate: '2026-06-30',
-        availableQuantity: 500,
-        warehouse: 'Kho thuốc chính',
-        manufacturingDate: '2024-06-01',
-        recommendedFEFO: true,
-      },
-      {
-        batchNumber: 'LOT2024015',
-        expiryDate: '2026-12-31',
-        availableQuantity: 1000,
-        warehouse: 'Kho thuốc chính',
-        manufacturingDate: '2024-12-01',
-        recommendedFEFO: false,
-      },
-    ],
-  },
-  {
-    id: '2',
-    medicationCode: 'TH002',
-    medicationName: 'Amoxicillin 500mg',
-    unit: 'Viên',
-    quantity: 30,
-    dispensedQuantity: 0,
-    dosage: '1 viên x 2 lần/ngày',
-    instruction: 'Uống trước ăn 1 giờ',
-    batches: [
-      {
-        batchNumber: 'LOT2024020',
-        expiryDate: '2026-08-15',
-        availableQuantity: 300,
-        warehouse: 'Kho thuốc chính',
-        manufacturingDate: '2024-08-01',
-        recommendedFEFO: true,
-      },
-    ],
-  },
-];
-
-const mockInventoryItems: InventoryItem[] = [
-  {
-    id: '1',
-    medicationCode: 'TH001',
-    medicationName: 'Paracetamol 500mg',
-    category: 'Thuốc giảm đau',
-    unit: 'Viên',
-    totalStock: 1500,
-    minStock: 500,
-    maxStock: 2000,
-    warehouse: 'Kho thuốc chính',
-    nearestExpiry: '2026-06-30',
-    averagePrice: 500,
-    status: 'normal',
-  },
-  {
-    id: '2',
-    medicationCode: 'TH002',
-    medicationName: 'Amoxicillin 500mg',
-    category: 'Kháng sinh',
-    unit: 'Viên',
-    totalStock: 300,
-    minStock: 400,
-    maxStock: 1500,
-    warehouse: 'Kho thuốc chính',
-    nearestExpiry: '2026-08-15',
-    averagePrice: 1200,
-    status: 'low',
-  },
-  {
-    id: '3',
-    medicationCode: 'TH003',
-    medicationName: 'Vitamin C 1000mg',
-    category: 'Vitamin & khoáng chất',
-    unit: 'Viên',
-    totalStock: 50,
-    minStock: 200,
-    maxStock: 1000,
-    warehouse: 'Kho thuốc chính',
-    nearestExpiry: '2026-03-15',
-    averagePrice: 800,
-    status: 'expiring',
-  },
-  {
-    id: '4',
-    medicationCode: 'TH004',
-    medicationName: 'Ibuprofen 400mg',
-    category: 'Thuốc giảm đau',
-    unit: 'Viên',
-    totalStock: 0,
-    minStock: 300,
-    maxStock: 1200,
-    warehouse: 'Kho thuốc chính',
-    nearestExpiry: '',
-    averagePrice: 900,
-    status: 'out',
-  },
-];
-
-const mockTransfers: TransferRequest[] = [
-  {
-    id: '1',
-    transferCode: 'TF26010001',
-    fromWarehouse: 'Kho thuốc chính',
-    toWarehouse: 'Nhà thuốc tầng 1',
-    requestedBy: 'Dược sĩ Nguyễn A',
-    requestedDate: '2026-01-30T08:00:00',
-    itemsCount: 5,
-    status: 'pending',
-    note: 'Yêu cầu bổ sung thuốc cấp cứu',
-  },
-  {
-    id: '2',
-    transferCode: 'TF26010002',
-    fromWarehouse: 'Kho thuốc chính',
-    toWarehouse: 'Nhà thuốc tầng 2',
-    requestedBy: 'Dược sĩ Trần B',
-    requestedDate: '2026-01-29T15:30:00',
-    itemsCount: 3,
-    status: 'approved',
-  },
-];
-
-const mockAlerts: AlertItem[] = [
-  {
-    id: '1',
-    type: 'low_stock',
-    severity: 'high',
-    medicationName: 'Amoxicillin 500mg',
-    message: 'Thuốc Amoxicillin 500mg sắp hết (còn 300 viên, mức tối thiểu 400 viên)',
-    createdDate: '2026-01-30T07:00:00',
-    acknowledged: false,
-  },
-  {
-    id: '2',
-    type: 'expiry',
-    severity: 'medium',
-    medicationName: 'Vitamin C 1000mg',
-    message: 'Lô thuốc LOT2024005 sắp hết hạn vào 15/03/2026 (còn 45 ngày)',
-    createdDate: '2026-01-30T07:00:00',
-    acknowledged: false,
-  },
-  {
-    id: '3',
-    type: 'out_of_stock',
-    severity: 'high',
-    medicationName: 'Ibuprofen 400mg',
-    message: 'Thuốc Ibuprofen 400mg đã hết trong kho',
-    createdDate: '2026-01-30T06:30:00',
-    acknowledged: false,
-  },
-];
-
 // ==================== MAIN COMPONENT ====================
 
 const Pharmacy: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending');
-  const [pendingPrescriptions] = useState<PendingPrescription[]>(mockPendingPrescriptions);
+  const [pendingPrescriptions, setPendingPrescriptions] = useState<PendingPrescription[]>([]);
   const [selectedPrescription, setSelectedPrescription] = useState<PendingPrescription | null>(null);
-  const [medicationItems, setMedicationItems] = useState<MedicationItem[]>(mockMedicationItems);
-  const [inventoryItems] = useState<InventoryItem[]>(mockInventoryItems);
-  const [transfers] = useState<TransferRequest[]>(mockTransfers);
-  const [alerts, setAlerts] = useState<AlertItem[]>(mockAlerts);
+  const [medicationItems, setMedicationItems] = useState<MedicationItem[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [transfers, setTransfers] = useState<TransferRequest[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dispensingDrawerVisible, setDispensingDrawerVisible] = useState(false);
   const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [_form] = Form.useForm();
   const [transferForm] = Form.useForm();
   void _form;
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch all data in parallel
+      const [prescriptions, inventory, transferList, alertList] = await Promise.all([
+        pharmacyApi.getPendingPrescriptions(),
+        pharmacyApi.getInventoryItems(),
+        pharmacyApi.getTransferRequests(),
+        pharmacyApi.getAlerts(),
+      ]);
+
+      setPendingPrescriptions(prescriptions.data);
+      setInventoryItems(inventory.data);
+      setTransfers(transferList.data);
+      setAlerts(alertList.data);
+    } catch (error) {
+      message.error('Không thể tải dữ liệu. Vui lòng thử lại.');
+      console.error('Error fetching pharmacy data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ==================== TAB 1: PENDING PRESCRIPTIONS ====================
 
@@ -368,10 +190,28 @@ const Pharmacy: React.FC = () => {
     return <Tag color={color}>{text}</Tag>;
   };
 
-  const handleAcceptPrescription = (record: PendingPrescription) => {
-    message.success(`Đã tiếp nhận đơn thuốc ${record.prescriptionCode}`);
-    setSelectedPrescription(record);
-    setDispensingDrawerVisible(true);
+  const handleAcceptPrescription = async (record: PendingPrescription) => {
+    try {
+      setLoading(true);
+      await pharmacyApi.acceptPrescription(record.id);
+
+      // Fetch medication items for the prescription
+      const medicationsResponse = await pharmacyApi.getMedicationItems(record.id);
+      setMedicationItems(medicationsResponse.data);
+
+      message.success(`Đã tiếp nhận đơn thuốc ${record.prescriptionCode}`);
+      setSelectedPrescription(record);
+      setDispensingDrawerVisible(true);
+
+      // Refresh prescriptions list
+      const prescriptions = await pharmacyApi.getPendingPrescriptions();
+      setPendingPrescriptions(prescriptions.data);
+    } catch (error) {
+      message.error('Không thể tiếp nhận đơn thuốc. Vui lòng thử lại.');
+      console.error('Error accepting prescription:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRejectPrescription = (record: PendingPrescription) => {
@@ -381,8 +221,18 @@ const Pharmacy: React.FC = () => {
       okText: 'Từ chối',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
-      onOk: () => {
-        message.warning(`Đã từ chối đơn thuốc ${record.prescriptionCode}`);
+      onOk: async () => {
+        try {
+          await pharmacyApi.rejectPrescription(record.id);
+          message.warning(`Đã từ chối đơn thuốc ${record.prescriptionCode}`);
+
+          // Refresh prescriptions list
+          const prescriptions = await pharmacyApi.getPendingPrescriptions();
+          setPendingPrescriptions(prescriptions.data);
+        } catch (error) {
+          message.error('Không thể từ chối đơn thuốc. Vui lòng thử lại.');
+          console.error('Error rejecting prescription:', error);
+        }
       },
     });
   };
@@ -490,9 +340,19 @@ const Pharmacy: React.FC = () => {
               size="small"
               type="primary"
               icon={<MedicineBoxOutlined />}
-              onClick={() => {
-                setSelectedPrescription(record);
-                setDispensingDrawerVisible(true);
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  const medicationsResponse = await pharmacyApi.getMedicationItems(record.id);
+                  setMedicationItems(medicationsResponse.data);
+                  setSelectedPrescription(record);
+                  setDispensingDrawerVisible(true);
+                } catch (error) {
+                  message.error('Không thể tải thông tin thuốc. Vui lòng thử lại.');
+                  console.error('Error loading medications:', error);
+                } finally {
+                  setLoading(false);
+                }
               }}
             >
               Cấp phát
@@ -535,7 +395,7 @@ const Pharmacy: React.FC = () => {
     );
   };
 
-  const handleCompleteDispensing = () => {
+  const handleCompleteDispensing = async () => {
     const notDispensed = medicationItems.filter(
       (item) => item.dispensedQuantity < item.quantity
     );
@@ -546,14 +406,38 @@ const Pharmacy: React.FC = () => {
         content: `Còn ${notDispensed.length} thuốc chưa cấp phát đủ số lượng. Bạn có muốn tiếp tục?`,
         okText: 'Tiếp tục',
         cancelText: 'Hủy',
-        onOk: () => {
-          message.success('Hoàn thành cấp phát đơn thuốc');
-          setDispensingDrawerVisible(false);
+        onOk: async () => {
+          try {
+            if (selectedPrescription) {
+              await pharmacyApi.completeDispensing(selectedPrescription.id);
+              message.success('Hoàn thành cấp phát đơn thuốc');
+              setDispensingDrawerVisible(false);
+
+              // Refresh prescriptions list
+              const prescriptions = await pharmacyApi.getPendingPrescriptions();
+              setPendingPrescriptions(prescriptions.data);
+            }
+          } catch (error) {
+            message.error('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
+            console.error('Error completing dispensing:', error);
+          }
         },
       });
     } else {
-      message.success('Hoàn thành cấp phát đơn thuốc');
-      setDispensingDrawerVisible(false);
+      try {
+        if (selectedPrescription) {
+          await pharmacyApi.completeDispensing(selectedPrescription.id);
+          message.success('Hoàn thành cấp phát đơn thuốc');
+          setDispensingDrawerVisible(false);
+
+          // Refresh prescriptions list
+          const prescriptions = await pharmacyApi.getPendingPrescriptions();
+          setPendingPrescriptions(prescriptions.data);
+        }
+      } catch (error) {
+        message.error('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
+        console.error('Error completing dispensing:', error);
+      }
     }
   };
 
@@ -751,12 +635,25 @@ const Pharmacy: React.FC = () => {
     },
   ];
 
-  const handleCreateTransfer = () => {
-    transferForm.validateFields().then(() => {
+  const handleCreateTransfer = async () => {
+    try {
+      const values = await transferForm.validateFields();
+      await pharmacyApi.createTransfer(values);
       message.success('Tạo phiếu điều chuyển thành công');
       setTransferModalVisible(false);
       transferForm.resetFields();
-    });
+
+      // Refresh transfers list
+      const transferList = await pharmacyApi.getTransferRequests();
+      setTransfers(transferList.data);
+    } catch (error) {
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        // Form validation error, no need to show message
+        return;
+      }
+      message.error('Không thể tạo phiếu điều chuyển. Vui lòng thử lại.');
+      console.error('Error creating transfer:', error);
+    }
   };
 
   // ==================== TAB 5: ALERTS ====================
@@ -780,13 +677,19 @@ const Pharmacy: React.FC = () => {
     return iconMap[type] || <BellOutlined />;
   };
 
-  const handleAcknowledgeAlert = (alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((alert) =>
-        alert.id === alertId ? { ...alert, acknowledged: true } : alert
-      )
-    );
-    message.success('Đã xác nhận cảnh báo');
+  const handleAcknowledgeAlert = async (alertId: string) => {
+    try {
+      await pharmacyApi.acknowledgeAlert(alertId);
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId ? { ...alert, acknowledged: true } : alert
+        )
+      );
+      message.success('Đã xác nhận cảnh báo');
+    } catch (error) {
+      message.error('Không thể xác nhận cảnh báo. Vui lòng thử lại.');
+      console.error('Error acknowledging alert:', error);
+    }
   };
 
   const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length;
@@ -867,6 +770,7 @@ const Pharmacy: React.FC = () => {
           rowKey="id"
           size="small"
           scroll={{ x: 1400 }}
+          loading={loading}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,
@@ -1121,6 +1025,7 @@ const Pharmacy: React.FC = () => {
           rowKey="id"
           size="small"
           scroll={{ x: 1200 }}
+          loading={loading}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,
@@ -1165,6 +1070,7 @@ const Pharmacy: React.FC = () => {
           dataSource={transfers}
           rowKey="id"
           size="small"
+          loading={loading}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
+import { catalogApi } from '../api/system';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -87,119 +88,7 @@ interface IcdCode {
   isActive: boolean;
 }
 
-// Mock data
-const mockServices: ServiceItem[] = [
-  {
-    id: '1',
-    code: 'KB001',
-    name: 'Khám bệnh ngoại trú',
-    bhytCode: '01.0010.0001',
-    groupName: 'Khám bệnh',
-    price: 150000,
-    bhytPrice: 39600,
-    unit: 'Lần',
-    isActive: true,
-  },
-  {
-    id: '2',
-    code: 'XN001',
-    name: 'Công thức máu toàn phần',
-    bhytCode: '03.1420.0001',
-    groupName: 'Xét nghiệm',
-    price: 85000,
-    bhytPrice: 42500,
-    unit: 'Lần',
-    isActive: true,
-  },
-  {
-    id: '3',
-    code: 'SA001',
-    name: 'Siêu âm ổ bụng tổng quát',
-    bhytCode: '04.1450.0001',
-    groupName: 'Chẩn đoán hình ảnh',
-    price: 250000,
-    bhytPrice: 97200,
-    unit: 'Lần',
-    isActive: true,
-  },
-  {
-    id: '4',
-    code: 'PT001',
-    name: 'Phẫu thuật cắt ruột thừa',
-    bhytCode: '05.0010.0001',
-    groupName: 'Phẫu thuật thủ thuật',
-    price: 5500000,
-    bhytPrice: 3500000,
-    unit: 'Lần',
-    isActive: true,
-  },
-];
-
-const mockMedicines: Medicine[] = [
-  {
-    id: '1',
-    code: 'T001',
-    name: 'Paracetamol 500mg',
-    activeIngredient: 'Paracetamol',
-    registrationNumber: 'VD-12345-12',
-    manufacturer: 'Công ty Dược ABC',
-    country: 'Việt Nam',
-    unit: 'Viên',
-    dosageForm: 'Viên nén',
-    bhytCode: 'T.01.001',
-    price: 1500,
-    bhytPrice: 800,
-    isActive: true,
-  },
-  {
-    id: '2',
-    code: 'T002',
-    name: 'Amoxicillin 500mg',
-    activeIngredient: 'Amoxicillin',
-    registrationNumber: 'VD-23456-15',
-    manufacturer: 'Công ty Dược XYZ',
-    country: 'Việt Nam',
-    unit: 'Viên',
-    dosageForm: 'Viên nang',
-    bhytCode: 'T.01.002',
-    price: 3500,
-    bhytPrice: 2000,
-    isActive: true,
-  },
-  {
-    id: '3',
-    code: 'T003',
-    name: 'Omeprazole 20mg',
-    activeIngredient: 'Omeprazole',
-    registrationNumber: 'VN-34567-18',
-    manufacturer: 'AstraZeneca',
-    country: 'Anh',
-    unit: 'Viên',
-    dosageForm: 'Viên nang',
-    bhytCode: 'T.01.003',
-    price: 5000,
-    bhytPrice: 3500,
-    isActive: true,
-  },
-];
-
-const mockDepartments: Department[] = [
-  { id: '1', code: 'NOI', name: 'Khoa Nội', bhytCode: '01', type: 'Lâm sàng', isActive: true },
-  { id: '2', code: 'NGOAI', name: 'Khoa Ngoại', bhytCode: '02', type: 'Lâm sàng', isActive: true },
-  { id: '3', code: 'SAN', name: 'Khoa Sản', bhytCode: '03', type: 'Lâm sàng', isActive: true },
-  { id: '4', code: 'NHI', name: 'Khoa Nhi', bhytCode: '04', type: 'Lâm sàng', isActive: true },
-  { id: '5', code: 'XN', name: 'Khoa Xét nghiệm', bhytCode: '10', type: 'Cận lâm sàng', isActive: true },
-  { id: '6', code: 'CDHA', name: 'Khoa Chẩn đoán hình ảnh', bhytCode: '11', type: 'Cận lâm sàng', isActive: true },
-  { id: '7', code: 'DUOC', name: 'Khoa Dược', bhytCode: '20', type: 'Hỗ trợ', isActive: true },
-];
-
-const mockIcdCodes: IcdCode[] = [
-  { id: '1', code: 'A00', name: 'Bệnh tả', nameEnglish: 'Cholera', chapter: 'I', group: 'A00-A09', isActive: true },
-  { id: '2', code: 'J06.9', name: 'Nhiễm khuẩn đường hô hấp trên cấp', nameEnglish: 'Acute upper respiratory infection', chapter: 'X', group: 'J00-J06', isActive: true },
-  { id: '3', code: 'K35', name: 'Viêm ruột thừa cấp', nameEnglish: 'Acute appendicitis', chapter: 'XI', group: 'K35-K38', isActive: true },
-  { id: '4', code: 'I10', name: 'Tăng huyết áp nguyên phát', nameEnglish: 'Essential hypertension', chapter: 'IX', group: 'I10-I15', isActive: true },
-  { id: '5', code: 'E11', name: 'Đái tháo đường type 2', nameEnglish: 'Type 2 diabetes mellitus', chapter: 'IV', group: 'E10-E14', isActive: true },
-];
+// Mock data removed - data will be fetched from API
 
 // Category tree data
 const categoryTreeData: DataNode[] = [
@@ -261,13 +150,91 @@ const categoryTreeData: DataNode[] = [
 const MasterData: React.FC = () => {
   const [activeTab, setActiveTab] = useState('services');
   const [selectedCategory, setSelectedCategory] = useState<string>('services');
-  const [services] = useState<ServiceItem[]>(mockServices);
-  const [medicines] = useState<Medicine[]>(mockMedicines);
-  const [departments] = useState<Department[]>(mockDepartments);
-  const [icdCodes] = useState<IcdCode[]>(mockIcdCodes);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [icdCodes, setIcdCodes] = useState<IcdCode[]>([]);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [form] = Form.useForm();
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, [activeTab]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      switch (activeTab) {
+        case 'services':
+          const servicesResponse = await catalogApi.getParaclinicalServices();
+          const mappedServices = ((servicesResponse as any).data || []).map((s: any) => ({
+            id: s.id,
+            code: s.code,
+            name: s.name,
+            bhytCode: s.bhxhCode,
+            groupName: s.serviceGroupName || s.serviceType,
+            price: s.unitPrice,
+            bhytPrice: s.insurancePrice,
+            unit: 'Lần',
+            isActive: s.isActive,
+          }));
+          setServices(mappedServices);
+          break;
+        case 'medicines':
+          const medicinesResponse = await catalogApi.getMedicines({});
+          const mappedMedicines = ((medicinesResponse as any).data || []).map((m: any) => ({
+            id: m.id,
+            code: m.code,
+            name: m.name,
+            activeIngredient: m.activeIngredient,
+            registrationNumber: m.registrationNumber || '',
+            manufacturer: m.manufacturer || '',
+            country: m.countryOfOrigin || '',
+            unit: m.unit,
+            dosageForm: m.dosageForm,
+            bhytCode: m.bhxhCode,
+            price: m.unitPrice,
+            bhytPrice: m.insurancePrice,
+            isActive: m.isActive,
+          }));
+          setMedicines(mappedMedicines);
+          break;
+        case 'departments':
+          const departmentsResponse = await catalogApi.getDepartments();
+          const mappedDepartments = ((departmentsResponse as any).data || []).map((d: any) => ({
+            id: d.id,
+            code: d.code,
+            name: d.name,
+            bhytCode: d.departmentType,
+            type: d.departmentType,
+            isActive: d.isActive,
+          }));
+          setDepartments(mappedDepartments);
+          break;
+        case 'icd':
+          const icdResponse = await catalogApi.getICD10Codes();
+          const mappedIcd = ((icdResponse as any).data || []).map((i: any) => ({
+            id: i.id,
+            code: i.code,
+            name: i.name,
+            nameEnglish: i.nameEnglish,
+            chapter: i.chapterCode,
+            group: i.groupCode,
+            isActive: i.isActive,
+          }));
+          setIcdCodes(mappedIcd);
+          break;
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      message.error('Không thể tải dữ liệu. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -595,6 +562,7 @@ const MasterData: React.FC = () => {
             rowKey="id"
             size="small"
             scroll={{ x: 1300 }}
+            loading={loading}
             pagination={{
               showSizeChanger: true,
               showQuickJumper: true,
@@ -610,6 +578,7 @@ const MasterData: React.FC = () => {
             rowKey="id"
             size="small"
             scroll={{ x: 1400 }}
+            loading={loading}
             pagination={{
               showSizeChanger: true,
               showQuickJumper: true,
@@ -624,6 +593,7 @@ const MasterData: React.FC = () => {
             dataSource={departments}
             rowKey="id"
             size="small"
+            loading={loading}
             pagination={{
               showSizeChanger: true,
               showQuickJumper: true,
@@ -638,6 +608,7 @@ const MasterData: React.FC = () => {
             dataSource={icdCodes}
             rowKey="id"
             size="small"
+            loading={loading}
             pagination={{
               showSizeChanger: true,
               showQuickJumper: true,

@@ -36,7 +36,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { getSurgeries, getOperatingRooms, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto } from '../api/surgery';
+import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto } from '../api/surgery';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -102,90 +102,6 @@ interface SurgeryRecord {
   result?: number; // 1: Success, 2: Complications, 3: Death
   isApproved: boolean;
 }
-
-// Mock data
-const mockSurgeryRequests: SurgeryRequest[] = [
-  {
-    id: '1',
-    requestCode: 'PT26010001',
-    patientCode: 'BN26000001',
-    patientName: 'Nguyễn Văn A',
-    gender: 1,
-    dateOfBirth: '1975-05-15',
-    age: 51,
-    requestDate: '2026-01-30T08:00:00',
-    surgeryType: 'Phẫu thuật lớn',
-    plannedProcedure: 'Cắt túi mật nội soi',
-    requestingDoctorName: 'BS. Trần Văn B',
-    priority: 2,
-    status: 0,
-    preOpDiagnosis: 'Viêm túi mật cấp',
-    estimatedDuration: 120,
-    anesthesiaType: 1,
-  },
-  {
-    id: '2',
-    requestCode: 'PT26010002',
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    gender: 2,
-    dateOfBirth: '1990-10-20',
-    age: 36,
-    requestDate: '2026-01-30T09:00:00',
-    surgeryType: 'Phẫu thuật nhỏ',
-    plannedProcedure: 'Cắt bỏ u nang vú',
-    requestingDoctorName: 'BS. Lê Thị C',
-    priority: 1,
-    status: 1,
-    preOpDiagnosis: 'U nang vú phải',
-    estimatedDuration: 60,
-    anesthesiaType: 3,
-  },
-];
-
-const mockSurgerySchedules: SurgerySchedule[] = [
-  {
-    id: '1',
-    requestCode: 'PT26010002',
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    surgeryType: 'Phẫu thuật nhỏ',
-    plannedProcedure: 'Cắt bỏ u nang vú',
-    operatingRoomName: 'Phòng mổ 1',
-    scheduledDateTime: '2026-01-31T08:00:00',
-    estimatedDuration: 60,
-    surgeonName: 'BS. Nguyễn Văn D',
-    anesthesiologistName: 'BS. Hoàng Thị E',
-    status: 1,
-  },
-];
-
-const mockOperatingRooms: OperatingRoom[] = [
-  {
-    id: '1',
-    roomCode: 'PM01',
-    roomName: 'Phòng mổ 1',
-    roomType: 1,
-    status: 1,
-    location: 'Tầng 3 - Khoa Ngoại',
-  },
-  {
-    id: '2',
-    roomCode: 'PM02',
-    roomName: 'Phòng mổ 2',
-    roomType: 1,
-    status: 2,
-    location: 'Tầng 3 - Khoa Ngoại',
-  },
-  {
-    id: '3',
-    roomCode: 'PM03',
-    roomName: 'Phòng mổ cấp cứu',
-    roomType: 3,
-    status: 1,
-    location: 'Khoa Cấp cứu',
-  },
-];
 
 const Surgery: React.FC = () => {
   const [activeTab, setActiveTab] = useState('requests');
@@ -335,11 +251,34 @@ const Surgery: React.FC = () => {
     setIsRequestModalOpen(true);
   };
 
-  const handleRequestSubmit = () => {
-    requestForm.validateFields().then((values) => {
+  const handleRequestSubmit = async () => {
+    try {
+      const values = await requestForm.validateFields();
+
+      // Build API request DTO
+      const dto: CreateSurgeryRequestDto = {
+        medicalRecordId: crypto.randomUUID(), // Mock for now - will be replaced with real selection
+        surgeryServiceId: crypto.randomUUID(), // Mock for now
+        surgeryType: values.surgeryType || 1,
+        surgeryClass: 2, // Loại 1
+        surgeryNature: values.priority || 1,
+        preOperativeDiagnosis: values.preOpDiagnosis,
+        preOperativeIcdCode: 'K80.0', // Mock ICD code
+        surgeryMethod: values.plannedProcedure,
+        anesthesiaType: values.anesthesiaType || 2,
+        anesthesiaMethod: '',
+        scheduledDate: undefined,
+        operatingRoomId: undefined,
+        notes: `Bệnh nhân: ${values.patientCode} - ${values.patientName}`,
+      };
+
+      // Call API to create surgery request
+      const response = await createSurgeryRequest(dto);
+
+      // Also add to local state for immediate UI update
       const newRequest: SurgeryRequest = {
-        id: `${surgeryRequests.length + 1}`,
-        requestCode: `PT${dayjs().format('YYMMDD')}${(surgeryRequests.length + 1).toString().padStart(4, '0')}`,
+        id: response.data?.id || `${surgeryRequests.length + 1}`,
+        requestCode: response.data?.surgeryCode || `PT${dayjs().format('YYMMDD')}${(surgeryRequests.length + 1).toString().padStart(4, '0')}`,
         patientCode: values.patientCode,
         patientName: values.patientName,
         gender: values.gender,
@@ -358,7 +297,10 @@ const Surgery: React.FC = () => {
       message.success('Tạo yêu cầu phẫu thuật thành công');
       setIsRequestModalOpen(false);
       requestForm.resetFields();
-    });
+    } catch (error) {
+      console.error('Error creating surgery request:', error);
+      message.error('Có lỗi xảy ra khi tạo yêu cầu phẫu thuật');
+    }
   };
 
   // Handle schedule surgery

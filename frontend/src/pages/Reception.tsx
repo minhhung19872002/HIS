@@ -91,118 +91,9 @@ interface InsuranceVerification {
   validationMessage?: string;
 }
 
-const mockData: ReceptionRecord[] = [
-  {
-    id: '1',
-    queueNumber: 1,
-    patientCode: 'BN26000001',
-    patientName: 'Nguyễn Văn A',
-    gender: 1,
-    dateOfBirth: '1985-05-15',
-    phoneNumber: '0912345678',
-    identityNumber: '001085012345',
-    patientType: 1,
-    insuranceNumber: 'DN1234567890',
-    departmentName: 'Khoa Nội',
-    roomName: 'Phòng khám Nội 1',
-    roomId: 'room-1',
-    status: 0,
-    admissionDate: '2026-01-30T08:00:00',
-    address: '123 Nguyễn Trãi, Q.1, TP.HCM',
-    priority: 0,
-  },
-  {
-    id: '2',
-    queueNumber: 2,
-    patientCode: 'BN26000002',
-    patientName: 'Trần Thị B',
-    gender: 2,
-    dateOfBirth: '1990-10-20',
-    phoneNumber: '0987654321',
-    identityNumber: '001090098765',
-    patientType: 2,
-    departmentName: 'Khoa Ngoại',
-    roomName: 'Phòng khám Ngoại 1',
-    roomId: 'room-3',
-    status: 1,
-    admissionDate: '2026-01-30T08:15:00',
-    address: '456 Lê Lợi, Q.3, TP.HCM',
-    priority: 0,
-  },
-  {
-    id: '3',
-    queueNumber: 3,
-    patientCode: 'BN26000003',
-    patientName: 'Lê Văn C',
-    gender: 1,
-    dateOfBirth: '1975-03-10',
-    phoneNumber: '0909123456',
-    identityNumber: '001075054321',
-    patientType: 1,
-    insuranceNumber: 'DN9876543210',
-    departmentName: 'Khoa Nội',
-    roomName: 'Phòng khám Nội 2',
-    roomId: 'room-2',
-    status: 0,
-    admissionDate: '2026-01-30T08:30:00',
-    address: '789 Hai Bà Trưng, Q.1, TP.HCM',
-    priority: 1,
-  },
-  {
-    id: '4',
-    queueNumber: 4,
-    patientCode: 'BN26000004',
-    patientName: 'Phạm Thị D',
-    gender: 2,
-    dateOfBirth: '2000-12-25',
-    phoneNumber: '0978123456',
-    patientType: 3,
-    departmentName: 'Khoa Ngoại',
-    roomName: 'Phòng khám Ngoại 1',
-    roomId: 'room-3',
-    status: 2,
-    admissionDate: '2026-01-30T08:45:00',
-    address: '321 Pasteur, Q.1, TP.HCM',
-    priority: 0,
-  },
-];
-
-const mockRoomStats: RoomStatistics[] = [
-  {
-    roomId: 'room-1',
-    roomName: 'Phòng khám Nội 1',
-    departmentName: 'Khoa Nội',
-    totalWaiting: 5,
-    totalServing: 1,
-    totalCompleted: 12,
-    currentNumber: 8,
-    doctorName: 'BS. Nguyễn Văn X',
-  },
-  {
-    roomId: 'room-2',
-    roomName: 'Phòng khám Nội 2',
-    departmentName: 'Khoa Nội',
-    totalWaiting: 3,
-    totalServing: 1,
-    totalCompleted: 10,
-    currentNumber: 5,
-    doctorName: 'BS. Trần Thị Y',
-  },
-  {
-    roomId: 'room-3',
-    roomName: 'Phòng khám Ngoại 1',
-    departmentName: 'Khoa Ngoại',
-    totalWaiting: 8,
-    totalServing: 1,
-    totalCompleted: 15,
-    currentNumber: 12,
-    doctorName: 'BS. Lê Văn Z',
-  },
-];
-
 const Reception: React.FC = () => {
-  const [data, setData] = useState<ReceptionRecord[]>(mockData);
-  const [roomStats, setRoomStats] = useState<RoomStatistics[]>(mockRoomStats);
+  const [data, setData] = useState<ReceptionRecord[]>([]);
+  const [roomStats, setRoomStats] = useState<RoomStatistics[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
@@ -238,9 +129,7 @@ const Reception: React.FC = () => {
           currentNumber: undefined,
           doctorName: r.currentDoctorName,
         }));
-        if (stats.length > 0) {
-          setRoomStats(stats);
-        }
+        setRoomStats(stats);
       }
     } catch (error) {
       console.error('Failed to fetch rooms:', error);
@@ -1019,19 +908,11 @@ const Reception: React.FC = () => {
                 rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
               >
                 <Select placeholder="Chọn phòng khám">
-                  {rooms.length > 0 ? (
-                    rooms.map(room => (
-                      <Select.Option key={room.roomId} value={room.roomId}>
-                        {room.roomName} - {room.departmentName}
-                      </Select.Option>
-                    ))
-                  ) : (
-                    <>
-                      <Select.Option value="room-1">Phòng khám Nội 1</Select.Option>
-                      <Select.Option value="room-2">Phòng khám Nội 2</Select.Option>
-                      <Select.Option value="room-3">Phòng khám Ngoại 1</Select.Option>
-                    </>
-                  )}
+                  {rooms.map(room => (
+                    <Select.Option key={room.roomId} value={room.roomId}>
+                      {room.roomName} - {room.departmentName}
+                    </Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>
