@@ -21,6 +21,18 @@ import Finance from './pages/Finance';
 import Insurance from './pages/Insurance';
 import MasterData from './pages/MasterData';
 import Reports from './pages/Reports';
+// New modules - Flow 11-18
+import Telemedicine from './pages/Telemedicine';
+import Nutrition from './pages/Nutrition';
+import InfectionControl from './pages/InfectionControl';
+import Rehabilitation from './pages/Rehabilitation';
+import Equipment from './pages/Equipment';
+import HR from './pages/HR';
+import Quality from './pages/Quality';
+import PatientPortal from './pages/PatientPortal';
+// New modules - Flow 19-20
+import HealthExchange from './pages/HealthExchange';
+import EmergencyDisaster from './pages/EmergencyDisaster';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -81,6 +93,18 @@ const AppRoutes: React.FC = () => {
         <Route path="reports" element={<Reports />} />
         <Route path="admin" element={<SystemAdmin />} />
         <Route path="settings" element={<div>Cài đặt hệ thống</div>} />
+        {/* New modules - Flow 11-18 */}
+        <Route path="telemedicine" element={<Telemedicine />} />
+        <Route path="nutrition" element={<Nutrition />} />
+        <Route path="infection-control" element={<InfectionControl />} />
+        <Route path="rehabilitation" element={<Rehabilitation />} />
+        <Route path="equipment" element={<Equipment />} />
+        <Route path="hr" element={<HR />} />
+        <Route path="quality" element={<Quality />} />
+        <Route path="patient-portal" element={<PatientPortal />} />
+        {/* New modules - Flow 19-20 */}
+        <Route path="health-exchange" element={<HealthExchange />} />
+        <Route path="emergency-disaster" element={<EmergencyDisaster />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

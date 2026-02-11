@@ -230,17 +230,30 @@ const Laboratory: React.FC = () => {
     setIsCollectionModalOpen(true);
   };
 
-  const handleCollectionSubmit = () => {
-    collectionForm.validateFields().then((values) => {
-      const barcode = `BC${dayjs().format('YYMMDD')}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+  const handleCollectionSubmit = async () => {
+    try {
+      const values = await collectionForm.validateFields();
 
+      if (!selectedRequest) return;
+
+      // Call API to collect sample
+      const collectData = {
+        sampleType: values.sampleType,
+        collectionTime: values.collectionTime.format('YYYY-MM-DDTHH:mm:ss'),
+        collectorName: values.collectorName,
+        notes: values.notes,
+      };
+
+      const result = await laboratoryApi.collectSample(selectedRequest.id, collectData);
+
+      // Update local state with API response
       setLabRequests(prev =>
         prev.map(req =>
-          req.id === selectedRequest?.id
+          req.id === selectedRequest.id
             ? {
                 ...req,
                 status: 1,
-                sampleBarcode: barcode,
+                sampleBarcode: result?.sampleBarcode || `BC${dayjs().format('YYMMDD')}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
                 sampleType: values.sampleType,
                 collectionTime: values.collectionTime.format('YYYY-MM-DDTHH:mm:ss'),
                 collectorName: values.collectorName,
@@ -249,43 +262,65 @@ const Laboratory: React.FC = () => {
         )
       );
 
-      message.success(`Đã lấy mẫu thành công! Mã barcode: ${barcode}`);
+      message.success(`Đã lấy mẫu thành công!`);
       setIsCollectionModalOpen(false);
       collectionForm.resetFields();
       setSelectedRequest(null);
-    });
+    } catch (error) {
+      console.error('Error collecting sample:', error);
+      message.error('Có lỗi xảy ra khi lấy mẫu. Vui lòng thử lại.');
+    }
   };
 
   // Handle start processing
-  const handleStartProcessing = (record: LabRequest) => {
-    setLabRequests(prev =>
-      prev.map(req =>
-        req.id === record.id
-          ? {
-              ...req,
-              status: 2,
-              processingStartTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-            }
-          : req
-      )
-    );
-    message.success('Đã bắt đầu xử lý mẫu');
+  const handleStartProcessing = async (record: LabRequest) => {
+    try {
+      const processData = {
+        startTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+        analyzer: 'Máy xét nghiệm tự động',
+      };
+
+      await laboratoryApi.startProcessing(record.id, processData);
+
+      setLabRequests(prev =>
+        prev.map(req =>
+          req.id === record.id
+            ? {
+                ...req,
+                status: 2,
+                processingStartTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+              }
+            : req
+        )
+      );
+      message.success('Đã bắt đầu xử lý mẫu');
+    } catch (error) {
+      console.error('Error starting processing:', error);
+      message.error('Có lỗi xảy ra khi bắt đầu xử lý mẫu');
+    }
   };
 
   // Handle complete processing
-  const handleCompleteProcessing = (record: LabRequest) => {
-    setLabRequests(prev =>
-      prev.map(req =>
-        req.id === record.id
-          ? {
-              ...req,
-              status: 3,
-              processingEndTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-            }
-          : req
-      )
-    );
-    message.success('Đã hoàn thành xử lý mẫu');
+  const handleCompleteProcessing = async (record: LabRequest) => {
+    try {
+      await laboratoryApi.completeProcessing(record.id);
+
+      setLabRequests(prev =>
+        prev.map(req =>
+          req.id === record.id
+            ? {
+                ...req,
+                status: 3,
+                processingEndTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+              }
+            : req
+        )
+      );
+      message.success('Đã hoàn thành xử lý mẫu');
+    } catch (error) {
+      console.error('Error completing processing:', error);
+      message.error('Có lỗi xảy ra khi hoàn thành xử lý mẫu');
+    }
   };
 
   // Handle result entry
@@ -313,48 +348,61 @@ const Laboratory: React.FC = () => {
   };
 
   // Handle save results
-  const handleSaveResults = (parameters: TestParameter[]) => {
-    if (!selectedResult) return;
+  const handleSaveResults = async (parameters: TestParameter[]) => {
+    if (!selectedResult || !selectedRequest) return;
 
-    // Check for critical values
-    const criticalParams = parameters.filter(p => p.status === 'critical');
+    try {
+      // Call API to save results
+      const saveData = {
+        parameters,
+        notes: selectedResult.notes,
+      };
 
-    setTestResults(prev =>
-      prev.map(result =>
-        result.id === selectedResult.id
-          ? {
-              ...result,
-              parameters,
-              status: 1,
-              enteredBy: 'KTV. Nguyễn Văn X',
-              enteredTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-            }
-          : result
-      )
-    );
+      await laboratoryApi.saveTestResults(selectedRequest.id, saveData);
 
-    if (criticalParams.length > 0) {
-      Modal.warning({
-        title: 'Cảnh báo giá trị nguy hiểm',
-        content: (
-          <div>
-            <p>Phát hiện các giá trị nguy hiểm:</p>
-            <ul>
-              {criticalParams.map(p => (
-                <li key={p.id}>
-                  <strong>{p.name}</strong>: {p.value} {p.unit}
-                </li>
-              ))}
-            </ul>
-            <p>Vui lòng thông báo ngay cho bác sĩ điều trị!</p>
-          </div>
-        ),
-      });
+      // Check for critical values
+      const criticalParams = parameters.filter(p => p.status === 'critical');
+
+      setTestResults(prev =>
+        prev.map(result =>
+          result.id === selectedResult.id
+            ? {
+                ...result,
+                parameters,
+                status: 1,
+                enteredBy: 'KTV. Nguyễn Văn X',
+                enteredTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+              }
+            : result
+        )
+      );
+
+      if (criticalParams.length > 0) {
+        Modal.warning({
+          title: 'Cảnh báo giá trị nguy hiểm',
+          content: (
+            <div>
+              <p>Phát hiện các giá trị nguy hiểm:</p>
+              <ul>
+                {criticalParams.map(p => (
+                  <li key={p.id}>
+                    <strong>{p.name}</strong>: {p.value} {p.unit}
+                  </li>
+                ))}
+              </ul>
+              <p>Vui lòng thông báo ngay cho bác sĩ điều trị!</p>
+            </div>
+          ),
+        });
+      }
+
+      message.success('Đã lưu kết quả xét nghiệm');
+      setIsResultEntryModalOpen(false);
+      setSelectedResult(null);
+    } catch (error) {
+      console.error('Error saving results:', error);
+      message.error('Có lỗi xảy ra khi lưu kết quả. Vui lòng thử lại.');
     }
-
-    message.success('Đã lưu kết quả xét nghiệm');
-    setIsResultEntryModalOpen(false);
-    setSelectedResult(null);
   };
 
   // Handle approve results
@@ -362,29 +410,42 @@ const Laboratory: React.FC = () => {
     Modal.confirm({
       title: 'Xác nhận duyệt kết quả',
       content: `Bạn có chắc chắn muốn duyệt kết quả xét nghiệm ${result.requestCode}?`,
-      onOk: () => {
-        setTestResults(prev =>
-          prev.map(r =>
-            r.id === result.id
-              ? {
-                  ...r,
-                  status: 2,
-                  approvedBy: 'BS. Lê Thị Y',
-                  approvedTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-                }
-              : r
-          )
-        );
+      onOk: async () => {
+        try {
+          // Call API to approve results
+          const approveData = {
+            approvedBy: 'BS. Lê Thị Y',
+            approvedTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+          };
 
-        setLabRequests(prev =>
-          prev.map(req =>
-            req.id === result.requestId
-              ? { ...req, status: 4 }
-              : req
-          )
-        );
+          await laboratoryApi.approveTestResults(result.id, approveData);
 
-        message.success('Đã duyệt kết quả xét nghiệm');
+          setTestResults(prev =>
+            prev.map(r =>
+              r.id === result.id
+                ? {
+                    ...r,
+                    status: 2,
+                    approvedBy: 'BS. Lê Thị Y',
+                    approvedTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+                  }
+                : r
+            )
+          );
+
+          setLabRequests(prev =>
+            prev.map(req =>
+              req.id === result.requestId
+                ? { ...req, status: 4 }
+                : req
+            )
+          );
+
+          message.success('Đã duyệt kết quả xét nghiệm');
+        } catch (error) {
+          console.error('Error approving results:', error);
+          message.error('Có lỗi xảy ra khi duyệt kết quả. Vui lòng thử lại.');
+        }
       },
     });
   };

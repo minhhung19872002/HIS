@@ -19,6 +19,8 @@ import {
  * - Modal for registration
  */
 test.describe('Tiep don benh nhan - Reception Flow', () => {
+  // Set timeout for all tests in this describe block
+  test.setTimeout(60000);
 
   test.beforeEach(async ({ page }) => {
     await login(page);

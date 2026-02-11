@@ -1,9 +1,144 @@
-import { Page, expect } from '@playwright/test';
+import { Page, expect, request } from '@playwright/test';
 
 /**
  * HIS Test Utilities
  * Cac ham tien ich dung chung cho E2E tests
  */
+
+// API Base URL
+const API_BASE_URL = 'http://localhost:5106/api';
+
+// Cache for auth token
+let cachedToken: string | null = null;
+
+/**
+ * Get authentication token for API calls
+ */
+export async function getAuthToken(): Promise<string> {
+  if (cachedToken) {
+    return cachedToken;
+  }
+
+  const context = await request.newContext();
+  const response = await context.post(`${API_BASE_URL}/auth/login`, {
+    data: {
+      username: 'admin',
+      password: 'Admin@123'
+    }
+  });
+
+  const data = await response.json();
+  cachedToken = data.data?.token;
+  await context.dispose();
+  return cachedToken!;
+}
+
+/**
+ * Register a new patient via API
+ * This saves data directly to the database
+ */
+export async function registerPatientViaAPI(patientData?: Partial<{
+  fullName: string;
+  gender: number;
+  dateOfBirth: string;
+  phoneNumber: string;
+  address: string;
+  identityNumber: string;
+  roomId: string;
+}>) {
+  const token = await getAuthToken();
+  const context = await request.newContext();
+
+  const timestamp = Date.now();
+  const defaultData = {
+    fullName: `Test Patient ${timestamp}`,
+    gender: 1,
+    dateOfBirth: '1990-01-15',
+    phoneNumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+    address: '123 Test Street, District 1, HCMC',
+    identityNumber: `0${Math.floor(10000000000 + Math.random() * 90000000000)}`,
+    roomId: 'bf6b00e9-578b-47fb-aff8-af25fb35a794' // Phong kham Noi 1
+  };
+
+  const mergedData = { ...defaultData, ...patientData };
+
+  const response = await context.post(`${API_BASE_URL}/reception/register/fee`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    data: {
+      newPatient: {
+        fullName: mergedData.fullName,
+        gender: mergedData.gender,
+        dateOfBirth: mergedData.dateOfBirth,
+        phoneNumber: mergedData.phoneNumber,
+        address: mergedData.address,
+        identityNumber: mergedData.identityNumber
+      },
+      serviceType: 2, // Vien phi
+      roomId: mergedData.roomId
+    }
+  });
+
+  const result = await response.json();
+  await context.dispose();
+  return result;
+}
+
+/**
+ * Get available exam rooms via API
+ */
+export async function getExamRoomsViaAPI() {
+  const token = await getAuthToken();
+  const context = await request.newContext();
+
+  const response = await context.get(`${API_BASE_URL}/reception/rooms/overview`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const result = await response.json();
+  await context.dispose();
+  return result;
+}
+
+/**
+ * Get patients in queue for a room via API
+ */
+export async function getRoomPatientsViaAPI(roomId: string) {
+  const token = await getAuthToken();
+  const context = await request.newContext();
+
+  const response = await context.get(`${API_BASE_URL}/examination/rooms/${roomId}/patients`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const result = await response.json();
+  await context.dispose();
+  return result;
+}
+
+/**
+ * Start examination for a patient via API
+ */
+export async function startExaminationViaAPI(examinationId: string) {
+  const token = await getAuthToken();
+  const context = await request.newContext();
+
+  const response = await context.post(`${API_BASE_URL}/examination/${examinationId}/start`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const result = await response.json();
+  await context.dispose();
+  return result;
+}
 
 /**
  * Cho loading spinner bien mat

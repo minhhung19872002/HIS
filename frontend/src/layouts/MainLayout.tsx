@@ -19,6 +19,16 @@ import {
   DatabaseOutlined,
   BarChartOutlined,
   BankOutlined,
+  VideoCameraOutlined,
+  CoffeeOutlined,
+  AlertOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
+  SolutionOutlined,
+  AuditOutlined,
+  MobileOutlined,
+  CloudUploadOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,6 +54,7 @@ const MainLayout: React.FC = () => {
       children: [
         { key: '/reception', icon: <IdcardOutlined />, label: 'Tiếp đón' },
         { key: '/opd', icon: <UserOutlined />, label: 'Khám bệnh' },
+        { key: '/telemedicine', icon: <VideoCameraOutlined />, label: 'Khám từ xa' },
         { key: '/prescription', icon: <FileTextOutlined />, label: 'Kê đơn' },
         { key: '/ipd', icon: <FileTextOutlined />, label: 'Nội trú' },
         { key: '/surgery', icon: <HeartOutlined />, label: 'Phẫu thuật' },
@@ -60,9 +71,14 @@ const MainLayout: React.FC = () => {
       ],
     },
     {
-      key: '/pharmacy',
+      key: 'support',
       icon: <MedicineBoxOutlined />,
-      label: 'Nhà thuốc',
+      label: 'Hỗ trợ điều trị',
+      children: [
+        { key: '/pharmacy', icon: <MedicineBoxOutlined />, label: 'Nhà thuốc' },
+        { key: '/nutrition', icon: <CoffeeOutlined />, label: 'Dinh dưỡng' },
+        { key: '/rehabilitation', icon: <ThunderboltOutlined />, label: 'VLTL/PHCN' },
+      ],
     },
     {
       key: 'finance',
@@ -75,6 +91,26 @@ const MainLayout: React.FC = () => {
       ],
     },
     {
+      key: 'management',
+      icon: <ToolOutlined />,
+      label: 'Quản lý',
+      children: [
+        { key: '/infection-control', icon: <AlertOutlined />, label: 'KSNK' },
+        { key: '/equipment', icon: <ToolOutlined />, label: 'Thiết bị y tế' },
+        { key: '/hr', icon: <SolutionOutlined />, label: 'Nhân sự' },
+        { key: '/quality', icon: <AuditOutlined />, label: 'Chất lượng' },
+      ],
+    },
+    {
+      key: 'integration',
+      icon: <CloudUploadOutlined />,
+      label: 'Liên thông',
+      children: [
+        { key: '/health-exchange', icon: <CloudUploadOutlined />, label: 'Liên thông Y tế' },
+        { key: '/emergency-disaster', icon: <BellOutlined />, label: 'Cấp cứu thảm họa' },
+      ],
+    },
+    {
       key: 'system',
       icon: <SettingOutlined />,
       label: 'Hệ thống',
@@ -82,6 +118,7 @@ const MainLayout: React.FC = () => {
         { key: '/master-data', icon: <DatabaseOutlined />, label: 'Danh mục' },
         { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
         { key: '/admin', icon: <SettingOutlined />, label: 'Quản trị' },
+        { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
       ],
     },
   ];

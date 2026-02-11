@@ -85,6 +85,175 @@ const BloodBank: React.FC = () => {
   const [issueForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
+  // Print blood unit label (Nhãn đơn vị máu)
+  const executePrintBloodLabel = (unit: BloodUnit) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Nhãn đơn vị máu - ${unit.unitCode}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; font-size: 11px; padding: 5px; }
+          .label { border: 2px solid #000; padding: 8px; width: 280px; }
+          .header { text-align: center; font-weight: bold; font-size: 12px; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
+          .blood-type { font-size: 36px; font-weight: bold; color: #d00; text-align: center; margin: 10px 0; }
+          .info-row { display: flex; justify-content: space-between; margin: 3px 0; }
+          .barcode { text-align: center; font-family: monospace; font-size: 14px; letter-spacing: 2px; margin: 8px 0; padding: 5px; background: #f0f0f0; }
+          .warning { background: #ffcc00; padding: 3px; text-align: center; font-weight: bold; margin-top: 5px; }
+          @media print {
+            body { padding: 0; }
+            .label { border: 2px solid #000; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="label">
+          <div class="header">BỆNH VIỆN ĐA KHOA ABC</div>
+          <div class="header" style="font-size: 11px;">NGÂN HÀNG MÁU</div>
+
+          <div class="blood-type">${unit.bloodType}</div>
+
+          <div class="barcode">${unit.unitCode}</div>
+
+          <div class="info-row">
+            <span>Thành phần:</span>
+            <span><strong>${unit.component}</strong></span>
+          </div>
+          <div class="info-row">
+            <span>Thể tích:</span>
+            <span><strong>${unit.volume} ml</strong></span>
+          </div>
+          <div class="info-row">
+            <span>Ngày nhập:</span>
+            <span>${dayjs(unit.receiveDate).format('DD/MM/YYYY')}</span>
+          </div>
+          <div class="info-row">
+            <span>Hạn SD:</span>
+            <span style="color: #d00;"><strong>${dayjs(unit.expiryDate).format('DD/MM/YYYY')}</strong></span>
+          </div>
+          <div class="info-row">
+            <span>Vị trí:</span>
+            <span>${unit.location}</span>
+          </div>
+
+          <div class="warning">BẢO QUẢN 2-6°C</div>
+        </div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
+
+  // Print blood transfusion request (Phiếu yêu cầu máu)
+  const executePrintBloodRequest = (request: BloodRequest) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    const urgencyText = request.urgency === 2 ? 'CẤP CỨU' : request.urgency === 1 ? 'Cần gấp' : 'Bình thường';
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Phiếu yêu cầu truyền máu - ${request.requestCode}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.5; padding: 20px; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+          .header-left { width: 50%; }
+          .title { font-size: 18px; font-weight: bold; text-align: center; margin: 15px 0; text-transform: uppercase; }
+          .urgency { font-size: 16px; font-weight: bold; text-align: center; color: ${request.urgency === 2 ? '#ff0000' : request.urgency === 1 ? '#ff8800' : '#000'}; margin-bottom: 15px; }
+          .info-section { border: 1px solid #000; padding: 10px; margin-bottom: 15px; }
+          .section-title { font-weight: bold; margin-bottom: 5px; background: #f0f0f0; padding: 5px; }
+          .info-row { margin: 5px 0; }
+          .field { border-bottom: 1px dotted #000; min-width: 100px; display: inline-block; padding: 0 5px; }
+          .blood-request { border: 2px solid #000; padding: 15px; margin: 15px 0; background: #fff0f0; }
+          .blood-type-large { font-size: 28px; font-weight: bold; color: #d00; text-align: center; }
+          .signature-row { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
+          .signature-col { width: 30%; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="header-left">
+            <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+            <div>Khoa: ${request.department}</div>
+          </div>
+          <div style="text-align: right;">
+            <div><strong>Số phiếu: ${request.requestCode}</strong></div>
+            <div>Ngày: ${dayjs(request.requestDate).format('DD/MM/YYYY HH:mm')}</div>
+          </div>
+        </div>
+
+        <div class="title">PHIẾU YÊU CẦU TRUYỀN MÁU</div>
+        <div class="urgency">[${urgencyText}]</div>
+
+        <div class="info-section">
+          <div class="section-title">THÔNG TIN BỆNH NHÂN</div>
+          <div class="info-row">Mã bệnh nhân: <span class="field">${request.patientCode}</span></div>
+          <div class="info-row">Họ và tên: <span class="field" style="width: 300px;"><strong>${request.patientName}</strong></span></div>
+        </div>
+
+        <div class="blood-request">
+          <div class="section-title" style="background: #ffcccc;">YÊU CẦU MÁU</div>
+          <div style="display: flex; justify-content: space-around; margin: 15px 0;">
+            <div style="text-align: center;">
+              <div>Nhóm máu:</div>
+              <div class="blood-type-large">${request.bloodType}</div>
+            </div>
+            <div style="text-align: center;">
+              <div>Thành phần:</div>
+              <div style="font-size: 18px; font-weight: bold;">${request.component}</div>
+            </div>
+            <div style="text-align: center;">
+              <div>Số lượng:</div>
+              <div style="font-size: 24px; font-weight: bold;">${request.quantity} đơn vị</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-title">CHỈ ĐỊNH LÂM SÀNG</div>
+          <div style="min-height: 60px; padding: 10px;">${request.reason || 'Không có thông tin'}</div>
+        </div>
+
+        <div class="signature-row">
+          <div class="signature-col">
+            <div><strong>BÁC SĨ YÊU CẦU</strong></div>
+            <div style="margin-top: 50px;">${request.requestedBy}</div>
+          </div>
+          <div class="signature-col">
+            <div><strong>TRƯỞNG KHOA</strong></div>
+            <div style="margin-top: 50px;"></div>
+          </div>
+          <div class="signature-col">
+            <div><strong>NGÂN HÀNG MÁU</strong></div>
+            <div style="margin-top: 50px;"></div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
+
   // Fetch blood inventory data from API
   const fetchBloodInventory = async () => {
     setLoading(true);
@@ -382,7 +551,7 @@ const BloodBank: React.FC = () => {
           <Button
             size="small"
             icon={<PrinterOutlined />}
-            onClick={() => message.info(`In nhãn ${record.unitCode}`)}
+            onClick={() => executePrintBloodLabel(record)}
           >
             In nhãn
           </Button>
@@ -852,7 +1021,7 @@ const BloodBank: React.FC = () => {
           <Button key="close" onClick={() => setIsRequestDetailModalOpen(false)}>
             Đóng
           </Button>,
-          <Button key="print" icon={<PrinterOutlined />} onClick={() => message.info('In phiếu yêu cầu')}>
+          <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={() => selectedRequest && executePrintBloodRequest(selectedRequest)}>
             In phiếu
           </Button>,
         ]}

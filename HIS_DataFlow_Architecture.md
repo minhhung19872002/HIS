@@ -1797,3 +1797,345 @@ RULE_INS_003: Xuất XML
 - Tự động đẩy cổng khi ra viện
 - Lưu checksum để đối chiếu
 ```
+
+---
+
+# PHẦN 4: LUỒNG IN BIỂU MẪU Y TẾ (MEDICAL FORMS PRINTING)
+
+## 4.1 Tổng quan Hệ thống In Biểu mẫu
+
+Hệ thống HIS hỗ trợ **32+ loại biểu mẫu y tế** theo quy định Bộ Y tế, được phân loại theo 8 nhóm chức năng chính.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        HỆ THỐNG IN BIỂU MẪU Y TẾ                                │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐     │
+│  │    BỆNH ÁN NỘI TRÚ  │  │   BỆNH ÁN NGOẠI TRÚ │  │    TIẾP ĐÓN         │     │
+│  │    (24 loại)        │  │   (5 loại)          │  │    (2 loại)         │     │
+│  │    MS: 01-28/BV-01  │  │   MS: 15-29/BV-01   │  │    MS: 03/BV-02     │     │
+│  └──────────┬──────────┘  └──────────┬──────────┘  └──────────┬──────────┘     │
+│             │                        │                        │                 │
+│  ┌──────────▼──────────┐  ┌──────────▼──────────┐  ┌──────────▼──────────┐     │
+│  │    PHẪU THUẬT       │  │    XÉT NGHIỆM       │  │    CHẨN ĐOÁN HA     │     │
+│  │    (1 loại)         │  │    (1 loại)         │  │    (1 loại)         │     │
+│  │    MS: 06/BV-02     │  │    Phiếu kết quả    │  │    Phiếu kết quả    │     │
+│  └──────────┬──────────┘  └──────────┬──────────┘  └──────────┬──────────┘     │
+│             │                        │                        │                 │
+│  ┌──────────▼──────────┐  ┌──────────▼──────────┐  ┌──────────▼──────────┐     │
+│  │    NGÂN HÀNG MÁU    │  │    NHÀ THUỐC        │  │    VIỆN PHÍ         │     │
+│  │    (2 loại)         │  │    (1 loại)         │  │    (3 loại)         │     │
+│  │    Nhãn + Phiếu     │  │    MS: 05/BV-02     │  │    MS: 04/BV-02     │     │
+│  └─────────────────────┘  └─────────────────────┘  └─────────────────────┘     │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+## 4.2 Danh mục Biểu mẫu Chi tiết
+
+### A. Bệnh án Nội trú (Inpatient Medical Records) - 24 loại
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | 01/BV-01 | Bệnh án Nội khoa | Inpatient | In từ chi tiết bệnh nhân |
+| 2 | 02/BV-01 | Bệnh án Nhi khoa | Inpatient | In từ chi tiết bệnh nhân |
+| 3 | 03/BV-01 | Bệnh án Truyền nhiễm | Inpatient | In từ chi tiết bệnh nhân |
+| 4 | 04/BV-01 | Bệnh án Phụ khoa | Inpatient | In từ chi tiết bệnh nhân |
+| 5 | 05/BV-01 | Bệnh án Sản khoa | Inpatient | In từ chi tiết bệnh nhân |
+| 6 | 06/BV-01 | Bệnh án Sơ sinh | Inpatient | In từ chi tiết bệnh nhân |
+| 7 | 07/BV-01 | Bệnh án Tâm thần | Inpatient | In từ chi tiết bệnh nhân |
+| 8 | 08/BV-01 | Bệnh án Da liễu | Inpatient | In từ chi tiết bệnh nhân |
+| 9 | 09/BV-01 | Bệnh án Huyết học Truyền máu | Inpatient | In từ chi tiết bệnh nhân |
+| 10 | 10/BV-01 | Bệnh án Ngoại khoa | Inpatient | In từ chi tiết bệnh nhân |
+| 11 | 11/BV-01 | Bệnh án Bỏng | Inpatient | In từ chi tiết bệnh nhân |
+| 12 | 12/BV-01 | Bệnh án Ung bướu | Inpatient | In từ chi tiết bệnh nhân |
+| 13 | 13/BV-01 | Bệnh án Răng Hàm Mặt | Inpatient | In từ chi tiết bệnh nhân |
+| 14 | 14/BV-01 | Bệnh án Tai Mũi Họng | Inpatient | In từ chi tiết bệnh nhân |
+| 15 | 18/BV-01 | Bệnh án Nội trú YHCT | Inpatient | In từ chi tiết bệnh nhân |
+| 16 | 20/BV-01 | Bệnh án Nội trú Nhi YHCT | Inpatient | In từ chi tiết bệnh nhân |
+| 17 | 21/BV-01 | Bệnh án Mắt Chấn thương | Inpatient | In từ chi tiết bệnh nhân |
+| 18 | 22/BV-01 | Bệnh án Mắt Bán phần trước | Inpatient | In từ chi tiết bệnh nhân |
+| 19 | 23/BV-01 | Bệnh án Mắt Đáy mắt | Inpatient | In từ chi tiết bệnh nhân |
+| 20 | 24/BV-01 | Bệnh án Mắt Glocom | Inpatient | In từ chi tiết bệnh nhân |
+| 21 | 25/BV-01 | Bệnh án Mắt Sụp mi lác | Inpatient | In từ chi tiết bệnh nhân |
+| 22 | 26/BV-01 | Bệnh án Mắt Trẻ em | Inpatient | In từ chi tiết bệnh nhân |
+| 23 | 27/BV-01 | Bệnh án PHCN | Inpatient | In từ chi tiết bệnh nhân |
+| 24 | 28/BV-01 | Bệnh án PHCN Nhi | Inpatient | In từ chi tiết bệnh nhân |
+
+### B. Bệnh án Ngoại trú (Outpatient Medical Records) - 5 loại
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | 15/BV-01 | Bệnh án Ngoại trú chung | OPD | In từ chi tiết khám |
+| 2 | 16/BV-01 | Bệnh án Ngoại trú Răng Hàm Mặt | OPD | In từ chi tiết khám |
+| 3 | 17/BV-01 | Bệnh án Tuyến xã phường | OPD | In từ chi tiết khám |
+| 4 | 19/BV-01 | Bệnh án Ngoại trú YHCT | OPD | In từ chi tiết khám |
+| 5 | 29/BV-01 | Bệnh án Ngoại trú PHCN | OPD | In từ chi tiết khám |
+
+### C. Phiếu Hành chính - Tiếp đón (Reception Forms)
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | 03/BV-02 | Giấy khám chữa bệnh theo yêu cầu | Reception | In từ danh sách chờ khám |
+| 2 | - | Phiếu tiếp đón | Reception | In số thứ tự khám |
+
+### D. Phiếu Phẫu thuật Thủ thuật (Surgery Forms)
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | 06/BV-02 | Phiếu phẫu thuật thủ thuật | Surgery | In từ lịch phẫu thuật |
+
+### E. Phiếu Theo dõi Điều trị (Treatment Tracking Forms)
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | 36/BV2 | Phiếu theo dõi điều trị | Inpatient | In từ chi tiết bệnh nhân |
+
+### F. Phiếu Xét nghiệm & Chẩn đoán (Laboratory & Imaging Forms)
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | - | Phiếu kết quả xét nghiệm | Laboratory | In từ danh sách kết quả |
+| 2 | - | Phiếu kết quả CĐHA | Radiology | In từ báo cáo đã duyệt |
+
+### G. Phiếu Ngân hàng Máu (Blood Bank Forms)
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | - | Nhãn đơn vị máu | BloodBank | In từ kho máu |
+| 2 | - | Phiếu yêu cầu truyền máu | BloodBank | In từ chi tiết yêu cầu |
+
+### H. Phiếu Dược & Thanh toán (Pharmacy & Billing Forms)
+
+| STT | Mã số | Tên biểu mẫu | Module | Chức năng |
+|-----|-------|--------------|--------|-----------|
+| 1 | 05/BV-02 | Phiếu xuất thuốc | Pharmacy | In từ drawer cấp phát |
+| 2 | 04/BV-02 | Phiếu thu tiền | Billing | In từ drawer hóa đơn |
+| 3 | - | Phiếu tạm ứng | Billing | In từ danh sách tạm ứng |
+| 4 | - | Phiếu hoàn tiền | Billing | In từ danh sách hoàn tiền |
+| 5 | - | Đơn thuốc | Prescription | In từ chi tiết đơn thuốc |
+
+## 4.3 Luồng In Biểu mẫu (Print Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           LUỒNG IN BIỂU MẪU                                     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   [User Action]                                                                 │
+│        │                                                                        │
+│        ▼                                                                        │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│   │ Click nút   │───▶│ Mở Modal    │───▶│ Chọn loại   │───▶│ Điền thông  │     │
+│   │ In biểu mẫu │    │ hoặc Drawer │    │ biểu mẫu    │    │ tin bổ sung │     │
+│   └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘     │
+│                                                                   │             │
+│                                                                   ▼             │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│   │ Đóng cửa sổ │◀───│ Gọi         │◀───│ Render HTML │◀───│ Gọi hàm     │     │
+│   │ in ấn       │    │ window.print│    │ template    │    │ executePrint│     │
+│   └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘     │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Chi tiết Luồng In:
+
+```
+1. USER ACTION
+   ├── Click nút "In bệnh án" / "In phiếu"
+   ├── Hệ thống mở Modal/Drawer tương ứng
+   └── Hiển thị form chọn loại biểu mẫu (nếu có nhiều loại)
+
+2. SELECT FORM TYPE
+   ├── Dropdown chọn loại biểu mẫu (VD: 24 loại bệnh án nội trú)
+   ├── Hiển thị mã số biểu mẫu (MS: XX/BV-XX)
+   └── Load dữ liệu mặc định từ bệnh nhân/ca khám
+
+3. FILL ADDITIONAL INFO
+   ├── Form điền thông tin bổ sung
+   ├── Validate dữ liệu bắt buộc
+   └── Preview nếu cần
+
+4. EXECUTE PRINT
+   ├── Gọi hàm executePrintXXX()
+   ├── Mở window mới: window.open('', '_blank')
+   ├── Render HTML template với CSS inline
+   └── Gọi window.print() sau 500ms delay
+
+5. COMPLETE
+   ├── User in hoặc lưu PDF
+   └── Đóng cửa sổ in
+```
+
+## 4.4 Cấu trúc Code In Biểu mẫu
+
+### A. Pattern chung cho chức năng in:
+
+```typescript
+// 1. State quản lý modal in
+const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+const [printType, setPrintType] = useState<string>('default_type');
+const [printForm] = Form.useForm();
+
+// 2. Constant danh sách loại biểu mẫu
+const FORM_TYPES = [
+  { value: 'type_1', label: 'Tên biểu mẫu 1', code: '01/BV-01' },
+  { value: 'type_2', label: 'Tên biểu mẫu 2', code: '02/BV-01' },
+  // ...
+];
+
+// 3. Handler mở modal in
+const handlePrint = (record: DataType) => {
+  setSelectedRecord(record);
+  printForm.setFieldsValue({
+    // Set giá trị mặc định từ record
+  });
+  setIsPrintModalOpen(true);
+};
+
+// 4. Hàm thực hiện in
+const executePrint = () => {
+  const formValues = printForm.getFieldsValue();
+  const recordType = FORM_TYPES.find(t => t.value === printType);
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+    return;
+  }
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${recordType?.label} - MS: ${recordType?.code}</title>
+      <style>
+        /* CSS inline cho in ấn */
+        @media print { ... }
+      </style>
+    </head>
+    <body>
+      <!-- HTML template -->
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => { printWindow.print(); }, 500);
+};
+```
+
+### B. Template HTML tiêu chuẩn:
+
+```html
+<!-- Header với thông tin bệnh viện và mã biểu mẫu -->
+<div class="header">
+  <div class="header-left">
+    <div><strong>SỞ Y TẾ TP.HCM</strong></div>
+    <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+  </div>
+  <div class="header-right">
+    <div><strong>MS: XX/BV-XX</strong></div>
+    <div>Số: ............</div>
+  </div>
+</div>
+
+<!-- Tiêu đề biểu mẫu -->
+<div class="title">TÊN BIỂU MẪU</div>
+
+<!-- Nội dung chính -->
+<div class="content">
+  <!-- Thông tin bệnh nhân, dịch vụ, kết quả... -->
+</div>
+
+<!-- Chữ ký -->
+<div class="signature-row">
+  <div class="signature-col">
+    <div><strong>NGƯỜI LẬP</strong></div>
+    <div>(Ký, ghi rõ họ tên)</div>
+  </div>
+  <div class="signature-col">
+    <div><strong>TRƯỞNG KHOA</strong></div>
+    <div>(Ký, ghi rõ họ tên)</div>
+  </div>
+</div>
+```
+
+## 4.5 Quy tắc In Biểu mẫu
+
+```
+RULE_PRINT_001: Format biểu mẫu
+- Tuân thủ mẫu Bộ Y tế (Thông tư 56/2017/TT-BYT)
+- Mã số biểu mẫu theo quy định
+- Khổ giấy A4, font Times New Roman
+- Có logo, tên bệnh viện, địa chỉ
+
+RULE_PRINT_002: Thông tin bắt buộc
+- Thông tin định danh bệnh nhân
+- Thông tin ca khám/điều trị
+- Chữ ký người có thẩm quyền
+- Dấu của bệnh viện (in thực tế)
+
+RULE_PRINT_003: Bảo mật
+- Chỉ in khi có quyền truy cập dữ liệu
+- Không lưu cache thông tin in
+- Log hoạt động in cho mục đích audit
+
+RULE_PRINT_004: Tương thích
+- Hỗ trợ tất cả trình duyệt hiện đại
+- Tương thích máy in phổ thông
+- CSS inline để đảm bảo hiển thị đúng
+
+RULE_PRINT_005: Loại biểu mẫu chuyên khoa
+- Bệnh án phải chọn đúng chuyên khoa
+- Dropdown với tìm kiếm cho nhiều loại
+- Hiển thị mã số để dễ đối chiếu
+```
+
+## 4.6 Mapping Biểu mẫu theo Module Frontend
+
+| Module | File | Số biểu mẫu | Loại biểu mẫu |
+|--------|------|-------------|---------------|
+| Inpatient | `Inpatient.tsx` | 25 | 24 bệnh án + 1 phiếu theo dõi |
+| OPD | `OPD.tsx` | 5 | 5 bệnh án ngoại trú |
+| Reception | `Reception.tsx` | 2 | Phiếu tiếp đón + Giấy khám yêu cầu |
+| Surgery | `Surgery.tsx` | 1 | Phiếu phẫu thuật |
+| Laboratory | `Laboratory.tsx` | 1 | Phiếu kết quả XN |
+| Radiology | `Radiology.tsx` | 1 | Phiếu kết quả CĐHA |
+| BloodBank | `BloodBank.tsx` | 2 | Nhãn máu + Phiếu yêu cầu |
+| Pharmacy | `Pharmacy.tsx` | 1 | Phiếu xuất thuốc |
+| Billing | `Billing.tsx` | 3 | Phiếu thu + Tạm ứng + Hoàn tiền |
+| Prescription | `Prescription.tsx` | 1 | Đơn thuốc |
+| **Tổng cộng** | | **42** | |
+
+## 4.7 Sơ đồ Quan hệ Biểu mẫu với Luồng Nghiệp vụ
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    QUAN HỆ BIỂU MẪU - LUỒNG NGHIỆP VỤ                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  LUỒNG NGOẠI TRÚ (OPD)                                                      │
+│  ├── [Tiếp đón] ───► Giấy khám yêu cầu (03/BV-02)                          │
+│  ├── [Khám bệnh] ───► Bệnh án ngoại trú (15-29/BV-01)                      │
+│  ├── [Xét nghiệm] ───► Phiếu kết quả XN                                    │
+│  ├── [CĐHA] ───► Phiếu kết quả CĐHA                                        │
+│  ├── [Kê đơn] ───► Đơn thuốc                                               │
+│  ├── [Phát thuốc] ───► Phiếu xuất thuốc (05/BV-02)                         │
+│  └── [Thanh toán] ───► Phiếu thu tiền (04/BV-02)                           │
+│                                                                              │
+│  LUỒNG NỘI TRÚ (IPD)                                                        │
+│  ├── [Nhập viện] ───► Bệnh án nội trú (01-28/BV-01)                        │
+│  ├── [Điều trị] ───► Phiếu theo dõi điều trị (36/BV2)                      │
+│  ├── [Phẫu thuật] ───► Phiếu phẫu thuật (06/BV-02)                         │
+│  ├── [Truyền máu] ───► Phiếu yêu cầu máu + Nhãn máu                        │
+│  ├── [Tạm ứng] ───► Phiếu tạm ứng                                          │
+│  └── [Ra viện] ───► Phiếu thu tiền + Hoàn tiền (nếu có)                    │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+---

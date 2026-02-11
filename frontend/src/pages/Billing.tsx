@@ -40,10 +40,19 @@ import {
   getUnpaidServices,
   getPatientDeposits,
   searchRefunds,
+  createPayment,
+  createDeposit,
+  createRefund,
+  approveRefund,
+  cancelRefund,
   type PatientBillingStatusDto,
   type UnpaidServiceItemDto,
   type DepositDto,
   type RefundDto,
+  type CreatePaymentDto,
+  type CreateDepositDto,
+  type CreateRefundDto,
+  type ApproveRefundDto,
 } from '../api/billing';
 
 const { Title, Text } = Typography;
@@ -129,6 +138,316 @@ const Billing: React.FC = () => {
   const [paymentForm] = Form.useForm();
   const [depositForm] = Form.useForm();
   const [refundForm] = Form.useForm();
+
+  // ============= PRINT FUNCTIONS =============
+
+  // Print billing receipt (Phiếu thu tiền - MS: 04/BV-02)
+  const executePrintReceipt = () => {
+    if (!selectedPatient) return;
+
+    const selectedItems = unpaidServices.filter((s) => selectedServices.includes(s.id));
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Phiếu thu tiền - MS: 04/BV-02</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.4; padding: 20px; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+          .header-left { width: 50%; }
+          .header-right { width: 30%; text-align: right; }
+          .title { font-size: 20px; font-weight: bold; text-align: center; margin: 20px 0 10px; }
+          .subtitle { text-align: center; margin-bottom: 20px; }
+          .info-row { margin: 5px 0; }
+          .field { border-bottom: 1px dotted #000; min-width: 150px; display: inline-block; padding: 0 5px; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          table th, table td { border: 1px solid #000; padding: 6px; text-align: left; }
+          table th { background-color: #f0f0f0; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .total-row { font-weight: bold; background-color: #f0f5ff; }
+          .amount-words { font-style: italic; margin: 10px 0; }
+          .signature-row { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
+          .signature-col { width: 30%; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="header-left">
+            <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+            <div>Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM</div>
+            <div>ĐT: 028 1234 5678</div>
+          </div>
+          <div class="header-right">
+            <div><strong>MS: 04/BV-02</strong></div>
+            <div>Số: HD-${dayjs().format('YYYYMMDD')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}</div>
+          </div>
+        </div>
+
+        <div class="title">PHIẾU THU TIỀN</div>
+        <div class="subtitle">Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
+
+        <div class="info-row">Mã bệnh nhân: <span class="field">${selectedPatient.code}</span></div>
+        <div class="info-row">Họ và tên: <span class="field" style="width: 300px;">${selectedPatient.name}</span> Giới tính: <span class="field">${selectedPatient.gender === 1 ? 'Nam' : 'Nữ'}</span></div>
+        <div class="info-row">Ngày sinh: <span class="field">${selectedPatient.dateOfBirth ? dayjs(selectedPatient.dateOfBirth).format('DD/MM/YYYY') : ''}</span> SĐT: <span class="field">${selectedPatient.phoneNumber || ''}</span></div>
+        <div class="info-row">Số thẻ BHYT: <span class="field" style="width: 200px;">${selectedPatient.insuranceNumber || 'Không có'}</span></div>
+        <div class="info-row">Đối tượng: <span class="field">${selectedPatient.insuranceNumber ? 'BHYT' : 'Viện phí'}</span></div>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 40px;">STT</th>
+              <th>Mã DV</th>
+              <th>Tên dịch vụ</th>
+              <th class="text-center">SL</th>
+              <th class="text-right">Đơn giá</th>
+              <th class="text-right">Thành tiền</th>
+              <th class="text-right">BHYT trả</th>
+              <th class="text-right">BN trả</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${selectedItems.map((item, index) => `
+              <tr>
+                <td class="text-center">${index + 1}</td>
+                <td>${item.serviceCode}</td>
+                <td>${item.serviceName}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-right">${item.unitPrice.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${item.totalPrice.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${item.insuranceAmount.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${item.patientAmount.toLocaleString('vi-VN')}</td>
+              </tr>
+            `).join('')}
+            <tr class="total-row">
+              <td colspan="5" class="text-right">TỔNG CỘNG:</td>
+              <td class="text-right">${totals.totalAmount.toLocaleString('vi-VN')} đ</td>
+              <td class="text-right">${totals.insuranceAmount.toLocaleString('vi-VN')} đ</td>
+              <td class="text-right">${totals.patientAmount.toLocaleString('vi-VN')} đ</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="amount-words">Số tiền bằng chữ: <strong>${numberToWords(totals.patientAmount)}</strong></div>
+        <div class="info-row">Phương thức thanh toán: <span class="field">Tiền mặt / Chuyển khoản / Thẻ</span></div>
+
+        <div class="signature-row">
+          <div class="signature-col">
+            <div><strong>Người nộp tiền</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+            <div style="margin-top: 60px;"></div>
+          </div>
+          <div class="signature-col">
+            <div><strong>Kế toán</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+            <div style="margin-top: 60px;"></div>
+          </div>
+          <div class="signature-col">
+            <div><strong>Thu ngân</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+            <div style="margin-top: 60px;"></div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
+
+  // Print deposit receipt (Phiếu tạm ứng)
+  const executePrintDeposit = (deposit: Deposit) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Phiếu tạm ứng</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.5; padding: 30px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .title { font-size: 22px; font-weight: bold; margin: 20px 0; }
+          .info { margin: 10px 0; }
+          .field { border-bottom: 1px dotted #000; min-width: 150px; display: inline-block; padding: 0 5px; }
+          .amount-box { border: 2px solid #000; padding: 15px; margin: 20px 0; text-align: center; font-size: 18px; }
+          .signature-row { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
+          .signature-col { width: 45%; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+          <div>123 Đường ABC, Quận XYZ, TP.HCM - ĐT: 028 1234 5678</div>
+        </div>
+
+        <div class="title" style="text-align: center;">PHIẾU TẠM ỨNG</div>
+        <div style="text-align: center; margin-bottom: 20px;">Ngày ${dayjs(deposit.depositDate).format('DD')} tháng ${dayjs(deposit.depositDate).format('MM')} năm ${dayjs(deposit.depositDate).format('YYYY')}</div>
+
+        <div class="info">Mã bệnh nhân: <span class="field">${deposit.patientCode}</span></div>
+        <div class="info">Họ và tên: <span class="field" style="width: 350px;">${deposit.patientName}</span></div>
+
+        <div class="amount-box">
+          <div>Số tiền tạm ứng:</div>
+          <div style="font-size: 24px; font-weight: bold; color: #1890ff;">${deposit.amount.toLocaleString('vi-VN')} VNĐ</div>
+          <div style="font-style: italic;">(${numberToWords(deposit.amount)})</div>
+        </div>
+
+        <div class="info">Ghi chú: <span class="field" style="width: 80%;">${deposit.note || ''}</span></div>
+        <div class="info">Thu ngân: <span class="field">${deposit.cashier}</span></div>
+
+        <div class="signature-row">
+          <div class="signature-col">
+            <div><strong>Người nộp tiền</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+          </div>
+          <div class="signature-col">
+            <div><strong>Thu ngân</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
+
+  // Print refund receipt (Phiếu hoàn tiền)
+  const executePrintRefund = (refund: RefundRecord) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Phiếu hoàn tiền</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.5; padding: 30px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .title { font-size: 22px; font-weight: bold; margin: 20px 0; color: #f5222d; }
+          .info { margin: 10px 0; }
+          .field { border-bottom: 1px dotted #000; min-width: 150px; display: inline-block; padding: 0 5px; }
+          .amount-box { border: 2px solid #f5222d; padding: 15px; margin: 20px 0; text-align: center; font-size: 18px; }
+          .signature-row { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
+          .signature-col { width: 30%; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+          <div>123 Đường ABC, Quận XYZ, TP.HCM - ĐT: 028 1234 5678</div>
+        </div>
+
+        <div class="title" style="text-align: center;">PHIẾU HOÀN TIỀN</div>
+        <div style="text-align: center; margin-bottom: 20px;">Ngày ${dayjs(refund.refundDate).format('DD')} tháng ${dayjs(refund.refundDate).format('MM')} năm ${dayjs(refund.refundDate).format('YYYY')}</div>
+
+        <div class="info">Mã bệnh nhân: <span class="field">${refund.patientCode}</span></div>
+        <div class="info">Họ và tên: <span class="field" style="width: 350px;">${refund.patientName}</span></div>
+
+        <div class="amount-box">
+          <div>Số tiền hoàn trả:</div>
+          <div style="font-size: 24px; font-weight: bold; color: #f5222d;">${refund.amount.toLocaleString('vi-VN')} VNĐ</div>
+          <div style="font-style: italic;">(${numberToWords(refund.amount)})</div>
+        </div>
+
+        <div class="info">Lý do hoàn tiền: <span class="field" style="width: 80%;">${refund.reason}</span></div>
+        <div class="info">Phương thức hoàn: <span class="field">${refund.paymentMethod}</span></div>
+        <div class="info">Người yêu cầu: <span class="field">${refund.requestedBy}</span></div>
+        <div class="info">Người duyệt: <span class="field">${refund.approvedBy || ''}</span></div>
+
+        <div class="signature-row">
+          <div class="signature-col">
+            <div><strong>Người nhận tiền</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+          </div>
+          <div class="signature-col">
+            <div><strong>Kế toán</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+          </div>
+          <div class="signature-col">
+            <div><strong>Thu ngân</strong></div>
+            <div>(Ký, ghi rõ họ tên)</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
+
+  // Helper function to convert number to Vietnamese words
+  const numberToWords = (num: number): string => {
+    const units = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+    const teens = ['mười', 'mười một', 'mười hai', 'mười ba', 'mười bốn', 'mười lăm', 'mười sáu', 'mười bảy', 'mười tám', 'mười chín'];
+
+    if (num === 0) return 'không đồng';
+
+    let words = '';
+
+    if (num >= 1000000000) {
+      words += units[Math.floor(num / 1000000000)] + ' tỷ ';
+      num %= 1000000000;
+    }
+    if (num >= 1000000) {
+      words += units[Math.floor(num / 1000000)] + ' triệu ';
+      num %= 1000000;
+    }
+    if (num >= 1000) {
+      const thousands = Math.floor(num / 1000);
+      if (thousands < 10) {
+        words += units[thousands] + ' nghìn ';
+      } else if (thousands < 20) {
+        words += teens[thousands - 10] + ' nghìn ';
+      } else {
+        words += units[Math.floor(thousands / 10)] + ' mươi ' + (thousands % 10 > 0 ? units[thousands % 10] : '') + ' nghìn ';
+      }
+      num %= 1000;
+    }
+    if (num >= 100) {
+      words += units[Math.floor(num / 100)] + ' trăm ';
+      num %= 100;
+    }
+    if (num >= 10) {
+      if (num < 20) {
+        words += teens[num - 10] + ' ';
+      } else {
+        words += units[Math.floor(num / 10)] + ' mươi ';
+        if (num % 10 > 0) words += units[num % 10] + ' ';
+      }
+    } else if (num > 0) {
+      words += units[num] + ' ';
+    }
+
+    return words.trim() + ' đồng';
+  };
 
   // ============= FETCH DATA ON TAB CHANGE =============
 
@@ -477,15 +796,60 @@ const Billing: React.FC = () => {
 
   // ============= PAYMENT TAB =============
 
-  const handlePayment = () => {
-    paymentForm.validateFields().then((values) => {
-      console.log('Payment values:', values);
+  const handlePayment = async () => {
+    try {
+      const values = await paymentForm.validateFields();
+
+      if (!selectedPatient) {
+        message.error('Chưa chọn bệnh nhân');
+        return;
+      }
+
+      // Build payment DTO - uses invoiceId instead of patientId
+      const paymentDto: CreatePaymentDto = {
+        invoiceId: selectedServices[0] || '', // Use first selected service as invoice reference
+        paymentMethod: values.paymentMethod === 'cash' ? 1 : values.paymentMethod === 'card' ? 2 : 3,
+        amount: totals.patientAmount,
+        receivedAmount: values.cashAmount || totals.patientAmount,
+        cardNumber: values.cardNumber,
+        bankName: values.bankName,
+        transactionNumber: values.transferCode,
+        depositId: values.depositId,
+        notes: values.note,
+      };
+
+      await createPayment(paymentDto);
       message.success('Thanh toán thành công!');
       setPaymentModalVisible(false);
       setReceiptDrawerVisible(true);
+
+      // Refresh unpaid services
+      if (selectedPatient) {
+        const unpaidServicesData = await getUnpaidServices(selectedPatient.id);
+        const mappedServices = ((unpaidServicesData as any).data || []).map((s: UnpaidServiceItemDto) => ({
+          id: s.id,
+          serviceCode: s.serviceCode,
+          serviceName: s.serviceName,
+          quantity: s.quantity,
+          unitPrice: s.unitPrice,
+          totalPrice: s.amount,
+          insuranceCoverage: s.insuranceRate,
+          insuranceAmount: s.insuranceAmount,
+          patientAmount: s.patientAmount,
+          serviceDate: s.orderedAt,
+          departmentName: s.executeDepartmentName || s.orderDepartmentName || '',
+          doctorName: '',
+          serviceType: s.serviceGroup,
+        }));
+        setUnpaidServices(mappedServices);
+      }
+
       setSelectedServices([]);
       paymentForm.resetFields();
-    });
+    } catch (error) {
+      console.error('Payment error:', error);
+      message.error('Lỗi khi thanh toán. Vui lòng thử lại.');
+    }
   };
 
   const PaymentModal = (
@@ -644,7 +1008,7 @@ const Billing: React.FC = () => {
       width={450}
       extra={
         <Space>
-          <Button icon={<PrinterOutlined />} type="primary">
+          <Button icon={<PrinterOutlined />} type="primary" onClick={executePrintReceipt}>
             In hóa đơn
           </Button>
         </Space>
@@ -744,13 +1108,30 @@ const Billing: React.FC = () => {
 
   // ============= DEPOSITS TAB =============
 
-  const handleCreateDeposit = () => {
-    depositForm.validateFields().then((values) => {
-      console.log('Deposit values:', values);
+  const handleCreateDeposit = async () => {
+    try {
+      const values = await depositForm.validateFields();
+
+      const depositDto: CreateDepositDto = {
+        patientId: values.patientId || selectedPatient?.id || '',
+        amount: values.amount,
+        depositType: 1, // 1 = OPD deposit
+        depositSource: 1, // 1 = Direct deposit
+        paymentMethod: values.paymentMethod === 'cash' ? 1 : 3,
+        notes: values.note,
+      };
+
+      await createDeposit(depositDto);
       message.success('Tạo tạm ứng thành công!');
       setDepositModalVisible(false);
       depositForm.resetFields();
-    });
+
+      // Refresh deposits list
+      await fetchDeposits();
+    } catch (error) {
+      console.error('Create deposit error:', error);
+      message.error('Lỗi khi tạo tạm ứng. Vui lòng thử lại.');
+    }
   };
 
   const depositsColumns: ColumnsType<Deposit> = [
@@ -824,7 +1205,7 @@ const Billing: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          <Button size="small" icon={<PrinterOutlined />}>
+          <Button size="small" icon={<PrinterOutlined />} onClick={() => executePrintDeposit(record)}>
             In
           </Button>
           {record.remainingAmount > 0 && (
@@ -937,13 +1318,29 @@ const Billing: React.FC = () => {
 
   // ============= REFUNDS TAB =============
 
-  const handleCreateRefund = () => {
-    refundForm.validateFields().then((values) => {
-      console.log('Refund values:', values);
+  const handleCreateRefund = async () => {
+    try {
+      const values = await refundForm.validateFields();
+
+      const refundDto: CreateRefundDto = {
+        patientId: values.patientId,
+        refundAmount: values.amount,
+        refundType: values.refundType === 'service' ? 1 : values.refundType === 'deposit' ? 2 : values.refundType === 'overpayment' ? 3 : 4,
+        reason: values.reason,
+        refundMethod: values.paymentMethod === 'cash' ? 1 : 3,
+      };
+
+      await createRefund(refundDto);
       message.success('Tạo yêu cầu hoàn tiền thành công!');
       setRefundModalVisible(false);
       refundForm.resetFields();
-    });
+
+      // Refresh refunds list
+      await fetchRefunds();
+    } catch (error) {
+      console.error('Create refund error:', error);
+      message.error('Lỗi khi tạo yêu cầu hoàn tiền. Vui lòng thử lại.');
+    }
   };
 
   const refundsColumns: ColumnsType<RefundRecord> = [
@@ -1016,7 +1413,20 @@ const Billing: React.FC = () => {
                 size="small"
                 type="primary"
                 icon={<CheckCircleOutlined />}
-                onClick={() => message.success('Đã duyệt yêu cầu hoàn tiền')}
+                onClick={async () => {
+                  try {
+                    const approveDto: ApproveRefundDto = {
+                      refundId: record.id,
+                      isApproved: true,
+                    };
+                    await approveRefund(approveDto);
+                    message.success('Đã duyệt yêu cầu hoàn tiền');
+                    await fetchRefunds();
+                  } catch (error) {
+                    console.error('Approve refund error:', error);
+                    message.error('Lỗi khi duyệt yêu cầu hoàn tiền');
+                  }
+                }}
               >
                 Duyệt
               </Button>
@@ -1024,14 +1434,23 @@ const Billing: React.FC = () => {
                 size="small"
                 danger
                 icon={<CloseCircleOutlined />}
-                onClick={() => message.error('Đã từ chối yêu cầu')}
+                onClick={async () => {
+                  try {
+                    await cancelRefund(record.id, 'Từ chối bởi người duyệt');
+                    message.warning('Đã từ chối yêu cầu');
+                    await fetchRefunds();
+                  } catch (error) {
+                    console.error('Cancel refund error:', error);
+                    message.error('Lỗi khi từ chối yêu cầu hoàn tiền');
+                  }
+                }}
               >
                 Từ chối
               </Button>
             </>
           )}
           {record.status === 2 && (
-            <Button size="small" icon={<PrinterOutlined />}>
+            <Button size="small" icon={<PrinterOutlined />} onClick={() => executePrintRefund(record)}>
               In
             </Button>
           )}

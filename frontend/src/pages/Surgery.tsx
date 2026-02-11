@@ -33,6 +33,7 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   ReloadOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -117,6 +118,7 @@ const Surgery: React.FC = () => {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isStartSurgeryModalOpen, setIsStartSurgeryModalOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Fetch data from backend API
   const fetchSurgeries = async (searchDto?: SurgerySearchDto) => {
@@ -175,6 +177,7 @@ const Surgery: React.FC = () => {
   const [requestForm] = Form.useForm();
   const [scheduleForm] = Form.useForm();
   const [startSurgeryForm] = Form.useForm();
+  const [printForm] = Form.useForm();
 
   // Get priority badge
   const getPriorityBadge = (priority: number) => {
@@ -314,22 +317,36 @@ const Surgery: React.FC = () => {
     setIsScheduleModalOpen(true);
   };
 
-  const handleScheduleSubmit = () => {
-    scheduleForm.validateFields().then((values) => {
+  const handleScheduleSubmit = async () => {
+    try {
+      const values = await scheduleForm.validateFields();
       if (!selectedRequest) return;
 
       const scheduledDateTime = values.scheduledDate
         .hour(values.scheduledTime.hour())
         .minute(values.scheduledTime.minute());
 
+      // Call API to schedule surgery
+      const scheduleDto: ScheduleSurgeryDto = {
+        surgeryId: selectedRequest.id,
+        scheduledDate: scheduledDateTime.format('YYYY-MM-DDTHH:mm:ss'),
+        operatingRoomId: values.operatingRoomId,
+        estimatedDurationMinutes: values.estimatedDuration,
+      };
+
+      await scheduleSurgery(scheduleDto);
+
+      // Find room name for local state update
+      const selectedRoom = operatingRooms.find(r => r.id === values.operatingRoomId);
+
       const newSchedule: SurgerySchedule = {
-        id: `${surgerySchedules.length + 1}`,
+        id: selectedRequest.id,
         requestCode: selectedRequest.requestCode,
         patientCode: selectedRequest.patientCode,
         patientName: selectedRequest.patientName,
         surgeryType: selectedRequest.surgeryType,
         plannedProcedure: selectedRequest.plannedProcedure,
-        operatingRoomName: values.operatingRoomId === '1' ? 'Phòng mổ 1' : 'Phòng mổ 2',
+        operatingRoomName: selectedRoom?.roomName || 'Phòng mổ',
         scheduledDateTime: scheduledDateTime.format('YYYY-MM-DDTHH:mm:ss'),
         estimatedDuration: values.estimatedDuration,
         surgeonName: values.surgeonName,
@@ -350,7 +367,10 @@ const Surgery: React.FC = () => {
       setIsScheduleModalOpen(false);
       scheduleForm.resetFields();
       setSelectedRequest(null);
-    });
+    } catch (error) {
+      console.error('Error scheduling surgery:', error);
+      message.error('Có lỗi xảy ra khi lên lịch phẫu thuật');
+    }
   };
 
   // Handle start surgery
@@ -362,20 +382,201 @@ const Surgery: React.FC = () => {
     setIsStartSurgeryModalOpen(true);
   };
 
-  const handleStartSurgerySubmit = () => {
+  const handleStartSurgerySubmit = async () => {
     if (!selectedSchedule) return;
 
-    // Update schedule status
-    setSurgerySchedules(prev =>
-      prev.map(sch =>
-        sch.id === selectedSchedule.id ? { ...sch, status: 3 } : sch
-      )
-    );
+    try {
+      const values = await startSurgeryForm.validateFields();
 
-    message.success('Bắt đầu phẫu thuật thành công');
-    setIsStartSurgeryModalOpen(false);
-    startSurgeryForm.resetFields();
-    setSelectedSchedule(null);
+      // Call API to start surgery
+      const startDto: StartSurgeryDto = {
+        surgeryId: selectedSchedule.id,
+        startTime: dayjs(values.actualStartTime).format('YYYY-MM-DDTHH:mm:ss'),
+      };
+
+      await apiStartSurgery(startDto);
+
+      // Update schedule status locally
+      setSurgerySchedules(prev =>
+        prev.map(sch =>
+          sch.id === selectedSchedule.id ? { ...sch, status: 3 } : sch
+        )
+      );
+
+      // Update request status to InProgress
+      setSurgeryRequests(prev =>
+        prev.map(req =>
+          req.requestCode === selectedSchedule.requestCode ? { ...req, status: 2 } : req
+        )
+      );
+
+      message.success('Bắt đầu phẫu thuật thành công');
+      setIsStartSurgeryModalOpen(false);
+      startSurgeryForm.resetFields();
+      setSelectedSchedule(null);
+    } catch (error) {
+      console.error('Error starting surgery:', error);
+      message.error('Có lỗi xảy ra khi bắt đầu phẫu thuật');
+    }
+  };
+
+  // Handle print surgery record (Phiếu phẫu thuật/thủ thuật - MS: 06/BV-02)
+  const handlePrintSurgeryRecord = (record: SurgerySchedule) => {
+    setSelectedSchedule(record);
+
+    // Find the corresponding request for additional info
+    const request = surgeryRequests.find(r => r.requestCode === record.requestCode);
+
+    printForm.setFieldsValue({
+      hospitalName: 'Bệnh viện Đa khoa ABC',
+      patientName: record.patientName,
+      patientCode: record.patientCode,
+      age: request?.age,
+      gender: request?.gender === 1 ? 'Nam' : 'Nữ',
+      departmentName: 'Khoa Ngoại',
+      roomName: record.operatingRoomName,
+      bedName: '',
+      admissionTime: '',
+      surgeryTime: record.scheduledDateTime ? dayjs(record.scheduledDateTime).format('HH:mm DD/MM/YYYY') : '',
+      preOpDiagnosis: request?.preOpDiagnosis,
+      postOpDiagnosis: '',
+      surgeryMethod: record.plannedProcedure,
+      surgeryType: record.surgeryType,
+      anesthesiaMethod: request?.anesthesiaType === 1 ? 'Gây mê toàn thân' :
+        request?.anesthesiaType === 2 ? 'Gây tê tủy sống' :
+        request?.anesthesiaType === 3 ? 'Gây tê tại chỗ' : 'Khác',
+      surgeonName: record.surgeonName,
+      anesthesiologistName: record.anesthesiologistName,
+      surgeryDescription: '',
+      drainInfo: '',
+      stitchRemovalDate: '',
+      notes: '',
+    });
+
+    setIsPrintModalOpen(true);
+  };
+
+  // Execute print for surgery record
+  const executePrintSurgeryRecord = () => {
+    const formValues = printForm.getFieldsValue();
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Phiếu phẫu thuật/thủ thuật - MS: 06/BV-02</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.5; padding: 20px; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+          .header-left { width: 30%; }
+          .header-right { width: 30%; text-align: right; }
+          .title { font-size: 16px; font-weight: bold; text-align: center; margin: 15px 0 20px; text-decoration: underline; }
+          .row { margin: 8px 0; }
+          .field { border-bottom: 1px dotted #000; min-width: 150px; display: inline-block; padding: 0 5px; }
+          .field-long { border-bottom: 1px dotted #000; width: 100%; display: block; min-height: 20px; padding: 2px 5px; margin-top: 3px; }
+          .section { margin: 15px 0; }
+          .section-title { font-weight: bold; margin: 15px 0 10px 0; text-decoration: underline; }
+          .two-col { display: flex; justify-content: space-between; }
+          .signature { text-align: center; margin-top: 40px; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="header-left">
+            <div>Sở Y tế: <span class="field">..........................</span></div>
+            <div>BV: <span class="field">${formValues.hospitalName || ''}</span></div>
+          </div>
+          <div style="text-align: right;">
+            <div><strong>MS: 06/BV-02</strong></div>
+            <div>Số vào viện: <span class="field">${selectedSchedule?.requestCode || ''}</span></div>
+          </div>
+        </div>
+
+        <div class="title">Phiếu phẫu thuật/thủ thuật</div>
+
+        <div class="row">
+          - Họ tên người bệnh: <span class="field">${formValues.patientName || ''}</span>
+          Tuổi: <span class="field">${formValues.age || ''}</span>
+          ${formValues.gender || 'Nam/Nữ'}
+        </div>
+        <div class="row">
+          - Khoa: <span class="field">${formValues.departmentName || ''}</span>
+          Buồng: <span class="field">${formValues.roomName || ''}</span>
+          Giường: <span class="field">${formValues.bedName || ''}</span>
+        </div>
+        <div class="row">
+          - Vào viện lúc: <span class="field">${formValues.admissionTime || '......... giờ ....... phút'}</span>
+          ngày <span class="field">........ tháng ........ năm ........</span>
+        </div>
+        <div class="row">
+          - Phẫu thuật/thủ thuật lúc: <span class="field">${formValues.surgeryTime || ''}</span>
+        </div>
+
+        <div class="section">
+          <div class="row">- Chẩn đoán:</div>
+          <div class="row" style="margin-left: 20px;">
+            . Trước phẫu thuật/thủ thuật: <span class="field-long">${formValues.preOpDiagnosis || ''}</span>
+          </div>
+          <div class="row" style="margin-left: 20px;">
+            . Sau phẫu thuật/thủ thuật: <span class="field-long">${formValues.postOpDiagnosis || ''}</span>
+          </div>
+        </div>
+
+        <div class="row">
+          - Phương pháp phẫu thuật/thủ thuật: <span class="field-long">${formValues.surgeryMethod || ''}</span>
+        </div>
+        <div class="row">
+          - Loại phẫu thuật/thủ thuật: <span class="field">${formValues.surgeryType || ''}</span>
+        </div>
+        <div class="row">
+          - Phương pháp vô cảm: <span class="field">${formValues.anesthesiaMethod || ''}</span>
+        </div>
+        <div class="row">
+          - Bác sĩ phẫu thuật/thủ thuật: <span class="field">${formValues.surgeonName || ''}</span>
+        </div>
+        <div class="row">
+          - Bác sĩ gây mê hồi sức: <span class="field">${formValues.anesthesiologistName || ''}</span>
+        </div>
+
+        <div class="section-title">Lược đồ phẫu thuật/thủ thuật</div>
+        <div style="border: 1px solid #ccc; min-height: 150px; padding: 10px; margin: 10px 0;">
+          ${formValues.surgeryDiagram || ''}
+        </div>
+
+        <div class="row">- Dẫn lưu: <span class="field">${formValues.drainInfo || ''}</span></div>
+        <div class="row">- Bấc: <span class="field">${formValues.packingInfo || ''}</span></div>
+        <div class="row">- Ngày rút: <span class="field">${formValues.removalDate || ''}</span></div>
+        <div class="row">- Ngày cắt chỉ: <span class="field">${formValues.stitchRemovalDate || ''}</span></div>
+        <div class="row">- Khác: <span class="field">${formValues.notes || ''}</span></div>
+
+        <div class="section-title">Trình tự phẫu thuật/thủ thuật</div>
+        <div style="border: 1px solid #ccc; min-height: 200px; padding: 10px; margin: 10px 0; white-space: pre-wrap;">
+          ${formValues.surgeryDescription || ''}
+        </div>
+
+        <div class="signature">
+          <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
+          <div style="margin-top: 10px;"><strong>Phẫu thuật/thủ thuật viên</strong></div>
+          <div style="margin-top: 50px;">Họ tên: ${formValues.surgeonName || '..................................'}</div>
+        </div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   // Surgery Requests columns
@@ -628,11 +829,20 @@ const Surgery: React.FC = () => {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 150,
-      render: () => (
-        <Button type="primary" size="small">
-          Hoàn thành
-        </Button>
+      width: 200,
+      render: (_, record) => (
+        <Space>
+          <Button type="primary" size="small">
+            Hoàn thành
+          </Button>
+          <Button
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrintSurgeryRecord(record)}
+          >
+            In phiếu
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -1245,6 +1455,145 @@ const Surgery: React.FC = () => {
             </Form>
           </>
         )}
+      </Modal>
+
+      {/* Print Surgery Record Modal - MS: 06/BV-02 */}
+      <Modal
+        title={<><PrinterOutlined /> In Phiếu phẫu thuật/thủ thuật (MS: 06/BV-02)</>}
+        open={isPrintModalOpen}
+        onCancel={() => {
+          setIsPrintModalOpen(false);
+          printForm.resetFields();
+          setSelectedSchedule(null);
+        }}
+        width={900}
+        footer={[
+          <Button key="cancel" onClick={() => setIsPrintModalOpen(false)}>
+            Đóng
+          </Button>,
+          <Button
+            key="print"
+            type="primary"
+            icon={<PrinterOutlined />}
+            onClick={executePrintSurgeryRecord}
+          >
+            In phiếu
+          </Button>,
+        ]}
+      >
+        <Form form={printForm} layout="vertical" size="small">
+          <Divider><strong>Thông tin bệnh nhân</strong></Divider>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Họ tên người bệnh" name="patientName">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label="Tuổi" name="age">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label="Giới tính" name="gender">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="Khoa" name="departmentName">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Buồng/Phòng mổ" name="roomName">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Giường" name="bedName">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Vào viện lúc" name="admissionTime">
+                <Input placeholder="... giờ ... phút, ngày ... tháng ... năm" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Phẫu thuật/thủ thuật lúc" name="surgeryTime">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider><strong>Chẩn đoán</strong></Divider>
+          <Form.Item label="Trước phẫu thuật/thủ thuật" name="preOpDiagnosis">
+            <TextArea rows={2} />
+          </Form.Item>
+          <Form.Item label="Sau phẫu thuật/thủ thuật" name="postOpDiagnosis">
+            <TextArea rows={2} />
+          </Form.Item>
+
+          <Divider><strong>Thông tin phẫu thuật</strong></Divider>
+          <Form.Item label="Phương pháp phẫu thuật/thủ thuật" name="surgeryMethod">
+            <TextArea rows={2} />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Loại phẫu thuật/thủ thuật" name="surgeryType">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Phương pháp vô cảm" name="anesthesiaMethod">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Bác sĩ phẫu thuật/thủ thuật" name="surgeonName">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Bác sĩ gây mê hồi sức" name="anesthesiologistName">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider><strong>Trình tự phẫu thuật</strong></Divider>
+          <Form.Item label="Mô tả trình tự phẫu thuật/thủ thuật" name="surgeryDescription">
+            <TextArea rows={6} placeholder="Mô tả chi tiết các bước phẫu thuật..." />
+          </Form.Item>
+
+          <Divider><strong>Thông tin hậu phẫu</strong></Divider>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="Dẫn lưu" name="drainInfo">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Ngày rút" name="removalDate">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Ngày cắt chỉ" name="stitchRemovalDate">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="Ghi chú khác" name="notes">
+            <TextArea rows={2} />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

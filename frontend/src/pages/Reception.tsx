@@ -95,10 +95,12 @@ const Reception: React.FC = () => {
   const [data, setData] = useState<ReceptionRecord[]>([]);
   const [roomStats, setRoomStats] = useState<RoomStatistics[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingRooms, setLoadingRooms] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isPrintRequestModalOpen, setIsPrintRequestModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ReceptionRecord | null>(null);
   const [insuranceVerification, setInsuranceVerification] = useState<InsuranceVerification | null>(null);
   const [verifyingInsurance, setVerifyingInsurance] = useState(false);
@@ -106,6 +108,7 @@ const Reception: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [verifyForm] = Form.useForm();
+  const [printRequestForm] = Form.useForm();
 
   // Fetch data on mount
   useEffect(() => {
@@ -115,6 +118,7 @@ const Reception: React.FC = () => {
 
   const fetchRooms = async () => {
     try {
+      setLoadingRooms(true);
       const response = await receptionApi.getRoomOverview();
       if (response.data) {
         setRooms(response.data);
@@ -131,8 +135,16 @@ const Reception: React.FC = () => {
         }));
         setRoomStats(stats);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch rooms:', error);
+      // If unauthorized, redirect to login
+      if (error?.response?.status === 401) {
+        message.warning('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
+      } else {
+        message.error('Không thể tải danh sách phòng khám');
+      }
+    } finally {
+      setLoadingRooms(false);
     }
   };
 
@@ -291,7 +303,10 @@ const Reception: React.FC = () => {
             <Button size="small" icon={<HistoryOutlined />} onClick={() => handleViewHistory(record)} />
           </Tooltip>
           <Tooltip title="In phiếu">
-            <Button size="small" icon={<PrinterOutlined />} onClick={() => message.info('In phiếu khám')} />
+            <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintTicket(record)} />
+          </Tooltip>
+          <Tooltip title="In giấy yêu cầu">
+            <Button size="small" icon={<FileTextOutlined />} onClick={() => handlePrintRequestForm(record)} />
           </Tooltip>
         </Space>
       ),
@@ -365,13 +380,208 @@ const Reception: React.FC = () => {
     });
   };
 
-  const handleTransferRoom = (_record: ReceptionRecord) => {
-    message.info('Chức năng chuyển phòng');
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [transferForm] = Form.useForm();
+
+  const handleTransferRoom = (record: ReceptionRecord) => {
+    setSelectedRecord(record);
+    transferForm.setFieldsValue({ currentRoom: record.roomName });
+    setIsTransferModalOpen(true);
+  };
+
+  const handleTransferSubmit = async () => {
+    try {
+      const values = await transferForm.validateFields();
+      if (!selectedRecord) return;
+
+      await receptionApi.changeRoom(
+        selectedRecord.id,
+        values.newRoomId,
+        undefined,
+        values.reason
+      );
+
+      message.success('Chuyển phòng thành công!');
+      setIsTransferModalOpen(false);
+      transferForm.resetFields();
+      fetchAdmissions();
+      fetchRooms();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Chuyển phòng thất bại');
+    }
+  };
+
+  const handlePrintTicket = async (record: ReceptionRecord) => {
+    try {
+      message.loading('Đang in phiếu khám...', 1);
+      // Open print dialog with patient info
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Phiếu khám bệnh - ${record.patientCode}</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                .header { text-align: center; margin-bottom: 20px; }
+                .info { margin: 10px 0; }
+                .queue-number { font-size: 48px; font-weight: bold; text-align: center; }
+                .room { font-size: 24px; text-align: center; color: #1890ff; }
+              </style>
+            </head>
+            <body>
+              <div class="header">
+                <h2>PHIẾU KHÁM BỆNH</h2>
+                <p>Ngày: ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
+              </div>
+              <div class="queue-number">${record.queueNumber}</div>
+              <div class="room">${record.roomName || 'Chưa phân phòng'}</div>
+              <div class="info"><strong>Mã BN:</strong> ${record.patientCode}</div>
+              <div class="info"><strong>Họ tên:</strong> ${record.patientName}</div>
+              <div class="info"><strong>Giới tính:</strong> ${record.gender === 1 ? 'Nam' : 'Nữ'}</div>
+              <div class="info"><strong>Ngày sinh:</strong> ${record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '-'}</div>
+              <div class="info"><strong>Loại khám:</strong> ${record.patientType === 1 ? 'BHYT' : record.patientType === 2 ? 'Viện phí' : 'Dịch vụ'}</div>
+              ${record.insuranceNumber ? `<div class="info"><strong>Số BHYT:</strong> ${record.insuranceNumber}</div>` : ''}
+              <script>window.print(); window.close();</script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+    } catch (error) {
+      message.error('Không thể in phiếu khám');
+    }
   };
 
   const handleViewHistory = (record: ReceptionRecord) => {
     setSelectedRecord(record);
     setIsHistoryModalOpen(true);
+  };
+
+  // Handle print request-based examination form (Giấy khám chữa bệnh theo yêu cầu MS: 03/BV-02)
+  const handlePrintRequestForm = (record: ReceptionRecord) => {
+    setSelectedRecord(record);
+    printRequestForm.setFieldsValue({
+      patientName: record.patientName,
+      age: record.dateOfBirth ? dayjs().diff(dayjs(record.dateOfBirth), 'year') : '',
+      gender: record.gender === 1 ? 'Nam' : 'Nữ',
+      identityNumber: record.identityNumber,
+      address: record.address,
+      roomName: record.roomName,
+    });
+    setIsPrintRequestModalOpen(true);
+  };
+
+  const executePrintRequestForm = () => {
+    const formValues = printRequestForm.getFieldsValue();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Giấy khám chữa bệnh theo yêu cầu</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.6; padding: 30px 40px; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .header-left { width: 30%; }
+          .header-center { width: 40%; text-align: center; }
+          .header-right { width: 30%; text-align: right; font-size: 12px; }
+          .title { font-size: 16px; font-weight: bold; text-align: center; margin: 20px 0 30px 0; }
+          .subtitle { font-style: italic; text-align: center; margin-bottom: 20px; }
+          .field { border-bottom: 1px dotted #000; min-width: 150px; display: inline-block; padding: 0 5px; }
+          .field-long { border-bottom: 1px dotted #000; width: 100%; display: block; min-height: 20px; }
+          .row { margin: 10px 0; }
+          .indent { margin-left: 20px; }
+          .section { margin: 15px 0; }
+          .checkbox { width: 14px; height: 14px; border: 1px solid #000; display: inline-block; margin-right: 5px; }
+          .signature-row { display: flex; justify-content: space-between; margin-top: 40px; }
+          .signature-box { text-align: center; width: 40%; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="header-left">
+            Sở Y tế: <span class="field">${formValues.healthDepartment || '.....................'}</span><br/>
+            BV: <span class="field">${formValues.hospitalName || '.....................'}</span>
+          </div>
+          <div class="header-center">
+            <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
+            <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
+            <span>-----------------------------------------</span>
+          </div>
+          <div class="header-right">
+            MS: 03/BV-02<br/>
+            Số: <span class="field">${formValues.formNumber || '............'}</span>
+          </div>
+        </div>
+
+        <div class="title">Giấy khám chữa bệnh theo yêu cầu</div>
+
+        <div class="subtitle">Kính gửi: <span class="field">${formValues.recipient || '......................................................'}</span></div>
+
+        <div class="section">
+          <div class="row">- Tên tôi là: <span class="field">${formValues.patientName || ''}</span> Tuổi: <span class="field">${formValues.age || ''}</span> Nam/Nữ: <span class="field">${formValues.gender || ''}</span></div>
+          <div class="row">- CMND/Hộ chiếu/Hộ khẩu số: <span class="field">${formValues.identityNumber || ''}</span> Cơ quan cấp: <span class="field">${formValues.issuingAuthority || ''}</span></div>
+          <div class="row">- Dân tộc: <span class="field">${formValues.ethnicity || ''}</span> Ngoại kiều: <span class="field">${formValues.nationality || ''}</span></div>
+          <div class="row">- Nghề nghiệp: <span class="field">${formValues.occupation || ''}</span> Nơi làm việc: <span class="field">${formValues.workplace || ''}</span></div>
+          <div class="row">- Địa chỉ: <span class="field" style="width: 80%">${formValues.address || ''}</span></div>
+          <div class="row">- Khi cần báo tin: <span class="field" style="width: 70%">${formValues.emergencyContact || ''}</span></div>
+          <div class="row">- Là người bệnh/đại diện gia đình người bệnh họ tên là: <span class="field">${formValues.representativeName || ''}</span></div>
+          <div class="row">Hiện đang khám/chữa bệnh tại Khoa: <span class="field">${formValues.roomName || ''}</span> Bệnh viện: <span class="field">${formValues.hospitalName || ''}</span></div>
+        </div>
+
+        <div class="section">
+          <p><strong>1. Sau khi nghe bác sĩ phổ biến quy định khám/chữa bệnh theo yêu cầu của bệnh viện, tôi viết giấy này thỏa thuận xin khám/chữa bệnh theo yêu cầu và chọn dịch vụ chăm sóc như sau:</strong></p>
+          <div class="indent">
+            <div class="row">a. Bác sĩ khám/chữa bệnh/phẫu thuật/đỡ đẻ/chăm sóc: <span class="field">${formValues.requestedDoctor || ''}</span></div>
+            <div class="row">b. <span class="checkbox"></span> Y tá (điều dưỡng) chăm sóc theo chế độ bệnh lý tại giường.</div>
+            <div class="row">c. <span class="checkbox"></span> Được dùng thuốc theo chỉ định của bác sĩ điều trị</div>
+            <div class="row">d. Được nằm chữa bệnh tại buồng loại: <span class="field">${formValues.roomType || ''}</span>, có tiện nghi: điều hòa nhiệt độ, tủ lạnh, nước nóng lạnh, buồng vệ sinh riêng.</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <p><strong>2. Tôi xin ứng trước một khoản tiền theo quy định của bệnh viện là:</strong> <span class="field">${formValues.depositAmount || ''}</span> đồng,</p>
+          <p>(bằng chữ): <span class="field" style="width: 80%">${formValues.depositAmountInWords || ''}</span></p>
+          <p>để khám/chữa bệnh theo yêu cầu; khi ra viện tôi xin thanh toán đầy đủ.</p>
+        </div>
+
+        <div class="section">
+          <p><strong>3.</strong> Trong khi thực hiện khám/chữa bệnh theo yêu cầu, nếu có vấn đề phát sinh đề nghị bác sĩ thông báo cho tôi/gia đình tôi biết để tiện thanh toán kịp thời.</p>
+        </div>
+
+        <div class="section">
+          <p><strong>4.</strong> Tôi xin chấp hành đầy đủ nội quy khám/chữa bệnh của bệnh viện, yên tâm chữa bệnh và chịu trách nhiệm về những yêu cầu khám/chữa bệnh của tôi.</p>
+        </div>
+
+        <div class="signature-row">
+          <div class="signature-box">
+            <p>Duyệt của</p>
+            <p><strong>Giám đốc bệnh viện</strong></p>
+            <br/><br/><br/>
+            <p>Họ tên: ................................</p>
+          </div>
+          <div class="signature-box">
+            <p>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</p>
+            <p><strong>Người bệnh/đại diện gia đình</strong></p>
+            <br/><br/><br/>
+            <p>Họ tên: ................................</p>
+          </div>
+        </div>
+
+        <script>window.print();</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setIsPrintRequestModalOpen(false);
   };
 
   const handleVerifyInsurance = async () => {
@@ -489,11 +699,26 @@ const Reception: React.FC = () => {
                           enterButton={<SearchOutlined />}
                           style={{ width: 350 }}
                         />
-                        <Select defaultValue="" style={{ width: 150 }} placeholder="Phòng khám">
+                        <Select
+                          defaultValue=""
+                          style={{ width: 180 }}
+                          placeholder="Phòng khám"
+                          loading={loadingRooms}
+                          notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Không có dữ liệu' : undefined)}
+                          onChange={(roomId) => {
+                            if (roomId) {
+                              setData(prev => prev.filter(p => p.roomId === roomId));
+                            } else {
+                              fetchAdmissions();
+                            }
+                          }}
+                        >
                           <Select.Option value="">Tất cả phòng</Select.Option>
-                          <Select.Option value="room-1">Phòng khám Nội 1</Select.Option>
-                          <Select.Option value="room-2">Phòng khám Nội 2</Select.Option>
-                          <Select.Option value="room-3">Phòng khám Ngoại 1</Select.Option>
+                          {rooms.map(room => (
+                            <Select.Option key={room.roomId} value={room.roomId}>
+                              {room.roomName}
+                            </Select.Option>
+                          ))}
                         </Select>
                         <Select defaultValue="" style={{ width: 120 }} placeholder="Trạng thái">
                           <Select.Option value="">Tất cả</Select.Option>
@@ -907,7 +1132,11 @@ const Reception: React.FC = () => {
                 label="Phòng khám"
                 rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
               >
-                <Select placeholder="Chọn phòng khám">
+                <Select
+                  placeholder="Chọn phòng khám"
+                  loading={loadingRooms}
+                  notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
+                >
                   {rooms.map(room => (
                     <Select.Option key={room.roomId} value={room.roomId}>
                       {room.roomName} - {room.departmentName}
@@ -922,6 +1151,191 @@ const Reception: React.FC = () => {
             <Input.TextArea rows={2} placeholder="Nhập địa chỉ" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Modal Chuyển phòng */}
+      <Modal
+        title={
+          <Space>
+            <SwapOutlined />
+            Chuyển phòng khám - {selectedRecord?.patientName}
+          </Space>
+        }
+        open={isTransferModalOpen}
+        onOk={handleTransferSubmit}
+        onCancel={() => {
+          setIsTransferModalOpen(false);
+          transferForm.resetFields();
+        }}
+        okText="Chuyển phòng"
+        cancelText="Hủy"
+      >
+        <Form form={transferForm} layout="vertical">
+          <Form.Item name="currentRoom" label="Phòng hiện tại">
+            <Input disabled />
+          </Form.Item>
+          <Form.Item
+            name="newRoomId"
+            label="Phòng mới"
+            rules={[{ required: true, message: 'Vui lòng chọn phòng mới' }]}
+          >
+            <Select
+              placeholder="Chọn phòng khám mới"
+              loading={loadingRooms}
+              notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
+            >
+              {rooms
+                .filter(room => room.roomId !== selectedRecord?.roomId)
+                .map(room => (
+                  <Select.Option key={room.roomId} value={room.roomId}>
+                    {room.roomName} - {room.departmentName} (Chờ: {room.waitingCount})
+                  </Select.Option>
+                ))}
+            </Select>
+          </Form.Item>
+          <Form.Item name="reason" label="Lý do chuyển">
+            <Input.TextArea rows={2} placeholder="Nhập lý do chuyển phòng (không bắt buộc)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Print Request-based Examination Form Modal (MS: 03/BV-02) */}
+      <Modal
+        title="In Giấy khám chữa bệnh theo yêu cầu (MS: 03/BV-02)"
+        open={isPrintRequestModalOpen}
+        onCancel={() => {
+          setIsPrintRequestModalOpen(false);
+          printRequestForm.resetFields();
+        }}
+        width={800}
+        footer={[
+          <Button key="cancel" onClick={() => setIsPrintRequestModalOpen(false)}>
+            Hủy
+          </Button>,
+          <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={executePrintRequestForm}>
+            In giấy yêu cầu
+          </Button>,
+        ]}
+      >
+        <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '16px' }}>
+          <Form form={printRequestForm} layout="vertical">
+            <Alert
+              message="Giấy khám chữa bệnh theo yêu cầu dành cho bệnh nhân dịch vụ, yêu cầu bác sĩ/buồng bệnh cụ thể"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="hospitalName" label="Bệnh viện">
+                  <Input placeholder="Tên bệnh viện" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="healthDepartment" label="Sở Y tế">
+                  <Input placeholder="Tên Sở Y tế" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider>Thông tin người bệnh</Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="patientName" label="Họ tên">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="age" label="Tuổi">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="gender" label="Giới tính">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="identityNumber" label="CMND/CCCD">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="issuingAuthority" label="Cơ quan cấp">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="ethnicity" label="Dân tộc">
+                  <Input placeholder="Kinh" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="nationality" label="Ngoại kiều">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="occupation" label="Nghề nghiệp">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="workplace" label="Nơi làm việc">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="address" label="Địa chỉ">
+              <Input />
+            </Form.Item>
+            <Form.Item name="emergencyContact" label="Khi cần báo tin">
+              <Input placeholder="Họ tên, số điện thoại người thân" />
+            </Form.Item>
+
+            <Divider>Yêu cầu dịch vụ</Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="roomName" label="Khám tại Khoa/Phòng">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="requestedDoctor" label="Bác sĩ yêu cầu">
+                  <Input placeholder="Tên bác sĩ muốn khám" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="roomType" label="Loại buồng bệnh (nếu nằm viện)">
+              <Select placeholder="Chọn loại buồng">
+                <Select.Option value="VIP">VIP - Phòng riêng</Select.Option>
+                <Select.Option value="A">Loại A - 2 giường</Select.Option>
+                <Select.Option value="B">Loại B - 4 giường</Select.Option>
+                <Select.Option value="">Không yêu cầu</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Divider>Thanh toán</Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="depositAmount" label="Số tiền tạm ứng (đồng)">
+                  <Input type="number" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="depositAmountInWords" label="Bằng chữ">
+                  <Input placeholder="Ví dụ: Một triệu đồng" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </div>
       </Modal>
     </div>
   );
