@@ -44,40 +44,37 @@ public static class DependencyInjection
         // Phân hệ 6: Phẫu thuật Thủ thuật (Surgery)
         services.AddScoped<ISurgeryCompleteService, SurgeryCompleteService>();
 
-        // TODO: Workflow Services - Các luồng làm việc liên kết 17 phân hệ HIS
-        // Theo HIS_DataFlow_Architecture.md
+        // ============ Luồng 11-20: Extended Workflow Services (Real Database Implementations) ============
 
-        // Luồng 1: Khám bệnh Ngoại trú (OPD Flow)
-        // Tiếp đón → Khám bệnh → Chỉ định → XN/CĐHA → Kho Dược → Thu ngân → BHYT
-        // services.AddScoped<IOPDWorkflowService, OPDWorkflowService>();
+        // Luồng 11: Telemedicine (Khám bệnh từ xa)
+        services.AddScoped<ITelemedicineService, TelemedicineServiceImpl>();
 
-        // TODO: Các workflow services khác cần được hoàn thiện entities trước khi enable
-        // Luồng 2: Điều trị Nội trú (IPD Flow)
-        // services.AddScoped<IIPDWorkflowService, IPDWorkflowService>();
+        // Luồng 12: Clinical Nutrition (Dinh dưỡng lâm sàng)
+        services.AddScoped<IClinicalNutritionService, ClinicalNutritionServiceImpl>();
 
-        // Luồng 3: Phẫu thuật Thủ thuật (Surgery Flow)
-        // services.AddScoped<ISurgeryWorkflowService, SurgeryWorkflowService>();
+        // Luồng 13: Infection Control (Kiểm soát nhiễm khuẩn)
+        services.AddScoped<IInfectionControlService, InfectionControlServiceImpl>();
 
-        // Luồng 4: Xét nghiệm (Lab/LIS Flow)
-        // services.AddScoped<ILabWorkflowService, LabWorkflowService>();
+        // Luồng 14: Rehabilitation (Vật lý trị liệu/PHCN)
+        services.AddScoped<IRehabilitationService, RehabilitationServiceImpl>();
 
-        // Luồng 5: Chẩn đoán Hình ảnh (RIS/PACS Flow)
-        // services.AddScoped<IImagingWorkflowService, ImagingWorkflowService>();
+        // Luồng 15: Medical Equipment (Quản lý TTB y tế)
+        services.AddScoped<IMedicalEquipmentService, MedicalEquipmentServiceImpl>();
 
-        // Luồng 6: Kho Dược & Phát thuốc (Pharmacy Flow)
-        // services.AddScoped<IPharmacyWorkflowService, PharmacyWorkflowService>();
+        // Luồng 16: Medical HR (Quản lý nhân sự y tế)
+        services.AddScoped<IMedicalHRService, MedicalHRServiceImpl>();
 
-        // Luồng 7: Thanh toán & Viện phí (Billing Flow)
-        // services.AddScoped<IBillingWorkflowService, BillingWorkflowService>();
+        // Luồng 17: Quality Management (Quản lý chất lượng)
+        services.AddScoped<IQualityManagementService, QualityManagementServiceImpl>();
 
-        // Luồng 8: Bảo hiểm Y tế (Insurance/BHYT Flow)
-        // services.AddScoped<IInsuranceWorkflowService, InsuranceWorkflowService>();
+        // Luồng 18: Patient Portal (Cổng bệnh nhân)
+        services.AddScoped<IPatientPortalService, PatientPortalServiceImpl>();
 
-        // Luồng 9: Ngân hàng Máu (Blood Bank Flow)
-        // services.AddScoped<IBloodBankWorkflowService, BloodBankWorkflowService>();
+        // Luồng 19: Health Information Exchange (Liên thông y tế)
+        services.AddScoped<IHealthExchangeService, HealthExchangeServiceImpl>();
 
-        // Luồng 10: Báo cáo & Thống kê (Reporting Flow)
-        // services.AddScoped<IReportingWorkflowService, ReportingWorkflowService>();
+        // Luồng 20: Mass Casualty Incident (Cấp cứu thảm họa)
+        services.AddScoped<IMassCasualtyService, MassCasualtyServiceImpl>();
 
         return services;
     }

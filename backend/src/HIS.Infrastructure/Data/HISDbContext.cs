@@ -193,6 +193,76 @@ public class HISDbContext : DbContext
     public DbSet<InsuranceStatistics> InsuranceStatisticsRecords => Set<InsuranceStatistics>();
     public DbSet<InsurancePriceConfig> InsurancePriceConfigs => Set<InsurancePriceConfig>();
 
+    // Luồng 11: Telemedicine
+    public DbSet<TeleAppointment> TeleAppointments => Set<TeleAppointment>();
+    public DbSet<TeleSession> TeleSessions => Set<TeleSession>();
+    public DbSet<TeleConsultation> TeleConsultations => Set<TeleConsultation>();
+    public DbSet<TelePrescription> TelePrescriptions => Set<TelePrescription>();
+    public DbSet<TelePrescriptionItem> TelePrescriptionItems => Set<TelePrescriptionItem>();
+    public DbSet<TeleFeedback> TeleFeedbacks => Set<TeleFeedback>();
+
+    // Luồng 12: Clinical Nutrition
+    public DbSet<NutritionScreening> NutritionScreenings => Set<NutritionScreening>();
+    public DbSet<NutritionAssessment> NutritionAssessments => Set<NutritionAssessment>();
+    public DbSet<DietOrder> DietOrders => Set<DietOrder>();
+    public DbSet<DietType> DietTypes => Set<DietType>();
+    public DbSet<MealPlan> MealPlans => Set<MealPlan>();
+    public DbSet<MealPlanItem> MealPlanItems => Set<MealPlanItem>();
+    public DbSet<NutritionMonitoring> NutritionMonitorings => Set<NutritionMonitoring>();
+    public DbSet<TPNOrder> TPNOrders => Set<TPNOrder>();
+
+    // Luồng 13: Infection Control
+    public DbSet<HAICase> HAICases => Set<HAICase>();
+    public DbSet<IsolationOrder> IsolationOrders => Set<IsolationOrder>();
+    public DbSet<HandHygieneObservation> HandHygieneObservations => Set<HandHygieneObservation>();
+    public DbSet<Outbreak> Outbreaks => Set<Outbreak>();
+    public DbSet<OutbreakCase> OutbreakCases => Set<OutbreakCase>();
+    public DbSet<AntibioticStewardship> AntibioticStewardships => Set<AntibioticStewardship>();
+
+    // Luồng 14: Rehabilitation
+    public DbSet<RehabReferral> RehabReferrals => Set<RehabReferral>();
+    public DbSet<FunctionalAssessment> FunctionalAssessments => Set<FunctionalAssessment>();
+    public DbSet<RehabTreatmentPlan> RehabTreatmentPlans => Set<RehabTreatmentPlan>();
+    public DbSet<RehabSession> RehabSessions => Set<RehabSession>();
+
+    // Luồng 15: Medical Equipment
+    public DbSet<MedicalEquipment> MedicalEquipments => Set<MedicalEquipment>();
+    public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
+    public DbSet<CalibrationRecord> CalibrationRecords => Set<CalibrationRecord>();
+    public DbSet<RepairRequest> RepairRequests => Set<RepairRequest>();
+
+    // Luồng 16: Medical HR
+    public DbSet<MedicalStaff> MedicalStaffs => Set<MedicalStaff>();
+    public DbSet<StaffQualification> StaffQualifications => Set<StaffQualification>();
+    public DbSet<DutyRoster> DutyRosters => Set<DutyRoster>();
+    public DbSet<DutyShift> DutyShifts => Set<DutyShift>();
+    public DbSet<ClinicAssignment> ClinicAssignments => Set<ClinicAssignment>();
+    public DbSet<CMERecord> CMERecords => Set<CMERecord>();
+
+    // Luồng 17: Quality Management
+    public DbSet<QualityIndicator> QualityIndicators => Set<QualityIndicator>();
+    public DbSet<QualityIndicatorValue> QualityIndicatorValues => Set<QualityIndicatorValue>();
+    public DbSet<IncidentReport> IncidentReports => Set<IncidentReport>();
+    public DbSet<CAPA> CAPAs => Set<CAPA>();
+    public DbSet<AuditPlan> AuditPlans => Set<AuditPlan>();
+    public DbSet<SatisfactionSurvey> SatisfactionSurveys => Set<SatisfactionSurvey>();
+
+    // Luồng 18: Patient Portal
+    public DbSet<PortalAccount> PortalAccounts => Set<PortalAccount>();
+    public DbSet<PortalAppointment> PortalAppointments => Set<PortalAppointment>();
+    public DbSet<OnlinePayment> OnlinePayments => Set<OnlinePayment>();
+
+    // Luồng 19: Health Information Exchange
+    public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();
+    public DbSet<InsuranceXMLSubmission> InsuranceXMLSubmissions => Set<InsuranceXMLSubmission>();
+    public DbSet<ElectronicReferral> ElectronicReferrals => Set<ElectronicReferral>();
+    public DbSet<TeleconsultationRequest> TeleconsultationRequests => Set<TeleconsultationRequest>();
+
+    // Luồng 20: Mass Casualty Incident
+    public DbSet<MCIEvent> MCIEvents => Set<MCIEvent>();
+    public DbSet<MCIVictim> MCIVictims => Set<MCIVictim>();
+    public DbSet<MCISituationReport> MCISituationReports => Set<MCISituationReport>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

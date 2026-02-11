@@ -126,36 +126,19 @@ namespace HIS.Application.Registration
             // services.AddScoped<ISystemCompleteService, SystemCompleteService>();
 
             // ============ Luồng 11-20: Extended Services ============
+            // NOTE: Real implementations are registered in HIS.Infrastructure.DependencyInjection
+            // using *ServiceImpl classes that connect to the database
 
-            // Module 11: Telemedicine
-            services.AddScoped<ITelemedicineService, TelemedicineService>();
-
-            // Module 12: Clinical Nutrition
-            services.AddScoped<IClinicalNutritionService, ClinicalNutritionService>();
-
-            // Module 13: Infection Control
-            services.AddScoped<IInfectionControlService, InfectionControlService>();
-
-            // Module 14: Rehabilitation
-            services.AddScoped<IRehabilitationService, RehabilitationService>();
-
-            // Module 15: Medical Equipment
-            services.AddScoped<IMedicalEquipmentService, MedicalEquipmentService>();
-
-            // Module 16: Medical HR
-            services.AddScoped<IMedicalHRService, MedicalHRService>();
-
-            // Module 17: Quality Management
-            services.AddScoped<IQualityManagementService, QualityManagementService>();
-
-            // Module 18: Patient Portal
-            services.AddScoped<IPatientPortalService, PatientPortalService>();
-
-            // Module 19: Health Information Exchange
-            services.AddScoped<IHealthExchangeService, HealthExchangeService>();
-
-            // Module 20: Mass Casualty Incident
-            services.AddScoped<IMassCasualtyService, MassCasualtyService>();
+            // Module 11: Telemedicine - Registered in Infrastructure (TelemedicineServiceImpl)
+            // Module 12: Clinical Nutrition - Registered in Infrastructure (ClinicalNutritionServiceImpl)
+            // Module 13: Infection Control - Registered in Infrastructure (InfectionControlServiceImpl)
+            // Module 14: Rehabilitation - Registered in Infrastructure (RehabilitationServiceImpl)
+            // Module 15: Medical Equipment - Registered in Infrastructure (MedicalEquipmentServiceImpl)
+            // Module 16: Medical HR - Registered in Infrastructure (MedicalHRServiceImpl)
+            // Module 17: Quality Management - Registered in Infrastructure (QualityManagementServiceImpl)
+            // Module 18: Patient Portal - Registered in Infrastructure (PatientPortalServiceImpl)
+            // Module 19: Health Information Exchange - Registered in Infrastructure (HealthExchangeServiceImpl)
+            // Module 20: Mass Casualty Incident - Registered in Infrastructure (MassCasualtyServiceImpl)
 
             return services;
         }
