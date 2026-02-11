@@ -48,6 +48,31 @@ namespace HIS.Application.Services
         /// </summary>
         Task<bool> CompleteExamAsync(Guid orderId);
 
+        /// <summary>
+        /// DEV: Cập nhật tất cả RadiologyRequests thành ngày hôm nay
+        /// </summary>
+        Task<int> UpdateAllRequestDatesToTodayAsync();
+
+        /// <summary>
+        /// DEV: Thêm DicomStudy test cho các request có status Completed (3) để test nút Xem hình
+        /// </summary>
+        Task<int> AddTestDicomStudiesForCompletedRequestsAsync();
+
+        /// <summary>
+        /// DEV: Sửa StudyInstanceUID fake thành UID thật từ Orthanc
+        /// </summary>
+        Task<int> FixDicomStudyUIDsAsync();
+
+        /// <summary>
+        /// DEV: Xóa DicomStudies của các request chưa hoàn thành (status < 3)
+        /// </summary>
+        Task<int> CleanupDicomStudiesForIncompleteRequestsAsync();
+
+        /// <summary>
+        /// DEV: Đồng bộ status của request dựa trên dữ liệu Exam (startTime, endTime)
+        /// </summary>
+        Task<int> SyncRequestStatusWithExamsAsync();
+
         #endregion
 
         #region 8.2 Kết nối máy sinh ảnh / PACS (4 chức năng)

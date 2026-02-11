@@ -44,6 +44,9 @@ public static class DependencyInjection
         // Phân hệ 6: Phẫu thuật Thủ thuật (Surgery)
         services.AddScoped<ISurgeryCompleteService, SurgeryCompleteService>();
 
+        // Phân hệ 8: Chẩn đoán hình ảnh RIS/PACS (Radiology)
+        services.AddScoped<IRISCompleteService, RISCompleteService>();
+
         // ============ Luồng 11-20: Extended Workflow Services (Real Database Implementations) ============
 
         // Luồng 11: Telemedicine (Khám bệnh từ xa)

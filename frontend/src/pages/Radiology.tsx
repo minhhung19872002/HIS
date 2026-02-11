@@ -30,6 +30,8 @@ import {
   ReloadOutlined,
   CalendarOutlined,
   CameraOutlined,
+  EyeOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -53,11 +55,14 @@ interface RadiologyRequest {
   priority: number; // 1: Normal, 2: Urgent, 3: Emergency
   requestDate: string;
   scheduledDate?: string;
-  status: number; // 0: Pending, 1: Scheduled, 2: InProgress, 3: Completed, 4: Reported, 5: Approved
+  statusCode: number; // 0: Pending, 1: Scheduled, 2: InProgress, 3: Completed, 4: Reported, 5: Approved
+  status: string; // Display name for status
   departmentName?: string;
   doctorName?: string;
   clinicalInfo?: string;
   modalityName?: string;
+  studyInstanceUID?: string; // DICOM Study Instance UID
+  hasImages?: boolean; // True if DICOM images available
 }
 
 interface RadiologyExam {
@@ -218,24 +223,46 @@ const Radiology: React.FC = () => {
     try {
       const today = dayjs().format('YYYY-MM-DD');
       const response = await risApi.getWaitingList(today);
+      console.log('RIS API Response:', response);
+      console.log('RIS API Data:', response?.data);
       if (response && response.data) {
         // Map API data to local RadiologyRequest format
+        // Status from API (Vietnamese): 'Cho thuc hien', 'Da hen', 'Dang thuc hien', 'Da thuc hien', 'Da tra ket qua', 'Da duyet', 'Da huy'
+        // Numeric: 0=Pending, 1=Scheduled, 2=InProgress, 3=Completed, 4=Reported, 5=Approved, 6=Cancelled
+        const mapStatus = (s: any): number => {
+          if (typeof s === 'number') return s;
+          const statusMap: Record<string, number> = {
+            'Pending': 0, 'Cho thuc hien': 0,
+            'Scheduled': 1, 'Da hen': 1,
+            'InProgress': 2, 'Dang thuc hien': 2,
+            'Completed': 3, 'Da thuc hien': 3,
+            'Reported': 4, 'Da tra ket qua': 4,
+            'Approved': 5, 'Da duyet': 5,
+            'Cancelled': 6, 'Da huy': 6,
+          };
+          return statusMap[s] ?? 0; // Default to 0 (Pending) if unknown
+        };
         const requests: RadiologyRequest[] = ((response as any).data || []).map((item: any) => ({
-          id: item.orderId,
-          requestCode: item.orderCode,
+          id: item.orderId || item.id,
+          requestCode: item.orderCode || item.requestCode,
           patientCode: item.patientCode,
           patientName: item.patientName,
-          gender: item.gender === 'Nam' ? 1 : 2,
+          gender: item.gender === 'Nam' ? 1 : item.gender === 'Nu' ? 2 : (item.gender || 1),
           serviceName: item.serviceName,
-          contrast: false,
-          priority: item.priority === 'Emergency' ? 3 : item.priority === 'Urgent' ? 2 : 1,
-          requestDate: item.orderTime,
-          scheduledDate: item.calledTime,
-          status: item.status === 'Pending' ? 0 : item.status === 'Scheduled' ? 1 : item.status === 'InProgress' ? 2 : 3,
+          contrast: item.contrast || false,
+          priority: item.priority === 'Cap cuu' || item.priority === 3 ? 3 : item.priority === 'Khan' || item.priority === 2 ? 2 : 1,
+          requestDate: item.orderTime || item.requestDate,
+          scheduledDate: item.calledTime || item.scheduledDate,
+          statusCode: item.statusCode ?? mapStatus(item.status), // Use statusCode from API, fallback to mapped status
+          status: item.status || '', // Display name
           departmentName: item.departmentName,
-          doctorName: item.orderDoctorName,
-          modalityName: item.serviceTypeName,
+          doctorName: item.orderDoctorName || item.doctorName,
+          modalityName: item.serviceTypeName || item.modalityName,
+          studyInstanceUID: item.studyInstanceUID || '',
+          hasImages: item.hasImages || false,
         }));
+        console.log('Mapped requests:', requests);
+        console.log('StatusCode values:', requests.map(r => ({ code: r.requestCode, statusCode: r.statusCode })));
         setRadiologyRequests(requests);
       }
     } catch (error) {
@@ -517,10 +544,10 @@ const Radiology: React.FC = () => {
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'statusCode',
+      key: 'statusCode',
       width: 140,
-      render: (status) => getStatusTag(status),
+      render: (statusCode) => getStatusTag(statusCode),
     },
     {
       title: 'Thao tác',
@@ -583,27 +610,27 @@ const Radiology: React.FC = () => {
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'statusCode',
+      key: 'statusCode',
       width: 140,
-      render: (status) => getStatusTag(status),
+      render: (statusCode) => getStatusTag(statusCode),
     },
   ];
 
-  // In Progress Exams columns
-  const inProgressColumns: ColumnsType<RadiologyExam> = [
-    {
-      title: 'Accession No.',
-      dataIndex: 'accessionNumber',
-      key: 'accessionNumber',
-      width: 140,
-      fixed: 'left',
-    },
+  // In Progress columns - for exams being performed
+  const inProgressColumns: ColumnsType<RadiologyRequest> = [
     {
       title: 'Mã phiếu',
       dataIndex: 'requestCode',
       key: 'requestCode',
       width: 130,
+      fixed: 'left',
+    },
+    {
+      title: 'Mã BN',
+      dataIndex: 'patientCode',
+      key: 'patientCode',
+      width: 120,
     },
     {
       title: 'Họ tên',
@@ -624,9 +651,9 @@ const Radiology: React.FC = () => {
       width: 120,
     },
     {
-      title: 'KTV',
-      dataIndex: 'technicianName',
-      key: 'technicianName',
+      title: 'Bác sĩ CĐ',
+      dataIndex: 'doctorName',
+      key: 'doctorName',
       width: 130,
     },
     {
@@ -638,76 +665,10 @@ const Radiology: React.FC = () => {
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'statusCode',
+      key: 'statusCode',
       width: 140,
-      render: (status) => getExamStatusTag(status),
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      width: 200,
-      fixed: 'right',
-      render: (_, record) => (
-        <Space>
-          {record.status === 0 && (
-            <Button
-              type="primary"
-              size="small"
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleStartExam(record)}
-            >
-              Bắt đầu
-            </Button>
-          )}
-          {record.status === 1 && (
-            <Button
-              type="primary"
-              size="small"
-              icon={<CheckCircleOutlined />}
-              onClick={() => handleCompleteExam(record)}
-            >
-              Hoàn thành
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  // Reporting columns
-  const reportingColumns: ColumnsType<RadiologyExam> = [
-    {
-      title: 'Mã phiếu',
-      dataIndex: 'requestCode',
-      key: 'requestCode',
-      width: 130,
-      fixed: 'left',
-    },
-    {
-      title: 'Mã BN',
-      dataIndex: 'patientCode',
-      key: 'patientCode',
-      width: 120,
-    },
-    {
-      title: 'Họ tên',
-      dataIndex: 'patientName',
-      key: 'patientName',
-      width: 150,
-    },
-    {
-      title: 'Dịch vụ',
-      dataIndex: 'serviceName',
-      key: 'serviceName',
-      width: 200,
-    },
-    {
-      title: 'Ngày thực hiện',
-      dataIndex: 'endTime',
-      key: 'endTime',
-      width: 150,
-      render: (date) => (date ? dayjs(date).format('DD/MM/YYYY HH:mm') : '-'),
+      render: (statusCode) => getStatusTag(statusCode),
     },
     {
       title: 'Thao tác',
@@ -718,17 +679,19 @@ const Radiology: React.FC = () => {
         <Button
           type="primary"
           size="small"
-          icon={<FileSearchOutlined />}
-          onClick={() => handleCreateReport(record)}
+          icon={<CheckCircleOutlined />}
+          onClick={() => {
+            message.success(`Đã hoàn thành chụp phiếu ${record.requestCode}`);
+          }}
         >
-          Đọc kết quả
+          Hoàn thành
         </Button>
       ),
     },
   ];
 
-  // Completed Reports columns
-  const completedColumns: ColumnsType<RadiologyReport> = [
+  // Reporting columns - for reading results and viewing images
+  const reportingColumns: ColumnsType<RadiologyRequest> = [
     {
       title: 'Mã phiếu',
       dataIndex: 'requestCode',
@@ -755,24 +718,100 @@ const Radiology: React.FC = () => {
       width: 200,
     },
     {
-      title: 'Bác sĩ đọc',
-      dataIndex: 'radiologistName',
-      key: 'radiologistName',
-      width: 130,
-    },
-    {
-      title: 'Ngày đọc',
-      dataIndex: 'reportDate',
-      key: 'reportDate',
+      title: 'Ngày yêu cầu',
+      dataIndex: 'requestDate',
+      key: 'requestDate',
       width: 150,
       render: (date) => (date ? dayjs(date).format('DD/MM/YYYY HH:mm') : '-'),
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'statusCode',
+      key: 'statusCode',
+      width: 140,
+      render: (statusCode) => getStatusTag(statusCode),
+    },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      width: 220,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space>
+          {record.hasImages && record.studyInstanceUID && (
+            <Button
+              size="small"
+              icon={<PictureOutlined />}
+              onClick={() => window.open(
+                `http://localhost:8042/ohif/viewer?StudyInstanceUIDs=${record.studyInstanceUID}`,
+                '_blank'
+              )}
+            >
+              Xem hình
+            </Button>
+          )}
+          <Button
+            type="primary"
+            size="small"
+            icon={<FileSearchOutlined />}
+            onClick={() => {
+              setSelectedRequest(record);
+              setIsReportModalOpen(true);
+            }}
+          >
+            Nhập KQ
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  // Completed columns - for viewing completed reports
+  const completedColumns: ColumnsType<RadiologyRequest> = [
+    {
+      title: 'Mã phiếu',
+      dataIndex: 'requestCode',
+      key: 'requestCode',
       width: 130,
-      render: (status) => getReportStatusTag(status),
+      fixed: 'left',
+    },
+    {
+      title: 'Mã BN',
+      dataIndex: 'patientCode',
+      key: 'patientCode',
+      width: 120,
+    },
+    {
+      title: 'Họ tên',
+      dataIndex: 'patientName',
+      key: 'patientName',
+      width: 150,
+    },
+    {
+      title: 'Dịch vụ',
+      dataIndex: 'serviceName',
+      key: 'serviceName',
+      width: 200,
+    },
+    {
+      title: 'Bác sĩ CĐ',
+      dataIndex: 'doctorName',
+      key: 'doctorName',
+      width: 130,
+    },
+    {
+      title: 'Ngày yêu cầu',
+      dataIndex: 'requestDate',
+      key: 'requestDate',
+      width: 150,
+      render: (date) => (date ? dayjs(date).format('DD/MM/YYYY HH:mm') : '-'),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'statusCode',
+      key: 'statusCode',
+      width: 130,
+      render: (statusCode) => getStatusTag(statusCode),
     },
     {
       title: 'Thao tác',
@@ -781,46 +820,37 @@ const Radiology: React.FC = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space>
-          {record.status === 1 && (
+          {record.hasImages && record.studyInstanceUID && (
             <Button
-              type="primary"
               size="small"
-              icon={<CheckCircleOutlined />}
-              onClick={() => handleApproveReport(record)}
+              icon={<PictureOutlined />}
+              onClick={() => window.open(
+                `http://localhost:8042/ohif/viewer?StudyInstanceUIDs=${record.studyInstanceUID}`,
+                '_blank'
+              )}
             >
-              Duyệt
+              Xem hình
             </Button>
           )}
           <Button
             size="small"
-            icon={<FileSearchOutlined />}
-            onClick={() => {
-              setSelectedReport(record);
-              setIsReportViewModalOpen(true);
-            }}
+            icon={<PrinterOutlined />}
+            onClick={() => message.info('In kết quả...')}
           >
-            Xem
+            In KQ
           </Button>
-          {record.status === 2 && (
-            <Button
-              size="small"
-              icon={<PrinterOutlined />}
-              onClick={() => executePrintRadiologyReport(record)}
-            >
-              In
-            </Button>
-          )}
         </Space>
       ),
     },
   ];
 
-  // Filter data
-  const pendingRequests = radiologyRequests.filter(r => r.status === 0);
-  const scheduledRequests = radiologyRequests.filter(r => r.status === 1);
-  const inProgressExams = radiologyExams;
-  const completedExams = radiologyExams.filter(e => e.status === 2);
-  const completedReports = radiologyReports;
+  // Filter data by status
+  // Status: 0=Pending, 1=Scheduled, 2=InProgress, 3=Completed, 4=Reported, 5=Approved, 6=Cancelled
+  const pendingRequests = radiologyRequests.filter(r => r.statusCode === 0);
+  const scheduledRequests = radiologyRequests.filter(r => r.statusCode === 1);
+  const inProgressRequests = radiologyRequests.filter(r => r.statusCode === 2);
+  const reportingRequests = radiologyRequests.filter(r => r.statusCode === 3);
+  const completedRequests = radiologyRequests.filter(r => r.statusCode >= 4 && r.statusCode <= 5);
 
   return (
     <div>
@@ -927,8 +957,8 @@ const Radiology: React.FC = () => {
                 <span>
                   <PlayCircleOutlined />
                   Đang thực hiện
-                  {inProgressExams.length > 0 && (
-                    <Badge count={inProgressExams.length} style={{ marginLeft: 8 }} />
+                  {inProgressRequests.length > 0 && (
+                    <Badge count={inProgressRequests.length} style={{ marginLeft: 8 }} />
                   )}
                 </span>
               ),
@@ -944,7 +974,7 @@ const Radiology: React.FC = () => {
 
                   <Table
                     columns={inProgressColumns}
-                    dataSource={inProgressExams}
+                    dataSource={inProgressRequests}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1300 }}
@@ -963,8 +993,8 @@ const Radiology: React.FC = () => {
                 <span>
                   <FileSearchOutlined />
                   Đọc kết quả
-                  {completedExams.length > 0 && (
-                    <Badge count={completedExams.length} style={{ marginLeft: 8 }} />
+                  {reportingRequests.length > 0 && (
+                    <Badge count={reportingRequests.length} style={{ marginLeft: 8 }} />
                   )}
                 </span>
               ),
@@ -980,7 +1010,7 @@ const Radiology: React.FC = () => {
 
                   <Table
                     columns={reportingColumns}
-                    dataSource={completedExams}
+                    dataSource={reportingRequests}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1200 }}
@@ -999,8 +1029,8 @@ const Radiology: React.FC = () => {
                 <span>
                   <CheckCircleOutlined />
                   Đã hoàn thành
-                  {completedReports.filter(r => r.status === 2).length > 0 && (
-                    <Badge count={completedReports.filter(r => r.status === 2).length} style={{ marginLeft: 8 }} />
+                  {completedRequests.length > 0 && (
+                    <Badge count={completedRequests.length} style={{ marginLeft: 8 }} />
                   )}
                 </span>
               ),
@@ -1019,7 +1049,7 @@ const Radiology: React.FC = () => {
 
                   <Table
                     columns={completedColumns}
-                    dataSource={completedReports}
+                    dataSource={completedRequests}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1300 }}

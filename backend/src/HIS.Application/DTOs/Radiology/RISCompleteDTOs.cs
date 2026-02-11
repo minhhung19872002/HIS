@@ -31,11 +31,14 @@ namespace HIS.Application.DTOs.Radiology
         public string ServiceTypeName { get; set; }
         public string RoomName { get; set; }
         public int QueueNumber { get; set; }
-        public string Status { get; set; } // Waiting, InProgress, Completed, Cancelled
+        public int StatusCode { get; set; } // 0: Pending, 1: Scheduled, 2: InProgress, 3: Completed, 4: Reported, 5: Approved, 6: Cancelled
+        public string Status { get; set; } // Display name for status
         public string PatientType { get; set; } // Inpatient, Outpatient, Emergency
         public string Priority { get; set; } // Normal, Urgent, Emergency
         public DateTime? CalledTime { get; set; }
         public DateTime? StartTime { get; set; }
+        public string StudyInstanceUID { get; set; } // For DICOM viewer integration
+        public bool HasImages { get; set; } // True if DICOM images are available
     }
 
     /// <summary>
