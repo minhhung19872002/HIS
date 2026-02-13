@@ -47,6 +47,29 @@ public class LISCompleteService : ILISCompleteService
         _hl7Manager.ErrorOccurred += OnHL7Error;
     }
 
+    #region DEV Endpoints
+
+    /// <summary>
+    /// Update all lab request dates to today (DEV only)
+    /// </summary>
+    public async Task<int> UpdateAllOrderDatesToTodayAsync()
+    {
+        var today = DateTime.Today;
+        var requests = await _context.LabRequests.ToListAsync();
+
+        foreach (var request in requests)
+        {
+            request.RequestDate = today;
+            if (request.ApprovedAt.HasValue)
+                request.ApprovedAt = today.AddHours(request.ApprovedAt.Value.Hour).AddMinutes(request.ApprovedAt.Value.Minute);
+        }
+
+        await _context.SaveChangesAsync();
+        return requests.Count;
+    }
+
+    #endregion
+
     #region 7.1 Kết nối máy xét nghiệm
 
     public async Task<List<LabAnalyzerDto>> GetAnalyzersAsync(string keyword = null, bool? isActive = null)

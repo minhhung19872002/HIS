@@ -47,6 +47,8 @@ public static class DependencyInjection
 
         // Phân hệ 8: Chẩn đoán hình ảnh RIS/PACS (Radiology)
         services.AddScoped<IRISCompleteService, RISCompleteService>();
+        services.AddScoped<IDigitalSignatureService, DigitalSignatureService>(); // USB Token signing
+        services.AddScoped<IPdfSignatureService, PdfSignatureService>(); // PDF generation and signing
 
         // Phân hệ 7: Xét nghiệm LIS (Laboratory Information System)
         services.AddSingleton<HL7ConnectionManager>();

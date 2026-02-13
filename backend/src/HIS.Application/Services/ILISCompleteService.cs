@@ -11,6 +11,13 @@ namespace HIS.Application.Services
     /// </summary>
     public interface ILISCompleteService
     {
+        #region DEV Endpoints
+        /// <summary>
+        /// Update all lab order dates to today (DEV only)
+        /// </summary>
+        Task<int> UpdateAllOrderDatesToTodayAsync();
+        #endregion
+
         #region 7.1 Kết nối máy xét nghiệm (8 chức năng)
 
         /// <summary>

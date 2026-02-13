@@ -1401,9 +1401,10 @@ namespace HIS.Application.DTOs.Radiology
     {
         public Guid ReportId { get; set; }
         public Guid? SignatureConfigId { get; set; }
-        public string SignatureType { get; set; }
-        public string Pin { get; set; } // PIN cho USB token
-        public string OTP { get; set; } // OTP cho cloud signing
+        public string? SignatureType { get; set; }
+        public string? Pin { get; set; } // PIN cho USB token
+        public string? OTP { get; set; } // OTP cho cloud signing
+        public string? Note { get; set; } // Ghi chÃº
     }
 
     /// <summary>
@@ -2498,7 +2499,7 @@ public class SkipPatientRequest
     #region Request DTOs
 
     /// <summary>
-    /// Request h?y phiên h?i ch?n
+    /// Request h?y phiï¿½n h?i ch?n
     /// </summary>
     public class CancelConsultationRequest
     {

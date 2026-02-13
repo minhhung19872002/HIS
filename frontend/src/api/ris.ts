@@ -160,7 +160,13 @@ export interface DicomSeriesDto {
   seriesDescription?: string;
   bodyPartExamined?: string;
   numberOfImages: number;
+  instanceCount?: number;
   seriesDate?: string;
+  // Study level info (for convenience)
+  patientName?: string;
+  patientId?: string;
+  studyDate?: string;
+  studyDescription?: string;
 }
 
 export interface DicomImageDto {
@@ -1026,6 +1032,7 @@ export interface SignResultRequestDto {
   pin?: string;
   otp?: string;
   certificateId?: string;
+  note?: string;
 }
 
 export interface SignResultResponseDto {
@@ -1627,6 +1634,112 @@ export const verifySignature = (reportId: string) =>
 
 export const getSignatureConfigs = () =>
   apiClient.get<RadiologyDigitalSignatureConfigDto[]>('/RISComplete/signature-configs');
+
+// USB Token APIs
+export interface USBTokenCertificate {
+  thumbprint: string;
+  subjectName: string;
+  issuerName: string;
+  validFrom: string;
+  validTo: string;
+  isValid: boolean;
+}
+
+export interface USBTokenStatus {
+  available: boolean;
+  hasValidCertificate: boolean;
+  certificateCount: number;
+  message: string;
+  certificates: USBTokenCertificate[];
+}
+
+export interface USBTokenSignRequest {
+  reportId?: string;
+  certificateThumbprint: string;
+  dataToSign?: string;
+}
+
+export interface USBTokenSignResult {
+  success: boolean;
+  message: string;
+  signature?: string;
+  signatureBase64?: string;
+  signedAt?: string;
+  signerName?: string;
+  certificateSerial?: string;
+  certificateThumbprint?: string;
+  hashAlgorithm?: string;
+}
+
+export const getUSBTokenStatus = () =>
+  apiClient.get<USBTokenStatus>('/RISComplete/usb-token/status');
+
+export const getUSBTokenCertificates = () =>
+  apiClient.get<USBTokenCertificate[]>('/RISComplete/usb-token/certificates');
+
+export const signWithUSBToken = (data: USBTokenSignRequest) =>
+  apiClient.post<USBTokenSignResult>('/RISComplete/usb-token/sign', data);
+
+// PDF Generation & Signing APIs (PAdES compliant)
+export interface AttachedImageRequest {
+  fileName: string;
+  base64Data: string;
+  description?: string;
+}
+
+export interface PdfGenerateSignRequest {
+  patientCode?: string;
+  patientName?: string;
+  patientDob?: string;
+  patientGender?: string;
+  patientAddress?: string;
+  requestCode?: string;
+  requestDate?: string;
+  orderingDoctorName?: string;
+  orderingDepartment?: string;
+  clinicalDiagnosis?: string;
+  serviceCode?: string;
+  serviceName?: string;
+  modalityType?: string;
+  bodyPart?: string;
+  technique?: string;
+  findings?: string;
+  conclusion?: string;
+  recommendations?: string;
+  performedBy?: string;
+  reportedBy?: string;
+  reportedDate?: string;
+  hospitalName?: string;
+  hospitalAddress?: string;
+  hospitalPhone?: string;
+  attachedImages?: AttachedImageRequest[];
+  certificateThumbprint?: string;
+}
+
+export interface PdfSignatureResult {
+  success: boolean;
+  message: string;
+  pdfFileName?: string;
+  pdfFileSize?: number;
+  signedAt?: string;
+  signerName?: string;
+  certificateSerial?: string;
+  certificateIssuer?: string;
+  signatureAlgorithm?: string;
+}
+
+export const generateAndSignPdf = (data: PdfGenerateSignRequest) =>
+  apiClient.post<PdfSignatureResult>('/RISComplete/pdf/generate-and-sign', data);
+
+export const downloadSignedPdf = (fileName: string) =>
+  apiClient.get(`/RISComplete/pdf/download/${fileName}`, {
+    responseType: 'blob'
+  });
+
+export const previewPdf = (data: PdfGenerateSignRequest) =>
+  apiClient.post('/RISComplete/pdf/preview', data, {
+    responseType: 'blob'
+  });
 
 // #endregion
 
@@ -2459,6 +2572,16 @@ export default {
   getSignatureHistory,
   verifySignature,
   getSignatureConfigs,
+
+  // USB Token
+  getUSBTokenStatus,
+  getUSBTokenCertificates,
+  signWithUSBToken,
+
+  // PDF Generation & Signing
+  generateAndSignPdf,
+  downloadSignedPdf,
+  previewPdf,
 
   // Statistics
   getExamStatisticsByServiceType,

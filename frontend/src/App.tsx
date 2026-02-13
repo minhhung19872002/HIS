@@ -33,6 +33,10 @@ import PatientPortal from './pages/PatientPortal';
 // New modules - Flow 19-20
 import HealthExchange from './pages/HealthExchange';
 import EmergencyDisaster from './pages/EmergencyDisaster';
+// RIS/PACS extended modules
+import Consultation from './pages/Consultation';
+import Help from './pages/Help';
+import DicomViewer from './pages/DicomViewer';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -105,6 +109,10 @@ const AppRoutes: React.FC = () => {
         {/* New modules - Flow 19-20 */}
         <Route path="health-exchange" element={<HealthExchange />} />
         <Route path="emergency-disaster" element={<EmergencyDisaster />} />
+        {/* RIS/PACS extended modules */}
+        <Route path="consultation" element={<Consultation />} />
+        <Route path="help" element={<Help />} />
+        <Route path="radiology/viewer" element={<DicomViewer />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

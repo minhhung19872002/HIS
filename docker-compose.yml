@@ -1,0 +1,75 @@
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: his-sqlserver
+    hostname: his-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=HIS@Docker2024!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./docker/sqlserver/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - his-network
+
+  # Orthanc PACS Server (optional - for RIS/PACS integration)
+  orthanc:
+    image: orthancteam/orthanc:24.1.2
+    container_name: his-orthanc
+    hostname: his-orthanc
+    environment:
+      ORTHANC__DICOM_AET: "HIS_PACS"
+      ORTHANC__DICOM_CHECK_CALLED_AET: "false"
+      ORTHANC__DICOM_PORT: "4242"
+      ORTHANC__REGISTERED_USERS: '{"admin": "orthanc"}'
+    ports:
+      - "4242:4242"  # DICOM port
+      - "8042:8042"  # Web interface
+    volumes:
+      - orthanc_data:/var/lib/orthanc/db
+    restart: unless-stopped
+    networks:
+      - his-network
+
+  # Redis Cache (optional - for session/caching)
+  redis:
+    image: redis:7-alpine
+    container_name: his-redis
+    hostname: his-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - his-network
+
+volumes:
+  sqlserver_data:
+    name: his_sqlserver_data
+  orthanc_data:
+    name: his_orthanc_data
+  redis_data:
+    name: his_redis_data
+
+networks:
+  his-network:
+    name: his-network
+    driver: bridge

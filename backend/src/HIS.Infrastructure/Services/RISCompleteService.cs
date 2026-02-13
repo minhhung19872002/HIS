@@ -2883,17 +2883,61 @@ public class RISCompleteService : IRISCompleteService
 
     public async Task<SignResultResponseDto> SignResultAsync(SignResultRequestDto request)
     {
+        // First try to find RadiologyReport directly by ID
         var report = await _context.RadiologyReports.FindAsync(request.ReportId);
+
+        // If not found, try to find through Request -> Exam -> Report chain
+        // Frontend may pass RadiologyRequest ID instead of RadiologyReport ID
         if (report == null)
         {
-            return new SignResultResponseDto { Success = false, Message = "Khong tim thay ket qua" };
+            // Check if this is a RadiologyRequest ID
+            var radiologyRequest = await _context.RadiologyRequests
+                .Include(r => r.Exams)
+                    .ThenInclude(e => e.Report)
+                .FirstOrDefaultAsync(r => r.Id == request.ReportId);
+
+            if (radiologyRequest != null)
+            {
+                // Find the first exam with a report
+                var examWithReport = radiologyRequest.Exams
+                    .FirstOrDefault(e => e.Report != null);
+
+                if (examWithReport != null)
+                {
+                    report = examWithReport.Report;
+                }
+                else
+                {
+                    // No report exists, create one for the first exam
+                    var firstExam = radiologyRequest.Exams.FirstOrDefault();
+                    if (firstExam != null)
+                    {
+                        report = new RadiologyReport
+                        {
+                            Id = Guid.NewGuid(),
+                            RadiologyExamId = firstExam.Id,
+                            RadiologistId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"), // Admin user
+                            Findings = "Ky so tu dong",
+                            ReportDate = DateTime.Now,
+                            Status = 1,
+                            CreatedAt = DateTime.Now
+                        };
+                        await _context.RadiologyReports.AddAsync(report);
+                    }
+                }
+            }
+        }
+
+        if (report == null)
+        {
+            return new SignResultResponseDto { Success = false, Message = "Khong tim thay ket qua CDHA. Vui long kiem tra lai." };
         }
 
         // Create signature history
         var signatureHistory = new RadiologySignatureHistory
         {
             Id = Guid.NewGuid(),
-            RadiologyReportId = request.ReportId,
+            RadiologyReportId = report.Id,
             SignedByUserId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"), // Current user
             SignatureType = request.SignatureType ?? "DIGITAL",
             SignedAt = DateTime.Now,

@@ -29,6 +29,7 @@ import {
   MobileOutlined,
   CloudUploadOutlined,
   BellOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -67,6 +68,7 @@ const MainLayout: React.FC = () => {
       children: [
         { key: '/lab', icon: <ExperimentOutlined />, label: 'Xét nghiệm' },
         { key: '/radiology', icon: <ScanOutlined />, label: 'CĐHA' },
+        { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
       ],
     },
@@ -119,6 +121,7 @@ const MainLayout: React.FC = () => {
         { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
         { key: '/admin', icon: <SettingOutlined />, label: 'Quản trị' },
         { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
+        { key: '/help', icon: <QuestionCircleOutlined />, label: 'Hướng dẫn' },
       ],
     },
   ];

@@ -25,6 +25,21 @@ namespace HIS.API.Controllers
             _lisService = lisService;
         }
 
+        #region DEV Endpoints
+
+        /// <summary>
+        /// Cập nhật ngày của tất cả LabOrders thành ngày hôm nay (DEV only)
+        /// </summary>
+        [HttpPost("dev/update-dates-to-today")]
+        [AllowAnonymous]
+        public async Task<ActionResult> UpdateDatesToToday()
+        {
+            var count = await _lisService.UpdateAllOrderDatesToTodayAsync();
+            return Ok(new { success = true, updatedCount = count });
+        }
+
+        #endregion
+
         #region 7.1 Kết nối máy xét nghiệm
 
         /// <summary>

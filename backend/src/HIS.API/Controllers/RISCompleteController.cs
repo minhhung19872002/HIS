@@ -1,10 +1,73 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Radiology;
+using HIS.Infrastructure.Services;
+
+// USB Token Sign Request DTO
+public class USBTokenSignRequest
+{
+    public string? ReportId { get; set; }
+    public string? CertificateThumbprint { get; set; }
+    public string? DataToSign { get; set; }
+}
+
+// PDF Generation and Sign Request DTO
+public class GenerateSignPdfRequest
+{
+    // Patient info
+    public string? PatientCode { get; set; }
+    public string? PatientName { get; set; }
+    public string? Gender { get; set; }
+    public int? Age { get; set; }
+    public string? DateOfBirth { get; set; }
+    public string? Address { get; set; }
+    public string? PhoneNumber { get; set; }
+
+    // Request info
+    public string? RequestCode { get; set; }
+    public string? RequestDate { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? RequestingDoctorName { get; set; }
+    public string? Diagnosis { get; set; }
+    public string? ClinicalInfo { get; set; }
+
+    // Service info
+    public string? ServiceCode { get; set; }
+    public string? ServiceName { get; set; }
+    public string? ServiceType { get; set; }
+
+    // Result info
+    public string? ResultDate { get; set; }
+    public string? Description { get; set; }
+    public string? Conclusion { get; set; }
+    public string? Recommendation { get; set; }
+    public string? TechnicianName { get; set; }
+    public string? DoctorName { get; set; }
+
+    // Hospital info
+    public string? HospitalName { get; set; }
+    public string? HospitalAddress { get; set; }
+    public string? HospitalPhone { get; set; }
+
+    // Attached images
+    public List<AttachedImageRequest>? AttachedImages { get; set; }
+
+    // Certificate for signing
+    public string? CertificateThumbprint { get; set; }
+}
+
+public class AttachedImageRequest
+{
+    public string? FileName { get; set; }
+    public string? Base64Data { get; set; }
+    public string? Description { get; set; }
+}
 
 namespace HIS.API.Controllers
 {
@@ -18,10 +81,17 @@ namespace HIS.API.Controllers
     public class RISCompleteController : ControllerBase
     {
         private readonly IRISCompleteService _risService;
+        private readonly IDigitalSignatureService _digitalSignatureService;
+        private readonly IPdfSignatureService _pdfSignatureService;
 
-        public RISCompleteController(IRISCompleteService risService)
+        public RISCompleteController(
+            IRISCompleteService risService,
+            IDigitalSignatureService digitalSignatureService,
+            IPdfSignatureService pdfSignatureService)
         {
             _risService = risService;
+            _digitalSignatureService = digitalSignatureService;
+            _pdfSignatureService = pdfSignatureService;
         }
 
         #region 8.1 Màn hình chờ thực hiện
@@ -1425,8 +1495,25 @@ namespace HIS.API.Controllers
         [HttpPost("results/sign")]
         public async Task<ActionResult<SignResultResponseDto>> SignResult([FromBody] SignResultRequestDto request)
         {
-            var result = await _risService.SignResultAsync(request);
-            return Ok(result);
+            try
+            {
+                if (request == null)
+                {
+                    return BadRequest(new SignResultResponseDto { Success = false, Message = "Request body is null" });
+                }
+
+                if (request.ReportId == Guid.Empty)
+                {
+                    return BadRequest(new SignResultResponseDto { Success = false, Message = "ReportId is required" });
+                }
+
+                var result = await _risService.SignResultAsync(request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new SignResultResponseDto { Success = false, Message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -1457,6 +1544,297 @@ namespace HIS.API.Controllers
         {
             var result = await _risService.PrintSignedResultAsync(reportId);
             return File(result, "application/pdf", $"signed_result_{reportId}.pdf");
+        }
+
+        /// <summary>
+        /// Lấy danh sách chứng thư số từ USB Token/SmartCard
+        /// Windows tự động detect các certificate khi USB Token được cắm vào
+        /// </summary>
+        [HttpGet("usb-token/certificates")]
+        public async Task<ActionResult<List<CertificateInfoDto>>> GetUSBTokenCertificates()
+        {
+            try
+            {
+                var certificates = await _digitalSignatureService.GetAvailableCertificatesAsync();
+                return Ok(certificates);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = $"Lỗi đọc chứng thư số: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Ký số bằng USB Token - Windows sẽ tự động bật dialog nhập PIN
+        /// </summary>
+        [HttpPost("usb-token/sign")]
+        public async Task<ActionResult<SignatureResultDto>> SignWithUSBToken([FromBody] USBTokenSignRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.CertificateThumbprint))
+                {
+                    return BadRequest(new SignatureResultDto
+                    {
+                        Success = false,
+                        Message = "Vui lòng chọn chứng thư số để ký"
+                    });
+                }
+
+                // Prepare data to sign - typically the report content or hash
+                var dataToSign = Encoding.UTF8.GetBytes(request.DataToSign ?? $"RIS Report {request.ReportId} - {DateTime.Now:yyyyMMddHHmmss}");
+
+                // Call signing service - Windows will prompt for PIN automatically
+                var result = await _digitalSignatureService.SignDataAsync(dataToSign, request.CertificateThumbprint);
+
+                // Try to save signature to database, but don't fail the whole operation if DB save fails
+                if (result.Success && !string.IsNullOrEmpty(request.ReportId) && Guid.TryParse(request.ReportId, out var reportGuid))
+                {
+                    try
+                    {
+                        // Save signature to database through RIS service
+                        await _risService.SignResultAsync(new SignResultRequestDto
+                        {
+                            ReportId = reportGuid,
+                            SignatureType = "USBToken",
+                            Note = $"Signed with certificate: {result.SignerName}"
+                        });
+                    }
+                    catch (Exception dbEx)
+                    {
+                        // Log the error but don't fail - signature was still created successfully
+                        Console.WriteLine($"Warning: Could not save signature to database: {dbEx.Message}");
+                        // Optionally add a note to the result
+                        result.Message = "Ký số thành công (chưa lưu vào hồ sơ - báo cáo không tồn tại hoặc đã ký)";
+                    }
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new SignatureResultDto
+                {
+                    Success = false,
+                    Message = $"Lỗi ký số: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra USB Token có sẵn không
+        /// </summary>
+        [HttpGet("usb-token/status")]
+        public async Task<ActionResult> GetUSBTokenStatus()
+        {
+            try
+            {
+                var certificates = await _digitalSignatureService.GetAvailableCertificatesAsync();
+                var hasValidCert = certificates.Any(c => c.IsValid && c.HasPrivateKey);
+
+                return Ok(new
+                {
+                    available = certificates.Count > 0,
+                    hasValidCertificate = hasValidCert,
+                    certificateCount = certificates.Count,
+                    message = certificates.Count > 0
+                        ? $"Tìm thấy {certificates.Count} chứng thư số có thể sử dụng"
+                        : "Không tìm thấy USB Token. Vui lòng kiểm tra đã cắm USB Token và cài đặt driver.",
+                    certificates = certificates.Select(c => new
+                    {
+                        c.Thumbprint,
+                        c.SubjectName,
+                        c.IssuerName,
+                        ValidFrom = c.ValidFrom.ToString("dd/MM/yyyy"),
+                        ValidTo = c.ValidTo.ToString("dd/MM/yyyy"),
+                        c.IsValid
+                    })
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { available = false, message = $"Lỗi kiểm tra USB Token: {ex.Message}" });
+            }
+        }
+
+        #endregion
+
+        #region PDF Signature - Ký số PDF
+
+        /// <summary>
+        /// Tạo và ký số PDF báo cáo CĐHA
+        /// </summary>
+        [HttpPost("pdf/generate-and-sign")]
+        public async Task<ActionResult> GenerateAndSignPdf([FromBody] GenerateSignPdfRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.CertificateThumbprint))
+                {
+                    return BadRequest(new { success = false, message = "Vui lòng chọn chứng thư số để ký" });
+                }
+
+                // Build report data from request
+                var reportData = new RadiologyReportData
+                {
+                    PatientCode = request.PatientCode ?? "",
+                    PatientName = request.PatientName ?? "",
+                    Gender = request.Gender,
+                    Age = request.Age,
+                    DateOfBirth = request.DateOfBirth,
+                    Address = request.Address,
+                    PhoneNumber = request.PhoneNumber,
+                    RequestCode = request.RequestCode ?? "",
+                    RequestDate = request.RequestDate ?? DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                    DepartmentName = request.DepartmentName,
+                    RequestingDoctorName = request.RequestingDoctorName,
+                    Diagnosis = request.Diagnosis,
+                    ClinicalInfo = request.ClinicalInfo,
+                    ServiceCode = request.ServiceCode ?? "",
+                    ServiceName = request.ServiceName ?? "",
+                    ServiceType = request.ServiceType,
+                    ResultDate = request.ResultDate ?? DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                    Description = request.Description,
+                    Conclusion = request.Conclusion,
+                    Recommendation = request.Recommendation,
+                    TechnicianName = request.TechnicianName,
+                    DoctorName = request.DoctorName,
+                    HospitalName = request.HospitalName ?? "BỆNH VIỆN",
+                    HospitalAddress = request.HospitalAddress,
+                    HospitalPhone = request.HospitalPhone,
+                    AttachedImages = request.AttachedImages?.Select(i => new AttachedImageData
+                    {
+                        FileName = i.FileName ?? "",
+                        Base64Data = i.Base64Data ?? "",
+                        Description = i.Description
+                    }).ToList() ?? new List<AttachedImageData>()
+                };
+
+                // Generate and sign PDF
+                var result = await _pdfSignatureService.GenerateAndSignRadiologyReportAsync(
+                    reportData,
+                    request.CertificateThumbprint);
+
+                if (!result.Success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = result.Message
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = result.Message,
+                    signedFilePath = result.SignedFilePath,
+                    signerName = result.SignerName,
+                    signedAt = result.SignedAt,
+                    certificateSerial = result.CertificateSerial,
+                    certificateThumbprint = result.CertificateThumbprint,
+                    // Return base64 of signed PDF for download
+                    signedPdfBase64 = result.SignedPdfBytes != null
+                        ? Convert.ToBase64String(result.SignedPdfBytes)
+                        : null
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = $"Lỗi tạo và ký PDF: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Tải file PDF đã ký
+        /// </summary>
+        [HttpGet("pdf/download/{fileName}")]
+        [AllowAnonymous]
+        public IActionResult DownloadSignedPdf(string fileName)
+        {
+            try
+            {
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Radiology", fileName);
+                if (!System.IO.File.Exists(filePath))
+                {
+                    return NotFound(new { message = "File không tồn tại" });
+                }
+
+                var fileBytes = System.IO.File.ReadAllBytes(filePath);
+                return File(fileBytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Lỗi tải file: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Tạo PDF preview (không ký) để xem trước
+        /// </summary>
+        [HttpPost("pdf/preview")]
+        public async Task<ActionResult> GeneratePdfPreview([FromBody] GenerateSignPdfRequest request)
+        {
+            try
+            {
+                var reportData = new RadiologyReportData
+                {
+                    PatientCode = request.PatientCode ?? "",
+                    PatientName = request.PatientName ?? "",
+                    Gender = request.Gender,
+                    Age = request.Age,
+                    DateOfBirth = request.DateOfBirth,
+                    Address = request.Address,
+                    PhoneNumber = request.PhoneNumber,
+                    RequestCode = request.RequestCode ?? "",
+                    RequestDate = request.RequestDate ?? DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                    DepartmentName = request.DepartmentName,
+                    RequestingDoctorName = request.RequestingDoctorName,
+                    Diagnosis = request.Diagnosis,
+                    ClinicalInfo = request.ClinicalInfo,
+                    ServiceCode = request.ServiceCode ?? "",
+                    ServiceName = request.ServiceName ?? "",
+                    ServiceType = request.ServiceType,
+                    ResultDate = request.ResultDate ?? DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                    Description = request.Description,
+                    Conclusion = request.Conclusion,
+                    Recommendation = request.Recommendation,
+                    TechnicianName = request.TechnicianName,
+                    DoctorName = request.DoctorName,
+                    HospitalName = request.HospitalName ?? "BỆNH VIỆN",
+                    HospitalAddress = request.HospitalAddress,
+                    HospitalPhone = request.HospitalPhone,
+                    AttachedImages = request.AttachedImages?.Select(i => new AttachedImageData
+                    {
+                        FileName = i.FileName ?? "",
+                        Base64Data = i.Base64Data ?? "",
+                        Description = i.Description
+                    }).ToList() ?? new List<AttachedImageData>()
+                };
+
+                var result = await _pdfSignatureService.GenerateRadiologyReportPdfAsync(reportData);
+
+                if (!result.Success)
+                {
+                    return BadRequest(new { success = false, message = result.Message });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Tạo PDF preview thành công",
+                    filePath = result.FilePath,
+                    pdfBase64 = result.PdfBytes != null ? Convert.ToBase64String(result.PdfBytes) : null
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = $"Lỗi tạo PDF: {ex.Message}" });
+            }
         }
 
         #endregion

@@ -37,64 +37,11 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import laboratoryApi from '../api/laboratory';
+import type { LabRequest, TestResult, TestParameter, LabTestItem } from '../api/laboratory';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
-
-// Interfaces
-interface LabRequest {
-  id: string;
-  requestCode: string;
-  patientCode: string;
-  patientName: string;
-  gender: number;
-  dateOfBirth?: string;
-  requestedTests: string[];
-  priority: number; // 0: Normal, 1: Urgent, 2: Emergency
-  requestDate: string;
-  status: number; // 0: Pending, 1: Collected, 2: Processing, 3: ResultsEntered, 4: Approved
-  departmentName?: string;
-  doctorName?: string;
-  sampleBarcode?: string;
-  sampleType?: string;
-  collectionTime?: string;
-  collectorName?: string;
-  analyzer?: string;
-  processingStartTime?: string;
-  processingEndTime?: string;
-}
-
-interface TestResult {
-  id: string;
-  requestId: string;
-  requestCode: string;
-  patientName: string;
-  patientCode: string;
-  testName: string;
-  parameters: TestParameter[];
-  status: number; // 0: Pending, 1: Entered, 2: Approved
-  enteredBy?: string;
-  enteredTime?: string;
-  approvedBy?: string;
-  approvedTime?: string;
-  notes?: string;
-}
-
-interface TestParameter {
-  id: string;
-  name: string;
-  value: string | number | null;
-  unit: string;
-  referenceRange: string;
-  normalMin?: number;
-  normalMax?: number;
-  criticalLow?: number;
-  criticalHigh?: number;
-  status: 'normal' | 'high' | 'low' | 'critical' | null;
-  previousValue?: string | number;
-  inputType: 'number' | 'text';
-}
 
 // No mock data - using real API
 

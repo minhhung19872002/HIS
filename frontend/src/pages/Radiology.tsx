@@ -71,6 +71,13 @@ interface RadiologyRequest {
   modalityName?: string;
   studyInstanceUID?: string; // DICOM Study Instance UID
   hasImages?: boolean; // True if DICOM images available
+  // Report and signature fields
+  description?: string;
+  conclusion?: string;
+  reportedAt?: string;
+  isSigned?: boolean;
+  signedBy?: string;
+  signedAt?: string;
 }
 
 interface RadiologyExam {
@@ -99,14 +106,21 @@ interface RadiologyReport {
   patientName: string;
   patientCode: string;
   serviceName: string;
+  description?: string;
+  conclusion?: string;
   findings?: string;
   impression?: string;
   recommendations?: string;
   radiologistName?: string;
+  doctorName?: string;
   reportDate?: string;
+  reportedAt?: string;
   status: number; // 0: Draft, 1: Completed, 2: Approved
   approvedBy?: string;
   approvedAt?: string;
+  isSigned?: boolean;
+  signedBy?: string;
+  signedAt?: string;
 }
 
 const Radiology: React.FC = () => {
@@ -120,8 +134,12 @@ const Radiology: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isReportViewModalOpen, setIsReportViewModalOpen] = useState(false);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [selectedReportToSign, setSelectedReportToSign] = useState<RadiologyReport | null>(null);
+  const [signatureLoading, setSignatureLoading] = useState(false);
   const [scheduleForm] = Form.useForm();
   const [reportForm] = Form.useForm();
+  const [signatureForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -223,6 +241,134 @@ const Radiology: React.FC = () => {
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); }, 500);
+  };
+
+  // USB Token state
+  const [usbTokenCertificates, setUsbTokenCertificates] = useState<risApi.USBTokenCertificate[]>([]);
+  const [loadingCertificates, setLoadingCertificates] = useState(false);
+
+  // Handle digital signature
+  const handleOpenSignatureModal = async (report: RadiologyReport) => {
+    setSelectedReportToSign(report);
+    signatureForm.resetFields();
+    signatureForm.setFieldsValue({ signatureType: 'USBToken' });
+    setIsSignatureModalOpen(true);
+
+    // Load USB Token certificates
+    setLoadingCertificates(true);
+    try {
+      const response = await risApi.getUSBTokenStatus();
+      if (response.data?.certificates) {
+        setUsbTokenCertificates(response.data.certificates);
+        // Auto select first valid certificate
+        const validCert = response.data.certificates.find(c => c.isValid);
+        if (validCert) {
+          signatureForm.setFieldsValue({ certificateThumbprint: validCert.thumbprint });
+        }
+      }
+      if (!response.data?.available) {
+        message.warning('Không tìm thấy USB Token. Vui lòng kiểm tra đã cắm USB Token.');
+      }
+    } catch (error) {
+      console.error('Error loading USB Token certificates:', error);
+      message.warning('Không thể đọc chứng thư số từ USB Token');
+    } finally {
+      setLoadingCertificates(false);
+    }
+  };
+
+  const handleSignResult = async (values: { signatureType: string; certificateThumbprint?: string; pin?: string; note?: string }) => {
+    if (!selectedReportToSign) return;
+
+    setSignatureLoading(true);
+    try {
+      if (values.signatureType === 'USBToken') {
+        // Use PDF Generation & Signing API - creates a signed PDF document (PAdES compliant)
+        if (!values.certificateThumbprint) {
+          message.error('Vui lòng chọn chứng thư số để ký');
+          setSignatureLoading(false);
+          return;
+        }
+
+        // Generate and sign PDF with radiology report data
+        const pdfRequest: risApi.PdfGenerateSignRequest = {
+          patientCode: selectedReportToSign.patientCode,
+          patientName: selectedReportToSign.patientName,
+          requestCode: selectedReportToSign.requestCode,
+          requestDate: selectedReportToSign.reportedAt || dayjs().format('YYYY-MM-DD'),
+          serviceName: selectedReportToSign.serviceName,
+          findings: selectedReportToSign.findings || selectedReportToSign.description || '',
+          conclusion: selectedReportToSign.impression || selectedReportToSign.conclusion || '',
+          recommendations: selectedReportToSign.recommendations || '',
+          reportedBy: selectedReportToSign.radiologistName || selectedReportToSign.doctorName || '',
+          reportedDate: selectedReportToSign.reportDate || dayjs().format('YYYY-MM-DD HH:mm'),
+          hospitalName: 'BỆNH VIỆN ĐA KHOA ABC',
+          hospitalAddress: '123 Đường ABC, Quận 1, TP.HCM',
+          hospitalPhone: '028-12345678',
+          certificateThumbprint: values.certificateThumbprint,
+        };
+
+        const result = await risApi.generateAndSignPdf(pdfRequest);
+
+        if (result.data?.success) {
+          message.success(`Ký số PDF thành công! Người ký: ${result.data.signerName}`);
+
+          // Offer to download the signed PDF
+          if (result.data.pdfFileName) {
+            Modal.confirm({
+              title: 'Tải PDF đã ký',
+              content: `File PDF đã được ký số: ${result.data.pdfFileName}. Bạn có muốn tải về không?`,
+              okText: 'Tải về',
+              cancelText: 'Đóng',
+              onOk: async () => {
+                try {
+                  const downloadResponse = await risApi.downloadSignedPdf(result.data.pdfFileName!);
+                  const blob = new Blob([downloadResponse.data], { type: 'application/pdf' });
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = result.data.pdfFileName!;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+                } catch (downloadError) {
+                  message.error('Không thể tải file PDF');
+                }
+              },
+            });
+          }
+
+          setIsSignatureModalOpen(false);
+          setSelectedReportToSign(null);
+          fetchRadiologyData();
+        } else {
+          message.error(result.data?.message || 'Ký số PDF thất bại');
+        }
+      } else {
+        // Other signature types (Cloud, etc.)
+        const result = await risApi.signResult({
+          reportId: selectedReportToSign.id,
+          signatureType: values.signatureType,
+          pin: values.pin,
+          note: values.note,
+        });
+
+        if (result.data?.success) {
+          message.success('Ký số kết quả thành công!');
+          setIsSignatureModalOpen(false);
+          setSelectedReportToSign(null);
+          fetchRadiologyData();
+        } else {
+          message.error(result.data?.message || 'Ký số thất bại');
+        }
+      }
+    } catch (error: any) {
+      console.error('Sign result error:', error);
+      message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi ký số');
+    } finally {
+      setSignatureLoading(false);
+    }
   };
 
   // Fetch radiology data from API
@@ -364,7 +510,8 @@ const Radiology: React.FC = () => {
           req.id === selectedRequest?.id
             ? {
                 ...req,
-                status: 1,
+                statusCode: 1,
+                status: 'Đã hẹn',
                 scheduledDate: values.scheduledDate.format('YYYY-MM-DDTHH:mm:ss'),
                 modalityName: 'CT Scanner', // Mock
               }
@@ -413,7 +560,7 @@ const Radiology: React.FC = () => {
     setRadiologyRequests(prev =>
       prev.map(req =>
         req.id === record.requestId
-          ? { ...req, status: 3 }
+          ? { ...req, statusCode: 3, status: 'Đã thực hiện' }
           : req
       )
     );
@@ -431,7 +578,7 @@ const Radiology: React.FC = () => {
   const handleReportSubmit = () => {
     reportForm.validateFields().then((values) => {
       const newReport: RadiologyReport = {
-        id: `report_${Date.now()}`,
+        id: crypto.randomUUID(), // Generate proper UUID for backend
         examId: selectedExam!.id,
         requestCode: selectedExam!.requestCode,
         patientCode: selectedExam!.patientCode,
@@ -451,7 +598,7 @@ const Radiology: React.FC = () => {
       setRadiologyRequests(prev =>
         prev.map(req =>
           req.requestCode === selectedExam!.requestCode
-            ? { ...req, status: 4 }
+            ? { ...req, statusCode: 4, status: 'Đã trả kết quả' }
             : req
         )
       );
@@ -486,7 +633,7 @@ const Radiology: React.FC = () => {
         setRadiologyRequests(prev =>
           prev.map(req =>
             req.requestCode === record.requestCode
-              ? { ...req, status: 5 }
+              ? { ...req, statusCode: 5, status: 'Đã duyệt' }
               : req
           )
         );
@@ -875,7 +1022,22 @@ const Radiology: React.FC = () => {
           <Button
             size="small"
             icon={<SafetyCertificateOutlined />}
-            onClick={() => message.info('Ký số kết quả...')}
+            onClick={() => handleOpenSignatureModal({
+              id: record.id,
+              examId: record.id, // Use record id as examId for now
+              requestCode: record.requestCode,
+              patientName: record.patientName,
+              patientCode: record.patientCode,
+              serviceName: record.serviceName,
+              description: record.description || '',
+              conclusion: record.conclusion || '',
+              doctorName: record.doctorName || '',
+              reportedAt: record.reportedAt || dayjs().format('YYYY-MM-DD HH:mm'),
+              status: record.statusCode,
+              isSigned: record.isSigned || false,
+              signedBy: record.signedBy,
+              signedAt: record.signedAt,
+            })}
             type="primary"
             ghost
           >
@@ -1631,6 +1793,143 @@ const Radiology: React.FC = () => {
                 </div>
               </div>
             )}
+          </>
+        )}
+      </Modal>
+
+      {/* Digital Signature Modal */}
+      <Modal
+        title={
+          <Space>
+            <SafetyCertificateOutlined style={{ color: '#1890ff' }} />
+            <span>Ký số kết quả Chẩn đoán Hình ảnh</span>
+          </Space>
+        }
+        open={isSignatureModalOpen}
+        onCancel={() => {
+          setIsSignatureModalOpen(false);
+          setSelectedReportToSign(null);
+          signatureForm.resetFields();
+        }}
+        onOk={() => signatureForm.submit()}
+        confirmLoading={signatureLoading}
+        okText="Ký số"
+        cancelText="Hủy"
+        width={600}
+      >
+        {selectedReportToSign && (
+          <>
+            <Alert
+              message="Xác nhận ký số"
+              description="Bạn đang thực hiện ký số điện tử cho kết quả chẩn đoán hình ảnh. Vui lòng kiểm tra thông tin trước khi ký."
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+
+            <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="Mã phiếu">{selectedReportToSign.requestCode}</Descriptions.Item>
+              <Descriptions.Item label="Bệnh nhân">
+                {selectedReportToSign.patientName} ({selectedReportToSign.patientCode})
+              </Descriptions.Item>
+              <Descriptions.Item label="Dịch vụ">
+                <Tag color="blue">{selectedReportToSign.serviceName}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Kết luận">
+                {selectedReportToSign.conclusion || 'Chưa có kết luận'}
+              </Descriptions.Item>
+              {selectedReportToSign.isSigned && (
+                <Descriptions.Item label="Trạng thái ký">
+                  <Tag color="green">Đã ký bởi {selectedReportToSign.signedBy}</Tag>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+
+            <Form
+              form={signatureForm}
+              layout="vertical"
+              onFinish={handleSignResult}
+              initialValues={{ signatureType: 'USBToken' }}
+            >
+              <Form.Item
+                name="signatureType"
+                label="Phương thức ký số"
+                rules={[{ required: true, message: 'Vui lòng chọn phương thức ký số' }]}
+              >
+                <Select placeholder="Chọn phương thức ký">
+                  <Select.Option value="USBToken">
+                    <Space>
+                      <SafetyCertificateOutlined />
+                      USB Token (VNPT-CA, Viettel-CA, FPT-CA, WINCA)
+                    </Space>
+                  </Select.Option>
+                  <Select.Option value="SmartCA">
+                    <Space>
+                      <SafetyCertificateOutlined />
+                      SmartCA (Ký điện tử trên điện thoại)
+                    </Space>
+                  </Select.Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                noStyle
+                shouldUpdate={(prevValues, currentValues) =>
+                  prevValues.signatureType !== currentValues.signatureType
+                }
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue('signatureType') === 'USBToken' ? (
+                    <Form.Item
+                      name="certificateThumbprint"
+                      label={
+                        <Space>
+                          Chứng thư số từ USB Token
+                          {loadingCertificates && <span style={{ color: '#1890ff' }}>(Đang tải...)</span>}
+                        </Space>
+                      }
+                      rules={[{ required: true, message: 'Vui lòng chọn chứng thư số' }]}
+                    >
+                      <Select
+                        placeholder="Chọn chứng thư số"
+                        loading={loadingCertificates}
+                        notFoundContent={
+                          usbTokenCertificates.length === 0
+                            ? 'Không tìm thấy chứng thư số. Vui lòng kiểm tra USB Token.'
+                            : null
+                        }
+                      >
+                        {usbTokenCertificates.map((cert) => (
+                          <Select.Option key={cert.thumbprint} value={cert.thumbprint}>
+                            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                              <span style={{ fontWeight: 500 }}>{cert.subjectName}</span>
+                              <span style={{ fontSize: 11, color: '#666' }}>
+                                Cấp bởi: {cert.issuerName} | HSD: {cert.validTo}
+                                {!cert.isValid && <Tag color="red" style={{ marginLeft: 8 }}>Hết hạn</Tag>}
+                              </span>
+                            </Space>
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  ) : null
+                }
+              </Form.Item>
+
+              <Alert
+                type="info"
+                message="Khi nhấn 'Ký số', Windows sẽ tự động bật hộp thoại nhập mã PIN của USB Token"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+
+              <Form.Item
+                name="note"
+                label="Ghi chú"
+              >
+                <TextArea rows={2} placeholder="Ghi chú thêm (không bắt buộc)" />
+              </Form.Item>
+            </Form>
           </>
         )}
       </Modal>
