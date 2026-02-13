@@ -129,6 +129,19 @@ public class HISDbContext : DbContext
     public DbSet<LabRequest> LabRequests => Set<LabRequest>();
     public DbSet<LabRequestItem> LabRequestItems => Set<LabRequestItem>();
     public DbSet<LabResult> LabResults => Set<LabResult>();
+    public DbSet<LabAnalyzer> LabAnalyzers => Set<LabAnalyzer>();
+    public DbSet<LabAnalyzerTestMapping> LabAnalyzerTestMappings => Set<LabAnalyzerTestMapping>();
+    public DbSet<LabConnectionLog> LabConnectionLogs => Set<LabConnectionLog>();
+    public DbSet<LabWorklist> LabWorklists => Set<LabWorklist>();
+    public DbSet<LabRawResult> LabRawResults => Set<LabRawResult>();
+    public DbSet<LabCriticalValueAlert> LabCriticalValueAlerts => Set<LabCriticalValueAlert>();
+    public DbSet<LabCriticalValueConfig> LabCriticalValueConfigs => Set<LabCriticalValueConfig>();
+    public DbSet<LabReferenceRange> LabReferenceRanges => Set<LabReferenceRange>();
+    public DbSet<LabTestGroup> LabTestGroups => Set<LabTestGroup>();
+    public DbSet<LabSampleType> LabSampleTypes => Set<LabSampleType>();
+    public DbSet<LabTubeType> LabTubeTypes => Set<LabTubeType>();
+    public DbSet<LabQCResult> LabQCResults => Set<LabQCResult>();
+    public DbSet<LabConclusionTemplate> LabConclusionTemplates => Set<LabConclusionTemplate>();
 
     // Chẩn đoán hình ảnh (RIS/PACS)
     public DbSet<RadiologyRequest> RadiologyRequests => Set<RadiologyRequest>();
@@ -136,6 +149,41 @@ public class HISDbContext : DbContext
     public DbSet<RadiologyReport> RadiologyReports => Set<RadiologyReport>();
     public DbSet<RadiologyModality> RadiologyModalities => Set<RadiologyModality>();
     public DbSet<DicomStudy> DicomStudies => Set<DicomStudy>();
+    // RIS/PACS - Chức năng mở rộng
+    public DbSet<RadiologyDiagnosisTemplate> RadiologyDiagnosisTemplates => Set<RadiologyDiagnosisTemplate>();
+    public DbSet<RadiologyAbbreviation> RadiologyAbbreviations => Set<RadiologyAbbreviation>();
+    public DbSet<RadiologyDutySchedule> RadiologyDutySchedules => Set<RadiologyDutySchedule>();
+    public DbSet<RadiologyTag> RadiologyTags => Set<RadiologyTag>();
+    public DbSet<RadiologyRequestTag> RadiologyRequestTags => Set<RadiologyRequestTag>();
+    public DbSet<RadiologyIntegrationLog> RadiologyIntegrationLogs => Set<RadiologyIntegrationLog>();
+    public DbSet<RadiologyRoomAssignment> RadiologyRoomAssignments => Set<RadiologyRoomAssignment>();
+    public DbSet<RadiologyDigitalSignatureConfig> RadiologyDigitalSignatureConfigs => Set<RadiologyDigitalSignatureConfig>();
+    public DbSet<RadiologySignatureHistory> RadiologySignatureHistories => Set<RadiologySignatureHistory>();
+    public DbSet<RadiologyLabelConfig> RadiologyLabelConfigs => Set<RadiologyLabelConfig>();
+    // RIS/PACS - Capture Device (IV)
+    public DbSet<RadiologyCaptureDevice> RadiologyCaptureDevices => Set<RadiologyCaptureDevice>();
+    public DbSet<RadiologyWorkstation> RadiologyWorkstations => Set<RadiologyWorkstation>();
+    public DbSet<RadiologyCaptureSession> RadiologyCaptureSession => Set<RadiologyCaptureSession>();
+    public DbSet<RadiologyCapturedMedia> RadiologyCapturedMedia => Set<RadiologyCapturedMedia>();
+    // RIS/PACS - Consultation (V)
+    public DbSet<RadiologyConsultationSession> RadiologyConsultationSessions => Set<RadiologyConsultationSession>();
+    public DbSet<RadiologyConsultationCase> RadiologyConsultationCases => Set<RadiologyConsultationCase>();
+    public DbSet<RadiologyConsultationParticipant> RadiologyConsultationParticipants => Set<RadiologyConsultationParticipant>();
+    public DbSet<RadiologyConsultationAttachment> RadiologyConsultationAttachments => Set<RadiologyConsultationAttachment>();
+    public DbSet<RadiologyConsultationDiscussion> RadiologyConsultationDiscussions => Set<RadiologyConsultationDiscussion>();
+    public DbSet<RadiologyConsultationImageNote> RadiologyConsultationImageNotes => Set<RadiologyConsultationImageNote>();
+    public DbSet<RadiologyConsultationMinutes> RadiologyConsultationMinutes => Set<RadiologyConsultationMinutes>();
+    // RIS/PACS - HL7 CDA (X)
+    public DbSet<RadiologyHL7CDAConfig> RadiologyHL7CDAConfigs => Set<RadiologyHL7CDAConfig>();
+    public DbSet<RadiologyHL7Message> RadiologyHL7Messages => Set<RadiologyHL7Message>();
+    public DbSet<RadiologyCDADocument> RadiologyCDADocuments => Set<RadiologyCDADocument>();
+    // RIS/PACS - Online Help (IX)
+    public DbSet<RadiologyHelpCategory> RadiologyHelpCategories => Set<RadiologyHelpCategory>();
+    public DbSet<RadiologyHelpArticle> RadiologyHelpArticles => Set<RadiologyHelpArticle>();
+    public DbSet<RadiologyTroubleshooting> RadiologyTroubleshootings => Set<RadiologyTroubleshooting>();
+    // RIS/PACS - CLS Screen (VII)
+    public DbSet<RadiologyCLSScreenConfig> RadiologyCLSScreenConfigs => Set<RadiologyCLSScreenConfig>();
+    public DbSet<RadiologyServiceDescriptionTemplate> RadiologyServiceDescriptionTemplates => Set<RadiologyServiceDescriptionTemplate>();
 
     // Dược/Cấp phát
     public DbSet<DispenseRequest> DispenseRequests => Set<DispenseRequest>();

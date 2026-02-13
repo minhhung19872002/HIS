@@ -432,22 +432,22 @@ namespace HIS.Application.Services
 
     public class CreateAnalyzerDto
     {
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public string Manufacturer { get; set; }
-        public string Model { get; set; }
-        public string Protocol { get; set; } // HL7, ASTM1381, ASTM1394, RS232, TCP/IP
-        public string ConnectionType { get; set; } // Serial, TCP, File
-        public string ConnectionString { get; set; }
-        public string IpAddress { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Manufacturer { get; set; }
+        public string? Model { get; set; }
+        public string? Protocol { get; set; } // HL7, ASTM1381, ASTM1394, RS232, TCP/IP
+        public string? ConnectionType { get; set; } // Serial, TCP, File
+        public string? ConnectionString { get; set; }
+        public string? IpAddress { get; set; }
         public int? Port { get; set; }
-        public string ComPort { get; set; }
+        public string? ComPort { get; set; }
         public int? BaudRate { get; set; }
-        public string DataBits { get; set; }
-        public string Parity { get; set; }
-        public string StopBits { get; set; }
-        public Guid DepartmentId { get; set; }
-        public bool IsActive { get; set; }
+        public string? DataBits { get; set; }
+        public string? Parity { get; set; }
+        public string? StopBits { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     public class UpdateAnalyzerDto : CreateAnalyzerDto

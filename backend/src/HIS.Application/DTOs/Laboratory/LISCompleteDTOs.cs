@@ -110,9 +110,12 @@ public class AnalyzerConnectionStatusDto
     public Guid AnalyzerId { get; set; }
     public string AnalyzerName { get; set; } = string.Empty;
     public bool IsConnected { get; set; }
+    public string? Status { get; set; }
     public DateTime? LastConnectedAt { get; set; }
     public DateTime? LastDataReceivedAt { get; set; }
     public int TodayResultCount { get; set; }
+    public int ActiveConnectionCount { get; set; }
+    public bool ServerRunning { get; set; }
     public string? ErrorMessage { get; set; }
 }
 
@@ -298,6 +301,10 @@ public class LabOrderDto
     public int PaymentObject { get; set; }
     public decimal InsuranceRate { get; set; }
 
+    // Mẫu xét nghiệm
+    public string? SampleBarcode { get; set; }
+    public string? SampleType { get; set; }
+
     // Audit
     public DateTime OrderedAt { get; set; }
     public DateTime? CollectedAt { get; set; }
@@ -331,6 +338,9 @@ public class LabTestItemDto
     // Giá trị tham chiếu
     public decimal? NormalMin { get; set; }
     public decimal? NormalMax { get; set; }
+    public decimal? CriticalLow { get; set; }
+    public decimal? CriticalHigh { get; set; }
+    public int? ResultStatus { get; set; }
 
     // Cờ bất thường: 0-Bình thường, 1-Thấp, 2-Cao, 3-Nguy hiểm thấp, 4-Nguy hiểm cao
     public int? AbnormalFlag { get; set; }

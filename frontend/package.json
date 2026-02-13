@@ -13,7 +13,11 @@
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "test:codegen": "playwright codegen http://localhost:3000",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "cy:run:headed": "cypress run --headed",
+    "cy:component": "cypress open --component"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
@@ -32,6 +36,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
+    "cypress": "^15.10.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

@@ -455,6 +455,398 @@ namespace HIS.Application.Services
         Task<RadiologyScheduleDto> SaveScheduleAsync(SaveRadiologyScheduleDto dto);
 
         #endregion
+
+        #region Print Label - In nhãn dán
+
+        /// <summary>
+        /// In nhãn dán cho ca chụp
+        /// </summary>
+        Task<LabelDataDto> PrintLabelAsync(PrintLabelRequestDto request);
+
+        /// <summary>
+        /// Lấy danh sách cấu hình nhãn
+        /// </summary>
+        Task<List<RadiologyLabelConfigDto>> GetLabelConfigsAsync(Guid? serviceTypeId = null);
+
+        /// <summary>
+        /// Lưu cấu hình nhãn
+        /// </summary>
+        Task<RadiologyLabelConfigDto> SaveLabelConfigAsync(RadiologyLabelConfigDto config);
+
+        /// <summary>
+        /// Xóa cấu hình nhãn
+        /// </summary>
+        Task<bool> DeleteLabelConfigAsync(Guid configId);
+
+        #endregion
+
+        #region Diagnosis Templates - Mẫu chẩn đoán thường dùng
+
+        /// <summary>
+        /// Lấy danh sách mẫu chẩn đoán
+        /// </summary>
+        Task<List<DiagnosisTemplateDto>> GetDiagnosisTemplatesAsync(
+            Guid? serviceTypeId = null,
+            Guid? serviceId = null,
+            string keyword = null);
+
+        /// <summary>
+        /// Lưu mẫu chẩn đoán
+        /// </summary>
+        Task<DiagnosisTemplateDto> SaveDiagnosisTemplateAsync(SaveDiagnosisTemplateDto dto);
+
+        /// <summary>
+        /// Xóa mẫu chẩn đoán
+        /// </summary>
+        Task<bool> DeleteDiagnosisTemplateAsync(Guid templateId);
+
+        #endregion
+
+        #region Abbreviations - Bộ từ viết tắt
+
+        /// <summary>
+        /// Lấy danh sách từ viết tắt
+        /// </summary>
+        Task<List<AbbreviationDto>> GetAbbreviationsAsync(
+            string category = null,
+            Guid? serviceTypeId = null,
+            string keyword = null);
+
+        /// <summary>
+        /// Lưu từ viết tắt
+        /// </summary>
+        Task<AbbreviationDto> SaveAbbreviationAsync(SaveAbbreviationDto dto);
+
+        /// <summary>
+        /// Xóa từ viết tắt
+        /// </summary>
+        Task<bool> DeleteAbbreviationAsync(Guid abbreviationId);
+
+        /// <summary>
+        /// Mở rộng từ viết tắt trong văn bản
+        /// </summary>
+        Task<ExpandAbbreviationResultDto> ExpandAbbreviationsAsync(string text, string category = null, Guid? serviceTypeId = null);
+
+        #endregion
+
+        #region QR Code - Mã QR
+
+        /// <summary>
+        /// Sinh mã QR cho ca chụp
+        /// </summary>
+        Task<QRCodeResultDto> GenerateQRCodeAsync(GenerateQRCodeRequestDto request);
+
+        /// <summary>
+        /// Quét mã QR
+        /// </summary>
+        Task<ScanQRCodeResultDto> ScanQRCodeAsync(string qrData);
+
+        /// <summary>
+        /// Chia sẻ kết quả qua QR Code
+        /// </summary>
+        Task<ShareResultQRDto> CreateShareResultQRAsync(Guid resultId, int? validityHours = 24);
+
+        /// <summary>
+        /// Xác thực và lấy kết quả từ share link
+        /// </summary>
+        Task<RadiologyResultDto> GetSharedResultAsync(string shareCode, string accessCode);
+
+        #endregion
+
+        #region Duty Schedule - Lịch phân công trực
+
+        /// <summary>
+        /// Lấy lịch trực
+        /// </summary>
+        Task<List<DutyScheduleDto>> GetDutySchedulesAsync(
+            Guid departmentId,
+            DateTime fromDate,
+            DateTime toDate,
+            Guid? roomId = null);
+
+        /// <summary>
+        /// Lưu lịch trực
+        /// </summary>
+        Task<DutyScheduleDto> SaveDutyScheduleAsync(SaveDutyScheduleDto dto);
+
+        /// <summary>
+        /// Tạo lịch trực hàng loạt
+        /// </summary>
+        Task<List<DutyScheduleDto>> BatchCreateDutySchedulesAsync(BatchCreateDutyScheduleDto dto);
+
+        /// <summary>
+        /// Xóa lịch trực
+        /// </summary>
+        Task<bool> DeleteDutyScheduleAsync(Guid scheduleId);
+
+        /// <summary>
+        /// Duyệt lịch trực
+        /// </summary>
+        Task<bool> ApproveDutyScheduleAsync(Guid scheduleId);
+
+        #endregion
+
+        #region Room Assignment - Phân phòng thực hiện
+
+        /// <summary>
+        /// Phân phòng thực hiện
+        /// </summary>
+        Task<RoomAssignmentDto> AssignRoomAsync(AssignRoomRequestDto request);
+
+        /// <summary>
+        /// Cập nhật phân phòng
+        /// </summary>
+        Task<RoomAssignmentDto> UpdateRoomAssignmentAsync(Guid assignmentId, AssignRoomRequestDto request);
+
+        /// <summary>
+        /// Lấy danh sách chờ theo phòng
+        /// </summary>
+        Task<List<RoomAssignmentDto>> GetRoomQueueAsync(Guid roomId, DateTime date);
+
+        /// <summary>
+        /// Gọi bệnh nhân tiếp theo
+        /// </summary>
+        Task<RoomAssignmentDto> CallNextPatientAsync(Guid roomId);
+
+        /// <summary>
+        /// Bỏ qua bệnh nhân
+        /// </summary>
+        Task<bool> SkipPatientAsync(Guid assignmentId, string reason);
+
+        /// <summary>
+        /// Thống kê theo phòng
+        /// </summary>
+        Task<List<RoomStatisticsDto>> GetRoomStatisticsAsync(DateTime date);
+
+        #endregion
+
+        #region Tags - Quản lý Tag ca chụp
+
+        /// <summary>
+        /// Lấy danh sách Tag
+        /// </summary>
+        Task<List<RadiologyTagDto>> GetTagsAsync(string keyword = null, bool includeInactive = false);
+
+        /// <summary>
+        /// Lưu Tag
+        /// </summary>
+        Task<RadiologyTagDto> SaveTagAsync(SaveRadiologyTagDto dto);
+
+        /// <summary>
+        /// Xóa Tag
+        /// </summary>
+        Task<bool> DeleteTagAsync(Guid tagId);
+
+        /// <summary>
+        /// Gắn Tag cho ca chụp
+        /// </summary>
+        Task<bool> AssignTagsToRequestAsync(AssignTagRequestDto request);
+
+        /// <summary>
+        /// Gỡ Tag khỏi ca chụp
+        /// </summary>
+        Task<bool> RemoveTagFromRequestAsync(Guid requestId, Guid tagId);
+
+        /// <summary>
+        /// Lấy các ca chụp theo Tag
+        /// </summary>
+        Task<List<TaggedRequestDto>> GetRequestsByTagAsync(Guid tagId, DateTime? fromDate = null, DateTime? toDate = null);
+
+        /// <summary>
+        /// Lấy các Tag của ca chụp
+        /// </summary>
+        Task<List<RadiologyTagDto>> GetTagsOfRequestAsync(Guid requestId);
+
+        #endregion
+
+        #region Integration Log - Log tích hợp HIS-RIS
+
+        /// <summary>
+        /// Tìm kiếm log tích hợp
+        /// </summary>
+        Task<IntegrationLogSearchResultDto> SearchIntegrationLogsAsync(SearchIntegrationLogDto searchDto);
+
+        /// <summary>
+        /// Lấy chi tiết log
+        /// </summary>
+        Task<IntegrationLogDto> GetIntegrationLogAsync(Guid logId);
+
+        /// <summary>
+        /// Thống kê log tích hợp
+        /// </summary>
+        Task<IntegrationLogStatisticsDto> GetIntegrationLogStatisticsAsync(DateTime fromDate, DateTime toDate);
+
+        /// <summary>
+        /// Retry gửi lại message lỗi
+        /// </summary>
+        Task<bool> RetryIntegrationAsync(Guid logId);
+
+        #endregion
+
+        #region Digital Signature - Ký số
+
+        /// <summary>
+        /// Lấy danh sách cấu hình ký số
+        /// </summary>
+        Task<List<DigitalSignatureConfigDto>> GetSignatureConfigsAsync();
+
+        /// <summary>
+        /// Lưu cấu hình ký số
+        /// </summary>
+        Task<DigitalSignatureConfigDto> SaveSignatureConfigAsync(SaveDigitalSignatureConfigDto dto);
+
+        /// <summary>
+        /// Xóa cấu hình ký số
+        /// </summary>
+        Task<bool> DeleteSignatureConfigAsync(Guid configId);
+
+        /// <summary>
+        /// Ký số kết quả
+        /// </summary>
+        Task<SignResultResponseDto> SignResultAsync(SignResultRequestDto request);
+
+        /// <summary>
+        /// Hủy kết quả đã ký
+        /// </summary>
+        Task<bool> CancelSignedResultAsync(CancelSignedResultDto dto);
+
+        /// <summary>
+        /// Lấy lịch sử ký số
+        /// </summary>
+        Task<List<SignatureHistoryDto>> GetSignatureHistoryAsync(Guid reportId);
+
+        /// <summary>
+        /// In kết quả đã ký số
+        /// </summary>
+        Task<byte[]> PrintSignedResultAsync(Guid reportId);
+
+        #endregion
+
+        #region Statistics - Thống kê
+
+        /// <summary>
+        /// Thống kê ca chụp theo nhóm dịch vụ
+        /// </summary>
+        Task<ExamStatisticsByServiceTypeDto> GetExamStatisticsByServiceTypeAsync(DateTime fromDate, DateTime toDate);
+
+        #endregion
+
+        #region IV. Capture Device - Thiết bị Capture
+
+        Task<List<CaptureDeviceDto>> GetCaptureDevicesAsync(string deviceType = null, string keyword = null, bool? isActive = null);
+        Task<CaptureDeviceDto> SaveCaptureDeviceAsync(SaveCaptureDeviceDto dto);
+        Task<bool> DeleteCaptureDeviceAsync(Guid deviceId);
+        Task<CaptureDeviceStatusDto> TestCaptureDeviceConnectionAsync(Guid deviceId);
+        Task<List<WorkstationDto>> GetWorkstationsAsync(Guid? roomId = null);
+        Task<WorkstationDto> SaveWorkstationAsync(SaveWorkstationDto dto);
+        Task<CaptureSessionDto> CreateCaptureSessionAsync(CreateCaptureSessionDto dto);
+        Task<CaptureSessionDto> EndCaptureSessionAsync(Guid sessionId);
+        Task<CapturedMediaDto> SaveCapturedMediaAsync(SaveCapturedMediaDto dto);
+        Task<List<CapturedMediaDto>> GetCapturedMediaAsync(Guid sessionId);
+        Task<SendToPacsResultDto> SendMediaToPacsAsync(SendToPacsRequestDto request);
+
+        #endregion
+
+        #region V. Consultation - Hội chẩn ca chụp
+
+        Task<ConsultationSearchResultDto> SearchConsultationsAsync(SearchConsultationDto searchDto);
+        Task<ConsultationSessionDto> GetConsultationSessionAsync(Guid sessionId);
+        Task<ConsultationSessionDto> SaveConsultationSessionAsync(SaveConsultationSessionDto dto);
+        Task<bool> DeleteConsultationSessionAsync(Guid sessionId);
+        Task<ConsultationSessionDto> StartConsultationAsync(Guid sessionId);
+        Task<ConsultationSessionDto> EndConsultationAsync(Guid sessionId);
+        Task<ConsultationCaseDto> AddConsultationCaseAsync(AddConsultationCaseDto dto);
+        Task<bool> RemoveConsultationCaseAsync(Guid caseId);
+        Task<ConsultationParticipantDto> InviteParticipantAsync(InviteParticipantDto dto);
+        Task<bool> RemoveParticipantAsync(Guid participantId);
+        Task<ConsultationParticipantDto> JoinConsultationAsync(Guid sessionId, Guid userId);
+        Task<bool> LeaveConsultationAsync(Guid sessionId, Guid userId);
+        Task<ConsultationDiscussionDto> AddDiscussionAsync(AddConsultationDiscussionDto dto);
+        Task<List<ConsultationDiscussionDto>> GetDiscussionsAsync(Guid caseId);
+        Task<ConsultationImageNoteDto> AddImageNoteAsync(AddConsultationImageNoteDto dto);
+        Task<List<ConsultationImageNoteDto>> GetImageNotesAsync(Guid caseId);
+        Task<ConsultationMinutesDto> SaveMinutesAsync(SaveConsultationMinutesDto dto);
+        Task<ConsultationMinutesDto> GetMinutesAsync(Guid sessionId);
+        Task<ConsultationMinutesDto> ApproveMinutesAsync(Guid minutesId);
+        Task<ConsultationAttachmentDto> AddAttachmentAsync(AddConsultationAttachmentDto dto);
+        Task<List<ConsultationAttachmentDto>> GetAttachmentsAsync(Guid caseId);
+
+        #endregion
+
+        #region X. HL7 CDA Integration
+
+        Task<List<HL7CDAConfigDto>> GetHL7CDAConfigsAsync();
+        Task<HL7CDAConfigDto> SaveHL7CDAConfigAsync(SaveHL7CDAConfigDto dto);
+        Task<bool> DeleteHL7CDAConfigAsync(Guid configId);
+        Task<bool> TestHL7ConnectionAsync(Guid configId);
+        Task<SendHL7ResultDto> SendHL7MessageAsync(SendHL7MessageDto dto);
+        Task<List<HL7MessageDto>> GetHL7MessagesAsync(DateTime? fromDate = null, DateTime? toDate = null, string direction = null, int? status = null);
+        Task<HL7MessageSearchResultDto> SearchHL7MessagesAsync(SearchHL7MessageDto searchDto);
+        Task<bool> RetryHL7MessageAsync(Guid messageId);
+        Task<CDADocumentDto> CreateCDADocumentAsync(CreateCDADocumentDto dto);
+        Task<CDADocumentDto> GetCDADocumentAsync(Guid reportId);
+        Task<bool> SendCDADocumentAsync(SendCDADocumentDto dto);
+        Task<Guid> ReceiveHL7OrderAsync(string hl7Message);
+        Task<SendHL7ResultDto> SendHL7ResultAsync(Guid reportId, bool withSignature);
+        Task<bool> CancelHL7ResultAsync(Guid reportId, string reason);
+
+        #endregion
+
+        #region IX. Online Help - Hướng dẫn sử dụng
+
+        Task<List<HelpCategoryDto>> GetHelpCategoriesAsync(Guid? parentId = null);
+        Task<HelpCategoryDto> SaveHelpCategoryAsync(SaveHelpCategoryDto dto);
+        Task<bool> DeleteHelpCategoryAsync(Guid categoryId);
+        Task<HelpSearchResultDto> SearchHelpArticlesAsync(SearchHelpDto searchDto);
+        Task<HelpArticleDto> GetHelpArticleAsync(Guid articleId);
+        Task<HelpArticleDto> SaveHelpArticleAsync(SaveHelpArticleDto dto);
+        Task<bool> DeleteHelpArticleAsync(Guid articleId);
+        Task<List<TroubleshootingDto>> GetTroubleshootingListAsync(string category = null, string keyword = null);
+        Task<List<TroubleshootingDto>> GetTroubleshootingListAsync(string module = null, int? severity = null);
+        Task<TroubleshootingDto> SaveTroubleshootingAsync(SaveTroubleshootingDto dto);
+        Task<bool> DeleteTroubleshootingAsync(Guid troubleshootingId);
+        Task<bool> IncrementArticleViewCountAsync(Guid articleId);
+
+        #endregion
+
+        #region VII. CLS Screen - Màn hình cận lâm sàng
+
+        Task<CLSScreenConfigDto> GetCLSScreenConfigAsync();
+        Task<CLSScreenConfigDto> SaveCLSScreenConfigAsync(SaveCLSScreenConfigDto dto);
+        Task<List<ServiceDescriptionTemplateDto>> GetServiceDescriptionTemplatesAsync(Guid serviceId);
+        Task<ServiceDescriptionTemplateDto> SaveServiceDescriptionTemplateAsync(SaveServiceDescriptionTemplateDto dto);
+        Task<bool> DeleteServiceDescriptionTemplateAsync(Guid templateId);
+        Task<List<DiagnosisHistoryDto>> GetDiagnosisHistoryAsync(Guid requestId);
+        Task<List<RadiologyWaitingListDto>> GetPatientExamHistoryAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null);
+
+        #endregion
+        #region Extended Capture & Consultation Methods
+
+    // Capture Device Management - Extended methods
+    Task<bool> CheckDeviceConnectionAsync(Guid deviceId);
+    Task<bool> DeleteWorkstationAsync(Guid workstationId);
+    Task<CaptureSessionDto> GetActiveCaptureSessionAsync(Guid deviceId);
+    Task<CapturedMediaDto> UploadCapturedMediaAsync(SaveCapturedMediaDto dto);
+    Task<bool> SetThumbnailImageAsync(Guid sessionId, Guid mediaId);
+    Task<object> GetDeviceDailyStatisticsAsync(Guid deviceId, DateTime date);
+
+    // Consultation Session - Extended methods
+    Task<bool> CancelConsultationSessionAsync(Guid sessionId, string reason);
+    Task<ConsultationSessionDto> StartConsultationSessionAsync(Guid sessionId);
+    Task<ConsultationSessionDto> EndConsultationSessionAsync(Guid sessionId);
+    Task<ConsultationCaseDto> ConcludeCaseAsync(Guid caseId, string conclusion, string recommendation);
+    Task<bool> RespondInvitationAsync(Guid sessionId, Guid userId, bool accepted);
+    Task<ConsultationSessionDto> JoinSessionAsync(Guid sessionId);
+    Task<bool> LeaveSessionAsync(Guid sessionId);
+    Task<ConsultationAttachmentDto> UploadAttachmentAsync(AddConsultationAttachmentDto dto);
+    Task<bool> DeleteAttachmentAsync(Guid attachmentId);
+    Task<ConsultationDiscussionDto> PostDiscussionAsync(AddConsultationDiscussionDto dto);
+    Task<bool> DeleteDiscussionAsync(Guid discussionId);
+    Task<ConsultationImageNoteDto> SaveImageNoteAsync(AddConsultationImageNoteDto dto);
+    Task<byte[]> GenerateInviteQRCodeAsync(Guid sessionId);
+    Task<bool> ToggleRecordingAsync(Guid sessionId, bool start);
+
+    #endregion
     }
 
     #region Additional DTOs for RIS Service

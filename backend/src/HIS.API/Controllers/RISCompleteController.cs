@@ -965,6 +965,1236 @@ namespace HIS.API.Controllers
         }
 
         #endregion
+
+        #region Print Label - In nhãn dán
+
+        /// <summary>
+        /// In nhãn dán cho ca chụp
+        /// </summary>
+        [HttpPost("print-label")]
+        public async Task<ActionResult<LabelDataDto>> PrintLabel([FromBody] PrintLabelRequestDto request)
+        {
+            var result = await _risService.PrintLabelAsync(request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách cấu hình nhãn
+        /// </summary>
+        [HttpGet("label-configs")]
+        public async Task<ActionResult<List<RadiologyLabelConfigDto>>> GetLabelConfigs([FromQuery] Guid? serviceTypeId = null)
+        {
+            var result = await _risService.GetLabelConfigsAsync(serviceTypeId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu cấu hình nhãn
+        /// </summary>
+        [HttpPost("label-configs")]
+        public async Task<ActionResult<RadiologyLabelConfigDto>> SaveLabelConfig([FromBody] RadiologyLabelConfigDto config)
+        {
+            var result = await _risService.SaveLabelConfigAsync(config);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa cấu hình nhãn
+        /// </summary>
+        [HttpDelete("label-configs/{configId}")]
+        public async Task<ActionResult> DeleteLabelConfig(Guid configId)
+        {
+            await _risService.DeleteLabelConfigAsync(configId);
+            return NoContent();
+        }
+
+        #endregion
+
+        #region Diagnosis Templates - Mẫu chẩn đoán
+
+        /// <summary>
+        /// Lấy danh sách mẫu chẩn đoán
+        /// </summary>
+        [HttpGet("diagnosis-templates")]
+        public async Task<ActionResult<List<DiagnosisTemplateDto>>> GetDiagnosisTemplates(
+            [FromQuery] Guid? serviceTypeId = null,
+            [FromQuery] Guid? serviceId = null,
+            [FromQuery] string keyword = null)
+        {
+            var result = await _risService.GetDiagnosisTemplatesAsync(serviceTypeId, serviceId, keyword);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu mẫu chẩn đoán
+        /// </summary>
+        [HttpPost("diagnosis-templates")]
+        public async Task<ActionResult<DiagnosisTemplateDto>> SaveDiagnosisTemplate([FromBody] SaveDiagnosisTemplateDto dto)
+        {
+            var result = await _risService.SaveDiagnosisTemplateAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa mẫu chẩn đoán
+        /// </summary>
+        [HttpDelete("diagnosis-templates/{templateId}")]
+        public async Task<ActionResult> DeleteDiagnosisTemplate(Guid templateId)
+        {
+            await _risService.DeleteDiagnosisTemplateAsync(templateId);
+            return NoContent();
+        }
+
+        #endregion
+
+        #region Abbreviations - Bộ từ viết tắt
+
+        /// <summary>
+        /// Lấy danh sách từ viết tắt
+        /// </summary>
+        [HttpGet("abbreviations")]
+        public async Task<ActionResult<List<AbbreviationDto>>> GetAbbreviations(
+            [FromQuery] string category = null,
+            [FromQuery] Guid? serviceTypeId = null,
+            [FromQuery] string keyword = null)
+        {
+            var result = await _risService.GetAbbreviationsAsync(category, serviceTypeId, keyword);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu từ viết tắt
+        /// </summary>
+        [HttpPost("abbreviations")]
+        public async Task<ActionResult<AbbreviationDto>> SaveAbbreviation([FromBody] SaveAbbreviationDto dto)
+        {
+            var result = await _risService.SaveAbbreviationAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa từ viết tắt
+        /// </summary>
+        [HttpDelete("abbreviations/{abbreviationId}")]
+        public async Task<ActionResult> DeleteAbbreviation(Guid abbreviationId)
+        {
+            await _risService.DeleteAbbreviationAsync(abbreviationId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Mở rộng từ viết tắt trong văn bản
+        /// </summary>
+        [HttpPost("abbreviations/expand")]
+        public async Task<ActionResult<ExpandAbbreviationResultDto>> ExpandAbbreviations(
+            [FromBody] ExpandAbbreviationRequest request)
+        {
+            var result = await _risService.ExpandAbbreviationsAsync(request.Text, request.Category, request.ServiceTypeId);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region QR Code
+
+        /// <summary>
+        /// Sinh mã QR cho ca chụp
+        /// </summary>
+        [HttpPost("qrcode/generate")]
+        public async Task<ActionResult<QRCodeResultDto>> GenerateQRCode([FromBody] GenerateQRCodeRequestDto request)
+        {
+            var result = await _risService.GenerateQRCodeAsync(request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Quét mã QR
+        /// </summary>
+        [HttpPost("qrcode/scan")]
+        public async Task<ActionResult<ScanQRCodeResultDto>> ScanQRCode([FromBody] ScanQRCodeRequest request)
+        {
+            var result = await _risService.ScanQRCodeAsync(request.QRData);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Chia sẻ kết quả qua QR Code
+        /// </summary>
+        [HttpPost("results/{resultId}/share-qr")]
+        public async Task<ActionResult<ShareResultQRDto>> CreateShareResultQR(Guid resultId, [FromQuery] int? validityHours = 24)
+        {
+            var result = await _risService.CreateShareResultQRAsync(resultId, validityHours);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy kết quả từ share link
+        /// </summary>
+        [HttpGet("shared-result/{shareCode}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<RadiologyResultDto>> GetSharedResult(string shareCode, [FromQuery] string accessCode)
+        {
+            var result = await _risService.GetSharedResultAsync(shareCode, accessCode);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region Duty Schedule - Lịch phân công trực
+
+        /// <summary>
+        /// Lấy lịch trực
+        /// </summary>
+        [HttpGet("duty-schedules")]
+        public async Task<ActionResult<List<DutyScheduleDto>>> GetDutySchedules(
+            [FromQuery] Guid departmentId,
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            [FromQuery] Guid? roomId = null)
+        {
+            var result = await _risService.GetDutySchedulesAsync(departmentId, fromDate, toDate, roomId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu lịch trực
+        /// </summary>
+        [HttpPost("duty-schedules")]
+        public async Task<ActionResult<DutyScheduleDto>> SaveDutySchedule([FromBody] SaveDutyScheduleDto dto)
+        {
+            var result = await _risService.SaveDutyScheduleAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Tạo lịch trực hàng loạt
+        /// </summary>
+        [HttpPost("duty-schedules/batch")]
+        public async Task<ActionResult<List<DutyScheduleDto>>> BatchCreateDutySchedules([FromBody] BatchCreateDutyScheduleDto dto)
+        {
+            var result = await _risService.BatchCreateDutySchedulesAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa lịch trực
+        /// </summary>
+        [HttpDelete("duty-schedules/{scheduleId}")]
+        public async Task<ActionResult> DeleteDutySchedule(Guid scheduleId)
+        {
+            await _risService.DeleteDutyScheduleAsync(scheduleId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Duyệt lịch trực
+        /// </summary>
+        [HttpPost("duty-schedules/{scheduleId}/approve")]
+        public async Task<ActionResult> ApproveDutySchedule(Guid scheduleId)
+        {
+            await _risService.ApproveDutyScheduleAsync(scheduleId);
+            return Ok(new { success = true });
+        }
+
+        #endregion
+
+        #region Room Assignment - Phân phòng thực hiện
+
+        /// <summary>
+        /// Phân phòng thực hiện
+        /// </summary>
+        [HttpPost("room-assignments")]
+        public async Task<ActionResult<RoomAssignmentDto>> AssignRoom([FromBody] AssignRoomRequestDto request)
+        {
+            var result = await _risService.AssignRoomAsync(request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Cập nhật phân phòng
+        /// </summary>
+        [HttpPut("room-assignments/{assignmentId}")]
+        public async Task<ActionResult<RoomAssignmentDto>> UpdateRoomAssignment(Guid assignmentId, [FromBody] AssignRoomRequestDto request)
+        {
+            var result = await _risService.UpdateRoomAssignmentAsync(assignmentId, request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách chờ theo phòng
+        /// </summary>
+        [HttpGet("rooms/{roomId}/queue")]
+        public async Task<ActionResult<List<RoomAssignmentDto>>> GetRoomQueue(Guid roomId, [FromQuery] DateTime date)
+        {
+            var result = await _risService.GetRoomQueueAsync(roomId, date);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Gọi bệnh nhân tiếp theo
+        /// </summary>
+        [HttpPost("rooms/{roomId}/call-next")]
+        public async Task<ActionResult<RoomAssignmentDto>> CallNextPatient(Guid roomId)
+        {
+            var result = await _risService.CallNextPatientAsync(roomId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Bỏ qua bệnh nhân
+        /// </summary>
+        [HttpPost("room-assignments/{assignmentId}/skip")]
+        public async Task<ActionResult> SkipPatient(Guid assignmentId, [FromBody] SkipPatientRequest request)
+        {
+            await _risService.SkipPatientAsync(assignmentId, request.Reason);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Thống kê theo phòng
+        /// </summary>
+        [HttpGet("rooms/statistics")]
+        public async Task<ActionResult<List<RoomStatisticsDto>>> GetRoomStatistics([FromQuery] DateTime date)
+        {
+            var result = await _risService.GetRoomStatisticsAsync(date);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region Tags - Quản lý Tag
+
+        /// <summary>
+        /// Lấy danh sách Tag
+        /// </summary>
+        [HttpGet("tags")]
+        public async Task<ActionResult<List<RadiologyTagDto>>> GetTags(
+            [FromQuery] string keyword = null,
+            [FromQuery] bool includeInactive = false)
+        {
+            var result = await _risService.GetTagsAsync(keyword, includeInactive);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu Tag
+        /// </summary>
+        [HttpPost("tags")]
+        public async Task<ActionResult<RadiologyTagDto>> SaveTag([FromBody] SaveRadiologyTagDto dto)
+        {
+            var result = await _risService.SaveTagAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa Tag
+        /// </summary>
+        [HttpDelete("tags/{tagId}")]
+        public async Task<ActionResult> DeleteTag(Guid tagId)
+        {
+            await _risService.DeleteTagAsync(tagId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Gắn Tag cho ca chụp
+        /// </summary>
+        [HttpPost("requests/tags")]
+        public async Task<ActionResult> AssignTagsToRequest([FromBody] AssignTagRequestDto request)
+        {
+            await _risService.AssignTagsToRequestAsync(request);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Gỡ Tag khỏi ca chụp
+        /// </summary>
+        [HttpDelete("requests/{requestId}/tags/{tagId}")]
+        public async Task<ActionResult> RemoveTagFromRequest(Guid requestId, Guid tagId)
+        {
+            await _risService.RemoveTagFromRequestAsync(requestId, tagId);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Lấy các ca chụp theo Tag
+        /// </summary>
+        [HttpGet("tags/{tagId}/requests")]
+        public async Task<ActionResult<List<TaggedRequestDto>>> GetRequestsByTag(
+            Guid tagId,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            var result = await _risService.GetRequestsByTagAsync(tagId, fromDate, toDate);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy các Tag của ca chụp
+        /// </summary>
+        [HttpGet("requests/{requestId}/tags")]
+        public async Task<ActionResult<List<RadiologyTagDto>>> GetTagsOfRequest(Guid requestId)
+        {
+            var result = await _risService.GetTagsOfRequestAsync(requestId);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region Integration Log - Log tích hợp HIS-RIS
+
+        /// <summary>
+        /// Tìm kiếm log tích hợp
+        /// </summary>
+        [HttpPost("integration-logs/search")]
+        public async Task<ActionResult<IntegrationLogSearchResultDto>> SearchIntegrationLogs([FromBody] SearchIntegrationLogDto searchDto)
+        {
+            var result = await _risService.SearchIntegrationLogsAsync(searchDto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy chi tiết log
+        /// </summary>
+        [HttpGet("integration-logs/{logId}")]
+        public async Task<ActionResult<IntegrationLogDto>> GetIntegrationLog(Guid logId)
+        {
+            var result = await _risService.GetIntegrationLogAsync(logId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Thống kê log tích hợp
+        /// </summary>
+        [HttpGet("integration-logs/statistics")]
+        public async Task<ActionResult<IntegrationLogStatisticsDto>> GetIntegrationLogStatistics(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate)
+        {
+            var result = await _risService.GetIntegrationLogStatisticsAsync(fromDate, toDate);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Retry gửi lại message lỗi
+        /// </summary>
+        [HttpPost("integration-logs/{logId}/retry")]
+        public async Task<ActionResult> RetryIntegration(Guid logId)
+        {
+            await _risService.RetryIntegrationAsync(logId);
+            return Ok(new { success = true });
+        }
+
+        #endregion
+
+        #region Digital Signature - Ký số
+
+        /// <summary>
+        /// Lấy danh sách cấu hình ký số
+        /// </summary>
+        [HttpGet("signature-configs")]
+        public async Task<ActionResult<List<DigitalSignatureConfigDto>>> GetSignatureConfigs()
+        {
+            var result = await _risService.GetSignatureConfigsAsync();
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu cấu hình ký số
+        /// </summary>
+        [HttpPost("signature-configs")]
+        public async Task<ActionResult<DigitalSignatureConfigDto>> SaveSignatureConfig([FromBody] SaveDigitalSignatureConfigDto dto)
+        {
+            var result = await _risService.SaveSignatureConfigAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa cấu hình ký số
+        /// </summary>
+        [HttpDelete("signature-configs/{configId}")]
+        public async Task<ActionResult> DeleteSignatureConfig(Guid configId)
+        {
+            await _risService.DeleteSignatureConfigAsync(configId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Ký số kết quả
+        /// </summary>
+        [HttpPost("results/sign")]
+        public async Task<ActionResult<SignResultResponseDto>> SignResult([FromBody] SignResultRequestDto request)
+        {
+            var result = await _risService.SignResultAsync(request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Hủy kết quả đã ký
+        /// </summary>
+        [HttpPost("results/cancel-signed")]
+        public async Task<ActionResult> CancelSignedResult([FromBody] CancelSignedResultDto dto)
+        {
+            await _risService.CancelSignedResultAsync(dto);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Lấy lịch sử ký số
+        /// </summary>
+        [HttpGet("reports/{reportId}/signature-history")]
+        public async Task<ActionResult<List<SignatureHistoryDto>>> GetSignatureHistory(Guid reportId)
+        {
+            var result = await _risService.GetSignatureHistoryAsync(reportId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// In kết quả đã ký số
+        /// </summary>
+        [HttpGet("reports/{reportId}/print-signed")]
+        public async Task<ActionResult> PrintSignedResult(Guid reportId)
+        {
+            var result = await _risService.PrintSignedResultAsync(reportId);
+            return File(result, "application/pdf", $"signed_result_{reportId}.pdf");
+        }
+
+        #endregion
+
+        #region Statistics - Thống kê
+
+        /// <summary>
+        /// Thống kê ca chụp theo nhóm dịch vụ
+        /// </summary>
+        [HttpGet("statistics/by-service-type")]
+        public async Task<ActionResult<ExamStatisticsByServiceTypeDto>> GetExamStatisticsByServiceType(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate)
+        {
+            var result = await _risService.GetExamStatisticsByServiceTypeAsync(fromDate, toDate);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region IV. Capture Device - Thiết bị Capture
+
+        /// <summary>
+        /// Lấy danh sách thiết bị Capture
+        /// </summary>
+        [HttpGet("capture-devices")]
+        public async Task<ActionResult<List<CaptureDeviceDto>>> GetCaptureDevices(
+            [FromQuery] string deviceType = null,
+            [FromQuery] string keyword = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _risService.GetCaptureDevicesAsync(deviceType, keyword, isActive);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu thiết bị Capture
+        /// </summary>
+        [HttpPost("capture-devices")]
+        public async Task<ActionResult<CaptureDeviceDto>> SaveCaptureDevice([FromBody] SaveCaptureDeviceDto dto)
+        {
+            var result = await _risService.SaveCaptureDeviceAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa thiết bị Capture
+        /// </summary>
+        [HttpDelete("capture-devices/{deviceId}")]
+        public async Task<ActionResult> DeleteCaptureDevice(Guid deviceId)
+        {
+            await _risService.DeleteCaptureDeviceAsync(deviceId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Kiểm tra kết nối thiết bị
+        /// </summary>
+        [HttpGet("capture-devices/{deviceId}/check-connection")]
+        public async Task<ActionResult<bool>> CheckDeviceConnection(Guid deviceId)
+        {
+            var result = await _risService.CheckDeviceConnectionAsync(deviceId);
+            return Ok(new { connected = result });
+        }
+
+        /// <summary>
+        /// Lấy danh sách Workstation
+        /// </summary>
+        [HttpGet("workstations")]
+        public async Task<ActionResult<List<WorkstationDto>>> GetWorkstations([FromQuery] Guid? roomId = null)
+        {
+            var result = await _risService.GetWorkstationsAsync(roomId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu Workstation
+        /// </summary>
+        [HttpPost("workstations")]
+        public async Task<ActionResult<WorkstationDto>> SaveWorkstation([FromBody] SaveWorkstationDto dto)
+        {
+            var result = await _risService.SaveWorkstationAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa Workstation
+        /// </summary>
+        [HttpDelete("workstations/{workstationId}")]
+        public async Task<ActionResult> DeleteWorkstation(Guid workstationId)
+        {
+            await _risService.DeleteWorkstationAsync(workstationId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Tạo phiên Capture
+        /// </summary>
+        [HttpPost("capture-sessions")]
+        public async Task<ActionResult<CaptureSessionDto>> CreateCaptureSession([FromBody] CreateCaptureSessionDto dto)
+        {
+            var result = await _risService.CreateCaptureSessionAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy phiên Capture đang hoạt động
+        /// </summary>
+        [HttpGet("capture-devices/{deviceId}/active-session")]
+        public async Task<ActionResult<CaptureSessionDto>> GetActiveCaptureSession(Guid deviceId)
+        {
+            var result = await _risService.GetActiveCaptureSessionAsync(deviceId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Kết thúc phiên Capture
+        /// </summary>
+        [HttpPost("capture-sessions/{sessionId}/end")]
+        public async Task<ActionResult<CaptureSessionDto>> EndCaptureSession(Guid sessionId)
+        {
+            var result = await _risService.EndCaptureSessionAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Upload hình ảnh/video capture
+        /// </summary>
+        [HttpPost("capture-sessions/media")]
+        public async Task<ActionResult<CapturedMediaDto>> UploadCapturedMedia([FromBody] SaveCapturedMediaDto dto)
+        {
+            var result = await _risService.UploadCapturedMediaAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách media trong phiên
+        /// </summary>
+        [HttpGet("capture-sessions/{sessionId}/media")]
+        public async Task<ActionResult<List<CapturedMediaDto>>> GetCapturedMedia(Guid sessionId)
+        {
+            var result = await _risService.GetCapturedMediaAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Đánh dấu ảnh tiêu biểu
+        /// </summary>
+        [HttpPost("captured-media/{sessionId}/{mediaId}/thumbnail")]
+        public async Task<ActionResult> SetThumbnailImage(Guid sessionId, Guid mediaId)
+        {
+            await _risService.SetThumbnailImageAsync(sessionId, mediaId);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Gửi ảnh đến PACS
+        /// </summary>
+        [HttpPost("capture-sessions/send-to-pacs")]
+        public async Task<ActionResult<SendToPacsResultDto>> SendMediaToPacs([FromBody] SendToPacsRequestDto request)
+        {
+            var result = await _risService.SendMediaToPacsAsync(request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Thống kê thiết bị hàng ngày
+        /// </summary>
+        [HttpGet("capture-devices/{deviceId}/daily-statistics")]
+        public async Task<ActionResult<DeviceDailyStatisticsDto>> GetDeviceDailyStatistics(Guid deviceId, [FromQuery] DateTime date)
+        {
+            var result = await _risService.GetDeviceDailyStatisticsAsync(deviceId, date);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region V. Consultation - Hội chẩn ca chụp
+
+        /// <summary>
+        /// Tìm kiếm phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/search")]
+        public async Task<ActionResult<ConsultationSearchResultDto>> SearchConsultations([FromBody] SearchConsultationDto searchDto)
+        {
+            var result = await _risService.SearchConsultationsAsync(searchDto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy chi tiết phiên hội chẩn
+        /// </summary>
+        [HttpGet("consultations/{sessionId}")]
+        public async Task<ActionResult<ConsultationSessionDto>> GetConsultationSession(Guid sessionId)
+        {
+            var result = await _risService.GetConsultationSessionAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Tạo/Cập nhật phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations")]
+        public async Task<ActionResult<ConsultationSessionDto>> SaveConsultationSession([FromBody] SaveConsultationSessionDto dto)
+        {
+            var result = await _risService.SaveConsultationSessionAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Hủy phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/{sessionId}/cancel")]
+        public async Task<ActionResult> CancelConsultationSession(Guid sessionId, [FromBody] CancelConsultationRequest request)
+        {
+            await _risService.CancelConsultationSessionAsync(sessionId, request.Reason);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Bắt đầu phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/{sessionId}/start")]
+        public async Task<ActionResult<ConsultationSessionDto>> StartConsultationSession(Guid sessionId)
+        {
+            var result = await _risService.StartConsultationSessionAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Kết thúc phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/{sessionId}/end")]
+        public async Task<ActionResult<ConsultationSessionDto>> EndConsultationSession(Guid sessionId)
+        {
+            var result = await _risService.EndConsultationSessionAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Thêm ca vào phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/cases")]
+        public async Task<ActionResult<ConsultationCaseDto>> AddConsultationCase([FromBody] AddConsultationCaseDto dto)
+        {
+            var result = await _risService.AddConsultationCaseAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa ca khỏi phiên hội chẩn
+        /// </summary>
+        [HttpDelete("consultations/cases/{caseId}")]
+        public async Task<ActionResult> RemoveConsultationCase(Guid caseId)
+        {
+            await _risService.RemoveConsultationCaseAsync(caseId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Kết luận ca hội chẩn
+        /// </summary>
+        [HttpPost("consultations/cases/conclude")]
+        public async Task<ActionResult<ConsultationCaseDto>> ConcludeCase([FromBody] ConcludeCaseDto dto)
+        {
+            var result = await _risService.ConcludeCaseAsync(dto.CaseId, dto.Conclusion, dto.Recommendation);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Mời tham gia hội chẩn
+        /// </summary>
+        [HttpPost("consultations/invite")]
+        public async Task<ActionResult<ConsultationParticipantDto>> InviteParticipant([FromBody] InviteParticipantDto dto)
+        {
+            var result = await _risService.InviteParticipantAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Chấp nhận/Từ chối lời mời
+        /// </summary>
+        [HttpPost("consultations/respond-invitation")]
+        public async Task<ActionResult> RespondInvitation([FromBody] RespondInvitationDto dto)
+        {
+            await _risService.RespondInvitationAsync(dto.SessionId, dto.UserId, dto.Accept);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Tham gia phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/{sessionId}/join")]
+        public async Task<ActionResult<ConsultationParticipantDto>> JoinSession(Guid sessionId)
+        {
+            var result = await _risService.JoinSessionAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Rời phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/{sessionId}/leave")]
+        public async Task<ActionResult> LeaveSession(Guid sessionId)
+        {
+            await _risService.LeaveSessionAsync(sessionId);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Upload file đính kèm hội chẩn
+        /// </summary>
+        [HttpPost("consultations/attachments")]
+        public async Task<ActionResult<ConsultationAttachmentDto>> UploadConsultationAttachment([FromBody] AddConsultationAttachmentDto dto)
+        {
+            var result = await _risService.UploadAttachmentAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa file đính kèm
+        /// </summary>
+        [HttpDelete("consultations/attachments/{attachmentId}")]
+        public async Task<ActionResult> DeleteConsultationAttachment(Guid attachmentId)
+        {
+            await _risService.DeleteAttachmentAsync(attachmentId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Gửi tin nhắn thảo luận
+        /// </summary>
+        [HttpPost("consultations/discussions")]
+        public async Task<ActionResult<ConsultationDiscussionDto>> PostDiscussion([FromBody] AddConsultationDiscussionDto dto)
+        {
+            var result = await _risService.PostDiscussionAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa tin nhắn thảo luận
+        /// </summary>
+        [HttpDelete("consultations/discussions/{discussionId}")]
+        public async Task<ActionResult> DeleteDiscussion(Guid discussionId)
+        {
+            await _risService.DeleteDiscussionAsync(discussionId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Lưu ghi chú ảnh DICOM
+        /// </summary>
+        [HttpPost("consultations/image-notes")]
+        public async Task<ActionResult<ConsultationImageNoteDto>> SaveImageNote([FromBody] AddConsultationImageNoteDto dto)
+        {
+            var result = await _risService.SaveImageNoteAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy ghi chú ảnh DICOM
+        /// </summary>
+        [HttpGet("consultations/{sessionId}/image-notes")]
+        public async Task<ActionResult<List<ConsultationImageNoteDto>>> GetImageNotes(Guid sessionId, [FromQuery] string studyInstanceUID)
+        {
+            var result = await _risService.GetImageNotesAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu biên bản hội chẩn
+        /// </summary>
+        [HttpPost("consultations/minutes")]
+        public async Task<ActionResult<ConsultationMinutesDto>> SaveMinutes([FromBody] SaveConsultationMinutesDto dto)
+        {
+            var result = await _risService.SaveMinutesAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy biên bản hội chẩn
+        /// </summary>
+        [HttpGet("consultations/{sessionId}/minutes")]
+        public async Task<ActionResult<ConsultationMinutesDto>> GetMinutes(Guid sessionId)
+        {
+            var result = await _risService.GetMinutesAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Duyệt biên bản hội chẩn
+        /// </summary>
+        [HttpPost("consultations/minutes/{minutesId}/approve")]
+        public async Task<ActionResult> ApproveMinutes(Guid minutesId)
+        {
+            await _risService.ApproveMinutesAsync(minutesId);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Tạo QR Code mời hội chẩn
+        /// </summary>
+        [HttpGet("consultations/{sessionId}/invite-qr")]
+        public async Task<ActionResult<ConsultationInviteQRDto>> GenerateInviteQRCode(Guid sessionId)
+        {
+            var result = await _risService.GenerateInviteQRCodeAsync(sessionId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Bắt đầu/Dừng ghi hình phiên hội chẩn
+        /// </summary>
+        [HttpPost("consultations/{sessionId}/toggle-recording")]
+        public async Task<ActionResult> ToggleRecording(Guid sessionId, [FromQuery] bool startRecording)
+        {
+            await _risService.ToggleRecordingAsync(sessionId, startRecording);
+            return Ok(new { success = true, isRecording = startRecording });
+        }
+
+        #endregion
+
+        #region X. HL7 CDA Integration
+
+        /// <summary>
+        /// Lấy danh sách cấu hình HL7 CDA
+        /// </summary>
+        [HttpGet("hl7-cda/configs")]
+        public async Task<ActionResult<List<HL7CDAConfigDto>>> GetHL7CDAConfigs()
+        {
+            var result = await _risService.GetHL7CDAConfigsAsync();
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu cấu hình HL7 CDA
+        /// </summary>
+        [HttpPost("hl7-cda/configs")]
+        public async Task<ActionResult<HL7CDAConfigDto>> SaveHL7CDAConfig([FromBody] SaveHL7CDAConfigDto dto)
+        {
+            var result = await _risService.SaveHL7CDAConfigAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa cấu hình HL7 CDA
+        /// </summary>
+        [HttpDelete("hl7-cda/configs/{configId}")]
+        public async Task<ActionResult> DeleteHL7CDAConfig(Guid configId)
+        {
+            await _risService.DeleteHL7CDAConfigAsync(configId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Kiểm tra kết nối HL7
+        /// </summary>
+        [HttpGet("hl7-cda/configs/{configId}/test-connection")]
+        public async Task<ActionResult> TestHL7Connection(Guid configId)
+        {
+            var result = await _risService.TestHL7ConnectionAsync(configId);
+            return Ok(new { connected = result });
+        }
+
+        /// <summary>
+        /// Gửi HL7 message
+        /// </summary>
+        [HttpPost("hl7-cda/send-message")]
+        public async Task<ActionResult<SendHL7ResultDto>> SendHL7Message([FromBody] SendHL7MessageDto dto)
+        {
+            var result = await _risService.SendHL7MessageAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Tìm kiếm HL7 messages
+        /// </summary>
+        [HttpPost("hl7-cda/messages/search")]
+        public async Task<ActionResult<HL7MessageSearchResultDto>> SearchHL7Messages([FromBody] SearchHL7MessageDto searchDto)
+        {
+            var result = await _risService.SearchHL7MessagesAsync(searchDto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Retry gửi HL7 message lỗi
+        /// </summary>
+        [HttpPost("hl7-cda/messages/{messageId}/retry")]
+        public async Task<ActionResult> RetryHL7Message(Guid messageId)
+        {
+            await _risService.RetryHL7MessageAsync(messageId);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Tạo tài liệu CDA
+        /// </summary>
+        [HttpPost("hl7-cda/documents")]
+        public async Task<ActionResult<CDADocumentDto>> CreateCDADocument([FromBody] CreateCDADocumentDto dto)
+        {
+            var result = await _risService.CreateCDADocumentAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy tài liệu CDA
+        /// </summary>
+        [HttpGet("hl7-cda/documents/{documentId}")]
+        public async Task<ActionResult<CDADocumentDto>> GetCDADocument(Guid documentId)
+        {
+            var result = await _risService.GetCDADocumentAsync(documentId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Gửi tài liệu CDA
+        /// </summary>
+        [HttpPost("hl7-cda/documents/send")]
+        public async Task<ActionResult> SendCDADocument([FromBody] SendCDADocumentDto dto)
+        {
+            await _risService.SendCDADocumentAsync(dto);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Nhận chỉ định từ HIS qua HL7
+        /// </summary>
+        [HttpPost("hl7-cda/receive-order")]
+        public async Task<ActionResult> ReceiveHL7Order([FromBody] ReceiveHL7OrderRequest request)
+        {
+            var orderId = await _risService.ReceiveHL7OrderAsync(request.HL7Message);
+            return Ok(new { success = true, orderId });
+        }
+
+        /// <summary>
+        /// Gửi kết quả về HIS qua HL7
+        /// </summary>
+        [HttpPost("hl7-cda/reports/{reportId}/send-result")]
+        public async Task<ActionResult<SendHL7ResultDto>> SendHL7Result(Guid reportId, [FromQuery] bool withSignature = false)
+        {
+            var result = await _risService.SendHL7ResultAsync(reportId, withSignature);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Hủy kết quả đã gửi về HIS
+        /// </summary>
+        [HttpPost("hl7-cda/reports/{reportId}/cancel-result")]
+        public async Task<ActionResult> CancelHL7Result(Guid reportId, [FromBody] CancelHL7ResultRequest request)
+        {
+            await _risService.CancelHL7ResultAsync(reportId, request.Reason);
+            return Ok(new { success = true });
+        }
+
+        #endregion
+
+        #region IX. Online Help - Hướng dẫn sử dụng
+
+        /// <summary>
+        /// Lấy danh mục hướng dẫn
+        /// </summary>
+        [HttpGet("help/categories")]
+        public async Task<ActionResult<List<HelpCategoryDto>>> GetHelpCategories([FromQuery] Guid? parentId = null)
+        {
+            var result = await _risService.GetHelpCategoriesAsync(parentId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu danh mục hướng dẫn
+        /// </summary>
+        [HttpPost("help/categories")]
+        public async Task<ActionResult<HelpCategoryDto>> SaveHelpCategory([FromBody] SaveHelpCategoryDto dto)
+        {
+            var result = await _risService.SaveHelpCategoryAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa danh mục hướng dẫn
+        /// </summary>
+        [HttpDelete("help/categories/{categoryId}")]
+        public async Task<ActionResult> DeleteHelpCategory(Guid categoryId)
+        {
+            await _risService.DeleteHelpCategoryAsync(categoryId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Tìm kiếm bài viết hướng dẫn
+        /// </summary>
+        [HttpPost("help/articles/search")]
+        public async Task<ActionResult<HelpSearchResultDto>> SearchHelpArticles([FromBody] SearchHelpDto searchDto)
+        {
+            var result = await _risService.SearchHelpArticlesAsync(searchDto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy chi tiết bài viết
+        /// </summary>
+        [HttpGet("help/articles/{articleId}")]
+        public async Task<ActionResult<HelpArticleDto>> GetHelpArticle(Guid articleId)
+        {
+            // Tăng lượt xem
+            await _risService.IncrementArticleViewCountAsync(articleId);
+            var result = await _risService.GetHelpArticleAsync(articleId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu bài viết hướng dẫn
+        /// </summary>
+        [HttpPost("help/articles")]
+        public async Task<ActionResult<HelpArticleDto>> SaveHelpArticle([FromBody] SaveHelpArticleDto dto)
+        {
+            var result = await _risService.SaveHelpArticleAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa bài viết hướng dẫn
+        /// </summary>
+        [HttpDelete("help/articles/{articleId}")]
+        public async Task<ActionResult> DeleteHelpArticle(Guid articleId)
+        {
+            await _risService.DeleteHelpArticleAsync(articleId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Lấy danh sách troubleshooting
+        /// </summary>
+        [HttpGet("help/troubleshooting")]
+        public async Task<ActionResult<List<TroubleshootingDto>>> GetTroubleshootingList(
+            [FromQuery] string module = null,
+            [FromQuery] int? severity = null)
+        {
+            var result = await _risService.GetTroubleshootingListAsync(module, severity);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu troubleshooting
+        /// </summary>
+        [HttpPost("help/troubleshooting")]
+        public async Task<ActionResult<TroubleshootingDto>> SaveTroubleshooting([FromBody] SaveTroubleshootingDto dto)
+        {
+            var result = await _risService.SaveTroubleshootingAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa troubleshooting
+        /// </summary>
+        [HttpDelete("help/troubleshooting/{troubleshootingId}")]
+        public async Task<ActionResult> DeleteTroubleshooting(Guid troubleshootingId)
+        {
+            await _risService.DeleteTroubleshootingAsync(troubleshootingId);
+            return NoContent();
+        }
+
+        #endregion
+
+        #region VII. CLS Screen - Màn hình cận lâm sàng
+
+        /// <summary>
+        /// Lấy cấu hình màn hình CLS
+        /// </summary>
+        [HttpGet("cls-screen/config")]
+        public async Task<ActionResult<CLSScreenConfigDto>> GetCLSScreenConfig()
+        {
+            var result = await _risService.GetCLSScreenConfigAsync();
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu cấu hình màn hình CLS
+        /// </summary>
+        [HttpPost("cls-screen/config")]
+        public async Task<ActionResult<CLSScreenConfigDto>> SaveCLSScreenConfig([FromBody] SaveCLSScreenConfigDto dto)
+        {
+            var result = await _risService.SaveCLSScreenConfigAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách mẫu mô tả theo dịch vụ
+        /// </summary>
+        [HttpGet("services/{serviceId}/description-templates")]
+        public async Task<ActionResult<List<ServiceDescriptionTemplateDto>>> GetServiceDescriptionTemplates(Guid serviceId)
+        {
+            var result = await _risService.GetServiceDescriptionTemplatesAsync(serviceId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu mẫu mô tả dịch vụ
+        /// </summary>
+        [HttpPost("services/description-templates")]
+        public async Task<ActionResult<ServiceDescriptionTemplateDto>> SaveServiceDescriptionTemplate([FromBody] SaveServiceDescriptionTemplateDto dto)
+        {
+            var result = await _risService.SaveServiceDescriptionTemplateAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa mẫu mô tả dịch vụ
+        /// </summary>
+        [HttpDelete("services/description-templates/{templateId}")]
+        public async Task<ActionResult> DeleteServiceDescriptionTemplate(Guid templateId)
+        {
+            await _risService.DeleteServiceDescriptionTemplateAsync(templateId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Lấy lịch sử chẩn đoán ca chụp
+        /// </summary>
+        [HttpGet("requests/{requestId}/diagnosis-history")]
+        public async Task<ActionResult<List<DiagnosisHistoryDto>>> GetDiagnosisHistory(Guid requestId)
+        {
+            var result = await _risService.GetDiagnosisHistoryAsync(requestId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy lịch sử chụp chiếu của bệnh nhân
+        /// </summary>
+        [HttpGet("patients/{patientId}/exam-history")]
+        public async Task<ActionResult<List<RadiologyWaitingListDto>>> GetPatientExamHistory(
+            Guid patientId,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            var result = await _risService.GetPatientExamHistoryAsync(patientId, fromDate, toDate);
+            return Ok(result);
+        }
+
+        #endregion
     }
 
     #region Request DTOs

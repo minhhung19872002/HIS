@@ -32,6 +32,14 @@ import {
   CameraOutlined,
   EyeOutlined,
   PictureOutlined,
+  QrcodeOutlined,
+  TagsOutlined,
+  EditOutlined,
+  SafetyCertificateOutlined,
+  BarChartOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -743,7 +751,7 @@ const Radiology: React.FC = () => {
               size="small"
               icon={<PictureOutlined />}
               onClick={() => window.open(
-                `http://localhost:8042/ohif/viewer?StudyInstanceUIDs=${record.studyInstanceUID}`,
+                `/radiology/viewer?study=${record.studyInstanceUID}`,
                 '_blank'
               )}
             >
@@ -816,16 +824,16 @@ const Radiology: React.FC = () => {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 200,
+      width: 320,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space wrap>
           {record.hasImages && record.studyInstanceUID && (
             <Button
               size="small"
               icon={<PictureOutlined />}
               onClick={() => window.open(
-                `http://localhost:8042/ohif/viewer?StudyInstanceUIDs=${record.studyInstanceUID}`,
+                `/radiology/viewer?study=${record.studyInstanceUID}`,
                 '_blank'
               )}
             >
@@ -838,6 +846,40 @@ const Radiology: React.FC = () => {
             onClick={() => message.info('In kết quả...')}
           >
             In KQ
+          </Button>
+          <Button
+            size="small"
+            icon={<QrcodeOutlined />}
+            onClick={async () => {
+              try {
+                const result = await risApi.generateQRCode({
+                  dataType: 'ResultLink',
+                  referenceId: record.id,
+                });
+                Modal.info({
+                  title: 'QR Code chia sẻ kết quả',
+                  content: (
+                    <div style={{ textAlign: 'center' }}>
+                      <img src={result.data.qrCodeImage} alt="QR Code" style={{ maxWidth: 200 }} />
+                      <p>Quét mã để xem kết quả</p>
+                    </div>
+                  ),
+                });
+              } catch {
+                message.error('Không thể tạo QR Code');
+              }
+            }}
+          >
+            QR
+          </Button>
+          <Button
+            size="small"
+            icon={<SafetyCertificateOutlined />}
+            onClick={() => message.info('Ký số kết quả...')}
+            type="primary"
+            ghost
+          >
+            Ký số
           </Button>
         </Space>
       ),
@@ -1059,6 +1101,317 @@ const Radiology: React.FC = () => {
                       showTotal: (total) => `Tổng: ${total} báo cáo`,
                     }}
                   />
+                </>
+              ),
+            },
+            {
+              key: 'statistics',
+              label: (
+                <span>
+                  <BarChartOutlined />
+                  Thống kê
+                </span>
+              ),
+              children: (
+                <>
+                  <Alert
+                    message="Thống kê chẩn đoán hình ảnh"
+                    description="Xem thống kê số lượng, doanh thu theo loại dịch vụ, theo thời gian"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col>
+                      <DatePicker.RangePicker
+                        format="DD/MM/YYYY"
+                        placeholder={['Từ ngày', 'Đến ngày']}
+                      />
+                    </Col>
+                    <Col>
+                      <Button type="primary" icon={<SearchOutlined />}>
+                        Xem thống kê
+                      </Button>
+                    </Col>
+                    <Col>
+                      <Button icon={<PrinterOutlined />}>
+                        Xuất Excel
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>0</div>
+                          <div>Tổng số ca</div>
+                        </div>
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>0</div>
+                          <div>Đã hoàn thành</div>
+                        </div>
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#faad14' }}>0</div>
+                          <div>Đang chờ</div>
+                        </div>
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#722ed1' }}>0 phút</div>
+                          <div>TB TAT</div>
+                        </div>
+                      </Card>
+                    </Col>
+                  </Row>
+                </>
+              ),
+            },
+            {
+              key: 'tags',
+              label: (
+                <span>
+                  <TagsOutlined />
+                  Quản lý Tag
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
+                      <Search
+                        placeholder="Tìm tag..."
+                        allowClear
+                        enterButton={<SearchOutlined />}
+                        style={{ maxWidth: 300 }}
+                      />
+                    </Col>
+                    <Col>
+                      <Button type="primary" icon={<TagsOutlined />}>
+                        Thêm Tag mới
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Alert
+                    message="Quản lý Tag ca chụp"
+                    description="Tạo và quản lý các tag để phân loại, đánh dấu ca chụp. Hỗ trợ gắn nhiều tag cho một ca."
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Space wrap style={{ marginBottom: 16 }}>
+                    <Tag color="red">Khẩn cấp</Tag>
+                    <Tag color="orange">Cần hội chẩn</Tag>
+                    <Tag color="blue">Theo dõi</Tag>
+                    <Tag color="green">VIP</Tag>
+                    <Tag color="purple">Bảo hiểm</Tag>
+                  </Space>
+                </>
+              ),
+            },
+            {
+              key: 'dutySchedule',
+              label: (
+                <span>
+                  <TeamOutlined />
+                  Lịch trực
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col>
+                      <DatePicker.RangePicker
+                        format="DD/MM/YYYY"
+                        placeholder={['Từ ngày', 'Đến ngày']}
+                      />
+                    </Col>
+                    <Col>
+                      <Select placeholder="Chọn phòng" style={{ width: 200 }} allowClear>
+                        <Select.Option value="room1">Phòng X-quang 1</Select.Option>
+                        <Select.Option value="room2">Phòng CT</Select.Option>
+                        <Select.Option value="room3">Phòng MRI</Select.Option>
+                        <Select.Option value="room4">Phòng Siêu âm</Select.Option>
+                      </Select>
+                    </Col>
+                    <Col>
+                      <Button type="primary" icon={<CalendarOutlined />}>
+                        Tạo lịch trực
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Alert
+                    message="Quản lý lịch phân công trực"
+                    description="Phân công bác sĩ, kỹ thuật viên trực theo ca, theo phòng. Hỗ trợ tạo lịch hàng loạt."
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'integrationLogs',
+              label: (
+                <span>
+                  <HistoryOutlined />
+                  Log tích hợp
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col>
+                      <DatePicker.RangePicker
+                        format="DD/MM/YYYY"
+                        placeholder={['Từ ngày', 'Đến ngày']}
+                      />
+                    </Col>
+                    <Col>
+                      <Select placeholder="Loại message" style={{ width: 150 }} allowClear>
+                        <Select.Option value="ORM">ORM (Order)</Select.Option>
+                        <Select.Option value="ORU">ORU (Result)</Select.Option>
+                        <Select.Option value="ADT">ADT (Patient)</Select.Option>
+                      </Select>
+                    </Col>
+                    <Col>
+                      <Select placeholder="Trạng thái" style={{ width: 120 }} allowClear>
+                        <Select.Option value="Success">Thành công</Select.Option>
+                        <Select.Option value="Failed">Lỗi</Select.Option>
+                      </Select>
+                    </Col>
+                    <Col>
+                      <Button type="primary" icon={<SearchOutlined />}>
+                        Tìm kiếm
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Alert
+                    message="Log tích hợp HIS-RIS"
+                    description="Theo dõi các message trao đổi giữa HIS và RIS. Hỗ trợ retry message lỗi."
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row gutter={16}>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 'bold' }}>0</div>
+                          <div>Tổng message</div>
+                        </div>
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#52c41a' }}>0</div>
+                          <div>Thành công</div>
+                        </div>
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#f5222d' }}>0</div>
+                          <div>Lỗi</div>
+                        </div>
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 'bold' }}>0 ms</div>
+                          <div>TB Response</div>
+                        </div>
+                      </Card>
+                    </Col>
+                  </Row>
+                </>
+              ),
+            },
+            {
+              key: 'settings',
+              label: (
+                <span>
+                  <SettingOutlined />
+                  Cài đặt
+                </span>
+              ),
+              children: (
+                <>
+                  <Alert
+                    message="Cài đặt RIS/PACS"
+                    description="Quản lý mẫu chẩn đoán, từ viết tắt, cấu hình nhãn in, ký số"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row gutter={[16, 16]}>
+                    <Col span={8}>
+                      <Card
+                        title="Mẫu chẩn đoán"
+                        size="small"
+                        extra={<Button type="link" size="small">Quản lý</Button>}
+                      >
+                        <p>Quản lý các mẫu mô tả, kết luận thường dùng cho từng loại dịch vụ CĐHA.</p>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card
+                        title="Từ viết tắt"
+                        size="small"
+                        extra={<Button type="link" size="small">Quản lý</Button>}
+                      >
+                        <p>Quản lý bộ từ viết tắt để tự động mở rộng khi nhập kết quả.</p>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card
+                        title="Cấu hình nhãn in"
+                        size="small"
+                        extra={<Button type="link" size="small">Quản lý</Button>}
+                      >
+                        <p>Cấu hình mẫu nhãn dán cho ca chụp, bao gồm barcode/QR code.</p>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card
+                        title="Cấu hình ký số"
+                        size="small"
+                        extra={<Button type="link" size="small">Quản lý</Button>}
+                      >
+                        <p>Cấu hình các phương thức ký số: USB Token, eKYC, SignServer, SmartCA.</p>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card
+                        title="Quản lý Modality"
+                        size="small"
+                        extra={<Button type="link" size="small">Quản lý</Button>}
+                      >
+                        <p>Cấu hình kết nối các thiết bị chẩn đoán hình ảnh (CT, MRI, X-quang...).</p>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card
+                        title="Kết nối PACS"
+                        size="small"
+                        extra={<Button type="link" size="small">Quản lý</Button>}
+                      >
+                        <p>Cấu hình kết nối với PACS server (tùy chọn).</p>
+                      </Card>
+                    </Col>
+                  </Row>
                 </>
               ),
             },

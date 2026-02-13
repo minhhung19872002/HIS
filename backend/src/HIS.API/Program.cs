@@ -12,13 +12,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// HttpClient for PACS/Orthanc integration
-builder.Services.AddHttpClient("Orthanc", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["Orthanc:BaseUrl"] ?? "http://localhost:8042");
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
-
 // Controllers
 builder.Services.AddControllers();
 

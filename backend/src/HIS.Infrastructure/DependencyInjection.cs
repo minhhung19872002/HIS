@@ -5,6 +5,7 @@ using HIS.Core.Interfaces;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Services;
+using HIS.Infrastructure.Services.HL7;
 
 namespace HIS.Infrastructure;
 
@@ -46,6 +47,11 @@ public static class DependencyInjection
 
         // Phân hệ 8: Chẩn đoán hình ảnh RIS/PACS (Radiology)
         services.AddScoped<IRISCompleteService, RISCompleteService>();
+
+        // Phân hệ 7: Xét nghiệm LIS (Laboratory Information System)
+        services.AddSingleton<HL7ConnectionManager>();
+        services.AddScoped<ILISCompleteService, LISCompleteService>();
+        services.AddHostedService<HL7ReceiverService>(); // TCP listener for HL7 messages
 
         // ============ Luồng 11-20: Extended Workflow Services (Real Database Implementations) ============
 

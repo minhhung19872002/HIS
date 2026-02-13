@@ -108,7 +108,6 @@ const Laboratory: React.FC = () => {
   const [isResultEntryModalOpen, setIsResultEntryModalOpen] = useState(false);
   const [isResultViewModalOpen, setIsResultViewModalOpen] = useState(false);
   const [collectionForm] = Form.useForm();
-  const [_resultForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -116,10 +115,13 @@ const Laboratory: React.FC = () => {
   const fetchLabRequests = async () => {
     setLoading(true);
     try {
-      const response = await laboratoryApi.getLabRequests({ search: searchText || undefined });
-      const data = (response as any)?.data || response;
+      const data = await laboratoryApi.getLabRequests({ search: searchText || undefined });
+      console.log('Lab requests from API:', data);
       if (data && Array.isArray(data)) {
         setLabRequests(data);
+      } else {
+        console.warn('Lab requests data is not an array:', data);
+        setLabRequests([]);
       }
     } catch (error) {
       console.error('Error fetching lab requests:', error);
@@ -141,14 +143,16 @@ const Laboratory: React.FC = () => {
     }
   };
 
-  // Load data on mount
+  // Load data on mount and when search text changes
   useEffect(() => {
-    fetchLabRequests();
-    fetchTestResults();
-  }, []);
+    // Skip the debounce on initial load
+    if (searchText === '') {
+      fetchLabRequests();
+      fetchTestResults();
+      return;
+    }
 
-  // Reload when search text changes
-  useEffect(() => {
+    // Debounce search
     const timer = setTimeout(() => {
       fetchLabRequests();
       fetchTestResults();
@@ -327,6 +331,41 @@ const Laboratory: React.FC = () => {
   const handleEnterResults = (record: LabRequest) => {
     setSelectedRequest(record);
 
+    // Convert tests to parameters for the modal
+    const parameters: TestParameter[] = (record.tests || []).map(test => {
+      // Determine status based on result value and reference ranges
+      let status: 'normal' | 'high' | 'low' | 'critical' | null = null;
+      const numValue = test.result ? parseFloat(test.result) : null;
+      
+      if (numValue !== null && !isNaN(numValue)) {
+        if (test.criticalLow !== undefined && test.criticalLow !== null && numValue < test.criticalLow) {
+          status = 'critical';
+        } else if (test.criticalHigh !== undefined && test.criticalHigh !== null && numValue > test.criticalHigh) {
+          status = 'critical';
+        } else if (test.normalMin !== undefined && test.normalMin !== null && numValue < test.normalMin) {
+          status = 'low';
+        } else if (test.normalMax !== undefined && test.normalMax !== null && numValue > test.normalMax) {
+          status = 'high';
+        } else {
+          status = 'normal';
+        }
+      }
+
+      return {
+        id: test.id,
+        name: test.testName,
+        value: test.result || null,
+        unit: test.unit || '',
+        referenceRange: test.referenceRange || '',
+        normalMin: test.normalMin,
+        normalMax: test.normalMax,
+        criticalLow: test.criticalLow,
+        criticalHigh: test.criticalHigh,
+        status: status,
+        inputType: 'number' as const
+      };
+    });
+
     // Find or create test result
     let result = testResults.find(r => r.requestId === record.id);
     if (!result) {
@@ -336,11 +375,14 @@ const Laboratory: React.FC = () => {
         requestCode: record.requestCode,
         patientName: record.patientName,
         patientCode: record.patientCode,
-        testName: record.requestedTests[0],
+        testName: record.requestedTests?.join(', ') || 'Xét nghiệm',
         status: 0,
-        parameters: [], // Parameters will be loaded from API
+        parameters: parameters,
       };
       setTestResults(prev => [...prev, result!]);
+    } else {
+      // Update parameters if tests data is available
+      result = { ...result, parameters: parameters };
     }
 
     setSelectedResult(result);
@@ -591,7 +633,7 @@ const Laboratory: React.FC = () => {
           <Button
             size="small"
             icon={<PrinterOutlined />}
-            onClick={() => message.info(`In nhãn barcode ${record.sampleBarcode}`)}
+            onClick={() => laboratoryApi.printBarcode(record.id, record.sampleBarcode)}
           >
             In nhãn
           </Button>
@@ -843,7 +885,7 @@ const Laboratory: React.FC = () => {
   const pendingRequests = labRequests.filter(r => r.status === 0);
   const collectedSamples = labRequests.filter(r => r.status === 1);
   const processingSamples = labRequests.filter(r => r.status === 1 || r.status === 2);
-  const readyForResults = labRequests.filter(r => r.status === 3);
+  const readyForResults = labRequests.filter(r => r.status === 2 || r.status === 3);
   const enteredResults = testResults.filter(r => r.status === 1 || r.status === 2);
 
   return (
@@ -1008,6 +1050,10 @@ const Laboratory: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} phiếu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => handleEnterResults(record),
+                      style: { cursor: 'pointer' }
+                    })}
                   />
                 </>
               ),

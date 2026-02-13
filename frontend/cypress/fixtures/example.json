@@ -1,0 +1,12 @@
+{
+  "testUser": {
+    "username": "admin",
+    "password": "Admin@123"
+  },
+  "testPatient": {
+    "name": "Nguyen Van A",
+    "dob": "1990-01-15",
+    "gender": "male",
+    "phone": "0901234567"
+  }
+}

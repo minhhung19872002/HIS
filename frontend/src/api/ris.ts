@@ -692,6 +692,400 @@ export interface ImageEditDto {
   parameters: string;
 }
 
+// Print Label interfaces
+export interface PrintLabelRequestDto {
+  orderItemId: string;
+  labelConfigId?: string;
+  copies?: number;
+  printerId?: string;
+}
+
+export interface LabelDataDto {
+  orderItemId: string;
+  patientCode: string;
+  patientName: string;
+  dob?: string;
+  gender?: string;
+  serviceName: string;
+  serviceCode: string;
+  orderCode: string;
+  orderDate: string;
+  roomName?: string;
+  queueNumber?: number;
+  barcode: string;
+  qrcode: string;
+  labelContent: string;
+}
+
+export interface RadiologyLabelConfigDto {
+  id: string;
+  code: string;
+  name: string;
+  serviceTypeId?: string;
+  serviceTypeName?: string;
+  labelTemplate: string;
+  width: number;
+  height: number;
+  includeBarcode: boolean;
+  includeQRCode: boolean;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
+// Diagnosis Template interfaces
+export interface DiagnosisTemplateDto {
+  id: string;
+  code: string;
+  name: string;
+  serviceTypeId?: string;
+  serviceTypeName?: string;
+  modalityType?: string;
+  bodyPart?: string;
+  findings: string;
+  conclusion: string;
+  recommendation?: string;
+  sortOrder: number;
+  isPublic: boolean;
+  isActive: boolean;
+  createdById?: string;
+  createdByName?: string;
+}
+
+export interface SaveDiagnosisTemplateDto {
+  id?: string;
+  code: string;
+  name: string;
+  serviceTypeId?: string;
+  modalityType?: string;
+  bodyPart?: string;
+  findings: string;
+  conclusion: string;
+  recommendation?: string;
+  sortOrder?: number;
+  isPublic?: boolean;
+  isActive?: boolean;
+}
+
+// Abbreviation interfaces
+export interface AbbreviationDto {
+  id: string;
+  abbreviation: string;
+  expansion: string;
+  category?: string;
+  language?: string;
+  isPublic: boolean;
+  isActive: boolean;
+  createdById?: string;
+  createdByName?: string;
+}
+
+export interface SaveAbbreviationDto {
+  id?: string;
+  abbreviation: string;
+  expansion: string;
+  category?: string;
+  language?: string;
+  isPublic?: boolean;
+  isActive?: boolean;
+}
+
+export interface ExpandAbbreviationRequestDto {
+  text: string;
+  language?: string;
+  category?: string;
+}
+
+export interface ExpandAbbreviationResultDto {
+  originalText: string;
+  expandedText: string;
+  expansionsApplied: number;
+}
+
+// QR Code interfaces
+export interface GenerateQRCodeRequestDto {
+  dataType: string;  // PatientInfo, OrderInfo, ResultLink
+  referenceId: string;
+  size?: number;
+  format?: string;
+}
+
+export interface QRCodeResultDto {
+  dataType: string;
+  referenceId: string;
+  qrCodeImage: string;
+  qrData: string;
+  expiresAt?: string;
+}
+
+export interface ScanQRCodeResultDto {
+  dataType: string;
+  referenceId: string;
+  isValid: boolean;
+  data?: Record<string, unknown>;
+  errorMessage?: string;
+}
+
+export interface ShareResultQRDto {
+  resultId: string;
+  shareUrl: string;
+  qrCodeImage: string;
+  validUntil: string;
+}
+
+// Duty Schedule interfaces
+export interface DutyScheduleDto {
+  id: string;
+  date: string;
+  shiftType: string;
+  startTime: string;
+  endTime: string;
+  roomId?: string;
+  roomName?: string;
+  userId: string;
+  userName: string;
+  role: string;
+  note?: string;
+  status: string;
+}
+
+export interface SaveDutyScheduleDto {
+  id?: string;
+  date: string;
+  shiftType: string;
+  startTime: string;
+  endTime: string;
+  roomId?: string;
+  userId: string;
+  role: string;
+  note?: string;
+}
+
+export interface BatchCreateDutyScheduleDto {
+  fromDate: string;
+  toDate: string;
+  schedules: DutyScheduleTemplateDto[];
+}
+
+export interface DutyScheduleTemplateDto {
+  dayOfWeek: number;
+  shiftType: string;
+  startTime: string;
+  endTime: string;
+  roomId?: string;
+  userId: string;
+  role: string;
+}
+
+// Room Assignment interfaces
+export interface AssignRoomRequestDto {
+  orderItemId: string;
+  roomId: string;
+  priority?: number;
+  note?: string;
+}
+
+export interface RoomAssignmentDto {
+  id: string;
+  orderItemId: string;
+  orderCode: string;
+  patientName: string;
+  serviceName: string;
+  roomId: string;
+  roomName: string;
+  queueNumber: number;
+  priority: number;
+  assignedTime: string;
+  calledTime?: string;
+  startTime?: string;
+  endTime?: string;
+  status: string;
+  note?: string;
+}
+
+export interface RoomQueueDto {
+  roomId: string;
+  roomName: string;
+  currentNumber?: number;
+  nextNumber?: number;
+  waitingCount: number;
+  inProgressCount: number;
+  queue: RoomAssignmentDto[];
+}
+
+export interface RoomStatisticsDto {
+  roomId: string;
+  roomName: string;
+  date: string;
+  totalPatients: number;
+  completedPatients: number;
+  averageWaitTimeMinutes: number;
+  averageExamTimeMinutes: number;
+  utilizationPercent: number;
+}
+
+// Tag interfaces
+export interface RadiologyTagDto {
+  id: string;
+  code: string;
+  name: string;
+  color: string;
+  description?: string;
+  isSystem: boolean;
+  isActive: boolean;
+}
+
+export interface SaveRadiologyTagDto {
+  id?: string;
+  code: string;
+  name: string;
+  color: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface AssignTagRequestDto {
+  requestId: string;
+  tagIds: string[];
+}
+
+export interface TaggedRequestDto {
+  requestId: string;
+  orderCode: string;
+  patientName: string;
+  serviceName: string;
+  requestDate: string;
+  status: string;
+  tags: RadiologyTagDto[];
+}
+
+// Integration Log interfaces
+export interface IntegrationLogDto {
+  id: string;
+  logTime: string;
+  direction: string;
+  messageType: string;
+  sourceSystem: string;
+  targetSystem: string;
+  patientId?: string;
+  patientName?: string;
+  orderCode?: string;
+  messageContent?: string;
+  status: string;
+  errorMessage?: string;
+  responseTime?: number;
+}
+
+export interface SearchIntegrationLogDto {
+  fromDate: string;
+  toDate: string;
+  direction?: string;
+  messageType?: string;
+  status?: string;
+  keyword?: string;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface IntegrationLogSearchResultDto {
+  items: IntegrationLogDto[];
+  totalCount: number;
+  pageIndex: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface IntegrationLogStatisticsDto {
+  fromDate: string;
+  toDate: string;
+  totalMessages: number;
+  successCount: number;
+  failedCount: number;
+  averageResponseTimeMs: number;
+  byMessageType: MessageTypeStatDto[];
+  byDay: DailyLogStatDto[];
+}
+
+export interface MessageTypeStatDto {
+  messageType: string;
+  count: number;
+  successCount: number;
+  failedCount: number;
+}
+
+export interface DailyLogStatDto {
+  date: string;
+  count: number;
+  successCount: number;
+  failedCount: number;
+}
+
+// Digital Signature interfaces
+export interface SignResultRequestDto {
+  reportId: string;
+  signatureType: string;  // USBToken, eKYC, SignServer, SmartCA
+  pin?: string;
+  otp?: string;
+  certificateId?: string;
+}
+
+export interface SignResultResponseDto {
+  success: boolean;
+  message: string;
+  signedTime?: string;
+  signatureId?: string;
+  certificateInfo?: CertificateInfoDto;
+}
+
+export interface CertificateInfoDto {
+  subject: string;
+  issuer: string;
+  serialNumber: string;
+  validFrom: string;
+  validTo: string;
+  thumbprint: string;
+}
+
+export interface SignatureHistoryDto {
+  id: string;
+  reportId: string;
+  signedTime: string;
+  signedById: string;
+  signedByName: string;
+  signatureType: string;
+  certificateSubject?: string;
+  certificateIssuer?: string;
+  isValid: boolean;
+}
+
+export interface RadiologyDigitalSignatureConfigDto {
+  id: string;
+  signatureType: string;
+  name: string;
+  serverUrl?: string;
+  apiKey?: string;
+  certificatePath?: string;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
+// Statistics interfaces
+export interface ExamStatisticsByServiceTypeDto {
+  fromDate: string;
+  toDate: string;
+  totalExams: number;
+  serviceTypes: ServiceTypeStatDto[];
+}
+
+export interface ServiceTypeStatDto {
+  serviceTypeId: string;
+  serviceTypeName: string;
+  examCount: number;
+  completedCount: number;
+  pendingCount: number;
+  averageTATMinutes: number;
+  revenue: number;
+}
+
 // Room interfaces
 export interface RadiologyRoomDto {
   id: string;
@@ -1065,6 +1459,869 @@ export const saveSchedule = (data: SaveRadiologyScheduleDto) =>
 
 // #endregion
 
+// #region Print Label APIs
+
+export const printLabel = (data: PrintLabelRequestDto) =>
+  apiClient.post<LabelDataDto>('/RISComplete/print-label', data);
+
+export const getLabelConfigs = (serviceTypeId?: string) =>
+  apiClient.get<RadiologyLabelConfigDto[]>('/RISComplete/label-configs', {
+    params: { serviceTypeId }
+  });
+
+// #endregion
+
+// #region Diagnosis Template APIs
+
+export const getDiagnosisTemplates = (
+  keyword?: string,
+  serviceTypeId?: string,
+  modalityType?: string,
+  includePrivate?: boolean
+) =>
+  apiClient.get<DiagnosisTemplateDto[]>('/RISComplete/diagnosis-templates', {
+    params: { keyword, serviceTypeId, modalityType, includePrivate }
+  });
+
+export const saveDiagnosisTemplate = (data: SaveDiagnosisTemplateDto) =>
+  apiClient.post<DiagnosisTemplateDto>('/RISComplete/diagnosis-templates', data);
+
+export const deleteDiagnosisTemplate = (templateId: string) =>
+  apiClient.delete(`/RISComplete/diagnosis-templates/${templateId}`);
+
+// #endregion
+
+// #region Abbreviation APIs
+
+export const getAbbreviations = (
+  keyword?: string,
+  category?: string,
+  includePrivate?: boolean
+) =>
+  apiClient.get<AbbreviationDto[]>('/RISComplete/abbreviations', {
+    params: { keyword, category, includePrivate }
+  });
+
+export const saveAbbreviation = (data: SaveAbbreviationDto) =>
+  apiClient.post<AbbreviationDto>('/RISComplete/abbreviations', data);
+
+export const deleteAbbreviation = (abbreviationId: string) =>
+  apiClient.delete(`/RISComplete/abbreviations/${abbreviationId}`);
+
+export const expandAbbreviations = (data: ExpandAbbreviationRequestDto) =>
+  apiClient.post<ExpandAbbreviationResultDto>('/RISComplete/abbreviations/expand', data);
+
+// #endregion
+
+// #region QR Code APIs
+
+export const generateQRCode = (data: GenerateQRCodeRequestDto) =>
+  apiClient.post<QRCodeResultDto>('/RISComplete/qrcode/generate', data);
+
+export const scanQRCode = (qrData: string) =>
+  apiClient.post<ScanQRCodeResultDto>('/RISComplete/qrcode/scan', { qrData });
+
+export const createShareResultQR = (resultId: string, validityHours?: number) =>
+  apiClient.post<ShareResultQRDto>(`/RISComplete/results/${resultId}/share-qr`, null, {
+    params: { validityHours }
+  });
+
+// #endregion
+
+// #region Duty Schedule APIs
+
+export const getDutySchedules = (
+  fromDate: string,
+  toDate: string,
+  roomId?: string,
+  userId?: string
+) =>
+  apiClient.get<DutyScheduleDto[]>('/RISComplete/duty-schedules', {
+    params: { fromDate, toDate, roomId, userId }
+  });
+
+export const saveDutySchedule = (data: SaveDutyScheduleDto) =>
+  apiClient.post<DutyScheduleDto>('/RISComplete/duty-schedules', data);
+
+export const deleteDutySchedule = (scheduleId: string) =>
+  apiClient.delete(`/RISComplete/duty-schedules/${scheduleId}`);
+
+export const batchCreateDutySchedules = (data: BatchCreateDutyScheduleDto) =>
+  apiClient.post<DutyScheduleDto[]>('/RISComplete/duty-schedules/batch', data);
+
+// #endregion
+
+// #region Room Assignment APIs
+
+export const assignRoom = (data: AssignRoomRequestDto) =>
+  apiClient.post<RoomAssignmentDto>('/RISComplete/room-assignments', data);
+
+export const getRoomQueue = (roomId: string) =>
+  apiClient.get<RoomQueueDto>(`/RISComplete/rooms/${roomId}/queue`);
+
+export const callNextPatient = (roomId: string) =>
+  apiClient.post<RoomAssignmentDto>(`/RISComplete/rooms/${roomId}/call-next`);
+
+export const getRoomStatistics = (date: string) =>
+  apiClient.get<RoomStatisticsDto[]>('/RISComplete/rooms/statistics', {
+    params: { date }
+  });
+
+// #endregion
+
+// #region Tag APIs
+
+export const getTags = (keyword?: string, includeInactive?: boolean) =>
+  apiClient.get<RadiologyTagDto[]>('/RISComplete/tags', {
+    params: { keyword, includeInactive }
+  });
+
+export const saveTag = (data: SaveRadiologyTagDto) =>
+  apiClient.post<RadiologyTagDto>('/RISComplete/tags', data);
+
+export const deleteTag = (tagId: string) =>
+  apiClient.delete(`/RISComplete/tags/${tagId}`);
+
+export const assignTagsToRequest = (data: AssignTagRequestDto) =>
+  apiClient.post<boolean>('/RISComplete/requests/tags', data);
+
+export const getRequestsByTag = (
+  tagId: string,
+  fromDate?: string,
+  toDate?: string
+) =>
+  apiClient.get<TaggedRequestDto[]>(`/RISComplete/tags/${tagId}/requests`, {
+    params: { fromDate, toDate }
+  });
+
+// #endregion
+
+// #region Integration Log APIs
+
+export const searchIntegrationLogs = (data: SearchIntegrationLogDto) =>
+  apiClient.post<IntegrationLogSearchResultDto>('/RISComplete/integration-logs/search', data);
+
+export const getIntegrationLogStatistics = (fromDate: string, toDate: string) =>
+  apiClient.get<IntegrationLogStatisticsDto>('/RISComplete/integration-logs/statistics', {
+    params: { fromDate, toDate }
+  });
+
+export const getIntegrationLogDetail = (logId: string) =>
+  apiClient.get<IntegrationLogDto>(`/RISComplete/integration-logs/${logId}`);
+
+export const retryIntegrationMessage = (logId: string) =>
+  apiClient.post(`/RISComplete/integration-logs/${logId}/retry`);
+
+// #endregion
+
+// #region Digital Signature APIs
+
+export const signResult = (data: SignResultRequestDto) =>
+  apiClient.post<SignResultResponseDto>('/RISComplete/results/sign', data);
+
+export const getSignatureHistory = (reportId: string) =>
+  apiClient.get<SignatureHistoryDto[]>(`/RISComplete/reports/${reportId}/signature-history`);
+
+export const verifySignature = (reportId: string) =>
+  apiClient.get<SignResultResponseDto>(`/RISComplete/reports/${reportId}/verify-signature`);
+
+export const getSignatureConfigs = () =>
+  apiClient.get<RadiologyDigitalSignatureConfigDto[]>('/RISComplete/signature-configs');
+
+// #endregion
+
+// #region Statistics APIs
+
+export const getExamStatisticsByServiceType = (fromDate: string, toDate: string) =>
+  apiClient.get<ExamStatisticsByServiceTypeDto>('/RISComplete/statistics/by-service-type', {
+    params: { fromDate, toDate }
+  });
+
+// #endregion
+
+// #region IV. Capture Device Interfaces
+
+export interface CaptureDeviceDto {
+  id: string;
+  deviceCode: string;
+  deviceName: string;
+  deviceType: string;
+  deviceTypeName: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  connectionType: string;
+  ipAddress?: string;
+  port?: number;
+  modalityId?: string;
+  modalityName?: string;
+  roomId?: string;
+  roomName?: string;
+  status: string;
+  lastCommunication?: string;
+  isActive: boolean;
+}
+
+export interface SaveCaptureDeviceDto {
+  id?: string;
+  deviceCode: string;
+  deviceName: string;
+  deviceType: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  connectionType: string;
+  ipAddress?: string;
+  port?: number;
+  modalityId?: string;
+  roomId?: string;
+  isActive: boolean;
+}
+
+export interface CaptureDeviceStatusDto {
+  deviceId: string;
+  isConnected: boolean;
+  lastCommunication?: string;
+  status: string;
+  message?: string;
+}
+
+export interface WorkstationDto {
+  id: string;
+  workstationCode: string;
+  workstationName: string;
+  computerName: string;
+  ipAddress?: string;
+  roomId?: string;
+  roomName?: string;
+  capturePort?: number;
+  isActive: boolean;
+}
+
+export interface SaveWorkstationDto {
+  id?: string;
+  workstationCode: string;
+  workstationName: string;
+  computerName: string;
+  ipAddress?: string;
+  roomId?: string;
+  capturePort?: number;
+  isActive: boolean;
+}
+
+export interface CaptureSessionDto {
+  id: string;
+  sessionCode: string;
+  radiologyRequestId: string;
+  captureDeviceId?: string;
+  workstationId?: string;
+  startTime: string;
+  endTime?: string;
+  status: string;
+  mediaCount?: number;
+}
+
+export interface CreateCaptureSessionDto {
+  radiologyRequestId: string;
+  captureDeviceId?: string;
+  workstationId?: string;
+}
+
+export interface CapturedMediaDto {
+  id: string;
+  captureSessionId: string;
+  mediaType: string;
+  filePath: string;
+  fileSize: number;
+  thumbnailPath?: string;
+  description?: string;
+  capturedAt: string;
+}
+
+export interface SaveCapturedMediaDto {
+  captureSessionId: string;
+  mediaType: string;
+  filePath: string;
+  fileSize: number;
+  thumbnailPath?: string;
+  description?: string;
+}
+
+export interface SendToPacsRequestDto {
+  captureSessionId: string;
+  mediaIds: string[];
+  studyInstanceUID?: string;
+  seriesDescription?: string;
+}
+
+export interface SendToPacsResultDto {
+  success: boolean;
+  sentCount: number;
+  failedCount: number;
+  studyInstanceUID?: string;
+  sentAt: string;
+  errors?: string[];
+}
+
+// #endregion
+
+// #region V. Consultation Interfaces
+
+export interface ConsultationSessionDto {
+  id: string;
+  sessionCode: string;
+  title: string;
+  description?: string;
+  scheduledTime: string;
+  startTime?: string;
+  endTime?: string;
+  status: number;
+  statusName: string;
+  meetingUrl?: string;
+  createdByUserName: string;
+  caseCount: number;
+  cases?: ConsultationCaseDto[];
+  participants?: ConsultationParticipantDto[];
+}
+
+export interface SaveConsultationSessionDto {
+  id?: string;
+  title: string;
+  description?: string;
+  scheduledTime: string;
+  meetingUrl?: string;
+  status?: number;
+}
+
+export interface SearchConsultationDto {
+  fromDate?: string;
+  toDate?: string;
+  status?: number;
+  keyword?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface ConsultationSearchResultDto {
+  items: ConsultationSessionDto[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ConsultationCaseDto {
+  id: string;
+  radiologyRequestId: string;
+  patientName?: string;
+  patientCode?: string;
+  serviceName?: string;
+  reason?: string;
+  status: number;
+}
+
+export interface AddConsultationCaseDto {
+  consultationSessionId: string;
+  radiologyRequestId: string;
+  reason?: string;
+}
+
+export interface ConsultationParticipantDto {
+  id: string;
+  userId: string;
+  userName?: string;
+  role: string;
+  invitedAt?: string;
+  joinedAt?: string;
+  leftAt?: string;
+}
+
+export interface InviteParticipantDto {
+  consultationSessionId: string;
+  userId: string;
+  role?: string;
+}
+
+export interface ConsultationDiscussionDto {
+  id: string;
+  consultationCaseId: string;
+  userId: string;
+  userName?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface AddConsultationDiscussionDto {
+  consultationCaseId: string;
+  content: string;
+}
+
+export interface ConsultationImageNoteDto {
+  id: string;
+  studyInstanceUID: string;
+  sopInstanceUID?: string;
+  annotationType: string;
+  annotationData: string;
+  note?: string;
+  createdByUserName?: string;
+  createdAt: string;
+}
+
+export interface AddConsultationImageNoteDto {
+  consultationCaseId: string;
+  studyInstanceUID: string;
+  sopInstanceUID?: string;
+  annotationType: string;
+  annotationData: string;
+  note?: string;
+}
+
+export interface ConsultationMinutesDto {
+  id: string;
+  consultationSessionId: string;
+  content?: string;
+  conclusion?: string;
+  recommendations?: string;
+  isApproved?: boolean;
+  approvedAt?: string;
+}
+
+export interface SaveConsultationMinutesDto {
+  consultationSessionId: string;
+  content?: string;
+  conclusion?: string;
+  recommendations?: string;
+}
+
+export interface ConsultationAttachmentDto {
+  id: string;
+  fileName: string;
+  fileType: string;
+  filePath: string;
+  fileSize: number;
+  uploadedAt: string;
+}
+
+export interface AddConsultationAttachmentDto {
+  consultationCaseId: string;
+  fileName: string;
+  fileType: string;
+  filePath: string;
+  fileSize: number;
+}
+
+// #endregion
+
+// #region X. HL7 CDA Interfaces
+
+export interface HL7CDAConfigDto {
+  id: string;
+  name: string;
+  version: string;
+  messageType: string;
+  receivingApplication?: string;
+  receivingFacility?: string;
+  sendingApplication?: string;
+  sendingFacility?: string;
+  serverUrl?: string;
+  port?: number;
+  isActive: boolean;
+}
+
+export interface SaveHL7CDAConfigDto {
+  id?: string;
+  name: string;
+  version: string;
+  messageType: string;
+  receivingApplication?: string;
+  receivingFacility?: string;
+  sendingApplication?: string;
+  sendingFacility?: string;
+  serverUrl?: string;
+  port?: number;
+  isActive: boolean;
+}
+
+export interface HL7MessageDto {
+  id: string;
+  messageType: string;
+  messageContent: string;
+  direction: string;
+  status: number;
+  sentAt?: string;
+  receivedAt?: string;
+  acknowledgementCode?: string;
+  errorMessage?: string;
+}
+
+export interface SendHL7MessageDto {
+  hl7ConfigId: string;
+  messageType: string;
+  messageContent: string;
+}
+
+export interface SendHL7ResultDto {
+  success: boolean;
+  messageId: string;
+  sentAt: string;
+  acknowledgementCode?: string;
+  errorMessage?: string;
+}
+
+export interface CDADocumentDto {
+  id: string;
+  radiologyReportId?: string;
+  documentType: string;
+  documentContent: string;
+  createdAt: string;
+}
+
+export interface CreateCDADocumentDto {
+  radiologyReportId: string;
+  documentType: string;
+}
+
+// #endregion
+
+// #region IX. Online Help Interfaces
+
+export interface HelpCategoryDto {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  parentCategoryId?: string;
+  icon?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SaveHelpCategoryDto {
+  id?: string;
+  code: string;
+  name: string;
+  description?: string;
+  parentCategoryId?: string;
+  icon?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface HelpArticleDto {
+  id: string;
+  title: string;
+  summary?: string;
+  content?: string;
+  categoryId?: string;
+  categoryName?: string;
+  videoUrl?: string;
+  attachments?: string;
+  tags?: string;
+  viewCount: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SaveHelpArticleDto {
+  id?: string;
+  title: string;
+  summary?: string;
+  content?: string;
+  categoryId?: string;
+  videoUrl?: string;
+  attachments?: string;
+  tags?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SearchHelpDto {
+  categoryId?: string;
+  keyword?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface HelpSearchResultDto {
+  items: HelpArticleDto[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface TroubleshootingDto {
+  id: string;
+  code: string;
+  category: string;
+  problem: string;
+  solution: string;
+  steps?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SaveTroubleshootingDto {
+  id?: string;
+  code: string;
+  category: string;
+  problem: string;
+  solution: string;
+  steps?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+// #endregion
+
+// #region VII. CLS Screen Interfaces
+
+export interface CLSScreenConfigDto {
+  id: string;
+  showPatientInfo: boolean;
+  showPreviousResults: boolean;
+  showDicomViewer: boolean;
+  showResultEntry: boolean;
+  defaultLayout: string;
+  dicomViewerUrl?: string;
+  customSettings?: string;
+  isActive: boolean;
+}
+
+export interface SaveCLSScreenConfigDto {
+  showPatientInfo: boolean;
+  showPreviousResults: boolean;
+  showDicomViewer: boolean;
+  showResultEntry: boolean;
+  defaultLayout: string;
+  dicomViewerUrl?: string;
+  customSettings?: string;
+  isActive: boolean;
+}
+
+export interface ServiceDescriptionTemplateDto {
+  id: string;
+  serviceId: string;
+  name: string;
+  description?: string;
+  conclusion?: string;
+  gender?: string;
+  minAge?: number;
+  maxAge?: number;
+  sortOrder: number;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
+export interface SaveServiceDescriptionTemplateDto {
+  id?: string;
+  serviceId: string;
+  name: string;
+  description?: string;
+  conclusion?: string;
+  gender?: string;
+  minAge?: number;
+  maxAge?: number;
+  sortOrder: number;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
+export interface DiagnosisHistoryDto {
+  id: string;
+  requestId: string;
+  serviceName: string;
+  examDate: string;
+  description?: string;
+  conclusion?: string;
+  doctorName?: string;
+}
+
+// #endregion
+
+// #region IV. Capture Device APIs
+
+export const getCaptureDevices = (deviceType?: string, keyword?: string, isActive?: boolean) =>
+  apiClient.get<CaptureDeviceDto[]>('/RISComplete/capture-devices', {
+    params: { deviceType, keyword, isActive }
+  });
+
+export const saveCaptureDevice = (data: SaveCaptureDeviceDto) =>
+  apiClient.post<CaptureDeviceDto>('/RISComplete/capture-devices', data);
+
+export const deleteCaptureDevice = (deviceId: string) =>
+  apiClient.delete(`/RISComplete/capture-devices/${deviceId}`);
+
+export const testCaptureDeviceConnection = (deviceId: string) =>
+  apiClient.get<CaptureDeviceStatusDto>(`/RISComplete/capture-devices/${deviceId}/test`);
+
+export const getWorkstations = (roomId?: string) =>
+  apiClient.get<WorkstationDto[]>('/RISComplete/workstations', {
+    params: { roomId }
+  });
+
+export const saveWorkstation = (data: SaveWorkstationDto) =>
+  apiClient.post<WorkstationDto>('/RISComplete/workstations', data);
+
+export const createCaptureSession = (data: CreateCaptureSessionDto) =>
+  apiClient.post<CaptureSessionDto>('/RISComplete/capture-sessions', data);
+
+export const endCaptureSession = (sessionId: string) =>
+  apiClient.post<CaptureSessionDto>(`/RISComplete/capture-sessions/${sessionId}/end`);
+
+export const saveCapturedMedia = (data: SaveCapturedMediaDto) =>
+  apiClient.post<CapturedMediaDto>('/RISComplete/captured-media', data);
+
+export const getCapturedMedia = (sessionId: string) =>
+  apiClient.get<CapturedMediaDto[]>(`/RISComplete/capture-sessions/${sessionId}/media`);
+
+export const sendMediaToPacs = (data: SendToPacsRequestDto) =>
+  apiClient.post<SendToPacsResultDto>('/RISComplete/captured-media/send-to-pacs', data);
+
+// #endregion
+
+// #region V. Consultation APIs
+
+export const searchConsultations = (data: SearchConsultationDto) =>
+  apiClient.post<ConsultationSearchResultDto>('/RISComplete/consultations/search', data);
+
+export const getConsultationSession = (sessionId: string) =>
+  apiClient.get<ConsultationSessionDto>(`/RISComplete/consultations/${sessionId}`);
+
+export const saveConsultationSession = (data: SaveConsultationSessionDto) =>
+  apiClient.post<ConsultationSessionDto>('/RISComplete/consultations', data);
+
+export const deleteConsultationSession = (sessionId: string) =>
+  apiClient.delete(`/RISComplete/consultations/${sessionId}`);
+
+export const startConsultation = (sessionId: string) =>
+  apiClient.post<ConsultationSessionDto>(`/RISComplete/consultations/${sessionId}/start`);
+
+export const endConsultation = (sessionId: string) =>
+  apiClient.post<ConsultationSessionDto>(`/RISComplete/consultations/${sessionId}/end`);
+
+export const addConsultationCase = (data: AddConsultationCaseDto) =>
+  apiClient.post<ConsultationCaseDto>('/RISComplete/consultations/cases', data);
+
+export const removeConsultationCase = (caseId: string) =>
+  apiClient.delete(`/RISComplete/consultations/cases/${caseId}`);
+
+export const inviteParticipant = (data: InviteParticipantDto) =>
+  apiClient.post<ConsultationParticipantDto>('/RISComplete/consultations/participants', data);
+
+export const removeParticipant = (participantId: string) =>
+  apiClient.delete(`/RISComplete/consultations/participants/${participantId}`);
+
+export const joinConsultation = (sessionId: string) =>
+  apiClient.post<ConsultationParticipantDto>(`/RISComplete/consultations/${sessionId}/join`);
+
+export const leaveConsultation = (sessionId: string) =>
+  apiClient.post(`/RISComplete/consultations/${sessionId}/leave`);
+
+export const addConsultationDiscussion = (data: AddConsultationDiscussionDto) =>
+  apiClient.post<ConsultationDiscussionDto>('/RISComplete/consultations/discussions', data);
+
+export const getConsultationDiscussions = (caseId: string) =>
+  apiClient.get<ConsultationDiscussionDto[]>(`/RISComplete/consultations/cases/${caseId}/discussions`);
+
+export const addConsultationImageNote = (data: AddConsultationImageNoteDto) =>
+  apiClient.post<ConsultationImageNoteDto>('/RISComplete/consultations/image-notes', data);
+
+export const getConsultationImageNotes = (caseId: string) =>
+  apiClient.get<ConsultationImageNoteDto[]>(`/RISComplete/consultations/cases/${caseId}/image-notes`);
+
+export const saveConsultationMinutes = (data: SaveConsultationMinutesDto) =>
+  apiClient.post<ConsultationMinutesDto>('/RISComplete/consultations/minutes', data);
+
+export const getConsultationMinutes = (sessionId: string) =>
+  apiClient.get<ConsultationMinutesDto>(`/RISComplete/consultations/${sessionId}/minutes`);
+
+export const approveConsultationMinutes = (minutesId: string) =>
+  apiClient.post<ConsultationMinutesDto>(`/RISComplete/consultations/minutes/${minutesId}/approve`);
+
+export const addConsultationAttachment = (data: AddConsultationAttachmentDto) =>
+  apiClient.post<ConsultationAttachmentDto>('/RISComplete/consultations/attachments', data);
+
+export const getConsultationAttachments = (caseId: string) =>
+  apiClient.get<ConsultationAttachmentDto[]>(`/RISComplete/consultations/cases/${caseId}/attachments`);
+
+// #endregion
+
+// #region X. HL7 CDA APIs
+
+export const getHL7CDAConfigs = () =>
+  apiClient.get<HL7CDAConfigDto[]>('/RISComplete/hl7-cda/configs');
+
+export const saveHL7CDAConfig = (data: SaveHL7CDAConfigDto) =>
+  apiClient.post<HL7CDAConfigDto>('/RISComplete/hl7-cda/configs', data);
+
+export const sendHL7Message = (data: SendHL7MessageDto) =>
+  apiClient.post<SendHL7ResultDto>('/RISComplete/hl7-cda/send', data);
+
+export const getHL7Messages = (fromDate?: string, toDate?: string, direction?: string, status?: number) =>
+  apiClient.get<HL7MessageDto[]>('/RISComplete/hl7-cda/messages', {
+    params: { fromDate, toDate, direction, status }
+  });
+
+export const createCDADocument = (data: CreateCDADocumentDto) =>
+  apiClient.post<CDADocumentDto>('/RISComplete/hl7-cda/documents', data);
+
+export const getCDADocument = (reportId: string) =>
+  apiClient.get<CDADocumentDto>(`/RISComplete/hl7-cda/documents/${reportId}`);
+
+export const receiveHL7Order = (hl7Message: string) =>
+  apiClient.post<{ orderId: string }>('/RISComplete/hl7-cda/receive-order', { hl7Message });
+
+// #endregion
+
+// #region IX. Online Help APIs
+
+export const getHelpCategories = (parentId?: string) =>
+  apiClient.get<HelpCategoryDto[]>('/RISComplete/help/categories', {
+    params: { parentId }
+  });
+
+export const saveHelpCategory = (data: SaveHelpCategoryDto) =>
+  apiClient.post<HelpCategoryDto>('/RISComplete/help/categories', data);
+
+export const searchHelpArticles = (data: SearchHelpDto) =>
+  apiClient.post<HelpSearchResultDto>('/RISComplete/help/articles/search', data);
+
+export const getHelpArticle = (articleId: string) =>
+  apiClient.get<HelpArticleDto>(`/RISComplete/help/articles/${articleId}`);
+
+export const saveHelpArticle = (data: SaveHelpArticleDto) =>
+  apiClient.post<HelpArticleDto>('/RISComplete/help/articles', data);
+
+export const getTroubleshootingList = (category?: string, keyword?: string) =>
+  apiClient.get<TroubleshootingDto[]>('/RISComplete/help/troubleshooting', {
+    params: { category, keyword }
+  });
+
+export const saveTroubleshooting = (data: SaveTroubleshootingDto) =>
+  apiClient.post<TroubleshootingDto>('/RISComplete/help/troubleshooting', data);
+
+// #endregion
+
+// #region VII. CLS Screen APIs
+
+export const getCLSScreenConfig = () =>
+  apiClient.get<CLSScreenConfigDto>('/RISComplete/cls-screen/config');
+
+export const saveCLSScreenConfig = (data: SaveCLSScreenConfigDto) =>
+  apiClient.post<CLSScreenConfigDto>('/RISComplete/cls-screen/config', data);
+
+export const getServiceDescriptionTemplates = (serviceId: string) =>
+  apiClient.get<ServiceDescriptionTemplateDto[]>(`/RISComplete/cls-screen/description-templates/${serviceId}`);
+
+export const saveServiceDescriptionTemplate = (data: SaveServiceDescriptionTemplateDto) =>
+  apiClient.post<ServiceDescriptionTemplateDto>('/RISComplete/cls-screen/description-templates', data);
+
+export const getDiagnosisHistory = (requestId: string) =>
+  apiClient.get<DiagnosisHistoryDto[]>(`/RISComplete/cls-screen/diagnosis-history/${requestId}`);
+
+// #endregion
+
 export default {
   // Waiting List
   getWaitingList,
@@ -1150,5 +2407,120 @@ export default {
   getRooms,
   saveRoom,
   getRoomSchedule,
-  saveSchedule
+  saveSchedule,
+
+  // Print Label
+  printLabel,
+  getLabelConfigs,
+
+  // Diagnosis Templates
+  getDiagnosisTemplates,
+  saveDiagnosisTemplate,
+  deleteDiagnosisTemplate,
+
+  // Abbreviations
+  getAbbreviations,
+  saveAbbreviation,
+  deleteAbbreviation,
+  expandAbbreviations,
+
+  // QR Code
+  generateQRCode,
+  scanQRCode,
+  createShareResultQR,
+
+  // Duty Schedule
+  getDutySchedules,
+  saveDutySchedule,
+  deleteDutySchedule,
+  batchCreateDutySchedules,
+
+  // Room Assignment
+  assignRoom,
+  getRoomQueue,
+  callNextPatient,
+  getRoomStatistics,
+
+  // Tags
+  getTags,
+  saveTag,
+  deleteTag,
+  assignTagsToRequest,
+  getRequestsByTag,
+
+  // Integration Logs
+  searchIntegrationLogs,
+  getIntegrationLogStatistics,
+  getIntegrationLogDetail,
+  retryIntegrationMessage,
+
+  // Digital Signature
+  signResult,
+  getSignatureHistory,
+  verifySignature,
+  getSignatureConfigs,
+
+  // Statistics
+  getExamStatisticsByServiceType,
+
+  // IV. Capture Device
+  getCaptureDevices,
+  saveCaptureDevice,
+  deleteCaptureDevice,
+  testCaptureDeviceConnection,
+  getWorkstations,
+  saveWorkstation,
+  createCaptureSession,
+  endCaptureSession,
+  saveCapturedMedia,
+  getCapturedMedia,
+  sendMediaToPacs,
+
+  // V. Consultation
+  searchConsultations,
+  getConsultationSession,
+  saveConsultationSession,
+  deleteConsultationSession,
+  startConsultation,
+  endConsultation,
+  addConsultationCase,
+  removeConsultationCase,
+  inviteParticipant,
+  removeParticipant,
+  joinConsultation,
+  leaveConsultation,
+  addConsultationDiscussion,
+  getConsultationDiscussions,
+  addConsultationImageNote,
+  getConsultationImageNotes,
+  saveConsultationMinutes,
+  getConsultationMinutes,
+  approveConsultationMinutes,
+  addConsultationAttachment,
+  getConsultationAttachments,
+
+  // X. HL7 CDA
+  getHL7CDAConfigs,
+  saveHL7CDAConfig,
+  sendHL7Message,
+  getHL7Messages,
+  createCDADocument,
+  getCDADocument,
+  receiveHL7Order,
+
+  // IX. Online Help
+  getHelpCategories,
+  saveHelpCategory,
+  searchHelpArticles,
+  getHelpArticle,
+  saveHelpArticle,
+  getTroubleshootingList,
+  saveTroubleshooting,
+
+  // VII. CLS Screen
+  getCLSScreenConfig,
+  saveCLSScreenConfig,
+  getServiceDescriptionTemplates,
+  saveServiceDescriptionTemplate,
+  getDiagnosisHistory
 };

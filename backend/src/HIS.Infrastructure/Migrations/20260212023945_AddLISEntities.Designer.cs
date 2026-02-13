@@ -4,6 +4,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HIS.Infrastructure.Migrations
 {
     [DbContext(typeof(HISDbContext))]
-    partial class HISDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260212023945_AddLISEntities")]
+    partial class AddLISEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -5709,6 +5712,9 @@ namespace HIS.Infrastructure.Migrations
                     b.Property<Guid?>("MappedBy")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("MappedLabRequestItemId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("MappedToLabRequestItemId")
                         .HasColumnType("uniqueidentifier");
 
@@ -5746,7 +5752,7 @@ namespace HIS.Infrastructure.Migrations
 
                     b.HasIndex("AnalyzerId");
 
-                    b.HasIndex("MappedToLabRequestItemId");
+                    b.HasIndex("MappedLabRequestItemId");
 
                     b.ToTable("LabRawResults");
                 });
@@ -14566,7 +14572,7 @@ namespace HIS.Infrastructure.Migrations
 
                     b.HasOne("HIS.Core.Entities.LabRequestItem", "MappedLabRequestItem")
                         .WithMany()
-                        .HasForeignKey("MappedToLabRequestItemId");
+                        .HasForeignKey("MappedLabRequestItemId");
 
                     b.Navigation("Analyzer");
 

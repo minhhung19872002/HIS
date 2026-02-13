@@ -844,4 +844,1682 @@ namespace HIS.Application.DTOs.Radiology
     }
 
     #endregion
+
+    #region Print Label - In nhãn dán
+
+    /// <summary>
+    /// Cấu hình nhãn dán
+    /// </summary>
+    public class RadiologyLabelConfigDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public int LabelWidth { get; set; } // mm
+        public int LabelHeight { get; set; } // mm
+        public string TemplateHtml { get; set; }
+        public string TemplateZpl { get; set; }
+        public bool IncludeQRCode { get; set; }
+        public bool IncludeBarcode { get; set; }
+        public string BarcodeFormat { get; set; } // CODE128, CODE39, QR
+        public Guid? ServiceTypeId { get; set; }
+        public string ServiceTypeName { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public string DepartmentName { get; set; }
+        public bool IsDefault { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Yêu cầu in nhãn
+    /// </summary>
+    public class PrintLabelRequestDto
+    {
+        public Guid OrderId { get; set; }
+        public Guid? LabelConfigId { get; set; }
+        public int Copies { get; set; } = 1;
+        public string PrinterName { get; set; }
+        public string OutputFormat { get; set; } = "HTML"; // HTML, ZPL, PDF
+    }
+
+    /// <summary>
+    /// Dữ liệu in nhãn
+    /// </summary>
+    public class LabelDataDto
+    {
+        public string PatientCode { get; set; }
+        public string PatientName { get; set; }
+        public int? Age { get; set; }
+        public string Gender { get; set; }
+        public string OrderCode { get; set; }
+        public string ServiceName { get; set; }
+        public string RoomName { get; set; }
+        public DateTime OrderDate { get; set; }
+        public int QueueNumber { get; set; }
+        public string AccessionNumber { get; set; }
+        public string QRCodeData { get; set; }
+        public string BarcodeData { get; set; }
+        public string LabelContent { get; set; } // Rendered HTML/ZPL
+    }
+
+    #endregion
+
+    #region Diagnosis Templates - Mẫu chẩn đoán thường dùng
+
+    /// <summary>
+    /// Mẫu chẩn đoán thường dùng
+    /// </summary>
+    public class DiagnosisTemplateDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Conclusion { get; set; }
+        public string Recommendation { get; set; }
+        public Guid? ServiceTypeId { get; set; }
+        public string ServiceTypeName { get; set; }
+        public Guid? ServiceId { get; set; }
+        public string ServiceName { get; set; }
+        public string Gender { get; set; }
+        public int? MinAge { get; set; }
+        public int? MaxAge { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsDefault { get; set; }
+        public bool IsActive { get; set; }
+        public string CreatedByUserName { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật mẫu chẩn đoán
+    /// </summary>
+    public class SaveDiagnosisTemplateDto
+    {
+        public Guid? Id { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Conclusion { get; set; }
+        public string Recommendation { get; set; }
+        public Guid? ServiceTypeId { get; set; }
+        public Guid? ServiceId { get; set; }
+        public string Gender { get; set; }
+        public int? MinAge { get; set; }
+        public int? MaxAge { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsDefault { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    #endregion
+
+    #region Abbreviations - Bộ từ viết tắt
+
+    /// <summary>
+    /// Từ viết tắt
+    /// </summary>
+    public class AbbreviationDto
+    {
+        public Guid Id { get; set; }
+        public string Abbreviation { get; set; }
+        public string FullText { get; set; }
+        public string Category { get; set; } // Description, Conclusion, Recommendation
+        public Guid? ServiceTypeId { get; set; }
+        public string ServiceTypeName { get; set; }
+        public bool IsGlobal { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+        public string CreatedByUserName { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật từ viết tắt
+    /// </summary>
+    public class SaveAbbreviationDto
+    {
+        public Guid? Id { get; set; }
+        public string Abbreviation { get; set; }
+        public string FullText { get; set; }
+        public string Category { get; set; }
+        public Guid? ServiceTypeId { get; set; }
+        public bool IsGlobal { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Kết quả mở rộng từ viết tắt
+    /// </summary>
+    public class ExpandAbbreviationResultDto
+    {
+        public string OriginalText { get; set; }
+        public string ExpandedText { get; set; }
+        public int ReplacementCount { get; set; }
+        public List<string> ReplacedAbbreviations { get; set; }
+    }
+
+    #endregion
+
+    #region QR Code - Mã QR
+
+    /// <summary>
+    /// Yêu cầu sinh mã QR
+    /// </summary>
+    public class GenerateQRCodeRequestDto
+    {
+        public Guid OrderId { get; set; }
+        public string QRType { get; set; } // PATIENT_INFO, ORDER_INFO, RESULT_SHARE, DICOM_LINK
+        public int Size { get; set; } = 200; // pixels
+        public bool IncludePatientInfo { get; set; }
+        public bool IncludeOrderInfo { get; set; }
+        public bool IncludeResultLink { get; set; }
+        public int? ValidityHours { get; set; } // Thời gian hiệu lực link
+    }
+
+    /// <summary>
+    /// Kết quả sinh mã QR
+    /// </summary>
+    public class QRCodeResultDto
+    {
+        public Guid OrderId { get; set; }
+        public string QRType { get; set; }
+        public string QRCodeBase64 { get; set; }
+        public string QRCodeUrl { get; set; }
+        public string EncodedData { get; set; }
+        public DateTime GeneratedAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+    }
+
+    /// <summary>
+    /// Dữ liệu quét mã QR
+    /// </summary>
+    public class ScanQRCodeResultDto
+    {
+        public bool Success { get; set; }
+        public string QRType { get; set; }
+        public Guid? PatientId { get; set; }
+        public string PatientCode { get; set; }
+        public string PatientName { get; set; }
+        public Guid? OrderId { get; set; }
+        public string OrderCode { get; set; }
+        public string ResultShareUrl { get; set; }
+        public string DicomViewerUrl { get; set; }
+        public string ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Chia sẻ kết quả qua QR
+    /// </summary>
+    public class ShareResultQRDto
+    {
+        public Guid ResultId { get; set; }
+        public string ShareUrl { get; set; }
+        public string QRCodeBase64 { get; set; }
+        public DateTime ExpiresAt { get; set; }
+        public string AccessCode { get; set; }
+    }
+
+    #endregion
+
+    #region Duty Schedule - Lịch phân công trực
+
+    /// <summary>
+    /// Lịch phân công trực
+    /// </summary>
+    public class DutyScheduleDto
+    {
+        public Guid Id { get; set; }
+        public Guid DepartmentId { get; set; }
+        public string DepartmentName { get; set; }
+        public Guid? RoomId { get; set; }
+        public string RoomName { get; set; }
+        public DateTime DutyDate { get; set; }
+        public int ShiftType { get; set; } // 1=Sáng, 2=Chiều, 3=Đêm, 4=Ca 24h
+        public string ShiftTypeName { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public Guid? DoctorId { get; set; }
+        public string DoctorName { get; set; }
+        public Guid? TechnicianId { get; set; }
+        public string TechnicianName { get; set; }
+        public Guid? AssistantTechnicianId { get; set; }
+        public string AssistantTechnicianName { get; set; }
+        public string Notes { get; set; }
+        public int Status { get; set; } // 0=Draft, 1=Confirmed, 2=Cancelled
+        public string StatusName { get; set; }
+        public string ApprovedByName { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật lịch trực
+    /// </summary>
+    public class SaveDutyScheduleDto
+    {
+        public Guid? Id { get; set; }
+        public Guid DepartmentId { get; set; }
+        public Guid? RoomId { get; set; }
+        public DateTime DutyDate { get; set; }
+        public int ShiftType { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public Guid? DoctorId { get; set; }
+        public Guid? TechnicianId { get; set; }
+        public Guid? AssistantTechnicianId { get; set; }
+        public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo lịch trực hàng loạt
+    /// </summary>
+    public class BatchCreateDutyScheduleDto
+    {
+        public Guid DepartmentId { get; set; }
+        public Guid? RoomId { get; set; }
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+        public List<int> ShiftTypes { get; set; }
+        public List<DutyScheduleStaffDto> Staff { get; set; }
+    }
+
+    /// <summary>
+    /// Nhân sự trực
+    /// </summary>
+    public class DutyScheduleStaffDto
+    {
+        public int DayOfWeek { get; set; }
+        public int ShiftType { get; set; }
+        public Guid? DoctorId { get; set; }
+        public Guid? TechnicianId { get; set; }
+        public Guid? AssistantTechnicianId { get; set; }
+    }
+
+    #endregion
+
+    #region Room Assignment - Phân phòng thực hiện
+
+    /// <summary>
+    /// Phân phòng thực hiện
+    /// </summary>
+    public class RoomAssignmentDto
+    {
+        public Guid Id { get; set; }
+        public Guid RadiologyRequestId { get; set; }
+        public string OrderCode { get; set; }
+        public string PatientCode { get; set; }
+        public string PatientName { get; set; }
+        public string ServiceName { get; set; }
+        public Guid RoomId { get; set; }
+        public string RoomName { get; set; }
+        public Guid? ModalityId { get; set; }
+        public string ModalityName { get; set; }
+        public int QueueNumber { get; set; }
+        public int Status { get; set; } // 0=Waiting, 1=Called, 2=InProgress, 3=Completed, 4=Skipped
+        public string StatusName { get; set; }
+        public DateTime AssignedAt { get; set; }
+        public string AssignedByUserName { get; set; }
+        public DateTime? CalledAt { get; set; }
+        public DateTime? StartedAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Yêu cầu phân phòng
+    /// </summary>
+    public class AssignRoomRequestDto
+    {
+        public Guid RadiologyRequestId { get; set; }
+        public Guid RoomId { get; set; }
+        public Guid? ModalityId { get; set; }
+        public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Thống kê phòng
+    /// </summary>
+    public class RoomStatisticsDto
+    {
+        public Guid RoomId { get; set; }
+        public string RoomName { get; set; }
+        public int WaitingCount { get; set; }
+        public int CalledCount { get; set; }
+        public int InProgressCount { get; set; }
+        public int CompletedCount { get; set; }
+        public int SkippedCount { get; set; }
+        public int TotalCount { get; set; }
+        public decimal AverageWaitTimeMinutes { get; set; }
+    }
+
+    #endregion
+
+    #region Tags - Quản lý Tag ca chụp
+
+    /// <summary>
+    /// Tag ca chụp
+    /// </summary>
+    public class RadiologyTagDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Color { get; set; }
+        public Guid? ParentId { get; set; }
+        public string ParentName { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+        public int RequestCount { get; set; } // Số ca chụp được gắn tag này
+        public List<RadiologyTagDto> Children { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật Tag
+    /// </summary>
+    public class SaveRadiologyTagDto
+    {
+        public Guid? Id { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Color { get; set; }
+        public Guid? ParentId { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Gắn/Gỡ Tag cho ca chụp
+    /// </summary>
+    public class AssignTagRequestDto
+    {
+        public Guid RadiologyRequestId { get; set; }
+        public List<Guid> TagIds { get; set; }
+        public string Note { get; set; }
+    }
+
+    /// <summary>
+    /// Ca chụp được gắn Tag
+    /// </summary>
+    public class TaggedRequestDto
+    {
+        public Guid Id { get; set; }
+        public Guid RadiologyRequestId { get; set; }
+        public string OrderCode { get; set; }
+        public string PatientCode { get; set; }
+        public string PatientName { get; set; }
+        public string ServiceName { get; set; }
+        public DateTime OrderDate { get; set; }
+        public Guid TagId { get; set; }
+        public string TagName { get; set; }
+        public string TagColor { get; set; }
+        public string Note { get; set; }
+        public string AddedByUserName { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    #endregion
+
+    #region Integration Log - Log tích hợp HIS-RIS
+
+    /// <summary>
+    /// Log tích hợp
+    /// </summary>
+    public class IntegrationLogDto
+    {
+        public Guid Id { get; set; }
+        public string LogCode { get; set; }
+        public string Direction { get; set; } // HIS_TO_RIS, RIS_TO_HIS
+        public string DirectionName { get; set; }
+        public string MessageType { get; set; } // ORDER, RESULT, CANCEL
+        public string MessageTypeName { get; set; }
+        public Guid? RadiologyRequestId { get; set; }
+        public string PatientCode { get; set; }
+        public string MedicalRecordCode { get; set; }
+        public string RequestCode { get; set; }
+        public DateTime SentAt { get; set; }
+        public string RequestPayload { get; set; }
+        public string ResponsePayload { get; set; }
+        public int Status { get; set; } // 0=Pending, 1=Success, 2=Failed, 3=Retrying
+        public string StatusName { get; set; }
+        public string ErrorMessage { get; set; }
+        public int RetryCount { get; set; }
+        public DateTime? LastRetryAt { get; set; }
+        public string SourceSystem { get; set; }
+        public string TargetSystem { get; set; }
+        public string TransactionId { get; set; }
+    }
+
+    /// <summary>
+    /// Tìm kiếm log tích hợp
+    /// </summary>
+    public class SearchIntegrationLogDto
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public string Direction { get; set; }
+        public string MessageType { get; set; }
+        public int? Status { get; set; }
+        public string RequestCode { get; set; }
+        public string PatientCode { get; set; }
+        public string MedicalRecordCode { get; set; }
+        public string SourceSystem { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// Kết quả tìm kiếm log
+    /// </summary>
+    public class IntegrationLogSearchResultDto
+    {
+        public List<IntegrationLogDto> Items { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
+    /// <summary>
+    /// Thống kê log tích hợp
+    /// </summary>
+    public class IntegrationLogStatisticsDto
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+        public int TotalMessages { get; set; }
+        public int SuccessCount { get; set; }
+        public int FailedCount { get; set; }
+        public int PendingCount { get; set; }
+        public decimal SuccessRate { get; set; }
+        public List<IntegrationLogByTypeDto> ByMessageType { get; set; }
+        public List<IntegrationLogByDayDto> ByDay { get; set; }
+    }
+
+    /// <summary>
+    /// Thống kê theo loại message
+    /// </summary>
+    public class IntegrationLogByTypeDto
+    {
+        public string MessageType { get; set; }
+        public int TotalCount { get; set; }
+        public int SuccessCount { get; set; }
+        public int FailedCount { get; set; }
+    }
+
+    /// <summary>
+    /// Thống kê theo ngày
+    /// </summary>
+    public class IntegrationLogByDayDto
+    {
+        public DateTime Date { get; set; }
+        public int TotalCount { get; set; }
+        public int SuccessCount { get; set; }
+        public int FailedCount { get; set; }
+    }
+
+    #endregion
+
+    #region Digital Signature - Ký số
+
+    /// <summary>
+    /// Cấu hình ký số
+    /// </summary>
+    public class DigitalSignatureConfigDto
+    {
+        public Guid Id { get; set; }
+        public string SignatureType { get; set; } // NONE, DIGITAL, EKYC, SIGNSERVER, SMARTCA
+        public string SignatureTypeName { get; set; }
+        public string Name { get; set; }
+        public string ProviderUrl { get; set; }
+        public bool IsDefault { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật cấu hình ký số
+    /// </summary>
+    public class SaveDigitalSignatureConfigDto
+    {
+        public Guid? Id { get; set; }
+        public string SignatureType { get; set; }
+        public string Name { get; set; }
+        public string ProviderUrl { get; set; }
+        public string ApiKey { get; set; }
+        public string ApiSecret { get; set; }
+        public string CertificatePath { get; set; }
+        public string CertificatePassword { get; set; }
+        public bool IsDefault { get; set; }
+        public bool IsActive { get; set; }
+        public string ConfigJson { get; set; }
+    }
+
+    /// <summary>
+    /// Yêu cầu ký số
+    /// </summary>
+    public class SignResultRequestDto
+    {
+        public Guid ReportId { get; set; }
+        public Guid? SignatureConfigId { get; set; }
+        public string SignatureType { get; set; }
+        public string Pin { get; set; } // PIN cho USB token
+        public string OTP { get; set; } // OTP cho cloud signing
+    }
+
+    /// <summary>
+    /// Kết quả ký số
+    /// </summary>
+    public class SignResultResponseDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public DateTime? SignedAt { get; set; }
+        public string SignerName { get; set; }
+        public string CertificateSerial { get; set; }
+        public string SignedDocumentPath { get; set; }
+        public string TransactionId { get; set; }
+    }
+
+    /// <summary>
+    /// Lịch sử ký số
+    /// </summary>
+    public class SignatureHistoryDto
+    {
+        public Guid Id { get; set; }
+        public Guid RadiologyReportId { get; set; }
+        public string OrderCode { get; set; }
+        public string PatientName { get; set; }
+        public string ServiceName { get; set; }
+        public Guid SignedByUserId { get; set; }
+        public string SignedByUserName { get; set; }
+        public string SignatureType { get; set; }
+        public string SignatureTypeName { get; set; }
+        public DateTime SignedAt { get; set; }
+        public string CertificateSerial { get; set; }
+        public string CertificateSubject { get; set; }
+        public string CertificateIssuer { get; set; }
+        public DateTime? CertificateValidFrom { get; set; }
+        public DateTime? CertificateValidTo { get; set; }
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+        public string SignedDocumentPath { get; set; }
+        public string TransactionId { get; set; }
+    }
+
+    /// <summary>
+    /// Hủy kết quả đã ký
+    /// </summary>
+    public class CancelSignedResultDto
+    {
+        public Guid ReportId { get; set; }
+        public string Reason { get; set; }
+    }
+
+    #endregion
+
+    #region Statistics By Service Type - Thống kê theo nhóm dịch vụ
+
+    /// <summary>
+    /// Thống kê ca chụp theo nhóm dịch vụ
+    /// </summary>
+    public class ExamStatisticsByServiceTypeDto
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+        public int TotalExams { get; set; }
+        public List<ServiceTypeStatisticsDto> ServiceTypes { get; set; }
+    }
+
+    /// <summary>
+    /// Thống kê theo từng nhóm dịch vụ
+    /// </summary>
+    public class ServiceTypeStatisticsDto
+    {
+        public Guid ServiceTypeId { get; set; }
+        public string ServiceTypeCode { get; set; }
+        public string ServiceTypeName { get; set; }
+        public int TotalExams { get; set; }
+        public int CompletedExams { get; set; }
+        public int PendingExams { get; set; }
+        public int CancelledExams { get; set; }
+        public decimal TotalRevenue { get; set; }
+        public decimal InsuranceRevenue { get; set; }
+        public decimal PatientRevenue { get; set; }
+        public decimal Percentage { get; set; }
+        public List<ServiceStatisticsDto> Services { get; set; }
+    }
+
+    /// <summary>
+    /// Thống kê theo từng dịch vụ
+    /// </summary>
+    public class ServiceStatisticsDto
+    {
+        public Guid ServiceId { get; set; }
+        public string ServiceCode { get; set; }
+        public string ServiceName { get; set; }
+        public int TotalExams { get; set; }
+        public int CompletedExams { get; set; }
+        public decimal TotalRevenue { get; set; }
+    }
+
+    #endregion
+
+// Additional request DTOs
+public class ExpandAbbreviationRequest
+{
+    public string Text { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public Guid? ServiceTypeId { get; set; }
+}
+
+public class ScanQRCodeRequest
+{
+    public string QRData { get; set; } = string.Empty;
+    public string ScanType { get; set; } = string.Empty;
+}
+
+public class SkipPatientRequest
+{
+    public Guid PatientId { get; set; }
+    public Guid ExamId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+    #region IV. Capture Device - Thiết bị Capture
+
+    /// <summary>
+    /// Thiết bị Capture
+    /// </summary>
+    public class CaptureDeviceDto
+    {
+        public Guid Id { get; set; }
+        public string DeviceCode { get; set; }
+        public string DeviceName { get; set; }
+        public string DeviceType { get; set; } // Ultrasound, Endoscopy
+        public string Manufacturer { get; set; }
+        public string Model { get; set; }
+        public string SerialNumber { get; set; }
+        public Guid? RoomId { get; set; }
+        public string RoomName { get; set; }
+        public string ConnectionType { get; set; } // TCP, Serial, USB, File
+        public string IpAddress { get; set; }
+        public int? Port { get; set; }
+        public string ComPort { get; set; }
+        public int? BaudRate { get; set; }
+        public string FolderPath { get; set; }
+        public string AETitle { get; set; }
+        public bool SupportsDicom { get; set; }
+        public bool SupportsWorklist { get; set; }
+        public bool SupportsMPPS { get; set; }
+        public int MaxExamsPerDay { get; set; }
+        public bool AutoSelectThumbnail { get; set; }
+        public bool SendOnlyThumbnail { get; set; }
+        public string DefaultFrameFormat { get; set; }
+        public string VideoFormat { get; set; }
+        public int Status { get; set; } // 0=Offline, 1=Online, 2=Busy, 3=Error
+        public string StatusName { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime? LastCommunication { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật thiết bị Capture
+    /// </summary>
+    public class SaveCaptureDeviceDto
+    {
+        public Guid? Id { get; set; }
+        public string DeviceCode { get; set; }
+        public string DeviceName { get; set; }
+        public string DeviceType { get; set; }
+        public string Manufacturer { get; set; }
+        public string Model { get; set; }
+        public string SerialNumber { get; set; }
+        public Guid? RoomId { get; set; }
+        public string ConnectionType { get; set; }
+        public string IpAddress { get; set; }
+        public int? Port { get; set; }
+        public string ComPort { get; set; }
+        public int? BaudRate { get; set; }
+        public string FolderPath { get; set; }
+        public string AETitle { get; set; }
+        public bool SupportsDicom { get; set; }
+        public bool SupportsWorklist { get; set; }
+        public bool SupportsMPPS { get; set; }
+        public int MaxExamsPerDay { get; set; }
+        public bool AutoSelectThumbnail { get; set; }
+        public bool SendOnlyThumbnail { get; set; }
+        public string DefaultFrameFormat { get; set; }
+        public string VideoFormat { get; set; }
+        public bool IsActive { get; set; }
+        public string ConfigJson { get; set; }
+    }
+
+    /// <summary>
+    /// Workstation
+    /// </summary>
+    public class WorkstationDto
+    {
+        public Guid Id { get; set; }
+        public string WorkstationCode { get; set; }
+        public string WorkstationName { get; set; }
+        public string ComputerName { get; set; }
+        public string IpAddress { get; set; }
+        public Guid? RoomId { get; set; }
+        public string RoomName { get; set; }
+        public Guid? DefaultDeviceId { get; set; }
+        public string DefaultDeviceName { get; set; }
+        public string HotkeysConfig { get; set; }
+        public int? BrightnessLevel { get; set; }
+        public int? ContrastLevel { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật Workstation
+    /// </summary>
+    public class SaveWorkstationDto
+    {
+        public Guid? Id { get; set; }
+        public string WorkstationCode { get; set; }
+        public string WorkstationName { get; set; }
+        public string ComputerName { get; set; }
+        public string IpAddress { get; set; }
+        public Guid? RoomId { get; set; }
+        public Guid? DefaultDeviceId { get; set; }
+        public string HotkeysConfig { get; set; }
+        public int? BrightnessLevel { get; set; }
+        public int? ContrastLevel { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Phiên capture
+    /// </summary>
+    public class CaptureSessionDto
+    {
+        public Guid Id { get; set; }
+        public Guid DeviceId { get; set; }
+        public string DeviceName { get; set; }
+        public Guid? WorkstationId { get; set; }
+        public string WorkstationName { get; set; }
+        public Guid RadiologyRequestId { get; set; }
+        public string OrderCode { get; set; }
+        public string PatientName { get; set; }
+        public string ServiceName { get; set; }
+        public Guid? OperatorId { get; set; }
+        public string OperatorName { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public int Status { get; set; } // 0=Active, 1=Paused, 2=Completed, 3=Cancelled
+        public string StatusName { get; set; }
+        public int CapturedImageCount { get; set; }
+        public int CapturedVideoCount { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo phiên capture
+    /// </summary>
+    public class CreateCaptureSessionDto
+    {
+        public Guid DeviceId { get; set; }
+        public Guid? WorkstationId { get; set; }
+        public Guid RadiologyRequestId { get; set; }
+    }
+
+    /// <summary>
+    /// Hình ảnh/Video capture
+    /// </summary>
+    public class CapturedMediaDto
+    {
+        public Guid Id { get; set; }
+        public Guid SessionId { get; set; }
+        public string MediaType { get; set; } // Image, Video
+        public string FileName { get; set; }
+        public string FilePath { get; set; }
+        public string ThumbnailPath { get; set; }
+        public long FileSize { get; set; }
+        public string MimeType { get; set; }
+        public int SequenceNumber { get; set; }
+        public bool IsThumbnail { get; set; }
+        public bool IsSentToPacs { get; set; }
+        public DateTime? SentToPacsAt { get; set; }
+        public string DicomStudyUID { get; set; }
+        public string DicomSeriesUID { get; set; }
+        public string DicomInstanceUID { get; set; }
+        public string Annotations { get; set; }
+        public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Upload hình ảnh capture
+    /// </summary>
+    public class UploadCapturedMediaDto
+    {
+        public Guid SessionId { get; set; }
+        public string MediaType { get; set; }
+        public string FileName { get; set; }
+        public string Base64Data { get; set; }
+        public bool IsThumbnail { get; set; }
+        public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Gửi ảnh đến PACS
+    /// </summary>
+    public class SendToPacsRequestDto
+    {
+        public Guid SessionId { get; set; }
+        public List<Guid> MediaIds { get; set; }
+        public bool OnlyThumbnails { get; set; }
+    }
+
+    /// <summary>
+    /// Kết quả gửi PACS
+    /// </summary>
+    public class SendToPacsResultDto
+    {
+        public bool Success { get; set; }
+        public int SentCount { get; set; }
+        public int FailedCount { get; set; }
+        public string StudyInstanceUID { get; set; }
+        public List<string> Errors { get; set; }
+        public DateTime SentAt { get; set; }
+    }
+
+    /// <summary>
+    /// Trạng thái thiết bị Capture
+    /// </summary>
+    public class CaptureDeviceStatusDto
+    {
+        public Guid DeviceId { get; set; }
+        public bool IsConnected { get; set; }
+        public DateTime? LastCommunication { get; set; }
+        public string Status { get; set; }
+        public string Message { get; set; }
+    }
+
+    /// <summary>
+    /// Lưu media capture
+    /// </summary>
+    public class SaveCapturedMediaDto
+    {
+        public Guid CaptureSessionId { get; set; }
+        public string MediaType { get; set; }
+        public string FilePath { get; set; }
+        public long FileSize { get; set; }
+        public string ThumbnailPath { get; set; }
+        public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// Thống kê thiết bị hàng ngày
+    /// </summary>
+    public class DeviceDailyStatisticsDto
+    {
+        public Guid DeviceId { get; set; }
+        public string DeviceName { get; set; }
+        public DateTime Date { get; set; }
+        public int TotalExams { get; set; }
+        public int RemainingExams { get; set; }
+        public bool IsLimitReached { get; set; }
+    }
+
+    #endregion
+
+    #region V. Consultation - Hội chẩn ca chụp
+
+    /// <summary>
+    /// Phiên hội chẩn
+    /// </summary>
+    public class ConsultationSessionDto
+    {
+        public Guid Id { get; set; }
+        public string SessionCode { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public DateTime ScheduledStartTime { get; set; }
+        public DateTime ScheduledEndTime { get; set; }
+        public DateTime? ActualStartTime { get; set; }
+        public DateTime? ActualEndTime { get; set; }
+        public Guid OrganizerId { get; set; }
+        public string OrganizerName { get; set; }
+        public Guid? LeaderId { get; set; }
+        public string LeaderName { get; set; }
+        public Guid? SecretaryId { get; set; }
+        public string SecretaryName { get; set; }
+        public int Status { get; set; } // 0=Draft, 1=Scheduled, 2=InProgress, 3=Completed, 4=Cancelled
+        public string StatusName { get; set; }
+        public string MeetingUrl { get; set; }
+        public string QRCodeData { get; set; }
+        public string RecordingPath { get; set; }
+        public bool IsRecording { get; set; }
+        public string Notes { get; set; }
+        public int CaseCount { get; set; }
+        public int ParticipantCount { get; set; }
+        public List<ConsultationCaseDto> Cases { get; set; }
+        public List<ConsultationParticipantDto> Participants { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật phiên hội chẩn
+    /// </summary>
+    public class SaveConsultationSessionDto
+    {
+        public Guid? Id { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public DateTime ScheduledStartTime { get; set; }
+        public DateTime ScheduledEndTime { get; set; }
+        public Guid? LeaderId { get; set; }
+        public Guid? SecretaryId { get; set; }
+        public string Notes { get; set; }
+        public List<Guid> CaseRequestIds { get; set; }
+        public List<Guid> ParticipantUserIds { get; set; }
+    }
+
+    /// <summary>
+    /// Ca chụp trong phiên hội chẩn
+    /// </summary>
+    public class ConsultationCaseDto
+    {
+        public Guid Id { get; set; }
+        public Guid SessionId { get; set; }
+        public Guid RadiologyRequestId { get; set; }
+        public string OrderCode { get; set; }
+        public string PatientCode { get; set; }
+        public string PatientName { get; set; }
+        public int? PatientAge { get; set; }
+        public string PatientGender { get; set; }
+        public string ServiceName { get; set; }
+        public string StudyInstanceUID { get; set; }
+        public int OrderNumber { get; set; }
+        public string Reason { get; set; }
+        public string PreliminaryDiagnosis { get; set; }
+        public int Status { get; set; } // 0=Pending, 1=Discussed, 2=Concluded
+        public string StatusName { get; set; }
+        public string Conclusion { get; set; }
+        public string Recommendation { get; set; }
+        public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Thêm ca vào phiên hội chẩn
+    /// </summary>
+    public class AddConsultationCaseDto
+    {
+        public Guid SessionId { get; set; }
+        public Guid RadiologyRequestId { get; set; }
+        public string Reason { get; set; }
+        public string PreliminaryDiagnosis { get; set; }
+    }
+
+    /// <summary>
+    /// Kết luận ca hội chẩn
+    /// </summary>
+    public class ConcludeCaseDto
+    {
+        public Guid CaseId { get; set; }
+        public string Conclusion { get; set; }
+        public string Recommendation { get; set; }
+        public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Người tham gia hội chẩn
+    /// </summary>
+    public class ConsultationParticipantDto
+    {
+        public Guid Id { get; set; }
+        public Guid SessionId { get; set; }
+        public Guid UserId { get; set; }
+        public string UserName { get; set; }
+        public string Department { get; set; }
+        public string Role { get; set; } // Leader, Secretary, Participant, Observer
+        public int Status { get; set; } // 0=Invited, 1=Accepted, 2=Rejected, 3=Joined, 4=Left
+        public string StatusName { get; set; }
+        public DateTime? InvitedAt { get; set; }
+        public DateTime? JoinedAt { get; set; }
+        public DateTime? LeftAt { get; set; }
+        public bool IsAudioEnabled { get; set; }
+        public bool IsVideoEnabled { get; set; }
+        public bool IsScreenSharing { get; set; }
+    }
+
+    /// <summary>
+    /// Mời tham gia hội chẩn
+    /// </summary>
+    public class InviteParticipantDto
+    {
+        public Guid SessionId { get; set; }
+        public Guid UserId { get; set; }
+        public string Role { get; set; }
+    }
+
+    /// <summary>
+    /// Chấp nhận/Từ chối lời mời
+    /// </summary>
+    public class RespondInvitationDto
+    {
+        public Guid SessionId { get; set; }
+        public Guid UserId { get; set; }
+        public bool Accept { get; set; }
+        public string Note { get; set; }
+    }
+
+    /// <summary>
+    /// File đính kèm hội chẩn
+    /// </summary>
+    public class ConsultationAttachmentDto
+    {
+        public Guid Id { get; set; }
+        public Guid SessionId { get; set; }
+        public Guid? CaseId { get; set; }
+        public string FileName { get; set; }
+        public string FilePath { get; set; }
+        public string FileType { get; set; }
+        public long FileSize { get; set; }
+        public string UploadedByUserName { get; set; }
+        public DateTime UploadedAt { get; set; }
+        public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// Upload file đính kèm
+    /// </summary>
+    public class UploadConsultationAttachmentDto
+    {
+        public Guid SessionId { get; set; }
+        public Guid? CaseId { get; set; }
+        public string FileName { get; set; }
+        public string FileType { get; set; }
+        public string Base64Data { get; set; }
+        public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// Thêm file đính kèm vào hội chẩn
+    /// </summary>
+    public class AddConsultationAttachmentDto
+    {
+        public Guid SessionId { get; set; }
+        public Guid? CaseId { get; set; }
+        public string FileName { get; set; }
+        public string FileType { get; set; }
+        public string Base64Data { get; set; }
+        public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// Thảo luận trong hội chẩn
+    /// </summary>
+    public class ConsultationDiscussionDto
+    {
+        public Guid Id { get; set; }
+        public Guid SessionId { get; set; }
+        public Guid? CaseId { get; set; }
+        public Guid ParticipantId { get; set; }
+        public string ParticipantName { get; set; }
+        public string MessageType { get; set; } // Text, Image, Annotation
+        public string Content { get; set; }
+        public string AttachmentPath { get; set; }
+        public DateTime PostedAt { get; set; }
+        public bool IsDeleted { get; set; }
+    }
+
+    /// <summary>
+    /// Gửi tin nhắn thảo luận
+    /// </summary>
+    public class PostDiscussionDto
+    {
+        public Guid SessionId { get; set; }
+        public Guid? CaseId { get; set; }
+        public string MessageType { get; set; }
+        public string Content { get; set; }
+        public string AttachmentBase64 { get; set; }
+    }
+
+    /// <summary>
+    /// Thêm thảo luận vào hội chẩn
+    /// </summary>
+    public class AddConsultationDiscussionDto
+    {
+        public Guid SessionId { get; set; }
+        public Guid? CaseId { get; set; }
+        public string MessageType { get; set; }
+        public string Content { get; set; }
+        public string AttachmentBase64 { get; set; }
+    }
+
+    /// <summary>
+    /// Ghi chú ảnh DICOM hội chẩn
+    /// </summary>
+    public class ConsultationImageNoteDto
+    {
+        public Guid Id { get; set; }
+        public Guid SessionId { get; set; }
+        public string StudyInstanceUID { get; set; }
+        public string SeriesInstanceUID { get; set; }
+        public string SOPInstanceUID { get; set; }
+        public Guid CreatedByUserId { get; set; }
+        public string CreatedByUserName { get; set; }
+        public string AnnotationType { get; set; }
+        public string AnnotationData { get; set; }
+        public string Notes { get; set; }
+        public bool IsShared { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Lưu ghi chú ảnh
+    /// </summary>
+    public class SaveImageNoteDto
+    {
+        public Guid SessionId { get; set; }
+        public string StudyInstanceUID { get; set; }
+        public string SeriesInstanceUID { get; set; }
+        public string SOPInstanceUID { get; set; }
+        public string AnnotationType { get; set; }
+        public string AnnotationData { get; set; }
+        public string Notes { get; set; }
+        public bool IsShared { get; set; }
+    }
+
+    /// <summary>
+    /// Thêm ghi chú ảnh vào hội chẩn
+    /// </summary>
+    public class AddConsultationImageNoteDto
+    {
+        public Guid SessionId { get; set; }
+        public string StudyInstanceUID { get; set; }
+        public string SeriesInstanceUID { get; set; }
+        public string SOPInstanceUID { get; set; }
+        public string AnnotationType { get; set; }
+        public string AnnotationData { get; set; }
+        public string Notes { get; set; }
+        public bool IsShared { get; set; }
+    }
+
+    /// <summary>
+    /// Biên bản hội chẩn
+    /// </summary>
+    public class ConsultationMinutesDto
+    {
+        public Guid Id { get; set; }
+        public Guid SessionId { get; set; }
+        public string MinutesCode { get; set; }
+        public string TemplateUsed { get; set; }
+        public string Content { get; set; }
+        public string Conclusions { get; set; }
+        public string Recommendations { get; set; }
+        public string CreatedByUserName { get; set; }
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+        public string ApprovedByUserName { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+        public string PdfPath { get; set; }
+    }
+
+    /// <summary>
+    /// Lưu biên bản
+    /// </summary>
+    public class SaveConsultationMinutesDto
+    {
+        public Guid SessionId { get; set; }
+        public string TemplateUsed { get; set; }
+        public string Content { get; set; }
+        public string Conclusions { get; set; }
+        public string Recommendations { get; set; }
+    }
+
+    /// <summary>
+    /// QR Code mời hội chẩn
+    /// </summary>
+    public class ConsultationInviteQRDto
+    {
+        public Guid SessionId { get; set; }
+        public string SessionCode { get; set; }
+        public string Title { get; set; }
+        public string MeetingUrl { get; set; }
+        public string QRCodeBase64 { get; set; }
+        public DateTime ExpiresAt { get; set; }
+    }
+
+    /// <summary>
+    /// Tìm kiếm phiên hội chẩn
+    /// </summary>
+    public class SearchConsultationDto
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public int? Status { get; set; }
+        public Guid? OrganizerId { get; set; }
+        public string Keyword { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    /// <summary>
+    /// Kết quả tìm kiếm phiên hội chẩn
+    /// </summary>
+    public class ConsultationSearchResultDto
+    {
+        public List<ConsultationSessionDto> Items { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
+    #endregion
+
+    #region X. HL7 CDA Integration
+
+    /// <summary>
+    /// Cấu hình HL7 CDA
+    /// </summary>
+    public class HL7CDAConfigDto
+    {
+        public Guid Id { get; set; }
+        public string ConfigName { get; set; }
+        public string HL7Version { get; set; }
+        public string CDAVersion { get; set; }
+        public string SendingApplication { get; set; }
+        public string SendingFacility { get; set; }
+        public string ReceivingApplication { get; set; }
+        public string ReceivingFacility { get; set; }
+        public string ConnectionType { get; set; } // MLLP, HTTP, File
+        public string ServerAddress { get; set; }
+        public int? ServerPort { get; set; }
+        public string FilePath { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Lưu cấu hình HL7 CDA
+    /// </summary>
+    public class SaveHL7CDAConfigDto
+    {
+        public Guid? Id { get; set; }
+        public string ConfigName { get; set; }
+        public string HL7Version { get; set; }
+        public string CDAVersion { get; set; }
+        public string SendingApplication { get; set; }
+        public string SendingFacility { get; set; }
+        public string ReceivingApplication { get; set; }
+        public string ReceivingFacility { get; set; }
+        public string ConnectionType { get; set; }
+        public string ServerAddress { get; set; }
+        public int? ServerPort { get; set; }
+        public string FilePath { get; set; }
+        public bool IsActive { get; set; }
+        public string ConfigJson { get; set; }
+    }
+
+    /// <summary>
+    /// Message HL7
+    /// </summary>
+    public class HL7MessageDto
+    {
+        public Guid Id { get; set; }
+        public string MessageControlId { get; set; }
+        public string MessageType { get; set; }
+        public string TriggerEvent { get; set; }
+        public string Direction { get; set; }
+        public Guid? RadiologyRequestId { get; set; }
+        public string PatientId { get; set; }
+        public string AccessionNumber { get; set; }
+        public string RawMessage { get; set; }
+        public string ParsedData { get; set; }
+        public DateTime MessageDateTime { get; set; }
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+        public string AckCode { get; set; }
+        public string ErrorMessage { get; set; }
+        public int RetryCount { get; set; }
+    }
+
+    /// <summary>
+    /// Gửi HL7 message
+    /// </summary>
+    public class SendHL7MessageDto
+    {
+        public string MessageType { get; set; }
+        public string TriggerEvent { get; set; }
+        public Guid? RadiologyRequestId { get; set; }
+        public string PatientId { get; set; }
+        public string AccessionNumber { get; set; }
+        public Dictionary<string, object> Segments { get; set; }
+    }
+
+    /// <summary>
+    /// Kết quả gửi HL7
+    /// </summary>
+    public class SendHL7ResultDto
+    {
+        public bool Success { get; set; }
+        public string MessageControlId { get; set; }
+        public string AckCode { get; set; }
+        public string ErrorMessage { get; set; }
+        public DateTime SentAt { get; set; }
+    }
+
+    /// <summary>
+    /// Tài liệu CDA
+    /// </summary>
+    public class CDADocumentDto
+    {
+        public Guid Id { get; set; }
+        public string DocumentId { get; set; }
+        public string DocumentType { get; set; }
+        public Guid RadiologyReportId { get; set; }
+        public string OrderCode { get; set; }
+        public string PatientName { get; set; }
+        public string CDAContent { get; set; }
+        public string PdfPath { get; set; }
+        public bool IsSigned { get; set; }
+        public string SignatureType { get; set; }
+        public DateTime? SignedAt { get; set; }
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+        public DateTime? SentAt { get; set; }
+        public string AckStatus { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo tài liệu CDA
+    /// </summary>
+    public class CreateCDADocumentDto
+    {
+        public Guid RadiologyReportId { get; set; }
+        public string DocumentType { get; set; }
+        public string SignatureType { get; set; }
+    }
+
+    /// <summary>
+    /// Gửi CDA document
+    /// </summary>
+    public class SendCDADocumentDto
+    {
+        public Guid DocumentId { get; set; }
+        public Guid? ConfigId { get; set; }
+    }
+
+    /// <summary>
+    /// Tìm kiếm HL7 messages
+    /// </summary>
+    public class SearchHL7MessageDto
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public string MessageType { get; set; }
+        public string Direction { get; set; }
+        public int? Status { get; set; }
+        public string PatientId { get; set; }
+        public string AccessionNumber { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// Kết quả tìm kiếm HL7 messages
+    /// </summary>
+    public class HL7MessageSearchResultDto
+    {
+        public List<HL7MessageDto> Items { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
+    #endregion
+
+    #region IX. Online Help - Hướng dẫn sử dụng
+
+    /// <summary>
+    /// Danh mục hướng dẫn
+    /// </summary>
+    public class HelpCategoryDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string IconClass { get; set; }
+        public Guid? ParentId { get; set; }
+        public string ParentName { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+        public int ArticleCount { get; set; }
+        public List<HelpCategoryDto> Children { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật danh mục
+    /// </summary>
+    public class SaveHelpCategoryDto
+    {
+        public Guid? Id { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string IconClass { get; set; }
+        public Guid? ParentId { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Bài viết hướng dẫn
+    /// </summary>
+    public class HelpArticleDto
+    {
+        public Guid Id { get; set; }
+        public Guid CategoryId { get; set; }
+        public string CategoryName { get; set; }
+        public string Title { get; set; }
+        public string Summary { get; set; }
+        public string Content { get; set; }
+        public string VideoUrl { get; set; }
+        public string ArticleType { get; set; } // Guide, FAQ, Troubleshooting, Video
+        public int SortOrder { get; set; }
+        public int ViewCount { get; set; }
+        public bool IsPublished { get; set; }
+        public string CreatedByUserName { get; set; }
+        public DateTime? PublishedAt { get; set; }
+        public string Tags { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật bài viết
+    /// </summary>
+    public class SaveHelpArticleDto
+    {
+        public Guid? Id { get; set; }
+        public Guid CategoryId { get; set; }
+        public string Title { get; set; }
+        public string Summary { get; set; }
+        public string Content { get; set; }
+        public string VideoUrl { get; set; }
+        public string ArticleType { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsPublished { get; set; }
+        public string Tags { get; set; }
+    }
+
+    /// <summary>
+    /// Lỗi thường gặp
+    /// </summary>
+    public class TroubleshootingDto
+    {
+        public Guid Id { get; set; }
+        public string ErrorCode { get; set; }
+        public string ErrorTitle { get; set; }
+        public string ErrorDescription { get; set; }
+        public string Symptoms { get; set; }
+        public string Causes { get; set; }
+        public string Solution { get; set; }
+        public string RelatedModule { get; set; }
+        public int Severity { get; set; }
+        public string SeverityName { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Tạo/Cập nhật troubleshooting
+    /// </summary>
+    public class SaveTroubleshootingDto
+    {
+        public Guid? Id { get; set; }
+        public string ErrorCode { get; set; }
+        public string ErrorTitle { get; set; }
+        public string ErrorDescription { get; set; }
+        public string Symptoms { get; set; }
+        public string Causes { get; set; }
+        public string Solution { get; set; }
+        public string RelatedModule { get; set; }
+        public int Severity { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Tìm kiếm hướng dẫn
+    /// </summary>
+    public class SearchHelpDto
+    {
+        public string Keyword { get; set; }
+        public Guid? CategoryId { get; set; }
+        public string ArticleType { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    /// <summary>
+    /// Kết quả tìm kiếm hướng dẫn
+    /// </summary>
+    public class HelpSearchResultDto
+    {
+        public List<HelpArticleDto> Items { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
+    #endregion
+
+    #region VII. CLS Screen - Màn hình cận lâm sàng
+
+    /// <summary>
+    /// Cấu hình màn hình CLS
+    /// </summary>
+    public class CLSScreenConfigDto
+    {
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public string DefaultFilters { get; set; }
+        public string ColumnSettings { get; set; }
+        public int PageSize { get; set; }
+        public bool AutoLoadTemplate { get; set; }
+        public bool ShowPatientHistory { get; set; }
+        public bool EnableShortcuts { get; set; }
+        public string CustomSettings { get; set; }
+    }
+
+    /// <summary>
+    /// Lưu cấu hình CLS
+    /// </summary>
+    public class SaveCLSScreenConfigDto
+    {
+        public string DefaultFilters { get; set; }
+        public string ColumnSettings { get; set; }
+        public int PageSize { get; set; }
+        public bool AutoLoadTemplate { get; set; }
+        public bool ShowPatientHistory { get; set; }
+        public bool EnableShortcuts { get; set; }
+        public string CustomSettings { get; set; }
+    }
+
+    /// <summary>
+    /// Mẫu mô tả dịch vụ
+    /// </summary>
+    public class ServiceDescriptionTemplateDto
+    {
+        public Guid Id { get; set; }
+        public Guid ServiceId { get; set; }
+        public string ServiceName { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Conclusion { get; set; }
+        public string Notes { get; set; }
+        public bool IsDefault { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+        public string CreatedByUserName { get; set; }
+    }
+
+    /// <summary>
+    /// Lưu mẫu mô tả
+    /// </summary>
+    public class SaveServiceDescriptionTemplateDto
+    {
+        public Guid? Id { get; set; }
+        public Guid ServiceId { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Conclusion { get; set; }
+        public string Notes { get; set; }
+        public bool IsDefault { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Lịch sử chẩn đoán ca chụp
+    /// </summary>
+    public class DiagnosisHistoryDto
+    {
+        public Guid Id { get; set; }
+        public Guid RadiologyRequestId { get; set; }
+        public string OrderCode { get; set; }
+        public DateTime DiagnosisDate { get; set; }
+        public string DoctorName { get; set; }
+        public string Description { get; set; }
+        public string Conclusion { get; set; }
+        public string Notes { get; set; }
+        public int Version { get; set; }
+    }
+
+    #endregion
+
+
+    #region Request DTOs
+
+    /// <summary>
+    /// Request h?y phi�n h?i ch?n
+    /// </summary>
+    public class CancelConsultationRequest
+    {
+        public string Reason { get; set; }
+    }
+
+    /// <summary>
+    /// Request nh?n ch? d?nh HL7
+    /// </summary>
+    public class ReceiveHL7OrderRequest
+    {
+        public string HL7Message { get; set; }
+    }
+
+    /// <summary>
+    /// Request h?y k?t qu? HL7
+    /// </summary>
+    public class CancelHL7ResultRequest
+    {
+        public string Reason { get; set; }
+    }
+
+    #endregion
 }
