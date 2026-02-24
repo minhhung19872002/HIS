@@ -44,13 +44,13 @@ If a new service/controller is added, register it there or you get 500 errors.
 
 ## Work Log - 2026-02-24
 
-### DA HOAN THANH
+### DA HOAN THANH (Session 1 - Sang)
 
 **1. Ant Design v6 Migration (28 pages)**
 - Fix tat ca deprecated props: Space, Alert, Drawer, Timeline, List, Tabs
 - 28/28 pages updated, 0 console errors
 
-**2. Backend Services**
+**2. Backend Services (moi)**
 - Them BloodBankCompleteService, InsuranceXmlService, SystemCompleteService, PharmacyController
 - DI registration cho tat ca services moi trong DependencyInjection.cs
 - RIS/PACS complete workflow voi digital signatures va DICOM integration
@@ -71,54 +71,108 @@ If a new service/controller is added, register it there or you get 500 errors.
 **5. Playwright E2E Tests - 250/250 passing (5 skipped)**
 - Fix `networkidle` → `domcontentloaded` trong 5 spec files (app polling lam timeout)
 - Fix waitForSelector cho RIS/PACS UI tests
-- 5 tests skipped la conditional (chua co patient selected trong serial test flow)
 
-**6. Git Commits**
+**6. Git Commits (Session 1)**
 - `72b7335` - Comprehensive E2E testing, Antd v6 migration, RIS/PACS, multi-module
 - `86844e0` - Fix Playwright networkidle timeouts
 
-**7. Backend Stub Implementations (2026-02-24)**
-- BillingCompleteService: 11 methods implemented (CreateCashBook, CreateDeposit, GetDepositBalance, UseDepositForPayment, CancelDeposit, CancelPayment, CreateRefund, ApproveRefund, CreateOrUpdateInvoice, ApplyInvoiceDiscount, CloseCashBook)
-- InpatientCompleteService: 12 methods implemented (AssignBed, TransferBed, ReleaseBed, TransferDepartment, DischargePatient, CancelDischarge, CheckPreDischarge, CreateServiceOrder, GetServiceOrders, CreatePrescription, GetPrescriptions, CreateTreatmentSheet)
-- WarehouseCompleteService: 10 methods implemented (CreateSupplierReceipt, ApproveStockReceipt, CancelStockReceipt, DispenseOutpatientPrescription, DispenseInpatientOrder, IssueToDepartment, CreateStockTake, CompleteStockTake, CreateProcurementRequest, GetStock enhanced)
+### DA HOAN THANH (Session 2 - Chieu)
+
+**7. Backend Stub Implementations - 33 methods**
+- **BillingCompleteService**: 11 methods (CreateCashBook, CreateDeposit, GetDepositBalance, UseDepositForPayment, CancelDeposit, CancelPayment, CreateRefund, ApproveRefund, CreateOrUpdateInvoice, ApplyInvoiceDiscount, CloseCashBook)
+- **InpatientCompleteService**: 12 methods (AssignBed, TransferBed, ReleaseBed, TransferDepartment, DischargePatient, CancelDischarge, CheckPreDischarge, CreateServiceOrder, GetServiceOrders, CreatePrescription, GetPrescriptions, CreateTreatmentSheet)
+- **WarehouseCompleteService**: 10 methods (CreateSupplierReceipt, ApproveStockReceipt, CancelStockReceipt, DispenseOutpatientPrescription, DispenseInpatientOrder, IssueToDepartment, CreateStockTake, CompleteStockTake, CreateProcurementRequest, GetStock enhanced)
+
+**8. Database - Billing Tables (moi)**
+- Tao 5 bang SQL Server con thieu: CashBooks, Deposits, Receipts, ReceiptDetails, InvoiceSummaries
+- Script: `scripts/create_billing_tables.sql` (idempotent, IF NOT EXISTS)
+- Cac bang co FK lien ket voi Users, Patients, MedicalRecords
+
+**9. API Workflow Testing (Node.js)**
+- Tao script `scripts/test_real_workflow.js` test 4 workflow qua API:
+  - OPD: Register → Exam → Prescribe → Billing → Dispense
+  - IPD: Admit → AssignBed → DailyOrder → Discharge
+  - Warehouse: Import → Approve → Dispense → StockTake
+  - Billing: CashBook → Deposit → Payment → Refund
+- Ket qua: 14 pass, 22 fail → phat hien va fix loi DB tables, DTO format, route patterns
+
+**10. Cypress User Workflow Tests - 40 tests moi**
+- File: `frontend/cypress/e2e/user-workflow.cy.ts`
+- Test thao tac UI nhu user that, 10 nhom:
+  1. Login/Logout (clear token, re-login, verify redirect)
+  2. Reception (mo modal dang ky, kiem tra form fields, dong modal)
+  3. OPD Examination (navigate, kiem tra "Vui long chon benh nhan", chon phong)
+  4. Pharmacy (tab thuoc, tim kiem Paracetamol trong active tab)
+  5. Inpatient (tab dang dieu tri, nut "+ Nhap vien", tab quan ly giuong)
+  6. Billing (navigate, kiem tra filter/search UI)
+  7. Lab/Radiology (navigate, kiem tra tab structure)
+  8. Data Validation (28 pages load ko 500, dashboard co du lieu)
+  9. API-UI Cross Validation (API register patient, verify tren Reception UI)
+  10. Form Validation (empty form submit, required field check)
+
+**11. Tong ket test cuoi ngay**
+- **Cypress: 423/423 passing** (13 spec files, bao gom 40 tests moi)
+- **Playwright: 55/55 passing** (3 skipped - serial dependency)
+
+**12. Git Commits (Session 2)**
+- `980f01e` - Update CLAUDE.md with work log, status and next steps
+- `1ae85b7` - Implement 33 backend stubs, billing tables, user-workflow Cypress tests
+
+### Bugs da fix trong Session 2
+- Login test fail: `beforeEach` set token → visit `/login` redirect ngay. Fix: clear localStorage truoc
+- OPD table empty: phong ko co benh nhan. Fix: dung `$body.find()` conditional check
+- Pharmacy search input hidden: input trong tab `.ant-tabs-tabpane-hidden`. Fix: dung `.ant-tabs-tabpane-active` selector
+- IPD button text sai: UI hien "+ Nhap vien" ko phai "Nhap vien moi". Fix: doi selector
+- OPD tabs ko hien: tabs chi hien khi chon benh nhan. Fix: check "Vui long chon benh nhan" message
+- Docker sqlcmd path: `/opt/mssql-tools18/bin/sqlcmd` (ko phai `/opt/mssql-tools/bin/`)
+- DB name: `HIS` (ko phai `HIS_DB`), password: `HisDocker2024Pass#`
 
 ### DANG DO / CHUA XONG
 
-**1. 5 Playwright tests skipped** (conditional, ko loi - do serial test dependency)
+**1. 3 Playwright tests skipped** (conditional, ko loi - do serial test dependency)
 - O trong `02-opd-examination.spec.ts` va `05-surgery-flow.spec.ts`
 - Skip khi ko co patient selected tu buoc truoc
 
-**2. Backend NotImplementedException stubs (con lai)**
-- `BillingCompleteService.cs` - 16 methods NotImplemented (reports, printing, e-invoices, accounting approval)
-- `InpatientCompleteService.cs` - 133 methods NotImplemented (nutrition, vital signs, nursing, consultations, reports, prints)
-- `WarehouseCompleteService.cs` - 26 methods NotImplemented (other receipt types, pharmacy sales, reusable supplies, reports)
-- Cac method nay tra ve 500 khi goi, nhung frontend da handle bang console.warn
+**2. Backend NotImplementedException stubs (con lai ~175 methods)**
+- `BillingCompleteService.cs` - 16 methods (reports, printing, e-invoices, accounting approval)
+- `InpatientCompleteService.cs` - 133 methods (nutrition, vital signs, nursing, consultations, reports, prints)
+- `WarehouseCompleteService.cs` - 26 methods (other receipt types, pharmacy sales, reusable supplies, reports)
+- Frontend da handle bang console.warn, ko crash
 
-**3. API endpoints tra ve 404/400**
-- Surgery: `POST /api/surgery/requests` → 400 (chua co body dung format)
+**3. API workflow test failures (22/36)**
+- Registration API can `NewPatient` nested object (ko flat fields)
+- ExaminationId != MedicalRecordId (linked via FK)
+- IPD AssignBed can BedId + Note (required)
+- Mot so route dung `/{admissionId}` trong path
 
-### CAN LAM TIEP
+### CAN LAM TIEP (NGAY MAI)
 
-**1. Test workflow end-to-end voi DB that**
-- OPD flow day du: Tiep don → Kham → Ke don → Thu ngan → Phat thuoc (da test API, chua test UI click-through)
-- IPD flow: Nhap vien → Phan giuong → Dieu tri → Xuat vien (backend done, can test)
-- Surgery flow: Yeu cau → Len lich → Thuc hien → Hoan thanh
+**1. Fix 22 API workflow test failures (uu tien cao)**
+- Fix DTO format cho Registration (NewPatient nested)
+- Fix route patterns cho IPD endpoints
+- Muc tieu: 36/36 API tests pass
 
-**2. Fix 5 Playwright skipped tests**
-- Dam bao serial test co patient data tu buoc truoc
-- Co the can tao patient via API trong beforeAll
+**2. Cypress test fill form va submit (uu tien cao)**
+- Hien tai `user-workflow.cy.ts` chi test UI structure, chua fill form submit
+- Can them: Registration form fill + submit, OPD examination save, Prescription create
+- Pharmacy: 5 drawers, 3 modals - test fill form
+- Insurance: 4 modals - test fill form
+- Billing: 1 modal, 1 drawer - test fill form
 
-**3. Them Cypress test cho cac modal/drawer interactions**
-- Pharmacy: 5 drawers, 3 modals
-- Insurance: 4 modals
-- Billing: 1 modal, 1 drawer
-- Hien tai chi test click button, chua test fill form va submit
+**3. Fix 3 Playwright skipped tests**
+- Tao patient via API trong beforeAll de dam bao co data cho serial tests
 
-**4. Kiem tra data hien thi dung tren UI**
-- Verify Vietnamese encoding hien thi dung tren browser
-- Verify so lieu thong ke Dashboard khop voi DB
+**4. UI click-through workflow (end-to-end)**
+- OPD day du: Tiep don → Kham → Ke don → Thu ngan → Phat thuoc (UI interactions)
+- IPD day du: Nhap vien → Phan giuong → Dieu tri → Xuat vien (UI interactions)
+- Surgery: Yeu cau → Len lich → Thuc hien → Hoan thanh
 
-**5. Implement remaining backend stubs (lower priority)**
-- Reports, printing, e-invoices cho Billing
-- Nutrition, vital signs, nursing, consultations cho Inpatient
-- Pharmacy sales, reusable supplies, consignment cho Warehouse
+**5. Verify data hien thi dung**
+- Vietnamese encoding tren browser
+- So lieu Dashboard khop voi DB
+- Patient data sau register hien thi o Reception, OPD, Billing
+
+**6. Implement remaining backend stubs (uu tien thap)**
+- Reports, printing, e-invoices cho Billing (16 methods)
+- Nutrition, vital signs, nursing, consultations cho Inpatient (133 methods)
+- Pharmacy sales, reusable supplies, consignment cho Warehouse (26 methods)
