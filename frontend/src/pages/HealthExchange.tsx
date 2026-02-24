@@ -743,7 +743,7 @@ const HealthExchange: React.FC = () => {
       children: (
         <div>
           <Alert
-            message="Trang thai ket noi"
+            title="Trang thai ket noi"
             description={`${connectedCount}/${connections.length} cong ket noi dang hoat dong`}
             type={connectedCount === connections.length ? 'success' : 'warning'}
             showIcon
@@ -754,6 +754,26 @@ const HealthExchange: React.FC = () => {
             dataSource={connections}
             rowKey="id"
             pagination={false}
+            onRow={(record) => ({
+              onDoubleClick: () => {
+                Modal.info({
+                  title: `Chi tiết kết nối - ${record.name}`,
+                  width: 500,
+                  content: (
+                    <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                      <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                      <Descriptions.Item label="Loại">{record.type}</Descriptions.Item>
+                      <Descriptions.Item label="Endpoint">{record.endpoint || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">
+                        <Tag color={record.status === 'connected' ? 'green' : 'red'}>{record.status}</Tag>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Lần đồng bộ cuối">{record.lastSync || '-'}</Descriptions.Item>
+                    </Descriptions>
+                  ),
+                });
+              },
+              style: { cursor: 'pointer' },
+            })}
           />
         </div>
       ),
@@ -785,6 +805,25 @@ const HealthExchange: React.FC = () => {
             dataSource={submissions}
             rowKey="id"
             pagination={{ pageSize: 10 }}
+            onRow={(record) => ({
+              onDoubleClick: () => {
+                Modal.info({
+                  title: `Chi tiết gửi dữ liệu`,
+                  width: 500,
+                  content: (
+                    <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                      <Descriptions.Item label="Loại">{record.dataType}</Descriptions.Item>
+                      <Descriptions.Item label="Đích">{record.destination}</Descriptions.Item>
+                      <Descriptions.Item label="Số bản ghi">{record.recordCount}</Descriptions.Item>
+                      <Descriptions.Item label="Ngày gửi">{record.submissionDate}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                      <Descriptions.Item label="Ghi chú">{record.notes || '-'}</Descriptions.Item>
+                    </Descriptions>
+                  ),
+                });
+              },
+              style: { cursor: 'pointer' },
+            })}
           />
         </div>
       ),
@@ -816,6 +855,27 @@ const HealthExchange: React.FC = () => {
             dataSource={referrals}
             rowKey="id"
             pagination={{ pageSize: 10 }}
+            onRow={(record) => ({
+              onDoubleClick: () => {
+                Modal.info({
+                  title: `Chi tiết chuyển viện`,
+                  width: 600,
+                  content: (
+                    <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                      <Descriptions.Item label="Mã phiếu">{record.referralCode}</Descriptions.Item>
+                      <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                      <Descriptions.Item label="Nơi chuyển">{record.fromFacility}</Descriptions.Item>
+                      <Descriptions.Item label="Nơi nhận">{record.toFacility}</Descriptions.Item>
+                      <Descriptions.Item label="Chẩn đoán" span={2}>{record.diagnosis || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Lý do" span={2}>{record.reason || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Ngày chuyển">{record.referralDate}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                    </Descriptions>
+                  ),
+                });
+              },
+              style: { cursor: 'pointer' },
+            })}
           />
         </div>
       ),
@@ -844,6 +904,26 @@ const HealthExchange: React.FC = () => {
             dataSource={consultations}
             rowKey="id"
             pagination={{ pageSize: 10 }}
+            onRow={(record) => ({
+              onDoubleClick: () => {
+                Modal.info({
+                  title: `Chi tiết hội chẩn từ xa`,
+                  width: 600,
+                  content: (
+                    <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                      <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                      <Descriptions.Item label="Bệnh viện yêu cầu">{record.requestingFacility}</Descriptions.Item>
+                      <Descriptions.Item label="Chuyên gia">{record.consultantName || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Chuyên khoa">{record.specialty || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Chẩn đoán" span={2}>{record.diagnosis || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Ngày yêu cầu">{record.requestDate}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                    </Descriptions>
+                  ),
+                });
+              },
+              style: { cursor: 'pointer' },
+            })}
           />
         </div>
       ),
@@ -859,7 +939,7 @@ const HealthExchange: React.FC = () => {
       children: (
         <div>
           <Alert
-            message="Quy dinh ve dong y benh nhan"
+            title="Quy dinh ve dong y benh nhan"
             description="Benh nhan phai dong y truoc khi chia se thong tin suc khoe voi cac co so y te khac hoac HSSK quoc gia."
             type="info"
             showIcon
@@ -879,6 +959,33 @@ const HealthExchange: React.FC = () => {
             dataSource={consents}
             rowKey="id"
             pagination={{ pageSize: 10 }}
+            onRow={(record) => ({
+              onDoubleClick: () => {
+                const consentLabels: Record<string, string> = {
+                  ehr_share: 'Chia se HSSK',
+                  referral: 'Chuyen vien',
+                  consultation: 'Hoi chan',
+                  research: 'Nghien cuu',
+                };
+                Modal.info({
+                  title: 'Chi tiet dong y',
+                  width: 600,
+                  content: (
+                    <Descriptions column={1} bordered size="small">
+                      <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
+                      <Descriptions.Item label="Ma BN">{record.patientId}</Descriptions.Item>
+                      <Descriptions.Item label="Loai dong y">{consentLabels[record.consentType] || record.consentType}</Descriptions.Item>
+                      <Descriptions.Item label="Trang thai">
+                        {record.status === 'active' ? 'Hieu luc' : 'Thu hoi'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Ngay cap">{record.grantedAt}</Descriptions.Item>
+                      <Descriptions.Item label="Het han">{record.expiresAt || 'Vo thoi han'}</Descriptions.Item>
+                    </Descriptions>
+                  ),
+                });
+              },
+              style: { cursor: 'pointer' },
+            })}
           />
         </div>
       ),
@@ -898,7 +1005,7 @@ const HealthExchange: React.FC = () => {
               value={connectedCount}
               suffix={`/ ${connections.length}`}
               prefix={<ApiOutlined />}
-              valueStyle={{ color: connectedCount === connections.length ? '#3f8600' : '#faad14' }}
+              styles={{ content: { color: connectedCount === connections.length ? '#3f8600' : '#faad14' } }}
             />
           </Card>
         </Col>
@@ -908,7 +1015,7 @@ const HealthExchange: React.FC = () => {
               title="Du lieu cho xu ly"
               value={pendingSubmissions}
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -1099,7 +1206,7 @@ const HealthExchange: React.FC = () => {
             </Select>
           </Form.Item>
           <Alert
-            message="Luu y"
+            title="Luu y"
             description="Benh nhan co quyen thu hoi dong y bat cu luc nao."
             type="warning"
             showIcon

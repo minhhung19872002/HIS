@@ -560,7 +560,7 @@ const EmergencyDisaster: React.FC = () => {
                 <Statistic
                   title={<span style={{ color: '#cf1322' }}>DO - Cap cuu ngay</span>}
                   value={redCount}
-                  valueStyle={{ color: '#cf1322', fontSize: 48 }}
+                  styles={{ content: { color: '#cf1322', fontSize: 48 } }}
                 />
               </Card>
             </Col>
@@ -569,7 +569,7 @@ const EmergencyDisaster: React.FC = () => {
                 <Statistic
                   title={<span style={{ color: '#d48806' }}>VANG - Tri hoan duoc</span>}
                   value={yellowCount}
-                  valueStyle={{ color: '#d48806', fontSize: 48 }}
+                  styles={{ content: { color: '#d48806', fontSize: 48 } }}
                 />
               </Card>
             </Col>
@@ -578,7 +578,7 @@ const EmergencyDisaster: React.FC = () => {
                 <Statistic
                   title={<span style={{ color: '#389e0d' }}>XANH - Nhe</span>}
                   value={greenCount}
-                  valueStyle={{ color: '#389e0d', fontSize: 48 }}
+                  styles={{ content: { color: '#389e0d', fontSize: 48 } }}
                 />
               </Card>
             </Col>
@@ -587,7 +587,7 @@ const EmergencyDisaster: React.FC = () => {
                 <Statistic
                   title="DEN - Tu vong"
                   value={blackCount}
-                  valueStyle={{ fontSize: 48 }}
+                  styles={{ content: { fontSize: 48 } }}
                 />
               </Card>
             </Col>
@@ -603,7 +603,7 @@ const EmergencyDisaster: React.FC = () => {
                       title={r.name}
                       value={r.available}
                       suffix={`/ ${r.total}`}
-                      valueStyle={{ color: r.available < 3 ? '#cf1322' : '#3f8600' }}
+                      styles={{ content: { color: r.available < 3 ? '#cf1322' : '#3f8600' } }}
                     />
                     <Progress
                       percent={Math.round((r.available / r.total) * 100)}
@@ -623,7 +623,7 @@ const EmergencyDisaster: React.FC = () => {
               items={[
                 {
                   color: 'red',
-                  children: (
+                  content: (
                     <>
                       <Text strong>10:30 - Kich hoat CODE ORANGE</Text>
                       <br />
@@ -633,7 +633,7 @@ const EmergencyDisaster: React.FC = () => {
                 },
                 {
                   color: 'blue',
-                  children: (
+                  content: (
                     <>
                       <Text strong>10:32 - Huy dong nhan luc</Text>
                       <br />
@@ -643,7 +643,7 @@ const EmergencyDisaster: React.FC = () => {
                 },
                 {
                   color: 'green',
-                  children: (
+                  content: (
                     <>
                       <Text strong>10:45 - Nan nhan dau tien den</Text>
                       <br />
@@ -653,7 +653,7 @@ const EmergencyDisaster: React.FC = () => {
                 },
                 {
                   color: 'green',
-                  children: (
+                  content: (
                     <>
                       <Text strong>11:00 - Cap nhat</Text>
                       <br />
@@ -701,6 +701,13 @@ const EmergencyDisaster: React.FC = () => {
               if (record.triageCategory === 'red') return 'ant-table-row-red';
               return '';
             }}
+            onRow={(record) => ({
+              onDoubleClick: () => {
+                setSelectedVictim(record);
+                setVictimDetailModalVisible(true);
+              },
+              style: { cursor: 'pointer' },
+            })}
           />
         </div>
       ),
@@ -771,7 +778,7 @@ const EmergencyDisaster: React.FC = () => {
       children: (
         <div>
           <Alert
-            message="Tinh trang nhan su"
+            title="Tinh trang nhan su"
             description={`${staff.filter(s => s.status === 'arrived').length} nhan vien da co mat, ${staff.filter(s => s.status === 'notified').length} dang tren duong`}
             type="info"
             showIcon
@@ -890,7 +897,7 @@ const EmergencyDisaster: React.FC = () => {
       {/* Header with MCI Status */}
       {mciEvent && mciEvent.status === 'active' ? (
         <Alert
-          message={
+          title={
             <Space>
               <SoundOutlined />
               <Text strong style={{ fontSize: 18 }}>
@@ -915,7 +922,7 @@ const EmergencyDisaster: React.FC = () => {
           showIcon
           icon={<AlertOutlined />}
           action={
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <Button danger onClick={handleEndMCI}>
                 Ket thuc su kien
               </Button>
@@ -973,7 +980,7 @@ const EmergencyDisaster: React.FC = () => {
         width={600}
       >
         <Alert
-          message="Canh bao"
+          title="Canh bao"
           description="Kich hoat Code MCI se gui thong bao den tat ca nhan vien va khoi dong quy trinh cap cuu tham hoa."
           type="warning"
           showIcon

@@ -37,7 +37,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto } from '../api/surgery';
+import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, completeSurgery, searchIcdCodes, searchServices, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto, type CompleteSurgeryDto, type IcdCodeDto, type ServiceDto as SurgeryServiceDto } from '../api/surgery';
+import { examinationApi } from '../api/examination';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -109,11 +110,26 @@ const Surgery: React.FC = () => {
   const [surgeryRequests, setSurgeryRequests] = useState<SurgeryRequest[]>([]);
   const [surgerySchedules, setSurgerySchedules] = useState<SurgerySchedule[]>([]);
   const [operatingRooms, setOperatingRooms] = useState<OperatingRoom[]>([]);
-  const [_surgeryRecords, _setSurgeryRecords] = useState<SurgeryRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [selectedRequest, setSelectedRequest] = useState<SurgeryRequest | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<SurgerySchedule | null>(null);
+
+  // Filter states
+  const [requestSearchText, setRequestSearchText] = useState('');
+  const [scheduleSearchText, setScheduleSearchText] = useState('');
+  const [scheduleFilterDate, setScheduleFilterDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [scheduleFilterRoom, setScheduleFilterRoom] = useState<string | undefined>(undefined);
+  const [recordSearchText, setRecordSearchText] = useState('');
+  const [recordDateRange, setRecordDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+
+  // State for searchable select options in request form
+  const [medicalRecordOptions, setMedicalRecordOptions] = useState<{ value: string; label: string }[]>([]);
+  const [surgeryServiceOptions, setSurgeryServiceOptions] = useState<{ value: string; label: string }[]>([]);
+  const [icdCodeOptions, setIcdCodeOptions] = useState<{ value: string; label: string; code: string }[]>([]);
+  const [searchingMedicalRecords, setSearchingMedicalRecords] = useState(false);
+  const [searchingSurgeryServices, setSearchingSurgeryServices] = useState(false);
+  const [searchingIcdCodes, setSearchingIcdCodes] = useState(false);
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -247,6 +263,80 @@ const Surgery: React.FC = () => {
     }
   };
 
+  // Search medical records by keyword (patient code/name)
+  const handleSearchMedicalRecords = async (keyword: string) => {
+    if (!keyword || keyword.length < 2) {
+      setMedicalRecordOptions([]);
+      return;
+    }
+    setSearchingMedicalRecords(true);
+    try {
+      const response = await examinationApi.searchExaminations({
+        keyword,
+        pageNumber: 1,
+        pageSize: 20,
+      });
+      if (response.data?.items) {
+        const options = response.data.items.map((item: any) => ({
+          value: item.id,
+          label: `${item.patientCode} - ${item.patientName} (${item.id.substring(0, 8)})`,
+        }));
+        setMedicalRecordOptions(options);
+      }
+    } catch (error) {
+      console.error('Error searching medical records:', error);
+    } finally {
+      setSearchingMedicalRecords(false);
+    }
+  };
+
+  // Search surgery services by keyword
+  const handleSearchSurgeryServices = async (keyword: string) => {
+    if (!keyword || keyword.length < 2) {
+      setSurgeryServiceOptions([]);
+      return;
+    }
+    setSearchingSurgeryServices(true);
+    try {
+      const response = await searchServices(keyword, 1); // serviceType=1 for surgery services
+      if (response.data) {
+        const options = response.data.map((svc: SurgeryServiceDto) => ({
+          value: svc.id,
+          label: `${svc.code} - ${svc.name} (${svc.unitPrice?.toLocaleString() || 0} đ)`,
+        }));
+        setSurgeryServiceOptions(options);
+      }
+    } catch (error) {
+      console.error('Error searching surgery services:', error);
+    } finally {
+      setSearchingSurgeryServices(false);
+    }
+  };
+
+  // Search ICD codes by keyword
+  const handleSearchIcdCodes = async (keyword: string) => {
+    if (!keyword || keyword.length < 2) {
+      setIcdCodeOptions([]);
+      return;
+    }
+    setSearchingIcdCodes(true);
+    try {
+      const response = await searchIcdCodes(keyword);
+      if (response.data) {
+        const options = response.data.map((icd: IcdCodeDto) => ({
+          value: icd.code,
+          label: `${icd.code} - ${icd.name}`,
+          code: icd.code,
+        }));
+        setIcdCodeOptions(options);
+      }
+    } catch (error) {
+      console.error('Error searching ICD codes:', error);
+    } finally {
+      setSearchingIcdCodes(false);
+    }
+  };
+
   // Handle create request
   const handleCreateRequest = () => {
     requestForm.resetFields();
@@ -260,13 +350,13 @@ const Surgery: React.FC = () => {
 
       // Build API request DTO
       const dto: CreateSurgeryRequestDto = {
-        medicalRecordId: crypto.randomUUID(), // Mock for now - will be replaced with real selection
-        surgeryServiceId: crypto.randomUUID(), // Mock for now
+        medicalRecordId: values.medicalRecordId,
+        surgeryServiceId: values.surgeryServiceId,
         surgeryType: values.surgeryType || 1,
         surgeryClass: 2, // Loại 1
         surgeryNature: values.priority || 1,
         preOperativeDiagnosis: values.preOpDiagnosis,
-        preOperativeIcdCode: 'K80.0', // Mock ICD code
+        preOperativeIcdCode: values.preOperativeIcdCode || '',
         surgeryMethod: values.plannedProcedure,
         anesthesiaType: values.anesthesiaType || 2,
         anesthesiaMethod: '',
@@ -418,6 +508,44 @@ const Surgery: React.FC = () => {
       console.error('Error starting surgery:', error);
       message.error('Có lỗi xảy ra khi bắt đầu phẫu thuật');
     }
+  };
+
+  // Handle complete surgery
+  const handleCompleteSurgery = (record: SurgerySchedule) => {
+    Modal.confirm({
+      title: 'Hoàn thành phẫu thuật',
+      content: `Xác nhận hoàn thành ca phẫu thuật ${record.requestCode} - ${record.patientName}?`,
+      okText: 'Xác nhận',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          const completeDto: CompleteSurgeryDto = {
+            surgeryId: record.id,
+            endTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+          };
+          await completeSurgery(completeDto);
+
+          // Update schedule status locally
+          setSurgerySchedules(prev =>
+            prev.map(sch =>
+              sch.id === record.id ? { ...sch, status: 4 } : sch
+            )
+          );
+
+          // Update request status to Completed
+          setSurgeryRequests(prev =>
+            prev.map(req =>
+              req.requestCode === record.requestCode ? { ...req, status: 3 } : req
+            )
+          );
+
+          message.success('Hoàn thành phẫu thuật thành công');
+        } catch (error) {
+          console.error('Error completing surgery:', error);
+          message.error('Có lỗi xảy ra khi hoàn thành phẫu thuật');
+        }
+      },
+    });
   };
 
   // Handle print surgery record (Phiếu phẫu thuật/thủ thuật - MS: 06/BV-02)
@@ -575,6 +703,7 @@ const Surgery: React.FC = () => {
     printWindow.focus();
 
     setTimeout(() => {
+      printWindow.focus();
       printWindow.print();
     }, 500);
   };
@@ -832,7 +961,7 @@ const Surgery: React.FC = () => {
       width: 200,
       render: (_, record) => (
         <Space>
-          <Button type="primary" size="small">
+          <Button type="primary" size="small" onClick={() => handleCompleteSurgery(record)}>
             Hoàn thành
           </Button>
           <Button
@@ -847,8 +976,54 @@ const Surgery: React.FC = () => {
     },
   ];
 
+  // Filtered data
+  const filteredRequests = surgeryRequests.filter(r => {
+    if (!requestSearchText) return true;
+    const text = requestSearchText.toLowerCase();
+    return (
+      r.requestCode?.toLowerCase().includes(text) ||
+      r.patientCode?.toLowerCase().includes(text) ||
+      r.patientName?.toLowerCase().includes(text)
+    );
+  });
+
+  const filteredSchedules = surgerySchedules.filter(s => {
+    let match = true;
+    if (scheduleSearchText) {
+      const text = scheduleSearchText.toLowerCase();
+      match = match && (
+        s.requestCode?.toLowerCase().includes(text) ||
+        s.patientName?.toLowerCase().includes(text)
+      );
+    }
+    if (scheduleFilterDate) {
+      match = match && dayjs(s.scheduledDateTime).isSame(scheduleFilterDate, 'day');
+    }
+    if (scheduleFilterRoom) {
+      match = match && s.operatingRoomName === operatingRooms.find(r => r.id === scheduleFilterRoom)?.roomName;
+    }
+    return match;
+  });
+
+  const filteredRecords = surgerySchedules.filter(s => {
+    if (s.status !== 4) return false; // Only completed
+    let match = true;
+    if (recordSearchText) {
+      const text = recordSearchText.toLowerCase();
+      match = match && (
+        s.requestCode?.toLowerCase().includes(text) ||
+        s.patientName?.toLowerCase().includes(text)
+      );
+    }
+    if (recordDateRange && recordDateRange[0] && recordDateRange[1]) {
+      const schedDate = dayjs(s.scheduledDateTime);
+      match = match && schedDate.isAfter(recordDateRange[0].startOf('day')) && schedDate.isBefore(recordDateRange[1].endOf('day'));
+    }
+    return match;
+  });
+
   const pendingRequests = surgeryRequests.filter(r => r.status === 0);
-  const scheduledSurgeries = surgerySchedules.filter(s => s.status < 3);
+  const scheduledSurgeries = filteredSchedules.filter(s => s.status < 3);
   const inProgressSurgeries = surgerySchedules.filter(s => s.status === 3);
 
   return (
@@ -880,11 +1055,13 @@ const Surgery: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        onSearch={(value) => setRequestSearchText(value)}
+                        onChange={(e) => { if (!e.target.value) setRequestSearchText(''); }}
                       />
                     </Col>
                     <Col>
                       <Space>
-                        <Button icon={<ReloadOutlined />}>Làm mới</Button>
+                        <Button icon={<ReloadOutlined />} onClick={() => { setRequestSearchText(''); fetchSurgeries(); }}>Làm mới</Button>
                         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateRequest}>
                           Tạo yêu cầu
                         </Button>
@@ -894,7 +1071,7 @@ const Surgery: React.FC = () => {
 
                   <Table
                     columns={requestColumns}
-                    dataSource={surgeryRequests}
+                    dataSource={filteredRequests}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1600 }}
@@ -953,10 +1130,16 @@ const Surgery: React.FC = () => {
                         placeholder="Chọn ngày"
                         format="DD/MM/YYYY"
                         defaultValue={dayjs()}
+                        onChange={(date) => setScheduleFilterDate(date)}
                       />
                     </Col>
                     <Col>
-                      <Select placeholder="Chọn phòng mổ" style={{ width: 200 }} allowClear>
+                      <Select
+                        placeholder="Chọn phòng mổ"
+                        style={{ width: 200 }}
+                        allowClear
+                        onChange={(value) => setScheduleFilterRoom(value)}
+                      >
                         {operatingRooms.map(room => (
                           <Select.Option key={room.id} value={room.id}>
                             {room.roomName}
@@ -970,13 +1153,15 @@ const Surgery: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        onSearch={(value) => setScheduleSearchText(value)}
+                        onChange={(e) => { if (!e.target.value) setScheduleSearchText(''); }}
                       />
                     </Col>
                   </Row>
 
                   <Table
                     columns={scheduleColumns}
-                    dataSource={surgerySchedules}
+                    dataSource={filteredSchedules}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1500 }}
@@ -1025,7 +1210,7 @@ const Surgery: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Trạng thái phòng mổ"
+                    title="Trạng thái phòng mổ"
                     description="Theo dõi trạng thái và lịch sử dụng các phòng mổ trong ngày"
                     type="info"
                     showIcon
@@ -1077,7 +1262,7 @@ const Surgery: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Phẫu thuật đang thực hiện"
+                    title="Phẫu thuật đang thực hiện"
                     description="Danh sách các ca phẫu thuật đang được tiến hành"
                     type="warning"
                     showIcon
@@ -1130,6 +1315,7 @@ const Surgery: React.FC = () => {
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
+                        onChange={(dates) => setRecordDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
                       />
                     </Col>
                     <Col flex="auto">
@@ -1138,16 +1324,32 @@ const Surgery: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        onSearch={(value) => setRecordSearchText(value)}
+                        onChange={(e) => { if (!e.target.value) setRecordSearchText(''); }}
                       />
                     </Col>
                   </Row>
 
-                  <Alert
-                    message="Chưa có dữ liệu"
-                    description="Chưa có hồ sơ phẫu thuật nào được hoàn thành"
-                    type="info"
-                    showIcon
-                  />
+                  {filteredRecords.length === 0 ? (
+                    <Alert
+                      title="Chưa có dữ liệu"
+                      description="Chưa có hồ sơ phẫu thuật nào được hoàn thành"
+                      type="info"
+                      showIcon
+                    />
+                  ) : (
+                    <Table
+                      columns={scheduleColumns}
+                      dataSource={filteredRecords}
+                      rowKey="id"
+                      size="small"
+                      scroll={{ x: 1500 }}
+                      pagination={{
+                        showSizeChanger: true,
+                        showTotal: (total) => `Tổng: ${total} hồ sơ`,
+                      }}
+                    />
+                  )}
                 </>
               ),
             },
@@ -1198,6 +1400,45 @@ const Surgery: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
+                name="medicalRecordId"
+                label="Hồ sơ bệnh án"
+                rules={[{ required: true, message: 'Vui lòng chọn hồ sơ bệnh án' }]}
+              >
+                <Select
+                  showSearch
+                  filterOption={false}
+                  placeholder="Tìm theo mã BN, tên bệnh nhân..."
+                  onSearch={handleSearchMedicalRecords}
+                  loading={searchingMedicalRecords}
+                  notFoundContent={searchingMedicalRecords ? 'Đang tìm...' : 'Nhập ít nhất 2 ký tự'}
+                  options={medicalRecordOptions}
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="surgeryServiceId"
+                label="Dịch vụ phẫu thuật"
+                rules={[{ required: true, message: 'Vui lòng chọn dịch vụ phẫu thuật' }]}
+              >
+                <Select
+                  showSearch
+                  filterOption={false}
+                  placeholder="Tìm theo mã hoặc tên dịch vụ..."
+                  onSearch={handleSearchSurgeryServices}
+                  loading={searchingSurgeryServices}
+                  notFoundContent={searchingSurgeryServices ? 'Đang tìm...' : 'Nhập ít nhất 2 ký tự'}
+                  options={surgeryServiceOptions}
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
                 name="surgeryType"
                 label="Loại phẫu thuật"
                 rules={[{ required: true, message: 'Vui lòng chọn loại phẫu thuật' }]}
@@ -1233,13 +1474,35 @@ const Surgery: React.FC = () => {
             <Input placeholder="Nhập phương pháp phẫu thuật" />
           </Form.Item>
 
-          <Form.Item
-            name="preOpDiagnosis"
-            label="Chẩn đoán trước mổ"
-            rules={[{ required: true, message: 'Vui lòng nhập chẩn đoán' }]}
-          >
-            <TextArea rows={2} placeholder="Nhập chẩn đoán trước mổ" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={18}>
+              <Form.Item
+                name="preOpDiagnosis"
+                label="Chẩn đoán trước mổ"
+                rules={[{ required: true, message: 'Vui lòng nhập chẩn đoán' }]}
+              >
+                <TextArea rows={2} placeholder="Nhập chẩn đoán trước mổ" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item
+                name="preOperativeIcdCode"
+                label="Mã ICD"
+                rules={[{ required: true, message: 'Vui lòng chọn mã ICD' }]}
+              >
+                <Select
+                  showSearch
+                  filterOption={false}
+                  placeholder="Tìm mã ICD..."
+                  onSearch={handleSearchIcdCodes}
+                  loading={searchingIcdCodes}
+                  notFoundContent={searchingIcdCodes ? 'Đang tìm...' : 'Nhập ít nhất 2 ký tự'}
+                  options={icdCodeOptions}
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Row gutter={16}>
             <Col span={12}>
@@ -1382,7 +1645,7 @@ const Surgery: React.FC = () => {
               </Form.Item>
 
               <Alert
-                message="Lưu ý"
+                title="Lưu ý"
                 description="Vui lòng kiểm tra lịch phòng mổ và ekip trước khi lên lịch"
                 type="info"
                 showIcon
@@ -1414,7 +1677,7 @@ const Surgery: React.FC = () => {
         {selectedSchedule && (
           <>
             <Alert
-              message="Xác nhận bắt đầu phẫu thuật"
+              title="Xác nhận bắt đầu phẫu thuật"
               description="Vui lòng kiểm tra kỹ thông tin bệnh nhân và ekip trước khi bắt đầu"
               type="warning"
               showIcon

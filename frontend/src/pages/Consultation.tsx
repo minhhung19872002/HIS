@@ -19,7 +19,6 @@ import {
   DatePicker,
   Alert,
   Divider,
-  List,
   Avatar,
   Tooltip,
   Timeline,
@@ -480,6 +479,10 @@ const Consultation: React.FC = () => {
                         setSearchParams({ ...searchParams, page, pageSize });
                       },
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => handleViewSession(record),
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -494,28 +497,19 @@ const Consultation: React.FC = () => {
                 </span>
               ),
               children: (
-                <List
-                  itemLayout="horizontal"
-                  dataSource={sessions.filter(s => s.status === 0)}
-                  renderItem={(session) => (
-                    <List.Item
-                      actions={[
-                        <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => handleStartConsultation(session.id)}>
-                          Bắt đầu
-                        </Button>,
-                        <Button icon={<EditOutlined />}>Sửa</Button>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={<Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#1890ff' }} />}
-                        title={
-                          <Space>
-                            <Text strong>{session.title}</Text>
-                            <Tag>{session.sessionCode}</Tag>
-                          </Space>
-                        }
-                        description={
-                          <Space direction="vertical" size={0}>
+                <div>
+                  {sessions.filter(s => s.status === 0).map((session) => (
+                    <div key={session.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                        <div>
+                          <div>
+                            <Space>
+                              <Text strong>{session.title}</Text>
+                              <Tag>{session.sessionCode}</Tag>
+                            </Space>
+                          </div>
+                          <Space orientation="vertical" size={0}>
                             <Text type="secondary">
                               <ClockCircleOutlined /> {dayjs(session.scheduledTime).format('DD/MM/YYYY HH:mm')}
                             </Text>
@@ -523,11 +517,17 @@ const Consultation: React.FC = () => {
                               <UserOutlined /> {session.createdByUserName} | {session.caseCount} ca chụp
                             </Text>
                           </Space>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
+                        </div>
+                      </div>
+                      <Space>
+                        <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => handleStartConsultation(session.id)}>
+                          Bắt đầu
+                        </Button>
+                        <Button icon={<EditOutlined />}>Sửa</Button>
+                      </Space>
+                    </div>
+                  ))}
+                </div>
               ),
             },
             {
@@ -540,38 +540,33 @@ const Consultation: React.FC = () => {
                 </span>
               ),
               children: (
-                <List
-                  itemLayout="horizontal"
-                  dataSource={sessions.filter(s => s.status === 1)}
-                  renderItem={(session) => (
-                    <List.Item
-                      actions={[
-                        <Button type="primary" icon={<VideoCameraOutlined />} onClick={() => handleJoinConsultation(session.id)}>
-                          Vào hội chẩn
-                        </Button>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Badge dot status="processing">
-                            <Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#52c41a' }} />
-                          </Badge>
-                        }
-                        title={
-                          <Space>
-                            <Text strong>{session.title}</Text>
-                            <Tag color="green">Đang diễn ra</Tag>
-                          </Space>
-                        }
-                        description={
+                <div>
+                  {sessions.filter(s => s.status === 1).map((session) => (
+                    <div key={session.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <Badge dot status="processing">
+                          <Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#52c41a' }} />
+                        </Badge>
+                        <div>
+                          <div>
+                            <Space>
+                              <Text strong>{session.title}</Text>
+                              <Tag color="green">Đang diễn ra</Tag>
+                            </Space>
+                          </div>
                           <Text type="secondary">
                             Bắt đầu lúc: {dayjs(session.startTime).format('HH:mm')} | {session.caseCount} ca chụp
                           </Text>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
+                        </div>
+                      </div>
+                      <Space>
+                        <Button type="primary" icon={<VideoCameraOutlined />} onClick={() => handleJoinConsultation(session.id)}>
+                          Vào hội chẩn
+                        </Button>
+                      </Space>
+                    </div>
+                  ))}
+                </div>
               ),
             },
             {
@@ -605,6 +600,10 @@ const Consultation: React.FC = () => {
                   dataSource={sessions.filter(s => s.status === 2)}
                   rowKey="id"
                   size="small"
+                  onRow={(record) => ({
+                    onDoubleClick: () => handleViewSession(record),
+                    style: { cursor: 'pointer' },
+                  })}
                 />
               ),
             },
@@ -672,7 +671,7 @@ const Consultation: React.FC = () => {
           </Row>
 
           <Alert
-            message="Lưu ý"
+            title="Lưu ý"
             description="Sau khi tạo phiên, bạn có thể thêm ca chụp cần hội chẩn và mời thành viên tham gia."
             type="info"
             showIcon
@@ -728,51 +727,48 @@ const Consultation: React.FC = () => {
 
             <Divider>Ca chụp hội chẩn ({selectedSession.caseCount})</Divider>
 
-            <List
-              dataSource={selectedSession.cases || []}
-              renderItem={(caseItem: ConsultationCaseDto) => (
-                <List.Item
-                  actions={[
-                    <Button size="small" icon={<PictureOutlined />}>Xem ảnh DICOM</Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<PictureOutlined />} />}
-                    title={`${caseItem.patientName} (${caseItem.patientCode})`}
-                    description={
-                      <>
-                        <div>{caseItem.serviceName}</div>
-                        <div>Lý do: {caseItem.reason || 'Chưa có'}</div>
-                      </>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
+            <div>
+              {(selectedSession.cases || []).map((caseItem: ConsultationCaseDto) => (
+                <div key={caseItem.id || caseItem.patientCode} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Avatar icon={<PictureOutlined />} />
+                    <div>
+                      <div><Text strong>{`${caseItem.patientName} (${caseItem.patientCode})`}</Text></div>
+                      <div>
+                        <div><Text type="secondary">{caseItem.serviceName}</Text></div>
+                        <div><Text type="secondary">Ly do: {caseItem.reason || 'Chua co'}</Text></div>
+                      </div>
+                    </div>
+                  </div>
+                  <Space>
+                    <Button size="small" icon={<PictureOutlined />}>Xem anh DICOM</Button>
+                  </Space>
+                </div>
+              ))}
+            </div>
 
             <Divider>Thảo luận</Divider>
 
             <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
               {discussions.length > 0 ? (
-                <List
-                  dataSource={discussions}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        avatar={<Avatar icon={<UserOutlined />} />}
-                        title={
+                <div>
+                  {discussions.map((item) => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <Avatar icon={<UserOutlined />} />
+                      <div>
+                        <div>
                           <Space>
                             <Text strong>{item.userName}</Text>
                             <Text type="secondary" style={{ fontSize: 12 }}>
                               {dayjs(item.createdAt).format('DD/MM/YYYY HH:mm')}
                             </Text>
                           </Space>
-                        }
-                        description={<p style={{ margin: 0 }}>{item.content}</p>}
-                      />
-                    </List.Item>
-                  )}
-                />
+                        </div>
+                        <p style={{ margin: 0 }}>{item.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <Text type="secondary">Chưa có thảo luận</Text>
               )}

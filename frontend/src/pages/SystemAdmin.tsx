@@ -17,6 +17,7 @@ import {
   Switch,
   DatePicker,
   Popconfirm,
+  Descriptions,
 } from 'antd';
 import {
   PlusOutlined,
@@ -32,7 +33,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { adminApi } from '../api/system';
+import { adminApi, catalogApi } from '../api/system';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -49,6 +50,7 @@ interface User {
   phoneNumber?: string;
   employeeCode?: string;
   title?: string;
+  departmentId?: string;
   departmentName?: string;
   isActive: boolean;
   lastLoginAt?: string;
@@ -106,6 +108,12 @@ interface NotificationItem {
   createdAt: string;
 }
 
+interface DepartmentOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 const SystemAdmin: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -114,7 +122,17 @@ const SystemAdmin: React.FC = () => {
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [activeTab, setActiveTab] = useState('users');
+
+  // Helper to extract array data from API response (handles both direct array and { data: [...] } wrapper)
+  const extractData = (response: any): any[] => {
+    const d = response?.data;
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.data)) return d.data;
+    if (d && Array.isArray(d.items)) return d.items;
+    return [];
+  };
 
   // Fetch data on mount
   useEffect(() => {
@@ -124,31 +142,33 @@ const SystemAdmin: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersData, rolesData, permissionsData, configsData, auditLogsData, notificationsData] = await Promise.all([
+      const [usersData, rolesData, permissionsData, configsData, auditLogsData, notificationsData, departmentsData] = await Promise.all([
         adminApi.getUsers().catch(() => ({ data: [] })),
         adminApi.getRoles().catch(() => ({ data: [] })),
         adminApi.getPermissions().catch(() => ({ data: [] })),
         adminApi.getSystemConfigs().catch(() => ({ data: [] })),
         adminApi.getAuditLogs({}).catch(() => ({ data: [] })),
         adminApi.getSystemNotifications().catch(() => ({ data: [] })),
+        catalogApi.getDepartments().catch(() => ({ data: [] })),
       ]);
 
       // Map API DTOs to local interfaces
-      setUsers((usersData.data || []).map((u: any) => ({
+      setUsers(extractData(usersData).map((u: any) => ({
         id: u.id || '',
         username: u.username,
         fullName: u.fullName,
         email: u.email,
         phoneNumber: u.phoneNumber,
-        employeeCode: u.employeeCode,
-        title: '',
+        employeeCode: u.employeeCode || u.employeeId,
+        title: u.title || '',
+        departmentId: u.departmentId,
         departmentName: u.departmentName,
         isActive: u.isActive,
         lastLoginAt: u.lastLoginDate,
         roles: (u.roles || []).map((r: any) => ({
           id: r.id || '',
-          roleCode: r.code,
-          roleName: r.name,
+          roleCode: r.code || r.roleCode,
+          roleName: r.name || r.roleName,
           description: r.description,
           permissions: r.permissions || [],
           userCount: r.userCount || 0,
@@ -156,54 +176,66 @@ const SystemAdmin: React.FC = () => {
         createdAt: u.createdDate,
       })));
 
-      setRoles((rolesData.data || []).map((r: any) => ({
+      setRoles(extractData(rolesData).map((r: any) => ({
         id: r.id || '',
-        roleCode: r.code,
-        roleName: r.name,
+        roleCode: r.code || r.roleCode,
+        roleName: r.name || r.roleName,
         description: r.description,
-        permissions: r.permissions || [],
+        permissions: (r.permissions || []).map((p: any) => ({
+          id: p.id || '',
+          permissionCode: p.code || p.permissionCode,
+          permissionName: p.name || p.permissionName,
+          module: p.module,
+          description: p.description,
+        })),
         userCount: r.userCount || 0,
       })));
 
-      setPermissions((permissionsData.data || []).map((p: any) => ({
+      setPermissions(extractData(permissionsData).map((p: any) => ({
         id: p.id || '',
-        permissionCode: p.code,
-        permissionName: p.name,
+        permissionCode: p.code || p.permissionCode,
+        permissionName: p.name || p.permissionName,
         module: p.module,
         description: p.description,
       })));
 
-      setConfigs((configsData.data || []).map((c: any) => ({
-        id: c.configKey,
+      setConfigs(extractData(configsData).map((c: any) => ({
+        id: c.configKey || c.id,
         configKey: c.configKey,
         configValue: c.configValue,
-        configType: c.dataType || 'String',
+        configType: c.dataType || c.configType || 'String',
         description: c.description,
-        isActive: !c.isEditable ? true : c.isActive !== false,
+        isActive: c.isActive !== false,
       })));
 
-      setAuditLogs((auditLogsData.data || []).map((a: any) => ({
+      setAuditLogs(extractData(auditLogsData).map((a: any) => ({
         id: a.id,
-        tableName: a.entityType || '',
+        tableName: a.entityType || a.tableName || '',
         action: a.action,
-        oldValue: a.oldValues,
-        newValue: a.newValues,
+        oldValue: a.oldValues || a.oldValue,
+        newValue: a.newValues || a.newValue,
         userId: a.userId,
         username: a.username,
-        userFullName: a.fullName,
-        createdAt: a.timestamp,
+        userFullName: a.fullName || a.userFullName,
+        createdAt: a.timestamp || a.createdAt,
       })));
 
-      setNotifications((notificationsData.data || []).map((n: any) => ({
+      setNotifications(extractData(notificationsData).map((n: any) => ({
         id: n.id || '',
         title: n.title,
         content: n.content,
         notificationType: n.notificationType,
         targetUserId: n.targetUsers?.[0],
         targetRoleId: n.targetRoles?.[0],
-        isRead: !n.isActive,
-        readAt: undefined,
-        createdAt: n.createdDate,
+        isRead: n.isRead ?? false,
+        readAt: n.readAt,
+        createdAt: n.createdDate || n.createdAt,
+      })));
+
+      setDepartments(extractData(departmentsData).map((d: any) => ({
+        id: d.id,
+        code: d.code || d.departmentCode,
+        name: d.name || d.departmentName,
       })));
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -220,10 +252,37 @@ const SystemAdmin: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [selectedConfig, setSelectedConfig] = useState<SystemConfig | null>(null);
 
+  const [userSearchKeyword, setUserSearchKeyword] = useState('');
+  const [auditEntityType, setAuditEntityType] = useState<string | undefined>();
+  const [auditAction, setAuditAction] = useState<string | undefined>();
+  const [auditDateRange, setAuditDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+
   const [userForm] = Form.useForm();
   const [roleForm] = Form.useForm();
   const [configForm] = Form.useForm();
   const [notificationForm] = Form.useForm();
+
+  const filteredUsers = userSearchKeyword
+    ? users.filter(u => {
+        const kw = userSearchKeyword.toLowerCase();
+        return (u.fullName && u.fullName.toLowerCase().includes(kw)) ||
+          (u.username && u.username.toLowerCase().includes(kw)) ||
+          (u.email && u.email.toLowerCase().includes(kw)) ||
+          (u.employeeCode && u.employeeCode.toLowerCase().includes(kw));
+      })
+    : users;
+
+  const filteredAuditLogs = auditLogs.filter(log => {
+    if (auditEntityType && log.tableName !== auditEntityType) return false;
+    if (auditAction && log.action !== auditAction) return false;
+    if (auditDateRange && auditDateRange[0] && auditDateRange[1]) {
+      const logDate = dayjs(log.createdAt);
+      if (logDate.isBefore(auditDateRange[0], 'day') || logDate.isAfter(auditDateRange[1], 'day')) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   // User Management
   const userColumns: ColumnsType<User> = [
@@ -338,7 +397,14 @@ const SystemAdmin: React.FC = () => {
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
     userForm.setFieldsValue({
-      ...user,
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      employeeCode: user.employeeCode,
+      title: user.title,
+      departmentId: user.departmentId,
+      isActive: user.isActive,
       roleIds: user.roles.map((r) => r.id),
     });
     setIsUserModalOpen(true);
@@ -346,12 +412,38 @@ const SystemAdmin: React.FC = () => {
 
   const handleSaveUser = async () => {
     try {
-      await userForm.validateFields();
-      message.success(selectedUser ? 'Cập nhật người dùng thành công!' : 'Tạo người dùng thành công!');
+      const values = await userForm.validateFields();
+      if (selectedUser) {
+        await adminApi.updateUser(selectedUser.id, {
+          fullName: values.fullName,
+          email: values.email,
+          phoneNumber: values.phoneNumber,
+          employeeId: values.employeeCode,
+          departmentId: values.departmentId,
+          roleIds: values.roleIds || [],
+          isActive: values.isActive !== false,
+        });
+        message.success('Cập nhật người dùng thành công!');
+      } else {
+        await adminApi.createUser({
+          username: values.username,
+          fullName: values.fullName,
+          email: values.email,
+          phoneNumber: values.phoneNumber,
+          employeeId: values.employeeCode,
+          departmentId: values.departmentId,
+          roleIds: values.roleIds || [],
+          initialPassword: values.password,
+        });
+        message.success('Tạo người dùng thành công!');
+      }
       setIsUserModalOpen(false);
       userForm.resetFields();
-    } catch (error) {
-      message.error('Vui lòng kiểm tra lại thông tin!');
+      fetchData();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.error('Error saving user:', error);
+      message.error('Lưu người dùng thất bại!');
     }
   };
 
@@ -359,14 +451,27 @@ const SystemAdmin: React.FC = () => {
     Modal.confirm({
       title: 'Đặt lại mật khẩu',
       content: `Bạn có chắc muốn đặt lại mật khẩu cho người dùng "${user.fullName}"?`,
-      onOk() {
-        message.success('Đặt lại mật khẩu thành công!');
+      async onOk() {
+        try {
+          await adminApi.resetPassword(user.id);
+          message.success('Đặt lại mật khẩu thành công!');
+        } catch (error) {
+          console.error('Error resetting password:', error);
+          message.error('Đặt lại mật khẩu thất bại!');
+        }
       },
     });
   };
 
-  const handleDeleteUser = (_userId: string) => {
-    message.success('Xóa người dùng thành công!');
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await adminApi.deleteUser(userId);
+      message.success('Xóa người dùng thành công!');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      message.error('Xóa người dùng thất bại!');
+    }
   };
 
   // Role Management
@@ -438,17 +543,36 @@ const SystemAdmin: React.FC = () => {
 
   const handleSaveRole = async () => {
     try {
-      await roleForm.validateFields();
+      const values = await roleForm.validateFields();
+      await adminApi.saveRole({
+        id: selectedRole?.id,
+        code: values.roleCode,
+        name: values.roleName,
+        description: values.description,
+        isSystemRole: false,
+        isActive: true,
+        permissions: values.permissionIds?.map((id: string) => ({ id })),
+      });
       message.success(selectedRole ? 'Cập nhật vai trò thành công!' : 'Tạo vai trò thành công!');
       setIsRoleModalOpen(false);
       roleForm.resetFields();
-    } catch (error) {
-      message.error('Vui lòng kiểm tra lại thông tin!');
+      fetchData();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.error('Error saving role:', error);
+      message.error('Lưu vai trò thất bại!');
     }
   };
 
-  const handleDeleteRole = (_roleId: string) => {
-    message.success('Xóa vai trò thành công!');
+  const handleDeleteRole = async (roleId: string) => {
+    try {
+      await adminApi.deleteRole(roleId);
+      message.success('Xóa vai trò thành công!');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      message.error('Xóa vai trò thất bại!');
+    }
   };
 
   // System Config
@@ -511,12 +635,25 @@ const SystemAdmin: React.FC = () => {
 
   const handleSaveConfig = async () => {
     try {
-      await configForm.validateFields();
+      const values = await configForm.validateFields();
+      await adminApi.saveSystemConfig({
+        configKey: selectedConfig?.configKey || '',
+        configValue: values.configValue,
+        category: values.category || selectedConfig?.configType || 'General',
+        description: values.description ?? selectedConfig?.description,
+        dataType: selectedConfig?.configType || 'String',
+        isEncrypted: false,
+        isEditable: true,
+        isActive: values.isActive !== undefined ? values.isActive : selectedConfig?.isActive !== false,
+      } as any);
       message.success('Cập nhật cấu hình thành công!');
       setIsConfigModalOpen(false);
       configForm.resetFields();
-    } catch (error) {
-      message.error('Vui lòng kiểm tra lại thông tin!');
+      fetchData();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.error('Error saving config:', error);
+      message.error('Cập nhật cấu hình thất bại!');
     }
   };
 
@@ -621,12 +758,25 @@ const SystemAdmin: React.FC = () => {
 
   const handleSendNotification = async () => {
     try {
-      await notificationForm.validateFields();
+      const values = await notificationForm.validateFields();
+      await adminApi.saveSystemNotification({
+        title: values.title,
+        content: values.content,
+        notificationType: values.notificationType || 'Info',
+        priority: 'Normal',
+        targetUsers: values.targetUserId ? [values.targetUserId] : undefined,
+        targetRoles: values.targetRoleId ? [values.targetRoleId] : undefined,
+        startDate: new Date().toISOString(),
+        isActive: true,
+      });
       message.success('Gửi thông báo thành công!');
       setIsNotificationModalOpen(false);
       notificationForm.resetFields();
-    } catch (error) {
-      message.error('Vui lòng kiểm tra lại thông tin!');
+      fetchData();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.error('Error sending notification:', error);
+      message.error('Gửi thông báo thất bại!');
     }
   };
 
@@ -655,6 +805,8 @@ const SystemAdmin: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        onSearch={(value) => setUserSearchKeyword(value)}
+                        onChange={(e) => { if (!e.target.value) setUserSearchKeyword(''); }}
                       />
                     </Col>
                     <Col>
@@ -666,7 +818,7 @@ const SystemAdmin: React.FC = () => {
 
                   <Table
                     columns={userColumns}
-                    dataSource={users}
+                    dataSource={filteredUsers}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1500 }}
@@ -676,6 +828,32 @@ const SystemAdmin: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} người dùng`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiết người dùng - ${record.fullName}`,
+                          width: 600,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Tên đăng nhập">{record.username}</Descriptions.Item>
+                              <Descriptions.Item label="Họ tên">{record.fullName}</Descriptions.Item>
+                              <Descriptions.Item label="Email">{record.email}</Descriptions.Item>
+                              <Descriptions.Item label="Mã nhân viên">{record.employeeCode || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Chức danh">{record.title || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Khoa/Phòng">{record.departmentName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Vai trò" span={2}>
+                                {record.roles?.map((r: any) => <Tag key={r.id} color="blue">{r.name}</Tag>)}
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">
+                                <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Khóa'}</Tag>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Đăng nhập cuối">{record.lastLogin || '-'}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -708,6 +886,25 @@ const SystemAdmin: React.FC = () => {
                       showSizeChanger: true,
                       showTotal: (total) => `Tổng: ${total} vai trò`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiết vai trò - ${record.name}`,
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Tên vai trò">{record.name}</Descriptions.Item>
+                              <Descriptions.Item label="Mô tả">{record.description || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Số người dùng">{record.userCount || 0}</Descriptions.Item>
+                              <Descriptions.Item label="Quyền">
+                                {record.permissions?.map((p: string) => <Tag key={p}>{p}</Tag>) || '-'}
+                              </Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -730,6 +927,23 @@ const SystemAdmin: React.FC = () => {
                     showSizeChanger: true,
                     showTotal: (total) => `Tổng: ${total} cấu hình`,
                   }}
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      Modal.info({
+                        title: `Chi tiết cấu hình - ${record.key}`,
+                        width: 500,
+                        content: (
+                          <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                            <Descriptions.Item label="Khóa">{record.key}</Descriptions.Item>
+                            <Descriptions.Item label="Giá trị">{record.value}</Descriptions.Item>
+                            <Descriptions.Item label="Mô tả">{record.description || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="Nhóm">{record.group || '-'}</Descriptions.Item>
+                          </Descriptions>
+                        ),
+                      });
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
                 />
               ),
             },
@@ -744,27 +958,30 @@ const SystemAdmin: React.FC = () => {
                 <>
                   <Row gutter={16} style={{ marginBottom: 16 }}>
                     <Col>
-                      <Select placeholder="Chọn bảng" style={{ width: 200 }} allowClear>
+                      <Select placeholder="Chọn bảng" style={{ width: 200 }} allowClear onChange={(v) => setAuditEntityType(v)}>
                         <Option value="Users">Users</Option>
                         <Option value="Patients">Patients</Option>
                         <Option value="Examinations">Examinations</Option>
                       </Select>
                     </Col>
                     <Col>
-                      <Select placeholder="Hành động" style={{ width: 150 }} allowClear>
+                      <Select placeholder="Hành động" style={{ width: 150 }} allowClear onChange={(v) => setAuditAction(v)}>
                         <Option value="CREATE">CREATE</Option>
                         <Option value="UPDATE">UPDATE</Option>
                         <Option value="DELETE">DELETE</Option>
                       </Select>
                     </Col>
                     <Col>
-                      <RangePicker format="DD/MM/YYYY" />
+                      <RangePicker
+                        format="DD/MM/YYYY"
+                        onChange={(dates) => setAuditDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
+                      />
                     </Col>
                   </Row>
 
                   <Table
                     columns={auditLogColumns}
-                    dataSource={auditLogs}
+                    dataSource={filteredAuditLogs}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1200 }}
@@ -773,6 +990,30 @@ const SystemAdmin: React.FC = () => {
                       showSizeChanger: true,
                       showTotal: (total) => `Tổng: ${total} bản ghi`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: 'Chi tiết nhật ký',
+                          width: 600,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Thời gian">{record.timestamp}</Descriptions.Item>
+                              <Descriptions.Item label="Người thực hiện">{record.userName}</Descriptions.Item>
+                              <Descriptions.Item label="Hành động">{record.action}</Descriptions.Item>
+                              <Descriptions.Item label="Bảng">{record.entityType}</Descriptions.Item>
+                              <Descriptions.Item label="ID bản ghi">{record.entityId || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="IP">{record.ipAddress || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Chi tiết" span={2}>
+                                <pre style={{ maxHeight: 200, overflow: 'auto', fontSize: 12 }}>
+                                  {record.changes || record.details || '-'}
+                                </pre>
+                              </Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -805,6 +1046,24 @@ const SystemAdmin: React.FC = () => {
                       showSizeChanger: true,
                       showTotal: (total) => `Tổng: ${total} thông báo`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: 'Chi tiết thông báo',
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Tiêu đề">{record.title}</Descriptions.Item>
+                              <Descriptions.Item label="Nội dung">{record.content}</Descriptions.Item>
+                              <Descriptions.Item label="Loại">{record.type}</Descriptions.Item>
+                              <Descriptions.Item label="Đối tượng">{record.target || 'Tất cả'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày gửi">{record.sentDate}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -885,10 +1144,12 @@ const SystemAdmin: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="departmentId" label="Khoa/Phòng">
-                <Select placeholder="Chọn khoa/phòng">
-                  <Option value="1">Khoa Nội</Option>
-                  <Option value="2">Khoa Ngoại</Option>
-                  <Option value="3">Khoa Nhi</Option>
+                <Select placeholder="Chọn khoa/phòng" allowClear showSearch optionFilterProp="children">
+                  {departments.map((dept) => (
+                    <Option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>
@@ -969,8 +1230,8 @@ const SystemAdmin: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={configForm} layout="vertical">
-          <Form.Item label="Khóa cấu hình">
-            <Input disabled value={selectedConfig?.configKey} />
+          <Form.Item name="configKey" label="Khóa cấu hình">
+            <Input disabled />
           </Form.Item>
 
           <Form.Item
@@ -979,6 +1240,21 @@ const SystemAdmin: React.FC = () => {
             rules={[{ required: true, message: 'Vui lòng nhập giá trị' }]}
           >
             <Input placeholder="Nhập giá trị" />
+          </Form.Item>
+
+          <Form.Item name="category" label="Danh mục">
+            <Select placeholder="Chọn danh mục">
+              <Option value="General">Chung</Option>
+              <Option value="Security">Bảo mật</Option>
+              <Option value="Email">Email</Option>
+              <Option value="Integration">Tích hợp</Option>
+              <Option value="Notification">Thông báo</Option>
+              <Option value="Report">Báo cáo</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="description" label="Mô tả">
+            <TextArea rows={2} placeholder="Nhập mô tả cấu hình" />
           </Form.Item>
 
           <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">

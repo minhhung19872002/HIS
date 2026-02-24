@@ -450,7 +450,7 @@ const Rehabilitation: React.FC = () => {
       title: 'Benh nhan',
       key: 'patient',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record.patientName}</Text>
           <Text type="secondary">
             {record.age} tuoi - {record.gender === 'male' ? 'Nam' : 'Nu'}
@@ -482,7 +482,7 @@ const Rehabilitation: React.FC = () => {
         const percent =
           (record.sessionsCompleted / (record.totalSessions || 1)) * 100;
         return (
-          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={0} style={{ width: '100%' }}>
             <Progress percent={Math.round(percent)} size="small" />
             <Text type="secondary">
               {record.sessionsCompleted}/{record.totalSessions} buoi
@@ -499,7 +499,7 @@ const Rehabilitation: React.FC = () => {
         if (!record.currentScore) return '-';
         const improvement = (record.currentScore || 0) - (record.initialScore || 0);
         return (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text strong>{record.currentScore}/100</Text>
             {improvement > 0 && (
               <Text type="success" style={{ fontSize: 12 }}>
@@ -571,7 +571,7 @@ const Rehabilitation: React.FC = () => {
       key: 'time',
       width: 100,
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record.sessionTime}</Text>
           <Text type="secondary">{record.duration} phut</Text>
         </Space>
@@ -660,7 +660,7 @@ const Rehabilitation: React.FC = () => {
               title="Dang dieu tri"
               value={inTreatment}
               prefix={<HeartOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -670,7 +670,7 @@ const Rehabilitation: React.FC = () => {
               title="Cho danh gia"
               value={pendingAssessment}
               prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -680,7 +680,7 @@ const Rehabilitation: React.FC = () => {
               title="Buoi tap hom nay"
               value={todaySessions}
               prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -695,7 +695,18 @@ const Rehabilitation: React.FC = () => {
               key: 'patients',
               label: 'Benh nhan PHCN',
               children: (
-                <Table columns={patientColumns} dataSource={patients} rowKey="id" />
+                <Table
+                  columns={patientColumns}
+                  dataSource={patients}
+                  rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      setSelectedPatient(record);
+                      setIsPlanModalOpen(true);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                />
               ),
             },
             {
@@ -717,6 +728,15 @@ const Rehabilitation: React.FC = () => {
                       (s) => s.sessionDate === dayjs().format('YYYY-MM-DD')
                     )}
                     rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedSession(record);
+                        const patient = patients.find(p => p.patientId === record.patientId);
+                        if (patient) setSelectedPatient(patient);
+                        setIsPlanModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),

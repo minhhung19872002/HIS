@@ -9,7 +9,16 @@ export default defineConfig({
     screenshotOnRunFailure: true,
     defaultCommandTimeout: 10000,
     setupNodeEvents(on, config) {
-      // implement node event listeners here
+      // Log browser console output
+      try {
+        const logToOutput = require('cypress-log-to-output');
+        logToOutput.install(on, (type: string, event: any) => {
+          // Only capture errors and warnings
+          return type === 'console' && (event.level === 'error' || event.level === 'warning');
+        });
+      } catch (e) {
+        // Plugin not available, skip
+      }
     },
   },
   component: {

@@ -401,7 +401,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/telemedicine';
+const BASE_URL = '/telemedicine';
 
 // #region Appointments
 

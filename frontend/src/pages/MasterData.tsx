@@ -17,6 +17,7 @@ import {
   Select,
   Switch,
   InputNumber,
+  Descriptions,
 } from 'antd';
 import {
   SearchOutlined,
@@ -157,6 +158,7 @@ const MasterData: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [form] = Form.useForm();
 
   // Fetch data on component mount
@@ -164,59 +166,72 @@ const MasterData: React.FC = () => {
     fetchData();
   }, [activeTab]);
 
+  // Helper to extract array data from API response (handles both direct array and { data: [...] } wrapper)
+  const extractData = (response: any): any[] => {
+    const d = response?.data;
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.data)) return d.data;
+    if (d && Array.isArray(d.items)) return d.items;
+    return [];
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
       switch (activeTab) {
-        case 'services':
+        case 'services': {
           const servicesResponse = await catalogApi.getParaclinicalServices();
-          const mappedServices = ((servicesResponse as any).data || []).map((s: any) => ({
+          const mappedServices = extractData(servicesResponse).map((s: any) => ({
             id: s.id,
             code: s.code,
             name: s.name,
             bhytCode: s.bhxhCode,
             groupName: s.serviceGroupName || s.serviceType,
-            price: s.unitPrice,
+            price: s.unitPrice || 0,
             bhytPrice: s.insurancePrice,
-            unit: 'Lần',
+            unit: s.unit || 'Lần',
             isActive: s.isActive,
           }));
           setServices(mappedServices);
           break;
-        case 'medicines':
+        }
+        case 'medicines': {
           const medicinesResponse = await catalogApi.getMedicines({});
-          const mappedMedicines = ((medicinesResponse as any).data || []).map((m: any) => ({
+          const mappedMedicines = extractData(medicinesResponse).map((m: any) => ({
             id: m.id,
             code: m.code,
             name: m.name,
-            activeIngredient: m.activeIngredient,
+            activeIngredient: m.activeIngredient || '',
             registrationNumber: m.registrationNumber || '',
             manufacturer: m.manufacturer || '',
             country: m.countryOfOrigin || '',
-            unit: m.unit,
-            dosageForm: m.dosageForm,
+            unit: m.unit || '',
+            dosageForm: m.dosageForm || '',
             bhytCode: m.bhxhCode,
-            price: m.unitPrice,
+            price: m.unitPrice || 0,
             bhytPrice: m.insurancePrice,
             isActive: m.isActive,
           }));
           setMedicines(mappedMedicines);
           break;
-        case 'departments':
+        }
+        case 'departments': {
           const departmentsResponse = await catalogApi.getDepartments();
-          const mappedDepartments = ((departmentsResponse as any).data || []).map((d: any) => ({
+          const mappedDepartments = extractData(departmentsResponse).map((d: any) => ({
             id: d.id,
-            code: d.code,
-            name: d.name,
-            bhytCode: d.departmentType,
+            code: d.code || d.departmentCode,
+            name: d.name || d.departmentName,
+            bhytCode: d.bhxhCode || d.departmentCodeBYT,
             type: d.departmentType,
+            parentId: d.parentId,
             isActive: d.isActive,
           }));
           setDepartments(mappedDepartments);
           break;
-        case 'icd':
+        }
+        case 'icd': {
           const icdResponse = await catalogApi.getICD10Codes();
-          const mappedIcd = ((icdResponse as any).data || []).map((i: any) => ({
+          const mappedIcd = extractData(icdResponse).map((i: any) => ({
             id: i.id,
             code: i.code,
             name: i.name,
@@ -227,6 +242,7 @@ const MasterData: React.FC = () => {
           }));
           setIcdCodes(mappedIcd);
           break;
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -261,23 +277,111 @@ const MasterData: React.FC = () => {
     Modal.confirm({
       title: 'Xác nhận xóa',
       content: `Bạn có chắc chắn muốn xóa "${record.name}"?`,
-      onOk: () => {
-        message.success('Đã xóa thành công');
+      onOk: async () => {
+        try {
+          switch (activeTab) {
+            case 'services':
+              await catalogApi.deleteParaclinicalService(record.id);
+              break;
+            case 'medicines':
+              await catalogApi.deleteMedicine(record.id);
+              break;
+            case 'departments':
+              await catalogApi.deleteDepartment(record.id);
+              break;
+            case 'icd':
+              await catalogApi.deleteICD10Code(record.id);
+              break;
+          }
+          message.success('Đã xóa thành công');
+          fetchData();
+        } catch (error) {
+          console.error('Error deleting:', error);
+          message.error('Xóa thất bại. Vui lòng thử lại.');
+        }
       },
     });
   };
 
-  const handleSave = () => {
-    form.validateFields().then((_values) => {
-      if (editingRecord) {
-        message.success('Đã cập nhật thành công');
-      } else {
-        message.success('Đã thêm mới thành công');
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+      switch (activeTab) {
+        case 'services':
+          await catalogApi.saveParaclinicalService({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            serviceType: values.groupName || 'Khám bệnh',
+            departmentId: editingRecord?.departmentId || '',
+            bhxhCode: values.bhytCode,
+            unitPrice: values.price || 0,
+            insurancePrice: values.bhytPrice,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'medicines':
+          await catalogApi.saveMedicine({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            genericName: values.activeIngredient || values.name,
+            activeIngredient: values.activeIngredient || '',
+            dosageForm: values.dosageForm || '',
+            unit: values.unit || '',
+            registrationNumber: values.registrationNumber,
+            manufacturer: values.manufacturer,
+            countryOfOrigin: values.country,
+            bhxhCode: values.bhytCode,
+            unitPrice: values.price || 0,
+            insurancePrice: values.bhytPrice,
+            isNarcotic: false,
+            isPsychotropic: false,
+            isPrecursor: false,
+            isAntibiotic: false,
+            requiresPrescription: true,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'departments':
+          await catalogApi.saveDepartment({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            departmentType: values.type || 'Clinical',
+            parentId: values.parentId,
+            phone: values.phone,
+            email: values.email,
+            location: values.location,
+            bedCount: values.bedCount,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'icd':
+          await catalogApi.saveICD10Code({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            nameEnglish: values.nameEnglish,
+            chapterCode: values.chapter || '',
+            groupCode: values.group,
+            isReportable: true,
+            isActive: values.isActive !== false,
+          });
+          break;
       }
+      message.success(editingRecord ? 'Đã cập nhật thành công' : 'Đã thêm mới thành công');
       setIsModalOpen(false);
       form.resetFields();
       setEditingRecord(null);
-    });
+      fetchData();
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return; // Form validation error
+      }
+      console.error('Error saving:', error);
+      message.error('Lưu thất bại. Vui lòng thử lại.');
+    }
   };
 
   // Service columns
@@ -547,79 +651,170 @@ const MasterData: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
         </Space>
       ),
     },
   ];
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'services':
-        return (
-          <Table
-            columns={serviceColumns}
-            dataSource={services}
-            rowKey="id"
-            size="small"
-            scroll={{ x: 1300 }}
-            loading={loading}
-            pagination={{
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `Tổng: ${total} dịch vụ`,
-            }}
-          />
-        );
-      case 'medicines':
-        return (
-          <Table
-            columns={medicineColumns}
-            dataSource={medicines}
-            rowKey="id"
-            size="small"
-            scroll={{ x: 1400 }}
-            loading={loading}
-            pagination={{
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `Tổng: ${total} thuốc`,
-            }}
-          />
-        );
-      case 'departments':
-        return (
-          <Table
-            columns={departmentColumns}
-            dataSource={departments}
-            rowKey="id"
-            size="small"
-            loading={loading}
-            pagination={{
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `Tổng: ${total} khoa/phòng`,
-            }}
-          />
-        );
-      case 'icd':
-        return (
-          <Table
-            columns={icdColumns}
-            dataSource={icdCodes}
-            rowKey="id"
-            size="small"
-            loading={loading}
-            pagination={{
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `Tổng: ${total} mã bệnh`,
-            }}
-          />
-        );
-      default:
-        return null;
-    }
+  const filterByKeyword = (data: any[]) => {
+    if (!searchKeyword) return data;
+    const kw = searchKeyword.toLowerCase();
+    return data.filter((item) =>
+      (item.code && item.code.toLowerCase().includes(kw)) ||
+      (item.name && item.name.toLowerCase().includes(kw)) ||
+      (item.bhytCode && item.bhytCode.toLowerCase().includes(kw))
+    );
   };
+
+  const renderServicesTable = () => (
+    <Table
+      columns={serviceColumns}
+      dataSource={filterByKeyword(services)}
+      rowKey="id"
+      size="small"
+      scroll={{ x: 1300 }}
+      loading={loading}
+      pagination={{
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: (total) => `Tổng: ${total} dịch vụ`,
+      }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết dịch vụ - ${record.name}`,
+            width: 600,
+            content: (
+              <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã dịch vụ">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên dịch vụ">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Mã BHYT">{record.bhytCode || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Nhóm">{record.group || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Đơn giá BHYT">{record.bhytPrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
+                <Descriptions.Item label="Đơn giá dịch vụ">{record.servicePrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
+                <Descriptions.Item label="Đơn vị">{record.unit || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
+                  <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
+
+  const renderMedicinesTable = () => (
+    <Table
+      columns={medicineColumns}
+      dataSource={filterByKeyword(medicines)}
+      rowKey="id"
+      size="small"
+      scroll={{ x: 1400 }}
+      loading={loading}
+      pagination={{
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: (total) => `Tổng: ${total} thuốc`,
+      }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết thuốc - ${record.name}`,
+            width: 600,
+            content: (
+              <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã thuốc">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên thuốc">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Hoạt chất">{record.activeIngredient || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Hàm lượng">{record.dosage || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Đơn vị">{record.unit || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Đường dùng">{record.route || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Nhà sản xuất">{record.manufacturer || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Nước SX">{record.countryOfOrigin || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Giá BHYT">{record.bhytPrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
+                <Descriptions.Item label="Giá bán">{record.retailPrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
+                  <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
+
+  const renderDepartmentsTable = () => (
+    <Table
+      columns={departmentColumns}
+      dataSource={filterByKeyword(departments)}
+      rowKey="id"
+      size="small"
+      loading={loading}
+      pagination={{
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: (total) => `Tổng: ${total} khoa/phòng`,
+      }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết khoa/phòng - ${record.name}`,
+            width: 500,
+            content: (
+              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Loại">{record.type || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Trưởng khoa">{record.headDoctor || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
+                  <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
+
+  const renderIcdTable = () => (
+    <Table
+      columns={icdColumns}
+      dataSource={filterByKeyword(icdCodes)}
+      rowKey="id"
+      size="small"
+      loading={loading}
+      pagination={{
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: (total) => `Tổng: ${total} mã bệnh`,
+      }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết mã ICD - ${record.code}`,
+            width: 500,
+            content: (
+              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã ICD">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên bệnh">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Tên tiếng Anh">{record.nameEnglish || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Nhóm">{record.group || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Chương">{record.chapter || '-'}</Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
 
   const renderForm = () => {
     switch (activeTab) {
@@ -666,7 +861,7 @@ const MasterData: React.FC = () => {
                   <InputNumber
                     style={{ width: '100%' }}
                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                    parser={value => value!.replace(/[^\d]/g, '')}
                     placeholder="Nhập giá"
                   />
                 </Form.Item>
@@ -676,7 +871,7 @@ const MasterData: React.FC = () => {
                   <InputNumber
                     style={{ width: '100%' }}
                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                    parser={value => value!.replace(/[^\d]/g, '')}
                     placeholder="Nhập giá BHYT"
                   />
                 </Form.Item>
@@ -750,7 +945,7 @@ const MasterData: React.FC = () => {
                   <InputNumber
                     style={{ width: '100%' }}
                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                    parser={value => value!.replace(/[^\d]/g, '')}
                   />
                 </Form.Item>
               </Col>
@@ -759,11 +954,126 @@ const MasterData: React.FC = () => {
                   <InputNumber
                     style={{ width: '100%' }}
                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                    parser={value => value!.replace(/[^\d]/g, '')}
                   />
                 </Form.Item>
               </Col>
               <Col span={6}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
+        );
+      case 'departments':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã khoa" rules={[{ required: true }]}>
+                  <Input placeholder="Nhập mã khoa" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên khoa/phòng" rules={[{ required: true }]}>
+                  <Input placeholder="Nhập tên khoa/phòng" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="type" label="Loại khoa" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn loại khoa">
+                    <Select.Option value="Clinical">Lâm sàng</Select.Option>
+                    <Select.Option value="Paraclinical">Cận lâm sàng</Select.Option>
+                    <Select.Option value="Administrative">Hành chính</Select.Option>
+                    <Select.Option value="Support">Hỗ trợ</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="bhytCode" label="Mã BYT">
+                  <Input placeholder="Nhập mã BYT" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="parentId" label="Khoa cha">
+                  <Select placeholder="Chọn khoa cha" allowClear>
+                    {departments.map((dept) => (
+                      <Select.Option key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="phone" label="Số điện thoại">
+                  <Input placeholder="Nhập số điện thoại" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="email" label="Email">
+                  <Input placeholder="Nhập email" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="location" label="Vị trí (Tầng/Tòa nhà)">
+                  <Input placeholder="VD: Tầng 3, Tòa A" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="bedCount" label="Số giường">
+                  <InputNumber style={{ width: '100%' }} min={0} placeholder="Nhập số giường" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
+        );
+      case 'icd':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã ICD" rules={[{ required: true }]}>
+                  <Input placeholder="VD: A00, B01.1" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên bệnh (Tiếng Việt)" rules={[{ required: true }]}>
+                  <Input placeholder="Nhập tên bệnh tiếng Việt" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item name="nameEnglish" label="Tên bệnh (Tiếng Anh)">
+                  <Input placeholder="Nhập tên bệnh tiếng Anh" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="chapter" label="Mã chương" rules={[{ required: true }]}>
+                  <Input placeholder="VD: I, II, III" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="group" label="Mã nhóm">
+                  <Input placeholder="VD: A00-A09" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
                   <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
                 </Form.Item>
@@ -832,6 +1142,8 @@ const MasterData: React.FC = () => {
                     allowClear
                     enterButton={<SearchOutlined />}
                     style={{ width: 300 }}
+                    onSearch={(value) => setSearchKeyword(value)}
+                    onChange={(e) => { if (!e.target.value) setSearchKeyword(''); }}
                   />
                   <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
                     Thêm mới
@@ -843,41 +1155,37 @@ const MasterData: React.FC = () => {
                   key: 'services',
                   label: (
                     <span>
-                      <MedicineBoxOutlined />
-                      Dịch vụ kỹ thuật
+                      <MedicineBoxOutlined /> Dịch vụ kỹ thuật
                     </span>
                   ),
-                  children: renderContent(),
+                  children: renderServicesTable(),
                 },
                 {
                   key: 'medicines',
                   label: (
                     <span>
-                      <MedicineBoxOutlined />
-                      Thuốc
+                      <MedicineBoxOutlined /> Thuốc
                     </span>
                   ),
-                  children: renderContent(),
+                  children: renderMedicinesTable(),
                 },
                 {
                   key: 'departments',
                   label: (
                     <span>
-                      <HomeOutlined />
-                      Khoa/Phòng
+                      <HomeOutlined /> Khoa/Phòng
                     </span>
                   ),
-                  children: renderContent(),
+                  children: renderDepartmentsTable(),
                 },
                 {
                   key: 'icd',
                   label: (
                     <span>
-                      <FileTextOutlined />
-                      ICD-10
+                      <FileTextOutlined /> ICD-10
                     </span>
                   ),
-                  children: renderContent(),
+                  children: renderIcdTable(),
                 },
               ]}
             />

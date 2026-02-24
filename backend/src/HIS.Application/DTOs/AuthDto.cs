@@ -24,6 +24,7 @@ public class UserDto
     public string? Title { get; set; }
     public string? DepartmentName { get; set; }
     public List<string> Roles { get; set; } = new();
+    public List<string> RoleCodes { get; set; } = new();
     public List<string> Permissions { get; set; } = new();
 }
 

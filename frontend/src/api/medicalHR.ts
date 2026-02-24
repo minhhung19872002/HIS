@@ -529,7 +529,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/medicalhr';
+const BASE_URL = '/medicalhr';
 
 // #region Staff Profiles
 

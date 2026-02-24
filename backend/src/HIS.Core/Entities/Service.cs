@@ -65,10 +65,9 @@ public class ServicePrice : BaseEntity
     public Guid ServiceId { get; set; }
     public virtual Service Service { get; set; } = null!;
 
-    public int PatientType { get; set; } // 1-BHYT, 2-Viện phí, 3-Dịch vụ, 4-Khám sức khỏe
+    public string PriceType { get; set; } = string.Empty; // BHYT, Viện phí, Dịch vụ
     public decimal Price { get; set; }
-    public int InsurancePaymentRate { get; set; } = 100; // Tỷ lệ BHYT
-    public decimal Surcharge { get; set; } // Phụ thu
+    public decimal InsurancePrice { get; set; } // Giá BHYT
 
     public DateTime EffectiveDate { get; set; }
     public DateTime? EndDate { get; set; }

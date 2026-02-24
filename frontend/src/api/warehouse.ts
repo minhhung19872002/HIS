@@ -650,7 +650,7 @@ export interface PagedResult<T> {
 // API Functions
 // ============================================================================
 
-const BASE_URL = '/api/warehouse';
+const BASE_URL = '/warehouse';
 
 // #region 5.1 Nhập kho
 

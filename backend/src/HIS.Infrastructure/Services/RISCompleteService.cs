@@ -94,8 +94,22 @@ public class RISCompleteService : IRISCompleteService
 
         if (!string.IsNullOrEmpty(status))
         {
-            var statusInt = int.Parse(status);
-            query = query.Where(r => r.Status == statusInt);
+            int statusInt;
+            if (!int.TryParse(status, out statusInt))
+            {
+                statusInt = status.ToLower() switch
+                {
+                    "pending" => 0,
+                    "inprogress" => 1,
+                    "completed" => 2,
+                    "cancelled" => 3,
+                    _ => -1
+                };
+            }
+            if (statusInt >= 0)
+            {
+                query = query.Where(r => r.Status == statusInt);
+            }
         }
 
         if (!string.IsNullOrEmpty(keyword))
@@ -492,8 +506,28 @@ public class RISCompleteService : IRISCompleteService
 
         if (!string.IsNullOrEmpty(modalityType))
         {
-            var typeInt = int.Parse(modalityType);
-            query = query.Where(m => m.ModalityType == typeInt);
+            int typeInt;
+            if (!int.TryParse(modalityType, out typeInt))
+            {
+                typeInt = modalityType.ToUpper() switch
+                {
+                    "XRAY" or "XR" => 0,
+                    "CT" => 1,
+                    "MRI" => 2,
+                    "US" or "ULTRASOUND" => 3,
+                    "NM" or "NUCLEARMEDICINE" => 4,
+                    "PET" => 5,
+                    "FLUORO" => 6,
+                    "MAMMO" => 7,
+                    "DR" => 8,
+                    "CR" => 9,
+                    _ => -1
+                };
+            }
+            if (typeInt >= 0)
+            {
+                query = query.Where(m => m.ModalityType == typeInt);
+            }
         }
 
         var modalities = await query.ToListAsync();
@@ -715,8 +749,22 @@ public class RISCompleteService : IRISCompleteService
 
         if (!string.IsNullOrEmpty(status))
         {
-            var statusInt = int.Parse(status);
-            query = query.Where(r => r.Status == statusInt);
+            int statusInt;
+            if (!int.TryParse(status, out statusInt))
+            {
+                statusInt = status.ToLower() switch
+                {
+                    "pending" => 0,
+                    "inprogress" => 1,
+                    "completed" => 2,
+                    "cancelled" => 3,
+                    _ => -1
+                };
+            }
+            if (statusInt >= 0)
+            {
+                query = query.Where(r => r.Status == statusInt);
+            }
         }
 
         if (!string.IsNullOrEmpty(keyword))
@@ -1082,29 +1130,98 @@ public class RISCompleteService : IRISCompleteService
 
     public async Task<List<DicomSeriesDto>> GetSeriesAsync(string studyInstanceUID)
     {
-        // Get study from database
+        var pacsBaseUrl = _pacsBaseUrl.TrimEnd('/');
+        var pacsUser = _configuration["PACS:Username"] ?? "admin";
+        var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+
+        // Try to query Orthanc PACS directly
+        if (_pacsEnabled && !string.IsNullOrEmpty(pacsBaseUrl))
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                var authBytes = System.Text.Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+                // Find study in Orthanc by StudyInstanceUID
+                var findJson = $"{{\"Level\":\"Study\",\"Query\":{{\"StudyInstanceUID\":\"{studyInstanceUID}\"}}}}";
+                var findResp = await httpClient.PostAsync($"{pacsBaseUrl}/tools/find",
+                    new StringContent(findJson, System.Text.Encoding.UTF8, "application/json"));
+
+                if (findResp.IsSuccessStatusCode)
+                {
+                    var studyIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(await findResp.Content.ReadAsStringAsync());
+                    if (studyIds != null && studyIds.Count > 0)
+                    {
+                        var seriesResp = await httpClient.GetAsync($"{pacsBaseUrl}/studies/{studyIds[0]}/series");
+                        if (seriesResp.IsSuccessStatusCode)
+                        {
+                            var seriesJson = await seriesResp.Content.ReadAsStringAsync();
+                            var orthancSeries = System.Text.Json.JsonSerializer.Deserialize<List<System.Text.Json.JsonElement>>(seriesJson);
+
+                            // Get patient info from study
+                            var studyResp = await httpClient.GetAsync($"{pacsBaseUrl}/studies/{studyIds[0]}");
+                            var studyJson = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(await studyResp.Content.ReadAsStringAsync());
+                            var patientName = "";
+                            var patientId = "";
+                            var studyDate = "";
+                            var studyDesc = "";
+                            if (studyJson.TryGetProperty("PatientMainDicomTags", out var ptTags))
+                            {
+                                if (ptTags.TryGetProperty("PatientName", out var pn)) patientName = pn.GetString() ?? "";
+                                if (ptTags.TryGetProperty("PatientID", out var pid)) patientId = pid.GetString() ?? "";
+                            }
+                            if (studyJson.TryGetProperty("MainDicomTags", out var stTags))
+                            {
+                                if (stTags.TryGetProperty("StudyDate", out var sd)) studyDate = sd.GetString() ?? "";
+                                if (stTags.TryGetProperty("StudyDescription", out var sdd)) studyDesc = sdd.GetString() ?? "";
+                            }
+
+                            var result = new List<DicomSeriesDto>();
+                            int idx = 1;
+                            foreach (var s in orthancSeries ?? new List<System.Text.Json.JsonElement>())
+                            {
+                                var tags = s.GetProperty("MainDicomTags");
+                                var seriesUID = tags.TryGetProperty("SeriesInstanceUID", out var suid) ? suid.GetString() ?? "" : "";
+                                var modality = tags.TryGetProperty("Modality", out var mod) ? mod.GetString() ?? "CR" : "CR";
+                                var instanceCount = s.TryGetProperty("Instances", out var inst) ? inst.GetArrayLength() : 0;
+
+                                result.Add(new DicomSeriesDto
+                                {
+                                    SeriesInstanceUID = seriesUID,
+                                    StudyInstanceUID = studyInstanceUID,
+                                    SeriesNumber = idx++,
+                                    Modality = modality,
+                                    SeriesDescription = studyDesc,
+                                    BodyPartExamined = "",
+                                    NumberOfImages = instanceCount,
+                                    PatientName = patientName,
+                                    PatientId = patientId,
+                                    StudyDate = studyDate,
+                                    StudyDescription = studyDesc,
+                                    OrthancStudyId = studyIds[0],
+                                    OrthancSeriesId = s.TryGetProperty("ID", out var sid) ? sid.GetString() ?? "" : ""
+                                });
+                            }
+                            if (result.Count > 0) return result;
+                        }
+                    }
+                }
+            }
+            catch { /* Fall through to DB lookup */ }
+        }
+
+        // Fallback: Get study from database
         var study = await _context.DicomStudies
+            .Include(d => d.RadiologyExam)
+                .ThenInclude(e => e.RadiologyRequest)
+                    .ThenInclude(r => r.Patient)
             .FirstOrDefaultAsync(d => d.StudyInstanceUID == studyInstanceUID);
 
         if (study == null)
-        {
-            // Return mock series if no data
-            return new List<DicomSeriesDto>
-            {
-                new DicomSeriesDto
-                {
-                    SeriesInstanceUID = $"{studyInstanceUID}.1",
-                    StudyInstanceUID = studyInstanceUID,
-                    SeriesNumber = 1,
-                    Modality = "CR",
-                    SeriesDescription = "Default Series",
-                    BodyPartExamined = "",
-                    NumberOfImages = 1
-                }
-            };
-        }
+            return new List<DicomSeriesDto>();
 
-        // Return series based on study info (simplified - no separate Series table)
         return new List<DicomSeriesDto>
         {
             new DicomSeriesDto
@@ -1115,39 +1232,84 @@ public class RISCompleteService : IRISCompleteService
                 Modality = study.Modality ?? "CR",
                 SeriesDescription = study.StudyDescription ?? "",
                 BodyPartExamined = study.BodyPartExamined ?? "",
-                NumberOfImages = study.NumberOfImages
+                NumberOfImages = study.NumberOfImages,
+                PatientName = study.PatientName ?? study.RadiologyExam?.RadiologyRequest?.Patient?.FullName ?? "",
+                PatientId = study.PatientID ?? "",
+                StudyDate = study.StudyDate?.ToString("yyyyMMdd") ?? "",
+                StudyDescription = study.StudyDescription ?? ""
             }
         };
     }
 
     public async Task<List<DicomImageDto>> GetImagesAsync(string seriesInstanceUID)
     {
-        // Extract study UID from series UID (simplified - no separate DicomSeries table)
-        var studyUid = seriesInstanceUID.Contains(".1")
-            ? seriesInstanceUID.Replace(".1", "")
+        var pacsBaseUrl = _pacsBaseUrl.TrimEnd('/');
+        var pacsUser = _configuration["PACS:Username"] ?? "admin";
+        var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+
+        // Try to query Orthanc PACS directly
+        if (_pacsEnabled && !string.IsNullOrEmpty(pacsBaseUrl))
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                var authBytes = System.Text.Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+                // Find series in Orthanc
+                var findJson = $"{{\"Level\":\"Series\",\"Query\":{{\"SeriesInstanceUID\":\"{seriesInstanceUID}\"}}}}";
+                var findResp = await httpClient.PostAsync($"{pacsBaseUrl}/tools/find",
+                    new StringContent(findJson, System.Text.Encoding.UTF8, "application/json"));
+
+                if (findResp.IsSuccessStatusCode)
+                {
+                    var seriesIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(await findResp.Content.ReadAsStringAsync());
+                    if (seriesIds != null && seriesIds.Count > 0)
+                    {
+                        var instResp = await httpClient.GetAsync($"{pacsBaseUrl}/series/{seriesIds[0]}/instances");
+                        if (instResp.IsSuccessStatusCode)
+                        {
+                            var instJson = await instResp.Content.ReadAsStringAsync();
+                            var instances = System.Text.Json.JsonSerializer.Deserialize<List<System.Text.Json.JsonElement>>(instJson);
+
+                            var result = new List<DicomImageDto>();
+                            int idx = 1;
+                            foreach (var inst in instances ?? new List<System.Text.Json.JsonElement>())
+                            {
+                                var instId = inst.TryGetProperty("ID", out var iid) ? iid.GetString() ?? "" : "";
+                                var tags = inst.GetProperty("MainDicomTags");
+                                var sopUID = tags.TryGetProperty("SOPInstanceUID", out var sop) ? sop.GetString() ?? "" : "";
+
+                                result.Add(new DicomImageDto
+                                {
+                                    SOPInstanceUID = sopUID,
+                                    SeriesInstanceUID = seriesInstanceUID,
+                                    InstanceNumber = idx++,
+                                    ThumbnailUrl = $"/api/RISComplete/pacs/instances/{instId}/preview",
+                                    ImageUrl = $"/api/RISComplete/pacs/instances/{instId}/preview",
+                                    WadoUrl = $"/api/RISComplete/pacs/instances/{instId}/file"
+                                });
+                            }
+                            if (result.Count > 0) return result;
+                        }
+                    }
+                }
+            }
+            catch { /* Fall through to DB lookup */ }
+        }
+
+        // Fallback: extract study UID from series UID
+        var studyUid = seriesInstanceUID.EndsWith(".1")
+            ? seriesInstanceUID[..^2]
             : seriesInstanceUID;
 
         var study = await _context.DicomStudies
             .FirstOrDefaultAsync(d => d.StudyInstanceUID == studyUid);
 
         if (study == null)
-        {
-            // Return mock image placeholder
-            return new List<DicomImageDto>
-            {
-                new DicomImageDto
-                {
-                    SOPInstanceUID = $"{seriesInstanceUID}.1",
-                    SeriesInstanceUID = seriesInstanceUID,
-                    InstanceNumber = 1,
-                    ThumbnailUrl = "/images/dicom-placeholder.png",
-                    ImageUrl = "/images/dicom-placeholder.png",
-                    WadoUrl = ""
-                }
-            };
-        }
+            return new List<DicomImageDto>();
 
-        // Generate image list based on NumberOfImages
         var images = new List<DicomImageDto>();
         for (int i = 1; i <= Math.Max(1, study.NumberOfImages); i++)
         {
@@ -1156,8 +1318,8 @@ public class RISCompleteService : IRISCompleteService
                 SOPInstanceUID = $"{seriesInstanceUID}.{i}",
                 SeriesInstanceUID = seriesInstanceUID,
                 InstanceNumber = i,
-                ThumbnailUrl = "/images/dicom-placeholder.png",
-                ImageUrl = "/images/dicom-placeholder.png",
+                ThumbnailUrl = $"/api/RISComplete/pacs/instances/{study.Id}/preview",
+                ImageUrl = $"/api/RISComplete/pacs/instances/{study.Id}/preview",
                 WadoUrl = ""
             });
         }

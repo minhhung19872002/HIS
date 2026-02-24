@@ -23,6 +23,8 @@ import {
   Progress,
   Radio,
   Descriptions,
+  Spin,
+  Timeline,
 } from 'antd';
 import {
   SearchOutlined,
@@ -127,17 +129,37 @@ interface AlertItem {
 const Pharmacy: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [pendingPrescriptions, setPendingPrescriptions] = useState<PendingPrescription[]>([]);
+  const [filteredPrescriptions, setFilteredPrescriptions] = useState<PendingPrescription[]>([]);
   const [selectedPrescription, setSelectedPrescription] = useState<PendingPrescription | null>(null);
   const [medicationItems, setMedicationItems] = useState<MedicationItem[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
   const [transfers, setTransfers] = useState<TransferRequest[]>([]);
+  const [filteredTransfers, setFilteredTransfers] = useState<TransferRequest[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dispensingDrawerVisible, setDispensingDrawerVisible] = useState(false);
+  const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
+  const [inventoryDetailVisible, setInventoryDetailVisible] = useState(false);
+  const [inventoryHistoryVisible, setInventoryHistoryVisible] = useState(false);
+  const [transferDetailVisible, setTransferDetailVisible] = useState(false);
+  const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
+  const [selectedTransfer, setSelectedTransfer] = useState<TransferRequest | null>(null);
   const [transferModalVisible, setTransferModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [_form] = Form.useForm();
   const [transferForm] = Form.useForm();
-  void _form;
+
+  // Filter states
+  const [prescriptionSearch, setPrescriptionSearch] = useState('');
+  const [prescriptionStatusFilter, setPrescriptionStatusFilter] = useState('all');
+  const [prescriptionPriorityFilter, setPrescriptionPriorityFilter] = useState('all');
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [inventoryWarehouseFilter, setInventoryWarehouseFilter] = useState('all');
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState('all');
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
+  const [transferSearch, setTransferSearch] = useState('');
+  const [transferDrugItems, setTransferDrugItems] = useState<{ medicationCode: string; medicationName: string; quantity: number; unit: string }[]>([]);
+  const [inventoryHistory, setInventoryHistory] = useState<{ id: string; transactionType: string; quantity: number; batchNumber?: string; referenceCode?: string; note?: string; createdDate: string; createdBy: string }[]>([]);
+  const [inventoryHistoryLoading, setInventoryHistoryLoading] = useState(false);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -156,14 +178,171 @@ const Pharmacy: React.FC = () => {
       ]);
 
       setPendingPrescriptions(prescriptions.data);
+      setFilteredPrescriptions(prescriptions.data);
       setInventoryItems(inventory.data);
+      setFilteredInventory(inventory.data);
       setTransfers(transferList.data);
+      setFilteredTransfers(transferList.data);
       setAlerts(alertList.data);
     } catch (error) {
       message.error('Không thể tải dữ liệu. Vui lòng thử lại.');
-      console.error('Error fetching pharmacy data:', error);
+      console.warn('Error fetching pharmacy data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ==================== FILTER FUNCTIONS ====================
+
+  const applyPrescriptionFilters = (records: PendingPrescription[], search: string, status: string, priority: string) => {
+    let filtered = [...records];
+    if (search) {
+      const lower = search.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.prescriptionCode.toLowerCase().includes(lower) ||
+        p.patientCode.toLowerCase().includes(lower) ||
+        p.patientName.toLowerCase().includes(lower)
+      );
+    }
+    if (status !== 'all') {
+      filtered = filtered.filter(p => p.status === status);
+    }
+    if (priority !== 'all') {
+      filtered = filtered.filter(p => p.priority === priority);
+    }
+    setFilteredPrescriptions(filtered);
+  };
+
+  const applyInventoryFilters = (records: InventoryItem[], search: string, warehouse: string, category: string, status: string) => {
+    let filtered = [...records];
+    if (search) {
+      const lower = search.toLowerCase();
+      filtered = filtered.filter(i =>
+        i.medicationCode.toLowerCase().includes(lower) ||
+        i.medicationName.toLowerCase().includes(lower)
+      );
+    }
+    if (warehouse !== 'all') {
+      const warehouseMap: Record<string, string> = { main: 'Kho thuốc chính', floor1: 'Nhà thuốc tầng 1' };
+      filtered = filtered.filter(i => i.warehouse.includes(warehouseMap[warehouse] || warehouse));
+    }
+    if (category !== 'all') {
+      const catMap: Record<string, string> = { pain: 'giảm đau', antibiotic: 'Kháng sinh', vitamin: 'Vitamin' };
+      filtered = filtered.filter(i => i.category.toLowerCase().includes((catMap[category] || category).toLowerCase()));
+    }
+    if (status !== 'all') {
+      filtered = filtered.filter(i => i.status === status);
+    }
+    setFilteredInventory(filtered);
+  };
+
+  const applyTransferFilters = (records: TransferRequest[], search: string) => {
+    let filtered = [...records];
+    if (search) {
+      const lower = search.toLowerCase();
+      filtered = filtered.filter(t =>
+        t.transferCode.toLowerCase().includes(lower) ||
+        t.fromWarehouse.toLowerCase().includes(lower) ||
+        t.toWarehouse.toLowerCase().includes(lower)
+      );
+    }
+    setFilteredTransfers(filtered);
+  };
+
+  // Handle view prescription detail
+  const handleViewPrescriptionDetail = async (record: PendingPrescription) => {
+    try {
+      setLoading(true);
+      const medicationsResponse = await pharmacyApi.getMedicationItems(record.id);
+      setMedicationItems(medicationsResponse.data);
+      setSelectedPrescription(record);
+      setDetailDrawerVisible(true);
+    } catch (error) {
+      message.error('Không thể tải chi tiết đơn thuốc');
+      console.warn('Error loading prescription detail:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle inventory detail
+  const handleViewInventoryDetail = (record: InventoryItem) => {
+    setSelectedInventoryItem(record);
+    setInventoryDetailVisible(true);
+  };
+
+  // Handle inventory history
+  const handleViewInventoryHistory = async (record: InventoryItem) => {
+    setSelectedInventoryItem(record);
+    setInventoryHistoryVisible(true);
+    setInventoryHistoryLoading(true);
+    try {
+      const response = await pharmacyApi.getInventoryHistory(record.id);
+      setInventoryHistory(response.data);
+    } catch (error) {
+      console.warn('Error loading inventory history:', error);
+      message.error('Không thể tải lịch sử xuất nhập');
+      setInventoryHistory([]);
+    } finally {
+      setInventoryHistoryLoading(false);
+    }
+  };
+
+  // Handle "Loc" in inventory
+  const handleInventoryFilter = () => {
+    applyInventoryFilters(inventoryItems, inventorySearch, inventoryWarehouseFilter, inventoryCategoryFilter, inventoryStatusFilter);
+  };
+
+  // Handle "Dong bo" in inventory
+  const handleInventorySync = async () => {
+    try {
+      setLoading(true);
+      const inventory = await pharmacyApi.getInventoryItems();
+      setInventoryItems(inventory.data);
+      setFilteredInventory(inventory.data);
+      message.success('Đã đồng bộ dữ liệu tồn kho');
+    } catch (error) {
+      message.error('Lỗi khi đồng bộ tồn kho');
+      console.warn('Error syncing inventory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle transfer detail
+  const handleViewTransferDetail = (record: TransferRequest) => {
+    setSelectedTransfer(record);
+    setTransferDetailVisible(true);
+  };
+
+  // Handle "Them thuoc" in transfer modal
+  const handleAddTransferDrug = () => {
+    setTransferDrugItems(prev => [...prev, { medicationCode: '', medicationName: '', quantity: 1, unit: 'viên' }]);
+  };
+
+  // Handle update transfer drug item
+  const handleUpdateTransferDrug = (index: number, field: string, value: any) => {
+    setTransferDrugItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  // Handle remove transfer drug item
+  const handleRemoveTransferDrug = (index: number) => {
+    setTransferDrugItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle resolve alert
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      await pharmacyApi.resolveAlert(alertId);
+      setAlerts(prev => prev.filter(a => a.id !== alertId));
+      message.success('Đã xử lý cảnh báo');
+    } catch (error) {
+      message.error('Không thể xử lý cảnh báo');
+      console.warn('Error resolving alert:', error);
     }
   };
 
@@ -209,7 +388,7 @@ const Pharmacy: React.FC = () => {
       setPendingPrescriptions(prescriptions.data);
     } catch (error) {
       message.error('Không thể tiếp nhận đơn thuốc. Vui lòng thử lại.');
-      console.error('Error accepting prescription:', error);
+      console.warn('Error accepting prescription:', error);
     } finally {
       setLoading(false);
     }
@@ -232,7 +411,7 @@ const Pharmacy: React.FC = () => {
           setPendingPrescriptions(prescriptions.data);
         } catch (error) {
           message.error('Không thể từ chối đơn thuốc. Vui lòng thử lại.');
-          console.error('Error rejecting prescription:', error);
+          console.warn('Error rejecting prescription:', error);
         }
       },
     });
@@ -350,7 +529,7 @@ const Pharmacy: React.FC = () => {
                   setDispensingDrawerVisible(true);
                 } catch (error) {
                   message.error('Không thể tải thông tin thuốc. Vui lòng thử lại.');
-                  console.error('Error loading medications:', error);
+                  console.warn('Error loading medications:', error);
                 } finally {
                   setLoading(false);
                 }
@@ -359,7 +538,7 @@ const Pharmacy: React.FC = () => {
               Cấp phát
             </Button>
           )}
-          <Button size="small" icon={<FileTextOutlined />}>
+          <Button size="small" icon={<FileTextOutlined />} onClick={() => handleViewPrescriptionDetail(record)}>
             Chi tiết
           </Button>
         </Space>
@@ -399,7 +578,7 @@ const Pharmacy: React.FC = () => {
     }
 
     const totalAmount = medicationItems.reduce((sum, item) => {
-      const batch = item.batches.find(b => b.batchNumber === item.selectedBatch);
+      const batch = item.batches?.find(b => b.batchNumber === item.selectedBatch) || item.batches?.[0];
       return sum + (batch ? item.dispensedQuantity * 10000 : 0); // Mock price
     }, 0);
 
@@ -460,15 +639,15 @@ const Pharmacy: React.FC = () => {
           </thead>
           <tbody>
             ${medicationItems.filter(item => item.dispensedQuantity > 0).map((item, index) => {
-              const batch = item.batches.find(b => b.batchNumber === item.selectedBatch);
+              const batch = item.batches?.find(b => b.batchNumber === item.selectedBatch) || item.batches?.[0];
               return `
                 <tr>
                   <td class="text-center">${index + 1}</td>
                   <td><strong>${item.medicationName}</strong></td>
                   <td class="text-center">${item.unit}</td>
                   <td class="text-center">${item.dispensedQuantity}</td>
-                  <td>${batch?.batchNumber || ''}</td>
-                  <td>${batch ? dayjs(batch.expiryDate).format('DD/MM/YY') : ''}</td>
+                  <td>${batch?.batchNumber || 'N/A'}</td>
+                  <td>${batch?.expiryDate ? dayjs(batch.expiryDate).format('DD/MM/YY') : 'N/A'}</td>
                   <td style="font-size: 10px;">${item.dosage}</td>
                 </tr>
               `;
@@ -505,7 +684,7 @@ const Pharmacy: React.FC = () => {
 
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); }, 500);
+    setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
   };
 
   const handleDispenseQuantityChange = (itemId: string, value: number | null) => {
@@ -540,7 +719,7 @@ const Pharmacy: React.FC = () => {
             }
           } catch (error) {
             message.error('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
-            console.error('Error completing dispensing:', error);
+            console.warn('Error completing dispensing:', error);
           }
         },
       });
@@ -557,7 +736,7 @@ const Pharmacy: React.FC = () => {
         }
       } catch (error) {
         message.error('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
-        console.error('Error completing dispensing:', error);
+        console.warn('Error completing dispensing:', error);
       }
     }
   };
@@ -659,10 +838,10 @@ const Pharmacy: React.FC = () => {
       title: 'Thao tác',
       key: 'action',
       width: 150,
-      render: () => (
+      render: (_, record) => (
         <Space>
-          <Button size="small">Chi tiết</Button>
-          <Button size="small" type="link">
+          <Button size="small" onClick={() => handleViewInventoryDetail(record)}>Chi tiết</Button>
+          <Button size="small" type="link" onClick={() => handleViewInventoryHistory(record)}>
             Lịch sử
           </Button>
         </Space>
@@ -693,7 +872,7 @@ const Pharmacy: React.FC = () => {
       setTransfers(transferList.data);
     } catch (error) {
       message.error('Không thể duyệt phiếu điều chuyển. Vui lòng thử lại.');
-      console.error('Error approving transfer:', error);
+      console.warn('Error approving transfer:', error);
     }
   };
 
@@ -714,7 +893,7 @@ const Pharmacy: React.FC = () => {
           setTransfers(transferList.data);
         } catch (error) {
           message.error('Không thể từ chối phiếu điều chuyển. Vui lòng thử lại.');
-          console.error('Error rejecting transfer:', error);
+          console.warn('Error rejecting transfer:', error);
         }
       },
     });
@@ -730,7 +909,7 @@ const Pharmacy: React.FC = () => {
       setTransfers(transferList.data);
     } catch (error) {
       message.error('Không thể xác nhận nhận hàng. Vui lòng thử lại.');
-      console.error('Error receiving transfer:', error);
+      console.warn('Error receiving transfer:', error);
     }
   };
 
@@ -801,7 +980,7 @@ const Pharmacy: React.FC = () => {
               Xác nhận nhận
             </Button>
           )}
-          <Button size="small">Chi tiết</Button>
+          <Button size="small" onClick={() => handleViewTransferDetail(record)}>Chi tiết</Button>
         </Space>
       ),
     },
@@ -810,10 +989,14 @@ const Pharmacy: React.FC = () => {
   const handleCreateTransfer = async () => {
     try {
       const values = await transferForm.validateFields();
-      await pharmacyApi.createTransfer(values);
+      await pharmacyApi.createTransfer({
+        ...values,
+        items: transferDrugItems.filter(item => item.medicationCode && item.quantity > 0),
+      });
       message.success('Tạo phiếu điều chuyển thành công');
       setTransferModalVisible(false);
       transferForm.resetFields();
+      setTransferDrugItems([]);
 
       // Refresh transfers list
       const transferList = await pharmacyApi.getTransferRequests();
@@ -824,7 +1007,7 @@ const Pharmacy: React.FC = () => {
         return;
       }
       message.error('Không thể tạo phiếu điều chuyển. Vui lòng thử lại.');
-      console.error('Error creating transfer:', error);
+      console.warn('Error creating transfer:', error);
     }
   };
 
@@ -860,7 +1043,7 @@ const Pharmacy: React.FC = () => {
       message.success('Đã xác nhận cảnh báo');
     } catch (error) {
       message.error('Không thể xác nhận cảnh báo. Vui lòng thử lại.');
-      console.error('Error acknowledging alert:', error);
+      console.warn('Error acknowledging alert:', error);
     }
   };
 
@@ -876,7 +1059,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Chờ xử lý"
               value={pendingPrescriptions.filter((p) => p.status === 'pending').length}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -885,7 +1068,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Đang cấp phát"
               value={pendingPrescriptions.filter((p) => p.status === 'dispensing').length}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -894,7 +1077,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Hoàn thành hôm nay"
               value={15}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -903,7 +1086,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Khẩn cấp"
               value={pendingPrescriptions.filter((p) => p.priority === 'urgent').length}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>
@@ -918,16 +1101,36 @@ const Pharmacy: React.FC = () => {
               allowClear
               enterButton={<SearchOutlined />}
               style={{ maxWidth: 400 }}
+              value={prescriptionSearch}
+              onChange={(e) => setPrescriptionSearch(e.target.value)}
+              onSearch={(value) => {
+                setPrescriptionSearch(value);
+                applyPrescriptionFilters(pendingPrescriptions, value, prescriptionStatusFilter, prescriptionPriorityFilter);
+              }}
             />
           </Col>
           <Col>
             <Space>
-              <Select defaultValue="all" style={{ width: 150 }}>
+              <Select
+                value={prescriptionStatusFilter}
+                style={{ width: 150 }}
+                onChange={(value) => {
+                  setPrescriptionStatusFilter(value);
+                  applyPrescriptionFilters(pendingPrescriptions, prescriptionSearch, value, prescriptionPriorityFilter);
+                }}
+              >
                 <Select.Option value="all">Tất cả trạng thái</Select.Option>
                 <Select.Option value="pending">Chờ xử lý</Select.Option>
                 <Select.Option value="dispensing">Đang cấp phát</Select.Option>
               </Select>
-              <Select defaultValue="all" style={{ width: 150 }}>
+              <Select
+                value={prescriptionPriorityFilter}
+                style={{ width: 150 }}
+                onChange={(value) => {
+                  setPrescriptionPriorityFilter(value);
+                  applyPrescriptionFilters(pendingPrescriptions, prescriptionSearch, prescriptionStatusFilter, value);
+                }}
+              >
                 <Select.Option value="all">Tất cả mức độ</Select.Option>
                 <Select.Option value="urgent">Khẩn cấp</Select.Option>
                 <Select.Option value="normal">Bình thường</Select.Option>
@@ -938,7 +1141,7 @@ const Pharmacy: React.FC = () => {
 
         <Table
           columns={pendingPrescriptionsColumns}
-          dataSource={pendingPrescriptions}
+          dataSource={filteredPrescriptions}
           rowKey="id"
           size="small"
           scroll={{ x: 1400 }}
@@ -948,6 +1151,10 @@ const Pharmacy: React.FC = () => {
             showQuickJumper: true,
             showTotal: (total) => `Tổng: ${total} đơn thuốc`,
           }}
+          onRow={(record) => ({
+            onDoubleClick: () => handleViewPrescriptionDetail(record),
+            style: { cursor: 'pointer' },
+          })}
         />
       </Card>
     </div>
@@ -967,7 +1174,7 @@ const Pharmacy: React.FC = () => {
         </div>
       }
       placement="right"
-      width={900}
+      size={900}
       open={dispensingDrawerVisible}
       onClose={() => setDispensingDrawerVisible(false)}
       footer={
@@ -985,7 +1192,7 @@ const Pharmacy: React.FC = () => {
       {selectedPrescription && (
         <>
           <Alert
-            message={
+            title={
               <div>
                 <strong>Thông tin đơn thuốc</strong>
                 <Descriptions size="small" column={2} style={{ marginTop: 8 }}>
@@ -1040,7 +1247,7 @@ const Pharmacy: React.FC = () => {
             >
               <Row gutter={16}>
                 <Col span={24}>
-                  <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space orientation="vertical" style={{ width: '100%' }}>
                     <div>
                       <Text type="secondary">Liều lượng:</Text> <Text>{item.dosage}</Text>
                     </div>
@@ -1063,7 +1270,7 @@ const Pharmacy: React.FC = () => {
                         value={item.selectedBatch}
                         onChange={(e) => handleBatchSelect(item.id, e.target.value)}
                       >
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space orientation="vertical" style={{ width: '100%' }}>
                           {item.batches.map((batch) => (
                             <Radio key={batch.batchNumber} value={batch.batchNumber}>
                               <div>
@@ -1132,7 +1339,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Sắp hết hàng"
               value={inventoryItems.filter((i) => i.status === 'low').length}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
               prefix={<WarningOutlined />}
             />
           </Card>
@@ -1142,7 +1349,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Hết hàng"
               value={inventoryItems.filter((i) => i.status === 'out').length}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>
@@ -1152,7 +1359,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Sắp hết hạn"
               value={inventoryItems.filter((i) => i.status === 'expiring').length}
-              valueStyle={{ color: '#ff7a45' }}
+              styles={{ content: { color: '#ff7a45' } }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>
@@ -1167,36 +1374,66 @@ const Pharmacy: React.FC = () => {
               allowClear
               enterButton={<SearchOutlined />}
               style={{ maxWidth: 400 }}
+              value={inventorySearch}
+              onChange={(e) => setInventorySearch(e.target.value)}
+              onSearch={(value) => {
+                setInventorySearch(value);
+                applyInventoryFilters(inventoryItems, value, inventoryWarehouseFilter, inventoryCategoryFilter, inventoryStatusFilter);
+              }}
             />
           </Col>
           <Col>
             <Space>
-              <Select defaultValue="all" style={{ width: 150 }} placeholder="Kho">
+              <Select
+                value={inventoryWarehouseFilter}
+                style={{ width: 150 }}
+                placeholder="Kho"
+                onChange={(value) => {
+                  setInventoryWarehouseFilter(value);
+                  applyInventoryFilters(inventoryItems, inventorySearch, value, inventoryCategoryFilter, inventoryStatusFilter);
+                }}
+              >
                 <Select.Option value="all">Tất cả kho</Select.Option>
                 <Select.Option value="main">Kho thuốc chính</Select.Option>
                 <Select.Option value="floor1">Nhà thuốc tầng 1</Select.Option>
               </Select>
-              <Select defaultValue="all" style={{ width: 150 }} placeholder="Danh mục">
+              <Select
+                value={inventoryCategoryFilter}
+                style={{ width: 150 }}
+                placeholder="Danh mục"
+                onChange={(value) => {
+                  setInventoryCategoryFilter(value);
+                  applyInventoryFilters(inventoryItems, inventorySearch, inventoryWarehouseFilter, value, inventoryStatusFilter);
+                }}
+              >
                 <Select.Option value="all">Tất cả danh mục</Select.Option>
                 <Select.Option value="pain">Thuốc giảm đau</Select.Option>
                 <Select.Option value="antibiotic">Kháng sinh</Select.Option>
                 <Select.Option value="vitamin">Vitamin</Select.Option>
               </Select>
-              <Select defaultValue="all" style={{ width: 150 }} placeholder="Trạng thái">
+              <Select
+                value={inventoryStatusFilter}
+                style={{ width: 150 }}
+                placeholder="Trạng thái"
+                onChange={(value) => {
+                  setInventoryStatusFilter(value);
+                  applyInventoryFilters(inventoryItems, inventorySearch, inventoryWarehouseFilter, inventoryCategoryFilter, value);
+                }}
+              >
                 <Select.Option value="all">Tất cả</Select.Option>
                 <Select.Option value="low">Sắp hết</Select.Option>
                 <Select.Option value="out">Hết hàng</Select.Option>
                 <Select.Option value="expiring">Gần hết hạn</Select.Option>
               </Select>
-              <Button icon={<FilterOutlined />}>Lọc</Button>
-              <Button icon={<SyncOutlined />}>Đồng bộ</Button>
+              <Button icon={<FilterOutlined />} onClick={handleInventoryFilter}>Lọc</Button>
+              <Button icon={<SyncOutlined />} onClick={handleInventorySync} loading={loading}>Đồng bộ</Button>
             </Space>
           </Col>
         </Row>
 
         <Table
           columns={inventoryColumns}
-          dataSource={inventoryItems}
+          dataSource={filteredInventory}
           rowKey="id"
           size="small"
           scroll={{ x: 1200 }}
@@ -1212,6 +1449,10 @@ const Pharmacy: React.FC = () => {
             if (record.status === 'expiring') return 'row-expiring';
             return '';
           }}
+          onRow={(record) => ({
+            onDoubleClick: () => handleViewInventoryDetail(record),
+            style: { cursor: 'pointer' },
+          })}
         />
       </Card>
     </div>
@@ -1227,6 +1468,12 @@ const Pharmacy: React.FC = () => {
               allowClear
               enterButton={<SearchOutlined />}
               style={{ maxWidth: 400 }}
+              value={transferSearch}
+              onChange={(e) => setTransferSearch(e.target.value)}
+              onSearch={(value) => {
+                setTransferSearch(value);
+                applyTransferFilters(transfers, value);
+              }}
             />
           </Col>
           <Col>
@@ -1242,7 +1489,7 @@ const Pharmacy: React.FC = () => {
 
         <Table
           columns={transferColumns}
-          dataSource={transfers}
+          dataSource={filteredTransfers}
           rowKey="id"
           size="small"
           loading={loading}
@@ -1251,6 +1498,10 @@ const Pharmacy: React.FC = () => {
             showQuickJumper: true,
             showTotal: (total) => `Tổng: ${total} phiếu`,
           }}
+          onRow={(record) => ({
+            onDoubleClick: () => handleViewTransferDetail(record),
+            style: { cursor: 'pointer' },
+          })}
         />
       </Card>
 
@@ -1299,7 +1550,45 @@ const Pharmacy: React.FC = () => {
 
           <Divider>Danh sách thuốc điều chuyển</Divider>
 
-          <Button type="dashed" block icon={<PlusOutlined />}>
+          {transferDrugItems.map((item, index) => (
+            <Row key={index} gutter={8} style={{ marginBottom: 8 }}>
+              <Col span={8}>
+                <Input
+                  placeholder="Tên thuốc"
+                  value={item.medicationName}
+                  onChange={(e) => handleUpdateTransferDrug(index, 'medicationName', e.target.value)}
+                />
+              </Col>
+              <Col span={4}>
+                <Input
+                  placeholder="Mã thuốc"
+                  value={item.medicationCode}
+                  onChange={(e) => handleUpdateTransferDrug(index, 'medicationCode', e.target.value)}
+                />
+              </Col>
+              <Col span={4}>
+                <InputNumber
+                  min={1}
+                  placeholder="SL"
+                  value={item.quantity}
+                  onChange={(value) => handleUpdateTransferDrug(index, 'quantity', value || 1)}
+                  style={{ width: '100%' }}
+                />
+              </Col>
+              <Col span={4}>
+                <Input
+                  placeholder="ĐVT"
+                  value={item.unit}
+                  onChange={(e) => handleUpdateTransferDrug(index, 'unit', e.target.value)}
+                />
+              </Col>
+              <Col span={4}>
+                <Button danger icon={<CloseOutlined />} onClick={() => handleRemoveTransferDrug(index)} />
+              </Col>
+            </Row>
+          ))}
+
+          <Button type="dashed" block icon={<PlusOutlined />} onClick={handleAddTransferDrug}>
             Thêm thuốc
           </Button>
         </Form>
@@ -1315,7 +1604,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Cảnh báo chưa xử lý"
               value={unacknowledgedCount}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
               prefix={<BellOutlined />}
             />
           </Card>
@@ -1325,7 +1614,7 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Sắp hết hàng"
               value={alerts.filter((a) => a.type === 'low_stock').length}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -1334,18 +1623,18 @@ const Pharmacy: React.FC = () => {
             <Statistic
               title="Sắp hết hạn"
               value={alerts.filter((a) => a.type === 'expiry').length}
-              valueStyle={{ color: '#ff7a45' }}
+              styles={{ content: { color: '#ff7a45' } }}
             />
           </Card>
         </Col>
       </Row>
 
       <Card>
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           {alerts.map((alert) => (
             <Alert
               key={alert.id}
-              message={
+              title={
                 <div>
                   <Space>
                     {getAlertIcon(alert.type)}
@@ -1384,7 +1673,7 @@ const Pharmacy: React.FC = () => {
                     <Button size="small" onClick={() => handleAcknowledgeAlert(alert.id)}>
                       Xác nhận
                     </Button>
-                    <Button size="small" type="primary">
+                    <Button size="small" type="primary" onClick={() => handleResolveAlert(alert.id)}>
                       Xử lý
                     </Button>
                   </Space>
@@ -1467,6 +1756,198 @@ const Pharmacy: React.FC = () => {
       </Card>
 
       {renderDispensingDrawer()}
+
+      {/* Prescription Detail Drawer */}
+      <Drawer
+        title="Chi tiết đơn thuốc"
+        placement="right"
+        size={700}
+        open={detailDrawerVisible}
+        onClose={() => {
+          setDetailDrawerVisible(false);
+          setSelectedPrescription(null);
+        }}
+        footer={
+          <Button onClick={() => setDetailDrawerVisible(false)}>Đóng</Button>
+        }
+      >
+        {selectedPrescription && (
+          <>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Mã đơn thuốc">{selectedPrescription.prescriptionCode}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">{getPrescriptionStatusTag(selectedPrescription.status)}</Descriptions.Item>
+              <Descriptions.Item label="Bệnh nhân">{selectedPrescription.patientName}</Descriptions.Item>
+              <Descriptions.Item label="Mã BN">{selectedPrescription.patientCode}</Descriptions.Item>
+              <Descriptions.Item label="Bác sĩ">{selectedPrescription.doctorName}</Descriptions.Item>
+              <Descriptions.Item label="Khoa">{selectedPrescription.department}</Descriptions.Item>
+              <Descriptions.Item label="Mức độ">{getPriorityTag(selectedPrescription.priority)}</Descriptions.Item>
+              <Descriptions.Item label="Thời gian">{dayjs(selectedPrescription.createdDate).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+              <Descriptions.Item label="Tổng tiền" span={2}>
+                <Text strong>{selectedPrescription.totalAmount.toLocaleString('vi-VN')} đ</Text>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider>Danh sách thuốc ({medicationItems.length})</Divider>
+
+            {medicationItems.map((item, index) => (
+              <Card key={item.id} size="small" style={{ marginBottom: 8 }}>
+                <Row>
+                  <Col span={16}>
+                    <Text strong>{index + 1}. {item.medicationName}</Text>
+                    <br />
+                    <Text type="secondary">Mã: {item.medicationCode} | ĐVT: {item.unit}</Text>
+                    <br />
+                    <Text type="secondary">Liều: {item.dosage}</Text>
+                    <br />
+                    <Text type="secondary">Hướng dẫn: {item.instruction}</Text>
+                  </Col>
+                  <Col span={8} style={{ textAlign: 'right' }}>
+                    <Text strong>SL: {item.quantity} {item.unit}</Text>
+                    <br />
+                    <Text type="secondary">Đã cấp: {item.dispensedQuantity}</Text>
+                  </Col>
+                </Row>
+              </Card>
+            ))}
+          </>
+        )}
+      </Drawer>
+
+      {/* Inventory Detail Drawer */}
+      <Drawer
+        title="Chi tiết thuốc tồn kho"
+        placement="right"
+        size={500}
+        open={inventoryDetailVisible}
+        onClose={() => {
+          setInventoryDetailVisible(false);
+          setSelectedInventoryItem(null);
+        }}
+        footer={
+          <Button onClick={() => setInventoryDetailVisible(false)}>Đóng</Button>
+        }
+      >
+        {selectedInventoryItem && (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Mã thuốc">{selectedInventoryItem.medicationCode}</Descriptions.Item>
+            <Descriptions.Item label="Tên thuốc">{selectedInventoryItem.medicationName}</Descriptions.Item>
+            <Descriptions.Item label="Danh mục">{selectedInventoryItem.category}</Descriptions.Item>
+            <Descriptions.Item label="ĐVT">{selectedInventoryItem.unit}</Descriptions.Item>
+            <Descriptions.Item label="Kho">{selectedInventoryItem.warehouse}</Descriptions.Item>
+            <Descriptions.Item label="Tồn kho">{selectedInventoryItem.totalStock} {selectedInventoryItem.unit}</Descriptions.Item>
+            <Descriptions.Item label="Tồn tối thiểu">{selectedInventoryItem.minStock} {selectedInventoryItem.unit}</Descriptions.Item>
+            <Descriptions.Item label="Tồn tối đa">{selectedInventoryItem.maxStock} {selectedInventoryItem.unit}</Descriptions.Item>
+            <Descriptions.Item label="Hạn sử dụng gần nhất">
+              {selectedInventoryItem.nearestExpiry ? dayjs(selectedInventoryItem.nearestExpiry).format('DD/MM/YYYY') : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Giá trung bình">
+              {selectedInventoryItem.averagePrice.toLocaleString('vi-VN')} đ
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              {getInventoryStatusTag(selectedInventoryItem.status)}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Drawer>
+
+      {/* Inventory History Drawer */}
+      <Drawer
+        title={`Lịch sử xuất nhập - ${selectedInventoryItem?.medicationName || ''}`}
+        placement="right"
+        size={500}
+        open={inventoryHistoryVisible}
+        onClose={() => {
+          setInventoryHistoryVisible(false);
+          setSelectedInventoryItem(null);
+        }}
+        footer={
+          <Button onClick={() => setInventoryHistoryVisible(false)}>Đóng</Button>
+        }
+      >
+        {selectedInventoryItem && (
+          <Space orientation="vertical" style={{ width: '100%' }}>
+            <Alert
+              title={`Thuốc: ${selectedInventoryItem.medicationName}`}
+              description={`Mã: ${selectedInventoryItem.medicationCode} | Kho: ${selectedInventoryItem.warehouse} | Tồn hiện tại: ${selectedInventoryItem.totalStock} ${selectedInventoryItem.unit}`}
+              type="info"
+            />
+            {inventoryHistoryLoading ? (
+              <div style={{ textAlign: 'center', padding: 40 }}>
+                <Spin tip="Đang tải lịch sử..." />
+              </div>
+            ) : inventoryHistory.length === 0 ? (
+              <Alert
+                title="Chưa có lịch sử"
+                description="Chưa ghi nhận lịch sử xuất nhập cho thuốc này."
+                type="info"
+                showIcon
+              />
+            ) : (
+              <Timeline
+                items={inventoryHistory.map((entry) => {
+                  const typeMap: Record<string, { color: string; label: string }> = {
+                    import: { color: 'green', label: 'Nhập kho' },
+                    export: { color: 'red', label: 'Xuất kho' },
+                    transfer: { color: 'blue', label: 'Điều chuyển' },
+                    adjust: { color: 'orange', label: 'Điều chỉnh' },
+                  };
+                  const { color, label } = typeMap[entry.transactionType] || { color: 'gray', label: entry.transactionType };
+                  return {
+                    color,
+                    content: (
+                      <div>
+                        <div>
+                          <Tag color={color}>{label}</Tag>
+                          <Text strong>{entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}</Text>
+                          {' '}{selectedInventoryItem.unit}
+                        </div>
+                        {entry.batchNumber && <div><Text type="secondary">Lô: {entry.batchNumber}</Text></div>}
+                        {entry.referenceCode && <div><Text type="secondary">Mã tham chiếu: {entry.referenceCode}</Text></div>}
+                        {entry.note && <div><Text type="secondary">Ghi chú: {entry.note}</Text></div>}
+                        <div>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {dayjs(entry.createdDate).format('DD/MM/YYYY HH:mm')} - {entry.createdBy}
+                          </Text>
+                        </div>
+                      </div>
+                    ),
+                  };
+                })}
+              />
+            )}
+          </Space>
+        )}
+      </Drawer>
+
+      {/* Transfer Detail Drawer */}
+      <Drawer
+        title="Chi tiết phiếu điều chuyển"
+        placement="right"
+        size={500}
+        open={transferDetailVisible}
+        onClose={() => {
+          setTransferDetailVisible(false);
+          setSelectedTransfer(null);
+        }}
+        footer={
+          <Button onClick={() => setTransferDetailVisible(false)}>Đóng</Button>
+        }
+      >
+        {selectedTransfer && (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Mã phiếu">{selectedTransfer.transferCode}</Descriptions.Item>
+            <Descriptions.Item label="Từ kho">{selectedTransfer.fromWarehouse}</Descriptions.Item>
+            <Descriptions.Item label="Đến kho">{selectedTransfer.toWarehouse}</Descriptions.Item>
+            <Descriptions.Item label="Người yêu cầu">{selectedTransfer.requestedBy}</Descriptions.Item>
+            <Descriptions.Item label="Thời gian">{dayjs(selectedTransfer.requestedDate).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+            <Descriptions.Item label="Số mặt hàng">{selectedTransfer.itemsCount}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">{getTransferStatusTag(selectedTransfer.status)}</Descriptions.Item>
+            {selectedTransfer.note && (
+              <Descriptions.Item label="Ghi chú">{selectedTransfer.note}</Descriptions.Item>
+            )}
+          </Descriptions>
+        )}
+      </Drawer>
     </div>
   );
 };

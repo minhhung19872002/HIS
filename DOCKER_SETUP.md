@@ -95,6 +95,54 @@ docker-compose restart
 docker-compose ps
 ```
 
+
+## Migrate Data from Local SQL Server
+
+If you have existing data in local SQL Server (localhost\DOTNET), you can migrate it to Docker:
+
+### Option 1: Automatic Migration Script
+
+powershell
+# Run the migration script
+cd C:\Source\HIS
+.\scripts\migrate-to-docker.ps1
+
+
+This script will:
+1. Backup your local database
+2. Start Docker containers
+3. Restore the backup to Docker SQL Server
+
+### Option 2: Manual Migration
+
+1. **Backup local database using SSMS:**
+   - Open SQL Server Management Studio
+   - Connect to localhost\DOTNET
+   - Right-click database HIS -> Tasks -> Back Up...
+   - Save to C:\Source\HIS\backup\HIS.bak
+
+2. **Start Docker containers:**
+   powershell
+   cd C:\Source\HIS
+   docker-compose up -d
+   # Wait 60 seconds for SQL Server to start
+   
+
+3. **Restore in Docker:**
+   powershell
+   docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -Q "RESTORE DATABASE [HIS] FROM DISK = N'/var/opt/mssql/backup/HIS.bak' WITH MOVE N'HIS' TO N'/var/opt/mssql/data/HIS.mdf', MOVE N'HIS_log' TO N'/var/opt/mssql/data/HIS_log.ldf', REPLACE"
+   
+
+### Running API with Docker Database
+
+powershell
+cd C:\Source\HIS\backend\src\HIS.API
+dotnet run --environment Docker
+
+
+This uses the connection string in appsettings.Docker.json.
+
+---
 ## Troubleshooting
 
 ### Docker Desktop not running

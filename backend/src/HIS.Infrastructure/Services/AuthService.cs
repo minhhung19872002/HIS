@@ -81,6 +81,19 @@ public class AuthService : IAuthService
         return user == null ? null : _mapper.Map<UserDto>(user);
     }
 
+    // Map RoleCode from DB to English role names expected by [Authorize(Roles=...)]
+    private static readonly Dictionary<string, string[]> RoleCodeToEnglishRoles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "ADMIN", new[] { "Admin", "Manager", "Director" } },
+        { "DOCTOR", new[] { "Doctor" } },
+        { "NURSE", new[] { "Nurse" } },
+        { "RECEPTIONIST", new[] { "Receptionist" } },
+        { "PHARMACIST", new[] { "Pharmacist", "PharmacyManager" } },
+        { "LAB_TECH", new[] { "LabTech" } },
+        { "CASHIER", new[] { "Cashier", "Accountant" } },
+        { "IMAGING_TECH", new[] { "ImagingTech" } },
+    };
+
     public string GenerateJwtToken(UserDto user)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
@@ -97,6 +110,19 @@ public class AuthService : IAuthService
         foreach (var role in user.Roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        // Also add English role names mapped from RoleCodes for [Authorize(Roles=...)]
+        foreach (var roleCode in user.RoleCodes)
+        {
+            if (RoleCodeToEnglishRoles.TryGetValue(roleCode, out var englishRoles))
+            {
+                foreach (var englishRole in englishRoles)
+                {
+                    if (!claims.Any(c => c.Type == ClaimTypes.Role && c.Value == englishRole))
+                        claims.Add(new Claim(ClaimTypes.Role, englishRole));
+                }
+            }
         }
 
         foreach (var permission in user.Permissions)

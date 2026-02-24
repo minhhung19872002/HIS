@@ -127,6 +127,10 @@ const OPD: React.FC = () => {
   const [searchingICD, setSearchingICD] = useState(false);
   const [searchingService, setSearchingService] = useState(false);
 
+  // State for selected autocomplete values
+  const [selectedIcdCode, setSelectedIcdCode] = useState<string>('');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+
   // State for diagnoses and orders
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
   const [orders, setOrders] = useState<TreatmentOrder[]>([]);
@@ -389,9 +393,63 @@ const OPD: React.FC = () => {
 
   const handleAutoSave = useCallback(async () => {
     if (!examination || !selectedPatient) return;
-    // Auto-save functionality - to be implemented with proper API endpoints
-    console.log('Auto-save triggered for examination:', examination.id);
-  }, [examination, selectedPatient]);
+    // Skip auto-save for temporary examinations (not yet registered in backend)
+    if (examination.id.startsWith('temp-')) return;
+
+    try {
+      const values = examForm.getFieldsValue();
+
+      // Auto-save vital signs if any values present
+      if (values.vitalSigns && Object.values(values.vitalSigns).some((v) => v !== undefined && v !== null)) {
+        const vitalSignsDto = {
+          weight: values.vitalSigns.weight,
+          height: values.vitalSigns.height,
+          bmi: values.vitalSigns.bmi,
+          systolicBP: values.vitalSigns.bloodPressureSystolic,
+          diastolicBP: values.vitalSigns.bloodPressureDiastolic,
+          pulse: values.vitalSigns.pulse,
+          temperature: values.vitalSigns.temperature,
+          respiratoryRate: values.vitalSigns.respiratoryRate,
+          spO2: values.vitalSigns.spo2,
+          measuredAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        };
+        await examinationApi.updateVitalSigns(examination.id, vitalSignsDto);
+      }
+
+      // Auto-save medical interview if any values present
+      if (values.medicalHistory && Object.values(values.medicalHistory).some((v) => v !== undefined && v !== null && v !== '')) {
+        const medicalInterviewDto = {
+          chiefComplaint: values.medicalHistory.chiefComplaint,
+          historyOfPresentIllness: values.medicalHistory.historyOfPresentIllness,
+          pastMedicalHistory: values.medicalHistory.pastMedicalHistory,
+          familyHistory: values.medicalHistory.familyHistory,
+          allergyHistory: values.medicalHistory.allergies,
+          medicationHistory: values.medicalHistory.currentMedications,
+        };
+        await examinationApi.updateMedicalInterview(examination.id, medicalInterviewDto);
+      }
+
+      // Auto-save physical examination if any values present
+      if (values.physicalExamination && Object.values(values.physicalExamination).some((v) => v !== undefined && v !== null && v !== '')) {
+        const physicalExamDto = {
+          generalAppearance: values.physicalExamination.generalAppearance,
+          cardiovascular: values.physicalExamination.cardiovascular,
+          respiratory: values.physicalExamination.respiratory,
+          gastrointestinal: values.physicalExamination.gastrointestinal,
+          neurological: values.physicalExamination.neurological,
+          musculoskeletal: values.physicalExamination.musculoskeletal,
+          skin: values.physicalExamination.skin,
+          otherFindings: values.physicalExamination.other,
+        };
+        await examinationApi.updatePhysicalExamination(examination.id, physicalExamDto);
+      }
+
+      console.log('Auto-save completed for examination:', examination.id);
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      // Silently fail for auto-save - don't show error messages to avoid disrupting the user
+    }
+  }, [examination, selectedPatient, examForm]);
 
   // Auto-save every 30 seconds
   useEffect(() => {
@@ -777,11 +835,34 @@ const OPD: React.FC = () => {
     }
 
     try {
-      // API getPatientHistory will be implemented
-      message.info('Chức năng xem lịch sử đang phát triển');
+      const response = await examinationApi.getPatientMedicalHistory(selectedPatient.id, 20);
+      const data = response.data;
+      if (data && Array.isArray(data)) {
+        const historyItems: Examination[] = data.map((item: any) => ({
+          id: item.examinationId,
+          examinationDate: item.examinationDate,
+          patientId: selectedPatient.id,
+          patientCode: selectedPatient.patientCode,
+          patientName: selectedPatient.fullName,
+          roomId: '',
+          roomName: item.roomName || '',
+          doctorName: item.doctorName || '',
+          status: item.conclusionType ?? 2,
+          statusName: item.conclusionTypeName || 'Hoàn thành',
+          queueNumber: 0,
+          diagnosisCode: item.diagnosisCode,
+          diagnosisName: item.diagnosisName,
+        }));
+        setPatientHistory(historyItems);
+      } else {
+        setPatientHistory([]);
+      }
       setHistoryModalVisible(true);
     } catch (error) {
+      console.error('Error fetching history:', error);
       message.error('Không thể tải lịch sử khám bệnh');
+      setPatientHistory([]);
+      setHistoryModalVisible(true);
     }
   };
 
@@ -958,7 +1039,7 @@ const OPD: React.FC = () => {
             size="small"
             style={{ marginBottom: 16 }}
           >
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Input.Search
                 placeholder="Mã BN, CCCD, SĐT, BHYT..."
                 value={searchKeyword}
@@ -1085,7 +1166,7 @@ const OPD: React.FC = () => {
           {!selectedPatient ? (
             <Card>
               <Alert
-                message="Vui lòng chọn bệnh nhân"
+                title="Vui lòng chọn bệnh nhân"
                 description="Chọn bệnh nhân từ danh sách chờ khám hoặc tìm kiếm bệnh nhân để bắt đầu khám bệnh."
                 type="info"
                 showIcon
@@ -1155,6 +1236,14 @@ const OPD: React.FC = () => {
                                 step={0.1}
                                 style={{ width: '100%' }}
                                 placeholder="Nhập cân nặng"
+                                onChange={(value) => {
+                                  const height = examForm.getFieldValue(['vitalSigns', 'height']);
+                                  if (value && height && height > 0) {
+                                    const heightM = height / 100;
+                                    const bmi = parseFloat((Number(value) / (heightM * heightM)).toFixed(1));
+                                    examForm.setFieldValue(['vitalSigns', 'bmi'], bmi);
+                                  }
+                                }}
                               />
                             </Form.Item>
                           </Col>
@@ -1169,6 +1258,14 @@ const OPD: React.FC = () => {
                                 step={0.1}
                                 style={{ width: '100%' }}
                                 placeholder="Nhập chiều cao"
+                                onChange={(value) => {
+                                  const weight = examForm.getFieldValue(['vitalSigns', 'weight']);
+                                  if (weight && value && Number(value) > 0) {
+                                    const heightM = Number(value) / 100;
+                                    const bmi = parseFloat((weight / (heightM * heightM)).toFixed(1));
+                                    examForm.setFieldValue(['vitalSigns', 'bmi'], bmi);
+                                  }
+                                }}
                               />
                             </Form.Item>
                           </Col>
@@ -1455,6 +1552,7 @@ const OPD: React.FC = () => {
                               style={{ width: 400 }}
                               options={icdOptions}
                               onSearch={handleSearchICD}
+                              onSelect={(value: string) => setSelectedIcdCode(value)}
                               placeholder="Tìm mã ICD-10..."
                               notFoundContent={
                                 searchingICD ? <Spin size="small" /> : 'Không tìm thấy'
@@ -1464,13 +1562,19 @@ const OPD: React.FC = () => {
                                 enterButton={
                                   <Button type="primary">Thêm chẩn đoán chính</Button>
                                 }
-                                onSearch={(value) => handleAddDiagnosis(value, 1)}
+                                onSearch={(value) => {
+                                  const code = selectedIcdCode || value;
+                                  if (code) handleAddDiagnosis(code, 1);
+                                }}
                               />
                             </AutoComplete>
                             <Button
                               onClick={() => {
-                                const value = icdOptions[0]?.code;
-                                if (value) handleAddDiagnosis(value, 2);
+                                if (selectedIcdCode) {
+                                  handleAddDiagnosis(selectedIcdCode, 2);
+                                } else {
+                                  message.warning('Vui lòng chọn mã ICD từ danh sách trước');
+                                }
                               }}
                             >
                               Thêm chẩn đoán phụ
@@ -1534,6 +1638,7 @@ const OPD: React.FC = () => {
                               style={{ width: 400 }}
                               options={serviceOptions}
                               onSearch={handleSearchService}
+                              onSelect={(value: string) => setSelectedServiceId(value)}
                               placeholder="Tìm dịch vụ..."
                               notFoundContent={
                                 searchingService ? <Spin size="small" /> : 'Không tìm thấy'
@@ -1545,8 +1650,8 @@ const OPD: React.FC = () => {
                               <Button
                                 icon={<PlusOutlined />}
                                 onClick={() => {
-                                  const value = serviceOptions[0]?.value;
-                                  if (value) handleAddOrder(value, 1);
+                                  if (selectedServiceId) { handleAddOrder(selectedServiceId, 1); }
+                                  else { message.warning('Vui lòng chọn dịch vụ từ danh sách trước'); }
                                 }}
                               >
                                 XN
@@ -1556,8 +1661,8 @@ const OPD: React.FC = () => {
                               <Button
                                 icon={<PlusOutlined />}
                                 onClick={() => {
-                                  const value = serviceOptions[0]?.value;
-                                  if (value) handleAddOrder(value, 2);
+                                  if (selectedServiceId) { handleAddOrder(selectedServiceId, 2); }
+                                  else { message.warning('Vui lòng chọn dịch vụ từ danh sách trước'); }
                                 }}
                               >
                                 CĐHA
@@ -1567,8 +1672,8 @@ const OPD: React.FC = () => {
                               <Button
                                 icon={<PlusOutlined />}
                                 onClick={() => {
-                                  const value = serviceOptions[0]?.value;
-                                  if (value) handleAddOrder(value, 3);
+                                  if (selectedServiceId) { handleAddOrder(selectedServiceId, 3); }
+                                  else { message.warning('Vui lòng chọn dịch vụ từ danh sách trước'); }
                                 }}
                               >
                                 TT
@@ -1578,8 +1683,8 @@ const OPD: React.FC = () => {
                               <Button
                                 icon={<PlusOutlined />}
                                 onClick={() => {
-                                  const value = serviceOptions[0]?.value;
-                                  if (value) handleAddOrder(value, 4);
+                                  if (selectedServiceId) { handleAddOrder(selectedServiceId, 4); }
+                                  else { message.warning('Vui lòng chọn dịch vụ từ danh sách trước'); }
                                 }}
                               >
                                 Thuốc
@@ -1589,8 +1694,8 @@ const OPD: React.FC = () => {
                               <Button
                                 icon={<PlusOutlined />}
                                 onClick={() => {
-                                  const value = serviceOptions[0]?.value;
-                                  if (value) handleAddOrder(value, 5);
+                                  if (selectedServiceId) { handleAddOrder(selectedServiceId, 5); }
+                                  else { message.warning('Vui lòng chọn dịch vụ từ danh sách trước'); }
                                 }}
                               >
                                 DV
@@ -1642,9 +1747,19 @@ const OPD: React.FC = () => {
             },
             {
               title: 'Chẩn đoán',
-              dataIndex: 'diagnoses',
-              render: (diagnoses: Diagnosis[]) =>
-                diagnoses?.map((d) => d.icdName).join(', ') || 'N/A',
+              key: 'diagnosis',
+              render: (_: unknown, record: Examination) => {
+                if (record.diagnosisCode && record.diagnosisName) {
+                  return `${record.diagnosisCode} - ${record.diagnosisName}`;
+                }
+                if (record.diagnosisName) {
+                  return record.diagnosisName;
+                }
+                if (record.diagnosisCode) {
+                  return record.diagnosisCode;
+                }
+                return 'N/A';
+              },
             },
             {
               title: 'Trạng thái',
@@ -1692,7 +1807,7 @@ const OPD: React.FC = () => {
         ]}
       >
         <Alert
-          message="Chọn loại bệnh án ngoại trú theo quy định Bộ Y tế"
+          title="Chọn loại bệnh án ngoại trú theo quy định Bộ Y tế"
           type="info"
           showIcon
           style={{ marginBottom: 16 }}

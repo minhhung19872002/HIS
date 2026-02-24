@@ -76,7 +76,6 @@ const BloodBank: React.FC = () => {
   const [activeTab, setActiveTab] = useState('inventory');
   const [inventory, setInventory] = useState<BloodUnit[]>([]);
   const [requests, setRequests] = useState<BloodRequest[]>([]);
-  const [_selectedUnit, _setSelectedUnit] = useState<BloodUnit | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<BloodRequest | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
@@ -84,6 +83,8 @@ const BloodBank: React.FC = () => {
   const [receiveForm] = Form.useForm();
   const [issueForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [inventorySearchText, setInventorySearchText] = useState('');
+  const [requestSearchText, setRequestSearchText] = useState('');
 
   // Print blood unit label (Nhãn đơn vị máu)
   const executePrintBloodLabel = (unit: BloodUnit) => {
@@ -276,7 +277,7 @@ const BloodBank: React.FC = () => {
         setInventory(units);
       }
     } catch (error) {
-      console.error('Error fetching blood inventory:', error);
+      console.warn('Error fetching blood inventory:', error);
       message.error('Không thể tải danh sách tồn kho máu');
     } finally {
       setLoading(false);
@@ -309,7 +310,7 @@ const BloodBank: React.FC = () => {
         setRequests(reqs);
       }
     } catch (error) {
-      console.error('Error fetching blood requests:', error);
+      console.warn('Error fetching blood requests:', error);
       message.error('Không thể tải danh sách yêu cầu máu');
     }
   };
@@ -392,7 +393,7 @@ const BloodBank: React.FC = () => {
   };
 
   const handleReceiveSubmit = () => {
-    receiveForm.validateFields().then((values) => {
+    receiveForm.validateFields().then(async (values) => {
       const newUnit: BloodUnit = {
         id: `${Date.now()}`,
         unitCode: `BU${dayjs().format('YYMMDD')}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
@@ -406,25 +407,69 @@ const BloodBank: React.FC = () => {
         location: values.location,
       };
 
+      // Optimistic UI update
       setInventory(prev => [...prev, newUnit]);
-      message.success(`Đã nhập đơn vị máu ${newUnit.unitCode}`);
       setIsReceiveModalOpen(false);
       receiveForm.resetFields();
+
+      try {
+        // Parse bloodType into type + rhFactor (e.g. "A+" -> "A", "+")
+        const bloodTypeStr = values.bloodType as string;
+        const rhFactor = bloodTypeStr.endsWith('+') ? '+' : '-';
+        const bloodType = bloodTypeStr.replace(/[+-]$/, '');
+
+        const importDto = {
+          receiptDate: values.receiveDate.format('YYYY-MM-DD'),
+          supplierId: values.supplier,
+          note: `Nhập từ ${values.supplier}`,
+          items: [{
+            bagCode: newUnit.unitCode,
+            barcode: newUnit.unitCode,
+            bloodType,
+            rhFactor,
+            productTypeId: values.component,
+            volume: values.volume,
+            collectionDate: values.receiveDate.format('YYYY-MM-DD'),
+            expiryDate: values.expiryDate.format('YYYY-MM-DD'),
+            price: 0,
+          }],
+        };
+
+        await bloodBankApi.createImportReceipt(importDto);
+        message.success(`Đã nhập đơn vị máu ${newUnit.unitCode}`);
+      } catch (error) {
+        console.error('Error saving blood unit to API:', error);
+        message.warning('Đã thêm vào danh sách nhưng chưa lưu được lên hệ thống. Vui lòng thử lại.');
+        // Revert optimistic update on failure
+        setInventory(prev => prev.filter(u => u.id !== newUnit.id));
+      }
     });
   };
 
   // Handle approve request
   const handleApproveRequest = (record: BloodRequest) => {
+    // Status validation: only allow approving pending requests (status === 0)
+    if (record.status !== 0) {
+      message.warning('Chỉ có thể duyệt yêu cầu đang ở trạng thái "Chờ duyệt"');
+      return;
+    }
+
     Modal.confirm({
       title: 'Xác nhận duyệt yêu cầu',
       content: `Bạn có chắc chắn muốn duyệt yêu cầu ${record.requestCode}?`,
-      onOk: () => {
-        setRequests(prev =>
-          prev.map(req =>
-            req.id === record.id ? { ...req, status: 1 } : req
-          )
-        );
-        message.success('Đã duyệt yêu cầu');
+      onOk: async () => {
+        try {
+          await bloodBankApi.approveIssueRequest(record.id);
+          setRequests(prev =>
+            prev.map(req =>
+              req.id === record.id ? { ...req, status: 1 } : req
+            )
+          );
+          message.success('Đã duyệt yêu cầu');
+        } catch (error) {
+          console.error('Error approving blood request:', error);
+          message.error('Lỗi khi duyệt yêu cầu. Vui lòng thử lại.');
+        }
       },
     });
   };
@@ -437,27 +482,43 @@ const BloodBank: React.FC = () => {
   };
 
   const handleIssueSubmit = () => {
-    issueForm.validateFields().then((values) => {
-      // Update request status
-      setRequests(prev =>
-        prev.map(req =>
-          req.id === selectedRequest?.id ? { ...req, status: 2 } : req
-        )
-      );
+    issueForm.validateFields().then(async (values) => {
+      if (!selectedRequest) return;
 
-      // Update inventory status
-      values.selectedUnits.forEach((unitId: string) => {
-        setInventory(prev =>
-          prev.map(unit =>
-            unit.id === unitId ? { ...unit, status: 2 } : unit
+      try {
+        // Call API to record the blood issuance
+        const issueDto = {
+          requestId: selectedRequest.id,
+          bloodBagIds: values.selectedUnits as string[],
+          note: `Xuất máu cho BN ${selectedRequest.patientName} - ${selectedRequest.patientCode}`,
+        };
+
+        await bloodBankApi.issueBlood(issueDto);
+
+        // Update request status
+        setRequests(prev =>
+          prev.map(req =>
+            req.id === selectedRequest.id ? { ...req, status: 2 } : req
           )
         );
-      });
 
-      message.success('Đã xuất máu cho bệnh nhân');
-      setIsIssueModalOpen(false);
-      setSelectedRequest(null);
-      issueForm.resetFields();
+        // Update inventory status
+        values.selectedUnits.forEach((unitId: string) => {
+          setInventory(prev =>
+            prev.map(unit =>
+              unit.id === unitId ? { ...unit, status: 2 } : unit
+            )
+          );
+        });
+
+        message.success('Đã xuất máu cho bệnh nhân');
+        setIsIssueModalOpen(false);
+        setSelectedRequest(null);
+        issueForm.resetFields();
+      } catch (error) {
+        console.error('Error issuing blood:', error);
+        message.error('Lỗi khi xuất máu. Vui lòng thử lại.');
+      }
     });
   };
 
@@ -508,7 +569,7 @@ const BloodBank: React.FC = () => {
       key: 'expiryDate',
       width: 150,
       render: (date) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text>{dayjs(date).format('DD/MM/YYYY')}</Text>
           {getExpiryStatus(date)}
         </Space>
@@ -668,6 +729,23 @@ const BloodBank: React.FC = () => {
     },
   ];
 
+  // Filtered data based on search
+  const filteredInventory = inventorySearchText
+    ? inventory.filter(u =>
+        u.unitCode.toLowerCase().includes(inventorySearchText.toLowerCase()) ||
+        u.bloodType.toLowerCase().includes(inventorySearchText.toLowerCase()) ||
+        u.component.toLowerCase().includes(inventorySearchText.toLowerCase())
+      )
+    : inventory;
+
+  const filteredRequests = requestSearchText
+    ? requests.filter(r =>
+        r.requestCode.toLowerCase().includes(requestSearchText.toLowerCase()) ||
+        r.patientCode.toLowerCase().includes(requestSearchText.toLowerCase()) ||
+        r.patientName.toLowerCase().includes(requestSearchText.toLowerCase())
+      )
+    : requests;
+
   // Stats
   const availableUnits = inventory.filter(u => u.status === 0).length;
   const reservedUnits = inventory.filter(u => u.status === 1).length;
@@ -684,7 +762,7 @@ const BloodBank: React.FC = () => {
             <Statistic
               title="Đơn vị sẵn sàng"
               value={availableUnits}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
               prefix={<MedicineBoxOutlined />}
             />
           </Card>
@@ -694,7 +772,7 @@ const BloodBank: React.FC = () => {
             <Statistic
               title="Đã đặt trước"
               value={reservedUnits}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
@@ -704,7 +782,7 @@ const BloodBank: React.FC = () => {
             <Statistic
               title="Sắp hết hạn"
               value={expiringUnits}
-              valueStyle={{ color: expiringUnits > 0 ? '#faad14' : '#52c41a' }}
+              styles={{ content: { color: expiringUnits > 0 ? '#faad14' : '#52c41a' } }}
               prefix={<WarningOutlined />}
             />
           </Card>
@@ -714,7 +792,7 @@ const BloodBank: React.FC = () => {
             <Statistic
               title="Yêu cầu chờ duyệt"
               value={pendingRequests}
-              valueStyle={{ color: pendingRequests > 0 ? '#ff4d4f' : '#52c41a' }}
+              styles={{ content: { color: pendingRequests > 0 ? '#ff4d4f' : '#52c41a' } }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
@@ -744,6 +822,9 @@ const BloodBank: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        value={inventorySearchText}
+                        onChange={(e) => setInventorySearchText(e.target.value)}
+                        onSearch={(value) => setInventorySearchText(value)}
                       />
                     </Col>
                     <Col>
@@ -759,7 +840,7 @@ const BloodBank: React.FC = () => {
 
                   {expiringUnits > 0 && (
                     <Alert
-                      message={`Có ${expiringUnits} đơn vị máu sắp hết hạn trong 7 ngày tới`}
+                      title={`Có ${expiringUnits} đơn vị máu sắp hết hạn trong 7 ngày tới`}
                       type="warning"
                       showIcon
                       style={{ marginBottom: 16 }}
@@ -768,15 +849,43 @@ const BloodBank: React.FC = () => {
 
                   <Table
                     columns={inventoryColumns}
-                    dataSource={inventory}
+                    dataSource={filteredInventory}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1400 }}
+                    loading={loading}
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} đơn vị`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiết đơn vị máu - ${record.bagCode}`,
+                          width: 600,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Mã túi">{record.bagCode}</Descriptions.Item>
+                              <Descriptions.Item label="Nhóm máu">
+                                <Tag color="red">{record.bloodType}</Tag>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Thành phần">{record.component}</Descriptions.Item>
+                              <Descriptions.Item label="Thể tích">{record.volume} ml</Descriptions.Item>
+                              <Descriptions.Item label="Ngày thu thập">
+                                {record.collectionDate ? dayjs(record.collectionDate).format('DD/MM/YYYY') : '-'}
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Hạn sử dụng">
+                                {record.expiryDate ? dayjs(record.expiryDate).format('DD/MM/YYYY') : '-'}
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Nguồn">{record.source || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -799,13 +908,16 @@ const BloodBank: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        value={requestSearchText}
+                        onChange={(e) => setRequestSearchText(e.target.value)}
+                        onSearch={(value) => setRequestSearchText(value)}
                       />
                     </Col>
                   </Row>
 
                   <Table
                     columns={requestColumns}
-                    dataSource={requests}
+                    dataSource={filteredRequests}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1500 }}
@@ -814,6 +926,13 @@ const BloodBank: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} yêu cầu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsRequestDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -1001,7 +1120,7 @@ const BloodBank: React.FC = () => {
             </Form>
 
             <Alert
-              message="Lưu ý: Kiểm tra kỹ nhóm máu và thông tin bệnh nhân trước khi xuất"
+              title="Lưu ý: Kiểm tra kỹ nhóm máu và thông tin bệnh nhân trước khi xuất"
               type="warning"
               showIcon
             />

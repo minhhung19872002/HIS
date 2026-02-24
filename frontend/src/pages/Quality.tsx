@@ -507,7 +507,7 @@ const Quality: React.FC = () => {
               title="Su co chua xu ly"
               value={openIncidents}
               prefix={<AlertOutlined style={{ color: '#ff4d4f' }} />}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
             />
           </Card>
         </Col>
@@ -517,7 +517,7 @@ const Quality: React.FC = () => {
               title="KPI canh bao"
               value={criticalKPIs}
               prefix={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -527,7 +527,7 @@ const Quality: React.FC = () => {
               title="Audit sap toi"
               value={upcomingAudits}
               prefix={<FileSearchOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -562,7 +562,7 @@ const Quality: React.FC = () => {
                   {indicators.map((ind) => (
                     <Col key={ind.id} xs={24} sm={12} lg={8}>
                       <Card size="small">
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space orientation="vertical" style={{ width: '100%' }}>
                           <Text strong>{ind.name}</Text>
                           <Text type="secondary">{ind.category}</Text>
                           <Row justify="space-between" align="middle">
@@ -570,14 +570,14 @@ const Quality: React.FC = () => {
                               <Statistic
                                 value={ind.current}
                                 suffix={ind.unit}
-                                valueStyle={{
+                                styles={{ content: {
                                   color:
                                     ind.status === 'good'
                                       ? '#52c41a'
                                       : ind.status === 'warning'
                                       ? '#faad14'
                                       : '#ff4d4f',
-                                }}
+                                } }}
                               />
                             </Col>
                             <Col>
@@ -600,7 +600,18 @@ const Quality: React.FC = () => {
               key: 'incidents',
               label: `Su co y khoa (${openIncidents})`,
               children: (
-                <Table columns={incidentColumns} dataSource={incidents} rowKey="id" />
+                <Table
+                  columns={incidentColumns}
+                  dataSource={incidents}
+                  rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      setSelectedIncident(record);
+                      setIsInvestigationModalOpen(true);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                />
               ),
             },
             {
@@ -616,7 +627,31 @@ const Quality: React.FC = () => {
                   >
                     Len lich audit
                   </Button>
-                  <Table columns={auditColumns} dataSource={audits} rowKey="id" />
+                  <Table
+                    columns={auditColumns}
+                    dataSource={audits}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiết Audit - ${record.auditCode || record.id}`,
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Khoa/Phòng">{record.department}</Descriptions.Item>
+                              <Descriptions.Item label="Loại">{record.auditType}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày">{record.auditDate}</Descriptions.Item>
+                              <Descriptions.Item label="Người thực hiện">{record.auditorName}</Descriptions.Item>
+                              <Descriptions.Item label="Điểm">{record.score}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                              <Descriptions.Item label="Ghi chú">{record.notes || '-'}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
                 </>
               ),
             },

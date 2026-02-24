@@ -40,7 +40,6 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { Panel } = Collapse;
 
 // Types
 interface NutritionPatient {
@@ -393,7 +392,7 @@ const Nutrition: React.FC = () => {
       title: 'Benh nhan',
       key: 'patient',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record.patientName}</Text>
           <Text type="secondary">
             {record.department} - {record.bedNumber}
@@ -501,7 +500,7 @@ const Nutrition: React.FC = () => {
       title: 'Benh nhan',
       key: 'patient',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record.patientName}</Text>
           <Text type="secondary">{record.bedNumber}</Text>
         </Space>
@@ -571,7 +570,7 @@ const Nutrition: React.FC = () => {
               title="Cho sang loc"
               value={pendingScreening}
               prefix={<AlertOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -581,7 +580,7 @@ const Nutrition: React.FC = () => {
               title="Nguy co cao"
               value={highRiskCount}
               prefix={<WarningOutlined style={{ color: '#ff4d4f' }} />}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
             />
           </Card>
         </Col>
@@ -591,7 +590,7 @@ const Nutrition: React.FC = () => {
               title="Dang theo doi"
               value={onPlanCount}
               prefix={<AppleOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -608,7 +607,7 @@ const Nutrition: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Quy tac sang loc"
+                    title="Quy tac sang loc"
                     description="Moi benh nhan noi tru phai duoc sang loc dinh duong trong 24h nhap vien. Tai sang loc moi 7 ngay."
                     type="info"
                     showIcon
@@ -618,6 +617,13 @@ const Nutrition: React.FC = () => {
                     columns={patientColumns}
                     dataSource={patients}
                     rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedPatient(record);
+                        setIsScreeningModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -630,6 +636,25 @@ const Nutrition: React.FC = () => {
                   columns={mealColumns}
                   dataSource={mealOrders}
                   rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      Modal.info({
+                        title: `Chi tiết đặt bữa ăn`,
+                        width: 500,
+                        content: (
+                          <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                            <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                            <Descriptions.Item label="Khoa">{record.department}</Descriptions.Item>
+                            <Descriptions.Item label="Chế độ ăn">{record.dietType}</Descriptions.Item>
+                            <Descriptions.Item label="Bữa">{record.mealType}</Descriptions.Item>
+                            <Descriptions.Item label="Ghi chú">{record.notes || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                          </Descriptions>
+                        ),
+                      });
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
                 />
               ),
             },
@@ -637,13 +662,13 @@ const Nutrition: React.FC = () => {
               key: 'diet_types',
               label: 'Che do an dac biet',
               children: (
-                <Collapse>
-                  {DIET_TYPES.map((diet) => (
-                    <Panel header={diet.label} key={diet.value}>
-                      <p>Mo ta chi tiet che do an {diet.label}</p>
-                    </Panel>
-                  ))}
-                </Collapse>
+                <Collapse
+                  items={DIET_TYPES.map((diet) => ({
+                    key: diet.value,
+                    label: diet.label,
+                    children: <p>Mo ta chi tiet che do an {diet.label}</p>,
+                  }))}
+                />
               ),
             },
           ]}
@@ -660,7 +685,7 @@ const Nutrition: React.FC = () => {
       >
         <Form form={screeningForm} layout="vertical" onFinish={handleScreening}>
           <Alert
-            message="Thang diem NRS-2002"
+            title="Thang diem NRS-2002"
             description="Tong diem >= 3: Nguy co dinh duong cao, can can thiep"
             type="info"
             showIcon
@@ -693,7 +718,7 @@ const Nutrition: React.FC = () => {
 
           <Form.Item name="bmiScore" label="1. BMI" rules={[{ required: true }]}>
             <Radio.Group>
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 <Radio value={0}>BMI &gt;= 20.5 (0 diem)</Radio>
                 <Radio value={1}>BMI 18.5-20.5 (1 diem)</Radio>
                 <Radio value={2}>BMI &lt; 18.5 (2 diem)</Radio>
@@ -704,7 +729,7 @@ const Nutrition: React.FC = () => {
 
           <Form.Item name="weightLossScore" label="2. Sut can" rules={[{ required: true }]}>
             <Radio.Group>
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 <Radio value={0}>Khong sut can (0 diem)</Radio>
                 <Radio value={1}>Sut &gt;5% trong 3 thang (1 diem)</Radio>
                 <Radio value={2}>Sut &gt;5% trong 2 thang (2 diem)</Radio>
@@ -715,7 +740,7 @@ const Nutrition: React.FC = () => {
 
           <Form.Item name="intakeScore" label="3. Luong an" rules={[{ required: true }]}>
             <Radio.Group>
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 <Radio value={0}>An duoc binh thuong (0 diem)</Radio>
                 <Radio value={1}>An duoc 50-75% (1 diem)</Radio>
                 <Radio value={2}>An duoc 25-50% (2 diem)</Radio>
@@ -726,7 +751,7 @@ const Nutrition: React.FC = () => {
 
           <Form.Item name="diseaseScore" label="4. Muc do benh" rules={[{ required: true }]}>
             <Radio.Group>
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 <Radio value={0}>Benh nhe, khong stress (0 diem)</Radio>
                 <Radio value={1}>Gãy xuong hong, ung thu, benh man (1 diem)</Radio>
                 <Radio value={2}>Phau thuat lon, dot quy, viem phoi (2 diem)</Radio>
@@ -839,18 +864,27 @@ const Nutrition: React.FC = () => {
 
             <Divider>Lich su theo doi</Divider>
 
-            <Timeline>
-              <Timeline.Item color="green">
-                {dayjs().format('DD/MM/YYYY HH:mm')} - An bua sang, duoc 80%
-              </Timeline.Item>
-              <Timeline.Item color="blue">
-                {dayjs().subtract(1, 'day').format('DD/MM/YYYY')} - Cap nhat ke hoach dinh duong
-              </Timeline.Item>
-              <Timeline.Item color="orange">
-                {dayjs().subtract(2, 'day').format('DD/MM/YYYY')} - Sang loc dinh duong: Nguy co{' '}
-                {selectedPatient.riskLevel?.toUpperCase()}
-              </Timeline.Item>
-            </Timeline>
+            <Timeline
+              items={[
+                {
+                  color: 'green',
+                  content: <>{dayjs().format('DD/MM/YYYY HH:mm')} - An bua sang, duoc 80%</>,
+                },
+                {
+                  color: 'blue',
+                  content: <>{dayjs().subtract(1, 'day').format('DD/MM/YYYY')} - Cap nhat ke hoach dinh duong</>,
+                },
+                {
+                  color: 'orange',
+                  content: (
+                    <>
+                      {dayjs().subtract(2, 'day').format('DD/MM/YYYY')} - Sang loc dinh duong: Nguy co{' '}
+                      {selectedPatient.riskLevel?.toUpperCase()}
+                    </>
+                  ),
+                },
+              ]}
+            />
           </>
         )}
       </Modal>

@@ -126,14 +126,13 @@ interface RadiologyReport {
 const Radiology: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [radiologyRequests, setRadiologyRequests] = useState<RadiologyRequest[]>([]);
-  const [radiologyExams, setRadiologyExams] = useState<RadiologyExam[]>([]);
-  const [radiologyReports, setRadiologyReports] = useState<RadiologyReport[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<RadiologyRequest | null>(null);
   const [selectedExam, setSelectedExam] = useState<RadiologyExam | null>(null);
-  const [selectedReport, setSelectedReport] = useState<RadiologyReport | null>(null);
+  const [modalities, setModalities] = useState<{ id: string; code: string; name: string; modalityType: string; roomName: string }[]>([]);
+  const [rooms, setRooms] = useState<{ id: string; code: string; name: string }[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isReportViewModalOpen, setIsReportViewModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [selectedReportToSign, setSelectedReportToSign] = useState<RadiologyReport | null>(null);
   const [signatureLoading, setSignatureLoading] = useState(false);
@@ -142,6 +141,28 @@ const Radiology: React.FC = () => {
   const [signatureForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [modalityFilter, setModalityFilter] = useState<string | undefined>(undefined);
+  // Statistics tab state
+  const [statsDateRange, setStatsDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [statsData, setStatsData] = useState<{ totalExams: number; completedExams: number; pendingExams: number; averageTATMinutes: number } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  // Tags tab state
+  const [tagsData, setTagsData] = useState<any[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [tagForm] = Form.useForm();
+  // Duty Schedule tab state
+  const [dutyDateRange, setDutyDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [dutyRoomId, setDutyRoomId] = useState<string | undefined>(undefined);
+  const [dutySchedules, setDutySchedules] = useState<any[]>([]);
+  const [dutyLoading, setDutyLoading] = useState(false);
+  // Integration Logs tab state
+  const [logDateRange, setLogDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [logMessageType, setLogMessageType] = useState<string | undefined>(undefined);
+  const [logStatus, setLogStatus] = useState<string | undefined>(undefined);
+  const [integrationLogs, setIntegrationLogs] = useState<any[]>([]);
+  const [integrationLogStats, setIntegrationLogStats] = useState<{ totalMessages: number; successCount: number; failedCount: number; averageResponseTimeMs: number } | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   // Print radiology report (Phiếu kết quả CĐHA)
   const executePrintRadiologyReport = (report: RadiologyReport) => {
@@ -240,7 +261,7 @@ const Radiology: React.FC = () => {
 
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); }, 500);
+    setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
   };
 
   // USB Token state
@@ -377,8 +398,6 @@ const Radiology: React.FC = () => {
     try {
       const today = dayjs().format('YYYY-MM-DD');
       const response = await risApi.getWaitingList(today);
-      console.log('RIS API Response:', response);
-      console.log('RIS API Data:', response?.data);
       if (response && response.data) {
         // Map API data to local RadiologyRequest format
         // Status from API (Vietnamese): 'Cho thuc hien', 'Da hen', 'Dang thuc hien', 'Da thuc hien', 'Da tra ket qua', 'Da duyet', 'Da huy'
@@ -415,8 +434,6 @@ const Radiology: React.FC = () => {
           studyInstanceUID: item.studyInstanceUID || '',
           hasImages: item.hasImages || false,
         }));
-        console.log('Mapped requests:', requests);
-        console.log('StatusCode values:', requests.map(r => ({ code: r.requestCode, statusCode: r.statusCode })));
         setRadiologyRequests(requests);
       }
     } catch (error) {
@@ -429,7 +446,56 @@ const Radiology: React.FC = () => {
 
   useEffect(() => {
     fetchRadiologyData();
+
+    // Load modality and room options from API
+    const loadOptions = async () => {
+      try {
+        const [modalitiesRes, roomsRes] = await Promise.all([
+          risApi.getModalities(),
+          risApi.getRooms(),
+        ]);
+        if (modalitiesRes.data) {
+          setModalities(modalitiesRes.data.map((m: any) => ({
+            id: m.id,
+            code: m.code,
+            name: m.name,
+            modalityType: m.modalityType,
+            roomName: m.roomName,
+          })));
+        }
+        if (roomsRes.data) {
+          setRooms(roomsRes.data.map((r: any) => ({
+            id: r.id,
+            code: r.code,
+            name: r.name,
+          })));
+        }
+      } catch {
+        // Silently fail - hardcoded fallbacks will be used if API fails
+      }
+    };
+    loadOptions();
   }, []);
+
+  // Load tags when Tags tab is opened
+  useEffect(() => {
+    if (activeTab === 'tags' && tagsData.length === 0) {
+      const loadTags = async () => {
+        setTagsLoading(true);
+        try {
+          const response = await risApi.getTags();
+          if (response.data) {
+            setTagsData(response.data);
+          }
+        } catch (error) {
+          console.error('Error loading tags:', error);
+        } finally {
+          setTagsLoading(false);
+        }
+      };
+      loadTags();
+    }
+  }, [activeTab]);
 
   // Get priority badge
   const getPriorityBadge = (priority: number) => {
@@ -503,69 +569,37 @@ const Radiology: React.FC = () => {
     setIsScheduleModalOpen(true);
   };
 
-  const handleScheduleSubmit = () => {
-    scheduleForm.validateFields().then((values) => {
-      setRadiologyRequests(prev =>
-        prev.map(req =>
-          req.id === selectedRequest?.id
-            ? {
-                ...req,
-                statusCode: 1,
-                status: 'Đã hẹn',
-                scheduledDate: values.scheduledDate.format('YYYY-MM-DDTHH:mm:ss'),
-                modalityName: 'CT Scanner', // Mock
-              }
-            : req
-        )
-      );
-
+  const handleScheduleSubmit = async () => {
+    try {
+      const values = await scheduleForm.validateFields();
+      if (!selectedRequest) return;
+      await risApi.callPatient({
+        orderId: selectedRequest.id,
+        roomId: values.modalityId,
+        message: values.notes || '',
+        useSpeaker: false,
+      });
       message.success('Đã hẹn lịch thành công');
       setIsScheduleModalOpen(false);
       scheduleForm.resetFields();
       setSelectedRequest(null);
-    });
+      fetchRadiologyData();
+    } catch (error: any) {
+      console.error('Schedule submit error:', error);
+      message.error(error?.response?.data?.message || 'Không thể hẹn lịch');
+    }
   };
 
-  // Handle start exam
-  const handleStartExam = (record: RadiologyExam) => {
-    setRadiologyExams(prev =>
-      prev.map(exam =>
-        exam.id === record.id
-          ? {
-              ...exam,
-              status: 1,
-              startTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-            }
-          : exam
-      )
-    );
-    message.success('Đã bắt đầu thực hiện');
-  };
-
-  // Handle complete exam
-  const handleCompleteExam = (record: RadiologyExam) => {
-    setRadiologyExams(prev =>
-      prev.map(exam =>
-        exam.id === record.id
-          ? {
-              ...exam,
-              status: 2,
-              endTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-            }
-          : exam
-      )
-    );
-
-    // Update request status
-    setRadiologyRequests(prev =>
-      prev.map(req =>
-        req.id === record.requestId
-          ? { ...req, statusCode: 3, status: 'Đã thực hiện' }
-          : req
-      )
-    );
-
-    message.success('Đã hoàn thành thực hiện');
+  // Handle start exam (for in-progress/scheduled requests)
+  const handleStartExam = async (record: RadiologyRequest) => {
+    try {
+      await risApi.startExam(record.id);
+      message.success('Đã bắt đầu thực hiện');
+      fetchRadiologyData();
+    } catch (error: any) {
+      console.error('Start exam error:', error);
+      message.error(error?.response?.data?.message || 'Không thể bắt đầu thực hiện');
+    }
   };
 
   // Handle create report
@@ -575,70 +609,49 @@ const Radiology: React.FC = () => {
     setIsReportModalOpen(true);
   };
 
-  const handleReportSubmit = () => {
-    reportForm.validateFields().then((values) => {
-      const newReport: RadiologyReport = {
-        id: crypto.randomUUID(), // Generate proper UUID for backend
-        examId: selectedExam!.id,
-        requestCode: selectedExam!.requestCode,
-        patientCode: selectedExam!.patientCode,
-        patientName: selectedExam!.patientName,
-        serviceName: selectedExam!.serviceName,
-        findings: values.findings,
-        impression: values.impression,
-        recommendations: values.recommendations,
-        status: 1,
-        radiologistName: 'BS. Nguyễn Văn E',
-        reportDate: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-      };
+  const handleReportSubmit = async () => {
+    try {
+      const values = await reportForm.validateFields();
+      // Use selectedExam if available, else selectedRequest (from reporting tab)
+      const orderItemId = selectedExam?.id || selectedRequest?.id;
+      if (!orderItemId) return;
 
-      setRadiologyReports(prev => [...prev, newReport]);
-
-      // Update request status
-      setRadiologyRequests(prev =>
-        prev.map(req =>
-          req.requestCode === selectedExam!.requestCode
-            ? { ...req, statusCode: 4, status: 'Đã trả kết quả' }
-            : req
-        )
-      );
+      await risApi.enterRadiologyResult({
+        orderItemId,
+        description: values.findings,
+        conclusion: values.impression,
+        note: values.recommendations,
+      });
 
       message.success('Đã tạo báo cáo thành công');
       setIsReportModalOpen(false);
       reportForm.resetFields();
       setSelectedExam(null);
-    });
+      setSelectedRequest(null);
+      fetchRadiologyData();
+    } catch (error: any) {
+      console.error('Report submit error:', error);
+      message.error(error?.response?.data?.message || 'Không thể lưu báo cáo');
+    }
   };
 
-  // Handle approve report
-  const handleApproveReport = (record: RadiologyReport) => {
+  // Handle approve report (for completed/reported requests)
+  const handleApproveReport = (record: RadiologyRequest) => {
     Modal.confirm({
       title: 'Xác nhận duyệt báo cáo',
       content: `Bạn có chắc chắn muốn duyệt báo cáo ${record.requestCode}?`,
-      onOk: () => {
-        setRadiologyReports(prev =>
-          prev.map(r =>
-            r.id === record.id
-              ? {
-                  ...r,
-                  status: 2,
-                  approvedBy: 'BS. Trưởng khoa CĐHA',
-                  approvedAt: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
-                }
-              : r
-          )
-        );
-
-        // Update request status
-        setRadiologyRequests(prev =>
-          prev.map(req =>
-            req.requestCode === record.requestCode
-              ? { ...req, statusCode: 5, status: 'Đã duyệt' }
-              : req
-          )
-        );
-
-        message.success('Đã duyệt báo cáo thành công');
+      onOk: async () => {
+        try {
+          await risApi.finalApproveResult(record.id, {
+            resultId: record.id,
+            isFinalApproval: true,
+          });
+          message.success('Đã duyệt báo cáo thành công');
+          fetchRadiologyData();
+        } catch (error: any) {
+          console.error('Approve report error:', error);
+          message.error(error?.response?.data?.message || 'Không thể duyệt báo cáo');
+        }
       },
     });
   };
@@ -770,6 +783,22 @@ const Radiology: React.FC = () => {
       width: 140,
       render: (statusCode) => getStatusTag(statusCode),
     },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      width: 120,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          type="primary"
+          size="small"
+          icon={<PlayCircleOutlined />}
+          onClick={() => handleStartExam(record)}
+        >
+          Bắt đầu
+        </Button>
+      ),
+    },
   ];
 
   // In Progress columns - for exams being performed
@@ -835,8 +864,15 @@ const Radiology: React.FC = () => {
           type="primary"
           size="small"
           icon={<CheckCircleOutlined />}
-          onClick={() => {
-            message.success(`Đã hoàn thành chụp phiếu ${record.requestCode}`);
+          onClick={async () => {
+            try {
+              await risApi.completeExam(record.id);
+              message.success(`Đã hoàn thành chụp phiếu ${record.requestCode}`);
+              fetchRadiologyData();
+            } catch (error: any) {
+              console.error('Complete exam error:', error);
+              message.error(error?.response?.data?.message || 'Không thể hoàn thành ca chụp');
+            }
           }}
         >
           Hoàn thành
@@ -990,7 +1026,42 @@ const Radiology: React.FC = () => {
           <Button
             size="small"
             icon={<PrinterOutlined />}
-            onClick={() => message.info('In kết quả...')}
+            onClick={async () => {
+              try {
+                // Try to get the result from API and print via backend
+                const resultResponse = await risApi.getRadiologyResult(record.id);
+                if (resultResponse.data) {
+                  const blob = await risApi.printRadiologyResult(resultResponse.data.id);
+                  const url = window.URL.createObjectURL(new Blob([blob.data], { type: 'application/pdf' }));
+                  const printWindow = window.open(url, '_blank');
+                  if (printWindow) {
+                    setTimeout(() => {
+                      printWindow.focus();
+                      printWindow.print();
+                    }, 1000); // Longer delay for PDF loading
+                  }
+                  return;
+                }
+              } catch {
+                // No API result found; create a temporary report from record data and print
+              }
+              const tempReport: RadiologyReport = {
+                id: record.id,
+                examId: record.id,
+                requestCode: record.requestCode,
+                patientName: record.patientName,
+                patientCode: record.patientCode,
+                serviceName: record.serviceName,
+                findings: record.description || '',
+                impression: record.conclusion || '',
+                recommendations: '',
+                radiologistName: record.doctorName || '',
+                reportDate: record.requestDate,
+                reportedAt: record.reportedAt,
+                status: record.statusCode,
+              };
+              executePrintRadiologyReport(tempReport);
+            }}
           >
             In KQ
           </Button>
@@ -1043,18 +1114,39 @@ const Radiology: React.FC = () => {
           >
             Ký số
           </Button>
+          {record.statusCode === 4 && (
+            <Button
+              size="small"
+              icon={<CheckCircleOutlined />}
+              onClick={() => handleApproveReport(record)}
+              type="primary"
+            >
+              Duyệt
+            </Button>
+          )}
         </Space>
       ),
     },
   ];
 
+  // Helper to filter requests by search text (matches requestCode, patientCode, patientName)
+  const filterBySearch = (requests: RadiologyRequest[], search: string) => {
+    if (!search.trim()) return requests;
+    const lower = search.toLowerCase();
+    return requests.filter(r =>
+      r.requestCode?.toLowerCase().includes(lower) ||
+      r.patientCode?.toLowerCase().includes(lower) ||
+      r.patientName?.toLowerCase().includes(lower)
+    );
+  };
+
   // Filter data by status
   // Status: 0=Pending, 1=Scheduled, 2=InProgress, 3=Completed, 4=Reported, 5=Approved, 6=Cancelled
-  const pendingRequests = radiologyRequests.filter(r => r.statusCode === 0);
+  const pendingRequests = filterBySearch(radiologyRequests.filter(r => r.statusCode === 0), searchText);
   const scheduledRequests = radiologyRequests.filter(r => r.statusCode === 1);
   const inProgressRequests = radiologyRequests.filter(r => r.statusCode === 2);
   const reportingRequests = radiologyRequests.filter(r => r.statusCode === 3);
-  const completedRequests = radiologyRequests.filter(r => r.statusCode >= 4 && r.statusCode <= 5);
+  const completedRequests = filterBySearch(radiologyRequests.filter(r => r.statusCode >= 4 && r.statusCode <= 5), searchText);
 
   return (
     <div>
@@ -1090,7 +1182,7 @@ const Radiology: React.FC = () => {
                       />
                     </Col>
                     <Col>
-                      <Button icon={<ReloadOutlined />} onClick={() => message.info('Đã làm mới danh sách')}>
+                      <Button icon={<ReloadOutlined />} onClick={() => fetchRadiologyData()}>
                         Làm mới
                       </Button>
                     </Col>
@@ -1107,6 +1199,13 @@ const Radiology: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} phiếu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -1130,19 +1229,24 @@ const Radiology: React.FC = () => {
                         placeholder="Chọn Modality"
                         style={{ width: 200 }}
                         allowClear
-                        options={[
-                          { value: 'XR', label: 'X-quang' },
-                          { value: 'CT', label: 'CT Scanner' },
-                          { value: 'MR', label: 'MRI' },
-                          { value: 'US', label: 'Siêu âm' },
-                        ]}
+                        value={modalityFilter}
+                        onChange={(value) => setModalityFilter(value)}
+                        options={modalities.length > 0
+                          ? modalities.map(m => ({ value: m.modalityType || m.code, label: `${m.name}` }))
+                          : [
+                              { value: 'XR', label: 'X-quang' },
+                              { value: 'CT', label: 'CT Scanner' },
+                              { value: 'MR', label: 'MRI' },
+                              { value: 'US', label: 'Siêu âm' },
+                            ]
+                        }
                       />
                     </Col>
                   </Row>
 
                   <Table
                     columns={worklistColumns}
-                    dataSource={scheduledRequests}
+                    dataSource={modalityFilter ? scheduledRequests.filter(r => r.modalityName?.toUpperCase().includes(modalityFilter!.toUpperCase())) : scheduledRequests}
                     rowKey="id"
                     size="small"
                     scroll={{ x: 1200 }}
@@ -1151,6 +1255,13 @@ const Radiology: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} phiếu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -1169,7 +1280,7 @@ const Radiology: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Lưu ý"
+                    title="Lưu ý"
                     description="Theo dõi và quản lý các lượt chụp đang thực hiện"
                     type="info"
                     showIcon
@@ -1187,6 +1298,13 @@ const Radiology: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} lượt`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -1205,7 +1323,7 @@ const Radiology: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Đọc và nhập kết quả"
+                    title="Đọc và nhập kết quả"
                     description="Nhập kết quả chẩn đoán hình ảnh cho các lượt chụp đã hoàn thành"
                     type="info"
                     showIcon
@@ -1223,6 +1341,13 @@ const Radiology: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} lượt`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -1247,6 +1372,8 @@ const Radiology: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
                       />
                     </Col>
                   </Row>
@@ -1262,6 +1389,13 @@ const Radiology: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} báo cáo`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -1277,7 +1411,7 @@ const Radiology: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Thống kê chẩn đoán hình ảnh"
+                    title="Thống kê chẩn đoán hình ảnh"
                     description="Xem thống kê số lượng, doanh thu theo loại dịch vụ, theo thời gian"
                     type="info"
                     showIcon
@@ -1288,15 +1422,64 @@ const Radiology: React.FC = () => {
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
+                        value={statsDateRange}
+                        onChange={(dates) => setStatsDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                       />
                     </Col>
                     <Col>
-                      <Button type="primary" icon={<SearchOutlined />}>
+                      <Button
+                        type="primary"
+                        icon={<SearchOutlined />}
+                        loading={statsLoading}
+                        onClick={async () => {
+                          const fromDate = statsDateRange?.[0]?.format('YYYY-MM-DD') || dayjs().startOf('month').format('YYYY-MM-DD');
+                          const toDate = statsDateRange?.[1]?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD');
+                          setStatsLoading(true);
+                          try {
+                            const response = await risApi.getStatistics(fromDate, toDate);
+                            if (response.data) {
+                              setStatsData({
+                                totalExams: response.data.totalExams,
+                                completedExams: response.data.completedExams,
+                                pendingExams: response.data.pendingExams,
+                                averageTATMinutes: response.data.averageTATMinutes,
+                              });
+                            }
+                          } catch (error: any) {
+                            console.error('Statistics error:', error);
+                            message.error(error?.response?.data?.message || 'Không thể tải thống kê');
+                          } finally {
+                            setStatsLoading(false);
+                          }
+                        }}
+                      >
                         Xem thống kê
                       </Button>
                     </Col>
                     <Col>
-                      <Button icon={<PrinterOutlined />}>
+                      <Button
+                        icon={<PrinterOutlined />}
+                        onClick={async () => {
+                          const fromDate = statsDateRange?.[0]?.format('YYYY-MM-DD') || dayjs().startOf('month').format('YYYY-MM-DD');
+                          const toDate = statsDateRange?.[1]?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD');
+                          try {
+                            const response = await risApi.exportReportToExcel('statistics', fromDate, toDate);
+                            const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `thong-ke-cdha-${fromDate}-${toDate}.xlsx`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                            message.success('Đã xuất Excel thành công');
+                          } catch (error: any) {
+                            console.error('Export Excel error:', error);
+                            message.error(error?.response?.data?.message || 'Không thể xuất Excel');
+                          }
+                        }}
+                      >
                         Xuất Excel
                       </Button>
                     </Col>
@@ -1305,7 +1488,7 @@ const Radiology: React.FC = () => {
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>0</div>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>{statsData?.totalExams ?? 0}</div>
                           <div>Tổng số ca</div>
                         </div>
                       </Card>
@@ -1313,7 +1496,7 @@ const Radiology: React.FC = () => {
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>0</div>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>{statsData?.completedExams ?? 0}</div>
                           <div>Đã hoàn thành</div>
                         </div>
                       </Card>
@@ -1321,7 +1504,7 @@ const Radiology: React.FC = () => {
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#faad14' }}>0</div>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#faad14' }}>{statsData?.pendingExams ?? 0}</div>
                           <div>Đang chờ</div>
                         </div>
                       </Card>
@@ -1329,7 +1512,7 @@ const Radiology: React.FC = () => {
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#722ed1' }}>0 phút</div>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#722ed1' }}>{statsData?.averageTATMinutes ?? 0} phút</div>
                           <div>TB TAT</div>
                         </div>
                       </Card>
@@ -1355,27 +1538,55 @@ const Radiology: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 300 }}
+                        loading={tagsLoading}
+                        onSearch={async (value) => {
+                          setTagsLoading(true);
+                          try {
+                            const response = await risApi.getTags(value || undefined);
+                            if (response.data) {
+                              setTagsData(response.data);
+                            }
+                          } catch (error: any) {
+                            console.error('Search tags error:', error);
+                            message.error(error?.response?.data?.message || 'Không thể tìm tag');
+                          } finally {
+                            setTagsLoading(false);
+                          }
+                        }}
                       />
                     </Col>
                     <Col>
-                      <Button type="primary" icon={<TagsOutlined />}>
+                      <Button
+                        type="primary"
+                        icon={<TagsOutlined />}
+                        onClick={() => {
+                          tagForm.resetFields();
+                          setIsTagModalOpen(true);
+                        }}
+                      >
                         Thêm Tag mới
                       </Button>
                     </Col>
                   </Row>
                   <Alert
-                    message="Quản lý Tag ca chụp"
+                    title="Quản lý Tag ca chụp"
                     description="Tạo và quản lý các tag để phân loại, đánh dấu ca chụp. Hỗ trợ gắn nhiều tag cho một ca."
                     type="info"
                     showIcon
                     style={{ marginBottom: 16 }}
                   />
                   <Space wrap style={{ marginBottom: 16 }}>
-                    <Tag color="red">Khẩn cấp</Tag>
-                    <Tag color="orange">Cần hội chẩn</Tag>
-                    <Tag color="blue">Theo dõi</Tag>
-                    <Tag color="green">VIP</Tag>
-                    <Tag color="purple">Bảo hiểm</Tag>
+                    {tagsData.length > 0 ? tagsData.map((tag: any) => (
+                      <Tag key={tag.id} color={tag.color || 'blue'}>{tag.name}</Tag>
+                    )) : (
+                      <>
+                        <Tag color="red">Khẩn cấp</Tag>
+                        <Tag color="orange">Cần hội chẩn</Tag>
+                        <Tag color="blue">Theo dõi</Tag>
+                        <Tag color="green">VIP</Tag>
+                        <Tag color="purple">Bảo hiểm</Tag>
+                      </>
+                    )}
                   </Space>
                 </>
               ),
@@ -1395,29 +1606,85 @@ const Radiology: React.FC = () => {
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
+                        value={dutyDateRange}
+                        onChange={(dates) => setDutyDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                       />
                     </Col>
                     <Col>
-                      <Select placeholder="Chọn phòng" style={{ width: 200 }} allowClear>
-                        <Select.Option value="room1">Phòng X-quang 1</Select.Option>
-                        <Select.Option value="room2">Phòng CT</Select.Option>
-                        <Select.Option value="room3">Phòng MRI</Select.Option>
-                        <Select.Option value="room4">Phòng Siêu âm</Select.Option>
+                      <Select
+                        placeholder="Chọn phòng"
+                        style={{ width: 200 }}
+                        allowClear
+                        value={dutyRoomId}
+                        onChange={(value) => setDutyRoomId(value)}
+                      >
+                        {rooms.length > 0
+                          ? rooms.map(r => (
+                              <Select.Option key={r.id} value={r.id}>{r.name}</Select.Option>
+                            ))
+                          : (
+                            <>
+                              <Select.Option value="room1">Phòng X-quang 1</Select.Option>
+                              <Select.Option value="room2">Phòng CT</Select.Option>
+                              <Select.Option value="room3">Phòng MRI</Select.Option>
+                              <Select.Option value="room4">Phòng Siêu âm</Select.Option>
+                            </>
+                          )
+                        }
                       </Select>
                     </Col>
                     <Col>
-                      <Button type="primary" icon={<CalendarOutlined />}>
+                      <Button
+                        type="primary"
+                        icon={<CalendarOutlined />}
+                        loading={dutyLoading}
+                        onClick={async () => {
+                          const fromDate = dutyDateRange?.[0]?.format('YYYY-MM-DD') || dayjs().startOf('week').format('YYYY-MM-DD');
+                          const toDate = dutyDateRange?.[1]?.format('YYYY-MM-DD') || dayjs().endOf('week').format('YYYY-MM-DD');
+                          setDutyLoading(true);
+                          try {
+                            const response = await risApi.getDutySchedules(fromDate, toDate, dutyRoomId);
+                            if (response.data) {
+                              setDutySchedules(response.data);
+                              message.success(`Đã tải ${response.data.length} lịch trực`);
+                            }
+                          } catch (error: any) {
+                            console.error('Load duty schedules error:', error);
+                            message.error(error?.response?.data?.message || 'Không thể tải lịch trực');
+                          } finally {
+                            setDutyLoading(false);
+                          }
+                        }}
+                      >
                         Tạo lịch trực
                       </Button>
                     </Col>
                   </Row>
                   <Alert
-                    message="Quản lý lịch phân công trực"
+                    title="Quản lý lịch phân công trực"
                     description="Phân công bác sĩ, kỹ thuật viên trực theo ca, theo phòng. Hỗ trợ tạo lịch hàng loạt."
                     type="info"
                     showIcon
                     style={{ marginBottom: 16 }}
                   />
+                  {dutySchedules.length > 0 && (
+                    <Table
+                      dataSource={dutySchedules}
+                      rowKey="id"
+                      size="small"
+                      pagination={{ pageSize: 10 }}
+                      columns={[
+                        { title: 'Ngày', dataIndex: 'date', key: 'date', width: 120, render: (d: string) => dayjs(d).format('DD/MM/YYYY') },
+                        { title: 'Ca trực', dataIndex: 'shiftType', key: 'shiftType', width: 100 },
+                        { title: 'Giờ bắt đầu', dataIndex: 'startTime', key: 'startTime', width: 100 },
+                        { title: 'Giờ kết thúc', dataIndex: 'endTime', key: 'endTime', width: 100 },
+                        { title: 'Phòng', dataIndex: 'roomName', key: 'roomName', width: 150 },
+                        { title: 'Nhân viên', dataIndex: 'userName', key: 'userName', width: 150 },
+                        { title: 'Vai trò', dataIndex: 'role', key: 'role', width: 120 },
+                        { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 100 },
+                      ]}
+                    />
+                  )}
                 </>
               ),
             },
@@ -1436,39 +1703,91 @@ const Radiology: React.FC = () => {
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
+                        value={logDateRange}
+                        onChange={(dates) => setLogDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                       />
                     </Col>
                     <Col>
-                      <Select placeholder="Loại message" style={{ width: 150 }} allowClear>
+                      <Select
+                        placeholder="Loại message"
+                        style={{ width: 150 }}
+                        allowClear
+                        value={logMessageType}
+                        onChange={(value) => setLogMessageType(value)}
+                      >
                         <Select.Option value="ORM">ORM (Order)</Select.Option>
                         <Select.Option value="ORU">ORU (Result)</Select.Option>
                         <Select.Option value="ADT">ADT (Patient)</Select.Option>
                       </Select>
                     </Col>
                     <Col>
-                      <Select placeholder="Trạng thái" style={{ width: 120 }} allowClear>
+                      <Select
+                        placeholder="Trạng thái"
+                        style={{ width: 120 }}
+                        allowClear
+                        value={logStatus}
+                        onChange={(value) => setLogStatus(value)}
+                      >
                         <Select.Option value="Success">Thành công</Select.Option>
                         <Select.Option value="Failed">Lỗi</Select.Option>
                       </Select>
                     </Col>
                     <Col>
-                      <Button type="primary" icon={<SearchOutlined />}>
+                      <Button
+                        type="primary"
+                        icon={<SearchOutlined />}
+                        loading={logsLoading}
+                        onClick={async () => {
+                          const fromDate = logDateRange?.[0]?.format('YYYY-MM-DD') || dayjs().startOf('month').format('YYYY-MM-DD');
+                          const toDate = logDateRange?.[1]?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD');
+                          setLogsLoading(true);
+                          try {
+                            const [logsResponse, statsResponse] = await Promise.all([
+                              risApi.searchIntegrationLogs({
+                                fromDate,
+                                toDate,
+                                messageType: logMessageType,
+                                status: logStatus,
+                                pageIndex: 1,
+                                pageSize: 50,
+                              }),
+                              risApi.getIntegrationLogStatistics(fromDate, toDate),
+                            ]);
+                            if (logsResponse.data?.items) {
+                              setIntegrationLogs(logsResponse.data.items);
+                            }
+                            if (statsResponse.data) {
+                              setIntegrationLogStats({
+                                totalMessages: statsResponse.data.totalMessages,
+                                successCount: statsResponse.data.successCount,
+                                failedCount: statsResponse.data.failedCount,
+                                averageResponseTimeMs: statsResponse.data.averageResponseTimeMs,
+                              });
+                            }
+                          } catch (error: any) {
+                            console.error('Search integration logs error:', error);
+                            message.error(error?.response?.data?.message || 'Không thể tìm kiếm log');
+                          } finally {
+                            setLogsLoading(false);
+                          }
+                        }}
+                      >
                         Tìm kiếm
                       </Button>
                     </Col>
                   </Row>
                   <Alert
-                    message="Log tích hợp HIS-RIS"
+                    title="Log tích hợp HIS-RIS"
                     description="Theo dõi các message trao đổi giữa HIS và RIS. Hỗ trợ retry message lỗi."
                     type="info"
                     showIcon
                     style={{ marginBottom: 16 }}
                   />
-                  <Row gutter={16}>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 20, fontWeight: 'bold' }}>0</div>
+                          <div style={{ fontSize: 20, fontWeight: 'bold' }}>{integrationLogStats?.totalMessages ?? 0}</div>
                           <div>Tổng message</div>
                         </div>
                       </Card>
@@ -1476,7 +1795,7 @@ const Radiology: React.FC = () => {
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#52c41a' }}>0</div>
+                          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#52c41a' }}>{integrationLogStats?.successCount ?? 0}</div>
                           <div>Thành công</div>
                         </div>
                       </Card>
@@ -1484,7 +1803,7 @@ const Radiology: React.FC = () => {
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#f5222d' }}>0</div>
+                          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#f5222d' }}>{integrationLogStats?.failedCount ?? 0}</div>
                           <div>Lỗi</div>
                         </div>
                       </Card>
@@ -1492,12 +1811,31 @@ const Radiology: React.FC = () => {
                     <Col span={6}>
                       <Card size="small">
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 20, fontWeight: 'bold' }}>0 ms</div>
+                          <div style={{ fontSize: 20, fontWeight: 'bold' }}>{integrationLogStats?.averageResponseTimeMs ?? 0} ms</div>
                           <div>TB Response</div>
                         </div>
                       </Card>
                     </Col>
                   </Row>
+                  {integrationLogs.length > 0 && (
+                    <Table
+                      dataSource={integrationLogs}
+                      rowKey="id"
+                      size="small"
+                      pagination={{ pageSize: 10 }}
+                      columns={[
+                        { title: 'Thời gian', dataIndex: 'logTime', key: 'logTime', width: 150, render: (d: string) => dayjs(d).format('DD/MM/YYYY HH:mm:ss') },
+                        { title: 'Hướng', dataIndex: 'direction', key: 'direction', width: 80 },
+                        { title: 'Loại', dataIndex: 'messageType', key: 'messageType', width: 80 },
+                        { title: 'Nguồn', dataIndex: 'sourceSystem', key: 'sourceSystem', width: 100 },
+                        { title: 'Đích', dataIndex: 'targetSystem', key: 'targetSystem', width: 100 },
+                        { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 150 },
+                        { title: 'Mã phiếu', dataIndex: 'orderCode', key: 'orderCode', width: 120 },
+                        { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 100, render: (s: string) => <Tag color={s === 'Success' ? 'green' : 'red'}>{s}</Tag> },
+                        { title: 'Response (ms)', dataIndex: 'responseTime', key: 'responseTime', width: 100 },
+                      ]}
+                    />
+                  )}
                 </>
               ),
             },
@@ -1512,7 +1850,7 @@ const Radiology: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Cài đặt RIS/PACS"
+                    title="Cài đặt RIS/PACS"
                     description="Quản lý mẫu chẩn đoán, từ viết tắt, cấu hình nhãn in, ký số"
                     type="info"
                     showIcon
@@ -1523,7 +1861,32 @@ const Radiology: React.FC = () => {
                       <Card
                         title="Mẫu chẩn đoán"
                         size="small"
-                        extra={<Button type="link" size="small">Quản lý</Button>}
+                        extra={<Button type="link" size="small" onClick={async () => {
+                          try {
+                            const response = await risApi.getDiagnosisTemplates();
+                            Modal.info({
+                              title: 'Mẫu chẩn đoán',
+                              width: 700,
+                              content: (
+                                <Table
+                                  dataSource={response.data || []}
+                                  rowKey="id"
+                                  size="small"
+                                  pagination={{ pageSize: 5 }}
+                                  columns={[
+                                    { title: 'Mã', dataIndex: 'code', key: 'code', width: 80 },
+                                    { title: 'Tên', dataIndex: 'name', key: 'name', width: 200 },
+                                    { title: 'Loại', dataIndex: 'modalityType', key: 'modalityType', width: 80 },
+                                    { title: 'Vùng', dataIndex: 'bodyPart', key: 'bodyPart', width: 100 },
+                                    { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 80, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Hoạt động' : 'Tắt'}</Tag> },
+                                  ]}
+                                />
+                              ),
+                            });
+                          } catch (error: any) {
+                            message.error(error?.response?.data?.message || 'Không thể tải mẫu chẩn đoán');
+                          }
+                        }}>Quản lý</Button>}
                       >
                         <p>Quản lý các mẫu mô tả, kết luận thường dùng cho từng loại dịch vụ CĐHA.</p>
                       </Card>
@@ -1532,7 +1895,30 @@ const Radiology: React.FC = () => {
                       <Card
                         title="Từ viết tắt"
                         size="small"
-                        extra={<Button type="link" size="small">Quản lý</Button>}
+                        extra={<Button type="link" size="small" onClick={async () => {
+                          try {
+                            const response = await risApi.getAbbreviations();
+                            Modal.info({
+                              title: 'Từ viết tắt',
+                              width: 600,
+                              content: (
+                                <Table
+                                  dataSource={response.data || []}
+                                  rowKey="id"
+                                  size="small"
+                                  pagination={{ pageSize: 5 }}
+                                  columns={[
+                                    { title: 'Viết tắt', dataIndex: 'abbreviation', key: 'abbreviation', width: 100 },
+                                    { title: 'Mở rộng', dataIndex: 'expansion', key: 'expansion', width: 300 },
+                                    { title: 'Danh mục', dataIndex: 'category', key: 'category', width: 100 },
+                                  ]}
+                                />
+                              ),
+                            });
+                          } catch (error: any) {
+                            message.error(error?.response?.data?.message || 'Không thể tải từ viết tắt');
+                          }
+                        }}>Quản lý</Button>}
                       >
                         <p>Quản lý bộ từ viết tắt để tự động mở rộng khi nhập kết quả.</p>
                       </Card>
@@ -1541,7 +1927,31 @@ const Radiology: React.FC = () => {
                       <Card
                         title="Cấu hình nhãn in"
                         size="small"
-                        extra={<Button type="link" size="small">Quản lý</Button>}
+                        extra={<Button type="link" size="small" onClick={async () => {
+                          try {
+                            const response = await risApi.getLabelConfigs();
+                            Modal.info({
+                              title: 'Cấu hình nhãn in',
+                              width: 600,
+                              content: (
+                                <Table
+                                  dataSource={response.data || []}
+                                  rowKey="id"
+                                  size="small"
+                                  pagination={{ pageSize: 5 }}
+                                  columns={[
+                                    { title: 'Mã', dataIndex: 'code', key: 'code', width: 80 },
+                                    { title: 'Tên', dataIndex: 'name', key: 'name', width: 200 },
+                                    { title: 'Kích thước', key: 'size', width: 100, render: (_: any, r: any) => `${r.width}x${r.height}` },
+                                    { title: 'Mặc định', dataIndex: 'isDefault', key: 'isDefault', width: 80, render: (v: boolean) => v ? <Tag color="blue">Mặc định</Tag> : '-' },
+                                  ]}
+                                />
+                              ),
+                            });
+                          } catch (error: any) {
+                            message.error(error?.response?.data?.message || 'Không thể tải cấu hình nhãn in');
+                          }
+                        }}>Quản lý</Button>}
                       >
                         <p>Cấu hình mẫu nhãn dán cho ca chụp, bao gồm barcode/QR code.</p>
                       </Card>
@@ -1550,7 +1960,31 @@ const Radiology: React.FC = () => {
                       <Card
                         title="Cấu hình ký số"
                         size="small"
-                        extra={<Button type="link" size="small">Quản lý</Button>}
+                        extra={<Button type="link" size="small" onClick={async () => {
+                          try {
+                            const response = await risApi.getSignatureConfigs();
+                            Modal.info({
+                              title: 'Cấu hình ký số',
+                              width: 600,
+                              content: (
+                                <Table
+                                  dataSource={response.data || []}
+                                  rowKey="id"
+                                  size="small"
+                                  pagination={{ pageSize: 5 }}
+                                  columns={[
+                                    { title: 'Tên', dataIndex: 'name', key: 'name', width: 200 },
+                                    { title: 'Loại', dataIndex: 'signatureType', key: 'signatureType', width: 100 },
+                                    { title: 'Mặc định', dataIndex: 'isDefault', key: 'isDefault', width: 80, render: (v: boolean) => v ? <Tag color="blue">Mặc định</Tag> : '-' },
+                                    { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 80, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Bật' : 'Tắt'}</Tag> },
+                                  ]}
+                                />
+                              ),
+                            });
+                          } catch (error: any) {
+                            message.error(error?.response?.data?.message || 'Không thể tải cấu hình ký số');
+                          }
+                        }}>Quản lý</Button>}
                       >
                         <p>Cấu hình các phương thức ký số: USB Token, eKYC, SignServer, SmartCA.</p>
                       </Card>
@@ -1559,7 +1993,33 @@ const Radiology: React.FC = () => {
                       <Card
                         title="Quản lý Modality"
                         size="small"
-                        extra={<Button type="link" size="small">Quản lý</Button>}
+                        extra={<Button type="link" size="small" onClick={async () => {
+                          try {
+                            const response = await risApi.getModalities();
+                            Modal.info({
+                              title: 'Quản lý Modality',
+                              width: 700,
+                              content: (
+                                <Table
+                                  dataSource={response.data || []}
+                                  rowKey="id"
+                                  size="small"
+                                  pagination={{ pageSize: 5 }}
+                                  columns={[
+                                    { title: 'Mã', dataIndex: 'code', key: 'code', width: 80 },
+                                    { title: 'Tên', dataIndex: 'name', key: 'name', width: 150 },
+                                    { title: 'Loại', dataIndex: 'modalityType', key: 'modalityType', width: 80 },
+                                    { title: 'AE Title', dataIndex: 'aeTitle', key: 'aeTitle', width: 100 },
+                                    { title: 'Phòng', dataIndex: 'roomName', key: 'roomName', width: 120 },
+                                    { title: 'Kết nối', dataIndex: 'connectionStatus', key: 'connectionStatus', width: 80, render: (v: string) => <Tag color={v === 'Connected' ? 'green' : 'red'}>{v}</Tag> },
+                                  ]}
+                                />
+                              ),
+                            });
+                          } catch (error: any) {
+                            message.error(error?.response?.data?.message || 'Không thể tải danh sách modality');
+                          }
+                        }}>Quản lý</Button>}
                       >
                         <p>Cấu hình kết nối các thiết bị chẩn đoán hình ảnh (CT, MRI, X-quang...).</p>
                       </Card>
@@ -1568,7 +2028,33 @@ const Radiology: React.FC = () => {
                       <Card
                         title="Kết nối PACS"
                         size="small"
-                        extra={<Button type="link" size="small">Quản lý</Button>}
+                        extra={<Button type="link" size="small" onClick={async () => {
+                          try {
+                            const response = await risApi.getPACSConnections();
+                            Modal.info({
+                              title: 'Kết nối PACS',
+                              width: 700,
+                              content: (
+                                <Table
+                                  dataSource={response.data || []}
+                                  rowKey="id"
+                                  size="small"
+                                  pagination={{ pageSize: 5 }}
+                                  columns={[
+                                    { title: 'Tên', dataIndex: 'name', key: 'name', width: 150 },
+                                    { title: 'Loại', dataIndex: 'serverType', key: 'serverType', width: 100 },
+                                    { title: 'AE Title', dataIndex: 'aeTitle', key: 'aeTitle', width: 100 },
+                                    { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 120 },
+                                    { title: 'Port', dataIndex: 'port', key: 'port', width: 60 },
+                                    { title: 'Kết nối', dataIndex: 'isConnected', key: 'isConnected', width: 80, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'OK' : 'Lỗi'}</Tag> },
+                                  ]}
+                                />
+                              ),
+                            });
+                          } catch (error: any) {
+                            message.error(error?.response?.data?.message || 'Không thể tải kết nối PACS');
+                          }
+                        }}>Quản lý</Button>}
                       >
                         <p>Cấu hình kết nối với PACS server (tùy chọn).</p>
                       </Card>
@@ -1628,10 +2114,21 @@ const Radiology: React.FC = () => {
                     rules={[{ required: true, message: 'Vui lòng chọn modality' }]}
                   >
                     <Select placeholder="Chọn modality">
-                      <Select.Option value="1">X-quang - Phòng 1</Select.Option>
-                      <Select.Option value="2">CT Scanner - Phòng 2</Select.Option>
-                      <Select.Option value="3">MRI - Phòng 3</Select.Option>
-                      <Select.Option value="4">Siêu âm - Phòng 4</Select.Option>
+                      {modalities.length > 0
+                        ? modalities.map(m => (
+                            <Select.Option key={m.id} value={m.id}>
+                              {m.name} - {m.roomName}
+                            </Select.Option>
+                          ))
+                        : (
+                          <>
+                            <Select.Option value="1">X-quang - Phòng 1</Select.Option>
+                            <Select.Option value="2">CT Scanner - Phòng 2</Select.Option>
+                            <Select.Option value="3">MRI - Phòng 3</Select.Option>
+                            <Select.Option value="4">Siêu âm - Phòng 4</Select.Option>
+                          </>
+                        )
+                      }
                     </Select>
                   </Form.Item>
                 </Col>
@@ -1673,129 +2170,66 @@ const Radiology: React.FC = () => {
           setIsReportModalOpen(false);
           reportForm.resetFields();
           setSelectedExam(null);
+          setSelectedRequest(null);
         }}
         width={900}
         okText="Lưu báo cáo"
         cancelText="Hủy"
       >
-        {selectedExam && (
-          <>
-            <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="Mã phiếu">{selectedExam.requestCode}</Descriptions.Item>
-              <Descriptions.Item label="Mã BN">{selectedExam.patientCode}</Descriptions.Item>
-              <Descriptions.Item label="Họ tên">{selectedExam.patientName}</Descriptions.Item>
-              <Descriptions.Item label="Dịch vụ">
-                <Tag color="blue">{selectedExam.serviceName}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Accession No.">{selectedExam.accessionNumber}</Descriptions.Item>
-              <Descriptions.Item label="Modality">{selectedExam.modalityName}</Descriptions.Item>
-            </Descriptions>
+        {(selectedExam || selectedRequest) && (() => {
+          const current = selectedExam || selectedRequest;
+          return (
+            <>
+              <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
+                <Descriptions.Item label="Mã phiếu">{current!.requestCode}</Descriptions.Item>
+                <Descriptions.Item label="Mã BN">{current!.patientCode}</Descriptions.Item>
+                <Descriptions.Item label="Họ tên">{current!.patientName}</Descriptions.Item>
+                <Descriptions.Item label="Dịch vụ">
+                  <Tag color="blue">{current!.serviceName}</Tag>
+                </Descriptions.Item>
+                {selectedExam && (
+                  <>
+                    <Descriptions.Item label="Accession No.">{selectedExam.accessionNumber}</Descriptions.Item>
+                    <Descriptions.Item label="Modality">{selectedExam.modalityName}</Descriptions.Item>
+                  </>
+                )}
+                {!selectedExam && selectedRequest && (
+                  <>
+                    <Descriptions.Item label="Bác sĩ CĐ">{selectedRequest.doctorName || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Modality">{selectedRequest.modalityName || '-'}</Descriptions.Item>
+                  </>
+                )}
+              </Descriptions>
 
-            <Divider>Kết quả chẩn đoán</Divider>
+              <Divider>Kết quả chẩn đoán</Divider>
 
-            <Form form={reportForm} layout="vertical">
-              <Form.Item
-                name="findings"
-                label="Mô tả hình ảnh"
-                rules={[{ required: true, message: 'Vui lòng nhập mô tả hình ảnh' }]}
-              >
-                <TextArea rows={6} placeholder="Nhập mô tả chi tiết hình ảnh..." />
-              </Form.Item>
+              <Form form={reportForm} layout="vertical">
+                <Form.Item
+                  name="findings"
+                  label="Mô tả hình ảnh"
+                  rules={[{ required: true, message: 'Vui lòng nhập mô tả hình ảnh' }]}
+                >
+                  <TextArea rows={6} placeholder="Nhập mô tả chi tiết hình ảnh..." />
+                </Form.Item>
 
-              <Form.Item
-                name="impression"
-                label="Kết luận"
-                rules={[{ required: true, message: 'Vui lòng nhập kết luận' }]}
-              >
-                <TextArea rows={4} placeholder="Nhập kết luận..." />
-              </Form.Item>
+                <Form.Item
+                  name="impression"
+                  label="Kết luận"
+                  rules={[{ required: true, message: 'Vui lòng nhập kết luận' }]}
+                >
+                  <TextArea rows={4} placeholder="Nhập kết luận..." />
+                </Form.Item>
 
-              <Form.Item name="recommendations" label="Đề nghị">
-                <TextArea rows={3} placeholder="Nhập đề nghị (nếu có)..." />
-              </Form.Item>
-            </Form>
-          </>
-        )}
+                <Form.Item name="recommendations" label="Đề nghị">
+                  <TextArea rows={3} placeholder="Nhập đề nghị (nếu có)..." />
+                </Form.Item>
+              </Form>
+            </>
+          );
+        })()}
       </Modal>
 
-      {/* Report View Modal */}
-      <Modal
-        title={
-          <Space>
-            <FileSearchOutlined />
-            <span>Xem báo cáo chẩn đoán hình ảnh</span>
-          </Space>
-        }
-        open={isReportViewModalOpen}
-        onCancel={() => {
-          setIsReportViewModalOpen(false);
-          setSelectedReport(null);
-        }}
-        width={900}
-        footer={[
-          <Button
-            key="print"
-            type="primary"
-            icon={<PrinterOutlined />}
-            onClick={() => selectedReport && executePrintRadiologyReport(selectedReport)}
-          >
-            In báo cáo
-          </Button>,
-          <Button key="close" onClick={() => setIsReportViewModalOpen(false)}>
-            Đóng
-          </Button>,
-        ]}
-      >
-        {selectedReport && (
-          <>
-            <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="Mã phiếu">{selectedReport.requestCode}</Descriptions.Item>
-              <Descriptions.Item label="Mã BN">{selectedReport.patientCode}</Descriptions.Item>
-              <Descriptions.Item label="Họ tên">{selectedReport.patientName}</Descriptions.Item>
-              <Descriptions.Item label="Dịch vụ">
-                <Tag color="blue">{selectedReport.serviceName}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Bác sĩ đọc">{selectedReport.radiologistName}</Descriptions.Item>
-              <Descriptions.Item label="Ngày đọc">
-                {selectedReport.reportDate ? dayjs(selectedReport.reportDate).format('DD/MM/YYYY HH:mm') : '-'}
-              </Descriptions.Item>
-              {selectedReport.approvedBy && (
-                <>
-                  <Descriptions.Item label="Người duyệt">{selectedReport.approvedBy}</Descriptions.Item>
-                  <Descriptions.Item label="Thời gian duyệt">
-                    {selectedReport.approvedAt ? dayjs(selectedReport.approvedAt).format('DD/MM/YYYY HH:mm') : '-'}
-                  </Descriptions.Item>
-                </>
-              )}
-            </Descriptions>
-
-            <Divider>Kết quả chẩn đoán</Divider>
-
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Mô tả hình ảnh:</Text>
-              <div style={{ marginTop: 8, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-                <Text>{selectedReport.findings || 'Chưa có mô tả'}</Text>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Kết luận:</Text>
-              <div style={{ marginTop: 8, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-                <Text>{selectedReport.impression || 'Chưa có kết luận'}</Text>
-              </div>
-            </div>
-
-            {selectedReport.recommendations && (
-              <div>
-                <Text strong>Đề nghị:</Text>
-                <div style={{ marginTop: 8, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-                  <Text>{selectedReport.recommendations}</Text>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </Modal>
+      {/* Report View Modal - reserved for future use */}
 
       {/* Digital Signature Modal */}
       <Modal
@@ -1820,7 +2254,7 @@ const Radiology: React.FC = () => {
         {selectedReportToSign && (
           <>
             <Alert
-              message="Xác nhận ký số"
+              title="Xác nhận ký số"
               description="Bạn đang thực hiện ký số điện tử cho kết quả chẩn đoán hình ảnh. Vui lòng kiểm tra thông tin trước khi ký."
               type="info"
               showIcon
@@ -1901,7 +2335,7 @@ const Radiology: React.FC = () => {
                       >
                         {usbTokenCertificates.map((cert) => (
                           <Select.Option key={cert.thumbprint} value={cert.thumbprint}>
-                            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
                               <span style={{ fontWeight: 500 }}>{cert.subjectName}</span>
                               <span style={{ fontSize: 11, color: '#666' }}>
                                 Cấp bởi: {cert.issuerName} | HSD: {cert.validTo}
@@ -1918,7 +2352,7 @@ const Radiology: React.FC = () => {
 
               <Alert
                 type="info"
-                message="Khi nhấn 'Ký số', Windows sẽ tự động bật hộp thoại nhập mã PIN của USB Token"
+                title="Khi nhấn 'Ký số', Windows sẽ tự động bật hộp thoại nhập mã PIN của USB Token"
                 showIcon
                 style={{ marginBottom: 16 }}
               />
@@ -1931,6 +2365,128 @@ const Radiology: React.FC = () => {
               </Form.Item>
             </Form>
           </>
+        )}
+      </Modal>
+
+      {/* Tag Creation Modal */}
+      <Modal
+        title="Thêm Tag mới"
+        open={isTagModalOpen}
+        onCancel={() => {
+          setIsTagModalOpen(false);
+          tagForm.resetFields();
+        }}
+        onOk={async () => {
+          try {
+            const values = await tagForm.validateFields();
+            await risApi.saveTag({
+              code: values.code,
+              name: values.name,
+              color: values.color || 'blue',
+              description: values.description,
+            });
+            message.success('Đã tạo tag mới thành công');
+            setIsTagModalOpen(false);
+            tagForm.resetFields();
+            // Refresh tags list
+            try {
+              const response = await risApi.getTags();
+              if (response.data) {
+                setTagsData(response.data);
+              }
+            } catch { /* ignore refresh error */ }
+          } catch (error: any) {
+            if (error?.errorFields) return; // validation error
+            console.error('Save tag error:', error);
+            message.error(error?.response?.data?.message || 'Không thể tạo tag');
+          }
+        }}
+        okText="Lưu"
+        cancelText="Hủy"
+      >
+        <Form form={tagForm} layout="vertical">
+          <Form.Item name="code" label="Mã tag" rules={[{ required: true, message: 'Vui lòng nhập mã tag' }]}>
+            <Input placeholder="Nhập mã tag" />
+          </Form.Item>
+          <Form.Item name="name" label="Tên tag" rules={[{ required: true, message: 'Vui lòng nhập tên tag' }]}>
+            <Input placeholder="Nhập tên tag" />
+          </Form.Item>
+          <Form.Item name="color" label="Màu sắc">
+            <Select placeholder="Chọn màu">
+              <Select.Option value="red">Đỏ</Select.Option>
+              <Select.Option value="orange">Cam</Select.Option>
+              <Select.Option value="blue">Xanh dương</Select.Option>
+              <Select.Option value="green">Xanh lá</Select.Option>
+              <Select.Option value="purple">Tím</Select.Option>
+              <Select.Option value="cyan">Cyan</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả">
+            <TextArea rows={2} placeholder="Nhập mô tả (không bắt buộc)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Detail Modal */}
+      <Modal
+        title={
+          <Space>
+            <EyeOutlined />
+            <span>Chi tiết phiếu CĐHA - {selectedRequest?.requestCode}</span>
+          </Space>
+        }
+        open={isDetailModalOpen}
+        onCancel={() => setIsDetailModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
+            Đóng
+          </Button>,
+        ]}
+        width={800}
+      >
+        {selectedRequest && (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Mã phiếu">{selectedRequest.requestCode}</Descriptions.Item>
+            <Descriptions.Item label="Mã BN">{selectedRequest.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Họ tên BN">{selectedRequest.patientName}</Descriptions.Item>
+            <Descriptions.Item label="Giới tính">{selectedRequest.gender === 1 ? 'Nam' : 'Nữ'}</Descriptions.Item>
+            <Descriptions.Item label="Ngày sinh">
+              {selectedRequest.dateOfBirth ? dayjs(selectedRequest.dateOfBirth).format('DD/MM/YYYY') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngày chỉ định">
+              {dayjs(selectedRequest.requestDate).format('DD/MM/YYYY HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Dịch vụ" span={2}>
+              <Tag color="blue">{selectedRequest.serviceName}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Vùng chụp">{selectedRequest.bodyPart || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Thuốc cản quang">{selectedRequest.contrast ? 'Có' : 'Không'}</Descriptions.Item>
+            <Descriptions.Item label="Ưu tiên">
+              {selectedRequest.priority === 3 ? <Tag color="red">Cấp cứu</Tag> : selectedRequest.priority === 2 ? <Tag color="orange">Khẩn</Tag> : <Tag color="blue">Bình thường</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              {selectedRequest.status}
+            </Descriptions.Item>
+            <Descriptions.Item label="Khoa chỉ định">{selectedRequest.departmentName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Bác sĩ chỉ định">{selectedRequest.doctorName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Modality">{selectedRequest.modalityName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="DICOM UID">{selectedRequest.studyInstanceUID || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Thông tin lâm sàng" span={2}>{selectedRequest.clinicalInfo || '-'}</Descriptions.Item>
+            {selectedRequest.description && (
+              <Descriptions.Item label="Mô tả" span={2}>{selectedRequest.description}</Descriptions.Item>
+            )}
+            {selectedRequest.conclusion && (
+              <Descriptions.Item label="Kết luận" span={2}>{selectedRequest.conclusion}</Descriptions.Item>
+            )}
+            {selectedRequest.isSigned && (
+              <>
+                <Descriptions.Item label="Người ký">{selectedRequest.signedBy || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Ngày ký">
+                  {selectedRequest.signedAt ? dayjs(selectedRequest.signedAt).format('DD/MM/YYYY HH:mm') : '-'}
+                </Descriptions.Item>
+              </>
+            )}
+          </Descriptions>
         )}
       </Modal>
     </div>

@@ -22,6 +22,7 @@ import {
   Divider,
   message,
   Alert,
+  Descriptions,
 } from 'antd';
 import {
   VideoCameraOutlined,
@@ -323,7 +324,7 @@ const Telemedicine: React.FC = () => {
       key: 'time',
       width: 100,
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record.appointmentTime}</Text>
           <Text type="secondary">{record.duration} phut</Text>
         </Space>
@@ -335,7 +336,7 @@ const Telemedicine: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Avatar icon={<UserOutlined />} src={record.patientAvatar} />
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text strong>{record.patientName}</Text>
             <Text type="secondary">{record.patientPhone}</Text>
           </Space>
@@ -346,7 +347,7 @@ const Telemedicine: React.FC = () => {
       title: 'Bac si',
       key: 'doctor',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text>{record.doctorName}</Text>
           <Text type="secondary">{record.specialty}</Text>
         </Space>
@@ -432,7 +433,7 @@ const Telemedicine: React.FC = () => {
               title="Lich hen hom nay"
               value={todayAppointments.length}
               prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -442,7 +443,7 @@ const Telemedicine: React.FC = () => {
               title="Dang cho"
               value={waitingCount}
               prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -452,7 +453,7 @@ const Telemedicine: React.FC = () => {
               title="Dang kham"
               value={inProgressCount}
               prefix={<VideoCameraOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -462,7 +463,7 @@ const Telemedicine: React.FC = () => {
               title="Hoan thanh"
               value={completedCount}
               prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1' }}
+              styles={{ content: { color: '#722ed1' } }}
             />
           </Card>
         </Col>
@@ -478,7 +479,7 @@ const Telemedicine: React.FC = () => {
         }
       >
         <Alert
-          message="Luu y"
+          title="Luu y"
           description="Chi ap dung cho tai kham, tu van, benh man tinh on dinh. Khong ap dung cho cap cuu, PTTT, thu thuat xam lan."
           type="info"
           showIcon
@@ -497,6 +498,27 @@ const Telemedicine: React.FC = () => {
                   dataSource={todayAppointments}
                   rowKey="id"
                   pagination={false}
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      Modal.info({
+                        title: `Chi tiết lịch khám từ xa`,
+                        width: 500,
+                        content: (
+                          <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                            <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                            <Descriptions.Item label="SĐT">{record.patientPhone}</Descriptions.Item>
+                            <Descriptions.Item label="Ngày hẹn">{record.appointmentDate}</Descriptions.Item>
+                            <Descriptions.Item label="Giờ">{record.appointmentTime}</Descriptions.Item>
+                            <Descriptions.Item label="Bác sĩ">{record.doctorName}</Descriptions.Item>
+                            <Descriptions.Item label="Khoa">{record.department}</Descriptions.Item>
+                            <Descriptions.Item label="Lý do">{record.reason || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                          </Descriptions>
+                        ),
+                      });
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
                 />
               ),
             },
@@ -510,6 +532,26 @@ const Telemedicine: React.FC = () => {
                     (a) => a.appointmentDate > dayjs().format('YYYY-MM-DD')
                   )}
                   rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      Modal.info({
+                        title: `Chi tiết lịch khám từ xa`,
+                        width: 500,
+                        content: (
+                          <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                            <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                            <Descriptions.Item label="SĐT">{record.patientPhone}</Descriptions.Item>
+                            <Descriptions.Item label="Ngày hẹn">{record.appointmentDate}</Descriptions.Item>
+                            <Descriptions.Item label="Giờ">{record.appointmentTime}</Descriptions.Item>
+                            <Descriptions.Item label="Bác sĩ">{record.doctorName}</Descriptions.Item>
+                            <Descriptions.Item label="Khoa">{record.department}</Descriptions.Item>
+                            <Descriptions.Item label="Lý do">{record.reason || '-'}</Descriptions.Item>
+                          </Descriptions>
+                        ),
+                      });
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
                 />
               ),
             },
@@ -521,6 +563,26 @@ const Telemedicine: React.FC = () => {
                   columns={columns}
                   dataSource={appointments.filter((a) => a.status === 'completed')}
                   rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      Modal.info({
+                        title: `Chi tiết lịch khám từ xa`,
+                        width: 500,
+                        content: (
+                          <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                            <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                            <Descriptions.Item label="SĐT">{record.patientPhone}</Descriptions.Item>
+                            <Descriptions.Item label="Ngày hẹn">{record.appointmentDate}</Descriptions.Item>
+                            <Descriptions.Item label="Giờ">{record.appointmentTime}</Descriptions.Item>
+                            <Descriptions.Item label="Bác sĩ">{record.doctorName}</Descriptions.Item>
+                            <Descriptions.Item label="Khoa">{record.department}</Descriptions.Item>
+                            <Descriptions.Item label="Lý do">{record.reason || '-'}</Descriptions.Item>
+                          </Descriptions>
+                        ),
+                      });
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
                 />
               ),
             },
@@ -631,7 +693,7 @@ const Telemedicine: React.FC = () => {
                   justifyContent: 'center',
                 }}
               >
-                <Space direction="vertical" align="center">
+                <Space orientation="vertical" align="center">
                   <Avatar size={100} icon={<UserOutlined />} />
                   <Text style={{ color: '#fff' }}>{selectedAppointment.patientName}</Text>
                   <Text style={{ color: '#999' }}>
@@ -659,7 +721,7 @@ const Telemedicine: React.FC = () => {
             {/* Patient Info & Notes */}
             <Col span={8}>
               <Card title="Thong tin benh nhan" size="small">
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                   <div>
                     <Text type="secondary">Ho ten:</Text>
                     <Text strong style={{ marginLeft: 8 }}>
@@ -681,7 +743,7 @@ const Telemedicine: React.FC = () => {
                 <TextArea rows={6} placeholder="Nhap ghi chu..." />
               </Card>
 
-              <Space style={{ marginTop: 16, width: '100%' }} direction="vertical">
+              <Space style={{ marginTop: 16, width: '100%' }} orientation="vertical">
                 <Button
                   type="primary"
                   icon={<MedicineBoxOutlined />}
@@ -721,7 +783,7 @@ const Telemedicine: React.FC = () => {
         width={700}
       >
         <Alert
-          message="Don thuoc dien tu se duoc ky so va gui den nha thuoc lien ket"
+          title="Don thuoc dien tu se duoc ky so va gui den nha thuoc lien ket"
           type="info"
           showIcon
           style={{ marginBottom: 16 }}

@@ -413,7 +413,7 @@ const InfectionControl: React.FC = () => {
       title: 'Benh nhan',
       key: 'patient',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record.patientName}</Text>
           <Text type="secondary">
             {record.department} - {record.bedNumber}
@@ -542,7 +542,7 @@ const InfectionControl: React.FC = () => {
               title="Ca dang theo doi"
               value={activeCases.length}
               prefix={<BugOutlined style={{ color: '#ff4d4f' }} />}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
             />
           </Card>
         </Col>
@@ -552,7 +552,7 @@ const InfectionControl: React.FC = () => {
               title="Da xac nhan"
               value={confirmedCases.length}
               prefix={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -562,7 +562,7 @@ const InfectionControl: React.FC = () => {
               title="Cho dieu tra"
               value={pendingInvestigation.length}
               prefix={<AlertOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -571,7 +571,7 @@ const InfectionControl: React.FC = () => {
       {/* Alerts */}
       {confirmedCases.length > 0 && (
         <Alert
-          message="Canh bao NKBV"
+          title="Canh bao NKBV"
           description={`Hien co ${confirmedCases.length} ca nhiem khuan benh vien da xac nhan can theo doi`}
           type="warning"
           showIcon
@@ -608,7 +608,18 @@ const InfectionControl: React.FC = () => {
                 </Badge>
               ),
               children: (
-                <Table columns={caseColumns} dataSource={cases} rowKey="id" />
+                <Table
+                  columns={caseColumns}
+                  dataSource={cases}
+                  rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      setSelectedCase(record);
+                      setIsInvestigationModalOpen(true);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                />
               ),
             },
             {
@@ -617,7 +628,7 @@ const InfectionControl: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Tieu chi giam sat theo CDC"
+                    title="Tieu chi giam sat theo CDC"
                     description="SSI: Theo doi 30 ngay (90 ngay voi implant) | VAP: Tho may > 48h | CAUTI: Sonde > 48h | CLABSI: Catheter TM trung tam > 48h"
                     type="info"
                     showIcon
@@ -638,6 +649,26 @@ const InfectionControl: React.FC = () => {
                       },
                     ]}
                     rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiết giám sát - ${record.department}`,
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Khoa">{record.department}</Descriptions.Item>
+                              <Descriptions.Item label="Tháng">{record.month}</Descriptions.Item>
+                              <Descriptions.Item label="Tổng BN">{record.totalPatients}</Descriptions.Item>
+                              <Descriptions.Item label="Ca nhiễm khuẩn">{record.infectionCount}</Descriptions.Item>
+                              <Descriptions.Item label="Tỷ lệ">
+                                {((record.infectionCount / record.totalPatients) * 100).toFixed(2)}%
+                              </Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -654,7 +685,29 @@ const InfectionControl: React.FC = () => {
                   >
                     Them kiem tra moi
                   </Button>
-                  <Table columns={auditColumns} dataSource={mockAudits} rowKey="id" />
+                  <Table
+                    columns={auditColumns}
+                    dataSource={mockAudits}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: 'Chi tiết kiểm tra tuân thủ',
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Khoa">{record.department}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày kiểm tra">{record.auditDate}</Descriptions.Item>
+                              <Descriptions.Item label="Người kiểm tra">{record.auditorName}</Descriptions.Item>
+                              <Descriptions.Item label="Điểm">{record.score}</Descriptions.Item>
+                              <Descriptions.Item label="Kết quả">{record.result}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
                 </>
               ),
             },
@@ -746,7 +799,7 @@ const InfectionControl: React.FC = () => {
         width={600}
       >
         <Alert
-          message="Bao cao trong 24h voi su co nghiem trong"
+          title="Bao cao trong 24h voi su co nghiem trong"
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
@@ -863,19 +916,22 @@ const InfectionControl: React.FC = () => {
 
             <Divider>Qua trinh dieu tra</Divider>
 
-            <Timeline>
-              <Timeline.Item color="blue">
-                {selectedCase.reportDate} - Bao cao ca nghi ngo
-              </Timeline.Item>
-              {selectedCase.organism && (
-                <Timeline.Item color="orange">
-                  Ket qua cay: {selectedCase.organism}
-                </Timeline.Item>
-              )}
-              {selectedCase.status === 'confirmed' && (
-                <Timeline.Item color="red">Xac nhan NKBV</Timeline.Item>
-              )}
-            </Timeline>
+            <Timeline
+              items={[
+                {
+                  color: 'blue',
+                  content: <>{selectedCase.reportDate} - Bao cao ca nghi ngo</>,
+                },
+                ...(selectedCase.organism ? [{
+                  color: 'orange' as const,
+                  content: <>Ket qua cay: {selectedCase.organism}</>,
+                }] : []),
+                ...(selectedCase.status === 'confirmed' ? [{
+                  color: 'red' as const,
+                  content: <>Xac nhan NKBV</>,
+                }] : []),
+              ]}
+            />
 
             <Form layout="vertical" style={{ marginTop: 16 }}>
               <Form.Item label="Cap nhat trang thai">

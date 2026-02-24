@@ -725,7 +725,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/mci';
+const BASE_URL = '/mci';
 
 // #region MCI Events
 

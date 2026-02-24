@@ -54,6 +54,7 @@ const Laboratory: React.FC = () => {
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [isResultEntryModalOpen, setIsResultEntryModalOpen] = useState(false);
   const [isResultViewModalOpen, setIsResultViewModalOpen] = useState(false);
+  const [isLabDetailModalOpen, setIsLabDetailModalOpen] = useState(false);
   const [collectionForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -167,6 +168,71 @@ const Laboratory: React.FC = () => {
         return '#f5222d';
       default:
         return '#000000';
+    }
+  };
+
+  // Handle barcode print - try API blob first, fall back to local HTML print
+  const handlePrintBarcode = async (record: LabRequest) => {
+    const barcode = record.sampleBarcode || record.id;
+
+    try {
+      // Try to get a PDF/blob from the API first
+      const blobData = await laboratoryApi.printBarcodeLabel(record.id);
+      if (blobData && blobData instanceof Blob && blobData.size > 0) {
+        const url = URL.createObjectURL(blobData);
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.print();
+            // Clean up the blob URL after a delay
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          };
+        } else {
+          message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+          URL.revokeObjectURL(url);
+        }
+        return;
+      }
+    } catch {
+      // API not available or returned error, fall back to local print
+    }
+
+    // Fallback: generate barcode label HTML locally and print
+    try {
+      await laboratoryApi.printBarcode(record.id, barcode);
+    } catch (error) {
+      console.error('Error printing barcode:', error);
+      // Last resort: manual print window
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+        return;
+      }
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html><head><title>Nhãn Barcode - ${barcode}</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+          .label { border: 2px solid #000; padding: 15px; display: inline-block; min-width: 250px; }
+          .barcode { font-size: 32px; font-weight: bold; margin: 15px 0; letter-spacing: 5px; font-family: monospace; }
+          .code { font-size: 14px; margin-top: 5px; }
+          .patient { font-size: 12px; margin-top: 10px; color: #333; }
+          @media print { body { padding: 0; } }
+        </style></head>
+        <body>
+          <div class="label">
+            <div style="font-weight: bold; font-size: 11px;">BỆNH VIỆN ĐA KHOA ABC</div>
+            <div class="barcode">||||| ${barcode} |||||</div>
+            <div class="code"><strong>${barcode}</strong></div>
+            <div class="patient">${record.patientName} - ${record.patientCode}</div>
+            <div class="patient">${record.requestedTests?.join(', ') || ''}</div>
+            <div class="patient">${dayjs().format('DD/MM/YYYY HH:mm')}</div>
+          </div>
+        </body></html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 500);
     }
   };
 
@@ -441,7 +507,60 @@ const Laboratory: React.FC = () => {
 
   // Handle print result
   const handlePrintResult = (result: TestResult) => {
-    message.info(`In kết quả xét nghiệm ${result.requestCode}`);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Kết quả xét nghiệm - ${result.requestCode}</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; font-size: 13px; padding: 20px; }
+        .title { font-size: 18px; font-weight: bold; text-align: center; margin: 15px 0; }
+        .info { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+        th { background: #f0f0f0; }
+        .text-right { text-align: right; }
+        .abnormal { color: red; font-weight: bold; }
+        .signature-row { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
+        .signature-col { width: 30%; }
+        @media print { body { padding: 10px; } }
+      </style></head><body>
+        <div style="text-align: center;"><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+        <div class="title">KẾT QUẢ XÉT NGHIỆM</div>
+        <div class="info">Mã phiếu: <strong>${result.requestCode}</strong></div>
+        <div class="info">Mã BN: <strong>${result.patientCode}</strong> - Họ tên: <strong>${result.patientName}</strong></div>
+        <div class="info">Xét nghiệm: <strong>${result.testName}</strong></div>
+        ${result.enteredBy ? `<div class="info">Người nhập: ${result.enteredBy} - ${result.enteredTime ? dayjs(result.enteredTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
+        ${result.approvedBy ? `<div class="info">Người duyệt: ${result.approvedBy} - ${result.approvedTime ? dayjs(result.approvedTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
+        <table>
+          <thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Đơn vị</th><th>Giá trị tham chiếu</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            ${(result.parameters || []).map(p => {
+              const status = getParameterStatus(p);
+              const isAbnormal = status === 'high' || status === 'low' || status === 'critical';
+              return `<tr>
+                <td>${p.name}</td>
+                <td class="${isAbnormal ? 'abnormal' : ''}">${p.value ?? '-'}</td>
+                <td>${p.unit}</td>
+                <td>${p.referenceRange}</td>
+                <td class="${isAbnormal ? 'abnormal' : ''}">${status === 'normal' ? 'Bình thường' : status === 'high' ? 'Cao' : status === 'low' ? 'Thấp' : status === 'critical' ? 'Nguy hiểm' : '-'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        ${result.notes ? `<div class="info">Ghi chú: ${result.notes}</div>` : ''}
+        <div class="signature-row">
+          <div class="signature-col"><div><strong>Người thực hiện</strong></div><div style="margin-top: 50px;">${result.enteredBy || ''}</div></div>
+          <div class="signature-col"><div><strong>Trưởng khoa</strong></div><div style="margin-top: 50px;">${result.approvedBy || ''}</div></div>
+        </div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
   };
 
   // Pending Requests columns
@@ -580,7 +699,7 @@ const Laboratory: React.FC = () => {
           <Button
             size="small"
             icon={<PrinterOutlined />}
-            onClick={() => laboratoryApi.printBarcode(record.id, record.sampleBarcode)}
+            onClick={() => handlePrintBarcode(record)}
           >
             In nhãn
           </Button>
@@ -869,7 +988,7 @@ const Laboratory: React.FC = () => {
                       />
                     </Col>
                     <Col>
-                      <Button icon={<ReloadOutlined />} onClick={() => message.info('Đã làm mới danh sách')}>
+                      <Button icon={<ReloadOutlined />} onClick={() => { setSearchText(''); fetchLabRequests(); fetchTestResults(); message.success('Đã làm mới danh sách'); }}>
                         Làm mới
                       </Button>
                     </Col>
@@ -886,6 +1005,13 @@ const Laboratory: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} phiếu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsLabDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -910,6 +1036,9 @@ const Laboratory: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        onSearch={(value) => setSearchText(value)}
                       />
                     </Col>
                   </Row>
@@ -925,6 +1054,13 @@ const Laboratory: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} mẫu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsLabDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -943,7 +1079,7 @@ const Laboratory: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Lưu ý"
+                    title="Lưu ý"
                     description="Gán mẫu cho máy xét nghiệm phù hợp và theo dõi quá trình xử lý"
                     type="info"
                     showIcon
@@ -961,6 +1097,13 @@ const Laboratory: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} mẫu`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsLabDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -979,7 +1122,7 @@ const Laboratory: React.FC = () => {
               children: (
                 <>
                   <Alert
-                    message="Nhập kết quả xét nghiệm"
+                    title="Nhập kết quả xét nghiệm"
                     description="Nhập kết quả từ máy xét nghiệm hoặc nhập thủ công. Hệ thống sẽ tự động kiểm tra và cảnh báo các giá trị bất thường."
                     type="info"
                     showIcon
@@ -1025,6 +1168,9 @@ const Laboratory: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ maxWidth: 400 }}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        onSearch={(value) => setSearchText(value)}
                       />
                     </Col>
                   </Row>
@@ -1040,6 +1186,13 @@ const Laboratory: React.FC = () => {
                       showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} kết quả`,
                     }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedRequest(record);
+                        setIsLabDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -1134,7 +1287,7 @@ const Laboratory: React.FC = () => {
               </Form.Item>
 
               <Alert
-                message="Mã barcode sẽ được tự động tạo sau khi lưu"
+                title="Mã barcode sẽ được tự động tạo sau khi lưu"
                 type="info"
                 showIcon
               />
@@ -1315,7 +1468,7 @@ const Laboratory: React.FC = () => {
             </Form.Item>
 
             <Alert
-              message="Hệ thống sẽ tự động kiểm tra và cảnh báo các giá trị bất thường khi lưu kết quả"
+              title="Hệ thống sẽ tự động kiểm tra và cảnh báo các giá trị bất thường khi lưu kết quả"
               type="warning"
               showIcon
             />
@@ -1451,7 +1604,7 @@ const Laboratory: React.FC = () => {
               items={[
                 {
                   color: 'blue',
-                  children: (
+                  content: (
                     <>
                       <Text strong>Yêu cầu xét nghiệm</Text>
                       <br />
@@ -1461,7 +1614,7 @@ const Laboratory: React.FC = () => {
                 },
                 {
                   color: 'green',
-                  children: (
+                  content: (
                     <>
                       <Text strong>Lấy mẫu</Text>
                       <br />
@@ -1471,7 +1624,7 @@ const Laboratory: React.FC = () => {
                 },
                 {
                   color: 'purple',
-                  children: (
+                  content: (
                     <>
                       <Text strong>Xử lý mẫu</Text>
                       <br />
@@ -1481,7 +1634,7 @@ const Laboratory: React.FC = () => {
                 },
                 selectedResult.enteredTime && {
                   color: 'cyan',
-                  children: (
+                  content: (
                     <>
                       <Text strong>Nhập kết quả</Text>
                       <br />
@@ -1494,7 +1647,7 @@ const Laboratory: React.FC = () => {
                 },
                 selectedResult.approvedTime && {
                   color: 'green',
-                  children: (
+                  content: (
                     <>
                       <Text strong>Duyệt kết quả</Text>
                       <br />
@@ -1508,6 +1661,54 @@ const Laboratory: React.FC = () => {
               ].filter(Boolean) as any}
             />
           </>
+        )}
+      </Modal>
+
+      {/* Lab Detail Modal */}
+      <Modal
+        title={
+          <Space>
+            <FileSearchOutlined />
+            <span>Chi tiết phiếu xét nghiệm - {selectedRequest?.requestCode}</span>
+          </Space>
+        }
+        open={isLabDetailModalOpen}
+        onCancel={() => setIsLabDetailModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsLabDetailModalOpen(false)}>
+            Đóng
+          </Button>,
+        ]}
+        width={800}
+      >
+        {selectedRequest && (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Mã phiếu">{selectedRequest.requestCode}</Descriptions.Item>
+            <Descriptions.Item label="Mã BN">{selectedRequest.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Họ tên BN">{selectedRequest.patientName}</Descriptions.Item>
+            <Descriptions.Item label="Giới tính">{selectedRequest.gender === 1 ? 'Nam' : 'Nữ'}</Descriptions.Item>
+            <Descriptions.Item label="Ngày sinh">
+              {selectedRequest.dateOfBirth ? dayjs(selectedRequest.dateOfBirth).format('DD/MM/YYYY') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngày chỉ định">
+              {dayjs(selectedRequest.requestDate).format('DD/MM/YYYY HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">{getStatusTag(selectedRequest.status)}</Descriptions.Item>
+            <Descriptions.Item label="Ưu tiên">{getPriorityBadge(selectedRequest.priority)}</Descriptions.Item>
+            <Descriptions.Item label="Khoa chỉ định">{selectedRequest.departmentName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Bác sĩ chỉ định">{selectedRequest.doctorName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Mã barcode">{selectedRequest.sampleBarcode || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Loại mẫu">{selectedRequest.sampleType || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Xét nghiệm yêu cầu" span={2}>
+              {selectedRequest.requestedTests?.map((t, i) => <Tag key={i} color="blue">{t}</Tag>) || '-'}
+            </Descriptions.Item>
+            {selectedRequest.clinicalInfo && (
+              <Descriptions.Item label="Thông tin lâm sàng" span={2}>{selectedRequest.clinicalInfo}</Descriptions.Item>
+            )}
+            {selectedRequest.notes && (
+              <Descriptions.Item label="Ghi chú" span={2}>{selectedRequest.notes}</Descriptions.Item>
+            )}
+          </Descriptions>
         )}
       </Modal>
     </div>

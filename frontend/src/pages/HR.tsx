@@ -334,7 +334,7 @@ const HR: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Avatar icon={<UserOutlined />} src={record.avatar} />
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text strong>{record.fullName}</Text>
             <Text type="secondary">{record.code}</Text>
           </Space>
@@ -360,7 +360,7 @@ const HR: React.FC = () => {
           ? dayjs(record.licenseExpiry).diff(dayjs(), 'day')
           : 999;
         return (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text>{record.licenseNumber}</Text>
             {daysUntil <= 90 && daysUntil > 0 && (
               <Tag color="orange" icon={<WarningOutlined />}>
@@ -384,7 +384,7 @@ const HR: React.FC = () => {
         if (!record.cmeCredits || !record.cmeRequired) return '-';
         const percent = (record.cmeCredits / record.cmeRequired) * 100;
         return (
-          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={0} style={{ width: '100%' }}>
             <Progress
               percent={Math.round(percent)}
               size="small"
@@ -558,7 +558,7 @@ const HR: React.FC = () => {
               title="Nhan vien dang lam viec"
               value={activeEmployees}
               prefix={<TeamOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -568,7 +568,7 @@ const HR: React.FC = () => {
               title="CCHN sap het han"
               value={licenseExpiringSoon}
               prefix={<SafetyCertificateOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -578,7 +578,7 @@ const HR: React.FC = () => {
               title="CME chua du"
               value={cmeIncomplete}
               prefix={<BookOutlined style={{ color: '#ff4d4f' }} />}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
             />
           </Card>
         </Col>
@@ -599,7 +599,18 @@ const HR: React.FC = () => {
               key: 'employees',
               label: 'Danh sach nhan vien',
               children: (
-                <Table columns={employeeColumns} dataSource={employees} rowKey="id" />
+                <Table
+                  columns={employeeColumns}
+                  dataSource={employees}
+                  rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      setSelectedEmployee(record);
+                      setIsDetailModalOpen(true);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                />
               ),
             },
             {
@@ -650,7 +661,21 @@ const HR: React.FC = () => {
                   >
                     Phan ca moi
                   </Button>
-                  <Table columns={shiftColumns} dataSource={shifts} rowKey="id" />
+                  <Table
+                    columns={shiftColumns}
+                    dataSource={shifts}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        const emp = employees.find(e => e.id === record.employeeId);
+                        if (emp) {
+                          setSelectedEmployee(emp);
+                          setIsDetailModalOpen(true);
+                        }
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
                 </>
               ),
             },
@@ -667,7 +692,29 @@ const HR: React.FC = () => {
                   >
                     Dang ky dao tao
                   </Button>
-                  <Table columns={trainingColumns} dataSource={trainings} rowKey="id" />
+                  <Table
+                    columns={trainingColumns}
+                    dataSource={trainings}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiết đào tạo - ${record.courseName}`,
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Khóa đào tạo">{record.courseName}</Descriptions.Item>
+                              <Descriptions.Item label="Nhân viên">{record.employeeName}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày bắt đầu">{record.startDate}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày kết thúc">{record.endDate || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
                 </>
               ),
             },
@@ -714,6 +761,13 @@ const HR: React.FC = () => {
                   ]}
                   dataSource={employees.filter((e) => e.licenseNumber)}
                   rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      setSelectedEmployee(record);
+                      setIsDetailModalOpen(true);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
                 />
               ),
             },

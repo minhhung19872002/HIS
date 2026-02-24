@@ -389,7 +389,7 @@ const Equipment: React.FC = () => {
       title: 'Ten thiet bi',
       key: 'name',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>{record.name}</Text>
           <Text type="secondary">{record.manufacturer} - {record.model}</Text>
         </Space>
@@ -564,7 +564,7 @@ const Equipment: React.FC = () => {
               title="Thiet bi hoat dong"
               value={activeEquipment}
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
               suffix={`/ ${equipment.length}`}
             />
           </Card>
@@ -575,7 +575,7 @@ const Equipment: React.FC = () => {
               title="Can bao tri"
               value={maintenanceDue}
               prefix={<CalendarOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -585,7 +585,7 @@ const Equipment: React.FC = () => {
               title="Yeu cau sua chua"
               value={pendingRepairs}
               prefix={<ToolOutlined style={{ color: '#ff4d4f' }} />}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
             />
           </Card>
         </Col>
@@ -606,7 +606,18 @@ const Equipment: React.FC = () => {
               key: 'equipment',
               label: 'Danh sach thiet bi',
               children: (
-                <Table columns={equipmentColumns} dataSource={equipment} rowKey="id" />
+                <Table
+                  columns={equipmentColumns}
+                  dataSource={equipment}
+                  rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      setSelectedEquipment(record);
+                      setIsDetailModalOpen(true);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                />
               ),
             },
             {
@@ -630,6 +641,16 @@ const Equipment: React.FC = () => {
                     columns={maintenanceColumns}
                     dataSource={maintenanceRecords}
                     rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        const eq = equipment.find(e => e.id === record.equipmentId);
+                        if (eq) {
+                          setSelectedEquipment(eq);
+                          setIsDetailModalOpen(true);
+                        }
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </>
               ),
@@ -642,7 +663,21 @@ const Equipment: React.FC = () => {
                 </Badge>
               ),
               children: (
-                <Table columns={repairColumns} dataSource={repairRequests} rowKey="id" />
+                <Table
+                  columns={repairColumns}
+                  dataSource={repairRequests}
+                  rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      const eq = equipment.find(e => e.id === record.equipmentId);
+                      if (eq) {
+                        setSelectedEquipment(eq);
+                        setIsDetailModalOpen(true);
+                      }
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                />
               ),
             },
             {
@@ -666,6 +701,13 @@ const Equipment: React.FC = () => {
                     ]}
                     dataSource={equipment.filter((e) => e.riskClass === 'A' || e.riskClass === 'B')}
                     rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedEquipment(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </div>
               ),

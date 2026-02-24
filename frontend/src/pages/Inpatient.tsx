@@ -40,6 +40,8 @@ import {
   createTreatmentSheet,
   createNursingCareSheet,
   dischargePatient,
+  assignBed,
+  transferBed,
   type InpatientListDto,
   type BedStatusDto,
   type InpatientSearchDto,
@@ -47,6 +49,8 @@ import {
   type CreateTreatmentSheetDto,
   type CreateNursingCareSheetDto,
   type CompleteDischargeDto,
+  type CreateBedAssignmentDto,
+  type TransferBedDto,
 } from '../api/inpatient';
 
 const { Title, Text } = Typography;
@@ -99,11 +103,27 @@ const Inpatient: React.FC = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isTreatmentTrackingModalOpen, setIsTreatmentTrackingModalOpen] = useState(false);
+  const [isBedTransferModalOpen, setIsBedTransferModalOpen] = useState(false);
+  const [isBedAssignModalOpen, setIsBedAssignModalOpen] = useState(false);
+  const [selectedBed, setSelectedBed] = useState<BedStatusDto | null>(null);
   const [printType, setPrintType] = useState<string>('noi_khoa');
   const [selectedAdmission, setSelectedAdmission] = useState<InpatientListDto | null>(null);
   const [form] = Form.useForm();
+  const [bedTransferForm] = Form.useForm();
+  const [bedAssignForm] = Form.useForm();
   const [medicalRecordForm] = Form.useForm();
   const [treatmentTrackingForm] = Form.useForm();
+
+  // Bed filter states
+  const [bedFilterDepartment, setBedFilterDepartment] = useState<string | undefined>(undefined);
+  const [bedFilterRoom, setBedFilterRoom] = useState<string | undefined>(undefined);
+  const [bedFilterStatus, setBedFilterStatus] = useState<number | undefined>(undefined);
+
+  // Tab search states
+  const [progressSearchText, setProgressSearchText] = useState('');
+  const [nursingSearchText, setNursingSearchText] = useState('');
+  const [dischargeSearchText, setDischargeSearchText] = useState('');
+  const [dischargeDateRange, setDischargeDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -278,7 +298,7 @@ const Inpatient: React.FC = () => {
       width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <Space direction="vertical" size="small">
+        <Space orientation="vertical" size="small">
           <Button
             size="small"
             icon={<EyeOutlined />}
@@ -369,7 +389,7 @@ const Inpatient: React.FC = () => {
           <Button
             size="small"
             icon={<SwapOutlined />}
-            onClick={() => message.info('Chuyển giường')}
+            onClick={() => handleBedTransfer(record)}
           >
             Chuyển giường
           </Button>
@@ -377,7 +397,7 @@ const Inpatient: React.FC = () => {
           <Button
             size="small"
             icon={<PlusOutlined />}
-            onClick={() => message.info('Phân giường')}
+            onClick={() => handleBedAssign(record)}
           >
             Phân giường
           </Button>
@@ -422,10 +442,10 @@ const Inpatient: React.FC = () => {
           values.subjectiveFindings ? `S: ${values.subjectiveFindings}` : '',
           values.objectiveFindings ? `O: ${values.objectiveFindings}` : '',
           values.assessment ? `A: ${values.assessment}` : '',
-          values.plan ? `P: ${values.plan}` : '',
-        ].filter(Boolean).join('\n'),
-        dietOrders: values.dietOrder,
-        nursingOrders: values.activityOrder,
+        ].filter(Boolean).join('\n') || undefined,
+        treatmentOrders: values.plan || undefined,
+        nursingOrders: values.activityOrder || undefined,
+        dietOrders: values.dietOrder || undefined,
       };
 
       await createTreatmentSheet(progressDto);
@@ -442,12 +462,19 @@ const Inpatient: React.FC = () => {
     try {
       const values = await form.validateFields();
 
+      const careTypeLabels: Record<number, string> = {
+        1: 'Theo dõi dấu hiệu sinh tồn',
+        2: 'Chăm sóc vệ sinh',
+        3: 'Thay băng',
+        4: 'Tiêm truyền',
+        5: 'Khác',
+      };
       const careDto: CreateNursingCareSheetDto = {
         admissionId: values.admissionId,
         careDate: values.careDate ? dayjs(values.careDate).format('YYYY-MM-DD HH:mm:ss') : dayjs().format('YYYY-MM-DD HH:mm:ss'),
         shift: 1, // Default to morning shift
         patientCondition: values.description,
-        notes: `Loại chăm sóc: ${values.careType}`,
+        notes: `Loại chăm sóc: ${careTypeLabels[values.careType] || values.careType}${values.description ? `\nMô tả: ${values.description}` : ''}`,
       };
 
       await createNursingCareSheet(careDto);
@@ -484,6 +511,137 @@ const Inpatient: React.FC = () => {
       message.error('Lỗi khi xuất viện. Vui lòng thử lại.');
     }
   };
+
+  // Handle bed transfer
+  const handleBedTransfer = (record: BedStatusDto) => {
+    setSelectedBed(record);
+    bedTransferForm.setFieldsValue({
+      currentBed: `${record.bedName} - ${record.roomName}`,
+      patientName: record.patientName,
+    });
+    setIsBedTransferModalOpen(true);
+  };
+
+  const handleBedTransferSubmit = async () => {
+    try {
+      const values = await bedTransferForm.validateFields();
+      if (!selectedBed?.currentAdmissionId) {
+        message.error('Không tìm thấy thông tin bệnh nhân');
+        return;
+      }
+
+      const dto: TransferBedDto = {
+        admissionId: selectedBed.currentAdmissionId,
+        newBedId: values.newBedId,
+        reason: values.reason,
+      };
+
+      await transferBed(dto);
+      message.success('Chuyển giường thành công!');
+      setIsBedTransferModalOpen(false);
+      bedTransferForm.resetFields();
+      setSelectedBed(null);
+      loadBeds();
+      loadAdmissions();
+    } catch (error) {
+      console.error('Bed transfer error:', error);
+      message.error('Lỗi khi chuyển giường. Vui lòng thử lại.');
+    }
+  };
+
+  // Handle bed assign
+  const handleBedAssign = (record: BedStatusDto) => {
+    setSelectedBed(record);
+    bedAssignForm.setFieldsValue({
+      bedName: `${record.bedName} - ${record.roomName}`,
+    });
+    setIsBedAssignModalOpen(true);
+  };
+
+  const handleBedAssignSubmit = async () => {
+    try {
+      const values = await bedAssignForm.validateFields();
+      if (!selectedBed) {
+        message.error('Không tìm thấy thông tin giường');
+        return;
+      }
+
+      const dto: CreateBedAssignmentDto = {
+        admissionId: values.admissionId,
+        bedId: selectedBed.bedId,
+      };
+
+      await assignBed(dto);
+      message.success('Phân giường thành công!');
+      setIsBedAssignModalOpen(false);
+      bedAssignForm.resetFields();
+      setSelectedBed(null);
+      loadBeds();
+      loadAdmissions();
+    } catch (error) {
+      console.error('Bed assign error:', error);
+      message.error('Lỗi khi phân giường. Vui lòng thử lại.');
+    }
+  };
+
+  // Derive unique department and room names from bed data for filters
+  const bedDepartmentNames = Array.from(new Set(beds.map(b => b.departmentName).filter(Boolean)));
+  const bedRoomNames = Array.from(new Set(
+    beds
+      .filter(b => !bedFilterDepartment || b.departmentName === bedFilterDepartment)
+      .map(b => b.roomName)
+      .filter(Boolean)
+  ));
+
+  // Filtered beds
+  const filteredBeds = beds.filter(b => {
+    let match = true;
+    if (bedFilterDepartment) {
+      match = match && b.departmentName === bedFilterDepartment;
+    }
+    if (bedFilterRoom) {
+      match = match && b.roomName === bedFilterRoom;
+    }
+    if (bedFilterStatus !== undefined) {
+      match = match && b.bedStatus === bedFilterStatus;
+    }
+    return match;
+  });
+
+  // Filtered admissions for tab searches
+  const filteredProgressAdmissions = admissions.filter(a => {
+    if (!progressSearchText) return a.status === 0;
+    const text = progressSearchText.toLowerCase();
+    return a.status === 0 && (
+      a.patientCode?.toLowerCase().includes(text) ||
+      a.patientName?.toLowerCase().includes(text)
+    );
+  });
+
+  const filteredNursingAdmissions = admissions.filter(a => {
+    if (!nursingSearchText) return a.status === 0;
+    const text = nursingSearchText.toLowerCase();
+    return a.status === 0 && (
+      a.patientCode?.toLowerCase().includes(text) ||
+      a.patientName?.toLowerCase().includes(text)
+    );
+  });
+
+  const filteredDischargeAdmissions = admissions.filter(a => {
+    let match = a.status === 2; // Discharged
+    if (dischargeSearchText) {
+      const text = dischargeSearchText.toLowerCase();
+      match = match && (
+        a.patientCode?.toLowerCase().includes(text) ||
+        a.patientName?.toLowerCase().includes(text)
+      );
+    }
+    if (dischargeDateRange && dischargeDateRange[0] && dischargeDateRange[1]) {
+      const admDate = dayjs(a.admissionDate);
+      match = match && admDate.isAfter(dischargeDateRange[0].startOf('day')) && admDate.isBefore(dischargeDateRange[1].endOf('day'));
+    }
+    return match;
+  });
 
   // Determine print type based on department
   const determinePrintType = (departmentName?: string): 'noi_khoa' | 'ngoai_khoa' => {
@@ -1053,16 +1211,37 @@ const Inpatient: React.FC = () => {
                   <Row gutter={16} style={{ marginBottom: 16 }}>
                     <Col flex="auto">
                       <Space>
-                        <Select placeholder="Khoa" style={{ width: 150 }} allowClear>
-                          <Select.Option value="1">Khoa Nội</Select.Option>
-                          <Select.Option value="2">Khoa Ngoại</Select.Option>
-                          <Select.Option value="3">Khoa Sản</Select.Option>
+                        <Select
+                          placeholder="Khoa"
+                          style={{ width: 150 }}
+                          allowClear
+                          onChange={(value) => {
+                            setBedFilterDepartment(value);
+                            setBedFilterRoom(undefined);
+                          }}
+                          value={bedFilterDepartment}
+                        >
+                          {bedDepartmentNames.map(name => (
+                            <Select.Option key={name} value={name}>{name}</Select.Option>
+                          ))}
                         </Select>
-                        <Select placeholder="Phòng" style={{ width: 150 }} allowClear>
-                          <Select.Option value="1">Phòng Nội 1</Select.Option>
-                          <Select.Option value="2">Phòng Nội 2</Select.Option>
+                        <Select
+                          placeholder="Phòng"
+                          style={{ width: 150 }}
+                          allowClear
+                          onChange={(value) => setBedFilterRoom(value)}
+                          value={bedFilterRoom}
+                        >
+                          {bedRoomNames.map(name => (
+                            <Select.Option key={name} value={name}>{name}</Select.Option>
+                          ))}
                         </Select>
-                        <Select placeholder="Trạng thái" style={{ width: 150 }} allowClear>
+                        <Select
+                          placeholder="Trạng thái"
+                          style={{ width: 150 }}
+                          allowClear
+                          onChange={(value) => setBedFilterStatus(value)}
+                        >
                           <Select.Option value={0}>Trống</Select.Option>
                           <Select.Option value={1}>Đang sử dụng</Select.Option>
                           <Select.Option value={2}>Bảo trì</Select.Option>
@@ -1081,7 +1260,7 @@ const Inpatient: React.FC = () => {
                   <Spin spinning={loadingBeds}>
                     <Table
                       columns={bedColumns}
-                      dataSource={beds}
+                      dataSource={filteredBeds}
                       rowKey="bedId"
                       size="small"
                       scroll={{ x: 1200 }}
@@ -1127,6 +1306,8 @@ const Inpatient: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ width: 300 }}
+                        onSearch={(value) => setProgressSearchText(value)}
+                        onChange={(e) => { if (!e.target.value) setProgressSearchText(''); }}
                       />
                     </Col>
                     <Col>
@@ -1139,9 +1320,27 @@ const Inpatient: React.FC = () => {
                       </Button>
                     </Col>
                   </Row>
-                  <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                    <Text type="secondary">Chọn bệnh nhân để xem diễn biến hàng ngày</Text>
-                  </div>
+                  {filteredProgressAdmissions.length > 0 ? (
+                    <Table
+                      columns={admissionColumns}
+                      dataSource={filteredProgressAdmissions}
+                      rowKey="admissionId"
+                      size="small"
+                      scroll={{ x: 1400 }}
+                      pagination={{ showSizeChanger: true, showTotal: (total) => `Tổng: ${total} bệnh nhân` }}
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          setSelectedAdmission(record);
+                          setIsDetailModalOpen(true);
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '50px 0' }}>
+                      <Text type="secondary">Chọn bệnh nhân để xem diễn biến hàng ngày</Text>
+                    </div>
+                  )}
                 </>
               ),
             },
@@ -1157,6 +1356,8 @@ const Inpatient: React.FC = () => {
                         allowClear
                         enterButton={<SearchOutlined />}
                         style={{ width: 300 }}
+                        onSearch={(value) => setNursingSearchText(value)}
+                        onChange={(e) => { if (!e.target.value) setNursingSearchText(''); }}
                       />
                     </Col>
                     <Col>
@@ -1169,9 +1370,27 @@ const Inpatient: React.FC = () => {
                       </Button>
                     </Col>
                   </Row>
-                  <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                    <Text type="secondary">Chọn bệnh nhân để xem lịch sử chăm sóc</Text>
-                  </div>
+                  {filteredNursingAdmissions.length > 0 ? (
+                    <Table
+                      columns={admissionColumns}
+                      dataSource={filteredNursingAdmissions}
+                      rowKey="admissionId"
+                      size="small"
+                      scroll={{ x: 1400 }}
+                      pagination={{ showSizeChanger: true, showTotal: (total) => `Tổng: ${total} bệnh nhân` }}
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          setSelectedAdmission(record);
+                          setIsDetailModalOpen(true);
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '50px 0' }}>
+                      <Text type="secondary">Chọn bệnh nhân để xem lịch sử chăm sóc</Text>
+                    </div>
+                  )}
                 </>
               ),
             },
@@ -1188,8 +1407,13 @@ const Inpatient: React.FC = () => {
                           allowClear
                           enterButton={<SearchOutlined />}
                           style={{ width: 300 }}
+                          onSearch={(value) => setDischargeSearchText(value)}
+                          onChange={(e) => { if (!e.target.value) setDischargeSearchText(''); }}
                         />
-                        <DatePicker.RangePicker format="DD/MM/YYYY" />
+                        <DatePicker.RangePicker
+                          format="DD/MM/YYYY"
+                          onChange={(dates) => setDischargeDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
+                        />
                       </Space>
                     </Col>
                     <Col>
@@ -1203,9 +1427,27 @@ const Inpatient: React.FC = () => {
                       </Button>
                     </Col>
                   </Row>
-                  <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                    <Text type="secondary">Danh sách bệnh nhân đã xuất viện</Text>
-                  </div>
+                  {filteredDischargeAdmissions.length > 0 ? (
+                    <Table
+                      columns={admissionColumns}
+                      dataSource={filteredDischargeAdmissions}
+                      rowKey="admissionId"
+                      size="small"
+                      scroll={{ x: 1400 }}
+                      pagination={{ showSizeChanger: true, showTotal: (total) => `Tổng: ${total} bệnh nhân` }}
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          setSelectedAdmission(record);
+                          setIsDetailModalOpen(true);
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '50px 0' }}>
+                      <Text type="secondary">Danh sách bệnh nhân đã xuất viện</Text>
+                    </div>
+                  )}
                 </>
               ),
             },
@@ -1742,7 +1984,7 @@ const Inpatient: React.FC = () => {
           <Form form={medicalRecordForm} layout="vertical" size="small">
             {/* Chọn loại bệnh án */}
             <Alert
-              message="Chọn loại bệnh án phù hợp với chuyên khoa của bệnh nhân"
+              title="Chọn loại bệnh án phù hợp với chuyên khoa của bệnh nhân"
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -2190,7 +2432,7 @@ const Inpatient: React.FC = () => {
 
             <Divider><strong>Theo dõi hàng ngày (Mẫu SOAP)</strong></Divider>
             <Alert
-              message="Hướng dẫn ghi chép theo mẫu SOAP"
+              title="Hướng dẫn ghi chép theo mẫu SOAP"
               description={
                 <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
                   <li><strong>S (Subjective):</strong> Triệu chứng chủ quan - bệnh nhân tự kể</li>
@@ -2243,6 +2485,96 @@ P - Kế hoạch điều trị:
             </Row>
           </Form>
         </div>
+      </Modal>
+
+      {/* Bed Transfer Modal */}
+      <Modal
+        title={
+          <Space>
+            <SwapOutlined />
+            Chuyển giường - {selectedBed?.patientName}
+          </Space>
+        }
+        open={isBedTransferModalOpen}
+        onOk={handleBedTransferSubmit}
+        onCancel={() => {
+          setIsBedTransferModalOpen(false);
+          bedTransferForm.resetFields();
+          setSelectedBed(null);
+        }}
+        okText="Chuyển giường"
+        cancelText="Hủy"
+      >
+        <Form form={bedTransferForm} layout="vertical">
+          <Form.Item name="currentBed" label="Giường hiện tại">
+            <Input disabled />
+          </Form.Item>
+          <Form.Item name="patientName" label="Bệnh nhân">
+            <Input disabled />
+          </Form.Item>
+          <Form.Item
+            name="newBedId"
+            label="Giường mới"
+            rules={[{ required: true, message: 'Vui lòng chọn giường mới' }]}
+          >
+            <Select placeholder="Chọn giường mới">
+              {beds
+                .filter(b => b.bedStatus === 0 && b.bedId !== selectedBed?.bedId)
+                .map(b => (
+                  <Select.Option key={b.bedId} value={b.bedId}>
+                    {b.bedName} - {b.roomName} ({b.departmentName})
+                  </Select.Option>
+                ))}
+            </Select>
+          </Form.Item>
+          <Form.Item name="reason" label="Lý do chuyển">
+            <TextArea rows={2} placeholder="Nhập lý do chuyển giường (không bắt buộc)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Bed Assign Modal */}
+      <Modal
+        title={
+          <Space>
+            <PlusOutlined />
+            Phân giường - {selectedBed?.bedName}
+          </Space>
+        }
+        open={isBedAssignModalOpen}
+        onOk={handleBedAssignSubmit}
+        onCancel={() => {
+          setIsBedAssignModalOpen(false);
+          bedAssignForm.resetFields();
+          setSelectedBed(null);
+        }}
+        okText="Phân giường"
+        cancelText="Hủy"
+      >
+        <Form form={bedAssignForm} layout="vertical">
+          <Form.Item name="bedName" label="Giường">
+            <Input disabled />
+          </Form.Item>
+          <Form.Item
+            name="admissionId"
+            label="Bệnh nhân"
+            rules={[{ required: true, message: 'Vui lòng chọn bệnh nhân' }]}
+          >
+            <Select
+              showSearch
+              placeholder="Tìm và chọn bệnh nhân chưa có giường"
+              optionFilterProp="children"
+            >
+              {admissions
+                .filter(a => !a.bedName && a.status === 0)
+                .map(a => (
+                  <Select.Option key={a.admissionId} value={a.admissionId}>
+                    {a.patientCode} - {a.patientName} ({a.departmentName})
+                  </Select.Option>
+                ))}
+            </Select>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

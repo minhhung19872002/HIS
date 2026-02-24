@@ -631,7 +631,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/hie';
+const BASE_URL = '/hie';
 
 // #region Connections
 

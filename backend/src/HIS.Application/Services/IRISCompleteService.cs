@@ -919,14 +919,14 @@ namespace HIS.Application.Services
     public class SaveResultTemplateDto
     {
         public Guid? Id { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
+        public string? Code { get; set; }
+        public string? Name { get; set; }
         public Guid? ServiceTypeId { get; set; }
         public Guid? ServiceId { get; set; }
-        public string Gender { get; set; }
-        public string DescriptionTemplate { get; set; }
-        public string ConclusionTemplate { get; set; }
-        public string NoteTemplate { get; set; }
+        public string? Gender { get; set; }
+        public string? DescriptionTemplate { get; set; }
+        public string? ConclusionTemplate { get; set; }
+        public string? NoteTemplate { get; set; }
         public int SortOrder { get; set; }
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; }

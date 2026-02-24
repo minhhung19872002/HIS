@@ -6,7 +6,6 @@ import {
   Input,
   Typography,
   Menu,
-  List,
   Tag,
   Space,
   Button,
@@ -45,7 +44,6 @@ import type {
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
-const { Panel } = Collapse;
 
 // Category icons mapping
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -258,7 +256,7 @@ Sau khi nhập đầy đủ thông tin, nhấn nút Đăng nhập để vào h�
             onClick={() => handleCategorySelect(category.id)}
             style={{ height: '100%' }}
           >
-            <Space direction="vertical" align="center" style={{ width: '100%', textAlign: 'center' }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', textAlign: 'center' }}>
               <div style={{ fontSize: 32, color: '#1890ff' }}>
                 {categoryIcons[category.code] || <BookOutlined />}
               </div>
@@ -275,31 +273,32 @@ Sau khi nhập đầy đủ thông tin, nhấn nút Đăng nhập để vào h�
 
   // Render article list
   const renderArticleList = () => (
-    <List
-      loading={loading}
-      dataSource={articles.filter(a => !selectedCategory || a.categoryId === selectedCategory)}
-      renderItem={(article) => (
-        <List.Item
-          onClick={() => handleArticleSelect(article)}
-          style={{ cursor: 'pointer' }}
-          actions={[
-            article.videoUrl && <Tag color="red" icon={<VideoCameraOutlined />}>Video</Tag>,
-            <Text type="secondary">{article.viewCount} lượt xem</Text>,
-          ]}
-        >
-          <List.Item.Meta
-            avatar={<FileTextOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
-            title={article.title}
-            description={
-              <Space direction="vertical" size={0}>
-                <Text type="secondary">{article.summary}</Text>
-                <Tag>{article.categoryName}</Tag>
-              </Space>
-            }
-          />
-        </List.Item>
-      )}
-    />
+    <Spin spinning={loading}>
+      <div>
+        {articles.filter(a => !selectedCategory || a.categoryId === selectedCategory).map((article) => (
+          <div
+            key={article.id}
+            onClick={() => handleArticleSelect(article)}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <FileTextOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+              <div>
+                <div><Text strong>{article.title}</Text></div>
+                <Space orientation="vertical" size={0}>
+                  <Text type="secondary">{article.summary}</Text>
+                  <Tag>{article.categoryName}</Tag>
+                </Space>
+              </div>
+            </div>
+            <Space>
+              {article.videoUrl && <Tag color="red" icon={<VideoCameraOutlined />}>Video</Tag>}
+              <Text type="secondary">{article.viewCount} lượt xem</Text>
+            </Space>
+          </div>
+        ))}
+      </div>
+    </Spin>
   );
 
   // Render article content
@@ -329,7 +328,7 @@ Sau khi nhập đầy đủ thông tin, nhấn nút Đăng nhập để vào h�
 
           {selectedArticle.videoUrl && (
             <Alert
-              message="Hướng dẫn video"
+              title="Hướng dẫn video"
               description={
                 <Button type="link" icon={<PlayCircleOutlined />} href={selectedArticle.videoUrl} target="_blank">
                   Xem video hướng dẫn
@@ -355,19 +354,19 @@ Sau khi nhập đầy đủ thông tin, nhấn nút Đăng nhập để vào h�
   // Render troubleshooting
   const renderTroubleshooting = () => (
     <Card title={<><ToolOutlined /> Khắc phục sự cố thường gặp</>}>
-      <Collapse accordion>
-        {troubleshooting.map((item) => (
-          <Panel
-            key={item.id}
-            header={
-              <Space>
-                <Tag color="red">{item.code}</Tag>
-                <Tag>{item.category}</Tag>
-                <Text strong>{item.problem}</Text>
-              </Space>
-            }
-          >
-            <Space direction="vertical" style={{ width: '100%' }}>
+      <Collapse
+        accordion
+        items={troubleshooting.map((item) => ({
+          key: item.id,
+          label: (
+            <Space>
+              <Tag color="red">{item.code}</Tag>
+              <Tag>{item.category}</Tag>
+              <Text strong>{item.problem}</Text>
+            </Space>
+          ),
+          children: (
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary">Giải pháp:</Text>
                 <Paragraph>
@@ -384,9 +383,9 @@ Sau khi nhập đầy đủ thông tin, nhấn nút Đăng nhập để vào h�
                 </div>
               )}
             </Space>
-          </Panel>
-        ))}
-      </Collapse>
+          ),
+        }))}
+      />
     </Card>
   );
 
@@ -449,7 +448,7 @@ Sau khi nhập đầy đủ thông tin, nhấn nút Đăng nhập để vào h�
 
           {/* Quick Links */}
           <Card size="small" title="Liên kết nhanh" style={{ marginTop: 16 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Button type="link" icon={<DownloadOutlined />} block style={{ textAlign: 'left' }}>
                 Tài liệu hướng dẫn (PDF)
               </Button>

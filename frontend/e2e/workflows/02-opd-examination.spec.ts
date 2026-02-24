@@ -331,6 +331,7 @@ test.describe('Kham benh ngoai tru - OPD Flow', () => {
 test.describe('OPD E2E Complete Flow', () => {
 
   test('E2E: Luong kham benh ngoai tru hoan chinh', async ({ page }) => {
+    test.setTimeout(60000);
     // 1. Login
     await login(page);
 

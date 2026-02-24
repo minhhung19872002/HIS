@@ -55,6 +55,15 @@ public static class DependencyInjection
         services.AddScoped<ILISCompleteService, LISCompleteService>();
         services.AddHostedService<HL7ReceiverService>(); // TCP listener for HL7 messages
 
+        // Phân hệ 9: Ngân hàng máu (Blood Bank)
+        services.AddScoped<IBloodBankCompleteService, BloodBankCompleteService>();
+
+        // Phân hệ 12: Giám định BHYT - XML Export
+        services.AddScoped<IInsuranceXmlService, InsuranceXmlService>();
+
+        // Phân hệ: Hệ thống (System - Catalog/Finance/Statistics/Admin)
+        services.AddScoped<ISystemCompleteService, SystemCompleteService>();
+
         // ============ Luồng 11-20: Extended Workflow Services (Real Database Implementations) ============
 
         // Luồng 11: Telemedicine (Khám bệnh từ xa)

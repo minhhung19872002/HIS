@@ -167,6 +167,9 @@ export interface DicomSeriesDto {
   patientId?: string;
   studyDate?: string;
   studyDescription?: string;
+  // Orthanc IDs (from PACS)
+  orthancStudyId?: string;
+  orthancSeriesId?: string;
 }
 
 export interface DicomImageDto {

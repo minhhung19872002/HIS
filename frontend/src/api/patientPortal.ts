@@ -597,7 +597,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/portal';
+const BASE_URL = '/portal';
 
 // #region Account Management
 

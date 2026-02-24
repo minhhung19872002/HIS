@@ -45,6 +45,7 @@ import {
   createRefund,
   approveRefund,
   cancelRefund,
+  getDebtStatistics,
   type PatientBillingStatusDto,
   type UnpaidServiceItemDto,
   type DepositDto,
@@ -53,6 +54,10 @@ import {
   type CreateDepositDto,
   type CreateRefundDto,
   type ApproveRefundDto,
+  type RevenueReportRequestDto,
+  type OutpatientRevenueReportDto,
+  type DebtStatisticsDto,
+  getOutpatientRevenueReport,
 } from '../api/billing';
 
 const { Title, Text } = Typography;
@@ -133,7 +138,18 @@ const Billing: React.FC = () => {
   const [receiptDrawerVisible, setReceiptDrawerVisible] = useState(false);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [refunds, setRefunds] = useState<RefundRecord[]>([]);
+  const [refundSearchText, setRefundSearchText] = useState('');
+  const [refundDateRange, setRefundDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [reportData, setReportData] = useState<OutpatientRevenueReportDto | null>(null);
+  const [debtData, setDebtData] = useState<DebtStatisticsDto | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [depositDetailVisible, setDepositDetailVisible] = useState(false);
+  const [selectedDeposit, setSelectedDeposit] = useState<Deposit | null>(null);
+  const [refundDetailVisible, setRefundDetailVisible] = useState(false);
+  const [selectedRefund, setSelectedRefund] = useState<RefundRecord | null>(null);
+  const [serviceDetailVisible, setServiceDetailVisible] = useState(false);
+  const [selectedService, setSelectedService] = useState<UnpaidService | null>(null);
 
   const [paymentForm] = Form.useForm();
   const [depositForm] = Form.useForm();
@@ -459,30 +475,69 @@ const Billing: React.FC = () => {
     }
   }, [activeTab]);
 
-  const fetchDeposits = async () => {
+  const [depositSearchText, setDepositSearchText] = useState('');
+
+  const fetchDeposits = async (keyword?: string) => {
     try {
       setLoading(true);
-      const response = await searchPatients({ pageSize: 1000 });
-      const allDeposits: Deposit[] = [];
+      if (!keyword) {
+        // Load deposits for selected patient if any, otherwise show empty
+        if (selectedPatient) {
+          const patientDeposits = await getPatientDeposits(selectedPatient.id);
+          const mappedDeposits = ((patientDeposits as any).data || []).map((d: DepositDto) => ({
+            id: d.id,
+            patientId: d.patientId,
+            patientName: d.patientName,
+            patientCode: d.patientCode,
+            amount: d.amount,
+            remainingAmount: d.remainingAmount,
+            depositDate: d.createdAt,
+            cashier: d.cashierName,
+            status: d.status,
+            note: d.notes,
+          }));
+          setDeposits(mappedDeposits);
+        } else {
+          setDeposits([]);
+        }
+        return;
+      }
 
-      for (const patient of (response as any).data?.items || []) {
-        const patientDeposits = await getPatientDeposits(patient.patientId);
-        const mappedDeposits = ((patientDeposits as any).data || []).map((d: DepositDto) => ({
-          id: d.id,
-          patientId: d.patientId,
-          patientName: d.patientName,
-          patientCode: d.patientCode,
-          amount: d.amount,
-          remainingAmount: d.remainingAmount,
-          depositDate: d.createdAt,
-          cashier: d.cashierName,
-          status: d.status,
-          note: d.notes,
-        }));
-        allDeposits.push(...mappedDeposits);
+      // Search for patient first, then get their deposits
+      const response = await searchPatients({ keyword, pageSize: 10 });
+      const patients = (response as any).data?.items || [];
+      if (patients.length === 0) {
+        message.warning('Không tìm thấy bệnh nhân');
+        setDeposits([]);
+        return;
+      }
+
+      const allDeposits: Deposit[] = [];
+      for (const patient of patients) {
+        try {
+          const patientDeposits = await getPatientDeposits(patient.patientId);
+          const mappedDeposits = ((patientDeposits as any).data || []).map((d: DepositDto) => ({
+            id: d.id,
+            patientId: d.patientId,
+            patientName: d.patientName,
+            patientCode: d.patientCode,
+            amount: d.amount,
+            remainingAmount: d.remainingAmount,
+            depositDate: d.createdAt,
+            cashier: d.cashierName,
+            status: d.status,
+            note: d.notes,
+          }));
+          allDeposits.push(...mappedDeposits);
+        } catch {
+          // Skip patients with no deposits
+        }
       }
 
       setDeposits(allDeposits);
+      if (allDeposits.length === 0) {
+        message.info('Không tìm thấy tạm ứng cho bệnh nhân này');
+      }
     } catch (error) {
       message.error('Không thể tải dữ liệu tạm ứng');
       console.error('Error fetching deposits:', error);
@@ -731,10 +786,17 @@ const Billing: React.FC = () => {
               selectedRowKeys: selectedServices,
               onChange: (keys) => setSelectedServices(keys as string[]),
             }}
+            onRow={(record) => ({
+              onDoubleClick: () => {
+                setSelectedService(record);
+                setServiceDetailVisible(true);
+              },
+              style: { cursor: 'pointer' },
+            })}
             footer={() => (
               <Row gutter={16} style={{ padding: '8px 0' }}>
                 <Col span={12}>
-                  <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space orientation="vertical" style={{ width: '100%' }}>
                     <Row>
                       <Col span={12}>
                         <Text strong>Tổng cộng:</Text>
@@ -806,15 +868,17 @@ const Billing: React.FC = () => {
       }
 
       // Build payment DTO - uses invoiceId instead of patientId
+      const methodMap: Record<string, number> = { cash: 1, card: 2, transfer: 3, deposit: 1, mixed: 1 };
       const paymentDto: CreatePaymentDto = {
         invoiceId: selectedServices[0] || '', // Use first selected service as invoice reference
-        paymentMethod: values.paymentMethod === 'cash' ? 1 : values.paymentMethod === 'card' ? 2 : 3,
+        paymentMethod: methodMap[values.paymentMethod] || 1,
         amount: totals.patientAmount,
         receivedAmount: values.cashAmount || totals.patientAmount,
         cardNumber: values.cardNumber,
         bankName: values.bankName,
         transactionNumber: values.transferCode,
         depositId: values.depositId,
+        depositUsedAmount: values.depositId ? totals.patientAmount : undefined,
         notes: values.note,
       };
 
@@ -870,7 +934,7 @@ const Billing: React.FC = () => {
                 title="Tổng tiền"
                 value={totals.totalAmount}
                 suffix="đ"
-                valueStyle={{ fontSize: 18 }}
+                styles={{ content: { fontSize: 18 } }}
                 formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
               />
             </Col>
@@ -879,7 +943,7 @@ const Billing: React.FC = () => {
                 title="BHYT trả"
                 value={totals.insuranceAmount}
                 suffix="đ"
-                valueStyle={{ fontSize: 18, color: '#52c41a' }}
+                styles={{ content: { fontSize: 18, color: '#52c41a' } }}
                 formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
               />
             </Col>
@@ -888,7 +952,7 @@ const Billing: React.FC = () => {
                 title="Bệnh nhân trả"
                 value={totals.patientAmount}
                 suffix="đ"
-                valueStyle={{ fontSize: 18, color: '#f5222d' }}
+                styles={{ content: { fontSize: 18, color: '#f5222d' } }}
                 formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
               />
             </Col>
@@ -899,7 +963,7 @@ const Billing: React.FC = () => {
 
         <Form.Item name="paymentMethod" initialValue="cash">
           <Radio.Group>
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <Radio value="cash">Tiền mặt</Radio>
               <Radio value="card">Thẻ ngân hàng</Radio>
               <Radio value="transfer">Chuyển khoản</Radio>
@@ -1005,7 +1069,7 @@ const Billing: React.FC = () => {
       placement="right"
       onClose={() => setReceiptDrawerVisible(false)}
       open={receiptDrawerVisible}
-      width={450}
+      size={450}
       extra={
         <Space>
           <Button icon={<PrinterOutlined />} type="primary" onClick={executePrintReceipt}>
@@ -1209,7 +1273,31 @@ const Billing: React.FC = () => {
             In
           </Button>
           {record.remainingAmount > 0 && (
-            <Button size="small" type="link" danger icon={<RollbackOutlined />}>
+            <Button size="small" type="link" danger icon={<RollbackOutlined />} onClick={() => {
+              Modal.confirm({
+                title: 'Hoàn tiền tạm ứng',
+                content: `Hoàn lại ${record.remainingAmount.toLocaleString('vi-VN')} đ cho bệnh nhân ${record.patientName} (${record.patientCode})?`,
+                okText: 'Xác nhận hoàn',
+                cancelText: 'Hủy',
+                onOk: async () => {
+                  try {
+                    const refundDto: CreateRefundDto = {
+                      patientId: record.patientId,
+                      refundAmount: record.remainingAmount,
+                      refundType: 2, // deposit refund
+                      reason: 'Hoàn tiền tạm ứng còn lại',
+                      refundMethod: 1, // cash
+                    };
+                    await createRefund(refundDto);
+                    message.success('Đã tạo yêu cầu hoàn tiền tạm ứng');
+                    await fetchDeposits();
+                  } catch (error) {
+                    console.error('Refund deposit error:', error);
+                    message.error('Lỗi khi hoàn tiền tạm ứng');
+                  }
+                },
+              });
+            }}>
               Hoàn
             </Button>
           )}
@@ -1220,9 +1308,21 @@ const Billing: React.FC = () => {
 
   const DepositsTab = (
     <div>
-      <Row style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col flex="auto">
-          <Space size="large">
+          <Space>
+            <Search
+              placeholder="Tìm tạm ứng theo mã BN, tên BN..."
+              allowClear
+              enterButton={<SearchOutlined />}
+              style={{ width: 400 }}
+              value={depositSearchText}
+              onChange={(e) => setDepositSearchText(e.target.value)}
+              onSearch={(value) => {
+                setDepositSearchText(value);
+                fetchDeposits(value || undefined);
+              }}
+            />
             <Statistic
               title="Tổng tạm ứng"
               value={deposits.reduce((sum, d) => sum + d.amount, 0)}
@@ -1233,7 +1333,7 @@ const Billing: React.FC = () => {
               title="Còn lại"
               value={deposits.reduce((sum, d) => sum + d.remainingAmount, 0)}
               suffix="đ"
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
               formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
             />
           </Space>
@@ -1260,6 +1360,13 @@ const Billing: React.FC = () => {
           showSizeChanger: true,
           showTotal: (total) => `Tổng: ${total} bản ghi`,
         }}
+        onRow={(record) => ({
+          onDoubleClick: () => {
+            setSelectedDeposit(record);
+            setDepositDetailVisible(true);
+          },
+          style: { cursor: 'pointer' },
+        })}
       />
     </div>
   );
@@ -1284,7 +1391,30 @@ const Billing: React.FC = () => {
             placeholder="Tìm theo mã BN, tên, SĐT..."
             allowClear
             enterButton={<SearchOutlined />}
+            onSearch={async (value) => {
+              if (!value) return;
+              try {
+                const response = await searchPatients({ keyword: value, pageSize: 1 });
+                const items = (response as any).data?.items || [];
+                if (items.length > 0) {
+                  const p = items[0];
+                  depositForm.setFieldsValue({
+                    patientSearch: `${p.patientCode} - ${p.patientName}`,
+                    patientId: p.patientId,
+                  });
+                  message.success(`Đã chọn: ${p.patientName}`);
+                } else {
+                  message.warning('Không tìm thấy bệnh nhân');
+                }
+              } catch (error) {
+                message.error('Lỗi khi tìm kiếm bệnh nhân');
+              }
+            }}
           />
+        </Form.Item>
+
+        <Form.Item name="patientId" hidden>
+          <Input />
         </Form.Item>
 
         <Form.Item
@@ -1459,6 +1589,28 @@ const Billing: React.FC = () => {
     },
   ];
 
+  const filteredRefunds = refunds.filter(r => {
+    // Text search filter
+    if (refundSearchText) {
+      const text = refundSearchText.toLowerCase();
+      const matchesText =
+        r.patientCode?.toLowerCase().includes(text) ||
+        r.patientName?.toLowerCase().includes(text) ||
+        r.reason?.toLowerCase().includes(text) ||
+        r.requestedBy?.toLowerCase().includes(text);
+      if (!matchesText) return false;
+    }
+    // Date range filter
+    if (refundDateRange) {
+      const [from, to] = refundDateRange;
+      const refundDate = dayjs(r.refundDate);
+      if (refundDate.isBefore(from.startOf('day')) || refundDate.isAfter(to.endOf('day'))) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   const RefundsTab = (
     <div>
       <Row style={{ marginBottom: 16 }}>
@@ -1469,8 +1621,17 @@ const Billing: React.FC = () => {
               allowClear
               enterButton={<SearchOutlined />}
               style={{ width: 300 }}
+              value={refundSearchText}
+              onSearch={(value) => setRefundSearchText(value)}
+              onChange={(e) => setRefundSearchText(e.target.value)}
             />
-            <RangePicker format="DD/MM/YYYY" />
+            <RangePicker
+              format="DD/MM/YYYY"
+              value={refundDateRange}
+              onChange={(dates) => {
+                setRefundDateRange(dates ? [dates[0]!, dates[1]!] as [Dayjs, Dayjs] : null);
+              }}
+            />
           </Space>
         </Col>
         <Col>
@@ -1486,7 +1647,7 @@ const Billing: React.FC = () => {
 
       <Table
         columns={refundsColumns}
-        dataSource={refunds}
+        dataSource={filteredRefunds}
         rowKey="id"
         size="small"
         scroll={{ x: 1400 }}
@@ -1495,6 +1656,13 @@ const Billing: React.FC = () => {
           showSizeChanger: true,
           showTotal: (total) => `Tổng: ${total} bản ghi`,
         }}
+        onRow={(record) => ({
+          onDoubleClick: () => {
+            setSelectedRefund(record);
+            setRefundDetailVisible(true);
+          },
+          style: { cursor: 'pointer' },
+        })}
       />
     </div>
   );
@@ -1519,7 +1687,30 @@ const Billing: React.FC = () => {
             placeholder="Tìm theo mã BN, tên, SĐT..."
             allowClear
             enterButton={<SearchOutlined />}
+            onSearch={async (value) => {
+              if (!value) return;
+              try {
+                const response = await searchPatients({ keyword: value, pageSize: 1 });
+                const items = (response as any).data?.items || [];
+                if (items.length > 0) {
+                  const p = items[0];
+                  refundForm.setFieldsValue({
+                    patientSearch: `${p.patientCode} - ${p.patientName}`,
+                    patientId: p.patientId,
+                  });
+                  message.success(`Đã chọn: ${p.patientName}`);
+                } else {
+                  message.warning('Không tìm thấy bệnh nhân');
+                }
+              } catch (error) {
+                message.error('Lỗi khi tìm kiếm bệnh nhân');
+              }
+            }}
           />
+        </Form.Item>
+
+        <Form.Item name="patientId" hidden>
+          <Input />
         </Form.Item>
 
         <Form.Item
@@ -1575,6 +1766,87 @@ const Billing: React.FC = () => {
     dayjs().endOf('day'),
   ]);
 
+  const handleViewReport = async () => {
+    try {
+      setLoadingReport(true);
+      const requestDto: RevenueReportRequestDto = {
+        fromDate: reportDateRange[0].format('YYYY-MM-DD'),
+        toDate: reportDateRange[1].format('YYYY-MM-DD'),
+      };
+      const [revenueResponse, debtResponse] = await Promise.all([
+        getOutpatientRevenueReport(requestDto),
+        getDebtStatistics().catch(() => null),
+      ]);
+      const data = (revenueResponse as any).data;
+      if (data) {
+        setReportData(data);
+        message.success('Đã tải báo cáo doanh thu');
+      } else {
+        message.warning('Không có dữ liệu báo cáo cho khoảng thời gian này');
+      }
+      if (debtResponse) {
+        setDebtData((debtResponse as any).data || null);
+      }
+    } catch (error) {
+      console.error('View report error:', error);
+      message.error('Không thể tải báo cáo. Vui lòng thử lại.');
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setLoadingReport(true);
+      const requestDto: RevenueReportRequestDto = {
+        fromDate: reportDateRange[0].format('YYYY-MM-DD'),
+        toDate: reportDateRange[1].format('YYYY-MM-DD'),
+      };
+      const response = await getOutpatientRevenueReport(requestDto);
+      const data = (response as any).data as OutpatientRevenueReportDto | undefined;
+      if (!data) {
+        message.warning('Không có dữ liệu để xuất');
+        return;
+      }
+
+      // Build CSV content
+      const headers = ['Ngày', 'Số BN', 'Số hóa đơn', 'Tổng thu', 'BHYT', 'Viện phí'];
+      const rows = (data.dailyDetails || []).map(d => [
+        d.date,
+        d.patientCount,
+        d.invoiceCount,
+        d.totalAmount,
+        d.insuranceAmount,
+        d.patientAmount,
+      ]);
+      const csvContent = [
+        `Báo cáo doanh thu từ ${reportDateRange[0].format('DD/MM/YYYY')} đến ${reportDateRange[1].format('DD/MM/YYYY')}`,
+        '',
+        headers.join(','),
+        ...rows.map(r => r.join(',')),
+        '',
+        `Tổng doanh thu,,,${data.totalRevenue},${data.insuranceRevenue},${data.patientRevenue}`,
+      ].join('\n');
+
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bao-cao-doanh-thu-${reportDateRange[0].format('YYYYMMDD')}-${reportDateRange[1].format('YYYYMMDD')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      message.success('Đã xuất file Excel (CSV) thành công');
+    } catch (error) {
+      console.error('Export excel error:', error);
+      message.error('Không thể xuất báo cáo. Vui lòng thử lại.');
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
   const ReportsTab = (
     <div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -1586,12 +1858,12 @@ const Billing: React.FC = () => {
           />
         </Col>
         <Col>
-          <Button type="primary" icon={<BarChartOutlined />}>
+          <Button type="primary" icon={<BarChartOutlined />} onClick={handleViewReport} loading={loadingReport}>
             Xem báo cáo
           </Button>
         </Col>
         <Col>
-          <Button icon={<FileTextOutlined />}>Xuất Excel</Button>
+          <Button icon={<FileTextOutlined />} onClick={handleExportExcel} loading={loadingReport}>Xuất Excel</Button>
         </Col>
       </Row>
 
@@ -1600,10 +1872,10 @@ const Billing: React.FC = () => {
           <Card>
             <Statistic
               title="Tổng doanh thu"
-              value={45800000}
+              value={reportData?.totalRevenue ?? 0}
               suffix="đ"
               prefix={<DollarOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
               formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
             />
           </Card>
@@ -1611,10 +1883,10 @@ const Billing: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Tiền mặt"
-              value={25000000}
+              title="Viện phí"
+              value={reportData?.patientRevenue ?? 0}
               suffix="đ"
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
               formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
             />
           </Card>
@@ -1622,11 +1894,9 @@ const Billing: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Chuyển khoản"
-              value={15800000}
-              suffix="đ"
-              valueStyle={{ color: '#faad14' }}
-              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+              title="Số hóa đơn"
+              value={reportData?.totalInvoices ?? 0}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -1634,9 +1904,9 @@ const Billing: React.FC = () => {
           <Card>
             <Statistic
               title="BHYT"
-              value={5000000}
+              value={reportData?.insuranceRevenue ?? 0}
               suffix="đ"
-              valueStyle={{ color: '#eb2f96' }}
+              styles={{ content: { color: '#eb2f96' } }}
               formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
             />
           </Card>
@@ -1647,28 +1917,12 @@ const Billing: React.FC = () => {
         <Col span={12}>
           <Card title="Doanh thu theo loại dịch vụ" size="small">
             <Table
-              dataSource={[
-                {
-                  key: '1',
-                  serviceType: 'Khám bệnh',
-                  revenue: 15000000,
-                  count: 75,
-                },
-                {
-                  key: '2',
-                  serviceType: 'Xét nghiệm',
-                  revenue: 12000000,
-                  count: 120,
-                },
-                {
-                  key: '3',
-                  serviceType: 'Chẩn đoán hình ảnh',
-                  revenue: 10800000,
-                  count: 45,
-                },
-                { key: '4', serviceType: 'Thuốc', revenue: 5000000, count: 200 },
-                { key: '5', serviceType: 'Thủ thuật', revenue: 3000000, count: 15 },
-              ]}
+              dataSource={(reportData?.serviceDetails || []).map((s, idx) => ({
+                key: s.serviceId || `svc-${idx}`,
+                serviceType: s.serviceGroup || s.serviceName,
+                revenue: s.totalAmount,
+                count: s.quantity,
+              }))}
               columns={[
                 {
                   title: 'Loại dịch vụ',
@@ -1679,47 +1933,32 @@ const Billing: React.FC = () => {
                   title: 'Lượt',
                   dataIndex: 'count',
                   key: 'count',
-                  align: 'center',
+                  align: 'center' as const,
                 },
                 {
                   title: 'Doanh thu',
                   dataIndex: 'revenue',
                   key: 'revenue',
-                  align: 'right',
-                  render: (value) => `${value.toLocaleString('vi-VN')} đ`,
+                  align: 'right' as const,
+                  render: (value: number) => `${(value || 0).toLocaleString('vi-VN')} đ`,
                 },
               ]}
               pagination={false}
               size="small"
+              locale={{ emptyText: 'Nhấn "Xem báo cáo" để tải dữ liệu' }}
             />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="Công nợ chưa thu" size="small">
             <Table
-              dataSource={[
-                {
-                  key: '1',
-                  patientCode: 'BN26000003',
-                  patientName: 'Lê Văn C',
-                  amount: 2500000,
-                  days: 5,
-                },
-                {
-                  key: '2',
-                  patientCode: 'BN26000005',
-                  patientName: 'Phạm Thị D',
-                  amount: 1800000,
-                  days: 3,
-                },
-                {
-                  key: '3',
-                  patientCode: 'BN26000008',
-                  patientName: 'Hoàng Văn E',
-                  amount: 950000,
-                  days: 2,
-                },
-              ]}
+              dataSource={(debtData?.topDebtors || []).map((d, idx) => ({
+                key: d.patientId || `debt-${idx}`,
+                patientCode: d.patientCode,
+                patientName: d.patientName,
+                amount: d.debtAmount,
+                days: d.daysOverdue,
+              }))}
               columns={[
                 {
                   title: 'Mã BN',
@@ -1736,24 +1975,25 @@ const Billing: React.FC = () => {
                   title: 'Số ngày',
                   dataIndex: 'days',
                   key: 'days',
-                  align: 'center',
+                  align: 'center' as const,
                   width: 80,
                 },
                 {
                   title: 'Công nợ',
                   dataIndex: 'amount',
                   key: 'amount',
-                  align: 'right',
+                  align: 'right' as const,
                   width: 120,
-                  render: (value) => (
+                  render: (value: number) => (
                     <Text strong style={{ color: '#f5222d' }}>
-                      {value.toLocaleString('vi-VN')} đ
+                      {(value || 0).toLocaleString('vi-VN')} đ
                     </Text>
                   ),
                 },
               ]}
               pagination={false}
               size="small"
+              locale={{ emptyText: 'Nhấn "Xem báo cáo" để tải dữ liệu' }}
             />
           </Card>
         </Col>
@@ -1820,6 +2060,99 @@ const Billing: React.FC = () => {
       {DepositModal}
       {RefundModal}
       {ReceiptDrawer}
+
+      {/* Service Detail Modal */}
+      <Modal
+        title="Chi tiết dịch vụ"
+        open={serviceDetailVisible}
+        onCancel={() => setServiceDetailVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setServiceDetailVisible(false)}>Đóng</Button>,
+        ]}
+        width={600}
+      >
+        {selectedService && (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Mã dịch vụ">{selectedService.serviceCode}</Descriptions.Item>
+            <Descriptions.Item label="Tên dịch vụ">{selectedService.serviceName}</Descriptions.Item>
+            <Descriptions.Item label="Loại dịch vụ">{selectedService.serviceType}</Descriptions.Item>
+            <Descriptions.Item label="Số lượng">{selectedService.quantity}</Descriptions.Item>
+            <Descriptions.Item label="Đơn giá">{selectedService.unitPrice.toLocaleString('vi-VN')} đ</Descriptions.Item>
+            <Descriptions.Item label="Thành tiền">{selectedService.totalPrice.toLocaleString('vi-VN')} đ</Descriptions.Item>
+            <Descriptions.Item label="BHYT chi trả">{selectedService.insuranceAmount.toLocaleString('vi-VN')} đ</Descriptions.Item>
+            <Descriptions.Item label="BN chi trả">{selectedService.patientAmount.toLocaleString('vi-VN')} đ</Descriptions.Item>
+            <Descriptions.Item label="Tỷ lệ BHYT">{selectedService.insuranceCoverage}%</Descriptions.Item>
+            <Descriptions.Item label="Ngày thực hiện">
+              {dayjs(selectedService.serviceDate).format('DD/MM/YYYY')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Khoa/Phòng">{selectedService.departmentName}</Descriptions.Item>
+            <Descriptions.Item label="Bác sĩ">{selectedService.doctorName}</Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
+      {/* Deposit Detail Modal */}
+      <Modal
+        title="Chi tiết tạm ứng"
+        open={depositDetailVisible}
+        onCancel={() => setDepositDetailVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setDepositDetailVisible(false)}>Đóng</Button>,
+        ]}
+        width={600}
+      >
+        {selectedDeposit && (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Mã BN">{selectedDeposit.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Họ tên">{selectedDeposit.patientName}</Descriptions.Item>
+            <Descriptions.Item label="Số tiền">{selectedDeposit.amount.toLocaleString('vi-VN')} đ</Descriptions.Item>
+            <Descriptions.Item label="Còn lại">{selectedDeposit.remainingAmount.toLocaleString('vi-VN')} đ</Descriptions.Item>
+            <Descriptions.Item label="Ngày tạm ứng">
+              {dayjs(selectedDeposit.depositDate).format('DD/MM/YYYY HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Thu ngân">{selectedDeposit.cashier}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              <Tag color={selectedDeposit.status === 1 ? 'green' : 'orange'}>
+                {selectedDeposit.status === 1 ? 'Đã sử dụng' : 'Còn hiệu lực'}
+              </Tag>
+            </Descriptions.Item>
+            {selectedDeposit.note && (
+              <Descriptions.Item label="Ghi chú" span={2}>{selectedDeposit.note}</Descriptions.Item>
+            )}
+          </Descriptions>
+        )}
+      </Modal>
+
+      {/* Refund Detail Modal */}
+      <Modal
+        title="Chi tiết hoàn tiền"
+        open={refundDetailVisible}
+        onCancel={() => setRefundDetailVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setRefundDetailVisible(false)}>Đóng</Button>,
+        ]}
+        width={600}
+      >
+        {selectedRefund && (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Mã BN">{selectedRefund.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Họ tên">{selectedRefund.patientName}</Descriptions.Item>
+            <Descriptions.Item label="Số tiền hoàn">{selectedRefund.amount.toLocaleString('vi-VN')} đ</Descriptions.Item>
+            <Descriptions.Item label="Phương thức">{selectedRefund.paymentMethod}</Descriptions.Item>
+            <Descriptions.Item label="Lý do" span={2}>{selectedRefund.reason}</Descriptions.Item>
+            <Descriptions.Item label="Ngày yêu cầu">
+              {dayjs(selectedRefund.refundDate).format('DD/MM/YYYY HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Người yêu cầu">{selectedRefund.requestedBy}</Descriptions.Item>
+            <Descriptions.Item label="Người duyệt">{selectedRefund.approvedBy || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              <Tag color={selectedRefund.status === 2 ? 'green' : selectedRefund.status === 1 ? 'blue' : selectedRefund.status === 3 ? 'red' : 'orange'}>
+                {selectedRefund.status === 2 ? 'Đã duyệt' : selectedRefund.status === 1 ? 'Đang xử lý' : selectedRefund.status === 3 ? 'Từ chối' : 'Chờ duyệt'}
+              </Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
     </div>
   );
 };

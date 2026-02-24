@@ -497,7 +497,7 @@ export interface ScreeningSearchDto {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/nutrition';
+const BASE_URL = '/nutrition';
 
 // #region Screening
 

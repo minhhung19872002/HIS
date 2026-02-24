@@ -83,15 +83,18 @@ namespace HIS.API.Controllers
         private readonly IRISCompleteService _risService;
         private readonly IDigitalSignatureService _digitalSignatureService;
         private readonly IPdfSignatureService _pdfSignatureService;
+        private readonly IConfiguration _configuration;
 
         public RISCompleteController(
             IRISCompleteService risService,
             IDigitalSignatureService digitalSignatureService,
-            IPdfSignatureService pdfSignatureService)
+            IPdfSignatureService pdfSignatureService,
+            IConfiguration configuration)
         {
             _risService = risService;
             _digitalSignatureService = digitalSignatureService;
             _pdfSignatureService = pdfSignatureService;
+            _configuration = configuration;
         }
 
         #region 8.1 Màn hình chờ thực hiện
@@ -379,6 +382,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<RadiologyOrderDto>> GetRadiologyOrder(Guid orderId)
         {
             var result = await _risService.GetRadiologyOrderAsync(orderId);
+            if (result == null) return NotFound(new { message = "Order not found" });
             return Ok(result);
         }
 
@@ -550,6 +554,71 @@ namespace HIS.API.Controllers
         {
             var result = await _risService.GetImagesAsync(seriesInstanceUID);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Proxy Orthanc instance preview (avoid CORS)
+        /// </summary>
+        [HttpGet("pacs/instances/{instanceId}/preview")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetInstancePreview(string instanceId)
+        {
+            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
+            var pacsUser = _configuration["PACS:Username"] ?? "admin";
+            var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var authBytes = System.Text.Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+                var response = await httpClient.GetAsync($"{pacsBaseUrl}/instances/{instanceId}/preview");
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsByteArrayAsync();
+                    var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
+                    return File(content, contentType);
+                }
+                return NotFound();
+            }
+            catch
+            {
+                return StatusCode(502, "Cannot connect to PACS server");
+            }
+        }
+
+        /// <summary>
+        /// Proxy Orthanc instance file download (avoid CORS)
+        /// </summary>
+        [HttpGet("pacs/instances/{instanceId}/file")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetInstanceFile(string instanceId)
+        {
+            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
+            var pacsUser = _configuration["PACS:Username"] ?? "admin";
+            var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var authBytes = System.Text.Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+                var response = await httpClient.GetAsync($"{pacsBaseUrl}/instances/{instanceId}/file");
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsByteArrayAsync();
+                    return File(content, "application/dicom", $"{instanceId}.dcm");
+                }
+                return NotFound();
+            }
+            catch
+            {
+                return StatusCode(502, "Cannot connect to PACS server");
+            }
         }
 
         /// <summary>
@@ -1174,6 +1243,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<QRCodeResultDto>> GenerateQRCode([FromBody] GenerateQRCodeRequestDto request)
         {
             var result = await _risService.GenerateQRCodeAsync(request);
+            if (result == null) return NotFound(new { message = "Order not found" });
             return Ok(result);
         }
 
@@ -2304,6 +2374,25 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<SendHL7ResultDto>> SendHL7Message([FromBody] SendHL7MessageDto dto)
         {
             var result = await _risService.SendHL7MessageAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách HL7 messages theo ngày
+        /// </summary>
+        [HttpGet("hl7-cda/messages")]
+        public async Task<ActionResult<HL7MessageSearchResultDto>> GetHL7Messages(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            var searchDto = new SearchHL7MessageDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                Page = 1,
+                PageSize = 50
+            };
+            var result = await _risService.SearchHL7MessagesAsync(searchDto);
             return Ok(result);
         }
 

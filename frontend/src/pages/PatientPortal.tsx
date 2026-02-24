@@ -286,7 +286,7 @@ const PatientPortal: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Avatar icon={<UserOutlined />} />
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text strong>{record.fullName}</Text>
             <Text type="secondary">{record.phone}</Text>
           </Space>
@@ -442,7 +442,7 @@ const PatientPortal: React.FC = () => {
               title="Tai khoan hoat dong"
               value={activePatients}
               prefix={<UserOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -452,7 +452,7 @@ const PatientPortal: React.FC = () => {
               title="Lich hen sap toi"
               value={upcomingAppointments}
               prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -462,7 +462,7 @@ const PatientPortal: React.FC = () => {
               title="Ket qua cho tra"
               value={pendingResults}
               prefix={<FileTextOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -477,7 +477,18 @@ const PatientPortal: React.FC = () => {
               key: 'patients',
               label: 'Tai khoan benh nhan',
               children: (
-                <Table columns={patientColumns} dataSource={patients} rowKey="id" />
+                <Table
+                  columns={patientColumns}
+                  dataSource={patients}
+                  rowKey="id"
+                  onRow={(record) => ({
+                    onDoubleClick: () => {
+                      setSelectedPatient(record);
+                      setIsPatientViewOpen(true);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                />
               ),
             },
             {
@@ -493,7 +504,31 @@ const PatientPortal: React.FC = () => {
                   >
                     Dat lich moi
                   </Button>
-                  <Table columns={appointmentColumns} dataSource={appointments} rowKey="id" />
+                  <Table
+                    columns={appointmentColumns}
+                    dataSource={appointments}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: 'Chi tiết lịch hẹn',
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày hẹn">{record.appointmentDate}</Descriptions.Item>
+                              <Descriptions.Item label="Giờ">{record.appointmentTime}</Descriptions.Item>
+                              <Descriptions.Item label="Khoa/Phòng">{record.department}</Descriptions.Item>
+                              <Descriptions.Item label="Bác sĩ">{record.doctorName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Lý do">{record.reason || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
                 </>
               ),
             },
@@ -533,7 +568,29 @@ const PatientPortal: React.FC = () => {
                       </Card>
                     </Col>
                   </Row>
-                  <Table columns={feedbackColumns} dataSource={feedbacks} rowKey="id" />
+                  <Table
+                    columns={feedbackColumns}
+                    dataSource={feedbacks}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: 'Chi tiết đánh giá',
+                          width: 500,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                              <Descriptions.Item label="Điểm">{record.rating}/5</Descriptions.Item>
+                              <Descriptions.Item label="Nội dung">{record.content}</Descriptions.Item>
+                              <Descriptions.Item label="Phản hồi">{record.response || 'Chưa phản hồi'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày">{record.createdDate}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
                 </>
               ),
             },
@@ -544,7 +601,7 @@ const PatientPortal: React.FC = () => {
                 <Row gutter={[16, 16]}>
                   <Col span={8}>
                     <Card>
-                      <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                         <CalendarOutlined style={{ fontSize: 48, color: '#1890ff' }} />
                         <Title level={5}>Dat lich kham</Title>
                         <Paragraph type="secondary" style={{ textAlign: 'center' }}>
@@ -555,7 +612,7 @@ const PatientPortal: React.FC = () => {
                   </Col>
                   <Col span={8}>
                     <Card>
-                      <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                         <FileTextOutlined style={{ fontSize: 48, color: '#52c41a' }} />
                         <Title level={5}>Xem ket qua</Title>
                         <Paragraph type="secondary" style={{ textAlign: 'center' }}>
@@ -566,7 +623,7 @@ const PatientPortal: React.FC = () => {
                   </Col>
                   <Col span={8}>
                     <Card>
-                      <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                         <MedicineBoxOutlined style={{ fontSize: 48, color: '#722ed1' }} />
                         <Title level={5}>Don thuoc</Title>
                         <Paragraph type="secondary" style={{ textAlign: 'center' }}>
@@ -577,7 +634,7 @@ const PatientPortal: React.FC = () => {
                   </Col>
                   <Col span={8}>
                     <Card>
-                      <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                         <CreditCardOutlined style={{ fontSize: 48, color: '#eb2f96' }} />
                         <Title level={5}>Thanh toan</Title>
                         <Paragraph type="secondary" style={{ textAlign: 'center' }}>
@@ -588,7 +645,7 @@ const PatientPortal: React.FC = () => {
                   </Col>
                   <Col span={8}>
                     <Card>
-                      <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                         <HistoryOutlined style={{ fontSize: 48, color: '#faad14' }} />
                         <Title level={5}>Lich su kham</Title>
                         <Paragraph type="secondary" style={{ textAlign: 'center' }}>
@@ -599,7 +656,7 @@ const PatientPortal: React.FC = () => {
                   </Col>
                   <Col span={8}>
                     <Card>
-                      <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                         <StarOutlined style={{ fontSize: 48, color: '#13c2c2' }} />
                         <Title level={5}>Danh gia</Title>
                         <Paragraph type="secondary" style={{ textAlign: 'center' }}>
@@ -640,7 +697,7 @@ const PatientPortal: React.FC = () => {
                         avatar={<Badge dot><BellOutlined style={{ fontSize: 24 }} /></Badge>}
                         title={item.title}
                         description={
-                          <Space direction="vertical" size={0}>
+                          <Space orientation="vertical" size={0}>
                             <Text>{item.description}</Text>
                             <Text type="secondary">{item.time}</Text>
                           </Space>
@@ -697,17 +754,22 @@ const PatientPortal: React.FC = () => {
 
             <Divider>Hoat dong gan day</Divider>
 
-            <Timeline>
-              <Timeline.Item color="green">
-                {dayjs().format('DD/MM/YYYY HH:mm')} - Dang nhap he thong
-              </Timeline.Item>
-              <Timeline.Item color="blue">
-                {dayjs().subtract(5, 'day').format('DD/MM/YYYY')} - Kham benh Noi khoa
-              </Timeline.Item>
-              <Timeline.Item color="blue">
-                {dayjs().subtract(5, 'day').format('DD/MM/YYYY')} - Xet nghiem mau
-              </Timeline.Item>
-            </Timeline>
+            <Timeline
+              items={[
+                {
+                  color: 'green',
+                  content: <>{dayjs().format('DD/MM/YYYY HH:mm')} - Dang nhap he thong</>,
+                },
+                {
+                  color: 'blue',
+                  content: <>{dayjs().subtract(5, 'day').format('DD/MM/YYYY')} - Kham benh Noi khoa</>,
+                },
+                {
+                  color: 'blue',
+                  content: <>{dayjs().subtract(5, 'day').format('DD/MM/YYYY')} - Xet nghiem mau</>,
+                },
+              ]}
+            />
 
             <Divider>Hoa don chua thanh toan</Divider>
 

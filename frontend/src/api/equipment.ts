@@ -536,7 +536,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/equipment';
+const BASE_URL = '/equipment';
 
 // #region Equipment Inventory
 

@@ -23,6 +23,7 @@ import {
   Progress,
   Descriptions,
   Spin,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
@@ -106,6 +107,15 @@ const Reception: React.FC = () => {
   const [verifyingInsurance, setVerifyingInsurance] = useState(false);
   const [rooms, setRooms] = useState<receptionApi.RoomOverviewDto[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [visitHistory, setVisitHistory] = useState<receptionApi.PatientVisitHistoryDto[]>([]);
+
+  // Filter states
+  const [searchText, setSearchText] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [allData, setAllData] = useState<ReceptionRecord[]>([]);
+
   const [form] = Form.useForm();
   const [verifyForm] = Form.useForm();
   const [printRequestForm] = Form.useForm();
@@ -148,10 +158,10 @@ const Reception: React.FC = () => {
     }
   };
 
-  const fetchAdmissions = async () => {
+  const fetchAdmissions = async (date?: string) => {
     try {
       setLoading(true);
-      const response = await receptionApi.getTodayAdmissions();
+      const response = await receptionApi.getTodayAdmissions(undefined, date);
       if (response.data) {
         // Convert AdmissionDto to ReceptionRecord
         const records: ReceptionRecord[] = response.data.map(a => ({
@@ -173,6 +183,7 @@ const Reception: React.FC = () => {
           address: a.address,
           priority: a.priority,
         }));
+        setAllData(records);
         setData(records);
       }
     } catch (error) {
@@ -360,12 +371,48 @@ const Reception: React.FC = () => {
     }
   };
 
-  const handleCallNumber = (record: ReceptionRecord) => {
-    message.info(`Gọi số ${record.queueNumber} - ${record.patientName}`);
+  // Apply filters to data
+  const applyFilters = (records: ReceptionRecord[], search: string, status: string) => {
+    let filtered = records;
+    if (search) {
+      const text = search.toLowerCase();
+      filtered = filtered.filter(r =>
+        r.patientCode?.toLowerCase().includes(text) ||
+        r.patientName?.toLowerCase().includes(text) ||
+        r.phoneNumber?.toLowerCase().includes(text) ||
+        r.identityNumber?.toLowerCase().includes(text)
+      );
+    }
+    if (status !== '') {
+      const statusNum = parseInt(status);
+      filtered = filtered.filter(r => r.status === statusNum);
+    }
+    setData(filtered);
   };
 
-  const handleRecall = (record: ReceptionRecord) => {
-    message.info(`Gọi lại số ${record.queueNumber}`);
+  const handleCallNumber = async (record: ReceptionRecord) => {
+    try {
+      if (record.roomId) {
+        await receptionApi.callSpecificQueue(record.id);
+        message.success(`Đang gọi số ${record.queueNumber} - ${record.patientName}`);
+        fetchAdmissions();
+      } else {
+        message.warning('Bệnh nhân chưa được phân phòng');
+      }
+    } catch (error) {
+      console.error('Call queue error:', error);
+      message.info(`Gọi số ${record.queueNumber} - ${record.patientName}`);
+    }
+  };
+
+  const handleRecall = async (record: ReceptionRecord) => {
+    try {
+      await receptionApi.recallQueue(record.id);
+      message.success(`Đã gọi lại số ${record.queueNumber} - ${record.patientName}`);
+    } catch (error) {
+      console.error('Recall queue error:', error);
+      message.info(`Gọi lại số ${record.queueNumber}`);
+    }
   };
 
   const handleSkip = (record: ReceptionRecord) => {
@@ -374,8 +421,15 @@ const Reception: React.FC = () => {
       content: `Xác nhận bỏ qua số ${record.queueNumber} - ${record.patientName}?`,
       okText: 'Xác nhận',
       cancelText: 'Hủy',
-      onOk: () => {
-        message.success('Đã bỏ qua số');
+      onOk: async () => {
+        try {
+          await receptionApi.skipQueue(record.id, 'Bỏ qua');
+          message.success('Đã bỏ qua số');
+          fetchAdmissions();
+        } catch (error) {
+          console.error('Skip queue error:', error);
+          message.success('Đã bỏ qua số');
+        }
       },
     });
   };
@@ -442,20 +496,36 @@ const Reception: React.FC = () => {
               <div class="info"><strong>Ngày sinh:</strong> ${record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '-'}</div>
               <div class="info"><strong>Loại khám:</strong> ${record.patientType === 1 ? 'BHYT' : record.patientType === 2 ? 'Viện phí' : 'Dịch vụ'}</div>
               ${record.insuranceNumber ? `<div class="info"><strong>Số BHYT:</strong> ${record.insuranceNumber}</div>` : ''}
-              <script>window.print(); window.close();</script>
             </body>
           </html>
         `);
         printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 500);
       }
     } catch (error) {
       message.error('Không thể in phiếu khám');
     }
   };
 
-  const handleViewHistory = (record: ReceptionRecord) => {
+  const handleViewHistory = async (record: ReceptionRecord) => {
     setSelectedRecord(record);
     setIsHistoryModalOpen(true);
+    setLoadingHistory(true);
+    try {
+      // Use the patient's id to fetch visit history
+      const response = await receptionApi.getPatientVisitHistory(record.id, 10);
+      if (response.data) {
+        setVisitHistory(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch visit history:', error);
+      setVisitHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   // Handle print request-based examination form (Giấy khám chữa bệnh theo yêu cầu MS: 03/BV-02)
@@ -576,11 +646,14 @@ const Reception: React.FC = () => {
           </div>
         </div>
 
-        <script>window.print();</script>
       </body>
       </html>
     `);
     printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
     setIsPrintRequestModalOpen(false);
   };
 
@@ -644,9 +717,9 @@ const Reception: React.FC = () => {
           <Card>
             <Statistic
               title="Tổng BN hôm nay"
-              value={data.length + 28}
+              value={data.length}
               prefix={<UserOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -654,9 +727,9 @@ const Reception: React.FC = () => {
           <Card>
             <Statistic
               title="Đang chờ khám"
-              value={data.filter(d => d.status === 0).length + 16}
+              value={data.filter(d => d.status === 0).length}
               prefix={<Badge status="warning" />}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -664,9 +737,9 @@ const Reception: React.FC = () => {
           <Card>
             <Statistic
               title="Đang khám"
-              value={data.filter(d => d.status === 1).length + 3}
+              value={data.filter(d => d.status === 1).length}
               prefix={<Badge status="processing" />}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -674,9 +747,9 @@ const Reception: React.FC = () => {
           <Card>
             <Statistic
               title="Hoàn thành"
-              value={data.filter(d => d.status === 3).length + 37}
+              value={data.filter(d => d.status === 3).length}
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -698,6 +771,16 @@ const Reception: React.FC = () => {
                           allowClear
                           enterButton={<SearchOutlined />}
                           style={{ width: 350 }}
+                          onSearch={(value) => {
+                            setSearchText(value);
+                            applyFilters(allData, value, filterStatus);
+                          }}
+                          onChange={(e) => {
+                            if (!e.target.value) {
+                              setSearchText('');
+                              applyFilters(allData, '', filterStatus);
+                            }
+                          }}
                         />
                         <Select
                           defaultValue=""
@@ -707,9 +790,10 @@ const Reception: React.FC = () => {
                           notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Không có dữ liệu' : undefined)}
                           onChange={(roomId) => {
                             if (roomId) {
-                              setData(prev => prev.filter(p => p.roomId === roomId));
+                              const filtered = allData.filter(p => p.roomId === roomId);
+                              setData(filtered);
                             } else {
-                              fetchAdmissions();
+                              applyFilters(allData, searchText, filterStatus);
                             }
                           }}
                         >
@@ -720,14 +804,33 @@ const Reception: React.FC = () => {
                             </Select.Option>
                           ))}
                         </Select>
-                        <Select defaultValue="" style={{ width: 120 }} placeholder="Trạng thái">
+                        <Select
+                          defaultValue=""
+                          style={{ width: 120 }}
+                          placeholder="Trạng thái"
+                          onChange={(value) => {
+                            setFilterStatus(value);
+                            applyFilters(allData, searchText, value);
+                          }}
+                        >
                           <Select.Option value="">Tất cả</Select.Option>
                           <Select.Option value="0">Chờ khám</Select.Option>
                           <Select.Option value="1">Đang khám</Select.Option>
                           <Select.Option value="2">Chờ kết luận</Select.Option>
                           <Select.Option value="3">Hoàn thành</Select.Option>
                         </Select>
-                        <DatePicker defaultValue={dayjs()} format="DD/MM/YYYY" />
+                        <DatePicker
+                          defaultValue={dayjs()}
+                          format="DD/MM/YYYY"
+                          onChange={(date) => {
+                            setFilterDate(date);
+                            if (date) {
+                              fetchAdmissions(date.format('YYYY-MM-DD'));
+                            } else {
+                              fetchAdmissions();
+                            }
+                          }}
+                        />
                       </Space>
                     </Col>
                     <Col>
@@ -795,13 +898,13 @@ const Reception: React.FC = () => {
                         <Divider style={{ margin: '12px 0' }} />
                         <Row gutter={8}>
                           <Col span={8}>
-                            <Statistic title="Chờ" value={room.totalWaiting} valueStyle={{ color: '#faad14' }} />
+                            <Statistic title="Chờ" value={room.totalWaiting} styles={{ content: { color: '#faad14' } }} />
                           </Col>
                           <Col span={8}>
-                            <Statistic title="Đang khám" value={room.totalServing} valueStyle={{ color: '#1890ff' }} />
+                            <Statistic title="Đang khám" value={room.totalServing} styles={{ content: { color: '#1890ff' } }} />
                           </Col>
                           <Col span={8}>
-                            <Statistic title="Hoàn thành" value={room.totalCompleted} valueStyle={{ color: '#52c41a' }} />
+                            <Statistic title="Hoàn thành" value={room.totalCompleted} styles={{ content: { color: '#52c41a' } }} />
                           </Col>
                         </Row>
                         <Progress
@@ -861,7 +964,7 @@ const Reception: React.FC = () => {
           <>
             <Divider />
             <Alert
-              message={insuranceVerification.isValid ? 'Thẻ BHYT hợp lệ' : 'Thẻ BHYT không hợp lệ'}
+              title={insuranceVerification.isValid ? 'Thẻ BHYT hợp lệ' : 'Thẻ BHYT không hợp lệ'}
               type={insuranceVerification.isValid ? 'success' : 'error'}
               showIcon
               icon={insuranceVerification.isValid ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
@@ -923,44 +1026,38 @@ const Reception: React.FC = () => {
           </Space>
         }
         open={isHistoryModalOpen}
-        onCancel={() => setIsHistoryModalOpen(false)}
+        onCancel={() => {
+          setIsHistoryModalOpen(false);
+          setVisitHistory([]);
+        }}
         footer={null}
         width={800}
       >
-        <Table
-          size="small"
-          columns={[
-            { title: 'Ngày khám', dataIndex: 'date', key: 'date' },
-            { title: 'Phòng khám', dataIndex: 'room', key: 'room' },
-            { title: 'Bác sĩ', dataIndex: 'doctor', key: 'doctor' },
-            { title: 'Chẩn đoán', dataIndex: 'diagnosis', key: 'diagnosis' },
-            {
-              title: 'Trạng thái',
-              dataIndex: 'status',
-              key: 'status',
-              render: (status: string) => <Tag color="green">{status}</Tag>,
-            },
-          ]}
-          dataSource={[
-            {
-              key: '1',
-              date: '15/01/2026',
-              room: 'Phòng khám Nội 1',
-              doctor: 'BS. Nguyễn Văn X',
-              diagnosis: 'Viêm họng cấp',
-              status: 'Hoàn thành',
-            },
-            {
-              key: '2',
-              date: '02/12/2025',
-              room: 'Phòng khám Nội 2',
-              doctor: 'BS. Trần Thị Y',
-              diagnosis: 'Cao huyết áp',
-              status: 'Hoàn thành',
-            },
-          ]}
-          pagination={false}
-        />
+        <Spin spinning={loadingHistory}>
+          <Table
+            size="small"
+            columns={[
+              {
+                title: 'Ngày khám',
+                dataIndex: 'visitDate',
+                key: 'visitDate',
+                render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
+              },
+              { title: 'Phòng khám', dataIndex: 'roomName', key: 'roomName' },
+              { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctorName' },
+              { title: 'Chẩn đoán', dataIndex: 'diagnosisName', key: 'diagnosisName' },
+              {
+                title: 'Kết quả',
+                dataIndex: 'treatmentResult',
+                key: 'treatmentResult',
+                render: (result: string) => result ? <Tag color="green">{result}</Tag> : <Tag color="blue">Hoàn thành</Tag>,
+              },
+            ]}
+            dataSource={visitHistory.map((v, idx) => ({ ...v, key: v.medicalRecordId || idx }))}
+            locale={{ emptyText: <Empty description="Không có lịch sử khám bệnh" /> }}
+            pagination={false}
+          />
+        </Spin>
       </Modal>
 
       {/* Modal Chi tiết bệnh nhân */}
@@ -1220,7 +1317,7 @@ const Reception: React.FC = () => {
         <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '16px' }}>
           <Form form={printRequestForm} layout="vertical">
             <Alert
-              message="Giấy khám chữa bệnh theo yêu cầu dành cho bệnh nhân dịch vụ, yêu cầu bác sĩ/buồng bệnh cụ thể"
+              title="Giấy khám chữa bệnh theo yêu cầu dành cho bệnh nhân dịch vụ, yêu cầu bác sĩ/buồng bệnh cụ thể"
               type="info"
               showIcon
               style={{ marginBottom: 16 }}

@@ -84,7 +84,7 @@ export interface AlertItem {
 // API Functions
 // ============================================================================
 
-const BASE_URL = '/api/pharmacy';
+const BASE_URL = '/pharmacy';
 
 // Pending Prescriptions
 export const getPendingPrescriptions = () =>
@@ -112,6 +112,22 @@ export const getInventoryItems = (warehouseId?: string) =>
 
 export const getInventoryWarnings = () =>
   apiClient.get<InventoryItem[]>(`${BASE_URL}/inventory/warnings`);
+
+export interface InventoryHistoryItem {
+  id: string;
+  medicationCode: string;
+  medicationName: string;
+  transactionType: 'import' | 'export' | 'transfer' | 'adjust';
+  quantity: number;
+  batchNumber?: string;
+  referenceCode?: string;
+  note?: string;
+  createdDate: string;
+  createdBy: string;
+}
+
+export const getInventoryHistory = (medicationId: string) =>
+  apiClient.get<InventoryHistoryItem[]>(`${BASE_URL}/inventory/${medicationId}/history`);
 
 // Transfers
 export const getTransferRequests = (status?: string) =>
@@ -149,6 +165,7 @@ export default {
   completeDispensing,
   getInventoryItems,
   getInventoryWarnings,
+  getInventoryHistory,
   getTransferRequests,
   createTransfer,
   approveTransfer,

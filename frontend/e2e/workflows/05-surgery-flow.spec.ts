@@ -858,6 +858,7 @@ const surgeryTypes = [
 
 for (const surgeryType of surgeryTypes) {
   test(`Tao yeu cau ${surgeryType.type}`, async ({ page }) => {
+    test.setTimeout(60000);
     // Dang nhap truoc
     await login(page);
 

@@ -1075,7 +1075,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/BillingComplete';
+const BASE_URL = '/BillingComplete';
 
 // #region 10.1.1 Quản lý sổ thu
 

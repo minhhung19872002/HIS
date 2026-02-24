@@ -10,10 +10,8 @@ import {
   Spin,
   Alert,
   Descriptions,
-  List,
   Empty,
   message,
-  Divider,
   Tag,
   Tooltip,
 } from 'antd';
@@ -22,7 +20,6 @@ import {
   ReloadOutlined,
   ExpandOutlined,
   DownloadOutlined,
-  PrinterOutlined,
   FileImageOutlined,
   FolderOutlined,
   PictureOutlined,
@@ -35,6 +32,8 @@ import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
 
 const { Title, Text } = Typography;
 
+const ORTHANC_BASE = 'http://localhost:8042';
+
 interface StudyInfo {
   studyInstanceUID: string;
   patientName?: string;
@@ -45,6 +44,7 @@ interface StudyInfo {
   accessionNumber?: string;
   seriesCount?: number;
   instanceCount?: number;
+  orthancStudyId?: string;
 }
 
 const DicomViewer: React.FC = () => {
@@ -59,7 +59,7 @@ const DicomViewer: React.FC = () => {
   const [selectedSeries, setSelectedSeries] = useState<DicomSeriesDto | null>(null);
   const [images, setImages] = useState<DicomImageDto[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   // Check PACS availability and load study data
   useEffect(() => {
@@ -77,7 +77,7 @@ const DicomViewer: React.FC = () => {
     setError(null);
 
     try {
-      // Try to get series list
+      // Try to get series list from backend API
       const seriesResponse = await risApi.getSeries(studyInstanceUID);
 
       if (seriesResponse.data && seriesResponse.data.length > 0) {
@@ -85,7 +85,7 @@ const DicomViewer: React.FC = () => {
         setSeries(seriesResponse.data);
 
         // Extract study info from first series
-        const firstSeries = seriesResponse.data[0];
+        const firstSeries = seriesResponse.data[0] as any;
         setStudyInfo({
           studyInstanceUID,
           patientName: firstSeries.patientName,
@@ -94,12 +94,9 @@ const DicomViewer: React.FC = () => {
           studyDescription: firstSeries.studyDescription,
           modality: firstSeries.modality,
           seriesCount: seriesResponse.data.length,
-          instanceCount: seriesResponse.data.reduce((sum, s) => sum + (s.instanceCount || s.numberOfImages || 0), 0),
+          instanceCount: seriesResponse.data.reduce((sum: number, s: any) => sum + (s.instanceCount || s.numberOfImages || 0), 0),
+          orthancStudyId: firstSeries.orthancStudyId,
         });
-
-        // Build OHIF/Orthanc viewer URL
-        // If Orthanc is available at default port, we can use OHIF viewer
-        setViewerUrl(`http://localhost:8042/ohif/viewer?StudyInstanceUIDs=${studyInstanceUID}`);
 
         // Auto-select first series
         setSelectedSeries(firstSeries);
@@ -131,6 +128,10 @@ const DicomViewer: React.FC = () => {
     try {
       const response = await risApi.getImages(seriesUID);
       setImages(response.data || []);
+      // Auto-select first image for large preview
+      if (response.data && response.data.length > 0 && response.data[0].imageUrl) {
+        setSelectedImageUrl(response.data[0].imageUrl);
+      }
     } catch (err) {
       console.error('Error loading images:', err);
       setImages([]);
@@ -139,24 +140,26 @@ const DicomViewer: React.FC = () => {
 
   const handleSeriesSelect = (s: DicomSeriesDto) => {
     setSelectedSeries(s);
+    setSelectedImageUrl(null);
     loadImages(s.seriesInstanceUID);
   };
 
-  const handleOpenOHIFViewer = () => {
-    if (viewerUrl) {
-      window.open(viewerUrl, '_blank');
-    } else {
-      message.warning('OHIF Viewer không khả dụng');
-    }
+  const handleOpenOHIF = () => {
+    // Open OHIF Viewer integrated in Orthanc
+    const ohifUrl = `${ORTHANC_BASE}/ohif/viewer?StudyInstanceUIDs=${studyInstanceUID}`;
+    window.open(ohifUrl, '_blank');
   };
 
-  const handleOpenOrthancViewer = () => {
-    const orthancUrl = `http://localhost:8042/app/explorer.html#study?uuid=${studyInstanceUID}`;
-    window.open(orthancUrl, '_blank');
+  const handleOpenOrthancExplorer = () => {
+    window.open(`${ORTHANC_BASE}/ui/app/#/filtered-studies?StudyInstanceUID=${studyInstanceUID}`, '_blank');
   };
 
   const handleDownloadStudy = () => {
-    message.info('Chức năng tải study đang được phát triển');
+    if (studyInfo?.orthancStudyId) {
+      window.open(`${ORTHANC_BASE}/studies/${studyInfo.orthancStudyId}/archive`, '_blank');
+    } else {
+      message.info('Không tìm thấy study trong PACS');
+    }
   };
 
   if (loading) {
@@ -188,10 +191,10 @@ const DicomViewer: React.FC = () => {
             </Button>
             {pacsAvailable && (
               <>
-                <Button type="primary" icon={<ExpandOutlined />} onClick={handleOpenOHIFViewer}>
+                <Button type="primary" icon={<ExpandOutlined />} onClick={handleOpenOHIF}>
                   Mở OHIF Viewer
                 </Button>
-                <Button icon={<LinkOutlined />} onClick={handleOpenOrthancViewer}>
+                <Button icon={<LinkOutlined />} onClick={handleOpenOrthancExplorer}>
                   Orthanc Explorer
                 </Button>
                 <Button icon={<DownloadOutlined />} onClick={handleDownloadStudy}>
@@ -206,7 +209,7 @@ const DicomViewer: React.FC = () => {
       {/* Error Alert */}
       {error && (
         <Alert
-          message="Lỗi kết nối PACS"
+          title="Lỗi kết nối PACS"
           description={error}
           type="error"
           showIcon
@@ -217,7 +220,7 @@ const DicomViewer: React.FC = () => {
       {/* PACS Not Available Warning */}
       {!pacsAvailable && !error && (
         <Alert
-          message="PACS Server chưa được cấu hình"
+          title="PACS Server chưa được cấu hình"
           description={
             <div>
               <p>Để xem ảnh DICOM, cần có Orthanc PACS Server đang chạy.</p>
@@ -279,43 +282,44 @@ const DicomViewer: React.FC = () => {
       {/* Main Content */}
       <Row gutter={16}>
         {/* Series List */}
-        <Col xs={24} md={6}>
+        <Col xs={24} md={4}>
           <Card
             title={<><FolderOutlined /> Series ({series.length})</>}
             size="small"
             style={{ height: 'calc(100vh - 350px)', overflowY: 'auto' }}
           >
             {series.length > 0 ? (
-              <List
-                size="small"
-                dataSource={series}
-                renderItem={(s) => (
-                  <List.Item
+              <div>
+                {series.map((s) => (
+                  <div
+                    key={s.seriesInstanceUID}
                     onClick={() => handleSeriesSelect(s)}
                     style={{
                       cursor: 'pointer',
                       backgroundColor: selectedSeries?.seriesInstanceUID === s.seriesInstanceUID ? '#e6f7ff' : 'transparent',
                       padding: '8px',
                       borderRadius: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      borderBottom: '1px solid #f0f0f0',
                     }}
                   >
-                    <List.Item.Meta
-                      avatar={<PictureOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
-                      title={
+                    <PictureOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                    <div>
+                      <div>
                         <Space>
                           <Tag>{s.modality}</Tag>
                           <Text style={{ fontSize: 12 }}>{s.seriesDescription || 'Series'}</Text>
                         </Space>
-                      }
-                      description={
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          {s.instanceCount || s.numberOfImages || 0} ảnh
-                        </Text>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
+                      </div>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {(s as any).instanceCount || s.numberOfImages || 0} ảnh
+                      </Text>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <Empty
                 description="Không có series"
@@ -325,8 +329,8 @@ const DicomViewer: React.FC = () => {
           </Card>
         </Col>
 
-        {/* Image Thumbnails */}
-        <Col xs={24} md={18}>
+        {/* Image Viewer - Large Preview */}
+        <Col xs={24} md={14}>
           <Card
             title={
               <Space>
@@ -341,50 +345,27 @@ const DicomViewer: React.FC = () => {
             style={{ height: 'calc(100vh - 350px)', overflowY: 'auto' }}
             extra={
               pacsAvailable && selectedSeries && (
-                <Button type="primary" size="small" icon={<ExpandOutlined />} onClick={handleOpenOHIFViewer}>
+                <Button type="primary" size="small" icon={<ExpandOutlined />} onClick={handleOpenOHIF}>
                   Xem toàn màn hình
                 </Button>
               )
             }
           >
             {pacsAvailable ? (
-              images.length > 0 ? (
-                <Row gutter={[8, 8]}>
-                  {images.map((img, index) => (
-                    <Col key={img.sopInstanceUID || index} xs={12} sm={8} md={6} lg={4}>
-                      <Card
-                        hoverable
-                        size="small"
-                        cover={
-                          <div
-                            style={{
-                              height: 100,
-                              background: '#000',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Tooltip title="Click để xem trong OHIF Viewer">
-                              <PictureOutlined style={{ fontSize: 32, color: '#fff' }} />
-                            </Tooltip>
-                          </div>
-                        }
-                        onClick={handleOpenOHIFViewer}
-                      >
-                        <Card.Meta
-                          description={
-                            <Text style={{ fontSize: 10 }} type="secondary">
-                              Frame {img.instanceNumber || index + 1}
-                            </Text>
-                          }
-                        />
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
+              selectedImageUrl ? (
+                <div style={{ textAlign: 'center', background: '#000', padding: 8, borderRadius: 4 }}>
+                  <img
+                    src={selectedImageUrl}
+                    alt="DICOM"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: 'calc(100vh - 450px)',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
               ) : (
-                <Empty description="Chọn series để xem ảnh" />
+                <Empty description="Chọn ảnh để xem" />
               )
             ) : (
               <div style={{ textAlign: 'center', padding: 40 }}>
@@ -395,18 +376,65 @@ const DicomViewer: React.FC = () => {
                 <Text type="secondary">
                   Vui lòng khởi động Orthanc PACS Server để xem ảnh DICOM
                 </Text>
-                <Divider />
-                <Space direction="vertical">
-                  <Text>Cài đặt Orthanc:</Text>
-                  <Button
-                    type="link"
-                    href="https://www.orthanc-server.com/download.php"
-                    target="_blank"
-                  >
-                    Tải Orthanc Server
-                  </Button>
-                </Space>
               </div>
+            )}
+          </Card>
+        </Col>
+
+        {/* Image Thumbnails */}
+        <Col xs={24} md={6}>
+          <Card
+            title={<><PictureOutlined /> Thumbnails ({images.length})</>}
+            size="small"
+            style={{ height: 'calc(100vh - 350px)', overflowY: 'auto' }}
+          >
+            {images.length > 0 ? (
+              <Row gutter={[4, 4]}>
+                {images.map((img, index) => (
+                  <Col key={img.sopInstanceUID || index} xs={12}>
+                    <Card
+                      hoverable
+                      size="small"
+                      style={{
+                        border: selectedImageUrl === img.imageUrl ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                      }}
+                      cover={
+                        <div
+                          style={{
+                            height: 80,
+                            background: '#000',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {img.thumbnailUrl ? (
+                            <img
+                              src={img.thumbnailUrl}
+                              alt={`Frame ${img.instanceNumber || index + 1}`}
+                              style={{ maxWidth: '100%', maxHeight: 80, objectFit: 'contain' }}
+                            />
+                          ) : (
+                            <PictureOutlined style={{ fontSize: 24, color: '#fff' }} />
+                          )}
+                        </div>
+                      }
+                      onClick={() => setSelectedImageUrl(img.imageUrl || img.thumbnailUrl || '')}
+                    >
+                      <Card.Meta
+                        description={
+                          <Text style={{ fontSize: 10 }} type="secondary">
+                            Frame {img.instanceNumber || index + 1}
+                          </Text>
+                        }
+                      />
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            ) : (
+              <Empty description="Chọn series để xem" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             )}
           </Card>
         </Col>

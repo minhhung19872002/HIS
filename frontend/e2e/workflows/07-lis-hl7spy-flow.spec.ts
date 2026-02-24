@@ -710,7 +710,7 @@ test.describe('LIS Module - UI Flow Tests', () => {
   });
 
   test('UI.2 - View Sample Collection List', async ({ page }) => {
-    await page.goto('http://localhost:3000/laboratory');
+    await page.goto('/laboratory');
 
     // Should see tabs
     const pendingTab = page.locator('text=Chờ lấy mẫu');
@@ -721,7 +721,7 @@ test.describe('LIS Module - UI Flow Tests', () => {
   });
 
   test('UI.3 - View Lab Results', async ({ page }) => {
-    await page.goto('http://localhost:3000/laboratory');
+    await page.goto('/laboratory');
 
     // Click results tab
     const resultsTab = page.locator('text=Kết quả');

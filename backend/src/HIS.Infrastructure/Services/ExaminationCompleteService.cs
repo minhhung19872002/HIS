@@ -1250,15 +1250,15 @@ public class ExaminationCompleteService : IExaminationCompleteService
     public async Task<List<IcdCodeFullDto>> SearchIcdCodesAsync(string keyword, int? icdType = null, int limit = 20)
     {
         var codes = await _context.IcdCodes
-            .Where(i => i.Code.Contains(keyword) || i.NameVn.Contains(keyword) || i.NameEn.Contains(keyword))
+            .Where(i => i.Code.Contains(keyword) || i.Name.Contains(keyword) || (i.NameEnglish != null && i.NameEnglish.Contains(keyword)))
             .Take(limit)
             .ToListAsync();
 
         return codes.Select(i => new IcdCodeFullDto
         {
             Code = i.Code,
-            Name = i.NameVn,
-            EnglishName = i.NameEn,
+            Name = i.Name,
+            EnglishName = i.NameEnglish,
             IcdType = 1,
             ChapterCode = i.ChapterCode,
             ChapterName = i.ChapterName,
@@ -1274,8 +1274,8 @@ public class ExaminationCompleteService : IExaminationCompleteService
         return new IcdCodeFullDto
         {
             Code = icd.Code,
-            Name = icd.NameVn,
-            EnglishName = icd.NameEn,
+            Name = icd.Name,
+            EnglishName = icd.NameEnglish,
             IcdType = 1,
             IsActive = icd.IsActive
         };

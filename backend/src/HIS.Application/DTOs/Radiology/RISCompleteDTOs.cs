@@ -171,6 +171,13 @@ namespace HIS.Application.DTOs.Radiology
         public string BodyPartExamined { get; set; }
         public int NumberOfImages { get; set; }
         public DateTime? SeriesDate { get; set; }
+        public string? PatientName { get; set; }
+        public string? PatientId { get; set; }
+        public string? StudyDate { get; set; }
+        public string? StudyDescription { get; set; }
+        public string? OrthancStudyId { get; set; }
+        public string? OrthancSeriesId { get; set; }
+        public int? InstanceCount { get; set; }
     }
 
     /// <summary>
@@ -1008,7 +1015,7 @@ namespace HIS.Application.DTOs.Radiology
     public class GenerateQRCodeRequestDto
     {
         public Guid OrderId { get; set; }
-        public string QRType { get; set; } // PATIENT_INFO, ORDER_INFO, RESULT_SHARE, DICOM_LINK
+        public string? QRType { get; set; } // PATIENT_INFO, ORDER_INFO, RESULT_SHARE, DICOM_LINK
         public int Size { get; set; } = 200; // pixels
         public bool IncludePatientInfo { get; set; }
         public bool IncludeOrderInfo { get; set; }
@@ -1297,13 +1304,13 @@ namespace HIS.Application.DTOs.Radiology
     {
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
-        public string Direction { get; set; }
-        public string MessageType { get; set; }
+        public string? Direction { get; set; }
+        public string? MessageType { get; set; }
         public int? Status { get; set; }
-        public string RequestCode { get; set; }
-        public string PatientCode { get; set; }
-        public string MedicalRecordCode { get; set; }
-        public string SourceSystem { get; set; }
+        public string? RequestCode { get; set; }
+        public string? PatientCode { get; set; }
+        public string? MedicalRecordCode { get; set; }
+        public string? SourceSystem { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 50;
     }
@@ -2094,7 +2101,7 @@ public class SkipPatientRequest
         public DateTime? ToDate { get; set; }
         public int? Status { get; set; }
         public Guid? OrganizerId { get; set; }
-        public string Keyword { get; set; }
+        public string? Keyword { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }
@@ -2252,11 +2259,11 @@ public class SkipPatientRequest
     {
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
-        public string MessageType { get; set; }
-        public string Direction { get; set; }
+        public string? MessageType { get; set; }
+        public string? Direction { get; set; }
         public int? Status { get; set; }
-        public string PatientId { get; set; }
-        public string AccessionNumber { get; set; }
+        public string? PatientId { get; set; }
+        public string? AccessionNumber { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 50;
     }

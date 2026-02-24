@@ -717,7 +717,7 @@ export interface PagedResultDto<T> {
 
 // ==================== API FUNCTIONS ====================
 
-const BASE_URL = '/api/quality';
+const BASE_URL = '/quality';
 
 // #region Incident Reporting
 

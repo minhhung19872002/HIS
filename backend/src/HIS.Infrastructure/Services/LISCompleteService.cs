@@ -634,7 +634,38 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<CriticalValueAlertDto>> GetCriticalValueAlertsAsync(DateTime fromDate, DateTime toDate, bool? acknowledged = null)
     {
-        return new List<CriticalValueAlertDto>();
+        try
+        {
+            var query = _context.Set<LabCriticalValueAlert>()
+                .Where(a => !a.IsDeleted && a.AlertTime >= fromDate && a.AlertTime <= toDate);
+
+            if (acknowledged.HasValue)
+                query = query.Where(a => a.IsAcknowledged == acknowledged.Value);
+
+            var alerts = await query.OrderByDescending(a => a.AlertTime).ToListAsync();
+
+            return alerts.Select(a => new CriticalValueAlertDto
+            {
+                LabTestItemId = a.LabResultId,
+                LabOrderId = a.LabResultId,
+                PatientName = a.Patient?.FullName ?? "",
+                PatientCode = a.Patient?.PatientCode ?? "",
+                TestName = a.TestName,
+                Result = a.Result ?? a.NumericResult?.ToString() ?? "",
+                Unit = a.Unit ?? "",
+                ReferenceRange = $"{a.CriticalLow} - {a.CriticalHigh}",
+                AbnormalFlag = a.AlertType,
+                AlertAt = a.AlertTime,
+                IsAcknowledged = a.IsAcknowledged,
+                AcknowledgedAt = a.AcknowledgedAt,
+                AcknowledgedBy = a.AcknowledgedByUser?.FullName
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting critical value alerts");
+            return new List<CriticalValueAlertDto>();
+        }
     }
 
     public async Task<bool> AcknowledgeCriticalValueAsync(Guid alertId, AcknowledgeCriticalValueDto dto)
@@ -678,7 +709,42 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<LabTestCatalogDto>> GetLabTestCatalogAsync(string keyword = null, Guid? groupId = null, bool? isActive = null)
     {
-        return new List<LabTestCatalogDto>();
+        try
+        {
+            var query = _context.Services
+                .Where(s => !s.IsDeleted && s.ServiceType == 2); // Type 2 = Lab
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+                query = query.Where(s => s.ServiceCode.Contains(keyword) || s.ServiceName.Contains(keyword));
+
+            if (isActive.HasValue)
+                query = query.Where(s => s.IsActive == isActive.Value);
+
+            var services = await query
+                .Include(s => s.ServiceGroup)
+                .OrderBy(s => s.DisplayOrder)
+                .ThenBy(s => s.ServiceCode)
+                .ToListAsync();
+
+            return services.Select(s => new LabTestCatalogDto
+            {
+                Id = s.Id,
+                Code = s.ServiceCode,
+                Name = s.ServiceName,
+                GroupId = s.ServiceGroupId,
+                GroupName = s.ServiceGroup?.GroupName ?? "",
+                Unit = s.Unit ?? "",
+                Price = s.UnitPrice,
+                InsurancePrice = s.InsurancePrice,
+                TATMinutes = s.EstimatedMinutes > 0 ? s.EstimatedMinutes : null,
+                IsActive = s.IsActive
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting lab test catalog");
+            return new List<LabTestCatalogDto>();
+        }
     }
 
     public async Task<LabTestCatalogDto> SaveLabTestAsync(SaveLabTestDto dto)
@@ -688,15 +754,26 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<LabTestGroupDto>> GetLabTestGroupsAsync()
     {
-        var groups = await _context.LabTestGroups.Where(g => g.IsActive).ToListAsync();
-        return groups.Select(g => new LabTestGroupDto
+        try
         {
-            Id = g.Id,
-            Code = g.Code,
-            Name = g.Name,
-            SortOrder = g.SortOrder,
-            IsActive = g.IsActive
-        }).ToList();
+            var groups = await _context.LabTestGroups
+                .Where(g => !g.IsDeleted && g.IsActive)
+                .OrderBy(g => g.SortOrder)
+                .ToListAsync();
+            return groups.Select(g => new LabTestGroupDto
+            {
+                Id = g.Id,
+                Code = g.Code,
+                Name = g.Name,
+                SortOrder = g.SortOrder,
+                IsActive = g.IsActive
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting lab test groups");
+            return new List<LabTestGroupDto>();
+        }
     }
 
     public async Task<LabTestGroupDto> SaveLabTestGroupAsync(SaveLabTestGroupDto dto)
@@ -706,7 +783,32 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<ReferenceRangeDto>> GetReferenceRangesAsync(Guid testId)
     {
-        return new List<ReferenceRangeDto>();
+        try
+        {
+            var ranges = await _context.Set<LabReferenceRange>()
+                .Where(r => !r.IsDeleted && r.IsActive && r.ServiceId == testId)
+                .OrderBy(r => r.Gender)
+                .ThenBy(r => r.AgeFromDays)
+                .ToListAsync();
+
+            return ranges.Select(r => new ReferenceRangeDto
+            {
+                Id = r.Id,
+                TestId = r.ServiceId,
+                Gender = r.Gender ?? "",
+                AgeFromDays = r.AgeFromDays,
+                AgeToDays = r.AgeToDays,
+                LowValue = r.LowValue,
+                HighValue = r.HighValue,
+                TextRange = r.TextRange ?? "",
+                Description = r.Description ?? ""
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting reference ranges for test {TestId}", testId);
+            return new List<ReferenceRangeDto>();
+        }
     }
 
     public async Task<bool> UpdateReferenceRangesAsync(Guid testId, List<UpdateReferenceRangeDto> ranges)
@@ -716,7 +818,34 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<CriticalValueConfigDto> GetCriticalValueConfigAsync(Guid testId)
     {
-        return new CriticalValueConfigDto { TestId = testId };
+        try
+        {
+            var config = await _context.Set<LabCriticalValueConfig>()
+                .Include(c => c.Service)
+                .FirstOrDefaultAsync(c => !c.IsDeleted && c.IsActive && c.ServiceId == testId);
+
+            if (config == null)
+                return new CriticalValueConfigDto { TestId = testId };
+
+            return new CriticalValueConfigDto
+            {
+                TestId = config.ServiceId,
+                TestCode = config.TestCode,
+                TestName = config.Service?.ServiceName ?? "",
+                CriticalLow = config.CriticalLow,
+                CriticalHigh = config.CriticalHigh,
+                PanicLow = config.PanicLow,
+                PanicHigh = config.PanicHigh,
+                RequireAcknowledgment = config.RequireAcknowledgment,
+                AcknowledgmentTimeoutMinutes = config.AcknowledgmentTimeoutMinutes,
+                NotificationMethod = config.NotificationMethod ?? ""
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting critical value config for test {TestId}", testId);
+            return new CriticalValueConfigDto { TestId = testId };
+        }
     }
 
     public async Task<bool> UpdateCriticalValueConfigAsync(Guid testId, UpdateCriticalValueConfigDto dto)
@@ -736,7 +865,37 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<LabConclusionTemplateDto>> GetConclusionTemplatesAsync(Guid? testId = null)
     {
-        return new List<LabConclusionTemplateDto>();
+        try
+        {
+            var query = _context.Set<LabConclusionTemplate>()
+                .Where(t => !t.IsDeleted && t.IsActive);
+
+            if (testId.HasValue)
+                query = query.Where(t => t.ServiceId == testId.Value);
+
+            var templates = await query
+                .Include(t => t.Service)
+                .OrderBy(t => t.SortOrder)
+                .ToListAsync();
+
+            return templates.Select(t => new LabConclusionTemplateDto
+            {
+                Id = t.Id,
+                TestId = t.ServiceId,
+                TestCode = t.TestCode ?? "",
+                TestName = t.Service?.ServiceName ?? "",
+                TemplateCode = t.TemplateCode,
+                TemplateName = t.TemplateName,
+                ConclusionText = t.ConclusionText,
+                Condition = t.Condition ?? "",
+                IsActive = t.IsActive
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting conclusion templates");
+            return new List<LabConclusionTemplateDto>();
+        }
     }
 
     public async Task<LabConclusionTemplateDto> SaveConclusionTemplateAsync(SaveConclusionTemplateDto dto)

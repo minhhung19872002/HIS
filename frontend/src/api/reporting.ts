@@ -312,7 +312,7 @@ export interface ReportDefinitionDto {
 
 // ================== API Functions ==================
 
-const BASE_URL = '/api/reporting';
+const BASE_URL = '/reporting';
 
 // Dashboard & KPI
 export const getDashboard = (date?: string) =>

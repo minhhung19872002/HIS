@@ -18,6 +18,7 @@ public class MappingProfile : Profile
         CreateMap<User, UserDto>()
             .ForMember(d => d.DepartmentName, o => o.MapFrom(s => s.Department != null ? s.Department.DepartmentName : null))
             .ForMember(d => d.Roles, o => o.MapFrom(s => s.UserRoles.Select(ur => ur.Role.RoleName).ToList()))
+            .ForMember(d => d.RoleCodes, o => o.MapFrom(s => s.UserRoles.Select(ur => ur.Role.RoleCode).ToList()))
             .ForMember(d => d.Permissions, o => o.MapFrom(s =>
                 s.UserRoles.SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.PermissionCode)).Distinct().ToList()));
 

@@ -1,0 +1,32 @@
+-- =============================================
+-- Blood Bank Module - Complete SQL Script
+-- Created: 2026-02-23
+-- Database: HIS (Docker SQL Server localhost,1433)
+-- Execute via: MSYS_NO_PATHCONV=1 docker exec his-sqlserver
+--   /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
+--   -P HisDocker2024Pass# -d HIS -C -i /tmp/bloodbank.sql
+-- =============================================
+
+-- 13 Tables created:
+-- 1.  BloodProductTypes     - Blood product type catalog
+-- 2.  BloodSuppliers        - Blood supplier registry
+-- 3.  BloodBags             - Individual blood bag tracking
+-- 4.  BloodImportReceipts   - Blood import receipt headers
+-- 5.  BloodImportItems      - Blood import receipt line items
+-- 6.  BloodIssueRequests    - Blood issue request from departments
+-- 7.  BloodIssueReceipts    - Blood issue receipt headers
+-- 8.  BloodIssueItems       - Blood issue receipt line items
+-- 9.  BloodInventories      - Blood inventory check headers
+-- 10. BloodInventoryItems   - Blood inventory check line items
+-- 11. BloodOrders           - Blood order from clinical
+-- 12. BloodOrderItems       - Blood order line items
+-- 13. BloodBagAssignments   - Blood bag assignment and transfusion
+
+-- Seed data:
+-- BloodProductTypes: 5 types (WB, RBC, FFP, PLT, CRYO)
+-- BloodSuppliers: 2 suppliers (HCM Blood Center, National Institute)
+-- BloodBags: 10 bags (A+, B+, O+, AB+, O-)
+-- BloodIssueRequests: 3 requests (Pending, Approved, Issued)
+
+-- Script executed successfully on 2026-02-23
+-- All 13 tables created, 20 seed records inserted

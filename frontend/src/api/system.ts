@@ -1323,56 +1323,56 @@ export interface IntegrationLogDto {
 export const financeApi = {
   // 11.1 Báo cáo doanh thu theo khoa chỉ định
   getRevenueByOrderingDept: (fromDate: string, toDate: string, departmentId?: string, revenueType?: string) =>
-    apiClient.get<RevenueByOrderingDeptDto[]>('/api/finance/revenue/ordering-dept', {
+    apiClient.get<RevenueByOrderingDeptDto[]>('/finance/revenue/ordering-dept', {
       params: { fromDate, toDate, departmentId, revenueType }
     }),
 
   // 11.2 Báo cáo doanh thu theo khoa thực hiện
   getRevenueByExecutingDept: (fromDate: string, toDate: string, departmentId?: string, revenueType?: string) =>
-    apiClient.get<RevenueByExecutingDeptDto[]>('/api/finance/revenue/executing-dept', {
+    apiClient.get<RevenueByExecutingDeptDto[]>('/finance/revenue/executing-dept', {
       params: { fromDate, toDate, departmentId, revenueType }
     }),
 
   // 11.3 Báo cáo doanh thu theo dịch vụ
   getRevenueByService: (fromDate: string, toDate: string, serviceGroupId?: string, serviceId?: string) =>
-    apiClient.get<RevenueByServiceDto[]>('/api/finance/revenue/service', {
+    apiClient.get<RevenueByServiceDto[]>('/finance/revenue/service', {
       params: { fromDate, toDate, serviceGroupId, serviceId }
     }),
 
   // 11.4 Báo cáo lợi nhuận phẫu thuật
   getSurgeryProfitReport: (fromDate: string, toDate: string, departmentId?: string, surgeryId?: string) =>
-    apiClient.get<SurgeryProfitReportDto[]>('/api/finance/profit/surgery', {
+    apiClient.get<SurgeryProfitReportDto[]>('/finance/profit/surgery', {
       params: { fromDate, toDate, departmentId, surgeryId }
     }),
 
   // 11.5 Báo cáo chi phí theo khoa
   getCostByDepartment: (fromDate: string, toDate: string, departmentId?: string, costType?: string) =>
-    apiClient.get<CostByDepartmentDto[]>('/api/finance/cost/department', {
+    apiClient.get<CostByDepartmentDto[]>('/finance/cost/department', {
       params: { fromDate, toDate, departmentId, costType }
     }),
 
   // 11.6 Báo cáo thu chi tổng hợp
   getFinancialSummary: (fromDate: string, toDate: string) =>
-    apiClient.get<FinancialSummaryReportDto>('/api/finance/summary', { params: { fromDate, toDate } }),
+    apiClient.get<FinancialSummaryReportDto>('/finance/summary', { params: { fromDate, toDate } }),
 
   // 11.7 Báo cáo công nợ bệnh nhân
   getPatientDebtReport: (fromDate?: string, toDate?: string, debtStatus?: string) =>
-    apiClient.get<PatientDebtReportDto[]>('/api/finance/debt/patient', { params: { fromDate, toDate, debtStatus } }),
+    apiClient.get<PatientDebtReportDto[]>('/finance/debt/patient', { params: { fromDate, toDate, debtStatus } }),
 
   // 11.8 Báo cáo công nợ BHYT
   getInsuranceDebtReport: (fromDate: string, toDate: string, insuranceCode?: string) =>
-    apiClient.get<InsuranceDebtReportDto[]>('/api/finance/debt/insurance', { params: { fromDate, toDate, insuranceCode } }),
+    apiClient.get<InsuranceDebtReportDto[]>('/finance/debt/insurance', { params: { fromDate, toDate, insuranceCode } }),
 
   // 11.9 Đối soát BHYT
   getInsuranceReconciliation: (fromDate: string, toDate: string, insuranceCode?: string) =>
-    apiClient.get<InsuranceReconciliationDto>('/api/finance/insurance/reconciliation', { params: { fromDate, toDate, insuranceCode } }),
+    apiClient.get<InsuranceReconciliationDto>('/finance/insurance/reconciliation', { params: { fromDate, toDate, insuranceCode } }),
 
   // In và xuất báo cáo
   printFinancialReport: (request: FinancialReportRequest) =>
-    apiClient.post<Blob>('/api/finance/reports/print', request, { responseType: 'blob' }),
+    apiClient.post<Blob>('/finance/reports/print', request, { responseType: 'blob' }),
 
   exportFinancialReport: (request: FinancialReportRequest) =>
-    apiClient.post<Blob>('/api/finance/reports/export', request, { responseType: 'blob' }),
+    apiClient.post<Blob>('/finance/reports/export', request, { responseType: 'blob' }),
 };
 
 // ============================================================================
@@ -1382,157 +1382,157 @@ export const financeApi = {
 export const catalogApi = {
   // Dịch vụ khám
   getExaminationServices: (keyword?: string, isActive?: boolean) =>
-    apiClient.get<ExaminationServiceCatalogDto[]>('/api/catalog/examination-services', { params: { keyword, isActive } }),
+    apiClient.get<ExaminationServiceCatalogDto[]>('/catalog/examination-services', { params: { keyword, isActive } }),
   getExaminationService: (serviceId: string) =>
-    apiClient.get<ExaminationServiceCatalogDto>(`/api/catalog/examination-services/${serviceId}`),
+    apiClient.get<ExaminationServiceCatalogDto>(`/catalog/examination-services/${serviceId}`),
   saveExaminationService: (dto: ExaminationServiceCatalogDto) =>
-    apiClient.post<ExaminationServiceCatalogDto>('/api/catalog/examination-services', dto),
+    apiClient.post<ExaminationServiceCatalogDto>('/catalog/examination-services', dto),
   deleteExaminationService: (serviceId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/examination-services/${serviceId}`),
+    apiClient.delete<boolean>(`/catalog/examination-services/${serviceId}`),
 
   // Dịch vụ cận lâm sàng
   getParaclinicalServices: (keyword?: string, serviceType?: string, isActive?: boolean) =>
-    apiClient.get<ParaclinicalServiceCatalogDto[]>('/api/catalog/paraclinical-services', { params: { keyword, serviceType, isActive } }),
+    apiClient.get<ParaclinicalServiceCatalogDto[]>('/catalog/paraclinical-services', { params: { keyword, serviceType, isActive } }),
   getParaclinicalService: (serviceId: string) =>
-    apiClient.get<ParaclinicalServiceCatalogDto>(`/api/catalog/paraclinical-services/${serviceId}`),
+    apiClient.get<ParaclinicalServiceCatalogDto>(`/catalog/paraclinical-services/${serviceId}`),
   saveParaclinicalService: (dto: ParaclinicalServiceCatalogDto) =>
-    apiClient.post<ParaclinicalServiceCatalogDto>('/api/catalog/paraclinical-services', dto),
+    apiClient.post<ParaclinicalServiceCatalogDto>('/catalog/paraclinical-services', dto),
   deleteParaclinicalService: (serviceId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/paraclinical-services/${serviceId}`),
+    apiClient.delete<boolean>(`/catalog/paraclinical-services/${serviceId}`),
 
   // Thuốc
   getMedicines: (search: MedicineCatalogSearchDto) =>
-    apiClient.get<MedicineCatalogDto[]>('/api/catalog/medicines', { params: search }),
+    apiClient.get<MedicineCatalogDto[]>('/catalog/medicines', { params: search }),
   getMedicine: (medicineId: string) =>
-    apiClient.get<MedicineCatalogDto>(`/api/catalog/medicines/${medicineId}`),
+    apiClient.get<MedicineCatalogDto>(`/catalog/medicines/${medicineId}`),
   saveMedicine: (dto: MedicineCatalogDto) =>
-    apiClient.post<MedicineCatalogDto>('/api/catalog/medicines', dto),
+    apiClient.post<MedicineCatalogDto>('/catalog/medicines', dto),
   deleteMedicine: (medicineId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/medicines/${medicineId}`),
+    apiClient.delete<boolean>(`/catalog/medicines/${medicineId}`),
   importMedicines: (fileData: ArrayBuffer) =>
-    apiClient.post<boolean>('/api/catalog/medicines/import', fileData),
+    apiClient.post<boolean>('/catalog/medicines/import', fileData),
   exportMedicines: (search: MedicineCatalogSearchDto) =>
-    apiClient.post<Blob>('/api/catalog/medicines/export', search, { responseType: 'blob' }),
+    apiClient.post<Blob>('/catalog/medicines/export', search, { responseType: 'blob' }),
 
   // Vật tư y tế
   getMedicalSupplies: (keyword?: string, categoryId?: string, isActive?: boolean) =>
-    apiClient.get<MedicalSupplyCatalogDto[]>('/api/catalog/medical-supplies', { params: { keyword, categoryId, isActive } }),
+    apiClient.get<MedicalSupplyCatalogDto[]>('/catalog/medical-supplies', { params: { keyword, categoryId, isActive } }),
   getMedicalSupply: (supplyId: string) =>
-    apiClient.get<MedicalSupplyCatalogDto>(`/api/catalog/medical-supplies/${supplyId}`),
+    apiClient.get<MedicalSupplyCatalogDto>(`/catalog/medical-supplies/${supplyId}`),
   saveMedicalSupply: (dto: MedicalSupplyCatalogDto) =>
-    apiClient.post<MedicalSupplyCatalogDto>('/api/catalog/medical-supplies', dto),
+    apiClient.post<MedicalSupplyCatalogDto>('/catalog/medical-supplies', dto),
   deleteMedicalSupply: (supplyId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/medical-supplies/${supplyId}`),
+    apiClient.delete<boolean>(`/catalog/medical-supplies/${supplyId}`),
 
   // ICD-10
   getICD10Codes: (keyword?: string, chapterCode?: string, isActive?: boolean) =>
-    apiClient.get<ICD10CatalogDto[]>('/api/catalog/icd10', { params: { keyword, chapterCode, isActive } }),
+    apiClient.get<ICD10CatalogDto[]>('/catalog/icd10', { params: { keyword, chapterCode, isActive } }),
   getICD10Code: (icd10Id: string) =>
-    apiClient.get<ICD10CatalogDto>(`/api/catalog/icd10/${icd10Id}`),
+    apiClient.get<ICD10CatalogDto>(`/catalog/icd10/${icd10Id}`),
   saveICD10Code: (dto: ICD10CatalogDto) =>
-    apiClient.post<ICD10CatalogDto>('/api/catalog/icd10', dto),
+    apiClient.post<ICD10CatalogDto>('/catalog/icd10', dto),
   deleteICD10Code: (icd10Id: string) =>
-    apiClient.delete<boolean>(`/api/catalog/icd10/${icd10Id}`),
+    apiClient.delete<boolean>(`/catalog/icd10/${icd10Id}`),
   importICD10: (fileData: ArrayBuffer) =>
-    apiClient.post<boolean>('/api/catalog/icd10/import', fileData),
+    apiClient.post<boolean>('/catalog/icd10/import', fileData),
   exportICD10: (chapterCode?: string) =>
-    apiClient.get<Blob>('/api/catalog/icd10/export', { params: { chapterCode }, responseType: 'blob' }),
+    apiClient.get<Blob>('/catalog/icd10/export', { params: { chapterCode }, responseType: 'blob' }),
 
   // Khoa phòng
   getDepartments: (keyword?: string, departmentType?: string, isActive?: boolean) =>
-    apiClient.get<DepartmentCatalogDto[]>('/api/catalog/departments', { params: { keyword, departmentType, isActive } }),
+    apiClient.get<DepartmentCatalogDto[]>('/catalog/departments', { params: { keyword, departmentType, isActive } }),
   getDepartment: (departmentId: string) =>
-    apiClient.get<DepartmentCatalogDto>(`/api/catalog/departments/${departmentId}`),
+    apiClient.get<DepartmentCatalogDto>(`/catalog/departments/${departmentId}`),
   saveDepartment: (dto: DepartmentCatalogDto) =>
-    apiClient.post<DepartmentCatalogDto>('/api/catalog/departments', dto),
+    apiClient.post<DepartmentCatalogDto>('/catalog/departments', dto),
   deleteDepartment: (departmentId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/departments/${departmentId}`),
+    apiClient.delete<boolean>(`/catalog/departments/${departmentId}`),
 
   // Phòng/Giường
   getRooms: (departmentId?: string, roomType?: string, isActive?: boolean) =>
-    apiClient.get<RoomCatalogDto[]>('/api/catalog/rooms', { params: { departmentId, roomType, isActive } }),
+    apiClient.get<RoomCatalogDto[]>('/catalog/rooms', { params: { departmentId, roomType, isActive } }),
   getRoom: (roomId: string) =>
-    apiClient.get<RoomCatalogDto>(`/api/catalog/rooms/${roomId}`),
+    apiClient.get<RoomCatalogDto>(`/catalog/rooms/${roomId}`),
   saveRoom: (dto: RoomCatalogDto) =>
-    apiClient.post<RoomCatalogDto>('/api/catalog/rooms', dto),
+    apiClient.post<RoomCatalogDto>('/catalog/rooms', dto),
   deleteRoom: (roomId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/rooms/${roomId}`),
+    apiClient.delete<boolean>(`/catalog/rooms/${roomId}`),
   getBeds: (roomId?: string, isActive?: boolean) =>
-    apiClient.get<BedCatalogDto[]>('/api/catalog/beds', { params: { roomId, isActive } }),
+    apiClient.get<BedCatalogDto[]>('/catalog/beds', { params: { roomId, isActive } }),
   getBed: (bedId: string) =>
-    apiClient.get<BedCatalogDto>(`/api/catalog/beds/${bedId}`),
+    apiClient.get<BedCatalogDto>(`/catalog/beds/${bedId}`),
   saveBed: (dto: BedCatalogDto) =>
-    apiClient.post<BedCatalogDto>('/api/catalog/beds', dto),
+    apiClient.post<BedCatalogDto>('/catalog/beds', dto),
   deleteBed: (bedId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/beds/${bedId}`),
+    apiClient.delete<boolean>(`/catalog/beds/${bedId}`),
 
   // Nhân viên
   getEmployees: (keyword?: string, departmentId?: string, position?: string, isActive?: boolean) =>
-    apiClient.get<EmployeeCatalogDto[]>('/api/catalog/employees', { params: { keyword, departmentId, position, isActive } }),
+    apiClient.get<EmployeeCatalogDto[]>('/catalog/employees', { params: { keyword, departmentId, position, isActive } }),
   getEmployee: (employeeId: string) =>
-    apiClient.get<EmployeeCatalogDto>(`/api/catalog/employees/${employeeId}`),
+    apiClient.get<EmployeeCatalogDto>(`/catalog/employees/${employeeId}`),
   saveEmployee: (dto: EmployeeCatalogDto) =>
-    apiClient.post<EmployeeCatalogDto>('/api/catalog/employees', dto),
+    apiClient.post<EmployeeCatalogDto>('/catalog/employees', dto),
   deleteEmployee: (employeeId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/employees/${employeeId}`),
+    apiClient.delete<boolean>(`/catalog/employees/${employeeId}`),
 
   // Nhà cung cấp
   getSuppliers: (keyword?: string, supplierType?: string, isActive?: boolean) =>
-    apiClient.get<SupplierCatalogDto[]>('/api/catalog/suppliers', { params: { keyword, supplierType, isActive } }),
+    apiClient.get<SupplierCatalogDto[]>('/catalog/suppliers', { params: { keyword, supplierType, isActive } }),
   getSupplier: (supplierId: string) =>
-    apiClient.get<SupplierCatalogDto>(`/api/catalog/suppliers/${supplierId}`),
+    apiClient.get<SupplierCatalogDto>(`/catalog/suppliers/${supplierId}`),
   saveSupplier: (dto: SupplierCatalogDto) =>
-    apiClient.post<SupplierCatalogDto>('/api/catalog/suppliers', dto),
+    apiClient.post<SupplierCatalogDto>('/catalog/suppliers', dto),
   deleteSupplier: (supplierId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/suppliers/${supplierId}`),
+    apiClient.delete<boolean>(`/catalog/suppliers/${supplierId}`),
 
   // Giá viện phí
   getServicePrices: (serviceId?: string, priceType?: string, effectiveDate?: string) =>
-    apiClient.get<ServicePriceCatalogDto[]>('/api/catalog/service-prices', { params: { serviceId, priceType, effectiveDate } }),
+    apiClient.get<ServicePriceCatalogDto[]>('/catalog/service-prices', { params: { serviceId, priceType, effectiveDate } }),
   getServicePrice: (priceId: string) =>
-    apiClient.get<ServicePriceCatalogDto>(`/api/catalog/service-prices/${priceId}`),
+    apiClient.get<ServicePriceCatalogDto>(`/catalog/service-prices/${priceId}`),
   saveServicePrice: (dto: ServicePriceCatalogDto) =>
-    apiClient.post<ServicePriceCatalogDto>('/api/catalog/service-prices', dto),
+    apiClient.post<ServicePriceCatalogDto>('/catalog/service-prices', dto),
   deleteServicePrice: (priceId: string) =>
-    apiClient.delete<boolean>(`/api/catalog/service-prices/${priceId}`),
+    apiClient.delete<boolean>(`/catalog/service-prices/${priceId}`),
 
   // Các danh mục khác
   getPatientTypes: (isActive?: boolean) =>
-    apiClient.get<PatientTypeCatalogDto[]>('/api/catalog/patient-types', { params: { isActive } }),
+    apiClient.get<PatientTypeCatalogDto[]>('/catalog/patient-types', { params: { isActive } }),
   savePatientType: (dto: PatientTypeCatalogDto) =>
-    apiClient.post<PatientTypeCatalogDto>('/api/catalog/patient-types', dto),
+    apiClient.post<PatientTypeCatalogDto>('/catalog/patient-types', dto),
 
   getAdmissionSources: (isActive?: boolean) =>
-    apiClient.get<AdmissionSourceCatalogDto[]>('/api/catalog/admission-sources', { params: { isActive } }),
+    apiClient.get<AdmissionSourceCatalogDto[]>('/catalog/admission-sources', { params: { isActive } }),
   saveAdmissionSource: (dto: AdmissionSourceCatalogDto) =>
-    apiClient.post<AdmissionSourceCatalogDto>('/api/catalog/admission-sources', dto),
+    apiClient.post<AdmissionSourceCatalogDto>('/catalog/admission-sources', dto),
 
   getPrintTemplates: (templateType?: string, departmentId?: string, isActive?: boolean) =>
-    apiClient.get<PrintTemplateCatalogDto[]>('/api/catalog/print-templates', { params: { templateType, departmentId, isActive } }),
+    apiClient.get<PrintTemplateCatalogDto[]>('/catalog/print-templates', { params: { templateType, departmentId, isActive } }),
   savePrintTemplate: (dto: PrintTemplateCatalogDto) =>
-    apiClient.post<PrintTemplateCatalogDto>('/api/catalog/print-templates', dto),
+    apiClient.post<PrintTemplateCatalogDto>('/catalog/print-templates', dto),
 
   getMedicalRecordTemplates: (templateType?: string, isActive?: boolean) =>
-    apiClient.get<MedicalRecordTemplateCatalogDto[]>('/api/catalog/medical-record-templates', { params: { templateType, isActive } }),
+    apiClient.get<MedicalRecordTemplateCatalogDto[]>('/catalog/medical-record-templates', { params: { templateType, isActive } }),
   saveMedicalRecordTemplate: (dto: MedicalRecordTemplateCatalogDto) =>
-    apiClient.post<MedicalRecordTemplateCatalogDto>('/api/catalog/medical-record-templates', dto),
+    apiClient.post<MedicalRecordTemplateCatalogDto>('/catalog/medical-record-templates', dto),
 
   getServiceGroups: (groupType?: string, isActive?: boolean) =>
-    apiClient.get<ServiceGroupCatalogDto[]>('/api/catalog/service-groups', { params: { groupType, isActive } }),
+    apiClient.get<ServiceGroupCatalogDto[]>('/catalog/service-groups', { params: { groupType, isActive } }),
   saveServiceGroup: (dto: ServiceGroupCatalogDto) =>
-    apiClient.post<ServiceGroupCatalogDto>('/api/catalog/service-groups', dto),
+    apiClient.post<ServiceGroupCatalogDto>('/catalog/service-groups', dto),
 
   getMedicineGroups: (isActive?: boolean) =>
-    apiClient.get<MedicineGroupCatalogDto[]>('/api/catalog/medicine-groups', { params: { isActive } }),
+    apiClient.get<MedicineGroupCatalogDto[]>('/catalog/medicine-groups', { params: { isActive } }),
   saveMedicineGroup: (dto: MedicineGroupCatalogDto) =>
-    apiClient.post<MedicineGroupCatalogDto>('/api/catalog/medicine-groups', dto),
+    apiClient.post<MedicineGroupCatalogDto>('/catalog/medicine-groups', dto),
 
   // Đồng bộ BHXH
-  syncBHXHMedicines: () => apiClient.post<SyncResultDto>('/api/catalog/sync/bhxh/medicines'),
-  syncBHXHServices: () => apiClient.post<SyncResultDto>('/api/catalog/sync/bhxh/services'),
-  syncBHXHICD10: () => apiClient.post<SyncResultDto>('/api/catalog/sync/bhxh/icd10'),
+  syncBHXHMedicines: () => apiClient.post<SyncResultDto>('/catalog/sync/bhxh/medicines'),
+  syncBHXHServices: () => apiClient.post<SyncResultDto>('/catalog/sync/bhxh/services'),
+  syncBHXHICD10: () => apiClient.post<SyncResultDto>('/catalog/sync/bhxh/icd10'),
   getLastSyncDate: (syncType: string) =>
-    apiClient.get<string | null>('/api/catalog/sync/last-date', { params: { syncType } }),
+    apiClient.get<string | null>('/catalog/sync/last-date', { params: { syncType } }),
 };
 
 // ============================================================================
@@ -1542,77 +1542,77 @@ export const catalogApi = {
 export const pharmacyReportApi = {
   // 15.1 Sổ theo dõi thuốc gây nghiện
   getNarcoticDrugRegister: (fromDate: string, toDate: string, warehouseId?: string) =>
-    apiClient.get<NarcoticDrugRegisterDto[]>('/api/pharmacy/reports/narcotic-drugs', { params: { fromDate, toDate, warehouseId } }),
+    apiClient.get<NarcoticDrugRegisterDto[]>('/pharmacy/reports/narcotic-drugs', { params: { fromDate, toDate, warehouseId } }),
 
   // 15.2 Sổ theo dõi thuốc hướng thần
   getPsychotropicDrugRegister: (fromDate: string, toDate: string, warehouseId?: string) =>
-    apiClient.get<PsychotropicDrugRegisterDto[]>('/api/pharmacy/reports/psychotropic-drugs', { params: { fromDate, toDate, warehouseId } }),
+    apiClient.get<PsychotropicDrugRegisterDto[]>('/pharmacy/reports/psychotropic-drugs', { params: { fromDate, toDate, warehouseId } }),
 
   // 15.3 Sổ theo dõi thuốc tiền chất
   getPrecursorDrugRegister: (fromDate: string, toDate: string, warehouseId?: string) =>
-    apiClient.get<PrecursorDrugRegisterDto[]>('/api/pharmacy/reports/precursor-drugs', { params: { fromDate, toDate, warehouseId } }),
+    apiClient.get<PrecursorDrugRegisterDto[]>('/pharmacy/reports/precursor-drugs', { params: { fromDate, toDate, warehouseId } }),
 
   // 15.4 Báo cáo sử dụng thuốc theo TT20/2017
   getMedicineUsageReport: (fromDate: string, toDate: string, medicineId?: string, departmentId?: string) =>
-    apiClient.get<MedicineUsageReportDto[]>('/api/pharmacy/reports/medicine-usage', { params: { fromDate, toDate, medicineId, departmentId } }),
+    apiClient.get<MedicineUsageReportDto[]>('/pharmacy/reports/medicine-usage', { params: { fromDate, toDate, medicineId, departmentId } }),
 
   // 15.5 Báo cáo sử dụng kháng sinh
   getAntibioticUsageReport: (fromDate: string, toDate: string, antibioticId?: string, departmentId?: string) =>
-    apiClient.get<AntibioticUsageReportDto[]>('/api/pharmacy/reports/antibiotic-usage', { params: { fromDate, toDate, antibioticId, departmentId } }),
+    apiClient.get<AntibioticUsageReportDto[]>('/pharmacy/reports/antibiotic-usage', { params: { fromDate, toDate, antibioticId, departmentId } }),
 
   // 15.6 Sổ kiểm kê thuốc (TT22)
   getDrugInventoryRecord: (inventoryDate: string, warehouseId: string) =>
-    apiClient.get<InventoryRecordDto[]>('/api/pharmacy/reports/inventory-record', { params: { inventoryDate, warehouseId } }),
+    apiClient.get<InventoryRecordDto[]>('/pharmacy/reports/inventory-record', { params: { inventoryDate, warehouseId } }),
 
   // 15.7 Báo cáo xuất nhập tồn kho thuốc
   getDrugStockMovementReport: (fromDate: string, toDate: string, warehouseId?: string, medicineGroupId?: string) =>
-    apiClient.get<DrugStockMovementReportDto[]>('/api/pharmacy/reports/stock-movement', { params: { fromDate, toDate, warehouseId, medicineGroupId } }),
+    apiClient.get<DrugStockMovementReportDto[]>('/pharmacy/reports/stock-movement', { params: { fromDate, toDate, warehouseId, medicineGroupId } }),
 
   // 15.8 Báo cáo thuốc sắp hết hạn
   getExpiringDrugReport: (daysUntilExpiry?: number, warehouseId?: string) =>
-    apiClient.get<ExpiringDrugReportDto[]>('/api/pharmacy/reports/expiring-drugs', { params: { daysUntilExpiry, warehouseId } }),
+    apiClient.get<ExpiringDrugReportDto[]>('/pharmacy/reports/expiring-drugs', { params: { daysUntilExpiry, warehouseId } }),
 
   // 15.9 Báo cáo thuốc đã hết hạn
   getExpiredDrugReport: (warehouseId?: string) =>
-    apiClient.get<ExpiredDrugReportDto[]>('/api/pharmacy/reports/expired-drugs', { params: { warehouseId } }),
+    apiClient.get<ExpiredDrugReportDto[]>('/pharmacy/reports/expired-drugs', { params: { warehouseId } }),
 
   // 15.10 Báo cáo thuốc tồn kho dưới mức tối thiểu
   getLowStockDrugReport: (warehouseId?: string) =>
-    apiClient.get<LowStockDrugReportDto[]>('/api/pharmacy/reports/low-stock-drugs', { params: { warehouseId } }),
+    apiClient.get<LowStockDrugReportDto[]>('/pharmacy/reports/low-stock-drugs', { params: { warehouseId } }),
 
   // 15.11 Báo cáo chi phí thuốc theo khoa
   getDrugCostByDeptReport: (fromDate: string, toDate: string, departmentId?: string) =>
-    apiClient.get<DrugCostByDeptReportDto[]>('/api/pharmacy/reports/drug-cost-by-dept', { params: { fromDate, toDate, departmentId } }),
+    apiClient.get<DrugCostByDeptReportDto[]>('/pharmacy/reports/drug-cost-by-dept', { params: { fromDate, toDate, departmentId } }),
 
   // 15.12 Báo cáo chi phí thuốc theo bệnh nhân
   getDrugCostByPatientReport: (fromDate: string, toDate: string, patientId?: string, patientType?: string) =>
-    apiClient.get<DrugCostByPatientReportDto[]>('/api/pharmacy/reports/drug-cost-by-patient', { params: { fromDate, toDate, patientId, patientType } }),
+    apiClient.get<DrugCostByPatientReportDto[]>('/pharmacy/reports/drug-cost-by-patient', { params: { fromDate, toDate, patientId, patientType } }),
 
   // 15.13 Báo cáo thuốc BHYT/Viện phí
   getDrugByPaymentTypeReport: (fromDate: string, toDate: string, paymentType?: string) =>
-    apiClient.get<DrugByPaymentTypeReportDto[]>('/api/pharmacy/reports/drug-by-payment-type', { params: { fromDate, toDate, paymentType } }),
+    apiClient.get<DrugByPaymentTypeReportDto[]>('/pharmacy/reports/drug-by-payment-type', { params: { fromDate, toDate, paymentType } }),
 
   // 15.14 Thống kê đơn thuốc ngoại trú
   getOutpatientPrescriptionStat: (fromDate: string, toDate: string, doctorId?: string, departmentId?: string) =>
-    apiClient.get<OutpatientPrescriptionStatDto[]>('/api/pharmacy/reports/outpatient-prescription-stat', { params: { fromDate, toDate, doctorId, departmentId } }),
+    apiClient.get<OutpatientPrescriptionStatDto[]>('/pharmacy/reports/outpatient-prescription-stat', { params: { fromDate, toDate, doctorId, departmentId } }),
 
   // 15.15 Thống kê đơn thuốc nội trú
   getInpatientPrescriptionStat: (fromDate: string, toDate: string, departmentId?: string) =>
-    apiClient.get<InpatientPrescriptionStatDto[]>('/api/pharmacy/reports/inpatient-prescription-stat', { params: { fromDate, toDate, departmentId } }),
+    apiClient.get<InpatientPrescriptionStatDto[]>('/pharmacy/reports/inpatient-prescription-stat', { params: { fromDate, toDate, departmentId } }),
 
   // 15.16 Báo cáo ABC/VEN
   getABCVENReport: (fromDate: string, toDate: string, warehouseId?: string) =>
-    apiClient.get<ABCVENReportDto>('/api/pharmacy/reports/abc-ven', { params: { fromDate, toDate, warehouseId } }),
+    apiClient.get<ABCVENReportDto>('/pharmacy/reports/abc-ven', { params: { fromDate, toDate, warehouseId } }),
 
   // 15.17 Báo cáo DDD
   getDDDReport: (fromDate: string, toDate: string, medicineId?: string) =>
-    apiClient.get<DDDReportDto[]>('/api/pharmacy/reports/ddd', { params: { fromDate, toDate, medicineId } }),
+    apiClient.get<DDDReportDto[]>('/pharmacy/reports/ddd', { params: { fromDate, toDate, medicineId } }),
 
   // In và xuất báo cáo
   printPharmacyReport: (request: PharmacyReportRequest) =>
-    apiClient.post<Blob>('/api/pharmacy/reports/print', request, { responseType: 'blob' }),
+    apiClient.post<Blob>('/pharmacy/reports/print', request, { responseType: 'blob' }),
   exportPharmacyReport: (request: PharmacyReportRequest) =>
-    apiClient.post<Blob>('/api/pharmacy/reports/export', request, { responseType: 'blob' }),
+    apiClient.post<Blob>('/pharmacy/reports/export', request, { responseType: 'blob' }),
 };
 
 // ============================================================================
@@ -1622,79 +1622,79 @@ export const pharmacyReportApi = {
 export const medicalRecordApi = {
   // Lưu trữ HSBA
   getArchives: (keyword?: string, year?: number, archiveStatus?: string, departmentId?: string) =>
-    apiClient.get<MedicalRecordArchiveDto[]>('/api/medical-records/archives', { params: { keyword, year, archiveStatus, departmentId } }),
+    apiClient.get<MedicalRecordArchiveDto[]>('/medical-records/archives', { params: { keyword, year, archiveStatus, departmentId } }),
   getArchive: (archiveId: string) =>
-    apiClient.get<MedicalRecordArchiveDto>(`/api/medical-records/archives/${archiveId}`),
+    apiClient.get<MedicalRecordArchiveDto>(`/medical-records/archives/${archiveId}`),
   saveArchive: (dto: MedicalRecordArchiveDto) =>
-    apiClient.post<MedicalRecordArchiveDto>('/api/medical-records/archives', dto),
+    apiClient.post<MedicalRecordArchiveDto>('/medical-records/archives', dto),
   updateArchiveLocation: (archiveId: string, location: string) =>
-    apiClient.put<boolean>(`/api/medical-records/archives/${archiveId}/location`, location),
+    apiClient.put<boolean>(`/medical-records/archives/${archiveId}/location`, location),
 
   // Mượn trả HSBA
   getBorrowRequests: (fromDate?: string, toDate?: string, status?: string, borrowerId?: string) =>
-    apiClient.get<MedicalRecordBorrowRequestDto[]>('/api/medical-records/borrow-requests', { params: { fromDate, toDate, status, borrowerId } }),
+    apiClient.get<MedicalRecordBorrowRequestDto[]>('/medical-records/borrow-requests', { params: { fromDate, toDate, status, borrowerId } }),
   getBorrowRequest: (requestId: string) =>
-    apiClient.get<MedicalRecordBorrowRequestDto>(`/api/medical-records/borrow-requests/${requestId}`),
+    apiClient.get<MedicalRecordBorrowRequestDto>(`/medical-records/borrow-requests/${requestId}`),
   createBorrowRequest: (dto: CreateBorrowRequestDto) =>
-    apiClient.post<MedicalRecordBorrowRequestDto>('/api/medical-records/borrow-requests', dto),
+    apiClient.post<MedicalRecordBorrowRequestDto>('/medical-records/borrow-requests', dto),
   approveBorrowRequest: (requestId: string) =>
-    apiClient.put<boolean>(`/api/medical-records/borrow-requests/${requestId}/approve`),
+    apiClient.put<boolean>(`/medical-records/borrow-requests/${requestId}/approve`),
   rejectBorrowRequest: (requestId: string, reason: string) =>
-    apiClient.put<boolean>(`/api/medical-records/borrow-requests/${requestId}/reject`, reason),
+    apiClient.put<boolean>(`/medical-records/borrow-requests/${requestId}/reject`, reason),
   processBorrow: (requestId: string) =>
-    apiClient.put<boolean>(`/api/medical-records/borrow-requests/${requestId}/process`),
+    apiClient.put<boolean>(`/medical-records/borrow-requests/${requestId}/process`),
   returnMedicalRecord: (requestId: string, note?: string) =>
-    apiClient.put<boolean>(`/api/medical-records/borrow-requests/${requestId}/return`, note),
+    apiClient.put<boolean>(`/medical-records/borrow-requests/${requestId}/return`, note),
 };
 
 export const statisticsApi = {
   // Dashboard
   getHospitalDashboard: (date?: string) =>
-    apiClient.get<HospitalDashboardDto>('/api/statistics/dashboard', { params: { date } }),
+    apiClient.get<HospitalDashboardDto>('/statistics/dashboard', { params: { date } }),
   getDepartmentStatistics: (fromDate: string, toDate: string) =>
-    apiClient.get<DepartmentStatisticsDto[]>('/api/statistics/departments', { params: { fromDate, toDate } }),
+    apiClient.get<DepartmentStatisticsDto[]>('/statistics/departments', { params: { fromDate, toDate } }),
 
   // Báo cáo khám bệnh
   getExaminationStatistics: (fromDate: string, toDate: string, departmentId?: string, doctorId?: string) =>
-    apiClient.get<ExaminationStatisticsDto[]>('/api/statistics/examination', { params: { fromDate, toDate, departmentId, doctorId } }),
+    apiClient.get<ExaminationStatisticsDto[]>('/statistics/examination', { params: { fromDate, toDate, departmentId, doctorId } }),
 
   // Báo cáo nhập viện
   getAdmissionStatistics: (fromDate: string, toDate: string, departmentId?: string, admissionSource?: string) =>
-    apiClient.get<AdmissionStatisticsDto[]>('/api/statistics/admission', { params: { fromDate, toDate, departmentId, admissionSource } }),
+    apiClient.get<AdmissionStatisticsDto[]>('/statistics/admission', { params: { fromDate, toDate, departmentId, admissionSource } }),
 
   // Báo cáo xuất viện
   getDischargeStatistics: (fromDate: string, toDate: string, departmentId?: string, dischargeType?: string) =>
-    apiClient.get<DischargeStatisticsDto[]>('/api/statistics/discharge', { params: { fromDate, toDate, departmentId, dischargeType } }),
+    apiClient.get<DischargeStatisticsDto[]>('/statistics/discharge', { params: { fromDate, toDate, departmentId, dischargeType } }),
 
   // Báo cáo tử vong
   getMortalityStatistics: (fromDate: string, toDate: string, departmentId?: string) =>
-    apiClient.get<MortalityStatisticsDto[]>('/api/statistics/mortality', { params: { fromDate, toDate, departmentId } }),
+    apiClient.get<MortalityStatisticsDto[]>('/statistics/mortality', { params: { fromDate, toDate, departmentId } }),
 
   // Báo cáo bệnh theo ICD-10
   getDiseaseStatistics: (fromDate: string, toDate: string, icdChapter?: string, departmentId?: string) =>
-    apiClient.get<DiseaseStatisticsDto[]>('/api/statistics/disease', { params: { fromDate, toDate, icdChapter, departmentId } }),
+    apiClient.get<DiseaseStatisticsDto[]>('/statistics/disease', { params: { fromDate, toDate, icdChapter, departmentId } }),
 
   // Báo cáo hoạt động khoa
   getDepartmentActivityReport: (fromDate: string, toDate: string, departmentId?: string) =>
-    apiClient.get<DepartmentActivityReportDto[]>('/api/statistics/department-activity', { params: { fromDate, toDate, departmentId } }),
+    apiClient.get<DepartmentActivityReportDto[]>('/statistics/department-activity', { params: { fromDate, toDate, departmentId } }),
 
   // Báo cáo công suất giường
   getBedOccupancyReport: (fromDate: string, toDate: string, departmentId?: string) =>
-    apiClient.get<BedOccupancyReportDto[]>('/api/statistics/bed-occupancy', { params: { fromDate, toDate, departmentId } }),
+    apiClient.get<BedOccupancyReportDto[]>('/statistics/bed-occupancy', { params: { fromDate, toDate, departmentId } }),
 
   // Báo cáo BYT
   getBYTReport: (fromDate: string, toDate: string) =>
-    apiClient.get<BYTReportDto>('/api/statistics/byt-report', { params: { fromDate, toDate } }),
+    apiClient.get<BYTReportDto>('/statistics/byt-report', { params: { fromDate, toDate } }),
 
   // KPI
   getHospitalKPIs: (fromDate: string, toDate: string) =>
-    apiClient.get<HospitalKPIDto[]>('/api/statistics/kpi', { params: { fromDate, toDate } }),
+    apiClient.get<HospitalKPIDto[]>('/statistics/kpi', { params: { fromDate, toDate } }),
 
   // In và xuất báo cáo
   printStatisticsReport: (request: StatisticsReportRequest) =>
-    apiClient.post<Blob>('/api/statistics/reports/print', request, { responseType: 'blob' }),
+    apiClient.post<Blob>('/statistics/reports/print', request, { responseType: 'blob' }),
   exportStatisticsReport: (request: StatisticsReportRequest) =>
-    apiClient.post<Blob>('/api/statistics/reports/export', request, { responseType: 'blob' }),
+    apiClient.post<Blob>('/statistics/reports/export', request, { responseType: 'blob' }),
 };
 
 // ============================================================================
@@ -1704,111 +1704,111 @@ export const statisticsApi = {
 export const adminApi = {
   // Quản lý người dùng
   getUsers: (keyword?: string, departmentId?: string, isActive?: boolean) =>
-    apiClient.get<SystemUserDto[]>('/api/admin/users', { params: { keyword, departmentId, isActive } }),
+    apiClient.get<SystemUserDto[]>('/admin/users', { params: { keyword, departmentId, isActive } }),
   getUser: (userId: string) =>
-    apiClient.get<SystemUserDto>(`/api/admin/users/${userId}`),
+    apiClient.get<SystemUserDto>(`/admin/users/${userId}`),
   createUser: (dto: CreateUserDto) =>
-    apiClient.post<SystemUserDto>('/api/admin/users', dto),
+    apiClient.post<SystemUserDto>('/admin/users', dto),
   updateUser: (userId: string, dto: UpdateUserDto) =>
-    apiClient.put<SystemUserDto>(`/api/admin/users/${userId}`, dto),
+    apiClient.put<SystemUserDto>(`/admin/users/${userId}`, dto),
   deleteUser: (userId: string) =>
-    apiClient.delete<boolean>(`/api/admin/users/${userId}`),
+    apiClient.delete<boolean>(`/admin/users/${userId}`),
   resetPassword: (userId: string) =>
-    apiClient.post<boolean>(`/api/admin/users/${userId}/reset-password`),
+    apiClient.post<boolean>(`/admin/users/${userId}/reset-password`),
   changePassword: (userId: string, dto: ChangePasswordDto) =>
-    apiClient.post<boolean>(`/api/admin/users/${userId}/change-password`, dto),
+    apiClient.post<boolean>(`/admin/users/${userId}/change-password`, dto),
   lockUser: (userId: string, reason: string) =>
-    apiClient.post<boolean>(`/api/admin/users/${userId}/lock`, reason),
+    apiClient.post<boolean>(`/admin/users/${userId}/lock`, reason),
   unlockUser: (userId: string) =>
-    apiClient.post<boolean>(`/api/admin/users/${userId}/unlock`),
+    apiClient.post<boolean>(`/admin/users/${userId}/unlock`),
 
   // Quản lý vai trò
   getRoles: (isActive?: boolean) =>
-    apiClient.get<RoleDto[]>('/api/admin/roles', { params: { isActive } }),
+    apiClient.get<RoleDto[]>('/admin/roles', { params: { isActive } }),
   getRole: (roleId: string) =>
-    apiClient.get<RoleDto>(`/api/admin/roles/${roleId}`),
+    apiClient.get<RoleDto>(`/admin/roles/${roleId}`),
   saveRole: (dto: RoleDto) =>
-    apiClient.post<RoleDto>('/api/admin/roles', dto),
+    apiClient.post<RoleDto>('/admin/roles', dto),
   deleteRole: (roleId: string) =>
-    apiClient.delete<boolean>(`/api/admin/roles/${roleId}`),
+    apiClient.delete<boolean>(`/admin/roles/${roleId}`),
 
   // Quản lý quyền
   getPermissions: (module?: string) =>
-    apiClient.get<PermissionDto[]>('/api/admin/permissions', { params: { module } }),
+    apiClient.get<PermissionDto[]>('/admin/permissions', { params: { module } }),
   getRolePermissions: (roleId: string) =>
-    apiClient.get<PermissionDto[]>(`/api/admin/roles/${roleId}/permissions`),
+    apiClient.get<PermissionDto[]>(`/admin/roles/${roleId}/permissions`),
   updateRolePermissions: (roleId: string, permissionIds: string[]) =>
-    apiClient.put<boolean>(`/api/admin/roles/${roleId}/permissions`, permissionIds),
+    apiClient.put<boolean>(`/admin/roles/${roleId}/permissions`, permissionIds),
   getUserPermissions: (userId: string) =>
-    apiClient.get<PermissionDto[]>(`/api/admin/users/${userId}/permissions`),
+    apiClient.get<PermissionDto[]>(`/admin/users/${userId}/permissions`),
   updateUserPermissions: (userId: string, permissionIds: string[]) =>
-    apiClient.put<boolean>(`/api/admin/users/${userId}/permissions`, permissionIds),
+    apiClient.put<boolean>(`/admin/users/${userId}/permissions`, permissionIds),
 
   // Nhật ký hệ thống
   getAuditLogs: (search: AuditLogSearchDto) =>
-    apiClient.get<AuditLogDto[]>('/api/admin/audit-logs', { params: search }),
+    apiClient.get<AuditLogDto[]>('/admin/audit-logs', { params: search }),
   getAuditLog: (logId: string) =>
-    apiClient.get<AuditLogDto>(`/api/admin/audit-logs/${logId}`),
+    apiClient.get<AuditLogDto>(`/admin/audit-logs/${logId}`),
   exportAuditLogs: (search: AuditLogSearchDto) =>
-    apiClient.post<Blob>('/api/admin/audit-logs/export', search, { responseType: 'blob' }),
+    apiClient.post<Blob>('/admin/audit-logs/export', search, { responseType: 'blob' }),
 
   // Cấu hình hệ thống
   getSystemConfigs: (category?: string) =>
-    apiClient.get<SystemConfigDto[]>('/api/admin/configs', { params: { category } }),
+    apiClient.get<SystemConfigDto[]>('/admin/configs', { params: { category } }),
   getSystemConfig: (configKey: string) =>
-    apiClient.get<SystemConfigDto>(`/api/admin/configs/${configKey}`),
+    apiClient.get<SystemConfigDto>(`/admin/configs/${configKey}`),
   saveSystemConfig: (dto: SystemConfigDto) =>
-    apiClient.post<SystemConfigDto>('/api/admin/configs', dto),
+    apiClient.post<SystemConfigDto>('/admin/configs', dto),
   deleteSystemConfig: (configKey: string) =>
-    apiClient.delete<boolean>(`/api/admin/configs/${configKey}`),
+    apiClient.delete<boolean>(`/admin/configs/${configKey}`),
 
   // Quản lý phiên
   getActiveSessions: (userId?: string) =>
-    apiClient.get<UserSessionDto[]>('/api/admin/sessions', { params: { userId } }),
+    apiClient.get<UserSessionDto[]>('/admin/sessions', { params: { userId } }),
   terminateSession: (sessionId: string) =>
-    apiClient.delete<boolean>(`/api/admin/sessions/${sessionId}`),
+    apiClient.delete<boolean>(`/admin/sessions/${sessionId}`),
   terminateAllSessions: (userId: string) =>
-    apiClient.delete<boolean>(`/api/admin/users/${userId}/sessions`),
+    apiClient.delete<boolean>(`/admin/users/${userId}/sessions`),
 
   // Thông báo hệ thống
   getSystemNotifications: (isActive?: boolean) =>
-    apiClient.get<SystemNotificationDto[]>('/api/admin/notifications', { params: { isActive } }),
+    apiClient.get<SystemNotificationDto[]>('/admin/notifications', { params: { isActive } }),
   getSystemNotification: (notificationId: string) =>
-    apiClient.get<SystemNotificationDto>(`/api/admin/notifications/${notificationId}`),
+    apiClient.get<SystemNotificationDto>(`/admin/notifications/${notificationId}`),
   saveSystemNotification: (dto: SystemNotificationDto) =>
-    apiClient.post<SystemNotificationDto>('/api/admin/notifications', dto),
+    apiClient.post<SystemNotificationDto>('/admin/notifications', dto),
   deleteSystemNotification: (notificationId: string) =>
-    apiClient.delete<boolean>(`/api/admin/notifications/${notificationId}`),
+    apiClient.delete<boolean>(`/admin/notifications/${notificationId}`),
 
   // Sao lưu dữ liệu
   getBackupHistory: (fromDate?: string, toDate?: string) =>
-    apiClient.get<BackupHistoryDto[]>('/api/admin/backups', { params: { fromDate, toDate } }),
+    apiClient.get<BackupHistoryDto[]>('/admin/backups', { params: { fromDate, toDate } }),
   createBackup: (dto: CreateBackupDto) =>
-    apiClient.post<BackupHistoryDto>('/api/admin/backups', dto),
+    apiClient.post<BackupHistoryDto>('/admin/backups', dto),
   restoreBackup: (backupId: string) =>
-    apiClient.post<boolean>(`/api/admin/backups/${backupId}/restore`),
+    apiClient.post<boolean>(`/admin/backups/${backupId}/restore`),
   deleteBackup: (backupId: string) =>
-    apiClient.delete<boolean>(`/api/admin/backups/${backupId}`),
+    apiClient.delete<boolean>(`/admin/backups/${backupId}`),
 
   // Giám sát hệ thống
   getSystemHealth: () =>
-    apiClient.get<SystemHealthDto>('/api/admin/health'),
+    apiClient.get<SystemHealthDto>('/admin/health'),
   getSystemResources: () =>
-    apiClient.get<SystemResourceDto[]>('/api/admin/resources'),
+    apiClient.get<SystemResourceDto[]>('/admin/resources'),
   getDatabaseStatistics: () =>
-    apiClient.get<DatabaseStatisticsDto[]>('/api/admin/database-statistics'),
+    apiClient.get<DatabaseStatisticsDto[]>('/admin/database-statistics'),
 
   // Quản lý tích hợp
   getIntegrationConfigs: (isActive?: boolean) =>
-    apiClient.get<IntegrationConfigDto[]>('/api/admin/integrations', { params: { isActive } }),
+    apiClient.get<IntegrationConfigDto[]>('/admin/integrations', { params: { isActive } }),
   getIntegrationConfig: (integrationId: string) =>
-    apiClient.get<IntegrationConfigDto>(`/api/admin/integrations/${integrationId}`),
+    apiClient.get<IntegrationConfigDto>(`/admin/integrations/${integrationId}`),
   saveIntegrationConfig: (dto: IntegrationConfigDto) =>
-    apiClient.post<IntegrationConfigDto>('/api/admin/integrations', dto),
+    apiClient.post<IntegrationConfigDto>('/admin/integrations', dto),
   testIntegrationConnection: (integrationId: string) =>
-    apiClient.post<boolean>(`/api/admin/integrations/${integrationId}/test`),
+    apiClient.post<boolean>(`/admin/integrations/${integrationId}/test`),
   getIntegrationLogs: (integrationId: string, fromDate?: string, toDate?: string) =>
-    apiClient.get<IntegrationLogDto[]>(`/api/admin/integrations/${integrationId}/logs`, { params: { fromDate, toDate } }),
+    apiClient.get<IntegrationLogDto[]>(`/admin/integrations/${integrationId}/logs`, { params: { fromDate, toDate } }),
 };
 
 // Export all APIs

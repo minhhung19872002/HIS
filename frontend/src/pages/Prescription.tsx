@@ -147,8 +147,8 @@ interface Prescription {
   overrideReason?: string;
 }
 
-// Mock templates - will be loaded from API
-const defaultTemplates: PrescriptionTemplate[] = [
+// Hardcoded fallback templates used when API is unavailable
+const fallbackTemplates: PrescriptionTemplate[] = [
   {
     id: '1',
     name: 'Cảm cúm thông thường',
@@ -196,21 +196,115 @@ const formatDosage = (dosage: DosageInstruction): string => {
   return result;
 };
 
-const checkDrugInteractions = (medicines: Medicine[]): DrugInteraction[] => {
-  // Mock interaction check - in real app, this would call the API
+// Local drug interaction check as fallback when API is unavailable.
+// Covers common clinically significant interaction pairs.
+// TODO: Full drug interaction checking should rely on the API (examinationApi.checkDrugInteractions).
+const checkDrugInteractionsLocal = (medicines: Medicine[]): DrugInteraction[] => {
   const interactions: DrugInteraction[] = [];
+  const ingredients = medicines.map(m => ({
+    name: m.name,
+    ingredient: m.activeIngredient.toLowerCase(),
+  }));
 
-  // Example: Check for specific interactions
-  const hasAspirin = medicines.some(m => m.activeIngredient.toLowerCase().includes('aspirin'));
-  const hasIbuprofen = medicines.some(m => m.activeIngredient.toLowerCase().includes('ibuprofen'));
+  // Helper to check if any medicine contains a given ingredient keyword
+  const findMedicine = (keyword: string) =>
+    ingredients.find(m => m.ingredient.includes(keyword));
 
-  if (hasAspirin && hasIbuprofen) {
+  // NSAIDs group
+  const nsaidKeywords = ['aspirin', 'ibuprofen', 'naproxen', 'diclofenac', 'meloxicam', 'piroxicam', 'celecoxib', 'indomethacin', 'ketorolac'];
+  const nsaidMedicines = nsaidKeywords.map(k => findMedicine(k)).filter(Boolean);
+  if (nsaidMedicines.length >= 2) {
     interactions.push({
-      medicine1: 'Aspirin',
-      medicine2: 'Ibuprofen',
+      medicine1: nsaidMedicines[0]!.name,
+      medicine2: nsaidMedicines[1]!.name,
+      severity: 'high',
+      description: 'Sử dụng đồng thời nhiều NSAIDs làm tăng nguy cơ xuất huyết tiêu hóa và tổn thương thận.',
+      recommendation: 'Không nên phối hợp nhiều NSAIDs. Chọn một loại duy nhất.',
+    });
+  }
+
+  // NSAIDs + Anticoagulants
+  const anticoagulantKeywords = ['warfarin', 'heparin', 'enoxaparin', 'rivaroxaban', 'apixaban', 'dabigatran', 'clopidogrel'];
+  const nsaid = nsaidKeywords.map(k => findMedicine(k)).find(Boolean);
+  const anticoagulant = anticoagulantKeywords.map(k => findMedicine(k)).find(Boolean);
+  if (nsaid && anticoagulant) {
+    interactions.push({
+      medicine1: nsaid.name,
+      medicine2: anticoagulant.name,
+      severity: 'high',
+      description: 'NSAIDs kết hợp với thuốc chống đông máu làm tăng đáng kể nguy cơ xuất huyết.',
+      recommendation: 'Tránh phối hợp hoặc theo dõi chặt INR/chức năng đông máu.',
+    });
+  }
+
+  // ACE Inhibitors + Potassium-sparing diuretics / Potassium supplements
+  const aceKeywords = ['enalapril', 'lisinopril', 'captopril', 'ramipril', 'perindopril', 'benazepril'];
+  const potassiumKeywords = ['spironolactone', 'amiloride', 'triamterene', 'potassium', 'kali'];
+  const ace = aceKeywords.map(k => findMedicine(k)).find(Boolean);
+  const potassium = potassiumKeywords.map(k => findMedicine(k)).find(Boolean);
+  if (ace && potassium) {
+    interactions.push({
+      medicine1: ace.name,
+      medicine2: potassium.name,
+      severity: 'high',
+      description: 'ACE Inhibitor kết hợp với thuốc/chất bổ sung kali có thể gây tăng kali máu nguy hiểm.',
+      recommendation: 'Theo dõi nồng độ kali máu thường xuyên. Cân nhắc thay đổi thuốc.',
+    });
+  }
+
+  // Metformin + Alcohol / Contrast agents
+  const metformin = findMedicine('metformin');
+  const contrast = findMedicine('iodine') || findMedicine('contrast');
+  if (metformin && contrast) {
+    interactions.push({
+      medicine1: metformin.name,
+      medicine2: contrast.name,
+      severity: 'high',
+      description: 'Metformin kết hợp với thuốc cản quang chứa iod có thể gây nhiễm toan lactic.',
+      recommendation: 'Ngừng Metformin 48 giờ trước và sau khi sử dụng thuốc cản quang.',
+    });
+  }
+
+  // Statin + Fibrate
+  const statinKeywords = ['atorvastatin', 'simvastatin', 'rosuvastatin', 'lovastatin', 'pravastatin'];
+  const fibrateKeywords = ['gemfibrozil', 'fenofibrate', 'bezafibrate'];
+  const statin = statinKeywords.map(k => findMedicine(k)).find(Boolean);
+  const fibrate = fibrateKeywords.map(k => findMedicine(k)).find(Boolean);
+  if (statin && fibrate) {
+    interactions.push({
+      medicine1: statin.name,
+      medicine2: fibrate.name,
       severity: 'medium',
-      description: 'Tương tác giữa Aspirin và Ibuprofen có thể làm giảm hiệu quả của Aspirin trong việc bảo vệ tim mạch.',
-      recommendation: 'Nên cách nhau ít nhất 2 giờ khi dùng hai thuốc này.',
+      description: 'Statin kết hợp với fibrate có thể làm tăng nguy cơ bệnh cơ và tiêu cơ vân.',
+      recommendation: 'Nếu cần phối hợp, ưu tiên fenofibrate thay vì gemfibrozil. Theo dõi CK.',
+    });
+  }
+
+  // SSRIs + MAOIs
+  const ssriKeywords = ['fluoxetine', 'sertraline', 'paroxetine', 'citalopram', 'escitalopram'];
+  const maoiKeywords = ['phenelzine', 'tranylcypromine', 'isocarboxazid', 'selegiline'];
+  const ssri = ssriKeywords.map(k => findMedicine(k)).find(Boolean);
+  const maoi = maoiKeywords.map(k => findMedicine(k)).find(Boolean);
+  if (ssri && maoi) {
+    interactions.push({
+      medicine1: ssri.name,
+      medicine2: maoi.name,
+      severity: 'high',
+      description: 'SSRI kết hợp với MAOI có thể gây hội chứng serotonin - đe dọa tính mạng.',
+      recommendation: 'CHỐNG CHỈ ĐỊNH tuyệt đối. Cần khoảng cách rửa thuốc ít nhất 2-5 tuần.',
+    });
+  }
+
+  // Macrolide antibiotics + Statins
+  const macrolideKeywords = ['erythromycin', 'clarithromycin', 'azithromycin'];
+  const macrolide = macrolideKeywords.map(k => findMedicine(k)).find(Boolean);
+  if (macrolide && statin) {
+    interactions.push({
+      medicine1: macrolide.name,
+      medicine2: statin.name,
+      severity: 'medium',
+      description: 'Macrolide ức chế CYP3A4, làm tăng nồng độ statin trong máu, tăng nguy cơ bệnh cơ.',
+      recommendation: 'Cân nhắc giảm liều statin hoặc tạm ngưng trong thời gian dùng kháng sinh.',
     });
   }
 
@@ -242,22 +336,78 @@ const Prescription: React.FC = () => {
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [isInteractionDrawerOpen, setIsInteractionDrawerOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
+  const [templateName, setTemplateName] = useState('');
+  const [templateDiagnosis, setTemplateDiagnosis] = useState('');
+  const [prescriptionTemplates, setPrescriptionTemplates] = useState<PrescriptionTemplate[]>(fallbackTemplates);
 
   // Calculate totals
   const totalCost = prescriptionItems.reduce((sum, item) => sum + item.totalCost, 0);
   const totalInsurance = prescriptionItems.reduce((sum, item) => sum + item.insuranceCoverage, 0);
   const finalCost = totalCost - totalInsurance;
 
-  // Check interactions when items change
+  // Check interactions when items change - use API with local fallback
   useEffect(() => {
-    if (prescriptionItems.length > 0) {
-      const medicines = prescriptionItems.map(item => item.medicine);
-      const foundInteractions = checkDrugInteractions(medicines);
-      setInteractions(foundInteractions);
-    } else {
+    if (prescriptionItems.length <= 1) {
       setInteractions([]);
+      return;
     }
+
+    const medicines = prescriptionItems.map(item => item.medicine);
+    const medicineIds = medicines.map(m => m.id);
+
+    // Try API first, fall back to local check
+    const checkInteractions = async () => {
+      try {
+        const response = await examinationApi.checkDrugInteractions(medicineIds);
+        const apiData = response.data;
+        if (apiData && Array.isArray(apiData) && apiData.length > 0) {
+          const mapped: DrugInteraction[] = apiData.map((dto: any) => ({
+            medicine1: dto.drug1Name,
+            medicine2: dto.drug2Name,
+            severity: dto.severity === 3 || dto.severityName === 'high' ? 'high'
+              : dto.severity === 2 || dto.severityName === 'medium' ? 'medium'
+              : 'low',
+            description: dto.description || '',
+            recommendation: dto.recommendation,
+          }));
+          setInteractions(mapped);
+          return;
+        }
+      } catch {
+        // API not available, fall back to local check
+      }
+
+      // Local fallback
+      const foundInteractions = checkDrugInteractionsLocal(medicines);
+      setInteractions(foundInteractions);
+    };
+
+    checkInteractions();
   }, [prescriptionItems]);
+
+  // Load prescription templates from API on mount, fallback to hardcoded
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const response = await examinationApi.getPrescriptionTemplates();
+        const apiTemplates = response.data;
+        if (apiTemplates && Array.isArray(apiTemplates) && apiTemplates.length > 0) {
+          const mapped: PrescriptionTemplate[] = apiTemplates.map((t: PrescriptionTemplateDto) => ({
+            id: t.id,
+            name: t.templateName,
+            diagnosis: t.description || '',
+            items: [], // Template items would need medicine lookup to fully populate
+          }));
+          setPrescriptionTemplates(mapped);
+        }
+        // If API returns empty, keep fallback templates
+      } catch {
+        // API unavailable, keep fallback templates
+        console.warn('Could not load prescription templates from API, using fallback templates');
+      }
+    };
+    loadTemplates();
+  }, []);
 
   // ==================== HANDLERS ====================
 
@@ -427,10 +577,27 @@ const Prescription: React.FC = () => {
   };
 
   const handleLoadTemplate = (template: PrescriptionTemplate) => {
-    // In real app, load template items
-    message.success(`Đã tải mẫu đơn: ${template.name}`);
     form.setFieldsValue({ diagnosis: template.diagnosis });
+    // Load template items into prescription
+    if (template.items && template.items.length > 0) {
+      const templateItems: PrescriptionItem[] = template.items.map((item) => ({
+        id: Date.now().toString() + Math.random().toString(36).substring(2),
+        medicine: item.medicine,
+        dosageForm: item.dosageForm,
+        strength: item.strength,
+        quantity: item.quantity,
+        dosage: item.dosage,
+        duration: item.duration,
+        route: item.route,
+        notes: item.notes,
+        totalDose: item.totalDose,
+        totalCost: item.totalCost,
+        insuranceCoverage: item.insuranceCoverage,
+      }));
+      setPrescriptionItems(templateItems);
+    }
     setIsTemplateModalOpen(false);
+    message.success(`Đã tải mẫu đơn: ${template.name}`);
   };
 
   const handleSaveTemplate = () => {
@@ -441,11 +608,43 @@ const Prescription: React.FC = () => {
     setIsSaveTemplateModalOpen(true);
   };
 
-  const handleSaveDraft = () => {
-    message.success('Đã lưu đơn thuốc nháp');
+  const handleSaveDraft = async () => {
+    if (!patient) {
+      message.warning('Vui lòng chọn bệnh nhân trước');
+      return;
+    }
+    if (prescriptionItems.length === 0) {
+      message.warning('Đơn thuốc chưa có thuốc nào');
+      return;
+    }
+    try {
+      const diagnosis = form.getFieldValue('diagnosis');
+      const dto = {
+        examinationId: '',
+        prescriptionType: 1,
+        diagnosisName: diagnosis,
+        totalDays: Math.max(...prescriptionItems.map(i => i.duration), 0),
+        items: prescriptionItems.map(item => ({
+          medicineId: item.medicine.id,
+          quantity: item.quantity,
+          days: item.duration,
+          dosage: formatDosage(item.dosage),
+          route: item.route,
+          frequency: '',
+          usageInstructions: item.notes || '',
+          paymentType: item.medicine.insuranceCovered ? 1 : 2,
+        })),
+        instructions: '',
+      };
+      await examinationApi.createPrescription(dto);
+      message.success('Đã lưu đơn thuốc nháp');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      message.error('Lỗi khi lưu đơn thuốc nháp');
+    }
   };
 
-  const handleCompletePrescription = () => {
+  const handleCompletePrescription = async () => {
     if (prescriptionItems.length === 0) {
       message.error('Đơn thuốc chưa có thuốc nào');
       return;
@@ -464,7 +663,38 @@ const Prescription: React.FC = () => {
       return;
     }
 
-    message.success('Hoàn thành đơn thuốc thành công');
+    try {
+      const diagnosis = form.getFieldValue('diagnosis');
+      const generalNotes = form.getFieldValue('notes') || '';
+      // Build instructions: include override reason if present
+      const instructionParts: string[] = [];
+      if (generalNotes) instructionParts.push(generalNotes);
+      if (overrideReason) instructionParts.push(`[Lý do ghi đè tương tác thuốc]: ${overrideReason}`);
+      const instructions = instructionParts.join('\n');
+
+      const dto = {
+        examinationId: '',
+        prescriptionType: 1,
+        diagnosisName: diagnosis,
+        totalDays: Math.max(...prescriptionItems.map(i => i.duration), 0),
+        items: prescriptionItems.map(item => ({
+          medicineId: item.medicine.id,
+          quantity: item.quantity,
+          days: item.duration,
+          dosage: formatDosage(item.dosage),
+          route: item.route,
+          frequency: '',
+          usageInstructions: item.notes || '',
+          paymentType: item.medicine.insuranceCovered ? 1 : 2,
+        })),
+        instructions,
+      };
+      await examinationApi.createPrescription(dto);
+      message.success('Hoàn thành đơn thuốc thành công');
+    } catch (error) {
+      console.error('Error completing prescription:', error);
+      message.error('Lỗi khi hoàn thành đơn thuốc');
+    }
   };
 
   const handlePrintPrescription = () => {
@@ -472,7 +702,63 @@ const Prescription: React.FC = () => {
       message.error('Đơn thuốc chưa có thuốc nào');
       return;
     }
-    message.info('Chức năng in đơn thuốc');
+    const diagnosis = form.getFieldValue('diagnosis') || '';
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Đơn thuốc</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; font-size: 13px; padding: 20px; }
+        .title { font-size: 18px; font-weight: bold; text-align: center; margin: 15px 0; }
+        .info { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+        th { background: #f0f0f0; }
+        .text-right { text-align: right; }
+        .signature-row { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
+        .signature-col { width: 45%; }
+        @media print { body { padding: 10px; } }
+      </style></head><body>
+        <div style="text-align: center;"><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+        <div class="title">ĐƠN THUỐC</div>
+        ${patient ? `
+          <div class="info">Họ tên: <strong>${patient.fullName}</strong> - Mã BN: ${patient.patientCode}</div>
+          <div class="info">Ngày sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} - Giới: ${patient.gender === 1 ? 'Nam' : 'Nữ'}</div>
+          <div class="info">Địa chỉ: ${patient.address || ''}</div>
+          ${patient.insuranceNumber ? `<div class="info">Số thẻ BHYT: ${patient.insuranceNumber}</div>` : ''}
+        ` : ''}
+        <div class="info">Chẩn đoán: <strong>${diagnosis}</strong></div>
+        <table>
+          <thead><tr>
+            <th>STT</th><th>Tên thuốc</th><th>Liều dùng</th><th>Số ngày</th><th>SL</th><th>Đường dùng</th><th>Ghi chú</th>
+          </tr></thead>
+          <tbody>
+            ${prescriptionItems.map((item, i) => `<tr>
+              <td>${i + 1}</td>
+              <td><strong>${item.medicine.name}</strong><br/><small>${item.medicine.activeIngredient}</small></td>
+              <td>${formatDosage(item.dosage)}</td>
+              <td>${item.duration} ngày</td>
+              <td>${item.quantity} ${item.medicine.unit}</td>
+              <td>${item.route}</td>
+              <td>${item.notes || ''}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="info"><strong>Tổng tiền:</strong> ${totalCost.toLocaleString('vi-VN')} đ</div>
+        ${totalInsurance > 0 ? `<div class="info">BHYT chi trả: ${totalInsurance.toLocaleString('vi-VN')} đ</div>` : ''}
+        <div class="info"><strong>Bệnh nhân trả:</strong> ${finalCost.toLocaleString('vi-VN')} đ</div>
+        <div class="signature-row">
+          <div class="signature-col"><div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div><div><strong>Bác sĩ kê đơn</strong></div><div style="margin-top: 50px;"></div></div>
+        </div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
   };
 
   const handleSendToPharmacy = () => {
@@ -485,8 +771,32 @@ const Prescription: React.FC = () => {
       content: 'Bạn có chắc chắn muốn gửi đơn thuốc này đến nhà thuốc?',
       okText: 'Gửi',
       cancelText: 'Hủy',
-      onOk: () => {
-        message.success('Đã gửi đơn thuốc đến nhà thuốc');
+      onOk: async () => {
+        try {
+          const diagnosis = form.getFieldValue('diagnosis');
+          const dto = {
+            examinationId: '',
+            prescriptionType: 1,
+            diagnosisName: diagnosis,
+            totalDays: Math.max(...prescriptionItems.map(i => i.duration), 0),
+            items: prescriptionItems.map(item => ({
+              medicineId: item.medicine.id,
+              quantity: item.quantity,
+              days: item.duration,
+              dosage: formatDosage(item.dosage),
+              route: item.route,
+              frequency: '',
+              usageInstructions: item.notes || '',
+              paymentType: item.medicine.insuranceCovered ? 1 : 2,
+            })),
+            instructions: '',
+          };
+          await examinationApi.createPrescription(dto);
+          message.success('Đã gửi đơn thuốc đến nhà thuốc');
+        } catch (error) {
+          console.error('Error sending to pharmacy:', error);
+          message.error('Lỗi khi gửi đơn thuốc đến nhà thuốc');
+        }
       },
     });
   };
@@ -734,7 +1044,7 @@ const Prescription: React.FC = () => {
           {interactions.length > 0 && (
             <Card size="small" style={{ marginBottom: 16 }}>
               <Alert
-                message={
+                title={
                   <Space>
                     <span>Cảnh báo tương tác thuốc</span>
                     <Badge count={interactions.length} />
@@ -945,7 +1255,7 @@ const Prescription: React.FC = () => {
           {selectedMedicine && (
             <>
               <Alert
-                message={
+                title={
                   <div>
                     <div>
                       <strong>{selectedMedicine.name}</strong> - {selectedMedicine.strength}
@@ -1149,7 +1459,7 @@ const Prescription: React.FC = () => {
         width={600}
       >
         <List
-          dataSource={defaultTemplates}
+          dataSource={prescriptionTemplates}
           renderItem={(template) => (
             <List.Item
               actions={[
@@ -1176,19 +1486,48 @@ const Prescription: React.FC = () => {
         title="Lưu mẫu đơn thuốc"
         open={isSaveTemplateModalOpen}
         onCancel={() => setIsSaveTemplateModalOpen(false)}
-        onOk={() => {
-          message.success('Đã lưu mẫu đơn thuốc');
-          setIsSaveTemplateModalOpen(false);
+        onOk={async () => {
+          if (!templateName.trim()) {
+            message.error('Vui lòng nhập tên mẫu');
+            return;
+          }
+          try {
+            const dto: PrescriptionTemplateDto = {
+              id: '',
+              templateName: templateName,
+              description: templateDiagnosis,
+              templateType: 1,
+              items: prescriptionItems.map(item => ({
+                medicineId: item.medicine.id,
+                quantity: item.quantity,
+                days: item.duration,
+                dosage: formatDosage(item.dosage),
+                route: item.route,
+                frequency: '',
+                usageInstructions: item.notes || '',
+                paymentType: item.medicine.insuranceCovered ? 1 : 2,
+              })),
+              isShared: false,
+            };
+            await examinationApi.createPrescriptionTemplate(dto);
+            message.success('Đã lưu mẫu đơn thuốc');
+            setIsSaveTemplateModalOpen(false);
+            setTemplateName('');
+            setTemplateDiagnosis('');
+          } catch (error) {
+            console.error('Error saving template:', error);
+            message.error('Lỗi khi lưu mẫu đơn thuốc');
+          }
         }}
         okText="Lưu"
         cancelText="Hủy"
       >
         <Form layout="vertical">
           <Form.Item label="Tên mẫu" required>
-            <Input placeholder="VD: Cảm cúm thông thường" />
+            <Input placeholder="VD: Cảm cúm thông thường" value={templateName} onChange={e => setTemplateName(e.target.value)} />
           </Form.Item>
           <Form.Item label="Chẩn đoán" required>
-            <Input placeholder="VD: Nhiễm khuẩn đường hô hấp trên" />
+            <Input placeholder="VD: Nhiễm khuẩn đường hô hấp trên" value={templateDiagnosis} onChange={e => setTemplateDiagnosis(e.target.value)} />
           </Form.Item>
         </Form>
       </Modal>
@@ -1199,11 +1538,11 @@ const Prescription: React.FC = () => {
         placement="right"
         onClose={() => setIsInteractionDrawerOpen(false)}
         open={isInteractionDrawerOpen}
-        width={500}
+        size={500}
       >
         {interactions.map((interaction, index) => (
           <Card key={index} style={{ marginBottom: 16 }} size="small">
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <div>
                 <Tag
                   color={
@@ -1256,6 +1595,8 @@ const Prescription: React.FC = () => {
               onClick={() => {
                 message.success('Đã ghi nhận lý do ghi đè');
                 setIsInteractionDrawerOpen(false);
+                // Now trigger complete with override reason set
+                handleCompletePrescription();
               }}
             >
               Xác nhận ghi đè
