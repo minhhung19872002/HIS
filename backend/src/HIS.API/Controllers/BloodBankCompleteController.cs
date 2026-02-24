@@ -472,6 +472,17 @@ namespace HIS.API.Controllers
             [FromQuery] Guid? patientId = null,
             [FromQuery] string status = null)
         {
+            // If client omits dates, ASP.NET binds DateTime.MinValue which breaks SQL datetime.
+            if (fromDate == default)
+            {
+                fromDate = DateTime.Today.AddDays(-30);
+            }
+
+            if (toDate == default)
+            {
+                toDate = DateTime.Today.AddDays(1).AddTicks(-1);
+            }
+
             var result = await _bloodBankService.GetBloodOrdersAsync(fromDate, toDate, departmentId, patientId, status);
             return Ok(result);
         }

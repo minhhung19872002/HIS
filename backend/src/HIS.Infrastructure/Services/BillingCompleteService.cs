@@ -27,7 +27,39 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<CashBookDto> CreateCashBookAsync(CreateCashBookDto dto, Guid userId)
     {
-        throw new NotImplementedException("CreateCashBookAsync not implemented");
+        var cashBook = new CashBook
+        {
+            Id = Guid.NewGuid(),
+            BookCode = dto.Code,
+            BookName = dto.Name,
+            BookType = dto.BookType,
+            StartDate = DateTime.Now,
+            CashierId = userId,
+            OpeningBalance = dto.OpeningBalance,
+            TotalReceipt = 0,
+            TotalRefund = 0,
+            ClosingBalance = dto.OpeningBalance,
+            IsClosed = false,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        _context.CashBooks.Add(cashBook);
+        await _context.SaveChangesAsync();
+
+        return new CashBookDto
+        {
+            Id = cashBook.Id,
+            Code = cashBook.BookCode,
+            Name = cashBook.BookName,
+            BookType = cashBook.BookType,
+            BookTypeName = cashBook.BookType == 1 ? "Thu tiền" : "Tạm ứng",
+            OpeningBalance = cashBook.OpeningBalance,
+            CurrentBalance = cashBook.ClosingBalance,
+            Status = 1,
+            StatusName = "Đang mở",
+            CreatedAt = cashBook.CreatedAt
+        };
     }
 
     public async Task<CashBookDto> CreateDepositBookAsync(CreateCashBookDto dto, Guid userId)
@@ -101,7 +133,48 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<DepositDto> CreateDepositAsync(CreateDepositDto dto, Guid userId)
     {
-        throw new NotImplementedException("CreateDepositAsync not implemented");
+        var patient = await _context.Patients.FindAsync(dto.PatientId);
+        if (patient == null)
+            throw new Exception("Patient not found");
+
+        var deposit = new Deposit
+        {
+            Id = Guid.NewGuid(),
+            ReceiptNumber = $"TU{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptDate = DateTime.Now,
+            PatientId = dto.PatientId,
+            MedicalRecordId = dto.MedicalRecordId,
+            Amount = dto.Amount,
+            UsedAmount = 0,
+            RemainingAmount = dto.Amount,
+            PaymentMethod = dto.PaymentMethod,
+            Status = 2, // Đã xác nhận
+            ReceivedByUserId = userId,
+            Notes = dto.Notes,
+            CreatedAt = DateTime.Now
+        };
+
+        _context.Deposits.Add(deposit);
+        await _context.SaveChangesAsync();
+
+        return new DepositDto
+        {
+            Id = deposit.Id,
+            ReceiptCode = deposit.ReceiptNumber,
+            PatientId = deposit.PatientId ?? Guid.Empty,
+            PatientCode = patient.PatientCode,
+            PatientName = patient.FullName,
+            Amount = deposit.Amount,
+            UsedAmount = 0,
+            RemainingAmount = deposit.Amount,
+            PaymentMethod = deposit.PaymentMethod,
+            PaymentMethodName = GetPaymentMethodName(deposit.PaymentMethod),
+            Status = deposit.Status,
+            StatusName = "Đã xác nhận",
+            Notes = deposit.Notes,
+            CreatedAt = deposit.CreatedAt,
+            ConfirmedAt = DateTime.Now
+        };
     }
 
     public async Task<DepartmentDepositDto> CreateDepartmentDepositAsync(Guid departmentId, List<Guid> depositIds, Guid userId)
@@ -116,12 +189,91 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<DepositBalanceDto> GetDepositBalanceAsync(Guid patientId)
     {
-        return new DepositBalanceDto();
+        var patient = await _context.Patients.FindAsync(patientId);
+        var deposits = await _context.Deposits
+            .Where(d => d.PatientId == patientId && d.Status != 5) // Exclude cancelled
+            .ToListAsync();
+
+        var totalDeposit = deposits.Sum(d => d.Amount);
+        var usedAmount = deposits.Sum(d => d.UsedAmount);
+
+        return new DepositBalanceDto
+        {
+            PatientId = patientId,
+            PatientCode = patient?.PatientCode ?? string.Empty,
+            PatientName = patient?.FullName ?? string.Empty,
+            TotalDeposit = totalDeposit,
+            UsedAmount = usedAmount,
+            RemainingBalance = totalDeposit - usedAmount,
+            ActiveDeposits = deposits
+                .Where(d => d.RemainingAmount > 0 && d.Status == 2)
+                .Select(d => new DepositDto
+                {
+                    Id = d.Id,
+                    ReceiptCode = d.ReceiptNumber,
+                    PatientId = d.PatientId ?? Guid.Empty,
+                    Amount = d.Amount,
+                    UsedAmount = d.UsedAmount,
+                    RemainingAmount = d.RemainingAmount,
+                    Status = d.Status,
+                    StatusName = "Đã xác nhận",
+                    CreatedAt = d.CreatedAt
+                }).ToList()
+        };
     }
 
     public async Task<PaymentDto> UseDepositForPaymentAsync(UseDepositForPaymentDto dto, Guid userId)
     {
-        throw new NotImplementedException("UseDepositForPaymentAsync not implemented");
+        var deposit = await _context.Deposits.FindAsync(dto.DepositId);
+        if (deposit == null)
+            throw new Exception("Deposit not found");
+        if (deposit.RemainingAmount < dto.Amount)
+            throw new Exception("Insufficient deposit balance");
+
+        deposit.UsedAmount += dto.Amount;
+        deposit.RemainingAmount -= dto.Amount;
+        if (deposit.RemainingAmount == 0)
+            deposit.Status = 3; // Đã sử dụng hết
+
+        // Create payment receipt
+        var receipt = new Receipt
+        {
+            Id = Guid.NewGuid(),
+            ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptDate = DateTime.Now,
+            PatientId = deposit.PatientId ?? Guid.Empty,
+            ReceiptType = 2,
+            PaymentMethod = 5, // Tạm ứng
+            Amount = dto.Amount,
+            Discount = 0,
+            FinalAmount = dto.Amount,
+            Status = 1,
+            CashierId = userId,
+            Note = $"Thanh toán từ tạm ứng {deposit.ReceiptNumber}",
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        _context.Receipts.Add(receipt);
+        await _context.SaveChangesAsync();
+
+        var patient = await _context.Patients.FindAsync(deposit.PatientId);
+
+        return new PaymentDto
+        {
+            Id = receipt.Id,
+            PaymentCode = receipt.ReceiptCode,
+            PatientId = receipt.PatientId,
+            PatientName = patient?.FullName ?? string.Empty,
+            InvoiceId = dto.InvoiceId,
+            Amount = receipt.FinalAmount,
+            PaymentMethod = "Tạm ứng",
+            PaymentStatus = "Đã thanh toán",
+            PaymentDate = receipt.ReceiptDate,
+            ReceivedBy = userId.ToString(),
+            Note = receipt.Note ?? string.Empty,
+            CreatedDate = receipt.CreatedAt
+        };
     }
 
     public async Task<List<DepositDto>> GetPatientDepositsAsync(Guid patientId, int? status)
@@ -131,7 +283,16 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<bool> CancelDepositAsync(Guid depositId, string reason, Guid userId)
     {
-        throw new NotImplementedException("CancelDepositAsync not implemented");
+        var deposit = await _context.Deposits.FindAsync(depositId);
+        if (deposit == null)
+            throw new Exception("Deposit not found");
+        if (deposit.UsedAmount > 0)
+            throw new Exception("Cannot cancel deposit that has been partially used");
+
+        deposit.Status = 5; // Đã hủy
+        deposit.Notes = $"{deposit.Notes} | Hủy: {reason}";
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     #endregion
@@ -203,7 +364,16 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<bool> CancelPaymentAsync(Guid paymentId, string reason, Guid userId)
     {
-        throw new NotImplementedException("CancelPaymentAsync not implemented");
+        var receipt = await _context.Receipts.FindAsync(paymentId);
+        if (receipt == null)
+            throw new Exception("Payment not found");
+        if (receipt.Status == 2)
+            throw new Exception("Payment already cancelled");
+
+        receipt.Status = 2; // Đã hủy
+        receipt.Note = $"{receipt.Note} | Hủy: {reason}";
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<PaymentHistoryDto> GetPaymentHistoryAsync(Guid patientId)
@@ -222,12 +392,91 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<RefundDto> CreateRefundAsync(CreateRefundDto dto, Guid userId)
     {
-        throw new NotImplementedException("CreateRefundAsync not implemented");
+        var patient = await _context.Patients.FindAsync(dto.PatientId);
+        if (patient == null)
+            throw new Exception("Patient not found");
+
+        // Create refund receipt
+        var receipt = new Receipt
+        {
+            Id = Guid.NewGuid(),
+            ReceiptCode = $"HT{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptDate = DateTime.Now,
+            PatientId = dto.PatientId,
+            ReceiptType = 3, // Hoàn trả
+            PaymentMethod = dto.RefundMethod,
+            Amount = dto.RefundAmount,
+            Discount = 0,
+            FinalAmount = dto.RefundAmount,
+            Status = 0, // Chờ duyệt
+            CashierId = userId,
+            Note = dto.Reason,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        _context.Receipts.Add(receipt);
+        await _context.SaveChangesAsync();
+
+        return new RefundDto
+        {
+            Id = receipt.Id,
+            RefundCode = receipt.ReceiptCode,
+            PatientId = dto.PatientId,
+            PatientCode = patient.PatientCode,
+            PatientName = patient.FullName,
+            RefundType = dto.RefundType,
+            RefundTypeName = dto.RefundType == 1 ? "Hoàn tạm ứng" : "Hoàn thanh toán",
+            OriginalDepositId = dto.OriginalDepositId,
+            OriginalPaymentId = dto.OriginalPaymentId,
+            RefundAmount = dto.RefundAmount,
+            RefundMethod = dto.RefundMethod,
+            RefundMethodName = GetPaymentMethodName(dto.RefundMethod),
+            BankAccount = dto.BankAccount,
+            BankName = dto.BankName,
+            Reason = dto.Reason,
+            CashierId = userId,
+            Status = 0,
+            StatusName = "Chờ duyệt",
+            CreatedAt = receipt.CreatedAt
+        };
     }
 
     public async Task<RefundDto> ApproveRefundAsync(ApproveRefundDto dto, Guid userId)
     {
-        throw new NotImplementedException("ApproveRefundAsync not implemented");
+        var receipt = await _context.Receipts
+            .Include(r => r.Patient)
+            .FirstOrDefaultAsync(r => r.Id == dto.RefundId && r.ReceiptType == 3);
+        if (receipt == null)
+            throw new Exception("Refund not found");
+
+        if (dto.IsApproved)
+        {
+            receipt.Status = 1; // Đã duyệt
+        }
+        else
+        {
+            receipt.Status = 2; // Từ chối
+            receipt.Note = $"{receipt.Note} | Từ chối: {dto.RejectReason}";
+        }
+
+        await _context.SaveChangesAsync();
+
+        return new RefundDto
+        {
+            Id = receipt.Id,
+            RefundCode = receipt.ReceiptCode,
+            PatientId = receipt.PatientId,
+            PatientCode = receipt.Patient?.PatientCode ?? string.Empty,
+            PatientName = receipt.Patient?.FullName ?? string.Empty,
+            RefundAmount = receipt.FinalAmount,
+            Reason = receipt.Note ?? string.Empty,
+            Status = dto.IsApproved ? 1 : 3,
+            StatusName = dto.IsApproved ? "Đã duyệt" : "Từ chối",
+            ApprovedBy = userId,
+            ApprovedAt = DateTime.Now,
+            CreatedAt = receipt.CreatedAt
+        };
     }
 
     public async Task<RefundDto> ConfirmRefundAsync(ConfirmRefundDto dto, Guid userId)
@@ -301,7 +550,35 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<InvoiceDto> ApplyInvoiceDiscountAsync(ApplyDiscountDto dto, Guid userId)
     {
-        throw new NotImplementedException("ApplyInvoiceDiscountAsync not implemented");
+        var invoice = await _context.InvoiceSummaries.FindAsync(dto.InvoiceId);
+        if (invoice == null)
+            throw new Exception("Invoice not found");
+
+        decimal discountAmount = 0;
+        if (dto.DiscountType == 1 && dto.DiscountPercent.HasValue)
+        {
+            discountAmount = invoice.TotalAmount * dto.DiscountPercent.Value / 100;
+        }
+        else if (dto.DiscountAmount.HasValue)
+        {
+            discountAmount = dto.DiscountAmount.Value;
+        }
+
+        invoice.DiscountAmount = discountAmount;
+        invoice.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        var invoiceDto = await CalculateInvoiceAsync(invoice.MedicalRecordId);
+        invoiceDto.Id = invoice.Id;
+        invoiceDto.InvoiceCode = invoice.InvoiceCode;
+        invoiceDto.DiscountAmount = discountAmount;
+        invoiceDto.DiscountReason = dto.DiscountReason;
+        invoiceDto.DiscountType = dto.DiscountType;
+        invoiceDto.DiscountPercent = dto.DiscountPercent;
+        invoiceDto.TotalAmount -= discountAmount;
+        invoiceDto.RemainingAmount -= discountAmount;
+
+        return invoiceDto;
     }
 
     public async Task<InvoiceDto> ApplyServiceDiscountAsync(ApplyDiscountDto dto, Guid userId)
@@ -396,7 +673,51 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<InvoiceDto> CreateOrUpdateInvoiceAsync(CreateInvoiceDto dto, Guid userId)
     {
-        throw new NotImplementedException("CreateOrUpdateInvoiceAsync not implemented");
+        // Check for existing invoice
+        var existing = await _context.InvoiceSummaries
+            .FirstOrDefaultAsync(i => i.MedicalRecordId == dto.MedicalRecordId);
+
+        // Calculate invoice from medical record data
+        var invoiceDto = await CalculateInvoiceAsync(dto.MedicalRecordId);
+
+        if (existing == null)
+        {
+            var invoice = new InvoiceSummary
+            {
+                Id = Guid.NewGuid(),
+                InvoiceCode = $"HD{DateTime.Now:yyyyMMddHHmmss}",
+                InvoiceDate = DateTime.Now,
+                MedicalRecordId = dto.MedicalRecordId,
+                TotalMedicineAmount = invoiceDto.MedicineTotal,
+                TotalAmount = invoiceDto.TotalAmount,
+                InsuranceAmount = invoiceDto.InsuranceAmount,
+                DiscountAmount = 0,
+                PaidAmount = 0,
+                RemainingAmount = invoiceDto.TotalAmount,
+                Status = 0, // Chưa thanh toán
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString()
+            };
+            _context.InvoiceSummaries.Add(invoice);
+            await _context.SaveChangesAsync();
+
+            invoiceDto.Id = invoice.Id;
+            invoiceDto.InvoiceCode = invoice.InvoiceCode;
+        }
+        else
+        {
+            existing.TotalMedicineAmount = invoiceDto.MedicineTotal;
+            existing.TotalAmount = invoiceDto.TotalAmount;
+            existing.InsuranceAmount = invoiceDto.InsuranceAmount;
+            existing.RemainingAmount = invoiceDto.TotalAmount - existing.PaidAmount - existing.DiscountAmount;
+            existing.UpdatedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            invoiceDto.Id = existing.Id;
+            invoiceDto.InvoiceCode = existing.InvoiceCode;
+        }
+
+        return invoiceDto;
     }
 
     public async Task<InvoiceDto?> GetInvoiceByIdAsync(Guid invoiceId)
@@ -478,7 +799,52 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<CashierReportDto> CloseCashBookAsync(CloseCashBookDto dto, Guid userId)
     {
-        throw new NotImplementedException("CloseCashBookAsync not implemented");
+        // Find open cash book for this cashier
+        var cashBook = await _context.CashBooks
+            .FirstOrDefaultAsync(cb => cb.CashierId == dto.CashierId && !cb.IsClosed);
+        if (cashBook == null)
+            throw new Exception("No open cash book found for this cashier");
+
+        // Calculate totals from receipts in this cash book's period
+        var receipts = await _context.Receipts
+            .Where(r => r.CashierId == dto.CashierId
+                && r.ReceiptDate >= cashBook.StartDate
+                && r.Status == 1)
+            .ToListAsync();
+
+        var totalCash = receipts.Where(r => r.PaymentMethod == 1 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
+        var totalCard = receipts.Where(r => r.PaymentMethod == 3 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
+        var totalTransfer = receipts.Where(r => r.PaymentMethod == 2 && r.ReceiptType != 3).Sum(r => r.FinalAmount);
+        var totalRefund = receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
+
+        cashBook.TotalReceipt = totalCash + totalCard + totalTransfer;
+        cashBook.TotalRefund = totalRefund;
+        cashBook.ClosingBalance = cashBook.OpeningBalance + cashBook.TotalReceipt - cashBook.TotalRefund;
+        cashBook.IsClosed = true;
+        cashBook.ClosedAt = DateTime.Now;
+        cashBook.EndDate = DateTime.Now;
+        cashBook.Note = dto.Note;
+
+        await _context.SaveChangesAsync();
+
+        var user = await _context.Users.FindAsync(dto.CashierId);
+
+        return new CashierReportDto
+        {
+            CashierId = dto.CashierId,
+            CashierName = user?.FullName ?? string.Empty,
+            FromDate = cashBook.StartDate,
+            ToDate = DateTime.Now,
+            ShiftCode = dto.ShiftCode,
+            OpeningBalance = cashBook.OpeningBalance,
+            TotalCashReceived = totalCash,
+            TotalCardReceived = totalCard,
+            TotalTransferReceived = totalTransfer,
+            TotalRefunded = totalRefund,
+            ClosingBalance = cashBook.ClosingBalance,
+            TransactionCount = receipts.Count,
+            IsClosed = true
+        };
     }
 
     public async Task<OutpatientRevenueReportDto> GetOutpatientRevenueReportAsync(RevenueReportRequestDto dto)

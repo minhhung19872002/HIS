@@ -11,9 +11,15 @@ using HIS.Application.DTOs.MassCasualty;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
+
+internal static class ExtendedWorkflowSqlGuard
+{
+    public static bool IsMissingTable(SqlException ex) => ex.Number == 208;
+}
 
 #region Flow 11: Telemedicine Service
 public class TelemedicineServiceImpl : ITelemedicineService
@@ -188,13 +194,20 @@ public class TelemedicineServiceImpl : ITelemedicineService
     public async Task<TelemedicineDashboardDto> GetDashboardAsync(DateTime? date = null)
     {
         var d = date ?? DateTime.Today;
-        return new TelemedicineDashboardDto
+        try
         {
-            Date = d,
-            TodayAppointments = await _context.TeleAppointments.CountAsync(x => x.AppointmentDate.Date == d.Date),
-            TodayCompleted = await _context.TeleSessions.CountAsync(x => x.StartTime.HasValue && x.StartTime.Value.Date == d.Date && x.Status == "Completed"),
-            CurrentWaitingPatients = await _context.TeleAppointments.CountAsync(x => x.Status == "Pending" && x.AppointmentDate.Date == d.Date)
-        };
+            return new TelemedicineDashboardDto
+            {
+                Date = d,
+                TodayAppointments = await _context.TeleAppointments.CountAsync(x => x.AppointmentDate.Date == d.Date),
+                TodayCompleted = await _context.TeleSessions.CountAsync(x => x.StartTime.HasValue && x.StartTime.Value.Date == d.Date && x.Status == "Completed"),
+                CurrentWaitingPatients = await _context.TeleAppointments.CountAsync(x => x.Status == "Pending" && x.AppointmentDate.Date == d.Date)
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new TelemedicineDashboardDto { Date = d, TodayAppointments = 0, TodayCompleted = 0, CurrentWaitingPatients = 0 };
+        }
     }
 
     private static TeleAppointmentDto MapToTeleAppointmentDto(TeleAppointment e) => new()
@@ -363,12 +376,20 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
 
     public async Task<NutritionDashboardDto> GetDashboardAsync(DateTime? date = null)
     {
-        return new NutritionDashboardDto
+        var d = date ?? DateTime.Today;
+        try
         {
-            Date = date ?? DateTime.Today,
-            HighRiskCount = await _context.NutritionScreenings.CountAsync(x => x.RiskLevel == "High"),
-            ActiveDietOrders = await _context.DietOrders.CountAsync(x => x.Status == "Active")
-        };
+            return new NutritionDashboardDto
+            {
+                Date = d,
+                HighRiskCount = await _context.NutritionScreenings.CountAsync(x => x.RiskLevel == "High"),
+                ActiveDietOrders = await _context.DietOrders.CountAsync(x => x.Status == "Active")
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new NutritionDashboardDto { Date = d, HighRiskCount = 0, ActiveDietOrders = 0 };
+        }
     }
 
     private static NutritionScreeningDto MapToNutritionScreeningDto(NutritionScreening e) => new()
@@ -563,13 +584,21 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<ICDashboardDto> GetDashboardAsync(DateTime? date = null)
     {
-        return new ICDashboardDto
+        var d = date ?? DateTime.Today;
+        try
         {
-            Date = date ?? DateTime.Today,
-            ActiveHAICases = await _context.HAICases.CountAsync(x => x.Status != "Resolved"),
-            ActiveIsolations = await _context.IsolationOrders.CountAsync(x => x.Status == "Active"),
-            ActiveOutbreaks = await _context.Outbreaks.CountAsync(x => x.Status == "Active")
-        };
+            return new ICDashboardDto
+            {
+                Date = d,
+                ActiveHAICases = await _context.HAICases.CountAsync(x => x.Status != "Resolved"),
+                ActiveIsolations = await _context.IsolationOrders.CountAsync(x => x.Status == "Active"),
+                ActiveOutbreaks = await _context.Outbreaks.CountAsync(x => x.Status == "Active")
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new ICDashboardDto { Date = d, ActiveHAICases = 0, ActiveIsolations = 0, ActiveOutbreaks = 0 };
+        }
     }
 
     private static HAIDto MapToHAIDto(HAICase e) => new()
@@ -768,14 +797,21 @@ public class RehabilitationServiceImpl : IRehabilitationService
     public async Task<RehabDashboardDto> GetDashboardAsync(DateTime? date = null)
     {
         var d = date ?? DateTime.Today;
-        return new RehabDashboardDto
+        try
         {
-            Date = d,
-            PendingReferrals = await _context.RehabReferrals.CountAsync(x => x.Status == "Pending"),
-            ActivePatients = await _context.RehabTreatmentPlans.CountAsync(x => x.Status == "Active"),
-            TodaySessions = await _context.RehabSessions.CountAsync(x => x.SessionDate.Date == d.Date),
-            CompletedToday = await _context.RehabSessions.CountAsync(x => x.SessionDate.Date == d.Date && x.Status == "Completed")
-        };
+            return new RehabDashboardDto
+            {
+                Date = d,
+                PendingReferrals = await _context.RehabReferrals.CountAsync(x => x.Status == "Pending"),
+                ActivePatients = await _context.RehabTreatmentPlans.CountAsync(x => x.Status == "Active"),
+                TodaySessions = await _context.RehabSessions.CountAsync(x => x.SessionDate.Date == d.Date),
+                CompletedToday = await _context.RehabSessions.CountAsync(x => x.SessionDate.Date == d.Date && x.Status == "Completed")
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new RehabDashboardDto { Date = d, PendingReferrals = 0, ActivePatients = 0, TodaySessions = 0, CompletedToday = 0 };
+        }
     }
 
     private static RehabSessionDto MapToRehabSessionDto(RehabSession e) => new()
@@ -973,14 +1009,21 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<EquipmentDashboardDto> GetDashboardAsync()
     {
-        return new EquipmentDashboardDto
+        try
         {
-            TotalEquipment = await _context.MedicalEquipments.CountAsync(),
-            ActiveEquipment = await _context.MedicalEquipments.CountAsync(x => x.Status == "Active"),
-            InMaintenance = await _context.MedicalEquipments.CountAsync(x => x.Status == "InMaintenance"),
-            OpenRepairRequests = await _context.RepairRequests.CountAsync(x => x.Status == "Pending"),
-            CalibrationDueThisMonth = await _context.MedicalEquipments.CountAsync(x => x.NextCalibrationDate != null && x.NextCalibrationDate <= DateTime.Today.AddDays(30))
-        };
+            return new EquipmentDashboardDto
+            {
+                TotalEquipment = await _context.MedicalEquipments.CountAsync(),
+                ActiveEquipment = await _context.MedicalEquipments.CountAsync(x => x.Status == "Active"),
+                InMaintenance = await _context.MedicalEquipments.CountAsync(x => x.Status == "InMaintenance"),
+                OpenRepairRequests = await _context.RepairRequests.CountAsync(x => x.Status == "Pending"),
+                CalibrationDueThisMonth = await _context.MedicalEquipments.CountAsync(x => x.NextCalibrationDate != null && x.NextCalibrationDate <= DateTime.Today.AddDays(30))
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new EquipmentDashboardDto();
+        }
     }
 
     public async Task<EquipmentReportDto> GetEquipmentReportAsync(DateTime fromDate, DateTime toDate)
@@ -1173,13 +1216,20 @@ public class MedicalHRServiceImpl : IMedicalHRService
 
     public async Task<MedicalHRDashboardDto> GetDashboardAsync()
     {
-        return new MedicalHRDashboardDto
+        try
         {
-            TotalStaff = await _context.MedicalStaffs.CountAsync(),
-            ActiveDoctors = await _context.MedicalStaffs.CountAsync(x => x.StaffType == "Doctor" && x.Status == "Active"),
-            ActiveNurses = await _context.MedicalStaffs.CountAsync(x => x.StaffType == "Nurse" && x.Status == "Active"),
-            ExpiringLicenses30Days = await _context.MedicalStaffs.CountAsync(x => x.LicenseExpiryDate != null && x.LicenseExpiryDate <= DateTime.Today.AddDays(30))
-        };
+            return new MedicalHRDashboardDto
+            {
+                TotalStaff = await _context.MedicalStaffs.CountAsync(),
+                ActiveDoctors = await _context.MedicalStaffs.CountAsync(x => x.StaffType == "Doctor" && x.Status == "Active"),
+                ActiveNurses = await _context.MedicalStaffs.CountAsync(x => x.StaffType == "Nurse" && x.Status == "Active"),
+                ExpiringLicenses30Days = await _context.MedicalStaffs.CountAsync(x => x.LicenseExpiryDate != null && x.LicenseExpiryDate <= DateTime.Today.AddDays(30))
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new MedicalHRDashboardDto();
+        }
     }
 
     private static MedicalStaffDto MapToStaffDto(MedicalStaff e) => new()
@@ -1396,13 +1446,20 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<QMDashboardDto> GetDashboardAsync()
     {
-        return new QMDashboardDto
+        try
         {
-            OpenIncidents = await _context.IncidentReports.CountAsync(x => x.Status != "Closed"),
-            IncidentsThisMonth = await _context.IncidentReports.CountAsync(x => x.IncidentDate.Month == DateTime.Today.Month && x.IncidentDate.Year == DateTime.Today.Year),
-            OpenCAPAs = await _context.CAPAs.CountAsync(x => x.Status != "Closed"),
-            OverdueCAPAs = await _context.CAPAs.CountAsync(x => x.Status != "Closed" && x.DueDate < DateTime.Today)
-        };
+            return new QMDashboardDto
+            {
+                OpenIncidents = await _context.IncidentReports.CountAsync(x => x.Status != "Closed"),
+                IncidentsThisMonth = await _context.IncidentReports.CountAsync(x => x.IncidentDate.Month == DateTime.Today.Month && x.IncidentDate.Year == DateTime.Today.Year),
+                OpenCAPAs = await _context.CAPAs.CountAsync(x => x.Status != "Closed"),
+                OverdueCAPAs = await _context.CAPAs.CountAsync(x => x.Status != "Closed" && x.DueDate < DateTime.Today)
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new QMDashboardDto();
+        }
     }
 
     private static IncidentReportDto MapToIncidentDto(IncidentReport e) => new()
@@ -1474,10 +1531,17 @@ public class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<List<PortalAppointmentDto>> GetAppointmentsAsync(Guid patientId, bool includeHistory = false)
     {
-        var query = _context.PortalAppointments.Include(x => x.Department).Where(x => x.PatientId == patientId);
-        if (!includeHistory) query = query.Where(x => x.AppointmentDate >= DateTime.Today);
-        var list = await query.OrderBy(x => x.AppointmentDate).ToListAsync();
-        return list.Select(e => new PortalAppointmentDto { Id = e.Id, PatientId = e.PatientId, DepartmentName = e.Department?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, AppointmentTime = e.SlotTime, Status = e.Status }).ToList();
+        try
+        {
+            var query = _context.PortalAppointments.Include(x => x.Department).Where(x => x.PatientId == patientId);
+            if (!includeHistory) query = query.Where(x => x.AppointmentDate >= DateTime.Today);
+            var list = await query.OrderBy(x => x.AppointmentDate).ToListAsync();
+            return list.Select(e => new PortalAppointmentDto { Id = e.Id, PatientId = e.PatientId, DepartmentName = e.Department?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, AppointmentTime = e.SlotTime, Status = e.Status }).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new List<PortalAppointmentDto>();
+        }
     }
 
     public async Task<PortalAppointmentDto> GetAppointmentAsync(Guid id)
@@ -2049,27 +2113,34 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
 
     public async Task<HIEDashboardDto> GetDashboardAsync()
     {
-        var connections = await _context.HIEConnections.ToListAsync();
-        var submissions = await _context.InsuranceXMLSubmissions.Where(x => x.GeneratedAt.Month == DateTime.Now.Month).ToListAsync();
-        var referrals = await _context.ElectronicReferrals.Where(x => x.SentAt.Month == DateTime.Now.Month).ToListAsync();
-        var teleconsults = await _context.TeleconsultationRequests.Where(x => x.Status == "Requested" || x.Status == "Scheduled").ToListAsync();
-
-        return new HIEDashboardDto
+        try
         {
-            Date = DateTime.Today,
-            TotalConnections = connections.Count,
-            ActiveConnections = connections.Count(c => c.IsActive),
-            XMLSubmissionsThisMonth = submissions.Count,
-            PendingSubmissions = submissions.Count(s => s.Status == "Generated" || s.Status == "Validated"),
-            SubmittedThisMonth = submissions.Count(s => s.Status == "Submitted"),
-            ClaimedAmountThisMonth = submissions.Sum(s => s.TotalAmount),
-            OutgoingReferrals = referrals.Count(r => r.FromFacilityCode == "CURRENT"),
-            IncomingReferrals = referrals.Count(r => r.ToFacilityCode == "CURRENT"),
-            PendingReferrals = referrals.Count(r => r.Status == "Sent"),
-            ActiveTeleconsultations = teleconsults.Count,
-            PendingRequests = teleconsults.Count(t => t.Status == "Requested"),
-            Connections = connections.Select(c => new HIEConnectionDto { Id = c.Id, ConnectionName = c.ConnectionName, ConnectionType = c.ConnectionType, IsActive = c.IsActive, ConnectionStatus = c.Status }).ToList()
-        };
+            var connections = await _context.HIEConnections.ToListAsync();
+            var submissions = await _context.InsuranceXMLSubmissions.Where(x => x.GeneratedAt.Month == DateTime.Now.Month).ToListAsync();
+            var referrals = await _context.ElectronicReferrals.Where(x => x.SentAt.Month == DateTime.Now.Month).ToListAsync();
+            var teleconsults = await _context.TeleconsultationRequests.Where(x => x.Status == "Requested" || x.Status == "Scheduled").ToListAsync();
+
+            return new HIEDashboardDto
+            {
+                Date = DateTime.Today,
+                TotalConnections = connections.Count,
+                ActiveConnections = connections.Count(c => c.IsActive),
+                XMLSubmissionsThisMonth = submissions.Count,
+                PendingSubmissions = submissions.Count(s => s.Status == "Generated" || s.Status == "Validated"),
+                SubmittedThisMonth = submissions.Count(s => s.Status == "Submitted"),
+                ClaimedAmountThisMonth = submissions.Sum(s => s.TotalAmount),
+                OutgoingReferrals = referrals.Count(r => r.FromFacilityCode == "CURRENT"),
+                IncomingReferrals = referrals.Count(r => r.ToFacilityCode == "CURRENT"),
+                PendingReferrals = referrals.Count(r => r.Status == "Sent"),
+                ActiveTeleconsultations = teleconsults.Count,
+                PendingRequests = teleconsults.Count(t => t.Status == "Requested"),
+                Connections = connections.Select(c => new HIEConnectionDto { Id = c.Id, ConnectionName = c.ConnectionName, ConnectionType = c.ConnectionType, IsActive = c.IsActive, ConnectionStatus = c.Status }).ToList()
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new HIEDashboardDto { Date = DateTime.Today, Connections = new List<HIEConnectionDto>() };
+        }
     }
 }
 
@@ -2463,48 +2534,55 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
 
     public async Task<MCIDashboardDto> GetDashboardAsync()
     {
-        var active = await _context.MCIEvents.Include(x => x.Victims).FirstOrDefaultAsync(x => x.Status == "Active");
-        var eventsThisYear = await _context.MCIEvents.CountAsync(x => x.ActivatedAt.Year == DateTime.Now.Year);
-
-        var dashboard = new MCIDashboardDto
+        try
         {
-            HasActiveEvent = active != null,
-            TotalEventsThisYear = eventsThisYear
-        };
+            var active = await _context.MCIEvents.Include(x => x.Victims).FirstOrDefaultAsync(x => x.Status == "Active");
+            var eventsThisYear = await _context.MCIEvents.CountAsync(x => x.ActivatedAt.Year == DateTime.Now.Year);
 
-        if (active != null)
-        {
-            dashboard.ActiveEvent = MapToEventDto(active);
-            dashboard.RealTimeStats = await GetRealTimeStatsAsync(active.Id);
-            dashboard.Resources = await GetResourceStatusAsync(active.Id);
-
-            var victims = active.Victims?.ToList() ?? new List<MCIVictim>();
-            dashboard.VictimBoard = victims.OrderByDescending(v => v.ArrivalTime).Take(20).Select(v => new MCIVictimSummaryDto
+            var dashboard = new MCIDashboardDto
             {
-                Id = v.Id,
-                TriageTag = v.TagNumber,
-                Name = v.Name ?? "Unknown",
-                TriageCategory = v.TriageCategory,
-                CurrentLocation = v.CurrentLocation,
-                Status = v.Status,
-                ArrivedAt = v.ArrivalTime,
-                MinutesSinceArrival = (int)(DateTime.Now - v.ArrivalTime).TotalMinutes
-            }).ToList();
+                HasActiveEvent = active != null,
+                TotalEventsThisYear = eventsThisYear
+            };
 
-            dashboard.RecentArrivals = victims.OrderByDescending(v => v.ArrivalTime).Take(5).Select(v => new MCIVictimSummaryDto
+            if (active != null)
             {
-                Id = v.Id,
-                TriageTag = v.TagNumber,
-                Name = v.Name ?? "Unknown",
-                TriageCategory = v.TriageCategory,
-                CurrentLocation = v.CurrentLocation,
-                Status = v.Status,
-                ArrivedAt = v.ArrivalTime,
-                MinutesSinceArrival = (int)(DateTime.Now - v.ArrivalTime).TotalMinutes
-            }).ToList();
+                dashboard.ActiveEvent = MapToEventDto(active);
+                dashboard.RealTimeStats = await GetRealTimeStatsAsync(active.Id);
+                dashboard.Resources = await GetResourceStatusAsync(active.Id);
+
+                var victims = active.Victims?.ToList() ?? new List<MCIVictim>();
+                dashboard.VictimBoard = victims.OrderByDescending(v => v.ArrivalTime).Take(20).Select(v => new MCIVictimSummaryDto
+                {
+                    Id = v.Id,
+                    TriageTag = v.TagNumber,
+                    Name = v.Name ?? "Unknown",
+                    TriageCategory = v.TriageCategory,
+                    CurrentLocation = v.CurrentLocation,
+                    Status = v.Status,
+                    ArrivedAt = v.ArrivalTime,
+                    MinutesSinceArrival = (int)(DateTime.Now - v.ArrivalTime).TotalMinutes
+                }).ToList();
+
+                dashboard.RecentArrivals = victims.OrderByDescending(v => v.ArrivalTime).Take(5).Select(v => new MCIVictimSummaryDto
+                {
+                    Id = v.Id,
+                    TriageTag = v.TagNumber,
+                    Name = v.Name ?? "Unknown",
+                    TriageCategory = v.TriageCategory,
+                    CurrentLocation = v.CurrentLocation,
+                    Status = v.Status,
+                    ArrivedAt = v.ArrivalTime,
+                    MinutesSinceArrival = (int)(DateTime.Now - v.ArrivalTime).TotalMinutes
+                }).ToList();
+            }
+
+            return dashboard;
         }
-
-        return dashboard;
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
+        {
+            return new MCIDashboardDto { HasActiveEvent = false, TotalEventsThisYear = 0 };
+        }
     }
 
     private MCIEventDto MapToEventDto(MCIEvent e)

@@ -5,6 +5,11 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using iText.IO.Font.Constants;
+using iText.Kernel.Font;
+using iText.Kernel.Pdf;
+using iText.Layout;
+using iText.Layout.Properties;
 using QueueDailyStatisticsDto = HIS.Application.DTOs.Reception.QueueDailyStatisticsDto;
 using AverageWaitingTimeDto = HIS.Application.DTOs.Reception.AverageWaitingTimeDto;
 using QueueReportRequestDto = HIS.Application.DTOs.Reception.QueueReportRequestDto;
@@ -2050,23 +2055,107 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
     public async Task<byte[]> PrintExaminationSlipAsync(Guid medicalRecordId)
     {
-        // TODO: Implement PDF generation
-        return Array.Empty<byte>();
+        var slip = await GetExaminationSlipDataAsync(medicalRecordId);
+        var fields = new List<KeyValuePair<string, string>>
+        {
+            new("Medical Record", slip.MedicalRecordCode),
+            new("Patient Code", slip.PatientCode),
+            new("Patient Name", slip.PatientName),
+            new("Gender", slip.Gender == 1 ? "Male" : slip.Gender == 2 ? "Female" : "Other"),
+            new("Age", slip.Age.ToString()),
+            new("Admission Date", slip.AdmissionDate.ToString("yyyy-MM-dd HH:mm")),
+            new("Queue Number", slip.QueueNumber.ToString()),
+            new("Room", slip.RoomName),
+            new("Doctor", slip.DoctorName ?? "-"),
+            new("Insurance Number", slip.InsuranceNumber ?? "-")
+        };
+
+        return BuildSimplePdf("EXAMINATION SLIP", fields);
     }
 
     public async Task<byte[]> PrintInsuranceCardHoldSlipAsync(Guid documentHoldId)
     {
-        return Array.Empty<byte>();
+        var hold = await _context.DocumentHolds
+            .Include(x => x.Patient)
+            .Include(x => x.MedicalRecord)
+            .FirstOrDefaultAsync(x => x.Id == documentHoldId);
+
+        if (hold == null)
+            throw new Exception("Document hold not found");
+
+        var fields = new List<KeyValuePair<string, string>>
+        {
+            new("Patient Code", hold.Patient?.PatientCode ?? "-"),
+            new("Patient Name", hold.Patient?.FullName ?? "-"),
+            new("Medical Record", hold.MedicalRecord?.MedicalRecordCode ?? "-"),
+            new("Document Type", GetDocumentTypeName(hold.DocumentType)),
+            new("Document Number", hold.DocumentNumber),
+            new("Quantity", hold.Quantity.ToString()),
+            new("Hold Date", hold.HoldDate.ToString("yyyy-MM-dd HH:mm")),
+            new("Held By", hold.HoldBy),
+            new("Status", hold.Status == 0 ? "Holding" : hold.Status == 1 ? "Returned" : "Lost")
+        };
+
+        return BuildSimplePdf("INSURANCE/DOCUMENT HOLD RECEIPT", fields);
     }
 
     public async Task<byte[]> PrintPatientCardAsync(Guid patientId)
     {
-        return Array.Empty<byte>();
+        var patient = await _context.Patients.FirstOrDefaultAsync(x => x.Id == patientId);
+        if (patient == null)
+            throw new Exception("Patient not found");
+
+        var latestRecord = await _context.MedicalRecords
+            .Include(x => x.Room)
+            .Where(x => x.PatientId == patientId)
+            .OrderByDescending(x => x.AdmissionDate)
+            .FirstOrDefaultAsync();
+
+        var fields = new List<KeyValuePair<string, string>>
+        {
+            new("Patient Code", patient.PatientCode),
+            new("Patient Name", patient.FullName),
+            new("Gender", patient.Gender == 1 ? "Male" : patient.Gender == 2 ? "Female" : "Other"),
+            new("Date of Birth", patient.DateOfBirth?.ToString("yyyy-MM-dd") ?? "-"),
+            new("Phone", patient.PhoneNumber ?? "-"),
+            new("Address", patient.Address ?? "-"),
+            new("Insurance Number", patient.InsuranceNumber ?? "-"),
+            new("Latest Medical Record", latestRecord?.MedicalRecordCode ?? "-"),
+            new("Latest Room", latestRecord?.Room?.RoomName ?? "-")
+        };
+
+        return BuildSimplePdf("PATIENT CARD", fields);
     }
 
     public async Task<byte[]> PrintServiceOrderSlipAsync(Guid medicalRecordId)
     {
-        return Array.Empty<byte>();
+        var medicalRecord = await _context.MedicalRecords
+            .Include(x => x.Patient)
+            .FirstOrDefaultAsync(x => x.Id == medicalRecordId);
+
+        if (medicalRecord == null)
+            throw new Exception("Medical record not found");
+
+        var serviceRequests = await _context.ServiceRequests
+            .Include(x => x.Service)
+            .Where(x => x.MedicalRecordId == medicalRecordId)
+            .OrderByDescending(x => x.RequestDate)
+            .Take(20)
+            .ToListAsync();
+
+        var fields = new List<KeyValuePair<string, string>>
+        {
+            new("Medical Record", medicalRecord.MedicalRecordCode),
+            new("Patient Code", medicalRecord.Patient.PatientCode),
+            new("Patient Name", medicalRecord.Patient.FullName),
+            new("Total Requests", serviceRequests.Count.ToString()),
+            new("Total Amount", serviceRequests.Sum(x => x.TotalPrice).ToString("N0"))
+        };
+
+        var details = serviceRequests.Select(x =>
+            $"{x.RequestCode} | {(x.Service?.ServiceName ?? "-")} | Qty: {x.Quantity} | Amount: {x.TotalPrice:N0}");
+
+        return BuildSimplePdf("SERVICE ORDER SLIP", fields, details);
     }
 
     public async Task<ExaminationSlipDto> GetExaminationSlipDataAsync(Guid medicalRecordId)
@@ -2402,6 +2491,66 @@ public class ReceptionCompleteService : IReceptionCompleteService
     #endregion
 
     #region Private Helper Methods
+
+    private static byte[] BuildSimplePdf(
+        string title,
+        IEnumerable<KeyValuePair<string, string>> fields,
+        IEnumerable<string>? details = null)
+    {
+        using var memoryStream = new MemoryStream();
+        using var writer = new PdfWriter(memoryStream);
+        using var pdf = new PdfDocument(writer);
+        using var document = new Document(pdf);
+
+        var regularFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+        var boldFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+
+        document.Add(new iText.Layout.Element.Paragraph(title)
+            .SetFont(boldFont)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetFontSize(16)
+            .SetMarginBottom(12));
+
+        foreach (var field in fields)
+        {
+            var key = string.IsNullOrWhiteSpace(field.Key) ? "-" : field.Key;
+            var value = string.IsNullOrWhiteSpace(field.Value) ? "-" : field.Value;
+            document.Add(new iText.Layout.Element.Paragraph($"{key}: {value}")
+                .SetFont(regularFont)
+                .SetFontSize(10)
+                .SetMarginBottom(4));
+        }
+
+        if (details != null)
+        {
+            var detailItems = details.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            if (detailItems.Count > 0)
+            {
+                document.Add(new iText.Layout.Element.Paragraph("DETAILS")
+                    .SetFont(boldFont)
+                    .SetFontSize(12)
+                    .SetMarginTop(12)
+                    .SetMarginBottom(6));
+
+                foreach (var detail in detailItems)
+                {
+                    document.Add(new iText.Layout.Element.Paragraph($"- {detail}")
+                        .SetFont(regularFont)
+                        .SetFontSize(9)
+                        .SetMarginBottom(2));
+                }
+            }
+        }
+
+        document.Add(new iText.Layout.Element.Paragraph($"Generated at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
+            .SetFont(regularFont)
+            .SetFontSize(8)
+            .SetTextAlignment(TextAlignment.RIGHT)
+            .SetMarginTop(16));
+
+        document.Close();
+        return memoryStream.ToArray();
+    }
 
     private async Task<(int Total, int Waiting, int InProgress, int WaitingResult, int Completed, int DoingLab, int InsuranceCount)> GetRoomStatsAsync(Guid roomId, DateTime date)
     {

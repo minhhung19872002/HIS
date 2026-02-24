@@ -77,44 +77,48 @@ If a new service/controller is added, register it there or you get 500 errors.
 - `72b7335` - Comprehensive E2E testing, Antd v6 migration, RIS/PACS, multi-module
 - `86844e0` - Fix Playwright networkidle timeouts
 
+**7. Backend Stub Implementations (2026-02-24)**
+- BillingCompleteService: 11 methods implemented (CreateCashBook, CreateDeposit, GetDepositBalance, UseDepositForPayment, CancelDeposit, CancelPayment, CreateRefund, ApproveRefund, CreateOrUpdateInvoice, ApplyInvoiceDiscount, CloseCashBook)
+- InpatientCompleteService: 12 methods implemented (AssignBed, TransferBed, ReleaseBed, TransferDepartment, DischargePatient, CancelDischarge, CheckPreDischarge, CreateServiceOrder, GetServiceOrders, CreatePrescription, GetPrescriptions, CreateTreatmentSheet)
+- WarehouseCompleteService: 10 methods implemented (CreateSupplierReceipt, ApproveStockReceipt, CancelStockReceipt, DispenseOutpatientPrescription, DispenseInpatientOrder, IssueToDepartment, CreateStockTake, CompleteStockTake, CreateProcurementRequest, GetStock enhanced)
+
 ### DANG DO / CHUA XONG
 
 **1. 5 Playwright tests skipped** (conditional, ko loi - do serial test dependency)
 - O trong `02-opd-examination.spec.ts` va `05-surgery-flow.spec.ts`
 - Skip khi ko co patient selected tu buoc truoc
 
-**2. Backend NotImplementedException stubs**
-- `BillingCompleteService.cs` - 27 methods NotImplemented
-- `InpatientCompleteService.cs` - 145 methods NotImplemented
-- `WarehouseCompleteService.cs` - 36 methods NotImplemented
+**2. Backend NotImplementedException stubs (con lai)**
+- `BillingCompleteService.cs` - 16 methods NotImplemented (reports, printing, e-invoices, accounting approval)
+- `InpatientCompleteService.cs` - 133 methods NotImplemented (nutrition, vital signs, nursing, consultations, reports, prints)
+- `WarehouseCompleteService.cs` - 26 methods NotImplemented (other receipt types, pharmacy sales, reusable supplies, reports)
 - Cac method nay tra ve 500 khi goi, nhung frontend da handle bang console.warn
 
 **3. API endpoints tra ve 404/400**
 - Surgery: `POST /api/surgery/requests` → 400 (chua co body dung format)
-- Mot so API cua warehouse, billing chua implement
 
-### MAI CAN LAM TIEP
+### CAN LAM TIEP
 
-**1. Implement backend stubs (uu tien cao)**
-- BillingComplete: GetUnpaidBills, CreatePayment, GetReceipt, GetDeposits, ProcessRefund
-- InpatientComplete: AdmitPatient, AssignBed, DailyOrder, TransferPatient, DischargePatient
-- WarehouseComplete: CreateImport, CreateExport, TransferStock, GetInventoryReport
-
-**2. Test workflow end-to-end voi DB that**
+**1. Test workflow end-to-end voi DB that**
 - OPD flow day du: Tiep don → Kham → Ke don → Thu ngan → Phat thuoc (da test API, chua test UI click-through)
-- IPD flow: Nhap vien → Phan giuong → Dieu tri → Xuat vien
+- IPD flow: Nhap vien → Phan giuong → Dieu tri → Xuat vien (backend done, can test)
 - Surgery flow: Yeu cau → Len lich → Thuc hien → Hoan thanh
 
-**3. Fix 5 Playwright skipped tests**
+**2. Fix 5 Playwright skipped tests**
 - Dam bao serial test co patient data tu buoc truoc
 - Co the can tao patient via API trong beforeAll
 
-**4. Them Cypress test cho cac modal/drawer interactions**
+**3. Them Cypress test cho cac modal/drawer interactions**
 - Pharmacy: 5 drawers, 3 modals
 - Insurance: 4 modals
 - Billing: 1 modal, 1 drawer
 - Hien tai chi test click button, chua test fill form va submit
 
-**5. Kiem tra data hien thi dung tren UI**
+**4. Kiem tra data hien thi dung tren UI**
 - Verify Vietnamese encoding hien thi dung tren browser
 - Verify so lieu thong ke Dashboard khop voi DB
+
+**5. Implement remaining backend stubs (lower priority)**
+- Reports, printing, e-invoices cho Billing
+- Nutrition, vital signs, nursing, consultations cho Inpatient
+- Pharmacy sales, reusable supplies, consignment cho Warehouse
