@@ -60,7 +60,7 @@ import { test, expect, Page } from '@playwright/test';
 
 async function login(page: Page) {
   await page.goto('/login');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 
   // Kiem tra neu da dang nhap roi thi bo qua
   if (page.url().includes('/login')) {
@@ -73,7 +73,7 @@ async function login(page: Page) {
 
     // Cho chuyen trang - doi toi khi khong con o trang login
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   }
 }
 

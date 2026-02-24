@@ -34,14 +34,14 @@ import { registerPatientViaAPI, getExamRoomsViaAPI } from '../helpers/test-utils
 
 async function login(page: Page) {
   await page.goto('/login');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 
   if (page.url().includes('/login')) {
     await page.locator('input').first().fill('admin');
     await page.locator('input[type="password"]').fill('Admin@123');
     await page.locator('button:has-text("Đăng nhập")').click();
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   }
 }
 

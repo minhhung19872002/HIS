@@ -65,7 +65,7 @@ async function apiPost(endpoint: string, body: any) {
 
 async function login(page: any) {
   await page.goto('/login');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
   if (page.url().includes('/login')) {
     await page.locator('input').first().fill('admin');
     await page.locator('input[type="password"]').fill('Admin@123');
@@ -103,7 +103,7 @@ test.describe('Flow 1: Reception - Tiep don', () => {
   test('UI: Reception page loads', async ({ page }) => {
     await login(page);
     await page.goto('/reception');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const title = page.locator('h4:has-text("Tiếp đón")');
     await expect(title).toBeVisible({ timeout: 10000 });
     console.log('[Flow 1] Reception UI loaded');
@@ -124,7 +124,7 @@ test.describe('Flow 2: OPD Examination - Kham ngoai tru', () => {
   test('UI: OPD page loads', async ({ page }) => {
     await login(page);
     await page.goto('/opd');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 2] OPD UI loaded');
@@ -143,7 +143,7 @@ test.describe('Flow 3: Pharmacy - Nha thuoc', () => {
   test('UI: Pharmacy page loads', async ({ page }) => {
     await login(page);
     await page.goto('/pharmacy');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4, .ant-tabs');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 3] Pharmacy UI loaded');
@@ -156,7 +156,7 @@ test.describe('Flow 4: Laboratory - Xet nghiem', () => {
   test('UI: Laboratory page loads', async ({ page }) => {
     await login(page);
     await page.goto('/laboratory');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4, .ant-tabs');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 4] Laboratory UI loaded');
@@ -169,7 +169,7 @@ test.describe('Flow 5: Radiology - Chan doan hinh anh', () => {
   test('UI: Radiology page loads', async ({ page }) => {
     await login(page);
     await page.goto('/radiology');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4, .ant-tabs');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 5] Radiology UI loaded');
@@ -194,7 +194,7 @@ test.describe('Flow 6: IPD - Noi tru', () => {
   test('UI: Inpatient page loads', async ({ page }) => {
     await login(page);
     await page.goto('/inpatient');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4, .ant-tabs');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 6] Inpatient UI loaded');
@@ -207,7 +207,7 @@ test.describe('Flow 7: Billing - Thanh toan', () => {
   test('UI: Billing page loads', async ({ page }) => {
     await login(page);
     await page.goto('/billing');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 7] Billing UI loaded');
@@ -233,7 +233,7 @@ test.describe('Flow 8: Surgery - Phau thuat', () => {
   test('UI: Surgery page loads', async ({ page }) => {
     await login(page);
     await page.goto('/surgery');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4, .ant-tabs');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 8] Surgery UI loaded');
@@ -246,7 +246,7 @@ test.describe('Flow 9: Blood Bank - Ngan hang mau', () => {
   test('UI: Blood Bank page loads', async ({ page }) => {
     await login(page);
     await page.goto('/blood-bank');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4, .ant-tabs');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 9] Blood Bank UI loaded');
@@ -553,7 +553,7 @@ test.describe('Flow 20: Reports - Bao cao', () => {
   test('UI: Reports page loads', async ({ page }) => {
     await login(page);
     await page.goto('/reports');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const content = page.locator('.ant-card, .ant-table, h4');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
     console.log('[Flow 20] Reports UI loaded');
@@ -591,7 +591,7 @@ test.describe('System Health Checks', () => {
 
     for (const p of pages) {
       await page.goto(p.path);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       const content = page.locator('.ant-card, .ant-table, h4, .ant-tabs, .ant-layout-content');
       await expect(content.first()).toBeVisible({ timeout: 10000 });
       console.log(`[System] ${p.name} page OK`);

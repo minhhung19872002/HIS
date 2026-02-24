@@ -462,40 +462,40 @@ test.describe('RIS/PACS UI Tests', () => {
 
   test('should display waiting list tab', async ({ page }) => {
     await page.goto('/radiology');
-    // Wait for page to load
-    await page.waitForLoadState('networkidle');
-    // Check if tabs exist (use .first() to avoid strict mode violation)
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for React app to render
+    await page.waitForSelector('.ant-tabs, .ant-card, h4', { timeout: 15000 });
     const tabsExist = await page.locator('.ant-tabs').first().isVisible();
     expect(tabsExist).toBeTruthy();
   });
 
   test('should display statistics tab', async ({ page }) => {
     await page.goto('/radiology');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on statistics tab if exists
     const statsTab = page.locator('text=Thống kê, text=Statistics, [data-node-key*="stat"]').first();
     if (await statsTab.isVisible()) {
       await statsTab.click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
     }
   });
 
   test('should display settings tab', async ({ page }) => {
     await page.goto('/radiology');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on settings tab if exists
     const settingsTab = page.locator('text=Cài đặt, text=Settings, [data-node-key*="setting"]').first();
     if (await settingsTab.isVisible()) {
       await settingsTab.click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
     }
   });
 
   test('should have date picker for filtering', async ({ page }) => {
     await page.goto('/radiology');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const datePicker = page.locator('.ant-picker, input[type="date"]').first();
     if (await datePicker.isVisible()) {
@@ -505,7 +505,7 @@ test.describe('RIS/PACS UI Tests', () => {
 
   test('should have search input', async ({ page }) => {
     await page.goto('/radiology');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const searchInput = page.locator('input[placeholder*="Tìm"], input[placeholder*="Search"], .ant-input-search').first();
     if (await searchInput.isVisible()) {
@@ -515,7 +515,7 @@ test.describe('RIS/PACS UI Tests', () => {
 
   test('should display table or list for waiting patients', async ({ page }) => {
     await page.goto('/radiology');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const table = page.locator('.ant-table, table').first();
     await expect(table).toBeVisible({ timeout: 10000 });
@@ -523,7 +523,9 @@ test.describe('RIS/PACS UI Tests', () => {
 
   test('should have action buttons (start, complete, view)', async ({ page }) => {
     await page.goto('/radiology');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for React app to render
+    await page.waitForSelector('.ant-tabs, .ant-card, h4', { timeout: 15000 });
 
     // Check for common action buttons
     const actionButtons = page.locator('button, .ant-btn');

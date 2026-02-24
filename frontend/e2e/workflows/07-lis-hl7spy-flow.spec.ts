@@ -676,7 +676,7 @@ test.describe('LIS Module - UI Flow Tests', () => {
   test('UI.1 - Navigate to Laboratory Module', async ({ page }) => {
     // Try to connect to frontend, skip if not available
     try {
-      const response = await page.goto('http://localhost:3000', { timeout: 10000, waitUntil: 'networkidle' });
+      const response = await page.goto('http://localhost:3000', { timeout: 10000, waitUntil: 'domcontentloaded' });
       if (!response || !response.ok()) {
         test.skip(true, 'Frontend is not running at localhost:3000');
         return;
