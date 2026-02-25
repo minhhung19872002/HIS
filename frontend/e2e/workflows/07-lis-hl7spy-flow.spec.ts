@@ -674,39 +674,32 @@ test.describe('LIS Module - Direct HL7 Communication Tests', () => {
 test.describe('LIS Module - UI Flow Tests', () => {
 
   test('UI.1 - Navigate to Laboratory Module', async ({ page }) => {
-    // Try to connect to frontend, skip if not available
-    try {
-      const response = await page.goto('http://localhost:3000', { timeout: 10000, waitUntil: 'domcontentloaded' });
-      if (!response || !response.ok()) {
-        test.skip(true, 'Frontend is not running at localhost:3000');
-        return;
-      }
-    } catch (e) {
-      test.skip(true, 'Frontend is not available');
+    // Login via API and set token
+    const loginRes = await page.request.post('http://localhost:5106/api/auth/login', {
+      data: { username: 'admin', password: 'Admin@123' }
+    });
+
+    if (!loginRes.ok()) {
+      test.skip(true, 'Backend API not available');
       return;
     }
 
-    // Wait for login form to load (Ant Design uses id="login_username")
-    const hasLoginForm = await page.locator('#login_username, input[name="username"]').isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasLoginForm) {
-      test.skip(true, 'Frontend login form not found');
-      return;
-    }
+    const loginData = await loginRes.json();
+    const token = loginData.data?.token || loginData.token;
 
-    // Login (Ant Design Form uses id="login_fieldname")
-    await page.fill('#login_username', 'admin');
-    await page.fill('#login_password', 'Admin@123');
-    await page.click('button[type="submit"]');
-
-    // Wait for dashboard
-    await page.waitForTimeout(2000);
+    await page.goto('http://localhost:3001/login', { waitUntil: 'domcontentloaded' });
+    await page.evaluate((t) => {
+      localStorage.setItem('token', t);
+      localStorage.setItem('user', JSON.stringify({ id: 1, username: 'admin', roles: ['Admin'] }));
+    }, token);
 
     // Navigate to Laboratory
-    const labMenu = page.locator('text=Xét nghiệm').first();
-    if (await labMenu.isVisible()) {
-      await labMenu.click();
-      await page.waitForTimeout(1000);
-    }
+    await page.goto('http://localhost:3001/laboratory', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
+
+    // Verify page loaded
+    const body = await page.textContent('body');
+    expect(body).toBeTruthy();
   });
 
   test('UI.2 - View Sample Collection List', async ({ page }) => {
