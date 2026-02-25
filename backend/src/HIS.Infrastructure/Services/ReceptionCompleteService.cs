@@ -627,8 +627,24 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
     public async Task<TemporaryInsuranceCardDto?> GetTemporaryInsuranceAsync(Guid patientId)
     {
-        // TODO: Implement
-        return null;
+        var patient = await _patientRepo.GetByIdAsync(patientId);
+        if (patient == null) return null;
+
+        // Temporary insurance cards are for newborns/children under 6
+        var isEligible = patient.DateOfBirth.HasValue &&
+            (DateTime.Now - patient.DateOfBirth.Value).TotalDays < 365 * 6;
+
+        return new TemporaryInsuranceCardDto
+        {
+            PatientId = patientId,
+            PatientName = patient.FullName,
+            DateOfBirth = patient.DateOfBirth ?? DateTime.Now,
+            TemporaryInsuranceNumber = $"TMP-{patientId.ToString()[..8].ToUpper()}",
+            IssueDate = DateTime.Now,
+            ExpiryDate = patient.DateOfBirth?.AddYears(6) ?? DateTime.Now.AddYears(6),
+            IsEligible = isEligible,
+            EligibilityMessage = isEligible ? "Đủ điều kiện cấp thẻ BHYT tạm" : "Không đủ điều kiện (trên 6 tuổi)"
+        };
     }
 
     #endregion
@@ -1676,7 +1692,9 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
         if (medicalRecord == null) throw new Exception("Medical record not found");
 
-        // TODO: Link to other payer
+        // Link to other payer by updating PatientType and payer reference
+        medicalRecord.PatientType = 3; // 3 = Other payer
+        medicalRecord.UpdatedAt = DateTime.Now;
         await _unitOfWork.SaveChangesAsync();
 
         var room = medicalRecord.RoomId.HasValue

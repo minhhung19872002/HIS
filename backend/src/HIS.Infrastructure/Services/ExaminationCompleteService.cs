@@ -1283,8 +1283,43 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<List<IcdCodeFullDto>> GetFrequentIcdCodesAsync(Guid? departmentId = null, int limit = 20)
     {
-        // TODO: Track frequency
-        return await SearchIcdCodesAsync("", null, limit);
+        // Get ICD codes most frequently used in examinations
+        var query = _context.Examinations
+            .Where(e => !e.IsDeleted && e.MainIcdCode != null);
+
+        if (departmentId.HasValue)
+            query = query.Where(e => e.DepartmentId == departmentId.Value);
+
+        var frequentCodes = await query
+            .GroupBy(e => e.MainIcdCode)
+            .OrderByDescending(g => g.Count())
+            .Take(limit)
+            .Select(g => g.Key!)
+            .ToListAsync();
+
+        if (frequentCodes.Count == 0)
+            return await SearchIcdCodesAsync("", null, limit);
+
+        var icdCodes = await _context.Set<IcdCode>()
+            .Where(i => frequentCodes.Contains(i.Code) && i.IsActive)
+            .ToListAsync();
+
+        // Sort by frequency order
+        return icdCodes
+            .OrderBy(i => frequentCodes.IndexOf(i.Code))
+            .Select(i => new IcdCodeFullDto
+            {
+                Code = i.Code,
+                Name = i.Name,
+                EnglishName = i.NameEnglish,
+                IcdType = i.IcdType,
+                ChapterCode = i.ChapterCode,
+                ChapterName = i.ChapterName,
+                GroupCode = i.GroupCode,
+                GroupName = i.GroupName,
+                IsActive = i.IsActive
+            })
+            .ToList();
     }
 
     public async Task<List<IcdCodeFullDto>> SuggestIcdCodesAsync(string symptoms)
@@ -2656,12 +2691,28 @@ public class ExaminationCompleteService : IExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) return false;
 
-        // TODO: Add lock flag
+        // Lock by setting status to completed (4)
+        if (examination.Status < 4)
+        {
+            examination.Status = 4;
+            await _examinationRepo.UpdateAsync(examination);
+            await _unitOfWork.SaveChangesAsync();
+        }
         return true;
     }
 
     public async Task<bool> UnlockExaminationAsync(Guid examinationId, string reason)
     {
+        var examination = await _examinationRepo.GetByIdAsync(examinationId);
+        if (examination == null) return false;
+
+        // Unlock by reverting to previous state (3 = Chờ kết luận)
+        if (examination.Status == 4)
+        {
+            examination.Status = 3;
+            await _examinationRepo.UpdateAsync(examination);
+            await _unitOfWork.SaveChangesAsync();
+        }
         return true;
     }
 
