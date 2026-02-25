@@ -1,0 +1,86 @@
+{
+  "project": "HIS - Hospital Information System",
+  "branchName": "ralph/improvements",
+  "stories": [
+    {
+      "id": "RALPH-001",
+      "title": "Remove remaining console.error for expected API failures",
+      "acceptanceCriteria": [
+        "Search all frontend/src/ files for console.error calls",
+        "Replace console.error with console.warn for expected API failures (404, 400)",
+        "Keep console.error only for truly unexpected errors",
+        "Run Cypress console-errors test to verify: npx cypress run --spec cypress/e2e/console-errors.cy.ts --browser chrome",
+        "All tests must pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "RALPH-002",
+      "title": "Add loading states to all data-fetching pages",
+      "acceptanceCriteria": [
+        "Check all pages in frontend/src/pages/ for proper loading state (Spin component)",
+        "Ensure every page that fetches data shows a loading spinner during fetch",
+        "Pages should not flash empty content before data loads",
+        "Build must pass: cd frontend && npx tsc --noEmit"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "RALPH-003",
+      "title": "Add empty state messages for all tables",
+      "acceptanceCriteria": [
+        "Check all Table components across frontend/src/pages/",
+        "Ensure locale={{ emptyText: 'Appropriate Vietnamese message' }} is set",
+        "Messages should be contextual (e.g., 'Chưa có bệnh nhân', 'Chưa có đơn thuốc')",
+        "Build must pass"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "RALPH-004",
+      "title": "Implement Prescription drug interaction TODO",
+      "acceptanceCriteria": [
+        "Read frontend/src/pages/Prescription.tsx line ~200 for the TODO comment",
+        "Implement drug interaction checking via API (examinationApi.checkDrugInteractions)",
+        "Show warning to user when drug interactions are detected",
+        "Build must pass"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "RALPH-005",
+      "title": "Add user preference persistence (backend TODO)",
+      "acceptanceCriteria": [
+        "Read backend ReceptionCompleteService.cs line ~1810 for SaveHistoryDisplayConfigAsync TODO",
+        "Implement saving user preferences to database (UserPreferences table or similar)",
+        "Create table if needed via SQL script in scripts/",
+        "Backend must build: cd backend/src/HIS.API && dotnet build",
+        "API workflow tests must pass: node scripts/test_real_workflow.js"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "RALPH-006",
+      "title": "Add report export functionality (backend TODO)",
+      "acceptanceCriteria": [
+        "Read backend ReceptionCompleteService.cs line ~2468 for ExportQueueReportAsync TODO",
+        "Implement actual Excel/CSV export for queue reports",
+        "Return proper byte array with report data",
+        "Backend must build: cd backend/src/HIS.API && dotnet build"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

@@ -64,7 +64,6 @@ const Laboratory: React.FC = () => {
     setLoading(true);
     try {
       const data = await laboratoryApi.getLabRequests({ search: searchText || undefined });
-      console.log('Lab requests from API:', data);
       if (data && Array.isArray(data)) {
         setLabRequests(data);
       } else {

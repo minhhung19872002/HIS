@@ -444,7 +444,6 @@ const OPD: React.FC = () => {
         await examinationApi.updatePhysicalExamination(examination.id, physicalExamDto);
       }
 
-      console.log('Auto-save completed for examination:', examination.id);
     } catch (error) {
       console.error('Auto-save error:', error);
       // Silently fail for auto-save - don't show error messages to avoid disrupting the user

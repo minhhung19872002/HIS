@@ -1,0 +1,21 @@
+# Ralph Wiggum Progress Log - HIS Project
+# Started: 2026-02-25
+
+## Key Patterns
+- Antd v6: `title` not `message` on Alert, `orientation` not `direction` on Space
+- Backend services need DI registration in DependencyInjection.cs
+- Frontend proxy: `/api` → `http://localhost:5106`
+- Playwright: use `domcontentloaded` not `networkidle`
+- BaseEntity.CreatedBy is string? but 31 DB tables have uniqueidentifier → ValueConverter
+
+## Key Files
+- Routes: frontend/src/App.tsx (28 routes)
+- DI: backend/src/HIS.Infrastructure/DependencyInjection.cs
+- API client: frontend/src/api/client.ts
+- Cypress: frontend/cypress/e2e/ (16 spec files, 507 tests)
+- Playwright: frontend/e2e/workflows/ (255 tests)
+
+## Current Test Status
+- Cypress: 507 tests across 16 spec files
+- Playwright: 255/255 pass, 0 skipped
+- API workflow: 41/41 pass

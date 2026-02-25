@@ -168,7 +168,6 @@ export const collectSample = async (id: string, data: CollectSampleRequest) => {
 
 // Start processing - only update local state (no API call needed)
 export const startProcessing = async (id: string, _data: ProcessSampleRequest) => {
-  console.log('Starting processing for order:', id);
   return { success: true, message: 'Da chuyen sang trang thai xu ly' };
 };
 

@@ -5,11 +5,11 @@
  * Prerequisites:
  * 1. HL7Spy installed and running
  * 2. Backend API running on localhost:5106
- * 3. HL7Spy configured to listen on port 2575
+ * 3. HL7Spy configured to listen on port 2576
  *
  * HL7Spy Configuration:
  * - Mode: TCP/IP Server
- * - Port: 2575
+ * - Port: 2576
  * - Protocol: MLLP
  * - Auto-ACK: Enabled
  */
@@ -20,7 +20,7 @@ import * as net from 'net';
 // Test configuration
 const API_URL = process.env.API_URL || 'http://localhost:5106';
 const HL7SPY_HOST = process.env.HL7SPY_HOST || 'localhost';
-const HL7SPY_PORT = parseInt(process.env.HL7SPY_PORT || '2575');
+const HL7SPY_PORT = parseInt(process.env.HL7SPY_PORT || '2576');
 
 // JWT token for authentication (get from login)
 let authToken: string;
@@ -121,6 +121,7 @@ async function isHL7SpyRunning(): Promise<boolean> {
 }
 
 test.describe('LIS Module - HL7 Integration Tests', () => {
+  test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(async ({ request }) => {
     // Login to get auth token
@@ -315,6 +316,18 @@ test.describe('LIS Module - HL7 Integration Tests', () => {
   });
 
   test('7.8 - Process Analyzer Result via API', async ({ request }) => {
+    // Fallback: fetch analyzer ID if not set from previous test
+    if (!testAnalyzerId) {
+      const listResponse = await request.get(`${API_URL}/api/LISComplete/analyzers?keyword=HL7SPY`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (listResponse.ok()) {
+        const analyzers = await listResponse.json();
+        if (analyzers.length > 0) {
+          testAnalyzerId = analyzers[0].id;
+        }
+      }
+    }
     test.skip(!testAnalyzerId, 'No analyzer ID');
 
     // Raw HL7 data to process
