@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, request } from '@playwright/test';
 
 /**
  * LUỒNG PHẪU THUẬT THỦ THUẬT (Surgery Flow)
@@ -117,16 +117,67 @@ function generateSurgeryData() {
   };
 }
 
+// ==================== API HELPERS ====================
+
+const API_BASE_URL = 'http://localhost:5106/api';
+
+async function getAuthToken(): Promise<string> {
+  const context = await request.newContext();
+  const response = await context.post(`${API_BASE_URL}/auth/login`, {
+    data: { username: 'admin', password: 'Admin@123' }
+  });
+  const data = await response.json();
+  await context.dispose();
+  return data.data?.token ?? '';
+}
+
+async function registerPatientForSurgery(): Promise<void> {
+  const token = await getAuthToken();
+  const context = await request.newContext();
+  const timestamp = Date.now();
+
+  const response = await context.post(`${API_BASE_URL}/reception/register/fee`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    data: {
+      newPatient: {
+        fullName: `Surgery Test Patient ${timestamp}`,
+        gender: 1,
+        dateOfBirth: '1980-04-25T00:00:00Z',
+        phoneNumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+        address: '456 Surgery Test Street',
+      },
+      serviceType: 2,
+      roomId: 'bf6b00e9-578b-47fb-aff8-af25fb35a794' // Phong kham Noi 1
+    }
+  });
+
+  const result = await response.json();
+  await context.dispose();
+  console.log('[SURGERY SETUP] Registered patient via API:', JSON.stringify(result?.data?.patientCode ?? result?.statusCode ?? 'unknown'));
+}
+
 // ==================== TEST SUITE ====================
 
 test.describe('Luong Phau thuat Thu thuat - Surgery Flow', () => {
+
+  // Register a patient via API before all tests so the system has data
+  test.beforeAll(async () => {
+    try {
+      await registerPatientForSurgery();
+    } catch (err) {
+      console.warn('[SURGERY SETUP] Failed to register patient via API (tests may still pass):', err);
+    }
+  });
 
   test.beforeEach(async ({ page }) => {
     // Dang nhap truoc
     await login(page);
 
     // Truy cap trang Phau thuat
-    await page.goto('/surgery');
+    await page.goto('/surgery', { waitUntil: 'domcontentloaded' });
     await waitForLoading(page);
   });
 
@@ -862,7 +913,7 @@ for (const surgeryType of surgeryTypes) {
     // Dang nhap truoc
     await login(page);
 
-    await page.goto('/surgery');
+    await page.goto('/surgery', { waitUntil: 'domcontentloaded' });
     await waitForLoading(page);
 
     await page.click('button:has-text("Tạo yêu cầu")');

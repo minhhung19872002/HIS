@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForLoading, expectSuccessNotification, submitForm, login } from '../helpers/test-utils';
+import { waitForLoading, expectSuccessNotification, submitForm, login, registerPatientViaAPI, getFirstActiveExamRoomId } from '../helpers/test-utils';
 
 /**
  * LUONG 2: KHAM BENH NGOAI TRU (OPD)
@@ -13,13 +13,37 @@ import { waitForLoading, expectSuccessNotification, submitForm, login } from '..
  *   + Kham lam sang (physical-exam)
  *   + Chan doan (diagnosis)
  *   + Chi dinh (treatment-orders)
+ *
+ * NOTE: beforeAll registers a patient via API to ensure the OPD queue
+ * always has at least one patient, even when running tests independently.
  */
 test.describe('Kham benh ngoai tru - OPD Flow', () => {
+
+  // Register a patient via API before all tests so the OPD queue is never empty.
+  // We register the patient in the first active examination room, which is the same
+  // room the OPD page auto-selects on load.
+  test.beforeAll(async () => {
+    const timestamp = Date.now();
+    try {
+      const roomId = await getFirstActiveExamRoomId();
+      console.log('[SETUP] Using exam room ID for patient registration:', roomId);
+      const result = await registerPatientViaAPI({
+        fullName: `OPD Test Patient ${timestamp}`,
+        gender: 1,
+        dateOfBirth: '1985-06-15',
+        phoneNumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+        roomId,
+      });
+      console.log('[SETUP] Registered OPD test patient via API:', JSON.stringify(result?.data?.patientCode ?? result?.statusCode ?? 'unknown'));
+    } catch (err) {
+      console.warn('[SETUP] Failed to register patient via API (tests may still pass if queue has data):', err);
+    }
+  });
 
   test.beforeEach(async ({ page }) => {
     // Login first
     await login(page);
-    await page.goto('/opd');
+    await page.goto('/opd', { waitUntil: 'domcontentloaded' });
     await waitForLoading(page);
     // Wait for room list to load
     await page.waitForTimeout(1000);
@@ -85,17 +109,30 @@ test.describe('Kham benh ngoai tru - OPD Flow', () => {
   });
 
   test('2.4 Kham benh - Nhap sinh hieu (Vital Signs)', async ({ page }) => {
-    // Chon benh nhan tu queue truoc
-    const firstPatientRow = page.locator('.ant-table-row').first();
-    if (await firstPatientRow.isVisible()) {
-      await firstPatientRow.click();
-      await page.waitForTimeout(1000);
+    // Chon phong kham dau tien de load danh sach benh nhan
+    const roomSelect = page.locator('.ant-select').first();
+    if (await roomSelect.isVisible()) {
+      await roomSelect.click();
+      await page.waitForTimeout(500);
+      const firstOption = page.locator('.ant-select-dropdown:visible .ant-select-item').first();
+      if (await firstOption.isVisible()) {
+        await firstOption.click();
+        await page.waitForTimeout(1000);
+      } else {
+        await page.keyboard.press('Escape');
+      }
     }
+
+    // Chon benh nhan tu queue (patient was registered in beforeAll)
+    const firstPatientRow = page.locator('.ant-table-row').first();
+    await expect(firstPatientRow).toBeVisible({ timeout: 10000 });
+    await firstPatientRow.click();
+    await page.waitForTimeout(1000);
 
     // Kiem tra phieu kham hien thi
     const examCard = page.locator('.ant-card:has-text("Phiếu khám bệnh")');
     if (!await examCard.isVisible({ timeout: 5000 })) {
-      console.log('[TEST] No patient selected, skipping vital signs test');
+      console.log('[TEST] Exam card not visible after selecting patient - UI may need patient in specific room');
       return;
     }
 
@@ -151,16 +188,29 @@ test.describe('Kham benh ngoai tru - OPD Flow', () => {
   });
 
   test('2.5 Kham benh - Nhap benh su va trieu chung', async ({ page }) => {
-    // Chon benh nhan
-    const firstPatientRow = page.locator('.ant-table-row').first();
-    if (await firstPatientRow.isVisible()) {
-      await firstPatientRow.click();
-      await page.waitForTimeout(1000);
+    // Chon phong kham dau tien
+    const roomSelect = page.locator('.ant-select').first();
+    if (await roomSelect.isVisible()) {
+      await roomSelect.click();
+      await page.waitForTimeout(500);
+      const firstOption = page.locator('.ant-select-dropdown:visible .ant-select-item').first();
+      if (await firstOption.isVisible()) {
+        await firstOption.click();
+        await page.waitForTimeout(1000);
+      } else {
+        await page.keyboard.press('Escape');
+      }
     }
+
+    // Chon benh nhan (patient was registered in beforeAll)
+    const firstPatientRow = page.locator('.ant-table-row').first();
+    await expect(firstPatientRow).toBeVisible({ timeout: 10000 });
+    await firstPatientRow.click();
+    await page.waitForTimeout(1000);
 
     const examCard = page.locator('.ant-card:has-text("Phiếu khám bệnh")');
     if (!await examCard.isVisible({ timeout: 5000 })) {
-      console.log('[TEST] No patient selected, skipping');
+      console.log('[TEST] Exam card not visible after selecting patient');
       return;
     }
 
@@ -203,16 +253,29 @@ test.describe('Kham benh ngoai tru - OPD Flow', () => {
   });
 
   test('2.6 Kham benh - Kham lam sang', async ({ page }) => {
-    // Chon benh nhan
-    const firstPatientRow = page.locator('.ant-table-row').first();
-    if (await firstPatientRow.isVisible()) {
-      await firstPatientRow.click();
-      await page.waitForTimeout(1000);
+    // Chon phong kham dau tien
+    const roomSelect = page.locator('.ant-select').first();
+    if (await roomSelect.isVisible()) {
+      await roomSelect.click();
+      await page.waitForTimeout(500);
+      const firstOption = page.locator('.ant-select-dropdown:visible .ant-select-item').first();
+      if (await firstOption.isVisible()) {
+        await firstOption.click();
+        await page.waitForTimeout(1000);
+      } else {
+        await page.keyboard.press('Escape');
+      }
     }
+
+    // Chon benh nhan (patient was registered in beforeAll)
+    const firstPatientRow = page.locator('.ant-table-row').first();
+    await expect(firstPatientRow).toBeVisible({ timeout: 10000 });
+    await firstPatientRow.click();
+    await page.waitForTimeout(1000);
 
     const examCard = page.locator('.ant-card:has-text("Phiếu khám bệnh")');
     if (!await examCard.isVisible({ timeout: 5000 })) {
-      console.log('[TEST] No patient selected, skipping');
+      console.log('[TEST] Exam card not visible after selecting patient');
       return;
     }
 
@@ -243,16 +306,29 @@ test.describe('Kham benh ngoai tru - OPD Flow', () => {
   });
 
   test('2.7 Kham benh - Them chan doan ICD', async ({ page }) => {
-    // Chon benh nhan
-    const firstPatientRow = page.locator('.ant-table-row').first();
-    if (await firstPatientRow.isVisible()) {
-      await firstPatientRow.click();
-      await page.waitForTimeout(1000);
+    // Chon phong kham dau tien
+    const roomSelect = page.locator('.ant-select').first();
+    if (await roomSelect.isVisible()) {
+      await roomSelect.click();
+      await page.waitForTimeout(500);
+      const firstOption = page.locator('.ant-select-dropdown:visible .ant-select-item').first();
+      if (await firstOption.isVisible()) {
+        await firstOption.click();
+        await page.waitForTimeout(1000);
+      } else {
+        await page.keyboard.press('Escape');
+      }
     }
+
+    // Chon benh nhan (patient was registered in beforeAll)
+    const firstPatientRow = page.locator('.ant-table-row').first();
+    await expect(firstPatientRow).toBeVisible({ timeout: 10000 });
+    await firstPatientRow.click();
+    await page.waitForTimeout(1000);
 
     const examCard = page.locator('.ant-card:has-text("Phiếu khám bệnh")');
     if (!await examCard.isVisible({ timeout: 5000 })) {
-      console.log('[TEST] No patient selected, skipping');
+      console.log('[TEST] Exam card not visible after selecting patient');
       return;
     }
 
@@ -291,16 +367,29 @@ test.describe('Kham benh ngoai tru - OPD Flow', () => {
   });
 
   test('2.8 Hoan thanh kham benh', async ({ page }) => {
-    // Chon benh nhan
-    const firstPatientRow = page.locator('.ant-table-row').first();
-    if (await firstPatientRow.isVisible()) {
-      await firstPatientRow.click();
-      await page.waitForTimeout(1000);
+    // Chon phong kham dau tien
+    const roomSelect = page.locator('.ant-select').first();
+    if (await roomSelect.isVisible()) {
+      await roomSelect.click();
+      await page.waitForTimeout(500);
+      const firstOption = page.locator('.ant-select-dropdown:visible .ant-select-item').first();
+      if (await firstOption.isVisible()) {
+        await firstOption.click();
+        await page.waitForTimeout(1000);
+      } else {
+        await page.keyboard.press('Escape');
+      }
     }
+
+    // Chon benh nhan (patient was registered in beforeAll)
+    const firstPatientRow = page.locator('.ant-table-row').first();
+    await expect(firstPatientRow).toBeVisible({ timeout: 10000 });
+    await firstPatientRow.click();
+    await page.waitForTimeout(1000);
 
     const examCard = page.locator('.ant-card:has-text("Phiếu khám bệnh")');
     if (!await examCard.isVisible({ timeout: 5000 })) {
-      console.log('[TEST] No patient selected, skipping');
+      console.log('[TEST] Exam card not visible after selecting patient');
       return;
     }
 
@@ -330,13 +419,31 @@ test.describe('Kham benh ngoai tru - OPD Flow', () => {
  */
 test.describe('OPD E2E Complete Flow', () => {
 
+  // Ensure at least one patient exists in OPD queue before the E2E flow
+  test.beforeAll(async () => {
+    const timestamp = Date.now();
+    try {
+      const roomId = await getFirstActiveExamRoomId();
+      const result = await registerPatientViaAPI({
+        fullName: `OPD E2E Patient ${timestamp}`,
+        gender: 1,
+        dateOfBirth: '1990-03-20',
+        phoneNumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+        roomId,
+      });
+      console.log('[E2E SETUP] Registered E2E patient via API:', JSON.stringify(result?.data?.patientCode ?? result?.statusCode ?? 'unknown'));
+    } catch (err) {
+      console.warn('[E2E SETUP] Failed to register patient (tests may still pass if queue has data):', err);
+    }
+  });
+
   test('E2E: Luong kham benh ngoai tru hoan chinh', async ({ page }) => {
     test.setTimeout(60000);
     // 1. Login
     await login(page);
 
     // 2. Navigate to OPD
-    await page.goto('/opd');
+    await page.goto('/opd', { waitUntil: 'domcontentloaded' });
     await waitForLoading(page);
     await page.waitForTimeout(2000);
 
@@ -360,19 +467,16 @@ test.describe('OPD E2E Complete Flow', () => {
       // Doi danh sach load
       await page.waitForTimeout(1000);
 
+      // Patient was registered in beforeAll, so we expect at least one row
       const patientRow = page.locator('.ant-table-row').first();
-      if (await patientRow.isVisible()) {
-        await patientRow.click();
-        await page.waitForTimeout(1000);
+      await expect(patientRow).toBeVisible({ timeout: 10000 });
+      await patientRow.click();
+      await page.waitForTimeout(1000);
 
-        // Verify benh nhan da duoc chon
-        const patientInfo = page.locator('.ant-descriptions');
-        await expect(patientInfo).toBeVisible({ timeout: 5000 });
-        console.log('[E2E] Patient selected successfully');
-      } else {
-        console.log('[E2E] No patients in queue, skipping...');
-        return;
-      }
+      // Verify benh nhan da duoc chon
+      const patientInfo = page.locator('.ant-descriptions');
+      await expect(patientInfo).toBeVisible({ timeout: 5000 });
+      console.log('[E2E] Patient selected successfully');
     });
 
     await test.step('Buoc 3: Nhap sinh hieu', async () => {
@@ -415,7 +519,9 @@ test.describe('OPD E2E Complete Flow', () => {
       await historyTab.click();
       await page.waitForTimeout(500);
 
-      const textareas = page.locator('textarea');
+      // Scope to visible textareas in the active tab pane only
+      const activePane = page.locator('.ant-tabs-tabpane-active');
+      const textareas = activePane.locator('textarea:visible');
       const count = await textareas.count();
 
       if (count > 0) {
@@ -436,7 +542,9 @@ test.describe('OPD E2E Complete Flow', () => {
       await physicalTab.click();
       await page.waitForTimeout(500);
 
-      const textareas = page.locator('textarea');
+      // Scope to visible textareas in the active tab pane only
+      const activePane = page.locator('.ant-tabs-tabpane-active');
+      const textareas = activePane.locator('textarea:visible');
       const count = await textareas.count();
 
       if (count > 0) {
@@ -457,8 +565,9 @@ test.describe('OPD E2E Complete Flow', () => {
       await diagnosisTab.click();
       await page.waitForTimeout(500);
 
-      // Nhap ket luan
-      const conclusionArea = page.locator('textarea').first();
+      // Nhap ket luan - scope to active tab pane to avoid hidden textareas
+      const activePane = page.locator('.ant-tabs-tabpane-active');
+      const conclusionArea = activePane.locator('textarea:visible').first();
       if (await conclusionArea.isVisible()) {
         await conclusionArea.fill('Viêm đường hô hấp trên');
       }
@@ -485,6 +594,24 @@ test.describe('OPD E2E Complete Flow', () => {
  */
 test.describe('OPD Data-Driven Tests', () => {
 
+  // Ensure at least one patient exists for data-driven tests
+  test.beforeAll(async () => {
+    const timestamp = Date.now();
+    try {
+      const roomId = await getFirstActiveExamRoomId();
+      await registerPatientViaAPI({
+        fullName: `OPD DataDriven Patient ${timestamp}`,
+        gender: 1,
+        dateOfBirth: '1988-11-10',
+        phoneNumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+        roomId,
+      });
+      console.log('[DATA-DRIVEN SETUP] Registered patient for data-driven tests');
+    } catch (err) {
+      console.warn('[DATA-DRIVEN SETUP] Failed to register patient:', err);
+    }
+  });
+
   const testPatients = [
     { search: 'BN', expected: 'benh nhan' },
   ];
@@ -492,7 +619,7 @@ test.describe('OPD Data-Driven Tests', () => {
   for (const patient of testPatients) {
     test(`Tim kiem benh nhan: ${patient.search}`, async ({ page }) => {
       await login(page);
-      await page.goto('/opd');
+      await page.goto('/opd', { waitUntil: 'domcontentloaded' });
       await waitForLoading(page);
       await page.waitForTimeout(1000);
 
@@ -517,16 +644,13 @@ test.describe('OPD Data-Driven Tests', () => {
   for (const [index, vitalSigns] of vitalSignsTestData.entries()) {
     test(`Nhap sinh hieu - Dataset ${index + 1}`, async ({ page }) => {
       await login(page);
-      await page.goto('/opd');
+      await page.goto('/opd', { waitUntil: 'domcontentloaded' });
       await waitForLoading(page);
       await page.waitForTimeout(1000);
 
-      // Chon benh nhan
+      // Chon benh nhan (patient was registered in beforeAll)
       const patientRow = page.locator('.ant-table-row').first();
-      if (!await patientRow.isVisible()) {
-        console.log('[TEST] No patients available, skipping');
-        return;
-      }
+      await expect(patientRow).toBeVisible({ timeout: 10000 });
 
       await patientRow.click();
       await page.waitForTimeout(1000);

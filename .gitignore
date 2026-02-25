@@ -87,6 +87,29 @@ Desktop.ini
 nul
 
 # =========================
+# Build artifacts & diagnostics
+# =========================
+.local-dotnet-sdks/
+backup/
+build-output.txt
+build2.txt
+build_after_restore.txt
+core_restore_walk.txt
+diag-build.txt
+infra-build.txt
+msbuild_api_diag.txt
+msbuild_nowrk.txt
+restore_diag.txt
+restore_local_sdk.txt
+tmp_exam.pdf
+codex.md
+*.b64
+
+# Playwright reports
+frontend/playwright-report/
+frontend/test-results/
+
+# =========================
 # Claude Code Settings
 # =========================
 .claude/settings.local.json

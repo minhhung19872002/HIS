@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Linq.Expressions;
 using HIS.Core.Entities;
 
@@ -318,13 +319,60 @@ public class HISDbContext : DbContext
         // Apply configurations
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HISDbContext).Assembly);
 
-        // Global query filter for soft delete
+        // Fix Discharge FK: DischargedBy is the FK for DischargedBy_User navigation
+        modelBuilder.Entity<Discharge>()
+            .HasOne(d => d.DischargedBy_User)
+            .WithMany()
+            .HasForeignKey(d => d.DischargedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Handle legacy uniqueidentifier columns stored in CreatedBy/UpdatedBy
+        // Many tables have uniqueidentifier type for these columns but entity uses string?
+        var stringToGuidConverter = new ValueConverter<string?, Guid?>(
+            v => string.IsNullOrWhiteSpace(v) ? null : Guid.Parse(v),
+            v => v.HasValue ? v.Value.ToString() : null);
+
+        // Tables with uniqueidentifier CreatedBy/UpdatedBy columns
+        var tablesWithGuidAudit = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Prescription", "PrescriptionDetail", "Medicine",
+            "CAPA", "DicomStudy", "DietOrder", "ElectronicReferral",
+            "HAICase", "HIEConnection", "IncidentReport", "InsuranceXMLSubmission",
+            "IsolationOrder", "MCIEvent", "MCISituationReport", "MCIVictim",
+            "MedicalEquipment", "MedicalStaff", "NutritionScreening", "Outbreak",
+            "PortalAppointment", "RadiologyExam", "RadiologyModality",
+            "RadiologyReport", "RadiologyRequest", "RehabReferral",
+            "RehabSession", "RehabTreatmentPlan", "RepairRequest",
+            "TeleAppointment", "TeleconsultationRequest", "TeleSession"
+        };
+
+        // Global query filter for soft delete + apply audit converters
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
                 modelBuilder.Entity(entityType.ClrType)
                     .HasQueryFilter(CreateSoftDeleteFilter(entityType.ClrType));
+
+                // Apply string->Guid converter for entities with uniqueidentifier audit columns
+                // Skip entities that shadow CreatedBy with a navigation property (e.g. RehabTreatmentPlan, DutySchedule)
+                if (tablesWithGuidAudit.Contains(entityType.ClrType.Name))
+                {
+                    var createdByProp = entityType.FindProperty(nameof(BaseEntity.CreatedBy));
+                    if (createdByProp != null && createdByProp.ClrType == typeof(string))
+                    {
+                        modelBuilder.Entity(entityType.ClrType)
+                            .Property(nameof(BaseEntity.CreatedBy))
+                            .HasConversion(stringToGuidConverter);
+                    }
+                    var updatedByProp = entityType.FindProperty(nameof(BaseEntity.UpdatedBy));
+                    if (updatedByProp != null && updatedByProp.ClrType == typeof(string))
+                    {
+                        modelBuilder.Entity(entityType.ClrType)
+                            .Property(nameof(BaseEntity.UpdatedBy))
+                            .HasConversion(stringToGuidConverter);
+                    }
+                }
             }
         }
     }

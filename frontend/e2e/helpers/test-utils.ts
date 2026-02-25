@@ -105,6 +105,31 @@ export async function getExamRoomsViaAPI() {
 }
 
 /**
+ * Get the first active examination room ID via API.
+ * This is the room the OPD page auto-selects on load.
+ * Falls back to the default room ID if the API call fails.
+ */
+export async function getFirstActiveExamRoomId(): Promise<string> {
+  const defaultRoomId = 'bf6b00e9-578b-47fb-aff8-af25fb35a794'; // Phong kham Noi 1
+  try {
+    const token = await getAuthToken();
+    const context = await request.newContext();
+    const response = await context.get(`${API_BASE_URL}/examination/rooms/active`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+    await context.dispose();
+    const rooms = result?.data ?? result;
+    if (Array.isArray(rooms) && rooms.length > 0) {
+      return rooms[0].id || defaultRoomId;
+    }
+  } catch (err) {
+    console.warn('[test-utils] Failed to get active exam rooms:', err);
+  }
+  return defaultRoomId;
+}
+
+/**
  * Get patients in queue for a room via API
  */
 export async function getRoomPatientsViaAPI(roomId: string) {

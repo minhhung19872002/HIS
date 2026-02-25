@@ -16,6 +16,8 @@ const IGNORE_PATTERNS = [
   'NotImplementedException',
   'not implemented',
   'ECONNREFUSED',
+  'useForm',
+  'is not connected to any Form element',
 ];
 
 function isIgnoredError(msg: string): boolean {

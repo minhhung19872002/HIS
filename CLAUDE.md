@@ -127,52 +127,118 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Docker sqlcmd path: `/opt/mssql-tools18/bin/sqlcmd` (ko phai `/opt/mssql-tools/bin/`)
 - DB name: `HIS` (ko phai `HIS_DB`), password: `HisDocker2024Pass#`
 
+### DA HOAN THANH (Session 3 - 2026-02-25)
+
+**13. Fix API workflow test failures - 41/41 passing**
+- Tao bang `ServiceRequests` + `ServiceRequestDetails` (thieu trong DB du migration da apply)
+- Fix `InvalidCastException Guid↔String` cho 31 tables co `CreatedBy/UpdatedBy` la `uniqueidentifier` trong DB nhung `string?` trong C# entity → them ValueConverter global trong HISDbContext
+- Fix `Discharge.DischargedBy` shadow FK issue → them Fluent API `.HasForeignKey(d => d.DischargedBy)`
+- Loai bo ValueConverter sai cho `InvoiceSummary` (CreatedBy la nvarchar, ko phai uniqueidentifier)
+- Release occupied beds truoc khi chay test → "Bed is already occupied" error
+
+**14. Fix Playwright skipped tests - 250/250 passing (5 skipped HL7Spy)**
+- Them `beforeAll` tao patient via API trong `02-opd-examination.spec.ts` va `05-surgery-flow.spec.ts`
+- Them `getFirstActiveExamRoomId()` helper trong `test-utils.ts`
+- Doi skip conditions thanh assertive tests
+- Fix MCI test accept 204 No Content trong `09-all-flows-comprehensive.spec.ts`
+
+**15. Fix Cypress flaky tests - 416+/423 (7 flaky khi full suite, pass standalone)**
+- Them `useForm` + `is not connected to any Form element` vao IGNORE_PATTERNS cho `deep-controls.cy.ts` va `real-workflow.cy.ts`
+- Tat ca 13 spec files pass khi chay standalone
+- 7 flaky tests chi fail khi chay full suite (timing/data issues voi radiology va ris-pacs)
+
+**16. Git ignore cleanup**
+- Them `.local-dotnet-sdks/`, `backup/`, build logs, `frontend/playwright-report/`, `frontend/test-results/` vao `.gitignore`
+- Giam tu 275 untracked files xuong 11
+
 ### DANG DO / CHUA XONG
 
-**1. 3 Playwright tests skipped** (conditional, ko loi - do serial test dependency)
-- O trong `02-opd-examination.spec.ts` va `05-surgery-flow.spec.ts`
-- Skip khi ko co patient selected tu buoc truoc
-
-**2. Backend NotImplementedException stubs (con lai ~175 methods)**
+**1. Backend NotImplementedException stubs (con lai ~175 methods)**
 - `BillingCompleteService.cs` - 16 methods (reports, printing, e-invoices, accounting approval)
 - `InpatientCompleteService.cs` - 133 methods (nutrition, vital signs, nursing, consultations, reports, prints)
 - `WarehouseCompleteService.cs` - 26 methods (other receipt types, pharmacy sales, reusable supplies, reports)
 - Frontend da handle bang console.warn, ko crash
 
-**3. API workflow test failures (22/36)**
-- Registration API can `NewPatient` nested object (ko flat fields)
-- ExaminationId != MedicalRecordId (linked via FK)
-- IPD AssignBed can BedId + Note (required)
-- Mot so route dung `/{admissionId}` trong path
+**2. 5 Playwright skipped tests** (HL7Spy connectivity - can HL7Spy running)
 
-### CAN LAM TIEP (NGAY MAI)
+**3. 7 Cypress flaky tests khi full suite** (radiology 3, ris-pacs 3, deep-controls 1)
+- Tat ca pass standalone, chi fail do timing/data khi chay sequential
 
-**1. Fix 22 API workflow test failures (uu tien cao)**
-- Fix DTO format cho Registration (NewPatient nested)
-- Fix route patterns cho IPD endpoints
-- Muc tieu: 36/36 API tests pass
+### CAN LAM TIEP
 
-**2. Cypress test fill form va submit (uu tien cao)**
-- Hien tai `user-workflow.cy.ts` chi test UI structure, chua fill form submit
-- Can them: Registration form fill + submit, OPD examination save, Prescription create
-- Pharmacy: 5 drawers, 3 modals - test fill form
-- Insurance: 4 modals - test fill form
-- Billing: 1 modal, 1 drawer - test fill form
-
-**3. Fix 3 Playwright skipped tests**
-- Tao patient via API trong beforeAll de dam bao co data cho serial tests
-
-**4. UI click-through workflow (end-to-end)**
+**1. UI click-through workflow (end-to-end)**
 - OPD day du: Tiep don → Kham → Ke don → Thu ngan → Phat thuoc (UI interactions)
 - IPD day du: Nhap vien → Phan giuong → Dieu tri → Xuat vien (UI interactions)
 - Surgery: Yeu cau → Len lich → Thuc hien → Hoan thanh
 
-**5. Verify data hien thi dung**
-- Vietnamese encoding tren browser
-- So lieu Dashboard khop voi DB
-- Patient data sau register hien thi o Reception, OPD, Billing
+**2. Implement remaining backend stubs (uu tien thap)**
+- Reports, printing, e-invoices cho Billing (16 methods)
+- Nutrition, vital signs, nursing, consultations cho Inpatient (133 methods)
+- Pharmacy sales, reusable supplies, consignment cho Warehouse (26 methods)
 
-**6. Implement remaining backend stubs (uu tien thap)**
+---
+
+## Work Log - 2026-02-25
+
+### DA HOAN THANH (Session 3)
+
+**1. Git Cleanup**
+- Added build artifacts to `.gitignore` (`.local-dotnet-sdks/`, `backup/`, build logs, etc.)
+- Reduced untracked files from 275 to 11
+
+**2. Backend EF Core Fixes (5 bugs)**
+- Created missing `ServiceRequests` + `ServiceRequestDetails` tables via SQL script
+- Added global ValueConverter for Guid↔String CreatedBy/UpdatedBy on 31 tables
+- Fixed `RehabTreatmentPlan` and `DutySchedule` shadowed navigation property clash
+- Fixed `Discharge.DischargedBy` FK mapping with Fluent API
+- Removed incorrect InvoiceSummary converter (nvarchar, not uniqueidentifier)
+
+**3. API Workflow Tests - 41/41 pass**
+- Fixed DTO format, route patterns, DB tables
+- All 4 workflows: OPD, IPD, Warehouse, Billing
+
+**4. Playwright Tests - 250/250 pass (5 skipped)**
+- Fixed 3 previously-skipped tests by adding beforeAll patient creation via API
+- Added `getFirstActiveExamRoomId()` helper
+- 5 remaining skips are HL7Spy connectivity tests
+
+**5. Cypress Form Interactions Tests - 27 NEW tests (all passing)**
+- File: `frontend/cypress/e2e/form-interactions.cy.ts`
+- 8 test groups:
+  1. Setup: Register patient via API
+  2. OPD: Fill vital signs (8 fields), medical history (6 fields), physical exam (5 fields), save draft
+  3. Billing: Navigate tabs, fill deposit modal (amount + note + payment method), fill refund modal (type + amount + reason)
+  4. Pharmacy: Fill transfer modal (from/to warehouse + note), browse prescriptions, browse inventory details
+  5. IPD: Fill admission modal (patient, record, type, department, room, diagnosis, reason), browse tabs, row clicks
+  6. Insurance: Navigate tabs, sync button, row interactions
+  7. Surgery: Open request form, browse tabs
+  8. Master Data + System Admin: CRUD modal forms, user/role create modals, config tab
+
+**6. Click-Through Workflow Tests - 23 NEW tests (all passing)**
+- File: `frontend/cypress/e2e/click-through-workflow.cy.ts`
+- OPD Flow (5 steps, 14 tests):
+  1. Reception: Register patient via UI (fill all fields, submit, verify in table)
+  2. OPD: Select room → find patient in queue → fill vital signs (8 fields) → fill medical history (6 fields) → fill physical exam (5 fields) → click save
+  3. Prescription: Load page → search patient → interact with add medicine modal → verify action buttons
+  4. Billing: Search patient → browse tabs → interact with payment UI
+  5. Pharmacy: Browse prescriptions → dispensing workflow → inventory search
+- IPD Flow (5 tests):
+  - Fill admission modal (patient, record, type, dept, room, diagnosis, reason)
+  - Browse treatment progress, discharge, bed management tabs
+  - Click table rows for detail view
+- Cross-page verification (2 tests):
+  - Verify patient appears on multiple pages after API registration
+  - API-UI admission count cross-check
+
+**7. Tong ket test**
+- **Cypress: 473 tests, 466+ passing** (15 spec files, 50 new tests today)
+- **Playwright: 250 passed, 5 skipped** (HL7Spy)
+- **API workflow: 41/41 pass**
+- 7 Cypress flaky failures: radiology/ris-pacs timing (all pass standalone)
+
+### CAN LAM TIEP
+
+**1. Implement remaining backend stubs (uu tien thap)**
 - Reports, printing, e-invoices cho Billing (16 methods)
 - Nutrition, vital signs, nursing, consultations cho Inpatient (133 methods)
 - Pharmacy sales, reusable supplies, consignment cho Warehouse (26 methods)

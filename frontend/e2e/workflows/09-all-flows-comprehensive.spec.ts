@@ -536,8 +536,8 @@ test.describe('Flow 19: Mass Casualty Incident - Su co thuong vong hang loat', (
   test('API: Get active MCI event', async () => {
     const result = await apiGet('/mci/active');
     console.log('[Flow 19] Active MCI status:', result.status);
-    // May return null if no active event
-    expect([200, 400, 500]).toContain(result.status);
+    // May return null/empty if no active event (204 No Content)
+    expect([200, 204, 400, 500]).toContain(result.status);
   });
 
   test('API: Get MCI dashboard', async () => {

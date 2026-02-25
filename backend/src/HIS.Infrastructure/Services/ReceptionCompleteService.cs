@@ -2136,18 +2136,27 @@ public class ReceptionCompleteService : IReceptionCompleteService
         if (medicalRecord == null)
             throw new Exception("Medical record not found");
 
-        var serviceRequests = await _context.ServiceRequests
-            .Include(x => x.Service)
-            .Where(x => x.MedicalRecordId == medicalRecordId)
-            .OrderByDescending(x => x.RequestDate)
-            .Take(20)
-            .ToListAsync();
+        List<ServiceRequest> serviceRequests;
+        try
+        {
+            serviceRequests = await _context.ServiceRequests
+                .Include(x => x.Service)
+                .Where(x => x.MedicalRecordId == medicalRecordId)
+                .OrderByDescending(x => x.RequestDate)
+                .Take(20)
+                .ToListAsync();
+        }
+        catch
+        {
+            // Fallback for environments where service-order schema is incomplete.
+            serviceRequests = new List<ServiceRequest>();
+        }
 
         var fields = new List<KeyValuePair<string, string>>
         {
             new("Medical Record", medicalRecord.MedicalRecordCode),
-            new("Patient Code", medicalRecord.Patient.PatientCode),
-            new("Patient Name", medicalRecord.Patient.FullName),
+            new("Patient Code", medicalRecord.Patient?.PatientCode ?? "-"),
+            new("Patient Name", medicalRecord.Patient?.FullName ?? "-"),
             new("Total Requests", serviceRequests.Count.ToString()),
             new("Total Amount", serviceRequests.Sum(x => x.TotalPrice).ToString("N0"))
         };

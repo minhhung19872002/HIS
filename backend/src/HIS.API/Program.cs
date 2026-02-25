@@ -8,6 +8,11 @@ using HIS.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Avoid Windows EventLog provider (requires elevated rights in this environment).
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
 // Add services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

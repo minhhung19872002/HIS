@@ -76,22 +76,24 @@ async function testOPDFlow() {
   // Step 1: Register new patient (fee-paying)
   console.log('\n--- Bước 1: Đăng ký bệnh nhân mới (Viện phí) ---');
   const patientData = {
-    fullName: 'Trần Văn Minh',
-    dateOfBirth: '1985-06-15T00:00:00Z',
-    gender: 1,
-    identityNumber: '079085123456',
-    phoneNumber: '0912345678',
-    address: '123 Nguyễn Trãi, Quận 1, TP.HCM',
-    provinceCode: 'HCM',
-    provinceName: 'TP Hồ Chí Minh',
-    districtCode: 'Q1',
-    districtName: 'Quận 1',
-    wardCode: 'P01',
-    wardName: 'Phường Bến Thành',
-    ethnicName: 'Kinh',
-    occupation: 'Kỹ sư phần mềm',
+    serviceType: 2, // Vien phi
     roomId: ROOM_P101,
-    departmentId: DEPT_KHAM
+    newPatient: {
+      fullName: 'Tr???n V??n Minh',
+      dateOfBirth: '1985-06-15T00:00:00Z',
+      gender: 1,
+      identityNumber: '079085123456',
+      phoneNumber: '0912345678',
+      address: '123 Nguy???n Tr??i, Qu???n 1, TP.HCM',
+      provinceCode: 'HCM',
+      provinceName: 'TP H??? Ch?? Minh',
+      districtCode: 'Q1',
+      districtName: 'Qu???n 1',
+      wardCode: 'P01',
+      wardName: 'Ph?????ng B???n Th??nh',
+      ethnicName: 'Kinh',
+      occupation: 'K??? s?? ph???n m???m'
+    }
   };
   const regRes = await api('POST', '/reception/register/fee', patientData);
   check('Đăng ký bệnh nhân', regRes.status === 200 || regRes.status === 201,
@@ -131,33 +133,24 @@ async function continueOPDFlow(patientId, medicalRecordId, admissionId) {
   // Step 2: Get examination for this medical record
   console.log('\n--- Bước 2: Bắt đầu khám bệnh ---');
 
-  // First, try to get waiting list for room
-  const waitRes = await api('GET', `/examination/waiting-list?roomId=${ROOM_P101}`);
-  console.log(`    GET waiting-list: ${waitRes.status}`);
+  // Try to find an examination for this patient in room list
+  const roomListRes = await api('GET', `/examination/room/${ROOM_P101}/patients?status=0`);
+  console.log(`    GET room patients: ${roomListRes.status}`);
 
-  // Try to find an examination for this patient
-  const examListRes = await api('GET', `/examination/patient/${patientId}/current`);
   let examinationId = null;
-  if (examListRes.status === 200) {
-    const examData = examListRes.data?.data || examListRes.data;
-    examinationId = examData?.id || examData?.examinationId;
-    console.log(`    examinationId từ current: ${examinationId}`);
-  }
-
-  if (!examinationId) {
-    // Try getting from medical record
-    const mrExamRes = await api('GET', `/examination/medical-record/${medicalRecordId}`);
-    if (mrExamRes.status === 200) {
-      const mrData = mrExamRes.data?.data || mrExamRes.data;
-      examinationId = mrData?.id || mrData?.examinationId;
-      console.log(`    examinationId từ medical-record: ${examinationId}`);
+  if (roomListRes.status === 200) {
+    const items = Array.isArray(roomListRes.data) ? roomListRes.data : (roomListRes.data?.data || []);
+    const match = items.find(p => p.patientId === patientId) || items[0];
+    examinationId = match?.examinationId;
+    if (match) {
+      console.log(`    examinationId t??? room list: ${examinationId}`);
     }
   }
 
   if (!examinationId) {
     // The registration should have created an examination, use medicalRecordId as proxy
     examinationId = medicalRecordId;
-    console.log(`    Dùng medicalRecordId làm examinationId: ${examinationId}`);
+    console.log(`    D??ng medicalRecordId l??m examinationId: ${examinationId}`);
   }
 
   // Start examination
@@ -202,6 +195,7 @@ async function continueOPDFlow(patientId, medicalRecordId, admissionId) {
         serviceId: SVC_XN_CTM,
         quantity: 1,
         paymentType: 2,
+        roomId: ROOM_P101,
         notes: 'Kiểm tra nhiễm trùng'
       }
     ],
@@ -266,25 +260,30 @@ async function continueOPDFlow(patientId, medicalRecordId, admissionId) {
     `status=${completeRes.status} ${JSON.stringify(completeRes.data).substring(0,150)}`);
 
   // Step 8: Billing - Create invoice
-  console.log('\n--- Bước 8: Tạo hóa đơn ---');
+  console.log('\n--- B?????c 8: T???o h??a ????n ---');
   const invoiceRes = await api('POST', '/billingcomplete/invoices', {
     medicalRecordId: medicalRecordId
   });
-  check('Tạo hóa đơn', invoiceRes.status === 200 || invoiceRes.status === 201,
+  check('T???o h??a ????n', invoiceRes.status === 200 || invoiceRes.status === 201,
     `status=${invoiceRes.status} ${JSON.stringify(invoiceRes.data).substring(0,150)}`);
 
+  const invoiceData = invoiceRes.data?.data || invoiceRes.data;
+  const invoiceId = invoiceData?.id;
+  console.log(`    invoiceId=${invoiceId}`);
+
   // Step 9: Billing - Create payment
-  console.log('\n--- Bước 9: Thu tiền ---');
+  console.log('\n--- B?????c 9: Thu ti???n ---');
   const payRes = await api('POST', '/billingcomplete/payments', {
-    medicalRecordId: medicalRecordId,
+    patientId: patientId,
+    invoiceId: invoiceId,
     amount: 250000,
-    paymentMethod: 1, // Tiền mặt
-    notes: 'Thu viện phí ngoại trú'
+    paymentMethod: '1', // Ti???n m???t
+    note: 'Thu vi???n ph?? ngo???i tr??'
   });
-  check('Thu tiền', payRes.status === 200 || payRes.status === 201,
+  check('Thu ti???n', payRes.status === 200 || payRes.status === 201,
     `status=${payRes.status} ${JSON.stringify(payRes.data).substring(0,150)}`);
 
-  // Step 10: Pharmacy - Dispense prescription
+// Step 10: Pharmacy - Dispense prescription
   if (prescriptionId) {
     console.log('\n--- Bước 10: Phát thuốc ---');
 
@@ -318,19 +317,21 @@ async function testIPDFlow() {
   // Step 1: Register another patient for admission
   console.log('\n--- Bước 1: Đăng ký BN cần nhập viện ---');
   const regRes = await api('POST', '/reception/register/fee', {
-    fullName: 'Nguyễn Thị Lan',
-    dateOfBirth: '1970-03-20T00:00:00Z',
-    gender: 2,
-    identityNumber: '079070654321',
-    phoneNumber: '0987654321',
-    address: '456 Lê Lợi, Quận 3, TP.HCM',
-    provinceName: 'TP Hồ Chí Minh',
-    districtName: 'Quận 3',
-    wardName: 'Phường 1',
-    ethnicName: 'Kinh',
-    occupation: 'Giáo viên',
+    serviceType: 2, // Vien phi
     roomId: ROOM_P101,
-    departmentId: DEPT_KHAM
+    newPatient: {
+      fullName: 'Nguy???n Th??? Lan',
+      dateOfBirth: '1970-03-20T00:00:00Z',
+      gender: 2,
+      identityNumber: '079070654321',
+      phoneNumber: '0987654321',
+      address: '456 L?? L???i, Qu???n 3, TP.HCM',
+      provinceName: 'TP H??? Ch?? Minh',
+      districtName: 'Qu???n 3',
+      wardName: 'Ph?????ng 1',
+      ethnicName: 'Kinh',
+      occupation: 'Gi??o vi??n'
+    }
   });
   check('Đăng ký BN nội trú', regRes.status === 200 || regRes.status === 201,
     `status=${regRes.status} ${JSON.stringify(regRes.data).substring(0,200)}`);
@@ -381,16 +382,24 @@ async function testIPDFlow() {
   }
 
   // Step 3: Assign bed
-  console.log('\n--- Bước 3: Phân giường ---');
-  const bedRes = await api('POST', '/inpatient/assign-bed', {
-    admissionId: admissionIdIPD,
-    roomId: ROOM_NT101,
-    notes: 'Giường gần cửa sổ theo yêu cầu'
-  });
-  check('Phân giường', bedRes.status === 200 || bedRes.status === 201,
-    `status=${bedRes.status} ${JSON.stringify(bedRes.data).substring(0,200)}`);
+  console.log('\n--- B?????c 3: Ph??n gi?????ng ---');
+  const bedStatusRes = await api('GET', `/inpatient/bed-status?roomId=${ROOM_NT101}`);
+  const bedItems = Array.isArray(bedStatusRes.data) ? bedStatusRes.data : (bedStatusRes.data?.data || []);
+  const emptyBed = bedItems.find(b => b.bedStatus === 0) || bedItems[0];
+  const bedId = emptyBed?.bedId;
+  if (!bedId) {
+    check('Ph??n gi?????ng', false, 'kh??ng c?? bedId');
+  } else {
+    const bedRes = await api('POST', '/inpatient/assign-bed', {
+      admissionId: admissionIdIPD,
+      bedId: bedId,
+      note: 'Gi?????ng g???n c???a s??? theo y??u c???u'
+    });
+    check('Ph??n gi?????ng', bedRes.status === 200 || bedRes.status === 201,
+      `status=${bedRes.status} ${JSON.stringify(bedRes.data).substring(0,200)}`);
+  }
 
-  // Step 4: Create treatment sheet (SOAP notes)
+// Step 4: Create treatment sheet (SOAP notes)
   console.log('\n--- Bước 4: Ghi diễn biến bệnh (SOAP) ---');
   const treatRes = await api('POST', '/inpatient/treatment-sheets', {
     admissionId: admissionIdIPD,
@@ -453,7 +462,7 @@ async function testIPDFlow() {
 
   // Step 6: Get prescriptions
   console.log('\n--- Bước 6: Xem danh sách đơn thuốc ---');
-  const rxListRes = await api('GET', `/inpatient/prescriptions?admissionId=${admissionIdIPD}`);
+  const rxListRes = await api('GET', `/inpatient/prescriptions/${admissionIdIPD}`);
   check('Xem đơn thuốc', rxListRes.status === 200,
     `status=${rxListRes.status} ${JSON.stringify(rxListRes.data).substring(0,150)}`);
 
@@ -484,13 +493,13 @@ async function testIPDFlow() {
 
   // Step 8: Get service orders
   console.log('\n--- Bước 8: Xem phiếu CLS ---');
-  const svcListRes = await api('GET', `/inpatient/service-orders?admissionId=${admissionIdIPD}`);
+  const svcListRes = await api('GET', `/inpatient/service-orders/${admissionIdIPD}`);
   check('Xem phiếu CLS', svcListRes.status === 200,
     `status=${svcListRes.status} ${JSON.stringify(svcListRes.data).substring(0,150)}`);
 
   // Step 9: Pre-discharge check
   console.log('\n--- Bước 9: Kiểm tra trước xuất viện ---');
-  const preDisRes = await api('GET', `/inpatient/check-pre-discharge?admissionId=${admissionIdIPD}`);
+  const preDisRes = await api('GET', `/inpatient/pre-discharge-check/${admissionIdIPD}`);
   check('Kiểm tra trước xuất viện', preDisRes.status === 200,
     `status=${preDisRes.status} ${JSON.stringify(preDisRes.data).substring(0,200)}`);
 
@@ -680,7 +689,7 @@ async function testBillingFlow() {
   console.log(`    cashBookId=${cashBookId}`);
 
   // Step 2: Create deposit for a patient
-  console.log('\n--- Bước 2: Thu tạm ứng ---');
+  console.log('\n--- B?????c 2: Thu t???m ???ng ---');
   // Get a patient from today's admissions
   const admissions = await api('GET', '/reception/admissions/today');
   const admItems = Array.isArray(admissions.data) ? admissions.data : (admissions.data?.data || []);
@@ -690,51 +699,59 @@ async function testBillingFlow() {
     const depositRes = await api('POST', '/billingcomplete/deposits', {
       patientId: patient.patientId,
       medicalRecordId: patient.id,
-      depositType: 1, // Ngoại trú
-      depositSource: 1, // Thu ngân
+      depositType: 1, // Ngo???i tr??
+      depositSource: 1, // Thu ng??n
       amount: 500000,
-      paymentMethod: 1, // Tiền mặt
-      notes: 'Tạm ứng khám bệnh'
+      paymentMethod: 1, // Ti???n m???t
+      notes: 'T???m ???ng kh??m b???nh'
     });
-    check('Thu tạm ứng', depositRes.status === 200 || depositRes.status === 201,
+    check('Thu t???m ???ng', depositRes.status === 200 || depositRes.status === 201,
       `status=${depositRes.status} ${JSON.stringify(depositRes.data).substring(0,200)}`);
 
+    const depositData = depositRes.data?.data || depositRes.data;
+    const depositId = depositData?.id || depositData?.depositId;
+
     // Step 3: Check deposit balance
-    console.log('\n--- Bước 3: Kiểm tra số dư tạm ứng ---');
-    const balRes = await api('GET', `/billingcomplete/deposits/balance?patientId=${patient.patientId}`);
-    check('Kiểm tra số dư', balRes.status === 200,
+    console.log('\n--- B?????c 3: Ki???m tra s??? d?? t???m ???ng ---');
+    const balRes = await api('GET', `/billingcomplete/deposits/balance/${patient.patientId}`);
+    check('Ki???m tra s??? d??', balRes.status === 200,
       `status=${balRes.status} ${JSON.stringify(balRes.data).substring(0,150)}`);
 
     // Step 4: Create invoice
-    console.log('\n--- Bước 4: Tạo hóa đơn ---');
+    console.log('\n--- B?????c 4: T???o h??a ????n ---');
     const invRes = await api('POST', '/billingcomplete/invoices', {
       medicalRecordId: patient.id
     });
-    check('Tạo hóa đơn', invRes.status === 200 || invRes.status === 201,
+    check('T???o h??a ????n', invRes.status === 200 || invRes.status === 201,
       `status=${invRes.status} ${JSON.stringify(invRes.data).substring(0,150)}`);
 
+    const invData = invRes.data?.data || invRes.data;
+    const invoiceId = invData?.id;
+
     // Step 5: Apply discount
-    console.log('\n--- Bước 5: Áp dụng giảm giá ---');
+    console.log('\n--- B?????c 5: ??p d???ng gi???m gi?? ---');
     const discRes = await api('POST', '/billingcomplete/discounts/invoice', {
-      medicalRecordId: patient.id,
+      invoiceId: invoiceId,
+      discountScope: 1,
+      discountType: 1,
       discountPercent: 10,
-      discountReason: 'Giảm giá ưu đãi bệnh nhân VIP',
-      approvedBy: ADMIN_ID
+      discountReason: 'Gi???m gi?? ??u ????i b???nh nh??n VIP',
+      approverId: ADMIN_ID
     });
-    check('Áp dụng giảm giá', discRes.status === 200 || discRes.status === 201,
+    check('??p d???ng gi???m gi??', discRes.status === 200 || discRes.status === 201,
       `status=${discRes.status} ${JSON.stringify(discRes.data).substring(0,150)}`);
 
     // Step 6: Use deposit for payment
-    console.log('\n--- Bước 6: Dùng tạm ứng thanh toán ---');
+    console.log('\n--- B?????c 6: D??ng t???m ???ng thanh to??n ---');
     const useDepRes = await api('POST', '/billingcomplete/deposits/use-for-payment', {
-      patientId: patient.patientId,
-      medicalRecordId: patient.id,
+      invoiceId: invoiceId,
+      depositId: depositId,
       amount: 200000
     });
-    check('Dùng tạm ứng', useDepRes.status === 200 || useDepRes.status === 201,
+    check('D??ng t???m ???ng', useDepRes.status === 200 || useDepRes.status === 201,
       `status=${useDepRes.status} ${JSON.stringify(useDepRes.data).substring(0,150)}`);
 
-    // Step 7: Create refund for excess
+// Step 7: Create refund for excess
     console.log('\n--- Bước 7: Hoàn tiền dư ---');
     const refundRes = await api('POST', '/billingcomplete/refunds', {
       patientId: patient.patientId,
