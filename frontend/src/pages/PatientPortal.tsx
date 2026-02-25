@@ -20,7 +20,6 @@ import {
   Timeline,
   Divider,
   message,
-  List,
   Rate,
   Badge,
   Result,
@@ -672,9 +671,8 @@ const PatientPortal: React.FC = () => {
               key: 'notifications',
               label: 'Thong bao',
               children: (
-                <List
-                  itemLayout="horizontal"
-                  dataSource={[
+                <div>
+                  {[
                     {
                       title: 'Nhac lich hen',
                       description: 'Ban co lich hen voi BS. Nguyen Van X vao ngay 15/02/2024 luc 09:00',
@@ -690,22 +688,21 @@ const PatientPortal: React.FC = () => {
                       description: 'Ban con hoa don chua thanh toan: 800,000 VND',
                       time: '2 ngay truoc',
                     },
-                  ]}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        avatar={<Badge dot><BellOutlined style={{ fontSize: 24 }} /></Badge>}
-                        title={item.title}
-                        description={
-                          <Space orientation="vertical" size={0}>
-                            <Text>{item.description}</Text>
-                            <Text type="secondary">{item.time}</Text>
-                          </Space>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
+                  ].map((item) => (
+                    <div key={item.title} style={{ display: 'flex', alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{ marginRight: 16, flexShrink: 0 }}>
+                        <Badge dot><BellOutlined style={{ fontSize: 24 }} /></Badge>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>{item.title}</div>
+                        <Space orientation="vertical" size={0}>
+                          <Text>{item.description}</Text>
+                          <Text type="secondary">{item.time}</Text>
+                        </Space>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ),
             },
           ]}
@@ -775,22 +772,21 @@ const PatientPortal: React.FC = () => {
 
             {bills.filter((b) => b.patientId === selectedPatient.patientId && b.status === 'pending')
               .length > 0 ? (
-              <List
-                dataSource={bills.filter(
+              <div>
+                {bills.filter(
                   (b) => b.patientId === selectedPatient.patientId && b.status === 'pending'
-                )}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={`Hoa don ${item.id}`}
-                      description={`Ngay: ${item.visitDate} | ${item.services.join(', ')}`}
-                    />
+                ).map((item) => (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500 }}>{`Hoa don ${item.id}`}</div>
+                      <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Ngay: ${item.visitDate} | ${item.services.join(', ')}`}</div>
+                    </div>
                     <Text strong style={{ color: '#ff4d4f' }}>
                       {item.totalAmount.toLocaleString('vi-VN')} VND
                     </Text>
-                  </List.Item>
-                )}
-              />
+                  </div>
+                ))}
+              </div>
             ) : (
               <Result status="success" title="Khong co hoa don chua thanh toan" />
             )}

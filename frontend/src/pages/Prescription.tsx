@@ -18,7 +18,6 @@ import {
   AutoComplete,
   Popconfirm,
   Badge,
-  List,
   message,
   Descriptions,
   Drawer,
@@ -1002,11 +1001,11 @@ const Prescription: React.FC = () => {
                   size="small"
                   style={{ marginBottom: 16 }}
                 >
-                  <List
-                    size="small"
-                    dataSource={patient.currentMedications}
-                    renderItem={(item) => <List.Item>{item}</List.Item>}
-                  />
+                  <div>
+                    {patient.currentMedications.map((item, idx) => (
+                      <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                    ))}
+                  </div>
                 </Card>
               )}
             </>
@@ -1416,37 +1415,25 @@ const Prescription: React.FC = () => {
           style={{ marginBottom: 16 }}
         />
         <Spin spinning={loadingPatient}>
-          <List
-            dataSource={patientSearchResults}
-            locale={{ emptyText: 'Nhập từ khóa để tìm kiếm bệnh nhân' }}
-            renderItem={(p) => (
-              <List.Item
-                actions={[
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={() => handleSelectPatient(p)}
-                    key="select"
-                  >
-                    Chọn
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  title={`${p.patientCode} - ${p.fullName}`}
-                  description={
-                    <>
-                      <div>
-                        {p.gender === 1 ? 'Nam' : 'Nữ'}
-                        {p.dateOfBirth && ` - ${dayjs(p.dateOfBirth).format('DD/MM/YYYY')}`}
-                      </div>
-                      {p.phoneNumber && <div>SĐT: {p.phoneNumber}</div>}
-                    </>
-                  }
-                />
-              </List.Item>
-            )}
-          />
+          {patientSearchResults.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>Nhập từ khóa để tìm kiếm bệnh nhân</div>
+          ) : (
+            <div>
+              {patientSearchResults.map((p) => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{p.patientCode} - {p.fullName}</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      {p.gender === 1 ? 'Nam' : 'Nữ'}
+                      {p.dateOfBirth && ` - ${dayjs(p.dateOfBirth).format('DD/MM/YYYY')}`}
+                    </div>
+                    {p.phoneNumber && <div style={{ fontSize: 12, color: '#666' }}>SĐT: {p.phoneNumber}</div>}
+                  </div>
+                  <Button type="primary" size="small" onClick={() => handleSelectPatient(p)}>Chọn</Button>
+                </div>
+              ))}
+            </div>
+          )}
         </Spin>
       </Modal>
 
@@ -1458,27 +1445,17 @@ const Prescription: React.FC = () => {
         footer={null}
         width={600}
       >
-        <List
-          dataSource={prescriptionTemplates}
-          renderItem={(template) => (
-            <List.Item
-              actions={[
-                <Button
-                  type="link"
-                  onClick={() => handleLoadTemplate(template)}
-                  key="load"
-                >
-                  Tải mẫu
-                </Button>,
-              ]}
-            >
-              <List.Item.Meta
-                title={template.name}
-                description={`Chẩn đoán: ${template.diagnosis}`}
-              />
-            </List.Item>
-          )}
-        />
+        <div>
+          {prescriptionTemplates.map((template) => (
+            <div key={template.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+              <div>
+                <div style={{ fontWeight: 500 }}>{template.name}</div>
+                <div style={{ fontSize: 12, color: '#666' }}>Chẩn đoán: {template.diagnosis}</div>
+              </div>
+              <Button type="link" onClick={() => handleLoadTemplate(template)}>Tải mẫu</Button>
+            </div>
+          ))}
+        </div>
       </Modal>
 
       {/* Save Template Modal */}

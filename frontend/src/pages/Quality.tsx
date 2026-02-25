@@ -20,7 +20,6 @@ import {
   Divider,
   message,
   Progress,
-  List,
   Rate,
 } from 'antd';
 import {
@@ -662,24 +661,23 @@ const Quality: React.FC = () => {
                 <Row gutter={[16, 16]}>
                   <Col span={8}>
                     <Card title="JCI (Joint Commission International)">
-                      <List
-                        size="small"
-                        dataSource={[
+                      <div>
+                      {[
                           'IPSG - Muc tieu an toan quoc te',
                           'ACC - Tiep nhan va lien tuc',
                           'PFR - Quyen benh nhan',
                           'AOP - Danh gia benh nhan',
                           'COP - Cham soc benh nhan',
-                        ]}
-                        renderItem={(item) => <List.Item>{item}</List.Item>}
-                      />
+                        ].map((item, idx) => (
+                        <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                      ))}
+                    </div>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="ISO 9001:2015">
-                      <List
-                        size="small"
-                        dataSource={[
+                      <div>
+                      {[
                           'Boi canh to chuc',
                           'Lanh dao',
                           'Hoach dinh',
@@ -687,24 +685,25 @@ const Quality: React.FC = () => {
                           'Van hanh',
                           'Danh gia ket qua',
                           'Cai tien',
-                        ]}
-                        renderItem={(item) => <List.Item>{item}</List.Item>}
-                      />
+                        ].map((item, idx) => (
+                        <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                      ))}
+                    </div>
                     </Card>
                   </Col>
                   <Col span={8}>
                     <Card title="83 Tieu chi Bo Y te">
-                      <List
-                        size="small"
-                        dataSource={[
+                      <div>
+                      {[
                           'Nhom A: An toan nguoi benh',
                           'Nhom B: To chuc quan ly',
                           'Nhom C: Nang luc NVYT',
                           'Nhom D: Co so ha tang',
                           'Nhom E: Cham soc nguoi benh',
-                        ]}
-                        renderItem={(item) => <List.Item>{item}</List.Item>}
-                      />
+                        ].map((item, idx) => (
+                        <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                      ))}
+                    </div>
                     </Card>
                   </Col>
                 </Row>

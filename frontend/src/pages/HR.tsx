@@ -21,7 +21,6 @@ import {
   Badge,
   message,
   Divider,
-  List,
   Progress,
 } from 'antd';
 import {
@@ -630,19 +629,16 @@ const HR: React.FC = () => {
                         </Button>
                       }
                     >
-                      <List
-                        dataSource={shifts.filter(
-                          (s) => s.date === dayjs().format('YYYY-MM-DD')
-                        )}
-                        renderItem={(item) => (
-                          <List.Item>
+                      <div>
+                        {shifts.filter((s) => s.date === dayjs().format('YYYY-MM-DD')).map((item) => (
+                          <div key={item.id} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
                             <Space>
                               {getShiftTag(item.shiftType)}
                               <Text>{item.employeeName}</Text>
                             </Space>
-                          </List.Item>
-                        )}
-                      />
+                          </div>
+                        ))}
+                      </div>
                     </Card>
                   </Col>
                 </Row>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, List, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, Tag } from 'antd';
 import {
   UserOutlined,
   MedicineBoxOutlined,
@@ -188,16 +188,14 @@ const Dashboard: React.FC = () => {
           <Col xs={24} lg={12}>
             <Card title="Khám bệnh theo khoa" size="small">
               {data.outpatientByDepartment.length > 0 ? (
-                <List
-                  size="small"
-                  dataSource={data.outpatientByDepartment}
-                  renderItem={(item) => (
-                    <List.Item>
+                <div>
+                  {data.outpatientByDepartment.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <Text>{item.departmentName}</Text>
                       <Tag color="blue">{item.count} BN</Tag>
-                    </List.Item>
-                  )}
-                />
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <Text type="secondary">Chưa có dữ liệu</Text>
               )}
@@ -206,16 +204,14 @@ const Dashboard: React.FC = () => {
           <Col xs={24} lg={12}>
             <Card title="Doanh thu theo khoa" size="small">
               {data.revenueByDepartment.length > 0 ? (
-                <List
-                  size="small"
-                  dataSource={data.revenueByDepartment}
-                  renderItem={(item) => (
-                    <List.Item>
+                <div>
+                  {data.revenueByDepartment.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <Text>{item.departmentName}</Text>
                       <Tag color="green">{Number(item.revenue).toLocaleString('vi-VN')} VND</Tag>
-                    </List.Item>
-                  )}
-                />
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <Text type="secondary">Chưa có dữ liệu</Text>
               )}

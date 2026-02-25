@@ -22,7 +22,6 @@ import {
   Progress,
   Alert,
   Steps,
-  List,
   Avatar,
   Tooltip,
 } from 'antd';
@@ -725,42 +724,40 @@ const EmergencyDisaster: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Card title="Giuong & Phong">
-                <List
-                  dataSource={resources.filter(r => ['bed', 'icu', 'or'].includes(r.type))}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        title={item.name}
-                        description={`Kha dung: ${item.available} / ${item.total}`}
-                      />
+                <div>
+                  {resources.filter(r => ['bed', 'icu', 'or'].includes(r.type)).map((item) => (
+                    <div key={item.id || item.name} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>{item.name}</div>
+                        <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Kha dung: ${item.available} / ${item.total}`}</div>
+                      </div>
                       <Progress
                         percent={Math.round((item.available / item.total) * 100)}
                         status={item.available < 3 ? 'exception' : 'normal'}
                         style={{ width: 100 }}
                       />
-                    </List.Item>
-                  )}
-                />
+                    </div>
+                  ))}
+                </div>
               </Card>
             </Col>
             <Col span={12}>
               <Card title="Mau & Thiet bi">
-                <List
-                  dataSource={resources.filter(r => ['blood', 'ventilator'].includes(r.type))}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        title={item.name}
-                        description={`Kha dung: ${item.available} / ${item.total}`}
-                      />
+                <div>
+                  {resources.filter(r => ['blood', 'ventilator'].includes(r.type)).map((item) => (
+                    <div key={item.id || item.name} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>{item.name}</div>
+                        <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Kha dung: ${item.available} / ${item.total}`}</div>
+                      </div>
                       <Progress
                         percent={Math.round((item.available / item.total) * 100)}
                         status={item.available < 10 ? 'exception' : 'normal'}
                         style={{ width: 100 }}
                       />
-                    </List.Item>
-                  )}
-                />
+                    </div>
+                  ))}
+                </div>
               </Card>
             </Col>
           </Row>
@@ -784,11 +781,9 @@ const EmergencyDisaster: React.FC = () => {
             showIcon
             style={{ marginBottom: 16 }}
           />
-          <List
-            grid={{ gutter: 16, column: 3 }}
-            dataSource={staff}
-            renderItem={(item) => (
-              <List.Item>
+          <Row gutter={16}>
+            {staff.map((item) => (
+              <Col key={item.id || item.name} span={8} style={{ marginBottom: 16 }}>
                 <Card size="small">
                   <Card.Meta
                     avatar={<Avatar icon={<UserOutlined />} />}
@@ -814,9 +809,9 @@ const EmergencyDisaster: React.FC = () => {
                     }
                   />
                 </Card>
-              </List.Item>
-            )}
-          />
+              </Col>
+            ))}
+          </Row>
         </div>
       ),
     },
