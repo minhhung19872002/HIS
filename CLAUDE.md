@@ -271,8 +271,36 @@ If a new service/controller is added, register it there or you get 500 errors.
 **10. Git Commit (Session 4)**
 - `a1ad9a5` - Implement all 176 remaining backend service stubs, fix EF Core issues, add E2E tests
 
+### DA HOAN THANH (Session 5 - 2026-02-25 toi)
+
+**11. Fix flaky tests**
+- Cypress `real-workflow.cy.ts`: Cai thien Insurance beforeEach wait strategy (spinner wait + shorter fixed wait)
+- Playwright `01-reception.spec.ts`: Them `test.setTimeout(60000)` + toi uu select dropdown loop (try last select first, giam wait 500ms→300ms)
+
+**12. Implement InpatientCompleteService TODO flags**
+- 4 TODO flags trong `GetInpatientListAsync` thay bang EF Core correlated subqueries:
+  - `HasPendingOrders`: ServiceRequests.Any(Status < 2)
+  - `HasPendingLabResults`: ServiceRequestDetails.Any(Status < 2, RequestType == 1)
+  - `HasUnclaimedMedicine`: Prescriptions.Any(!IsDispensed, Status < 2)
+  - `IsDebtWarning` + `TotalDebt`: ServiceRequests.Any/Sum(!IsPaid, Status != 4)
+
+**13. Full test verification**
+
+| Test Suite | Pass | Fail | Skip | Total |
+|---|---|---|---|---|
+| API workflow | 41 | 0 | 0 | 41 |
+| Cypress (13 specs) | 467 | 0 | 0 | 467 |
+| Cypress radiology + ris-pacs | 67 | 6* | 0 | 73 |
+| Playwright | 250 | 0 | 5 | 255 |
+| **Tong** | **825** | **6*** | **5** | **836** |
+
+*\* 6 failures la radiology/ris-pacs timing issues (pass standalone)*
+
+**14. Git Commits (Session 5)**
+- `14d31fa` - Fix flaky tests and implement inpatient TODO flags with DB subqueries
+
 ### CAN LAM TIEP
 
 **1. 5 Playwright skipped tests** (HL7Spy connectivity - can HL7Spy running)
-**2. 2 flaky tests** (timing issues, pass standalone)
+**2. 6 Cypress radiology/ris-pacs flaky tests** (timing issues, pass standalone)
 **3. Production hardening** (real implementations cho print/report methods khi co template engine)
