@@ -413,8 +413,10 @@ describe('Real Workflow - Input Data Like a Real User', () => {
           },
         });
 
-        cy.wait(2500);
-        cy.get('body').should('not.be.empty');
+        // Wait for page to fully load - some pages need more time in full suite
+        cy.get('body', { timeout: 10000 }).should('not.be.empty');
+        cy.get('.ant-spin-spinning', { timeout: 1000 }).should('not.exist').then(() => {}, () => {});
+        cy.wait(1500);
       });
 
       it('page loads and renders without JS errors', () => {

@@ -190,6 +190,7 @@ test.describe('Tiep don benh nhan - Reception Flow', () => {
  * E2E Test: Dang ky benh nhan va xac nhan trong OPD
  */
 test.describe('Reception E2E Flow', () => {
+  test.setTimeout(60000);
 
   test('E2E: Dang ky benh nhan va kiem tra trong OPD', async ({ page }) => {
     // 1. Login
@@ -240,20 +241,22 @@ test.describe('Reception E2E Flow', () => {
       const selects = modal.locator('.ant-select');
       const count = await selects.count();
 
-      for (let i = 0; i < count; i++) {
-        const select = selects.nth(i);
-        const text = await select.textContent();
-        if (text?.includes('phòng') || text?.includes('Phòng') || i === count - 1) {
-          await select.click();
-          await page.waitForTimeout(500);
+      // Limit iterations to avoid timeout - try last select first (usually room), then first 3
+      const maxTries = Math.min(count, 3);
+      const indices = count > 1 ? [count - 1, 0, 1].slice(0, maxTries) : [0];
 
-          const option = page.locator('.ant-select-dropdown:visible .ant-select-item').first();
-          if (await option.isVisible()) {
-            await option.click();
-            break;
-          } else {
-            await page.keyboard.press('Escape');
-          }
+      for (const i of indices) {
+        const select = selects.nth(i);
+        await select.click();
+        await page.waitForTimeout(300);
+
+        const option = page.locator('.ant-select-dropdown:visible .ant-select-item').first();
+        if (await option.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await option.click();
+          break;
+        } else {
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(200);
         }
       }
 

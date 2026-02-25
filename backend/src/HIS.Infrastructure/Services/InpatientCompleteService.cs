@@ -316,11 +316,19 @@ public class InpatientCompleteService : IInpatientCompleteService
                 MainDiagnosis = m.MainDiagnosis,
                 AttendingDoctorName = m.Doctor != null ? m.Doctor.FullName : null,
                 Status = m.Status,
-                HasPendingOrders = false, // TODO: Implement when we have orders
-                HasPendingLabResults = false, // TODO: Implement when we have lab results
-                HasUnclaimedMedicine = false, // TODO: Implement when we have pharmacy
-                IsDebtWarning = false, // TODO: Implement when we have billing
-                TotalDebt = null,
+                HasPendingOrders = _context.ServiceRequests
+                    .Any(sr => sr.MedicalRecordId == m.Id && !sr.IsDeleted && sr.Status < 2),
+                HasPendingLabResults = _context.ServiceRequestDetails
+                    .Any(srd => srd.ServiceRequest.MedicalRecordId == m.Id
+                        && !srd.IsDeleted && srd.Status < 2
+                        && srd.ServiceRequest.RequestType == 1),
+                HasUnclaimedMedicine = _context.Prescriptions
+                    .Any(p => p.MedicalRecordId == m.Id && !p.IsDeleted && !p.IsDispensed && p.Status < 2),
+                IsDebtWarning = _context.ServiceRequests
+                    .Any(sr => sr.MedicalRecordId == m.Id && !sr.IsDeleted && !sr.IsPaid && sr.Status != 4),
+                TotalDebt = _context.ServiceRequests
+                    .Where(sr => sr.MedicalRecordId == m.Id && !sr.IsDeleted && !sr.IsPaid && sr.Status != 4)
+                    .Sum(sr => (decimal?)sr.PatientAmount),
                 IsInsuranceExpiring = m.InsuranceExpireDate.HasValue &&
                     m.InsuranceExpireDate.Value <= DateTime.Now.AddDays(7)
             })
