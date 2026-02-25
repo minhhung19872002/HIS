@@ -299,11 +299,44 @@ If a new service/controller is added, register it there or you get 500 errors.
 | Playwright | 250 | 0 | 5 | 255 |
 | **Tong** | **764** | **0** | **5** | **769** |
 
-**15. Git Commits (Session 5)**
+**15. Replace deprecated Antd List component - 6 pages**
+- Prescription.tsx: 3 List usages (medications, patient search, templates) → fix blank rendering bug
+- Dashboard.tsx: 2 (dept outpatient, dept revenue)
+- Quality.tsx: 3 (JCI, ISO, MOH standards)
+- HR.tsx: 1 (shift schedule)
+- EmergencyDisaster.tsx: 3 (resources, staff grid)
+- PatientPortal.tsx: 2 (notifications, pending bills)
+- 0 deprecated `<List>` imports con lai trong toan bo frontend
+
+**16. Implement 5 backend TODO flags voi real DB queries**
+- ExaminationCompleteService:
+  - `GetFrequentIcdCodesAsync`: query Examinations grouped by MainIcdCode frequency
+  - `LockExaminationAsync`: set Status=4 (completed) to lock
+  - `UnlockExaminationAsync`: revert Status=3 to unlock
+- ReceptionCompleteService:
+  - `GetTemporaryInsuranceAsync`: check patient age eligibility cho the BHYT tam
+  - `RegisterWithOtherPayerAsync`: update PatientType=3 cho third-party payer
+
+**17. Full test verification**
+
+| Test Suite | Pass | Fail | Skip | Total |
+|---|---|---|---|---|
+| API workflow | 41 | 0 | 0 | 41 |
+| Cypress (solo run) | 473 | 0 | 0 | 473 |
+| Cypress (concurrent w/ Playwright) | 467 | 6* | 0 | 473 |
+| Playwright | 249 | 0 | 6 | 255 |
+| **Tong** | **763** | **6*** | **6** | **769** |
+
+*\* 6 Cypress failures chi xay ra khi chay dong thoi voi Playwright (API overload). Khi chay rieng: 473/473 pass.*
+
+**18. Git Commits (Session 5)**
 - `14d31fa` - Fix flaky tests and implement inpatient TODO flags with DB subqueries
-- `d841f1c` - Fix all 6 flaky Cypress tests in radiology/ris-pacs: 473/473 full suite pass
+- `d841f1c` - Fix all 6 flaky Cypress tests in radiology/ris-pacs
+- `6e162c5` - Replace deprecated Antd List component in 6 pages
+- `3e9e944` - Implement 5 backend TODO flags with real DB queries
 
 ### CAN LAM TIEP
 
 **1. 5 Playwright skipped tests** (HL7Spy connectivity - can HL7Spy running)
-**2. Production hardening** (real implementations cho print/report methods khi co template engine)
+**2. 5 external integration TODOs** (BHXH gateway, smart card, photo storage, report export)
+**3. Production hardening** (real implementations cho print/report methods khi co template engine)
