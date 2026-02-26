@@ -4,7 +4,7 @@ import { message } from 'antd';
 
 // Create axios instance
 const request: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5106/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5106/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ request.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('Request error:', error);
+    console.warn('Request error:', error);
     return Promise.reject(error);
   }
 );

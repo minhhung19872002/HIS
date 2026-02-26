@@ -149,7 +149,7 @@ const Inpatient: React.FC = () => {
         setAdmissions([]);
       }
     } catch (error) {
-      console.error('Load admissions error:', error);
+      console.warn('Load admissions error:', error);
       message.error('Không thể tải danh sách bệnh nhân nội trú');
       setAdmissions([]);
     } finally {
@@ -169,7 +169,7 @@ const Inpatient: React.FC = () => {
         setBeds([]);
       }
     } catch (error) {
-      console.error('Load beds error:', error);
+      console.warn('Load beds error:', error);
       message.error('Không thể tải danh sách giường');
       setBeds([]);
     } finally {
@@ -426,7 +426,7 @@ const Inpatient: React.FC = () => {
       form.resetFields();
       loadAdmissions(); // Refresh the list
     } catch (error) {
-      console.error('Admit patient error:', error);
+      console.warn('Admit patient error:', error);
       message.error('Lỗi khi nhập viện. Vui lòng thử lại.');
     }
   };
@@ -453,7 +453,7 @@ const Inpatient: React.FC = () => {
       setIsProgressModalOpen(false);
       form.resetFields();
     } catch (error) {
-      console.error('Create progress error:', error);
+      console.warn('Create progress error:', error);
       message.error('Lỗi khi ghi nhận diễn biến. Vui lòng thử lại.');
     }
   };
@@ -482,7 +482,7 @@ const Inpatient: React.FC = () => {
       setIsCareModalOpen(false);
       form.resetFields();
     } catch (error) {
-      console.error('Create care error:', error);
+      console.warn('Create care error:', error);
       message.error('Lỗi khi ghi nhận chăm sóc. Vui lòng thử lại.');
     }
   };
@@ -507,7 +507,7 @@ const Inpatient: React.FC = () => {
       form.resetFields();
       loadAdmissions(); // Refresh the list
     } catch (error) {
-      console.error('Discharge error:', error);
+      console.warn('Discharge error:', error);
       message.error('Lỗi khi xuất viện. Vui lòng thử lại.');
     }
   };
@@ -544,7 +544,7 @@ const Inpatient: React.FC = () => {
       loadBeds();
       loadAdmissions();
     } catch (error) {
-      console.error('Bed transfer error:', error);
+      console.warn('Bed transfer error:', error);
       message.error('Lỗi khi chuyển giường. Vui lòng thử lại.');
     }
   };
@@ -579,7 +579,7 @@ const Inpatient: React.FC = () => {
       loadBeds();
       loadAdmissions();
     } catch (error) {
-      console.error('Bed assign error:', error);
+      console.warn('Bed assign error:', error);
       message.error('Lỗi khi phân giường. Vui lòng thử lại.');
     }
   };

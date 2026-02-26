@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const { Header, Sider, Content } = Layout;
 
@@ -199,7 +200,9 @@ const MainLayout: React.FC = () => {
           borderRadius: 8,
           minHeight: 280
         }}>
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </Content>
       </Layout>
     </Layout>

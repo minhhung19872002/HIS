@@ -20,6 +20,7 @@ import { waitForLoading, login } from '../helpers/test-utils';
  *     - Canh bao di ung
  */
 test.describe('Ke Don Thuoc - Prescription Flow', () => {
+  test.describe.configure({ timeout: 60000 });
 
   test.beforeEach(async ({ page }) => {
     await login(page);

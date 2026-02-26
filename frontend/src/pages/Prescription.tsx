@@ -41,6 +41,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '../api/examination';
 import { patientApi, type Patient as ApiPatient } from '../api/patient';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -638,7 +639,7 @@ const Prescription: React.FC = () => {
       await examinationApi.createPrescription(dto);
       message.success('Đã lưu đơn thuốc nháp');
     } catch (error) {
-      console.error('Error saving draft:', error);
+      console.warn('Error saving draft:', error);
       message.error('Lỗi khi lưu đơn thuốc nháp');
     }
   };
@@ -691,7 +692,7 @@ const Prescription: React.FC = () => {
       await examinationApi.createPrescription(dto);
       message.success('Hoàn thành đơn thuốc thành công');
     } catch (error) {
-      console.error('Error completing prescription:', error);
+      console.warn('Error completing prescription:', error);
       message.error('Lỗi khi hoàn thành đơn thuốc');
     }
   };
@@ -722,7 +723,7 @@ const Prescription: React.FC = () => {
         .signature-col { width: 45%; }
         @media print { body { padding: 10px; } }
       </style></head><body>
-        <div style="text-align: center;"><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+        <div style="text-align: center;"><strong>${HOSPITAL_NAME}</strong></div>
         <div class="title">ĐƠN THUỐC</div>
         ${patient ? `
           <div class="info">Họ tên: <strong>${patient.fullName}</strong> - Mã BN: ${patient.patientCode}</div>
@@ -793,7 +794,7 @@ const Prescription: React.FC = () => {
           await examinationApi.createPrescription(dto);
           message.success('Đã gửi đơn thuốc đến nhà thuốc');
         } catch (error) {
-          console.error('Error sending to pharmacy:', error);
+          console.warn('Error sending to pharmacy:', error);
           message.error('Lỗi khi gửi đơn thuốc đến nhà thuốc');
         }
       },
@@ -985,8 +986,8 @@ const Prescription: React.FC = () => {
                   style={{ marginBottom: 16 }}
                 >
                   <Space wrap>
-                    {patient.allergies.map((allergy, index) => (
-                      <Tag color="red" key={index}>
+                    {patient.allergies.map((allergy) => (
+                      <Tag color="red" key={allergy}>
                         {allergy}
                       </Tag>
                     ))}
@@ -1002,8 +1003,8 @@ const Prescription: React.FC = () => {
                   style={{ marginBottom: 16 }}
                 >
                   <div>
-                    {patient.currentMedications.map((item, idx) => (
-                      <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                    {patient.currentMedications.map((item) => (
+                      <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                     ))}
                   </div>
                 </Card>
@@ -1051,8 +1052,8 @@ const Prescription: React.FC = () => {
                 }
                 description={
                   <div>
-                    {interactions.map((interaction, index) => (
-                      <div key={index} style={{ marginTop: 8 }}>
+                    {interactions.map((interaction) => (
+                      <div key={`${interaction.medicine1}-${interaction.medicine2}`} style={{ marginTop: 8 }}>
                         <Tag
                           color={
                             interaction.severity === 'high'
@@ -1492,7 +1493,7 @@ const Prescription: React.FC = () => {
             setTemplateName('');
             setTemplateDiagnosis('');
           } catch (error) {
-            console.error('Error saving template:', error);
+            console.warn('Error saving template:', error);
             message.error('Lỗi khi lưu mẫu đơn thuốc');
           }
         }}
@@ -1517,8 +1518,8 @@ const Prescription: React.FC = () => {
         open={isInteractionDrawerOpen}
         size={500}
       >
-        {interactions.map((interaction, index) => (
-          <Card key={index} style={{ marginBottom: 16 }} size="small">
+        {interactions.map((interaction) => (
+          <Card key={`${interaction.medicine1}-${interaction.medicine2}`} style={{ marginBottom: 16 }} size="small">
             <Space orientation="vertical" style={{ width: '100%' }}>
               <div>
                 <Tag

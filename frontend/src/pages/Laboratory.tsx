@@ -38,6 +38,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import laboratoryApi from '../api/laboratory';
 import type { LabRequest, TestResult, TestParameter, LabTestItem } from '../api/laboratory';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -71,7 +72,7 @@ const Laboratory: React.FC = () => {
         setLabRequests([]);
       }
     } catch (error) {
-      console.error('Error fetching lab requests:', error);
+      console.warn('Error fetching lab requests:', error);
       message.error('Không thể tải danh sách yêu cầu xét nghiệm');
     } finally {
       setLoading(false);
@@ -86,7 +87,7 @@ const Laboratory: React.FC = () => {
         setTestResults(data);
       }
     } catch (error) {
-      console.error('Error fetching test results:', error);
+      console.warn('Error fetching test results:', error);
     }
   };
 
@@ -200,7 +201,7 @@ const Laboratory: React.FC = () => {
     try {
       await laboratoryApi.printBarcode(record.id, barcode);
     } catch (error) {
-      console.error('Error printing barcode:', error);
+      console.warn('Error printing barcode:', error);
       // Last resort: manual print window
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
@@ -220,7 +221,7 @@ const Laboratory: React.FC = () => {
         </style></head>
         <body>
           <div class="label">
-            <div style="font-weight: bold; font-size: 11px;">BỆNH VIỆN ĐA KHOA ABC</div>
+            <div style="font-weight: bold; font-size: 11px;">${HOSPITAL_NAME}</div>
             <div class="barcode">||||| ${barcode} |||||</div>
             <div class="code"><strong>${barcode}</strong></div>
             <div class="patient">${record.patientName} - ${record.patientCode}</div>
@@ -283,7 +284,7 @@ const Laboratory: React.FC = () => {
       collectionForm.resetFields();
       setSelectedRequest(null);
     } catch (error) {
-      console.error('Error collecting sample:', error);
+      console.warn('Error collecting sample:', error);
       message.error('Có lỗi xảy ra khi lấy mẫu. Vui lòng thử lại.');
     }
   };
@@ -311,7 +312,7 @@ const Laboratory: React.FC = () => {
       );
       message.success('Đã bắt đầu xử lý mẫu');
     } catch (error) {
-      console.error('Error starting processing:', error);
+      console.warn('Error starting processing:', error);
       message.error('Có lỗi xảy ra khi bắt đầu xử lý mẫu');
     }
   };
@@ -334,7 +335,7 @@ const Laboratory: React.FC = () => {
       );
       message.success('Đã hoàn thành xử lý mẫu');
     } catch (error) {
-      console.error('Error completing processing:', error);
+      console.warn('Error completing processing:', error);
       message.error('Có lỗi xảy ra khi hoàn thành xử lý mẫu');
     }
   };
@@ -454,7 +455,7 @@ const Laboratory: React.FC = () => {
       setIsResultEntryModalOpen(false);
       setSelectedResult(null);
     } catch (error) {
-      console.error('Error saving results:', error);
+      console.warn('Error saving results:', error);
       message.error('Có lỗi xảy ra khi lưu kết quả. Vui lòng thử lại.');
     }
   };
@@ -497,7 +498,7 @@ const Laboratory: React.FC = () => {
 
           message.success('Đã duyệt kết quả xét nghiệm');
         } catch (error) {
-          console.error('Error approving results:', error);
+          console.warn('Error approving results:', error);
           message.error('Có lỗi xảy ra khi duyệt kết quả. Vui lòng thử lại.');
         }
       },
@@ -527,7 +528,7 @@ const Laboratory: React.FC = () => {
         .signature-col { width: 30%; }
         @media print { body { padding: 10px; } }
       </style></head><body>
-        <div style="text-align: center;"><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+        <div style="text-align: center;"><strong>${HOSPITAL_NAME}</strong></div>
         <div class="title">KẾT QUẢ XÉT NGHIỆM</div>
         <div class="info">Mã phiếu: <strong>${result.requestCode}</strong></div>
         <div class="info">Mã BN: <strong>${result.patientCode}</strong> - Họ tên: <strong>${result.patientName}</strong></div>
@@ -590,8 +591,8 @@ const Laboratory: React.FC = () => {
       width: 200,
       render: (tests: string[]) => (
         <div>
-          {tests.map((test, idx) => (
-            <Tag key={idx} color="blue" style={{ marginBottom: 4 }}>
+          {tests.map((test) => (
+            <Tag key={test} color="blue" style={{ marginBottom: 4 }}>
               {test}
             </Tag>
           ))}
@@ -1229,8 +1230,8 @@ const Laboratory: React.FC = () => {
                 {selectedRequest.dateOfBirth ? dayjs(selectedRequest.dateOfBirth).format('DD/MM/YYYY') : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Xét nghiệm" span={2}>
-                {selectedRequest.requestedTests.map((test, idx) => (
-                  <Tag key={idx} color="blue">
+                {selectedRequest.requestedTests.map((test) => (
+                  <Tag key={test} color="blue">
                     {test}
                   </Tag>
                 ))}
@@ -1699,7 +1700,7 @@ const Laboratory: React.FC = () => {
             <Descriptions.Item label="Mã barcode">{selectedRequest.sampleBarcode || '-'}</Descriptions.Item>
             <Descriptions.Item label="Loại mẫu">{selectedRequest.sampleType || '-'}</Descriptions.Item>
             <Descriptions.Item label="Xét nghiệm yêu cầu" span={2}>
-              {selectedRequest.requestedTests?.map((t, i) => <Tag key={i} color="blue">{t}</Tag>) || '-'}
+              {selectedRequest.requestedTests?.map((t) => <Tag key={t} color="blue">{t}</Tag>) || '-'}
             </Descriptions.Item>
             {selectedRequest.clinicalInfo && (
               <Descriptions.Item label="Thông tin lâm sàng" span={2}>{selectedRequest.clinicalInfo}</Descriptions.Item>

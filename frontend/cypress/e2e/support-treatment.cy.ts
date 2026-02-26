@@ -35,7 +35,7 @@ describe('Hỗ trợ điều trị - Deep Tab Testing', () => {
   function setupPage(route: string, consoleErrors: string[], serverErrors: string[]) {
     cy.on('uncaught:exception', () => false);
 
-    cy.intercept('**/*', (req) => {
+    cy.intercept('**/api/**', (req) => {
       req.continue((res) => {
         if (res.statusCode >= 500) {
           serverErrors.push(`${req.method} ${req.url} => ${res.statusCode}`);

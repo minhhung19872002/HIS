@@ -44,6 +44,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import risApi from '../api/ris';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -202,7 +203,7 @@ const Radiology: React.FC = () => {
         <div class="header">
           <div class="header-left">
             <div><strong>SỞ Y TẾ TP.HCM</strong></div>
-            <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+            <div><strong>${HOSPITAL_NAME}</strong></div>
             <div>Khoa: Chẩn đoán Hình ảnh</div>
           </div>
           <div class="header-right">
@@ -291,7 +292,7 @@ const Radiology: React.FC = () => {
         message.warning('Không tìm thấy USB Token. Vui lòng kiểm tra đã cắm USB Token.');
       }
     } catch (error) {
-      console.error('Error loading USB Token certificates:', error);
+      console.warn('Error loading USB Token certificates:', error);
       message.warning('Không thể đọc chứng thư số từ USB Token');
     } finally {
       setLoadingCertificates(false);
@@ -323,7 +324,7 @@ const Radiology: React.FC = () => {
           recommendations: selectedReportToSign.recommendations || '',
           reportedBy: selectedReportToSign.radiologistName || selectedReportToSign.doctorName || '',
           reportedDate: selectedReportToSign.reportDate || dayjs().format('YYYY-MM-DD HH:mm'),
-          hospitalName: 'BỆNH VIỆN ĐA KHOA ABC',
+          hospitalName: HOSPITAL_NAME,
           hospitalAddress: '123 Đường ABC, Quận 1, TP.HCM',
           hospitalPhone: '028-12345678',
           certificateThumbprint: values.certificateThumbprint,
@@ -385,7 +386,7 @@ const Radiology: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error('Sign result error:', error);
+      console.warn('Sign result error:', error);
       message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi ký số');
     } finally {
       setSignatureLoading(false);
@@ -437,7 +438,7 @@ const Radiology: React.FC = () => {
         setRadiologyRequests(requests);
       }
     } catch (error) {
-      console.error('Error fetching radiology data:', error);
+      console.warn('Error fetching radiology data:', error);
       message.error('Không thể tải danh sách chẩn đoán hình ảnh');
     } finally {
       setLoading(false);
@@ -488,7 +489,7 @@ const Radiology: React.FC = () => {
             setTagsData(response.data);
           }
         } catch (error) {
-          console.error('Error loading tags:', error);
+          console.warn('Error loading tags:', error);
         } finally {
           setTagsLoading(false);
         }
@@ -585,7 +586,7 @@ const Radiology: React.FC = () => {
       setSelectedRequest(null);
       fetchRadiologyData();
     } catch (error: any) {
-      console.error('Schedule submit error:', error);
+      console.warn('Schedule submit error:', error);
       message.error(error?.response?.data?.message || 'Không thể hẹn lịch');
     }
   };
@@ -597,7 +598,7 @@ const Radiology: React.FC = () => {
       message.success('Đã bắt đầu thực hiện');
       fetchRadiologyData();
     } catch (error: any) {
-      console.error('Start exam error:', error);
+      console.warn('Start exam error:', error);
       message.error(error?.response?.data?.message || 'Không thể bắt đầu thực hiện');
     }
   };
@@ -630,7 +631,7 @@ const Radiology: React.FC = () => {
       setSelectedRequest(null);
       fetchRadiologyData();
     } catch (error: any) {
-      console.error('Report submit error:', error);
+      console.warn('Report submit error:', error);
       message.error(error?.response?.data?.message || 'Không thể lưu báo cáo');
     }
   };
@@ -649,7 +650,7 @@ const Radiology: React.FC = () => {
           message.success('Đã duyệt báo cáo thành công');
           fetchRadiologyData();
         } catch (error: any) {
-          console.error('Approve report error:', error);
+          console.warn('Approve report error:', error);
           message.error(error?.response?.data?.message || 'Không thể duyệt báo cáo');
         }
       },
@@ -870,7 +871,7 @@ const Radiology: React.FC = () => {
               message.success(`Đã hoàn thành chụp phiếu ${record.requestCode}`);
               fetchRadiologyData();
             } catch (error: any) {
-              console.error('Complete exam error:', error);
+              console.warn('Complete exam error:', error);
               message.error(error?.response?.data?.message || 'Không thể hoàn thành ca chụp');
             }
           }}
@@ -1446,7 +1447,7 @@ const Radiology: React.FC = () => {
                               });
                             }
                           } catch (error: any) {
-                            console.error('Statistics error:', error);
+                            console.warn('Statistics error:', error);
                             message.error(error?.response?.data?.message || 'Không thể tải thống kê');
                           } finally {
                             setStatsLoading(false);
@@ -1475,7 +1476,7 @@ const Radiology: React.FC = () => {
                             window.URL.revokeObjectURL(url);
                             message.success('Đã xuất Excel thành công');
                           } catch (error: any) {
-                            console.error('Export Excel error:', error);
+                            console.warn('Export Excel error:', error);
                             message.error(error?.response?.data?.message || 'Không thể xuất Excel');
                           }
                         }}
@@ -1547,7 +1548,7 @@ const Radiology: React.FC = () => {
                               setTagsData(response.data);
                             }
                           } catch (error: any) {
-                            console.error('Search tags error:', error);
+                            console.warn('Search tags error:', error);
                             message.error(error?.response?.data?.message || 'Không thể tìm tag');
                           } finally {
                             setTagsLoading(false);
@@ -1649,7 +1650,7 @@ const Radiology: React.FC = () => {
                               message.success(`Đã tải ${response.data.length} lịch trực`);
                             }
                           } catch (error: any) {
-                            console.error('Load duty schedules error:', error);
+                            console.warn('Load duty schedules error:', error);
                             message.error(error?.response?.data?.message || 'Không thể tải lịch trực');
                           } finally {
                             setDutyLoading(false);
@@ -1765,7 +1766,7 @@ const Radiology: React.FC = () => {
                               });
                             }
                           } catch (error: any) {
-                            console.error('Search integration logs error:', error);
+                            console.warn('Search integration logs error:', error);
                             message.error(error?.response?.data?.message || 'Không thể tìm kiếm log');
                           } finally {
                             setLogsLoading(false);
@@ -2397,7 +2398,7 @@ const Radiology: React.FC = () => {
             } catch { /* ignore refresh error */ }
           } catch (error: any) {
             if (error?.errorFields) return; // validation error
-            console.error('Save tag error:', error);
+            console.warn('Save tag error:', error);
             message.error(error?.response?.data?.message || 'Không thể tạo tag');
           }
         }}

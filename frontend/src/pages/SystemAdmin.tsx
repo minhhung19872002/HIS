@@ -238,7 +238,7 @@ const SystemAdmin: React.FC = () => {
         name: d.name || d.departmentName,
       })));
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.warn('Error fetching data:', error);
       message.error('Không thể tải dữ liệu!');
     } finally {
       setLoading(false);
@@ -442,7 +442,7 @@ const SystemAdmin: React.FC = () => {
       fetchData();
     } catch (error: any) {
       if (error?.errorFields) return;
-      console.error('Error saving user:', error);
+      console.warn('Error saving user:', error);
       message.error('Lưu người dùng thất bại!');
     }
   };
@@ -456,7 +456,7 @@ const SystemAdmin: React.FC = () => {
           await adminApi.resetPassword(user.id);
           message.success('Đặt lại mật khẩu thành công!');
         } catch (error) {
-          console.error('Error resetting password:', error);
+          console.warn('Error resetting password:', error);
           message.error('Đặt lại mật khẩu thất bại!');
         }
       },
@@ -469,7 +469,7 @@ const SystemAdmin: React.FC = () => {
       message.success('Xóa người dùng thành công!');
       fetchData();
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.warn('Error deleting user:', error);
       message.error('Xóa người dùng thất bại!');
     }
   };
@@ -559,7 +559,7 @@ const SystemAdmin: React.FC = () => {
       fetchData();
     } catch (error: any) {
       if (error?.errorFields) return;
-      console.error('Error saving role:', error);
+      console.warn('Error saving role:', error);
       message.error('Lưu vai trò thất bại!');
     }
   };
@@ -570,7 +570,7 @@ const SystemAdmin: React.FC = () => {
       message.success('Xóa vai trò thành công!');
       fetchData();
     } catch (error) {
-      console.error('Error deleting role:', error);
+      console.warn('Error deleting role:', error);
       message.error('Xóa vai trò thất bại!');
     }
   };
@@ -652,7 +652,7 @@ const SystemAdmin: React.FC = () => {
       fetchData();
     } catch (error: any) {
       if (error?.errorFields) return;
-      console.error('Error saving config:', error);
+      console.warn('Error saving config:', error);
       message.error('Cập nhật cấu hình thất bại!');
     }
   };
@@ -775,7 +775,7 @@ const SystemAdmin: React.FC = () => {
       fetchData();
     } catch (error: any) {
       if (error?.errorFields) return;
-      console.error('Error sending notification:', error);
+      console.warn('Error sending notification:', error);
       message.error('Gửi thông báo thất bại!');
     }
   };

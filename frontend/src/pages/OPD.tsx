@@ -309,7 +309,7 @@ const OPD: React.FC = () => {
         setIcdOptions(options);
       }
     } catch (error) {
-      console.error('Error searching ICD codes:', error);
+      console.warn('Error searching ICD codes:', error);
     } finally {
       setSearchingICD(false);
     }
@@ -353,7 +353,7 @@ const OPD: React.FC = () => {
         setServiceOptions(options);
       }
     } catch (error) {
-      console.error('Error searching services:', error);
+      console.warn('Error searching services:', error);
     } finally {
       setSearchingService(false);
     }
@@ -445,7 +445,7 @@ const OPD: React.FC = () => {
       }
 
     } catch (error) {
-      console.error('Auto-save error:', error);
+      console.warn('Auto-save error:', error);
       // Silently fail for auto-save - don't show error messages to avoid disrupting the user
     }
   }, [examination, selectedPatient, examForm]);
@@ -538,7 +538,7 @@ const OPD: React.FC = () => {
 
       message.success('Đã lưu phiếu khám');
     } catch (error: unknown) {
-      console.error('Save error:', error);
+      console.warn('Save error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Lỗi khi lưu phiếu khám';
       message.error(errorMessage);
     } finally {
@@ -597,7 +597,7 @@ const OPD: React.FC = () => {
           examForm.resetFields();
           loadQueue(selectedRoomId);
         } catch (error: unknown) {
-          console.error('Complete error:', error);
+          console.warn('Complete error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Lỗi khi hoàn thành khám bệnh';
           message.error(errorMessage);
         }
@@ -858,7 +858,7 @@ const OPD: React.FC = () => {
       }
       setHistoryModalVisible(true);
     } catch (error) {
-      console.error('Error fetching history:', error);
+      console.warn('Error fetching history:', error);
       message.error('Không thể tải lịch sử khám bệnh');
       setPatientHistory([]);
       setHistoryModalVisible(true);

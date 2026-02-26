@@ -24,8 +24,7 @@ namespace HIS.Infrastructure.Services
         Task<List<CertificateInfoDto>> GetAvailableCertificatesAsync();
 
         /// <summary>
-        /// Sign data using selected certificate
-        /// For USB Tokens, Windows will prompt for PIN automatically
+        /// Sign data using selected certificate (Windows will prompt for USB Token PIN)
         /// </summary>
         Task<SignatureResultDto> SignDataAsync(byte[] data, string certificateThumbprint);
 
@@ -134,8 +133,7 @@ namespace HIS.Infrastructure.Services
         }
 
         /// <summary>
-        /// Sign data using the certificate identified by thumbprint
-        /// For USB Tokens, Windows will automatically prompt for PIN
+        /// Sign data using the certificate identified by thumbprint (Windows prompts for PIN)
         /// </summary>
         public Task<SignatureResultDto> SignDataAsync(byte[] data, string certificateThumbprint)
         {
@@ -188,30 +186,23 @@ namespace HIS.Infrastructure.Services
 
                 _logger.LogInformation("Signing with certificate: {Subject}", signingCert.Subject);
 
-                // Create CMS/PKCS#7 signed data
-                // This is the standard format for digital signatures
-                var contentInfo = new ContentInfo(data);
-                var signedCms = new SignedCms(contentInfo, detached: true);
+                // CMS/PKCS#7 signing - Windows will prompt for USB Token PIN
+                var defaultContentInfo = new ContentInfo(data);
+                var defaultSignedCms = new SignedCms(defaultContentInfo, detached: true);
+                var defaultSigner = new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, signingCert);
+                defaultSigner.DigestAlgorithm = new Oid("2.16.840.1.101.3.4.2.1"); // SHA-256
+                defaultSigner.IncludeOption = X509IncludeOption.WholeChain;
+                defaultSigner.SignedAttributes.Add(new Pkcs9SigningTime(DateTime.Now));
 
-                // Create signer info
-                // For USB Token: Windows will prompt for PIN here
-                var cmsSigner = new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, signingCert);
-                cmsSigner.DigestAlgorithm = new Oid("2.16.840.1.101.3.4.2.1"); // SHA-256
-                cmsSigner.IncludeOption = X509IncludeOption.WholeChain;
+                // Compute signature - PIN PROMPT APPEARS HERE FOR USB TOKEN
+                defaultSignedCms.ComputeSignature(defaultSigner);
 
-                // Add signing time attribute
-                cmsSigner.SignedAttributes.Add(new Pkcs9SigningTime(DateTime.Now));
-
-                // Compute signature - THIS IS WHERE PIN PROMPT APPEARS FOR USB TOKEN
-                signedCms.ComputeSignature(cmsSigner);
-
-                // Get the encoded signature
-                byte[] signature = signedCms.Encode();
+                byte[] defaultSignature = defaultSignedCms.Encode();
 
                 result.Success = true;
                 result.Message = "Ký số thành công";
-                result.Signature = signature;
-                result.SignatureBase64 = Convert.ToBase64String(signature);
+                result.Signature = defaultSignature;
+                result.SignatureBase64 = Convert.ToBase64String(defaultSignature);
                 result.SignerName = GetCommonName(signingCert.Subject);
                 result.CertificateSerial = signingCert.SerialNumber;
                 result.CertificateThumbprint = signingCert.Thumbprint;
@@ -223,7 +214,6 @@ namespace HIS.Infrastructure.Services
             {
                 _logger.LogError(ex, "Cryptographic error during signing");
 
-                // Handle common errors
                 if (ex.Message.Contains("canceled") || ex.Message.Contains("cancelled"))
                 {
                     result.Message = "Người dùng đã hủy nhập PIN. Vui lòng thử lại.";

@@ -36,6 +36,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import bloodBankApi from '../api/bloodBank';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -116,7 +117,7 @@ const BloodBank: React.FC = () => {
       </head>
       <body>
         <div class="label">
-          <div class="header">BỆNH VIỆN ĐA KHOA ABC</div>
+          <div class="header">${HOSPITAL_NAME}</div>
           <div class="header" style="font-size: 11px;">NGÂN HÀNG MÁU</div>
 
           <div class="blood-type">${unit.bloodType}</div>
@@ -191,7 +192,7 @@ const BloodBank: React.FC = () => {
       <body>
         <div class="header">
           <div class="header-left">
-            <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+            <div><strong>${HOSPITAL_NAME}</strong></div>
             <div>Khoa: ${request.department}</div>
           </div>
           <div style="text-align: right;">
@@ -438,7 +439,7 @@ const BloodBank: React.FC = () => {
         await bloodBankApi.createImportReceipt(importDto);
         message.success(`Đã nhập đơn vị máu ${newUnit.unitCode}`);
       } catch (error) {
-        console.error('Error saving blood unit to API:', error);
+        console.warn('Error saving blood unit to API:', error);
         message.warning('Đã thêm vào danh sách nhưng chưa lưu được lên hệ thống. Vui lòng thử lại.');
         // Revert optimistic update on failure
         setInventory(prev => prev.filter(u => u.id !== newUnit.id));
@@ -467,7 +468,7 @@ const BloodBank: React.FC = () => {
           );
           message.success('Đã duyệt yêu cầu');
         } catch (error) {
-          console.error('Error approving blood request:', error);
+          console.warn('Error approving blood request:', error);
           message.error('Lỗi khi duyệt yêu cầu. Vui lòng thử lại.');
         }
       },
@@ -516,7 +517,7 @@ const BloodBank: React.FC = () => {
         setSelectedRequest(null);
         issueForm.resetFields();
       } catch (error) {
-        console.error('Error issuing blood:', error);
+        console.warn('Error issuing blood:', error);
         message.error('Lỗi khi xuất máu. Vui lòng thử lại.');
       }
     });

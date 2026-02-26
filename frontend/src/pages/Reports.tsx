@@ -355,7 +355,7 @@ const Reports: React.FC = () => {
         message.success(`Da xuat bao cao ra ${formatName} thanh cong`);
       }
     } catch (error: any) {
-      console.error('Error exporting report:', error);
+      console.warn('Error exporting report:', error);
       message.error(`Xuat bao cao ra ${formatName} that bai. Vui long thu lai.`);
     } finally {
       setExporting(false);
@@ -372,7 +372,7 @@ const Reports: React.FC = () => {
       setPreviewContent(htmlContent);
       setPreviewVisible(true);
     } catch (error: any) {
-      console.error('Error previewing report:', error);
+      console.warn('Error previewing report:', error);
       message.error('Xem truoc bao cao that bai. Vui long thu lai.');
     } finally {
       setExporting(false);
@@ -388,7 +388,7 @@ const Reports: React.FC = () => {
       downloadBlob(blob, filename);
       message.success(`Da tai xuong: ${reportName}`);
     } catch (error: any) {
-      console.error('Error downloading report:', error);
+      console.warn('Error downloading report:', error);
       message.error('Tai xuong bao cao that bai. Vui long thu lai.');
     } finally {
       setExporting(false);

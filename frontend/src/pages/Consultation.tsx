@@ -96,34 +96,9 @@ const Consultation: React.FC = () => {
         setTotalCount(response.data.totalCount || 0);
       }
     } catch (error) {
-      console.error('Error fetching consultations:', error);
-      // Use mock data for demo
-      setSessions([
-        {
-          id: '1',
-          sessionCode: 'HC-2026-001',
-          title: 'Hội chẩn ca CT ngực nghi ngờ ung thư phổi',
-          description: 'Hội chẩn ca bệnh phức tạp cần ý kiến chuyên gia',
-          scheduledTime: dayjs().add(1, 'hour').format(),
-          status: 0,
-          statusName: 'Đã lên lịch',
-          createdByUserName: 'BS. Nguyễn Văn A',
-          caseCount: 2,
-        },
-        {
-          id: '2',
-          sessionCode: 'HC-2026-002',
-          title: 'Hội chẩn ca MRI não',
-          description: 'Đánh giá khối u não',
-          scheduledTime: dayjs().subtract(1, 'day').format(),
-          startTime: dayjs().subtract(1, 'day').format(),
-          endTime: dayjs().subtract(1, 'day').add(2, 'hour').format(),
-          status: 2,
-          statusName: 'Đã kết thúc',
-          createdByUserName: 'BS. Trần Thị B',
-          caseCount: 1,
-        },
-      ]);
+      console.warn('Error fetching consultations:', error);
+      setSessions([]);
+      message.error('Không thể tải danh sách hội chẩn');
     } finally {
       setLoading(false);
     }

@@ -219,6 +219,7 @@ public class HISDbContext : DbContext
     // System Administration
     public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<TwoFactorOtp> TwoFactorOtps => Set<TwoFactorOtp>();
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();

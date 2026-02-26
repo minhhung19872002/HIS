@@ -44,6 +44,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import pharmacyApi from '../api/pharmacy';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -157,7 +158,7 @@ const Pharmacy: React.FC = () => {
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState('all');
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
   const [transferSearch, setTransferSearch] = useState('');
-  const [transferDrugItems, setTransferDrugItems] = useState<{ medicationCode: string; medicationName: string; quantity: number; unit: string }[]>([]);
+  const [transferDrugItems, setTransferDrugItems] = useState<{ _key: string; medicationCode: string; medicationName: string; quantity: number; unit: string }[]>([]);
   const [inventoryHistory, setInventoryHistory] = useState<{ id: string; transactionType: string; quantity: number; batchNumber?: string; referenceCode?: string; note?: string; createdDate: string; createdBy: string }[]>([]);
   const [inventoryHistoryLoading, setInventoryHistoryLoading] = useState(false);
 
@@ -317,7 +318,7 @@ const Pharmacy: React.FC = () => {
 
   // Handle "Them thuoc" in transfer modal
   const handleAddTransferDrug = () => {
-    setTransferDrugItems(prev => [...prev, { medicationCode: '', medicationName: '', quantity: 1, unit: 'viên' }]);
+    setTransferDrugItems(prev => [...prev, { _key: `td-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, medicationCode: '', medicationName: '', quantity: 1, unit: 'viên' }]);
   };
 
   // Handle update transfer drug item
@@ -610,7 +611,7 @@ const Pharmacy: React.FC = () => {
       <body>
         <div class="header">
           <div class="header-left">
-            <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+            <div><strong>${HOSPITAL_NAME}</strong></div>
             <div>Khoa Dược</div>
           </div>
           <div style="text-align: right;">
@@ -1551,7 +1552,7 @@ const Pharmacy: React.FC = () => {
           <Divider>Danh sách thuốc điều chuyển</Divider>
 
           {transferDrugItems.map((item, index) => (
-            <Row key={index} gutter={8} style={{ marginBottom: 8 }}>
+            <Row key={item._key} gutter={8} style={{ marginBottom: 8 }}>
               <Col span={8}>
                 <Input
                   placeholder="Tên thuốc"

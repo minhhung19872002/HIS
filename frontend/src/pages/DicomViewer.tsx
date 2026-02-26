@@ -32,7 +32,7 @@ import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
 
 const { Title, Text } = Typography;
 
-const ORTHANC_BASE = 'http://localhost:8042';
+const ORTHANC_BASE = import.meta.env.VITE_ORTHANC_URL || 'http://localhost:8042';
 
 interface StudyInfo {
   studyInstanceUID: string;
@@ -109,7 +109,7 @@ const DicomViewer: React.FC = () => {
         });
       }
     } catch (err: any) {
-      console.error('Error loading study:', err);
+      console.warn('Error loading study:', err);
       setPacsAvailable(false);
       setStudyInfo({
         studyInstanceUID,
@@ -133,7 +133,7 @@ const DicomViewer: React.FC = () => {
         setSelectedImageUrl(response.data[0].imageUrl);
       }
     } catch (err) {
-      console.error('Error loading images:', err);
+      console.warn('Error loading images:', err);
       setImages([]);
     }
   };

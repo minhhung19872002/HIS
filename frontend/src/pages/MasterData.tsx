@@ -245,7 +245,7 @@ const MasterData: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.warn('Error fetching data:', error);
       message.error('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -296,7 +296,7 @@ const MasterData: React.FC = () => {
           message.success('Đã xóa thành công');
           fetchData();
         } catch (error) {
-          console.error('Error deleting:', error);
+          console.warn('Error deleting:', error);
           message.error('Xóa thất bại. Vui lòng thử lại.');
         }
       },
@@ -379,7 +379,7 @@ const MasterData: React.FC = () => {
       if (error?.errorFields) {
         return; // Form validation error
       }
-      console.error('Error saving:', error);
+      console.warn('Error saving:', error);
       message.error('Lưu thất bại. Vui lòng thử lại.');
     }
   };

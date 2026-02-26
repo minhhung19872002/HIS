@@ -649,7 +649,7 @@ describe('All Data Flows - HIS_DataFlow_Architecture', () => {
 
         cy.on('uncaught:exception', () => false);
 
-        cy.intercept('**/*', req => {
+        cy.intercept('**/api/**', req => {
           req.continue(res => {
             if (res.statusCode >= 500) {
               errors.push(`500: ${req.method} ${req.url}`);

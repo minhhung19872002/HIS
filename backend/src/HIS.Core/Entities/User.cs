@@ -25,8 +25,24 @@ public class User : BaseEntity
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
 
+    // Two-Factor Authentication
+    public bool IsTwoFactorEnabled { get; set; } = false;
+
     // Navigation properties
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+}
+
+/// <summary>
+/// OTP cho xác thực 2 yếu tố - Two Factor OTP
+/// </summary>
+public class TwoFactorOtp : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public virtual User User { get; set; } = null!;
+    public string OtpCodeHash { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public int Attempts { get; set; } = 0;
+    public bool IsUsed { get; set; } = false;
 }
 
 /// <summary>

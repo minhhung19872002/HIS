@@ -38,6 +38,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as insuranceApi from '../api/insurance';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -126,7 +127,7 @@ const Insurance: React.FC = () => {
       setFilteredClaims(mappedClaims);
     } catch (error) {
       message.error('Không thể tải danh sách hồ sơ giám định');
-      console.error('Failed to fetch claims:', error);
+      console.warn('Failed to fetch claims:', error);
     } finally {
       setLoading(false);
     }
@@ -172,7 +173,7 @@ const Insurance: React.FC = () => {
       setXmlBatches(mappedBatches);
     } catch (error) {
       message.error('Không thể tải danh sách lô XML');
-      console.error('Failed to fetch XML batches:', error);
+      console.warn('Failed to fetch XML batches:', error);
     }
   };
 
@@ -241,7 +242,7 @@ const Insurance: React.FC = () => {
           await fetchClaims();
         } catch (error) {
           message.error('Lỗi khi duyệt hồ sơ giám định');
-          console.error('Error approving claims:', error);
+          console.warn('Error approving claims:', error);
         }
       },
     });
@@ -271,7 +272,7 @@ const Insurance: React.FC = () => {
           await fetchClaims();
         } catch (error) {
           message.error('Lỗi khi khóa hồ sơ giám định');
-          console.error('Error locking claims:', error);
+          console.warn('Error locking claims:', error);
         }
       },
     });
@@ -325,7 +326,7 @@ const Insurance: React.FC = () => {
           }
         } catch (error) {
           message.error(`Lỗi khi xuất XML ${type}`);
-          console.error('Error exporting XML:', error);
+          console.warn('Error exporting XML:', error);
         } finally {
           setLoading(false);
         }
@@ -347,7 +348,7 @@ const Insurance: React.FC = () => {
       }
     } catch (error) {
       message.error('Lỗi khi đồng bộ với cổng BHXH');
-      console.error('Error syncing:', error);
+      console.warn('Error syncing:', error);
     } finally {
       setSyncLoading(false);
     }
@@ -385,7 +386,7 @@ const Insurance: React.FC = () => {
       }
     } catch (error) {
       message.error('Lỗi khi gửi tự động lên cổng BHXH');
-      console.error('Error auto-submitting:', error);
+      console.warn('Error auto-submitting:', error);
     } finally {
       setLoading(false);
     }
@@ -407,7 +408,7 @@ const Insurance: React.FC = () => {
       message.success(`Đã tải xuống lô ${batch.batchCode}`);
     } catch (error) {
       message.error('Lỗi khi tải xuống');
-      console.error('Error downloading batch:', error);
+      console.warn('Error downloading batch:', error);
     }
   };
 
@@ -433,7 +434,7 @@ const Insurance: React.FC = () => {
       }
     } catch (error) {
       message.error(`Lỗi khi gửi lô ${batch.batchCode}`);
-      console.error('Error submitting batch:', error);
+      console.warn('Error submitting batch:', error);
     } finally {
       setLoading(false);
     }
@@ -494,7 +495,7 @@ const Insurance: React.FC = () => {
       message.success(`Đã tải ${reportName}`);
     } catch (error) {
       message.error(`Lỗi khi tải ${reportName}`);
-      console.error(`Error loading report ${reportType}:`, error);
+      console.warn(`Error loading report ${reportType}:`, error);
     } finally {
       setReportLoading(null);
     }
@@ -1112,7 +1113,7 @@ const Insurance: React.FC = () => {
                 <body>
                   <div class="header">
                     <div class="header-left">
-                      <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+                      <div><strong>${HOSPITAL_NAME}</strong></div>
                       <div>Phòng Tài chính - Kế toán</div>
                     </div>
                     <div style="text-align: right;">

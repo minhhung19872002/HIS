@@ -187,7 +187,7 @@ const Finance: React.FC = () => {
       applyExpenseFilters(expData, expenseSearchText, expenseCategoryFilter);
     } catch (error) {
       message.error('Lỗi khi tải dữ liệu tài chính');
-      console.error('Error loading finance data:', error);
+      console.warn('Error loading finance data:', error);
     } finally {
       setLoading(false);
     }
@@ -250,7 +250,7 @@ const Finance: React.FC = () => {
       message.success('Xuất Excel thành công');
     } catch (error) {
       message.error('Lỗi khi xuất Excel');
-      console.error('Error exporting Excel:', error);
+      console.warn('Error exporting Excel:', error);
     } finally {
       setExportLoading(false);
     }
@@ -341,7 +341,7 @@ const Finance: React.FC = () => {
       }
     } catch (error) {
       message.error(`Lỗi khi tải ${reportName}`);
-      console.error(`Error loading report ${reportType}:`, error);
+      console.warn(`Error loading report ${reportType}:`, error);
     } finally {
       setReportLoading(null);
     }

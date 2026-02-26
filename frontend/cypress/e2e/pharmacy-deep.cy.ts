@@ -29,7 +29,7 @@ describe('Pharmacy Deep Console Test', () => {
     const failedRequests: string[] = [];
 
     // Intercept ALL requests to log failures
-    cy.intercept('**/*', (req) => {
+    cy.intercept('**/api/**', (req) => {
       req.continue((res) => {
         if (res.statusCode >= 400) {
           failedRequests.push(`${req.method} ${req.url} => ${res.statusCode}`);

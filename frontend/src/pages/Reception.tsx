@@ -146,7 +146,7 @@ const Reception: React.FC = () => {
         setRoomStats(stats);
       }
     } catch (error: any) {
-      console.error('Failed to fetch rooms:', error);
+      console.warn('Failed to fetch rooms:', error);
       // If unauthorized, redirect to login
       if (error?.response?.status === 401) {
         message.warning('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
@@ -187,7 +187,7 @@ const Reception: React.FC = () => {
         setData(records);
       }
     } catch (error) {
-      console.error('Failed to fetch admissions:', error);
+      console.warn('Failed to fetch admissions:', error);
     } finally {
       setLoading(false);
     }
@@ -364,7 +364,7 @@ const Reception: React.FC = () => {
       fetchRooms();
       fetchAdmissions();
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.warn('Registration error:', error);
       message.error(error?.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
     } finally {
       setSubmitting(false);
@@ -400,7 +400,7 @@ const Reception: React.FC = () => {
         message.warning('Bệnh nhân chưa được phân phòng');
       }
     } catch (error) {
-      console.error('Call queue error:', error);
+      console.warn('Call queue error:', error);
       message.info(`Gọi số ${record.queueNumber} - ${record.patientName}`);
     }
   };
@@ -410,7 +410,7 @@ const Reception: React.FC = () => {
       await receptionApi.recallQueue(record.id);
       message.success(`Đã gọi lại số ${record.queueNumber} - ${record.patientName}`);
     } catch (error) {
-      console.error('Recall queue error:', error);
+      console.warn('Recall queue error:', error);
       message.info(`Gọi lại số ${record.queueNumber}`);
     }
   };
@@ -427,7 +427,7 @@ const Reception: React.FC = () => {
           message.success('Đã bỏ qua số');
           fetchAdmissions();
         } catch (error) {
-          console.error('Skip queue error:', error);
+          console.warn('Skip queue error:', error);
           message.success('Đã bỏ qua số');
         }
       },
@@ -521,7 +521,7 @@ const Reception: React.FC = () => {
         setVisitHistory(response.data);
       }
     } catch (error) {
-      console.error('Failed to fetch visit history:', error);
+      console.warn('Failed to fetch visit history:', error);
       setVisitHistory([]);
     } finally {
       setLoadingHistory(false);
@@ -689,7 +689,7 @@ const Reception: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error('Insurance verification error:', error);
+      console.warn('Insurance verification error:', error);
       message.error(error?.response?.data?.message || 'Không thể xác minh thẻ BHYT');
     } finally {
       setVerifyingInsurance(false);

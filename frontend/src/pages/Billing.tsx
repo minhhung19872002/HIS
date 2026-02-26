@@ -59,6 +59,7 @@ import {
   type DebtStatisticsDto,
   getOutpatientRevenueReport,
 } from '../api/billing';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -198,7 +199,7 @@ const Billing: React.FC = () => {
       <body>
         <div class="header">
           <div class="header-left">
-            <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+            <div><strong>${HOSPITAL_NAME}</strong></div>
             <div>Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM</div>
             <div>ĐT: 028 1234 5678</div>
           </div>
@@ -309,7 +310,7 @@ const Billing: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+          <div><strong>${HOSPITAL_NAME}</strong></div>
           <div>123 Đường ABC, Quận XYZ, TP.HCM - ĐT: 028 1234 5678</div>
         </div>
 
@@ -375,7 +376,7 @@ const Billing: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <div><strong>BỆNH VIỆN ĐA KHOA ABC</strong></div>
+          <div><strong>${HOSPITAL_NAME}</strong></div>
           <div>123 Đường ABC, Quận XYZ, TP.HCM - ĐT: 028 1234 5678</div>
         </div>
 
@@ -540,7 +541,7 @@ const Billing: React.FC = () => {
       }
     } catch (error) {
       message.error('Không thể tải dữ liệu tạm ứng');
-      console.error('Error fetching deposits:', error);
+      console.warn('Error fetching deposits:', error);
     } finally {
       setLoading(false);
     }
@@ -566,7 +567,7 @@ const Billing: React.FC = () => {
       setRefunds(mappedRefunds);
     } catch (error) {
       message.error('Không thể tải dữ liệu hoàn tiền');
-      console.error('Error fetching refunds:', error);
+      console.warn('Error fetching refunds:', error);
     } finally {
       setLoading(false);
     }
@@ -631,7 +632,7 @@ const Billing: React.FC = () => {
       message.success(`Tìm thấy bệnh nhân: ${patient.name}`);
     } catch (error) {
       message.error('Lỗi khi tìm kiếm bệnh nhân');
-      console.error('Error searching patient:', error);
+      console.warn('Error searching patient:', error);
       setSelectedPatient(null);
       setUnpaidServices([]);
     } finally {
@@ -911,7 +912,7 @@ const Billing: React.FC = () => {
       setSelectedServices([]);
       paymentForm.resetFields();
     } catch (error) {
-      console.error('Payment error:', error);
+      console.warn('Payment error:', error);
       message.error('Lỗi khi thanh toán. Vui lòng thử lại.');
     }
   };
@@ -1193,7 +1194,7 @@ const Billing: React.FC = () => {
       // Refresh deposits list
       await fetchDeposits();
     } catch (error) {
-      console.error('Create deposit error:', error);
+      console.warn('Create deposit error:', error);
       message.error('Lỗi khi tạo tạm ứng. Vui lòng thử lại.');
     }
   };
@@ -1292,7 +1293,7 @@ const Billing: React.FC = () => {
                     message.success('Đã tạo yêu cầu hoàn tiền tạm ứng');
                     await fetchDeposits();
                   } catch (error) {
-                    console.error('Refund deposit error:', error);
+                    console.warn('Refund deposit error:', error);
                     message.error('Lỗi khi hoàn tiền tạm ứng');
                   }
                 },
@@ -1468,7 +1469,7 @@ const Billing: React.FC = () => {
       // Refresh refunds list
       await fetchRefunds();
     } catch (error) {
-      console.error('Create refund error:', error);
+      console.warn('Create refund error:', error);
       message.error('Lỗi khi tạo yêu cầu hoàn tiền. Vui lòng thử lại.');
     }
   };
@@ -1553,7 +1554,7 @@ const Billing: React.FC = () => {
                     message.success('Đã duyệt yêu cầu hoàn tiền');
                     await fetchRefunds();
                   } catch (error) {
-                    console.error('Approve refund error:', error);
+                    console.warn('Approve refund error:', error);
                     message.error('Lỗi khi duyệt yêu cầu hoàn tiền');
                   }
                 }}
@@ -1570,7 +1571,7 @@ const Billing: React.FC = () => {
                     message.warning('Đã từ chối yêu cầu');
                     await fetchRefunds();
                   } catch (error) {
-                    console.error('Cancel refund error:', error);
+                    console.warn('Cancel refund error:', error);
                     message.error('Lỗi khi từ chối yêu cầu hoàn tiền');
                   }
                 }}
@@ -1788,7 +1789,7 @@ const Billing: React.FC = () => {
         setDebtData((debtResponse as any).data || null);
       }
     } catch (error) {
-      console.error('View report error:', error);
+      console.warn('View report error:', error);
       message.error('Không thể tải báo cáo. Vui lòng thử lại.');
     } finally {
       setLoadingReport(false);
@@ -1840,7 +1841,7 @@ const Billing: React.FC = () => {
       URL.revokeObjectURL(url);
       message.success('Đã xuất file Excel (CSV) thành công');
     } catch (error) {
-      console.error('Export excel error:', error);
+      console.warn('Export excel error:', error);
       message.error('Không thể xuất báo cáo. Vui lòng thử lại.');
     } finally {
       setLoadingReport(false);

@@ -1654,7 +1654,7 @@ namespace HIS.API.Controllers
                 // Prepare data to sign - typically the report content or hash
                 var dataToSign = Encoding.UTF8.GetBytes(request.DataToSign ?? $"RIS Report {request.ReportId} - {DateTime.Now:yyyyMMddHHmmss}");
 
-                // Call signing service - Windows will prompt for PIN automatically
+                // Call signing service - Windows will prompt for PIN via dialog
                 var result = await _digitalSignatureService.SignDataAsync(dataToSign, request.CertificateThumbprint);
 
                 // Try to save signature to database, but don't fail the whole operation if DB save fails

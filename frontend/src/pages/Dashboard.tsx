@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, Tag, message } from 'antd';
 import {
   UserOutlined,
   MedicineBoxOutlined,
@@ -77,7 +77,8 @@ const Dashboard: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching dashboard:', error);
+      console.warn('Error fetching dashboard:', error);
+      message.error('Không thể tải dữ liệu tổng quan');
     } finally {
       setLoading(false);
     }
@@ -189,8 +190,8 @@ const Dashboard: React.FC = () => {
             <Card title="Khám bệnh theo khoa" size="small">
               {data.outpatientByDepartment.length > 0 ? (
                 <div>
-                  {data.outpatientByDepartment.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  {data.outpatientByDepartment.map((item) => (
+                    <div key={item.departmentName} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <Text>{item.departmentName}</Text>
                       <Tag color="blue">{item.count} BN</Tag>
                     </div>
@@ -205,8 +206,8 @@ const Dashboard: React.FC = () => {
             <Card title="Doanh thu theo khoa" size="small">
               {data.revenueByDepartment.length > 0 ? (
                 <div>
-                  {data.revenueByDepartment.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  {data.revenueByDepartment.map((item) => (
+                    <div key={item.departmentName} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <Text>{item.departmentName}</Text>
                       <Tag color="green">{Number(item.revenue).toLocaleString('vi-VN')} VND</Tag>
                     </div>

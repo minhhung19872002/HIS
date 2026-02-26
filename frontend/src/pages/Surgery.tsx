@@ -161,7 +161,7 @@ const Surgery: React.FC = () => {
       }));
       setSurgeryRequests(requests);
     } catch (error) {
-      console.error('Error fetching surgeries:', error);
+      console.warn('Error fetching surgeries:', error);
       message.error('Không thể tải danh sách phẫu thuật');
     } finally {
       setLoading(false);
@@ -181,7 +181,7 @@ const Surgery: React.FC = () => {
       }));
       setOperatingRooms(rooms);
     } catch (error) {
-      console.error('Error fetching operating rooms:', error);
+      console.warn('Error fetching operating rooms:', error);
     }
   };
 
@@ -284,7 +284,7 @@ const Surgery: React.FC = () => {
         setMedicalRecordOptions(options);
       }
     } catch (error) {
-      console.error('Error searching medical records:', error);
+      console.warn('Error searching medical records:', error);
     } finally {
       setSearchingMedicalRecords(false);
     }
@@ -307,7 +307,7 @@ const Surgery: React.FC = () => {
         setSurgeryServiceOptions(options);
       }
     } catch (error) {
-      console.error('Error searching surgery services:', error);
+      console.warn('Error searching surgery services:', error);
     } finally {
       setSearchingSurgeryServices(false);
     }
@@ -331,7 +331,7 @@ const Surgery: React.FC = () => {
         setIcdCodeOptions(options);
       }
     } catch (error) {
-      console.error('Error searching ICD codes:', error);
+      console.warn('Error searching ICD codes:', error);
     } finally {
       setSearchingIcdCodes(false);
     }
@@ -391,7 +391,7 @@ const Surgery: React.FC = () => {
       setIsRequestModalOpen(false);
       requestForm.resetFields();
     } catch (error) {
-      console.error('Error creating surgery request:', error);
+      console.warn('Error creating surgery request:', error);
       message.error('Có lỗi xảy ra khi tạo yêu cầu phẫu thuật');
     }
   };
@@ -458,7 +458,7 @@ const Surgery: React.FC = () => {
       scheduleForm.resetFields();
       setSelectedRequest(null);
     } catch (error) {
-      console.error('Error scheduling surgery:', error);
+      console.warn('Error scheduling surgery:', error);
       message.error('Có lỗi xảy ra khi lên lịch phẫu thuật');
     }
   };
@@ -505,7 +505,7 @@ const Surgery: React.FC = () => {
       startSurgeryForm.resetFields();
       setSelectedSchedule(null);
     } catch (error) {
-      console.error('Error starting surgery:', error);
+      console.warn('Error starting surgery:', error);
       message.error('Có lỗi xảy ra khi bắt đầu phẫu thuật');
     }
   };
@@ -541,7 +541,7 @@ const Surgery: React.FC = () => {
 
           message.success('Hoàn thành phẫu thuật thành công');
         } catch (error) {
-          console.error('Error completing surgery:', error);
+          console.warn('Error completing surgery:', error);
           message.error('Có lỗi xảy ra khi hoàn thành phẫu thuật');
         }
       },

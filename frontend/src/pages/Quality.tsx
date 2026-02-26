@@ -668,8 +668,8 @@ const Quality: React.FC = () => {
                           'PFR - Quyen benh nhan',
                           'AOP - Danh gia benh nhan',
                           'COP - Cham soc benh nhan',
-                        ].map((item, idx) => (
-                        <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                        ].map((item) => (
+                        <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                       ))}
                     </div>
                     </Card>
@@ -685,8 +685,8 @@ const Quality: React.FC = () => {
                           'Van hanh',
                           'Danh gia ket qua',
                           'Cai tien',
-                        ].map((item, idx) => (
-                        <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                        ].map((item) => (
+                        <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                       ))}
                     </div>
                     </Card>
@@ -700,8 +700,8 @@ const Quality: React.FC = () => {
                           'Nhom C: Nang luc NVYT',
                           'Nhom D: Co so ha tang',
                           'Nhom E: Cham soc nguoi benh',
-                        ].map((item, idx) => (
-                        <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
+                        ].map((item) => (
+                        <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                       ))}
                     </div>
                     </Card>

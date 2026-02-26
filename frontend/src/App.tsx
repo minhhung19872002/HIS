@@ -37,6 +37,7 @@ import EmergencyDisaster from './pages/EmergencyDisaster';
 import Consultation from './pages/Consultation';
 import Help from './pages/Help';
 import DicomViewer from './pages/DicomViewer';
+import QueueDisplay from './pages/QueueDisplay';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -67,6 +68,7 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
+      <Route path="/queue-display" element={<QueueDisplay />} />
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}

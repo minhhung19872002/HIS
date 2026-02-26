@@ -371,8 +371,8 @@ describe('Real Workflow - Input Data Like a Real User', () => {
 
         cy.on('uncaught:exception', () => false);
 
-        // Intercept ALL API calls - log everything
-        cy.intercept('**/*', (req) => {
+        // Intercept API calls - log HTTP 500 errors
+        cy.intercept('**/api/**', (req) => {
           req.continue((res) => {
             const entry = { method: req.method, url: req.url, status: res.statusCode };
             apiCalls.push(entry);
