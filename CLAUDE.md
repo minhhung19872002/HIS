@@ -484,33 +484,139 @@ If a new service/controller is added, register it there or you get 500 errors.
 
 **39. Full test verification - 507/507 Cypress + 255/255 Playwright = ALL PASS**
 
+### DA HOAN THANH (Session 9 - 2026-02-26 chieu)
+
+**40. Revert USB Token PIN temporary changes**
+- Xoa `Pin` field khoi `USBTokenSignRequest` DTO trong RISCompleteController
+- Xoa `pin` parameter khoi `SignDataAsync` trong DigitalSignatureService
+- Xoa toan bo CSP-based PIN signing block (~50 lines)
+- Backend build: 0 errors
+
+**41. Queue Display System (NangCap Level 6 #14)**
+- Tao `frontend/src/pages/QueueDisplay.tsx` (~250 lines): full-screen LCD display
+  - Poll `getQueueDisplay()` moi 4 giay qua `Promise.all` cho nhieu phong
+  - Two-column layout: DANG GOI (ticket 72px) + DANH SACH CHO (table)
+  - Web Speech API TTS: "Moi so [code] vao [room]" tieng Viet
+  - Audio unlock overlay (browser autoplay policy)
+  - Fullscreen toggle (requestFullscreen API)
+  - Blinking animation 5 cycles cho so moi goi
+  - Color coding: emergency=red, priority=orange, normal=green
+- Tao `frontend/src/pages/QueueDisplay.css` (~200 lines): dark theme, responsive
+- Tao `frontend/src/api/publicClient.ts`: unauthenticated axios instance
+- Route `/queue-display` TRUOC ProtectedRoute (ko can dang nhap)
+- Cypress: 13/13 pass (`queue-display.cy.ts`)
+
+**42. 2FA Authentication - Email OTP (NangCap Level 6 EMR #1.3)**
+
+**Backend (8 files):**
+- `User.cs`: them `IsTwoFactorEnabled` field + `TwoFactorOtp` entity
+- `AuthDto.cs`: them `RequiresOtp`, `OtpUserId`, `MaskedEmail`, `OtpExpiresAt` vao LoginResponseDto; them `VerifyOtpDto`, `EnableTwoFactorDto`, `TwoFactorStatusDto`
+- `IAuthService.cs`: them 5 methods (VerifyOtp, ResendOtp, Enable/Disable 2FA, GetStatus)
+- `AuthService.cs`: implement day du - OTP generation (SHA-256 hash), email sending, attempt limiting (max 3), cooldown (30s), mask email
+- `EmailService.cs` (MOI): SMTP email voi dev fallback (log OTP khi SMTP chua cau hinh)
+- `AuthController.cs`: 5 endpoints moi (verify-otp, resend-otp, 2fa-status, enable-2fa, disable-2fa)
+- `DependencyInjection.cs`: register IEmailService
+- `appsettings.json`: them Email (SMTP) + TwoFactor config sections
+- `HISDbContext.cs`: register TwoFactorOtps DbSet
+
+**Database:**
+- `scripts/add_2fa_tables.sql`: them `IsTwoFactorEnabled` column + `TwoFactorOtps` table
+- Apply thanh cong tren ca Docker va local SQL Server
+
+**Frontend (4 files):**
+- `auth.ts`: them verifyOtp, resendOtp, getTwoFactorStatus, enableTwoFactor, disableTwoFactor
+- `AuthContext.tsx`: them `otpPending` state, login returns `'success' | 'otp' | false`, them verifyOtp/resendOtp/cancelOtp methods
+- `Login.tsx`: 2-step login flow - credentials form → OTP verification (Antd Input.OTP 6 digits, resend cooldown timer, back button)
+
+**Cypress: 9/9 pass** (`two-factor-auth.cy.ts`)
+
+**43. Full test verification**
+
+| Test Suite | Pass | Fail | Total |
+|---|---|---|---|
+| Cypress console-errors | 28 | 0 | 28 |
+| Cypress user-workflow | 40 | 0 | 40 |
+| Cypress manual-user-workflow | 34 | 0 | 34 |
+| Cypress queue-display | 13 | 0 | 13 |
+| Cypress two-factor-auth | 9 | 0 | 9 |
+| **Tong verified** | **124** | **0** | **124** |
+
+- `tsc --noEmit`: 0 errors
+- `vite build`: success (11.66s)
+- Backend Infrastructure: 0 errors
+
+**44. Git Commit (Session 9)**
+- `8d459a4` - Add Queue Display System, 2FA Email OTP authentication, revert USB Token PIN changes
+
+### DA HOAN THANH (Session 10 - 2026-02-26 toi)
+
+**45. Email Notification for Lab/Radiology Results**
+- Tao `ResultNotificationService.cs` voi `IResultNotificationService` interface
+- 3 methods: `NotifyLabResultAsync`, `NotifyRadiologyResultAsync`, `NotifyCriticalValueAsync`
+- Mo rong `EmailService.cs` them `SendResultNotificationAsync` va `SendCriticalValueNotificationAsync`
+- Hook vao `LISCompleteService.ApproveLabResultAsync` va `FinalApproveLabResultAsync`
+- Hook vao `RISCompleteService.FinalApproveResultAsync`
+- DI registration trong `DependencyInjection.cs`
+- Fire-and-forget pattern (`_ = _notificationService.NotifyLabResultAsync(...)`)
+- Fix compile errors: `ServiceName` → `TestName` (LabRequestItem), `Name` → `ServiceName` (Service entity)
+
+**46. EMR Module - Ho so benh an dien tu**
+- Tao `frontend/src/pages/EMR.tsx` (~500 lines) - Comprehensive EMR page:
+  - Left panel: Search examinations (keyword, date range, status filter, pagination)
+  - Right panel: Medical record detail voi 5 tabs:
+    1. Ho so BA: Patient info, vital signs, interview, physical exam, diagnoses, allergies, conclusion
+    2. Lich su kham: Timeline voi click-to-navigate
+    3. Phieu dieu tri: CRUD modal (date, day number, progress, orders, notes)
+    4. Hoi chan: CRUD modal (date, reason, summary, conclusion, recommendations, chairman, secretary)
+    5. Cham soc: CRUD modal (date, shift, patient condition, nursing assessment, interventions, response)
+  - Print buttons cho ho so BA va phieu kham
+  - Integrate voi tat ca existing API functions tu `examination.ts`
+- Them route `/emr` trong `App.tsx`
+- Them menu item "Ho so BA (EMR)" trong sidebar `MainLayout.tsx` (group Lam sang)
+- Them vao `console-errors.cy.ts` pages list
+
+**47. EMR Cypress Tests - 18/18 pass**
+- File: `frontend/cypress/e2e/emr.cy.ts`
+- 4 groups:
+  1. Page load: loads at /emr, search panel, empty state, status filter
+  2. Search: keyword search, table columns, reload button
+  3. Detail panel (mocked data): row click loads detail, vital signs, interview, diagnoses, tabs structure, treatment/consultation/nursing modals
+  4. Menu integration: EMR item in sidebar
+
+**48. Verification**
+- TypeScript: 0 errors
+- Vite build: success
+- Backend Infrastructure build: 0 errors (API locked by running process)
+- Console-errors: 29/29 pass (was 28, added EMR)
+- EMR tests: 18/18 pass
+
 ---
 
 ### CAN LAM TIEP
 
-**1. REVERT USB Token PIN changes (sau khi test xong)**
-- backend/src/HIS.API/Controllers/RISCompleteController.cs: xoa `Pin` field
-- backend/src/HIS.Infrastructure/Services/DigitalSignatureService.cs: xoa `pin` parameter
-
-**2. Frontend Cleanup (Medium Priority)**
+**1. Frontend Cleanup (Medium Priority)**
 - 10 pages khong co API integration (EmergencyDisaster, HR, Equipment, InfectionControl, Nutrition, Quality, Telemedicine, PatientPortal, Rehabilitation, HealthExchange)
 - Finance.tsx eslint-disable cho stale closure (acceptable pattern for mount-only fetch)
 
-**3. Backend External Integration (Low Priority)**
+**2. Backend External Integration (Low Priority)**
 - BHXH gateway integration (ReceptionCompleteService - currently mock)
 - Smart card writing (ReceptionCompleteService)
 - Photo storage (ExaminationCompleteService)
 - Report export (ReceptionCompleteService - currently empty byte array)
 - User preferences persistence (ReceptionCompleteService)
 
-**4. Production Hardening**
+**3. Production Hardening**
 - Print/report templates (real HTML/PDF generation)
 - Health checks va monitoring endpoints
 
-**5. NangCap Level 6 + EMR (xem NangCap_PhanTich.md)**
-- EMR 38 bieu mau (17 BS + 21 DD)
+**4. NangCap Level 6 + EMR (xem NangCap_PhanTich.md)**
+- ~~Queue Display System~~ → DA XONG (Session 9)
+- ~~2FA Authentication~~ → DA XONG (Session 9)
+- ~~EMR Module foundation~~ → DA XONG (Session 10) - EMR page voi 5 tabs, CRUD forms
+- ~~Email notification khi co ket qua CLS~~ → DA XONG (Session 10) - ResultNotificationService
+- EMR 38 bieu mau (17 BS + 21 DD) - them cac bieu mau con lai
+- PDF generation + Digital signature cho bieu mau
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
 - Lien thong BHXH, DQGVN
 - Dashboard/BI bao cao Level 6
-- Queue Display System (man hinh goi BN)
-- 2FA Authentication (tai khoan + Email OTP)
+- HL7 FHIR v4.0.1 + SNOMED CT

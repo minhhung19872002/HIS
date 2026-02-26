@@ -8,6 +8,8 @@ namespace HIS.Infrastructure.Services;
 public interface IEmailService
 {
     Task<bool> SendOtpAsync(string toEmail, string otpCode, int validityMinutes);
+    Task<bool> SendResultNotificationAsync(string toEmail, string patientName, string resultType, string testName, string approvedBy, DateTime approvedAt);
+    Task<bool> SendCriticalValueNotificationAsync(string toEmail, string patientName, string testName, string value, string normalRange);
 }
 
 public class EmailService : IEmailService
@@ -76,6 +78,93 @@ public class EmailService : IEmailService
         {
             _logger.LogWarning(ex, "Failed to send OTP email to {Email}. OTP: {OtpCode}", toEmail, otpCode);
             // Still return true in development so 2FA flow works without SMTP
+            return true;
+        }
+    }
+
+    public async Task<bool> SendResultNotificationAsync(string toEmail, string patientName, string resultType, string testName, string approvedBy, DateTime approvedAt)
+    {
+        var subject = $"Kết quả {resultType} đã sẵn sàng - HIS";
+        var body = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2 style='color: #1890ff;'>Thông báo kết quả {resultType}</h2>
+                <p>Kính gửi <strong>{patientName}</strong>,</p>
+                <p>Kết quả {resultType.ToLower()} của bạn đã được duyệt:</p>
+                <table style='width: 100%; border-collapse: collapse; margin: 16px 0;'>
+                    <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Loại</td><td style='padding: 8px; border: 1px solid #eee; font-weight: bold;'>{resultType}</td></tr>
+                    <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Tên</td><td style='padding: 8px; border: 1px solid #eee;'>{testName}</td></tr>
+                    <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Bác sĩ duyệt</td><td style='padding: 8px; border: 1px solid #eee;'>{approvedBy}</td></tr>
+                    <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Thời gian</td><td style='padding: 8px; border: 1px solid #eee;'>{approvedAt:dd/MM/yyyy HH:mm}</td></tr>
+                </table>
+                <p>Vui lòng liên hệ bệnh viện để nhận kết quả chi tiết.</p>
+                <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;' />
+                <p style='color: #999; font-size: 12px;'>HIS - Hệ thống thông tin bệnh viện</p>
+            </div>";
+
+        return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    public async Task<bool> SendCriticalValueNotificationAsync(string toEmail, string patientName, string testName, string value, string normalRange)
+    {
+        var subject = $"[KHẨN] Kết quả xét nghiệm bất thường - HIS";
+        var body = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2 style='color: #ff4d4f;'>Thông báo kết quả bất thường</h2>
+                <p>Kính gửi <strong>{patientName}</strong>,</p>
+                <p>Kết quả xét nghiệm của bạn có giá trị cần lưu ý:</p>
+                <div style='background: #fff2f0; border: 1px solid #ffccc7; border-radius: 8px; padding: 16px; margin: 16px 0;'>
+                    <p style='margin: 4px 0;'><strong>Xét nghiệm:</strong> {testName}</p>
+                    <p style='margin: 4px 0;'><strong>Kết quả:</strong> <span style='color: #ff4d4f; font-weight: bold;'>{value}</span></p>
+                    <p style='margin: 4px 0;'><strong>Giá trị tham chiếu:</strong> {normalRange}</p>
+                </div>
+                <p><strong>Vui lòng liên hệ bác sĩ điều trị để được tư vấn.</strong></p>
+                <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;' />
+                <p style='color: #999; font-size: 12px;'>HIS - Hệ thống thông tin bệnh viện</p>
+            </div>";
+
+        return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    private async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlBody)
+    {
+        try
+        {
+            var smtpServer = _configuration["Email:SmtpServer"] ?? "smtp.gmail.com";
+            var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
+            var fromAddress = _configuration["Email:FromAddress"] ?? "noreply@hospital.local";
+            var fromName = _configuration["Email:FromName"] ?? "HIS";
+            var username = _configuration["Email:Username"];
+            var password = _configuration["Email:Password"];
+            var enableSsl = bool.Parse(_configuration["Email:EnableSsl"] ?? "true");
+
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                _logger.LogWarning("SMTP not configured. Email to {Email}: {Subject}", toEmail, subject);
+                return true;
+            }
+
+            using var client = new SmtpClient(smtpServer, smtpPort)
+            {
+                Credentials = new NetworkCredential(username, password),
+                EnableSsl = enableSsl
+            };
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress(fromAddress, fromName),
+                Subject = subject,
+                IsBodyHtml = true,
+                Body = htmlBody
+            };
+            mailMessage.To.Add(toEmail);
+            await client.SendMailAsync(mailMessage);
+
+            _logger.LogInformation("Email sent to {Email}: {Subject}", toEmail, subject);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send email to {Email}: {Subject}", toEmail, subject);
             return true;
         }
     }

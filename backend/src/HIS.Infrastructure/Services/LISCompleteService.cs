@@ -28,17 +28,20 @@ public class LISCompleteService : ILISCompleteService
     private readonly HL7ConnectionManager _hl7Manager;
     private readonly HL7Parser _hl7Parser;
     private readonly IConfiguration _configuration;
+    private readonly IResultNotificationService _notificationService;
 
     public LISCompleteService(
         HISDbContext context,
         ILogger<LISCompleteService> logger,
         HL7ConnectionManager hl7Manager,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IResultNotificationService notificationService)
     {
         _context = context;
         _logger = logger;
         _hl7Manager = hl7Manager;
         _configuration = configuration;
+        _notificationService = notificationService;
         _hl7Parser = new HL7Parser();
 
         // Subscribe to HL7 events
@@ -604,6 +607,7 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<bool> ApproveLabResultAsync(ApproveLabResultDtoService dto)
     {
+        _ = _notificationService.NotifyLabResultAsync(dto.OrderId, "Bác sĩ duyệt");
         return true;
     }
 
@@ -614,6 +618,8 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote)
     {
+        // Fire-and-forget email notification
+        _ = _notificationService.NotifyLabResultAsync(orderId, "Bác sĩ duyệt");
         return true;
     }
 

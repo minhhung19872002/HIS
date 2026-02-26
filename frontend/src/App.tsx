@@ -38,6 +38,7 @@ import Consultation from './pages/Consultation';
 import Help from './pages/Help';
 import DicomViewer from './pages/DicomViewer';
 import QueueDisplay from './pages/QueueDisplay';
+import EMR from './pages/EMR';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -112,6 +113,7 @@ const AppRoutes: React.FC = () => {
         <Route path="health-exchange" element={<HealthExchange />} />
         <Route path="emergency-disaster" element={<EmergencyDisaster />} />
         {/* RIS/PACS extended modules */}
+        <Route path="emr" element={<EMR />} />
         <Route path="consultation" element={<Consultation />} />
         <Route path="help" element={<Help />} />
         <Route path="radiology/viewer" element={<DicomViewer />} />

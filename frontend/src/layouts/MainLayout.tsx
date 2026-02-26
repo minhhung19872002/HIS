@@ -30,6 +30,7 @@ import {
   CloudUploadOutlined,
   BellOutlined,
   QuestionCircleOutlined,
+  FolderOpenOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -60,6 +61,7 @@ const MainLayout: React.FC = () => {
         { key: '/prescription', icon: <FileTextOutlined />, label: 'Kê đơn' },
         { key: '/ipd', icon: <FileTextOutlined />, label: 'Nội trú' },
         { key: '/surgery', icon: <HeartOutlined />, label: 'Phẫu thuật' },
+        { key: '/emr', icon: <FolderOpenOutlined />, label: 'Hồ sơ BA (EMR)' },
       ],
     },
     {

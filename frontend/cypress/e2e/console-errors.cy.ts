@@ -36,6 +36,7 @@ const pages = [
   { route: '/health-exchange', name: 'Health Exchange (Lien thong)' },
   { route: '/emergency-disaster', name: 'Emergency (Cap cuu)' },
   { route: '/consultation', name: 'Consultation (Hoi chan)' },
+  { route: '/emr', name: 'EMR (Ho so benh an)' },
   { route: '/help', name: 'Help (Tro giup)' },
 ];
 

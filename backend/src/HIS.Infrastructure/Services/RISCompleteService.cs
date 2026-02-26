@@ -33,6 +33,7 @@ public class RISCompleteService : IRISCompleteService
     private readonly IRepository<Service> _serviceRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
+    private readonly IResultNotificationService _notificationService;
 
     // PACS configuration (optional - for future integration)
     private readonly string _pacsBaseUrl;
@@ -50,7 +51,8 @@ public class RISCompleteService : IRISCompleteService
         IRepository<User> userRepo,
         IRepository<Service> serviceRepo,
         IUnitOfWork unitOfWork,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IResultNotificationService notificationService)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -64,6 +66,7 @@ public class RISCompleteService : IRISCompleteService
         _serviceRepo = serviceRepo;
         _unitOfWork = unitOfWork;
         _configuration = configuration;
+        _notificationService = notificationService;
 
         // Optional PACS configuration (disabled by default)
         _pacsEnabled = configuration.GetValue<bool>("PACS:Enabled", false);
@@ -1398,6 +1401,10 @@ public class RISCompleteService : IRISCompleteService
         }
 
         await _unitOfWork.SaveChangesAsync();
+
+        // Fire-and-forget email notification
+        _ = _notificationService.NotifyRadiologyResultAsync(report.Id, "Bác sĩ duyệt");
+
         return true;
     }
 
