@@ -300,6 +300,155 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
     });
   });
 
+  describe('Additional print forms via dropdown', () => {
+    beforeEach(() => {
+      cy.intercept('POST', '**/api/examination/search', {
+        statusCode: 200,
+        body: {
+          success: true,
+          data: {
+            items: [{
+              id: '00000000-0000-0000-0000-000000000001',
+              patientId: '00000000-0000-0000-0000-000000000002',
+              patientCode: 'BN001',
+              patientName: 'Nguyễn Văn A',
+              roomId: '00000000-0000-0000-0000-000000000003',
+              roomName: 'Phòng khám 1',
+              status: 4,
+              statusName: 'Hoàn thành',
+              queueNumber: 1,
+              examinationDate: new Date().toISOString(),
+              diagnosisCode: 'J06',
+              diagnosisName: 'Nhiễm khuẩn đường hô hấp trên',
+            }],
+            totalCount: 1, pageNumber: 1, pageSize: 20, totalPages: 1,
+          }
+        }
+      }).as('searchExam');
+
+      cy.intercept('GET', '**/api/examination/*/medical-record', {
+        statusCode: 200,
+        body: {
+          success: true,
+          data: {
+            id: '00000000-0000-0000-0000-000000000001',
+            medicalRecordCode: 'BA2026001',
+            patient: {
+              id: '00000000-0000-0000-0000-000000000002',
+              patientCode: 'BN001', fullName: 'Nguyễn Văn A',
+              gender: 1, age: 35, phoneNumber: '0901234567', address: '123 Lê Lợi, Q1, TP.HCM',
+            },
+            vitalSigns: { weight: 65, height: 170, bmi: 22.5, pulse: 78, temperature: 36.8, systolicBp: 120, diastolicBp: 80, respiratoryRate: 18, spo2: 98 },
+            interview: { chiefComplaint: 'Ho, sốt nhẹ', historyOfPresentIllness: 'Sốt 2 ngày', pastMedicalHistory: 'Không' },
+            diagnoses: [{ id: 'd1', icdCode: 'J06', icdName: 'Nhiễm khuẩn hô hấp trên', diagnosisType: 1 }],
+            allergies: [], contraindications: [], serviceOrders: [], prescriptions: [], history: [],
+          }
+        }
+      }).as('getMedicalRecord');
+
+      cy.intercept('GET', '**/api/examination/patient/*/medical-history*', { statusCode: 200, body: { success: true, data: [] } });
+      cy.intercept('GET', '**/api/examination/*/treatment-sheets', { statusCode: 200, body: { success: true, data: [] } });
+      cy.intercept('GET', '**/api/examination/*/consultation-records', { statusCode: 200, body: { success: true, data: [] } });
+      cy.intercept('GET', '**/api/examination/*/nursing-care-sheets', { statusCode: 200, body: { success: true, data: [] } });
+    });
+
+    const openDropdownAndSelectForm = (formLabel: string) => {
+      cy.visit('/emr');
+      cy.wait('@searchExam');
+      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
+      cy.wait('@getMedicalRecord');
+      cy.contains('button', 'Biểu mẫu khác', { timeout: 5000 }).click();
+      cy.get('.ant-dropdown', { timeout: 3000 }).should('be.visible');
+      cy.contains('.ant-dropdown-menu-item', formLabel).click();
+    };
+
+    it('opens pre-anesthetic exam form', () => {
+      openDropdownAndSelectForm('Khám tiền mê');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU KHÁM TIỀN MÊ').should('be.visible');
+      cy.contains('MS. 06/BV').should('exist');
+    });
+
+    it('opens surgery consent form', () => {
+      openDropdownAndSelectForm('Cam kết PT');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('GIẤY CAM KẾT PHẪU THUẬT').should('be.visible');
+      cy.contains('MS. 07/BV').should('exist');
+    });
+
+    it('opens treatment progress note', () => {
+      openDropdownAndSelectForm('Sơ kết 15 ngày');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU SƠ KẾT 15 NGÀY ĐIỀU TRỊ').should('be.visible');
+      cy.contains('MS. 08/BV').should('exist');
+    });
+
+    it('opens counseling form', () => {
+      openDropdownAndSelectForm('Phiếu tư vấn');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU TƯ VẤN NGƯỜI BỆNH').should('be.visible');
+      cy.contains('MS. 09/BV').should('exist');
+    });
+
+    it('opens death review form', () => {
+      openDropdownAndSelectForm('Kiểm điểm tử vong');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('BIÊN BẢN KIỂM ĐIỂM TỬ VONG').should('be.visible');
+      cy.contains('MS. 10/BV').should('exist');
+    });
+
+    it('opens medical record final summary', () => {
+      openDropdownAndSelectForm('Tổng kết HSBA');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('TỔNG KẾT HỒ SƠ BỆNH ÁN').should('be.visible');
+      cy.contains('MS. 11/BV').should('exist');
+    });
+
+    // New doctor forms (MS. 12-17)
+    it('opens nutrition exam form', () => {
+      openDropdownAndSelectForm('Khám dinh dưỡng');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU KHÁM DINH DƯỠNG').should('be.visible');
+      cy.contains('MS. 12/BV').should('exist');
+    });
+
+    it('opens surgery record form', () => {
+      openDropdownAndSelectForm('Phiếu phẫu thuật');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU PHẪU THUẬT / THỦ THUẬT').should('be.visible');
+      cy.contains('MS. 13/BV').should('exist');
+    });
+
+    it('opens admission exam form', () => {
+      openDropdownAndSelectForm('Khám vào viện');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU KHÁM VÀO VIỆN').should('be.visible');
+      cy.contains('MS. 17/BV').should('exist');
+    });
+
+    // Nursing forms (DD. 01-21) - sample tests
+    it('opens nursing care plan form', () => {
+      openDropdownAndSelectForm('KH chăm sóc');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU KẾ HOẠCH CHĂM SÓC ĐIỀU DƯỠNG').should('be.visible');
+      cy.contains('DD. 01/BV').should('exist');
+    });
+
+    it('opens surgical safety checklist', () => {
+      openDropdownAndSelectForm('An toàn PT');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('BẢNG KIỂM AN TOÀN PHẪU THUẬT').should('be.visible');
+      cy.contains('DD. 16/BV').should('exist');
+    });
+
+    it('opens VAP monitoring form', () => {
+      openDropdownAndSelectForm('VP thở máy');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('PHIẾU THEO DÕI PHÒNG NGỪA VIÊM PHỔI THỞ MÁY').should('be.visible');
+      cy.contains('DD. 21/BV').should('exist');
+    });
+  });
+
   describe('Menu integration', () => {
     it('EMR menu item exists in sidebar', () => {
       cy.visit('/emr');

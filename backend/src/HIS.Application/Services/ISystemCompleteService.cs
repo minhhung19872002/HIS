@@ -211,7 +211,13 @@ namespace HIS.Application.Services
         Task<MedicineGroupCatalogDto> SaveMedicineGroupAsync(MedicineGroupCatalogDto dto);
         Task<bool> DeleteMedicineGroupAsync(Guid groupId);
 
-        // 13.17 Đồng bộ danh mục BHXH
+        // 13.17 Thuật ngữ lâm sàng (Clinical Terms)
+        Task<List<ClinicalTermCatalogDto>> GetClinicalTermsAsync(string keyword = null, string category = null, string bodySystem = null, bool? isActive = null);
+        Task<ClinicalTermCatalogDto> GetClinicalTermAsync(Guid termId);
+        Task<ClinicalTermCatalogDto> SaveClinicalTermAsync(ClinicalTermCatalogDto dto);
+        Task<bool> DeleteClinicalTermAsync(Guid termId);
+
+        // 13.18 Đồng bộ danh mục BHXH
         Task<SyncResultDto> SyncBHXHMedicinesAsync();
         Task<SyncResultDto> SyncBHXHServicesAsync();
         Task<SyncResultDto> SyncBHXHICD10Async();

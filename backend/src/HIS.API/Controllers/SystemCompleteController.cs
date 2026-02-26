@@ -680,7 +680,41 @@ namespace HIS.API.Controllers
             return Ok(result);
         }
 
-        // 13.17 Đồng bộ BHXH
+        // 13.17 Thuật ngữ lâm sàng (Clinical Terms)
+        [HttpGet("api/catalog/clinical-terms")]
+        public async Task<ActionResult<List<ClinicalTermCatalogDto>>> GetClinicalTerms(
+            [FromQuery] string keyword = null, [FromQuery] string category = null,
+            [FromQuery] string bodySystem = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _service.GetClinicalTermsAsync(keyword, category, bodySystem, isActive);
+            return Ok(result);
+        }
+
+        [HttpGet("api/catalog/clinical-terms/{termId}")]
+        public async Task<ActionResult<ClinicalTermCatalogDto>> GetClinicalTerm(Guid termId)
+        {
+            var result = await _service.GetClinicalTermAsync(termId);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        [HttpPost("api/catalog/clinical-terms")]
+        [Authorize(Roles = "Admin,CatalogManager")]
+        public async Task<ActionResult<ClinicalTermCatalogDto>> SaveClinicalTerm([FromBody] ClinicalTermCatalogDto dto)
+        {
+            var result = await _service.SaveClinicalTermAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/catalog/clinical-terms/{termId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteClinicalTerm(Guid termId)
+        {
+            var result = await _service.DeleteClinicalTermAsync(termId);
+            return Ok(result);
+        }
+
+        // 13.18 Đồng bộ BHXH
         [HttpPost("api/catalog/sync/bhxh/medicines")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<SyncResultDto>> SyncBHXHMedicines()

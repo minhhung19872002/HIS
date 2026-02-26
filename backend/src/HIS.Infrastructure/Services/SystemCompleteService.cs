@@ -1747,7 +1747,82 @@ public class SystemCompleteService : ISystemCompleteService
         return true;
     }
 
-    // 13.17 Dong bo danh muc BHXH
+    // 13.17 Thuat ngu lam sang (Clinical Terms)
+    public async Task<List<ClinicalTermCatalogDto>> GetClinicalTermsAsync(string keyword = null, string category = null, string bodySystem = null, bool? isActive = null)
+    {
+        var query = _context.ClinicalTerms.AsQueryable();
+        if (!string.IsNullOrEmpty(keyword))
+            query = query.Where(t => t.Code.Contains(keyword) || t.Name.Contains(keyword) || (t.NameEnglish != null && t.NameEnglish.Contains(keyword)));
+        if (!string.IsNullOrEmpty(category))
+            query = query.Where(t => t.Category == category);
+        if (!string.IsNullOrEmpty(bodySystem))
+            query = query.Where(t => t.BodySystem == bodySystem);
+        if (isActive.HasValue)
+            query = query.Where(t => t.IsActive == isActive.Value);
+
+        return await query.OrderBy(t => t.Category).ThenBy(t => t.SortOrder).ThenBy(t => t.Name)
+            .Select(t => new ClinicalTermCatalogDto
+            {
+                Id = t.Id,
+                Code = t.Code,
+                Name = t.Name,
+                NameEnglish = t.NameEnglish,
+                Category = t.Category,
+                BodySystem = t.BodySystem,
+                Description = t.Description,
+                SortOrder = t.SortOrder,
+                IsActive = t.IsActive,
+            }).ToListAsync();
+    }
+
+    public async Task<ClinicalTermCatalogDto> GetClinicalTermAsync(Guid termId)
+    {
+        var t = await _context.ClinicalTerms.FindAsync(termId);
+        if (t == null) return null;
+        return new ClinicalTermCatalogDto
+        {
+            Id = t.Id, Code = t.Code, Name = t.Name, NameEnglish = t.NameEnglish,
+            Category = t.Category, BodySystem = t.BodySystem, Description = t.Description,
+            SortOrder = t.SortOrder, IsActive = t.IsActive,
+        };
+    }
+
+    public async Task<ClinicalTermCatalogDto> SaveClinicalTermAsync(ClinicalTermCatalogDto dto)
+    {
+        ClinicalTerm entity;
+        if (dto.Id != Guid.Empty)
+        {
+            entity = await _context.ClinicalTerms.FindAsync(dto.Id);
+            if (entity == null) throw new KeyNotFoundException($"ClinicalTerm {dto.Id} not found");
+        }
+        else
+        {
+            entity = new ClinicalTerm { Id = Guid.NewGuid() };
+            _context.ClinicalTerms.Add(entity);
+        }
+        entity.Code = dto.Code;
+        entity.Name = dto.Name;
+        entity.NameEnglish = dto.NameEnglish;
+        entity.Category = dto.Category;
+        entity.BodySystem = dto.BodySystem;
+        entity.Description = dto.Description;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteClinicalTermAsync(Guid termId)
+    {
+        var entity = await _context.ClinicalTerms.FindAsync(termId);
+        if (entity == null) return false;
+        _context.ClinicalTerms.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    // 13.18 Dong bo danh muc BHXH
     public async Task<SyncResultDto> SyncBHXHMedicinesAsync()
     {
         _logger.LogWarning("SyncBHXHMedicinesAsync: External integration not implemented");
@@ -2017,18 +2092,47 @@ public class SystemCompleteService : ISystemCompleteService
 
             var totalBeds = await _context.Beds.CountAsync(b => b.IsActive);
 
+            var todayDischarges = await _context.Discharges
+                .CountAsync(d => d.DischargeDate >= todayStart && d.DischargeDate < todayEnd);
+
+            var todaySurgeries = await _context.ServiceRequests
+                .CountAsync(sr => sr.RequestType == 3 && sr.CreatedAt >= todayStart && sr.CreatedAt < todayEnd); // 3 = Surgery
+
+            // Emergency = QueueTickets with QueueType 3 (Emergency)
+            var todayEmergencies = await _context.QueueTickets
+                .CountAsync(q => q.QueueType == 3 && q.CreatedAt >= todayStart && q.CreatedAt < todayEnd);
+
+            var todayRevenue = await _context.Receipts
+                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && r.Status == 1)
+                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+
+            // 7-day trends
+            var trendStart = todayStart.AddDays(-6);
+            var trends = new List<DashboardTrendDto>();
+            for (var d = trendStart; d <= todayStart; d = d.AddDays(1))
+            {
+                var dEnd = d.AddDays(1);
+                trends.Add(new DashboardTrendDto
+                {
+                    Date = d,
+                    Outpatients = await _context.Examinations.CountAsync(e => e.CreatedAt >= d && e.CreatedAt < dEnd),
+                    Admissions = await _context.Admissions.CountAsync(a => a.AdmissionDate >= d && a.AdmissionDate < dEnd),
+                    Revenue = await _context.Receipts.Where(r => r.CreatedAt >= d && r.CreatedAt < dEnd && r.Status == 1).SumAsync(r => (decimal?)r.Amount) ?? 0
+                });
+            }
+
             return new HospitalDashboardDto
             {
                 ReportDate = reportDate,
                 TodayOutpatients = todayExams,
                 TodayAdmissions = todayAdmissions,
                 CurrentInpatients = currentInpatients,
-                AvailableBeds = totalBeds - currentInpatients,
-                TodayDischarges = 0,
-                TodaySurgeries = 0,
-                TodayEmergencies = 0,
-                TodayRevenue = 0,
-                Trends = new List<DashboardTrendDto>()
+                AvailableBeds = Math.Max(0, totalBeds - currentInpatients),
+                TodayDischarges = todayDischarges,
+                TodaySurgeries = todaySurgeries,
+                TodayEmergencies = todayEmergencies,
+                TodayRevenue = todayRevenue,
+                Trends = trends
             };
         }
         catch (Exception ex)
@@ -2047,21 +2151,41 @@ public class SystemCompleteService : ISystemCompleteService
     {
         try
         {
+            var from = fromDate.Date;
+            var to = toDate.Date.AddDays(1);
+
             var departments = await _context.Departments.AsNoTracking()
                 .Where(d => d.IsActive)
                 .OrderBy(d => d.DisplayOrder)
                 .ToListAsync();
 
-            return departments.Select(d => new DepartmentStatisticsDto
+            var result = new List<DepartmentStatisticsDto>();
+            foreach (var dept in departments)
             {
-                DepartmentId = d.Id,
-                DepartmentName = d.DepartmentName,
-                OutpatientCount = 0,
-                InpatientCount = 0,
-                AdmissionCount = 0,
-                DischargeCount = 0,
-                Revenue = 0
-            }).ToList();
+                var outpatient = await _context.Examinations
+                    .CountAsync(e => e.DepartmentId == dept.Id && e.CreatedAt >= from && e.CreatedAt < to);
+                var admissions = await _context.Admissions
+                    .CountAsync(a => a.DepartmentId == dept.Id && a.AdmissionDate >= from && a.AdmissionDate < to);
+                var inpatient = await _context.Admissions
+                    .CountAsync(a => a.DepartmentId == dept.Id && a.Status == 0);
+                var discharges = await _context.Discharges
+                    .CountAsync(d => d.Admission.DepartmentId == dept.Id && d.DischargeDate >= from && d.DischargeDate < to);
+                var revenue = await _context.Receipts
+                    .Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == dept.Id && r.CreatedAt >= from && r.CreatedAt < to && r.Status == 1)
+                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
+
+                result.Add(new DepartmentStatisticsDto
+                {
+                    DepartmentId = dept.Id,
+                    DepartmentName = dept.DepartmentName,
+                    OutpatientCount = outpatient,
+                    InpatientCount = inpatient,
+                    AdmissionCount = admissions,
+                    DischargeCount = discharges,
+                    Revenue = revenue
+                });
+            }
+            return result;
         }
         catch (Exception ex)
         {

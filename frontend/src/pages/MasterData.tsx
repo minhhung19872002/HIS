@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
-import { catalogApi } from '../api/system';
+import { catalogApi, type ClinicalTermCatalogDto } from '../api/system';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -122,6 +122,7 @@ const categoryTreeData: DataNode[] = [
     icon: <FileTextOutlined />,
     children: [
       { title: 'ICD-10', key: 'icd10', icon: <FolderOutlined /> },
+      { title: 'Thuật ngữ lâm sàng', key: 'clinical-terms', icon: <FolderOutlined /> },
       { title: 'Đường dùng', key: 'route', icon: <FolderOutlined /> },
       { title: 'Hoạt chất', key: 'ingredient', icon: <FolderOutlined /> },
     ],
@@ -155,6 +156,7 @@ const MasterData: React.FC = () => {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [icdCodes, setIcdCodes] = useState<IcdCode[]>([]);
+  const [clinicalTerms, setClinicalTerms] = useState<ClinicalTermCatalogDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
@@ -243,6 +245,12 @@ const MasterData: React.FC = () => {
           setIcdCodes(mappedIcd);
           break;
         }
+        case 'clinical-terms': {
+          const ctResponse = await catalogApi.getClinicalTerms();
+          const mappedCt = extractData(ctResponse);
+          setClinicalTerms(mappedCt);
+          break;
+        }
       }
     } catch (error) {
       console.warn('Error fetching data:', error);
@@ -291,6 +299,9 @@ const MasterData: React.FC = () => {
               break;
             case 'icd':
               await catalogApi.deleteICD10Code(record.id);
+              break;
+            case 'clinical-terms':
+              await catalogApi.deleteClinicalTerm(record.id);
               break;
           }
           message.success('Đã xóa thành công');
@@ -366,6 +377,19 @@ const MasterData: React.FC = () => {
             chapterCode: values.chapter || '',
             groupCode: values.group,
             isReportable: true,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'clinical-terms':
+          await catalogApi.saveClinicalTerm({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            nameEnglish: values.nameEnglish,
+            category: values.category,
+            bodySystem: values.bodySystem,
+            description: values.description,
+            sortOrder: values.sortOrder || 0,
             isActive: values.isActive !== false,
           });
           break;
@@ -816,6 +840,79 @@ const MasterData: React.FC = () => {
     />
   );
 
+  // Clinical Terms table columns
+  const clinicalTermColumns: ColumnsType<ClinicalTermCatalogDto> = [
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: 110 },
+    { title: 'Tên thuật ngữ', dataIndex: 'name', key: 'name', ellipsis: true },
+    { title: 'Tiếng Anh', dataIndex: 'nameEnglish', key: 'nameEnglish', ellipsis: true, render: (v: string) => v || '-' },
+    {
+      title: 'Loại', dataIndex: 'category', key: 'category', width: 120,
+      render: (v: string) => {
+        const labels: Record<string, string> = { Symptom: 'Triệu chứng', Sign: 'Dấu hiệu', Examination: 'Khám LS', ReviewOfSystems: 'Hệ CQ', Procedure: 'Thủ thuật', Other: 'Khác' };
+        return <Tag color={v === 'Symptom' ? 'blue' : v === 'Sign' ? 'green' : 'default'}>{labels[v] || v}</Tag>;
+      },
+    },
+    {
+      title: 'Hệ cơ quan', dataIndex: 'bodySystem', key: 'bodySystem', width: 120,
+      render: (v: string) => {
+        const labels: Record<string, string> = { General: 'Toàn thân', Cardiovascular: 'Tim mạch', Respiratory: 'Hô hấp', GI: 'Tiêu hóa', Neuro: 'Thần kinh', MSK: 'Cơ xương', Skin: 'Da', ENT: 'TMH', Eye: 'Mắt', Urogenital: 'TN-SD' };
+        return v ? labels[v] || v : '-';
+      },
+    },
+    { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 70, align: 'center' as const },
+    {
+      title: 'TT', dataIndex: 'isActive', key: 'isActive', width: 60,
+      render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'On' : 'Off'}</Tag>,
+    },
+    {
+      title: '', key: 'actions', width: 90,
+      render: (_: unknown, record: ClinicalTermCatalogDto) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => {
+            setEditingRecord(record);
+            form.setFieldsValue(record);
+            setIsModalOpen(true);
+          }} />
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+        </Space>
+      ),
+    },
+  ];
+
+  const renderClinicalTermsTable = () => (
+    <Table
+      columns={clinicalTermColumns}
+      dataSource={filterByKeyword(clinicalTerms as any) as any}
+      rowKey="id"
+      size="small"
+      loading={loading}
+      pagination={{
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: (total) => `Tổng: ${total} thuật ngữ`,
+      }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết thuật ngữ - ${record.code}`,
+            width: 500,
+            content: (
+              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Tiếng Anh">{record.nameEnglish || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Loại">{record.category}</Descriptions.Item>
+                <Descriptions.Item label="Hệ cơ quan">{record.bodySystem || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Mô tả">{record.description || '-'}</Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
+
   const renderForm = () => {
     switch (activeTab) {
       case 'services':
@@ -1081,6 +1178,69 @@ const MasterData: React.FC = () => {
             </Row>
           </>
         );
+      case 'clinical-terms':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã thuật ngữ" rules={[{ required: true }]}>
+                  <Input placeholder="VD: SYM-G01" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên thuật ngữ" rules={[{ required: true }]}>
+                  <Input placeholder="VD: Sốt cao" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="nameEnglish" label="Tên tiếng Anh">
+              <Input placeholder="VD: High fever" />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="category" label="Loại" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn loại">
+                    <Select.Option value="Symptom">Triệu chứng</Select.Option>
+                    <Select.Option value="Sign">Dấu hiệu lâm sàng</Select.Option>
+                    <Select.Option value="Examination">Khám lâm sàng</Select.Option>
+                    <Select.Option value="ReviewOfSystems">Hệ cơ quan</Select.Option>
+                    <Select.Option value="Procedure">Thủ thuật</Select.Option>
+                    <Select.Option value="Other">Khác</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="bodySystem" label="Hệ cơ quan">
+                  <Select placeholder="Chọn hệ" allowClear>
+                    <Select.Option value="General">Toàn thân</Select.Option>
+                    <Select.Option value="Cardiovascular">Tim mạch</Select.Option>
+                    <Select.Option value="Respiratory">Hô hấp</Select.Option>
+                    <Select.Option value="GI">Tiêu hóa</Select.Option>
+                    <Select.Option value="Neuro">Thần kinh</Select.Option>
+                    <Select.Option value="MSK">Cơ xương khớp</Select.Option>
+                    <Select.Option value="Skin">Da</Select.Option>
+                    <Select.Option value="ENT">Tai mũi họng</Select.Option>
+                    <Select.Option value="Eye">Mắt</Select.Option>
+                    <Select.Option value="Urogenital">Tiết niệu - Sinh dục</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item name="sortOrder" label="Thứ tự" initialValue={0}>
+                  <InputNumber style={{ width: '100%' }} min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="On" unCheckedChildren="Off" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="description" label="Mô tả">
+              <TextArea rows={2} placeholder="Mô tả chi tiết thuật ngữ..." />
+            </Form.Item>
+          </>
+        );
       default:
         return (
           <>
@@ -1186,6 +1346,15 @@ const MasterData: React.FC = () => {
                     </span>
                   ),
                   children: renderIcdTable(),
+                },
+                {
+                  key: 'clinical-terms',
+                  label: (
+                    <span>
+                      <DatabaseOutlined /> Thuật ngữ lâm sàng
+                    </span>
+                  ),
+                  children: renderClinicalTermsTable(),
                 },
               ]}
             />

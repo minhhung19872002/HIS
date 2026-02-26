@@ -800,11 +800,11 @@ export interface ExaminationSearchDto {
   roomId?: string;
   doctorId?: string;
   departmentId?: string;
-  status?: number;
+  status?: string;
   fromDate?: string;
   toDate?: string;
-  pageNumber: number;
-  pageSize: number;
+  pageIndex?: number;
+  pageSize?: number;
 }
 
 export interface PagedResult<T> {

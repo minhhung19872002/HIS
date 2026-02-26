@@ -125,6 +125,7 @@ public class HISDbContext : DbContext
     public DbSet<District> Districts => Set<District>();
     public DbSet<Ward> Wards => Set<Ward>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<ClinicalTerm> ClinicalTerms => Set<ClinicalTerm>();
 
     // Xét nghiệm (LIS)
     public DbSet<LabRequest> LabRequests => Set<LabRequest>();
@@ -325,6 +326,18 @@ public class HISDbContext : DbContext
             .HasOne(d => d.DischargedBy_User)
             .WithMany()
             .HasForeignKey(d => d.DischargedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Fix ConsultationRecord FKs: explicit entity properties vs EF shadow property convention
+        modelBuilder.Entity<ConsultationRecord>()
+            .HasOne(c => c.PresidedBy)
+            .WithMany()
+            .HasForeignKey(c => c.PresidedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ConsultationRecord>()
+            .HasOne(c => c.Secretary)
+            .WithMany()
+            .HasForeignKey(c => c.SecretaryUserId)
             .OnDelete(DeleteBehavior.NoAction);
 
         // Handle legacy uniqueidentifier columns stored in CreatedBy/UpdatedBy

@@ -377,12 +377,12 @@ namespace HIS.Application.DTOs
 
     public class ExaminationSearchDto
     {
-        public string Keyword { get; set; }
+        public string? Keyword { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public Guid? DepartmentId { get; set; }
         public Guid? DoctorId { get; set; }
-        public string Status { get; set; }
+        public string? Status { get; set; }
         public int? PageIndex { get; set; }
         public int? PageSize { get; set; }
     }

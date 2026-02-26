@@ -609,6 +609,96 @@ If a new service/controller is added, register it there or you get 500 errors.
 - "In" button visible in drawer
 - Treatment sheet print preview works
 
+### DA HOAN THANH (Session 11 - 2026-02-26 dem)
+
+**51. EMR Print Templates - 6 bieu mau bac si bo sung**
+- Them 6 form moi vao `frontend/src/components/EMRPrintTemplates.tsx`:
+  6. Phieu kham tien me (MS. 06/BV): Tien su, kham hien tai, ASA/Mallampati, ke hoach gay me, chi dan truoc mo
+  7. Cam ket phau thuat (MS. 07/BV): Nguoi benh/than nhan cam ket, BS giai thich, nguy co, phuong phap thay the
+  8. So ket 15 ngay dieu tri (MS. 08/BV): Dien bien lam sang, CLS, dieu tri da thuc hien, tinh trang, huong dieu tri tiep
+  9. Phieu tu van (MS. 09/BV): Noi dung tu van, cau hoi BN, muc do hieu biet (checkbox options)
+  10. Kiem diem tu vong (MS. 10/BV): Chan doan, qua trinh dieu tri, nhan xet, bai hoc, thanh phan tham du
+  11. Tong ket HSBA (MS. 11/BV): Toan bo benh an, CLS, dieu tri, ket qua (checkbox options), huong tiep
+- Tich hop vao EMR.tsx: Dropdown menu "Bieu mau khac" voi 7 loai (discharge + 6 moi)
+- Import them Dropdown component tu Antd
+
+**52. EMR Cypress Tests - 28/28 pass** (was 22, added 6 new print form tests)
+- 6 tests moi: mo dropdown "Bieu mau khac", chon tung form, verify drawer + tieu de + ma so
+- Console-errors: 29/29 pass
+
+**53. Clinical Terminology & Symptom Checklist (NangCap EMR 1.5-1.7)**
+
+**Backend:**
+- Tao entity `ClinicalTerm` trong `HIS.Core/Entities/Icd.cs`: Code, Name, NameEnglish, Category, BodySystem, Description, SortOrder, IsActive
+- Them `DbSet<ClinicalTerm>` trong HISDbContext
+- Them 4 methods trong ISystemCompleteService/SystemCompleteService: Get list (filter by keyword/category/bodySystem), GetById, Save, Delete
+- Them 4 endpoints trong SystemCompleteController: GET/POST/DELETE `/api/catalog/clinical-terms`
+- DB script `scripts/create_clinical_terms.sql`: tao table + seed 58 thuat ngu (44 trieu chung + 14 dau hieu lam sang)
+- Categories: Symptom, Sign, Examination, ReviewOfSystems, Procedure, Other
+- Body systems: General, Cardiovascular, Respiratory, GI, Neuro, MSK, Skin, ENT, Eye, Urogenital
+
+**Frontend:**
+- Tao `ClinicalTermSelector.tsx` (~170 lines): Reusable checklist component
+  - Load terms tu API theo category + bodySystem
+  - Click Tag de chon/bo chon (xanh = da chon)
+  - Tim kiem trong checklist
+  - Group theo body system
+  - Free text area phia duoi cho ghi chu them
+  - Combine selected terms + free text thanh 1 string (backward compatible voi Form.Item)
+- Tich hop vao OPD.tsx:
+  - "Ly do kham" → ClinicalTermSelector category=Symptom (tat ca he co quan)
+  - "Toan than" → ClinicalTermSelector category=Sign, bodySystem=General
+  - "Tim mach" → ClinicalTermSelector category=Sign, bodySystem=Cardiovascular
+  - "Ho hap" → ClinicalTermSelector category=Sign, bodySystem=Respiratory
+  - "Tieu hoa" → ClinicalTermSelector category=Sign, bodySystem=GI
+  - "Than kinh" → ClinicalTermSelector category=Sign, bodySystem=Neuro
+- Them tab "Thuat ngu lam sang" trong MasterData.tsx:
+  - CRUD table voi columns: Ma, Ten, Tieng Anh, Loai, He co quan, Thu tu, Trang thai
+  - Add/Edit modal voi form fields
+  - Double-click xem chi tiet
+  - Them category tree entry
+
+**54. Verification**
+- TypeScript: 0 errors
+- Console-errors: 29/29 pass (OPD + MasterData OK)
+- EMR tests: 28/28 pass
+- Backend Infrastructure build: 0 errors
+- DB: 58 seed clinical terms loaded
+
+### DA HOAN THANH (Session 12 - 2026-02-26 dem tiep)
+
+**55. Fix EMR search 400 Bad Request**
+- Root cause: Frontend `ExaminationSearchDto` co `pageNumber` (backend can `pageIndex`), `status: number` (backend can `string`)
+- Backend DTO `Keyword` va `Status` la `string` non-nullable → ASP.NET validation reject
+- Fix frontend: `pageNumber` → `pageIndex`, gui empty string cho Keyword/Status khi undefined
+- Fix backend: `string Keyword` → `string? Keyword`, `string Status` → `string? Status`
+- Them `cy.intercept('**/api/**')` debug test bat network errors
+- Them `cy.task('log')` trong cypress.config.ts cho terminal output
+
+**57. Dashboard/BI Reports Enhancement**
+- Fix Dashboard.tsx data mapping: backend `todayOutpatients` → frontend `outpatientCount`
+- Them `Promise.allSettled` goi ca dashboard + department statistics cung luc
+- Them Progress bar cho department breakdown (sorted by count/revenue)
+- Them auto-refresh 60s, nut "Lam moi", hien thi thoi gian cap nhat
+- Them hien thi: Phau thuat, Giuong trong, Badge tong hop BN
+- Enhanced backend `GetHospitalDashboardAsync`: them discharges, surgeries, emergencies, revenue, 7-day trends
+- Enhanced backend `GetDepartmentStatisticsAsync`: real DB queries (outpatient, inpatient, admission, discharge, revenue per dept)
+- TypeScript: 0 errors, Console-errors: 29/29 pass
+
+**56. EMR Print Templates - 6 BS + 21 DD forms (38/38 hoan thanh)**
+- 6 doctor forms moi trong `EMRPrintTemplates.tsx`:
+  - MS. 12/BV: Phieu kham dinh duong (NutritionExamPrint)
+  - MS. 13/BV: Phieu phau thuat (SurgeryRecordPrint)
+  - MS. 14/BV: Duyet phau thuat (SurgeryApprovalPrint)
+  - MS. 15/BV: So ket phau thuat (SurgerySummaryPrint)
+  - MS. 16/BV: Ban giao chuyen khoa (DepartmentTransferPrint)
+  - MS. 17/BV: Kham vao vien (AdmissionExamPrint)
+- 21 nursing forms trong `EMRNursingPrintTemplates.tsx` (file moi):
+  - DD. 01-21: KH cham soc, HSCC, Nhan dinh DD, Theo doi CS, Truyen dich, Truyen mau (XN+LS), Chuc nang song, Cong khai thuoc, Chuan bi truoc mo, Chuyen khoi HS, BG BN DD, Tien san giat, BG noi tru, BG chuyen mo, An toan PT (WHO), Duong huyet, Thai ky nguy co, Test nuot, Scan tai lieu, VP tho may
+- Tich hop vao EMR.tsx: Dropdown grouped menu (BS + DD), Drawer title mapping, 27 print renders
+- EMR tests: 34/34 pass (was 28, added 6 new)
+- Console-errors: 29/29 pass
+
 ---
 
 ### CAN LAM TIEP
@@ -631,11 +721,12 @@ If a new service/controller is added, register it there or you get 500 errors.
 **4. NangCap Level 6 + EMR (xem NangCap_PhanTich.md)**
 - ~~Queue Display System~~ → DA XONG (Session 9)
 - ~~2FA Authentication~~ → DA XONG (Session 9)
-- ~~EMR Module foundation~~ → DA XONG (Session 10) - EMR page voi 5 tabs, CRUD forms
-- ~~Email notification khi co ket qua CLS~~ → DA XONG (Session 10) - ResultNotificationService
-- EMR 38 bieu mau (17 BS + 21 DD) - them cac bieu mau con lai
+- ~~EMR Module foundation~~ → DA XONG (Session 10)
+- ~~Email notification khi co ket qua CLS~~ → DA XONG (Session 10)
+- ~~EMR 38 bieu mau~~ → DA XONG (Session 12) - 17 BS + 21 DD forms
+- ~~Dashboard/BI bao cao Level 6~~ → DA XONG (Session 12) - real DB metrics + auto-refresh
+- ~~Clinical terminology + checklist~~ → DA XONG (Session 11)
 - PDF generation + Digital signature cho bieu mau
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
 - Lien thong BHXH, DQGVN
-- Dashboard/BI bao cao Level 6
 - HL7 FHIR v4.0.1 + SNOMED CT

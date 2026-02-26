@@ -42,6 +42,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { patientApi, type Patient } from '../api/patient';
+import ClinicalTermSelector from '../components/ClinicalTermSelector';
 import {
   examinationApi,
   type RoomPatientListDto,
@@ -1373,12 +1374,14 @@ const OPD: React.FC = () => {
                         <Row gutter={16}>
                           <Col span={24}>
                             <Form.Item
-                              label="Lý do khám"
+                              label="Lý do khám (triệu chứng)"
                               name={['medicalHistory', 'chiefComplaint']}
+                              getValueFromEvent={(v: string) => v}
                             >
-                              <TextArea
-                                rows={3}
-                                placeholder="Nhập lý do khám chính..."
+                              <ClinicalTermSelector
+                                category="Symptom"
+                                placeholder="Ghi thêm triệu chứng khác..."
+                                maxHeight={150}
                               />
                             </Form.Item>
                           </Col>
@@ -1453,10 +1456,13 @@ const OPD: React.FC = () => {
                             <Form.Item
                               label="Toàn thân"
                               name={['physicalExamination', 'generalAppearance']}
+                              getValueFromEvent={(v: string) => v}
                             >
-                              <TextArea
-                                rows={2}
-                                placeholder="Tình trạng chung, dinh dưỡng..."
+                              <ClinicalTermSelector
+                                category="Sign"
+                                bodySystem="General"
+                                placeholder="Ghi thêm triệu chứng toàn thân..."
+                                maxHeight={120}
                               />
                             </Form.Item>
                           </Col>
@@ -1464,10 +1470,13 @@ const OPD: React.FC = () => {
                             <Form.Item
                               label="Tim mạch"
                               name={['physicalExamination', 'cardiovascular']}
+                              getValueFromEvent={(v: string) => v}
                             >
-                              <TextArea
-                                rows={2}
-                                placeholder="Khám tim mạch..."
+                              <ClinicalTermSelector
+                                category="Sign"
+                                bodySystem="Cardiovascular"
+                                placeholder="Ghi thêm khám tim mạch..."
+                                maxHeight={120}
                               />
                             </Form.Item>
                           </Col>
@@ -1475,10 +1484,13 @@ const OPD: React.FC = () => {
                             <Form.Item
                               label="Hô hấp"
                               name={['physicalExamination', 'respiratory']}
+                              getValueFromEvent={(v: string) => v}
                             >
-                              <TextArea
-                                rows={2}
-                                placeholder="Khám hô hấp..."
+                              <ClinicalTermSelector
+                                category="Sign"
+                                bodySystem="Respiratory"
+                                placeholder="Ghi thêm khám hô hấp..."
+                                maxHeight={120}
                               />
                             </Form.Item>
                           </Col>
@@ -1486,10 +1498,13 @@ const OPD: React.FC = () => {
                             <Form.Item
                               label="Tiêu hóa"
                               name={['physicalExamination', 'gastrointestinal']}
+                              getValueFromEvent={(v: string) => v}
                             >
-                              <TextArea
-                                rows={2}
-                                placeholder="Khám tiêu hóa..."
+                              <ClinicalTermSelector
+                                category="Sign"
+                                bodySystem="GI"
+                                placeholder="Ghi thêm khám tiêu hóa..."
+                                maxHeight={120}
                               />
                             </Form.Item>
                           </Col>
@@ -1497,10 +1512,13 @@ const OPD: React.FC = () => {
                             <Form.Item
                               label="Thần kinh"
                               name={['physicalExamination', 'neurological']}
+                              getValueFromEvent={(v: string) => v}
                             >
-                              <TextArea
-                                rows={2}
-                                placeholder="Khám thần kinh..."
+                              <ClinicalTermSelector
+                                category="Sign"
+                                bodySystem="Neuro"
+                                placeholder="Ghi thêm khám thần kinh..."
+                                maxHeight={120}
                               />
                             </Form.Item>
                           </Col>

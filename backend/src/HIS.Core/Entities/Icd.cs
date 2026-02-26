@@ -101,6 +101,22 @@ public class Supplier : BaseEntity
 }
 
 /// <summary>
+/// Thuật ngữ lâm sàng - ClinicalTerm
+/// Bệnh viện tự khai báo (NangCap EMR 1.5)
+/// </summary>
+public class ClinicalTerm : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? NameEnglish { get; set; }
+    public string Category { get; set; } = string.Empty; // Symptom, Sign, Examination, ReviewOfSystems, Procedure, Other
+    public string? BodySystem { get; set; } // Cardiovascular, Respiratory, GI, Neuro, MSK, Skin, General, etc.
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
 /// Nhật ký hệ thống - AuditLog
 /// </summary>
 public class AuditLog : BaseEntity

@@ -19,6 +19,13 @@ export default defineConfig({
       } catch (e) {
         // Plugin not available, skip
       }
+
+      on('task', {
+        log(message: string) {
+          console.log(message);
+          return null;
+        },
+      });
     },
   },
   component: {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card, Tabs, Table, Input, Button, Space, Tag, Descriptions, Form,
   DatePicker, Select, Modal, message, Typography, Row, Col, Divider,
-  Drawer, Timeline, Spin, Empty, Badge, Tooltip
+  Drawer, Timeline, Spin, Empty, Badge, Tooltip, Dropdown
 } from 'antd';
 import {
   FileTextOutlined, SearchOutlined, MedicineBoxOutlined, HeartOutlined,
@@ -26,7 +26,20 @@ import {
 import {
   MedicalRecordSummaryPrint, TreatmentSheetPrint, ConsultationPrint,
   DischargeCertificatePrint, NursingCarePrint,
+  PreAnestheticExamPrint, SurgeryConsentPrint, TreatmentProgressNotePrint,
+  CounselingFormPrint, DeathReviewPrint, MedicalRecordFinalSummaryPrint,
+  NutritionExamPrint, SurgeryRecordPrint, SurgeryApprovalPrint,
+  SurgerySummaryPrint, DepartmentTransferPrint, AdmissionExamPrint,
 } from '../components/EMRPrintTemplates';
+import {
+  NursingCarePlanPrint, ICUNursingCarePlanPrint, NursingAssessmentPrint,
+  DailyNursingCarePrint, InfusionMonitoringPrint, BloodTransfusionLabPrint,
+  BloodTransfusionClinicalPrint, VitalSignsMonitoringPrint, MedicineDisclosurePrint,
+  PreOpPreparationPrint, ICUTransferCriteriaPrint, NursingDeptTransferPrint,
+  PreEclampsiaPrint, IPDHandoverChecklistPrint, ORHandoverChecklistPrint,
+  SurgicalSafetyChecklistPrint, GlucoseMonitoringPrint, PregnancyRiskPrint,
+  SwallowingAssessmentPrint, DocumentScanPrint, VAPMonitoringPrint,
+} from '../components/EMRNursingPrintTemplates';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -79,11 +92,11 @@ const EMR: React.FC = () => {
 
   // Print preview
   const [printDrawerOpen, setPrintDrawerOpen] = useState(false);
-  const [printType, setPrintType] = useState<'summary' | 'treatment' | 'consultation' | 'nursing' | 'discharge'>('summary');
+  const [printType, setPrintType] = useState<string>('summary');
   const [selectedConsultation, setSelectedConsultation] = useState<ConsultationRecordDto | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrintPreview = (type: typeof printType, consultation?: ConsultationRecordDto) => {
+  const handlePrintPreview = (type: string, consultation?: ConsultationRecordDto) => {
     setPrintType(type);
     if (consultation) setSelectedConsultation(consultation);
     setPrintDrawerOpen(true);
@@ -105,11 +118,11 @@ const EMR: React.FC = () => {
     setLoading(true);
     try {
       const dto: ExaminationSearchDto = {
-        keyword: searchKeyword || undefined,
-        status: statusFilter,
+        keyword: searchKeyword || '',
+        status: statusFilter !== undefined ? String(statusFilter) : '',
         fromDate: dateRange[0]?.format('YYYY-MM-DD'),
         toDate: dateRange[1]?.format('YYYY-MM-DD'),
-        pageNumber: page,
+        pageIndex: page,
         pageSize,
       };
       const resp = await searchExaminations(dto);
@@ -604,6 +617,48 @@ const EMR: React.FC = () => {
                 <Tooltip title="Phiếu chăm sóc">
                   <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('nursing')} />
                 </Tooltip>
+                <Dropdown menu={{ items: [
+                  { type: 'group', label: 'Bác sĩ (MS. 04-17)', children: [
+                    { key: 'discharge', label: 'MS.04 - Giấy ra viện' },
+                    { key: 'preanesthetic', label: 'MS.06 - Khám tiền mê' },
+                    { key: 'consent', label: 'MS.07 - Cam kết PT' },
+                    { key: 'progress', label: 'MS.08 - Sơ kết 15 ngày' },
+                    { key: 'counseling', label: 'MS.09 - Phiếu tư vấn' },
+                    { key: 'deathreview', label: 'MS.10 - Kiểm điểm tử vong' },
+                    { key: 'finalsummary', label: 'MS.11 - Tổng kết HSBA' },
+                    { key: 'nutrition', label: 'MS.12 - Khám dinh dưỡng' },
+                    { key: 'surgeryrecord', label: 'MS.13 - Phiếu phẫu thuật' },
+                    { key: 'surgeryapproval', label: 'MS.14 - Duyệt phẫu thuật' },
+                    { key: 'surgerysummary', label: 'MS.15 - Sơ kết phẫu thuật' },
+                    { key: 'depttransfer', label: 'MS.16 - Bàn giao chuyển khoa' },
+                    { key: 'admission', label: 'MS.17 - Khám vào viện' },
+                  ]},
+                  { type: 'group', label: 'Điều dưỡng (DD. 01-21)', children: [
+                    { key: 'dd01-careplan', label: 'DD.01 - KH chăm sóc' },
+                    { key: 'dd02-icucare', label: 'DD.02 - KH chăm sóc HSCC' },
+                    { key: 'dd03-assessment', label: 'DD.03 - Nhận định ĐD' },
+                    { key: 'dd04-dailycare', label: 'DD.04 - Theo dõi CS' },
+                    { key: 'dd05-infusion', label: 'DD.05 - Truyền dịch' },
+                    { key: 'dd06-bloodlab', label: 'DD.06 - Truyền máu (XN)' },
+                    { key: 'dd07-bloodclinical', label: 'DD.07 - Truyền máu (LS)' },
+                    { key: 'dd08-vitalsigns', label: 'DD.08 - Chức năng sống' },
+                    { key: 'dd09-meddisclosure', label: 'DD.09 - Công khai thuốc' },
+                    { key: 'dd10-preop', label: 'DD.10 - Chuẩn bị trước mổ' },
+                    { key: 'dd11-icutransfer', label: 'DD.11 - Chuyển khỏi HS' },
+                    { key: 'dd12-nursetransfer', label: 'DD.12 - BG BN (ĐD)' },
+                    { key: 'dd13-preeclampsia', label: 'DD.13 - Tiền sản giật' },
+                    { key: 'dd14-ipdhandover', label: 'DD.14 - BG nội trú' },
+                    { key: 'dd15-orhandover', label: 'DD.15 - BG chuyển mổ' },
+                    { key: 'dd16-safetychecklist', label: 'DD.16 - An toàn PT' },
+                    { key: 'dd17-glucose', label: 'DD.17 - Đường huyết' },
+                    { key: 'dd18-pregnancyrisk', label: 'DD.18 - Thai kỳ nguy cơ' },
+                    { key: 'dd19-swallowing', label: 'DD.19 - Test nuốt' },
+                    { key: 'dd20-docscan', label: 'DD.20 - Scan tài liệu' },
+                    { key: 'dd21-vap', label: 'DD.21 - VP thở máy' },
+                  ]},
+                ], onClick: ({ key }) => handlePrintPreview(key) }}>
+                  <Button size="small" icon={<PrinterOutlined />}>Biểu mẫu khác</Button>
+                </Dropdown>
               </Space>
             )}
             style={{ height: '100%' }}
@@ -739,13 +794,27 @@ const EMR: React.FC = () => {
 
       {/* Print Preview Drawer */}
       <Drawer
-        title={
-          printType === 'summary' ? 'Tóm tắt bệnh án' :
-          printType === 'treatment' ? 'Tờ điều trị' :
-          printType === 'consultation' ? 'Biên bản hội chẩn' :
-          printType === 'nursing' ? 'Phiếu chăm sóc' :
-          'Giấy ra viện'
-        }
+        title={{
+          summary: 'Tóm tắt bệnh án (MS.01)', treatment: 'Tờ điều trị (MS.02)', consultation: 'Biên bản hội chẩn (MS.03)',
+          nursing: 'Phiếu chăm sóc (MS.05)', discharge: 'Giấy ra viện (MS.04)',
+          preanesthetic: 'Khám tiền mê (MS.06)', consent: 'Cam kết PT (MS.07)',
+          progress: 'Sơ kết 15 ngày ĐT (MS.08)', counseling: 'Phiếu tư vấn (MS.09)',
+          deathreview: 'Kiểm điểm tử vong (MS.10)', finalsummary: 'Tổng kết HSBA (MS.11)',
+          nutrition: 'Khám dinh dưỡng (MS.12)', surgeryrecord: 'Phiếu phẫu thuật (MS.13)',
+          surgeryapproval: 'Duyệt phẫu thuật (MS.14)', surgerysummary: 'Sơ kết phẫu thuật (MS.15)',
+          depttransfer: 'Bàn giao chuyển khoa (MS.16)', admission: 'Khám vào viện (MS.17)',
+          'dd01-careplan': 'KH chăm sóc (DD.01)', 'dd02-icucare': 'KH chăm sóc HSCC (DD.02)',
+          'dd03-assessment': 'Nhận định ĐD (DD.03)', 'dd04-dailycare': 'Theo dõi CS (DD.04)',
+          'dd05-infusion': 'Truyền dịch (DD.05)', 'dd06-bloodlab': 'Truyền máu XN (DD.06)',
+          'dd07-bloodclinical': 'Truyền máu LS (DD.07)', 'dd08-vitalsigns': 'Chức năng sống (DD.08)',
+          'dd09-meddisclosure': 'Công khai thuốc (DD.09)', 'dd10-preop': 'Chuẩn bị trước mổ (DD.10)',
+          'dd11-icutransfer': 'Chuyển khỏi HS (DD.11)', 'dd12-nursetransfer': 'BG BN ĐD (DD.12)',
+          'dd13-preeclampsia': 'Tiền sản giật (DD.13)', 'dd14-ipdhandover': 'BG nội trú (DD.14)',
+          'dd15-orhandover': 'BG chuyển mổ (DD.15)', 'dd16-safetychecklist': 'An toàn PT (DD.16)',
+          'dd17-glucose': 'Đường huyết (DD.17)', 'dd18-pregnancyrisk': 'Thai kỳ nguy cơ (DD.18)',
+          'dd19-swallowing': 'Test nuốt (DD.19)', 'dd20-docscan': 'Scan tài liệu (DD.20)',
+          'dd21-vap': 'VP thở máy (DD.21)',
+        }[printType] ?? 'Biểu mẫu'}
         open={printDrawerOpen}
         onClose={() => setPrintDrawerOpen(false)}
         size="large"
@@ -779,6 +848,59 @@ const EMR: React.FC = () => {
               daysOfStay={7}
             />
           )}
+          {printType === 'preanesthetic' && medicalRecord && (
+            <PreAnestheticExamPrint record={medicalRecord} />
+          )}
+          {printType === 'consent' && medicalRecord && (
+            <SurgeryConsentPrint
+              patientName={medicalRecord.patient?.fullName ?? ''}
+              patientCode={medicalRecord.patient?.patientCode ?? ''}
+              gender={medicalRecord.patient?.gender ?? 1}
+              age={medicalRecord.patient?.age ?? 0}
+              address={medicalRecord.patient?.address}
+            />
+          )}
+          {printType === 'progress' && medicalRecord && (
+            <TreatmentProgressNotePrint record={medicalRecord} />
+          )}
+          {printType === 'counseling' && medicalRecord && (
+            <CounselingFormPrint record={medicalRecord} />
+          )}
+          {printType === 'deathreview' && medicalRecord && (
+            <DeathReviewPrint record={medicalRecord} />
+          )}
+          {printType === 'finalsummary' && medicalRecord && (
+            <MedicalRecordFinalSummaryPrint record={medicalRecord} />
+          )}
+          {/* MS. 12-17 Doctor forms */}
+          {printType === 'nutrition' && <NutritionExamPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'surgeryrecord' && <SurgeryRecordPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'surgeryapproval' && <SurgeryApprovalPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'surgerysummary' && <SurgerySummaryPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'depttransfer' && <DepartmentTransferPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'admission' && <AdmissionExamPrint ref={printRef} record={medicalRecord} />}
+          {/* DD. 01-21 Nursing forms */}
+          {printType === 'dd01-careplan' && <NursingCarePlanPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd02-icucare' && <ICUNursingCarePlanPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd03-assessment' && <NursingAssessmentPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd04-dailycare' && <DailyNursingCarePrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd05-infusion' && <InfusionMonitoringPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd06-bloodlab' && <BloodTransfusionLabPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd07-bloodclinical' && <BloodTransfusionClinicalPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd08-vitalsigns' && <VitalSignsMonitoringPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd09-meddisclosure' && <MedicineDisclosurePrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd10-preop' && <PreOpPreparationPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd11-icutransfer' && <ICUTransferCriteriaPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd12-nursetransfer' && <NursingDeptTransferPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd13-preeclampsia' && <PreEclampsiaPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd14-ipdhandover' && <IPDHandoverChecklistPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd15-orhandover' && <ORHandoverChecklistPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd16-safetychecklist' && <SurgicalSafetyChecklistPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd17-glucose' && <GlucoseMonitoringPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd18-pregnancyrisk' && <PregnancyRiskPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd19-swallowing' && <SwallowingAssessmentPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd20-docscan' && <DocumentScanPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'dd21-vap' && <VAPMonitoringPrint ref={printRef} record={medicalRecord} />}
         </div>
       </Drawer>
     </div>

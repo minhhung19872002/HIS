@@ -484,6 +484,18 @@ export interface MedicineGroupCatalogDto {
   sortOrder?: number;
 }
 
+export interface ClinicalTermCatalogDto {
+  id?: string;
+  code: string;
+  name: string;
+  nameEnglish?: string;
+  category: string; // Symptom, Sign, Examination, ReviewOfSystems, Procedure, Other
+  bodySystem?: string; // General, Cardiovascular, Respiratory, GI, Neuro, MSK, Skin, ENT, Eye, Urogenital
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 export interface SyncResultDto {
   isSuccess: boolean;
   totalRecords: number;
@@ -1526,6 +1538,16 @@ export const catalogApi = {
     apiClient.get<MedicineGroupCatalogDto[]>('/catalog/medicine-groups', { params: { isActive } }),
   saveMedicineGroup: (dto: MedicineGroupCatalogDto) =>
     apiClient.post<MedicineGroupCatalogDto>('/catalog/medicine-groups', dto),
+
+  // Thuật ngữ lâm sàng (Clinical Terms)
+  getClinicalTerms: (keyword?: string, category?: string, bodySystem?: string, isActive?: boolean) =>
+    apiClient.get<ClinicalTermCatalogDto[]>('/catalog/clinical-terms', { params: { keyword, category, bodySystem, isActive } }),
+  getClinicalTerm: (termId: string) =>
+    apiClient.get<ClinicalTermCatalogDto>(`/catalog/clinical-terms/${termId}`),
+  saveClinicalTerm: (dto: ClinicalTermCatalogDto) =>
+    apiClient.post<ClinicalTermCatalogDto>('/catalog/clinical-terms', dto),
+  deleteClinicalTerm: (termId: string) =>
+    apiClient.delete<boolean>(`/catalog/clinical-terms/${termId}`),
 
   // Đồng bộ BHXH
   syncBHXHMedicines: () => apiClient.post<SyncResultDto>('/catalog/sync/bhxh/medicines'),
