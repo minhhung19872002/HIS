@@ -590,6 +590,25 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Console-errors: 29/29 pass (was 28, added EMR)
 - EMR tests: 18/18 pass
 
+**49. EMR Print Templates - 5 bieu mau in**
+- Tao `frontend/src/components/EMRPrintTemplates.tsx` (~400 lines):
+  1. Tom tat benh an (MS. 01/BV): Patient info, benh su, kham lam sang, chan doan, dieu tri, thu thuat, tinh trang ra vien
+  2. To dieu tri (MS. 02/BV): Table format - ngay thu, dien bien, y lenh, BS
+  3. Bien ban hoi chan (MS. 03/BV): Ly do, tom tat, ket luan, huong xu tri, thanh phan tham du
+  4. Giay ra vien (MS. 04/BV): Chan doan vao/ra vien, dieu tri, tinh trang, huong dieu tri tiep
+  5. Phieu cham soc DD (MS. 05/BV): Table format - ngay, ca, tinh trang, nhan dinh, can thiep, dap ung
+- All templates: Vietnamese medical form layout, A4 page, Times New Roman, print CSS
+- Shared components: PrintHeader (Bo Y Te + hospital name), SignatureBlock, Field
+- Tich hop vao EMR.tsx: Print preview Drawer voi nut "In" (window.open + print)
+- 3 print preview buttons trong detail panel header
+- Print button trong consultation row actions
+
+**50. EMR Cypress Tests - 22/22 pass** (was 18, added 4 print preview tests)
+- Print preview drawer opens with correct form title
+- Patient info rendered in print template
+- "In" button visible in drawer
+- Treatment sheet print preview works
+
 ---
 
 ### CAN LAM TIEP

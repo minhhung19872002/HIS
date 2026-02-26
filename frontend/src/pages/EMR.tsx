@@ -23,6 +23,10 @@ import {
   type MedicalRecordFullDto, type MedicalHistoryDto,
   type TreatmentSheetDto, type ConsultationRecordDto, type NursingCareSheetDto,
 } from '../api/examination';
+import {
+  MedicalRecordSummaryPrint, TreatmentSheetPrint, ConsultationPrint,
+  DischargeCertificatePrint, NursingCarePrint,
+} from '../components/EMRPrintTemplates';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -72,6 +76,29 @@ const EMR: React.FC = () => {
   const [nursingForm] = Form.useForm();
 
   const searchInputRef = useRef<ReturnType<typeof Input.Search> | null>(null);
+
+  // Print preview
+  const [printDrawerOpen, setPrintDrawerOpen] = useState(false);
+  const [printType, setPrintType] = useState<'summary' | 'treatment' | 'consultation' | 'nursing' | 'discharge'>('summary');
+  const [selectedConsultation, setSelectedConsultation] = useState<ConsultationRecordDto | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrintPreview = (type: typeof printType, consultation?: ConsultationRecordDto) => {
+    setPrintType(type);
+    if (consultation) setSelectedConsultation(consultation);
+    setPrintDrawerOpen(true);
+  };
+
+  const handleDoPrint = () => {
+    if (!printRef.current) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { message.warning('Không thể mở cửa sổ in. Vui lòng tắt popup blocker.'); return; }
+    printWindow.document.write('<html><head><title>In biểu mẫu</title></head><body>');
+    printWindow.document.write(printRef.current.innerHTML);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  };
 
   // Search examinations
   const handleSearch = useCallback(async (page = 1) => {
@@ -220,7 +247,7 @@ const EMR: React.FC = () => {
     }
   };
 
-  // Print
+  // Print via backend API
   const handlePrint = async (type: 'record' | 'form') => {
     if (!selectedExam) return;
     try {
@@ -297,7 +324,8 @@ const EMR: React.FC = () => {
         <Space>
           <Button type="link" size="small" icon={<EditOutlined />}
             onClick={() => { setEditingConsultation(r); consultationForm.setFieldsValue({ ...r, consultationDate: dayjs(r.consultationDate) }); setConsultationModalOpen(true); }} />
-          <Button type="link" size="small" icon={<EyeOutlined />} />
+          <Button type="link" size="small" icon={<PrinterOutlined />}
+            onClick={() => handlePrintPreview('consultation', r)} />
         </Space>
       ),
     },
@@ -567,11 +595,14 @@ const EMR: React.FC = () => {
             }
             extra={selectedExam && (
               <Space>
-                <Tooltip title="In hồ sơ BA">
-                  <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrint('record')} />
+                <Tooltip title="Tóm tắt BA">
+                  <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('summary')} />
                 </Tooltip>
-                <Tooltip title="In phiếu khám">
-                  <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrint('form')} />
+                <Tooltip title="Tờ điều trị">
+                  <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('treatment')} />
+                </Tooltip>
+                <Tooltip title="Phiếu chăm sóc">
+                  <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('nursing')} />
                 </Tooltip>
               </Space>
             )}
@@ -705,6 +736,51 @@ const EMR: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Print Preview Drawer */}
+      <Drawer
+        title={
+          printType === 'summary' ? 'Tóm tắt bệnh án' :
+          printType === 'treatment' ? 'Tờ điều trị' :
+          printType === 'consultation' ? 'Biên bản hội chẩn' :
+          printType === 'nursing' ? 'Phiếu chăm sóc' :
+          'Giấy ra viện'
+        }
+        open={printDrawerOpen}
+        onClose={() => setPrintDrawerOpen(false)}
+        size="large"
+        extra={<Button type="primary" icon={<PrinterOutlined />} onClick={handleDoPrint}>In</Button>}
+      >
+        <div ref={printRef}>
+          {printType === 'summary' && medicalRecord && (
+            <MedicalRecordSummaryPrint record={medicalRecord} />
+          )}
+          {printType === 'treatment' && medicalRecord && (
+            <TreatmentSheetPrint record={medicalRecord} sheets={treatmentSheets} />
+          )}
+          {printType === 'consultation' && medicalRecord && selectedConsultation && (
+            <ConsultationPrint record={medicalRecord} consultation={selectedConsultation} />
+          )}
+          {printType === 'nursing' && medicalRecord && (
+            <NursingCarePrint record={medicalRecord} sheets={nursingSheets} />
+          )}
+          {printType === 'discharge' && medicalRecord && (
+            <DischargeCertificatePrint
+              patientName={medicalRecord.patient?.fullName ?? ''}
+              patientCode={medicalRecord.patient?.patientCode ?? ''}
+              gender={medicalRecord.patient?.gender ?? 1}
+              age={medicalRecord.patient?.age ?? 0}
+              address={medicalRecord.patient?.address}
+              admissionDate={dayjs().subtract(7, 'day').format('YYYY-MM-DD')}
+              dischargeDate={dayjs().format('YYYY-MM-DD')}
+              departmentName="Khoa Nội"
+              doctorName="BS. Nguyễn Văn A"
+              dischargeCondition="Đỡ, giảm"
+              daysOfStay={7}
+            />
+          )}
+        </div>
+      </Drawer>
     </div>
   );
 };

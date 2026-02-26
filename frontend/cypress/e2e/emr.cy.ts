@@ -248,6 +248,56 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
       cy.wait('@getMedicalRecord');
       cy.get('.anticon-printer', { timeout: 5000 }).should('have.length.gte', 2);
     });
+
+    it('can open print preview drawer for medical record summary', () => {
+      cy.visit('/emr');
+      cy.wait('@searchExam');
+      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
+      cy.wait('@getMedicalRecord');
+      // Click first print button (Tom tat BA)
+      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click();
+      cy.contains('Tóm tắt bệnh án', { timeout: 3000 }).should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('TÓM TẮT BỆNH ÁN').should('be.visible');
+      cy.contains('BỘ Y TẾ').should('be.visible');
+      cy.contains('BỆNH VIỆN ĐA KHOA ABC').should('be.visible');
+    });
+
+    it('print preview shows patient info from medical record', () => {
+      cy.visit('/emr');
+      cy.wait('@searchExam');
+      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
+      cy.wait('@getMedicalRecord');
+      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click();
+      cy.get('.ant-drawer', { timeout: 3000 }).within(() => {
+        cy.contains('Nguyễn Văn A').should('exist');
+        cy.contains('BN001').should('exist');
+        cy.contains('QUÁ TRÌNH BỆNH LÝ').should('exist');
+        cy.contains('CHẨN ĐOÁN').should('exist');
+      });
+    });
+
+    it('print preview has In button', () => {
+      cy.visit('/emr');
+      cy.wait('@searchExam');
+      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
+      cy.wait('@getMedicalRecord');
+      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click();
+      cy.get('.ant-drawer', { timeout: 3000 }).within(() => {
+        cy.contains('button', 'In').should('be.visible');
+      });
+    });
+
+    it('can open treatment sheet print preview', () => {
+      cy.visit('/emr');
+      cy.wait('@searchExam');
+      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
+      cy.wait('@getMedicalRecord');
+      // Click second print button (To dieu tri)
+      cy.get('.anticon-printer', { timeout: 5000 }).eq(1).closest('button').click();
+      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
+      cy.contains('TỜ ĐIỀU TRỊ').should('be.visible');
+    });
   });
 
   describe('Menu integration', () => {
