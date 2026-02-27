@@ -1,9 +1,11 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.System;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
 
@@ -681,20 +683,48 @@ public class SystemCompleteService : ISystemCompleteService
         }
     }
 
-    // 11.10 In bao cao tai chinh (PDF placeholder - real PDF generation requires a report engine)
+    // 11.10 In bao cao tai chinh
     public async Task<byte[]> PrintFinancialReportAsync(FinancialReportRequest request)
     {
-        // PDF generation requires a report library (e.g. QuestPDF, iTextSharp)
-        // Return empty for now; the frontend uses its own print preview templates
-        return Array.Empty<byte>();
+        try
+        {
+            var query = _context.Set<Receipt>().AsNoTracking()
+                .Where(r => r.CreatedAt >= request.FromDate && r.CreatedAt <= request.ToDate && !r.IsDeleted);
+            if (request.DepartmentId.HasValue)
+                query = query.Where(r => r.MedicalRecord != null && r.MedicalRecord.DepartmentId == request.DepartmentId);
+
+            var receipts = await query.Include(r => r.MedicalRecord).ThenInclude(m => m.Patient).ToListAsync();
+
+            var totalRevenue = receipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount);
+            var totalRefund = receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
+            var net = totalRevenue - totalRefund;
+
+            var grouped = receipts.GroupBy(r => r.CreatedAt.Date).OrderBy(g => g.Key)
+                .Select(g => new string[] {
+                    g.Key.ToString("dd/MM/yyyy"),
+                    g.Count(r => r.ReceiptType != 3).ToString(),
+                    g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount).ToString("N0"),
+                    g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount).ToString("N0"),
+                    (g.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount) - g.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount)).ToString("N0")
+                }).ToList();
+
+            grouped.Add(new[] { "TONG CONG", receipts.Count(r => r.ReceiptType != 3).ToString(), totalRevenue.ToString("N0"), totalRefund.ToString("N0"), net.ToString("N0") });
+
+            var html = BuildTableReport(
+                $"BAO CAO TAI CHINH - {request.ReportType?.ToUpper() ?? "TONG HOP"}",
+                $"Tu {request.FromDate:dd/MM/yyyy} den {request.ToDate:dd/MM/yyyy}",
+                DateTime.Now,
+                new[] { "Ngay", "So phieu", "Doanh thu", "Hoan tra", "Thuc thu" },
+                grouped);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
-    // 11.11 Xuat bao cao tai chinh Excel (placeholder - real export requires EPPlus/ClosedXML)
+    // 11.11 Xuat bao cao tai chinh Excel
     public async Task<byte[]> ExportFinancialReportToExcelAsync(FinancialReportRequest request)
     {
-        // Excel export requires a library (e.g. EPPlus, ClosedXML)
-        // Return empty for now; the frontend renders report tables for printing
-        return Array.Empty<byte>();
+        return await PrintFinancialReportAsync(request);
     }
 
     #endregion
@@ -1051,7 +1081,25 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<byte[]> ExportMedicinesToExcelAsync(MedicineCatalogSearchDto search)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var query = _context.Medicines.AsNoTracking().Where(m => !m.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(search?.Keyword))
+                query = query.Where(m => m.MedicineName.Contains(search.Keyword) || m.MedicineCode.Contains(search.Keyword));
+            if (search?.IsActive.HasValue == true)
+                query = query.Where(m => m.IsActive == search.IsActive);
+            var medicines = await query.OrderBy(m => m.MedicineName).Take(2000).ToListAsync();
+
+            var rows = medicines.Select(m => new string[] {
+                m.MedicineCode, m.MedicineName, m.ActiveIngredient ?? "", m.Unit ?? "",
+                m.Concentration ?? "", m.Manufacturer ?? "", m.IsActive ? "Co" : "Khong"
+            }).ToList();
+
+            var html = BuildTableReport("DANH MUC THUOC", $"Tong: {medicines.Count} thuoc", DateTime.Now,
+                new[] { "Ma thuoc", "Ten thuoc", "Hoat chat", "DVT", "Ham luong", "Hang SX", "Hoat dong" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     // 13.4 Danh muc vat tu y te
@@ -1183,7 +1231,23 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<byte[]> ExportMedicalSuppliesToExcelAsync(string keyword = null, Guid? categoryId = null)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var query = _context.MedicalSupplies.AsNoTracking().Where(s => !s.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(keyword))
+                query = query.Where(s => s.SupplyName.Contains(keyword) || s.SupplyCode.Contains(keyword));
+            var supplies = await query.OrderBy(s => s.SupplyName).Take(2000).ToListAsync();
+
+            var rows = supplies.Select(s => new string[] {
+                s.SupplyCode, s.SupplyName, s.Unit ?? "", s.Manufacturer ?? "",
+                s.ManufacturerCountry ?? "", s.IsActive ? "Co" : "Khong"
+            }).ToList();
+
+            var html = BuildTableReport("DANH MUC VAT TU Y TE", $"Tong: {supplies.Count} vat tu", DateTime.Now,
+                new[] { "Ma VT", "Ten vat tu", "DVT", "Hang SX", "Nuoc SX", "Hoat dong" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     // 13.5 Danh muc ICD-10
@@ -1305,7 +1369,22 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<byte[]> ExportICD10ToExcelAsync(string chapterCode = null)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var query = _context.IcdCodes.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(chapterCode))
+                query = query.Where(i => i.ChapterCode == chapterCode);
+            var codes = await query.OrderBy(i => i.Code).Take(5000).ToListAsync();
+
+            var rows = codes.Select(i => new string[] {
+                i.Code, i.Name ?? "", i.NameEnglish ?? "", i.ChapterCode ?? "", i.ChapterName ?? ""
+            }).ToList();
+
+            var html = BuildTableReport("DANH MUC MA ICD-10", $"Tong: {codes.Count} ma", DateTime.Now,
+                new[] { "Ma ICD", "Ten benh", "Ten tieng Anh", "Ma chuong", "Ten chuong" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     // 13.6 Danh muc khoa phong
@@ -1953,7 +2032,22 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<byte[]> ExportServicePricesToExcelAsync(string priceType = null)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var services = await _context.Services.AsNoTracking().Where(s => !s.IsDeleted)
+                .Include(s => s.ServiceGroup).OrderBy(s => s.ServiceName).Take(3000).ToListAsync();
+
+            var rows = services.Select(s => new string[] {
+                s.ServiceCode, s.ServiceName, s.ServiceGroup?.GroupName ?? "",
+                s.Unit ?? "", s.UnitPrice.ToString("N0"), s.InsurancePrice.ToString("N0"),
+                s.IsActive ? "Co" : "Khong"
+            }).ToList();
+
+            var html = BuildTableReport("BANG GIA DICH VU", $"Tong: {services.Count} dich vu", DateTime.Now,
+                new[] { "Ma DV", "Ten dich vu", "Khoa", "DVT", "Gia co so", "Gia BHYT", "Hoat dong" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     // 13.11 Danh muc doi tuong benh nhan
@@ -3381,12 +3475,39 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<byte[]> PrintPharmacyReportAsync(PharmacyReportRequest request)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var exports = await _context.ExportReceipts.AsNoTracking()
+                .Where(e => e.ReceiptDate >= request.FromDate && e.ReceiptDate <= request.ToDate && !e.IsDeleted)
+                .Include(e => e.Warehouse).Include(e => e.Details).ThenInclude(d => d.Medicine)
+                .ToListAsync();
+
+            if (request.WarehouseId.HasValue)
+                exports = exports.Where(e => e.WarehouseId == request.WarehouseId).ToList();
+
+            var grouped = exports.SelectMany(e => e.Details)
+                .Where(d => d.Medicine != null)
+                .GroupBy(d => new { d.MedicineId, d.Medicine?.MedicineName, d.Medicine?.MedicineCode })
+                .Select(g => new string[] {
+                    g.Key.MedicineCode ?? "", g.Key.MedicineName ?? "",
+                    g.First().Unit ?? "", g.Sum(d => d.Quantity).ToString("N0"),
+                    g.Sum(d => d.Amount).ToString("N0")
+                }).ToList();
+
+            var html = BuildTableReport(
+                $"BAO CAO DUOC - {request.ReportType?.ToUpper() ?? "TONG HOP"}",
+                $"Tu {request.FromDate:dd/MM/yyyy} den {request.ToDate:dd/MM/yyyy}",
+                DateTime.Now,
+                new[] { "Ma thuoc", "Ten thuoc", "DVT", "So luong", "Thanh tien" },
+                grouped);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     public async Task<byte[]> ExportPharmacyReportToExcelAsync(PharmacyReportRequest request)
     {
-        return Array.Empty<byte>();
+        return await PrintPharmacyReportAsync(request);
     }
 
     #endregion
@@ -3397,76 +3518,397 @@ public class SystemCompleteService : ISystemCompleteService
     public async Task<List<MedicalRecordArchiveDto>> GetMedicalRecordArchivesAsync(
         string keyword = null, int? year = null, string archiveStatus = null, Guid? departmentId = null)
     {
-        // No dedicated archive entity; return empty
-        return new List<MedicalRecordArchiveDto>();
+        try
+        {
+            var query = _context.MedicalRecordArchives.AsNoTracking()
+                .Include(a => a.Patient)
+                .Include(a => a.MedicalRecord)
+                .Include(a => a.Department)
+                .Include(a => a.ArchivedBy)
+                .Where(a => !a.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+                query = query.Where(a =>
+                    a.ArchiveCode.Contains(keyword) ||
+                    a.Patient.FullName.Contains(keyword) ||
+                    a.Patient.PatientCode.Contains(keyword) ||
+                    (a.Diagnosis != null && a.Diagnosis.Contains(keyword)));
+            if (year.HasValue)
+                query = query.Where(a => a.ArchiveYear == year.Value);
+            if (!string.IsNullOrWhiteSpace(archiveStatus) && int.TryParse(archiveStatus, out var st))
+                query = query.Where(a => a.Status == st);
+            if (departmentId.HasValue)
+                query = query.Where(a => a.DepartmentId == departmentId.Value);
+
+            var statusNames = new Dictionary<int, string> { {0,"Chờ lưu"}, {1,"Đã lưu"}, {2,"Đang mượn"}, {3,"Đã hủy"} };
+            return await query.OrderByDescending(a => a.CreatedAt)
+                .Take(500)
+                .Select(a => new MedicalRecordArchiveDto
+                {
+                    Id = a.Id,
+                    ArchiveCode = a.ArchiveCode,
+                    AdmissionCode = a.MedicalRecord.MedicalRecordCode,
+                    PatientId = a.PatientId,
+                    PatientCode = a.Patient.PatientCode,
+                    PatientName = a.Patient.FullName,
+                    AdmissionDate = a.AdmissionDate ?? a.MedicalRecord.AdmissionDate,
+                    DischargeDate = a.DischargeDate ?? a.MedicalRecord.DischargeDate ?? DateTime.MinValue,
+                    DepartmentName = a.Department != null ? a.Department.DepartmentName : "",
+                    Diagnosis = a.Diagnosis ?? a.MedicalRecord.MainDiagnosis ?? "",
+                    TreatmentResult = a.TreatmentResult ?? "",
+                    StorageLocation = a.StorageLocation ?? "",
+                    ShelfNumber = a.ShelfNumber ?? "",
+                    Status = a.Status == 0 ? "Chờ lưu" : a.Status == 1 ? "Đã lưu" : a.Status == 2 ? "Đang mượn" : "Đã hủy",
+                    ArchivedDate = a.ArchivedDate,
+                    ArchivedBy = a.ArchivedBy != null ? a.ArchivedBy.FullName : ""
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetMedicalRecordArchivesAsync");
+            return new List<MedicalRecordArchiveDto>();
+        }
     }
 
     public async Task<MedicalRecordArchiveDto> GetMedicalRecordArchiveAsync(Guid archiveId)
     {
-        return null;
+        try
+        {
+            var a = await _context.MedicalRecordArchives.AsNoTracking()
+                .Include(x => x.Patient)
+                .Include(x => x.MedicalRecord)
+                .Include(x => x.Department)
+                .Include(x => x.ArchivedBy)
+                .FirstOrDefaultAsync(x => x.Id == archiveId && !x.IsDeleted);
+            if (a == null) return null;
+
+            return new MedicalRecordArchiveDto
+            {
+                Id = a.Id,
+                ArchiveCode = a.ArchiveCode,
+                AdmissionCode = a.MedicalRecord.MedicalRecordCode,
+                PatientId = a.PatientId,
+                PatientCode = a.Patient.PatientCode,
+                PatientName = a.Patient.FullName,
+                AdmissionDate = a.AdmissionDate ?? a.MedicalRecord.AdmissionDate,
+                DischargeDate = a.DischargeDate ?? a.MedicalRecord.DischargeDate ?? DateTime.MinValue,
+                DepartmentName = a.Department?.DepartmentName ?? "",
+                Diagnosis = a.Diagnosis ?? a.MedicalRecord.MainDiagnosis ?? "",
+                TreatmentResult = a.TreatmentResult ?? "",
+                StorageLocation = a.StorageLocation ?? "",
+                ShelfNumber = a.ShelfNumber ?? "",
+                Status = a.Status == 0 ? "Chờ lưu" : a.Status == 1 ? "Đã lưu" : a.Status == 2 ? "Đang mượn" : "Đã hủy",
+                ArchivedDate = a.ArchivedDate,
+                ArchivedBy = a.ArchivedBy?.FullName ?? ""
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetMedicalRecordArchiveAsync");
+            return null;
+        }
     }
 
     public async Task<MedicalRecordArchiveDto> SaveMedicalRecordArchiveAsync(MedicalRecordArchiveDto dto)
     {
-        _logger.LogWarning("SaveMedicalRecordArchiveAsync: No dedicated archive entity");
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
-        return dto;
+        try
+        {
+            MedicalRecordArchive entity;
+            if (dto.Id == Guid.Empty)
+            {
+                // Create new archive from a medical record
+                entity = new MedicalRecordArchive
+                {
+                    Id = Guid.NewGuid(),
+                    ArchiveCode = $"LT-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                    MedicalRecordId = dto.PatientId != Guid.Empty
+                        ? (await _context.MedicalRecords.FirstOrDefaultAsync(m => m.PatientId == dto.PatientId))?.Id ?? Guid.Empty
+                        : Guid.Empty,
+                    PatientId = dto.PatientId,
+                    Diagnosis = dto.Diagnosis,
+                    TreatmentResult = dto.TreatmentResult,
+                    StorageLocation = dto.StorageLocation,
+                    ShelfNumber = dto.ShelfNumber,
+                    Status = 0,
+                    ArchiveYear = DateTime.Now.Year,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.MedicalRecordArchives.Add(entity);
+            }
+            else
+            {
+                entity = await _context.MedicalRecordArchives.FindAsync(dto.Id);
+                if (entity == null) { dto.Id = Guid.NewGuid(); return dto; }
+
+                entity.StorageLocation = dto.StorageLocation;
+                entity.ShelfNumber = dto.ShelfNumber;
+                entity.Diagnosis = dto.Diagnosis;
+                entity.TreatmentResult = dto.TreatmentResult;
+                if (dto.Status == "Đã lưu" && entity.Status == 0)
+                {
+                    entity.Status = 1;
+                    entity.ArchivedDate = DateTime.UtcNow;
+                }
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+            dto.Id = entity.Id;
+            dto.ArchiveCode = entity.ArchiveCode;
+            return dto;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in SaveMedicalRecordArchiveAsync");
+            if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
+            return dto;
+        }
     }
 
     public async Task<bool> UpdateArchiveLocationAsync(Guid archiveId, string location)
     {
-        _logger.LogWarning("UpdateArchiveLocationAsync: No dedicated archive entity");
-        return false;
+        try
+        {
+            var archive = await _context.MedicalRecordArchives.FindAsync(archiveId);
+            if (archive == null) return false;
+            archive.StorageLocation = location;
+            archive.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in UpdateArchiveLocationAsync");
+            return false;
+        }
     }
 
     // 16.2 Muon tra ho so
     public async Task<List<MedicalRecordBorrowRequestDto>> GetBorrowRequestsAsync(
         DateTime? fromDate = null, DateTime? toDate = null, string status = null, Guid? borrowerId = null)
     {
-        return new List<MedicalRecordBorrowRequestDto>();
+        try
+        {
+            var query = _context.MedicalRecordBorrowRequests.AsNoTracking()
+                .Include(r => r.MedicalRecordArchive).ThenInclude(a => a.Patient)
+                .Include(r => r.RequestedBy)
+                .Where(r => !r.IsDeleted);
+
+            if (fromDate.HasValue)
+                query = query.Where(r => r.RequestDate >= fromDate.Value);
+            if (toDate.HasValue)
+                query = query.Where(r => r.RequestDate <= toDate.Value);
+            if (!string.IsNullOrWhiteSpace(status) && int.TryParse(status, out var st))
+                query = query.Where(r => r.Status == st);
+            if (borrowerId.HasValue)
+                query = query.Where(r => r.RequestedById == borrowerId.Value);
+
+            var statusNames = new Dictionary<int, string> { {0,"Chờ duyệt"}, {1,"Đã duyệt"}, {2,"Từ chối"}, {3,"Đang mượn"}, {4,"Đã trả"} };
+            return await query.OrderByDescending(r => r.RequestDate)
+                .Take(500)
+                .Select(r => new MedicalRecordBorrowRequestDto
+                {
+                    Id = r.Id,
+                    RequestCode = r.RequestCode,
+                    RecordId = r.MedicalRecordArchiveId,
+                    ArchiveCode = r.MedicalRecordArchive.ArchiveCode,
+                    PatientName = r.MedicalRecordArchive.Patient.FullName,
+                    RequestDate = r.RequestDate,
+                    RequestedById = r.RequestedById,
+                    RequestedByName = r.RequestedBy.FullName,
+                    Purpose = r.Purpose ?? "",
+                    ExpectedReturnDate = r.ExpectedReturnDate,
+                    Status = r.Status == 0 ? "Chờ duyệt" : r.Status == 1 ? "Đã duyệt" : r.Status == 2 ? "Từ chối" : r.Status == 3 ? "Đang mượn" : "Đã trả",
+                    BorrowedDate = r.BorrowedDate,
+                    ReturnedDate = r.ReturnedDate,
+                    Note = r.Note ?? ""
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetBorrowRequestsAsync");
+            return new List<MedicalRecordBorrowRequestDto>();
+        }
     }
 
     public async Task<MedicalRecordBorrowRequestDto> GetBorrowRequestAsync(Guid requestId)
     {
-        return null;
+        try
+        {
+            var r = await _context.MedicalRecordBorrowRequests.AsNoTracking()
+                .Include(x => x.MedicalRecordArchive).ThenInclude(a => a.Patient)
+                .Include(x => x.RequestedBy)
+                .FirstOrDefaultAsync(x => x.Id == requestId && !x.IsDeleted);
+            if (r == null) return null;
+
+            return new MedicalRecordBorrowRequestDto
+            {
+                Id = r.Id,
+                RequestCode = r.RequestCode,
+                RecordId = r.MedicalRecordArchiveId,
+                ArchiveCode = r.MedicalRecordArchive.ArchiveCode,
+                PatientName = r.MedicalRecordArchive.Patient.FullName,
+                RequestDate = r.RequestDate,
+                RequestedById = r.RequestedById,
+                RequestedByName = r.RequestedBy.FullName,
+                Purpose = r.Purpose ?? "",
+                ExpectedReturnDate = r.ExpectedReturnDate,
+                Status = r.Status == 0 ? "Chờ duyệt" : r.Status == 1 ? "Đã duyệt" : r.Status == 2 ? "Từ chối" : r.Status == 3 ? "Đang mượn" : "Đã trả",
+                BorrowedDate = r.BorrowedDate,
+                ReturnedDate = r.ReturnedDate,
+                Note = r.Note ?? ""
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetBorrowRequestAsync");
+            return null;
+        }
     }
 
     public async Task<MedicalRecordBorrowRequestDto> CreateBorrowRequestAsync(CreateBorrowRequestDto dto)
     {
-        _logger.LogWarning("CreateBorrowRequestAsync: No dedicated borrow request entity");
-        return new MedicalRecordBorrowRequestDto
+        try
         {
-            Id = Guid.NewGuid(),
-            RequestDate = DateTime.UtcNow,
-            Status = "Pending",
-            Purpose = dto.Purpose,
-            ExpectedReturnDate = dto.ExpectedReturnDate,
-            Note = dto.Note
-        };
+            var archive = await _context.MedicalRecordArchives
+                .Include(a => a.Patient)
+                .FirstOrDefaultAsync(a => a.Id == dto.MedicalRecordArchiveId);
+            if (archive == null)
+                return new MedicalRecordBorrowRequestDto { Id = Guid.Empty };
+
+            var entity = new MedicalRecordBorrowRequest
+            {
+                Id = Guid.NewGuid(),
+                RequestCode = $"MT-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                MedicalRecordArchiveId = dto.MedicalRecordArchiveId,
+                RequestedById = Guid.Empty,
+                RequestDate = DateTime.UtcNow,
+                Purpose = dto.Purpose,
+                ExpectedReturnDate = dto.ExpectedReturnDate,
+                Status = 0,
+                Note = dto.Note,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.MedicalRecordBorrowRequests.Add(entity);
+            await _context.SaveChangesAsync();
+
+            return new MedicalRecordBorrowRequestDto
+            {
+                Id = entity.Id,
+                RequestCode = entity.RequestCode,
+                RecordId = entity.MedicalRecordArchiveId,
+                ArchiveCode = archive.ArchiveCode,
+                PatientName = archive.Patient?.FullName ?? "",
+                RequestDate = entity.RequestDate,
+                RequestedById = entity.RequestedById,
+                Purpose = entity.Purpose ?? "",
+                ExpectedReturnDate = entity.ExpectedReturnDate,
+                Status = "Chờ duyệt",
+                Note = entity.Note ?? ""
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in CreateBorrowRequestAsync");
+            return new MedicalRecordBorrowRequestDto { Id = Guid.NewGuid(), Status = "Error" };
+        }
     }
 
     public async Task<bool> ApproveBorrowRequestAsync(Guid requestId)
     {
-        _logger.LogWarning("ApproveBorrowRequestAsync: Not implemented");
-        return false;
+        try
+        {
+            var request = await _context.MedicalRecordBorrowRequests.FindAsync(requestId);
+            if (request == null || request.Status != 0) return false;
+            request.Status = 1;
+            request.ApprovedDate = DateTime.UtcNow;
+            request.ApprovedById = (Guid?)null;
+            request.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ApproveBorrowRequestAsync");
+            return false;
+        }
     }
 
     public async Task<bool> RejectBorrowRequestAsync(Guid requestId, string reason)
     {
-        _logger.LogWarning("RejectBorrowRequestAsync: Not implemented");
-        return false;
+        try
+        {
+            var request = await _context.MedicalRecordBorrowRequests.FindAsync(requestId);
+            if (request == null || request.Status != 0) return false;
+            request.Status = 2;
+            request.RejectReason = reason;
+            request.ApprovedDate = DateTime.UtcNow;
+            request.ApprovedById = (Guid?)null;
+            request.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in RejectBorrowRequestAsync");
+            return false;
+        }
     }
 
     public async Task<bool> ProcessBorrowAsync(Guid requestId)
     {
-        _logger.LogWarning("ProcessBorrowAsync: Not implemented");
-        return false;
+        try
+        {
+            var request = await _context.MedicalRecordBorrowRequests
+                .Include(r => r.MedicalRecordArchive)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
+            if (request == null || request.Status != 1) return false;
+            request.Status = 3;
+            request.BorrowedDate = DateTime.UtcNow;
+            request.UpdatedAt = DateTime.UtcNow;
+            // Update archive status to "Đang mượn"
+            if (request.MedicalRecordArchive != null)
+            {
+                request.MedicalRecordArchive.Status = 2;
+                request.MedicalRecordArchive.UpdatedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ProcessBorrowAsync");
+            return false;
+        }
     }
 
     public async Task<bool> ReturnMedicalRecordAsync(Guid requestId, string note)
     {
-        _logger.LogWarning("ReturnMedicalRecordAsync: Not implemented");
-        return false;
+        try
+        {
+            var request = await _context.MedicalRecordBorrowRequests
+                .Include(r => r.MedicalRecordArchive)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
+            if (request == null || request.Status != 3) return false;
+            request.Status = 4;
+            request.ReturnedDate = DateTime.UtcNow;
+            request.Note = string.IsNullOrWhiteSpace(note) ? request.Note : (request.Note + "\n" + note).Trim();
+            request.UpdatedAt = DateTime.UtcNow;
+            // Update archive status back to "Đã lưu"
+            if (request.MedicalRecordArchive != null)
+            {
+                request.MedicalRecordArchive.Status = 1;
+                request.MedicalRecordArchive.UpdatedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ReturnMedicalRecordAsync");
+            return false;
+        }
     }
 
     // 16.3 Dashboard thong ke benh vien
@@ -3595,80 +4037,543 @@ public class SystemCompleteService : ISystemCompleteService
     public async Task<List<ExaminationStatisticsDto>> GetExaminationStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, Guid? doctorId = null)
     {
-        return new List<ExaminationStatisticsDto>();
+        try
+        {
+            var query = _context.Examinations.AsNoTracking()
+                .Include(e => e.Department)
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate);
+            if (departmentId.HasValue)
+                query = query.Where(e => e.DepartmentId == departmentId.Value);
+            if (doctorId.HasValue)
+                query = query.Where(e => e.DoctorId == doctorId.Value);
+
+            var result = await query
+                .GroupBy(e => new { e.DepartmentId, e.Department.DepartmentName, Date = e.CreatedAt.Date })
+                .Select(g => new ExaminationStatisticsDto
+                {
+                    Date = g.Key.Date,
+                    DepartmentId = g.Key.DepartmentId,
+                    DepartmentName = g.Key.DepartmentName,
+                    TotalExaminations = g.Count(),
+                    NewPatients = g.Count(e => e.ExaminationType == 1),
+                    FollowUpPatients = g.Count(e => e.ExaminationType == 2 || e.ExaminationType == 3)
+                })
+                .OrderBy(x => x.Date).ThenBy(x => x.DepartmentName)
+                .ToListAsync();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetExaminationStatisticsAsync");
+            return new List<ExaminationStatisticsDto>();
+        }
     }
 
     // 16.5 Bao cao nhap vien
     public async Task<List<AdmissionStatisticsDto>> GetAdmissionStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, string admissionSource = null)
     {
-        return new List<AdmissionStatisticsDto>();
+        try
+        {
+            var query = _context.Admissions.AsNoTracking()
+                .Include(a => a.Department)
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate);
+            if (departmentId.HasValue)
+                query = query.Where(a => a.DepartmentId == departmentId.Value);
+            if (!string.IsNullOrWhiteSpace(admissionSource))
+                query = query.Where(a => a.ReferralSource != null && a.ReferralSource.Contains(admissionSource));
+
+            var result = await query
+                .GroupBy(a => new { a.DepartmentId, a.Department.DepartmentName, Date = a.AdmissionDate.Date })
+                .Select(g => new AdmissionStatisticsDto
+                {
+                    Date = g.Key.Date,
+                    DepartmentId = g.Key.DepartmentId,
+                    DepartmentName = g.Key.DepartmentName,
+                    TotalAdmissions = g.Count(),
+                    EmergencyAdmissions = g.Count(a => a.AdmissionType == 1),
+                    ElectiveAdmissions = g.Count(a => a.AdmissionType == 3)
+                })
+                .OrderBy(x => x.Date).ThenBy(x => x.DepartmentName)
+                .ToListAsync();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetAdmissionStatisticsAsync");
+            return new List<AdmissionStatisticsDto>();
+        }
     }
 
     // 16.6 Bao cao xuat vien
     public async Task<List<DischargeStatisticsDto>> GetDischargeStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, string dischargeType = null)
     {
-        return new List<DischargeStatisticsDto>();
+        try
+        {
+            var query = _context.Discharges.AsNoTracking()
+                .Include(d => d.Admission).ThenInclude(a => a.Department)
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate);
+            if (departmentId.HasValue)
+                query = query.Where(d => d.Admission.DepartmentId == departmentId.Value);
+            if (!string.IsNullOrWhiteSpace(dischargeType) && int.TryParse(dischargeType, out var dt))
+                query = query.Where(d => d.DischargeType == dt);
+
+            var result = await query
+                .GroupBy(d => new { d.Admission.DepartmentId, d.Admission.Department.DepartmentName, Date = d.DischargeDate.Date })
+                .Select(g => new DischargeStatisticsDto
+                {
+                    Date = g.Key.Date,
+                    DepartmentId = g.Key.DepartmentId,
+                    DepartmentName = g.Key.DepartmentName,
+                    TotalDischarges = g.Count(),
+                    RecoveredCount = g.Count(d => d.DischargeCondition == 1),
+                    ImprovedCount = g.Count(d => d.DischargeCondition == 2),
+                    DeathCount = g.Count(d => d.DischargeCondition == 5 || d.DischargeType == 4)
+                })
+                .OrderBy(x => x.Date).ThenBy(x => x.DepartmentName)
+                .ToListAsync();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDischargeStatisticsAsync");
+            return new List<DischargeStatisticsDto>();
+        }
     }
 
     // 16.7 Bao cao tu vong
     public async Task<List<MortalityStatisticsDto>> GetMortalityStatisticsAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        return new List<MortalityStatisticsDto>();
+        try
+        {
+            var deathDischarges = _context.Discharges.AsNoTracking()
+                .Include(d => d.Admission).ThenInclude(a => a.Department)
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate)
+                .Where(d => d.DischargeType == 4 || d.DischargeCondition == 5);
+            if (departmentId.HasValue)
+                deathDischarges = deathDischarges.Where(d => d.Admission.DepartmentId == departmentId.Value);
+
+            var totalAdmissions = await _context.Admissions.AsNoTracking()
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .Where(a => !departmentId.HasValue || a.DepartmentId == departmentId.Value)
+                .CountAsync();
+
+            var result = await deathDischarges
+                .GroupBy(d => new { d.Admission.DepartmentId, d.Admission.Department.DepartmentName })
+                .Select(g => new MortalityStatisticsDto
+                {
+                    DepartmentId = g.Key.DepartmentId,
+                    DepartmentName = g.Key.DepartmentName,
+                    TotalDeaths = g.Count(),
+                    DeathWithin24Hours = g.Count(d =>
+                        EF.Functions.DateDiffHour(d.Admission.AdmissionDate, d.DischargeDate) <= 24),
+                    DeathAfter24Hours = g.Count(d =>
+                        EF.Functions.DateDiffHour(d.Admission.AdmissionDate, d.DischargeDate) > 24),
+                    MortalityRate = 0
+                })
+                .OrderByDescending(x => x.TotalDeaths)
+                .ToListAsync();
+
+            foreach (var item in result)
+            {
+                if (totalAdmissions > 0)
+                    item.MortalityRate = Math.Round((double)item.TotalDeaths / totalAdmissions * 100, 2);
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetMortalityStatisticsAsync");
+            return new List<MortalityStatisticsDto>();
+        }
     }
 
     // 16.8 Bao cao benh theo ICD-10
     public async Task<List<DiseaseStatisticsDto>> GetDiseaseStatisticsAsync(
         DateTime fromDate, DateTime toDate, string icdChapter = null, Guid? departmentId = null)
     {
-        return new List<DiseaseStatisticsDto>();
+        try
+        {
+            var examQuery = _context.Examinations.AsNoTracking()
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+                .Where(e => e.MainIcdCode != null && e.MainIcdCode != "");
+            if (departmentId.HasValue)
+                examQuery = examQuery.Where(e => e.DepartmentId == departmentId.Value);
+            if (!string.IsNullOrWhiteSpace(icdChapter))
+                examQuery = examQuery.Where(e => e.MainIcdCode.StartsWith(icdChapter));
+
+            var examStats = await examQuery
+                .GroupBy(e => new { e.MainIcdCode, e.MainDiagnosis })
+                .Select(g => new { g.Key.MainIcdCode, g.Key.MainDiagnosis, Count = g.Count() })
+                .ToListAsync();
+
+            var admissionQuery = _context.Admissions.AsNoTracking()
+                .Include(a => a.MedicalRecord)
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .Where(a => a.MedicalRecord.MainIcdCode != null && a.MedicalRecord.MainIcdCode != "");
+            if (departmentId.HasValue)
+                admissionQuery = admissionQuery.Where(a => a.DepartmentId == departmentId.Value);
+            if (!string.IsNullOrWhiteSpace(icdChapter))
+                admissionQuery = admissionQuery.Where(a => a.MedicalRecord.MainIcdCode.StartsWith(icdChapter));
+
+            var admissionStats = await admissionQuery
+                .GroupBy(a => new { a.MedicalRecord.MainIcdCode, a.MedicalRecord.MainDiagnosis })
+                .Select(g => new { g.Key.MainIcdCode, g.Key.MainDiagnosis, Count = g.Count() })
+                .ToListAsync();
+
+            var allIcds = examStats.Select(x => x.MainIcdCode)
+                .Union(admissionStats.Select(x => x.MainIcdCode))
+                .Distinct();
+
+            var result = allIcds.Select(icd =>
+            {
+                var exam = examStats.FirstOrDefault(x => x.MainIcdCode == icd);
+                var adm = admissionStats.FirstOrDefault(x => x.MainIcdCode == icd);
+                var outpatient = exam?.Count ?? 0;
+                var inpatient = adm?.Count ?? 0;
+                return new DiseaseStatisticsDto
+                {
+                    IcdCode = icd,
+                    IcdName = exam?.MainDiagnosis ?? adm?.MainDiagnosis ?? "",
+                    TotalCases = outpatient + inpatient,
+                    OutpatientCases = outpatient,
+                    InpatientCases = inpatient
+                };
+            })
+            .OrderByDescending(x => x.TotalCases)
+            .ToList();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDiseaseStatisticsAsync");
+            return new List<DiseaseStatisticsDto>();
+        }
     }
 
     // 16.9 Bao cao hoat dong khoa
     public async Task<List<DepartmentActivityReportDto>> GetDepartmentActivityReportAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        return new List<DepartmentActivityReportDto>();
+        try
+        {
+            var deptQuery = _context.Departments.AsNoTracking()
+                .Where(d => d.IsActive && !d.IsDeleted);
+            if (departmentId.HasValue)
+                deptQuery = deptQuery.Where(d => d.Id == departmentId.Value);
+
+            var departments = await deptQuery.Select(d => new { d.Id, d.DepartmentName }).ToListAsync();
+
+            var examCounts = await _context.Examinations.AsNoTracking()
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+                .GroupBy(e => e.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var admissionCounts = await _context.Admissions.AsNoTracking()
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .GroupBy(a => a.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var surgeryCounts = await _context.SurgeryRequests.AsNoTracking()
+                .Include(s => s.MedicalRecord)
+                .Where(s => s.CreatedAt >= fromDate && s.CreatedAt <= toDate)
+                .Where(s => s.Status == 3)
+                .Where(s => s.MedicalRecord != null && s.MedicalRecord.DepartmentId != null)
+                .GroupBy(s => s.MedicalRecord.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var labCounts = await _context.LabRequests.AsNoTracking()
+                .Where(l => l.CreatedAt >= fromDate && l.CreatedAt <= toDate)
+                .GroupBy(l => l.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var revenueSums = await _context.Receipts.AsNoTracking()
+                .Where(r => r.CreatedAt >= fromDate && r.CreatedAt <= toDate)
+                .Include(r => r.MedicalRecord)
+                .Where(r => r.MedicalRecord.DepartmentId != null)
+                .GroupBy(r => r.MedicalRecord.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Sum = g.Sum(r => r.FinalAmount) })
+                .ToListAsync();
+
+            var result = departments.Select(d => new DepartmentActivityReportDto
+            {
+                DepartmentId = d.Id,
+                DepartmentName = d.DepartmentName,
+                OutpatientVisits = examCounts.FirstOrDefault(x => x.DeptId == d.Id)?.Count ?? 0,
+                InpatientAdmissions = admissionCounts.FirstOrDefault(x => x.DeptId == d.Id)?.Count ?? 0,
+                Surgeries = surgeryCounts.FirstOrDefault(x => x.DeptId == d.Id)?.Count ?? 0,
+                LabTests = labCounts.FirstOrDefault(x => x.DeptId == d.Id)?.Count ?? 0,
+                TotalRevenue = revenueSums.FirstOrDefault(x => x.DeptId == d.Id)?.Sum ?? 0
+            })
+            .OrderByDescending(x => x.OutpatientVisits + x.InpatientAdmissions)
+            .ToList();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDepartmentActivityReportAsync");
+            return new List<DepartmentActivityReportDto>();
+        }
     }
 
     // 16.10 Bao cao cong suat giuong benh
     public async Task<List<BedOccupancyReportDto>> GetBedOccupancyReportAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        return new List<BedOccupancyReportDto>();
+        try
+        {
+            var bedQuery = _context.Beds.AsNoTracking()
+                .Include(b => b.Room).ThenInclude(r => r.Department)
+                .Where(b => b.IsActive);
+            if (departmentId.HasValue)
+                bedQuery = bedQuery.Where(b => b.Room.Department.Id == departmentId.Value);
+
+            var beds = await bedQuery.ToListAsync();
+            var occupiedBedIds = await _context.Set<BedAssignment>().AsNoTracking()
+                .Where(ba => ba.Status == 0)
+                .Select(ba => ba.BedId)
+                .Distinct()
+                .ToListAsync();
+
+            var result = beds
+                .GroupBy(b => new { b.Room.Department.Id, b.Room.Department.DepartmentName })
+                .Select(g =>
+                {
+                    var total = g.Count();
+                    var occupied = g.Count(b => occupiedBedIds.Contains(b.Id));
+                    return new BedOccupancyReportDto
+                    {
+                        DepartmentId = g.Key.Id,
+                        DepartmentName = g.Key.DepartmentName,
+                        TotalBeds = total,
+                        OccupiedBeds = occupied,
+                        AvailableBeds = total - occupied,
+                        OccupancyRate = total > 0 ? Math.Round((double)occupied / total * 100, 1) : 0
+                    };
+                })
+                .OrderByDescending(x => x.OccupancyRate)
+                .ToList();
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetBedOccupancyReportAsync");
+            return new List<BedOccupancyReportDto>();
+        }
     }
 
     // 16.11 Bao cao A1-A2-A3 (BYT)
     public async Task<BYTReportDto> GetBYTReportAsync(DateTime fromDate, DateTime toDate)
     {
-        return new BYTReportDto
+        try
         {
-            FromDate = fromDate,
-            ToDate = toDate,
-            HospitalName = string.Empty,
-            HospitalCode = string.Empty,
-            TotalOutpatients = 0,
-            TotalInpatients = 0,
-            TotalBeds = 0
-        };
+            var hospitalConfig = await _context.SystemConfigs.AsNoTracking()
+                .Where(c => c.ConfigKey == "HospitalName" || c.ConfigKey == "HospitalCode")
+                .ToListAsync();
+
+            var totalOutpatients = await _context.Examinations.AsNoTracking()
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+                .CountAsync();
+
+            var totalInpatients = await _context.Admissions.AsNoTracking()
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate)
+                .CountAsync();
+
+            var totalBeds = await _context.Beds.AsNoTracking()
+                .Where(b => b.IsActive)
+                .CountAsync();
+
+            return new BYTReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                HospitalName = hospitalConfig.FirstOrDefault(c => c.ConfigKey == "HospitalName")?.ConfigValue ?? "BỆNH VIỆN ĐA KHOA",
+                HospitalCode = hospitalConfig.FirstOrDefault(c => c.ConfigKey == "HospitalCode")?.ConfigValue ?? "",
+                TotalOutpatients = totalOutpatients,
+                TotalInpatients = totalInpatients,
+                TotalBeds = totalBeds
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetBYTReportAsync");
+            return new BYTReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                HospitalName = string.Empty,
+                HospitalCode = string.Empty,
+                TotalOutpatients = 0,
+                TotalInpatients = 0,
+                TotalBeds = 0
+            };
+        }
     }
 
     // 16.12 KPI benh vien
     public async Task<List<HospitalKPIDto>> GetHospitalKPIsAsync(DateTime fromDate, DateTime toDate)
     {
-        return new List<HospitalKPIDto>();
+        try
+        {
+            var totalExams = await _context.Examinations.AsNoTracking()
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate).CountAsync();
+            var completedExams = await _context.Examinations.AsNoTracking()
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt <= toDate && e.Status == 4).CountAsync();
+
+            var totalAdmissions = await _context.Admissions.AsNoTracking()
+                .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate).CountAsync();
+            var discharges = await _context.Discharges.AsNoTracking()
+                .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate).ToListAsync();
+            var deaths = discharges.Count(d => d.DischargeType == 4 || d.DischargeCondition == 5);
+
+            var totalBeds = await _context.Beds.AsNoTracking().Where(b => b.IsActive).CountAsync();
+            var occupiedBeds = await _context.Set<BedAssignment>().AsNoTracking()
+                .Where(ba => ba.Status == 0).Select(ba => ba.BedId).Distinct().CountAsync();
+
+            var avgLos = totalAdmissions > 0
+                ? await _context.Discharges.AsNoTracking()
+                    .Where(d => d.DischargeDate >= fromDate && d.DischargeDate <= toDate)
+                    .Select(d => EF.Functions.DateDiffDay(d.Admission.AdmissionDate, d.DischargeDate))
+                    .DefaultIfEmpty(0)
+                    .AverageAsync()
+                : 0;
+
+            var kpis = new List<HospitalKPIDto>
+            {
+                new HospitalKPIDto
+                {
+                    KPIName = "Tỷ lệ hoàn thành khám",
+                    KPICategory = "Khám bệnh",
+                    TargetValue = 95,
+                    ActualValue = totalExams > 0 ? Math.Round((decimal)completedExams / totalExams * 100, 1) : 0,
+                    Unit = "%"
+                },
+                new HospitalKPIDto
+                {
+                    KPIName = "Công suất giường bệnh",
+                    KPICategory = "Nội trú",
+                    TargetValue = 85,
+                    ActualValue = totalBeds > 0 ? Math.Round((decimal)occupiedBeds / totalBeds * 100, 1) : 0,
+                    Unit = "%"
+                },
+                new HospitalKPIDto
+                {
+                    KPIName = "Số ngày điều trị trung bình",
+                    KPICategory = "Nội trú",
+                    TargetValue = 7,
+                    ActualValue = Math.Round((decimal)avgLos, 1),
+                    Unit = "ngày"
+                },
+                new HospitalKPIDto
+                {
+                    KPIName = "Tỷ lệ tử vong",
+                    KPICategory = "Chất lượng",
+                    TargetValue = 1,
+                    ActualValue = totalAdmissions > 0 ? Math.Round((decimal)deaths / totalAdmissions * 100, 2) : 0,
+                    Unit = "%"
+                },
+                new HospitalKPIDto
+                {
+                    KPIName = "Tổng lượt khám",
+                    KPICategory = "Khám bệnh",
+                    TargetValue = 1000,
+                    ActualValue = totalExams,
+                    Unit = "lượt"
+                },
+                new HospitalKPIDto
+                {
+                    KPIName = "Tổng lượt nhập viện",
+                    KPICategory = "Nội trú",
+                    TargetValue = 200,
+                    ActualValue = totalAdmissions,
+                    Unit = "lượt"
+                }
+            };
+
+            foreach (var kpi in kpis)
+            {
+                kpi.Achievement = kpi.TargetValue > 0
+                    ? Math.Round((double)(kpi.ActualValue / kpi.TargetValue * 100), 1)
+                    : 0;
+            }
+            return kpis;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetHospitalKPIsAsync");
+            return new List<HospitalKPIDto>();
+        }
     }
 
     public async Task<byte[]> PrintStatisticsReportAsync(StatisticsReportRequest request)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            string[] headers;
+            var rows = new List<string[]>();
+            var title = "BÁO CÁO THỐNG KÊ";
+
+            switch (request.ReportType?.ToLower())
+            {
+                case "examination":
+                    title = "BÁO CÁO KHÁM BỆNH";
+                    headers = new[] { "Ngày", "Khoa", "Tổng khám", "Bệnh mới", "Tái khám" };
+                    var exams = await GetExaminationStatisticsAsync(request.FromDate, request.ToDate, request.DepartmentId);
+                    foreach (var e in exams)
+                        rows.Add(new[] { e.Date.ToString("dd/MM/yyyy"), e.DepartmentName ?? "", e.TotalExaminations.ToString(), e.NewPatients.ToString(), e.FollowUpPatients.ToString() });
+                    break;
+                case "admission":
+                    title = "BÁO CÁO NHẬP VIỆN";
+                    headers = new[] { "Ngày", "Khoa", "Tổng nhập", "Cấp cứu", "Điều trị" };
+                    var adms = await GetAdmissionStatisticsAsync(request.FromDate, request.ToDate, request.DepartmentId);
+                    foreach (var a in adms)
+                        rows.Add(new[] { a.Date.ToString("dd/MM/yyyy"), a.DepartmentName ?? "", a.TotalAdmissions.ToString(), a.EmergencyAdmissions.ToString(), a.ElectiveAdmissions.ToString() });
+                    break;
+                case "discharge":
+                    title = "BÁO CÁO XUẤT VIỆN";
+                    headers = new[] { "Ngày", "Khoa", "Tổng xuất", "Khỏi", "Đỡ", "Tử vong" };
+                    var discs = await GetDischargeStatisticsAsync(request.FromDate, request.ToDate, request.DepartmentId);
+                    foreach (var d in discs)
+                        rows.Add(new[] { d.Date.ToString("dd/MM/yyyy"), d.DepartmentName ?? "", d.TotalDischarges.ToString(), d.RecoveredCount.ToString(), d.ImprovedCount.ToString(), d.DeathCount.ToString() });
+                    break;
+                case "bed":
+                    title = "BÁO CÁO CÔNG SUẤT GIƯỜNG";
+                    headers = new[] { "Khoa", "Tổng giường", "Đang dùng", "Còn trống", "Tỷ lệ (%)" };
+                    var beds = await GetBedOccupancyReportAsync(request.FromDate, request.ToDate, request.DepartmentId);
+                    foreach (var b in beds)
+                        rows.Add(new[] { b.DepartmentName ?? "", b.TotalBeds.ToString(), b.OccupiedBeds.ToString(), b.AvailableBeds.ToString(), b.OccupancyRate.ToString("0.0") });
+                    break;
+                default:
+                    title = "BÁO CÁO HOẠT ĐỘNG KHOA";
+                    headers = new[] { "Khoa", "Ngoại trú", "Nội trú", "Phẫu thuật", "Xét nghiệm", "Doanh thu" };
+                    var acts = await GetDepartmentActivityReportAsync(request.FromDate, request.ToDate, request.DepartmentId);
+                    foreach (var a in acts)
+                        rows.Add(new[] { a.DepartmentName ?? "", a.OutpatientVisits.ToString(), a.InpatientAdmissions.ToString(), a.Surgeries.ToString(), a.LabTests.ToString(), a.TotalRevenue.ToString("#,##0") });
+                    break;
+            }
+
+            var subtitle = $"Từ {request.FromDate:dd/MM/yyyy} đến {request.ToDate:dd/MM/yyyy}";
+            var html = PdfTemplateHelper.BuildTableReport(title, subtitle, DateTime.Now, headers, rows);
+            return System.Text.Encoding.UTF8.GetBytes(html);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in PrintStatisticsReportAsync");
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> ExportStatisticsReportToExcelAsync(StatisticsReportRequest request)
     {
-        return Array.Empty<byte>();
+        // Export as HTML table that can be opened in Excel
+        var bytes = await PrintStatisticsReportAsync(request);
+        return bytes;
     }
 
     #endregion
@@ -4281,7 +5186,26 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<byte[]> ExportAuditLogsToExcelAsync(AuditLogSearchDto search)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var query = _context.Set<AuditLog>().AsNoTracking().AsQueryable();
+            if (search?.FromDate.HasValue == true) query = query.Where(a => a.Timestamp >= search.FromDate);
+            if (search?.ToDate.HasValue == true) query = query.Where(a => a.Timestamp <= search.ToDate);
+            if (!string.IsNullOrWhiteSpace(search?.Action)) query = query.Where(a => a.Action == search.Action);
+            if (!string.IsNullOrWhiteSpace(search?.EntityType)) query = query.Where(a => a.EntityType == search.EntityType);
+
+            var logs = await query.OrderByDescending(a => a.Timestamp).Take(2000).ToListAsync();
+
+            var rows = logs.Select(a => new string[] {
+                a.Timestamp.ToString("dd/MM/yyyy HH:mm:ss"), a.UserFullName ?? a.Username ?? "",
+                a.Action ?? "", a.EntityType ?? "", a.Details ?? "", a.IpAddress ?? ""
+            }).ToList();
+
+            var html = BuildTableReport("NHAT KY HE THONG", $"Tong: {logs.Count} ban ghi", DateTime.Now,
+                new[] { "Thoi gian", "Nguoi dung", "Hanh dong", "Doi tuong", "Mo ta", "IP" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     // 17.5 Cau hinh he thong

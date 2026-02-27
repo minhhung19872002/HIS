@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
@@ -5,6 +6,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
 
@@ -498,12 +500,104 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<byte[]> PrintStockReceiptAsync(Guid id)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var receipt = await _context.ImportReceipts
+                .Include(r => r.Warehouse)
+                .Include(r => r.Details).ThenInclude(d => d.Medicine)
+                .Include(r => r.Details).ThenInclude(d => d.Supply)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (receipt == null) return Array.Empty<byte>();
+
+            var createdByUser = await _context.Users.FindAsync(Guid.TryParse(receipt.CreatedBy, out var uid) ? uid : Guid.Empty);
+            var approvedByUser = receipt.ApprovedBy.HasValue ? await _context.Users.FindAsync(receipt.ApprovedBy.Value) : null;
+
+            var importTypeName = receipt.ImportType switch
+            {
+                1 => "Nhap NCC",
+                2 => "Chuyen kho",
+                3 => "Hoan tra khoa",
+                4 => "Kiem ke tang",
+                5 => "Vien tro",
+                _ => ""
+            };
+
+            var metaLabels = new[] { "Kho nhap", "Loai nhap", "NCC", "So hoa don", "Ngay hoa don", "Ghi chu" };
+            var metaValues = new[]
+            {
+                receipt.Warehouse?.WarehouseName ?? "",
+                importTypeName,
+                receipt.SupplierName ?? "",
+                receipt.InvoiceNumber ?? "",
+                receipt.InvoiceDate?.ToString("dd/MM/yyyy") ?? "",
+                receipt.Note ?? ""
+            };
+
+            var items = receipt.Details.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? d.Supply?.SupplyName ?? "",
+                Unit = d.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = d.BatchNumber != null ? $"Lo: {d.BatchNumber}" + (d.ExpiryDate.HasValue ? $" - HSD: {d.ExpiryDate:dd/MM/yyyy}" : "") : null
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "PHIEU NHAP KHO",
+                receipt.ReceiptCode,
+                receipt.ReceiptDate,
+                metaLabels, metaValues,
+                items,
+                createdByUser?.FullName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintInspectionReportAsync(Guid id)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var receipt = await _context.ImportReceipts
+                .Include(r => r.Warehouse)
+                .Include(r => r.Details).ThenInclude(d => d.Medicine)
+                .Include(r => r.Details).ThenInclude(d => d.Supply)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (receipt == null) return Array.Empty<byte>();
+
+            var approvedByUser = receipt.ApprovedBy.HasValue ? await _context.Users.FindAsync(receipt.ApprovedBy.Value) : null;
+
+            var headers = new[] { "Ten hang", "DVT", "SL chung tu", "SL thuc nhap", "Chat luong", "Ghi chu" };
+            var rows = receipt.Details.Select(d => new[]
+            {
+                d.Medicine?.MedicineName ?? d.Supply?.SupplyName ?? "",
+                d.Unit ?? "",
+                d.Quantity.ToString("#,##0"),
+                d.Quantity.ToString("#,##0"),
+                "Dat",
+                d.BatchNumber != null ? $"Lo: {d.BatchNumber}" : ""
+            }).ToList();
+
+            var html = BuildTableReport(
+                "BIEN BAN KIEM NHAP",
+                $"Phieu nhap: {receipt.ReceiptCode} - Kho: {receipt.Warehouse?.WarehouseName}",
+                receipt.ReceiptDate,
+                headers, rows,
+                approvedByUser?.FullName, "Truong ban kiem nhap");
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     #endregion
@@ -1094,42 +1188,441 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<byte[]> PrintSaleInvoiceAsync(Guid saleId)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var export = await _context.ExportReceipts
+                .Include(e => e.Warehouse)
+                .Include(e => e.Details).ThenInclude(d => d.Medicine)
+                .Include(e => e.Details).ThenInclude(d => d.Supply)
+                .FirstOrDefaultAsync(e => e.Id == saleId);
+
+            if (export == null) return Array.Empty<byte>();
+
+            var patient = export.PatientId.HasValue ? await _context.Patients.FindAsync(export.PatientId.Value) : null;
+
+            var metaLabels = new[] { "Nha thuoc", "Khach hang", "SĐT", "Ghi chu" };
+            var metaValues = new[]
+            {
+                export.Warehouse?.WarehouseName ?? "",
+                patient?.FullName ?? "Khach le",
+                patient?.PhoneNumber ?? "",
+                export.Note ?? ""
+            };
+
+            var items = export.Details.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? d.Supply?.SupplyName ?? "",
+                Unit = d.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = d.BatchNumber ?? ""
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "HOA DON BAN THUOC",
+                export.ReceiptCode,
+                export.ReceiptDate,
+                metaLabels, metaValues!,
+                items);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintUsageInstructionsAsync(Guid issueId)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var export = await _context.ExportReceipts
+                .Include(e => e.Details).ThenInclude(d => d.Medicine)
+                .FirstOrDefaultAsync(e => e.Id == issueId);
+
+            if (export == null) return Array.Empty<byte>();
+
+            var patient = export.PatientId.HasValue ? await _context.Patients.FindAsync(export.PatientId.Value) : null;
+
+            Prescription? prescription = null;
+            if (export.PrescriptionId.HasValue)
+                prescription = await _context.Prescriptions
+                    .Include(p => p.Details)
+                    .FirstOrDefaultAsync(p => p.Id == export.PrescriptionId.Value);
+
+            var body = new StringBuilder();
+            body.AppendLine(GetHospitalHeader());
+            body.AppendLine(@"<div class=""form-title"">HUONG DAN SU DUNG THUOC</div>");
+            body.AppendLine($@"<div style=""text-align:center;font-style:italic;margin-bottom:10px"">Ngay {export.ReceiptDate:dd/MM/yyyy}</div>");
+
+            if (patient != null)
+            {
+                body.AppendLine($@"<div class=""field""><span class=""field-label"">Ho ten:</span><span class=""field-value"">{Esc(patient.FullName)}</span></div>");
+            }
+            if (prescription != null)
+            {
+                body.AppendLine($@"<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(prescription.Diagnosis)}</span></div>");
+            }
+
+            body.AppendLine(@"<table class=""bordered"" style=""margin-top:10px""><thead><tr>
+                <th style=""width:30px"">STT</th><th>Ten thuoc</th><th>Lieu dung</th><th>Cach dung</th><th>Ghi chu</th>
+            </tr></thead><tbody>");
+
+            var prescDetails = prescription?.Details.ToList() ?? new List<PrescriptionDetail>();
+            int idx = 1;
+            foreach (var d in export.Details)
+            {
+                var matchDetail = prescDetails.FirstOrDefault(pd => pd.MedicineId == d.MedicineId);
+                var dosage = matchDetail?.Dosage ?? "";
+                var usage = matchDetail?.Usage ?? matchDetail?.UsageInstructions ?? "";
+                var frequency = matchDetail?.Frequency ?? "";
+                body.AppendLine($@"<tr>
+                    <td class=""text-center"">{idx++}</td>
+                    <td><b>{Esc(d.Medicine?.MedicineName)}</b><br/>{Esc(d.Medicine?.Concentration)}</td>
+                    <td>{Esc(dosage)}{(string.IsNullOrEmpty(frequency) ? "" : $" - {Esc(frequency)}")}</td>
+                    <td>{Esc(usage)}</td>
+                    <td>{Esc(matchDetail?.Note)}</td>
+                </tr>");
+            }
+
+            body.AppendLine("</tbody></table>");
+
+            if (prescription?.Note != null)
+                body.AppendLine($@"<div class=""mt-10""><b>Loi dan:</b> {Esc(prescription.Note)}</div>");
+
+            body.AppendLine(GetSignatureBlock(null, null, null, false));
+
+            var html = WrapHtmlPage("Huong dan su dung thuoc", body.ToString());
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintOutpatientPrescriptionAsync(Guid prescriptionId)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var prescription = await _context.Prescriptions
+                .Include(p => p.Details).ThenInclude(d => d.Medicine)
+                .Include(p => p.Doctor)
+                .Include(p => p.Department)
+                .Include(p => p.MedicalRecord)
+                .FirstOrDefaultAsync(p => p.Id == prescriptionId);
+
+            if (prescription == null) return Array.Empty<byte>();
+
+            var patient = await _context.Patients.FindAsync(prescription.MedicalRecord?.PatientId ?? Guid.Empty);
+
+            var prescriptionRows = prescription.Details.Select(d => new PrescriptionRow
+            {
+                MedicineName = d.Medicine?.MedicineName ?? "",
+                Unit = d.Unit ?? d.Medicine?.Unit,
+                Quantity = d.Quantity,
+                Dosage = d.Dosage,
+                Frequency = d.Frequency,
+                Route = d.Route,
+                Usage = d.Usage ?? d.UsageInstructions
+            }).ToList();
+
+            var html = GetPrescription(
+                patient?.PatientCode,
+                patient?.FullName,
+                patient?.Gender ?? 0,
+                patient?.DateOfBirth,
+                patient?.Address,
+                patient?.PhoneNumber,
+                patient?.InsuranceNumber,
+                prescription.Diagnosis ?? prescription.DiagnosisName,
+                prescription.IcdCode ?? prescription.DiagnosisCode,
+                prescription.PrescriptionDate,
+                prescription.TotalDays,
+                prescriptionRows,
+                prescription.Note,
+                prescription.Doctor?.FullName,
+                prescription.Department?.DepartmentName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintInpatientOrderAsync(Guid orderSummaryId)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var prescription = await _context.Prescriptions
+                .Include(p => p.Details).ThenInclude(d => d.Medicine)
+                .Include(p => p.Doctor)
+                .Include(p => p.Department)
+                .Include(p => p.MedicalRecord)
+                .FirstOrDefaultAsync(p => p.Id == orderSummaryId);
+
+            if (prescription == null) return Array.Empty<byte>();
+
+            var patient = await _context.Patients.FindAsync(prescription.MedicalRecord?.PatientId ?? Guid.Empty);
+
+            var metaLabels = new[] { "Benh nhan", "Ma BN", "Khoa", "Chan doan", "BS ke don", "So ngay" };
+            var metaValues = new[]
+            {
+                patient?.FullName ?? "",
+                patient?.PatientCode ?? "",
+                prescription.Department?.DepartmentName ?? "",
+                prescription.Diagnosis ?? prescription.DiagnosisName ?? "",
+                prescription.Doctor?.FullName ?? "",
+                prescription.TotalDays.ToString()
+            };
+
+            var items = prescription.Details.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? "",
+                Unit = d.Unit ?? d.Medicine?.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = d.Dosage != null ? $"{d.Dosage} - {d.Frequency}" : d.Note
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "PHIEU LINH THUOC NOI TRU",
+                prescription.PrescriptionCode,
+                prescription.PrescriptionDate,
+                metaLabels, metaValues,
+                items,
+                prescription.Doctor?.FullName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintStockIssueAsync(Guid id)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var export = await _context.ExportReceipts
+                .Include(e => e.Warehouse)
+                .Include(e => e.Details).ThenInclude(d => d.Medicine)
+                .Include(e => e.Details).ThenInclude(d => d.Supply)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (export == null) return Array.Empty<byte>();
+
+            var createdByUser = await _context.Users.FindAsync(Guid.TryParse(export.CreatedBy, out var uid) ? uid : Guid.Empty);
+
+            var exportTypeName = export.ExportType switch
+            {
+                1 => "Xuat BN ngoai tru",
+                2 => "Xuat BN noi tru",
+                3 => "Xuat chuyen kho",
+                4 => "Xuat tra NCC",
+                5 => "Xuat huy",
+                6 => "Xuat kiem ke giam",
+                _ => ""
+            };
+
+            var metaLabels = new[] { "Kho xuat", "Loai xuat", "Ghi chu" };
+            var metaValues = new[]
+            {
+                export.Warehouse?.WarehouseName ?? "",
+                exportTypeName,
+                export.Note ?? ""
+            };
+
+            var items = export.Details.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? d.Supply?.SupplyName ?? "",
+                Unit = d.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = d.BatchNumber != null ? $"Lo: {d.BatchNumber}" : ""
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "PHIEU XUAT KHO",
+                export.ReceiptCode,
+                export.ReceiptDate,
+                metaLabels, metaValues,
+                items,
+                createdByUser?.FullName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintNarcoticIssueAsync(Guid id)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var export = await _context.ExportReceipts
+                .Include(e => e.Warehouse)
+                .Include(e => e.Details).ThenInclude(d => d.Medicine)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (export == null) return Array.Empty<byte>();
+
+            var patient = export.PatientId.HasValue ? await _context.Patients.FindAsync(export.PatientId.Value) : null;
+            var createdByUser = await _context.Users.FindAsync(Guid.TryParse(export.CreatedBy, out var uid) ? uid : Guid.Empty);
+
+            var narcoticDetails = export.Details
+                .Where(d => d.Medicine != null && d.Medicine.IsNarcotic)
+                .ToList();
+            if (!narcoticDetails.Any())
+                narcoticDetails = export.Details.ToList();
+
+            var metaLabels = new[] { "Kho xuat", "Benh nhan", "Ma BN", "Ghi chu" };
+            var metaValues = new[]
+            {
+                export.Warehouse?.WarehouseName ?? "",
+                patient?.FullName ?? "",
+                patient?.PatientCode ?? "",
+                export.Note ?? ""
+            };
+
+            var items = narcoticDetails.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? "",
+                Unit = d.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = d.BatchNumber != null ? $"Lo: {d.BatchNumber}" : ""
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "PHIEU XUAT THUOC GAY NGHIEN",
+                export.ReceiptCode,
+                export.ReceiptDate,
+                metaLabels, metaValues,
+                items,
+                createdByUser?.FullName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintToxicIssueAsync(Guid id)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var export = await _context.ExportReceipts
+                .Include(e => e.Warehouse)
+                .Include(e => e.Details).ThenInclude(d => d.Medicine)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (export == null) return Array.Empty<byte>();
+
+            var patient = export.PatientId.HasValue ? await _context.Patients.FindAsync(export.PatientId.Value) : null;
+            var createdByUser = await _context.Users.FindAsync(Guid.TryParse(export.CreatedBy, out var uid) ? uid : Guid.Empty);
+
+            var toxicDetails = export.Details
+                .Where(d => d.Medicine != null && d.Medicine.IsPsychotropic)
+                .ToList();
+            if (!toxicDetails.Any())
+                toxicDetails = export.Details.ToList();
+
+            var metaLabels = new[] { "Kho xuat", "Benh nhan", "Ma BN", "Ghi chu" };
+            var metaValues = new[]
+            {
+                export.Warehouse?.WarehouseName ?? "",
+                patient?.FullName ?? "",
+                patient?.PatientCode ?? "",
+                export.Note ?? ""
+            };
+
+            var items = toxicDetails.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? "",
+                Unit = d.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = d.BatchNumber != null ? $"Lo: {d.BatchNumber}" : ""
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "PHIEU XUAT THUOC HUONG THAN",
+                export.ReceiptCode,
+                export.ReceiptDate,
+                metaLabels, metaValues,
+                items,
+                createdByUser?.FullName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintTransferIssueAsync(Guid id)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var export = await _context.ExportReceipts
+                .Include(e => e.Warehouse)
+                .Include(e => e.Details).ThenInclude(d => d.Medicine)
+                .Include(e => e.Details).ThenInclude(d => d.Supply)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (export == null) return Array.Empty<byte>();
+
+            var createdByUser = await _context.Users.FindAsync(Guid.TryParse(export.CreatedBy, out var uid) ? uid : Guid.Empty);
+            var targetWarehouse = export.ToWarehouseId.HasValue ? await _context.Warehouses.FindAsync(export.ToWarehouseId.Value) : null;
+
+            var metaLabels = new[] { "Kho xuat", "Kho nhan", "Ly do chuyen", "Ghi chu" };
+            var metaValues = new[]
+            {
+                export.Warehouse?.WarehouseName ?? "",
+                targetWarehouse?.WarehouseName ?? "",
+                "Chuyen kho noi bo",
+                export.Note ?? ""
+            };
+
+            var items = export.Details.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? d.Supply?.SupplyName ?? "",
+                Unit = d.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = d.BatchNumber != null ? $"Lo: {d.BatchNumber}" + (d.ExpiryDate.HasValue ? $" - HSD: {d.ExpiryDate:dd/MM/yyyy}" : "") : ""
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "PHIEU XUAT CHUYEN KHO",
+                export.ReceiptCode,
+                export.ReceiptDate,
+                metaLabels, metaValues,
+                items,
+                createdByUser?.FullName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     #endregion
@@ -1407,17 +1900,195 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<byte[]> PrintProcurementRequestAsync(Guid id)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var imports = await _context.ImportReceipts
+                .Include(r => r.Warehouse)
+                .Include(r => r.Details).ThenInclude(d => d.Medicine)
+                .Include(r => r.Details).ThenInclude(d => d.Supply)
+                .Where(r => r.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (imports == null) return Array.Empty<byte>();
+
+            var createdByUser = await _context.Users.FindAsync(Guid.TryParse(imports.CreatedBy, out var uid) ? uid : Guid.Empty);
+
+            var metaLabels = new[] { "Kho yeu cau", "Mo ta", "Ghi chu" };
+            var metaValues = new[]
+            {
+                imports.Warehouse?.WarehouseName ?? "",
+                $"Du tru mua sam vat tu thuoc",
+                imports.Note ?? ""
+            };
+
+            var items = imports.Details.Select(d => new ReportItemRow
+            {
+                Name = d.Medicine?.MedicineName ?? d.Supply?.SupplyName ?? "",
+                Unit = d.Unit ?? "",
+                Quantity = d.Quantity,
+                UnitPrice = d.UnitPrice,
+                Amount = d.Amount,
+                Note = ""
+            }).ToList();
+
+            var html = BuildItemizedReport(
+                "PHIEU DU TRU MUA SAM",
+                imports.ReceiptCode,
+                imports.ReceiptDate,
+                metaLabels, metaValues,
+                items,
+                createdByUser?.FullName);
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintStockTakeReportAsync(Guid stockTakeId)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var inventoryItems = await _context.InventoryItems
+                .Include(i => i.Medicine)
+                .Include(i => i.Supply)
+                .Include(i => i.Warehouse)
+                .Where(i => i.Warehouse != null && i.Warehouse.IsActive)
+                .OrderBy(i => i.Medicine != null ? i.Medicine.MedicineName : (i.Supply != null ? i.Supply.SupplyName : ""))
+                .Take(200)
+                .ToListAsync();
+
+            var warehouseName = inventoryItems.FirstOrDefault()?.Warehouse?.WarehouseName ?? "";
+
+            var headers = new[] { "Ten hang", "DVT", "SL so sach", "SL thuc te", "Chenh lech", "Don gia", "Gia tri CL", "Ghi chu" };
+            var rows = inventoryItems.Select(i =>
+            {
+                var name = i.Medicine?.MedicineName ?? i.Supply?.SupplyName ?? "";
+                var unit = i.Medicine?.Unit ?? i.Supply?.Unit ?? "";
+                var bookQty = i.Quantity;
+                // In a stock take report, actual quantity defaults to book quantity until counted
+                var actualQty = bookQty;
+                var diff = actualQty - bookQty;
+                var price = i.UnitPrice;
+                return new[]
+                {
+                    name, unit,
+                    bookQty.ToString("#,##0"),
+                    actualQty.ToString("#,##0"),
+                    diff.ToString("#,##0"),
+                    price.ToString("#,##0"),
+                    (diff * price).ToString("#,##0"),
+                    i.BatchNumber ?? ""
+                };
+            }).ToList();
+
+            var html = BuildTableReport(
+                "BIEN BAN KIEM KE",
+                $"Kho: {warehouseName}",
+                DateTime.Now,
+                headers, rows,
+                null, "Truong ban kiem ke");
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<byte[]> PrintStockCardAsync(Guid warehouseId, Guid itemId, DateTime fromDate, DateTime toDate)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var warehouse = await _context.Warehouses.FindAsync(warehouseId);
+            var medicine = await _context.Medicines.FindAsync(itemId);
+            var supply = medicine == null ? await _context.MedicalSupplies.FindAsync(itemId) : null;
+            var itemName = medicine?.MedicineName ?? supply?.SupplyName ?? "";
+            var itemCode = medicine?.MedicineCode ?? supply?.SupplyCode ?? "";
+            var unit = medicine?.Unit ?? supply?.Unit ?? "";
+
+            // Get import transactions in the date range
+            var importEntries = await _context.ImportReceiptDetails
+                .Include(d => d.ImportReceipt)
+                .Where(d => d.ImportReceipt.WarehouseId == warehouseId
+                    && (d.MedicineId == itemId || d.SupplyId == itemId)
+                    && d.ImportReceipt.ReceiptDate >= fromDate
+                    && d.ImportReceipt.ReceiptDate <= toDate
+                    && d.ImportReceipt.Status == 1)
+                .OrderBy(d => d.ImportReceipt.ReceiptDate)
+                .Select(d => new { d.ImportReceipt.ReceiptDate, d.ImportReceipt.ReceiptCode, d.Quantity, Type = "Nhap" })
+                .ToListAsync();
+
+            // Get export transactions in the date range
+            var exportEntries = await _context.ExportReceiptDetails
+                .Include(d => d.ExportReceipt)
+                .Where(d => d.ExportReceipt.WarehouseId == warehouseId
+                    && (d.MedicineId == itemId || d.SupplyId == itemId)
+                    && d.ExportReceipt.ReceiptDate >= fromDate
+                    && d.ExportReceipt.ReceiptDate <= toDate
+                    && d.ExportReceipt.Status == 1)
+                .OrderBy(d => d.ExportReceipt.ReceiptDate)
+                .Select(d => new { d.ExportReceipt.ReceiptDate, d.ExportReceipt.ReceiptCode, d.Quantity, Type = "Xuat" })
+                .ToListAsync();
+
+            var allEntries = importEntries
+                .Select(e => new { e.ReceiptDate, e.ReceiptCode, Import = e.Quantity, Export = 0m })
+                .Concat(exportEntries.Select(e => new { e.ReceiptDate, e.ReceiptCode, Import = 0m, Export = e.Quantity }))
+                .OrderBy(e => e.ReceiptDate)
+                .ToList();
+
+            var body = new StringBuilder();
+            body.AppendLine(GetHospitalHeader());
+            body.AppendLine(@"<div class=""form-title"">THE KHO</div>");
+            body.AppendLine($@"<div style=""text-align:center;font-style:italic;margin-bottom:10px"">Tu {fromDate:dd/MM/yyyy} den {toDate:dd/MM/yyyy}</div>");
+
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Kho:</span><span class=""field-value"">{Esc(warehouse?.WarehouseName)}</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">Ten hang:</span><span class=""field-value"">{Esc(itemName)} ({Esc(itemCode)})</span></div>");
+            body.AppendLine($@"<div class=""field""><span class=""field-label"">DVT:</span><span class=""field-value"">{Esc(unit)}</span></div>");
+
+            body.AppendLine(@"<table class=""bordered"" style=""margin-top:10px""><thead><tr>
+                <th>Ngay</th><th>So chung tu</th><th>Nhap</th><th>Xuat</th><th>Ton</th>
+            </tr></thead><tbody>");
+
+            decimal balance = 0;
+            // Calculate opening balance from inventory
+            var currentStock = await _context.InventoryItems
+                .Where(i => i.WarehouseId == warehouseId && (i.MedicineId == itemId || i.SupplyId == itemId))
+                .SumAsync(i => i.Quantity);
+            // rough opening = current - net movements in period
+            var totalImport = allEntries.Sum(e => e.Import);
+            var totalExport = allEntries.Sum(e => e.Export);
+            balance = currentStock - totalImport + totalExport;
+
+            body.AppendLine($@"<tr><td>{fromDate:dd/MM/yyyy}</td><td>Ton dau ky</td><td></td><td></td><td class=""text-right"">{balance:#,##0}</td></tr>");
+
+            foreach (var entry in allEntries)
+            {
+                balance += entry.Import - entry.Export;
+                body.AppendLine($@"<tr>
+                    <td>{entry.ReceiptDate:dd/MM/yyyy}</td>
+                    <td>{Esc(entry.ReceiptCode)}</td>
+                    <td class=""text-right"">{(entry.Import > 0 ? entry.Import.ToString("#,##0") : "")}</td>
+                    <td class=""text-right"">{(entry.Export > 0 ? entry.Export.ToString("#,##0") : "")}</td>
+                    <td class=""text-right"">{balance:#,##0}</td>
+                </tr>");
+            }
+
+            body.AppendLine($@"<tr><td colspan=""2"" class=""text-right""><b>Tong:</b></td><td class=""text-right""><b>{totalImport:#,##0}</b></td><td class=""text-right""><b>{totalExport:#,##0}</b></td><td class=""text-right""><b>{balance:#,##0}</b></td></tr>");
+            body.AppendLine("</tbody></table>");
+
+            body.AppendLine(GetSignatureBlock(null, null, null, false));
+
+            var html = WrapHtmlPage("The kho", body.ToString());
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<StockCardDto> GetStockCardAsync(Guid warehouseId, Guid itemId, DateTime fromDate, DateTime toDate)
@@ -1432,7 +2103,58 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<byte[]> PrintStockMovementReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate, int? itemType)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var warehouse = await _context.Warehouses.FindAsync(warehouseId);
+
+            // Query all inventory items in this warehouse
+            var inventoryQuery = _context.InventoryItems
+                .Include(i => i.Medicine)
+                .Include(i => i.Supply)
+                .Where(i => i.WarehouseId == warehouseId);
+            if (itemType.HasValue)
+                inventoryQuery = inventoryQuery.Where(i => i.ItemType == (itemType.Value == 1 ? "Medicine" : "Supply"));
+
+            var inventoryItems = await inventoryQuery.ToListAsync();
+
+            // Group by item
+            var grouped = inventoryItems
+                .GroupBy(i => i.MedicineId ?? i.SupplyId ?? i.Id)
+                .Select(g =>
+                {
+                    var first = g.First();
+                    var name = first.Medicine?.MedicineName ?? first.Supply?.SupplyName ?? "";
+                    var unit = first.Medicine?.Unit ?? first.Supply?.Unit ?? "";
+                    var currentQty = g.Sum(i => i.Quantity);
+                    return new { Name = name, Unit = unit, CurrentQty = currentQty };
+                })
+                .OrderBy(x => x.Name)
+                .ToList();
+
+            var headers = new[] { "Ten hang", "DVT", "Ton dau ky", "Nhap trong ky", "Xuat trong ky", "Ton cuoi ky" };
+            var rows = grouped.Select(item => new[]
+            {
+                item.Name,
+                item.Unit,
+                item.CurrentQty.ToString("#,##0"),
+                "0",
+                "0",
+                item.CurrentQty.ToString("#,##0")
+            }).ToList();
+
+            var html = BuildTableReport(
+                "BAO CAO NHAP XUAT TON",
+                $"Kho: {warehouse?.WarehouseName} - Tu {fromDate:dd/MM/yyyy} den {toDate:dd/MM/yyyy}",
+                DateTime.Now,
+                headers, rows,
+                null, "Thu kho");
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<DepartmentUsageReportDto> GetDepartmentUsageReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate)
@@ -1442,7 +2164,54 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<byte[]> PrintDepartmentUsageReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var warehouse = await _context.Warehouses.FindAsync(warehouseId);
+
+            // Group exports by department
+            var deptExports = await _context.ExportReceipts
+                .Where(e => e.WarehouseId == warehouseId
+                    && e.ReceiptDate >= fromDate
+                    && e.ReceiptDate <= toDate
+                    && e.Status == 1
+                    && e.ToDepartmentId != null)
+                .GroupBy(e => e.ToDepartmentId!.Value)
+                .Select(g => new
+                {
+                    DepartmentId = g.Key,
+                    IssueCount = g.Count(),
+                    TotalAmount = g.Sum(e => e.TotalAmount)
+                })
+                .ToListAsync();
+
+            var deptIds = deptExports.Select(d => d.DepartmentId).ToList();
+            var departments = await _context.Departments
+                .Where(d => deptIds.Contains(d.Id))
+                .ToDictionaryAsync(d => d.Id, d => d.DepartmentName);
+
+            var headers = new[] { "Khoa/Phong", "So phieu xuat", "Tong tien" };
+            var rows = deptExports
+                .OrderByDescending(d => d.TotalAmount)
+                .Select(d => new[]
+                {
+                    departments.GetValueOrDefault(d.DepartmentId, ""),
+                    d.IssueCount.ToString(),
+                    d.TotalAmount.ToString("#,##0")
+                }).ToList();
+
+            var html = BuildTableReport(
+                "BAO CAO XUAT THUOC THEO KHOA",
+                $"Kho: {warehouse?.WarehouseName} - Tu {fromDate:dd/MM/yyyy} den {toDate:dd/MM/yyyy}",
+                DateTime.Now,
+                headers, rows,
+                null, "Thu kho");
+
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     #endregion

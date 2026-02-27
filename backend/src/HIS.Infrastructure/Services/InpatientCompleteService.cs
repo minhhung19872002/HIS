@@ -5,6 +5,8 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using System.Text;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
 
@@ -964,14 +966,81 @@ public class InpatientCompleteService : IInpatientCompleteService
         return Task.FromResult(new List<LabResultItemDto>());
     }
 
-    public Task<byte[]> PrintLabResultsAsync(Guid admissionId, List<Guid> resultIds)
+    public async Task<byte[]> PrintLabResultsAsync(Guid admissionId, List<Guid> resultIds)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = await _context.Departments.FindAsync(admission.DepartmentId);
+        var doctor = await _context.Users.FindAsync(admission.AdmittingDoctorId);
+
+        // Build lab result rows from ServiceRequestDetails
+        var labRows = new List<LabResultRow>();
+        var details = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id
+                && d.ServiceRequest.RequestType == 1
+                && (resultIds.Count == 0 || resultIds.Contains(d.Id)))
+            .OrderBy(d => d.CreatedAt)
+            .ToListAsync();
+
+        foreach (var d in details)
+        {
+            labRows.Add(new LabResultRow
+            {
+                TestName = d.Service?.ServiceName ?? "",
+                Result = d.Result,
+                Unit = d.Service?.Unit,
+                ReferenceRange = "",
+                IsAbnormal = false
+            });
+        }
+
+        var html = GetLabResult(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MainDiagnosis, doctor?.FullName, dept?.DepartmentName,
+            medRecord.CreatedAt, DateTime.Now,
+            labRows, doctor?.FullName);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintSurgeryFormAsync(Guid surgeryId)
+    public async Task<byte[]> PrintSurgeryFormAsync(Guid surgeryId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var surgery = await _context.Set<SurgeryRequest>()
+            .Include(s => s.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(s => s.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(s => s.Id == surgeryId);
+        if (surgery == null) return Array.Empty<byte>();
+
+        var patient = surgery.MedicalRecord.Patient;
+        var dept = surgery.MedicalRecord.Department;
+        var surgeon = await _context.Users.FindAsync(surgery.RequestingDoctorId);
+
+        var bodyContent = new StringBuilder();
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Loại phẫu thuật:</span><span class=""field-value"">{Esc(surgery.SurgeryType)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Chẩn đoán trước mổ:</span><span class=""field-value"">{Esc(surgery.PreOpDiagnosis)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Phương pháp phẫu thuật:</span><span class=""field-value"">{Esc(surgery.PlannedProcedure)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Phương pháp vô cảm:</span><span class=""field-value"">{(surgery.AnesthesiaType.HasValue ? surgery.AnesthesiaType.Value.ToString() : "")}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày phẫu thuật:</span><span class=""field-value"">{surgery.RequestDate:dd/MM/yyyy HH:mm}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Phẫu thuật viên:</span><span class=""field-value"">{Esc(surgeon?.FullName)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ghi chú:</span><span class=""field-value"">{Esc(surgery.Notes)}</span></div>");
+
+        var html = GetGenericForm(
+            "PHIẾU PHẪU THUẬT", "MS. 13/BV",
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, surgery.MedicalRecord.InsuranceNumber,
+            surgery.MedicalRecord.MedicalRecordCode, dept?.DepartmentName,
+            bodyContent.ToString(), surgeon?.FullName);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<DepartmentFeeOverviewDto> GetDepartmentFeeOverviewAsync(Guid departmentId)
@@ -1212,19 +1281,114 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintServiceOrderAsync(Guid orderId)
+    public async Task<byte[]> PrintServiceOrderAsync(Guid orderId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var sr = await _context.ServiceRequests
+            .Include(s => s.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(s => s.MedicalRecord).ThenInclude(m => m.Department)
+            .Include(s => s.Details).ThenInclude(d => d.Service)
+            .FirstOrDefaultAsync(s => s.Id == orderId);
+        if (sr == null) return Array.Empty<byte>();
+
+        var patient = sr.MedicalRecord.Patient;
+        var dept = sr.MedicalRecord.Department;
+        var doctor = await _context.Users.FindAsync(sr.DoctorId);
+
+        var headers = new[] { "Tên dịch vụ", "ĐVT", "SL", "Đơn giá", "Thành tiền" };
+        var rows = sr.Details.Select(d => new[]
+        {
+            d.Service?.ServiceName ?? "",
+            d.Service?.Unit ?? "",
+            d.Quantity.ToString("#,##0"),
+            d.UnitPrice.ToString("#,##0"),
+            d.Amount.ToString("#,##0")
+        }).ToList();
+
+        var html = BuildTableReport(
+            "PHIẾU CHỈ ĐỊNH DỊCH VỤ",
+            $"BN: {Esc(patient.FullName)} - Mã HS: {Esc(sr.MedicalRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)}",
+            sr.RequestDate,
+            headers, rows,
+            doctor?.FullName, "Bác sĩ chỉ định");
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintServiceOrderByPaymentSourceAsync(Guid orderId, int paymentSource)
+    public async Task<byte[]> PrintServiceOrderByPaymentSourceAsync(Guid orderId, int paymentSource)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var sr = await _context.ServiceRequests
+            .Include(s => s.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(s => s.MedicalRecord).ThenInclude(m => m.Department)
+            .Include(s => s.Details).ThenInclude(d => d.Service)
+            .FirstOrDefaultAsync(s => s.Id == orderId);
+        if (sr == null) return Array.Empty<byte>();
+
+        var patient = sr.MedicalRecord.Patient;
+        var dept = sr.MedicalRecord.Department;
+        var doctor = await _context.Users.FindAsync(sr.DoctorId);
+        var filteredDetails = sr.Details.Where(d => d.PatientType == paymentSource).ToList();
+        var paymentName = paymentSource switch { 1 => "BHYT", 2 => "Viện phí", 3 => "Bên thứ 3", _ => "Khác" };
+
+        var headers = new[] { "Tên dịch vụ", "ĐVT", "SL", "Đơn giá", "Thành tiền" };
+        var rows = filteredDetails.Select(d => new[]
+        {
+            d.Service?.ServiceName ?? "",
+            d.Service?.Unit ?? "",
+            d.Quantity.ToString("#,##0"),
+            d.UnitPrice.ToString("#,##0"),
+            d.Amount.ToString("#,##0")
+        }).ToList();
+
+        var html = BuildTableReport(
+            $"PHIẾU CHỈ ĐỊNH DỊCH VỤ - {paymentName}",
+            $"BN: {Esc(patient.FullName)} - Mã HS: {Esc(sr.MedicalRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)}",
+            sr.RequestDate,
+            headers, rows,
+            doctor?.FullName, "Bác sĩ chỉ định");
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintCombinedServiceOrderAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
+    public async Task<byte[]> PrintCombinedServiceOrderAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+
+        var details = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id
+                && d.ServiceRequest.RequestDate >= fromDate
+                && d.ServiceRequest.RequestDate <= toDate
+                && !d.IsDeleted)
+            .OrderBy(d => d.ServiceRequest.RequestDate)
+            .ToListAsync();
+
+        var headers = new[] { "Ngày CĐ", "Tên dịch vụ", "ĐVT", "SL", "Đơn giá", "Thành tiền" };
+        var rows = details.Select(d => new[]
+        {
+            d.ServiceRequest.RequestDate.ToString("dd/MM/yyyy"),
+            d.Service?.ServiceName ?? "",
+            d.Service?.Unit ?? "",
+            d.Quantity.ToString("#,##0"),
+            d.UnitPrice.ToString("#,##0"),
+            d.Amount.ToString("#,##0")
+        }).ToList();
+
+        var html = BuildTableReport(
+            "TỔNG HỢP CHỈ ĐỊNH DỊCH VỤ",
+            $"BN: {Esc(patient.FullName)} - Mã HS: {Esc(medRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)} - Từ {fromDate:dd/MM/yyyy} đến {toDate:dd/MM/yyyy}",
+            null,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     #endregion
@@ -1714,19 +1878,118 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintMedicineOrderSummaryAsync(Guid summaryId)
+    public async Task<byte[]> PrintMedicineOrderSummaryAsync(Guid summaryId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        // summaryId represents a department-level summary; query prescriptions for that department today
+        var dept = await _context.Departments.FindAsync(summaryId);
+        var deptName = dept?.DepartmentName ?? "";
+
+        var today = DateTime.Today;
+        var prescriptions = await _context.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Where(p => p.DepartmentId == summaryId
+                && p.PrescriptionDate >= today && p.PrescriptionDate < today.AddDays(1)
+                && p.PrescriptionType == 2)
+            .ToListAsync();
+
+        // Aggregate medicine totals
+        var items = prescriptions
+            .SelectMany(p => p.Details)
+            .GroupBy(d => new { d.MedicineId, Name = d.Medicine?.MedicineName ?? "", Unit = d.Medicine?.Unit ?? "" })
+            .Select(g => new ReportItemRow
+            {
+                Name = g.Key.Name,
+                Unit = g.Key.Unit,
+                Quantity = g.Sum(x => x.Quantity),
+                UnitPrice = g.First().UnitPrice,
+                Amount = g.Sum(x => x.Amount)
+            }).ToList();
+
+        var html = BuildItemizedReport(
+            "BẢNG TỔNG HỢP THUỐC", $"DT-{today:yyyyMMdd}", today,
+            new[] { "Khoa", "Ngày" },
+            new[] { deptName, today.ToString("dd/MM/yyyy") },
+            items);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintMedicineVerificationAsync(Guid summaryId)
+    public async Task<byte[]> PrintMedicineVerificationAsync(Guid summaryId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var dept = await _context.Departments.FindAsync(summaryId);
+        var deptName = dept?.DepartmentName ?? "";
+        var today = DateTime.Today;
+
+        var prescriptions = await _context.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Include(p => p.Doctor)
+            .Where(p => p.DepartmentId == summaryId
+                && p.PrescriptionDate >= today && p.PrescriptionDate < today.AddDays(1)
+                && p.PrescriptionType == 2)
+            .ToListAsync();
+
+        var headers = new[] { "Tên thuốc", "ĐVT", "SL yêu cầu", "SL duyệt", "BS kê", "Ghi chú" };
+        var rows = prescriptions
+            .SelectMany(p => p.Details.Select(d => new { Detail = d, Doctor = p.Doctor }))
+            .Select(x => new[]
+            {
+                x.Detail.Medicine?.MedicineName ?? "",
+                x.Detail.Unit ?? "",
+                x.Detail.Quantity.ToString("#,##0"),
+                x.Detail.Quantity.ToString("#,##0"),
+                x.Doctor?.FullName ?? "",
+                ""
+            }).ToList();
+
+        var html = BuildTableReport(
+            "PHIẾU DUYỆT THUỐC",
+            $"Khoa: {Esc(deptName)} - Ngày: {today:dd/MM/yyyy}",
+            today,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintPatientMedicineSlipAsync(Guid admissionId, DateTime date)
+    public async Task<byte[]> PrintPatientMedicineSlipAsync(Guid admissionId, DateTime date)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = await _context.Departments.FindAsync(admission.DepartmentId);
+
+        var prescriptions = await _context.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Where(p => p.MedicalRecordId == medRecord.Id
+                && p.PrescriptionDate >= date.Date && p.PrescriptionDate < date.Date.AddDays(1)
+                && p.PrescriptionType == 2)
+            .ToListAsync();
+
+        var items = prescriptions.SelectMany(p => p.Details).Select(d => new PrescriptionRow
+        {
+            MedicineName = d.Medicine?.MedicineName ?? "",
+            Unit = d.Unit,
+            Quantity = d.Quantity,
+            Dosage = d.Dosage,
+            Usage = d.UsageInstructions
+        }).ToList();
+
+        var doctor = prescriptions.FirstOrDefault()?.DoctorId != null
+            ? await _context.Users.FindAsync(prescriptions.First().DoctorId)
+            : null;
+
+        var html = GetPrescription(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MainDiagnosis, medRecord.MainIcdCode,
+            date, 1, items, null,
+            doctor?.FullName, dept?.DepartmentName);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     #endregion
@@ -1791,9 +2054,31 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintNutritionSummaryAsync(Guid departmentId, DateTime date)
+    public async Task<byte[]> PrintNutritionSummaryAsync(Guid departmentId, DateTime date)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var dept = await _context.Departments.FindAsync(departmentId);
+        var deptName = dept?.DepartmentName ?? "";
+
+        // Count inpatients in department for nutrition summary
+        var patientCount = await _context.MedicalRecords
+            .CountAsync(m => m.DepartmentId == departmentId && m.TreatmentType == 2 && m.Status < 3);
+
+        var headers = new[] { "Bữa ăn", "Số suất", "Chế độ thường", "Chế độ kiêng", "Chế độ đặc biệt" };
+        var rows = new List<string[]>
+        {
+            new[] { "Sáng", patientCount.ToString(), patientCount.ToString(), "0", "0" },
+            new[] { "Trưa", patientCount.ToString(), patientCount.ToString(), "0", "0" },
+            new[] { "Chiều", patientCount.ToString(), patientCount.ToString(), "0", "0" },
+            new[] { "Phụ", "0", "0", "0", "0" }
+        };
+
+        var html = BuildTableReport(
+            "BẢNG TỔNG HỢP SUẤT ĂN",
+            $"Khoa: {Esc(deptName)} - Ngày: {date:dd/MM/yyyy}",
+            date,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     #endregion
@@ -1963,14 +2248,87 @@ public class InpatientCompleteService : IInpatientCompleteService
         };
     }
 
-    public Task<byte[]> PrintTreatmentSheetAsync(Guid id)
+    public async Task<byte[]> PrintTreatmentSheetAsync(Guid id)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var dp = await _context.DailyProgresses
+            .FirstOrDefaultAsync(d => d.Id == id);
+        if (dp == null) return Array.Empty<byte>();
+
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == dp.AdmissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+        var doctor = await _context.Users.FindAsync(dp.DoctorId);
+        var dayNumber = (int)(dp.ProgressDate - admission.AdmissionDate).TotalDays + 1;
+
+        var rows = new List<TreatmentSheetRow>
+        {
+            new TreatmentSheetRow
+            {
+                Date = dp.ProgressDate,
+                DayNumber = dayNumber,
+                Progress = dp.SubjectiveFindings,
+                Orders = dp.Plan,
+                DoctorName = doctor?.FullName
+            }
+        };
+
+        var html = GetTreatmentSheet(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            medRecord.MainDiagnosis, medRecord.MainIcdCode,
+            rows, doctor?.FullName);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintCombinedTreatmentSheetsAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
+    public async Task<byte[]> PrintCombinedTreatmentSheetsAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+
+        var dailyProgresses = await _context.DailyProgresses
+            .Where(dp => dp.AdmissionId == admissionId
+                && dp.ProgressDate >= fromDate && dp.ProgressDate <= toDate)
+            .OrderBy(dp => dp.ProgressDate)
+            .ToListAsync();
+
+        var rows = new List<TreatmentSheetRow>();
+        foreach (var dp in dailyProgresses)
+        {
+            var doctor = await _context.Users.FindAsync(dp.DoctorId);
+            var dayNumber = (int)(dp.ProgressDate - admission.AdmissionDate).TotalDays + 1;
+            rows.Add(new TreatmentSheetRow
+            {
+                Date = dp.ProgressDate,
+                DayNumber = dayNumber,
+                Progress = dp.SubjectiveFindings,
+                Orders = dp.Plan,
+                DoctorName = doctor?.FullName
+            });
+        }
+
+        var html = GetTreatmentSheet(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            medRecord.MainDiagnosis, medRecord.MainIcdCode,
+            rows, null);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<bool> DigitizeMedicalRecordCoverAsync(Guid admissionId, byte[] scannedImage, Guid userId)
@@ -1978,9 +2336,35 @@ public class InpatientCompleteService : IInpatientCompleteService
         return Task.FromResult(true);
     }
 
-    public Task<byte[]> PrintMedicalRecordCoverAsync(Guid admissionId)
+    public async Task<byte[]> PrintMedicalRecordCoverAsync(Guid admissionId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+        var doctor = await _context.Users.FindAsync(admission.AdmittingDoctorId);
+
+        var bodyContent = new StringBuilder();
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày vào viện:</span><span class=""field-value"">{admission.AdmissionDate:HH:mm dd/MM/yyyy}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Loại nhập viện:</span><span class=""field-value"">{GetAdmissionTypeName(admission.AdmissionType)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Chẩn đoán vào viện:</span><span class=""field-value"">{Esc(admission.DiagnosisOnAdmission)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Chẩn đoán chính:</span><span class=""field-value"">{Esc(medRecord.MainDiagnosis)} {(string.IsNullOrEmpty(medRecord.MainIcdCode) ? "" : $"({Esc(medRecord.MainIcdCode)})")}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Bác sĩ điều trị:</span><span class=""field-value"">{Esc(doctor?.FullName)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Trạng thái:</span><span class=""field-value"">{GetAdmissionStatusName(admission.Status)}</span></div>");
+
+        var html = GetGenericForm(
+            "BÌA HỒ SƠ BỆNH ÁN", "MS. 01/BV",
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            bodyContent.ToString(), doctor?.FullName);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<VitalSignsRecordDto> CreateVitalSignsAsync(CreateVitalSignsDto dto, Guid userId)
@@ -2042,9 +2426,44 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintVitalSignsAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
+    public async Task<byte[]> PrintVitalSignsAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+
+        // Query vital signs from Examinations related to this medical record within date range
+        var vitals = await _context.Examinations
+            .Where(e => e.MedicalRecordId == medRecord.Id
+                && e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+            .OrderBy(e => e.CreatedAt)
+            .ToListAsync();
+
+        var headers = new[] { "Thời gian", "Mạch", "Nhiệt độ", "HA", "Nhịp thở", "SpO2", "Cân nặng" };
+        var rows = vitals.Select(v => new[]
+        {
+            v.CreatedAt.ToString("dd/MM HH:mm"),
+            v.Pulse?.ToString() ?? "",
+            v.Temperature?.ToString("0.0") ?? "",
+            v.BloodPressureSystolic.HasValue ? $"{v.BloodPressureSystolic}/{v.BloodPressureDiastolic}" : "",
+            v.RespiratoryRate?.ToString() ?? "",
+            v.SpO2?.ToString() ?? "",
+            v.Weight?.ToString("0.0") ?? ""
+        }).ToList();
+
+        var html = BuildTableReport(
+            "BẢNG THEO DÕI CHỨC NĂNG SỐNG",
+            $"BN: {Esc(patient.FullName)} - Mã HS: {Esc(medRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)} - Từ {fromDate:dd/MM/yyyy} đến {toDate:dd/MM/yyyy}",
+            null,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<ConsultationDto> CreateConsultationAsync(CreateConsultationDto dto, Guid userId)
@@ -2107,9 +2526,32 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintConsultationAsync(Guid id)
+    public async Task<byte[]> PrintConsultationAsync(Guid id)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var record = await _context.ConsultationRecords
+            .Include(c => c.Examination).ThenInclude(e => e.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(c => c.Examination).ThenInclude(e => e.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(c => c.Id == id);
+        if (record == null) return Array.Empty<byte>();
+
+        var examination = record.Examination;
+        var medRecord = examination.MedicalRecord;
+        var patient = medRecord.Patient;
+        var dept = medRecord.Department;
+        var chairman = record.PresidedByUserId.HasValue
+            ? await _context.Users.FindAsync(record.PresidedByUserId.Value) : null;
+        var secretary = record.SecretaryUserId.HasValue
+            ? await _context.Users.FindAsync(record.SecretaryUserId.Value) : null;
+
+        var html = GetConsultationMinutes(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            record.ConsultationDate, record.Reason, record.Summary,
+            record.Conclusion, record.TreatmentPlan, record.Participants,
+            chairman?.FullName, secretary?.FullName);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<NursingCareSheetDto> CreateNursingCareSheetAsync(CreateNursingCareSheetDto dto, Guid userId)
@@ -2161,14 +2603,84 @@ public class InpatientCompleteService : IInpatientCompleteService
         return Task.FromResult(new List<NursingCareSheetDto>());
     }
 
-    public Task<byte[]> PrintNursingCareSheetAsync(Guid id)
+    public async Task<byte[]> PrintNursingCareSheetAsync(Guid id)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var sheet = await _context.NursingCareSheets
+            .Include(n => n.Examination).ThenInclude(e => e.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(n => n.Examination).ThenInclude(e => e.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(n => n.Id == id);
+        if (sheet == null) return Array.Empty<byte>();
+
+        var examination = sheet.Examination;
+        var medRecord = examination.MedicalRecord;
+        var patient = medRecord.Patient;
+        var dept = medRecord.Department;
+        var nurse = sheet.NurseId.HasValue ? await _context.Users.FindAsync(sheet.NurseId.Value) : null;
+
+        var rows = new List<NursingCareRow>
+        {
+            new NursingCareRow
+            {
+                Date = sheet.CareDate,
+                Shift = 0,
+                PatientCondition = sheet.Notes,
+                NursingDiagnosis = sheet.NursingDiagnosis,
+                Interventions = sheet.NursingInterventions,
+                PatientResponse = sheet.PatientResponse,
+                NurseName = nurse?.FullName
+            }
+        };
+
+        var html = GetNursingCareSheet(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            medRecord.MainDiagnosis, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintCombinedNursingCareSheetsAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
+    public async Task<byte[]> PrintCombinedNursingCareSheetsAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+
+        var sheets = await _context.NursingCareSheets
+            .Where(n => n.Examination.MedicalRecordId == medRecord.Id
+                && n.CareDate >= fromDate && n.CareDate <= toDate)
+            .OrderBy(n => n.CareDate).ThenBy(n => n.CareTime)
+            .ToListAsync();
+
+        var rows = new List<NursingCareRow>();
+        foreach (var sheet in sheets)
+        {
+            var nurse = sheet.NurseId.HasValue ? await _context.Users.FindAsync(sheet.NurseId.Value) : null;
+            rows.Add(new NursingCareRow
+            {
+                Date = sheet.CareDate,
+                Shift = 0,
+                PatientCondition = sheet.Notes,
+                NursingDiagnosis = sheet.NursingDiagnosis,
+                Interventions = sheet.NursingInterventions,
+                PatientResponse = sheet.PatientResponse,
+                NurseName = nurse?.FullName
+            });
+        }
+
+        var html = GetNursingCareSheet(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            medRecord.MainDiagnosis, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<InfusionRecordDto> CreateInfusionRecordAsync(CreateInfusionRecordDto dto, Guid userId)
@@ -2223,9 +2735,24 @@ public class InpatientCompleteService : IInpatientCompleteService
         return Task.FromResult(new List<InfusionRecordDto>());
     }
 
-    public Task<byte[]> PrintInfusionRecordAsync(Guid id)
+    public async Task<byte[]> PrintInfusionRecordAsync(Guid id)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        // Infusion records are in-memory DTOs; build a generic form from the id
+        // In a full implementation this would query an InfusionRecords table
+        var bodyContent = new StringBuilder();
+        bodyContent.AppendLine($@"<div class=""section-title"">THÔNG TIN TRUYỀN DỊCH</div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Mã phiếu:</span><span class=""field-value"">{id}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày in:</span><span class=""field-value"">{DateTime.Now:dd/MM/yyyy HH:mm}</span></div>");
+        bodyContent.AppendLine($@"<p class=""text-italic"">Chi tiết truyền dịch sẽ được cập nhật khi có bảng InfusionRecords trong DB.</p>");
+
+        var body = new StringBuilder();
+        body.AppendLine(GetHospitalHeader());
+        body.AppendLine(@"<div class=""form-title"">PHIẾU THEO DÕI TRUYỀN DỊCH</div>");
+        body.AppendLine(bodyContent.ToString());
+        body.AppendLine(GetSignatureBlock());
+
+        var html = WrapHtmlPage("Phiếu theo dõi truyền dịch", body.ToString());
+        return await Task.FromResult(Encoding.UTF8.GetBytes(html));
     }
 
     public Task<BloodTransfusionDto> CreateBloodTransfusionAsync(CreateBloodTransfusionDto dto, Guid userId)
@@ -2287,9 +2814,23 @@ public class InpatientCompleteService : IInpatientCompleteService
         return Task.FromResult(new List<BloodTransfusionDto>());
     }
 
-    public Task<byte[]> PrintBloodTransfusionAsync(Guid id)
+    public async Task<byte[]> PrintBloodTransfusionAsync(Guid id)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        // Blood transfusion records are in-memory DTOs; build generic form
+        var bodyContent = new StringBuilder();
+        bodyContent.AppendLine($@"<div class=""section-title"">THÔNG TIN TRUYỀN MÁU</div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Mã phiếu:</span><span class=""field-value"">{id}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày in:</span><span class=""field-value"">{DateTime.Now:dd/MM/yyyy HH:mm}</span></div>");
+        bodyContent.AppendLine($@"<p class=""text-italic"">Chi tiết truyền máu sẽ được cập nhật khi có bảng BloodTransfusions trong DB.</p>");
+
+        var body = new StringBuilder();
+        body.AppendLine(GetHospitalHeader());
+        body.AppendLine(@"<div class=""form-title"">PHIẾU THEO DÕI TRUYỀN MÁU</div>");
+        body.AppendLine(bodyContent.ToString());
+        body.AppendLine(GetSignatureBlock());
+
+        var html = WrapHtmlPage("Phiếu theo dõi truyền máu", body.ToString());
+        return await Task.FromResult(Encoding.UTF8.GetBytes(html));
     }
 
     public Task<DrugReactionRecordDto> CreateDrugReactionRecordAsync(Guid admissionId, Guid? medicineId, string medicineName, int severity, string symptoms, string? treatment, Guid userId)
@@ -2313,9 +2854,23 @@ public class InpatientCompleteService : IInpatientCompleteService
         return Task.FromResult(new List<DrugReactionRecordDto>());
     }
 
-    public Task<byte[]> PrintDrugReactionRecordAsync(Guid id)
+    public async Task<byte[]> PrintDrugReactionRecordAsync(Guid id)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        // Drug reaction records are in-memory DTOs; build generic form
+        var bodyContent = new StringBuilder();
+        bodyContent.AppendLine($@"<div class=""section-title"">BÁO CÁO PHẢN ỨNG THUỐC</div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Mã báo cáo:</span><span class=""field-value"">{id}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày in:</span><span class=""field-value"">{DateTime.Now:dd/MM/yyyy HH:mm}</span></div>");
+        bodyContent.AppendLine($@"<p class=""text-italic"">Chi tiết phản ứng thuốc sẽ được cập nhật khi có bảng DrugReactions trong DB.</p>");
+
+        var body = new StringBuilder();
+        body.AppendLine(GetHospitalHeader());
+        body.AppendLine(@"<div class=""form-title"">BÁO CÁO PHẢN ỨNG THUỐC BẤT LỢI (ADR)</div>");
+        body.AppendLine(bodyContent.ToString());
+        body.AppendLine(GetSignatureBlock());
+
+        var html = WrapHtmlPage("Báo cáo phản ứng thuốc bất lợi", body.ToString());
+        return await Task.FromResult(Encoding.UTF8.GetBytes(html));
     }
 
     public Task<InjuryRecordDto> CreateInjuryRecordAsync(Guid admissionId, InjuryRecordDto dto, Guid userId)
@@ -2488,24 +3043,158 @@ public class InpatientCompleteService : IInpatientCompleteService
         return true;
     }
 
-    public Task<byte[]> PrintDischargeCertificateAsync(Guid admissionId)
+    public async Task<byte[]> PrintDischargeCertificateAsync(Guid admissionId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+        var doctor = await _context.Users.FindAsync(admission.AdmittingDoctorId);
+
+        var discharge = await _context.Set<Discharge>()
+            .FirstOrDefaultAsync(d => d.AdmissionId == admissionId);
+
+        var html = GetDischargeLetter(
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            admission.AdmissionDate, discharge?.DischargeDate ?? DateTime.Now,
+            admission.DiagnosisOnAdmission, discharge?.DischargeDiagnosis ?? medRecord.MainDiagnosis,
+            discharge?.DischargeCondition.ToString(), discharge?.DischargeType ?? 1,
+            discharge?.DischargeInstructions, discharge?.FollowUpDate,
+            doctor?.FullName, null);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintReferralCertificateAsync(Guid admissionId, ReferralCertificateDto data)
+    public async Task<byte[]> PrintReferralCertificateAsync(Guid admissionId, ReferralCertificateDto data)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+
+        var bodyContent = new StringBuilder();
+        bodyContent.AppendLine($@"<div class=""section-title"">I. CƠ SỞ CHUYỂN ĐI</div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Tên cơ sở:</span><span class=""field-value"">{Esc(data.FromHospitalName)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Mã cơ sở:</span><span class=""field-value"">{Esc(data.FromHospitalCode)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""section-title"">II. CƠ SỞ NHẬN</div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Tên cơ sở:</span><span class=""field-value"">{Esc(data.ToHospitalName)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Mã cơ sở:</span><span class=""field-value"">{Esc(data.ToHospitalCode)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""section-title"">III. THÔNG TIN CHUYỂN TUYẾN</div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Lý do chuyển:</span><span class=""field-value"">{Esc(data.TransferReason)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Chẩn đoán:</span><span class=""field-value"">{Esc(data.Diagnosis)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Tóm tắt điều trị:</span><span class=""field-value"">{Esc(data.TreatmentSummary)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Tình trạng hiện tại:</span><span class=""field-value"">{Esc(data.CurrentCondition)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Yêu cầu dịch vụ:</span><span class=""field-value"">{Esc(data.RequestedServices)}</span></div>");
+        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày chuyển:</span><span class=""field-value"">{data.TransferDate:dd/MM/yyyy}</span></div>");
+
+        var html = GetGenericForm(
+            "GIẤY CHUYỂN TUYẾN", "Theo TT 14/2014/TT-BYT",
+            patient.PatientCode, patient.FullName, patient.Gender, patient.DateOfBirth,
+            patient.Address, patient.PhoneNumber, medRecord.InsuranceNumber,
+            medRecord.MedicalRecordCode, dept?.DepartmentName,
+            bodyContent.ToString(), data.DoctorName);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintServiceDisclosureAsync(Guid admissionId)
+    public async Task<byte[]> PrintServiceDisclosureAsync(Guid admissionId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+
+        var details = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted)
+            .OrderBy(d => d.ServiceRequest.RequestDate)
+            .ToListAsync();
+
+        var headers = new[] { "Ngày", "Tên dịch vụ", "ĐVT", "SL", "Đơn giá", "Thành tiền", "Nguồn" };
+        var rows = details.Select(d =>
+        {
+            var source = d.PatientType switch { 1 => "BHYT", 2 => "Viện phí", _ => "Khác" };
+            return new[]
+            {
+                d.ServiceRequest.RequestDate.ToString("dd/MM/yyyy"),
+                d.Service?.ServiceName ?? "",
+                d.Service?.Unit ?? "",
+                d.Quantity.ToString("#,##0"),
+                d.UnitPrice.ToString("#,##0"),
+                d.Amount.ToString("#,##0"),
+                source
+            };
+        }).ToList();
+
+        var html = BuildTableReport(
+            "BẢNG CÔNG KHAI DỊCH VỤ",
+            $"BN: {Esc(patient.FullName)} - Mã BN: {Esc(patient.PatientCode)} - Mã HS: {Esc(medRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)}",
+            null,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintMedicineDisclosureAsync(Guid admissionId)
+    public async Task<byte[]> PrintMedicineDisclosureAsync(Guid admissionId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+
+        var prescriptionDetails = await _context.PrescriptionDetails
+            .Include(d => d.Medicine)
+            .Include(d => d.Prescription)
+            .Where(d => d.Prescription.MedicalRecordId == medRecord.Id && d.Prescription.PrescriptionType == 2)
+            .OrderBy(d => d.Prescription.PrescriptionDate)
+            .ToListAsync();
+
+        var headers = new[] { "Ngày", "Tên thuốc", "ĐVT", "SL", "Đơn giá", "Thành tiền", "Nguồn" };
+        var rows = prescriptionDetails.Select(d =>
+        {
+            var source = d.PatientType switch { 1 => "BHYT", 2 => "Viện phí", _ => "Khác" };
+            return new[]
+            {
+                d.Prescription.PrescriptionDate.ToString("dd/MM/yyyy"),
+                d.Medicine?.MedicineName ?? "",
+                d.Unit ?? "",
+                d.Quantity.ToString("#,##0"),
+                d.UnitPrice.ToString("#,##0"),
+                d.Amount.ToString("#,##0"),
+                source
+            };
+        }).ToList();
+
+        var html = BuildTableReport(
+            "BẢNG CÔNG KHAI THUỐC",
+            $"BN: {Esc(patient.FullName)} - Mã BN: {Esc(patient.PatientCode)} - Mã HS: {Esc(medRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)}",
+            null,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<BillingStatement6556Dto> GetBillingStatement6556Async(Guid admissionId)
@@ -2519,19 +3208,164 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintBillingStatement6556Async(Guid admissionId)
+    public async Task<byte[]> PrintBillingStatement6556Async(Guid admissionId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+        var discharge = await _context.Set<Discharge>()
+            .FirstOrDefaultAsync(d => d.AdmissionId == admissionId);
+        var daysOfStay = discharge != null
+            ? (discharge.DischargeDate - admission.AdmissionDate).Days
+            : (DateTime.Now - admission.AdmissionDate).Days;
+
+        // Gather services
+        var serviceDetails = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted)
+            .ToListAsync();
+
+        // Gather medicines
+        var rxDetails = await _context.PrescriptionDetails
+            .Include(d => d.Medicine)
+            .Include(d => d.Prescription)
+            .Where(d => d.Prescription.MedicalRecordId == medRecord.Id && d.Prescription.PrescriptionType == 2)
+            .ToListAsync();
+
+        var headers = new[] { "Nội dung", "ĐVT", "SL", "Đơn giá BHYT", "Thành tiền", "Tỷ lệ TT(%)", "Nguồn" };
+        var rows = new List<string[]>();
+
+        foreach (var d in serviceDetails)
+        {
+            rows.Add(new[]
+            {
+                d.Service?.ServiceName ?? "",
+                d.Service?.Unit ?? "",
+                d.Quantity.ToString("#,##0"),
+                d.UnitPrice.ToString("#,##0"),
+                d.Amount.ToString("#,##0"),
+                "100",
+                d.PatientType == 1 ? "BHYT" : "VP"
+            });
+        }
+        foreach (var d in rxDetails)
+        {
+            rows.Add(new[]
+            {
+                d.Medicine?.MedicineName ?? "",
+                d.Unit ?? "",
+                d.Quantity.ToString("#,##0"),
+                d.UnitPrice.ToString("#,##0"),
+                d.Amount.ToString("#,##0"),
+                "100",
+                d.PatientType == 1 ? "BHYT" : "VP"
+            });
+        }
+
+        var html = BuildTableReport(
+            "BẢNG KÊ CHI PHÍ KHÁM CHỮA BỆNH",
+            $"(Mẫu 6556 - TT 09/2024/TT-BYT) | BN: {Esc(patient.FullName)} - {Esc(patient.PatientCode)} | HS: {Esc(medRecord.MedicalRecordCode)} | Khoa: {Esc(dept?.DepartmentName)} | Vào: {admission.AdmissionDate:dd/MM/yyyy} | Ra: {discharge?.DischargeDate.ToString("dd/MM/yyyy") ?? "---"} | Số ngày: {daysOfStay}",
+            null,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintBillingStatement6556ByPatientTypeAsync(Guid admissionId, int patientType)
+    public async Task<byte[]> PrintBillingStatement6556ByPatientTypeAsync(Guid admissionId, int patientType)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = medRecord.Department;
+        var typeName = patientType switch { 1 => "BHYT", 2 => "Viện phí", 3 => "Bên thứ 3", _ => "Khác" };
+
+        var serviceDetails = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted && d.PatientType == patientType)
+            .ToListAsync();
+
+        var rxDetails = await _context.PrescriptionDetails
+            .Include(d => d.Medicine)
+            .Include(d => d.Prescription)
+            .Where(d => d.Prescription.MedicalRecordId == medRecord.Id && d.Prescription.PrescriptionType == 2 && d.PatientType == patientType)
+            .ToListAsync();
+
+        var headers = new[] { "Nội dung", "ĐVT", "SL", "Đơn giá", "Thành tiền" };
+        var rows = new List<string[]>();
+        foreach (var d in serviceDetails)
+        {
+            rows.Add(new[] { d.Service?.ServiceName ?? "", d.Service?.Unit ?? "", d.Quantity.ToString("#,##0"), d.UnitPrice.ToString("#,##0"), d.Amount.ToString("#,##0") });
+        }
+        foreach (var d in rxDetails)
+        {
+            rows.Add(new[] { d.Medicine?.MedicineName ?? "", d.Unit ?? "", d.Quantity.ToString("#,##0"), d.UnitPrice.ToString("#,##0"), d.Amount.ToString("#,##0") });
+        }
+
+        var html = BuildTableReport(
+            $"BẢNG KÊ CHI PHÍ - {typeName}",
+            $"BN: {Esc(patient.FullName)} - Mã HS: {Esc(medRecord.MedicalRecordCode)} - Khoa: {Esc(dept?.DepartmentName)}",
+            null, headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<byte[]> PrintBillingStatement6556ByDepartmentAsync(Guid admissionId, Guid departmentId)
+    public async Task<byte[]> PrintBillingStatement6556ByDepartmentAsync(Guid admissionId, Guid departmentId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return Array.Empty<byte>();
+
+        var patient = admission.Patient;
+        var medRecord = admission.MedicalRecord;
+        var dept = await _context.Departments.FindAsync(departmentId);
+
+        var serviceDetails = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == medRecord.Id && !d.IsDeleted
+                && d.ServiceRequest.DepartmentId == departmentId)
+            .ToListAsync();
+
+        var rxDetails = await _context.PrescriptionDetails
+            .Include(d => d.Medicine)
+            .Include(d => d.Prescription)
+            .Where(d => d.Prescription.MedicalRecordId == medRecord.Id
+                && d.Prescription.PrescriptionType == 2
+                && d.Prescription.DepartmentId == departmentId)
+            .ToListAsync();
+
+        var headers = new[] { "Nội dung", "ĐVT", "SL", "Đơn giá", "Thành tiền", "Nguồn" };
+        var rows = new List<string[]>();
+        foreach (var d in serviceDetails)
+        {
+            rows.Add(new[] { d.Service?.ServiceName ?? "", d.Service?.Unit ?? "", d.Quantity.ToString("#,##0"), d.UnitPrice.ToString("#,##0"), d.Amount.ToString("#,##0"), d.PatientType == 1 ? "BHYT" : "VP" });
+        }
+        foreach (var d in rxDetails)
+        {
+            rows.Add(new[] { d.Medicine?.MedicineName ?? "", d.Unit ?? "", d.Quantity.ToString("#,##0"), d.UnitPrice.ToString("#,##0"), d.Amount.ToString("#,##0"), d.PatientType == 1 ? "BHYT" : "VP" });
+        }
+
+        var html = BuildTableReport(
+            $"BẢNG KÊ CHI PHÍ THEO KHOA",
+            $"BN: {Esc(patient.FullName)} - Khoa: {Esc(dept?.DepartmentName)} - Mã HS: {Esc(medRecord.MedicalRecordCode)}",
+            null, headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     #endregion
@@ -2566,9 +3400,48 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintRegister4069Async(DateTime fromDate, DateTime toDate, Guid? departmentId)
+    public async Task<byte[]> PrintRegister4069Async(DateTime fromDate, DateTime toDate, Guid? departmentId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var query = _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .Include(a => a.MedicalRecord)
+            .Where(a => a.AdmissionDate >= fromDate && a.AdmissionDate <= toDate);
+
+        if (departmentId.HasValue)
+            query = query.Where(a => a.DepartmentId == departmentId.Value);
+
+        var admissions = await query.OrderBy(a => a.AdmissionDate).ToListAsync();
+        var dept = departmentId.HasValue ? await _context.Departments.FindAsync(departmentId.Value) : null;
+
+        var headers = new[] { "Mã BN", "Họ tên", "Giới", "Năm sinh", "Địa chỉ", "Ngày vào", "Chẩn đoán", "Ngày ra", "Kết quả" };
+        var rows = admissions.Select(a =>
+        {
+            var discharge = _context.Set<Discharge>().FirstOrDefault(d => d.AdmissionId == a.Id);
+            var result = discharge?.DischargeType switch
+            {
+                1 => "Ra viện", 2 => "Chuyển viện", 3 => "Bỏ về", 4 => "Tử vong", _ => "Đang ĐT"
+            };
+            return new[]
+            {
+                a.Patient?.PatientCode ?? "",
+                a.Patient?.FullName ?? "",
+                a.Patient?.Gender == 1 ? "Nam" : "Nữ",
+                a.Patient?.DateOfBirth?.ToString("yyyy") ?? a.Patient?.YearOfBirth?.ToString() ?? "",
+                a.Patient?.Address ?? "",
+                a.AdmissionDate.ToString("dd/MM/yyyy"),
+                a.DiagnosisOnAdmission ?? "",
+                discharge?.DischargeDate.ToString("dd/MM/yyyy") ?? "",
+                result
+            };
+        }).ToList();
+
+        var html = BuildTableReport(
+            "SỔ ĐĂNG KÝ ĐIỀU TRỊ NỘI TRÚ",
+            $"(Mẫu 4069) {(dept != null ? $"- Khoa: {Esc(dept.DepartmentName)}" : "")} - Từ {fromDate:dd/MM/yyyy} đến {toDate:dd/MM/yyyy}",
+            null,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<MedicineSupplyUsageReportDto> GetMedicineSupplyUsageReportAsync(ReportSearchDto searchDto)
@@ -2581,9 +3454,48 @@ public class InpatientCompleteService : IInpatientCompleteService
         });
     }
 
-    public Task<byte[]> PrintMedicineSupplyUsageReportAsync(ReportSearchDto searchDto)
+    public async Task<byte[]> PrintMedicineSupplyUsageReportAsync(ReportSearchDto searchDto)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        var query = _context.PrescriptionDetails
+            .Include(d => d.Medicine)
+            .Include(d => d.Prescription)
+            .Where(d => d.Prescription.PrescriptionType == 2
+                && d.Prescription.PrescriptionDate >= searchDto.FromDate
+                && d.Prescription.PrescriptionDate <= searchDto.ToDate);
+
+        if (searchDto.DepartmentId.HasValue)
+            query = query.Where(d => d.Prescription.DepartmentId == searchDto.DepartmentId.Value);
+
+        var details = await query.ToListAsync();
+        var dept = searchDto.DepartmentId.HasValue
+            ? await _context.Departments.FindAsync(searchDto.DepartmentId.Value) : null;
+
+        // Aggregate by medicine
+        var grouped = details
+            .GroupBy(d => new { d.MedicineId, Name = d.Medicine?.MedicineName ?? "", Unit = d.Medicine?.Unit ?? "" })
+            .Select(g => new
+            {
+                g.Key.Name,
+                g.Key.Unit,
+                Quantity = g.Sum(x => x.Quantity),
+                Amount = g.Sum(x => x.Amount)
+            })
+            .OrderByDescending(x => x.Amount)
+            .ToList();
+
+        var headers = new[] { "Tên thuốc/VTYT", "ĐVT", "Tổng SL", "Thành tiền" };
+        var rows = grouped.Select(g => new[]
+        {
+            g.Name, g.Unit, g.Quantity.ToString("#,##0"), g.Amount.ToString("#,##0")
+        }).ToList();
+
+        var html = BuildTableReport(
+            "BÁO CÁO SỬ DỤNG THUỐC / VẬT TƯ",
+            $"{(dept != null ? $"Khoa: {Esc(dept.DepartmentName)} - " : "")}Từ {searchDto.FromDate:dd/MM/yyyy} đến {searchDto.ToDate:dd/MM/yyyy}",
+            null,
+            headers, rows);
+
+        return Encoding.UTF8.GetBytes(html);
     }
 
     #endregion

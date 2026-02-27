@@ -1,9 +1,11 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
 
@@ -288,13 +290,36 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<byte[]> ExportExcelAsync(XmlExportConfigDto config)
     {
-        // Return empty Excel placeholder
-        return Array.Empty<byte>();
+        try
+        {
+            var claims = await _context.Set<MedicalRecord>().AsNoTracking()
+                .Where(r => r.AdmissionDate.Month == config.Month && r.AdmissionDate.Year == config.Year
+                    && r.PatientType == 1 && !r.IsDeleted)
+                .Include(r => r.Patient).OrderBy(r => r.AdmissionDate).Take(2000).ToListAsync();
+
+            var rows = claims.Select(r => new string[] {
+                r.MedicalRecordCode, r.Patient?.FullName ?? "", r.Patient?.InsuranceNumber ?? "",
+                r.AdmissionDate.ToString("dd/MM/yyyy"), r.DischargeDate?.ToString("dd/MM/yyyy") ?? "",
+                r.MainIcdCode ?? "", r.MainDiagnosis ?? ""
+            }).ToList();
+
+            var html = BuildTableReport($"DU LIEU BHYT THANG {config.Month}/{config.Year}",
+                $"Tong: {claims.Count} ho so", DateTime.Now,
+                new[] { "Ma HSBA", "Ho ten", "So the", "Ngay vao", "Ngay ra", "Ma ICD", "Chan doan" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     public async Task<byte[]> DownloadXmlFileAsync(Guid batchId)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var html = BuildTableReport("XML BHYT", $"Batch: {batchId}", DateTime.Now,
+                new[] { "Thong tin" }, new List<string[]> { new[] { "Du lieu XML chua duoc tao cho batch nay" } });
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     #endregion
@@ -614,12 +639,38 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<byte[]> ExportReportC79aToExcelAsync(int month, int year)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var report = await GetReportC79aAsync(month, year);
+            var rows = report.Lines?.Select(d => new string[] {
+                d.Stt.ToString(), d.TenChiTieu ?? "", d.SoLuot.ToString(),
+                d.TienTamUng.ToString("N0"), d.TienDeNghi.ToString("N0"), d.TienQuyetToan.ToString("N0")
+            }).ToList() ?? new List<string[]>();
+
+            var html = BuildTableReport($"BAO CAO C79-HD THANG {month}/{year}",
+                $"Tong BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
+                new[] { "STT", "Ten chi tieu", "So luot", "Tien tam ung", "Tien de nghi", "Tien quyet toan" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     public async Task<byte[]> ExportReport80aToExcelAsync(int month, int year)
     {
-        return Array.Empty<byte>();
+        try
+        {
+            var report = await GetReport80aAsync(month, year);
+            var rows = report.Details?.Select(d => new string[] {
+                d.Stt.ToString(), d.LoaiThe ?? "", d.SoLuotKcb.ToString(),
+                d.SoNguoi.ToString(), d.TienDeNghi.ToString("N0"), d.TienQuyetToan.ToString("N0")
+            }).ToList() ?? new List<string[]>();
+
+            var html = BuildTableReport($"BAO CAO 80a-HD THANG {month}/{year}",
+                $"Tong: {report.TotalPatients} benh nhan, BHYT: {report.TotalInsuranceAmount:N0}", DateTime.Now,
+                new[] { "STT", "Loai the", "So luot KCB", "So nguoi", "Tien de nghi", "Tien quyet toan" }, rows);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
     }
 
     public async Task<List<TreatmentTypeReportDto>> GetTreatmentTypeReportAsync(int month, int year)

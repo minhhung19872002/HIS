@@ -114,3 +114,69 @@ public class Examination : BaseEntity
 
     public int Status { get; set; } // 0-Chờ khám, 1-Đang khám, 2-Chờ CLS, 3-Chờ kết luận, 4-Hoàn thành
 }
+
+/// <summary>
+/// Lưu trữ hồ sơ bệnh án - Medical Record Archive
+/// </summary>
+public class MedicalRecordArchive : BaseEntity
+{
+    public string ArchiveCode { get; set; } = string.Empty; // Mã lưu trữ
+    public Guid MedicalRecordId { get; set; }
+    public virtual MedicalRecord MedicalRecord { get; set; } = null!;
+
+    public Guid PatientId { get; set; }
+    public virtual Patient Patient { get; set; } = null!;
+
+    public Guid? DepartmentId { get; set; }
+    public virtual Department? Department { get; set; }
+
+    public string? Diagnosis { get; set; }
+    public string? TreatmentResult { get; set; }
+    public DateTime? AdmissionDate { get; set; }
+    public DateTime? DischargeDate { get; set; }
+
+    // Vị trí lưu trữ
+    public string? StorageLocation { get; set; } // Kho lưu trữ
+    public string? ShelfNumber { get; set; } // Số kệ/giá
+    public string? BoxNumber { get; set; } // Số hộp/thùng
+
+    // Trạng thái: 0-Chờ lưu, 1-Đã lưu, 2-Đang mượn, 3-Đã hủy
+    public int Status { get; set; }
+    public DateTime? ArchivedDate { get; set; }
+    public Guid? ArchivedById { get; set; }
+    public virtual User? ArchivedBy { get; set; }
+
+    public int ArchiveYear { get; set; } // Năm lưu trữ
+
+    public virtual ICollection<MedicalRecordBorrowRequest> BorrowRequests { get; set; } = new List<MedicalRecordBorrowRequest>();
+}
+
+/// <summary>
+/// Mượn/trả hồ sơ bệnh án - Medical Record Borrow Request
+/// </summary>
+public class MedicalRecordBorrowRequest : BaseEntity
+{
+    public string RequestCode { get; set; } = string.Empty; // Mã phiếu mượn
+
+    public Guid MedicalRecordArchiveId { get; set; }
+    public virtual MedicalRecordArchive MedicalRecordArchive { get; set; } = null!;
+
+    public Guid RequestedById { get; set; }
+    public virtual User RequestedBy { get; set; } = null!;
+
+    public DateTime RequestDate { get; set; }
+    public string? Purpose { get; set; } // Mục đích mượn
+    public DateTime? ExpectedReturnDate { get; set; }
+
+    // Trạng thái: 0-Chờ duyệt, 1-Đã duyệt, 2-Từ chối, 3-Đang mượn, 4-Đã trả
+    public int Status { get; set; }
+
+    public Guid? ApprovedById { get; set; }
+    public virtual User? ApprovedBy { get; set; }
+    public DateTime? ApprovedDate { get; set; }
+    public string? RejectReason { get; set; }
+
+    public DateTime? BorrowedDate { get; set; }
+    public DateTime? ReturnedDate { get; set; }
+    public string? Note { get; set; }
+}

@@ -14,6 +14,8 @@ public class HISDbContext : DbContext
     // Quản lý bệnh nhân
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
+    public DbSet<MedicalRecordArchive> MedicalRecordArchives => Set<MedicalRecordArchive>();
+    public DbSet<MedicalRecordBorrowRequest> MedicalRecordBorrowRequests => Set<MedicalRecordBorrowRequest>();
     public DbSet<Examination> Examinations => Set<Examination>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentService> AppointmentServices => Set<AppointmentService>();
