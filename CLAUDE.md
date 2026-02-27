@@ -816,6 +816,32 @@ If a new service/controller is added, register it there or you get 500 errors.
 | Vite build | success (12.97s) | | | |
 | Backend build | 0 errors | | | |
 
+### DA HOAN THANH (Session 15 - 2026-02-27)
+
+**75. Level 6 Audit Logging System (NangCap Security)**
+
+**Backend (5 files moi, 3 files modified):**
+- `AuditLog` entity (Icd.cs): 9 Level 6 fields (UserId, Username, UserFullName, EntityType, EntityId, Details, Timestamp, Module, RequestPath, RequestMethod, ResponseStatusCode)
+- `AuditLogMiddleware.cs` (~230 lines): auto-log POST/PUT/DELETE, skip GET/health/swagger, 30+ route→module mapping, fire-and-forget pattern
+- `AuditLogService.cs` (~225 lines): paginated search (multi-filter), user activity timeline (30-day), IgnoreQueryFilters for audit completeness
+- `AuditController.cs`: 2 endpoints (`/api/audit/logs`, `/api/audit/user/{userId}`)
+- DTOs: AuditLogDto, AuditLogSearchDto, AuditLogPagedResult
+- DI registration trong DependencyInjection.cs
+- Pipeline: middleware after UseAuthorization() in Program.cs
+
+**Database:**
+- `scripts/create_audit_log_table.sql`: 9 new columns + 4 performance indexes (Timestamp, UserId+Timestamp, Module+Action, EntityType+EntityId)
+
+**Frontend (2 files):**
+- `frontend/src/api/audit.ts`: getAuditLogs (paginated), getUserActivity
+- `SystemAdmin.tsx`: new "Nhat ky he thong" tab - 5 filter controls (module, entityType, action, dateRange, keyword), color-coded action tags, HTTP method highlighting, pagination
+
+**Cypress: 72 tests** (`fhir-health-pdf.cy.ts`)
+- FHIR R4 API (9), Health Monitoring (9), EMR PDF (7), FHIR Resources (8), Audit Log API (1) + existing tests
+
+**76. Git Commit**
+- `56c575f` - Add Level 6 audit logging system with middleware, UI, and Cypress tests
+
 ---
 
 ### CAN LAM TIEP
@@ -845,6 +871,7 @@ If a new service/controller is added, register it there or you get 500 errors.
 - ~~Bao cao doi chieu Level 6~~ → DA XONG (Session 14) - 8 reconciliation reports
 - ~~Ke thua du lieu giua cac module~~ → DA XONG (Session 14) - Reception→OPD→Rx→Billing→Pharmacy→IPD
 - ~~10 mock pages → real API~~ → DA XONG (Session 14) - all 10 converted
+- ~~Audit logging Level 6~~ → DA XONG (Session 15) - middleware + UI + 72 Cypress tests
 - PDF generation + Digital signature cho bieu mau
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
 - Lien thong BHXH, DQGVN

@@ -147,7 +147,8 @@ const Finance: React.FC = () => {
       ]);
 
       // Map department revenue
-      const deptData: DepartmentRevenue[] = ((revenueByDeptRes as any).data || []).map((d: any) => ({
+      const deptData: DepartmentRevenue[] = ((revenueByDeptRes as any).data || []).map((d: any, idx: number) => ({
+        key: d.departmentId || `dept-${idx}`,
         department: d.departmentName || d.departmentCode,
         totalRevenue: d.totalRevenue || 0,
         insuranceRevenue: d.insuranceRevenue || 0,
@@ -686,7 +687,7 @@ const Finance: React.FC = () => {
                         <Table
                           columns={departmentColumns}
                           dataSource={departmentRevenue}
-                          rowKey="department"
+                          rowKey="key"
                           size="small"
                           loading={loading}
                           pagination={false}

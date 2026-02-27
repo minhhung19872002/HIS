@@ -355,8 +355,14 @@ public class ExaminationCompleteService : IExaminationCompleteService
         var patient = await _patientRepo.GetByIdAsync(patientId);
         if (patient == null) return false;
 
-        // TODO: Save photo to storage
-        patient.PhotoPath = $"/photos/{patientId}/{Guid.NewGuid()}.jpg";
+        // Save photo to local storage
+        var photoDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "photos", patientId.ToString());
+        Directory.CreateDirectory(photoDir);
+        var fileName = $"{Guid.NewGuid()}.jpg";
+        var filePath = Path.Combine(photoDir, fileName);
+        var photoBytes = Convert.FromBase64String(photoBase64);
+        await File.WriteAllBytesAsync(filePath, photoBytes);
+        patient.PhotoPath = $"/photos/{patientId}/{fileName}";
         await _patientRepo.UpdateAsync(patient);
         await _unitOfWork.SaveChangesAsync();
 

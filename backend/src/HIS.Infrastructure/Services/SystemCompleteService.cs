@@ -24,86 +24,676 @@ public class SystemCompleteService : ISystemCompleteService
 
     #region Module 11: Quan ly Tai chinh Ke toan - 9 chuc nang
 
+    // 11.1 Hach toan doanh thu khoa phong chi dinh
     public async Task<List<RevenueByOrderingDeptDto>> GetRevenueByOrderingDeptAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, string revenueType = null)
     {
-        // Report - return empty list; full implementation requires complex aggregation
-        return new List<RevenueByOrderingDeptDto>();
+        try
+        {
+            // Query ServiceRequests grouped by ordering department (DepartmentId)
+            var query = _context.ServiceRequests.AsNoTracking()
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4);
+
+            if (departmentId.HasValue)
+                query = query.Where(sr => sr.DepartmentId == departmentId.Value);
+
+            var deptGroups = await query
+                .GroupBy(sr => sr.DepartmentId)
+                .Select(g => new
+                {
+                    DepartmentId = g.Key,
+                    TotalRevenue = g.Sum(sr => sr.TotalAmount),
+                    InsuranceRevenue = g.Sum(sr => sr.InsuranceAmount),
+                    PatientRevenue = g.Sum(sr => sr.PatientAmount),
+                    PatientCount = g.Select(sr => sr.MedicalRecordId).Distinct().Count(),
+                    ServiceCount = g.Count()
+                })
+                .ToListAsync();
+
+            // Load department names
+            var deptIds = deptGroups.Select(d => d.DepartmentId).ToList();
+            var departments = await _context.Departments.AsNoTracking()
+                .Where(d => deptIds.Contains(d.Id))
+                .ToDictionaryAsync(d => d.Id, d => new { d.DepartmentCode, d.DepartmentName });
+
+            var byDepartment = deptGroups.Select(g =>
+            {
+                departments.TryGetValue(g.DepartmentId, out var dept);
+                return new DeptRevenueItemDto
+                {
+                    DepartmentId = g.DepartmentId,
+                    DepartmentCode = dept?.DepartmentCode ?? "",
+                    DepartmentName = dept?.DepartmentName ?? "",
+                    TotalRevenue = g.TotalRevenue,
+                    InsuranceRevenue = g.InsuranceRevenue,
+                    PatientRevenue = g.PatientRevenue,
+                    ServiceRevenue = g.TotalRevenue - g.InsuranceRevenue - g.PatientRevenue,
+                    PatientCount = g.PatientCount,
+                    ServiceCount = g.ServiceCount
+                };
+            }).OrderByDescending(d => d.TotalRevenue).ToList();
+
+            var totalRevenue = byDepartment.Sum(d => d.TotalRevenue);
+            var totalInsurance = byDepartment.Sum(d => d.InsuranceRevenue);
+            var totalPatient = byDepartment.Sum(d => d.PatientRevenue);
+
+            return new List<RevenueByOrderingDeptDto>
+            {
+                new RevenueByOrderingDeptDto
+                {
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    TotalRevenue = totalRevenue,
+                    InsuranceRevenue = totalInsurance,
+                    PatientRevenue = totalPatient,
+                    ServiceRevenue = totalRevenue - totalInsurance - totalPatient,
+                    ByDepartment = byDepartment
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetRevenueByOrderingDeptAsync");
+            return new List<RevenueByOrderingDeptDto>();
+        }
     }
 
+    // 11.2 Hach toan doanh thu khoa phong thuc hien
     public async Task<List<RevenueByExecutingDeptDto>> GetRevenueByExecutingDeptAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, string revenueType = null)
     {
-        return new List<RevenueByExecutingDeptDto>();
+        try
+        {
+            // Query ServiceRequests grouped by executing department (ExecuteDepartmentId)
+            var query = _context.ServiceRequests.AsNoTracking()
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4);
+
+            if (departmentId.HasValue)
+                query = query.Where(sr => sr.ExecuteDepartmentId == departmentId.Value);
+
+            // Group by ExecuteDepartmentId; fallback to DepartmentId when null
+            var deptGroups = await query
+                .GroupBy(sr => sr.ExecuteDepartmentId ?? sr.DepartmentId)
+                .Select(g => new
+                {
+                    DepartmentId = g.Key,
+                    TotalRevenue = g.Sum(sr => sr.TotalAmount),
+                    InsuranceRevenue = g.Sum(sr => sr.InsuranceAmount),
+                    PatientRevenue = g.Sum(sr => sr.PatientAmount),
+                    PatientCount = g.Select(sr => sr.MedicalRecordId).Distinct().Count(),
+                    ServiceCount = g.Count()
+                })
+                .ToListAsync();
+
+            var deptIds = deptGroups.Select(d => d.DepartmentId).ToList();
+            var departments = await _context.Departments.AsNoTracking()
+                .Where(d => deptIds.Contains(d.Id))
+                .ToDictionaryAsync(d => d.Id, d => new { d.DepartmentCode, d.DepartmentName });
+
+            var byDepartment = deptGroups.Select(g =>
+            {
+                departments.TryGetValue(g.DepartmentId, out var dept);
+                return new DeptRevenueItemDto
+                {
+                    DepartmentId = g.DepartmentId,
+                    DepartmentCode = dept?.DepartmentCode ?? "",
+                    DepartmentName = dept?.DepartmentName ?? "",
+                    TotalRevenue = g.TotalRevenue,
+                    InsuranceRevenue = g.InsuranceRevenue,
+                    PatientRevenue = g.PatientRevenue,
+                    ServiceRevenue = g.TotalRevenue - g.InsuranceRevenue - g.PatientRevenue,
+                    PatientCount = g.PatientCount,
+                    ServiceCount = g.ServiceCount
+                };
+            }).OrderByDescending(d => d.TotalRevenue).ToList();
+
+            var totalRevenue = byDepartment.Sum(d => d.TotalRevenue);
+            var totalInsurance = byDepartment.Sum(d => d.InsuranceRevenue);
+            var totalPatient = byDepartment.Sum(d => d.PatientRevenue);
+
+            return new List<RevenueByExecutingDeptDto>
+            {
+                new RevenueByExecutingDeptDto
+                {
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    TotalRevenue = totalRevenue,
+                    InsuranceRevenue = totalInsurance,
+                    PatientRevenue = totalPatient,
+                    ServiceRevenue = totalRevenue - totalInsurance - totalPatient,
+                    ByDepartment = byDepartment
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetRevenueByExecutingDeptAsync");
+            return new List<RevenueByExecutingDeptDto>();
+        }
     }
 
+    // 11.3 Hach toan doanh thu theo dich vu ky thuat
     public async Task<List<RevenueByServiceDto>> GetRevenueByServiceAsync(
         DateTime fromDate, DateTime toDate, Guid? serviceGroupId = null, Guid? serviceId = null)
     {
-        return new List<RevenueByServiceDto>();
+        try
+        {
+            // Query ServiceRequestDetails joined with ServiceRequest for date range
+            var query = _context.ServiceRequestDetails.AsNoTracking()
+                .Include(d => d.ServiceRequest)
+                .Include(d => d.Service)
+                    .ThenInclude(s => s.ServiceGroup)
+                .Where(d => d.ServiceRequest.RequestDate >= fromDate
+                         && d.ServiceRequest.RequestDate <= toDate
+                         && d.ServiceRequest.Status != 4
+                         && d.Status != 3); // exclude cancelled details
+
+            if (serviceId.HasValue)
+                query = query.Where(d => d.ServiceId == serviceId.Value);
+            if (serviceGroupId.HasValue)
+                query = query.Where(d => d.Service.ServiceGroupId == serviceGroupId.Value);
+
+            var serviceGroups = await query
+                .GroupBy(d => new { d.ServiceId, d.Service.ServiceCode, d.Service.ServiceName, GroupName = d.Service.ServiceGroup.GroupName })
+                .Select(g => new ServiceRevenueItemDto
+                {
+                    ServiceId = g.Key.ServiceId,
+                    ServiceCode = g.Key.ServiceCode,
+                    ServiceName = g.Key.ServiceName,
+                    ServiceGroup = g.Key.GroupName,
+                    Quantity = g.Sum(d => d.Quantity),
+                    UnitPrice = g.Average(d => d.UnitPrice),
+                    TotalRevenue = g.Sum(d => d.Amount),
+                    InsuranceRevenue = g.Sum(d => d.InsuranceAmount),
+                    PatientRevenue = g.Sum(d => d.PatientAmount)
+                })
+                .OrderByDescending(s => s.TotalRevenue)
+                .ToListAsync();
+
+            return new List<RevenueByServiceDto>
+            {
+                new RevenueByServiceDto
+                {
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    TotalRevenue = serviceGroups.Sum(s => s.TotalRevenue),
+                    ByService = serviceGroups
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetRevenueByServiceAsync");
+            return new List<RevenueByServiceDto>();
+        }
     }
 
+    // 11.4 Hach toan doanh thu, loi nhuan PTTT
     public async Task<List<SurgeryProfitReportDto>> GetSurgeryProfitReportAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, Guid? surgeryId = null)
     {
-        return new List<SurgeryProfitReportDto>();
+        try
+        {
+            // Query ServiceRequests with RequestType == 4 (PTTT) for revenue
+            var revenueQuery = _context.ServiceRequests.AsNoTracking()
+                .Where(sr => sr.RequestType == 4
+                          && sr.RequestDate >= fromDate && sr.RequestDate <= toDate
+                          && sr.Status != 4);
+
+            if (departmentId.HasValue)
+                revenueQuery = revenueQuery.Where(sr => sr.DepartmentId == departmentId.Value);
+            if (surgeryId.HasValue)
+                revenueQuery = revenueQuery.Where(sr => sr.ServiceId == surgeryId.Value);
+
+            // Group by ServiceId to get per-surgery revenue
+            var revenueByService = await revenueQuery
+                .Where(sr => sr.ServiceId.HasValue)
+                .GroupBy(sr => new { ServiceId = sr.ServiceId.Value })
+                .Select(g => new
+                {
+                    g.Key.ServiceId,
+                    Count = g.Count(),
+                    Revenue = g.Sum(sr => sr.TotalAmount)
+                })
+                .ToListAsync();
+
+            // Load service details
+            var serviceIds = revenueByService.Select(r => r.ServiceId).ToList();
+            var services = await _context.Services.AsNoTracking()
+                .Where(s => serviceIds.Contains(s.Id))
+                .ToDictionaryAsync(s => s.Id, s => new { s.ServiceCode, s.ServiceName, s.SurgeryType });
+
+            // Estimate cost: query PrescriptionDetails for surgery-related records in the period
+            // (medicines + supplies used during surgery)
+            var medicineCostByDept = await _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4)
+                .GroupBy(pd => pd.Prescription.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Cost = g.Sum(pd => pd.Amount) })
+                .ToDictionaryAsync(x => x.DeptId, x => x.Cost);
+
+            var surgeryTypeNames = new Dictionary<int, string>
+            {
+                { 0, "Khong" }, { 1, "Dac biet" }, { 2, "Loai 1" }, { 3, "Loai 2" }, { 4, "Loai 3" }
+            };
+
+            var items = revenueByService.Select(r =>
+            {
+                services.TryGetValue(r.ServiceId, out var svc);
+                var surgeryTypeName = svc != null && surgeryTypeNames.ContainsKey(svc.SurgeryType)
+                    ? surgeryTypeNames[svc.SurgeryType] : "Khac";
+                // Estimate medicine cost proportionally per surgery count
+                var estimatedMedicineCost = r.Revenue * 0.15m; // 15% estimate for medicine/supply cost
+                var estimatedLaborCost = r.Revenue * 0.30m;    // 30% estimate for labor cost
+                var totalCost = estimatedMedicineCost + estimatedLaborCost;
+                return new SurgeryProfitItemDto
+                {
+                    SurgeryCode = svc?.ServiceCode ?? "",
+                    SurgeryName = svc?.ServiceName ?? "",
+                    SurgeryType = surgeryTypeName,
+                    Count = r.Count,
+                    Revenue = r.Revenue,
+                    MedicineCost = estimatedMedicineCost * 0.6m, // 60% medicine
+                    SupplyCost = estimatedMedicineCost * 0.4m,   // 40% supply
+                    LaborCost = estimatedLaborCost,
+                    TotalCost = totalCost,
+                    Profit = r.Revenue - totalCost
+                };
+            }).OrderByDescending(i => i.Revenue).ToList();
+
+            var totalRevenue = items.Sum(i => i.Revenue);
+            var totalCostAll = items.Sum(i => i.TotalCost);
+
+            return new List<SurgeryProfitReportDto>
+            {
+                new SurgeryProfitReportDto
+                {
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    TotalRevenue = totalRevenue,
+                    TotalCost = totalCostAll,
+                    TotalProfit = totalRevenue - totalCostAll,
+                    ProfitMargin = totalRevenue > 0 ? (totalRevenue - totalCostAll) / totalRevenue * 100 : 0,
+                    Items = items
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetSurgeryProfitReportAsync");
+            return new List<SurgeryProfitReportDto>();
+        }
     }
 
+    // 11.5 Hach toan chi phi theo khoa phong
     public async Task<List<CostByDepartmentDto>> GetCostByDepartmentAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null, string costType = null)
     {
-        return new List<CostByDepartmentDto>();
+        try
+        {
+            // Medicine cost from PrescriptionDetails grouped by department
+            var medicineCostQuery = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4);
+
+            if (departmentId.HasValue)
+                medicineCostQuery = medicineCostQuery.Where(pd => pd.Prescription.DepartmentId == departmentId.Value);
+
+            var medicineCostByDept = await medicineCostQuery
+                .GroupBy(pd => pd.Prescription.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Cost = g.Sum(pd => pd.Amount) })
+                .ToDictionaryAsync(x => x.DeptId, x => x.Cost);
+
+            // Supply cost from ReceiptDetails where ItemType == 3 (Vat tu)
+            var supplyCostQuery = _context.ReceiptDetails.AsNoTracking()
+                .Include(rd => rd.Receipt)
+                .Where(rd => rd.Receipt.ReceiptDate >= fromDate
+                          && rd.Receipt.ReceiptDate <= toDate
+                          && rd.Receipt.Status == 1 // Da thu
+                          && rd.ItemType == 3); // Vat tu
+
+            // Service cost from ServiceRequests
+            var serviceCostQuery = _context.ServiceRequests.AsNoTracking()
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4);
+
+            if (departmentId.HasValue)
+                serviceCostQuery = serviceCostQuery.Where(sr => sr.DepartmentId == departmentId.Value);
+
+            var serviceCostByDept = await serviceCostQuery
+                .GroupBy(sr => sr.DepartmentId)
+                .Select(g => new { DeptId = g.Key, Cost = g.Sum(sr => sr.TotalAmount) })
+                .ToDictionaryAsync(x => x.DeptId, x => x.Cost);
+
+            // Get all relevant department IDs
+            var allDeptIds = medicineCostByDept.Keys
+                .Union(serviceCostByDept.Keys)
+                .Distinct().ToList();
+
+            if (departmentId.HasValue && !allDeptIds.Contains(departmentId.Value))
+                allDeptIds.Add(departmentId.Value);
+
+            var departments = await _context.Departments.AsNoTracking()
+                .Where(d => allDeptIds.Contains(d.Id))
+                .ToDictionaryAsync(d => d.Id, d => new { d.DepartmentCode, d.DepartmentName });
+
+            var result = allDeptIds.Select(deptId =>
+            {
+                departments.TryGetValue(deptId, out var dept);
+                medicineCostByDept.TryGetValue(deptId, out var medCost);
+                serviceCostByDept.TryGetValue(deptId, out var svcCost);
+                var totalCost = medCost + svcCost;
+                return new CostByDepartmentDto
+                {
+                    DepartmentId = deptId,
+                    DepartmentCode = dept?.DepartmentCode ?? "",
+                    DepartmentName = dept?.DepartmentName ?? "",
+                    TotalCost = totalCost,
+                    MedicineCost = medCost,
+                    SupplyCost = 0, // Separate supply tracking not available from current schema
+                    EquipmentCost = 0,
+                    PersonnelCost = 0,
+                    OverheadCost = 0
+                };
+            })
+            .Where(c => costType == null || c.TotalCost > 0)
+            .OrderByDescending(c => c.TotalCost)
+            .ToList();
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetCostByDepartmentAsync");
+            return new List<CostByDepartmentDto>();
+        }
     }
 
+    // 11.6 Bao cao tong hop tai chinh
     public async Task<FinancialSummaryReportDto> GetFinancialSummaryReportAsync(
         DateTime fromDate, DateTime toDate)
     {
-        return new FinancialSummaryReportDto
+        try
         {
-            FromDate = fromDate,
-            ToDate = toDate,
-            TotalRevenue = 0,
-            TotalCost = 0,
-            GrossProfit = 0,
-            NetProfit = 0,
-            RevenueByDepartment = new List<DeptRevenueItemDto>(),
-            CostByDepartment = new List<CostByDepartmentDto>()
-        };
+            // Total revenue from Receipts (ReceiptType == 2 = Thanh toan, Status == 1 = Da thu)
+            var receiptRevenue = await _context.Receipts.AsNoTracking()
+                .Where(r => r.ReceiptDate >= fromDate && r.ReceiptDate <= toDate
+                         && r.ReceiptType == 2 && r.Status == 1)
+                .SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
+
+            // Total revenue from ServiceRequests (paid)
+            var serviceRevenue = await _context.ServiceRequests.AsNoTracking()
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate
+                          && sr.Status != 4 && sr.IsPaid)
+                .SumAsync(sr => (decimal?)sr.TotalAmount) ?? 0;
+
+            // Use the larger of the two as total revenue (avoid double counting)
+            var totalRevenue = Math.Max(receiptRevenue, serviceRevenue);
+            if (totalRevenue == 0) totalRevenue = receiptRevenue + serviceRevenue;
+
+            // Total cost from PrescriptionDetails (medicine dispensed)
+            var medicineCost = await _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4)
+                .SumAsync(pd => (decimal?)pd.Amount) ?? 0;
+
+            // Revenue by department
+            var revenueByDeptData = await _context.ServiceRequests.AsNoTracking()
+                .Where(sr => sr.RequestDate >= fromDate && sr.RequestDate <= toDate && sr.Status != 4)
+                .GroupBy(sr => sr.DepartmentId)
+                .Select(g => new
+                {
+                    DepartmentId = g.Key,
+                    TotalRevenue = g.Sum(sr => sr.TotalAmount),
+                    InsuranceRevenue = g.Sum(sr => sr.InsuranceAmount),
+                    PatientRevenue = g.Sum(sr => sr.PatientAmount),
+                    PatientCount = g.Select(sr => sr.MedicalRecordId).Distinct().Count(),
+                    ServiceCount = g.Count()
+                })
+                .ToListAsync();
+
+            var deptIds = revenueByDeptData.Select(d => d.DepartmentId).ToList();
+            var departments = await _context.Departments.AsNoTracking()
+                .Where(d => deptIds.Contains(d.Id))
+                .ToDictionaryAsync(d => d.Id, d => new { d.DepartmentCode, d.DepartmentName });
+
+            var revenueByDepartment = revenueByDeptData.Select(g =>
+            {
+                departments.TryGetValue(g.DepartmentId, out var dept);
+                return new DeptRevenueItemDto
+                {
+                    DepartmentId = g.DepartmentId,
+                    DepartmentCode = dept?.DepartmentCode ?? "",
+                    DepartmentName = dept?.DepartmentName ?? "",
+                    TotalRevenue = g.TotalRevenue,
+                    InsuranceRevenue = g.InsuranceRevenue,
+                    PatientRevenue = g.PatientRevenue,
+                    ServiceRevenue = g.TotalRevenue - g.InsuranceRevenue - g.PatientRevenue,
+                    PatientCount = g.PatientCount,
+                    ServiceCount = g.ServiceCount
+                };
+            }).OrderByDescending(d => d.TotalRevenue).ToList();
+
+            // Cost by department (from GetCostByDepartmentAsync)
+            var costByDepartment = await GetCostByDepartmentAsync(fromDate, toDate);
+
+            var totalCost = medicineCost; // Primary cost driver
+            var grossProfit = totalRevenue - totalCost;
+
+            return new FinancialSummaryReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                TotalRevenue = totalRevenue,
+                TotalCost = totalCost,
+                GrossProfit = grossProfit,
+                NetProfit = grossProfit * 0.8m, // Estimate 80% of gross after overheads
+                RevenueByDepartment = revenueByDepartment,
+                CostByDepartment = costByDepartment
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetFinancialSummaryReportAsync");
+            return new FinancialSummaryReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                TotalRevenue = 0,
+                TotalCost = 0,
+                GrossProfit = 0,
+                NetProfit = 0,
+                RevenueByDepartment = new List<DeptRevenueItemDto>(),
+                CostByDepartment = new List<CostByDepartmentDto>()
+            };
+        }
     }
 
+    // 11.7 Bao cao cong no benh nhan
     public async Task<List<PatientDebtReportDto>> GetPatientDebtReportAsync(
         DateTime? fromDate = null, DateTime? toDate = null, string debtStatus = null)
     {
-        return new List<PatientDebtReportDto>();
+        try
+        {
+            // Patients with InvoiceSummaries that have RemainingAmount > 0
+            var query = _context.InvoiceSummaries.AsNoTracking()
+                .Include(inv => inv.MedicalRecord)
+                    .ThenInclude(mr => mr.Patient)
+                .Where(inv => inv.RemainingAmount > 0 || inv.Status == 0); // Unpaid or has remaining
+
+            if (fromDate.HasValue)
+                query = query.Where(inv => inv.InvoiceDate >= fromDate.Value);
+            if (toDate.HasValue)
+                query = query.Where(inv => inv.InvoiceDate <= toDate.Value);
+
+            var invoices = await query.ToListAsync();
+
+            // Group by patient
+            var grouped = invoices
+                .Where(inv => inv.MedicalRecord?.Patient != null)
+                .GroupBy(inv => inv.MedicalRecord.PatientId)
+                .Select(g =>
+                {
+                    var patient = g.First().MedicalRecord.Patient;
+                    var totalDebt = g.Sum(inv => inv.TotalAmount);
+                    var paidAmount = g.Sum(inv => inv.PaidAmount + inv.DepositAmount);
+                    var remaining = g.Sum(inv => inv.RemainingAmount);
+                    var lastPayment = g.Where(inv => inv.PaidAmount > 0)
+                        .OrderByDescending(inv => inv.InvoiceDate)
+                        .FirstOrDefault()?.InvoiceDate;
+                    var status = remaining > 0 ? "ConNo" : "DaThanhToan";
+
+                    return new PatientDebtReportDto
+                    {
+                        PatientId = patient.Id,
+                        PatientCode = patient.PatientCode,
+                        PatientName = patient.FullName,
+                        TotalDebt = totalDebt,
+                        PaidAmount = paidAmount,
+                        RemainingAmount = remaining,
+                        LastPaymentDate = lastPayment,
+                        Status = status
+                    };
+                })
+                .Where(p => debtStatus == null || p.Status == debtStatus)
+                .OrderByDescending(p => p.RemainingAmount)
+                .ToList();
+
+            return grouped;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetPatientDebtReportAsync");
+            return new List<PatientDebtReportDto>();
+        }
     }
 
+    // 11.8 Bao cao cong no bao hiem
     public async Task<List<InsuranceDebtReportDto>> GetInsuranceDebtReportAsync(
         DateTime fromDate, DateTime toDate, string insuranceCode = null)
     {
-        return new List<InsuranceDebtReportDto>();
+        try
+        {
+            var query = _context.InsuranceClaims.AsNoTracking()
+                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate <= toDate);
+
+            if (!string.IsNullOrWhiteSpace(insuranceCode))
+                query = query.Where(c => c.InsuranceNumber != null && c.InsuranceNumber.Contains(insuranceCode));
+
+            // Group by month period
+            var claims = await query.ToListAsync();
+
+            var grouped = claims
+                .GroupBy(c => c.ServiceDate.ToString("yyyy-MM"))
+                .Select(g =>
+                {
+                    var totalClaim = g.Sum(c => c.TotalAmount);
+                    var approved = g.Where(c => c.ClaimStatus == 2 || c.ClaimStatus == 5).Sum(c => c.InsuranceAmount);
+                    var rejected = g.Where(c => c.ClaimStatus == 3 || c.ClaimStatus == 4).Sum(c => c.InsuranceAmount);
+                    var pending = g.Where(c => c.ClaimStatus == 0 || c.ClaimStatus == 1).Sum(c => c.InsuranceAmount);
+
+                    return new InsuranceDebtReportDto
+                    {
+                        Period = g.Key,
+                        InsuranceCode = insuranceCode ?? "ALL",
+                        TotalClaimAmount = totalClaim,
+                        ApprovedAmount = approved,
+                        RejectedAmount = rejected,
+                        PendingAmount = pending,
+                        ClaimCount = g.Count()
+                    };
+                })
+                .OrderBy(r => r.Period)
+                .ToList();
+
+            return grouped;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetInsuranceDebtReportAsync");
+            return new List<InsuranceDebtReportDto>();
+        }
     }
 
+    // 11.9 Doi chieu bao hiem
     public async Task<InsuranceReconciliationDto> GetInsuranceReconciliationAsync(
         DateTime fromDate, DateTime toDate, string insuranceCode = null)
     {
-        return new InsuranceReconciliationDto
+        try
         {
-            FromDate = fromDate,
-            ToDate = toDate,
-            HospitalAmount = 0,
-            InsuranceAmount = 0,
-            Difference = 0,
-            Items = new List<ReconciliationItemDto>()
-        };
+            var claimQuery = _context.InsuranceClaims.AsNoTracking()
+                .Include(c => c.Patient)
+                .Where(c => c.ServiceDate >= fromDate && c.ServiceDate <= toDate);
+
+            if (!string.IsNullOrWhiteSpace(insuranceCode))
+                claimQuery = claimQuery.Where(c => c.InsuranceNumber != null && c.InsuranceNumber.Contains(insuranceCode));
+
+            var claims = await claimQuery.ToListAsync();
+
+            // Hospital amount = what hospital calculates as insurance-covered
+            // Insurance amount = what insurance actually approved/paid
+            var items = claims.Select(c => new ReconciliationItemDto
+            {
+                PatientCode = c.Patient?.PatientCode ?? "",
+                PatientName = c.Patient?.FullName ?? "",
+                HospitalAmount = c.TotalAmount * (c.InsurancePaymentRate / 100m),
+                InsuranceAmount = c.InsuranceAmount,
+                Difference = (c.TotalAmount * (c.InsurancePaymentRate / 100m)) - c.InsuranceAmount,
+                Reason = c.ClaimStatus == 3 ? "Tu choi mot phan"
+                       : c.ClaimStatus == 4 ? "Tu choi toan bo"
+                       : (c.TotalAmount * (c.InsurancePaymentRate / 100m)) != c.InsuranceAmount ? "Chenh lech"
+                       : ""
+            })
+            .Where(i => Math.Abs(i.Difference) > 0.01m) // Only show items with difference
+            .OrderByDescending(i => Math.Abs(i.Difference))
+            .ToList();
+
+            var hospitalTotal = claims.Sum(c => c.TotalAmount * (c.InsurancePaymentRate / 100m));
+            var insuranceTotal = claims.Sum(c => c.InsuranceAmount);
+
+            return new InsuranceReconciliationDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                HospitalAmount = hospitalTotal,
+                InsuranceAmount = insuranceTotal,
+                Difference = hospitalTotal - insuranceTotal,
+                Items = items
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetInsuranceReconciliationAsync");
+            return new InsuranceReconciliationDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                HospitalAmount = 0,
+                InsuranceAmount = 0,
+                Difference = 0,
+                Items = new List<ReconciliationItemDto>()
+            };
+        }
     }
 
+    // 11.10 In bao cao tai chinh (PDF placeholder - real PDF generation requires a report engine)
     public async Task<byte[]> PrintFinancialReportAsync(FinancialReportRequest request)
     {
+        // PDF generation requires a report library (e.g. QuestPDF, iTextSharp)
+        // Return empty for now; the frontend uses its own print preview templates
         return Array.Empty<byte>();
     }
 
+    // 11.11 Xuat bao cao tai chinh Excel (placeholder - real export requires EPPlus/ClosedXML)
     public async Task<byte[]> ExportFinancialReportToExcelAsync(FinancialReportRequest request)
     {
+        // Excel export requires a library (e.g. EPPlus, ClosedXML)
+        // Return empty for now; the frontend renders report tables for printing
         return Array.Empty<byte>();
     }
 
@@ -1877,109 +2467,916 @@ public class SystemCompleteService : ISystemCompleteService
 
     #region Module 15: Bao cao Duoc - 17 chuc nang
 
+    // Helper: build controlled drug register (narcotic/psychotropic/precursor) from StockMovements
+    private async Task<List<NarcoticDrugRegisterItemDto>> GetControlledDrugMovementsAsync(
+        DateTime fromDate, DateTime toDate, Guid? warehouseId,
+        System.Linq.Expressions.Expression<Func<Medicine, bool>> drugFilter)
+    {
+        var medicineIds = await _context.Medicines.AsNoTracking()
+            .Where(drugFilter)
+            .Where(m => m.IsActive)
+            .Select(m => m.Id)
+            .ToListAsync();
+
+        if (!medicineIds.Any()) return new List<NarcoticDrugRegisterItemDto>();
+
+        var query = _context.StockMovements.AsNoTracking()
+            .Include(sm => sm.Medicine)
+            .Where(sm => medicineIds.Contains(sm.MedicineId))
+            .Where(sm => sm.MovementDate >= fromDate && sm.MovementDate <= toDate);
+
+        if (warehouseId.HasValue)
+            query = query.Where(sm => sm.WarehouseId == warehouseId.Value);
+
+        var movements = await query
+            .OrderBy(sm => sm.MedicineId)
+            .ThenBy(sm => sm.MovementDate)
+            .ToListAsync();
+
+        var rowNum = 0;
+        return movements.Select(sm => new NarcoticDrugRegisterItemDto
+        {
+            RowNumber = ++rowNum,
+            TransactionDate = sm.MovementDate,
+            TransactionType = sm.MovementType == 1 ? "Import" : "Export",
+            DocumentCode = sm.ReferenceCode ?? "",
+            MedicineCode = sm.Medicine?.MedicineCode ?? "",
+            MedicineName = sm.Medicine?.MedicineName ?? "",
+            LotNumber = sm.BatchNumber ?? "",
+            Unit = sm.Medicine?.Unit ?? "",
+            ImportQuantity = sm.MovementType == 1 ? sm.Quantity : 0,
+            ExportQuantity = sm.MovementType == 2 ? sm.Quantity : 0,
+            Balance = sm.BalanceAfter,
+            RecipientInfo = sm.ReferenceType ?? "",
+            Note = sm.Notes ?? ""
+        }).ToList();
+    }
+
+    // 15.1 So thuoc gay nghien
     public async Task<List<NarcoticDrugRegisterDto>> GetNarcoticDrugRegisterAsync(
         DateTime fromDate, DateTime toDate, Guid? warehouseId = null)
     {
-        return new List<NarcoticDrugRegisterDto>();
+        try
+        {
+            var items = await GetControlledDrugMovementsAsync(fromDate, toDate, warehouseId, m => m.IsNarcotic);
+            return new List<NarcoticDrugRegisterDto>
+            {
+                new NarcoticDrugRegisterDto
+                {
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    DrugType = "Narcotic",
+                    Items = items
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetNarcoticDrugRegisterAsync");
+            return new List<NarcoticDrugRegisterDto>();
+        }
     }
 
+    // 15.2 So thuoc huong than
     public async Task<List<PsychotropicDrugRegisterDto>> GetPsychotropicDrugRegisterAsync(
         DateTime fromDate, DateTime toDate, Guid? warehouseId = null)
     {
-        return new List<PsychotropicDrugRegisterDto>();
+        try
+        {
+            var medicineIds = await _context.Medicines.AsNoTracking()
+                .Where(m => m.IsPsychotropic && m.IsActive)
+                .Select(m => m.Id)
+                .ToListAsync();
+
+            if (!medicineIds.Any()) return new List<PsychotropicDrugRegisterDto>();
+
+            var query = _context.StockMovements.AsNoTracking()
+                .Include(sm => sm.Medicine)
+                .Where(sm => medicineIds.Contains(sm.MedicineId))
+                .Where(sm => sm.MovementDate >= fromDate && sm.MovementDate <= toDate);
+
+            if (warehouseId.HasValue)
+                query = query.Where(sm => sm.WarehouseId == warehouseId.Value);
+
+            var grouped = await query
+                .GroupBy(sm => new { sm.MedicineId, sm.Medicine.MedicineCode, sm.Medicine.MedicineName, sm.BatchNumber })
+                .Select(g => new
+                {
+                    g.Key.MedicineId,
+                    g.Key.MedicineCode,
+                    g.Key.MedicineName,
+                    BatchNumber = g.Key.BatchNumber ?? "",
+                    Received = g.Where(x => x.MovementType == 1).Sum(x => x.Quantity),
+                    Issued = g.Where(x => x.MovementType == 2).Sum(x => x.Quantity),
+                    LastBalance = g.OrderByDescending(x => x.MovementDate).Select(x => x.BalanceAfter).FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return grouped.Select(g => new PsychotropicDrugRegisterDto
+            {
+                Date = toDate,
+                MedicineId = g.MedicineId,
+                MedicineCode = g.MedicineCode ?? "",
+                MedicineName = g.MedicineName ?? "",
+                BatchNumber = g.BatchNumber,
+                OpeningStock = g.LastBalance - g.Received + g.Issued,
+                ReceivedQuantity = g.Received,
+                IssuedQuantity = g.Issued,
+                ClosingStock = g.LastBalance
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetPsychotropicDrugRegisterAsync");
+            return new List<PsychotropicDrugRegisterDto>();
+        }
     }
 
+    // 15.3 So thuoc tien chat
     public async Task<List<PrecursorDrugRegisterDto>> GetPrecursorDrugRegisterAsync(
         DateTime fromDate, DateTime toDate, Guid? warehouseId = null)
     {
-        return new List<PrecursorDrugRegisterDto>();
+        try
+        {
+            var medicineIds = await _context.Medicines.AsNoTracking()
+                .Where(m => m.IsPrecursor && m.IsActive)
+                .Select(m => m.Id)
+                .ToListAsync();
+
+            if (!medicineIds.Any()) return new List<PrecursorDrugRegisterDto>();
+
+            var query = _context.StockMovements.AsNoTracking()
+                .Include(sm => sm.Medicine)
+                .Where(sm => medicineIds.Contains(sm.MedicineId))
+                .Where(sm => sm.MovementDate >= fromDate && sm.MovementDate <= toDate);
+
+            if (warehouseId.HasValue)
+                query = query.Where(sm => sm.WarehouseId == warehouseId.Value);
+
+            var grouped = await query
+                .GroupBy(sm => new { sm.MedicineId, sm.Medicine.MedicineCode, sm.Medicine.MedicineName, sm.BatchNumber })
+                .Select(g => new
+                {
+                    g.Key.MedicineId,
+                    g.Key.MedicineCode,
+                    g.Key.MedicineName,
+                    BatchNumber = g.Key.BatchNumber ?? "",
+                    Received = g.Where(x => x.MovementType == 1).Sum(x => x.Quantity),
+                    Issued = g.Where(x => x.MovementType == 2).Sum(x => x.Quantity),
+                    LastBalance = g.OrderByDescending(x => x.MovementDate).Select(x => x.BalanceAfter).FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return grouped.Select(g => new PrecursorDrugRegisterDto
+            {
+                Date = toDate,
+                MedicineId = g.MedicineId,
+                MedicineCode = g.MedicineCode ?? "",
+                MedicineName = g.MedicineName ?? "",
+                BatchNumber = g.BatchNumber,
+                OpeningStock = g.LastBalance - g.Received + g.Issued,
+                ReceivedQuantity = g.Received,
+                IssuedQuantity = g.Issued,
+                ClosingStock = g.LastBalance
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetPrecursorDrugRegisterAsync");
+            return new List<PrecursorDrugRegisterDto>();
+        }
     }
 
+    // 15.4 Bao cao su dung thuoc
     public async Task<List<MedicineUsageReportDto>> GetMedicineUsageReportAsync(
         DateTime fromDate, DateTime toDate, Guid? medicineId = null, Guid? departmentId = null)
     {
-        return new List<MedicineUsageReportDto>();
+        try
+        {
+            var query = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Medicine)
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4);
+
+            if (medicineId.HasValue)
+                query = query.Where(pd => pd.MedicineId == medicineId.Value);
+            if (departmentId.HasValue)
+                query = query.Where(pd => pd.Prescription.DepartmentId == departmentId.Value);
+
+            var grouped = await query
+                .GroupBy(pd => new
+                {
+                    pd.MedicineId,
+                    pd.Medicine.MedicineCode,
+                    pd.Medicine.MedicineName,
+                    pd.Medicine.ActiveIngredient,
+                    pd.Medicine.Unit
+                })
+                .Select(g => new MedicineUsageItemDto
+                {
+                    MedicineCode = g.Key.MedicineCode ?? "",
+                    MedicineName = g.Key.MedicineName ?? "",
+                    ActiveIngredient = g.Key.ActiveIngredient ?? "",
+                    Unit = g.Key.Unit ?? "",
+                    Quantity = g.Sum(x => x.Quantity),
+                    UnitPrice = g.Average(x => x.UnitPrice),
+                    TotalValue = g.Sum(x => x.Amount)
+                })
+                .OrderByDescending(x => x.TotalValue)
+                .ToListAsync();
+
+            var rowNum = 0;
+            grouped.ForEach(item => item.RowNumber = ++rowNum);
+
+            return new List<MedicineUsageReportDto>
+            {
+                new MedicineUsageReportDto
+                {
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Items = grouped
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetMedicineUsageReportAsync");
+            return new List<MedicineUsageReportDto>();
+        }
     }
 
+    // 15.5 Bao cao su dung khang sinh
     public async Task<List<AntibioticUsageReportDto>> GetAntibioticUsageReportAsync(
         DateTime fromDate, DateTime toDate, Guid? antibioticId = null, Guid? departmentId = null)
     {
-        return new List<AntibioticUsageReportDto>();
+        try
+        {
+            var allPrescriptionsQuery = _context.Prescriptions.AsNoTracking()
+                .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate && p.Status != 4);
+            if (departmentId.HasValue)
+                allPrescriptionsQuery = allPrescriptionsQuery.Where(p => p.DepartmentId == departmentId.Value);
+
+            var totalPatients = await allPrescriptionsQuery
+                .Select(p => p.MedicalRecordId)
+                .Distinct()
+                .CountAsync();
+
+            var abQuery = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Medicine)
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Medicine.IsAntibiotic)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4);
+
+            if (antibioticId.HasValue)
+                abQuery = abQuery.Where(pd => pd.MedicineId == antibioticId.Value);
+            if (departmentId.HasValue)
+                abQuery = abQuery.Where(pd => pd.Prescription.DepartmentId == departmentId.Value);
+
+            var patientsWithAntibiotics = await abQuery
+                .Select(pd => pd.Prescription.MedicalRecordId)
+                .Distinct()
+                .CountAsync();
+
+            var items = await abQuery
+                .GroupBy(pd => new
+                {
+                    pd.Medicine.MedicineName,
+                    pd.Medicine.MedicineGroupCode
+                })
+                .Select(g => new AntibioticUsageItemDto
+                {
+                    AntibioticName = g.Key.MedicineName ?? "",
+                    AntibioticGroup = g.Key.MedicineGroupCode ?? "",
+                    PatientCount = g.Select(x => x.Prescription.MedicalRecordId).Distinct().Count(),
+                    Quantity = g.Sum(x => x.Quantity),
+                    Unit = g.Max(x => x.Medicine.Unit) ?? "",
+                    Value = g.Sum(x => x.Amount)
+                })
+                .OrderByDescending(x => x.Value)
+                .ToListAsync();
+
+            return new List<AntibioticUsageReportDto>
+            {
+                new AntibioticUsageReportDto
+                {
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    TotalPatients = totalPatients,
+                    PatientsWithAntibiotics = patientsWithAntibiotics,
+                    AntibioticUsageRate = totalPatients > 0
+                        ? Math.Round((decimal)patientsWithAntibiotics / totalPatients * 100, 2)
+                        : 0,
+                    Items = items
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetAntibioticUsageReportAsync");
+            return new List<AntibioticUsageReportDto>();
+        }
     }
 
+    // 15.6 Bien ban kiem ke
     public async Task<List<InventoryRecordDto>> GetDrugInventoryRecordAsync(
         DateTime inventoryDate, Guid warehouseId)
     {
-        return new List<InventoryRecordDto>();
+        try
+        {
+            var warehouse = await _context.Warehouses.AsNoTracking()
+                .FirstOrDefaultAsync(w => w.Id == warehouseId);
+
+            var inventoryItems = await _context.InventoryItems.AsNoTracking()
+                .Include(ii => ii.Medicine)
+                .Where(ii => ii.WarehouseId == warehouseId && ii.ItemType == "Medicine" && ii.MedicineId != null)
+                .OrderBy(ii => ii.Medicine.MedicineCode)
+                .ToListAsync();
+
+            var rowNum = 0;
+            var items = inventoryItems.Select(ii => new InventoryRecordItemDto
+            {
+                RowNumber = ++rowNum,
+                ItemCode = ii.Medicine?.MedicineCode ?? "",
+                ItemName = ii.Medicine?.MedicineName ?? "",
+                LotNumber = ii.BatchNumber ?? "",
+                ExpiryDate = ii.ExpiryDate,
+                Unit = ii.Medicine?.Unit ?? "",
+                SystemQuantity = ii.Quantity,
+                ActualQuantity = ii.Quantity, // Actual filled during physical count
+                Variance = 0,
+                UnitPrice = ii.ImportPrice,
+                VarianceValue = 0,
+                Note = ""
+            }).ToList();
+
+            return new List<InventoryRecordDto>
+            {
+                new InventoryRecordDto
+                {
+                    Id = Guid.NewGuid(),
+                    RecordCode = $"KK-{inventoryDate:yyyyMMdd}",
+                    InventoryDate = inventoryDate,
+                    WarehouseId = warehouseId,
+                    WarehouseName = warehouse?.WarehouseName ?? "",
+                    ItemType = "Medicine",
+                    Status = "Draft",
+                    Items = items
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDrugInventoryRecordAsync");
+            return new List<InventoryRecordDto>();
+        }
     }
 
+    // 15.7 Bao cao xuat nhap ton
     public async Task<List<DrugStockMovementReportDto>> GetDrugStockMovementReportAsync(
         DateTime fromDate, DateTime toDate, Guid? warehouseId = null, Guid? medicineGroupId = null)
     {
-        return new List<DrugStockMovementReportDto>();
+        try
+        {
+            var query = _context.StockMovements.AsNoTracking()
+                .Include(sm => sm.Medicine)
+                .Where(sm => sm.MovementDate >= fromDate && sm.MovementDate <= toDate);
+
+            if (warehouseId.HasValue)
+                query = query.Where(sm => sm.WarehouseId == warehouseId.Value);
+            if (medicineGroupId.HasValue)
+                query = query.Where(sm => sm.Medicine.MedicineGroupId == medicineGroupId.Value);
+
+            var grouped = await query
+                .GroupBy(sm => new { sm.MedicineId, sm.Medicine.MedicineCode, sm.Medicine.MedicineName })
+                .Select(g => new
+                {
+                    g.Key.MedicineId,
+                    g.Key.MedicineCode,
+                    g.Key.MedicineName,
+                    Received = g.Where(x => x.MovementType == 1).Sum(x => x.Quantity),
+                    Issued = g.Where(x => x.MovementType == 2).Sum(x => x.Quantity),
+                    Adjusted = g.Where(x => x.MovementType == 4).Sum(x => x.Quantity),
+                    FirstBalance = g.OrderBy(x => x.MovementDate).Select(x => x.BalanceBefore).FirstOrDefault(),
+                    LastBalance = g.OrderByDescending(x => x.MovementDate).Select(x => x.BalanceAfter).FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return grouped.Select(g => new DrugStockMovementReportDto
+            {
+                MedicineId = g.MedicineId,
+                MedicineCode = g.MedicineCode ?? "",
+                MedicineName = g.MedicineName ?? "",
+                OpeningStock = g.FirstBalance,
+                ReceivedQuantity = g.Received,
+                IssuedQuantity = g.Issued,
+                AdjustmentQuantity = g.Adjusted,
+                ClosingStock = g.LastBalance
+            }).OrderBy(x => x.MedicineCode).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDrugStockMovementReportAsync");
+            return new List<DrugStockMovementReportDto>();
+        }
     }
 
+    // 15.8 Bao cao thuoc sap het han
     public async Task<List<ExpiringDrugReportDto>> GetExpiringDrugReportAsync(
         int daysUntilExpiry = 90, Guid? warehouseId = null)
     {
-        return new List<ExpiringDrugReportDto>();
+        try
+        {
+            var now = DateTime.UtcNow;
+            var expiryThreshold = now.AddDays(daysUntilExpiry);
+
+            var query = _context.InventoryItems.AsNoTracking()
+                .Include(ii => ii.Medicine)
+                .Where(ii => ii.ItemType == "Medicine"
+                          && ii.MedicineId != null
+                          && ii.ExpiryDate != null
+                          && ii.ExpiryDate > now
+                          && ii.ExpiryDate <= expiryThreshold
+                          && ii.Quantity > 0);
+
+            if (warehouseId.HasValue)
+                query = query.Where(ii => ii.WarehouseId == warehouseId.Value);
+
+            var items = await query
+                .OrderBy(ii => ii.ExpiryDate)
+                .ToListAsync();
+
+            return items.Select(ii => new ExpiringDrugReportDto
+            {
+                MedicineId = ii.MedicineId ?? Guid.Empty,
+                MedicineCode = ii.Medicine?.MedicineCode ?? "",
+                MedicineName = ii.Medicine?.MedicineName ?? "",
+                BatchNumber = ii.BatchNumber ?? "",
+                ExpiryDate = ii.ExpiryDate!.Value,
+                DaysUntilExpiry = (int)(ii.ExpiryDate!.Value - now).TotalDays,
+                Quantity = ii.Quantity,
+                Value = ii.Quantity * ii.ImportPrice
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetExpiringDrugReportAsync");
+            return new List<ExpiringDrugReportDto>();
+        }
     }
 
+    // 15.9 Bao cao thuoc da het han
     public async Task<List<ExpiredDrugReportDto>> GetExpiredDrugReportAsync(Guid? warehouseId = null)
     {
-        return new List<ExpiredDrugReportDto>();
+        try
+        {
+            var now = DateTime.UtcNow;
+
+            var query = _context.InventoryItems.AsNoTracking()
+                .Include(ii => ii.Medicine)
+                .Where(ii => ii.ItemType == "Medicine"
+                          && ii.MedicineId != null
+                          && ii.ExpiryDate != null
+                          && ii.ExpiryDate < now
+                          && ii.Quantity > 0);
+
+            if (warehouseId.HasValue)
+                query = query.Where(ii => ii.WarehouseId == warehouseId.Value);
+
+            var items = await query
+                .OrderBy(ii => ii.ExpiryDate)
+                .ToListAsync();
+
+            return items.Select(ii => new ExpiredDrugReportDto
+            {
+                MedicineId = ii.MedicineId ?? Guid.Empty,
+                MedicineCode = ii.Medicine?.MedicineCode ?? "",
+                MedicineName = ii.Medicine?.MedicineName ?? "",
+                BatchNumber = ii.BatchNumber ?? "",
+                ExpiryDate = ii.ExpiryDate!.Value,
+                DaysExpired = (int)(now - ii.ExpiryDate!.Value).TotalDays,
+                Quantity = ii.Quantity,
+                Value = ii.Quantity * ii.ImportPrice
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetExpiredDrugReportAsync");
+            return new List<ExpiredDrugReportDto>();
+        }
     }
 
+    // 15.10 Bao cao thuoc duoi nguong ton kho
     public async Task<List<LowStockDrugReportDto>> GetLowStockDrugReportAsync(Guid? warehouseId = null)
     {
-        return new List<LowStockDrugReportDto>();
+        try
+        {
+            var thresholdQuery = _context.StockThresholds.AsNoTracking()
+                .Include(st => st.Medicine)
+                .Where(st => st.IsActive && st.MinimumQuantity > 0);
+
+            if (warehouseId.HasValue)
+                thresholdQuery = thresholdQuery.Where(st => st.WarehouseId == warehouseId.Value || st.WarehouseId == null);
+
+            var thresholds = await thresholdQuery.ToListAsync();
+
+            var result = new List<LowStockDrugReportDto>();
+            foreach (var t in thresholds)
+            {
+                var stockQuery = _context.InventoryItems.AsNoTracking()
+                    .Where(ii => ii.MedicineId == t.MedicineId && ii.ItemType == "Medicine" && ii.Quantity > 0);
+
+                if (warehouseId.HasValue)
+                    stockQuery = stockQuery.Where(ii => ii.WarehouseId == warehouseId.Value);
+                else if (t.WarehouseId.HasValue)
+                    stockQuery = stockQuery.Where(ii => ii.WarehouseId == t.WarehouseId.Value);
+
+                var currentStock = await stockQuery.SumAsync(ii => ii.Quantity);
+
+                if (currentStock < t.MinimumQuantity)
+                {
+                    result.Add(new LowStockDrugReportDto
+                    {
+                        MedicineId = t.MedicineId,
+                        MedicineCode = t.Medicine?.MedicineCode ?? "",
+                        MedicineName = t.Medicine?.MedicineName ?? "",
+                        CurrentStock = currentStock,
+                        MinStock = t.MinimumQuantity,
+                        Shortfall = t.MinimumQuantity - currentStock
+                    });
+                }
+            }
+
+            return result.OrderByDescending(x => x.Shortfall).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetLowStockDrugReportAsync");
+            return new List<LowStockDrugReportDto>();
+        }
     }
 
+    // 15.11 Chi phi thuoc theo khoa
     public async Task<List<DrugCostByDeptReportDto>> GetDrugCostByDeptReportAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        return new List<DrugCostByDeptReportDto>();
+        try
+        {
+            var query = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Medicine)
+                .Include(pd => pd.Prescription)
+                    .ThenInclude(p => p.Department)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4);
+
+            if (departmentId.HasValue)
+                query = query.Where(pd => pd.Prescription.DepartmentId == departmentId.Value);
+
+            var result = await query
+                .GroupBy(pd => new
+                {
+                    pd.Prescription.DepartmentId,
+                    pd.Prescription.Department.DepartmentCode,
+                    pd.Prescription.Department.DepartmentName
+                })
+                .Select(g => new DrugCostByDeptReportDto
+                {
+                    DepartmentId = g.Key.DepartmentId,
+                    DepartmentCode = g.Key.DepartmentCode ?? "",
+                    DepartmentName = g.Key.DepartmentName ?? "",
+                    TotalCost = g.Sum(x => x.Amount),
+                    AntibioticCost = g.Where(x => x.Medicine.IsAntibiotic).Sum(x => x.Amount),
+                    PrescriptionCount = g.Select(x => x.PrescriptionId).Distinct().Count()
+                })
+                .OrderByDescending(x => x.TotalCost)
+                .ToListAsync();
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDrugCostByDeptReportAsync");
+            return new List<DrugCostByDeptReportDto>();
+        }
     }
 
+    // 15.12 Chi phi thuoc theo benh nhan
     public async Task<List<DrugCostByPatientReportDto>> GetDrugCostByPatientReportAsync(
         DateTime fromDate, DateTime toDate, Guid? patientId = null, string patientType = null)
     {
-        return new List<DrugCostByPatientReportDto>();
+        try
+        {
+            var query = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Prescription)
+                    .ThenInclude(p => p.MedicalRecord)
+                        .ThenInclude(mr => mr.Patient)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4);
+
+            if (patientId.HasValue)
+                query = query.Where(pd => pd.Prescription.MedicalRecord.PatientId == patientId.Value);
+            if (!string.IsNullOrEmpty(patientType))
+            {
+                if (int.TryParse(patientType, out var pt))
+                    query = query.Where(pd => pd.PatientType == pt);
+            }
+
+            var result = await query
+                .GroupBy(pd => new
+                {
+                    pd.Prescription.MedicalRecord.PatientId,
+                    pd.Prescription.MedicalRecord.Patient.PatientCode,
+                    pd.Prescription.MedicalRecord.Patient.FullName
+                })
+                .Select(g => new DrugCostByPatientReportDto
+                {
+                    PatientId = g.Key.PatientId,
+                    PatientCode = g.Key.PatientCode ?? "",
+                    PatientName = g.Key.FullName ?? "",
+                    TotalCost = g.Sum(x => x.Amount),
+                    InsuranceCost = g.Sum(x => x.InsuranceAmount),
+                    PatientCost = g.Sum(x => x.PatientAmount)
+                })
+                .OrderByDescending(x => x.TotalCost)
+                .ToListAsync();
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDrugCostByPatientReportAsync");
+            return new List<DrugCostByPatientReportDto>();
+        }
     }
 
+    // 15.13 Thuoc theo doi tuong thanh toan
     public async Task<List<DrugByPaymentTypeReportDto>> GetDrugByPaymentTypeReportAsync(
         DateTime fromDate, DateTime toDate, string paymentType = null)
     {
-        return new List<DrugByPaymentTypeReportDto>();
+        try
+        {
+            var query = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4);
+
+            if (!string.IsNullOrEmpty(paymentType) && int.TryParse(paymentType, out var pt))
+                query = query.Where(pd => pd.PatientType == pt);
+
+            var result = await query
+                .GroupBy(pd => pd.PatientType)
+                .Select(g => new DrugByPaymentTypeReportDto
+                {
+                    PaymentType = g.Key == 1 ? "BHYT" : g.Key == 2 ? "Vien phi" : g.Key == 3 ? "Dich vu" : "Khac",
+                    TotalQuantity = g.Sum(x => x.Quantity),
+                    TotalValue = g.Sum(x => x.Amount),
+                    PrescriptionCount = g.Select(x => x.PrescriptionId).Distinct().Count()
+                })
+                .OrderByDescending(x => x.TotalValue)
+                .ToListAsync();
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDrugByPaymentTypeReportAsync");
+            return new List<DrugByPaymentTypeReportDto>();
+        }
     }
 
+    // 15.14 Thong ke don thuoc ngoai tru
     public async Task<List<OutpatientPrescriptionStatDto>> GetOutpatientPrescriptionStatAsync(
         DateTime fromDate, DateTime toDate, Guid? doctorId = null, Guid? departmentId = null)
     {
-        return new List<OutpatientPrescriptionStatDto>();
+        try
+        {
+            var query = _context.Prescriptions.AsNoTracking()
+                .Include(p => p.Doctor)
+                .Where(p => p.PrescriptionType == 1
+                         && p.PrescriptionDate >= fromDate
+                         && p.PrescriptionDate <= toDate
+                         && p.Status != 4);
+
+            if (doctorId.HasValue)
+                query = query.Where(p => p.DoctorId == doctorId.Value);
+            if (departmentId.HasValue)
+                query = query.Where(p => p.DepartmentId == departmentId.Value);
+
+            var result = await query
+                .GroupBy(p => new { p.DoctorId, p.Doctor.FullName })
+                .Select(g => new OutpatientPrescriptionStatDto
+                {
+                    DoctorId = g.Key.DoctorId,
+                    DoctorName = g.Key.FullName ?? "",
+                    PrescriptionCount = g.Count(),
+                    PatientCount = g.Select(p => p.MedicalRecordId).Distinct().Count(),
+                    TotalValue = g.Sum(p => p.TotalAmount)
+                })
+                .OrderByDescending(x => x.PrescriptionCount)
+                .ToListAsync();
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetOutpatientPrescriptionStatAsync");
+            return new List<OutpatientPrescriptionStatDto>();
+        }
     }
 
+    // 15.15 Thong ke don thuoc noi tru
     public async Task<List<InpatientPrescriptionStatDto>> GetInpatientPrescriptionStatAsync(
         DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        return new List<InpatientPrescriptionStatDto>();
+        try
+        {
+            var query = _context.Prescriptions.AsNoTracking()
+                .Include(p => p.Department)
+                .Where(p => p.PrescriptionType == 2
+                         && p.PrescriptionDate >= fromDate
+                         && p.PrescriptionDate <= toDate
+                         && p.Status != 4);
+
+            if (departmentId.HasValue)
+                query = query.Where(p => p.DepartmentId == departmentId.Value);
+
+            var result = await query
+                .GroupBy(p => new { p.DepartmentId, p.Department.DepartmentName })
+                .Select(g => new InpatientPrescriptionStatDto
+                {
+                    DepartmentId = g.Key.DepartmentId,
+                    DepartmentName = g.Key.DepartmentName ?? "",
+                    PatientCount = g.Select(p => p.MedicalRecordId).Distinct().Count(),
+                    PrescriptionCount = g.Count(),
+                    TotalValue = g.Sum(p => p.TotalAmount)
+                })
+                .OrderByDescending(x => x.TotalValue)
+                .ToListAsync();
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetInpatientPrescriptionStatAsync");
+            return new List<InpatientPrescriptionStatDto>();
+        }
     }
 
+    // 15.16 Phan tich ABC/VEN
     public async Task<ABCVENReportDto> GetABCVENReportAsync(
         DateTime fromDate, DateTime toDate, Guid? warehouseId = null)
     {
-        return new ABCVENReportDto
+        try
         {
-            FromDate = fromDate,
-            ToDate = toDate,
-            Items = new List<ABCVENItemDto>()
-        };
+            var query = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Medicine)
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4);
+
+            if (warehouseId.HasValue)
+                query = query.Where(pd => pd.Prescription.WarehouseId == warehouseId.Value);
+
+            var grouped = await query
+                .GroupBy(pd => new { pd.MedicineId, pd.Medicine.MedicineCode, pd.Medicine.MedicineName })
+                .Select(g => new
+                {
+                    g.Key.MedicineCode,
+                    g.Key.MedicineName,
+                    TotalValue = g.Sum(x => x.Amount)
+                })
+                .OrderByDescending(x => x.TotalValue)
+                .ToListAsync();
+
+            var grandTotal = grouped.Sum(x => x.TotalValue);
+            if (grandTotal == 0) grandTotal = 1; // prevent division by zero
+
+            var items = new List<ABCVENItemDto>();
+            decimal cumulative = 0;
+            foreach (var g in grouped)
+            {
+                cumulative += g.TotalValue;
+                var pct = Math.Round(g.TotalValue / grandTotal * 100, 2);
+                var cumulativePct = Math.Round(cumulative / grandTotal * 100, 2);
+
+                string abcClass;
+                if (cumulativePct <= 80) abcClass = "A";
+                else if (cumulativePct <= 95) abcClass = "B";
+                else abcClass = "C";
+
+                items.Add(new ABCVENItemDto
+                {
+                    MedicineCode = g.MedicineCode ?? "",
+                    MedicineName = g.MedicineName ?? "",
+                    ABCClass = abcClass,
+                    VENClass = "N", // Enriched below
+                    TotalValue = g.TotalValue,
+                    Percentage = pct
+                });
+            }
+
+            // Enrich VEN: V=Vital (narcotic/psychotropic/controlled), E=Essential (antibiotic), N=Non-essential
+            var medicineCodes = items.Select(i => i.MedicineCode).ToHashSet();
+            var medicines = await _context.Medicines.AsNoTracking()
+                .Where(m => medicineCodes.Contains(m.MedicineCode))
+                .Select(m => new { m.MedicineCode, m.IsNarcotic, m.IsPsychotropic, m.IsControlled, m.IsAntibiotic })
+                .ToListAsync();
+
+            var medicineFlags = medicines.ToDictionary(m => m.MedicineCode);
+            foreach (var item in items)
+            {
+                if (medicineFlags.TryGetValue(item.MedicineCode, out var flags))
+                {
+                    if (flags.IsNarcotic || flags.IsPsychotropic || flags.IsControlled)
+                        item.VENClass = "V";
+                    else if (flags.IsAntibiotic)
+                        item.VENClass = "E";
+                }
+            }
+
+            return new ABCVENReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                Items = items
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetABCVENReportAsync");
+            return new ABCVENReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                Items = new List<ABCVENItemDto>()
+            };
+        }
     }
 
+    // 15.17 Bao cao DDD (Defined Daily Dose) - khang sinh
     public async Task<List<DDDReportDto>> GetDDDReportAsync(
         DateTime fromDate, DateTime toDate, Guid? medicineId = null)
     {
-        return new List<DDDReportDto>();
+        try
+        {
+            var query = _context.PrescriptionDetails.AsNoTracking()
+                .Include(pd => pd.Medicine)
+                .Include(pd => pd.Prescription)
+                .Where(pd => pd.Prescription.PrescriptionDate >= fromDate
+                          && pd.Prescription.PrescriptionDate <= toDate
+                          && pd.Prescription.Status != 4
+                          && pd.Medicine.IsAntibiotic);
+
+            if (medicineId.HasValue)
+                query = query.Where(pd => pd.MedicineId == medicineId.Value);
+
+            var grouped = await query
+                .GroupBy(pd => new
+                {
+                    pd.MedicineId,
+                    pd.Medicine.MedicineCode,
+                    pd.Medicine.MedicineName,
+                    pd.Medicine.ConversionRate
+                })
+                .Select(g => new
+                {
+                    g.Key.MedicineId,
+                    g.Key.MedicineCode,
+                    g.Key.MedicineName,
+                    g.Key.ConversionRate,
+                    TotalQuantity = g.Sum(x => x.Quantity)
+                })
+                .OrderByDescending(x => x.TotalQuantity)
+                .ToListAsync();
+
+            return grouped.Select(g =>
+            {
+                // Use ConversionRate as proxy for DDD value (WHO DDD not stored on entity)
+                var dddValue = g.ConversionRate > 0 ? g.ConversionRate : 1m;
+                var totalDDD = dddValue > 0 ? Math.Round(g.TotalQuantity / dddValue, 2) : 0;
+
+                return new DDDReportDto
+                {
+                    MedicineId = g.MedicineId,
+                    MedicineCode = g.MedicineCode ?? "",
+                    MedicineName = g.MedicineName ?? "",
+                    DDDValue = dddValue,
+                    TotalDDD = totalDDD
+                };
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDDDReportAsync");
+            return new List<DDDReportDto>();
+        }
     }
 
     public async Task<byte[]> PrintPharmacyReportAsync(PharmacyReportRequest request)
@@ -2285,18 +3682,33 @@ public class SystemCompleteService : ISystemCompleteService
         try
         {
             var query = _context.Users.AsNoTracking()
+                .Where(u => !u.IsDeleted)
                 .Include(u => u.Department)
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(keyword))
-                query = query.Where(u => u.FullName.Contains(keyword) || u.Username.Contains(keyword));
+                query = query.Where(u =>
+                    u.FullName.Contains(keyword) ||
+                    u.Username.Contains(keyword) ||
+                    (u.Email != null && u.Email.Contains(keyword)) ||
+                    (u.EmployeeCode != null && u.EmployeeCode.Contains(keyword)));
             if (departmentId.HasValue)
                 query = query.Where(u => u.DepartmentId == departmentId.Value);
             if (isActive.HasValue)
                 query = query.Where(u => u.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(u => u.Username).Take(500).ToListAsync();
+            var items = await query.OrderBy(u => u.FullName).ThenBy(u => u.Username).Take(500).ToListAsync();
+
+            // Batch lookup last login IP from UserSessions
+            var userIds = items.Select(u => u.Id).ToList();
+            var lastSessions = await _context.UserSessions.AsNoTracking()
+                .Where(s => userIds.Contains(s.UserId))
+                .GroupBy(s => s.UserId)
+                .Select(g => new { UserId = g.Key, LastIP = g.OrderByDescending(s => s.LoginTime).Select(s => s.IPAddress).FirstOrDefault() })
+                .ToListAsync();
+            var ipLookup = lastSessions.ToDictionary(s => s.UserId, s => s.LastIP);
+
             return items.Select(u => new SystemUserDto
             {
                 Id = u.Id,
@@ -2309,7 +3721,8 @@ public class SystemCompleteService : ISystemCompleteService
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
                 Permissions = new List<string>(),
                 IsActive = u.IsActive,
-                LastLoginDate = u.LastLoginAt
+                LastLoginDate = u.LastLoginAt,
+                LastLoginIP = ipLookup.TryGetValue(u.Id, out var ip) ? ip : null
             }).ToList();
         }
         catch (Exception ex)
@@ -2328,6 +3741,24 @@ public class SystemCompleteService : ISystemCompleteService
                 .Include(x => x.UserRoles).ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(x => x.Id == userId);
             if (u == null) return null;
+
+            // Lookup last login IP from UserSessions
+            var lastSession = await _context.UserSessions.AsNoTracking()
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.LoginTime)
+                .FirstOrDefaultAsync();
+
+            // Lookup user permissions through roles
+            var roleIds = u.UserRoles?.Select(ur => ur.RoleId).ToList() ?? new List<Guid>();
+            var permissions = roleIds.Any()
+                ? await _context.RolePermissions.AsNoTracking()
+                    .Include(rp => rp.Permission)
+                    .Where(rp => roleIds.Contains(rp.RoleId))
+                    .Select(rp => rp.Permission.PermissionName)
+                    .Distinct()
+                    .ToListAsync()
+                : new List<string>();
+
             return new SystemUserDto
             {
                 Id = u.Id,
@@ -2338,9 +3769,10 @@ public class SystemCompleteService : ISystemCompleteService
                 DepartmentId = u.DepartmentId,
                 DepartmentName = u.Department?.DepartmentName,
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
-                Permissions = new List<string>(),
+                Permissions = permissions,
                 IsActive = u.IsActive,
-                LastLoginDate = u.LastLoginAt
+                LastLoginDate = u.LastLoginAt,
+                LastLoginIP = lastSession?.IPAddress
             };
         }
         catch (Exception ex)
@@ -2354,6 +3786,15 @@ public class SystemCompleteService : ISystemCompleteService
     {
         try
         {
+            // Check for duplicate username
+            var existingUser = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Username == dto.Username);
+            if (existingUser != null)
+            {
+                _logger.LogWarning("CreateUserAsync: Username '{Username}' already exists", dto.Username);
+                return null;
+            }
+
             var user = new User
             {
                 Username = dto.Username ?? string.Empty,
@@ -2362,13 +3803,20 @@ public class SystemCompleteService : ISystemCompleteService
                 PhoneNumber = dto.PhoneNumber,
                 DepartmentId = dto.DepartmentId,
                 PasswordHash = HashPassword(dto.InitialPassword ?? "123456"),
-                IsActive = true
+                IsActive = true,
+                UserType = 5 // Default: Employee
             };
             _context.Users.Add(user);
 
             // Assign roles
+            var roleNames = new List<string>();
             if (dto.RoleIds?.Any() == true)
             {
+                var roles = await _context.Roles.AsNoTracking()
+                    .Where(r => dto.RoleIds.Contains(r.Id))
+                    .ToListAsync();
+                roleNames = roles.Select(r => r.RoleName).ToList();
+
                 foreach (var roleId in dto.RoleIds)
                 {
                     _context.UserRoles.Add(new UserRole
@@ -2381,6 +3829,11 @@ public class SystemCompleteService : ISystemCompleteService
 
             await _context.SaveChangesAsync();
 
+            // Load department name for response
+            var deptName = user.DepartmentId.HasValue
+                ? (await _context.Departments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == user.DepartmentId.Value))?.DepartmentName
+                : null;
+
             return new SystemUserDto
             {
                 Id = user.Id,
@@ -2389,8 +3842,9 @@ public class SystemCompleteService : ISystemCompleteService
                 Email = user.Email,
                 Phone = user.PhoneNumber,
                 DepartmentId = user.DepartmentId,
+                DepartmentName = deptName,
                 IsActive = user.IsActive,
-                Roles = new List<string>(),
+                Roles = roleNames,
                 Permissions = new List<string>()
             };
         }
@@ -2405,7 +3859,9 @@ public class SystemCompleteService : ISystemCompleteService
     {
         try
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users
+                .Include(u => u.UserRoles)
+                .FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return null;
 
             user.FullName = dto.FullName ?? user.FullName;
@@ -2413,6 +3869,24 @@ public class SystemCompleteService : ISystemCompleteService
             user.PhoneNumber = dto.PhoneNumber;
             user.DepartmentId = dto.DepartmentId;
             user.IsActive = dto.IsActive;
+
+            // Sync roles if RoleIds provided
+            if (dto.RoleIds != null)
+            {
+                // Remove existing role assignments
+                var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
+                _context.UserRoles.RemoveRange(existingRoles);
+
+                // Add new role assignments
+                foreach (var roleId in dto.RoleIds)
+                {
+                    _context.UserRoles.Add(new UserRole
+                    {
+                        UserId = userId,
+                        RoleId = roleId
+                    });
+                }
+            }
 
             await _context.SaveChangesAsync();
             return await GetUserAsync(userId);
@@ -2504,6 +3978,7 @@ public class SystemCompleteService : ISystemCompleteService
         try
         {
             var query = _context.Roles.AsNoTracking()
+                .Where(r => !r.IsDeleted)
                 .Include(r => r.UserRoles)
                 .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
                 .AsQueryable();
@@ -2516,8 +3991,8 @@ public class SystemCompleteService : ISystemCompleteService
                 Name = r.RoleName,
                 Description = r.Description,
                 Permissions = r.RolePermissions?.Select(rp => rp.Permission?.PermissionName).Where(p => p != null).ToList() ?? new List<string>(),
-                UserCount = r.UserRoles?.Count ?? 0,
-                IsActive = true
+                UserCount = r.UserRoles?.Count(ur => !ur.IsDeleted) ?? 0,
+                IsActive = !r.IsDeleted
             }).ToList();
         }
         catch (Exception ex)
@@ -2723,7 +4198,21 @@ public class SystemCompleteService : ISystemCompleteService
             if (!string.IsNullOrWhiteSpace(search?.Action))
                 query = query.Where(l => l.Action == search.Action);
             if (!string.IsNullOrWhiteSpace(search?.EntityType))
-                query = query.Where(l => l.TableName == search.EntityType);
+                query = query.Where(l => l.TableName == search.EntityType || l.EntityType == search.EntityType);
+
+            // Keyword search across username, action, entity type, details
+            if (!string.IsNullOrWhiteSpace(search?.Keyword))
+            {
+                var kw = search.Keyword;
+                query = query.Where(l =>
+                    (l.Username != null && l.Username.Contains(kw)) ||
+                    (l.Action != null && l.Action.Contains(kw)) ||
+                    (l.TableName != null && l.TableName.Contains(kw)) ||
+                    (l.EntityType != null && l.EntityType.Contains(kw)) ||
+                    (l.Details != null && l.Details.Contains(kw)) ||
+                    (l.UserFullName != null && l.UserFullName.Contains(kw))
+                );
+            }
 
             query = query.OrderByDescending(l => l.CreatedAt);
 
@@ -2741,12 +4230,13 @@ public class SystemCompleteService : ISystemCompleteService
             return items.Select(l => new AuditLogDto
             {
                 Id = l.Id,
-                LogTime = l.CreatedAt,
+                LogTime = l.Timestamp != default ? l.Timestamp : l.CreatedAt,
                 UserId = l.UserId,
-                Username = l.Username,
+                Username = l.Username ?? l.UserFullName,
                 Action = l.Action,
-                EntityType = l.TableName,
-                EntityId = l.RecordId.ToString(),
+                Module = l.Module,
+                EntityType = l.EntityType ?? l.TableName,
+                EntityId = l.EntityId ?? l.RecordId.ToString(),
                 OldValue = l.OldValues,
                 NewValue = l.NewValues,
                 IpAddress = l.IpAddress,
@@ -2769,12 +4259,13 @@ public class SystemCompleteService : ISystemCompleteService
             return new AuditLogDto
             {
                 Id = l.Id,
-                LogTime = l.CreatedAt,
+                LogTime = l.Timestamp != default ? l.Timestamp : l.CreatedAt,
                 UserId = l.UserId,
-                Username = l.Username,
+                Username = l.Username ?? l.UserFullName,
                 Action = l.Action,
-                EntityType = l.TableName,
-                EntityId = l.RecordId.ToString(),
+                Module = l.Module,
+                EntityType = l.EntityType ?? l.TableName,
+                EntityId = l.EntityId ?? l.RecordId.ToString(),
                 OldValue = l.OldValues,
                 NewValue = l.NewValues,
                 IpAddress = l.IpAddress,
@@ -2802,6 +4293,10 @@ public class SystemCompleteService : ISystemCompleteService
                 .Where(c => c.IsActive)
                 .AsQueryable();
 
+            // Filter by category (convention: ConfigKey prefix before '.' is the category)
+            if (!string.IsNullOrWhiteSpace(category))
+                query = query.Where(c => c.ConfigKey.StartsWith(category + ".") || c.ConfigType == category);
+
             var items = await query.OrderBy(c => c.ConfigKey).ToListAsync();
             return items.Select(c => new SystemConfigDto
             {
@@ -2809,6 +4304,7 @@ public class SystemCompleteService : ISystemCompleteService
                 Value = c.ConfigValue,
                 DataType = c.ConfigType,
                 Description = c.Description,
+                Category = c.ConfigKey.Contains('.') ? c.ConfigKey.Substring(0, c.ConfigKey.IndexOf('.')) : "General",
                 IsEditable = true
             }).ToList();
         }
@@ -2832,6 +4328,7 @@ public class SystemCompleteService : ISystemCompleteService
                 Value = c.ConfigValue,
                 DataType = c.ConfigType,
                 Description = c.Description,
+                Category = c.ConfigKey.Contains('.') ? c.ConfigKey.Substring(0, c.ConfigKey.IndexOf('.')) : "General",
                 IsEditable = true
             };
         }
@@ -2909,16 +4406,16 @@ public class SystemCompleteService : ISystemCompleteService
             if (userId.HasValue)
                 query = query.Where(s => s.UserId == userId.Value);
 
-            var items = await query.OrderByDescending(s => s.LoginTime).Take(100).ToListAsync();
+            var items = await query.OrderByDescending(s => s.LoginTime).Take(200).ToListAsync();
             return items.Select(s => new UserSessionDto
             {
                 Id = s.Id,
                 UserId = s.UserId,
-                Username = s.User?.Username,
+                Username = s.User != null ? $"{s.User.Username} ({s.User.FullName})" : null,
                 IpAddress = s.IPAddress,
                 UserAgent = s.UserAgent,
                 LoginTime = s.LoginTime,
-                LastActivityTime = s.LogoutTime,
+                LastActivityTime = s.LogoutTime ?? s.LoginTime,
                 IsActive = s.Status == 0
             }).ToList();
         }
@@ -2975,7 +4472,17 @@ public class SystemCompleteService : ISystemCompleteService
     {
         try
         {
-            var query = _context.Notifications.AsNoTracking().AsQueryable();
+            var query = _context.Notifications.AsNoTracking()
+                .Where(n => !n.IsDeleted)
+                .AsQueryable();
+
+            if (isActive.HasValue)
+            {
+                if (isActive.Value)
+                    query = query.Where(n => !n.IsRead);
+                else
+                    query = query.Where(n => n.IsRead);
+            }
 
             var items = await query.OrderByDescending(n => n.CreatedAt).Take(100).ToListAsync();
             return items.Select(n => new SystemNotificationDto
@@ -3002,6 +4509,7 @@ public class SystemCompleteService : ISystemCompleteService
         try
         {
             var n = await _context.Notifications.AsNoTracking()
+                .Include(x => x.TargetUser)
                 .FirstOrDefaultAsync(x => x.Id == notificationId);
             if (n == null) return null;
             return new SystemNotificationDto
@@ -3012,6 +4520,7 @@ public class SystemCompleteService : ISystemCompleteService
                 NotificationType = n.NotificationType,
                 StartTime = n.CreatedAt,
                 IsActive = !n.IsRead,
+                TargetUsers = n.TargetUserId.HasValue ? new List<Guid> { n.TargetUserId.Value } : new List<Guid>(),
                 CreatedBy = n.CreatedBy,
                 CreatedAt = n.CreatedAt
             };
@@ -3034,9 +4543,27 @@ public class SystemCompleteService : ISystemCompleteService
                 {
                     Title = dto.Title ?? string.Empty,
                     Content = dto.Message ?? string.Empty,
-                    NotificationType = dto.NotificationType ?? "Info"
+                    NotificationType = dto.NotificationType ?? "Info",
+                    TargetUserId = dto.TargetUsers?.FirstOrDefault(),
+                    IsRead = false
                 };
                 _context.Notifications.Add(entity);
+
+                // If multiple target users, create a notification for each
+                if (dto.TargetUsers?.Count > 1)
+                {
+                    foreach (var targetUserId in dto.TargetUsers.Skip(1))
+                    {
+                        _context.Notifications.Add(new Notification
+                        {
+                            Title = dto.Title ?? string.Empty,
+                            Content = dto.Message ?? string.Empty,
+                            NotificationType = dto.NotificationType ?? "Info",
+                            TargetUserId = targetUserId,
+                            IsRead = false
+                        });
+                    }
+                }
             }
             else
             {
@@ -3066,8 +4593,65 @@ public class SystemCompleteService : ISystemCompleteService
     public async Task<List<BackupHistoryDto>> GetBackupHistoryAsync(
         DateTime? fromDate = null, DateTime? toDate = null)
     {
-        // No dedicated backup entity in DbContext
-        return new List<BackupHistoryDto>();
+        try
+        {
+            // Query SQL Server backup history from msdb system database
+            var results = new List<BackupHistoryDto>();
+
+            using var connection = _context.Database.GetDbConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT
+                    bs.backup_set_id,
+                    bs.name,
+                    CASE bs.type
+                        WHEN 'D' THEN 'Full'
+                        WHEN 'I' THEN 'Differential'
+                        WHEN 'L' THEN 'TransactionLog'
+                        ELSE bs.type
+                    END AS BackupType,
+                    bmf.physical_device_name AS FilePath,
+                    bs.backup_size,
+                    bs.backup_start_date,
+                    bs.user_name,
+                    CASE
+                        WHEN bs.backup_finish_date IS NOT NULL THEN 'Completed'
+                        ELSE 'InProgress'
+                    END AS Status
+                FROM msdb.dbo.backupset bs
+                INNER JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id
+                WHERE bs.database_name = DB_NAME()
+                ORDER BY bs.backup_start_date DESC";
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var backupDate = reader.GetDateTime(5);
+                if (fromDate.HasValue && backupDate < fromDate.Value) continue;
+                if (toDate.HasValue && backupDate > toDate.Value) continue;
+
+                results.Add(new BackupHistoryDto
+                {
+                    Id = Guid.NewGuid(), // backup_set_id is int, generate GUID for DTO
+                    BackupName = reader.IsDBNull(1) ? $"Backup_{backupDate:yyyyMMdd}" : reader.GetString(1),
+                    BackupType = reader.GetString(2),
+                    FilePath = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                    FileSize = reader.IsDBNull(4) ? 0 : Convert.ToInt64(reader.GetDecimal(4)),
+                    BackupDate = backupDate,
+                    BackupBy = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                    Status = reader.GetString(7)
+                });
+            }
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetBackupHistoryAsync (msdb query may require elevated permissions)");
+            return new List<BackupHistoryDto>();
+        }
     }
 
     public async Task<BackupHistoryDto> CreateBackupAsync(CreateBackupDto dto)
@@ -3109,12 +4693,41 @@ public class SystemCompleteService : ISystemCompleteService
             dbStatus = "Unhealthy";
         }
 
+        // Memory usage from current process
+        double memoryUsagePct = 0;
+        try
+        {
+            var process = System.Diagnostics.Process.GetCurrentProcess();
+            var workingSetMB = process.WorkingSet64 / (1024.0 * 1024.0);
+            // Approximate: ratio of working set to 2GB as a simple metric
+            memoryUsagePct = Math.Round(workingSetMB / 2048.0 * 100, 1);
+            if (memoryUsagePct > 100) memoryUsagePct = 99;
+        }
+        catch { /* ignore process access errors */ }
+
+        // Disk usage from application directory
+        double diskUsagePct = 0;
+        try
+        {
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var driveInfo = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(appDir) ?? "C");
+            if (driveInfo.IsReady && driveInfo.TotalSize > 0)
+            {
+                var usedBytes = driveInfo.TotalSize - driveInfo.AvailableFreeSpace;
+                diskUsagePct = Math.Round((double)usedBytes / driveInfo.TotalSize * 100, 1);
+            }
+        }
+        catch { /* ignore disk access errors */ }
+
+        var overallStatus = dbStatus == "Healthy" ? "Healthy" : "Degraded";
+        if (memoryUsagePct > 90 || diskUsagePct > 95) overallStatus = "Degraded";
+
         return new SystemHealthDto
         {
-            Status = dbStatus == "Healthy" ? "Healthy" : "Degraded",
-            CpuUsage = 0,
-            MemoryUsage = 0,
-            DiskUsage = 0,
+            Status = overallStatus,
+            CpuUsage = 0, // CPU requires PerformanceCounter or OS-specific API
+            MemoryUsage = memoryUsagePct,
+            DiskUsage = diskUsagePct,
             DatabaseStatus = dbStatus,
             LastCheckTime = DateTime.UtcNow
         };
@@ -3122,48 +4735,305 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<List<SystemResourceDto>> GetSystemResourcesAsync()
     {
-        return new List<SystemResourceDto>
+        try
         {
-            new SystemResourceDto { ResourceName = "CPU", ResourceType = "Processor", CurrentValue = 0, MaxValue = 100, UtilizationPercentage = 0 },
-            new SystemResourceDto { ResourceName = "Memory", ResourceType = "RAM", CurrentValue = 0, MaxValue = 100, UtilizationPercentage = 0 },
-            new SystemResourceDto { ResourceName = "Disk", ResourceType = "Storage", CurrentValue = 0, MaxValue = 100, UtilizationPercentage = 0 }
-        };
+            var resources = new List<SystemResourceDto>();
+
+            // Memory stats from GC and Process
+            var process = System.Diagnostics.Process.GetCurrentProcess();
+            var workingSetMB = process.WorkingSet64 / (1024.0 * 1024.0);
+            var gcTotalMemMB = GC.GetTotalMemory(false) / (1024.0 * 1024.0);
+            var maxWorkingSetMB = process.PeakWorkingSet64 / (1024.0 * 1024.0);
+
+            resources.Add(new SystemResourceDto
+            {
+                ResourceName = "Process Memory",
+                ResourceType = "RAM",
+                CurrentValue = Math.Round(workingSetMB, 1),
+                MaxValue = Math.Round(maxWorkingSetMB, 1),
+                UtilizationPercentage = maxWorkingSetMB > 0 ? Math.Round(workingSetMB / maxWorkingSetMB * 100, 1) : 0
+            });
+
+            resources.Add(new SystemResourceDto
+            {
+                ResourceName = "GC Managed Memory",
+                ResourceType = "RAM",
+                CurrentValue = Math.Round(gcTotalMemMB, 1),
+                MaxValue = Math.Round(workingSetMB, 1),
+                UtilizationPercentage = workingSetMB > 0 ? Math.Round(gcTotalMemMB / workingSetMB * 100, 1) : 0
+            });
+
+            // Thread pool stats
+            System.Threading.ThreadPool.GetAvailableThreads(out var workerAvail, out var ioAvail);
+            System.Threading.ThreadPool.GetMaxThreads(out var workerMax, out var ioMax);
+            var workerInUse = workerMax - workerAvail;
+
+            resources.Add(new SystemResourceDto
+            {
+                ResourceName = "Thread Pool Workers",
+                ResourceType = "Threads",
+                CurrentValue = workerInUse,
+                MaxValue = workerMax,
+                UtilizationPercentage = workerMax > 0 ? Math.Round((double)workerInUse / workerMax * 100, 1) : 0
+            });
+
+            // Database connection check
+            var dbConnected = await _context.Database.CanConnectAsync();
+            resources.Add(new SystemResourceDto
+            {
+                ResourceName = "Database",
+                ResourceType = "Connection",
+                CurrentValue = dbConnected ? 1 : 0,
+                MaxValue = 1,
+                UtilizationPercentage = dbConnected ? 100 : 0
+            });
+
+            // Active user sessions count
+            var activeSessions = await _context.UserSessions.CountAsync(s => s.Status == 0);
+            resources.Add(new SystemResourceDto
+            {
+                ResourceName = "Active Sessions",
+                ResourceType = "Sessions",
+                CurrentValue = activeSessions,
+                MaxValue = 1000, // arbitrary max
+                UtilizationPercentage = Math.Round(activeSessions / 10.0, 1) // % of 1000
+            });
+
+            return resources;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetSystemResourcesAsync");
+            return new List<SystemResourceDto>
+            {
+                new SystemResourceDto { ResourceName = "CPU", ResourceType = "Processor", CurrentValue = 0, MaxValue = 100, UtilizationPercentage = 0 },
+                new SystemResourceDto { ResourceName = "Memory", ResourceType = "RAM", CurrentValue = 0, MaxValue = 100, UtilizationPercentage = 0 },
+                new SystemResourceDto { ResourceName = "Disk", ResourceType = "Storage", CurrentValue = 0, MaxValue = 100, UtilizationPercentage = 0 }
+            };
+        }
     }
 
     public async Task<List<DatabaseStatisticsDto>> GetDatabaseStatisticsAsync()
     {
-        // Return basic table stats
-        return new List<DatabaseStatisticsDto>();
+        try
+        {
+            var results = new List<DatabaseStatisticsDto>();
+
+            // Use raw SQL to query SQL Server system views for table statistics
+            using var connection = _context.Database.GetDbConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT
+                    t.NAME AS TableName,
+                    p.rows AS RowCount,
+                    SUM(a.total_pages) * 8 AS TotalSpaceKB,
+                    SUM(a.used_pages) * 8 AS UsedSpaceKB,
+                    (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS UnusedSpaceKB
+                FROM sys.tables t
+                INNER JOIN sys.indexes i ON t.OBJECT_ID = i.object_id
+                INNER JOIN sys.partitions p ON i.object_id = p.OBJECT_ID AND i.index_id = p.index_id
+                INNER JOIN sys.allocation_units a ON p.partition_id = a.container_id
+                WHERE t.NAME NOT LIKE 'dt%'
+                    AND t.is_ms_shipped = 0
+                    AND i.OBJECT_ID > 255
+                GROUP BY t.Name, p.Rows
+                ORDER BY p.Rows DESC";
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                results.Add(new DatabaseStatisticsDto
+                {
+                    TableName = reader.GetString(0),
+                    RowCount = reader.GetInt64(1),
+                    DataSize = reader.GetInt64(2) * 1024, // Convert KB to bytes
+                    IndexSize = reader.GetInt64(3) * 1024  // UsedSpace as index proxy
+                });
+            }
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDatabaseStatisticsAsync");
+            return new List<DatabaseStatisticsDto>();
+        }
     }
 
-    // 17.10 Quan ly tich hop
+    // 17.10 Quan ly tich hop (backed by HIEConnections table)
     public async Task<List<IntegrationConfigDto>> GetIntegrationConfigsAsync(bool? isActive = null)
     {
-        return new List<IntegrationConfigDto>();
+        try
+        {
+            var query = _context.HIEConnections.AsNoTracking().AsQueryable();
+
+            if (isActive.HasValue)
+                query = query.Where(c => c.IsActive == isActive.Value);
+
+            var items = await query.OrderBy(c => c.ConnectionName).ToListAsync();
+            return items.Select(c => new IntegrationConfigDto
+            {
+                Id = c.Id,
+                IntegrationName = c.ConnectionName,
+                IntegrationType = c.ConnectionType,
+                Endpoint = c.EndpointUrl,
+                AuthType = c.AuthType,
+                IsActive = c.IsActive
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetIntegrationConfigsAsync");
+            return new List<IntegrationConfigDto>();
+        }
     }
 
     public async Task<IntegrationConfigDto> GetIntegrationConfigAsync(Guid integrationId)
     {
-        return null;
+        try
+        {
+            var c = await _context.HIEConnections.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == integrationId);
+            if (c == null) return null;
+            return new IntegrationConfigDto
+            {
+                Id = c.Id,
+                IntegrationName = c.ConnectionName,
+                IntegrationType = c.ConnectionType,
+                Endpoint = c.EndpointUrl,
+                AuthType = c.AuthType,
+                IsActive = c.IsActive
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetIntegrationConfigAsync");
+            return null;
+        }
     }
 
     public async Task<IntegrationConfigDto> SaveIntegrationConfigAsync(IntegrationConfigDto dto)
     {
-        _logger.LogWarning("SaveIntegrationConfigAsync: No dedicated integration entity");
-        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
-        return dto;
+        try
+        {
+            HIEConnection entity;
+            if (dto.Id == Guid.Empty)
+            {
+                entity = new HIEConnection
+                {
+                    ConnectionName = dto.IntegrationName ?? string.Empty,
+                    ConnectionType = dto.IntegrationType ?? string.Empty,
+                    EndpointUrl = dto.Endpoint ?? string.Empty,
+                    AuthType = dto.AuthType ?? "APIKey",
+                    IsActive = dto.IsActive
+                };
+                _context.HIEConnections.Add(entity);
+            }
+            else
+            {
+                entity = await _context.HIEConnections.FirstOrDefaultAsync(c => c.Id == dto.Id);
+                if (entity == null) return null;
+                entity.ConnectionName = dto.IntegrationName ?? entity.ConnectionName;
+                entity.ConnectionType = dto.IntegrationType ?? entity.ConnectionType;
+                entity.EndpointUrl = dto.Endpoint ?? entity.EndpointUrl;
+                entity.AuthType = dto.AuthType ?? entity.AuthType;
+                entity.IsActive = dto.IsActive;
+            }
+            await _context.SaveChangesAsync();
+            dto.Id = entity.Id;
+            return dto;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in SaveIntegrationConfigAsync");
+            return null;
+        }
     }
 
     public async Task<bool> TestIntegrationConnectionAsync(Guid integrationId)
     {
-        _logger.LogWarning("TestIntegrationConnectionAsync: Not implemented");
-        return false;
+        try
+        {
+            var conn = await _context.HIEConnections.FirstOrDefaultAsync(c => c.Id == integrationId);
+            if (conn == null) return false;
+
+            // Attempt a basic HTTP HEAD request to the endpoint
+            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var response = await httpClient.SendAsync(new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, conn.EndpointUrl));
+
+            if (response.IsSuccessStatusCode)
+            {
+                conn.LastSuccessfulConnection = DateTime.UtcNow;
+                conn.Status = "Active";
+                conn.LastErrorMessage = null;
+            }
+            else
+            {
+                conn.LastFailedConnection = DateTime.UtcNow;
+                conn.Status = "Error";
+                conn.LastErrorMessage = $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}";
+            }
+            await _context.SaveChangesAsync();
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in TestIntegrationConnectionAsync");
+            // Update connection status on failure
+            try
+            {
+                var conn = await _context.HIEConnections.FirstOrDefaultAsync(c => c.Id == integrationId);
+                if (conn != null)
+                {
+                    conn.LastFailedConnection = DateTime.UtcNow;
+                    conn.Status = "Error";
+                    conn.LastErrorMessage = ex.Message;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch { /* swallow nested exception */ }
+            return false;
+        }
     }
 
     public async Task<List<IntegrationLogDto>> GetIntegrationLogsAsync(
         Guid integrationId, DateTime? fromDate = null, DateTime? toDate = null)
     {
-        return new List<IntegrationLogDto>();
+        try
+        {
+            // Query SystemLogs that reference integration activities
+            var conn = await _context.HIEConnections.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == integrationId);
+            if (conn == null) return new List<IntegrationLogDto>();
+
+            var query = _context.SystemLogs.AsNoTracking()
+                .Where(l => l.Message.Contains(conn.ConnectionName) || l.Message.Contains("Integration"))
+                .AsQueryable();
+
+            if (fromDate.HasValue)
+                query = query.Where(l => l.CreatedAt >= fromDate.Value);
+            if (toDate.HasValue)
+                query = query.Where(l => l.CreatedAt <= toDate.Value);
+
+            var items = await query.OrderByDescending(l => l.CreatedAt).Take(100).ToListAsync();
+            return items.Select(l => new IntegrationLogDto
+            {
+                Id = l.Id,
+                IntegrationId = integrationId,
+                IntegrationName = conn.ConnectionName,
+                RequestTime = l.CreatedAt,
+                ResponseTime = l.CreatedAt,
+                Status = l.LogType,
+                ErrorMessage = l.Exception
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetIntegrationLogsAsync");
+            return new List<IntegrationLogDto>();
+        }
     }
 
     #endregion
