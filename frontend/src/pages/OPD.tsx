@@ -38,6 +38,7 @@ import {
   AimOutlined,
   OrderedListOutlined,
   ReloadOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -51,6 +52,7 @@ import {
   type ServiceDto,
 } from '../api/examination';
 import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 // Type aliases for compatibility
 type QueuePatient = RoomPatientListDto;
@@ -148,6 +150,9 @@ const OPD: React.FC = () => {
 
   // State for data inheritance (Reception → OPD context)
   const [opdContext, setOpdContext] = useState<OpdContextDto | null>(null);
+
+  // Barcode scanner
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // Load rooms on mount
   useEffect(() => {
@@ -270,6 +275,39 @@ const OPD: React.FC = () => {
       message.error('Lỗi khi tìm kiếm bệnh nhân');
     }
   };
+
+  const handleBarcodeScan = useCallback((decodedText: string) => {
+    message.success(`Đã quét: ${decodedText}`);
+    setSearchKeyword(decodedText);
+    // Trigger search with scanned code
+    const doSearch = async () => {
+      try {
+        let response;
+        if (decodedText.startsWith('BN')) {
+          response = await patientApi.getByCode(decodedText);
+        } else if (/^\d{9,12}$/.test(decodedText)) {
+          response = await patientApi.getByIdentityNumber(decodedText);
+        } else if (decodedText.length === 15) {
+          response = await patientApi.getByInsuranceNumber(decodedText);
+        } else {
+          const searchResponse = await patientApi.search({ keyword: decodedText, page: 1, pageSize: 1 });
+          if (searchResponse.success && searchResponse.data && searchResponse.data.items.length > 0) {
+            response = { success: true, data: searchResponse.data.items[0] };
+          }
+        }
+        if (response?.success && response.data) {
+          setSelectedPatient(response.data);
+          initializeNewExamination(response.data);
+          message.success(`Đã tìm thấy bệnh nhân: ${response.data.fullName}`);
+        } else {
+          message.warning('Không tìm thấy bệnh nhân với mã đã quét');
+        }
+      } catch {
+        message.warning('Không tìm thấy bệnh nhân với mã đã quét');
+      }
+    };
+    doSearch();
+  }, []);
 
   const initializeNewExamination = (patient: Patient, queue?: { id?: string; patientId?: string; patientCode?: string; patientName?: string; queueNumber?: number; departmentId?: string; departmentName?: string; roomId?: string; roomName?: string; status?: number }) => {
     const newExam: Examination = {
@@ -1056,13 +1094,18 @@ const OPD: React.FC = () => {
             style={{ marginBottom: 16 }}
           >
             <Space orientation="vertical" style={{ width: '100%' }}>
-              <Input.Search
-                placeholder="Mã BN, CCCD, SĐT, BHYT..."
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                onSearch={handleSearchPatient}
-                enterButton={<SearchOutlined />}
-              />
+              <Space.Compact style={{ width: '100%' }}>
+                <Input.Search
+                  placeholder="Mã BN, CCCD, SĐT, BHYT..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  onSearch={handleSearchPatient}
+                  enterButton={<SearchOutlined />}
+                />
+                <Tooltip title="Quét mã vạch">
+                  <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} />
+                </Tooltip>
+              </Space.Compact>
 
               {selectedPatient && (
                 <>
@@ -2073,6 +2116,14 @@ const OPD: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Barcode/QR Scanner */}
+      <BarcodeScanner
+        open={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleBarcodeScan}
+        title="Quét mã vạch bệnh nhân"
+      />
     </div>
   );
 };

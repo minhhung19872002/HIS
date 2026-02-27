@@ -1308,6 +1308,36 @@ public class ExaminationCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Tìm kiếm lịch hẹn khám
+    /// </summary>
+    [HttpGet("appointments")]
+    public async Task<ActionResult<PagedResultDto<AppointmentListDto>>> SearchAppointments([FromQuery] AppointmentSearchDto search)
+    {
+        var result = await _examinationService.SearchAppointmentsAsync(search);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cập nhật trạng thái lịch hẹn
+    /// </summary>
+    [HttpPut("appointments/{appointmentId}/status")]
+    public async Task<ActionResult<AppointmentDto>> UpdateAppointmentStatus(Guid appointmentId, [FromQuery] int status)
+    {
+        var result = await _examinationService.UpdateAppointmentStatusAsync(appointmentId, status);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách quá hạn tái khám
+    /// </summary>
+    [HttpGet("appointments/overdue")]
+    public async Task<ActionResult<List<AppointmentListDto>>> GetOverdueFollowUps([FromQuery] int daysOverdue = 7)
+    {
+        var result = await _examinationService.GetOverdueFollowUpsAsync(daysOverdue);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Cấp giấy nghỉ ốm
     /// </summary>
     [HttpPost("{examinationId}/sick-leave")]

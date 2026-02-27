@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -39,10 +39,12 @@ import {
   ReloadOutlined,
   SwapOutlined,
   HistoryOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as receptionApi from '../api/reception';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -115,6 +117,7 @@ const Reception: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(dayjs());
   const [allData, setAllData] = useState<ReceptionRecord[]>([]);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const [form] = Form.useForm();
   const [verifyForm] = Form.useForm();
@@ -390,6 +393,42 @@ const Reception: React.FC = () => {
     setData(filtered);
   };
 
+  const handleBarcodeScan = useCallback((decodedText: string, format: string) => {
+    message.success(`Đã quét: ${decodedText} (${format})`);
+    setSearchText(decodedText);
+    applyFilters(allData, decodedText, filterStatus);
+
+    // If no match in current list, search by patient code via API
+    const found = allData.find(r =>
+      r.patientCode === decodedText ||
+      r.identityNumber === decodedText ||
+      r.insuranceNumber === decodedText
+    );
+    if (!found) {
+      // Try to search patient by scanned code
+      receptionApi.searchPatient(decodedText).then((res) => {
+        if (res.data && res.data.length > 0) {
+          const patient = res.data[0];
+          message.info(`Tìm thấy BN: ${patient.fullName || patient.patientName} - ${patient.patientCode}`);
+          // Pre-fill registration form
+          form.setFieldsValue({
+            patientCode: patient.patientCode,
+            patientName: patient.fullName || patient.patientName,
+            gender: patient.gender,
+            dateOfBirth: patient.dateOfBirth ? dayjs(patient.dateOfBirth) : undefined,
+            phoneNumber: patient.phoneNumber,
+            identityNumber: patient.identityNumber,
+            address: patient.address,
+            insuranceNumber: patient.insuranceNumber,
+          });
+          setIsModalOpen(true);
+        }
+      }).catch(() => {
+        // Patient not found - just keep search text
+      });
+    }
+  }, [allData, filterStatus, form]);
+
   const handleCallNumber = async (record: ReceptionRecord) => {
     try {
       if (record.roomId) {
@@ -468,7 +507,35 @@ const Reception: React.FC = () => {
   const handlePrintTicket = async (record: ReceptionRecord) => {
     try {
       message.loading('Đang in phiếu khám...', 1);
-      // Open print dialog with patient info
+
+      // Fetch estimated wait time and CLS locations
+      let estimatedWait = 0;
+      let clsSteps: { roomName: string; building?: string; floor?: string; services: string[]; estimatedWaitMinutes: number }[] = [];
+      try {
+        const pathRes = await receptionApi.calculateOptimalPath(record.id);
+        if (pathRes.data) {
+          estimatedWait = pathRes.data.totalEstimatedMinutes || 0;
+          clsSteps = pathRes.data.steps || [];
+        }
+      } catch {
+        // Fallback: no CLS data available
+      }
+
+      const priorityLabel = record.priority === 2 ? '<div class="priority emergency">CẤP CỨU</div>' :
+        record.priority === 1 ? '<div class="priority urgent">ƯU TIÊN</div>' : '';
+
+      const clsSection = clsSteps.length > 0 ? `
+        <div class="cls-section">
+          <h3>HƯỚNG DẪN ĐI KHÁM</h3>
+          <table class="cls-table">
+            <tr><th>STT</th><th>Phòng</th><th>Vị trí</th><th>Chờ ~</th></tr>
+            ${clsSteps.map((step, i) => {
+              const loc = [step.building ? `Tòa ${step.building}` : '', step.floor ? `Tầng ${step.floor}` : ''].filter(Boolean).join(', ');
+              return `<tr><td>${i + 1}</td><td>${step.roomName}</td><td>${loc || '-'}</td><td>${step.estimatedWaitMinutes} phút</td></tr>`;
+            }).join('')}
+          </table>
+        </div>` : '';
+
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(`
@@ -476,11 +543,21 @@ const Reception: React.FC = () => {
             <head>
               <title>Phiếu khám bệnh - ${record.patientCode}</title>
               <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                .header { text-align: center; margin-bottom: 20px; }
-                .info { margin: 10px 0; }
-                .queue-number { font-size: 48px; font-weight: bold; text-align: center; }
-                .room { font-size: 24px; text-align: center; color: #1890ff; }
+                body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+                .header { text-align: center; margin-bottom: 15px; }
+                .info { margin: 6px 0; font-size: 13px; }
+                .queue-number { font-size: 56px; font-weight: bold; text-align: center; margin: 10px 0; }
+                .room { font-size: 22px; text-align: center; color: #1890ff; margin-bottom: 8px; }
+                .wait-time { text-align: center; font-size: 16px; color: #52c41a; font-weight: bold; margin: 8px 0; padding: 6px; border: 1px dashed #52c41a; border-radius: 4px; }
+                .priority { text-align: center; font-size: 18px; font-weight: bold; padding: 4px; margin: 6px 0; border-radius: 4px; }
+                .priority.emergency { background: #ff4d4f; color: white; }
+                .priority.urgent { background: #fa8c16; color: white; }
+                .cls-section { margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; }
+                .cls-section h3 { text-align: center; font-size: 14px; margin-bottom: 8px; }
+                .cls-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .cls-table th, .cls-table td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; }
+                .cls-table th { background: #f5f5f5; font-weight: bold; }
+                .footer { text-align: center; font-size: 10px; color: #999; margin-top: 15px; }
               </style>
             </head>
             <body>
@@ -488,14 +565,18 @@ const Reception: React.FC = () => {
                 <h2>PHIẾU KHÁM BỆNH</h2>
                 <p>Ngày: ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
               </div>
+              ${priorityLabel}
               <div class="queue-number">${record.queueNumber}</div>
               <div class="room">${record.roomName || 'Chưa phân phòng'}</div>
+              <div class="wait-time">Thời gian chờ ước tính: ~${estimatedWait > 0 ? estimatedWait + ' phút' : 'Không chờ'}</div>
               <div class="info"><strong>Mã BN:</strong> ${record.patientCode}</div>
               <div class="info"><strong>Họ tên:</strong> ${record.patientName}</div>
               <div class="info"><strong>Giới tính:</strong> ${record.gender === 1 ? 'Nam' : 'Nữ'}</div>
               <div class="info"><strong>Ngày sinh:</strong> ${record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '-'}</div>
               <div class="info"><strong>Loại khám:</strong> ${record.patientType === 1 ? 'BHYT' : record.patientType === 2 ? 'Viện phí' : 'Dịch vụ'}</div>
               ${record.insuranceNumber ? `<div class="info"><strong>Số BHYT:</strong> ${record.insuranceNumber}</div>` : ''}
+              ${clsSection}
+              <div class="footer">Vui lòng chờ gọi số tại phòng khám. Xin cảm ơn!</div>
             </body>
           </html>
         `);
@@ -771,17 +852,21 @@ const Reception: React.FC = () => {
                           allowClear
                           enterButton={<SearchOutlined />}
                           style={{ width: 350 }}
+                          value={searchText}
                           onSearch={(value) => {
                             setSearchText(value);
                             applyFilters(allData, value, filterStatus);
                           }}
                           onChange={(e) => {
+                            setSearchText(e.target.value);
                             if (!e.target.value) {
-                              setSearchText('');
                               applyFilters(allData, '', filterStatus);
                             }
                           }}
                         />
+                        <Tooltip title="Quét mã vạch / QR Code">
+                          <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} />
+                        </Tooltip>
                         <Select
                           defaultValue=""
                           style={{ width: 180 }}
@@ -1434,6 +1519,14 @@ const Reception: React.FC = () => {
           </Form>
         </div>
       </Modal>
+
+      {/* Barcode/QR Scanner */}
+      <BarcodeScanner
+        open={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleBarcodeScan}
+        title="Quét mã vạch / QR Code bệnh nhân"
+      />
     </div>
   );
 };

@@ -650,6 +650,21 @@ public interface IExaminationCompleteService
     Task<AppointmentDto> CreateAppointmentAsync(Guid examinationId, CreateAppointmentDto dto);
 
     /// <summary>
+    /// Tìm kiếm lịch hẹn khám
+    /// </summary>
+    Task<PagedResultDto<AppointmentListDto>> SearchAppointmentsAsync(AppointmentSearchDto search);
+
+    /// <summary>
+    /// Cập nhật trạng thái lịch hẹn
+    /// </summary>
+    Task<AppointmentDto> UpdateAppointmentStatusAsync(Guid appointmentId, int status);
+
+    /// <summary>
+    /// Lấy danh sách bệnh nhân quá hạn tái khám
+    /// </summary>
+    Task<List<AppointmentListDto>> GetOverdueFollowUpsAsync(int daysOverdue = 7);
+
+    /// <summary>
     /// Cấp giấy nghỉ ốm
     /// </summary>
     Task<SickLeaveDto> CreateSickLeaveAsync(Guid examinationId, CreateSickLeaveDto dto);
@@ -862,6 +877,49 @@ public class AppointmentDto
     public string? DoctorName { get; set; }
     public string? Notes { get; set; }
     public int Status { get; set; }
+}
+
+public class AppointmentSearchDto
+{
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+    public string? Keyword { get; set; }
+    public int? Status { get; set; }
+    public int? AppointmentType { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public Guid? DoctorId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class AppointmentListDto
+{
+    public Guid Id { get; set; }
+    public string AppointmentCode { get; set; } = string.Empty;
+    public DateTime AppointmentDate { get; set; }
+    public TimeSpan? AppointmentTime { get; set; }
+    public Guid PatientId { get; set; }
+    public string PatientCode { get; set; } = string.Empty;
+    public string PatientName { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public int? Gender { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+    public int AppointmentType { get; set; }
+    public string AppointmentTypeName { get; set; } = string.Empty;
+    public string? Reason { get; set; }
+    public string? Notes { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public Guid? RoomId { get; set; }
+    public string? RoomName { get; set; }
+    public Guid? DoctorId { get; set; }
+    public string? DoctorName { get; set; }
+    public int Status { get; set; }
+    public string StatusName { get; set; } = string.Empty;
+    public bool IsReminderSent { get; set; }
+    public DateTime? ReminderSentAt { get; set; }
+    public int DaysOverdue { get; set; } // Số ngày quá hạn (0 nếu chưa quá hạn)
+    public string? PreviousDiagnosis { get; set; } // Chẩn đoán lần khám trước
 }
 
 public class CreateSickLeaveDto

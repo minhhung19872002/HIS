@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -40,11 +40,13 @@ import {
   FilterOutlined,
   PlusOutlined,
   PrinterOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import pharmacyApi from '../api/pharmacy';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -158,6 +160,7 @@ const Pharmacy: React.FC = () => {
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState('all');
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
   const [transferSearch, setTransferSearch] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [transferDrugItems, setTransferDrugItems] = useState<{ _key: string; medicationCode: string; medicationName: string; quantity: number; unit: string }[]>([]);
   const [inventoryHistory, setInventoryHistory] = useState<{ id: string; transactionType: string; quantity: number; batchNumber?: string; referenceCode?: string; note?: string; createdDate: string; createdBy: string }[]>([]);
   const [inventoryHistoryLoading, setInventoryHistoryLoading] = useState(false);
@@ -236,6 +239,12 @@ const Pharmacy: React.FC = () => {
     }
     setFilteredInventory(filtered);
   };
+
+  const handleBarcodeScan = useCallback((decodedText: string) => {
+    message.success(`Đã quét: ${decodedText}`);
+    setInventorySearch(decodedText);
+    applyInventoryFilters(inventoryItems, decodedText, inventoryWarehouseFilter, inventoryCategoryFilter, inventoryStatusFilter);
+  }, [inventoryItems, inventoryWarehouseFilter, inventoryCategoryFilter, inventoryStatusFilter]);
 
   const applyTransferFilters = (records: TransferRequest[], search: string) => {
     let filtered = [...records];
@@ -1370,18 +1379,21 @@ const Pharmacy: React.FC = () => {
       <Card>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col flex="auto">
-            <Search
-              placeholder="Tìm theo mã thuốc, tên thuốc..."
-              allowClear
-              enterButton={<SearchOutlined />}
-              style={{ maxWidth: 400 }}
-              value={inventorySearch}
-              onChange={(e) => setInventorySearch(e.target.value)}
-              onSearch={(value) => {
-                setInventorySearch(value);
-                applyInventoryFilters(inventoryItems, value, inventoryWarehouseFilter, inventoryCategoryFilter, inventoryStatusFilter);
-              }}
-            />
+            <Space>
+              <Search
+                placeholder="Tìm theo mã thuốc, tên thuốc..."
+                allowClear
+                enterButton={<SearchOutlined />}
+                style={{ maxWidth: 400 }}
+                value={inventorySearch}
+                onChange={(e) => setInventorySearch(e.target.value)}
+                onSearch={(value) => {
+                  setInventorySearch(value);
+                  applyInventoryFilters(inventoryItems, value, inventoryWarehouseFilter, inventoryCategoryFilter, inventoryStatusFilter);
+                }}
+              />
+              <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} title="Quét mã vạch thuốc" />
+            </Space>
           </Col>
           <Col>
             <Space>
@@ -1949,6 +1961,14 @@ const Pharmacy: React.FC = () => {
           </Descriptions>
         )}
       </Drawer>
+
+      {/* Barcode/QR Scanner */}
+      <BarcodeScanner
+        open={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleBarcodeScan}
+        title="Quét mã vạch thuốc / vật tư"
+      />
     </div>
   );
 };

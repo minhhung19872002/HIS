@@ -462,6 +462,11 @@ public interface IReceptionCompleteService
     /// </summary>
     Task<ExaminationSlipDto> GetExaminationSlipDataAsync(Guid medicalRecordId);
 
+    /// <summary>
+    /// In phiếu số thứ tự (gồm thời gian chờ ước tính và vị trí phòng CLS)
+    /// </summary>
+    Task<byte[]> PrintQueueTicketAsync(Guid ticketId);
+
     #endregion
 
     #region 1.16 Thu tiền khám bệnh

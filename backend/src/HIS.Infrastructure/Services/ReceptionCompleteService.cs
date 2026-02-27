@@ -2246,6 +2246,106 @@ public class ReceptionCompleteService : IReceptionCompleteService
         };
     }
 
+    public async Task<byte[]> PrintQueueTicketAsync(Guid ticketId)
+    {
+        var ticket = await _context.QueueTickets
+            .Include(t => t.Patient)
+            .Include(t => t.Room)
+                .ThenInclude(r => r!.Department)
+            .FirstOrDefaultAsync(t => t.Id == ticketId);
+
+        if (ticket == null)
+            return Array.Empty<byte>();
+
+        var room = ticket.Room;
+        var patient = ticket.Patient;
+        var estimatedWait = await CalculateEstimatedWaitAsync(ticket.RoomId ?? Guid.Empty, ticket.QueueType);
+
+        // Build CLS location info: next steps after exam (lab, radiology, pharmacy, billing)
+        var clsLocationLines = new List<string>();
+        if (ticket.MedicalRecordId.HasValue)
+        {
+            var serviceRequests = await _context.ServiceRequests
+                .Include(sr => sr.Room)
+                .Where(sr => sr.MedicalRecordId == ticket.MedicalRecordId && sr.Status < 2)
+                .OrderBy(sr => sr.RequestDate)
+                .ToListAsync();
+
+            foreach (var sr in serviceRequests)
+            {
+                var srRoom = sr.Room;
+                if (srRoom != null)
+                {
+                    var loc = new List<string>();
+                    if (!string.IsNullOrEmpty(srRoom.Building)) loc.Add($"Tòa {srRoom.Building}");
+                    if (!string.IsNullOrEmpty(srRoom.Floor)) loc.Add($"Tầng {srRoom.Floor}");
+                    if (!string.IsNullOrEmpty(srRoom.Location)) loc.Add(srRoom.Location);
+                    var locationStr = loc.Count > 0 ? string.Join(", ", loc) : "";
+                    clsLocationLines.Add($"{srRoom.RoomName} - {locationStr}");
+                }
+            }
+        }
+
+        // Build queue type name
+        var queueTypeName = ticket.QueueType switch
+        {
+            1 => "Tiếp đón",
+            2 => "Khám bệnh",
+            3 => "Xét nghiệm",
+            4 => "CĐHA",
+            5 => "Nhà thuốc",
+            6 => "Thanh toán",
+            _ => "Khác"
+        };
+
+        var priorityName = ticket.Priority switch
+        {
+            1 => "ƯU TIÊN",
+            2 => "CẤP CỨU",
+            _ => ""
+        };
+
+        // Room location
+        var roomLocation = "";
+        if (room != null)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(room.Building)) parts.Add($"Tòa {room.Building}");
+            if (!string.IsNullOrEmpty(room.Floor)) parts.Add($"Tầng {room.Floor}");
+            if (!string.IsNullOrEmpty(room.Location)) parts.Add(room.Location);
+            roomLocation = parts.Count > 0 ? string.Join(", ", parts) : "";
+        }
+
+        var fields = new List<KeyValuePair<string, string>>
+        {
+            new("Số thứ tự", ticket.TicketNumber),
+            new("Loại", queueTypeName),
+            new("Phòng", room?.RoomName ?? "-"),
+            new("Vị trí", roomLocation),
+            new("Khoa", room?.Department?.DepartmentName ?? "-"),
+            new("Mã BN", patient?.PatientCode ?? "-"),
+            new("Họ tên", patient?.FullName ?? "-"),
+            new("Đối tượng", ticket.QueueType == 1 ? "Tiếp đón" : "Khám bệnh"),
+            new("Thời gian chờ ước tính", estimatedWait > 0 ? $"~{estimatedWait} phút" : "Không có người chờ"),
+            new("Ngày giờ", ticket.IssueDate.ToString("dd/MM/yyyy HH:mm"))
+        };
+
+        if (!string.IsNullOrEmpty(priorityName))
+        {
+            fields.Insert(2, new KeyValuePair<string, string>("Ưu tiên", priorityName));
+        }
+
+        IEnumerable<string>? details = null;
+        if (clsLocationLines.Count > 0)
+        {
+            var locationDetails = new List<string> { "=== VỊ TRÍ PHÒNG CẬN LÂM SÀNG ===" };
+            locationDetails.AddRange(clsLocationLines);
+            details = locationDetails;
+        }
+
+        return BuildSimplePdf("PHIẾU SỐ THỨ TỰ", fields, details);
+    }
+
     #endregion
 
     #region 1.16 Billing at Reception
@@ -2651,10 +2751,61 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<int> CalculateEstimatedWaitAsync(Guid roomId, int queueType)
     {
-        var waitingCount = await _context.QueueTickets
-            .CountAsync(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate.Date == DateTime.Today && t.Status == 0);
+        var today = DateTime.Today;
 
-        return waitingCount * 5; // 5 minutes per patient average
+        // Get waiting tickets ahead (status 0=waiting), ordered by priority then queue number
+        var waitingTickets = await _context.QueueTickets
+            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate.Date == today && t.Status == 0)
+            .ToListAsync();
+
+        if (waitingTickets.Count == 0)
+            return 0;
+
+        // Calculate average service time from completed tickets today
+        var completedToday = await _context.QueueTickets
+            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate.Date == today
+                && t.Status == 3 && t.CalledTime.HasValue && t.CompletedTime.HasValue)
+            .Select(t => new { t.CalledTime, t.CompletedTime })
+            .ToListAsync();
+
+        double avgMinutesPerPatient;
+        if (completedToday.Count >= 3)
+        {
+            // Use actual average from today's completed tickets
+            avgMinutesPerPatient = completedToday
+                .Average(t => (t.CompletedTime!.Value - t.CalledTime!.Value).TotalMinutes);
+            // Clamp to reasonable range (2-30 min)
+            avgMinutesPerPatient = Math.Clamp(avgMinutesPerPatient, 2, 30);
+        }
+        else
+        {
+            // Fall back to Service.EstimatedMinutes or default 5 min
+            var room = await _context.Rooms
+                .Include(r => r.Department)
+                .FirstOrDefaultAsync(r => r.Id == roomId);
+
+            if (room != null && queueType == 2) // Examination room
+            {
+                var avgServiceMinutes = await _context.Services
+                    .Where(s => s.ServiceType == 1 && s.EstimatedMinutes > 0 && s.IsActive)
+                    .AverageAsync(s => (double?)s.EstimatedMinutes);
+                avgMinutesPerPatient = avgServiceMinutes ?? 5;
+            }
+            else
+            {
+                avgMinutesPerPatient = 5; // Default 5 min per patient
+            }
+        }
+
+        // Count tickets ahead, weighting by priority (priority patients served faster)
+        var normalCount = waitingTickets.Count(t => t.Priority == 0);
+        var priorityCount = waitingTickets.Count(t => t.Priority == 1);
+        var emergencyCount = waitingTickets.Count(t => t.Priority == 2);
+
+        // Emergency and priority patients are served first, so they add less wait
+        var effectiveCount = normalCount + (priorityCount * 0.7) + (emergencyCount * 0.3);
+
+        return (int)Math.Ceiling(effectiveCount * avgMinutesPerPatient);
     }
 
     private async Task<string> GeneratePatientCodeAsync()

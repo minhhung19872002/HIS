@@ -39,6 +39,8 @@ import Help from './pages/Help';
 import DicomViewer from './pages/DicomViewer';
 import QueueDisplay from './pages/QueueDisplay';
 import EMR from './pages/EMR';
+import MedicalSupply from './pages/MedicalSupply';
+import FollowUp from './pages/FollowUp';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -90,6 +92,8 @@ const AppRoutes: React.FC = () => {
         <Route path="ipd" element={<Inpatient />} />
         <Route path="surgery" element={<Surgery />} />
         <Route path="pharmacy" element={<Pharmacy />} />
+        <Route path="medical-supply" element={<MedicalSupply />} />
+        <Route path="follow-up" element={<FollowUp />} />
         <Route path="lab" element={<Laboratory />} />
         <Route path="radiology" element={<Radiology />} />
         <Route path="blood-bank" element={<BloodBank />} />

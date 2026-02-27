@@ -1173,6 +1173,24 @@ public class ReceptionCompleteController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// 1.14.5: In phiếu số thứ tự (gồm thời gian chờ ước tính + vị trí phòng CLS)
+    /// </summary>
+    [HttpGet("print/queue-ticket/{ticketId}")]
+    public async Task<IActionResult> PrintQueueTicket(Guid ticketId)
+    {
+        try
+        {
+            var data = await _receptionService.PrintQueueTicketAsync(ticketId);
+            return File(data, "application/pdf", $"PhieuSTT_{ticketId}.pdf");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error printing queue ticket");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     #endregion
 
     #region 1.16 Thu tiền khám bệnh

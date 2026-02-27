@@ -1267,6 +1267,61 @@ export const requestTransfer = (examinationId: string, dto: TransferRequestDto) 
 export const createAppointment = (examinationId: string, dto: CreateAppointmentDto) =>
   request.post<AppointmentDto>(`/examination/${examinationId}/appointment`, dto);
 
+export interface AppointmentSearchDto {
+  fromDate?: string;
+  toDate?: string;
+  keyword?: string;
+  status?: number;
+  appointmentType?: number;
+  departmentId?: string;
+  doctorId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AppointmentListDto {
+  id: string;
+  appointmentCode: string;
+  appointmentDate: string;
+  appointmentTime?: string;
+  patientId: string;
+  patientCode: string;
+  patientName: string;
+  phoneNumber?: string;
+  gender?: number;
+  dateOfBirth?: string;
+  appointmentType: number;
+  appointmentTypeName: string;
+  reason?: string;
+  notes?: string;
+  departmentId?: string;
+  departmentName?: string;
+  roomId?: string;
+  roomName?: string;
+  doctorId?: string;
+  doctorName?: string;
+  status: number;
+  statusName: string;
+  isReminderSent: boolean;
+  reminderSentAt?: string;
+  daysOverdue: number;
+  previousDiagnosis?: string;
+}
+
+export interface PagedAppointments {
+  totalCount: number;
+  items: AppointmentListDto[];
+}
+
+export const searchAppointments = (search: AppointmentSearchDto) =>
+  request.get<PagedAppointments>('/examination/appointments', { params: search });
+
+export const updateAppointmentStatus = (appointmentId: string, status: number) =>
+  request.put<AppointmentDto>(`/examination/appointments/${appointmentId}/status`, null, { params: { status } });
+
+export const getOverdueFollowUps = (daysOverdue: number = 7) =>
+  request.get<AppointmentListDto[]>('/examination/appointments/overdue', { params: { daysOverdue } });
+
 export const createSickLeave = (examinationId: string, dto: CreateSickLeaveDto) =>
   request.post<SickLeaveDto>(`/examination/${examinationId}/sick-leave`, dto);
 

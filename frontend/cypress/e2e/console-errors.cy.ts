@@ -37,6 +37,8 @@ const pages = [
   { route: '/emergency-disaster', name: 'Emergency (Cap cuu)' },
   { route: '/consultation', name: 'Consultation (Hoi chan)' },
   { route: '/emr', name: 'EMR (Ho so benh an)' },
+  { route: '/medical-supply', name: 'Medical Supply (Vat tu y te)' },
+  { route: '/follow-up', name: 'Follow Up (Tai kham)' },
   { route: '/help', name: 'Help (Tro giup)' },
 ];
 

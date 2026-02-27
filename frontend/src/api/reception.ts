@@ -801,6 +801,11 @@ export const printServiceOrderSlip = (medicalRecordId: string) =>
 export const getExaminationSlipData = (medicalRecordId: string) =>
   api.get(`/reception/print/examination-slip/${medicalRecordId}/data`);
 
+export const printQueueTicket = (ticketId: string) =>
+  api.get(`/reception/print/queue-ticket/${ticketId}`, {
+    responseType: 'blob'
+  });
+
 // #endregion
 
 // #region 1.16 Thu tiền

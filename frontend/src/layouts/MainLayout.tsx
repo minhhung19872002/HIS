@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Space } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Menu, Avatar, Dropdown, Typography, Space, Drawer } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -31,6 +31,7 @@ import {
   BellOutlined,
   QuestionCircleOutlined,
   FolderOpenOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,11 +39,36 @@ import ErrorBoundary from '../components/ErrorBoundary';
 
 const { Header, Sider, Content } = Layout;
 
+const MOBILE_BREAKPOINT = 768;
+const TABLET_BREAKPOINT = 1024;
+
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+    const checkSize = () => {
+      const w = window.innerWidth;
+      setIsMobile(w < MOBILE_BREAKPOINT);
+      setIsTablet(w >= MOBILE_BREAKPOINT && w < TABLET_BREAKPOINT);
+      if (w < TABLET_BREAKPOINT) {
+        setCollapsed(true);
+      }
+    };
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
+
+  // Close mobile drawer on navigation
+  useEffect(() => {
+    setMobileDrawerOpen(false);
+  }, [location.pathname]);
 
   const menuItems = [
     {
@@ -62,6 +88,7 @@ const MainLayout: React.FC = () => {
         { key: '/ipd', icon: <FileTextOutlined />, label: 'Nội trú' },
         { key: '/surgery', icon: <HeartOutlined />, label: 'Phẫu thuật' },
         { key: '/emr', icon: <FolderOpenOutlined />, label: 'Hồ sơ BA (EMR)' },
+        { key: '/follow-up', icon: <CalendarOutlined />, label: 'Tái khám' },
       ],
     },
     {
@@ -81,6 +108,7 @@ const MainLayout: React.FC = () => {
       label: 'Hỗ trợ điều trị',
       children: [
         { key: '/pharmacy', icon: <MedicineBoxOutlined />, label: 'Nhà thuốc' },
+        { key: '/medical-supply', icon: <ToolOutlined />, label: 'Vật tư Y tế' },
         { key: '/nutrition', icon: <CoffeeOutlined />, label: 'Dinh dưỡng' },
         { key: '/rehabilitation', icon: <ThunderboltOutlined />, label: 'VLTL/PHCN' },
       ],
@@ -151,56 +179,102 @@ const MainLayout: React.FC = () => {
     }
   };
 
+  const handleMenuClick = ({ key }: { key: string }) => {
+    navigate(key);
+    if (isMobile) setMobileDrawerOpen(false);
+  };
+
+  const sidebarMenu = (
+    <>
+      <div style={{
+        height: 64,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderBottom: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>
+          {collapsed && !isMobile ? 'HIS' : 'HIS System'}
+        </Typography.Title>
+      </div>
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[location.pathname]}
+        items={menuItems}
+        onClick={handleMenuClick}
+      />
+    </>
+  );
+
+  const contentPadding = isMobile ? 12 : isTablet ? 16 : 24;
+  const contentMargin = isMobile ? '8px 4px' : isTablet ? '12px 8px' : '24px 16px';
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} theme="dark">
-        <div style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderBottom: '1px solid rgba(255,255,255,0.1)'
-        }}>
-          <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>
-            {collapsed ? 'HIS' : 'HIS System'}
-          </Typography.Title>
-        </div>
-        <Menu
+      {/* Desktop/Tablet: Fixed sidebar */}
+      {!isMobile && (
+        <Sider
+          trigger={null}
+          collapsible
+          collapsed={collapsed}
           theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-        />
-      </Sider>
+          breakpoint="lg"
+          collapsedWidth={isTablet ? 0 : 80}
+        >
+          {sidebarMenu}
+        </Sider>
+      )}
+
+      {/* Mobile: Drawer sidebar */}
+      {isMobile && (
+        <Drawer
+          placement="left"
+          onClose={() => setMobileDrawerOpen(false)}
+          open={mobileDrawerOpen}
+          styles={{ body: { padding: 0, background: '#001529' } }}
+          width={250}
+          closable={false}
+        >
+          {sidebarMenu}
+        </Drawer>
+      )}
+
       <Layout>
         <Header style={{
-          padding: '0 24px',
+          padding: isMobile ? '0 12px' : '0 24px',
           background: '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 1px 4px rgba(0,21,41,.08)'
+          boxShadow: '0 1px 4px rgba(0,21,41,.08)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
         }}>
-          {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-            className: 'trigger',
-            onClick: () => setCollapsed(!collapsed),
-            style: { fontSize: 18, cursor: 'pointer' }
-          })}
+          {React.createElement(
+            isMobile ? MenuUnfoldOutlined : (collapsed ? MenuUnfoldOutlined : MenuFoldOutlined),
+            {
+              className: 'trigger',
+              onClick: () => isMobile ? setMobileDrawerOpen(true) : setCollapsed(!collapsed),
+              style: { fontSize: 18, cursor: 'pointer' }
+            }
+          )}
 
           <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-              <span>{user?.fullName}</span>
+              <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} size={isMobile ? 'small' : 'default'} />
+              {!isMobile && <span>{user?.fullName}</span>}
             </Space>
           </Dropdown>
         </Header>
         <Content style={{
-          margin: '24px 16px',
-          padding: 24,
+          margin: contentMargin,
+          padding: contentPadding,
           background: '#fff',
           borderRadius: 8,
-          minHeight: 280
+          minHeight: 280,
+          overflow: 'auto',
         }}>
           <ErrorBoundary>
             <Outlet />

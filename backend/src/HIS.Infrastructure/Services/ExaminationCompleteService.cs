@@ -2891,6 +2891,151 @@ public class ExaminationCompleteService : IExaminationCompleteService
         };
     }
 
+    public async Task<PagedResultDto<AppointmentListDto>> SearchAppointmentsAsync(AppointmentSearchDto search)
+    {
+        var query = _context.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .Include(a => a.Room)
+            .Include(a => a.Doctor)
+            .Include(a => a.PreviousMedicalRecord)
+            .Where(a => !a.IsDeleted)
+            .AsQueryable();
+
+        if (search.FromDate.HasValue)
+            query = query.Where(a => a.AppointmentDate >= search.FromDate.Value);
+        if (search.ToDate.HasValue)
+            query = query.Where(a => a.AppointmentDate <= search.ToDate.Value.AddDays(1));
+        if (search.Status.HasValue)
+            query = query.Where(a => a.Status == search.Status.Value);
+        if (search.AppointmentType.HasValue)
+            query = query.Where(a => a.AppointmentType == search.AppointmentType.Value);
+        if (search.DepartmentId.HasValue)
+            query = query.Where(a => a.DepartmentId == search.DepartmentId.Value);
+        if (search.DoctorId.HasValue)
+            query = query.Where(a => a.DoctorId == search.DoctorId.Value);
+        if (!string.IsNullOrWhiteSpace(search.Keyword))
+        {
+            var kw = search.Keyword.Trim().ToLower();
+            query = query.Where(a => a.Patient.FullName.ToLower().Contains(kw)
+                || a.Patient.PatientCode.ToLower().Contains(kw)
+                || a.AppointmentCode.ToLower().Contains(kw)
+                || (a.Patient.PhoneNumber != null && a.Patient.PhoneNumber.Contains(kw)));
+        }
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(a => a.AppointmentDate)
+            .ThenBy(a => a.AppointmentTime)
+            .Skip((search.Page - 1) * search.PageSize)
+            .Take(search.PageSize)
+            .ToListAsync();
+
+        var today = DateTime.Today;
+        return new PagedResultDto<AppointmentListDto>
+        {
+            TotalCount = total,
+            Items = items.Select(a => MapToAppointmentListDto(a, today)).ToList()
+        };
+    }
+
+    public async Task<AppointmentDto> UpdateAppointmentStatusAsync(Guid appointmentId, int status)
+    {
+        var appointment = await _context.Appointments
+            .Include(a => a.Room)
+            .Include(a => a.Doctor)
+            .FirstOrDefaultAsync(a => a.Id == appointmentId);
+
+        if (appointment == null) throw new Exception("Appointment not found");
+
+        appointment.Status = status;
+        appointment.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        return new AppointmentDto
+        {
+            Id = appointment.Id,
+            PatientId = appointment.PatientId,
+            AppointmentDate = appointment.AppointmentDate,
+            RoomId = appointment.RoomId,
+            RoomName = appointment.Room?.RoomName,
+            DoctorId = appointment.DoctorId,
+            DoctorName = appointment.Doctor?.FullName,
+            Notes = appointment.Notes,
+            Status = appointment.Status
+        };
+    }
+
+    public async Task<List<AppointmentListDto>> GetOverdueFollowUpsAsync(int daysOverdue = 7)
+    {
+        var cutoffDate = DateTime.Today.AddDays(-daysOverdue);
+        var today = DateTime.Today;
+
+        var overdue = await _context.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .Include(a => a.Room)
+            .Include(a => a.Doctor)
+            .Include(a => a.PreviousMedicalRecord)
+            .Where(a => !a.IsDeleted
+                && a.AppointmentDate < today
+                && a.AppointmentDate >= cutoffDate
+                && (a.Status == 0 || a.Status == 1)) // Pending or confirmed but not attended
+            .OrderBy(a => a.AppointmentDate)
+            .Take(100)
+            .ToListAsync();
+
+        return overdue.Select(a => MapToAppointmentListDto(a, today)).ToList();
+    }
+
+    private static AppointmentListDto MapToAppointmentListDto(Appointment a, DateTime today)
+    {
+        var daysOver = a.AppointmentDate.Date < today ? (today - a.AppointmentDate.Date).Days : 0;
+        return new AppointmentListDto
+        {
+            Id = a.Id,
+            AppointmentCode = a.AppointmentCode,
+            AppointmentDate = a.AppointmentDate,
+            AppointmentTime = a.AppointmentTime,
+            PatientId = a.PatientId,
+            PatientCode = a.Patient?.PatientCode ?? "",
+            PatientName = a.Patient?.FullName ?? "",
+            PhoneNumber = a.Patient?.PhoneNumber,
+            Gender = a.Patient?.Gender,
+            DateOfBirth = a.Patient?.DateOfBirth,
+            AppointmentType = a.AppointmentType,
+            AppointmentTypeName = a.AppointmentType switch
+            {
+                1 => "Tái khám",
+                2 => "Khám mới",
+                3 => "Khám sức khỏe",
+                _ => "Khác"
+            },
+            Reason = a.Reason,
+            Notes = a.Notes ?? a.Note,
+            DepartmentId = a.DepartmentId,
+            DepartmentName = a.Department?.DepartmentName,
+            RoomId = a.RoomId,
+            RoomName = a.Room?.RoomName,
+            DoctorId = a.DoctorId,
+            DoctorName = a.Doctor?.FullName,
+            Status = a.Status,
+            StatusName = a.Status switch
+            {
+                0 => "Chờ xác nhận",
+                1 => "Đã xác nhận",
+                2 => "Đã đến khám",
+                3 => "Không đến",
+                4 => "Đã hủy",
+                _ => "Không rõ"
+            },
+            IsReminderSent = a.IsReminderSent,
+            ReminderSentAt = a.ReminderSentAt,
+            DaysOverdue = daysOver,
+            PreviousDiagnosis = a.PreviousMedicalRecord?.MainDiagnosis
+        };
+    }
+
     public async Task<SickLeaveDto> CreateSickLeaveAsync(Guid examinationId, CreateSickLeaveDto dto)
     {
         return new SickLeaveDto
