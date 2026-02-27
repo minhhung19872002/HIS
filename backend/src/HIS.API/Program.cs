@@ -6,6 +6,7 @@ using HIS.Application;
 using HIS.Infrastructure;
 using HIS.Infrastructure.Data;
 using HIS.API.Middleware;
+using HIS.API.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,9 +57,26 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
+    // Allow SignalR to receive JWT via query string
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
+
+// SignalR for real-time notifications
+builder.Services.AddSignalR();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -128,5 +146,6 @@ app.UseAuthorization();
 app.UseMiddleware<AuditLogMiddleware>();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

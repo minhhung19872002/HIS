@@ -36,6 +36,7 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ErrorBoundary from '../components/ErrorBoundary';
+import NotificationBell from '../components/NotificationBell';
 
 const { Header, Sider, Content } = Layout;
 
@@ -261,12 +262,15 @@ const MainLayout: React.FC = () => {
             }
           )}
 
-          <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} size={isMobile ? 'small' : 'default'} />
-              {!isMobile && <span>{user?.fullName}</span>}
-            </Space>
-          </Dropdown>
+          <Space size={isMobile ? 12 : 20}>
+            <NotificationBell />
+            <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
+              <Space style={{ cursor: 'pointer' }}>
+                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} size={isMobile ? 'small' : 'default'} />
+                {!isMobile && <span>{user?.fullName}</span>}
+              </Space>
+            </Dropdown>
+          </Space>
         </Header>
         <Content style={{
           margin: contentMargin,

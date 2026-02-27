@@ -50,6 +50,8 @@ public class Notification : BaseEntity
     public string Title { get; set; } = string.Empty; // Tiêu đề
     public string Content { get; set; } = string.Empty; // Nội dung
     public string NotificationType { get; set; } = string.Empty; // Info, Warning, Error, Success
+    public string? Module { get; set; } // Module nguồn: Lab, Radiology, Pharmacy, etc.
+    public string? ActionUrl { get; set; } // URL hành động khi click
     public Guid? TargetUserId { get; set; } // Người nhận (nếu gửi cho 1 người)
     public virtual User? TargetUser { get; set; }
     public Guid? TargetRoleId { get; set; } // Vai trò nhận (nếu gửi cho vai trò)

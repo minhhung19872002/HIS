@@ -49,6 +49,9 @@ const IGNORE_PATTERNS = [
   'favicon.ico',
   'AbortError',
   'CanceledError',
+  'Failed to start the connection',
+  'WebSocket connection',
+  'hubs/notifications',
 ];
 
 function isIgnoredError(msg: string): boolean {
