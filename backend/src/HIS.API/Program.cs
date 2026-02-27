@@ -5,6 +5,7 @@ using Microsoft.OpenApi.Models;
 using HIS.Application;
 using HIS.Infrastructure;
 using HIS.Infrastructure.Data;
+using HIS.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -116,6 +117,10 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 app.UseCors("AllowFrontend");
+
+// Request metrics middleware (before auth so it captures all requests)
+app.UseMiddleware<RequestMetricsMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

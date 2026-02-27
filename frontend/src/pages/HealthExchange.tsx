@@ -25,6 +25,7 @@ import {
   Steps,
   Upload,
   Spin,
+  Drawer,
 } from 'antd';
 import {
   CloudUploadOutlined,
@@ -43,6 +44,10 @@ import {
   SwapOutlined,
   SendOutlined,
   ReloadOutlined,
+  MedicineBoxOutlined,
+  SearchOutlined,
+  DownloadOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -70,6 +75,14 @@ import type {
   TeleconsultationRequestDto,
   HIEDashboardDto,
 } from '../api/healthExchange';
+import {
+  getMetadata,
+  searchResource,
+  readResource,
+  exportPatientBundle,
+  fetchExternalMetadata,
+} from '../api/fhir';
+import type { FhirCapabilityStatement, FhirBundle, FhirResource } from '../api/fhir';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -85,6 +98,19 @@ const HealthExchange: React.FC = () => {
   const [referralModalVisible, setReferralModalVisible] = useState(false);
   const [consultationModalVisible, setConsultationModalVisible] = useState(false);
   const [xmlModalVisible, setXmlModalVisible] = useState(false);
+
+  // FHIR state
+  const [fhirMetadata, setFhirMetadata] = useState<FhirCapabilityStatement | null>(null);
+  const [fhirSearchType, setFhirSearchType] = useState<string>('Patient');
+  const [fhirSearchParams, setFhirSearchParams] = useState<Record<string, string>>({});
+  const [fhirSearchResults, setFhirSearchResults] = useState<FhirBundle | null>(null);
+  const [fhirSearchLoading, setFhirSearchLoading] = useState(false);
+  const [fhirJsonDrawerOpen, setFhirJsonDrawerOpen] = useState(false);
+  const [fhirJsonContent, setFhirJsonContent] = useState<string>('');
+  const [fhirJsonTitle, setFhirJsonTitle] = useState<string>('');
+  const [fhirExportPatientId, setFhirExportPatientId] = useState<string>('');
+  const [fhirExternalUrl, setFhirExternalUrl] = useState<string>('');
+  const [fhirExternalStatus, setFhirExternalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const [referralForm] = Form.useForm();
   const [consultationForm] = Form.useForm();
@@ -141,6 +167,137 @@ const HealthExchange: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // ==================== FHIR Handlers ====================
+
+  const handleFhirLoadMetadata = useCallback(async () => {
+    try {
+      const metadata = await getMetadata();
+      setFhirMetadata(metadata);
+    } catch {
+      console.warn('Failed to fetch FHIR metadata');
+    }
+  }, []);
+
+  useEffect(() => {
+    handleFhirLoadMetadata();
+  }, [handleFhirLoadMetadata]);
+
+  const handleFhirSearch = async () => {
+    setFhirSearchLoading(true);
+    try {
+      const results = await searchResource(fhirSearchType, { ...fhirSearchParams, _count: 20 });
+      setFhirSearchResults(results);
+    } catch (err) {
+      console.warn('FHIR search failed:', err);
+      message.warning('Tim kiem FHIR that bai');
+    } finally {
+      setFhirSearchLoading(false);
+    }
+  };
+
+  const handleFhirViewJson = async (resourceType: string, resourceId: string) => {
+    try {
+      const resource = await readResource(resourceType, resourceId);
+      setFhirJsonContent(JSON.stringify(resource, null, 2));
+      setFhirJsonTitle(`${resourceType}/${resourceId}`);
+      setFhirJsonDrawerOpen(true);
+    } catch (err) {
+      console.warn('Failed to read FHIR resource:', err);
+      message.warning('Khong the doc tai nguyen FHIR');
+    }
+  };
+
+  const handleFhirExportPatient = async () => {
+    if (!fhirExportPatientId) {
+      message.warning('Vui long nhap Patient ID');
+      return;
+    }
+    try {
+      setFhirSearchLoading(true);
+      const bundle = await exportPatientBundle(fhirExportPatientId);
+      setFhirJsonContent(JSON.stringify(bundle, null, 2));
+      setFhirJsonTitle(`Patient Bundle - ${fhirExportPatientId}`);
+      setFhirJsonDrawerOpen(true);
+    } catch (err) {
+      console.warn('Failed to export patient bundle:', err);
+      message.warning('Xuat du lieu FHIR that bai');
+    } finally {
+      setFhirSearchLoading(false);
+    }
+  };
+
+  const handleFhirTestExternal = async () => {
+    if (!fhirExternalUrl) {
+      message.warning('Vui long nhap URL may chu FHIR');
+      return;
+    }
+    setFhirExternalStatus('loading');
+    try {
+      const result = await fetchExternalMetadata(fhirExternalUrl);
+      if (result) {
+        setFhirExternalStatus('success');
+        message.success(`Ket noi thanh cong: ${result.software?.name || 'FHIR Server'} v${result.fhirVersion}`);
+      } else {
+        setFhirExternalStatus('error');
+        message.error('Khong the ket noi den may chu FHIR');
+      }
+    } catch {
+      setFhirExternalStatus('error');
+      message.error('Ket noi FHIR that bai');
+    }
+  };
+
+  const handleCopyJson = () => {
+    navigator.clipboard.writeText(fhirJsonContent).then(() => {
+      message.success('Da sao chep JSON');
+    });
+  };
+
+  const handleDownloadJson = () => {
+    const blob = new Blob([fhirJsonContent], { type: 'application/fhir+json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fhirJsonTitle.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // FHIR resource type search parameter definitions
+  const fhirResourceSearchParams: Record<string, Array<{ name: string; label: string; placeholder: string }>> = {
+    Patient: [
+      { name: 'name', label: 'Ten', placeholder: 'Tim theo ten...' },
+      { name: 'identifier', label: 'Ma BN/CCCD/BHYT', placeholder: 'Ma dinh danh...' },
+      { name: 'phone', label: 'SDT', placeholder: 'So dien thoai...' },
+    ],
+    Encounter: [
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+      { name: 'status', label: 'Trang thai', placeholder: 'planned|in-progress|finished' },
+    ],
+    Observation: [
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+      { name: 'category', label: 'Loai', placeholder: 'vital-signs|laboratory' },
+    ],
+    MedicationRequest: [
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+      { name: 'status', label: 'Trang thai', placeholder: 'active|completed|cancelled' },
+    ],
+    DiagnosticReport: [
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+      { name: 'category', label: 'Loai', placeholder: 'LAB|RAD' },
+    ],
+    Condition: [
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+      { name: 'code', label: 'Ma ICD', placeholder: 'ICD-10 code...' },
+    ],
+    AllergyIntolerance: [
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+    ],
+    Procedure: [
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+    ],
+  };
 
   // Statistics from dashboard or fallback to local counts
   const connectedCount = dashboard?.activeConnections ?? connections.filter(c => c.status === 1).length;
@@ -941,7 +1098,189 @@ const HealthExchange: React.FC = () => {
         </div>
       ),
     },
+    {
+      key: 'fhir',
+      label: (
+        <span>
+          <MedicineBoxOutlined />
+          FHIR R4
+        </span>
+      ),
+      children: (
+        <div>
+          {/* FHIR Server Status */}
+          <Alert
+            title="HL7 FHIR R4 Server"
+            description={
+              fhirMetadata
+                ? `${fhirMetadata.software?.name || 'HIS FHIR'} v${fhirMetadata.software?.version || '1.0'} - FHIR ${fhirMetadata.fhirVersion} - ${fhirMetadata.rest?.[0]?.resource?.length || 0} resource types`
+                : 'Dang ket noi...'
+            }
+            type={fhirMetadata ? 'success' : 'info'}
+            showIcon
+            action={
+              <Button size="small" onClick={handleFhirLoadMetadata}>
+                <ReloadOutlined /> Kiem tra
+              </Button>
+            }
+            style={{ marginBottom: 16 }}
+          />
+
+          {/* Supported Resources */}
+          {fhirMetadata?.rest?.[0]?.resource && (
+            <Card size="small" title="Tai nguyen ho tro" style={{ marginBottom: 16 }}>
+              <Space wrap>
+                {fhirMetadata.rest[0].resource.map(r => (
+                  <Tag key={r.type} color="blue">{r.type} ({r.interaction?.map(i => i.code).join(', ')})</Tag>
+                ))}
+              </Space>
+            </Card>
+          )}
+
+          {/* Search Section */}
+          <Card size="small" title="Tim kiem FHIR Resources" style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 8]}>
+              <Col span={6}>
+                <Select
+                  value={fhirSearchType}
+                  onChange={(val) => { setFhirSearchType(val); setFhirSearchParams({}); }}
+                  style={{ width: '100%' }}
+                >
+                  {Object.keys(fhirResourceSearchParams).map(rt => (
+                    <Select.Option key={rt} value={rt}>{rt}</Select.Option>
+                  ))}
+                </Select>
+              </Col>
+              {fhirResourceSearchParams[fhirSearchType]?.map(param => (
+                <Col span={6} key={param.name}>
+                  <Input
+                    placeholder={param.placeholder}
+                    value={fhirSearchParams[param.name] || ''}
+                    onChange={e => setFhirSearchParams(prev => ({ ...prev, [param.name]: e.target.value }))}
+                    onPressEnter={handleFhirSearch}
+                  />
+                </Col>
+              ))}
+              <Col>
+                <Button type="primary" icon={<SearchOutlined />} onClick={handleFhirSearch} loading={fhirSearchLoading}>
+                  Tim kiem
+                </Button>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Search Results */}
+          {fhirSearchResults && (
+            <Card size="small" title={`Ket qua: ${fhirSearchResults.total} ${fhirSearchType}`} style={{ marginBottom: 16 }}>
+              <Table
+                dataSource={fhirSearchResults.entry?.map((e, i) => ({
+                  key: e.fullUrl || `entry-${i}`,
+                  fullUrl: e.fullUrl || '',
+                  resourceType: (e.resource as FhirResource)?.resourceType || '',
+                  id: (e.resource as FhirResource)?.id || '',
+                  lastUpdated: (e.resource as FhirResource)?.meta?.lastUpdated || '',
+                  summary: extractResourceSummary(e.resource),
+                })) || []}
+                columns={[
+                  { title: 'ID', dataIndex: 'id', key: 'id', width: 200, ellipsis: true },
+                  { title: 'Type', dataIndex: 'resourceType', key: 'type', width: 150 },
+                  { title: 'Tom tat', dataIndex: 'summary', key: 'summary', ellipsis: true },
+                  { title: 'Cap nhat', dataIndex: 'lastUpdated', key: 'updated', width: 180,
+                    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
+                  { title: 'Thao tac', key: 'action', width: 120,
+                    render: (_: unknown, record: { resourceType: string; id: string }) => (
+                      <Button size="small" type="link" onClick={() => handleFhirViewJson(record.resourceType, record.id)}>
+                        Xem JSON
+                      </Button>
+                    )
+                  },
+                ]}
+                pagination={{ pageSize: 10, size: 'small' }}
+                size="small"
+              />
+            </Card>
+          )}
+
+          {/* Export Patient Bundle */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Card size="small" title="Xuat du lieu FHIR Bundle">
+                <Space>
+                  <Input
+                    placeholder="Patient ID (GUID)"
+                    value={fhirExportPatientId}
+                    onChange={e => setFhirExportPatientId(e.target.value)}
+                    style={{ width: 300 }}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={handleFhirExportPatient}
+                    loading={fhirSearchLoading}
+                  >
+                    Xuat Bundle
+                  </Button>
+                </Space>
+                <div style={{ marginTop: 8 }}>
+                  <Typography.Text type="secondary">
+                    Thu thap tat ca Patient, Encounter, Observation, MedicationRequest, Condition, AllergyIntolerance, Procedure, DiagnosticReport
+                  </Typography.Text>
+                </div>
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card size="small" title="Ket noi FHIR Server ngoai">
+                <Space>
+                  <Input
+                    placeholder="https://other-hospital.vn/fhir"
+                    value={fhirExternalUrl}
+                    onChange={e => setFhirExternalUrl(e.target.value)}
+                    style={{ width: 300 }}
+                  />
+                  <Button
+                    icon={<ApiOutlined />}
+                    onClick={handleFhirTestExternal}
+                    loading={fhirExternalStatus === 'loading'}
+                  >
+                    Test
+                  </Button>
+                </Space>
+                {fhirExternalStatus === 'success' && (
+                  <Alert title="Ket noi thanh cong" type="success" showIcon style={{ marginTop: 8 }} />
+                )}
+                {fhirExternalStatus === 'error' && (
+                  <Alert title="Ket noi that bai" type="error" showIcon style={{ marginTop: 8 }} />
+                )}
+              </Card>
+            </Col>
+          </Row>
+        </div>
+      ),
+    },
   ];
+
+  // Helper to extract a human-readable summary from a FHIR resource
+  function extractResourceSummary(resource: FhirResource | undefined): string {
+    if (!resource) return '';
+    const r = resource as Record<string, unknown>;
+    // Patient
+    if (r.name && Array.isArray(r.name) && r.name.length > 0) {
+      return (r.name[0] as Record<string, unknown>)?.text as string || '';
+    }
+    // Encounter
+    if (r.subject && typeof r.subject === 'object') {
+      return (r.subject as Record<string, unknown>)?.display as string || '';
+    }
+    // Observation
+    if (r.code && typeof r.code === 'object') {
+      return (r.code as Record<string, unknown>)?.text as string || '';
+    }
+    // MedicationRequest
+    if (r.medicationCodeableConcept && typeof r.medicationCodeableConcept === 'object') {
+      return (r.medicationCodeableConcept as Record<string, unknown>)?.text as string || '';
+    }
+    return r.id as string || '';
+  }
 
   return (
     <Spin spinning={loading && connections.length === 0}>
@@ -1201,6 +1540,33 @@ const HealthExchange: React.FC = () => {
             </Form.Item>
           </Form>
         </Modal>
+        {/* FHIR JSON Drawer */}
+        <Drawer
+          title={
+            <Space>
+              <span>FHIR JSON - {fhirJsonTitle}</span>
+              <Button size="small" icon={<CopyOutlined />} onClick={handleCopyJson}>Sao chep</Button>
+              <Button size="small" icon={<DownloadOutlined />} onClick={handleDownloadJson}>Tai xuong</Button>
+            </Space>
+          }
+          open={fhirJsonDrawerOpen}
+          onClose={() => setFhirJsonDrawerOpen(false)}
+          size="large"
+        >
+          <pre style={{
+            background: '#f5f5f5',
+            padding: 16,
+            borderRadius: 8,
+            fontSize: 12,
+            lineHeight: 1.5,
+            maxHeight: 'calc(100vh - 200px)',
+            overflow: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}>
+            {fhirJsonContent}
+          </pre>
+        </Drawer>
       </div>
     </Spin>
   );

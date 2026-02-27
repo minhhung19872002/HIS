@@ -104,6 +104,18 @@ public static class DependencyInjection
         // Data Inheritance (Kế thừa dữ liệu giữa các phân hệ - Level 6 item 1.8)
         services.AddScoped<IDataInheritanceService, DataInheritanceService>();
 
+        // Health Check & Monitoring
+        services.AddScoped<IHealthCheckService, HealthCheckService>();
+        services.AddSingleton<MetricsService>();
+        services.AddHttpClient(); // IHttpClientFactory for health checks
+
+        // HL7 FHIR R4 Server & Client (Level 6 interoperability)
+        services.AddScoped<IFhirService, FhirService>();
+        services.AddHttpClient<IFhirClientService, FhirClientService>();
+
+        // PDF Generation (EMR forms - HTML for browser printing)
+        services.AddScoped<IPdfGenerationService, PdfGenerationService>();
+
         return services;
     }
 }

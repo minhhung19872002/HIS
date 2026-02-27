@@ -8,7 +8,8 @@ import {
   FileTextOutlined, SearchOutlined, MedicineBoxOutlined, HeartOutlined,
   ExperimentOutlined, PrinterOutlined, EditOutlined, EyeOutlined,
   PlusOutlined, UserOutlined, CalendarOutlined, ReloadOutlined,
-  FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined
+  FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined,
+  FilePdfOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -31,6 +32,7 @@ import {
   NutritionExamPrint, SurgeryRecordPrint, SurgeryApprovalPrint,
   SurgerySummaryPrint, DepartmentTransferPrint, AdmissionExamPrint,
 } from '../components/EMRPrintTemplates';
+import { printEmrForm } from '../api/pdf';
 import {
   NursingCarePlanPrint, ICUNursingCarePlanPrint, NursingAssessmentPrint,
   DailyNursingCarePrint, InfusionMonitoringPrint, BloodTransfusionLabPrint,
@@ -658,6 +660,20 @@ const EMR: React.FC = () => {
                   ]},
                 ], onClick: ({ key }) => handlePrintPreview(key) }}>
                   <Button size="small" icon={<PrinterOutlined />}>Biểu mẫu khác</Button>
+                </Dropdown>
+                <Dropdown menu={{ items: [
+                  { key: 'summary', label: 'MS.01 - Tóm tắt BA' },
+                  { key: 'treatment', label: 'MS.02 - Tờ điều trị' },
+                  { key: 'consultation', label: 'MS.03 - Biên bản hội chẩn' },
+                  { key: 'discharge', label: 'MS.04 - Giấy ra viện' },
+                  { key: 'nursing', label: 'MS.05 - Phiếu chăm sóc ĐD' },
+                  { key: 'preanesthetic', label: 'MS.06 - Khám tiền mê' },
+                  { key: 'consent', label: 'MS.07 - Cam kết PT' },
+                  { key: 'progress', label: 'MS.08 - Sơ kết 15 ngày' },
+                  { key: 'finalsummary', label: 'MS.11 - Tổng kết HSBA' },
+                  { key: 'admission', label: 'MS.17 - Khám vào viện' },
+                ], onClick: ({ key }) => { if (selectedExam) printEmrForm(selectedExam.id, key); } }}>
+                  <Button size="small" icon={<FilePdfOutlined />} type="primary" ghost>In PDF</Button>
                 </Dropdown>
               </Space>
             )}
