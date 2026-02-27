@@ -219,8 +219,11 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
       cy.wait('@searchExam');
       cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
       cy.wait('@getMedicalRecord');
-      cy.contains('.ant-tabs-tab', 'Hội chẩn', { timeout: 5000 }).click();
-      cy.contains('Thêm biên bản').click();
+      cy.contains('.ant-tabs-tab', 'Hội chẩn', { timeout: 5000 }).click({ force: true });
+      cy.wait(500);
+      cy.get('.ant-tabs-tabpane-active', { timeout: 5000 }).within(() => {
+        cy.contains('Thêm biên bản').click();
+      });
       cy.contains('Thêm biên bản hội chẩn', { timeout: 3000 }).should('be.visible');
       cy.contains('Lý do hội chẩn').should('be.visible');
       cy.contains('Tóm tắt bệnh án').should('be.visible');
