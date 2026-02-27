@@ -123,6 +123,10 @@ app.UseMiddleware<RequestMetricsMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Audit log middleware (after auth so JWT claims are available)
+app.UseMiddleware<AuditLogMiddleware>();
+
 app.MapControllers();
 
 app.Run();

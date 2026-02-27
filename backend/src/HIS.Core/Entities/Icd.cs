@@ -117,18 +117,30 @@ public class ClinicalTerm : BaseEntity
 }
 
 /// <summary>
-/// Nhật ký hệ thống - AuditLog
+/// Nhật ký hệ thống - AuditLog (Level 6 security audit trail)
+/// Tracks medical record access and modifications per TT 54/2017, TT 32/2023
 /// </summary>
 public class AuditLog : BaseEntity
 {
-    public string TableName { get; set; } = string.Empty;
-    public Guid RecordId { get; set; }
-    public string Action { get; set; } = string.Empty; // Create, Update, Delete
-    public string? OldValues { get; set; } // JSON
-    public string? NewValues { get; set; } // JSON
+    public string TableName { get; set; } = string.Empty;  // Legacy: mapped to EntityType
+    public Guid RecordId { get; set; }                     // Legacy: mapped to EntityId
+    public string Action { get; set; } = string.Empty;     // Read, Create, Update, Delete, Print, Export
+    public string? OldValues { get; set; }                 // JSON - previous state
+    public string? NewValues { get; set; }                 // JSON - new state
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
 
     public Guid? UserId { get; set; }
     public string? Username { get; set; }
+
+    // Level 6 audit fields
+    public string? UserFullName { get; set; }              // Full name for display
+    public string? EntityType { get; set; }                // Patient, Examination, Prescription, etc.
+    public string? EntityId { get; set; }                  // String ID of the entity
+    public string? Details { get; set; }                   // JSON with additional context
+    public DateTime Timestamp { get; set; }                // Exact time of the action
+    public string? Module { get; set; }                    // Reception, OPD, EMR, Pharmacy, Billing, etc.
+    public string? RequestPath { get; set; }               // API endpoint path
+    public string? RequestMethod { get; set; }             // HTTP method (GET, POST, PUT, DELETE)
+    public int? ResponseStatusCode { get; set; }           // HTTP response status code
 }

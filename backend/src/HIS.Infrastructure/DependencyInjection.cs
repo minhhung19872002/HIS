@@ -104,6 +104,9 @@ public static class DependencyInjection
         // Data Inheritance (Kế thừa dữ liệu giữa các phân hệ - Level 6 item 1.8)
         services.AddScoped<IDataInheritanceService, DataInheritanceService>();
 
+        // Audit Logging (Level 6 security compliance)
+        services.AddScoped<IAuditLogService, AuditLogService>();
+
         // Health Check & Monitoring
         services.AddScoped<IHealthCheckService, HealthCheckService>();
         services.AddSingleton<MetricsService>();

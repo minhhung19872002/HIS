@@ -57,6 +57,12 @@ import {
   type MetricsSnapshot,
   type ComponentHealth,
 } from '../api/health';
+import {
+  getAuditLogs as fetchAuditLogsApi,
+  type AuditLogDto as AuditLogLevel6,
+  type AuditLogSearchDto as AuditLogLevel6Search,
+  type AuditLogPagedResult,
+} from '../api/audit';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -117,6 +123,18 @@ interface AuditLog {
   username?: string;
   userFullName?: string;
   createdAt: string;
+  // Level 6 fields
+  entityType?: string;
+  entityId?: string;
+  details?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  timestamp?: string;
+  module?: string;
+  requestPath?: string;
+  requestMethod?: string;
+  responseStatusCode?: number;
+  changes?: string;
 }
 
 interface NotificationItem {
@@ -283,7 +301,7 @@ const SystemAdmin: React.FC = () => {
         getHealthDetails(),
         getMetrics(),
       ]);
-      if (healthRes.status === 'fulfilled') {
+      if (healthRes.status === 'fulfilled' && healthRes.value.data && typeof healthRes.value.data === 'object' && healthRes.value.data.status) {
         setHealthData(healthRes.value.data);
       }
       if (metricsRes.status === 'fulfilled') {
@@ -323,11 +341,56 @@ const SystemAdmin: React.FC = () => {
   const [auditEntityType, setAuditEntityType] = useState<string | undefined>();
   const [auditAction, setAuditAction] = useState<string | undefined>();
   const [auditDateRange, setAuditDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+  const [auditModule, setAuditModule] = useState<string | undefined>();
+  const [auditKeyword, setAuditKeyword] = useState<string>('');
+  const [auditLogsLevel6, setAuditLogsLevel6] = useState<AuditLogLevel6[]>([]);
+  const [auditTotalCount, setAuditTotalCount] = useState(0);
+  const [auditPageIndex, setAuditPageIndex] = useState(0);
+  const [auditPageSize, setAuditPageSize] = useState(50);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const [userForm] = Form.useForm();
   const [roleForm] = Form.useForm();
   const [configForm] = Form.useForm();
   const [notificationForm] = Form.useForm();
+
+  // Fetch audit logs from Level 6 API
+  const fetchAuditLogsLevel6 = useCallback(async (pageIdx?: number) => {
+    setAuditLoading(true);
+    try {
+      const params: AuditLogLevel6Search = {
+        pageIndex: pageIdx ?? auditPageIndex,
+        pageSize: auditPageSize,
+      };
+      if (auditAction) params.action = auditAction;
+      if (auditEntityType) params.entityType = auditEntityType;
+      if (auditModule) params.module = auditModule;
+      if (auditKeyword) params.keyword = auditKeyword;
+      if (auditDateRange?.[0]) params.fromDate = auditDateRange[0].format('YYYY-MM-DD');
+      if (auditDateRange?.[1]) params.toDate = auditDateRange[1].format('YYYY-MM-DD');
+
+      const res = await fetchAuditLogsApi(params);
+      const data = res.data as AuditLogPagedResult;
+      if (data && Array.isArray(data.items)) {
+        setAuditLogsLevel6(data.items);
+        setAuditTotalCount(data.totalCount);
+      } else if (Array.isArray(res.data)) {
+        setAuditLogsLevel6(res.data as unknown as AuditLogLevel6[]);
+        setAuditTotalCount((res.data as unknown as AuditLogLevel6[]).length);
+      }
+    } catch (error) {
+      console.warn('Error fetching audit logs:', error);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [auditPageIndex, auditPageSize, auditAction, auditEntityType, auditModule, auditKeyword, auditDateRange]);
+
+  // Fetch audit logs when tab becomes active or filters change
+  useEffect(() => {
+    if (activeTab === 'audit') {
+      fetchAuditLogsLevel6();
+    }
+  }, [activeTab, fetchAuditLogsLevel6]);
 
   const filteredUsers = userSearchKeyword
     ? users.filter(u => {
@@ -1023,58 +1086,207 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                  <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
                     <Col>
-                      <Select placeholder="Chọn bảng" style={{ width: 200 }} allowClear onChange={(v) => setAuditEntityType(v)}>
-                        <Option value="Users">Users</Option>
-                        <Option value="Patients">Patients</Option>
-                        <Option value="Examinations">Examinations</Option>
+                      <Select placeholder="Phân hệ" style={{ width: 160 }} allowClear onChange={(v) => { setAuditModule(v); setAuditPageIndex(0); }}>
+                        <Option value="Reception">Tiếp đón</Option>
+                        <Option value="OPD">Khám bệnh</Option>
+                        <Option value="Inpatient">Nội trú</Option>
+                        <Option value="Pharmacy">Nhà thuốc</Option>
+                        <Option value="Warehouse">Kho dược</Option>
+                        <Option value="Billing">Thu ngân</Option>
+                        <Option value="Laboratory">Xét nghiệm</Option>
+                        <Option value="Radiology">CĐHA</Option>
+                        <Option value="EMR">Hồ sơ BA</Option>
+                        <Option value="Prescription">Kê đơn</Option>
+                        <Option value="Surgery">Phẫu thuật</Option>
+                        <Option value="BloodBank">Ngân hàng máu</Option>
+                        <Option value="SystemAdmin">Quản trị</Option>
+                        <Option value="Auth">Đăng nhập</Option>
+                        <Option value="MasterData">Danh mục</Option>
                       </Select>
                     </Col>
                     <Col>
-                      <Select placeholder="Hành động" style={{ width: 150 }} allowClear onChange={(v) => setAuditAction(v)}>
-                        <Option value="CREATE">CREATE</Option>
-                        <Option value="UPDATE">UPDATE</Option>
-                        <Option value="DELETE">DELETE</Option>
+                      <Select placeholder="Đối tượng" style={{ width: 160 }} allowClear onChange={(v) => { setAuditEntityType(v); setAuditPageIndex(0); }}>
+                        <Option value="patients">Bệnh nhân</Option>
+                        <Option value="examination">Lượt khám</Option>
+                        <Option value="prescription">Đơn thuốc</Option>
+                        <Option value="inpatient">Nội trú</Option>
+                        <Option value="billing">Viện phí</Option>
+                        <Option value="admin">Quản trị</Option>
+                        <Option value="auth">Xác thực</Option>
+                      </Select>
+                    </Col>
+                    <Col>
+                      <Select placeholder="Hành động" style={{ width: 130 }} allowClear onChange={(v) => { setAuditAction(v); setAuditPageIndex(0); }}>
+                        <Option value="Create">Tạo mới</Option>
+                        <Option value="Update">Cập nhật</Option>
+                        <Option value="Delete">Xóa</Option>
+                        <Option value="Print">In</Option>
+                        <Option value="Export">Xuất</Option>
+                        <Option value="Auth">Đăng nhập</Option>
+                        <Option value="Approve">Duyệt</Option>
+                        <Option value="Cancel">Hủy</Option>
                       </Select>
                     </Col>
                     <Col>
                       <RangePicker
                         format="DD/MM/YYYY"
-                        onChange={(dates) => setAuditDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
+                        onChange={(dates) => { setAuditDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null); setAuditPageIndex(0); }}
                       />
+                    </Col>
+                    <Col>
+                      <Search
+                        placeholder="Tìm theo tên, IP, đường dẫn..."
+                        allowClear
+                        style={{ width: 250 }}
+                        enterButton={<SearchOutlined />}
+                        onSearch={(v) => { setAuditKeyword(v); setAuditPageIndex(0); }}
+                      />
+                    </Col>
+                    <Col>
+                      <Button icon={<ReloadOutlined />} onClick={() => fetchAuditLogsLevel6()}>Làm mới</Button>
                     </Col>
                   </Row>
 
                   <Table
-                    columns={auditLogColumns}
-                    dataSource={filteredAuditLogs}
+                    columns={[
+                      {
+                        title: 'Thời gian',
+                        dataIndex: 'timestamp',
+                        key: 'timestamp',
+                        width: 160,
+                        render: (ts: string) => ts ? dayjs(ts).format('DD/MM/YYYY HH:mm:ss') : '-',
+                      },
+                      {
+                        title: 'Người dùng',
+                        key: 'user',
+                        width: 180,
+                        render: (_: unknown, record: AuditLogLevel6) => (
+                          <>
+                            <div>{record.userFullName || record.userName || '-'}</div>
+                            {record.userName && (
+                              <div style={{ fontSize: 11, color: '#888' }}>@{record.userName}</div>
+                            )}
+                          </>
+                        ),
+                      },
+                      {
+                        title: 'Phân hệ',
+                        dataIndex: 'module',
+                        key: 'module',
+                        width: 110,
+                        render: (mod: string) => mod ? <Tag color="blue">{mod}</Tag> : '-',
+                      },
+                      {
+                        title: 'Hành động',
+                        dataIndex: 'action',
+                        key: 'action',
+                        width: 100,
+                        render: (action: string) => {
+                          const colorMap: Record<string, string> = {
+                            Create: 'green', Update: 'orange', Delete: 'red',
+                            Print: 'purple', Export: 'cyan', Auth: 'geekblue',
+                            Approve: 'lime', Cancel: 'volcano',
+                          };
+                          return <Tag color={colorMap[action] || 'default'}>{action}</Tag>;
+                        },
+                      },
+                      {
+                        title: 'Đối tượng',
+                        dataIndex: 'entityType',
+                        key: 'entityType',
+                        width: 120,
+                      },
+                      {
+                        title: 'Đường dẫn',
+                        dataIndex: 'requestPath',
+                        key: 'requestPath',
+                        width: 250,
+                        ellipsis: true,
+                        render: (path: string, record: AuditLogLevel6) => (
+                          <Tooltip title={path}>
+                            <Tag color={record.requestMethod === 'DELETE' ? 'red' : record.requestMethod === 'PUT' ? 'orange' : 'blue'} style={{ marginRight: 4 }}>
+                              {record.requestMethod}
+                            </Tag>
+                            <span style={{ fontSize: 12 }}>{path}</span>
+                          </Tooltip>
+                        ),
+                      },
+                      {
+                        title: 'Status',
+                        dataIndex: 'responseStatusCode',
+                        key: 'responseStatusCode',
+                        width: 70,
+                        align: 'center' as const,
+                        render: (code: number) => {
+                          if (!code) return '-';
+                          const color = code < 300 ? 'green' : code < 400 ? 'blue' : code < 500 ? 'orange' : 'red';
+                          return <Tag color={color}>{code}</Tag>;
+                        },
+                      },
+                      {
+                        title: 'IP',
+                        dataIndex: 'ipAddress',
+                        key: 'ipAddress',
+                        width: 120,
+                        ellipsis: true,
+                      },
+                    ] as ColumnsType<AuditLogLevel6>}
+                    dataSource={auditLogsLevel6}
                     rowKey="id"
                     size="small"
-                    scroll={{ x: 1200 }}
-                    loading={loading}
+                    scroll={{ x: 1400 }}
+                    loading={auditLoading}
                     pagination={{
+                      current: auditPageIndex + 1,
+                      pageSize: auditPageSize,
+                      total: auditTotalCount,
                       showSizeChanger: true,
+                      showQuickJumper: true,
                       showTotal: (total) => `Tổng: ${total} bản ghi`,
+                      onChange: (page, size) => {
+                        setAuditPageIndex(page - 1);
+                        setAuditPageSize(size);
+                      },
                     }}
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: 'Chi tiết nhật ký',
-                          width: 600,
+                          title: 'Chi tiết nhật ký kiểm toán',
+                          width: 700,
                           content: (
                             <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Thời gian">{record.timestamp}</Descriptions.Item>
-                              <Descriptions.Item label="Người thực hiện">{record.userName}</Descriptions.Item>
+                              <Descriptions.Item label="Thời gian">{record.timestamp ? dayjs(record.timestamp).format('DD/MM/YYYY HH:mm:ss') : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Người thực hiện">{record.userFullName || record.userName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Phân hệ">{record.module || '-'}</Descriptions.Item>
                               <Descriptions.Item label="Hành động">{record.action}</Descriptions.Item>
-                              <Descriptions.Item label="Bảng">{record.entityType}</Descriptions.Item>
+                              <Descriptions.Item label="Đối tượng">{record.entityType || '-'}</Descriptions.Item>
                               <Descriptions.Item label="ID bản ghi">{record.entityId || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="IP">{record.ipAddress || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Phương thức">{record.requestMethod || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Mã trạng thái">{record.responseStatusCode || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Đường dẫn" span={2}>{record.requestPath || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Địa chỉ IP">{record.ipAddress || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="User Agent">{record.userAgent || '-'}</Descriptions.Item>
                               <Descriptions.Item label="Chi tiết" span={2}>
-                                <pre style={{ maxHeight: 200, overflow: 'auto', fontSize: 12 }}>
-                                  {record.changes || record.details || '-'}
+                                <pre style={{ maxHeight: 200, overflow: 'auto', fontSize: 11, margin: 0, whiteSpace: 'pre-wrap' }}>
+                                  {record.details || '-'}
                                 </pre>
                               </Descriptions.Item>
+                              {(record.oldValues || record.newValues) && (
+                                <>
+                                  <Descriptions.Item label="Giá trị cũ" span={2}>
+                                    <pre style={{ maxHeight: 150, overflow: 'auto', fontSize: 11, margin: 0, whiteSpace: 'pre-wrap' }}>
+                                      {record.oldValues || '-'}
+                                    </pre>
+                                  </Descriptions.Item>
+                                  <Descriptions.Item label="Giá trị mới" span={2}>
+                                    <pre style={{ maxHeight: 150, overflow: 'auto', fontSize: 11, margin: 0, whiteSpace: 'pre-wrap' }}>
+                                      {record.newValues || '-'}
+                                    </pre>
+                                  </Descriptions.Item>
+                                </>
+                              )}
                             </Descriptions>
                           ),
                         });
@@ -1269,7 +1481,7 @@ const SystemAdmin: React.FC = () => {
                         Trạng thái thành phần
                       </Typography.Title>
                       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                        {Object.entries(healthData.checks).map(([key, check]: [string, ComponentHealth]) => {
+                        {(healthData.checks ? Object.entries(healthData.checks) : []).map(([key, check]: [string, ComponentHealth]) => {
                           const labels: Record<string, { name: string; icon: React.ReactNode }> = {
                             sqlServer: { name: 'SQL Server', icon: <DatabaseOutlined /> },
                             redis: { name: 'Redis Cache', icon: <CloudServerOutlined /> },
