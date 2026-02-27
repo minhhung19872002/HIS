@@ -45,6 +45,8 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as receptionApi from '../api/reception';
 import BarcodeScanner from '../components/BarcodeScanner';
+import WebcamCapture from '../components/WebcamCapture';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -118,6 +120,14 @@ const Reception: React.FC = () => {
   const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(dayjs());
   const [allData, setAllData] = useState<ReceptionRecord[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    { key: 'F2', handler: () => setIsModalOpen(true), description: 'Đăng ký mới' },
+    { key: 'F5', handler: () => { fetchRooms(); fetchAdmissions(); }, description: 'Làm mới' },
+    { key: 'F7', handler: () => setIsScannerOpen(true), description: 'Quét mã vạch' },
+    { key: 'f', ctrl: true, handler: () => document.querySelector<HTMLInputElement>('.ant-input-search input')?.focus(), description: 'Tìm kiếm' },
+  ]);
 
   const [form] = Form.useForm();
   const [verifyForm] = Form.useForm();
@@ -1248,30 +1258,46 @@ const Reception: React.FC = () => {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="fullName"
-                label="Họ tên"
-                rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
-              >
-                <Input placeholder="Nhập họ tên bệnh nhân" />
-              </Form.Item>
+            <Col span={18}>
+              <Row gutter={16}>
+                <Col span={16}>
+                  <Form.Item
+                    name="fullName"
+                    label="Họ tên"
+                    rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+                  >
+                    <Input placeholder="Nhập họ tên bệnh nhân" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    name="gender"
+                    label="Giới tính"
+                    rules={[{ required: true }]}
+                  >
+                    <Select placeholder="Chọn">
+                      <Select.Option value={1}>Nam</Select.Option>
+                      <Select.Option value={2}>Nữ</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="dateOfBirth" label="Ngày sinh">
+                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="phoneNumber" label="Số điện thoại">
+                    <Input placeholder="Nhập SĐT" />
+                  </Form.Item>
+                </Col>
+              </Row>
             </Col>
             <Col span={6}>
-              <Form.Item
-                name="gender"
-                label="Giới tính"
-                rules={[{ required: true }]}
-              >
-                <Select placeholder="Chọn">
-                  <Select.Option value={1}>Nam</Select.Option>
-                  <Select.Option value={2}>Nữ</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="dateOfBirth" label="Ngày sinh">
-                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              <Form.Item name="photo" label="Ảnh bệnh nhân">
+                <WebcamCapture width={140} height={170} />
               </Form.Item>
             </Col>
           </Row>
@@ -1280,11 +1306,6 @@ const Reception: React.FC = () => {
             <Col span={8}>
               <Form.Item name="identityNumber" label="CCCD/CMND">
                 <Input placeholder="Nhập số CCCD" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="phoneNumber" label="Số điện thoại">
-                <Input placeholder="Nhập SĐT" />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -1298,6 +1319,11 @@ const Reception: React.FC = () => {
                   <Select.Option value={2}>Viện phí</Select.Option>
                   <Select.Option value={3}>Dịch vụ</Select.Option>
                 </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="email" label="Email">
+                <Input placeholder="Nhập email" />
               </Form.Item>
             </Col>
           </Row>

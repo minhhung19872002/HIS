@@ -53,6 +53,7 @@ import {
 } from '../api/examination';
 import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
 import BarcodeScanner from '../components/BarcodeScanner';
+import { useKeyboardShortcuts, formatShortcut } from '../hooks/useKeyboardShortcuts';
 
 // Type aliases for compatibility
 type QueuePatient = RoomPatientListDto;
@@ -153,6 +154,14 @@ const OPD: React.FC = () => {
 
   // Barcode scanner
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    { key: 'F2', handler: () => handleSave(), description: 'Lưu khám' },
+    { key: 'F5', handler: () => { loadRooms(); if (selectedRoomId) loadQueue(selectedRoomId); }, description: 'Làm mới' },
+    { key: 'F9', handler: () => setIsPrintModalOpen(true), description: 'In phiếu' },
+    { key: 'f', ctrl: true, handler: () => document.querySelector<HTMLInputElement>('.ant-input-search input')?.focus(), description: 'Tìm kiếm' },
+  ]);
 
   // Load rooms on mount
   useEffect(() => {
@@ -1285,14 +1294,16 @@ const OPD: React.FC = () => {
               title="Phiếu khám bệnh"
               extra={
                 <Space>
-                  <Button
-                    type="default"
-                    icon={<SaveOutlined />}
-                    onClick={handleSave}
-                    loading={saving}
-                  >
-                    Lưu nháp
-                  </Button>
+                  <Tooltip title="Lưu nháp (F2)">
+                    <Button
+                      type="default"
+                      icon={<SaveOutlined />}
+                      onClick={handleSave}
+                      loading={saving}
+                    >
+                      Lưu nháp
+                    </Button>
+                  </Tooltip>
                   <Button
                     type="primary"
                     icon={<CheckCircleOutlined />}
