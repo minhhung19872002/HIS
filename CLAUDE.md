@@ -852,13 +852,11 @@ If a new service/controller is added, register it there or you get 500 errors.
 **2. Backend External Integration (Low Priority)**
 - BHXH gateway integration (ReceptionCompleteService - currently mock)
 - Smart card writing (ReceptionCompleteService)
-- Photo storage (ExaminationCompleteService)
-- Report export (ReceptionCompleteService - currently empty byte array)
-- User preferences persistence (ReceptionCompleteService)
+- Lien thong BHXH, DQGVN
 
-**3. Production Hardening**
-- Print/report templates (real HTML/PDF generation)
-- Health checks va monitoring endpoints
+**3. ~~Production Hardening~~ → DA XONG**
+- ~~Print/report templates (real HTML/PDF generation)~~ → DA XONG (Session 16) - PdfGenerationService + PdfTemplateHelper + iText7
+- ~~Health checks va monitoring endpoints~~ → DA XONG (Session 15) - HealthController 4 endpoints, 6 component checks, MetricsService
 
 **4. NangCap Level 6 + EMR (xem NangCap_PhanTich.md)**
 - ~~Queue Display System~~ → DA XONG (Session 9)
@@ -879,9 +877,12 @@ If a new service/controller is added, register it there or you get 500 errors.
 - ~~Responsive design~~ → DA XONG (Session 16) - mobile drawer sidebar, tablet auto-collapse, media queries
 - ~~Patient photo capture~~ → DA XONG (Session 16) - WebcamCapture component in Registration
 - ~~Keyboard shortcuts~~ → DA XONG (Session 16) - useKeyboardShortcuts hook, OPD + Reception
-- PDF generation + Digital signature cho bieu mau
+- ~~Real-time notifications~~ → DA XONG (Session 17) - SignalR hub + NotificationBell + NotificationContext
+- ~~Patient timeline~~ → DA XONG (Session 17) - PatientTimeline component in EMR, 4 data sources
+- ~~Dashboard charts~~ → DA XONG (Session 17) - recharts AreaChart/BarChart/PieChart
+- ~~Drug interaction checking~~ → DA XONG (already existed) - DrugInteraction entity, 3 API endpoints, Prescription.tsx
+- ~~PDF generation~~ → DA XONG (Session 16) - 38 EMR forms HTML + iText7 digital signature
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
-- Lien thong BHXH, DQGVN
 
 ---
 
@@ -941,3 +942,110 @@ If a new service/controller is added, register it there or you get 500 errors.
 **75. Git Commits (Session 16)**
 - `730eda8` - Add barcode/QR scanning, follow-up tracking, medical supply page, responsive design
 - `b477d29` - Add webcam patient photo capture, keyboard shortcuts for clinical workflows
+
+### DA HOAN THANH (Session 17 - 2026-02-27)
+
+**76. Real-time Notification System with SignalR WebSocket**
+
+**Backend (3 files):**
+- `NotificationHub.cs` (MOI): SignalR hub voi JWT auth, user group management (OnConnectedAsync/OnDisconnectedAsync)
+- `NotificationController.cs` (MOI): 5 endpoints - GET /notification/my, GET /notification/unread-count, PUT /{id}/read, PUT /read-all, POST /test
+- `Program.cs`: them AddSignalR(), JWT query string auth cho SignalR (OnMessageReceived), MapHub<NotificationHub>("/hubs/notifications")
+- `SystemAdmin.cs`: them Module va ActionUrl fields vao Notification entity
+- DI: AddSignalR() trong Program.cs
+
+**Frontend (4 files):**
+- `notification.ts` (MOI): API client - getMyNotifications, getUnreadCount, markAsRead, markAllAsRead
+- `NotificationContext.tsx` (MOI): SignalR connection voi auto-reconnect [0,2s,5s,10s,30s], polling fallback 60s, ReceiveNotification handler voi message popup
+- `NotificationBell.tsx` (MOI): Popover dropdown voi notification list, unread badge, type colors, module tags, relative timestamps (dayjs fromNow), mark read, offline indicator
+- `App.tsx`: wrap NotificationProvider quanh AppRoutes
+- `MainLayout.tsx`: them NotificationBell trong header
+- `vite.config.ts`: them /hubs proxy voi ws:true cho WebSocket
+- `console-errors.cy.ts`: them IGNORE_PATTERNS cho SignalR connection errors
+
+**DB:** ALTER TABLE Notifications ADD Module NVARCHAR(50), ActionUrl NVARCHAR(500)
+**NPM:** @microsoft/signalr ^10.0.0
+
+**77. Patient Timeline View (PatientTimeline.tsx)**
+- Tao `PatientTimeline.tsx` (~220 lines): reusable component
+  - Goi 4 API song song: getPatientMedicalHistory, getLabResultHistory, getPatientRadiologyHistory, getPaymentHistory
+  - 8 module types: OPD, IPD, Lab, Radiology, Pharmacy, Billing, Surgery, Reception
+  - Filter theo module (multi-select)
+  - Group theo thang, sort theo ngay giam dan
+  - Color coding: Lab abnormal=red, OPD=blue, Billing=gold, etc.
+  - Click examination → navigate trong EMR
+  - Module legend voi count
+- Tich hop vao EMR.tsx: tab "Timeline tong hop" moi (sau "Lich su kham")
+- Import HistoryOutlined icon
+
+**78. Dashboard Charts voi Recharts**
+- Cai dat `recharts` NPM package
+- Rewrite Dashboard.tsx voi 3 loai bieu do:
+  1. **AreaChart** (7-day trend): Ngoai tru + Nhap vien (left Y-axis) + Doanh thu (right Y-axis, triệu VND)
+  2. **BarChart** (department breakdown): Top 8 khoa theo luong benh nhan, color-coded bars
+  3. **PieChart** (patient distribution): Donut chart ngoai tru/cap cuu/noi tru voi labels
+- Segmented control chuyen doi giua 3 chart views (Xu huong / Theo khoa / Phan bo)
+- Sidebar: mini pie chart + quick stats card (nhap vien, xuat vien, phau thuat, giuong trong)
+- Giu nguyen: 4 KPI cards, secondary stats row, department progress bars
+
+**79. Drug Interaction Checking - DA CO SAN**
+- Kiem tra va xac nhan da fully implemented:
+  - DrugInteraction entity voi severity levels 1-4
+  - 3 backend methods: CheckDrugInteractionsAsync, CheckDrugAllergiesAsync, CheckContraindicationsAsync
+  - 3 API endpoints trong ExaminationCompleteController
+  - Frontend integration trong Prescription.tsx voi local fallback (~11 hardcoded clinical rules)
+
+**80. Verification - Already Implemented Features**
+- Health checks: 4 endpoints (/health, /live, /ready, /details), 6 component checks (SQL, Redis, PACS, HL7, Disk, Memory), MetricsService
+- Audit logging: AuditLogMiddleware, AuditLogService, AuditController, SystemAdmin UI tab, 4 DB indexes
+- PDF generation: PdfGenerationService (38 EMR forms), PdfTemplateHelper (1094 lines), PdfSignatureService (iText7)
+
+**81. New Features Cypress Tests - 34 tests (new-features.cy.ts)**
+- Dashboard Charts (10 tests): KPI cards, secondary stats, Segmented control, chart switch, sidebar, refresh
+- EMR Patient Timeline (5 tests): page load, search panel, timeline tab, history tab, CRUD tabs
+- Notification Bell (4 tests): icon visible, popover open, content/empty state, multi-page presence
+- Barcode Scanner (3 tests): scan button on Reception, OPD, Pharmacy
+- Keyboard Shortcuts (1 test): F2 hint on OPD save button
+- Responsive Layout (4 tests): desktop sidebar, header, mobile collapse, tablet collapse
+- Health Check Endpoints (3 tests): /health, /health/live, /health/ready
+- Audit Log UI (2 tests): SystemAdmin page load, audit tab exists
+- Notification API (2 tests): GET /notification/my, GET /notification/unread-count
+
+**82. Fix 2 flaky Cypress tests**
+- EMR `emr.cy.ts`: consultation modal test - them force click + active tabpane selector (tab order thay doi sau khi them Timeline tab)
+- 2FA `two-factor-auth.cy.ts`: OTP verify test - fix mock interceptor setup, mock downstream APIs, doi assertion tu URL check sang success message check
+
+**83. Full test verification - ALL PASS**
+
+| Test Suite | Pass | Fail | Pending | Total |
+|---|---|---|---|---|
+| Cypress console-errors | 31 | 0 | 0 | 31 |
+| Cypress new-features | 34 | 0 | 0 | 34 |
+| Cypress user-workflow | 40 | 0 | 0 | 40 |
+| Cypress manual-user-workflow | 34 | 0 | 0 | 34 |
+| Cypress emr | 34 | 0 | 0 | 34 |
+| Cypress deep-controls | 98 | 0 | 0 | 98 |
+| Cypress all-flows | 60 | 0 | 0 | 60 |
+| Cypress real-workflow | 71 | 0 | 0 | 71 |
+| Cypress form-interactions | 27 | 0 | 0 | 27 |
+| Cypress click-through-workflow | 23 | 0 | 0 | 23 |
+| Cypress fhir-health-pdf | 37 | 0 | 0 | 37 |
+| Cypress laboratory | 3 | 0 | 0 | 3 |
+| Cypress lis-complete | 33 | 0 | 0 | 33 |
+| Cypress login | 3 | 0 | 0 | 3 |
+| Cypress pharmacy-deep | 1 | 0 | 0 | 1 |
+| Cypress queue-display | 13 | 0 | 0 | 13 |
+| Cypress radiology | 3 | 0 | 3 | 6 |
+| Cypress reception | 3 | 0 | 0 | 3 |
+| Cypress ris-pacs-complete | 67 | 0 | 0 | 67 |
+| Cypress support-treatment | 10 | 0 | 0 | 10 |
+| Cypress two-factor-auth | 9 | 0 | 0 | 9 |
+| **Tong Cypress (22 specs)** | **634** | **0** | **3** | **637** |
+
+*3 pending = USB Token tests (skip do Windows PIN dialog)*
+
+**84. Git Commits (Session 17)**
+- `3065469` - Add real-time notification system with SignalR WebSocket
+- `218deb8` - Add patient timeline view and dashboard charts with recharts
+- `43bab3b` - Add comprehensive Cypress tests for new features (34 tests)
+- `c742446` - Fix EMR consultation modal test and 2FA OTP verify test
