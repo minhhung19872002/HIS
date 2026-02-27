@@ -9,7 +9,7 @@ import {
   ExperimentOutlined, PrinterOutlined, EditOutlined, EyeOutlined,
   PlusOutlined, UserOutlined, CalendarOutlined, ReloadOutlined,
   FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined,
-  FilePdfOutlined
+  FilePdfOutlined, HistoryOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -33,6 +33,7 @@ import {
   SurgerySummaryPrint, DepartmentTransferPrint, AdmissionExamPrint,
 } from '../components/EMRPrintTemplates';
 import { printEmrForm } from '../api/pdf';
+import PatientTimeline from '../components/PatientTimeline';
 import {
   NursingCarePlanPrint, ICUNursingCarePlanPrint, NursingAssessmentPrint,
   DailyNursingCarePrint, InfusionMonitoringPrint, BloodTransfusionLabPrint,
@@ -509,6 +510,24 @@ const EMR: React.FC = () => {
     {
       key: 'history', label: <><CalendarOutlined /> Lịch sử khám</>,
       children: renderHistory(),
+    },
+    {
+      key: 'timeline', label: <><HistoryOutlined /> Timeline tổng hợp</>,
+      children: selectedExam?.patientId ? (
+        <PatientTimeline
+          patientId={selectedExam.patientId}
+          onExaminationClick={(examId) => {
+            const exam: ExaminationDto = {
+              id: examId, patientId: selectedExam.patientId,
+              patientCode: selectedExam.patientCode, patientName: selectedExam.patientName,
+              roomId: '', roomName: '', status: 4, statusName: 'Hoàn thành',
+              queueNumber: 0, examinationDate: '',
+            };
+            loadDetail(exam);
+            setDetailTab('record');
+          }}
+        />
+      ) : <Empty description="Chọn bệnh nhân để xem timeline" />,
     },
     {
       key: 'treatment', label: <Badge count={treatmentSheets.length} size="small" offset={[8, 0]}><FileTextOutlined /> Phiếu điều trị</Badge>,

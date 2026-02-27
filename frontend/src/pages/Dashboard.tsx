@@ -1,22 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, Tag, message, Progress, Divider, Badge, Tooltip, Button } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, Tag, message, Progress, Badge, Button, Segmented } from 'antd';
 import {
   UserOutlined,
-  MedicineBoxOutlined,
   TeamOutlined,
   DollarOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  ClockCircleOutlined,
   AlertOutlined,
   ScissorOutlined,
   ReloadOutlined,
   HomeOutlined,
+  BarChartOutlined,
+  LineChartOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Legend,
+} from 'recharts';
 import { statisticsApi } from '../api/system';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+
+interface TrendData {
+  date: string;
+  outpatients: number;
+  admissions: number;
+  revenue: number;
+}
 
 interface DashboardData {
   outpatientCount: number;
@@ -27,24 +40,21 @@ interface DashboardData {
   dischargeCount: number;
   availableBeds: number;
   totalRevenue: number;
+  trends: TrendData[];
   outpatientByDepartment: { departmentName: string; count: number }[];
   revenueByDepartment: { departmentName: string; revenue: number }[];
 }
 
+const CHART_COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'];
+
 const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [chartView, setChartView] = useState<string | number>('trend');
   const [data, setData] = useState<DashboardData>({
-    outpatientCount: 0,
-    inpatientCount: 0,
-    emergencyCount: 0,
-    surgeryCount: 0,
-    admissionCount: 0,
-    dischargeCount: 0,
-    availableBeds: 0,
-    totalRevenue: 0,
-    outpatientByDepartment: [],
-    revenueByDepartment: [],
+    outpatientCount: 0, inpatientCount: 0, emergencyCount: 0, surgeryCount: 0,
+    admissionCount: 0, dischargeCount: 0, availableBeds: 0, totalRevenue: 0,
+    trends: [], outpatientByDepartment: [], revenueByDepartment: [],
   });
 
   const fetchDashboard = useCallback(async () => {
@@ -59,6 +69,7 @@ const Dashboard: React.FC = () => {
       const depts = deptRes.status === 'fulfilled' ? ((deptRes.value.data as any) ?? []) : [];
 
       if (d) {
+        const rawTrends = Array.isArray(d.trends) ? d.trends : [];
         setData({
           outpatientCount: d.todayOutpatients ?? d.outpatientCount ?? 0,
           inpatientCount: d.currentInpatients ?? d.inpatientCount ?? 0,
@@ -68,6 +79,12 @@ const Dashboard: React.FC = () => {
           dischargeCount: d.todayDischarges ?? d.dischargeCount ?? 0,
           availableBeds: d.availableBeds ?? 0,
           totalRevenue: d.todayRevenue ?? d.totalRevenue ?? 0,
+          trends: rawTrends.map((t: any) => ({
+            date: dayjs(t.date).format('DD/MM'),
+            outpatients: t.outpatients ?? 0,
+            admissions: t.admissions ?? 0,
+            revenue: t.revenue ?? 0,
+          })),
           outpatientByDepartment: Array.isArray(depts)
             ? depts.map((dep: any) => ({ departmentName: dep.departmentName ?? dep.name ?? 'N/A', count: dep.outpatientCount ?? dep.count ?? 0 })).filter((d: any) => d.count > 0)
             : d.outpatientByDepartment ?? [],
@@ -87,12 +104,25 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboard();
-    const interval = setInterval(fetchDashboard, 60000); // Auto-refresh every 60s
+    const interval = setInterval(fetchDashboard, 60000);
     return () => clearInterval(interval);
   }, [fetchDashboard]);
 
   const maxDeptCount = Math.max(...data.outpatientByDepartment.map(d => d.count), 1);
   const maxDeptRevenue = Math.max(...data.revenueByDepartment.map(d => d.revenue), 1);
+
+  // Pie chart data for patient distribution
+  const pieData = [
+    { name: 'Ngoại trú', value: data.outpatientCount, color: '#1890ff' },
+    { name: 'Cấp cứu', value: data.emergencyCount, color: '#ff4d4f' },
+    { name: 'Nội trú', value: data.inpatientCount, color: '#faad14' },
+  ].filter(d => d.value > 0);
+
+  // Bar chart data for department breakdown (top 8)
+  const deptBarData = data.outpatientByDepartment
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+    .map(d => ({ name: d.departmentName.length > 12 ? d.departmentName.substring(0, 12) + '...' : d.departmentName, 'Bệnh nhân': d.count }));
 
   return (
     <Spin spinning={loading}>
@@ -184,8 +214,156 @@ const Dashboard: React.FC = () => {
           </Col>
         </Row>
 
-        {/* Row 3: Department breakdown */}
+        {/* Row 3: Charts */}
         <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+          <Col xs={24} lg={16}>
+            <Card
+              size="small"
+              title="Biểu đồ hoạt động"
+              extra={
+                <Segmented
+                  size="small"
+                  value={chartView}
+                  onChange={setChartView}
+                  options={[
+                    { value: 'trend', icon: <LineChartOutlined />, label: 'Xu hướng' },
+                    { value: 'dept', icon: <BarChartOutlined />, label: 'Theo khoa' },
+                    { value: 'pie', icon: <PieChartOutlined />, label: 'Phân bố' },
+                  ]}
+                />
+              }
+            >
+              <div style={{ height: 300 }}>
+                {chartView === 'trend' && (
+                  data.trends.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={data.trends} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" fontSize={12} />
+                        <YAxis yAxisId="left" fontSize={12} />
+                        <YAxis yAxisId="right" orientation="right" fontSize={12}
+                          tickFormatter={(v) => `${(v / 1000000).toFixed(0)}tr`} />
+                        <RechartsTooltip
+                          formatter={(value: number, name: string) => {
+                            if (name === 'Doanh thu') return [`${value.toLocaleString('vi-VN')} ₫`, name];
+                            return [value, name];
+                          }}
+                        />
+                        <Legend />
+                        <Area yAxisId="left" type="monotone" dataKey="outpatients" name="Ngoại trú"
+                          stroke="#1890ff" fill="#1890ff" fillOpacity={0.15} />
+                        <Area yAxisId="left" type="monotone" dataKey="admissions" name="Nhập viện"
+                          stroke="#faad14" fill="#faad14" fillOpacity={0.15} />
+                        <Area yAxisId="right" type="monotone" dataKey="revenue" name="Doanh thu"
+                          stroke="#52c41a" fill="#52c41a" fillOpacity={0.1} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Text type="secondary">Chưa có dữ liệu xu hướng 7 ngày</Text>
+                    </div>
+                  )
+                )}
+
+                {chartView === 'dept' && (
+                  deptBarData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={deptBarData} margin={{ top: 5, right: 20, left: 0, bottom: 30 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" fontSize={11} angle={-25} textAnchor="end" />
+                        <YAxis fontSize={12} />
+                        <RechartsTooltip />
+                        <Bar dataKey="Bệnh nhân" radius={[4, 4, 0, 0]}>
+                          {deptBarData.map((_, i) => (
+                            <Cell key={`cell-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Text type="secondary">Chưa có dữ liệu theo khoa</Text>
+                    </div>
+                  )
+                )}
+
+                {chartView === 'pie' && (
+                  pieData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={3}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {pieData.map((entry, i) => (
+                            <Cell key={`cell-${i}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Text type="secondary">Chưa có dữ liệu phân bố</Text>
+                    </div>
+                  )
+                )}
+              </div>
+            </Card>
+          </Col>
+
+          {/* Right sidebar: Quick stats pie */}
+          <Col xs={24} lg={8}>
+            <Card size="small" title="Phân bố bệnh nhân" style={{ marginBottom: 16 }}>
+              {pieData.length > 0 ? (
+                <div style={{ height: 120 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value">
+                        {pieData.map((entry, i) => <Cell key={`mini-${i}`} fill={entry.color} />)}
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <Text type="secondary">Chưa có dữ liệu</Text>}
+              <div style={{ marginTop: 8 }}>
+                {pieData.map(d => (
+                  <div key={d.name} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: d.color, marginRight: 6 }} />{d.name}</Text>
+                    <Text strong>{d.value}</Text>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card size="small" title="Hoạt động hôm nay">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Nhập viện</Text><Tag color="blue">{data.admissionCount}</Tag>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Xuất viện</Text><Tag color="green">{data.dischargeCount}</Tag>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Phẫu thuật</Text><Tag color="purple">{data.surgeryCount}</Tag>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Giường trống</Text><Tag color="cyan">{data.availableBeds}</Tag>
+                </div>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Row 4: Department breakdown */}
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col xs={24} lg={12}>
             <Card title="Khám bệnh theo khoa" size="small" styles={{ body: { maxHeight: 350, overflowY: 'auto' } }}>
               {data.outpatientByDepartment.length > 0 ? (
