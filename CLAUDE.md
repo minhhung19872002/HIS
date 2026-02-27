@@ -872,7 +872,72 @@ If a new service/controller is added, register it there or you get 500 errors.
 - ~~Ke thua du lieu giua cac module~~ → DA XONG (Session 14) - Reception→OPD→Rx→Billing→Pharmacy→IPD
 - ~~10 mock pages → real API~~ → DA XONG (Session 14) - all 10 converted
 - ~~Audit logging Level 6~~ → DA XONG (Session 15) - middleware + UI + 72 Cypress tests
+- ~~HL7 FHIR R4~~ → DA XONG (Session 15) - 8 resources, 22+ endpoints, frontend API, Cypress tests
+- ~~Barcode/QR scanning~~ → DA XONG (Session 16) - html5-qrcode, Reception + OPD + Pharmacy
+- ~~Follow-up tracking~~ → DA XONG (Session 16) - FollowUp page + appointment search API
+- ~~Medical supply module~~ → DA XONG (Session 16) - MedicalSupply page + warehouse API
+- ~~Responsive design~~ → DA XONG (Session 16) - mobile drawer sidebar, tablet auto-collapse, media queries
+- ~~Patient photo capture~~ → DA XONG (Session 16) - WebcamCapture component in Registration
+- ~~Keyboard shortcuts~~ → DA XONG (Session 16) - useKeyboardShortcuts hook, OPD + Reception
 - PDF generation + Digital signature cho bieu mau
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
 - Lien thong BHXH, DQGVN
-- HL7 FHIR v4.0.1 + SNOMED CT
+
+---
+
+### DA HOAN THANH (Session 16 - 2026-02-27)
+
+**67. Wait Time Estimation + CLS Location Printing**
+- Improved `CalculateEstimatedWaitAsync`: 3-tier fallback (completed ticket avg → Service.EstimatedMinutes → 5min default)
+- Priority weighting: emergency=0.3x, priority=0.7x, normal=1.0x
+- Added `PrintQueueTicketAsync` with CLS room directions (building/floor/location)
+- Added `/reception/print/queue-ticket/{ticketId}` endpoint + frontend API
+
+**68. Medical Supply Management Module (MedicalSupply.tsx)**
+- 5 tabs: Inventory, Receipts, Issues, Reusable supplies, Procurement
+- Uses warehouse API with `itemType=2` filter
+- Reusable supply sterilization tracking with Progress bars
+- Route `/medical-supply`, menu item in sidebar
+
+**69. Outpatient Follow-up Tracking (FollowUp.tsx)**
+- Backend: `SearchAppointmentsAsync`, `UpdateAppointmentStatusAsync`, `GetOverdueFollowUpsAsync`
+- DTOs: `AppointmentSearchDto`, `AppointmentListDto` with DaysOverdue
+- 3 controller endpoints in ExaminationCompleteController
+- Frontend: Tabs (Today/Upcoming/Overdue/All), statistics, filters, detail modal
+- DB: `Appointments` + `AppointmentServices` tables
+- Route `/follow-up`, menu item in sidebar
+
+**70. Barcode/QR Code Scanning**
+- Created `BarcodeScanner.tsx` component using `html5-qrcode` library
+- Camera-based scanning: QR_CODE, CODE_128, CODE_39, EAN_13, EAN_8, ITF, DATA_MATRIX
+- Integrated into Reception (patient lookup), OPD (patient search), Pharmacy (medicine lookup)
+- Auto-search patient by scanned code (code, CCCD, insurance number)
+- Fixed Antd v6 `destroyOnClose` → `destroyOnHidden` deprecation
+
+**71. Responsive Design**
+- MainLayout: mobile drawer sidebar (<768px), tablet auto-collapse (768-1024px), sticky header
+- CSS media queries: table padding, card spacing, modal width, col stacking on mobile
+- Window resize listener with breakpoint detection
+
+**72. Patient Photo Capture (WebcamCapture.tsx)**
+- Webcam capture component: start camera, center-crop, capture as JPEG base64, retake
+- Integrated into Reception registration form (right side photo field)
+- Form.Item compatible (value/onChange pattern)
+
+**73. Keyboard Shortcuts (useKeyboardShortcuts.ts)**
+- Smart hook: skips when typing in input/textarea, always allows F-keys
+- OPD: F2=Save, F5=Refresh, F9=Print, Ctrl+F=Search
+- Reception: F2=New registration, F5=Refresh, F7=Barcode scan, Ctrl+F=Search
+- Tooltip hints on buttons
+
+**74. Verification**
+- Console-errors: 31/31 pass
+- User-workflow: 40/40 pass
+- Manual-user-workflow: 34/34 pass
+- All-flows: 60/60 pass
+- TypeScript: 0 errors
+- Vite build: success
+
+**75. Git Commits (Session 16)**
+- `730eda8` - Add barcode/QR scanning, follow-up tracking, medical supply page, responsive design
+- `b477d29` - Add webcam patient photo capture, keyboard shortcuts for clinical workflows
