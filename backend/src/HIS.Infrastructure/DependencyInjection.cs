@@ -98,6 +98,12 @@ public static class DependencyInjection
         // Luồng 20: Mass Casualty Incident (Cấp cứu thảm họa)
         services.AddScoped<IMassCasualtyService, MassCasualtyServiceImpl>();
 
+        // Level 6 Reconciliation Reports (Đối chiếu Level 6 - 8 báo cáo)
+        services.AddScoped<IReconciliationReportService, ReconciliationReportService>();
+
+        // Data Inheritance (Kế thừa dữ liệu giữa các phân hệ - Level 6 item 1.8)
+        services.AddScoped<IDataInheritanceService, DataInheritanceService>();
+
         return services;
     }
 }

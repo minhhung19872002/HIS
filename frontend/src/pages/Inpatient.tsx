@@ -52,6 +52,7 @@ import {
   type CreateBedAssignmentDto,
   type TransferBedDto,
 } from '../api/inpatient';
+import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheritance';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -113,6 +114,10 @@ const Inpatient: React.FC = () => {
   const [bedAssignForm] = Form.useForm();
   const [medicalRecordForm] = Form.useForm();
   const [treatmentTrackingForm] = Form.useForm();
+
+  // Data inheritance state (OPD → Inpatient context)
+  const [admissionCtx, setAdmissionCtx] = useState<AdmissionContextDto | null>(null);
+  const [loadingAdmissionCtx, setLoadingAdmissionCtx] = useState(false);
 
   // Bed filter states
   const [bedFilterDepartment, setBedFilterDepartment] = useState<string | undefined>(undefined);
@@ -404,6 +409,32 @@ const Inpatient: React.FC = () => {
         ),
     },
   ];
+
+  // Lookup OPD context for admission by examination ID
+  const handleLookupOpdContext = async (examinationId: string) => {
+    if (!examinationId || examinationId.length < 10) return;
+    try {
+      setLoadingAdmissionCtx(true);
+      const response = await getAdmissionContext(examinationId);
+      if (response.data) {
+        setAdmissionCtx(response.data);
+        // Auto-fill form fields from OPD data
+        const ctx = response.data;
+        form.setFieldsValue({
+          diagnosisOnAdmission: ctx.mainDiagnosis
+            ? `${ctx.mainIcdCode ? ctx.mainIcdCode + ' - ' : ''}${ctx.mainDiagnosis}`
+            : undefined,
+          reasonForAdmission: ctx.conclusionNote || ctx.chiefComplaint || undefined,
+        });
+        message.success('Da tai du lieu kham benh tu OPD');
+      }
+    } catch {
+      // Non-critical
+      setAdmissionCtx(null);
+    } finally {
+      setLoadingAdmissionCtx(false);
+    }
+  };
 
   const handleAdmitPatient = async () => {
     try {
@@ -1460,12 +1491,78 @@ const Inpatient: React.FC = () => {
         title="Nhập viện"
         open={isAdmitModalOpen}
         onOk={handleAdmitPatient}
-        onCancel={() => setIsAdmitModalOpen(false)}
+        onCancel={() => { setIsAdmitModalOpen(false); setAdmissionCtx(null); }}
         width={900}
         okText="Nhập viện"
         cancelText="Hủy"
       >
         <Form form={form} layout="vertical">
+          {/* Data Inheritance: OPD examination lookup */}
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item label="Tra cuu luot kham OPD (tu dong dien thong tin)">
+                <Input.Search
+                  placeholder="Nhap ma luot kham (examination ID) tu OPD"
+                  onSearch={handleLookupOpdContext}
+                  loading={loadingAdmissionCtx}
+                  enterButton="Tra cuu"
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* OPD Context Panel */}
+          {admissionCtx && (
+            <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '8px 12px' } }}>
+              <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
+                Du lieu ke thua tu OPD
+              </Typography.Text>
+              <Descriptions column={2} size="small" style={{ marginTop: 4 }}>
+                <Descriptions.Item label="Benh nhan">
+                  <Text strong>{admissionCtx.fullName}</Text> ({admissionCtx.patientCode})
+                </Descriptions.Item>
+                <Descriptions.Item label="Tuoi/GT">
+                  {admissionCtx.age} tuoi - {admissionCtx.genderName}
+                </Descriptions.Item>
+                {admissionCtx.mainDiagnosis && (
+                  <Descriptions.Item label="Chan doan" span={2}>
+                    <Text strong>
+                      {admissionCtx.mainIcdCode && `${admissionCtx.mainIcdCode} - `}{admissionCtx.mainDiagnosis}
+                    </Text>
+                  </Descriptions.Item>
+                )}
+                {(admissionCtx.temperature || admissionCtx.bloodPressureSystolic) && (
+                  <Descriptions.Item label="Sinh hieu" span={2}>
+                    <Space orientation="horizontal" size={4}>
+                      {admissionCtx.temperature && <Tag>Nhiet do: {String(admissionCtx.temperature)}</Tag>}
+                      {admissionCtx.bloodPressureSystolic && (
+                        <Tag>HA: {admissionCtx.bloodPressureSystolic}/{admissionCtx.bloodPressureDiastolic}</Tag>
+                      )}
+                      {admissionCtx.pulse && <Tag>Mach: {admissionCtx.pulse}</Tag>}
+                      {admissionCtx.weight && <Tag>Can nang: {String(admissionCtx.weight)}kg</Tag>}
+                    </Space>
+                  </Descriptions.Item>
+                )}
+                {admissionCtx.examDoctorName && (
+                  <Descriptions.Item label="BS kham">
+                    {admissionCtx.examDoctorName}
+                  </Descriptions.Item>
+                )}
+                {admissionCtx.examDepartmentName && (
+                  <Descriptions.Item label="Khoa kham">
+                    {admissionCtx.examDepartmentName}
+                  </Descriptions.Item>
+                )}
+                {admissionCtx.allergyHistory && (
+                  <Descriptions.Item label="Di ung" span={2}>
+                    <Text type="danger">{admissionCtx.allergyHistory}</Text>
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+            </Card>
+          )}
+
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -22,256 +22,238 @@ import {
   message,
   Divider,
   Progress,
+  Spin,
 } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
-  ScheduleOutlined,
   SafetyCertificateOutlined,
   BookOutlined,
   PrinterOutlined,
   PlusOutlined,
   WarningOutlined,
-  CheckCircleOutlined,
+  ScheduleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import {
+  getStaff,
+  getShiftDefinitions,
+  getDashboard,
+  createStaff,
+  generateRoster,
+  getRoster,
+  createCMERecord,
+  getNonCompliantStaff,
+  getExpiringCertifications,
+} from '../api/medicalHR';
+import type {
+  StaffProfileDto,
+  RosterAssignmentDto,
+  CMERecordDto,
+  MedicalHRDashboardDto,
+  CertificationDto,
+  ShiftDefinitionDto,
+  CMESummaryDto,
+} from '../api/medicalHR';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
-
-// Types
-interface Employee {
-  id: string;
-  code: string;
-  fullName: string;
-  gender: 'male' | 'female';
-  dateOfBirth: string;
-  position: string;
-  department: string;
-  qualification: string;
-  licenseNumber?: string;
-  licenseExpiry?: string;
-  joinDate: string;
-  status: 'active' | 'on_leave' | 'resigned';
-  phone: string;
-  email: string;
-  avatar?: string;
-  cmeCredits?: number;
-  cmeRequired?: number;
-}
-
-interface Shift {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  department: string;
-  date: string;
-  shiftType: 'morning' | 'afternoon' | 'night' | 'on_call';
-  startTime: string;
-  endTime: string;
-  status: 'scheduled' | 'checked_in' | 'checked_out' | 'absent';
-}
-
-interface Training {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  trainingName: string;
-  trainingType: 'cme' | 'internal' | 'external' | 'certification';
-  startDate: string;
-  endDate?: string;
-  credits: number;
-  status: 'registered' | 'in_progress' | 'completed' | 'cancelled';
-  certificate?: string;
-}
-
-// Mock data
-const mockEmployees: Employee[] = [
-  {
-    id: 'EMP001',
-    code: 'BS001',
-    fullName: 'BS. Nguyen Van A',
-    gender: 'male',
-    dateOfBirth: '1980-05-15',
-    position: 'Bac si',
-    department: 'Noi khoa',
-    qualification: 'Thac si Y khoa',
-    licenseNumber: 'CCHN-001234',
-    licenseExpiry: '2025-12-31',
-    joinDate: '2010-03-01',
-    status: 'active',
-    phone: '0901234567',
-    email: 'nguyenvana@hospital.vn',
-    cmeCredits: 36,
-    cmeRequired: 48,
-  },
-  {
-    id: 'EMP002',
-    code: 'DD002',
-    fullName: 'DD. Tran Thi B',
-    gender: 'female',
-    dateOfBirth: '1990-08-20',
-    position: 'Dieu duong truong',
-    department: 'Noi khoa',
-    qualification: 'Cu nhan Dieu duong',
-    licenseNumber: 'CCHN-DD-002345',
-    licenseExpiry: '2024-03-15',
-    joinDate: '2015-06-01',
-    status: 'active',
-    phone: '0902345678',
-    email: 'tranthib@hospital.vn',
-    cmeCredits: 20,
-    cmeRequired: 24,
-  },
-  {
-    id: 'EMP003',
-    code: 'BS003',
-    fullName: 'BS. Le Van C',
-    gender: 'male',
-    dateOfBirth: '1975-12-10',
-    position: 'Truong khoa',
-    department: 'Ngoai khoa',
-    qualification: 'Tien si Y khoa',
-    licenseNumber: 'CCHN-003456',
-    licenseExpiry: '2026-06-30',
-    joinDate: '2005-09-01',
-    status: 'active',
-    phone: '0903456789',
-    email: 'levanc@hospital.vn',
-    cmeCredits: 52,
-    cmeRequired: 48,
-  },
-];
-
-const mockShifts: Shift[] = [
-  {
-    id: 'SH001',
-    employeeId: 'EMP001',
-    employeeName: 'BS. Nguyen Van A',
-    department: 'Noi khoa',
-    date: dayjs().format('YYYY-MM-DD'),
-    shiftType: 'morning',
-    startTime: '07:00',
-    endTime: '14:00',
-    status: 'checked_in',
-  },
-  {
-    id: 'SH002',
-    employeeId: 'EMP002',
-    employeeName: 'DD. Tran Thi B',
-    department: 'Noi khoa',
-    date: dayjs().format('YYYY-MM-DD'),
-    shiftType: 'afternoon',
-    startTime: '14:00',
-    endTime: '21:00',
-    status: 'scheduled',
-  },
-  {
-    id: 'SH003',
-    employeeId: 'EMP003',
-    employeeName: 'BS. Le Van C',
-    department: 'Ngoai khoa',
-    date: dayjs().format('YYYY-MM-DD'),
-    shiftType: 'night',
-    startTime: '21:00',
-    endTime: '07:00',
-    status: 'scheduled',
-  },
-];
-
-const mockTrainings: Training[] = [
-  {
-    id: 'TR001',
-    employeeId: 'EMP001',
-    employeeName: 'BS. Nguyen Van A',
-    trainingName: 'Cap nhat dieu tri benh tim mach',
-    trainingType: 'cme',
-    startDate: '2024-02-15',
-    credits: 8,
-    status: 'registered',
-  },
-  {
-    id: 'TR002',
-    employeeId: 'EMP002',
-    employeeName: 'DD. Tran Thi B',
-    trainingName: 'Ky thuat cham soc vet thuong',
-    trainingType: 'internal',
-    startDate: '2024-01-10',
-    endDate: '2024-01-10',
-    credits: 4,
-    status: 'completed',
-  },
-];
 
 const POSITIONS = [
-  { value: 'doctor', label: 'Bac si' },
-  { value: 'nurse', label: 'Dieu duong' },
-  { value: 'technician', label: 'Ky thuat vien' },
-  { value: 'pharmacist', label: 'Duoc si' },
-  { value: 'admin', label: 'Hanh chinh' },
+  { value: 'Doctor', label: 'Bac si' },
+  { value: 'Nurse', label: 'Dieu duong' },
+  { value: 'Technician', label: 'Ky thuat vien' },
+  { value: 'Allied', label: 'Duoc si' },
+  { value: 'Admin', label: 'Hanh chinh' },
+  { value: 'Support', label: 'Ho tro' },
 ];
 
 const HR: React.FC = () => {
-  const [employees] = useState<Employee[]>(mockEmployees);
-  const [shifts] = useState<Shift[]>(mockShifts);
-  const [trainings] = useState<Training[]>(mockTrainings);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<StaffProfileDto[]>([]);
+  const [rosterAssignments, setRosterAssignments] = useState<RosterAssignmentDto[]>([]);
+  const [cmeNonCompliant, setCmeNonCompliant] = useState<CMESummaryDto[]>([]);
+  const [dashboard, setDashboard] = useState<MedicalHRDashboardDto | null>(null);
+  const [expiringCerts, setExpiringCerts] = useState<CertificationDto[]>([]);
+  const [shiftDefs, setShiftDefs] = useState<ShiftDefinitionDto[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<StaffProfileDto | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
+  const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
   const [shiftForm] = Form.useForm();
   const [trainingForm] = Form.useForm();
+  const [employeeForm] = Form.useForm();
 
-  // Statistics
-  const activeEmployees = employees.filter((e) => e.status === 'active').length;
-  const licenseExpiringSoon = employees.filter((e) => {
-    if (!e.licenseExpiry) return false;
-    const daysUntil = dayjs(e.licenseExpiry).diff(dayjs(), 'day');
-    return daysUntil > 0 && daysUntil <= 90;
-  }).length;
-  const cmeIncomplete = employees.filter(
-    (e) => e.cmeCredits && e.cmeRequired && e.cmeCredits < e.cmeRequired
-  ).length;
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const results = await Promise.allSettled([
+        getStaff({ page: 1, pageSize: 200 }),
+        getDashboard(today),
+        getNonCompliantStaff(),
+        getExpiringCertifications(90),
+        getShiftDefinitions(),
+        getRoster('', dayjs().year(), dayjs().month() + 1),
+      ]);
 
-  const getStatusTag = (status: Employee['status']) => {
-    const config = {
-      active: { color: 'green', text: 'Dang lam viec' },
-      on_leave: { color: 'orange', text: 'Nghi phep' },
-      resigned: { color: 'red', text: 'Da nghi viec' },
+      // Staff list
+      if (results[0].status === 'fulfilled') {
+        const staffData = results[0].value?.data;
+        if (staffData && staffData.items) {
+          setEmployees(staffData.items);
+        } else if (Array.isArray(staffData)) {
+          setEmployees(staffData as unknown as StaffProfileDto[]);
+        }
+      } else {
+        message.warning('Khong the tai danh sach nhan vien');
+      }
+
+      // Dashboard
+      if (results[1].status === 'fulfilled') {
+        setDashboard(results[1].value?.data || null);
+      } else {
+        message.warning('Khong the tai tong quan nhan su');
+      }
+
+      // CME non-compliant
+      if (results[2].status === 'fulfilled') {
+        const cmeData = results[2].value?.data;
+        setCmeNonCompliant(Array.isArray(cmeData) ? cmeData : []);
+      }
+
+      // Expiring certifications
+      if (results[3].status === 'fulfilled') {
+        const certData = results[3].value?.data;
+        setExpiringCerts(Array.isArray(certData) ? certData : []);
+      }
+
+      // Shift definitions
+      if (results[4].status === 'fulfilled') {
+        const shiftData = results[4].value?.data;
+        setShiftDefs(Array.isArray(shiftData) ? shiftData : []);
+      }
+
+      // Roster assignments
+      if (results[5].status === 'fulfilled') {
+        const rosterData = results[5].value?.data;
+        if (rosterData && rosterData.staffAssignments) {
+          setRosterAssignments(rosterData.staffAssignments);
+        }
+      }
+    } catch {
+      message.warning('Co loi khi tai du lieu nhan su');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Statistics from dashboard or computed from data
+  const activeEmployees = dashboard?.activeStaff ?? employees.filter((e) => e.employmentStatus === 1).length;
+  const licenseExpiringSoon = dashboard?.expiringLicenses30Days ?? expiringCerts.length;
+  const cmeIncomplete = dashboard?.cmeNonCompliant ?? cmeNonCompliant.length;
+
+  const getStatusTag = (status: number) => {
+    const config: Record<number, { color: string; text: string }> = {
+      1: { color: 'green', text: 'Dang lam viec' },
+      2: { color: 'orange', text: 'Nghi phep' },
+      3: { color: 'volcano', text: 'Tam ngung' },
+      4: { color: 'red', text: 'Da nghi viec' },
     };
-    const c = config[status];
+    const c = config[status] || { color: 'default', text: 'Khong ro' };
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
-  const getShiftTag = (shiftType: Shift['shiftType']) => {
-    const config = {
-      morning: { color: 'blue', text: 'Sang' },
-      afternoon: { color: 'orange', text: 'Chieu' },
-      night: { color: 'purple', text: 'Dem' },
-      on_call: { color: 'red', text: 'Truc' },
-    };
-    const c = config[shiftType];
-    return <Tag color={c.color}>{c.text}</Tag>;
+  const getShiftTag = (shiftName: string, isNightShift: boolean, isOnCall: boolean) => {
+    if (isOnCall) return <Tag color="red">Truc</Tag>;
+    if (isNightShift) return <Tag color="purple">Dem</Tag>;
+    const lower = shiftName.toLowerCase();
+    if (lower.includes('sang') || lower.includes('morning')) return <Tag color="blue">Sang</Tag>;
+    if (lower.includes('chieu') || lower.includes('afternoon')) return <Tag color="orange">Chieu</Tag>;
+    return <Tag color="blue">{shiftName}</Tag>;
   };
 
-  const handleAddShift = (values: any) => {
-    message.success('Da them lich truc');
-    setIsShiftModalOpen(false);
-    shiftForm.resetFields();
+  const handleAddShift = async (values: any) => {
+    try {
+      const date = values.date ? dayjs(values.date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+      const month = dayjs(date).month() + 1;
+      const year = dayjs(date).year();
+      const emp = employees.find((e) => e.id === values.employeeId);
+      await generateRoster({
+        departmentId: emp?.departmentId || '',
+        year,
+        month,
+        respectLeaveRequests: true,
+        availableStaffIds: [values.employeeId],
+      });
+      message.success('Da them lich truc');
+      setIsShiftModalOpen(false);
+      shiftForm.resetFields();
+      fetchData();
+    } catch {
+      message.warning('Khong the them lich truc');
+    }
   };
 
-  const handleAddTraining = (values: any) => {
-    message.success('Da dang ky dao tao');
-    setIsTrainingModalOpen(false);
-    trainingForm.resetFields();
+  const handleAddTraining = async (values: any) => {
+    try {
+      await createCMERecord({
+        staffId: values.employeeId,
+        activityType: values.trainingType || 'Workshop',
+        activityName: values.trainingName,
+        provider: 'Internal',
+        startDate: values.startDate ? dayjs(values.startDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+        durationHours: values.credits ? Number(values.credits) : 0,
+        credits: values.credits ? Number(values.credits) : 0,
+        creditType: 'Category1',
+        isOnline: false,
+      });
+      message.success('Da dang ky dao tao');
+      setIsTrainingModalOpen(false);
+      trainingForm.resetFields();
+      fetchData();
+    } catch {
+      message.warning('Khong the dang ky dao tao');
+    }
+  };
+
+  const handleAddEmployee = async (values: any) => {
+    try {
+      await createStaff({
+        staffCode: values.staffCode,
+        fullName: values.fullName,
+        dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).format('YYYY-MM-DD') : undefined,
+        gender: values.gender,
+        phone: values.phone,
+        email: values.email,
+        departmentId: values.departmentId || '',
+        staffType: values.staffType || 'Doctor',
+        specialty: values.specialty,
+        hireDate: values.hireDate ? dayjs(values.hireDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+      });
+      message.success('Da them nhan vien moi');
+      setIsAddEmployeeModalOpen(false);
+      employeeForm.resetFields();
+      fetchData();
+    } catch {
+      message.warning('Khong the them nhan vien');
+    }
   };
 
   const executePrintEmployeeCard = () => {
     if (!selectedEmployee) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    const mainCert = selectedEmployee.certifications?.[0];
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -291,7 +273,7 @@ const HR: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <strong>BENH VIEN DA KHOA</strong><br/>
+          <strong>${HOSPITAL_NAME}</strong><br/>
           Phong To chuc - Nhan su
         </div>
 
@@ -300,18 +282,18 @@ const HR: React.FC = () => {
         <div class="photo">Anh 3x4</div>
 
         <table>
-          <tr><th>Ma nhan vien</th><td>${selectedEmployee.code}</td></tr>
+          <tr><th>Ma nhan vien</th><td>${selectedEmployee.staffCode}</td></tr>
           <tr><th>Ho va ten</th><td>${selectedEmployee.fullName}</td></tr>
-          <tr><th>Gioi tinh</th><td>${selectedEmployee.gender === 'male' ? 'Nam' : 'Nu'}</td></tr>
-          <tr><th>Ngay sinh</th><td>${selectedEmployee.dateOfBirth}</td></tr>
-          <tr><th>Chuc vu</th><td>${selectedEmployee.position}</td></tr>
-          <tr><th>Khoa/Phong</th><td>${selectedEmployee.department}</td></tr>
-          <tr><th>Trinh do</th><td>${selectedEmployee.qualification}</td></tr>
-          <tr><th>So CCHN</th><td>${selectedEmployee.licenseNumber || '-'}</td></tr>
-          <tr><th>CCHN het han</th><td>${selectedEmployee.licenseExpiry || '-'}</td></tr>
-          <tr><th>Ngay vao lam</th><td>${selectedEmployee.joinDate}</td></tr>
-          <tr><th>SDT</th><td>${selectedEmployee.phone}</td></tr>
-          <tr><th>Email</th><td>${selectedEmployee.email}</td></tr>
+          <tr><th>Gioi tinh</th><td>${selectedEmployee.gender === 'Male' ? 'Nam' : selectedEmployee.gender === 'Female' ? 'Nu' : selectedEmployee.gender || '-'}</td></tr>
+          <tr><th>Ngay sinh</th><td>${selectedEmployee.dateOfBirth || '-'}</td></tr>
+          <tr><th>Chuc vu</th><td>${selectedEmployee.positionName || '-'}</td></tr>
+          <tr><th>Khoa/Phong</th><td>${selectedEmployee.departmentName}</td></tr>
+          <tr><th>Chuyen khoa</th><td>${selectedEmployee.specialty || '-'}</td></tr>
+          <tr><th>So CCHN</th><td>${mainCert?.licenseNumber || '-'}</td></tr>
+          <tr><th>CCHN het han</th><td>${mainCert?.expiryDate || '-'}</td></tr>
+          <tr><th>Ngay vao lam</th><td>${selectedEmployee.hireDate || '-'}</td></tr>
+          <tr><th>SDT</th><td>${selectedEmployee.phone || '-'}</td></tr>
+          <tr><th>Email</th><td>${selectedEmployee.email || '-'}</td></tr>
         </table>
 
         <div style="margin-top: 50px; text-align: right;">
@@ -326,41 +308,42 @@ const HR: React.FC = () => {
     printWindow.document.close();
   };
 
-  const employeeColumns: ColumnsType<Employee> = [
+  const employeeColumns: ColumnsType<StaffProfileDto> = [
     {
       title: 'Nhan vien',
       key: 'employee',
       render: (_, record) => (
         <Space>
-          <Avatar icon={<UserOutlined />} src={record.avatar} />
+          <Avatar icon={<UserOutlined />} src={record.photoUrl} />
           <Space orientation="vertical" size={0}>
             <Text strong>{record.fullName}</Text>
-            <Text type="secondary">{record.code}</Text>
+            <Text type="secondary">{record.staffCode}</Text>
           </Space>
         </Space>
       ),
     },
     {
       title: 'Chuc vu',
-      dataIndex: 'position',
       key: 'position',
+      render: (_, record) => record.positionName || record.staffTypeName || '-',
     },
     {
       title: 'Khoa/Phong',
-      dataIndex: 'department',
-      key: 'department',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
     },
     {
       title: 'So CCHN',
       key: 'license',
       render: (_, record) => {
-        if (!record.licenseNumber) return '-';
-        const daysUntil = record.licenseExpiry
-          ? dayjs(record.licenseExpiry).diff(dayjs(), 'day')
+        const cert = record.certifications?.[0];
+        if (!cert) return '-';
+        const daysUntil = cert.expiryDate
+          ? dayjs(cert.expiryDate).diff(dayjs(), 'day')
           : 999;
         return (
           <Space orientation="vertical" size={0}>
-            <Text>{record.licenseNumber}</Text>
+            <Text>{cert.licenseNumber}</Text>
             {daysUntil <= 90 && daysUntil > 0 && (
               <Tag color="orange" icon={<WarningOutlined />}>
                 Con {daysUntil} ngay
@@ -380,8 +363,11 @@ const HR: React.FC = () => {
       key: 'cme',
       width: 120,
       render: (_, record) => {
-        if (!record.cmeCredits || !record.cmeRequired) return '-';
-        const percent = (record.cmeCredits / record.cmeRequired) * 100;
+        const summary = cmeNonCompliant.find((c) => c.staffId === record.id);
+        if (!summary) return <Tag color="green">Du</Tag>;
+        const percent = summary.requiredCredits > 0
+          ? (summary.earnedCredits / summary.requiredCredits) * 100
+          : 0;
         return (
           <Space orientation="vertical" size={0} style={{ width: '100%' }}>
             <Progress
@@ -390,7 +376,7 @@ const HR: React.FC = () => {
               status={percent >= 100 ? 'success' : 'active'}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {record.cmeCredits}/{record.cmeRequired} tiet
+              {summary.earnedCredits}/{summary.requiredCredits} tiet
             </Text>
           </Space>
         );
@@ -398,7 +384,7 @@ const HR: React.FC = () => {
     },
     {
       title: 'Trang thai',
-      dataIndex: 'status',
+      dataIndex: 'employmentStatus',
       key: 'status',
       width: 120,
       render: (status) => getStatusTag(status),
@@ -421,105 +407,98 @@ const HR: React.FC = () => {
     },
   ];
 
-  const shiftColumns: ColumnsType<Shift> = [
+  const shiftColumns: ColumnsType<RosterAssignmentDto> = [
     {
       title: 'Nhan vien',
-      dataIndex: 'employeeName',
-      key: 'employeeName',
+      dataIndex: 'staffName',
+      key: 'staffName',
     },
     {
       title: 'Khoa',
-      dataIndex: 'department',
       key: 'department',
+      render: (_, record) => {
+        const emp = employees.find((e) => e.id === record.staffId);
+        return emp?.departmentName || '-';
+      },
     },
     {
       title: 'Ngay',
       dataIndex: 'date',
       key: 'date',
+      render: (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-',
     },
     {
       title: 'Ca',
-      dataIndex: 'shiftType',
       key: 'shiftType',
-      render: (type) => getShiftTag(type),
+      render: (_, record) => getShiftTag(record.shiftName, false, record.isOnCall),
     },
     {
       title: 'Thoi gian',
       key: 'time',
-      render: (_, record) => `${record.startTime} - ${record.endTime}`,
+      render: (_, record) => `${record.shiftStart || ''} - ${record.shiftEnd || ''}`,
     },
     {
       title: 'Trang thai',
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        const config: Record<string, { color: string; text: string }> = {
-          scheduled: { color: 'blue', text: 'Da len lich' },
-          checked_in: { color: 'green', text: 'Da vao ca' },
-          checked_out: { color: 'default', text: 'Da ra ca' },
-          absent: { color: 'red', text: 'Vang mat' },
+        const config: Record<number, { color: string; text: string }> = {
+          1: { color: 'blue', text: 'Da len lich' },
+          2: { color: 'cyan', text: 'Da xac nhan' },
+          3: { color: 'green', text: 'Hoan thanh' },
+          4: { color: 'red', text: 'Vang mat' },
+          5: { color: 'orange', text: 'Da doi ca' },
         };
-        const c = config[status];
+        const c = config[status] || { color: 'default', text: 'Khong ro' };
         return <Tag color={c.color}>{c.text}</Tag>;
       },
     },
   ];
 
-  const trainingColumns: ColumnsType<Training> = [
+  const trainingColumns: ColumnsType<CMESummaryDto> = [
     {
       title: 'Nhan vien',
-      dataIndex: 'employeeName',
-      key: 'employeeName',
+      dataIndex: 'staffName',
+      key: 'staffName',
     },
     {
-      title: 'Khoa hoc',
-      dataIndex: 'trainingName',
-      key: 'trainingName',
+      title: 'Tong so tiet',
+      key: 'earnedCredits',
+      render: (_, record) => `${record.earnedCredits}/${record.requiredCredits}`,
     },
     {
-      title: 'Loai',
-      dataIndex: 'trainingType',
-      key: 'trainingType',
-      render: (type) => {
-        const labels: Record<string, string> = {
-          cme: 'CME',
-          internal: 'Noi bo',
-          external: 'Ben ngoai',
-          certification: 'Chung chi',
-        };
-        return labels[type];
-      },
+      title: 'Category 1',
+      dataIndex: 'category1Credits',
+      key: 'category1Credits',
     },
     {
-      title: 'Ngay',
-      dataIndex: 'startDate',
-      key: 'startDate',
+      title: 'Category 2',
+      dataIndex: 'category2Credits',
+      key: 'category2Credits',
     },
     {
-      title: 'So tiet',
-      dataIndex: 'credits',
-      key: 'credits',
+      title: 'So hoat dong',
+      dataIndex: 'activitiesCount',
+      key: 'activitiesCount',
     },
     {
       title: 'Trang thai',
-      dataIndex: 'status',
       key: 'status',
-      render: (status) => {
-        const config: Record<string, { color: string; text: string }> = {
-          registered: { color: 'blue', text: 'Da dang ky' },
-          in_progress: { color: 'orange', text: 'Dang hoc' },
-          completed: { color: 'green', text: 'Hoan thanh' },
-          cancelled: { color: 'red', text: 'Da huy' },
-        };
-        const c = config[status];
-        return <Tag color={c.color}>{c.text}</Tag>;
+      render: (_, record) => {
+        if (record.isCompliant) {
+          return <Tag color="green">Du tiet</Tag>;
+        }
+        return <Tag color="red">Thieu {record.shortfall} tiet</Tag>;
       },
     },
   ];
 
   const dateCellRender = (value: Dayjs) => {
     const dateStr = value.format('YYYY-MM-DD');
-    const dayShifts = shifts.filter((s) => s.date === dateStr);
+    const dayShifts = rosterAssignments.filter((s) => {
+      const sDate = s.date ? dayjs(s.date).format('YYYY-MM-DD') : '';
+      return sDate === dateStr;
+    });
     if (dayShifts.length === 0) return null;
 
     return (
@@ -528,13 +507,13 @@ const HR: React.FC = () => {
           <li key={shift.id}>
             <Badge
               status={
-                shift.shiftType === 'morning'
+                shift.isOnCall
+                  ? 'error'
+                  : shift.shiftName?.toLowerCase().includes('sang') || shift.shiftName?.toLowerCase().includes('morning')
                   ? 'processing'
-                  : shift.shiftType === 'afternoon'
-                  ? 'warning'
-                  : 'error'
+                  : 'warning'
               }
-              text={<Text style={{ fontSize: 10 }}>{shift.employeeName.split(' ').pop()}</Text>}
+              text={<Text style={{ fontSize: 10 }}>{shift.staffName?.split(' ').pop()}</Text>}
             />
           </li>
         ))}
@@ -545,377 +524,560 @@ const HR: React.FC = () => {
     );
   };
 
+  // Build license data from employees' certifications
+  const licensedEmployees = employees.filter(
+    (e) => e.certifications && e.certifications.length > 0
+  );
+
   return (
-    <div>
-      <Title level={4}>Quan ly nhan su y te</Title>
-
-      {/* Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Nhan vien dang lam viec"
-              value={activeEmployees}
-              prefix={<TeamOutlined style={{ color: '#52c41a' }} />}
-              styles={{ content: { color: '#52c41a' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="CCHN sap het han"
-              value={licenseExpiringSoon}
-              prefix={<SafetyCertificateOutlined style={{ color: '#faad14' }} />}
-              styles={{ content: { color: '#faad14' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="CME chua du"
-              value={cmeIncomplete}
-              prefix={<BookOutlined style={{ color: '#ff4d4f' }} />}
-              styles={{ content: { color: '#ff4d4f' } }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Main Content */}
-      <Card
-        extra={
-          <Button type="primary" icon={<PlusOutlined />}>
-            Them nhan vien
+    <Spin spinning={loading}>
+      <div>
+        <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>Quan ly nhan su y te</Title>
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>
+            Lam moi
           </Button>
-        }
-      >
-        <Tabs
-          defaultActiveKey="employees"
-          items={[
-            {
-              key: 'employees',
-              label: 'Danh sach nhan vien',
-              children: (
-                <Table
-                  columns={employeeColumns}
-                  dataSource={employees}
-                  rowKey="id"
-                  onRow={(record) => ({
-                    onDoubleClick: () => {
-                      setSelectedEmployee(record);
-                      setIsDetailModalOpen(true);
-                    },
-                    style: { cursor: 'pointer' },
-                  })}
-                />
-              ),
-            },
-            {
-              key: 'schedule',
-              label: 'Lich truc',
-              children: (
-                <Row gutter={16}>
-                  <Col span={16}>
-                    <Calendar cellRender={dateCellRender} />
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      title="Lich truc hom nay"
-                      extra={
-                        <Button size="small" onClick={() => setIsShiftModalOpen(true)}>
-                          Them
-                        </Button>
-                      }
-                    >
-                      <div>
-                        {shifts.filter((s) => s.date === dayjs().format('YYYY-MM-DD')).map((item) => (
-                          <div key={item.id} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
-                            <Space>
-                              {getShiftTag(item.shiftType)}
-                              <Text>{item.employeeName}</Text>
-                            </Space>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-                  </Col>
-                </Row>
-              ),
-            },
-            {
-              key: 'shifts',
-              label: 'Phan ca',
-              children: (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<ScheduleOutlined />}
-                    style={{ marginBottom: 16 }}
-                    onClick={() => setIsShiftModalOpen(true)}
-                  >
-                    Phan ca moi
-                  </Button>
-                  <Table
-                    columns={shiftColumns}
-                    dataSource={shifts}
-                    rowKey="id"
-                    onRow={(record) => ({
-                      onDoubleClick: () => {
-                        const emp = employees.find(e => e.id === record.employeeId);
-                        if (emp) {
-                          setSelectedEmployee(emp);
-                          setIsDetailModalOpen(true);
-                        }
-                      },
-                      style: { cursor: 'pointer' },
-                    })}
-                  />
-                </>
-              ),
-            },
-            {
-              key: 'training',
-              label: 'Dao tao',
-              children: (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<BookOutlined />}
-                    style={{ marginBottom: 16 }}
-                    onClick={() => setIsTrainingModalOpen(true)}
-                  >
-                    Dang ky dao tao
-                  </Button>
-                  <Table
-                    columns={trainingColumns}
-                    dataSource={trainings}
-                    rowKey="id"
-                    onRow={(record) => ({
-                      onDoubleClick: () => {
-                        Modal.info({
-                          title: `Chi tiết đào tạo - ${record.courseName}`,
-                          width: 500,
-                          content: (
-                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Khóa đào tạo">{record.courseName}</Descriptions.Item>
-                              <Descriptions.Item label="Nhân viên">{record.employeeName}</Descriptions.Item>
-                              <Descriptions.Item label="Ngày bắt đầu">{record.startDate}</Descriptions.Item>
-                              <Descriptions.Item label="Ngày kết thúc">{record.endDate || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
-                            </Descriptions>
-                          ),
-                        });
-                      },
-                      style: { cursor: 'pointer' },
-                    })}
-                  />
-                </>
-              ),
-            },
-            {
-              key: 'licenses',
-              label: (
-                <Badge count={licenseExpiringSoon} offset={[10, 0]}>
-                  Chung chi hanh nghe
-                </Badge>
-              ),
-              children: (
-                <Table
-                  columns={[
-                    { title: 'Nhan vien', dataIndex: 'fullName', key: 'fullName' },
-                    { title: 'Chuc vu', dataIndex: 'position', key: 'position' },
-                    { title: 'So CCHN', dataIndex: 'licenseNumber', key: 'licenseNumber' },
-                    {
-                      title: 'Ngay het han',
-                      dataIndex: 'licenseExpiry',
-                      key: 'licenseExpiry',
-                      render: (date) => {
-                        if (!date) return '-';
-                        const daysUntil = dayjs(date).diff(dayjs(), 'day');
-                        const color =
-                          daysUntil <= 0 ? 'red' : daysUntil <= 90 ? 'orange' : 'green';
-                        return <Tag color={color}>{date}</Tag>;
-                      },
-                    },
-                    {
-                      title: 'Trang thai',
-                      key: 'status',
-                      render: (_, record) => {
-                        if (!record.licenseExpiry) return '-';
-                        const daysUntil = dayjs(record.licenseExpiry).diff(dayjs(), 'day');
-                        if (daysUntil <= 0) {
-                          return <Tag color="red">Het han</Tag>;
-                        }
-                        if (daysUntil <= 90) {
-                          return <Tag color="orange">Sap het han</Tag>;
-                        }
-                        return <Tag color="green">Con hieu luc</Tag>;
-                      },
-                    },
-                  ]}
-                  dataSource={employees.filter((e) => e.licenseNumber)}
-                  rowKey="id"
-                  onRow={(record) => ({
-                    onDoubleClick: () => {
-                      setSelectedEmployee(record);
-                      setIsDetailModalOpen(true);
-                    },
-                    style: { cursor: 'pointer' },
-                  })}
-                />
-              ),
-            },
-          ]}
-        />
-      </Card>
+        </Space>
 
-      {/* Detail Modal */}
-      <Modal
-        title="Chi tiet nhan vien"
-        open={isDetailModalOpen}
-        onCancel={() => setIsDetailModalOpen(false)}
-        footer={[
-          <Button key="print" icon={<PrinterOutlined />} onClick={executePrintEmployeeCard}>
-            In ho so
-          </Button>,
-          <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-            Dong
-          </Button>,
-        ]}
-        width={700}
-      >
-        {selectedEmployee && (
-          <>
+        {/* Statistics */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="Nhan vien dang lam viec"
+                value={activeEmployees}
+                prefix={<TeamOutlined style={{ color: '#52c41a' }} />}
+                styles={{ content: { color: '#52c41a' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="CCHN sap het han"
+                value={licenseExpiringSoon}
+                prefix={<SafetyCertificateOutlined style={{ color: '#faad14' }} />}
+                styles={{ content: { color: '#faad14' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="CME chua du"
+                value={cmeIncomplete}
+                prefix={<BookOutlined style={{ color: '#ff4d4f' }} />}
+                styles={{ content: { color: '#ff4d4f' } }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Additional dashboard stats */}
+        {dashboard && (
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic title="Bac si" value={dashboard.doctors} />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic title="Dieu duong" value={dashboard.nurses} />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic title="Ca truc hom nay" value={dashboard.todayShifts} />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card size="small">
+                <Statistic title="Nghi phep" value={dashboard.onLeaveStaff} />
+              </Card>
+            </Col>
+          </Row>
+        )}
+
+        {/* Main Content */}
+        <Card
+          extra={
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsAddEmployeeModalOpen(true)}>
+              Them nhan vien
+            </Button>
+          }
+        >
+          <Tabs
+            defaultActiveKey="employees"
+            items={[
+              {
+                key: 'employees',
+                label: 'Danh sach nhan vien',
+                children: (
+                  <Table
+                    columns={employeeColumns}
+                    dataSource={employees}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedEmployee(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                    pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tong: ${total} nhan vien` }}
+                  />
+                ),
+              },
+              {
+                key: 'schedule',
+                label: 'Lich truc',
+                children: (
+                  <Row gutter={16}>
+                    <Col span={16}>
+                      <Calendar cellRender={dateCellRender} />
+                    </Col>
+                    <Col span={8}>
+                      <Card
+                        title="Lich truc hom nay"
+                        extra={
+                          <Button size="small" onClick={() => setIsShiftModalOpen(true)}>
+                            Them
+                          </Button>
+                        }
+                      >
+                        <div>
+                          {rosterAssignments
+                            .filter((s) => {
+                              const sDate = s.date ? dayjs(s.date).format('YYYY-MM-DD') : '';
+                              return sDate === dayjs().format('YYYY-MM-DD');
+                            })
+                            .map((item) => (
+                              <div key={item.id} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+                                <Space>
+                                  {getShiftTag(item.shiftName, false, item.isOnCall)}
+                                  <Text>{item.staffName}</Text>
+                                </Space>
+                              </div>
+                            ))}
+                          {rosterAssignments.filter((s) => {
+                            const sDate = s.date ? dayjs(s.date).format('YYYY-MM-DD') : '';
+                            return sDate === dayjs().format('YYYY-MM-DD');
+                          }).length === 0 && (
+                            <Text type="secondary">Khong co lich truc hom nay</Text>
+                          )}
+                        </div>
+                      </Card>
+                    </Col>
+                  </Row>
+                ),
+              },
+              {
+                key: 'shifts',
+                label: 'Phan ca',
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<ScheduleOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => setIsShiftModalOpen(true)}
+                    >
+                      Phan ca moi
+                    </Button>
+                    <Table
+                      columns={shiftColumns}
+                      dataSource={rosterAssignments}
+                      rowKey="id"
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          const emp = employees.find((e) => e.id === record.staffId);
+                          if (emp) {
+                            setSelectedEmployee(emp);
+                            setIsDetailModalOpen(true);
+                          }
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                      pagination={{ pageSize: 10, showSizeChanger: true }}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'training',
+                label: 'Dao tao',
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<BookOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => setIsTrainingModalOpen(true)}
+                    >
+                      Dang ky dao tao
+                    </Button>
+                    <Table
+                      columns={trainingColumns}
+                      dataSource={cmeNonCompliant}
+                      rowKey="staffId"
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          Modal.info({
+                            title: `Chi tiet CME - ${record.staffName}`,
+                            width: 600,
+                            content: (
+                              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                                <Descriptions.Item label="Nhan vien">{record.staffName}</Descriptions.Item>
+                                <Descriptions.Item label="Ky han">{record.periodStart} - {record.periodEnd}</Descriptions.Item>
+                                <Descriptions.Item label="Tiet yeu cau">{record.requiredCredits}</Descriptions.Item>
+                                <Descriptions.Item label="Tiet dat duoc">{record.earnedCredits}</Descriptions.Item>
+                                <Descriptions.Item label="Category 1">{record.category1Credits}</Descriptions.Item>
+                                <Descriptions.Item label="Category 2">{record.category2Credits}</Descriptions.Item>
+                                <Descriptions.Item label="So hoat dong">{record.activitiesCount}</Descriptions.Item>
+                                <Descriptions.Item label="Trang thai">
+                                  {record.isCompliant
+                                    ? <Tag color="green">Du tiet</Tag>
+                                    : <Tag color="red">Thieu {record.shortfall} tiet</Tag>
+                                  }
+                                </Descriptions.Item>
+                              </Descriptions>
+                            ),
+                          });
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                      pagination={{ pageSize: 10, showSizeChanger: true }}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'licenses',
+                label: (
+                  <Badge count={expiringCerts.length} offset={[10, 0]}>
+                    Chung chi hanh nghe
+                  </Badge>
+                ),
+                children: (
+                  <Table
+                    columns={[
+                      { title: 'Nhan vien', dataIndex: 'fullName', key: 'fullName' },
+                      {
+                        title: 'Chuc vu',
+                        key: 'position',
+                        render: (_, record: StaffProfileDto) => record.positionName || record.staffTypeName || '-',
+                      },
+                      {
+                        title: 'So CCHN',
+                        key: 'licenseNumber',
+                        render: (_, record: StaffProfileDto) => record.certifications?.[0]?.licenseNumber || '-',
+                      },
+                      {
+                        title: 'Ngay het han',
+                        key: 'licenseExpiry',
+                        render: (_, record: StaffProfileDto) => {
+                          const cert = record.certifications?.[0];
+                          if (!cert?.expiryDate) return '-';
+                          const daysUntil = dayjs(cert.expiryDate).diff(dayjs(), 'day');
+                          const color =
+                            daysUntil <= 0 ? 'red' : daysUntil <= 90 ? 'orange' : 'green';
+                          return <Tag color={color}>{cert.expiryDate}</Tag>;
+                        },
+                      },
+                      {
+                        title: 'Trang thai',
+                        key: 'status',
+                        render: (_, record: StaffProfileDto) => {
+                          const cert = record.certifications?.[0];
+                          if (!cert?.expiryDate) return '-';
+                          const daysUntil = dayjs(cert.expiryDate).diff(dayjs(), 'day');
+                          if (daysUntil <= 0) {
+                            return <Tag color="red">Het han</Tag>;
+                          }
+                          if (daysUntil <= 90) {
+                            return <Tag color="orange">Sap het han</Tag>;
+                          }
+                          return <Tag color="green">Con hieu luc</Tag>;
+                        },
+                      },
+                    ]}
+                    dataSource={licensedEmployees}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        setSelectedEmployee(record);
+                        setIsDetailModalOpen(true);
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                  />
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        {/* Detail Modal */}
+        <Modal
+          title="Chi tiet nhan vien"
+          open={isDetailModalOpen}
+          onCancel={() => setIsDetailModalOpen(false)}
+          footer={[
+            <Button key="print" icon={<PrinterOutlined />} onClick={executePrintEmployeeCard}>
+              In ho so
+            </Button>,
+            <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
+              Dong
+            </Button>,
+          ]}
+          width={700}
+        >
+          {selectedEmployee && (
+            <>
+              <Row gutter={16}>
+                <Col span={6}>
+                  <Avatar size={100} icon={<UserOutlined />} src={selectedEmployee.photoUrl} />
+                </Col>
+                <Col span={18}>
+                  <Descriptions bordered size="small" column={2}>
+                    <Descriptions.Item label="Ma NV">{selectedEmployee.staffCode}</Descriptions.Item>
+                    <Descriptions.Item label="Trang thai">
+                      {getStatusTag(selectedEmployee.employmentStatus)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Ho ten" span={2}>
+                      {selectedEmployee.fullName}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Gioi tinh">
+                      {selectedEmployee.gender === 'Male' ? 'Nam' : selectedEmployee.gender === 'Female' ? 'Nu' : selectedEmployee.gender || '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Ngay sinh">
+                      {selectedEmployee.dateOfBirth || '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Chuc vu">{selectedEmployee.positionName || selectedEmployee.staffTypeName || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Khoa/Phong">
+                      {selectedEmployee.departmentName}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Chuyen khoa" span={2}>
+                      {selectedEmployee.specialty || '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="SDT">{selectedEmployee.phone || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Email">{selectedEmployee.email || '-'}</Descriptions.Item>
+                  </Descriptions>
+                </Col>
+              </Row>
+
+              {selectedEmployee.qualifications && selectedEmployee.qualifications.length > 0 && (
+                <>
+                  <Divider>Trinh do chuyen mon</Divider>
+                  {selectedEmployee.qualifications.map((q) => (
+                    <Descriptions key={q.id} bordered size="small" column={2} style={{ marginBottom: 8 }}>
+                      <Descriptions.Item label="Loai">{q.qualificationType}</Descriptions.Item>
+                      <Descriptions.Item label="Ten">{q.qualificationName}</Descriptions.Item>
+                      <Descriptions.Item label="Co so">{q.institution}</Descriptions.Item>
+                      <Descriptions.Item label="Nam">{q.yearObtained}</Descriptions.Item>
+                    </Descriptions>
+                  ))}
+                </>
+              )}
+
+              <Divider>Chung chi hanh nghe</Divider>
+
+              {selectedEmployee.certifications && selectedEmployee.certifications.length > 0 ? (
+                selectedEmployee.certifications.map((cert) => (
+                  <Descriptions key={cert.id} bordered size="small" column={2} style={{ marginBottom: 8 }}>
+                    <Descriptions.Item label="So CCHN">
+                      {cert.licenseNumber}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Ngay het han">
+                      {cert.expiryDate || '-'}
+                      {cert.isExpired && <Tag color="red" style={{ marginLeft: 8 }}>Het han</Tag>}
+                      {cert.expiringWithin30Days && !cert.isExpired && <Tag color="orange" style={{ marginLeft: 8 }}>Sap het han</Tag>}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Co quan cap">
+                      {cert.issuingAuthority}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Xac minh">
+                      {cert.verificationStatus}
+                    </Descriptions.Item>
+                  </Descriptions>
+                ))
+              ) : (
+                <Text type="secondary">Chua co chung chi</Text>
+              )}
+
+              {(() => {
+                const summary = cmeNonCompliant.find((c) => c.staffId === selectedEmployee.id);
+                if (!summary) return null;
+                const percent = summary.requiredCredits > 0
+                  ? (summary.earnedCredits / summary.requiredCredits) * 100
+                  : 0;
+                return (
+                  <>
+                    <Divider>Dao tao lien tuc (CME)</Divider>
+                    <Progress
+                      percent={Math.round(percent)}
+                      format={() =>
+                        `${summary.earnedCredits}/${summary.requiredCredits} tiet`
+                      }
+                    />
+                  </>
+                );
+              })()}
+            </>
+          )}
+        </Modal>
+
+        {/* Shift Modal */}
+        <Modal
+          title="Phan ca truc"
+          open={isShiftModalOpen}
+          onCancel={() => setIsShiftModalOpen(false)}
+          onOk={() => shiftForm.submit()}
+        >
+          <Form form={shiftForm} layout="vertical" onFinish={handleAddShift}>
+            <Form.Item name="employeeId" label="Nhan vien" rules={[{ required: true }]}>
+              <Select
+                showSearch
+                optionFilterProp="label"
+                options={employees.map((e) => ({
+                  value: e.id,
+                  label: `${e.fullName} (${e.staffCode})`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="date" label="Ngay" rules={[{ required: true }]}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="shiftType" label="Ca" rules={[{ required: true }]}>
+              <Select>
+                {shiftDefs.length > 0 ? (
+                  shiftDefs.map((sd) => (
+                    <Select.Option key={sd.id} value={sd.id}>
+                      {sd.name} ({sd.startTime} - {sd.endTime})
+                    </Select.Option>
+                  ))
+                ) : (
+                  <>
+                    <Select.Option value="morning">Ca sang (07:00 - 14:00)</Select.Option>
+                    <Select.Option value="afternoon">Ca chieu (14:00 - 21:00)</Select.Option>
+                    <Select.Option value="night">Ca dem (21:00 - 07:00)</Select.Option>
+                    <Select.Option value="on_call">Truc</Select.Option>
+                  </>
+                )}
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Training Modal */}
+        <Modal
+          title="Dang ky dao tao"
+          open={isTrainingModalOpen}
+          onCancel={() => setIsTrainingModalOpen(false)}
+          onOk={() => trainingForm.submit()}
+        >
+          <Form form={trainingForm} layout="vertical" onFinish={handleAddTraining}>
+            <Form.Item name="employeeId" label="Nhan vien" rules={[{ required: true }]}>
+              <Select
+                showSearch
+                optionFilterProp="label"
+                options={employees.map((e) => ({
+                  value: e.id,
+                  label: `${e.fullName} (${e.staffCode})`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="trainingName" label="Ten khoa hoc" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="trainingType" label="Loai" rules={[{ required: true }]}>
+              <Select>
+                <Select.Option value="Conference">Hoi nghi</Select.Option>
+                <Select.Option value="Workshop">Hoi thao</Select.Option>
+                <Select.Option value="Webinar">Webinar</Select.Option>
+                <Select.Option value="Course">Khoa hoc</Select.Option>
+                <Select.Option value="SelfStudy">Tu hoc</Select.Option>
+                <Select.Option value="Teaching">Giang day</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="startDate" label="Ngay bat dau" rules={[{ required: true }]}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="credits" label="So tiet">
+              <Input type="number" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Add Employee Modal */}
+        <Modal
+          title="Them nhan vien moi"
+          open={isAddEmployeeModalOpen}
+          onCancel={() => setIsAddEmployeeModalOpen(false)}
+          onOk={() => employeeForm.submit()}
+          width={600}
+        >
+          <Form form={employeeForm} layout="vertical" onFinish={handleAddEmployee}>
             <Row gutter={16}>
-              <Col span={6}>
-                <Avatar size={100} icon={<UserOutlined />} src={selectedEmployee.avatar} />
+              <Col span={12}>
+                <Form.Item name="staffCode" label="Ma nhan vien" rules={[{ required: true }]}>
+                  <Input />
+                </Form.Item>
               </Col>
-              <Col span={18}>
-                <Descriptions bordered size="small" column={2}>
-                  <Descriptions.Item label="Ma NV">{selectedEmployee.code}</Descriptions.Item>
-                  <Descriptions.Item label="Trang thai">
-                    {getStatusTag(selectedEmployee.status)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Ho ten" span={2}>
-                    {selectedEmployee.fullName}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Gioi tinh">
-                    {selectedEmployee.gender === 'male' ? 'Nam' : 'Nu'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Ngay sinh">
-                    {selectedEmployee.dateOfBirth}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Chuc vu">{selectedEmployee.position}</Descriptions.Item>
-                  <Descriptions.Item label="Khoa/Phong">
-                    {selectedEmployee.department}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Trinh do" span={2}>
-                    {selectedEmployee.qualification}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="SDT">{selectedEmployee.phone}</Descriptions.Item>
-                  <Descriptions.Item label="Email">{selectedEmployee.email}</Descriptions.Item>
-                </Descriptions>
+              <Col span={12}>
+                <Form.Item name="fullName" label="Ho va ten" rules={[{ required: true }]}>
+                  <Input />
+                </Form.Item>
               </Col>
             </Row>
-
-            <Divider>Chung chi hanh nghe</Divider>
-
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="So CCHN">
-                {selectedEmployee.licenseNumber || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngay het han">
-                {selectedEmployee.licenseExpiry || '-'}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {selectedEmployee.cmeCredits && selectedEmployee.cmeRequired && (
-              <>
-                <Divider>Dao tao lien tuc (CME)</Divider>
-                <Progress
-                  percent={Math.round(
-                    (selectedEmployee.cmeCredits / selectedEmployee.cmeRequired) * 100
-                  )}
-                  format={() =>
-                    `${selectedEmployee.cmeCredits}/${selectedEmployee.cmeRequired} tiet`
-                  }
-                />
-              </>
-            )}
-          </>
-        )}
-      </Modal>
-
-      {/* Shift Modal */}
-      <Modal
-        title="Phan ca truc"
-        open={isShiftModalOpen}
-        onCancel={() => setIsShiftModalOpen(false)}
-        onOk={() => shiftForm.submit()}
-      >
-        <Form form={shiftForm} layout="vertical" onFinish={handleAddShift}>
-          <Form.Item name="employeeId" label="Nhan vien" rules={[{ required: true }]}>
-            <Select>
-              {employees.map((e) => (
-                <Select.Option key={e.id} value={e.id}>
-                  {e.fullName}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="date" label="Ngay" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="shiftType" label="Ca" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="morning">Ca sang (07:00 - 14:00)</Select.Option>
-              <Select.Option value="afternoon">Ca chieu (14:00 - 21:00)</Select.Option>
-              <Select.Option value="night">Ca dem (21:00 - 07:00)</Select.Option>
-              <Select.Option value="on_call">Truc</Select.Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Training Modal */}
-      <Modal
-        title="Dang ky dao tao"
-        open={isTrainingModalOpen}
-        onCancel={() => setIsTrainingModalOpen(false)}
-        onOk={() => trainingForm.submit()}
-      >
-        <Form form={trainingForm} layout="vertical" onFinish={handleAddTraining}>
-          <Form.Item name="employeeId" label="Nhan vien" rules={[{ required: true }]}>
-            <Select>
-              {employees.map((e) => (
-                <Select.Option key={e.id} value={e.id}>
-                  {e.fullName}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="trainingName" label="Ten khoa hoc" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="trainingType" label="Loai" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="cme">CME - Dao tao lien tuc</Select.Option>
-              <Select.Option value="internal">Dao tao noi bo</Select.Option>
-              <Select.Option value="external">Dao tao ben ngoai</Select.Option>
-              <Select.Option value="certification">Lay chung chi</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="startDate" label="Ngay bat dau" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="credits" label="So tiet">
-            <Input type="number" />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="gender" label="Gioi tinh">
+                  <Select>
+                    <Select.Option value="Male">Nam</Select.Option>
+                    <Select.Option value="Female">Nu</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="dateOfBirth" label="Ngay sinh">
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="staffType" label="Loai nhan vien" rules={[{ required: true }]}>
+                  <Select options={POSITIONS} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="specialty" label="Chuyen khoa">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="phone" label="So dien thoai">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="email" label="Email">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="hireDate" label="Ngay vao lam">
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          </Form>
+        </Modal>
+      </div>
+    </Spin>
   );
 };
 

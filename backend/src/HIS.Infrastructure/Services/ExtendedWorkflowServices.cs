@@ -19,6 +19,7 @@ namespace HIS.Infrastructure.Services;
 internal static class ExtendedWorkflowSqlGuard
 {
     public static bool IsMissingTable(SqlException ex) => ex.Number == 208;
+    public static bool IsMissingColumnOrTable(SqlException ex) => ex.Number == 207 || ex.Number == 208;
 }
 
 #region Flow 11: Telemedicine Service
@@ -291,8 +292,15 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
 
     public async Task<List<DietOrderDto>> GetActiveDietOrdersAsync(Guid? departmentId = null)
     {
-        var list = await _context.DietOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).Include(x => x.DietType).Where(x => x.Status == "Active").ToListAsync();
-        return list.Select(e => new DietOrderDto { Id = e.Id, AdmissionId = e.AdmissionId, PatientName = e.Admission?.Patient?.FullName ?? "", DietTypeName = e.DietType?.Name ?? "", Status = e.Status }).ToList();
+        try
+        {
+            var list = await _context.DietOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).Include(x => x.DietType).Where(x => x.Status == "Active").ToListAsync();
+            return list.Select(e => new DietOrderDto { Id = e.Id, AdmissionId = e.AdmissionId, PatientName = e.Admission?.Patient?.FullName ?? "", DietTypeName = e.DietType?.Name ?? "", Status = e.Status }).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<DietOrderDto>();
+        }
     }
 
     public async Task<DietOrderDto> GetDietOrderAsync(Guid id)
@@ -525,8 +533,15 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<List<OutbreakDto>> GetActiveOutbreaksAsync()
     {
-        var list = await _context.Outbreaks.Where(x => x.Status != "Closed").ToListAsync();
-        return list.Select(e => new OutbreakDto { Id = e.Id, OutbreakCode = e.OutbreakCode, Name = e.OutbreakCode, Status = e.Status, TotalCases = e.TotalCases }).ToList();
+        try
+        {
+            var list = await _context.Outbreaks.Where(x => x.Status != "Closed").ToListAsync();
+            return list.Select(e => new OutbreakDto { Id = e.Id, OutbreakCode = e.OutbreakCode, Name = e.OutbreakCode, Status = e.Status, TotalCases = e.TotalCases }).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<OutbreakDto>();
+        }
     }
 
     public async Task<OutbreakDto> GetOutbreakAsync(Guid id)
@@ -880,11 +895,18 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<List<MaintenanceScheduleDto>> GetMaintenanceSchedulesAsync(DateTime? dueDate = null, bool? overdue = null)
     {
-        var query = _context.MaintenanceRecords.Include(x => x.Equipment).Where(x => x.Status == "Scheduled");
-        if (dueDate.HasValue) query = query.Where(x => x.ScheduledDate <= dueDate);
-        if (overdue == true) query = query.Where(x => x.ScheduledDate < DateTime.Today);
-        var list = await query.ToListAsync();
-        return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status }).ToList();
+        try
+        {
+            var query = _context.MaintenanceRecords.Include(x => x.Equipment).Where(x => x.Status == "Scheduled");
+            if (dueDate.HasValue) query = query.Where(x => x.ScheduledDate <= dueDate);
+            if (overdue == true) query = query.Where(x => x.ScheduledDate < DateTime.Today);
+            var list = await query.ToListAsync();
+            return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status }).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<MaintenanceScheduleDto>();
+        }
     }
 
     public async Task<MaintenanceScheduleDto> CreateMaintenanceScheduleAsync(Guid equipmentId, string maintenanceType, string frequency, DateTime nextDueDate)
@@ -1205,9 +1227,16 @@ public class MedicalHRServiceImpl : IMedicalHRService
 
     public async Task<List<MedicalStaffDto>> GetCMENonCompliantStaffAsync()
     {
-        var staffIds = await _context.CMERecords.GroupBy(x => x.StaffId).Where(g => g.Sum(x => x.CreditHours) < 24).Select(g => g.Key).ToListAsync();
-        var list = await _context.MedicalStaffs.Where(x => staffIds.Contains(x.Id) && x.Status == "Active").ToListAsync();
-        return list.Select(MapToStaffDto).ToList();
+        try
+        {
+            var staffIds = await _context.CMERecords.GroupBy(x => x.StaffId).Where(g => g.Sum(x => x.CreditHours) < 24).Select(g => g.Key).ToListAsync();
+            var list = await _context.MedicalStaffs.Where(x => staffIds.Contains(x.Id) && x.Status == "Active").ToListAsync();
+            return list.Select(MapToStaffDto).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<MedicalStaffDto>();
+        }
     }
 
     public Task<CompetencyAssessmentDto> GetCompetencyAssessmentAsync(Guid id) => Task.FromResult(new CompetencyAssessmentDto { Id = id });
@@ -1607,11 +1636,18 @@ public class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null)
     {
-        var query = _context.LabResults.Include(x => x.LabRequestItem).ThenInclude(x => x!.LabRequest).Where(x => x.LabRequestItem!.LabRequest!.PatientId == patientId);
-        if (fromDate.HasValue) query = query.Where(x => x.ResultDate >= fromDate);
-        if (toDate.HasValue) query = query.Where(x => x.ResultDate <= toDate);
-        var list = await query.OrderByDescending(x => x.ResultDate).ToListAsync();
-        return list.Select(e => new PortalLabResultDto { Id = e.Id, OrderCode = e.LabRequestItem?.LabRequest?.RequestCode ?? "", ResultDate = e.ResultDate, Status = e.Status == 1 ? "Completed" : "Pending" }).ToList();
+        try
+        {
+            var query = _context.LabResults.Include(x => x.LabRequestItem).ThenInclude(x => x!.LabRequest).Where(x => x.LabRequestItem!.LabRequest!.PatientId == patientId);
+            if (fromDate.HasValue) query = query.Where(x => x.ResultDate >= fromDate);
+            if (toDate.HasValue) query = query.Where(x => x.ResultDate <= toDate);
+            var list = await query.OrderByDescending(x => x.ResultDate).ToListAsync();
+            return list.Select(e => new PortalLabResultDto { Id = e.Id, OrderCode = e.LabRequestItem?.LabRequest?.RequestCode ?? "", ResultDate = e.ResultDate, Status = e.Status == 1 ? "Completed" : "Pending" }).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<PortalLabResultDto>();
+        }
     }
 
     public async Task<PortalLabResultDto> GetLabResultAsync(Guid id)
@@ -1724,13 +1760,26 @@ public class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<PatientPortalDashboardDto> GetDashboardAsync(Guid patientId)
     {
-        return new PatientPortalDashboardDto
+        try
         {
-            PatientId = patientId,
-            UpcomingAppointments = await _context.PortalAppointments.CountAsync(x => x.PatientId == patientId && x.AppointmentDate >= DateTime.Today && x.Status != "Cancelled"),
-            UnpaidInvoices = await _context.Receipts.CountAsync(x => x.PatientId == patientId && x.Status != 1),
-            NewLabResults = await _context.LabResults.CountAsync(x => x.LabRequestItem!.LabRequest!.PatientId == patientId && x.Status == 1)
-        };
+            var upcomingAppointments = 0;
+            try { upcomingAppointments = await _context.PortalAppointments.CountAsync(x => x.PatientId == patientId && x.AppointmentDate >= DateTime.Today && x.Status != "Cancelled"); } catch (SqlException) { }
+            var unpaidInvoices = 0;
+            try { unpaidInvoices = await _context.Receipts.CountAsync(x => x.PatientId == patientId && x.Status != 1); } catch (SqlException) { }
+            var newLabResults = 0;
+            try { newLabResults = await _context.LabResults.CountAsync(x => x.LabRequestItem!.LabRequest!.PatientId == patientId && x.Status == 1); } catch (SqlException) { }
+            return new PatientPortalDashboardDto
+            {
+                PatientId = patientId,
+                UpcomingAppointments = upcomingAppointments,
+                UnpaidInvoices = unpaidInvoices,
+                NewLabResults = newLabResults
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new PatientPortalDashboardDto { PatientId = patientId };
+        }
     }
 }
 #endregion

@@ -90,8 +90,8 @@ describe('Console Errors - All Pages', () => {
       // Don't fail test on uncaught exceptions from the app
       cy.on('uncaught:exception', () => false);
 
-      // Intercept all API calls and check for 500s
-      cy.intercept('**/*', (req) => {
+      // Intercept API calls and check for 500s
+      cy.intercept('**/api/**', (req) => {
         req.continue((res) => {
           if (res.statusCode >= 500) {
             serverErrors.push(`${req.method} ${req.url} => ${res.statusCode}`);

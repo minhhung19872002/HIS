@@ -50,6 +50,7 @@ import {
   type ExaminationDto,
   type ServiceDto,
 } from '../api/examination';
+import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
 
 // Type aliases for compatibility
 type QueuePatient = RoomPatientListDto;
@@ -145,6 +146,9 @@ const OPD: React.FC = () => {
   const [printForm] = Form.useForm();
   const [opdRecordType, setOpdRecordType] = useState<string>('ngoai_tru_chung');
 
+  // State for data inheritance (Reception → OPD context)
+  const [opdContext, setOpdContext] = useState<OpdContextDto | null>(null);
+
   // Load rooms on mount
   useEffect(() => {
     loadRooms();
@@ -215,6 +219,17 @@ const OPD: React.FC = () => {
         };
         initializeNewExamination(response.data, examInfo);
         message.success(`Đã chọn bệnh nhân: ${queuePatient.patientName}`);
+
+        // Fetch inherited data from Reception
+        try {
+          const ctxResponse = await getOpdContext(queuePatient.examinationId);
+          if (ctxResponse.data) {
+            setOpdContext(ctxResponse.data);
+          }
+        } catch {
+          // Non-critical: context data is optional enhancement
+          setOpdContext(null);
+        }
       }
     } catch (error) {
       message.error('Không thể tải thông tin bệnh nhân');
@@ -276,6 +291,7 @@ const OPD: React.FC = () => {
     setExamination(newExam);
     setDiagnoses([]);
     setOrders([]);
+    setOpdContext(null);
     examForm.resetFields();
   };
 
@@ -1078,6 +1094,55 @@ const OPD: React.FC = () => {
                       {selectedPatient.address || 'N/A'}
                     </Descriptions.Item>
                   </Descriptions>
+
+                  {/* Data Inheritance Panel: Registration context from Reception */}
+                  {opdContext && (
+                    <Card size="small" style={{ marginTop: 8 }} styles={{ body: { padding: '8px 12px' } }}>
+                      <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
+                        Thông tin tiếp đón
+                      </Typography.Text>
+                      <Descriptions column={1} size="small" style={{ marginTop: 4 }}>
+                        <Descriptions.Item label="Đối tượng">
+                          <Tag color={opdContext.patientType === 1 ? 'green' : opdContext.patientType === 3 ? 'blue' : 'orange'}>
+                            {opdContext.patientTypeName}
+                          </Tag>
+                        </Descriptions.Item>
+                        {opdContext.insuranceNumber && (
+                          <Descriptions.Item label="Số BHYT">
+                            <Text copyable style={{ fontSize: 12 }}>{opdContext.insuranceNumber}</Text>
+                          </Descriptions.Item>
+                        )}
+                        {opdContext.insuranceRightRouteName && (
+                          <Descriptions.Item label="Tuyến">
+                            {opdContext.insuranceRightRouteName}
+                          </Descriptions.Item>
+                        )}
+                        <Descriptions.Item label="STT">
+                          <Tag color="blue">{opdContext.ticketNumber || opdContext.queueNumber}</Tag>
+                          {opdContext.queuePriority > 0 && (
+                            <Tag color={opdContext.queuePriority === 2 ? 'red' : 'orange'}>
+                              {opdContext.queuePriorityName}
+                            </Tag>
+                          )}
+                        </Descriptions.Item>
+                        {opdContext.allergyHistory && (
+                          <Descriptions.Item label="Dị ứng">
+                            <Text type="danger" style={{ fontSize: 12 }}>{opdContext.allergyHistory}</Text>
+                          </Descriptions.Item>
+                        )}
+                        {opdContext.medicalHistory && (
+                          <Descriptions.Item label="Tiền sử">
+                            <Text style={{ fontSize: 12 }}>{opdContext.medicalHistory}</Text>
+                          </Descriptions.Item>
+                        )}
+                        {opdContext.queueNotes && (
+                          <Descriptions.Item label="Ghi chú">
+                            <Text style={{ fontSize: 12 }}>{opdContext.queueNotes}</Text>
+                          </Descriptions.Item>
+                        )}
+                      </Descriptions>
+                    </Card>
+                  )}
 
                   <Button
                     block

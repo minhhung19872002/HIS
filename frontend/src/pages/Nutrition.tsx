@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -14,7 +14,7 @@ import {
   Typography,
   Tabs,
   Statistic,
-  Progress,
+  Spin,
   Descriptions,
   Timeline,
   Divider,
@@ -27,160 +27,39 @@ import {
 import {
   AppleOutlined,
   AlertOutlined,
-  UserOutlined,
-  FileTextOutlined,
   PrinterOutlined,
-  PlusOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   WarningOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import {
+  getPendingScreenings,
+  getDietOrders,
+  getMealPlan,
+  getDashboard,
+  createScreening,
+  createDietOrder,
+  getDietTypes,
+  getHighRiskPatients,
+  getScreenings,
+} from '../api/nutrition';
+import type {
+  NutritionScreeningDto,
+  DietOrderDto,
+  MealPlanDto,
+  PlannedMealDto,
+  NutritionDashboardDto,
+  DietTypeDto,
+} from '../api/nutrition';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-// Types
-interface NutritionPatient {
-  id: string;
-  patientId: string;
-  patientName: string;
-  admissionId: string;
-  department: string;
-  bedNumber: string;
-  admissionDate: string;
-  diagnosis: string;
-  screeningDate?: string;
-  screeningScore?: number;
-  riskLevel?: 'low' | 'medium' | 'high';
-  dietType?: string;
-  mealPlan?: string;
-  bmi?: number;
-  weight?: number;
-  height?: number;
-  albumin?: number;
-  status: 'pending_screening' | 'screened' | 'on_plan' | 'discharged';
-}
-
-interface NutritionPlan {
-  id: string;
-  patientId: string;
-  startDate: string;
-  endDate?: string;
-  calorieTarget: number;
-  proteinTarget: number;
-  dietType: string;
-  restrictions: string[];
-  supplements?: string;
-  feedingRoute: 'oral' | 'enteral' | 'parenteral' | 'mixed';
-  notes?: string;
-}
-
-interface MealOrder {
-  id: string;
-  patientId: string;
-  patientName: string;
-  department: string;
-  bedNumber: string;
-  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  dietType: string;
-  deliveryTime: string;
-  status: 'pending' | 'preparing' | 'delivered' | 'consumed';
-  notes?: string;
-}
-
-// Mock data
-const mockPatients: NutritionPatient[] = [
-  {
-    id: 'NP001',
-    patientId: 'P001',
-    patientName: 'Nguyen Van A',
-    admissionId: 'ADM001',
-    department: 'Noi khoa',
-    bedNumber: 'A-101',
-    admissionDate: dayjs().subtract(3, 'day').format('YYYY-MM-DD'),
-    diagnosis: 'Tang huyet ap, Dai thao duong type 2',
-    screeningDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD'),
-    screeningScore: 3,
-    riskLevel: 'medium',
-    dietType: 'Che do an giam duong, giam muoi',
-    bmi: 24.5,
-    weight: 68,
-    height: 167,
-    albumin: 3.8,
-    status: 'on_plan',
-  },
-  {
-    id: 'NP002',
-    patientId: 'P002',
-    patientName: 'Tran Thi B',
-    admissionId: 'ADM002',
-    department: 'Ngoai khoa',
-    bedNumber: 'B-205',
-    admissionDate: dayjs().subtract(1, 'day').format('YYYY-MM-DD'),
-    diagnosis: 'Sau mo cat tui mat',
-    screeningDate: dayjs().format('YYYY-MM-DD'),
-    screeningScore: 5,
-    riskLevel: 'high',
-    dietType: 'Che do an long, chia nho bua',
-    bmi: 18.5,
-    weight: 45,
-    height: 156,
-    albumin: 2.9,
-    status: 'on_plan',
-  },
-  {
-    id: 'NP003',
-    patientId: 'P003',
-    patientName: 'Le Van C',
-    admissionId: 'ADM003',
-    department: 'Noi khoa',
-    bedNumber: 'A-108',
-    admissionDate: dayjs().format('YYYY-MM-DD'),
-    diagnosis: 'Viem phoi',
-    status: 'pending_screening',
-  },
-];
-
-const mockMealOrders: MealOrder[] = [
-  {
-    id: 'MO001',
-    patientId: 'P001',
-    patientName: 'Nguyen Van A',
-    department: 'Noi khoa',
-    bedNumber: 'A-101',
-    mealType: 'breakfast',
-    dietType: 'Giam duong',
-    deliveryTime: '07:00',
-    status: 'delivered',
-  },
-  {
-    id: 'MO002',
-    patientId: 'P001',
-    patientName: 'Nguyen Van A',
-    department: 'Noi khoa',
-    bedNumber: 'A-101',
-    mealType: 'lunch',
-    dietType: 'Giam duong',
-    deliveryTime: '11:30',
-    status: 'preparing',
-  },
-  {
-    id: 'MO003',
-    patientId: 'P002',
-    patientName: 'Tran Thi B',
-    department: 'Ngoai khoa',
-    bedNumber: 'B-205',
-    mealType: 'breakfast',
-    dietType: 'An long',
-    deliveryTime: '07:00',
-    status: 'consumed',
-    notes: 'An duoc 70%',
-  },
-];
-
-const DIET_TYPES = [
+const DIET_TYPES_FALLBACK = [
   { value: 'normal', label: 'Che do an thuong' },
   { value: 'diabetes', label: 'Giam duong (Dai thao duong)' },
   { value: 'low_salt', label: 'Giam muoi (Tang huyet ap)' },
@@ -193,28 +72,102 @@ const DIET_TYPES = [
 ];
 
 const Nutrition: React.FC = () => {
-  const [patients, setPatients] = useState<NutritionPatient[]>(mockPatients);
-  const [mealOrders, setMealOrders] = useState<MealOrder[]>(mockMealOrders);
-  const [selectedPatient, setSelectedPatient] = useState<NutritionPatient | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pendingScreeningList, setPendingScreeningList] = useState<NutritionScreeningDto[]>([]);
+  const [activeDietOrders, setActiveDietOrders] = useState<DietOrderDto[]>([]);
+  const [mealPlan, setMealPlan] = useState<MealPlanDto | null>(null);
+  const [dashboard, setDashboard] = useState<NutritionDashboardDto | null>(null);
+  const [dietTypeOptions, setDietTypeOptions] = useState<DietTypeDto[]>([]);
+  const [allScreenings, setAllScreenings] = useState<NutritionScreeningDto[]>([]);
+
+  const [selectedScreening, setSelectedScreening] = useState<NutritionScreeningDto | null>(null);
+  const [selectedDietOrder, setSelectedDietOrder] = useState<DietOrderDto | null>(null);
   const [isScreeningModalOpen, setIsScreeningModalOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [screeningForm] = Form.useForm();
   const [planForm] = Form.useForm();
 
-  // Statistics
-  const pendingScreening = patients.filter((p) => p.status === 'pending_screening').length;
-  const highRiskCount = patients.filter((p) => p.riskLevel === 'high').length;
-  const onPlanCount = patients.filter((p) => p.status === 'on_plan').length;
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const today = dayjs().format('YYYY-MM-DD');
 
-  const getRiskTag = (risk?: 'low' | 'medium' | 'high') => {
+    const results = await Promise.allSettled([
+      getPendingScreenings(),
+      getDietOrders({ page: 1, pageSize: 100 }),
+      getMealPlan(today),
+      getDashboard(today),
+      getDietTypes(),
+      getScreenings({ page: 1, pageSize: 200 }),
+      getHighRiskPatients(),
+    ]);
+
+    // Pending screenings
+    if (results[0].status === 'fulfilled') {
+      setPendingScreeningList(results[0].value?.data || []);
+    } else {
+      console.warn('Failed to fetch pending screenings:', results[0].reason);
+    }
+
+    // Active diet orders
+    if (results[1].status === 'fulfilled') {
+      const data = results[1].value?.data;
+      setActiveDietOrders(data?.items || (Array.isArray(data) ? data : []));
+    } else {
+      console.warn('Failed to fetch diet orders:', results[1].reason);
+    }
+
+    // Meal plan
+    if (results[2].status === 'fulfilled') {
+      setMealPlan(results[2].value?.data || null);
+    } else {
+      console.warn('Failed to fetch meal plan:', results[2].reason);
+    }
+
+    // Dashboard
+    if (results[3].status === 'fulfilled') {
+      setDashboard(results[3].value?.data || null);
+    } else {
+      console.warn('Failed to fetch dashboard:', results[3].reason);
+    }
+
+    // Diet types
+    if (results[4].status === 'fulfilled') {
+      setDietTypeOptions(results[4].value?.data || []);
+    } else {
+      console.warn('Failed to fetch diet types:', results[4].reason);
+    }
+
+    // All screenings (for the patient list tab)
+    if (results[5].status === 'fulfilled') {
+      const data = results[5].value?.data;
+      setAllScreenings(data?.items || (Array.isArray(data) ? data : []));
+    } else {
+      console.warn('Failed to fetch all screenings:', results[5].reason);
+    }
+
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Statistics from dashboard or local data
+  const pendingScreeningCount = dashboard?.pendingScreening ?? pendingScreeningList.length;
+  const highRiskCount = dashboard?.highRiskPatients ?? 0;
+  const onPlanCount = dashboard?.activeDietOrders ?? activeDietOrders.length;
+
+  const getRiskTag = (risk?: string) => {
     if (!risk) return null;
-    const config = {
+    const normalizedRisk = risk.toLowerCase();
+    const config: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
       low: { color: 'green', text: 'Nguy co thap', icon: <CheckCircleOutlined /> },
       medium: { color: 'orange', text: 'Nguy co vua', icon: <ExclamationCircleOutlined /> },
       high: { color: 'red', text: 'Nguy co cao', icon: <WarningOutlined /> },
     };
-    const c = config[risk];
+    const c = config[normalizedRisk];
+    if (!c) return <Tag>{risk}</Tag>;
     return (
       <Tag color={c.color} icon={c.icon}>
         {c.text}
@@ -222,69 +175,83 @@ const Nutrition: React.FC = () => {
     );
   };
 
-  const handleScreening = (values: any) => {
-    if (!selectedPatient) return;
+  const handleScreening = async (values: any) => {
+    if (!selectedScreening) return;
 
-    // Calculate NRS-2002 score
     const totalScore =
       (values.bmiScore || 0) +
       (values.weightLossScore || 0) +
       (values.intakeScore || 0) +
       (values.diseaseScore || 0);
 
-    let riskLevel: 'low' | 'medium' | 'high' = 'low';
-    if (totalScore >= 3) riskLevel = 'high';
-    else if (totalScore >= 2) riskLevel = 'medium';
+    try {
+      await createScreening({
+        admissionId: selectedScreening.admissionId,
+        screeningTool: 'NRS-2002',
+        nrsNutritionalScore: (values.bmiScore || 0) + (values.weightLossScore || 0) + (values.intakeScore || 0),
+        nrsSeverityScore: values.diseaseScore || 0,
+        nrsAgeAdjustment: undefined,
+        mustBMIScore: values.bmiScore,
+        mustWeightLossScore: values.weightLossScore,
+        mustAcuteIllnessScore: values.diseaseScore,
+        notes: values.notes,
+      });
 
-    setPatients((prev) =>
-      prev.map((p) =>
-        p.id === selectedPatient.id
-          ? {
-              ...p,
-              screeningDate: dayjs().format('YYYY-MM-DD'),
-              screeningScore: totalScore,
-              riskLevel,
-              bmi: values.bmi,
-              weight: values.weight,
-              height: values.height,
-              albumin: values.albumin,
-              status: 'screened',
-            }
-          : p
-      )
-    );
+      let riskLabel = 'thap';
+      if (totalScore >= 3) riskLabel = 'cao';
+      else if (totalScore >= 2) riskLabel = 'vua';
 
-    setIsScreeningModalOpen(false);
-    screeningForm.resetFields();
-    message.success(`Da hoan thanh sang loc - Nguy co: ${riskLevel.toUpperCase()}`);
+      setIsScreeningModalOpen(false);
+      screeningForm.resetFields();
+      message.success(`Da hoan thanh sang loc - Nguy co: ${riskLabel.toUpperCase()}`);
 
-    if (riskLevel !== 'low') {
-      setIsPlanModalOpen(true);
+      if (totalScore >= 2) {
+        setIsPlanModalOpen(true);
+      }
+
+      fetchData();
+    } catch (err) {
+      console.warn('Failed to create screening:', err);
+      message.warning('Khong the luu ket qua sang loc. Vui long thu lai.');
     }
   };
 
-  const handleCreatePlan = (values: any) => {
-    if (!selectedPatient) return;
+  const handleCreatePlan = async (values: any) => {
+    if (!selectedScreening) return;
 
-    setPatients((prev) =>
-      prev.map((p) =>
-        p.id === selectedPatient.id
-          ? {
-              ...p,
-              dietType: DIET_TYPES.find((d) => d.value === values.dietType)?.label,
-              status: 'on_plan',
-            }
-          : p
-      )
-    );
+    try {
+      await createDietOrder({
+        admissionId: selectedScreening.admissionId,
+        dietType: values.dietType,
+        texture: values.texture || 'Regular',
+        energyKcal: values.calorieTarget || 2000,
+        proteinGrams: values.proteinTarget || 60,
+        fluidMl: values.fluidMl,
+        sodiumMg: values.sodiumMg,
+        potassiumMg: values.potassiumMg,
+        phosphorusMg: values.phosphorusMg,
+        restrictions: values.restrictions,
+        feedingRoute: values.feedingRoute || 'oral',
+        mealFrequency: values.mealFrequency || 3,
+        snacksIncluded: values.snacksIncluded || false,
+        specialInstructions: values.notes,
+        startDate: dayjs().format('YYYY-MM-DD'),
+        endDate: values.endDate,
+      });
 
-    setIsPlanModalOpen(false);
-    planForm.resetFields();
-    message.success('Da tao ke hoach dinh duong');
+      setIsPlanModalOpen(false);
+      planForm.resetFields();
+      message.success('Da tao ke hoach dinh duong');
+      fetchData();
+    } catch (err) {
+      console.warn('Failed to create diet order:', err);
+      message.warning('Khong the tao ke hoach dinh duong. Vui long thu lai.');
+    }
   };
 
   const executePrintMealPlan = () => {
-    if (!selectedPatient) return;
+    const patient = selectedDietOrder;
+    if (!patient) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -307,7 +274,7 @@ const Nutrition: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <strong>BENH VIEN DA KHOA</strong><br/>
+          <strong>${HOSPITAL_NAME}</strong><br/>
           Khoa Dinh duong
         </div>
 
@@ -315,19 +282,19 @@ const Nutrition: React.FC = () => {
 
         <table class="info-table">
           <tr>
-            <td><strong>Ho ten:</strong> ${selectedPatient.patientName}</td>
-            <td><strong>Giuong:</strong> ${selectedPatient.bedNumber}</td>
+            <td><strong>Ho ten:</strong> ${patient.patientName}</td>
+            <td><strong>Giuong:</strong> ${patient.bedNumber || '-'}</td>
           </tr>
           <tr>
-            <td><strong>Khoa:</strong> ${selectedPatient.department}</td>
-            <td><strong>Nguy co:</strong> ${selectedPatient.riskLevel?.toUpperCase() || 'Chua danh gia'}</td>
+            <td><strong>Khoa:</strong> ${patient.departmentName}</td>
+            <td><strong>Che do:</strong> ${patient.dietTypeName || patient.dietType}</td>
           </tr>
           <tr>
-            <td><strong>Chan doan:</strong> ${selectedPatient.diagnosis}</td>
-            <td><strong>BMI:</strong> ${selectedPatient.bmi || '-'}</td>
+            <td><strong>Nang luong:</strong> ${patient.energyKcal} kcal/ngay</td>
+            <td><strong>Protein:</strong> ${patient.proteinGrams} g/ngay</td>
           </tr>
           <tr>
-            <td colspan="2"><strong>Che do an:</strong> ${selectedPatient.dietType || 'Chua chi dinh'}</td>
+            <td colspan="2"><strong>Duong cap DD:</strong> ${patient.feedingRoute}</td>
           </tr>
         </table>
 
@@ -341,36 +308,11 @@ const Nutrition: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Sang</td>
-              <td>07:00</td>
-              <td>Chao/Banh mi mem</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td>Phu sang</td>
-              <td>09:30</td>
-              <td>Sua/Trai cay</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td>Trua</td>
-              <td>11:30</td>
-              <td>Com/Chao + Thuc an</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td>Phu chieu</td>
-              <td>15:00</td>
-              <td>Sua/Banh</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td>Toi</td>
-              <td>17:30</td>
-              <td>Com/Chao + Thuc an</td>
-              <td></td>
-            </tr>
+            <tr><td>Sang</td><td>07:00</td><td>Chao/Banh mi mem</td><td></td></tr>
+            <tr><td>Phu sang</td><td>09:30</td><td>Sua/Trai cay</td><td></td></tr>
+            <tr><td>Trua</td><td>11:30</td><td>Com/Chao + Thuc an</td><td></td></tr>
+            <tr><td>Phu chieu</td><td>15:00</td><td>Sua/Banh</td><td></td></tr>
+            <tr><td>Toi</td><td>17:30</td><td>Com/Chao + Thuc an</td><td></td></tr>
           </tbody>
         </table>
 
@@ -387,7 +329,31 @@ const Nutrition: React.FC = () => {
     printWindow.document.close();
   };
 
-  const patientColumns: ColumnsType<NutritionPatient> = [
+  // Compute diet type options for selects
+  const dietSelectOptions = dietTypeOptions.length > 0
+    ? dietTypeOptions.map((d) => ({ value: d.code, label: d.name }))
+    : DIET_TYPES_FALLBACK;
+
+  // Combine pending screenings + all screenings into patient list
+  const combinedPatientList: NutritionScreeningDto[] = (() => {
+    const seen = new Set<string>();
+    const result: NutritionScreeningDto[] = [];
+    for (const s of pendingScreeningList) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        result.push(s);
+      }
+    }
+    for (const s of allScreenings) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        result.push(s);
+      }
+    }
+    return result;
+  })();
+
+  const patientColumns: ColumnsType<NutritionScreeningDto> = [
     {
       title: 'Benh nhan',
       key: 'patient',
@@ -395,28 +361,31 @@ const Nutrition: React.FC = () => {
         <Space orientation="vertical" size={0}>
           <Text strong>{record.patientName}</Text>
           <Text type="secondary">
-            {record.department} - {record.bedNumber}
+            {record.departmentName} - {record.bedNumber || 'N/A'}
           </Text>
         </Space>
       ),
     },
     {
-      title: 'Chan doan',
-      dataIndex: 'diagnosis',
-      key: 'diagnosis',
-      ellipsis: true,
+      title: 'Ma BA',
+      dataIndex: 'medicalRecordCode',
+      key: 'medicalRecordCode',
+      width: 120,
     },
     {
-      title: 'BMI',
-      key: 'bmi',
-      width: 80,
-      render: (_, record) => (
-        record.bmi ? (
-          <Tag color={record.bmi < 18.5 ? 'red' : record.bmi > 25 ? 'orange' : 'green'}>
-            {record.bmi.toFixed(1)}
-          </Tag>
-        ) : '-'
-      ),
+      title: 'Cong cu',
+      dataIndex: 'screeningTool',
+      key: 'screeningTool',
+      width: 100,
+    },
+    {
+      title: 'Tong diem',
+      key: 'score',
+      width: 90,
+      render: (_, record) => {
+        const score = record.nrsTotalScore ?? record.mustTotalScore;
+        return score != null ? <Tag color={score >= 3 ? 'red' : score >= 2 ? 'orange' : 'green'}>{score}</Tag> : '-';
+      },
     },
     {
       title: 'Nguy co DD',
@@ -425,25 +394,32 @@ const Nutrition: React.FC = () => {
       render: (_, record) => getRiskTag(record.riskLevel),
     },
     {
-      title: 'Che do an',
-      dataIndex: 'dietType',
-      key: 'dietType',
-      ellipsis: true,
-      render: (text) => text || <Text type="secondary">Chua chi dinh</Text>,
+      title: 'Ngay sang loc',
+      dataIndex: 'screeningDate',
+      key: 'screeningDate',
+      width: 120,
+      render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
     },
     {
       title: 'Trang thai',
-      dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status) => {
-        const config: Record<string, { color: string; text: string }> = {
-          pending_screening: { color: 'orange', text: 'Cho sang loc' },
-          screened: { color: 'blue', text: 'Da sang loc' },
-          on_plan: { color: 'green', text: 'Dang theo doi' },
-          discharged: { color: 'default', text: 'Da xuat vien' },
+      render: (_, record) => {
+        if (record.statusName) {
+          const colorMap: Record<string, string> = {
+            'Pending': 'orange',
+            'Completed': 'green',
+            'InProgress': 'blue',
+          };
+          return <Tag color={colorMap[record.statusName] || 'default'}>{record.statusName}</Tag>;
+        }
+        const statusConfig: Record<number, { color: string; text: string }> = {
+          0: { color: 'orange', text: 'Cho sang loc' },
+          1: { color: 'blue', text: 'Da sang loc' },
+          2: { color: 'green', text: 'Dang theo doi' },
+          3: { color: 'default', text: 'Da xuat vien' },
         };
-        const c = config[status];
+        const c = statusConfig[record.status] || { color: 'default', text: `Status ${record.status}` };
         return <Tag color={c.color}>{c.text}</Tag>;
       },
     },
@@ -453,442 +429,629 @@ const Nutrition: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          {record.status === 'pending_screening' && (
+          {record.status === 0 && (
             <Button
               type="primary"
               size="small"
               onClick={() => {
-                setSelectedPatient(record);
+                setSelectedScreening(record);
                 setIsScreeningModalOpen(true);
               }}
             >
               Sang loc
             </Button>
           )}
-          {(record.status === 'screened' || record.status === 'on_plan') && (
-            <>
-              <Button
-                size="small"
-                onClick={() => {
-                  setSelectedPatient(record);
-                  setIsProgressModalOpen(true);
-                }}
-              >
-                Chi tiet
-              </Button>
-              {record.status === 'screened' && (
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={() => {
-                    setSelectedPatient(record);
-                    setIsPlanModalOpen(true);
-                  }}
-                >
-                  Lap KH
-                </Button>
-              )}
-            </>
+          {record.status >= 1 && (
+            <Button
+              size="small"
+              onClick={() => {
+                setSelectedScreening(record);
+                setIsProgressModalOpen(true);
+              }}
+            >
+              Chi tiet
+            </Button>
+          )}
+          {record.status === 1 && record.requiresAssessment && (
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => {
+                setSelectedScreening(record);
+                setIsPlanModalOpen(true);
+              }}
+            >
+              Lap KH
+            </Button>
           )}
         </Space>
       ),
     },
   ];
 
-  const mealColumns: ColumnsType<MealOrder> = [
+  const dietOrderColumns: ColumnsType<DietOrderDto> = [
     {
       title: 'Benh nhan',
       key: 'patient',
       render: (_, record) => (
         <Space orientation="vertical" size={0}>
           <Text strong>{record.patientName}</Text>
-          <Text type="secondary">{record.bedNumber}</Text>
+          <Text type="secondary">{record.bedNumber || 'N/A'}</Text>
         </Space>
       ),
     },
     {
       title: 'Khoa',
-      dataIndex: 'department',
-      key: 'department',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
+    },
+    {
+      title: 'Che do an',
+      key: 'dietType',
+      render: (_, record) => record.dietTypeName || record.dietType,
+    },
+    {
+      title: 'Nang luong',
+      key: 'energy',
+      width: 100,
+      render: (_, record) => `${record.energyKcal} kcal`,
+    },
+    {
+      title: 'Protein',
+      key: 'protein',
+      width: 90,
+      render: (_, record) => `${record.proteinGrams} g`,
+    },
+    {
+      title: 'Duong cap',
+      dataIndex: 'feedingRoute',
+      key: 'feedingRoute',
+      width: 100,
+      render: (route: string) => {
+        const labels: Record<string, string> = {
+          oral: 'Duong mieng',
+          enteral: 'Ong thong',
+          parenteral: 'Tinh mach',
+          mixed: 'Ket hop',
+        };
+        return labels[route?.toLowerCase()] || route;
+      },
+    },
+    {
+      title: 'Trang thai',
+      key: 'status',
+      width: 120,
+      render: (_, record) => {
+        if (record.statusName) return <Tag color="green">{record.statusName}</Tag>;
+        return <Tag>Status {record.status}</Tag>;
+      },
+    },
+    {
+      title: 'Thao tac',
+      key: 'action',
+      width: 100,
+      render: (_, record) => (
+        <Button
+          size="small"
+          icon={<PrinterOutlined />}
+          onClick={() => {
+            setSelectedDietOrder(record);
+            setTimeout(() => executePrintMealPlan(), 100);
+          }}
+        >
+          In phieu
+        </Button>
+      ),
+    },
+  ];
+
+  // Meal plan data: flatten from mealPlan.meals
+  const mealList: PlannedMealDto[] = mealPlan?.meals || [];
+
+  const mealColumns: ColumnsType<PlannedMealDto> = [
+    {
+      title: 'Benh nhan',
+      key: 'patient',
+      render: (_, record) => (
+        <Space orientation="vertical" size={0}>
+          <Text strong>{record.patientName}</Text>
+          <Text type="secondary">{record.bedNumber || 'N/A'}</Text>
+        </Space>
+      ),
     },
     {
       title: 'Bua an',
       dataIndex: 'mealType',
       key: 'mealType',
-      render: (type) => {
+      render: (type: string) => {
         const labels: Record<string, string> = {
+          Breakfast: 'Bua sang',
+          Lunch: 'Bua trua',
+          Dinner: 'Bua toi',
+          Snack: 'Bua phu',
           breakfast: 'Bua sang',
           lunch: 'Bua trua',
           dinner: 'Bua toi',
           snack: 'Bua phu',
         };
-        return labels[type];
+        return labels[type] || type;
       },
-    },
-    {
-      title: 'Che do',
-      dataIndex: 'dietType',
-      key: 'dietType',
     },
     {
       title: 'Gio giao',
-      dataIndex: 'deliveryTime',
-      key: 'deliveryTime',
+      dataIndex: 'mealTime',
+      key: 'mealTime',
     },
     {
-      title: 'Trang thai',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const config: Record<string, { color: string; text: string }> = {
-          pending: { color: 'default', text: 'Cho' },
-          preparing: { color: 'blue', text: 'Dang che bien' },
-          delivered: { color: 'orange', text: 'Da giao' },
-          consumed: { color: 'green', text: 'Da an' },
+      title: 'Nang luong',
+      key: 'energy',
+      width: 100,
+      render: (_, record) => `${record.energyKcal} kcal`,
+    },
+    {
+      title: 'Protein',
+      key: 'protein',
+      width: 80,
+      render: (_, record) => `${record.proteinGrams} g`,
+    },
+    {
+      title: 'Tieu thu',
+      key: 'consumption',
+      width: 100,
+      render: (_, record) =>
+        record.consumptionPct != null ? (
+          <Tag color={record.consumptionPct >= 75 ? 'green' : record.consumptionPct >= 50 ? 'orange' : 'red'}>
+            {record.consumptionPct}%
+          </Tag>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: 'Giao hang',
+      key: 'delivery',
+      width: 120,
+      render: (_, record) => {
+        const deliveryLabels: Record<number, { color: string; text: string }> = {
+          0: { color: 'default', text: 'Cho' },
+          1: { color: 'blue', text: 'Dang che bien' },
+          2: { color: 'orange', text: 'Da giao' },
+          3: { color: 'green', text: 'Da an' },
         };
-        const c = config[status];
+        const c = deliveryLabels[record.deliveryStatus] || { color: 'default', text: `${record.deliveryStatus}` };
         return <Tag color={c.color}>{c.text}</Tag>;
       },
-    },
-    {
-      title: 'Ghi chu',
-      dataIndex: 'notes',
-      key: 'notes',
-      ellipsis: true,
     },
   ];
 
   return (
-    <div>
-      <Title level={4}>Dinh duong lam sang</Title>
+    <Spin spinning={loading}>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>Dinh duong lam sang</Title>
+          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
+            Lam moi
+          </Button>
+        </div>
 
-      {/* Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Cho sang loc"
-              value={pendingScreening}
-              prefix={<AlertOutlined style={{ color: '#faad14' }} />}
-              styles={{ content: { color: '#faad14' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Nguy co cao"
-              value={highRiskCount}
-              prefix={<WarningOutlined style={{ color: '#ff4d4f' }} />}
-              styles={{ content: { color: '#ff4d4f' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Dang theo doi"
-              value={onPlanCount}
-              prefix={<AppleOutlined style={{ color: '#52c41a' }} />}
-              styles={{ content: { color: '#52c41a' } }}
-            />
-          </Card>
-        </Col>
-      </Row>
+        {/* Statistics */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Cho sang loc"
+                value={pendingScreeningCount}
+                prefix={<AlertOutlined style={{ color: '#faad14' }} />}
+                styles={{ content: { color: '#faad14' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Nguy co cao"
+                value={highRiskCount}
+                prefix={<WarningOutlined style={{ color: '#ff4d4f' }} />}
+                styles={{ content: { color: '#ff4d4f' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Dang theo doi"
+                value={onPlanCount}
+                prefix={<AppleOutlined style={{ color: '#52c41a' }} />}
+                styles={{ content: { color: '#52c41a' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Tong benh nhan"
+                value={dashboard?.totalPatients ?? combinedPatientList.length}
+                prefix={<CheckCircleOutlined style={{ color: '#1890ff' }} />}
+                styles={{ content: { color: '#1890ff' } }}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-      {/* Main Content */}
-      <Card>
-        <Tabs
-          defaultActiveKey="patients"
-          items={[
-            {
-              key: 'patients',
-              label: 'Benh nhan noi tru',
-              children: (
-                <>
-                  <Alert
-                    title="Quy tac sang loc"
-                    description="Moi benh nhan noi tru phai duoc sang loc dinh duong trong 24h nhap vien. Tai sang loc moi 7 ngay."
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
+        {/* Main Content */}
+        <Card>
+          <Tabs
+            defaultActiveKey="patients"
+            items={[
+              {
+                key: 'patients',
+                label: 'Benh nhan noi tru',
+                children: (
+                  <>
+                    <Alert
+                      title="Quy tac sang loc"
+                      description="Moi benh nhan noi tru phai duoc sang loc dinh duong trong 24h nhap vien. Tai sang loc moi 7 ngay."
+                      type="info"
+                      showIcon
+                      style={{ marginBottom: 16 }}
+                    />
+                    <Table
+                      columns={patientColumns}
+                      dataSource={combinedPatientList}
+                      rowKey="id"
+                      loading={loading}
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          setSelectedScreening(record);
+                          if (record.status === 0) {
+                            setIsScreeningModalOpen(true);
+                          } else {
+                            setIsProgressModalOpen(true);
+                          }
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'diet_orders',
+                label: 'Che do an chi dinh',
+                children: (
                   <Table
-                    columns={patientColumns}
-                    dataSource={patients}
+                    columns={dietOrderColumns}
+                    dataSource={activeDietOrders}
                     rowKey="id"
+                    loading={loading}
                     onRow={(record) => ({
                       onDoubleClick: () => {
-                        setSelectedPatient(record);
-                        setIsScreeningModalOpen(true);
+                        setSelectedDietOrder(record);
+                        Modal.info({
+                          title: 'Chi tiet che do an',
+                          width: 600,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
+                              <Descriptions.Item label="Giuong">{record.bedNumber || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
+                              <Descriptions.Item label="Che do">{record.dietTypeName || record.dietType}</Descriptions.Item>
+                              <Descriptions.Item label="Nang luong">{record.energyKcal} kcal/ngay</Descriptions.Item>
+                              <Descriptions.Item label="Protein">{record.proteinGrams} g/ngay</Descriptions.Item>
+                              <Descriptions.Item label="Duong cap">{record.feedingRoute}</Descriptions.Item>
+                              <Descriptions.Item label="So bua/ngay">{record.mealFrequency}</Descriptions.Item>
+                              <Descriptions.Item label="Bat dau">{dayjs(record.startDate).format('DD/MM/YYYY')}</Descriptions.Item>
+                              <Descriptions.Item label="Ket thuc">{record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ghi chu" span={2}>{record.specialInstructions || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Han che" span={2}>{record.restrictions?.join(', ') || '-'}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
                       },
                       style: { cursor: 'pointer' },
                     })}
                   />
-                </>
-              ),
-            },
-            {
-              key: 'meals',
-              label: 'Quan ly bua an',
-              children: (
-                <Table
-                  columns={mealColumns}
-                  dataSource={mealOrders}
-                  rowKey="id"
-                  onRow={(record) => ({
-                    onDoubleClick: () => {
-                      Modal.info({
-                        title: `Chi tiết đặt bữa ăn`,
-                        width: 500,
-                        content: (
-                          <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                            <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
-                            <Descriptions.Item label="Khoa">{record.department}</Descriptions.Item>
-                            <Descriptions.Item label="Chế độ ăn">{record.dietType}</Descriptions.Item>
-                            <Descriptions.Item label="Bữa">{record.mealType}</Descriptions.Item>
-                            <Descriptions.Item label="Ghi chú">{record.notes || '-'}</Descriptions.Item>
-                            <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
-                          </Descriptions>
-                        ),
-                      });
-                    },
-                    style: { cursor: 'pointer' },
-                  })}
-                />
-              ),
-            },
-            {
-              key: 'diet_types',
-              label: 'Che do an dac biet',
-              children: (
-                <Collapse
-                  items={DIET_TYPES.map((diet) => ({
-                    key: diet.value,
-                    label: diet.label,
-                    children: <p>Mo ta chi tiet che do an {diet.label}</p>,
-                  }))}
-                />
-              ),
-            },
-          ]}
-        />
-      </Card>
-
-      {/* Screening Modal (NRS-2002) */}
-      <Modal
-        title="Sang loc dinh duong (NRS-2002)"
-        open={isScreeningModalOpen}
-        onCancel={() => setIsScreeningModalOpen(false)}
-        onOk={() => screeningForm.submit()}
-        width={700}
-      >
-        <Form form={screeningForm} layout="vertical" onFinish={handleScreening}>
-          <Alert
-            title="Thang diem NRS-2002"
-            description="Tong diem >= 3: Nguy co dinh duong cao, can can thiep"
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
+                ),
+              },
+              {
+                key: 'meals',
+                label: 'Quan ly bua an',
+                children: (
+                  <>
+                    {mealPlan && (
+                      <Alert
+                        title={`Ke hoach bua an ngay ${dayjs(mealPlan.planDate).format('DD/MM/YYYY')}`}
+                        description={`Tong: ${mealPlan.totalPatients} benh nhan | Trang thai: ${mealPlan.statusName || 'N/A'}`}
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 16 }}
+                      />
+                    )}
+                    <Table
+                      columns={mealColumns}
+                      dataSource={mealList}
+                      rowKey="id"
+                      loading={loading}
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          Modal.info({
+                            title: 'Chi tiet bua an',
+                            width: 500,
+                            content: (
+                              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                                <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
+                                <Descriptions.Item label="Bua">{record.mealType}</Descriptions.Item>
+                                <Descriptions.Item label="Gio">{record.mealTime}</Descriptions.Item>
+                                <Descriptions.Item label="Nang luong">{record.energyKcal} kcal</Descriptions.Item>
+                                <Descriptions.Item label="Protein">{record.proteinGrams} g</Descriptions.Item>
+                                <Descriptions.Item label="Carb">{record.carbGrams} g</Descriptions.Item>
+                                <Descriptions.Item label="Fat">{record.fatGrams} g</Descriptions.Item>
+                                <Descriptions.Item label="Tieu thu">{record.consumptionPct != null ? `${record.consumptionPct}%` : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Ghi chu">{record.specialInstructions || '-'}</Descriptions.Item>
+                              </Descriptions>
+                            ),
+                          });
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'diet_types',
+                label: 'Che do an dac biet',
+                children: (
+                  <Collapse
+                    items={dietSelectOptions.map((diet) => ({
+                      key: diet.value,
+                      label: diet.label,
+                      children: <p>Mo ta chi tiet che do an {diet.label}</p>,
+                    }))}
+                  />
+                ),
+              },
+            ]}
           />
+        </Card>
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="weight" label="Can nang (kg)" rules={[{ required: true }]}>
-                <InputNumber style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="height" label="Chieu cao (cm)" rules={[{ required: true }]}>
-                <InputNumber style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="bmi" label="BMI">
-                <InputNumber style={{ width: '100%' }} disabled />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item name="albumin" label="Albumin (g/dL)">
-            <InputNumber style={{ width: '100%' }} step={0.1} />
-          </Form.Item>
-
-          <Divider>Danh gia tinh trang dinh duong</Divider>
-
-          <Form.Item name="bmiScore" label="1. BMI" rules={[{ required: true }]}>
-            <Radio.Group>
-              <Space orientation="vertical">
-                <Radio value={0}>BMI &gt;= 20.5 (0 diem)</Radio>
-                <Radio value={1}>BMI 18.5-20.5 (1 diem)</Radio>
-                <Radio value={2}>BMI &lt; 18.5 (2 diem)</Radio>
-                <Radio value={3}>BMI &lt; 18.5 + Toan trang kem (3 diem)</Radio>
-              </Space>
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item name="weightLossScore" label="2. Sut can" rules={[{ required: true }]}>
-            <Radio.Group>
-              <Space orientation="vertical">
-                <Radio value={0}>Khong sut can (0 diem)</Radio>
-                <Radio value={1}>Sut &gt;5% trong 3 thang (1 diem)</Radio>
-                <Radio value={2}>Sut &gt;5% trong 2 thang (2 diem)</Radio>
-                <Radio value={3}>Sut &gt;5% trong 1 thang (3 diem)</Radio>
-              </Space>
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item name="intakeScore" label="3. Luong an" rules={[{ required: true }]}>
-            <Radio.Group>
-              <Space orientation="vertical">
-                <Radio value={0}>An duoc binh thuong (0 diem)</Radio>
-                <Radio value={1}>An duoc 50-75% (1 diem)</Radio>
-                <Radio value={2}>An duoc 25-50% (2 diem)</Radio>
-                <Radio value={3}>An duoc &lt;25% (3 diem)</Radio>
-              </Space>
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item name="diseaseScore" label="4. Muc do benh" rules={[{ required: true }]}>
-            <Radio.Group>
-              <Space orientation="vertical">
-                <Radio value={0}>Benh nhe, khong stress (0 diem)</Radio>
-                <Radio value={1}>Gãy xuong hong, ung thu, benh man (1 diem)</Radio>
-                <Radio value={2}>Phau thuat lon, dot quy, viem phoi (2 diem)</Radio>
-                <Radio value={3}>Chay nang, ICU, ARDS (3 diem)</Radio>
-              </Space>
-            </Radio.Group>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Nutrition Plan Modal */}
-      <Modal
-        title="Lap ke hoach dinh duong"
-        open={isPlanModalOpen}
-        onCancel={() => setIsPlanModalOpen(false)}
-        onOk={() => planForm.submit()}
-        width={600}
-      >
-        <Form form={planForm} layout="vertical" onFinish={handleCreatePlan}>
-          <Form.Item name="dietType" label="Che do an" rules={[{ required: true }]}>
-            <Select>
-              {DIET_TYPES.map((d) => (
-                <Select.Option key={d.value} value={d.value}>
-                  {d.label}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="calorieTarget" label="Muc tieu Calo/ngay">
-                <InputNumber style={{ width: '100%' }} suffix="kcal" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="proteinTarget" label="Muc tieu Protein/ngay">
-                <InputNumber style={{ width: '100%' }} suffix="g" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item name="feedingRoute" label="Duong cap dinh duong">
-            <Select>
-              <Select.Option value="oral">Duong mieng</Select.Option>
-              <Select.Option value="enteral">Ong thong (Enteral)</Select.Option>
-              <Select.Option value="parenteral">Tinh mach (TPN)</Select.Option>
-              <Select.Option value="mixed">Ket hop</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="restrictions" label="Han che">
-            <Select mode="multiple">
-              <Select.Option value="salt">Giam muoi</Select.Option>
-              <Select.Option value="sugar">Giam duong</Select.Option>
-              <Select.Option value="protein">Giam dam</Select.Option>
-              <Select.Option value="fat">Giam mo</Select.Option>
-              <Select.Option value="fiber">Giam chat xo</Select.Option>
-              <Select.Option value="potassium">Giam Kali</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="supplements" label="Bo sung">
-            <TextArea placeholder="VD: Ensure, Glucerna, Vitamin D..." />
-          </Form.Item>
-
-          <Form.Item name="notes" label="Ghi chu">
-            <TextArea />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Progress Modal */}
-      <Modal
-        title="Chi tiet dinh duong benh nhan"
-        open={isProgressModalOpen}
-        onCancel={() => setIsProgressModalOpen(false)}
-        footer={[
-          <Button key="print" icon={<PrinterOutlined />} onClick={executePrintMealPlan}>
-            In phieu
-          </Button>,
-          <Button key="close" onClick={() => setIsProgressModalOpen(false)}>
-            Dong
-          </Button>,
-        ]}
-        width={700}
-      >
-        {selectedPatient && (
-          <>
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ho ten">{selectedPatient.patientName}</Descriptions.Item>
-              <Descriptions.Item label="Giuong">{selectedPatient.bedNumber}</Descriptions.Item>
-              <Descriptions.Item label="Khoa">{selectedPatient.department}</Descriptions.Item>
-              <Descriptions.Item label="Ngay sang loc">
-                {selectedPatient.screeningDate || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="BMI">
-                {selectedPatient.bmi?.toFixed(1) || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Can nang">
-                {selectedPatient.weight ? `${selectedPatient.weight} kg` : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Nguy co" span={2}>
-                {getRiskTag(selectedPatient.riskLevel)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Che do an" span={2}>
-                {selectedPatient.dietType || 'Chua chi dinh'}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Divider>Lich su theo doi</Divider>
-
-            <Timeline
-              items={[
-                {
-                  color: 'green',
-                  content: <>{dayjs().format('DD/MM/YYYY HH:mm')} - An bua sang, duoc 80%</>,
-                },
-                {
-                  color: 'blue',
-                  content: <>{dayjs().subtract(1, 'day').format('DD/MM/YYYY')} - Cap nhat ke hoach dinh duong</>,
-                },
-                {
-                  color: 'orange',
-                  content: (
-                    <>
-                      {dayjs().subtract(2, 'day').format('DD/MM/YYYY')} - Sang loc dinh duong: Nguy co{' '}
-                      {selectedPatient.riskLevel?.toUpperCase()}
-                    </>
-                  ),
-                },
-              ]}
+        {/* Screening Modal (NRS-2002) */}
+        <Modal
+          title="Sang loc dinh duong (NRS-2002)"
+          open={isScreeningModalOpen}
+          onCancel={() => setIsScreeningModalOpen(false)}
+          onOk={() => screeningForm.submit()}
+          width={700}
+        >
+          <Form form={screeningForm} layout="vertical" onFinish={handleScreening}>
+            <Alert
+              title="Thang diem NRS-2002"
+              description="Tong diem >= 3: Nguy co dinh duong cao, can can thiep"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
             />
-          </>
-        )}
-      </Modal>
-    </div>
+
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="weight" label="Can nang (kg)" rules={[{ required: true }]}>
+                  <InputNumber style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="height" label="Chieu cao (cm)" rules={[{ required: true }]}>
+                  <InputNumber style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="bmi" label="BMI">
+                  <InputNumber style={{ width: '100%' }} disabled />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item name="albumin" label="Albumin (g/dL)">
+              <InputNumber style={{ width: '100%' }} step={0.1} />
+            </Form.Item>
+
+            <Divider>Danh gia tinh trang dinh duong</Divider>
+
+            <Form.Item name="bmiScore" label="1. BMI" rules={[{ required: true }]}>
+              <Radio.Group>
+                <Space orientation="vertical">
+                  <Radio value={0}>BMI &gt;= 20.5 (0 diem)</Radio>
+                  <Radio value={1}>BMI 18.5-20.5 (1 diem)</Radio>
+                  <Radio value={2}>BMI &lt; 18.5 (2 diem)</Radio>
+                  <Radio value={3}>BMI &lt; 18.5 + Toan trang kem (3 diem)</Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item name="weightLossScore" label="2. Sut can" rules={[{ required: true }]}>
+              <Radio.Group>
+                <Space orientation="vertical">
+                  <Radio value={0}>Khong sut can (0 diem)</Radio>
+                  <Radio value={1}>Sut &gt;5% trong 3 thang (1 diem)</Radio>
+                  <Radio value={2}>Sut &gt;5% trong 2 thang (2 diem)</Radio>
+                  <Radio value={3}>Sut &gt;5% trong 1 thang (3 diem)</Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item name="intakeScore" label="3. Luong an" rules={[{ required: true }]}>
+              <Radio.Group>
+                <Space orientation="vertical">
+                  <Radio value={0}>An duoc binh thuong (0 diem)</Radio>
+                  <Radio value={1}>An duoc 50-75% (1 diem)</Radio>
+                  <Radio value={2}>An duoc 25-50% (2 diem)</Radio>
+                  <Radio value={3}>An duoc &lt;25% (3 diem)</Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item name="diseaseScore" label="4. Muc do benh" rules={[{ required: true }]}>
+              <Radio.Group>
+                <Space orientation="vertical">
+                  <Radio value={0}>Benh nhe, khong stress (0 diem)</Radio>
+                  <Radio value={1}>Gãy xuong hong, ung thu, benh man (1 diem)</Radio>
+                  <Radio value={2}>Phau thuat lon, dot quy, viem phoi (2 diem)</Radio>
+                  <Radio value={3}>Chay nang, ICU, ARDS (3 diem)</Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item name="notes" label="Ghi chu">
+              <TextArea />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Nutrition Plan Modal */}
+        <Modal
+          title="Lap ke hoach dinh duong"
+          open={isPlanModalOpen}
+          onCancel={() => setIsPlanModalOpen(false)}
+          onOk={() => planForm.submit()}
+          width={600}
+        >
+          <Form form={planForm} layout="vertical" onFinish={handleCreatePlan}>
+            <Form.Item name="dietType" label="Che do an" rules={[{ required: true }]}>
+              <Select>
+                {dietSelectOptions.map((d) => (
+                  <Select.Option key={d.value} value={d.value}>
+                    {d.label}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="calorieTarget" label="Muc tieu Calo/ngay">
+                  <InputNumber style={{ width: '100%' }} suffix="kcal" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="proteinTarget" label="Muc tieu Protein/ngay">
+                  <InputNumber style={{ width: '100%' }} suffix="g" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item name="feedingRoute" label="Duong cap dinh duong">
+              <Select>
+                <Select.Option value="oral">Duong mieng</Select.Option>
+                <Select.Option value="enteral">Ong thong (Enteral)</Select.Option>
+                <Select.Option value="parenteral">Tinh mach (TPN)</Select.Option>
+                <Select.Option value="mixed">Ket hop</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item name="restrictions" label="Han che">
+              <Select mode="multiple">
+                <Select.Option value="salt">Giam muoi</Select.Option>
+                <Select.Option value="sugar">Giam duong</Select.Option>
+                <Select.Option value="protein">Giam dam</Select.Option>
+                <Select.Option value="fat">Giam mo</Select.Option>
+                <Select.Option value="fiber">Giam chat xo</Select.Option>
+                <Select.Option value="potassium">Giam Kali</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item name="supplements" label="Bo sung">
+              <TextArea placeholder="VD: Ensure, Glucerna, Vitamin D..." />
+            </Form.Item>
+
+            <Form.Item name="notes" label="Ghi chu">
+              <TextArea />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Progress Modal */}
+        <Modal
+          title="Chi tiet dinh duong benh nhan"
+          open={isProgressModalOpen}
+          onCancel={() => setIsProgressModalOpen(false)}
+          footer={[
+            <Button key="print" icon={<PrinterOutlined />} onClick={() => {
+              // Find diet order for this patient to print
+              if (selectedScreening) {
+                const order = activeDietOrders.find((o) => o.admissionId === selectedScreening.admissionId);
+                if (order) {
+                  setSelectedDietOrder(order);
+                  setTimeout(() => executePrintMealPlan(), 100);
+                } else {
+                  message.warning('Chua co che do an chi dinh cho benh nhan nay.');
+                }
+              }
+            }}>
+              In phieu
+            </Button>,
+            <Button key="close" onClick={() => setIsProgressModalOpen(false)}>
+              Dong
+            </Button>,
+          ]}
+          width={700}
+        >
+          {selectedScreening && (
+            <>
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Ho ten">{selectedScreening.patientName}</Descriptions.Item>
+                <Descriptions.Item label="Giuong">{selectedScreening.bedNumber || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Khoa">{selectedScreening.departmentName}</Descriptions.Item>
+                <Descriptions.Item label="Ngay sang loc">
+                  {selectedScreening.screeningDate ? dayjs(selectedScreening.screeningDate).format('DD/MM/YYYY') : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Cong cu">{selectedScreening.screeningTool || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Tong diem">
+                  {selectedScreening.nrsTotalScore ?? selectedScreening.mustTotalScore ?? '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Nguy co" span={2}>
+                  {getRiskTag(selectedScreening.riskLevel)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Nguoi sang loc" span={2}>
+                  {selectedScreening.screenedByName || '-'}
+                </Descriptions.Item>
+                {selectedScreening.notes && (
+                  <Descriptions.Item label="Ghi chu" span={2}>
+                    {selectedScreening.notes}
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+
+              <Divider>Lich su theo doi</Divider>
+
+              <Timeline
+                items={[
+                  ...(selectedScreening.screeningDate
+                    ? [
+                        {
+                          color: 'orange',
+                          content: (
+                            <>
+                              {dayjs(selectedScreening.screeningDate).format('DD/MM/YYYY')} - Sang loc dinh duong:{' '}
+                              {selectedScreening.riskLevel ? `Nguy co ${selectedScreening.riskLevel.toUpperCase()}` : 'N/A'}
+                            </>
+                          ),
+                        },
+                      ]
+                    : []),
+                  ...(selectedScreening.requiresAssessment
+                    ? [
+                        {
+                          color: 'blue',
+                          content: <>Can danh gia dinh duong chi tiet</>,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </>
+          )}
+        </Modal>
+      </div>
+    </Spin>
   );
 };
 

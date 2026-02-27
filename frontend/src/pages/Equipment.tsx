@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
@@ -16,295 +16,144 @@ import {
   Tabs,
   Statistic,
   Descriptions,
-  Timeline,
   Divider,
   message,
   Badge,
-  Progress,
-  InputNumber,
+  Spin,
 } from 'antd';
 import {
   ToolOutlined,
-  AlertOutlined,
-  SettingOutlined,
-  FileTextOutlined,
+  CheckCircleOutlined,
+  CalendarOutlined,
   PrinterOutlined,
   PlusOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  WarningOutlined,
-  CalendarOutlined,
   ClockCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import {
+  getEquipment,
+  getMaintenanceSchedules,
+  getRepairRequests,
+  getDashboard,
+  createRepairRequest,
+  createMaintenanceRecord,
+  type EquipmentDto,
+  type MaintenanceScheduleDto,
+  type RepairRequestDto,
+  type EquipmentDashboardDto,
+} from '../api/equipment';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-// Types
-interface Equipment {
-  id: string;
-  code: string;
-  name: string;
-  category: string;
-  manufacturer: string;
-  model: string;
-  serialNumber: string;
-  department: string;
-  location: string;
-  purchaseDate: string;
-  warrantyExpiry?: string;
-  lastMaintenanceDate?: string;
-  nextMaintenanceDate?: string;
-  lastCalibrationDate?: string;
-  nextCalibrationDate?: string;
-  status: 'active' | 'maintenance' | 'repair' | 'inactive' | 'disposed';
-  riskClass: 'A' | 'B' | 'C' | 'D';
-  value: number;
-  runtime?: number; // hours
-}
-
-interface MaintenanceRecord {
-  id: string;
-  equipmentId: string;
-  equipmentName: string;
-  maintenanceType: 'preventive' | 'corrective' | 'calibration';
-  scheduledDate: string;
-  completedDate?: string;
-  technician: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'overdue';
-  findings?: string;
-  actions?: string;
-  cost?: number;
-  nextDueDate?: string;
-}
-
-interface RepairRequest {
-  id: string;
-  equipmentId: string;
-  equipmentName: string;
-  department: string;
-  reportedBy: string;
-  reportedDate: string;
-  issueDescription: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'closed';
-  assignedTo?: string;
-  completedDate?: string;
-  repairCost?: number;
-}
-
-// Mock data
-const mockEquipment: Equipment[] = [
-  {
-    id: 'EQ001',
-    code: 'CT-001',
-    name: 'May CT Scanner 128 slice',
-    category: 'CDHA',
-    manufacturer: 'Siemens',
-    model: 'SOMATOM go.Top',
-    serialNumber: 'CT2023001',
-    department: 'Chan doan hinh anh',
-    location: 'Tang 2 - Phong CT',
-    purchaseDate: '2021-06-15',
-    warrantyExpiry: '2024-06-15',
-    lastMaintenanceDate: '2024-01-10',
-    nextMaintenanceDate: '2024-04-10',
-    lastCalibrationDate: '2024-01-15',
-    nextCalibrationDate: '2025-01-15',
-    status: 'active',
-    riskClass: 'A',
-    value: 15000000000,
-    runtime: 12500,
-  },
-  {
-    id: 'EQ002',
-    code: 'MRI-001',
-    name: 'May MRI 1.5T',
-    category: 'CDHA',
-    manufacturer: 'GE Healthcare',
-    model: 'SIGNA Explorer',
-    serialNumber: 'MRI2022001',
-    department: 'Chan doan hinh anh',
-    location: 'Tang 2 - Phong MRI',
-    purchaseDate: '2020-03-20',
-    lastMaintenanceDate: '2024-02-01',
-    nextMaintenanceDate: '2024-05-01',
-    status: 'active',
-    riskClass: 'A',
-    value: 25000000000,
-    runtime: 18200,
-  },
-  {
-    id: 'EQ003',
-    code: 'XR-002',
-    name: 'May X-quang ky thuat so',
-    category: 'CDHA',
-    manufacturer: 'Carestream',
-    model: 'DRX-Evolution Plus',
-    serialNumber: 'XR2023002',
-    department: 'Chan doan hinh anh',
-    location: 'Tang 1 - Phong Xquang',
-    purchaseDate: '2023-01-10',
-    nextCalibrationDate: '2024-02-15',
-    status: 'maintenance',
-    riskClass: 'B',
-    value: 2500000000,
-  },
-  {
-    id: 'EQ004',
-    code: 'VENT-005',
-    name: 'May tho cao cap',
-    category: 'Ho hap',
-    manufacturer: 'Hamilton Medical',
-    model: 'Hamilton-C6',
-    serialNumber: 'VENT2022005',
-    department: 'ICU',
-    location: 'ICU - Giuong 5',
-    purchaseDate: '2022-08-15',
-    lastMaintenanceDate: '2024-01-20',
-    nextMaintenanceDate: '2024-03-20',
-    status: 'active',
-    riskClass: 'A',
-    value: 1200000000,
-    runtime: 8500,
-  },
-];
-
-const mockMaintenanceRecords: MaintenanceRecord[] = [
-  {
-    id: 'MR001',
-    equipmentId: 'EQ001',
-    equipmentName: 'May CT Scanner 128 slice',
-    maintenanceType: 'preventive',
-    scheduledDate: '2024-04-10',
-    technician: 'Siemens VN',
-    status: 'scheduled',
-  },
-  {
-    id: 'MR002',
-    equipmentId: 'EQ003',
-    equipmentName: 'May X-quang ky thuat so',
-    maintenanceType: 'calibration',
-    scheduledDate: '2024-02-15',
-    technician: 'Carestream VN',
-    status: 'overdue',
-  },
-  {
-    id: 'MR003',
-    equipmentId: 'EQ002',
-    equipmentName: 'May MRI 1.5T',
-    maintenanceType: 'preventive',
-    scheduledDate: '2024-02-01',
-    completedDate: '2024-02-01',
-    technician: 'GE Healthcare VN',
-    status: 'completed',
-    findings: 'Hoat dong binh thuong',
-    actions: 'Ve sinh, kiem tra dau',
-    cost: 15000000,
-    nextDueDate: '2024-05-01',
-  },
-];
-
-const mockRepairRequests: RepairRequest[] = [
-  {
-    id: 'RR001',
-    equipmentId: 'EQ003',
-    equipmentName: 'May X-quang ky thuat so',
-    department: 'Chan doan hinh anh',
-    reportedBy: 'KTV. Nguyen Van A',
-    reportedDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD'),
-    issueDescription: 'Man hinh bi nhoe, khong hien thi ro anh',
-    priority: 'high',
-    status: 'assigned',
-    assignedTo: 'Carestream VN',
-  },
-];
-
-const EQUIPMENT_CATEGORIES = [
-  { value: 'CDHA', label: 'Chan doan hinh anh' },
-  { value: 'XN', label: 'Xet nghiem' },
-  { value: 'PTTT', label: 'Phau thuat' },
-  { value: 'Ho hap', label: 'Ho hap' },
-  { value: 'Tim mach', label: 'Tim mach' },
-  { value: 'Khac', label: 'Khac' },
-];
-
 const Equipment: React.FC = () => {
-  const [equipment, setEquipment] = useState<Equipment[]>(mockEquipment);
-  const [maintenanceRecords] = useState<MaintenanceRecord[]>(mockMaintenanceRecords);
-  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>(mockRepairRequests);
-  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [equipmentList, setEquipmentList] = useState<EquipmentDto[]>([]);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceScheduleDto[]>([]);
+  const [repairList, setRepairList] = useState<RepairRequestDto[]>([]);
+  const [dashboard, setDashboard] = useState<EquipmentDashboardDto | null>(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentDto | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [isRepairModalOpen, setIsRepairModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [repairForm] = Form.useForm();
   const [maintenanceForm] = Form.useForm();
 
-  // Statistics
-  const activeEquipment = equipment.filter((e) => e.status === 'active').length;
-  const maintenanceDue = maintenanceRecords.filter(
-    (m) => m.status === 'scheduled' || m.status === 'overdue'
-  ).length;
-  const pendingRepairs = repairRequests.filter(
-    (r) => r.status !== 'completed' && r.status !== 'closed'
-  ).length;
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [eqRes, maintRes, repairRes, dashRes] = await Promise.allSettled([
+        getEquipment({}),
+        getMaintenanceSchedules(undefined, 90),
+        getRepairRequests(),
+        getDashboard(dayjs().format('YYYY-MM-DD')),
+      ]);
+      if (eqRes.status === 'fulfilled') {
+        const data = eqRes.value.data;
+        setEquipmentList(Array.isArray(data) ? data : (data as any)?.items || []);
+      }
+      if (maintRes.status === 'fulfilled') setMaintenanceRecords(eqRes.status === 'fulfilled' ? maintRes.value.data || [] : []);
+      if (repairRes.status === 'fulfilled') setRepairList(repairRes.value.data || []);
+      if (dashRes.status === 'fulfilled') setDashboard(dashRes.value.data);
+    } catch {
+      message.warning('Khong the tai du lieu trang thiet bi');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const getStatusTag = (status: Equipment['status']) => {
-    const config = {
-      active: { color: 'green', text: 'Hoat dong' },
-      maintenance: { color: 'blue', text: 'Bao tri' },
-      repair: { color: 'orange', text: 'Sua chua' },
-      inactive: { color: 'default', text: 'Tam dung' },
-      disposed: { color: 'red', text: 'Thanh ly' },
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Statistics from dashboard or calculated from lists
+  const activeEquipment = dashboard?.operationalEquipment ?? equipmentList.filter(e => e.operationalStatus === 1).length;
+  const maintenanceDue = dashboard?.maintenanceOverdue ?? maintenanceRecords.filter(m => m.status === 1 || m.status === 2).length;
+  const pendingRepairs = dashboard?.openRepairRequests ?? repairList.filter(r => r.status < 4).length;
+
+  const getStatusTag = (status: number) => {
+    const config: Record<number, { color: string; text: string }> = {
+      1: { color: 'green', text: 'Hoat dong' },
+      2: { color: 'blue', text: 'Bao tri' },
+      3: { color: 'red', text: 'Ngung hoat dong' },
+      4: { color: 'default', text: 'Thanh ly' },
     };
-    const c = config[status];
+    const c = config[status] || { color: 'default', text: `Status ${status}` };
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
-  const getRiskClassTag = (riskClass: Equipment['riskClass']) => {
-    const config = {
-      A: { color: 'red', text: 'Loai A' },
-      B: { color: 'orange', text: 'Loai B' },
-      C: { color: 'blue', text: 'Loai C' },
-      D: { color: 'default', text: 'Loai D' },
+  const getRiskClassTag = (riskClass: string) => {
+    const config: Record<string, { color: string; text: string }> = {
+      'I': { color: 'default', text: 'Loai I' },
+      'II': { color: 'blue', text: 'Loai II' },
+      'III': { color: 'orange', text: 'Loai III' },
+      'A': { color: 'red', text: 'Loai A' },
+      'B': { color: 'orange', text: 'Loai B' },
+      'C': { color: 'blue', text: 'Loai C' },
+      'D': { color: 'default', text: 'Loai D' },
     };
-    const c = config[riskClass];
+    const c = config[riskClass] || { color: 'default', text: riskClass };
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
-  const handleSubmitRepair = (values: any) => {
+  const handleSubmitRepair = async (values: any) => {
     if (!selectedEquipment) return;
-
-    const newRequest: RepairRequest = {
-      id: `RR${Date.now()}`,
-      equipmentId: selectedEquipment.id,
-      equipmentName: selectedEquipment.name,
-      department: selectedEquipment.department,
-      reportedBy: values.reportedBy,
-      reportedDate: dayjs().format('YYYY-MM-DD'),
-      issueDescription: values.issueDescription,
-      priority: values.priority,
-      status: 'pending',
-    };
-
-    setRepairRequests((prev) => [...prev, newRequest]);
-    setEquipment((prev) =>
-      prev.map((e) =>
-        e.id === selectedEquipment.id ? { ...e, status: 'repair' } : e
-      )
-    );
-
-    setIsRepairModalOpen(false);
-    repairForm.resetFields();
-    message.success('Da gui yeu cau sua chua');
+    try {
+      await createRepairRequest({
+        equipmentId: selectedEquipment.id,
+        priority: values.priority,
+        problemDescription: values.issueDescription,
+        equipmentLocation: selectedEquipment.locationName || selectedEquipment.departmentName,
+        contactPerson: values.reportedBy,
+      });
+      message.success('Da gui yeu cau sua chua');
+      setIsRepairModalOpen(false);
+      repairForm.resetFields();
+      fetchData();
+    } catch {
+      message.warning('Khong the gui yeu cau sua chua');
+    }
   };
 
-  const handleScheduleMaintenance = (values: any) => {
-    message.success('Da len lich bao tri');
-    setIsMaintenanceModalOpen(false);
-    maintenanceForm.resetFields();
+  const handleScheduleMaintenance = async (values: any) => {
+    try {
+      await createMaintenanceRecord({
+        equipmentId: values.equipmentId,
+        maintenanceType: values.maintenanceType,
+        performedDate: values.scheduledDate?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
+        description: `Bao tri ${values.maintenanceType === 'preventive' ? 'phong ngua' : 'kiem dinh'}`,
+        workPerformed: values.technician ? `Don vi thuc hien: ${values.technician}` : '',
+        afterStatus: 1,
+      });
+      message.success('Da len lich bao tri');
+      setIsMaintenanceModalOpen(false);
+      maintenanceForm.resetFields();
+      fetchData();
+    } catch {
+      message.warning('Khong the len lich bao tri');
+    }
   };
 
   const executePrintEquipmentCard = () => {
@@ -332,45 +181,25 @@ const Equipment: React.FC = () => {
           <strong>BENH VIEN DA KHOA</strong><br/>
           Phong Vat tu - Thiet bi y te
         </div>
-
         <div class="title">PHIEU LY LICH THIET BI Y TE</div>
-
         <table>
-          <tr><th>Ma thiet bi</th><td>${selectedEquipment.code}</td></tr>
+          <tr><th>Ma thiet bi</th><td>${selectedEquipment.equipmentCode}</td></tr>
           <tr><th>Ten thiet bi</th><td>${selectedEquipment.name}</td></tr>
           <tr><th>Hang san xuat</th><td>${selectedEquipment.manufacturer}</td></tr>
           <tr><th>Model</th><td>${selectedEquipment.model}</td></tr>
           <tr><th>So seri</th><td>${selectedEquipment.serialNumber}</td></tr>
-          <tr><th>Khoa/Phong</th><td>${selectedEquipment.department}</td></tr>
-          <tr><th>Vi tri</th><td>${selectedEquipment.location}</td></tr>
-          <tr><th>Ngay mua</th><td>${selectedEquipment.purchaseDate}</td></tr>
+          <tr><th>Khoa/Phong</th><td>${selectedEquipment.departmentName}</td></tr>
+          <tr><th>Vi tri</th><td>${selectedEquipment.locationName || selectedEquipment.roomName || '-'}</td></tr>
+          <tr><th>Ngay mua</th><td>${selectedEquipment.purchaseDate || '-'}</td></tr>
           <tr><th>Han bao hanh</th><td>${selectedEquipment.warrantyExpiry || 'Het bao hanh'}</td></tr>
           <tr><th>Nhom nguy co</th><td>${selectedEquipment.riskClass}</td></tr>
-          <tr><th>Nguyen gia</th><td>${selectedEquipment.value.toLocaleString('vi-VN')} VND</td></tr>
-          <tr><th>Trang thai</th><td>${selectedEquipment.status}</td></tr>
+          <tr><th>Nguyen gia</th><td>${(selectedEquipment.purchasePrice || 0).toLocaleString('vi-VN')} VND</td></tr>
+          <tr><th>Trang thai</th><td>${selectedEquipment.operationalStatusName}</td></tr>
         </table>
-
-        <h3>Lich su bao tri</h3>
-        <table>
-          <tr>
-            <th>Ngay</th>
-            <th>Loai</th>
-            <th>Don vi thuc hien</th>
-            <th>Ket qua</th>
-          </tr>
-          <tr>
-            <td>${selectedEquipment.lastMaintenanceDate || '-'}</td>
-            <td>Bao tri dinh ky</td>
-            <td>-</td>
-            <td>Dat</td>
-          </tr>
-        </table>
-
         <div style="margin-top: 50px; text-align: right;">
           <p>Ngay ${dayjs().format('DD/MM/YYYY')}</p>
           <p><strong>Truong phong VTYT</strong></p>
         </div>
-
         <script>window.onload = function() { window.print(); }</script>
       </body>
       </html>
@@ -378,11 +207,11 @@ const Equipment: React.FC = () => {
     printWindow.document.close();
   };
 
-  const equipmentColumns: ColumnsType<Equipment> = [
+  const equipmentColumns: ColumnsType<EquipmentDto> = [
     {
       title: 'Ma TB',
-      dataIndex: 'code',
-      key: 'code',
+      dataIndex: 'equipmentCode',
+      key: 'equipmentCode',
       width: 100,
     },
     {
@@ -397,8 +226,8 @@ const Equipment: React.FC = () => {
     },
     {
       title: 'Khoa/Phong',
-      dataIndex: 'department',
-      key: 'department',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
     },
     {
       title: 'Nhom',
@@ -416,14 +245,14 @@ const Equipment: React.FC = () => {
         if (!date) return '-';
         const daysUntil = dayjs(date).diff(dayjs(), 'day');
         const color = daysUntil < 0 ? 'red' : daysUntil < 30 ? 'orange' : 'green';
-        return <Tag color={color}>{date}</Tag>;
+        return <Tag color={color}>{dayjs(date).format('DD/MM/YYYY')}</Tag>;
       },
     },
     {
       title: 'Trang thai',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
+      dataIndex: 'operationalStatus',
+      key: 'operationalStatus',
+      width: 120,
       render: (status) => getStatusTag(status),
     },
     {
@@ -456,7 +285,7 @@ const Equipment: React.FC = () => {
     },
   ];
 
-  const maintenanceColumns: ColumnsType<MaintenanceRecord> = [
+  const maintenanceColumns: ColumnsType<MaintenanceScheduleDto> = [
     {
       title: 'Thiet bi',
       dataIndex: 'equipmentName',
@@ -464,45 +293,33 @@ const Equipment: React.FC = () => {
     },
     {
       title: 'Loai',
-      dataIndex: 'maintenanceType',
-      key: 'maintenanceType',
-      render: (type) => {
-        const labels: Record<string, string> = {
-          preventive: 'Phong ngua',
-          corrective: 'Sua chua',
-          calibration: 'Kiem dinh',
-        };
-        return labels[type];
-      },
+      dataIndex: 'maintenanceTypeName',
+      key: 'maintenanceTypeName',
     },
     {
-      title: 'Ngay len lich',
-      dataIndex: 'scheduledDate',
-      key: 'scheduledDate',
+      title: 'Ngay den han',
+      dataIndex: 'nextDueDate',
+      key: 'nextDueDate',
+      render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
     },
     {
       title: 'Don vi',
-      dataIndex: 'technician',
-      key: 'technician',
+      dataIndex: 'assignedToName',
+      key: 'assignedToName',
+      render: (name) => name || '-',
     },
     {
       title: 'Trang thai',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const config: Record<string, { color: string; text: string }> = {
-          scheduled: { color: 'blue', text: 'Da len lich' },
-          in_progress: { color: 'orange', text: 'Dang thuc hien' },
-          completed: { color: 'green', text: 'Hoan thanh' },
-          overdue: { color: 'red', text: 'Qua han' },
-        };
-        const c = config[status];
-        return <Tag color={c.color}>{c.text}</Tag>;
+      dataIndex: 'statusName',
+      key: 'statusName',
+      render: (name, record) => {
+        const colorMap: Record<number, string> = { 1: 'blue', 2: 'orange', 3: 'green', 4: 'red' };
+        return <Tag color={colorMap[record.status] || 'default'}>{name || `Status ${record.status}`}</Tag>;
       },
     },
   ];
 
-  const repairColumns: ColumnsType<RepairRequest> = [
+  const repairColumns: ColumnsType<RepairRequestDto> = [
     {
       title: 'Thiet bi',
       dataIndex: 'equipmentName',
@@ -510,196 +327,98 @@ const Equipment: React.FC = () => {
     },
     {
       title: 'Khoa',
-      dataIndex: 'department',
-      key: 'department',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
     },
     {
       title: 'Mo ta loi',
-      dataIndex: 'issueDescription',
-      key: 'issueDescription',
+      dataIndex: 'problemDescription',
+      key: 'problemDescription',
       ellipsis: true,
     },
     {
       title: 'Uu tien',
       dataIndex: 'priority',
       key: 'priority',
-      render: (priority) => {
-        const config: Record<string, { color: string; text: string }> = {
-          low: { color: 'default', text: 'Thap' },
-          medium: { color: 'blue', text: 'Trung binh' },
-          high: { color: 'orange', text: 'Cao' },
-          critical: { color: 'red', text: 'Khan cap' },
-        };
-        const c = config[priority];
-        return <Tag color={c.color}>{c.text}</Tag>;
+      render: (priority, record) => {
+        const colorMap: Record<number, string> = { 1: 'default', 2: 'blue', 3: 'orange', 4: 'red' };
+        return <Tag color={colorMap[priority] || 'default'}>{record.priorityName}</Tag>;
       },
     },
     {
       title: 'Trang thai',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => {
-        const config: Record<string, { color: string; text: string }> = {
-          pending: { color: 'orange', text: 'Cho xu ly' },
-          assigned: { color: 'blue', text: 'Da phan cong' },
-          in_progress: { color: 'cyan', text: 'Dang sua' },
-          completed: { color: 'green', text: 'Hoan thanh' },
-          closed: { color: 'default', text: 'Dong' },
-        };
-        const c = config[status];
-        return <Tag color={c.color}>{c.text}</Tag>;
+      render: (status, record) => {
+        const colorMap: Record<number, string> = { 1: 'orange', 2: 'blue', 3: 'cyan', 4: 'green', 5: 'default' };
+        return <Tag color={colorMap[status] || 'default'}>{record.statusName}</Tag>;
       },
     },
   ];
 
   return (
-    <div>
-      <Title level={4}>Quan ly trang thiet bi y te</Title>
-
-      {/* Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Thiet bi hoat dong"
-              value={activeEquipment}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              styles={{ content: { color: '#52c41a' } }}
-              suffix={`/ ${equipment.length}`}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Can bao tri"
-              value={maintenanceDue}
-              prefix={<CalendarOutlined style={{ color: '#faad14' }} />}
-              styles={{ content: { color: '#faad14' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Yeu cau sua chua"
-              value={pendingRepairs}
-              prefix={<ToolOutlined style={{ color: '#ff4d4f' }} />}
-              styles={{ content: { color: '#ff4d4f' } }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Main Content */}
-      <Card
-        extra={
-          <Button type="primary" icon={<PlusOutlined />}>
-            Them thiet bi
+    <Spin spinning={loading}>
+      <div>
+        <Title level={4}>
+          Quan ly trang thiet bi y te
+          <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ marginLeft: 12 }} size="small">
+            Lam moi
           </Button>
-        }
-      >
-        <Tabs
-          defaultActiveKey="equipment"
-          items={[
-            {
-              key: 'equipment',
-              label: 'Danh sach thiet bi',
-              children: (
-                <Table
-                  columns={equipmentColumns}
-                  dataSource={equipment}
-                  rowKey="id"
-                  onRow={(record) => ({
-                    onDoubleClick: () => {
-                      setSelectedEquipment(record);
-                      setIsDetailModalOpen(true);
-                    },
-                    style: { cursor: 'pointer' },
-                  })}
-                />
-              ),
-            },
-            {
-              key: 'maintenance',
-              label: (
-                <Badge count={maintenanceDue} offset={[10, 0]}>
-                  Lich bao tri
-                </Badge>
-              ),
-              children: (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<CalendarOutlined />}
-                    style={{ marginBottom: 16 }}
-                    onClick={() => setIsMaintenanceModalOpen(true)}
-                  >
-                    Len lich bao tri
-                  </Button>
+        </Title>
+
+        {/* Statistics */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="Thiet bi hoat dong"
+                value={activeEquipment}
+                prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                styles={{ content: { color: '#52c41a' } }}
+                suffix={`/ ${dashboard?.totalEquipment ?? equipmentList.length}`}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="Can bao tri"
+                value={maintenanceDue}
+                prefix={<CalendarOutlined style={{ color: '#faad14' }} />}
+                styles={{ content: { color: '#faad14' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="Yeu cau sua chua"
+                value={pendingRepairs}
+                prefix={<ToolOutlined style={{ color: '#ff4d4f' }} />}
+                styles={{ content: { color: '#ff4d4f' } }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Main Content */}
+        <Card
+          extra={
+            <Button type="primary" icon={<PlusOutlined />}>
+              Them thiet bi
+            </Button>
+          }
+        >
+          <Tabs
+            defaultActiveKey="equipment"
+            items={[
+              {
+                key: 'equipment',
+                label: 'Danh sach thiet bi',
+                children: (
                   <Table
-                    columns={maintenanceColumns}
-                    dataSource={maintenanceRecords}
-                    rowKey="id"
-                    onRow={(record) => ({
-                      onDoubleClick: () => {
-                        const eq = equipment.find(e => e.id === record.equipmentId);
-                        if (eq) {
-                          setSelectedEquipment(eq);
-                          setIsDetailModalOpen(true);
-                        }
-                      },
-                      style: { cursor: 'pointer' },
-                    })}
-                  />
-                </>
-              ),
-            },
-            {
-              key: 'repairs',
-              label: (
-                <Badge count={pendingRepairs} offset={[10, 0]}>
-                  Yeu cau sua chua
-                </Badge>
-              ),
-              children: (
-                <Table
-                  columns={repairColumns}
-                  dataSource={repairRequests}
-                  rowKey="id"
-                  onRow={(record) => ({
-                    onDoubleClick: () => {
-                      const eq = equipment.find(e => e.id === record.equipmentId);
-                      if (eq) {
-                        setSelectedEquipment(eq);
-                        setIsDetailModalOpen(true);
-                      }
-                    },
-                    style: { cursor: 'pointer' },
-                  })}
-                />
-              ),
-            },
-            {
-              key: 'calibration',
-              label: 'Kiem dinh',
-              children: (
-                <div>
-                  <Title level={5}>Quy dinh kiem dinh</Title>
-                  <ul>
-                    <li><strong>Nhom A:</strong> Kiem dinh moi 1 nam (X-quang, CT, MRI, may gia toc)</li>
-                    <li><strong>Nhom B:</strong> Kiem dinh moi 2 nam</li>
-                    <li><strong>Nhom C:</strong> Kiem dinh khi can</li>
-                  </ul>
-                  <Divider />
-                  <Table
-                    columns={[
-                      { title: 'Thiet bi', dataIndex: 'name', key: 'name' },
-                      { title: 'Nhom', dataIndex: 'riskClass', key: 'riskClass', render: (c) => getRiskClassTag(c) },
-                      { title: 'Kiem dinh gan nhat', dataIndex: 'lastCalibrationDate', key: 'lastCalibrationDate' },
-                      { title: 'Kiem dinh tiep theo', dataIndex: 'nextCalibrationDate', key: 'nextCalibrationDate' },
-                    ]}
-                    dataSource={equipment.filter((e) => e.riskClass === 'A' || e.riskClass === 'B')}
+                    columns={equipmentColumns}
+                    dataSource={equipmentList}
                     rowKey="id"
                     onRow={(record) => ({
                       onDoubleClick: () => {
@@ -709,141 +428,196 @@ const Equipment: React.FC = () => {
                       style: { cursor: 'pointer' },
                     })}
                   />
-                </div>
-              ),
-            },
+                ),
+              },
+              {
+                key: 'maintenance',
+                label: (
+                  <Badge count={maintenanceDue} offset={[10, 0]}>
+                    Lich bao tri
+                  </Badge>
+                ),
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<CalendarOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => setIsMaintenanceModalOpen(true)}
+                    >
+                      Len lich bao tri
+                    </Button>
+                    <Table
+                      columns={maintenanceColumns}
+                      dataSource={maintenanceRecords}
+                      rowKey="id"
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'repairs',
+                label: (
+                  <Badge count={pendingRepairs} offset={[10, 0]}>
+                    Yeu cau sua chua
+                  </Badge>
+                ),
+                children: (
+                  <Table
+                    columns={repairColumns}
+                    dataSource={repairList}
+                    rowKey="id"
+                  />
+                ),
+              },
+              {
+                key: 'calibration',
+                label: 'Kiem dinh',
+                children: (
+                  <div>
+                    <Title level={5}>Quy dinh kiem dinh</Title>
+                    <ul>
+                      <li><strong>Nhom A:</strong> Kiem dinh moi 1 nam (X-quang, CT, MRI, may gia toc)</li>
+                      <li><strong>Nhom B:</strong> Kiem dinh moi 2 nam</li>
+                      <li><strong>Nhom C:</strong> Kiem dinh khi can</li>
+                    </ul>
+                    <Divider />
+                    <Table
+                      columns={[
+                        { title: 'Thiet bi', dataIndex: 'name', key: 'name' },
+                        { title: 'Nhom', dataIndex: 'riskClass', key: 'riskClass', render: (c: string) => getRiskClassTag(c) },
+                        { title: 'Kiem dinh gan nhat', dataIndex: 'lastCalibrationDate', key: 'lastCalibrationDate', render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                        { title: 'Kiem dinh tiep theo', dataIndex: 'nextCalibrationDate', key: 'nextCalibrationDate', render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                      ]}
+                      dataSource={equipmentList.filter((e) => e.riskClass === 'A' || e.riskClass === 'B' || e.riskClass === 'I' || e.riskClass === 'II')}
+                      rowKey="id"
+                    />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        {/* Detail Modal */}
+        <Modal
+          title="Chi tiet thiet bi"
+          open={isDetailModalOpen}
+          onCancel={() => setIsDetailModalOpen(false)}
+          footer={[
+            <Button key="print" icon={<PrinterOutlined />} onClick={executePrintEquipmentCard}>
+              In phieu
+            </Button>,
+            <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
+              Dong
+            </Button>,
           ]}
-        />
-      </Card>
+          width={700}
+        >
+          {selectedEquipment && (
+            <>
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Ma TB">{selectedEquipment.equipmentCode}</Descriptions.Item>
+                <Descriptions.Item label="Trang thai">
+                  {getStatusTag(selectedEquipment.operationalStatus)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Ten" span={2}>
+                  {selectedEquipment.name}
+                </Descriptions.Item>
+                <Descriptions.Item label="Hang SX">{selectedEquipment.manufacturer}</Descriptions.Item>
+                <Descriptions.Item label="Model">{selectedEquipment.model}</Descriptions.Item>
+                <Descriptions.Item label="Serial">{selectedEquipment.serialNumber}</Descriptions.Item>
+                <Descriptions.Item label="Nhom">{getRiskClassTag(selectedEquipment.riskClass)}</Descriptions.Item>
+                <Descriptions.Item label="Khoa/Phong">{selectedEquipment.departmentName}</Descriptions.Item>
+                <Descriptions.Item label="Vi tri">{selectedEquipment.locationName || selectedEquipment.roomName || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Ngay mua">{selectedEquipment.purchaseDate ? dayjs(selectedEquipment.purchaseDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                <Descriptions.Item label="Bao hanh">{selectedEquipment.warrantyExpiry ? dayjs(selectedEquipment.warrantyExpiry).format('DD/MM/YYYY') : 'Het'}</Descriptions.Item>
+                <Descriptions.Item label="Nguyen gia" span={2}>
+                  {(selectedEquipment.purchasePrice || 0).toLocaleString('vi-VN')} VND
+                </Descriptions.Item>
+              </Descriptions>
 
-      {/* Detail Modal */}
-      <Modal
-        title="Chi tiet thiet bi"
-        open={isDetailModalOpen}
-        onCancel={() => setIsDetailModalOpen(false)}
-        footer={[
-          <Button key="print" icon={<PrinterOutlined />} onClick={executePrintEquipmentCard}>
-            In phieu
-          </Button>,
-          <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-            Dong
-          </Button>,
-        ]}
-        width={700}
-      >
-        {selectedEquipment && (
-          <>
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ma TB">{selectedEquipment.code}</Descriptions.Item>
-              <Descriptions.Item label="Trang thai">
-                {getStatusTag(selectedEquipment.status)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ten" span={2}>
-                {selectedEquipment.name}
-              </Descriptions.Item>
-              <Descriptions.Item label="Hang SX">{selectedEquipment.manufacturer}</Descriptions.Item>
-              <Descriptions.Item label="Model">{selectedEquipment.model}</Descriptions.Item>
-              <Descriptions.Item label="Serial">{selectedEquipment.serialNumber}</Descriptions.Item>
-              <Descriptions.Item label="Nhom">{getRiskClassTag(selectedEquipment.riskClass)}</Descriptions.Item>
-              <Descriptions.Item label="Khoa/Phong">{selectedEquipment.department}</Descriptions.Item>
-              <Descriptions.Item label="Vi tri">{selectedEquipment.location}</Descriptions.Item>
-              <Descriptions.Item label="Ngay mua">{selectedEquipment.purchaseDate}</Descriptions.Item>
-              <Descriptions.Item label="Bao hanh">{selectedEquipment.warrantyExpiry || 'Het'}</Descriptions.Item>
-              <Descriptions.Item label="Nguyen gia" span={2}>
-                {selectedEquipment.value.toLocaleString('vi-VN')} VND
-              </Descriptions.Item>
-            </Descriptions>
+              <Divider>Thong tin bao tri</Divider>
 
-            <Divider>Thong tin bao tri</Divider>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Card size="small" title="Bao tri">
+                    <p><strong>Lan cuoi:</strong> {selectedEquipment.lastMaintenanceDate ? dayjs(selectedEquipment.lastMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
+                    <p><strong>Lan tiep:</strong> {selectedEquipment.nextMaintenanceDate ? dayjs(selectedEquipment.nextMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
+                  </Card>
+                </Col>
+                <Col span={12}>
+                  <Card size="small" title="Kiem dinh">
+                    <p><strong>Lan cuoi:</strong> {selectedEquipment.lastCalibrationDate ? dayjs(selectedEquipment.lastCalibrationDate).format('DD/MM/YYYY') : '-'}</p>
+                    <p><strong>Lan tiep:</strong> {selectedEquipment.nextCalibrationDate ? dayjs(selectedEquipment.nextCalibrationDate).format('DD/MM/YYYY') : '-'}</p>
+                  </Card>
+                </Col>
+              </Row>
+            </>
+          )}
+        </Modal>
 
-            <Row gutter={16}>
-              <Col span={12}>
-                <Card size="small" title="Bao tri">
-                  <p><strong>Lan cuoi:</strong> {selectedEquipment.lastMaintenanceDate || '-'}</p>
-                  <p><strong>Lan tiep:</strong> {selectedEquipment.nextMaintenanceDate || '-'}</p>
-                </Card>
-              </Col>
-              <Col span={12}>
-                <Card size="small" title="Kiem dinh">
-                  <p><strong>Lan cuoi:</strong> {selectedEquipment.lastCalibrationDate || '-'}</p>
-                  <p><strong>Lan tiep:</strong> {selectedEquipment.nextCalibrationDate || '-'}</p>
-                </Card>
-              </Col>
-            </Row>
+        {/* Repair Modal */}
+        <Modal
+          title="Bao cao hong"
+          open={isRepairModalOpen}
+          onCancel={() => setIsRepairModalOpen(false)}
+          onOk={() => repairForm.submit()}
+        >
+          <Form form={repairForm} layout="vertical" onFinish={handleSubmitRepair}>
+            <Form.Item label="Thiet bi">
+              <Input value={selectedEquipment?.name} disabled />
+            </Form.Item>
+            <Form.Item name="reportedBy" label="Nguoi bao cao" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="issueDescription" label="Mo ta loi" rules={[{ required: true }]}>
+              <TextArea rows={3} />
+            </Form.Item>
+            <Form.Item name="priority" label="Muc do uu tien" rules={[{ required: true }]}>
+              <Select>
+                <Select.Option value={1}>Thap</Select.Option>
+                <Select.Option value={2}>Trung binh</Select.Option>
+                <Select.Option value={3}>Cao</Select.Option>
+                <Select.Option value={4}>Khan cap</Select.Option>
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
 
-            {selectedEquipment.runtime && (
-              <Card size="small" title="Thoi gian van hanh" style={{ marginTop: 16 }}>
-                <Statistic
-                  value={selectedEquipment.runtime}
-                  suffix="gio"
-                  prefix={<ClockCircleOutlined />}
-                />
-              </Card>
-            )}
-          </>
-        )}
-      </Modal>
-
-      {/* Repair Modal */}
-      <Modal
-        title="Bao cao hong"
-        open={isRepairModalOpen}
-        onCancel={() => setIsRepairModalOpen(false)}
-        onOk={() => repairForm.submit()}
-      >
-        <Form form={repairForm} layout="vertical" onFinish={handleSubmitRepair}>
-          <Form.Item label="Thiet bi">
-            <Input value={selectedEquipment?.name} disabled />
-          </Form.Item>
-          <Form.Item name="reportedBy" label="Nguoi bao cao" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="issueDescription" label="Mo ta loi" rules={[{ required: true }]}>
-            <TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="priority" label="Muc do uu tien" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="low">Thap</Select.Option>
-              <Select.Option value="medium">Trung binh</Select.Option>
-              <Select.Option value="high">Cao</Select.Option>
-              <Select.Option value="critical">Khan cap</Select.Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Maintenance Modal */}
-      <Modal
-        title="Len lich bao tri"
-        open={isMaintenanceModalOpen}
-        onCancel={() => setIsMaintenanceModalOpen(false)}
-        onOk={() => maintenanceForm.submit()}
-      >
-        <Form form={maintenanceForm} layout="vertical" onFinish={handleScheduleMaintenance}>
-          <Form.Item name="equipmentId" label="Thiet bi" rules={[{ required: true }]}>
-            <Select>
-              {equipment.map((e) => (
-                <Select.Option key={e.id} value={e.id}>
-                  {e.code} - {e.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="maintenanceType" label="Loai bao tri" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="preventive">Bao tri phong ngua</Select.Option>
-              <Select.Option value="calibration">Kiem dinh</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="scheduledDate" label="Ngay du kien" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="technician" label="Don vi thuc hien">
-            <Input placeholder="VD: Siemens VN, GE Healthcare" />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
+        {/* Maintenance Modal */}
+        <Modal
+          title="Len lich bao tri"
+          open={isMaintenanceModalOpen}
+          onCancel={() => setIsMaintenanceModalOpen(false)}
+          onOk={() => maintenanceForm.submit()}
+        >
+          <Form form={maintenanceForm} layout="vertical" onFinish={handleScheduleMaintenance}>
+            <Form.Item name="equipmentId" label="Thiet bi" rules={[{ required: true }]}>
+              <Select>
+                {equipmentList.map((e) => (
+                  <Select.Option key={e.id} value={e.id}>
+                    {e.equipmentCode} - {e.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item name="maintenanceType" label="Loai bao tri" rules={[{ required: true }]}>
+              <Select>
+                <Select.Option value="Preventive">Bao tri phong ngua</Select.Option>
+                <Select.Option value="Calibration">Kiem dinh</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="scheduledDate" label="Ngay du kien" rules={[{ required: true }]}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="technician" label="Don vi thuc hien">
+              <Input placeholder="VD: Siemens VN, GE Healthcare" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      </div>
+    </Spin>
   );
 };
 

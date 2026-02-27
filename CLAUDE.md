@@ -750,13 +750,78 @@ If a new service/controller is added, register it there or you get 500 errors.
 - `0b12459` - Fix 3 backend build errors, create missing EMR tables, fix EF Core FK mapping, fix flaky Cypress tests
 - `f4c2cdf` - Fix date-dependent Cypress tests that fail after midnight
 
+### DA HOAN THANH (Session 14 - 2026-02-27)
+
+**67. Convert 10 mock pages to real API integration**
+- Equipment.tsx: import from `../api/equipment`, fetchData with Promise.allSettled (4 API calls), form submissions wired to API
+- HR.tsx: import from `../api/medicalHR`, fetchData (staff, duty roster, cme, dashboard, expiring licenses)
+- EmergencyDisaster.tsx: import from `../api/massCasualty`, fetchData (events, victims, dashboard)
+- InfectionControl.tsx: import from `../api/infectionControl`, fetchData (HAI, isolations, hand hygiene, dashboard, outbreaks)
+- Nutrition.tsx: import from `../api/nutrition`, fetchData (screenings, diet orders, diet types, dashboard)
+- Quality.tsx: import from `../api/quality`, fetchData (incidents, indicators, audits, surveys, dashboard)
+- Telemedicine.tsx: import from `../api/telemedicine`, fetchData (appointments, sessions, dashboard)
+- PatientPortal.tsx: import from `../api/patientPortal`, fetchData (appointments, lab results, prescriptions, dashboard)
+- Rehabilitation.tsx: import from `../api/rehabilitation`, fetchData (referrals, sessions, plans, dashboard)
+- HealthExchange.tsx: import from `../api/healthExchange`, fetchData (connections, submissions, referrals, dashboard)
+- ALL: Spin loading wrapper, ReloadOutlined refresh button, message.warning for errors, no mock data
+
+**68. Fix Antd v6 deprecation: `valueStyle` → `styles.content`**
+- InfectionControl.tsx: 4 Statistic components updated
+
+**69. Fix console-errors intercept pattern**
+- console-errors.cy.ts: `cy.intercept('**/*')` → `cy.intercept('**/api/**')` (prevent Vite HMR ECONNRESET)
+
+**70. Create 50 DB tables for 10 extended workflow modules**
+- Script: `scripts/create_extended_workflow_tables.sql` (idempotent, IF NOT EXISTS)
+- 10 modules: Telemedicine (6), Nutrition (8), InfectionControl (6), Rehabilitation (4), Equipment (4), HR (6), Quality (6), PatientPortal (3), HIE (4), MCI (3)
+
+**71. Fix 6 backend 500 errors (missing DB columns/tables)**
+- `GET /api/nutrition/diet-orders` → DietOrders table missing 13 columns
+- `GET /api/equipment/maintenance/schedules` → MedicalEquipments table missing 17 columns
+- `GET /api/medicalhr/cme/non-compliant` → MedicalStaffs table missing 14 columns
+- `GET /api/portal/lab-results` + `/dashboard` → LabResults table missing + EF FK mapping
+- `GET /api/infectioncontrol/outbreaks` → Outbreaks table missing 15 columns
+- Script: `scripts/fix_missing_columns_and_tables.sql`
+- Added `ExtendedWorkflowSqlGuard.IsMissingColumnOrTable` try-catch for all affected endpoints
+- Added Fluent API FK mappings for LabRequest/LabRequestItem/LabResult entities
+
+**72. Level 6 Reconciliation Reports (8 bao cao doi chieu)**
+- Backend controller: `ReconciliationReportController.cs` (8 GET endpoints at `/api/reports/reconciliation/*`)
+- Backend service: `IReconciliationReportService` + `ReconciliationReportService.cs` (8 methods with real DB queries)
+- Backend DTOs: `ReconciliationDTOs.cs` (8 report DTOs + items)
+- Frontend API: `frontend/src/api/reconciliation.ts`
+- Frontend UI: New "Doi chieu Level 6" tab in Reports.tsx with 8 report cards, filters, tables, print
+- Reports: Supplier procurement, Revenue by record, Dept cost vs fees, Record cost summary, Fees vs standards, Service order doctors, Dispensing vs billing, Dispensing vs standards
+- DI registration in DependencyInjection.cs
+
+**73. Data Inheritance Between Modules (ke thua du lieu)**
+- Backend controller: `DataInheritanceController.cs` (5 GET endpoints at `/api/data-inheritance/*`)
+- Backend service: `IDataInheritanceService` + `DataInheritanceService.cs` (5 methods with EF Core joins/includes)
+- Backend DTOs: `DataInheritanceDTOs.cs` (5 context DTOs + supporting DTOs)
+- Frontend API: `frontend/src/api/dataInheritance.ts`
+- Frontend integration:
+  - OPD.tsx: "Thong tin tiep don" panel showing insurance, queue ticket, allergies from Reception
+  - Prescription.tsx: "Thong tin kham benh (OPD)" panel showing diagnosis, vitals, allergies from OPD
+  - Inpatient.tsx: OPD context lookup in admission modal, auto-fill diagnosis and reason
+- Data flow: Reception → OPD → Prescription → Billing → Pharmacy → Inpatient
+
+**74. Full test verification - ALL PASS**
+
+| Test Suite | Pass | Fail | Pending | Total |
+|---|---|---|---|---|
+| Cypress console-errors | 29 | 0 | 0 | 29 |
+| Cypress user-workflow | 40 | 0 | 0 | 40 |
+| Cypress manual-user-workflow | 34 | 0 | 0 | 34 |
+| TypeScript | 0 errors | | | |
+| Vite build | success (12.97s) | | | |
+| Backend build | 0 errors | | | |
+
 ---
 
 ### CAN LAM TIEP
 
-**1. Frontend Cleanup (Medium Priority)**
-- 10 pages khong co API integration (EmergencyDisaster, HR, Equipment, InfectionControl, Nutrition, Quality, Telemedicine, PatientPortal, Rehabilitation, HealthExchange)
-- Finance.tsx eslint-disable cho stale closure (acceptable pattern for mount-only fetch)
+**1. ~~Frontend Cleanup~~ → DA XONG (Session 14)**
+- ~~10 pages khong co API integration~~ → All 10 converted to real API
 
 **2. Backend External Integration (Low Priority)**
 - BHXH gateway integration (ReceptionCompleteService - currently mock)
@@ -777,6 +842,9 @@ If a new service/controller is added, register it there or you get 500 errors.
 - ~~EMR 38 bieu mau~~ → DA XONG (Session 12) - 17 BS + 21 DD forms
 - ~~Dashboard/BI bao cao Level 6~~ → DA XONG (Session 12) - real DB metrics + auto-refresh
 - ~~Clinical terminology + checklist~~ → DA XONG (Session 11)
+- ~~Bao cao doi chieu Level 6~~ → DA XONG (Session 14) - 8 reconciliation reports
+- ~~Ke thua du lieu giua cac module~~ → DA XONG (Session 14) - Reception→OPD→Rx→Billing→Pharmacy→IPD
+- ~~10 mock pages → real API~~ → DA XONG (Session 14) - all 10 converted
 - PDF generation + Digital signature cho bieu mau
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
 - Lien thong BHXH, DQGVN

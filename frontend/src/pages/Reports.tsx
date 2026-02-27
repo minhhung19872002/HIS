@@ -14,6 +14,10 @@ import {
   Input,
   Modal,
   Spin,
+  Table,
+  Tag,
+  Statistic,
+  Alert,
 } from 'antd';
 import {
   PrinterOutlined,
@@ -28,7 +32,17 @@ import {
   FolderOpenOutlined,
   DownloadOutlined,
   EyeOutlined,
+  AuditOutlined,
+  SearchOutlined,
+  ArrowLeftOutlined,
+  SwapOutlined,
+  TeamOutlined,
+  ShopOutlined,
+  ReconciliationOutlined,
+  FileSearchOutlined,
+  AccountBookOutlined,
 } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { financeApi, pharmacyReportApi, statisticsApi } from '../api/system';
 import type {
@@ -36,6 +50,17 @@ import type {
   PharmacyReportRequest,
   StatisticsReportRequest,
 } from '../api/system';
+import { reconciliationApi } from '../api/reconciliation';
+import type {
+  SupplierProcurementItemDto,
+  RevenueByRecordItemDto,
+  DeptCostVsFeesItemDto,
+  RecordCostSummaryItemDto,
+  FeesVsStandardsItemDto,
+  ServiceOrderDoctorsItemDto,
+  DispensingVsBillingItemDto,
+  DispensingVsStandardsItemDto,
+} from '../api/reconciliation';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -306,7 +331,519 @@ const downloadBlob = (blob: Blob, filename: string) => {
   window.URL.revokeObjectURL(url);
 };
 
-const Reports: React.FC = () => {
+// Format number with thousand separator
+const fmtNum = (v: number) => v?.toLocaleString('vi-VN') ?? '0';
+const fmtPct = (v: number) => `${(v ?? 0).toFixed(1)}%`;
+const fmtMoney = (v: number) => `${fmtNum(Math.round(v ?? 0))} VND`;
+
+// ============================================================================
+// Reconciliation Report Type Definitions
+// ============================================================================
+
+type ReconciliationReportId =
+  | 'supplier-procurement'
+  | 'revenue-by-record'
+  | 'dept-cost-vs-fees'
+  | 'record-cost-summary'
+  | 'fees-vs-standards'
+  | 'service-order-doctors'
+  | 'dispensing-vs-billing'
+  | 'dispensing-vs-standards';
+
+interface ReconciliationReportDef {
+  id: ReconciliationReportId;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  hasSupplierFilter?: boolean;
+}
+
+const reconciliationReports: ReconciliationReportDef[] = [
+  {
+    id: 'supplier-procurement',
+    name: 'Theo doi trung thau theo NCC',
+    description: 'Doi chieu ket qua trung thau voi giao hang thuc te theo nha cung cap',
+    icon: <ShopOutlined />,
+    hasSupplierFilter: true,
+  },
+  {
+    id: 'revenue-by-record',
+    name: 'Doanh thu chi phi theo HSBA',
+    description: 'Tinh doanh thu, chi phi va loi nhuan theo tung ho so benh an',
+    icon: <AccountBookOutlined />,
+  },
+  {
+    id: 'dept-cost-vs-fees',
+    name: 'Chi phi khoa phong vs vien phi',
+    description: 'Doi chieu chi phi khoa phong voi vien phi thu duoc',
+    icon: <SwapOutlined />,
+  },
+  {
+    id: 'record-cost-summary',
+    name: 'Tong hop chi phi HSBA: SD vs Thu',
+    description: 'Doi chieu tong chi phi su dung voi so tien da thu theo HSBA',
+    icon: <ReconciliationOutlined />,
+  },
+  {
+    id: 'fees-vs-standards',
+    name: 'Vien phi vs dinh muc DVKT',
+    description: 'Doi chieu vien phi thuc te voi dinh muc gia dich vu ky thuat',
+    icon: <FileSearchOutlined />,
+  },
+  {
+    id: 'service-order-doctors',
+    name: 'BS chi dinh vs BS thuc hien',
+    description: 'Doi chieu dich vu ky thuat giua bac si chi dinh va bac si thuc hien',
+    icon: <TeamOutlined />,
+  },
+  {
+    id: 'dispensing-vs-billing',
+    name: 'Xuat kho thuoc/VTYT vs vien phi',
+    description: 'Doi chieu xuat kho thuoc, VTYT voi vien phi thu theo khoa',
+    icon: <MedicineBoxOutlined />,
+  },
+  {
+    id: 'dispensing-vs-standards',
+    name: 'Xuat kho vs dinh muc theo khoa',
+    description: 'Doi chieu xuat kho thuc te voi dinh muc su dung theo khoa phong',
+    icon: <AuditOutlined />,
+  },
+];
+
+// ============================================================================
+// ReconciliationTab Component
+// ============================================================================
+
+const ReconciliationTab: React.FC = () => {
+  const [selectedReport, setSelectedReport] = useState<ReconciliationReportId | null>(null);
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().startOf('month'),
+    dayjs(),
+  ]);
+  const [departmentFilter, setDepartmentFilter] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [reportData, setReportData] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [summaryData, setSummaryData] = useState<any>(null);
+
+  const handleRunReport = useCallback(async () => {
+    if (!selectedReport) {
+      message.warning('Vui long chon loai bao cao doi chieu');
+      return;
+    }
+
+    setLoading(true);
+    setReportData(null);
+    setSummaryData(null);
+
+    const fromDate = dateRange[0].format('YYYY-MM-DD');
+    const toDate = dateRange[1].format('YYYY-MM-DD');
+    const deptId = departmentFilter || undefined;
+
+    try {
+      let response;
+      switch (selectedReport) {
+        case 'supplier-procurement':
+          response = await reconciliationApi.getSupplierProcurement(fromDate, toDate, deptId);
+          break;
+        case 'revenue-by-record':
+          response = await reconciliationApi.getRevenueByRecord(fromDate, toDate, deptId);
+          break;
+        case 'dept-cost-vs-fees':
+          response = await reconciliationApi.getDeptCostVsFees(fromDate, toDate, deptId);
+          break;
+        case 'record-cost-summary':
+          response = await reconciliationApi.getRecordCostSummary(fromDate, toDate, deptId);
+          break;
+        case 'fees-vs-standards':
+          response = await reconciliationApi.getFeesVsStandards(fromDate, toDate, deptId);
+          break;
+        case 'service-order-doctors':
+          response = await reconciliationApi.getServiceOrderDoctors(fromDate, toDate, deptId);
+          break;
+        case 'dispensing-vs-billing':
+          response = await reconciliationApi.getDispensingVsBilling(fromDate, toDate, deptId);
+          break;
+        case 'dispensing-vs-standards':
+          response = await reconciliationApi.getDispensingVsStandards(fromDate, toDate, deptId);
+          break;
+      }
+
+      const data = response?.data;
+      if (data) {
+        setSummaryData(data);
+        setReportData(data.items || []);
+        message.success(`Da tai bao cao: ${reconciliationReports.find(r => r.id === selectedReport)?.name}`);
+      }
+    } catch (err: unknown) {
+      console.warn('Error loading reconciliation report:', err);
+      message.warning('Khong the tai bao cao. Vui long thu lai.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedReport, dateRange, departmentFilter]);
+
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setSelectedReport(null);
+    setReportData(null);
+    setSummaryData(null);
+  }, []);
+
+  // Table column definitions for each report type
+  const getColumns = (): ColumnsType<any> => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    switch (selectedReport) {
+      case 'supplier-procurement':
+        return [
+          { title: 'Ma NCC', dataIndex: 'supplierCode', key: 'supplierCode', width: 100 },
+          { title: 'Ten NCC', dataIndex: 'supplierName', key: 'supplierName', width: 200 },
+          { title: 'So mat hang', dataIndex: 'itemCount', key: 'itemCount', width: 100, align: 'right' as const },
+          { title: 'So phieu nhap', dataIndex: 'receiptCount', key: 'receiptCount', width: 100, align: 'right' as const },
+          { title: 'Gia tri HĐ', dataIndex: 'contractValue', key: 'contractValue', width: 140, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Gia tri giao', dataIndex: 'deliveredValue', key: 'deliveredValue', width: 140, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Ti le thuc hien', dataIndex: 'fulfillmentRate', key: 'fulfillmentRate', width: 110, align: 'right' as const, render: (v: number) => fmtPct(v) },
+          { title: 'Ngay giao cuoi', dataIndex: 'lastDeliveryDate', key: 'lastDeliveryDate', width: 120 },
+        ] as ColumnsType<SupplierProcurementItemDto>;
+
+      case 'revenue-by-record':
+        return [
+          { title: 'Ma HSBA', dataIndex: 'medicalRecordCode', key: 'medicalRecordCode', width: 100 },
+          { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 160 },
+          { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName', width: 120 },
+          { title: 'DT Dich vu', dataIndex: 'serviceRevenue', key: 'serviceRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'DT Thuoc', dataIndex: 'medicineRevenue', key: 'medicineRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong DT', dataIndex: 'totalRevenue', key: 'totalRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong CP', dataIndex: 'totalCost', key: 'totalCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Loi nhuan', dataIndex: 'profit', key: 'profit', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Ty suat', dataIndex: 'profitMargin', key: 'profitMargin', width: 90, align: 'right' as const, render: (v: number) => fmtPct(v) },
+        ] as ColumnsType<RevenueByRecordItemDto>;
+
+      case 'dept-cost-vs-fees':
+        return [
+          { title: 'Ma khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
+          { title: 'Ten khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
+          { title: 'CP Dich vu', dataIndex: 'serviceCost', key: 'serviceCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'CP Thuoc', dataIndex: 'medicineCost', key: 'medicineCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong CP khoa', dataIndex: 'totalDeptCost', key: 'totalDeptCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong VP thu', dataIndex: 'totalHospitalFees', key: 'totalHospitalFees', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: '% CL', dataIndex: 'differencePercent', key: 'differencePercent', width: 80, align: 'right' as const, render: (v: number) => fmtPct(v) },
+        ] as ColumnsType<DeptCostVsFeesItemDto>;
+
+      case 'record-cost-summary':
+        return [
+          { title: 'Ma HSBA', dataIndex: 'medicalRecordCode', key: 'medicalRecordCode', width: 100 },
+          { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 160 },
+          { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName', width: 120 },
+          { title: 'DV su dung', dataIndex: 'serviceUsed', key: 'serviceUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Thuoc su dung', dataIndex: 'medicineUsed', key: 'medicineUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong su dung', dataIndex: 'totalUsed', key: 'totalUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong da thu', dataIndex: 'totalCollected', key: 'totalCollected', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => {
+            const color = s === 'Match' ? 'green' : s === 'Overcharged' ? 'orange' : 'red';
+            const text = s === 'Match' ? 'Khop' : s === 'Overcharged' ? 'Thu du' : 'Thu thieu';
+            return <Tag color={color}>{text}</Tag>;
+          }},
+        ] as ColumnsType<RecordCostSummaryItemDto>;
+
+      case 'fees-vs-standards':
+        return [
+          { title: 'Ma DV', dataIndex: 'serviceCode', key: 'serviceCode', width: 90 },
+          { title: 'Ten dich vu', dataIndex: 'serviceName', key: 'serviceName', width: 200 },
+          { title: 'So lan', dataIndex: 'usageCount', key: 'usageCount', width: 80, align: 'right' as const },
+          { title: 'Gia dinh muc', dataIndex: 'standardPrice', key: 'standardPrice', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Gia TB thuc te', dataIndex: 'actualAvgPrice', key: 'actualAvgPrice', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong dinh muc', dataIndex: 'totalStandardAmount', key: 'totalStandardAmount', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong thuc te', dataIndex: 'totalActualAmount', key: 'totalActualAmount', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 110, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Dat' : 'Vuot'}</Tag> },
+        ] as ColumnsType<FeesVsStandardsItemDto>;
+
+      case 'service-order-doctors':
+        return [
+          { title: 'Ma phieu', dataIndex: 'requestCode', key: 'requestCode', width: 110 },
+          { title: 'Ngay', dataIndex: 'requestDate', key: 'requestDate', width: 100, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
+          { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 140 },
+          { title: 'Dich vu', dataIndex: 'serviceName', key: 'serviceName', width: 160 },
+          { title: 'BS chi dinh', dataIndex: 'orderingDoctorName', key: 'orderingDoctorName', width: 140 },
+          { title: 'Khoa CD', dataIndex: 'orderingDepartmentName', key: 'orderingDepartmentName', width: 120 },
+          { title: 'BS thuc hien', dataIndex: 'executingDoctorName', key: 'executingDoctorName', width: 140, render: (v: string) => v || <Text type="secondary">Chua co</Text> },
+          { title: 'Khoa TH', dataIndex: 'executingDepartmentName', key: 'executingDepartmentName', width: 120 },
+          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 120, render: (s: string) => {
+            const color = s === 'SameDoctor' ? 'green' : s === 'DifferentDoctor' ? 'blue' : 'orange';
+            const text = s === 'SameDoctor' ? 'Cung BS' : s === 'DifferentDoctor' ? 'Khac BS' : 'Chua TH';
+            return <Tag color={color}>{text}</Tag>;
+          }},
+        ] as ColumnsType<ServiceOrderDoctorsItemDto>;
+
+      case 'dispensing-vs-billing':
+        return [
+          { title: 'Ma khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
+          { title: 'Ten khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
+          { title: 'Thuoc xuat', dataIndex: 'medicineDispensed', key: 'medicineDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'VT xuat', dataIndex: 'supplyDispensed', key: 'supplyDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong xuat', dataIndex: 'totalDispensed', key: 'totalDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Thuoc thu', dataIndex: 'medicineBilled', key: 'medicineBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'VT thu', dataIndex: 'supplyBilled', key: 'supplyBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong thu', dataIndex: 'totalBilled', key: 'totalBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+        ] as ColumnsType<DispensingVsBillingItemDto>;
+
+      case 'dispensing-vs-standards':
+        return [
+          { title: 'Ma khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
+          { title: 'Ten khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
+          { title: 'So BN', dataIndex: 'patientCount', key: 'patientCount', width: 80, align: 'right' as const },
+          { title: 'Thuoc xuat', dataIndex: 'medicineDispensed', key: 'medicineDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'VT xuat', dataIndex: 'supplyDispensed', key: 'supplyDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong xuat', dataIndex: 'totalDispensed', key: 'totalDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'DM/BN', dataIndex: 'standardPerPatient', key: 'standardPerPatient', width: 100, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tong DM', dataIndex: 'totalStandard', key: 'totalStandard', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Dat' : 'Vuot'}</Tag> },
+        ] as ColumnsType<DispensingVsStandardsItemDto>;
+
+      default:
+        return [];
+    }
+  };
+
+  // Render summary statistics for the current report
+  const renderSummary = () => {
+    if (!summaryData || !selectedReport) return null;
+
+    switch (selectedReport) {
+      case 'supplier-procurement':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}><Statistic title="Tong NCC" value={summaryData.totalSuppliers} /></Col>
+            <Col span={6}><Statistic title="Tong mat hang" value={summaryData.totalItems} /></Col>
+            <Col span={6}><Statistic title="Gia tri hop dong" value={fmtMoney(summaryData.totalContractValue)} /></Col>
+            <Col span={6}><Statistic title="Ti le thuc hien" value={fmtPct(summaryData.fulfillmentRate)} /></Col>
+          </Row>
+        );
+      case 'revenue-by-record':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={5}><Statistic title="Tong HSBA" value={summaryData.totalRecords} /></Col>
+            <Col span={5}><Statistic title="Tong doanh thu" value={fmtMoney(summaryData.totalRevenue)} /></Col>
+            <Col span={5}><Statistic title="Tong chi phi" value={fmtMoney(summaryData.totalCost)} /></Col>
+            <Col span={5}><Statistic title="Tong loi nhuan" value={fmtMoney(summaryData.totalProfit)} styles={{ content: { color: summaryData.totalProfit >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={4}><Statistic title="TB ty suat LN" value={fmtPct(summaryData.averageProfitMargin)} /></Col>
+          </Row>
+        );
+      case 'dept-cost-vs-fees':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={8}><Statistic title="Tong CP khoa phong" value={fmtMoney(summaryData.totalDeptCost)} /></Col>
+            <Col span={8}><Statistic title="Tong VP thu" value={fmtMoney(summaryData.totalHospitalFees)} /></Col>
+            <Col span={8}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+          </Row>
+        );
+      case 'record-cost-summary':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={4}><Statistic title="Tong HSBA" value={summaryData.totalRecords} /></Col>
+            <Col span={5}><Statistic title="Tong su dung" value={fmtMoney(summaryData.totalUsed)} /></Col>
+            <Col span={5}><Statistic title="Tong da thu" value={fmtMoney(summaryData.totalCollected)} /></Col>
+            <Col span={4}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={3}><Statistic title="Thu du" value={summaryData.overchargedCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
+            <Col span={3}><Statistic title="Thu thieu" value={summaryData.underchargedCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
+          </Row>
+        );
+      case 'fees-vs-standards':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={4}><Statistic title="Tong DV" value={summaryData.totalServices} /></Col>
+            <Col span={5}><Statistic title="Tong thuc te" value={fmtMoney(summaryData.totalActualFees)} /></Col>
+            <Col span={5}><Statistic title="Tong dinh muc" value={fmtMoney(summaryData.totalStandardFees)} /></Col>
+            <Col span={5}><Statistic title="Dat dinh muc" value={summaryData.withinStandardCount} styles={{ content: { color: '#52c41a' } }} /></Col>
+            <Col span={5}><Statistic title="Vuot dinh muc" value={summaryData.exceedStandardCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
+          </Row>
+        );
+      case 'service-order-doctors':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}><Statistic title="Tong chi dinh" value={summaryData.totalOrders} /></Col>
+            <Col span={6}><Statistic title="Cung BS" value={summaryData.sameDoctorCount} styles={{ content: { color: '#52c41a' } }} /></Col>
+            <Col span={6}><Statistic title="Khac BS" value={summaryData.differentDoctorCount} styles={{ content: { color: '#1890ff' } }} /></Col>
+            <Col span={6}><Statistic title="Chua TH" value={summaryData.noExecutorCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
+          </Row>
+        );
+      case 'dispensing-vs-billing':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={8}><Statistic title="Tong xuat kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
+            <Col span={8}><Statistic title="Tong vien phi thu" value={fmtMoney(summaryData.totalBilled)} /></Col>
+            <Col span={8}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+          </Row>
+        );
+      case 'dispensing-vs-standards':
+        return (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}><Statistic title="Tong khoa" value={summaryData.totalDepartments} /></Col>
+            <Col span={6}><Statistic title="Tong xuat kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
+            <Col span={6}><Statistic title="Tong dinh muc" value={fmtMoney(summaryData.totalStandard)} /></Col>
+            <Col span={6}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDispensed - summaryData.totalStandard)} styles={{ content: { color: (summaryData.totalDispensed - summaryData.totalStandard) <= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+          </Row>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Report selection cards (when no report is selected)
+  if (!selectedReport) {
+    return (
+      <div>
+        <Alert
+          title="Doi chieu Level 6 - Theo TT 54/2017/TT-BYT, TT 32/2023/TT-BYT"
+          description="8 bao cao doi chieu danh cho benh vien hang 6. Chon loai bao cao de bat dau."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <Row gutter={[16, 16]}>
+          {reconciliationReports.map((report) => (
+            <Col key={report.id} span={6}>
+              <Card
+                hoverable
+                size="small"
+                onClick={() => setSelectedReport(report.id)}
+                style={{ height: '100%' }}
+              >
+                <Space orientation="vertical" style={{ width: '100%' }}>
+                  <Space>
+                    {report.icon}
+                    <Text strong>{report.name}</Text>
+                  </Space>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {report.description}
+                  </Text>
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </div>
+    );
+  }
+
+  // Report detail view (when a report is selected)
+  const currentReport = reconciliationReports.find(r => r.id === selectedReport);
+
+  return (
+    <div>
+      <Card
+        title={
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} type="text" onClick={handleBack} />
+            {currentReport?.icon}
+            <span>{currentReport?.name}</span>
+          </Space>
+        }
+        extra={
+          <Space>
+            <Button icon={<PrinterOutlined />} onClick={handlePrint} disabled={!reportData}>
+              In
+            </Button>
+          </Space>
+        }
+      >
+        {/* Filters */}
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col span={8}>
+            <Text strong>Thoi gian:</Text>
+            <br />
+            <RangePicker
+              format="DD/MM/YYYY"
+              style={{ width: '100%', marginTop: 8 }}
+              value={dateRange}
+              onChange={(dates) => {
+                if (dates) {
+                  setDateRange([dates[0]!, dates[1]!]);
+                }
+              }}
+            />
+          </Col>
+          <Col span={8}>
+            <Text strong>{currentReport?.hasSupplierFilter ? 'NCC:' : 'Khoa/Phong:'}</Text>
+            <br />
+            <Select
+              style={{ width: '100%', marginTop: 8 }}
+              value={departmentFilter}
+              onChange={setDepartmentFilter}
+              allowClear
+              placeholder={currentReport?.hasSupplierFilter ? 'Tat ca NCC' : 'Tat ca khoa/phong'}
+            >
+              {!currentReport?.hasSupplierFilter && (
+                <>
+                  <Select.Option value="noi">Khoa Noi</Select.Option>
+                  <Select.Option value="ngoai">Khoa Ngoai</Select.Option>
+                  <Select.Option value="san">Khoa San</Select.Option>
+                  <Select.Option value="nhi">Khoa Nhi</Select.Option>
+                  <Select.Option value="xn">Khoa Xet nghiem</Select.Option>
+                  <Select.Option value="cdha">Khoa CDHA</Select.Option>
+                  <Select.Option value="duoc">Khoa Duoc</Select.Option>
+                </>
+              )}
+            </Select>
+          </Col>
+          <Col span={8}>
+            <Text strong>&nbsp;</Text>
+            <br />
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              onClick={handleRunReport}
+              loading={loading}
+              style={{ marginTop: 8 }}
+            >
+              Chay bao cao
+            </Button>
+          </Col>
+        </Row>
+
+        <Divider />
+
+        <Spin spinning={loading} tip="Dang tai du lieu...">
+          {/* Summary Statistics */}
+          {renderSummary()}
+
+          {/* Data Table */}
+          {reportData ? (
+            <Table
+              columns={getColumns()}
+              dataSource={reportData}
+              rowKey={(record: any) => record.supplierId || record.medicalRecordId || record.departmentId || record.serviceId || record.serviceRequestId || record.departmentCode || Math.random().toString()} // eslint-disable-line @typescript-eslint/no-explicit-any
+              size="small"
+              scroll={{ x: 1200 }}
+              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Tong: ${total} dong` }}
+              bordered
+            />
+          ) : (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+              <FileSearchOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+              <br />
+              <Text type="secondary">Chon thoi gian va nhan "Chay bao cao" de xem du lieu</Text>
+            </div>
+          )}
+        </Spin>
+      </Card>
+    </div>
+  );
+};
+
+// ============================================================================
+// Main Reports Component with Tabs
+// ============================================================================
+
+const ExistingReportsContent: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('general');
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -354,7 +891,7 @@ const Reports: React.FC = () => {
         downloadBlob(blob, filename);
         message.success(`Da xuat bao cao ra ${formatName} thanh cong`);
       }
-    } catch (error: any) {
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error exporting report:', error);
       message.error(`Xuat bao cao ra ${formatName} that bai. Vui long thu lai.`);
     } finally {
@@ -371,7 +908,7 @@ const Reports: React.FC = () => {
       setPreviewTitle(reportName);
       setPreviewContent(htmlContent);
       setPreviewVisible(true);
-    } catch (error: any) {
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error previewing report:', error);
       message.error('Xem truoc bao cao that bai. Vui long thu lai.');
     } finally {
@@ -387,7 +924,7 @@ const Reports: React.FC = () => {
       const filename = `${reportName}_${dateRange[0].format('YYYYMMDD')}_${dateRange[1].format('YYYYMMDD')}.xlsx`;
       downloadBlob(blob, filename);
       message.success(`Da tai xuong: ${reportName}`);
-    } catch (error: any) {
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error downloading report:', error);
       message.error('Tai xuong bao cao that bai. Vui long thu lai.');
     } finally {
@@ -412,9 +949,7 @@ const Reports: React.FC = () => {
   const currentCategory = reportCategories[activeCategory as keyof typeof reportCategories];
 
   return (
-    <div>
-      <Title level={4}>Ho so benh an & Bao cao thong ke</Title>
-
+    <>
       <Spin spinning={exporting} tip="Dang xu ly bao cao...">
         <Row gutter={16}>
           {/* Left panel - Report categories */}
@@ -701,6 +1236,39 @@ const Reports: React.FC = () => {
           title={previewTitle}
         />
       </Modal>
+    </>
+  );
+};
+
+const Reports: React.FC = () => {
+  return (
+    <div>
+      <Title level={4}>Ho so benh an & Bao cao thong ke</Title>
+
+      <Tabs
+        items={[
+          {
+            key: 'reports',
+            label: (
+              <Space>
+                <BarChartOutlined />
+                <span>Bao cao</span>
+              </Space>
+            ),
+            children: <ExistingReportsContent />,
+          },
+          {
+            key: 'reconciliation',
+            label: (
+              <Space>
+                <AuditOutlined />
+                <span>Doi chieu Level 6</span>
+              </Space>
+            ),
+            children: <ReconciliationTab />,
+          },
+        ]}
+      />
     </div>
   );
 };

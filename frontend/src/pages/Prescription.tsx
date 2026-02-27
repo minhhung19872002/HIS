@@ -41,6 +41,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '../api/examination';
 import { patientApi, type Patient as ApiPatient } from '../api/patient';
+import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
@@ -340,6 +341,9 @@ const Prescription: React.FC = () => {
   const [templateDiagnosis, setTemplateDiagnosis] = useState('');
   const [prescriptionTemplates, setPrescriptionTemplates] = useState<PrescriptionTemplate[]>(fallbackTemplates);
 
+  // Data inheritance state (OPD → Prescription context)
+  const [rxContext, setRxContext] = useState<PrescriptionContextDto | null>(null);
+
   // Calculate totals
   const totalCost = prescriptionItems.reduce((sum, item) => sum + item.totalCost, 0);
   const totalInsurance = prescriptionItems.reduce((sum, item) => sum + item.insuranceCoverage, 0);
@@ -433,7 +437,7 @@ const Prescription: React.FC = () => {
     }
   };
 
-  const handleSelectPatient = (apiPatient: ApiPatient) => {
+  const handleSelectPatient = async (apiPatient: ApiPatient) => {
     const p: Patient = {
       id: apiPatient.id,
       patientCode: apiPatient.patientCode,
@@ -450,6 +454,41 @@ const Prescription: React.FC = () => {
     setIsPatientSearchModalOpen(false);
     setPatientSearchResults([]);
     message.success(`Đã chọn bệnh nhân: ${p.fullName}`);
+
+    // Fetch inherited data from OPD examination (diagnosis, allergies, vitals)
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const examResponse = await examinationApi.searchExaminations({
+        patientCode: apiPatient.patientCode,
+        fromDate: today,
+        toDate: today,
+        pageIndex: 0,
+        pageSize: 1,
+      });
+      const examData = examResponse.data;
+      const examItems = examData?.items || examData;
+      if (Array.isArray(examItems) && examItems.length > 0) {
+        const examId = examItems[0].id;
+        const ctxResponse = await getPrescriptionContext(examId);
+        if (ctxResponse.data) {
+          setRxContext(ctxResponse.data);
+          // Auto-fill diagnosis from OPD if available
+          if (ctxResponse.data.mainDiagnosis) {
+            form.setFieldsValue({
+              diagnosis: `${ctxResponse.data.mainIcdCode || ''} - ${ctxResponse.data.mainDiagnosis}`.trim(),
+            });
+          }
+          // Populate allergy data from context
+          if (ctxResponse.data.allergies && ctxResponse.data.allergies.length > 0) {
+            p.allergies = ctxResponse.data.allergies.map(a => a.allergenName);
+            setPatient({ ...p });
+          }
+        }
+      }
+    } catch {
+      // Non-critical: context data is optional enhancement
+      setRxContext(null);
+    }
   };
 
   // Medicine search - using real API
@@ -978,6 +1017,71 @@ const Prescription: React.FC = () => {
 
           {patient && (
             <>
+              {/* Data Inheritance: OPD examination context (diagnosis, vitals) */}
+              {rxContext && (
+                <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '8px 12px' } }}>
+                  <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
+                    Thong tin kham benh (OPD)
+                  </Typography.Text>
+                  <Descriptions column={1} size="small" style={{ marginTop: 4 }}>
+                    {rxContext.mainDiagnosis && (
+                      <Descriptions.Item label="Chan doan">
+                        <Text strong style={{ fontSize: 12 }}>
+                          {rxContext.mainIcdCode && `${rxContext.mainIcdCode} - `}{rxContext.mainDiagnosis}
+                        </Text>
+                      </Descriptions.Item>
+                    )}
+                    {rxContext.chiefComplaint && (
+                      <Descriptions.Item label="Ly do kham">
+                        <Text style={{ fontSize: 12 }}>{rxContext.chiefComplaint}</Text>
+                      </Descriptions.Item>
+                    )}
+                    {(rxContext.weight || rxContext.bloodPressureSystolic) && (
+                      <Descriptions.Item label="Sinh hieu">
+                        <Space orientation="horizontal" size={4}>
+                          {rxContext.weight && <Tag>{rxContext.weight}kg</Tag>}
+                          {rxContext.bloodPressureSystolic && (
+                            <Tag>HA: {rxContext.bloodPressureSystolic}/{rxContext.bloodPressureDiastolic}</Tag>
+                          )}
+                          {rxContext.pulse && <Tag>M: {rxContext.pulse}</Tag>}
+                          {rxContext.temperature && <Tag>T: {rxContext.temperature}</Tag>}
+                        </Space>
+                      </Descriptions.Item>
+                    )}
+                    {rxContext.doctorName && (
+                      <Descriptions.Item label="BS kham">
+                        <Text style={{ fontSize: 12 }}>{rxContext.doctorName}</Text>
+                      </Descriptions.Item>
+                    )}
+                  </Descriptions>
+                  {rxContext.allergies && rxContext.allergies.length > 0 && (
+                    <Alert
+                      title="Di ung"
+                      type="error"
+                      showIcon
+                      style={{ marginTop: 4 }}
+                      description={
+                        <Space wrap>
+                          {rxContext.allergies.map((a, i) => (
+                            <Tag color={a.severity === 3 ? 'red' : a.severity === 2 ? 'orange' : 'gold'} key={i}>
+                              {a.allergenName} ({a.severityName})
+                            </Tag>
+                          ))}
+                        </Space>
+                      }
+                    />
+                  )}
+                  {rxContext.allergyHistory && !rxContext.allergies?.length && (
+                    <Alert
+                      title={`Di ung: ${rxContext.allergyHistory}`}
+                      type="warning"
+                      showIcon
+                      style={{ marginTop: 4 }}
+                    />
+                  )}
+                </Card>
+              )}
+
               {/* Allergies */}
               {patient.allergies && patient.allergies.length > 0 && (
                 <Card

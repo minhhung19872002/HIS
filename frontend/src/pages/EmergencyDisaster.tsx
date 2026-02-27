@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
@@ -24,6 +24,7 @@ import {
   Steps,
   Avatar,
   Tooltip,
+  Spin,
 } from 'antd';
 import {
   AlertOutlined,
@@ -44,271 +45,198 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import {
+  getActiveEvent,
+  getEvents,
+  getDashboard,
+  activateMCI,
+  deactivateMCI,
+  getVictims,
+  registerVictim,
+  getResources,
+  getCommandCenter,
+  updateVictim,
+  notifyFamily,
+  getActivityLog,
+  type MCIEventDto,
+  type MCIVictimDto,
+  type MCIResourceDto,
+  type MCIDashboardDto,
+  type ActivityLogDto,
+  type CommandCenterDto,
+  type ActivateMCIDto,
+  type StaffResourceDto,
+  type DepartmentStaffDto,
+} from '../api/massCasualty';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-// Types
-interface MCIEvent {
-  id: string;
-  code: 'yellow' | 'orange' | 'red';
-  description: string;
-  location: string;
-  estimatedVictims: number;
-  status: 'active' | 'controlled' | 'ended';
-  activatedAt: string;
-  activatedBy: string;
-  endedAt?: string;
-}
-
-interface Victim {
-  id: string;
-  mciEventId: string;
-  tagNumber: string;
-  triageCategory: 'red' | 'yellow' | 'green' | 'black';
-  name?: string;
-  gender?: 'male' | 'female';
-  estimatedAge?: number;
-  injuries: string;
-  currentLocation: string;
-  status: 'triage' | 'treatment' | 'surgery' | 'icu' | 'ward' | 'discharged' | 'deceased' | 'transferred';
-  assignedDoctor?: string;
-  arrivalTime: string;
-  familyContacted: boolean;
-  familyPhone?: string;
-}
-
-interface Resource {
-  id: string;
-  type: 'bed' | 'blood' | 'or' | 'icu' | 'ventilator' | 'staff';
-  name: string;
-  total: number;
-  available: number;
-  reserved: number;
-}
-
-interface StaffOnCall {
-  id: string;
-  name: string;
-  role: string;
-  department: string;
-  status: 'available' | 'on_duty' | 'notified' | 'arrived';
-  phone: string;
-  notifiedAt?: string;
-}
-
-// Mock data
-const mockMCIEvent: MCIEvent = {
-  id: 'MCI001',
-  code: 'orange',
-  description: 'Tai nan xe bus tren cao toc',
-  location: 'Cao toc TP.HCM - Long Thanh, Km 15',
-  estimatedVictims: 25,
-  status: 'active',
-  activatedAt: '2024-01-15 10:30:00',
-  activatedBy: 'BS. Nguyen Van A',
-};
-
-const mockVictims: Victim[] = [
-  {
-    id: 'V001',
-    mciEventId: 'MCI001',
-    tagNumber: 'R001',
-    triageCategory: 'red',
-    name: 'Chua xac dinh',
-    gender: 'male',
-    estimatedAge: 35,
-    injuries: 'Da chan thuong, gay xuong dui, mat mau nhieu',
-    currentLocation: 'Phong mo 1',
-    status: 'surgery',
-    assignedDoctor: 'BS. Tran Van B',
-    arrivalTime: '2024-01-15 10:45:00',
-    familyContacted: false,
-  },
-  {
-    id: 'V002',
-    mciEventId: 'MCI001',
-    tagNumber: 'R002',
-    triageCategory: 'red',
-    name: 'Nguyen Thi C',
-    gender: 'female',
-    estimatedAge: 28,
-    injuries: 'Chan thuong so nao, bat tinh',
-    currentLocation: 'ICU',
-    status: 'icu',
-    assignedDoctor: 'BS. Le Van D',
-    arrivalTime: '2024-01-15 10:50:00',
-    familyContacted: true,
-    familyPhone: '0901234567',
-  },
-  {
-    id: 'V003',
-    mciEventId: 'MCI001',
-    tagNumber: 'Y001',
-    triageCategory: 'yellow',
-    name: 'Pham Van E',
-    gender: 'male',
-    estimatedAge: 45,
-    injuries: 'Gay xuong canh tay, vet thuong o mat',
-    currentLocation: 'Khu dieu tri 1',
-    status: 'treatment',
-    assignedDoctor: 'BS. Hoang Van F',
-    arrivalTime: '2024-01-15 11:00:00',
-    familyContacted: true,
-    familyPhone: '0912345678',
-  },
-  {
-    id: 'V004',
-    mciEventId: 'MCI001',
-    tagNumber: 'Y002',
-    triageCategory: 'yellow',
-    injuries: 'Gay xuong suon, kho tho',
-    currentLocation: 'Khu dieu tri 2',
-    status: 'treatment',
-    arrivalTime: '2024-01-15 11:05:00',
-    familyContacted: false,
-  },
-  {
-    id: 'V005',
-    mciEventId: 'MCI001',
-    tagNumber: 'G001',
-    triageCategory: 'green',
-    name: 'Vo Thi G',
-    gender: 'female',
-    estimatedAge: 22,
-    injuries: 'Xay xat da, dau dau nhe',
-    currentLocation: 'Khu cho',
-    status: 'treatment',
-    arrivalTime: '2024-01-15 11:10:00',
-    familyContacted: true,
-    familyPhone: '0923456789',
-  },
-  {
-    id: 'V006',
-    mciEventId: 'MCI001',
-    tagNumber: 'G002',
-    triageCategory: 'green',
-    injuries: 'Xay xat, soc nhe',
-    currentLocation: 'Khu cho',
-    status: 'treatment',
-    arrivalTime: '2024-01-15 11:15:00',
-    familyContacted: false,
-  },
-  {
-    id: 'V007',
-    mciEventId: 'MCI001',
-    tagNumber: 'B001',
-    triageCategory: 'black',
-    injuries: 'Tu vong tai hien truong',
-    currentLocation: 'Nha xac',
-    status: 'deceased',
-    arrivalTime: '2024-01-15 11:20:00',
-    familyContacted: false,
-  },
-];
-
-const mockResources: Resource[] = [
-  { id: 'R1', type: 'bed', name: 'Giuong cap cuu', total: 20, available: 5, reserved: 8 },
-  { id: 'R2', type: 'icu', name: 'Giuong ICU', total: 10, available: 2, reserved: 3 },
-  { id: 'R3', type: 'or', name: 'Phong mo', total: 5, available: 1, reserved: 2 },
-  { id: 'R4', type: 'ventilator', name: 'May tho', total: 15, available: 4, reserved: 5 },
-  { id: 'R5', type: 'blood', name: 'Mau O+ (don vi)', total: 50, available: 35, reserved: 10 },
-  { id: 'R6', type: 'blood', name: 'Mau A+ (don vi)', total: 40, available: 25, reserved: 8 },
-  { id: 'R7', type: 'staff', name: 'Bac si cap cuu', total: 12, available: 3, reserved: 6 },
-  { id: 'R8', type: 'staff', name: 'Dieu duong', total: 30, available: 8, reserved: 15 },
-];
-
-const mockStaff: StaffOnCall[] = [
-  { id: 'S1', name: 'BS. Nguyen Van X', role: 'BS Cap cuu', department: 'Cap cuu', status: 'arrived', phone: '0901111111', notifiedAt: '2024-01-15 10:32:00' },
-  { id: 'S2', name: 'BS. Tran Van Y', role: 'BS Ngoai khoa', department: 'Ngoai', status: 'arrived', phone: '0902222222', notifiedAt: '2024-01-15 10:32:00' },
-  { id: 'S3', name: 'BS. Le Thi Z', role: 'BS Gay me', department: 'Gay me', status: 'on_duty', phone: '0903333333', notifiedAt: '2024-01-15 10:32:00' },
-  { id: 'S4', name: 'DD. Pham Van W', role: 'Dieu duong truong', department: 'Cap cuu', status: 'arrived', phone: '0904444444', notifiedAt: '2024-01-15 10:33:00' },
-  { id: 'S5', name: 'BS. Hoang Van V', role: 'BS Ngoai Than kinh', department: 'Ngoai TK', status: 'notified', phone: '0905555555', notifiedAt: '2024-01-15 10:35:00' },
-];
-
 const EmergencyDisaster: React.FC = () => {
-  const [mciEvent, setMciEvent] = useState<MCIEvent | null>(mockMCIEvent);
-  const [victims, setVictims] = useState<Victim[]>(mockVictims);
-  const [resources] = useState<Resource[]>(mockResources);
-  const [staff, setStaff] = useState<StaffOnCall[]>(mockStaff);
+  const [loading, setLoading] = useState(false);
+  const [mciEvent, setMciEvent] = useState<MCIEventDto | null>(null);
+  const [victims, setVictims] = useState<MCIVictimDto[]>([]);
+  const [resources, setResources] = useState<MCIResourceDto | null>(null);
+  const [dashboard, setDashboard] = useState<MCIDashboardDto | null>(null);
+  const [commandCenter, setCommandCenter] = useState<CommandCenterDto | null>(null);
+  const [activityLog, setActivityLog] = useState<ActivityLogDto[]>([]);
+  const [eventHistory, setEventHistory] = useState<MCIEventDto[]>([]);
 
   const [activateModalVisible, setActivateModalVisible] = useState(false);
   const [addVictimModalVisible, setAddVictimModalVisible] = useState(false);
   const [victimDetailModalVisible, setVictimDetailModalVisible] = useState(false);
-  const [selectedVictim, setSelectedVictim] = useState<Victim | null>(null);
+  const [selectedVictim, setSelectedVictim] = useState<MCIVictimDto | null>(null);
 
-  const [form] = Form.useForm();
+  const [activateForm] = Form.useForm();
+  const [victimForm] = Form.useForm();
 
-  // Statistics
-  const redCount = victims.filter(v => v.triageCategory === 'red').length;
-  const yellowCount = victims.filter(v => v.triageCategory === 'yellow').length;
-  const greenCount = victims.filter(v => v.triageCategory === 'green').length;
-  const blackCount = victims.filter(v => v.triageCategory === 'black').length;
+  // Statistics derived from victims
+  const redCount = victims.filter(v => v.triageCategory === 'Immediate' || v.triageColor === 'red').length;
+  const yellowCount = victims.filter(v => v.triageCategory === 'Delayed' || v.triageColor === 'yellow').length;
+  const greenCount = victims.filter(v => v.triageCategory === 'Minor' || v.triageColor === 'green').length;
+  const blackCount = victims.filter(v => v.triageCategory === 'Expectant' || v.triageCategory === 'Deceased' || v.triageColor === 'black').length;
 
-  const getCodeColor = (code: string) => {
-    switch (code) {
-      case 'yellow': return '#faad14';
-      case 'orange': return '#fa8c16';
-      case 'red': return '#f5222d';
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [activeRes, dashboardRes, eventsRes] = await Promise.allSettled([
+        getActiveEvent(),
+        getDashboard(),
+        getEvents(),
+      ]);
+
+      // Active event
+      if (activeRes.status === 'fulfilled' && activeRes.value.data) {
+        const event = activeRes.value.data;
+        setMciEvent(event);
+
+        // Fetch event-specific data
+        const [victimsRes, resourcesRes, cmdRes, logRes] = await Promise.allSettled([
+          getVictims(event.id),
+          getResources(event.id),
+          getCommandCenter(event.id),
+          getActivityLog(event.id),
+        ]);
+
+        if (victimsRes.status === 'fulfilled' && victimsRes.value.data) {
+          setVictims(Array.isArray(victimsRes.value.data) ? victimsRes.value.data : []);
+        }
+        if (resourcesRes.status === 'fulfilled' && resourcesRes.value.data) {
+          setResources(resourcesRes.value.data);
+        }
+        if (cmdRes.status === 'fulfilled' && cmdRes.value.data) {
+          setCommandCenter(cmdRes.value.data);
+        }
+        if (logRes.status === 'fulfilled' && logRes.value.data) {
+          setActivityLog(Array.isArray(logRes.value.data) ? logRes.value.data : []);
+        }
+      } else {
+        setMciEvent(null);
+        setVictims([]);
+        setResources(null);
+        setCommandCenter(null);
+        setActivityLog([]);
+      }
+
+      // Dashboard
+      if (dashboardRes.status === 'fulfilled' && dashboardRes.value.data) {
+        setDashboard(dashboardRes.value.data);
+      }
+
+      // Event history
+      if (eventsRes.status === 'fulfilled' && eventsRes.value.data) {
+        setEventHistory(Array.isArray(eventsRes.value.data) ? eventsRes.value.data : []);
+      }
+    } catch {
+      message.warning('Khong the tai du lieu cap cuu tham hoa');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const getAlertLevelColor = (level: number) => {
+    switch (level) {
+      case 2: return '#faad14'; // Yellow
+      case 3: return '#fa8c16'; // Orange
+      case 4: return '#f5222d'; // Red
+      default: return '#52c41a'; // Green
+    }
+  };
+
+  const getAlertLevelLabel = (level: number, name?: string) => {
+    if (name) return name;
+    switch (level) {
+      case 1: return 'CODE GREEN (san sang)';
+      case 2: return 'CODE YELLOW (5-10 nan nhan)';
+      case 3: return 'CODE ORANGE (10-50 nan nhan)';
+      case 4: return 'CODE RED (>50 nan nhan hoac CBRN)';
+      default: return `Level ${level}`;
+    }
+  };
+
+  const getTriageColor = (category: string, color?: string) => {
+    if (color) return color;
+    switch (category) {
+      case 'Immediate': return '#f5222d';
+      case 'Delayed': return '#faad14';
+      case 'Minor': return '#52c41a';
+      case 'Expectant':
+      case 'Deceased': return '#000000';
       default: return '#1890ff';
     }
   };
 
-  const getCodeLabel = (code: string) => {
-    switch (code) {
-      case 'yellow': return 'CODE YELLOW (5-10 nan nhan)';
-      case 'orange': return 'CODE ORANGE (10-50 nan nhan)';
-      case 'red': return 'CODE RED (>50 nan nhan hoac CBRN)';
-      default: return code;
-    }
-  };
-
-  const getTriageColor = (category: string) => {
+  const getTriageLabel = (category: string, name?: string) => {
+    if (name) return name;
     switch (category) {
-      case 'red': return '#f5222d';
-      case 'yellow': return '#faad14';
-      case 'green': return '#52c41a';
-      case 'black': return '#000000';
-      default: return '#1890ff';
-    }
-  };
-
-  const getTriageLabel = (category: string) => {
-    switch (category) {
-      case 'red': return 'DO - Cap cuu ngay';
-      case 'yellow': return 'VANG - Tri hoan duoc';
-      case 'green': return 'XANH - Nhe';
-      case 'black': return 'DEN - Tu vong';
+      case 'Immediate': return 'DO - Cap cuu ngay';
+      case 'Delayed': return 'VANG - Tri hoan duoc';
+      case 'Minor': return 'XANH - Nhe';
+      case 'Expectant': return 'DEN - Khong cuu duoc';
+      case 'Deceased': return 'DEN - Tu vong';
       default: return category;
     }
   };
 
-  const getStatusTag = (status: string) => {
-    const configs: Record<string, { color: string; label: string }> = {
-      triage: { color: 'processing', label: 'Phan loai' },
-      treatment: { color: 'blue', label: 'Dieu tri' },
-      surgery: { color: 'orange', label: 'Phau thuat' },
-      icu: { color: 'red', label: 'ICU' },
-      ward: { color: 'cyan', label: 'Buong benh' },
-      discharged: { color: 'green', label: 'Xuat vien' },
-      deceased: { color: 'default', label: 'Tu vong' },
-      transferred: { color: 'purple', label: 'Chuyen vien' },
+  const getStatusTag = (status: number, statusName?: string) => {
+    const configs: Record<number, { color: string; label: string }> = {
+      1: { color: 'processing', label: 'Phan loai' },
+      2: { color: 'blue', label: 'Dieu tri' },
+      3: { color: 'green', label: 'Da xu ly' },
     };
-    const config = configs[status] || { color: 'default', label: status };
-    return <Tag color={config.color}>{config.label}</Tag>;
+    const config = configs[status] || { color: 'default', label: statusName || `Status ${status}` };
+    return <Tag color={config.color}>{statusName || config.label}</Tag>;
   };
 
-  const victimColumns: ColumnsType<Victim> = [
+  const getDispositionTag = (disposition?: string, dispositionName?: string) => {
+    if (!disposition) return '-';
+    const configs: Record<string, { color: string; label: string }> = {
+      Admitted: { color: 'blue', label: 'Nhap vien' },
+      OR: { color: 'orange', label: 'Phau thuat' },
+      ICU: { color: 'red', label: 'ICU' },
+      Discharged: { color: 'green', label: 'Xuat vien' },
+      Transferred: { color: 'purple', label: 'Chuyen vien' },
+      Deceased: { color: 'default', label: 'Tu vong' },
+    };
+    const config = configs[disposition] || { color: 'default', label: dispositionName || disposition };
+    return <Tag color={config.color}>{dispositionName || config.label}</Tag>;
+  };
+
+  const victimColumns: ColumnsType<MCIVictimDto> = [
     {
       title: 'Tag',
-      dataIndex: 'tagNumber',
-      key: 'tagNumber',
-      render: (tag, record) => (
+      dataIndex: 'victimCode',
+      key: 'victimCode',
+      render: (code, record) => (
         <Tag
-          color={getTriageColor(record.triageCategory)}
+          color={getTriageColor(record.triageCategory, record.triageColor)}
           style={{ fontWeight: 'bold', fontSize: 14 }}
         >
-          {tag}
+          {code || record.temporaryId}
         </Tag>
       ),
     },
@@ -317,65 +245,90 @@ const EmergencyDisaster: React.FC = () => {
       dataIndex: 'triageCategory',
       key: 'triageCategory',
       filters: [
-        { text: 'Do', value: 'red' },
-        { text: 'Vang', value: 'yellow' },
-        { text: 'Xanh', value: 'green' },
-        { text: 'Den', value: 'black' },
+        { text: 'Do', value: 'Immediate' },
+        { text: 'Vang', value: 'Delayed' },
+        { text: 'Xanh', value: 'Minor' },
+        { text: 'Den', value: 'Expectant' },
       ],
       onFilter: (value, record) => record.triageCategory === value,
-      render: (category) => (
-        <Badge color={getTriageColor(category)} text={getTriageLabel(category)} />
+      render: (category, record) => (
+        <Badge color={getTriageColor(category, record.triageColor)} text={getTriageLabel(category, record.triageCategoryName)} />
       ),
     },
     {
       title: 'Ho ten',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'fullName',
+      key: 'fullName',
       render: (name) => name || <Text type="secondary">Chua xac dinh</Text>,
     },
     {
       title: 'Thuong tich',
-      dataIndex: 'injuries',
       key: 'injuries',
       width: 200,
       ellipsis: true,
+      render: (_, record) => {
+        const injuries = record.injuries;
+        if (!injuries || injuries.length === 0) return record.chiefComplaint || '-';
+        return injuries.join(', ');
+      },
     },
     {
       title: 'Vi tri',
-      dataIndex: 'currentLocation',
-      key: 'currentLocation',
-      render: (loc) => (
+      dataIndex: 'assignedAreaName',
+      key: 'assignedAreaName',
+      render: (loc, record) => (
         <Space>
           <EnvironmentOutlined />
-          {loc}
+          {loc || record.assignedArea || '-'}
         </Space>
       ),
     },
     {
       title: 'Trang thai',
-      dataIndex: 'status',
       key: 'status',
-      render: (status) => getStatusTag(status),
+      render: (_, record) => record.disposition
+        ? getDispositionTag(record.disposition, record.dispositionName)
+        : getStatusTag(record.status, record.statusName),
     },
     {
       title: 'Bac si',
-      dataIndex: 'assignedDoctor',
-      key: 'assignedDoctor',
+      dataIndex: 'attendingDoctorName',
+      key: 'attendingDoctorName',
       render: (doc) => doc || '-',
     },
     {
       title: 'Lien lac GD',
-      dataIndex: 'familyContacted',
-      key: 'familyContacted',
-      render: (contacted, record) => (
-        contacted ? (
+      dataIndex: 'familyNotified',
+      key: 'familyNotified',
+      render: (notified, record) => (
+        notified ? (
           <Tag icon={<CheckCircleOutlined />} color="success">Da lien lac</Tag>
         ) : (
           <Button
             size="small"
             type="link"
             icon={<PhoneOutlined />}
-            onClick={() => message.info('Dang goi...')}
+            onClick={async () => {
+              if (!record.familyContactPhone) {
+                message.warning('Chua co thong tin lien lac gia dinh');
+                return;
+              }
+              try {
+                await notifyFamily({
+                  victimId: record.id,
+                  contactName: record.familyContactName || '',
+                  relationship: '',
+                  phone: record.familyContactPhone,
+                  notificationType: 'Initial',
+                  message: `Thong bao ve nan nhan ${record.fullName || record.victimCode}`,
+                  notificationMethod: 'Phone',
+                });
+                message.success('Da gui thong bao cho gia dinh');
+                fetchData();
+              } catch {
+                message.warning('Khong the gui thong bao');
+              }
+            }}
           >
             Lien lac
           </Button>
@@ -396,7 +349,21 @@ const EmergencyDisaster: React.FC = () => {
           >
             Chi tiet
           </Button>
-          <Button type="link">
+          <Button
+            type="link"
+            onClick={async () => {
+              try {
+                await updateVictim({
+                  victimId: record.id,
+                  treatmentNotes: record.treatmentNotes,
+                });
+                message.success('Da cap nhat');
+                fetchData();
+              } catch {
+                message.warning('Khong the cap nhat nan nhan');
+              }
+            }}
+          >
             Cap nhat
           </Button>
         </Space>
@@ -404,59 +371,74 @@ const EmergencyDisaster: React.FC = () => {
     },
   ];
 
-  const handleActivateMCI = (values: any) => {
-    const newEvent: MCIEvent = {
-      id: `MCI${String(Date.now()).slice(-6)}`,
-      code: values.code,
-      description: values.description,
-      location: values.location,
-      estimatedVictims: values.estimatedVictims,
-      status: 'active',
-      activatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-      activatedBy: 'BS. Admin',
-    };
-    setMciEvent(newEvent);
-    setActivateModalVisible(false);
-    form.resetFields();
-    message.success(`Da kich hoat ${getCodeLabel(values.code)}!`);
+  const handleActivateMCI = async (values: any) => {
+    try {
+      const dto: ActivateMCIDto = {
+        eventName: values.description,
+        eventType: values.eventType || 'Transport',
+        alertLevel: values.alertLevel,
+        location: values.location,
+        estimatedCasualties: values.estimatedCasualties ? Number(values.estimatedCasualties) : 0,
+        description: values.description,
+      };
+      const res = await activateMCI(dto);
+      if (res.data) {
+        message.success(`Da kich hoat ${getAlertLevelLabel(values.alertLevel)}! Ma su kien: ${res.data.eventCode || ''}`);
+        if (res.data.warnings && res.data.warnings.length > 0) {
+          res.data.warnings.forEach((w: string) => message.warning(w));
+        }
+      }
+      setActivateModalVisible(false);
+      activateForm.resetFields();
+      fetchData();
+    } catch {
+      message.warning('Khong the kich hoat su kien MCI');
+    }
   };
 
-  const handleAddVictim = (values: any) => {
-    const tagPrefix = values.triageCategory.charAt(0).toUpperCase();
-    const count = victims.filter(v => v.triageCategory === values.triageCategory).length + 1;
-
-    const newVictim: Victim = {
-      id: `V${String(victims.length + 1).padStart(3, '0')}`,
-      mciEventId: mciEvent?.id || '',
-      tagNumber: `${tagPrefix}${String(count).padStart(3, '0')}`,
-      triageCategory: values.triageCategory,
-      name: values.name,
-      gender: values.gender,
-      estimatedAge: values.estimatedAge,
-      injuries: values.injuries,
-      currentLocation: values.currentLocation,
-      status: 'triage',
-      arrivalTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-      familyContacted: false,
-    };
-    setVictims([newVictim, ...victims]);
-    setAddVictimModalVisible(false);
-    form.resetFields();
-    message.success('Da them nan nhan moi!');
+  const handleAddVictim = async (values: any) => {
+    if (!mciEvent) return;
+    try {
+      const triageCategoryMap: Record<string, string> = {
+        red: 'Immediate',
+        yellow: 'Delayed',
+        green: 'Minor',
+        black: 'Expectant',
+      };
+      await registerVictim({
+        eventId: mciEvent.id,
+        fullName: values.name || undefined,
+        estimatedAge: values.estimatedAge ? Number(values.estimatedAge) : undefined,
+        gender: values.gender || undefined,
+        chiefComplaint: values.currentLocation || undefined,
+        injuries: values.injuries ? [values.injuries] : undefined,
+        ambulatory: values.triageCategory === 'green',
+      });
+      message.success('Da them nan nhan moi!');
+      setAddVictimModalVisible(false);
+      victimForm.resetFields();
+      fetchData();
+    } catch {
+      message.warning('Khong the them nan nhan');
+    }
   };
 
   const handleEndMCI = () => {
     Modal.confirm({
       title: 'Ket thuc su kien MCI?',
       content: 'Ban chac chan muon ket thuc su kien cap cuu tham hoa nay?',
-      onOk: () => {
+      onOk: async () => {
         if (mciEvent) {
-          setMciEvent({
-            ...mciEvent,
-            status: 'ended',
-            endedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-          });
-          message.success('Da ket thuc su kien MCI');
+          try {
+            await deactivateMCI({
+              eventId: mciEvent.id,
+              reason: 'Ket thuc su kien',
+            });
+            message.success('Da ket thuc su kien MCI');
+            fetchData();
+          } catch {
+            message.warning('Khong the ket thuc su kien');
+          }
         }
       },
     });
@@ -491,21 +473,21 @@ const EmergencyDisaster: React.FC = () => {
 
             <h3>Thong tin su kien</h3>
             <table>
-              <tr><td><strong>Ma su kien:</strong></td><td>${mciEvent.id}</td></tr>
-              <tr><td><strong>Cap do:</strong></td><td>${getCodeLabel(mciEvent.code)}</td></tr>
-              <tr><td><strong>Mo ta:</strong></td><td>${mciEvent.description}</td></tr>
+              <tr><td><strong>Ma su kien:</strong></td><td>${mciEvent.eventCode}</td></tr>
+              <tr><td><strong>Cap do:</strong></td><td>${getAlertLevelLabel(mciEvent.alertLevel, mciEvent.alertLevelName)}</td></tr>
+              <tr><td><strong>Mo ta:</strong></td><td>${mciEvent.eventName}</td></tr>
               <tr><td><strong>Dia diem:</strong></td><td>${mciEvent.location}</td></tr>
               <tr><td><strong>Thoi gian kich hoat:</strong></td><td>${mciEvent.activatedAt}</td></tr>
-              <tr><td><strong>Nguoi kich hoat:</strong></td><td>${mciEvent.activatedBy}</td></tr>
+              <tr><td><strong>Nguoi kich hoat:</strong></td><td>${mciEvent.activatedByName || mciEvent.activatedBy}</td></tr>
             </table>
 
             <h3>Thong ke nan nhan</h3>
             <div class="stats">
-              <div class="stat-box"><span class="red">DO: ${redCount}</span></div>
-              <div class="stat-box"><span class="yellow">VANG: ${yellowCount}</span></div>
-              <div class="stat-box"><span class="green">XANH: ${greenCount}</span></div>
-              <div class="stat-box">DEN: ${blackCount}</div>
-              <div class="stat-box"><strong>TONG: ${victims.length}</strong></div>
+              <div class="stat-box"><span class="red">DO: ${mciEvent.immediateRed ?? redCount}</span></div>
+              <div class="stat-box"><span class="yellow">VANG: ${mciEvent.delayedYellow ?? yellowCount}</span></div>
+              <div class="stat-box"><span class="green">XANH: ${mciEvent.minorGreen ?? greenCount}</span></div>
+              <div class="stat-box">DEN: ${mciEvent.expectantBlack ?? blackCount}</div>
+              <div class="stat-box"><strong>TONG: ${mciEvent.totalVictims ?? victims.length}</strong></div>
             </div>
 
             <h3>Danh sach nan nhan</h3>
@@ -520,12 +502,12 @@ const EmergencyDisaster: React.FC = () => {
               </tr>
               ${victims.map(v => `
                 <tr>
-                  <td>${v.tagNumber}</td>
-                  <td>${getTriageLabel(v.triageCategory)}</td>
-                  <td>${v.name || 'Chua xac dinh'}</td>
-                  <td>${v.injuries}</td>
-                  <td>${v.currentLocation}</td>
-                  <td>${v.status}</td>
+                  <td>${v.victimCode || v.temporaryId}</td>
+                  <td>${getTriageLabel(v.triageCategory, v.triageCategoryName)}</td>
+                  <td>${v.fullName || 'Chua xac dinh'}</td>
+                  <td>${v.injuries ? v.injuries.join(', ') : v.chiefComplaint || ''}</td>
+                  <td>${v.assignedAreaName || v.assignedArea || ''}</td>
+                  <td>${v.dispositionName || v.statusName || ''}</td>
                 </tr>
               `).join('')}
             </table>
@@ -540,6 +522,132 @@ const EmergencyDisaster: React.FC = () => {
       printWindow.print();
     }
   };
+
+  // Build resource display items from MCIResourceDto
+  const resourceItems: { id: string; type: string; name: string; total: number; available: number; reserved: number }[] = [];
+  if (resources) {
+    const bed = resources.bedSummary;
+    if (bed) {
+      resourceItems.push(
+        { id: 'bed', type: 'bed', name: 'Giuong cap cuu', total: bed.totalReserved + bed.available, available: bed.available, reserved: bed.occupied },
+        { id: 'icu', type: 'icu', name: 'Giuong ICU', total: bed.icuReserved + bed.icuAvailable, available: bed.icuAvailable, reserved: bed.icuOccupied },
+      );
+    }
+    const or = resources.orSummary;
+    if (or) {
+      resourceItems.push(
+        { id: 'or', type: 'or', name: 'Phong mo', total: or.totalReady, available: or.available, reserved: or.inUse },
+      );
+    }
+    const equip = resources.equipmentSummary;
+    if (equip?.ventilators) {
+      resourceItems.push(
+        { id: 'vent', type: 'ventilator', name: 'May tho', total: equip.ventilators.total, available: equip.ventilators.available, reserved: equip.ventilators.inUse },
+      );
+    }
+    const blood = resources.bloodSummary;
+    if (blood) {
+      resourceItems.push(
+        { id: 'blood-o', type: 'blood', name: 'Mau O+ (don vi)', total: blood.unitsReady, available: blood.oPositive, reserved: blood.unitsReady - blood.oPositive },
+        { id: 'blood-a', type: 'blood', name: 'Mau A+ (don vi)', total: blood.unitsReady, available: blood.aPositive, reserved: blood.unitsReady - blood.aPositive },
+      );
+    }
+    const staff = resources.staffSummary;
+    if (staff) {
+      resourceItems.push(
+        { id: 'staff-doc', type: 'staff', name: 'Bac si', total: staff.physicians + staff.nurses, available: staff.physicians, reserved: staff.present },
+        { id: 'staff-nurse', type: 'staff', name: 'Dieu duong', total: staff.nurses + staff.support, available: staff.nurses, reserved: staff.present },
+      );
+    }
+  }
+
+  // If no resource data yet, show empty
+  if (resourceItems.length === 0 && mciEvent) {
+    // Fallback using event-level stats
+    resourceItems.push(
+      { id: 'bed-f', type: 'bed', name: 'Giuong da phan bo', total: mciEvent.bedsReserved || 0, available: mciEvent.bedsReserved || 0, reserved: 0 },
+      { id: 'icu-f', type: 'icu', name: 'Giuong ICU', total: mciEvent.icuBedsReady || 0, available: mciEvent.icuBedsReady || 0, reserved: 0 },
+      { id: 'or-f', type: 'or', name: 'Phong mo', total: mciEvent.orsReady || 0, available: mciEvent.orsReady || 0, reserved: 0 },
+      { id: 'blood-f', type: 'blood', name: 'Mau (don vi)', total: mciEvent.bloodUnitsReady || 0, available: mciEvent.bloodUnitsReady || 0, reserved: 0 },
+    );
+  }
+
+  // Build staff cards from command center or resources
+  const staffCards: { id: string; name: string; role: string; department: string; status: string; phone: string; notifiedAt?: string }[] = [];
+  if (commandCenter) {
+    if (commandCenter.incidentCommander) {
+      const ic = commandCenter.incidentCommander;
+      staffCards.push({
+        id: ic.staffId, name: ic.staffName, role: 'Chi huy truong', department: ic.position,
+        status: 'arrived', phone: ic.phone, notifiedAt: ic.assignedAt,
+      });
+    }
+    if (commandCenter.sectionChiefs) {
+      commandCenter.sectionChiefs.forEach(sc => {
+        staffCards.push({
+          id: sc.staffId, name: sc.staffName, role: sc.sectionName, department: sc.section,
+          status: 'arrived', phone: sc.phone,
+        });
+      });
+    }
+  }
+  if (resources?.staffSummary?.byDepartment) {
+    resources.staffSummary.byDepartment.forEach((dept: DepartmentStaffDto) => {
+      staffCards.push({
+        id: dept.departmentId, name: `${dept.total} nhan vien`, role: dept.departmentName,
+        department: dept.departmentName, status: 'on_duty', phone: '',
+      });
+    });
+  }
+
+  // Build timeline items from activity log
+  const timelineItems = activityLog.length > 0
+    ? activityLog.slice(0, 10).map((log, idx) => ({
+        key: log.id || `log-${idx}`,
+        color: log.activityType === 'Alert' ? 'red' : log.activityType === 'Resource' ? 'blue' : 'green',
+        content: (
+          <>
+            <Text strong>{dayjs(log.timestamp).format('HH:mm')} - {log.description}</Text>
+            <br />
+            <Text type="secondary">{log.performedBy}{log.details ? ` - ${log.details}` : ''}</Text>
+          </>
+        ),
+      }))
+    : mciEvent ? [
+        {
+          key: 'activated',
+          color: 'red' as const,
+          content: (
+            <>
+              <Text strong>{dayjs(mciEvent.activatedAt).format('HH:mm')} - Kich hoat {getAlertLevelLabel(mciEvent.alertLevel, mciEvent.alertLevelName)}</Text>
+              <br />
+              <Text type="secondary">{mciEvent.eventName}</Text>
+            </>
+          ),
+        },
+        {
+          key: 'staff',
+          color: 'blue' as const,
+          content: (
+            <>
+              <Text strong>{dayjs(mciEvent.activatedAt).add(2, 'minute').format('HH:mm')} - Huy dong nhan luc</Text>
+              <br />
+              <Text type="secondary">{mciEvent.staffActivated} nhan vien duoc thong bao</Text>
+            </>
+          ),
+        },
+        ...(victims.length > 0 ? [{
+          key: 'first-victim',
+          color: 'green' as const,
+          content: (
+            <>
+              <Text strong>{dayjs(victims[victims.length - 1]?.arrivalTime || mciEvent.activatedAt).format('HH:mm')} - Nan nhan dau tien den</Text>
+              <br />
+              <Text type="secondary">Da tiep nhan {victims.length} nan nhan</Text>
+            </>
+          ),
+        }] : []),
+      ] : [];
 
   const tabItems = [
     {
@@ -558,7 +666,7 @@ const EmergencyDisaster: React.FC = () => {
               <Card style={{ backgroundColor: '#fff1f0', borderColor: '#ffa39e' }}>
                 <Statistic
                   title={<span style={{ color: '#cf1322' }}>DO - Cap cuu ngay</span>}
-                  value={redCount}
+                  value={mciEvent?.immediateRed ?? redCount}
                   styles={{ content: { color: '#cf1322', fontSize: 48 } }}
                 />
               </Card>
@@ -567,7 +675,7 @@ const EmergencyDisaster: React.FC = () => {
               <Card style={{ backgroundColor: '#fffbe6', borderColor: '#ffe58f' }}>
                 <Statistic
                   title={<span style={{ color: '#d48806' }}>VANG - Tri hoan duoc</span>}
-                  value={yellowCount}
+                  value={mciEvent?.delayedYellow ?? yellowCount}
                   styles={{ content: { color: '#d48806', fontSize: 48 } }}
                 />
               </Card>
@@ -576,7 +684,7 @@ const EmergencyDisaster: React.FC = () => {
               <Card style={{ backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
                 <Statistic
                   title={<span style={{ color: '#389e0d' }}>XANH - Nhe</span>}
-                  value={greenCount}
+                  value={mciEvent?.minorGreen ?? greenCount}
                   styles={{ content: { color: '#389e0d', fontSize: 48 } }}
                 />
               </Card>
@@ -585,7 +693,7 @@ const EmergencyDisaster: React.FC = () => {
               <Card style={{ backgroundColor: '#f5f5f5', borderColor: '#d9d9d9' }}>
                 <Statistic
                   title="DEN - Tu vong"
-                  value={blackCount}
+                  value={(mciEvent?.expectantBlack ?? 0) + (mciEvent?.deceased ?? blackCount)}
                   styles={{ content: { fontSize: 48 } }}
                 />
               </Card>
@@ -595,7 +703,7 @@ const EmergencyDisaster: React.FC = () => {
           {/* Resources */}
           <Card title="Tai nguyen kha dung" style={{ marginBottom: 24 }}>
             <Row gutter={16}>
-              {resources.slice(0, 4).map(r => (
+              {resourceItems.slice(0, 4).map(r => (
                 <Col span={6} key={r.id}>
                   <Card size="small">
                     <Statistic
@@ -605,7 +713,7 @@ const EmergencyDisaster: React.FC = () => {
                       styles={{ content: { color: r.available < 3 ? '#cf1322' : '#3f8600' } }}
                     />
                     <Progress
-                      percent={Math.round((r.available / r.total) * 100)}
+                      percent={r.total > 0 ? Math.round((r.available / r.total) * 100) : 0}
                       status={r.available < 3 ? 'exception' : 'normal'}
                       size="small"
                     />
@@ -618,50 +726,11 @@ const EmergencyDisaster: React.FC = () => {
 
           {/* Timeline */}
           <Card title="Dien bien su kien">
-            <Timeline
-              items={[
-                {
-                  color: 'red',
-                  content: (
-                    <>
-                      <Text strong>10:30 - Kich hoat CODE ORANGE</Text>
-                      <br />
-                      <Text type="secondary">Tai nan xe bus tren cao toc</Text>
-                    </>
-                  ),
-                },
-                {
-                  color: 'blue',
-                  content: (
-                    <>
-                      <Text strong>10:32 - Huy dong nhan luc</Text>
-                      <br />
-                      <Text type="secondary">12 nhan vien duoc thong bao</Text>
-                    </>
-                  ),
-                },
-                {
-                  color: 'green',
-                  content: (
-                    <>
-                      <Text strong>10:45 - Nan nhan dau tien den</Text>
-                      <br />
-                      <Text type="secondary">Tag R001 - Phan loai DO</Text>
-                    </>
-                  ),
-                },
-                {
-                  color: 'green',
-                  content: (
-                    <>
-                      <Text strong>11:00 - Cap nhat</Text>
-                      <br />
-                      <Text type="secondary">Da tiep nhan 7 nan nhan</Text>
-                    </>
-                  ),
-                },
-              ]}
-            />
+            {timelineItems.length > 0 ? (
+              <Timeline items={timelineItems} />
+            ) : (
+              <Text type="secondary">Chua co dien bien nao</Text>
+            )}
           </Card>
         </div>
       ),
@@ -671,7 +740,7 @@ const EmergencyDisaster: React.FC = () => {
       label: (
         <span>
           <UserOutlined />
-          Nan nhan ({victims.length})
+          Nan nhan ({mciEvent?.totalVictims ?? victims.length})
         </span>
       ),
       children: (
@@ -684,7 +753,7 @@ const EmergencyDisaster: React.FC = () => {
             >
               Them nan nhan
             </Button>
-            <Button icon={<ReloadOutlined />}>
+            <Button icon={<ReloadOutlined />} onClick={fetchData}>
               Lam moi
             </Button>
             <Button icon={<PrinterOutlined />} onClick={handlePrintReport}>
@@ -695,9 +764,10 @@ const EmergencyDisaster: React.FC = () => {
             columns={victimColumns}
             dataSource={victims}
             rowKey="id"
+            loading={loading}
             pagination={{ pageSize: 10 }}
             rowClassName={(record) => {
-              if (record.triageCategory === 'red') return 'ant-table-row-red';
+              if (record.triageCategory === 'Immediate' || record.triageColor === 'red') return 'ant-table-row-red';
               return '';
             }}
             onRow={(record) => ({
@@ -725,14 +795,14 @@ const EmergencyDisaster: React.FC = () => {
             <Col span={12}>
               <Card title="Giuong & Phong">
                 <div>
-                  {resources.filter(r => ['bed', 'icu', 'or'].includes(r.type)).map((item) => (
-                    <div key={item.id || item.name} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  {resourceItems.filter(r => ['bed', 'icu', 'or'].includes(r.type)).map((item) => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 500 }}>{item.name}</div>
                         <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Kha dung: ${item.available} / ${item.total}`}</div>
                       </div>
                       <Progress
-                        percent={Math.round((item.available / item.total) * 100)}
+                        percent={item.total > 0 ? Math.round((item.available / item.total) * 100) : 0}
                         status={item.available < 3 ? 'exception' : 'normal'}
                         style={{ width: 100 }}
                       />
@@ -744,14 +814,14 @@ const EmergencyDisaster: React.FC = () => {
             <Col span={12}>
               <Card title="Mau & Thiet bi">
                 <div>
-                  {resources.filter(r => ['blood', 'ventilator'].includes(r.type)).map((item) => (
-                    <div key={item.id || item.name} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  {resourceItems.filter(r => ['blood', 'ventilator', 'staff'].includes(r.type)).map((item) => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 500 }}>{item.name}</div>
                         <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Kha dung: ${item.available} / ${item.total}`}</div>
                       </div>
                       <Progress
-                        percent={Math.round((item.available / item.total) * 100)}
+                        percent={item.total > 0 ? Math.round((item.available / item.total) * 100) : 0}
                         status={item.available < 10 ? 'exception' : 'normal'}
                         style={{ width: 100 }}
                       />
@@ -769,49 +839,53 @@ const EmergencyDisaster: React.FC = () => {
       label: (
         <span>
           <TeamOutlined />
-          Nhan su ({staff.length})
+          Nhan su ({staffCards.length || (mciEvent?.staffActivated ?? 0)})
         </span>
       ),
       children: (
         <div>
           <Alert
             title="Tinh trang nhan su"
-            description={`${staff.filter(s => s.status === 'arrived').length} nhan vien da co mat, ${staff.filter(s => s.status === 'notified').length} dang tren duong`}
+            description={`${staffCards.filter(s => s.status === 'arrived').length} nhan vien da co mat, ${staffCards.filter(s => s.status === 'notified').length} dang tren duong. Tong da huy dong: ${mciEvent?.staffActivated ?? 0}`}
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
           />
-          <Row gutter={16}>
-            {staff.map((item) => (
-              <Col key={item.id || item.name} span={8} style={{ marginBottom: 16 }}>
-                <Card size="small">
-                  <Card.Meta
-                    avatar={<Avatar icon={<UserOutlined />} />}
-                    title={item.name}
-                    description={
-                      <>
-                        <Text>{item.role} - {item.department}</Text>
-                        <br />
-                        <Tag
-                          color={
-                            item.status === 'arrived' ? 'success' :
-                            item.status === 'on_duty' ? 'processing' :
-                            item.status === 'notified' ? 'warning' : 'default'
-                          }
-                        >
-                          {item.status === 'arrived' ? 'Da co mat' :
-                           item.status === 'on_duty' ? 'Dang truc' :
-                           item.status === 'notified' ? 'Da thong bao' : 'Cho'}
-                        </Tag>
-                        <br />
-                        <PhoneOutlined /> {item.phone}
-                      </>
-                    }
-                  />
-                </Card>
-              </Col>
-            ))}
-          </Row>
+          {staffCards.length > 0 ? (
+            <Row gutter={16}>
+              {staffCards.map((item) => (
+                <Col key={item.id} span={8} style={{ marginBottom: 16 }}>
+                  <Card size="small">
+                    <Card.Meta
+                      avatar={<Avatar icon={<UserOutlined />} />}
+                      title={item.name}
+                      description={
+                        <>
+                          <Text>{item.role} - {item.department}</Text>
+                          <br />
+                          <Tag
+                            color={
+                              item.status === 'arrived' ? 'success' :
+                              item.status === 'on_duty' ? 'processing' :
+                              item.status === 'notified' ? 'warning' : 'default'
+                            }
+                          >
+                            {item.status === 'arrived' ? 'Da co mat' :
+                             item.status === 'on_duty' ? 'Dang truc' :
+                             item.status === 'notified' ? 'Da thong bao' : 'Cho'}
+                          </Tag>
+                          <br />
+                          {item.phone && <><PhoneOutlined /> {item.phone}</>}
+                        </>
+                      }
+                    />
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <Text type="secondary">Chua co du lieu nhan su</Text>
+          )}
         </div>
       ),
     },
@@ -888,257 +962,348 @@ const EmergencyDisaster: React.FC = () => {
   ];
 
   return (
-    <div>
-      {/* Header with MCI Status */}
-      {mciEvent && mciEvent.status === 'active' ? (
-        <Alert
-          title={
-            <Space>
-              <SoundOutlined />
-              <Text strong style={{ fontSize: 18 }}>
-                {getCodeLabel(mciEvent.code)} - DANG HOAT DONG
-              </Text>
-            </Space>
-          }
-          description={
-            <Row gutter={16}>
-              <Col span={8}>
-                <Text>Mo ta: {mciEvent.description}</Text>
+    <Spin spinning={loading}>
+      <div>
+        {/* Header with MCI Status */}
+        {mciEvent && (mciEvent.status === 1 || mciEvent.status === 2) ? (
+          <Alert
+            title={
+              <Space>
+                <SoundOutlined />
+                <Text strong style={{ fontSize: 18 }}>
+                  {getAlertLevelLabel(mciEvent.alertLevel, mciEvent.alertLevelName)} - {mciEvent.statusName || 'DANG HOAT DONG'}
+                </Text>
+              </Space>
+            }
+            description={
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Text>Mo ta: {mciEvent.eventName}</Text>
+                </Col>
+                <Col span={8}>
+                  <Text>Dia diem: {mciEvent.location}</Text>
+                </Col>
+                <Col span={8}>
+                  <Text>Kich hoat: {dayjs(mciEvent.activatedAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
+                </Col>
+              </Row>
+            }
+            type="error"
+            showIcon
+            icon={<AlertOutlined />}
+            action={
+              <Space orientation="vertical">
+                <Button danger onClick={handleEndMCI}>
+                  Ket thuc su kien
+                </Button>
+                <Button onClick={handlePrintReport} icon={<PrinterOutlined />}>
+                  Bao cao
+                </Button>
+                <Button icon={<ReloadOutlined />} onClick={fetchData}>
+                  Lam moi
+                </Button>
+              </Space>
+            }
+            style={{ marginBottom: 24 }}
+          />
+        ) : (
+          <Card style={{ marginBottom: 24 }}>
+            <Row justify="space-between" align="middle">
+              <Col>
+                <Title level={3} style={{ margin: 0 }}>
+                  <AlertOutlined /> Cap cuu Tham hoa (MCI)
+                </Title>
+                <Text type="secondary">Khong co su kien MCI dang hoat dong</Text>
+                {dashboard && (
+                  <div style={{ marginTop: 8 }}>
+                    <Space>
+                      <Text type="secondary">Su kien trong nam: {dashboard.eventsThisYear}</Text>
+                      <Text type="secondary">|</Text>
+                      <Text type="secondary">Nan nhan trong nam: {dashboard.totalVictimsThisYear}</Text>
+                      <Text type="secondary">|</Text>
+                      <Text type="secondary">Diem san sang: {dashboard.readinessScore}%</Text>
+                      <Text type="secondary">|</Text>
+                      <Text type="secondary">Nhan vien truc: {dashboard.staffOnCall}</Text>
+                    </Space>
+                  </div>
+                )}
               </Col>
-              <Col span={8}>
-                <Text>Dia diem: {mciEvent.location}</Text>
-              </Col>
-              <Col span={8}>
-                <Text>Kich hoat: {mciEvent.activatedAt}</Text>
+              <Col>
+                <Space>
+                  <Button icon={<ReloadOutlined />} onClick={fetchData}>
+                    Lam moi
+                  </Button>
+                  <Button
+                    type="primary"
+                    danger
+                    size="large"
+                    icon={<BellOutlined />}
+                    onClick={() => setActivateModalVisible(true)}
+                  >
+                    KICH HOAT MCI
+                  </Button>
+                </Space>
               </Col>
             </Row>
-          }
-          type="error"
-          showIcon
-          icon={<AlertOutlined />}
-          action={
-            <Space orientation="vertical">
-              <Button danger onClick={handleEndMCI}>
-                Ket thuc su kien
-              </Button>
-              <Button onClick={handlePrintReport} icon={<PrinterOutlined />}>
-                Bao cao
-              </Button>
+          </Card>
+        )}
+
+        {/* Main Content */}
+        {mciEvent && (mciEvent.status === 1 || mciEvent.status === 2) && (
+          <Card>
+            <Tabs items={tabItems} />
+          </Card>
+        )}
+
+        {/* Event History when no active event */}
+        {(!mciEvent || (mciEvent.status !== 1 && mciEvent.status !== 2)) && eventHistory.length > 0 && (
+          <Card title="Lich su su kien MCI" style={{ marginTop: 16 }}>
+            <Table
+              dataSource={eventHistory}
+              rowKey="id"
+              pagination={{ pageSize: 5 }}
+              columns={[
+                { title: 'Ma', dataIndex: 'eventCode', key: 'eventCode' },
+                { title: 'Ten su kien', dataIndex: 'eventName', key: 'eventName' },
+                {
+                  title: 'Cap do', dataIndex: 'alertLevel', key: 'alertLevel',
+                  render: (level: number, record: MCIEventDto) => (
+                    <Tag color={getAlertLevelColor(level)}>{record.alertLevelName || `Level ${level}`}</Tag>
+                  ),
+                },
+                { title: 'Dia diem', dataIndex: 'location', key: 'location' },
+                {
+                  title: 'Thoi gian', dataIndex: 'activatedAt', key: 'activatedAt',
+                  render: (val: string) => dayjs(val).format('DD/MM/YYYY HH:mm'),
+                },
+                {
+                  title: 'Nan nhan', dataIndex: 'totalVictims', key: 'totalVictims',
+                },
+                {
+                  title: 'Trang thai', dataIndex: 'statusName', key: 'statusName',
+                  render: (name: string, record: MCIEventDto) => {
+                    const color = record.status === 4 ? 'default' : record.status === 3 ? 'warning' : 'success';
+                    return <Tag color={color}>{name || `Status ${record.status}`}</Tag>;
+                  },
+                },
+              ]}
+            />
+          </Card>
+        )}
+
+        {/* Activate MCI Modal */}
+        <Modal
+          title={
+            <Space>
+              <AlertOutlined style={{ color: '#f5222d' }} />
+              <span>Kich hoat Code Cap cuu Tham hoa</span>
             </Space>
           }
-          style={{ marginBottom: 24 }}
-        />
-      ) : (
-        <Card style={{ marginBottom: 24 }}>
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Title level={3} style={{ margin: 0 }}>
-                <AlertOutlined /> Cap cuu Tham hoa (MCI)
-              </Title>
-              <Text type="secondary">Khong co su kien MCI dang hoat dong</Text>
-            </Col>
-            <Col>
-              <Button
-                type="primary"
-                danger
-                size="large"
-                icon={<BellOutlined />}
-                onClick={() => setActivateModalVisible(true)}
-              >
-                KICH HOAT MCI
-              </Button>
-            </Col>
-          </Row>
-        </Card>
-      )}
+          open={activateModalVisible}
+          onCancel={() => setActivateModalVisible(false)}
+          onOk={() => activateForm.submit()}
+          okText="KICH HOAT"
+          okButtonProps={{ danger: true }}
+          width={600}
+        >
+          <Alert
+            title="Canh bao"
+            description="Kich hoat Code MCI se gui thong bao den tat ca nhan vien va khoi dong quy trinh cap cuu tham hoa."
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          <Form form={activateForm} layout="vertical" onFinish={handleActivateMCI}>
+            <Form.Item name="alertLevel" label="Cap do" rules={[{ required: true, message: 'Vui long chon cap do' }]}>
+              <Select>
+                <Select.Option value={2}>
+                  <Tag color="yellow">CODE YELLOW</Tag> - 5-10 nan nhan
+                </Select.Option>
+                <Select.Option value={3}>
+                  <Tag color="orange">CODE ORANGE</Tag> - 10-50 nan nhan
+                </Select.Option>
+                <Select.Option value={4}>
+                  <Tag color="red">CODE RED</Tag> - {'>'}50 nan nhan hoac CBRN
+                </Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="eventType" label="Loai su kien" rules={[{ required: true, message: 'Vui long chon loai su kien' }]}>
+              <Select>
+                <Select.Option value="Natural">Thien tai</Select.Option>
+                <Select.Option value="Industrial">Cong nghiep</Select.Option>
+                <Select.Option value="Transport">Giao thong</Select.Option>
+                <Select.Option value="Violence">Bao luc</Select.Option>
+                <Select.Option value="Other">Khac</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="description" label="Mo ta su kien" rules={[{ required: true, message: 'Vui long nhap mo ta' }]}>
+              <Input placeholder="VD: Tai nan giao thong, Hoa hoan..." />
+            </Form.Item>
+            <Form.Item name="location" label="Dia diem" rules={[{ required: true, message: 'Vui long nhap dia diem' }]}>
+              <Input placeholder="VD: Cao toc TP.HCM - Long Thanh" />
+            </Form.Item>
+            <Form.Item name="estimatedCasualties" label="So nan nhan du kien">
+              <Input type="number" />
+            </Form.Item>
+          </Form>
+        </Modal>
 
-      {/* Main Content */}
-      {mciEvent && mciEvent.status === 'active' && (
-        <Card>
-          <Tabs items={tabItems} />
-        </Card>
-      )}
+        {/* Add Victim Modal */}
+        <Modal
+          title="Them nan nhan"
+          open={addVictimModalVisible}
+          onCancel={() => setAddVictimModalVisible(false)}
+          onOk={() => victimForm.submit()}
+          width={600}
+        >
+          <Form form={victimForm} layout="vertical" onFinish={handleAddVictim}>
+            <Form.Item
+              name="triageCategory"
+              label="Phan loai START"
+              rules={[{ required: true, message: 'Vui long chon phan loai' }]}
+            >
+              <Select>
+                <Select.Option value="red">
+                  <Tag color="red">DO</Tag> - Cap cuu ngay
+                </Select.Option>
+                <Select.Option value="yellow">
+                  <Tag color="orange">VANG</Tag> - Tri hoan duoc
+                </Select.Option>
+                <Select.Option value="green">
+                  <Tag color="green">XANH</Tag> - Nhe
+                </Select.Option>
+                <Select.Option value="black">
+                  <Tag>DEN</Tag> - Tu vong
+                </Select.Option>
+              </Select>
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="name" label="Ho ten (neu biet)">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="gender" label="Gioi tinh">
+                  <Select>
+                    <Select.Option value="male">Nam</Select.Option>
+                    <Select.Option value="female">Nu</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="estimatedAge" label="Tuoi uoc tinh">
+                  <Input type="number" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="injuries" label="Mo ta thuong tich" rules={[{ required: true, message: 'Vui long nhap mo ta thuong tich' }]}>
+              <TextArea rows={3} />
+            </Form.Item>
+            <Form.Item name="currentLocation" label="Vi tri hien tai" rules={[{ required: true, message: 'Vui long chon vi tri' }]}>
+              <Select>
+                <Select.Option value="Phong mo 1">Phong mo 1</Select.Option>
+                <Select.Option value="Phong mo 2">Phong mo 2</Select.Option>
+                <Select.Option value="ICU">ICU</Select.Option>
+                <Select.Option value="Khu dieu tri 1">Khu dieu tri 1</Select.Option>
+                <Select.Option value="Khu dieu tri 2">Khu dieu tri 2</Select.Option>
+                <Select.Option value="Khu cho">Khu cho</Select.Option>
+                <Select.Option value="Nha xac">Nha xac</Select.Option>
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
 
-      {/* Activate MCI Modal */}
-      <Modal
-        title={
-          <Space>
-            <AlertOutlined style={{ color: '#f5222d' }} />
-            <span>Kich hoat Code Cap cuu Tham hoa</span>
-          </Space>
-        }
-        open={activateModalVisible}
-        onCancel={() => setActivateModalVisible(false)}
-        onOk={() => form.submit()}
-        okText="KICH HOAT"
-        okButtonProps={{ danger: true }}
-        width={600}
-      >
-        <Alert
-          title="Canh bao"
-          description="Kich hoat Code MCI se gui thong bao den tat ca nhan vien va khoi dong quy trinh cap cuu tham hoa."
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-        <Form form={form} layout="vertical" onFinish={handleActivateMCI}>
-          <Form.Item name="code" label="Cap do" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="yellow">
-                <Tag color="yellow">CODE YELLOW</Tag> - 5-10 nan nhan
-              </Select.Option>
-              <Select.Option value="orange">
-                <Tag color="orange">CODE ORANGE</Tag> - 10-50 nan nhan
-              </Select.Option>
-              <Select.Option value="red">
-                <Tag color="red">CODE RED</Tag> - {'>'}50 nan nhan hoac CBRN
-              </Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="description" label="Mo ta su kien" rules={[{ required: true }]}>
-            <Input placeholder="VD: Tai nan giao thong, Hoa hoan..." />
-          </Form.Item>
-          <Form.Item name="location" label="Dia diem" rules={[{ required: true }]}>
-            <Input placeholder="VD: Cao toc TP.HCM - Long Thanh" />
-          </Form.Item>
-          <Form.Item name="estimatedVictims" label="So nan nhan du kien">
-            <Input type="number" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Add Victim Modal */}
-      <Modal
-        title="Them nan nhan"
-        open={addVictimModalVisible}
-        onCancel={() => setAddVictimModalVisible(false)}
-        onOk={() => form.submit()}
-        width={600}
-      >
-        <Form form={form} layout="vertical" onFinish={handleAddVictim}>
-          <Form.Item
-            name="triageCategory"
-            label="Phan loai START"
-            rules={[{ required: true }]}
-          >
-            <Select>
-              <Select.Option value="red">
-                <Tag color="red">DO</Tag> - Cap cuu ngay
-              </Select.Option>
-              <Select.Option value="yellow">
-                <Tag color="orange">VANG</Tag> - Tri hoan duoc
-              </Select.Option>
-              <Select.Option value="green">
-                <Tag color="green">XANH</Tag> - Nhe
-              </Select.Option>
-              <Select.Option value="black">
-                <Tag>DEN</Tag> - Tu vong
-              </Select.Option>
-            </Select>
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="name" label="Ho ten (neu biet)">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="gender" label="Gioi tinh">
-                <Select>
-                  <Select.Option value="male">Nam</Select.Option>
-                  <Select.Option value="female">Nu</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="estimatedAge" label="Tuoi uoc tinh">
-                <Input type="number" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="injuries" label="Mo ta thuong tich" rules={[{ required: true }]}>
-            <TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="currentLocation" label="Vi tri hien tai" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="Phong mo 1">Phong mo 1</Select.Option>
-              <Select.Option value="Phong mo 2">Phong mo 2</Select.Option>
-              <Select.Option value="ICU">ICU</Select.Option>
-              <Select.Option value="Khu dieu tri 1">Khu dieu tri 1</Select.Option>
-              <Select.Option value="Khu dieu tri 2">Khu dieu tri 2</Select.Option>
-              <Select.Option value="Khu cho">Khu cho</Select.Option>
-              <Select.Option value="Nha xac">Nha xac</Select.Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Victim Detail Modal */}
-      <Modal
-        title="Chi tiet nan nhan"
-        open={victimDetailModalVisible}
-        onCancel={() => setVictimDetailModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setVictimDetailModalVisible(false)}>
-            Dong
-          </Button>,
-          <Button key="print" icon={<PrinterOutlined />}>
-            In the
-          </Button>,
-        ]}
-        width={700}
-      >
-        {selectedVictim && (
-          <Descriptions bordered column={2}>
-            <Descriptions.Item label="Tag" span={1}>
-              <Tag
-                color={getTriageColor(selectedVictim.triageCategory)}
-                style={{ fontSize: 16, fontWeight: 'bold' }}
-              >
-                {selectedVictim.tagNumber}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Phan loai" span={1}>
-              <Badge
-                color={getTriageColor(selectedVictim.triageCategory)}
-                text={getTriageLabel(selectedVictim.triageCategory)}
-              />
-            </Descriptions.Item>
-            <Descriptions.Item label="Ho ten" span={1}>
-              {selectedVictim.name || 'Chua xac dinh'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Gioi tinh" span={1}>
-              {selectedVictim.gender === 'male' ? 'Nam' : selectedVictim.gender === 'female' ? 'Nu' : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Tuoi uoc tinh" span={1}>
-              {selectedVictim.estimatedAge || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Thoi gian den" span={1}>
-              {selectedVictim.arrivalTime}
-            </Descriptions.Item>
-            <Descriptions.Item label="Thuong tich" span={2}>
-              {selectedVictim.injuries}
-            </Descriptions.Item>
-            <Descriptions.Item label="Vi tri hien tai" span={1}>
-              {selectedVictim.currentLocation}
-            </Descriptions.Item>
-            <Descriptions.Item label="Trang thai" span={1}>
-              {getStatusTag(selectedVictim.status)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Bac si phu trach" span={1}>
-              {selectedVictim.assignedDoctor || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Lien lac gia dinh" span={1}>
-              {selectedVictim.familyContacted ? (
-                <Tag color="success">Da lien lac: {selectedVictim.familyPhone}</Tag>
-              ) : (
-                <Tag color="warning">Chua lien lac</Tag>
+        {/* Victim Detail Modal */}
+        <Modal
+          title="Chi tiet nan nhan"
+          open={victimDetailModalVisible}
+          onCancel={() => setVictimDetailModalVisible(false)}
+          footer={[
+            <Button key="close" onClick={() => setVictimDetailModalVisible(false)}>
+              Dong
+            </Button>,
+            <Button key="print" icon={<PrinterOutlined />}>
+              In the
+            </Button>,
+          ]}
+          width={700}
+        >
+          {selectedVictim && (
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Tag" span={1}>
+                <Tag
+                  color={getTriageColor(selectedVictim.triageCategory, selectedVictim.triageColor)}
+                  style={{ fontSize: 16, fontWeight: 'bold' }}
+                >
+                  {selectedVictim.victimCode || selectedVictim.temporaryId}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Phan loai" span={1}>
+                <Badge
+                  color={getTriageColor(selectedVictim.triageCategory, selectedVictim.triageColor)}
+                  text={getTriageLabel(selectedVictim.triageCategory, selectedVictim.triageCategoryName)}
+                />
+              </Descriptions.Item>
+              <Descriptions.Item label="Ho ten" span={1}>
+                {selectedVictim.fullName || 'Chua xac dinh'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Gioi tinh" span={1}>
+                {selectedVictim.gender === 'male' ? 'Nam' : selectedVictim.gender === 'female' ? 'Nu' : selectedVictim.gender || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tuoi uoc tinh" span={1}>
+                {selectedVictim.estimatedAge || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thoi gian den" span={1}>
+                {selectedVictim.arrivalTime ? dayjs(selectedVictim.arrivalTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thuong tich" span={2}>
+                {selectedVictim.injuries ? selectedVictim.injuries.join(', ') : selectedVictim.chiefComplaint || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Vi tri hien tai" span={1}>
+                {selectedVictim.assignedAreaName || selectedVictim.assignedArea || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Trang thai" span={1}>
+                {selectedVictim.disposition
+                  ? getDispositionTag(selectedVictim.disposition, selectedVictim.dispositionName)
+                  : getStatusTag(selectedVictim.status, selectedVictim.statusName)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Bac si phu trach" span={1}>
+                {selectedVictim.attendingDoctorName || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Lien lac gia dinh" span={1}>
+                {selectedVictim.familyNotified ? (
+                  <Tag color="success">Da lien lac: {selectedVictim.familyContactPhone || selectedVictim.familyContactName}</Tag>
+                ) : (
+                  <Tag color="warning">Chua lien lac</Tag>
+                )}
+              </Descriptions.Item>
+              {selectedVictim.vitalSigns && (
+                <>
+                  <Descriptions.Item label="Huyet ap" span={1}>
+                    {selectedVictim.vitalSigns.bloodPressure || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Nhip tim" span={1}>
+                    {selectedVictim.vitalSigns.heartRate ? `${selectedVictim.vitalSigns.heartRate} bpm` : '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="SpO2" span={1}>
+                    {selectedVictim.vitalSigns.oxygenSaturation ? `${selectedVictim.vitalSigns.oxygenSaturation}%` : '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="GCS" span={1}>
+                    {selectedVictim.gcsScore || '-'}
+                  </Descriptions.Item>
+                </>
               )}
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Modal>
-    </div>
+              {selectedVictim.treatmentNotes && (
+                <Descriptions.Item label="Ghi chu dieu tri" span={2}>
+                  {selectedVictim.treatmentNotes}
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+          )}
+        </Modal>
+      </div>
+    </Spin>
   );
 };
 

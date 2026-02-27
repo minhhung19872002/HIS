@@ -340,6 +340,51 @@ public class HISDbContext : DbContext
             .HasForeignKey(c => c.SecretaryUserId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Fix LabRequest FKs: navigation property name doesn't match FK column convention
+        modelBuilder.Entity<LabRequest>()
+            .HasOne(r => r.ApprovedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.ApprovedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+        // Ignore CreatedByUser navigation - CreatedBy is string? (BaseEntity) with ValueConverter,
+        // cannot be used directly as FK to User.Id (Guid) without type conflict
+        modelBuilder.Entity<LabRequest>()
+            .Ignore(r => r.CreatedByUser);
+
+        // Fix LabRequestItem FKs
+        modelBuilder.Entity<LabRequestItem>()
+            .HasOne(i => i.CollectedByUser)
+            .WithMany()
+            .HasForeignKey(i => i.SampleCollectedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<LabRequestItem>()
+            .HasOne(i => i.ProcessedByUser)
+            .WithMany()
+            .HasForeignKey(i => i.ProcessedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<LabRequestItem>()
+            .HasOne(i => i.ApprovedByUser)
+            .WithMany()
+            .HasForeignKey(i => i.ApprovedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<LabRequestItem>()
+            .HasOne(i => i.RejectedByUser)
+            .WithMany()
+            .HasForeignKey(i => i.RejectedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Fix LabResult FKs
+        modelBuilder.Entity<LabResult>()
+            .HasOne(r => r.ResultedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.ResultedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<LabResult>()
+            .HasOne(r => r.ApprovedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.ApprovedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
         // Handle legacy uniqueidentifier columns stored in CreatedBy/UpdatedBy
         // Many tables have uniqueidentifier type for these columns but entity uses string?
         var stringToGuidConverter = new ValueConverter<string?, Guid?>(
@@ -351,6 +396,7 @@ public class HISDbContext : DbContext
         {
             "Prescription", "PrescriptionDetail", "Medicine",
             "CAPA", "DicomStudy", "DietOrder", "ElectronicReferral",
+            "LabRequest", "LabRequestItem", "LabResult", "Notification",
             "HAICase", "HIEConnection", "IncidentReport", "InsuranceXMLSubmission",
             "IsolationOrder", "MCIEvent", "MCISituationReport", "MCIVictim",
             "MedicalEquipment", "MedicalStaff", "NutritionScreening", "Outbreak",

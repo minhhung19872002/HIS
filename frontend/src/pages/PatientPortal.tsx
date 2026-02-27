@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
@@ -23,6 +23,7 @@ import {
   Rate,
   Badge,
   Result,
+  Spin,
 } from 'antd';
 import {
   UserOutlined,
@@ -33,363 +34,343 @@ import {
   StarOutlined,
   BellOutlined,
   HistoryOutlined,
-  QrcodeOutlined,
-  PrinterOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import {
+  getAccount,
+  getMyAppointments,
+  bookAppointment,
+  getLabResults,
+  getBills,
+  getFeedbacks,
+  submitFeedback,
+  getDashboard,
+  getNotifications,
+  getDepartments,
+  getDoctors,
+  markNotificationRead,
+} from '../api/patientPortal';
+import type {
+  PatientAccountDto,
+  OnlineAppointmentDto,
+  LabResultDto,
+  BillSummaryDto,
+  FeedbackDto,
+  NotificationDto,
+  DepartmentInfoDto,
+  DoctorInfoDto,
+  PatientPortalDashboardDto,
+} from '../api/patientPortal';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-// Types
-interface PatientAccount {
-  id: string;
-  patientId: string;
-  fullName: string;
-  phone: string;
-  email: string;
-  dateOfBirth: string;
-  gender: 'male' | 'female';
-  address: string;
-  idNumber: string;
-  insuranceNumber?: string;
-  registeredDate: string;
-  lastLoginDate?: string;
-  status: 'active' | 'inactive' | 'pending';
-}
-
-interface Appointment {
-  id: string;
-  patientId: string;
-  doctorName: string;
-  specialty: string;
-  appointmentDate: string;
-  appointmentTime: string;
-  type: 'new' | 'follow_up' | 'telemedicine';
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
-  notes?: string;
-}
-
-interface LabResult {
-  id: string;
-  patientId: string;
-  testName: string;
-  testDate: string;
-  resultDate: string;
-  status: 'pending' | 'completed';
-  downloadUrl?: string;
-}
-
-interface Bill {
-  id: string;
-  patientId: string;
-  visitDate: string;
-  totalAmount: number;
-  paidAmount: number;
-  insuranceCovered: number;
-  status: 'pending' | 'partial' | 'paid';
-  services: string[];
-}
-
-interface Feedback {
-  id: string;
-  patientId: string;
-  patientName: string;
-  visitDate: string;
-  department: string;
-  rating: number;
-  comment: string;
-  submittedDate: string;
-  response?: string;
-}
-
-// Mock data
-const mockPatients: PatientAccount[] = [
-  {
-    id: 'PA001',
-    patientId: 'P001',
-    fullName: 'Nguyen Van A',
-    phone: '0901234567',
-    email: 'nguyenvana@email.com',
-    dateOfBirth: '1985-05-15',
-    gender: 'male',
-    address: '123 Nguyen Hue, Q1, TP.HCM',
-    idNumber: '0123456789012',
-    insuranceNumber: 'HS123456789',
-    registeredDate: '2023-06-15',
-    lastLoginDate: dayjs().format('YYYY-MM-DD'),
-    status: 'active',
-  },
-  {
-    id: 'PA002',
-    patientId: 'P002',
-    fullName: 'Tran Thi B',
-    phone: '0902345678',
-    email: 'tranthib@email.com',
-    dateOfBirth: '1990-08-20',
-    gender: 'female',
-    address: '456 Le Loi, Q3, TP.HCM',
-    idNumber: '0234567890123',
-    registeredDate: '2024-01-10',
-    status: 'active',
-  },
-];
-
-const mockAppointments: Appointment[] = [
-  {
-    id: 'APT001',
-    patientId: 'P001',
-    doctorName: 'BS. Nguyen Van X',
-    specialty: 'Noi khoa',
-    appointmentDate: dayjs().add(3, 'day').format('YYYY-MM-DD'),
-    appointmentTime: '09:00',
-    type: 'follow_up',
-    status: 'confirmed',
-    notes: 'Tai kham huyet ap',
-  },
-  {
-    id: 'APT002',
-    patientId: 'P001',
-    doctorName: 'BS. Tran Thi Y',
-    specialty: 'Tim mach',
-    appointmentDate: dayjs().add(7, 'day').format('YYYY-MM-DD'),
-    appointmentTime: '14:00',
-    type: 'new',
-    status: 'scheduled',
-  },
-];
-
-const mockLabResults: LabResult[] = [
-  {
-    id: 'LR001',
-    patientId: 'P001',
-    testName: 'Cong thuc mau',
-    testDate: dayjs().subtract(5, 'day').format('YYYY-MM-DD'),
-    resultDate: dayjs().subtract(4, 'day').format('YYYY-MM-DD'),
-    status: 'completed',
-    downloadUrl: '/results/LR001.pdf',
-  },
-  {
-    id: 'LR002',
-    patientId: 'P001',
-    testName: 'Sinh hoa mau',
-    testDate: dayjs().subtract(5, 'day').format('YYYY-MM-DD'),
-    resultDate: dayjs().subtract(4, 'day').format('YYYY-MM-DD'),
-    status: 'completed',
-    downloadUrl: '/results/LR002.pdf',
-  },
-  {
-    id: 'LR003',
-    patientId: 'P001',
-    testName: 'Xquang nguc',
-    testDate: dayjs().format('YYYY-MM-DD'),
-    resultDate: '',
-    status: 'pending',
-  },
-];
-
-const mockBills: Bill[] = [
-  {
-    id: 'BILL001',
-    patientId: 'P001',
-    visitDate: dayjs().subtract(5, 'day').format('YYYY-MM-DD'),
-    totalAmount: 1500000,
-    paidAmount: 1500000,
-    insuranceCovered: 1200000,
-    status: 'paid',
-    services: ['Kham benh', 'Xet nghiem mau', 'Thuoc'],
-  },
-  {
-    id: 'BILL002',
-    patientId: 'P001',
-    visitDate: dayjs().format('YYYY-MM-DD'),
-    totalAmount: 800000,
-    paidAmount: 0,
-    insuranceCovered: 0,
-    status: 'pending',
-    services: ['Xquang nguc'],
-  },
-];
-
-const mockFeedbacks: Feedback[] = [
-  {
-    id: 'FB001',
-    patientId: 'P002',
-    patientName: 'Tran Thi B',
-    visitDate: dayjs().subtract(3, 'day').format('YYYY-MM-DD'),
-    department: 'Noi khoa',
-    rating: 4,
-    comment: 'Bac si than thien, phong kham sach se. Tuy nhien thoi gian cho kha lau.',
-    submittedDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD'),
-    response: 'Cam on quy khach da gop y. Chung toi se cai thien thoi gian cho.',
-  },
-];
-
 const PatientPortal: React.FC = () => {
-  const [patients] = useState<PatientAccount[]>(mockPatients);
-  const [appointments] = useState<Appointment[]>(mockAppointments);
-  const [labResults] = useState<LabResult[]>(mockLabResults);
-  const [bills] = useState<Bill[]>(mockBills);
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>(mockFeedbacks);
-  const [selectedPatient, setSelectedPatient] = useState<PatientAccount | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [account, setAccount] = useState<PatientAccountDto | null>(null);
+  const [appointments, setAppointments] = useState<OnlineAppointmentDto[]>([]);
+  const [labResults, setLabResults] = useState<LabResultDto[]>([]);
+  const [bills, setBills] = useState<BillSummaryDto[]>([]);
+  const [feedbacks, setFeedbacks] = useState<FeedbackDto[]>([]);
+  const [notifications, setNotifications] = useState<NotificationDto[]>([]);
+  const [departments, setDepartments] = useState<DepartmentInfoDto[]>([]);
+  const [doctors, setDoctors] = useState<DoctorInfoDto[]>([]);
+  const [dashboard, setDashboard] = useState<PatientPortalDashboardDto | null>(null);
+
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isPatientViewOpen, setIsPatientViewOpen] = useState(false);
   const [appointmentForm] = Form.useForm();
   const [feedbackForm] = Form.useForm();
 
-  // Statistics
-  const activePatients = patients.filter((p) => p.status === 'active').length;
-  const upcomingAppointments = appointments.filter((a) => a.status === 'scheduled' || a.status === 'confirmed').length;
-  const pendingResults = labResults.filter((r) => r.status === 'pending').length;
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [
+        accountRes,
+        appointmentsRes,
+        labRes,
+        billsRes,
+        feedbacksRes,
+        dashboardRes,
+        notificationsRes,
+        departmentsRes,
+        doctorsRes,
+      ] = await Promise.allSettled([
+        getAccount(),
+        getMyAppointments(),
+        getLabResults(),
+        getBills(),
+        getFeedbacks(),
+        getDashboard(),
+        getNotifications(false, 1, 20),
+        getDepartments(),
+        getDoctors(),
+      ]);
 
-  const getStatusTag = (status: PatientAccount['status']) => {
-    const config = {
-      active: { color: 'green', text: 'Hoat dong' },
-      inactive: { color: 'red', text: 'Tam khoa' },
-      pending: { color: 'orange', text: 'Cho xac thuc' },
+      if (accountRes.status === 'fulfilled') {
+        setAccount(accountRes.value.data ?? null);
+      }
+      if (appointmentsRes.status === 'fulfilled') {
+        setAppointments(appointmentsRes.value.data ?? []);
+      }
+      if (labRes.status === 'fulfilled') {
+        setLabResults(labRes.value.data ?? []);
+      }
+      if (billsRes.status === 'fulfilled') {
+        setBills(billsRes.value.data ?? []);
+      }
+      if (feedbacksRes.status === 'fulfilled') {
+        setFeedbacks(feedbacksRes.value.data ?? []);
+      }
+      if (dashboardRes.status === 'fulfilled') {
+        setDashboard(dashboardRes.value.data ?? null);
+      }
+      if (notificationsRes.status === 'fulfilled') {
+        const nData = notificationsRes.value.data;
+        setNotifications(Array.isArray(nData) ? nData : (nData as any)?.items ?? []);
+      }
+      if (departmentsRes.status === 'fulfilled') {
+        setDepartments(departmentsRes.value.data ?? []);
+      }
+      if (doctorsRes.status === 'fulfilled') {
+        setDoctors(doctorsRes.value.data ?? []);
+      }
+    } catch {
+      message.warning('Khong the tai du lieu cong benh nhan');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Statistics from dashboard or computed from local data
+  const upcomingAppointments = dashboard?.upcomingAppointments?.length
+    ?? appointments.filter((a) => a.status === 1 || a.status === 2).length;
+  const pendingResults = dashboard?.pendingLabResults
+    ?? labResults.filter((r) => r.status === 'Pending').length;
+  const outstandingBalance = dashboard?.outstandingBalance ?? 0;
+
+  const getAccountStatusTag = (status: number) => {
+    const config: Record<number, { color: string; text: string }> = {
+      1: { color: 'green', text: 'Hoat dong' },
+      2: { color: 'red', text: 'Tam khoa' },
+      3: { color: 'default', text: 'Vo hieu hoa' },
     };
-    const c = config[status];
+    const c = config[status] || { color: 'default', text: 'Khong ro' };
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
-  const handleBookAppointment = (values: any) => {
-    message.success('Da dat lich hen thanh cong');
-    setIsAppointmentModalOpen(false);
-    appointmentForm.resetFields();
+  const handleBookAppointment = async (values: any) => {
+    try {
+      await bookAppointment({
+        appointmentType: values.type,
+        departmentId: values.departmentId,
+        specialtyId: values.specialtyId,
+        doctorId: values.doctorId,
+        preferredDate: values.date ? dayjs(values.date).format('YYYY-MM-DD') : '',
+        preferredTime: values.time || '',
+        chiefComplaint: values.notes,
+        isFirstVisit: values.type === 'NewVisit',
+        insuranceUsed: false,
+        notes: values.notes,
+      });
+      message.success('Da dat lich hen thanh cong');
+      setIsAppointmentModalOpen(false);
+      appointmentForm.resetFields();
+      // Refresh appointments
+      try {
+        const res = await getMyAppointments();
+        setAppointments(res.data ?? []);
+      } catch { /* ignore refresh error */ }
+    } catch {
+      message.warning('Khong the dat lich hen. Vui long thu lai.');
+    }
   };
 
-  const handleSubmitFeedback = (values: any) => {
-    const newFeedback: Feedback = {
-      id: `FB${Date.now()}`,
-      patientId: selectedPatient?.patientId || '',
-      patientName: selectedPatient?.fullName || '',
-      visitDate: values.visitDate.format('YYYY-MM-DD'),
-      department: values.department,
-      rating: values.rating,
-      comment: values.comment,
-      submittedDate: dayjs().format('YYYY-MM-DD'),
-    };
-
-    setFeedbacks((prev) => [...prev, newFeedback]);
-    setIsFeedbackModalOpen(false);
-    feedbackForm.resetFields();
-    message.success('Cam on quy khach da gop y');
+  const handleSubmitFeedback = async (values: any) => {
+    try {
+      await submitFeedback({
+        feedbackType: 'General',
+        category: 'Service',
+        departmentId: values.departmentId,
+        subject: values.department || 'Danh gia dich vu',
+        message: values.comment,
+        rating: values.rating,
+        visitId: values.visitId,
+      });
+      message.success('Cam on quy khach da gop y');
+      setIsFeedbackModalOpen(false);
+      feedbackForm.resetFields();
+      // Refresh feedbacks
+      try {
+        const res = await getFeedbacks();
+        setFeedbacks(res.data ?? []);
+      } catch { /* ignore refresh error */ }
+    } catch {
+      message.warning('Khong the gui danh gia. Vui long thu lai.');
+    }
   };
 
-  const patientColumns: ColumnsType<PatientAccount> = [
-    {
-      title: 'Benh nhan',
-      key: 'patient',
-      render: (_, record) => (
-        <Space>
-          <Avatar icon={<UserOutlined />} />
-          <Space orientation="vertical" size={0}>
-            <Text strong>{record.fullName}</Text>
-            <Text type="secondary">{record.phone}</Text>
-          </Space>
-        </Space>
-      ),
-    },
-    {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-    },
-    {
-      title: 'BHYT',
-      dataIndex: 'insuranceNumber',
-      key: 'insuranceNumber',
-      render: (num) => num || <Text type="secondary">Khong co</Text>,
-    },
-    {
-      title: 'Ngay dang ky',
-      dataIndex: 'registeredDate',
-      key: 'registeredDate',
-    },
-    {
-      title: 'Dang nhap gan nhat',
-      dataIndex: 'lastLoginDate',
-      key: 'lastLoginDate',
-      render: (date) => date || '-',
-    },
-    {
-      title: 'Trang thai',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => getStatusTag(status),
-    },
-    {
-      title: 'Thao tac',
-      key: 'action',
-      render: (_, record) => (
-        <Button
-          size="small"
-          onClick={() => {
-            setSelectedPatient(record);
-            setIsPatientViewOpen(true);
-          }}
-        >
-          Xem
-        </Button>
-      ),
-    },
-  ];
+  const handleMarkNotificationRead = async (id: string) => {
+    try {
+      await markNotificationRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      );
+    } catch { /* ignore */ }
+  };
 
-  const appointmentColumns: ColumnsType<Appointment> = [
+  const appointmentColumns: ColumnsType<OnlineAppointmentDto> = [
     {
       title: 'Ngay',
-      dataIndex: 'appointmentDate',
-      key: 'appointmentDate',
+      dataIndex: 'preferredDate',
+      key: 'preferredDate',
+      render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
     },
     {
       title: 'Gio',
-      dataIndex: 'appointmentTime',
-      key: 'appointmentTime',
+      dataIndex: 'preferredTime',
+      key: 'preferredTime',
     },
     {
       title: 'Bac si',
       dataIndex: 'doctorName',
       key: 'doctorName',
+      render: (val) => val || '-',
     },
     {
-      title: 'Chuyen khoa',
-      dataIndex: 'specialty',
-      key: 'specialty',
+      title: 'Khoa',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
     },
     {
       title: 'Loai',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type) => {
-        const labels: Record<string, string> = {
-          new: 'Kham moi',
-          follow_up: 'Tai kham',
-          telemedicine: 'Tu xa',
-        };
-        return labels[type];
-      },
+      dataIndex: 'appointmentTypeName',
+      key: 'appointmentTypeName',
+      render: (val) => val || '-',
     },
     {
       title: 'Trang thai',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => {
-        const config: Record<string, { color: string; text: string }> = {
-          scheduled: { color: 'blue', text: 'Da dat' },
-          confirmed: { color: 'green', text: 'Xac nhan' },
-          completed: { color: 'default', text: 'Hoan thanh' },
-          cancelled: { color: 'red', text: 'Da huy' },
-          no_show: { color: 'volcano', text: 'Vang mat' },
+      render: (status: number, record) => {
+        const config: Record<number, { color: string; text: string }> = {
+          1: { color: 'blue', text: 'Yeu cau' },
+          2: { color: 'green', text: 'Xac nhan' },
+          3: { color: 'cyan', text: 'Da check-in' },
+          4: { color: 'default', text: 'Hoan thanh' },
+          5: { color: 'red', text: 'Da huy' },
+          6: { color: 'volcano', text: 'Vang mat' },
         };
-        const c = config[status];
+        const c = config[status] || { color: 'default', text: record.statusName || 'N/A' };
         return <Tag color={c.color}>{c.text}</Tag>;
       },
     },
   ];
 
-  const feedbackColumns: ColumnsType<Feedback> = [
+  const labResultColumns: ColumnsType<LabResultDto> = [
+    {
+      title: 'Ten xet nghiem',
+      dataIndex: 'testName',
+      key: 'testName',
+    },
+    {
+      title: 'Loai',
+      dataIndex: 'testCategory',
+      key: 'testCategory',
+    },
+    {
+      title: 'Ngay lam',
+      dataIndex: 'testDate',
+      key: 'testDate',
+      render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
+    },
+    {
+      title: 'BS chi dinh',
+      dataIndex: 'orderingDoctor',
+      key: 'orderingDoctor',
+    },
+    {
+      title: 'Trang thai',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string, record) => {
+        const color = status === 'Final' ? 'green' : status === 'Partial' ? 'orange' : 'blue';
+        return <Tag color={color}>{record.statusName || status}</Tag>;
+      },
+    },
+    {
+      title: 'Bat thuong',
+      dataIndex: 'isAbnormal',
+      key: 'isAbnormal',
+      render: (val) => val ? <Tag color="red">Co</Tag> : <Tag color="green">Khong</Tag>,
+    },
+  ];
+
+  const billColumns: ColumnsType<BillSummaryDto> = [
+    {
+      title: 'Ma hoa don',
+      dataIndex: 'billCode',
+      key: 'billCode',
+    },
+    {
+      title: 'Ngay',
+      dataIndex: 'billDate',
+      key: 'billDate',
+      render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
+    },
+    {
+      title: 'Khoa',
+      dataIndex: 'department',
+      key: 'department',
+      render: (val) => val || '-',
+    },
+    {
+      title: 'Tong tien',
+      dataIndex: 'subtotal',
+      key: 'subtotal',
+      render: (val) => `${(val ?? 0).toLocaleString('vi-VN')} VND`,
+    },
+    {
+      title: 'BHYT chi tra',
+      dataIndex: 'insuranceCoverage',
+      key: 'insuranceCoverage',
+      render: (val) => `${(val ?? 0).toLocaleString('vi-VN')} VND`,
+    },
+    {
+      title: 'BN tra',
+      dataIndex: 'patientResponsibility',
+      key: 'patientResponsibility',
+      render: (val) => `${(val ?? 0).toLocaleString('vi-VN')} VND`,
+    },
+    {
+      title: 'Con no',
+      dataIndex: 'amountDue',
+      key: 'amountDue',
+      render: (val) => (
+        <Text strong style={{ color: val > 0 ? '#ff4d4f' : '#52c41a' }}>
+          {(val ?? 0).toLocaleString('vi-VN')} VND
+        </Text>
+      ),
+    },
+    {
+      title: 'Trang thai',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string, record) => {
+        const color = status === 'Paid' ? 'green' : status === 'Overdue' ? 'red' : status === 'PartialPaid' ? 'orange' : 'blue';
+        return <Tag color={color}>{record.statusName || status}</Tag>;
+      },
+    },
+  ];
+
+  const feedbackColumns: ColumnsType<FeedbackDto> = [
     {
       title: 'Benh nhan',
       dataIndex: 'patientName',
@@ -397,31 +378,46 @@ const PatientPortal: React.FC = () => {
     },
     {
       title: 'Khoa',
-      dataIndex: 'department',
-      key: 'department',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
+      render: (val) => val || '-',
     },
     {
-      title: 'Ngay kham',
-      dataIndex: 'visitDate',
-      key: 'visitDate',
+      title: 'Loai',
+      dataIndex: 'feedbackTypeName',
+      key: 'feedbackTypeName',
+    },
+    {
+      title: 'Chu de',
+      dataIndex: 'subject',
+      key: 'subject',
+      ellipsis: true,
     },
     {
       title: 'Diem',
       dataIndex: 'rating',
       key: 'rating',
-      render: (rating) => <Rate disabled defaultValue={rating} />,
+      render: (rating) => rating ? <Rate disabled defaultValue={rating} /> : '-',
     },
     {
-      title: 'Noi dung',
-      dataIndex: 'comment',
-      key: 'comment',
-      ellipsis: true,
+      title: 'Trang thai',
+      key: 'status',
+      render: (_, record) => {
+        const config: Record<number, { color: string; text: string }> = {
+          1: { color: 'blue', text: 'Da gui' },
+          2: { color: 'orange', text: 'Dang xu ly' },
+          3: { color: 'green', text: 'Da giai quyet' },
+          4: { color: 'default', text: 'Da dong' },
+        };
+        const c = config[record.status] || { color: 'default', text: record.statusName || 'N/A' };
+        return <Tag color={c.color}>{c.text}</Tag>;
+      },
     },
     {
-      title: 'Da phan hoi',
+      title: 'Phan hoi',
       key: 'response',
       render: (_, record) =>
-        record.response ? (
+        record.responseMessage ? (
           <Tag color="green">Da phan hoi</Tag>
         ) : (
           <Tag color="orange">Chua phan hoi</Tag>
@@ -429,460 +425,585 @@ const PatientPortal: React.FC = () => {
     },
   ];
 
+  // Compute feedback statistics
+  const avgRating = feedbacks.length > 0
+    ? feedbacks.filter((f) => f.rating).reduce((sum, f) => sum + (f.rating ?? 0), 0) / feedbacks.filter((f) => f.rating).length
+    : 0;
+  const responseRate = feedbacks.length > 0
+    ? Math.round((feedbacks.filter((f) => f.responseMessage).length / feedbacks.length) * 100)
+    : 0;
+
   return (
-    <div>
-      <Title level={4}>Cong benh nhan (Patient Portal)</Title>
+    <Spin spinning={loading}>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>Cong benh nhan (Patient Portal)</Title>
+          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
+            Lam moi
+          </Button>
+        </div>
 
-      {/* Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Tai khoan hoat dong"
-              value={activePatients}
-              prefix={<UserOutlined style={{ color: '#52c41a' }} />}
-              styles={{ content: { color: '#52c41a' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Lich hen sap toi"
-              value={upcomingAppointments}
-              prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
-              styles={{ content: { color: '#1890ff' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Ket qua cho tra"
-              value={pendingResults}
-              prefix={<FileTextOutlined style={{ color: '#faad14' }} />}
-              styles={{ content: { color: '#faad14' } }}
-            />
-          </Card>
-        </Col>
-      </Row>
+        {/* Statistics */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Tai khoan"
+                value={account ? 1 : 0}
+                prefix={<UserOutlined style={{ color: '#52c41a' }} />}
+                styles={{ content: { color: '#52c41a' } }}
+                suffix={account ? <Tag color="green" style={{ marginLeft: 8, fontSize: 12 }}>{account.accountStatusName || 'Active'}</Tag> : undefined}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Lich hen sap toi"
+                value={upcomingAppointments}
+                prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
+                styles={{ content: { color: '#1890ff' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Ket qua cho tra"
+                value={pendingResults}
+                prefix={<FileTextOutlined style={{ color: '#faad14' }} />}
+                styles={{ content: { color: '#faad14' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Cong no"
+                value={outstandingBalance}
+                prefix={<CreditCardOutlined style={{ color: '#ff4d4f' }} />}
+                styles={{ content: { color: outstandingBalance > 0 ? '#ff4d4f' : '#52c41a' } }}
+                formatter={(val) => `${Number(val).toLocaleString('vi-VN')} VND`}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-      {/* Main Content */}
-      <Card>
-        <Tabs
-          defaultActiveKey="patients"
-          items={[
-            {
-              key: 'patients',
-              label: 'Tai khoan benh nhan',
-              children: (
-                <Table
-                  columns={patientColumns}
-                  dataSource={patients}
-                  rowKey="id"
-                  onRow={(record) => ({
-                    onDoubleClick: () => {
-                      setSelectedPatient(record);
-                      setIsPatientViewOpen(true);
-                    },
-                    style: { cursor: 'pointer' },
-                  })}
-                />
-              ),
-            },
-            {
-              key: 'appointments',
-              label: 'Lich hen',
-              children: (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<CalendarOutlined />}
-                    style={{ marginBottom: 16 }}
-                    onClick={() => setIsAppointmentModalOpen(true)}
-                  >
-                    Dat lich moi
-                  </Button>
+        {/* Main Content */}
+        <Card>
+          <Tabs
+            defaultActiveKey="appointments"
+            items={[
+              {
+                key: 'appointments',
+                label: 'Lich hen',
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<CalendarOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => setIsAppointmentModalOpen(true)}
+                    >
+                      Dat lich moi
+                    </Button>
+                    <Table
+                      columns={appointmentColumns}
+                      dataSource={appointments}
+                      rowKey="id"
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          Modal.info({
+                            title: 'Chi tiet lich hen',
+                            width: 500,
+                            content: (
+                              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                                <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
+                                <Descriptions.Item label="Ngay hen">{record.preferredDate ? dayjs(record.preferredDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Gio">{record.preferredTime}</Descriptions.Item>
+                                <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
+                                <Descriptions.Item label="Bac si">{record.doctorName || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Ly do">{record.chiefComplaint || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trang thai">{record.statusName}</Descriptions.Item>
+                                {record.confirmationCode && (
+                                  <Descriptions.Item label="Ma xac nhan">{record.confirmationCode}</Descriptions.Item>
+                                )}
+                                {record.notes && (
+                                  <Descriptions.Item label="Ghi chu">{record.notes}</Descriptions.Item>
+                                )}
+                              </Descriptions>
+                            ),
+                          });
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'labResults',
+                label: 'Ket qua xet nghiem',
+                children: (
                   <Table
-                    columns={appointmentColumns}
-                    dataSource={appointments}
+                    columns={labResultColumns}
+                    dataSource={labResults}
                     rowKey="id"
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: 'Chi tiết lịch hẹn',
-                          width: 500,
+                          title: `Ket qua: ${record.testName}`,
+                          width: 600,
                           content: (
-                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
-                              <Descriptions.Item label="Ngày hẹn">{record.appointmentDate}</Descriptions.Item>
-                              <Descriptions.Item label="Giờ">{record.appointmentTime}</Descriptions.Item>
-                              <Descriptions.Item label="Khoa/Phòng">{record.department}</Descriptions.Item>
-                              <Descriptions.Item label="Bác sĩ">{record.doctorName || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Lý do">{record.reason || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
-                            </Descriptions>
+                            <div style={{ marginTop: 16 }}>
+                              <Descriptions bordered size="small" column={2}>
+                                <Descriptions.Item label="Ngay lam">{record.testDate ? dayjs(record.testDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trang thai">{record.statusName || record.status}</Descriptions.Item>
+                                <Descriptions.Item label="BS chi dinh">{record.orderingDoctor}</Descriptions.Item>
+                                <Descriptions.Item label="Bat thuong">{record.isAbnormal ? 'Co' : 'Khong'}</Descriptions.Item>
+                                {record.interpretation && (
+                                  <Descriptions.Item label="Nhan dinh" span={2}>{record.interpretation}</Descriptions.Item>
+                                )}
+                              </Descriptions>
+                              {record.results && record.results.length > 0 && (
+                                <Table
+                                  size="small"
+                                  style={{ marginTop: 12 }}
+                                  dataSource={record.results}
+                                  rowKey="testItemName"
+                                  pagination={false}
+                                  columns={[
+                                    { title: 'Chi so', dataIndex: 'testItemName', key: 'testItemName' },
+                                    { title: 'Ket qua', dataIndex: 'value', key: 'value', render: (val, row) => (
+                                      <Text type={row.isAbnormal ? 'danger' : undefined} strong={row.isAbnormal}>{val} {row.unit || ''}</Text>
+                                    )},
+                                    { title: 'Tham chieu', dataIndex: 'referenceRange', key: 'referenceRange' },
+                                    { title: 'Flag', dataIndex: 'flag', key: 'flag', render: (val) => val ? <Tag color="red">{val}</Tag> : '-' },
+                                  ]}
+                                />
+                              )}
+                            </div>
                           ),
                         });
                       },
                       style: { cursor: 'pointer' },
                     })}
                   />
-                </>
-              ),
-            },
-            {
-              key: 'feedbacks',
-              label: 'Danh gia dich vu',
-              children: (
-                <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                ),
+              },
+              {
+                key: 'bills',
+                label: 'Hoa don',
+                children: (
+                  <Table
+                    columns={billColumns}
+                    dataSource={bills}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Hoa don: ${record.billCode}`,
+                          width: 600,
+                          content: (
+                            <div style={{ marginTop: 16 }}>
+                              <Descriptions bordered size="small" column={2}>
+                                <Descriptions.Item label="Ngay">{record.billDate ? dayjs(record.billDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trang thai">{record.statusName || record.status}</Descriptions.Item>
+                                <Descriptions.Item label="Tong">{(record.subtotal ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
+                                <Descriptions.Item label="BHYT">{(record.insuranceCoverage ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
+                                <Descriptions.Item label="BN tra">{(record.patientResponsibility ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
+                                <Descriptions.Item label="Con no">{(record.amountDue ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
+                              </Descriptions>
+                              {record.items && record.items.length > 0 && (
+                                <Table
+                                  size="small"
+                                  style={{ marginTop: 12 }}
+                                  dataSource={record.items}
+                                  rowKey="description"
+                                  pagination={false}
+                                  columns={[
+                                    { title: 'Dich vu', dataIndex: 'description', key: 'description' },
+                                    { title: 'SL', dataIndex: 'quantity', key: 'quantity' },
+                                    { title: 'Don gia', dataIndex: 'unitPrice', key: 'unitPrice', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
+                                    { title: 'Thanh tien', dataIndex: 'amount', key: 'amount', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
+                                    { title: 'BN tra', dataIndex: 'patientPays', key: 'patientPays', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
+                                  ]}
+                                />
+                              )}
+                            </div>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
+                ),
+              },
+              {
+                key: 'feedbacks',
+                label: 'Danh gia dich vu',
+                children: (
+                  <>
+                    <Row gutter={16} style={{ marginBottom: 16 }}>
+                      <Col span={6}>
+                        <Button
+                          type="primary"
+                          icon={<StarOutlined />}
+                          onClick={() => setIsFeedbackModalOpen(true)}
+                        >
+                          Gui danh gia
+                        </Button>
+                      </Col>
+                      <Col span={6}>
+                        <Card size="small">
+                          <Statistic
+                            title="Diem trung binh"
+                            value={avgRating ? avgRating.toFixed(1) : 0}
+                            suffix="/5"
+                            prefix={<StarOutlined />}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card size="small">
+                          <Statistic title="Tong danh gia" value={feedbacks.length} />
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card size="small">
+                          <Statistic
+                            title="Ty le phan hoi"
+                            value={responseRate}
+                            suffix="%"
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+                    <Table
+                      columns={feedbackColumns}
+                      dataSource={feedbacks}
+                      rowKey="id"
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          Modal.info({
+                            title: 'Chi tiet danh gia',
+                            width: 500,
+                            content: (
+                              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                                <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
+                                <Descriptions.Item label="Loai">{record.feedbackTypeName}</Descriptions.Item>
+                                <Descriptions.Item label="Khoa">{record.departmentName || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Diem">{record.rating ? `${record.rating}/5` : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Noi dung">{record.message}</Descriptions.Item>
+                                <Descriptions.Item label="Phan hoi">{record.responseMessage || 'Chua phan hoi'}</Descriptions.Item>
+                                <Descriptions.Item label="Ngay gui">{record.createdAt ? dayjs(record.createdAt).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                              </Descriptions>
+                            ),
+                          });
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'features',
+                label: 'Tinh nang Portal',
+                children: (
+                  <Row gutter={[16, 16]}>
                     <Col span={8}>
-                      <Card size="small">
-                        <Statistic
-                          title="Diem trung binh"
-                          value={4.2}
-                          suffix="/5"
-                          prefix={<StarOutlined />}
-                        />
+                      <Card>
+                        <Space orientation="vertical" align="center" style={{ width: '100%' }}>
+                          <CalendarOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                          <Title level={5}>Dat lich kham</Title>
+                          <Paragraph type="secondary" style={{ textAlign: 'center' }}>
+                            Dat lich hen truc tuyen, chon bac si va khung gio phu hop
+                          </Paragraph>
+                        </Space>
                       </Card>
                     </Col>
                     <Col span={8}>
-                      <Card size="small">
-                        <Statistic title="Tong danh gia" value={feedbacks.length} />
+                      <Card>
+                        <Space orientation="vertical" align="center" style={{ width: '100%' }}>
+                          <FileTextOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+                          <Title level={5}>Xem ket qua</Title>
+                          <Paragraph type="secondary" style={{ textAlign: 'center' }}>
+                            Tra cuu ket qua xet nghiem, CDHA truc tuyen
+                          </Paragraph>
+                        </Space>
                       </Card>
                     </Col>
                     <Col span={8}>
-                      <Card size="small">
-                        <Statistic
-                          title="Ty le phan hoi"
-                          value={
-                            Math.round(
-                              (feedbacks.filter((f) => f.response).length / feedbacks.length) *
-                                100
-                            ) || 0
-                          }
-                          suffix="%"
-                        />
+                      <Card>
+                        <Space orientation="vertical" align="center" style={{ width: '100%' }}>
+                          <MedicineBoxOutlined style={{ fontSize: 48, color: '#722ed1' }} />
+                          <Title level={5}>Don thuoc</Title>
+                          <Paragraph type="secondary" style={{ textAlign: 'center' }}>
+                            Xem don thuoc, gui den nha thuoc lien ket
+                          </Paragraph>
+                        </Space>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card>
+                        <Space orientation="vertical" align="center" style={{ width: '100%' }}>
+                          <CreditCardOutlined style={{ fontSize: 48, color: '#eb2f96' }} />
+                          <Title level={5}>Thanh toan</Title>
+                          <Paragraph type="secondary" style={{ textAlign: 'center' }}>
+                            Thanh toan truc tuyen qua VNPay, Momo, The
+                          </Paragraph>
+                        </Space>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card>
+                        <Space orientation="vertical" align="center" style={{ width: '100%' }}>
+                          <HistoryOutlined style={{ fontSize: 48, color: '#faad14' }} />
+                          <Title level={5}>Lich su kham</Title>
+                          <Paragraph type="secondary" style={{ textAlign: 'center' }}>
+                            Xem lich su kham benh, ho so suc khoe ca nhan
+                          </Paragraph>
+                        </Space>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card>
+                        <Space orientation="vertical" align="center" style={{ width: '100%' }}>
+                          <StarOutlined style={{ fontSize: 48, color: '#13c2c2' }} />
+                          <Title level={5}>Danh gia</Title>
+                          <Paragraph type="secondary" style={{ textAlign: 'center' }}>
+                            Gui danh gia, gop y ve chat luong dich vu
+                          </Paragraph>
+                        </Space>
                       </Card>
                     </Col>
                   </Row>
-                  <Table
-                    columns={feedbackColumns}
-                    dataSource={feedbacks}
-                    rowKey="id"
-                    onRow={(record) => ({
-                      onDoubleClick: () => {
-                        Modal.info({
-                          title: 'Chi tiết đánh giá',
-                          width: 500,
-                          content: (
-                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
-                              <Descriptions.Item label="Điểm">{record.rating}/5</Descriptions.Item>
-                              <Descriptions.Item label="Nội dung">{record.content}</Descriptions.Item>
-                              <Descriptions.Item label="Phản hồi">{record.response || 'Chưa phản hồi'}</Descriptions.Item>
-                              <Descriptions.Item label="Ngày">{record.createdDate}</Descriptions.Item>
-                            </Descriptions>
-                          ),
-                        });
-                      },
-                      style: { cursor: 'pointer' },
-                    })}
-                  />
-                </>
-              ),
-            },
-            {
-              key: 'features',
-              label: 'Tinh nang Portal',
-              children: (
-                <Row gutter={[16, 16]}>
-                  <Col span={8}>
-                    <Card>
-                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
-                        <CalendarOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-                        <Title level={5}>Dat lich kham</Title>
-                        <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                          Dat lich hen truc tuyen, chon bac si va khung gio phu hop
-                        </Paragraph>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card>
-                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
-                        <FileTextOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-                        <Title level={5}>Xem ket qua</Title>
-                        <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                          Tra cuu ket qua xet nghiem, CDHA truc tuyen
-                        </Paragraph>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card>
-                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
-                        <MedicineBoxOutlined style={{ fontSize: 48, color: '#722ed1' }} />
-                        <Title level={5}>Don thuoc</Title>
-                        <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                          Xem don thuoc, gui den nha thuoc lien ket
-                        </Paragraph>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card>
-                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
-                        <CreditCardOutlined style={{ fontSize: 48, color: '#eb2f96' }} />
-                        <Title level={5}>Thanh toan</Title>
-                        <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                          Thanh toan truc tuyen qua VNPay, Momo, The
-                        </Paragraph>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card>
-                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
-                        <HistoryOutlined style={{ fontSize: 48, color: '#faad14' }} />
-                        <Title level={5}>Lich su kham</Title>
-                        <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                          Xem lich su kham benh, ho so suc khoe ca nhan
-                        </Paragraph>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card>
-                      <Space orientation="vertical" align="center" style={{ width: '100%' }}>
-                        <StarOutlined style={{ fontSize: 48, color: '#13c2c2' }} />
-                        <Title level={5}>Danh gia</Title>
-                        <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                          Gui danh gia, gop y ve chat luong dich vu
-                        </Paragraph>
-                      </Space>
-                    </Card>
-                  </Col>
-                </Row>
-              ),
-            },
-            {
-              key: 'notifications',
-              label: 'Thong bao',
-              children: (
-                <div>
-                  {[
-                    {
-                      title: 'Nhac lich hen',
-                      description: 'Ban co lich hen voi BS. Nguyen Van X vao ngay 15/02/2024 luc 09:00',
-                      time: '2 gio truoc',
-                    },
-                    {
-                      title: 'Ket qua xet nghiem',
-                      description: 'Ket qua xet nghiem Sinh hoa mau cua ban da san sang',
-                      time: '1 ngay truoc',
-                    },
-                    {
-                      title: 'Thanh toan',
-                      description: 'Ban con hoa don chua thanh toan: 800,000 VND',
-                      time: '2 ngay truoc',
-                    },
-                  ].map((item) => (
-                    <div key={item.title} style={{ display: 'flex', alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                      <div style={{ marginRight: 16, flexShrink: 0 }}>
-                        <Badge dot><BellOutlined style={{ fontSize: 24 }} /></Badge>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500 }}>{item.title}</div>
-                        <Space orientation="vertical" size={0}>
-                          <Text>{item.description}</Text>
-                          <Text type="secondary">{item.time}</Text>
-                        </Space>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ),
-            },
-          ]}
-        />
-      </Card>
+                ),
+              },
+              {
+                key: 'notifications',
+                label: (
+                  <Badge count={notifications.filter((n) => !n.isRead).length} size="small" offset={[8, 0]}>
+                    Thong bao
+                  </Badge>
+                ),
+                children: (
+                  <div>
+                    {notifications.length === 0 ? (
+                      <Result status="info" title="Khong co thong bao" />
+                    ) : (
+                      notifications.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            padding: '12px 0',
+                            borderBottom: '1px solid #f0f0f0',
+                            background: item.isRead ? 'transparent' : '#f6ffed',
+                            paddingLeft: 8,
+                            paddingRight: 8,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => {
+                            if (!item.isRead) handleMarkNotificationRead(item.id);
+                          }}
+                        >
+                          <div style={{ marginRight: 16, flexShrink: 0 }}>
+                            <Badge dot={!item.isRead}><BellOutlined style={{ fontSize: 24 }} /></Badge>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 500 }}>{item.title}</div>
+                            <Space orientation="vertical" size={0}>
+                              <Text>{item.message}</Text>
+                              <Text type="secondary">
+                                {item.createdAt ? dayjs(item.createdAt).format('DD/MM/YYYY HH:mm') : ''}
+                              </Text>
+                            </Space>
+                          </div>
+                          {!item.isRead && (
+                            <Tag color="blue" style={{ flexShrink: 0 }}>Moi</Tag>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: 'account',
+                label: 'Tai khoan',
+                children: account ? (
+                  <>
+                    <Row gutter={16}>
+                      <Col span={6}>
+                        <Avatar size={100} icon={<UserOutlined />} src={account.avatarUrl} />
+                      </Col>
+                      <Col span={18}>
+                        <Descriptions bordered size="small" column={2}>
+                          <Descriptions.Item label="Ho ten">{account.fullName}</Descriptions.Item>
+                          <Descriptions.Item label="Trang thai">
+                            {getAccountStatusTag(account.accountStatus)}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="SDT">{account.phone}</Descriptions.Item>
+                          <Descriptions.Item label="Email">{account.email || '-'}</Descriptions.Item>
+                          <Descriptions.Item label="Ngay sinh">
+                            {account.dateOfBirth ? dayjs(account.dateOfBirth).format('DD/MM/YYYY') : '-'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="CCCD">{account.idNumber || '-'}</Descriptions.Item>
+                          <Descriptions.Item label="BHYT" span={2}>
+                            {account.healthInsurance?.cardNumber || 'Khong co'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Dia chi" span={2}>
+                            {account.address || '-'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Lien ket BN">
+                            {account.isLinkedToPatient ? (
+                              <Tag color="green">Da lien ket ({account.patientCode})</Tag>
+                            ) : (
+                              <Tag color="orange">Chua lien ket</Tag>
+                            )}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="2FA">
+                            {account.twoFactorEnabled ? (
+                              <Tag color="green">Bat</Tag>
+                            ) : (
+                              <Tag color="default">Tat</Tag>
+                            )}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Dang nhap gan nhat">
+                            {account.lastLoginAt ? dayjs(account.lastLoginAt).format('DD/MM/YYYY HH:mm') : '-'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="So lan dang nhap">
+                            {account.loginCount}
+                          </Descriptions.Item>
+                        </Descriptions>
+                      </Col>
+                    </Row>
 
-      {/* Patient View Modal */}
-      <Modal
-        title="Thong tin tai khoan benh nhan"
-        open={isPatientViewOpen}
-        onCancel={() => setIsPatientViewOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsPatientViewOpen(false)}>
-            Dong
-          </Button>,
-        ]}
-        width={700}
-      >
-        {selectedPatient && (
-          <>
+                    <Divider>Hoa don chua thanh toan</Divider>
+
+                    {bills.filter((b) => b.status === 'Pending' || b.status === 'Overdue' || b.status === 'PartialPaid').length > 0 ? (
+                      <div>
+                        {bills
+                          .filter((b) => b.status === 'Pending' || b.status === 'Overdue' || b.status === 'PartialPaid')
+                          .map((item) => (
+                            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 500 }}>{`Hoa don ${item.billCode}`}</div>
+                                <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>
+                                  {`Ngay: ${item.billDate ? dayjs(item.billDate).format('DD/MM/YYYY') : '-'} | ${item.department || ''}`}
+                                </div>
+                              </div>
+                              <Text strong style={{ color: '#ff4d4f' }}>
+                                {(item.amountDue ?? 0).toLocaleString('vi-VN')} VND
+                              </Text>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <Result status="success" title="Khong co hoa don chua thanh toan" />
+                    )}
+                  </>
+                ) : (
+                  <Result status="info" title="Chua co thong tin tai khoan" />
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        {/* Appointment Modal */}
+        <Modal
+          title="Dat lich hen"
+          open={isAppointmentModalOpen}
+          onCancel={() => setIsAppointmentModalOpen(false)}
+          onOk={() => appointmentForm.submit()}
+        >
+          <Form form={appointmentForm} layout="vertical" onFinish={handleBookAppointment}>
+            <Form.Item name="departmentId" label="Khoa" rules={[{ required: true, message: 'Vui long chon khoa' }]}>
+              <Select placeholder="Chon khoa">
+                {departments.map((d) => (
+                  <Select.Option key={d.id} value={d.id}>
+                    {d.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item name="doctorId" label="Bac si">
+              <Select placeholder="Chon bac si (khong bat buoc)" allowClear>
+                {doctors.map((d) => (
+                  <Select.Option key={d.id} value={d.id}>
+                    {d.title ? `${d.title} ${d.name}` : d.name} - {d.specialty}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
             <Row gutter={16}>
-              <Col span={6}>
-                <Avatar size={100} icon={<UserOutlined />} />
+              <Col span={12}>
+                <Form.Item name="date" label="Ngay" rules={[{ required: true, message: 'Vui long chon ngay' }]}>
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
               </Col>
-              <Col span={18}>
-                <Descriptions bordered size="small" column={2}>
-                  <Descriptions.Item label="Ho ten">{selectedPatient.fullName}</Descriptions.Item>
-                  <Descriptions.Item label="Trang thai">
-                    {getStatusTag(selectedPatient.status)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="SDT">{selectedPatient.phone}</Descriptions.Item>
-                  <Descriptions.Item label="Email">{selectedPatient.email}</Descriptions.Item>
-                  <Descriptions.Item label="Ngay sinh">
-                    {selectedPatient.dateOfBirth}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="CCCD">{selectedPatient.idNumber}</Descriptions.Item>
-                  <Descriptions.Item label="BHYT" span={2}>
-                    {selectedPatient.insuranceNumber || 'Khong co'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Dia chi" span={2}>
-                    {selectedPatient.address}
-                  </Descriptions.Item>
-                </Descriptions>
+              <Col span={12}>
+                <Form.Item name="time" label="Gio" rules={[{ required: true, message: 'Vui long chon gio' }]}>
+                  <Select placeholder="Chon gio">
+                    <Select.Option value="08:00">08:00</Select.Option>
+                    <Select.Option value="08:30">08:30</Select.Option>
+                    <Select.Option value="09:00">09:00</Select.Option>
+                    <Select.Option value="09:30">09:30</Select.Option>
+                    <Select.Option value="10:00">10:00</Select.Option>
+                    <Select.Option value="10:30">10:30</Select.Option>
+                    <Select.Option value="14:00">14:00</Select.Option>
+                    <Select.Option value="14:30">14:30</Select.Option>
+                    <Select.Option value="15:00">15:00</Select.Option>
+                    <Select.Option value="15:30">15:30</Select.Option>
+                  </Select>
+                </Form.Item>
               </Col>
             </Row>
+            <Form.Item name="type" label="Loai kham" rules={[{ required: true, message: 'Vui long chon loai kham' }]}>
+              <Select placeholder="Chon loai kham">
+                <Select.Option value="NewVisit">Kham moi</Select.Option>
+                <Select.Option value="FollowUp">Tai kham</Select.Option>
+                <Select.Option value="HealthCheck">Kham suc khoe</Select.Option>
+                <Select.Option value="Telemedicine">Kham tu xa</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="notes" label="Ly do kham / Ghi chu">
+              <TextArea rows={2} placeholder="Mo ta trieu chung hoac ly do kham..." />
+            </Form.Item>
+          </Form>
+        </Modal>
 
-            <Divider>Hoat dong gan day</Divider>
-
-            <Timeline
-              items={[
-                {
-                  color: 'green',
-                  content: <>{dayjs().format('DD/MM/YYYY HH:mm')} - Dang nhap he thong</>,
-                },
-                {
-                  color: 'blue',
-                  content: <>{dayjs().subtract(5, 'day').format('DD/MM/YYYY')} - Kham benh Noi khoa</>,
-                },
-                {
-                  color: 'blue',
-                  content: <>{dayjs().subtract(5, 'day').format('DD/MM/YYYY')} - Xet nghiem mau</>,
-                },
-              ]}
-            />
-
-            <Divider>Hoa don chua thanh toan</Divider>
-
-            {bills.filter((b) => b.patientId === selectedPatient.patientId && b.status === 'pending')
-              .length > 0 ? (
-              <div>
-                {bills.filter(
-                  (b) => b.patientId === selectedPatient.patientId && b.status === 'pending'
-                ).map((item) => (
-                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500 }}>{`Hoa don ${item.id}`}</div>
-                      <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Ngay: ${item.visitDate} | ${item.services.join(', ')}`}</div>
-                    </div>
-                    <Text strong style={{ color: '#ff4d4f' }}>
-                      {item.totalAmount.toLocaleString('vi-VN')} VND
-                    </Text>
-                  </div>
+        {/* Feedback Modal */}
+        <Modal
+          title="Gui danh gia"
+          open={isFeedbackModalOpen}
+          onCancel={() => setIsFeedbackModalOpen(false)}
+          onOk={() => feedbackForm.submit()}
+        >
+          <Form form={feedbackForm} layout="vertical" onFinish={handleSubmitFeedback}>
+            <Form.Item name="departmentId" label="Khoa">
+              <Select placeholder="Chon khoa (khong bat buoc)" allowClear>
+                {departments.map((d) => (
+                  <Select.Option key={d.id} value={d.id}>
+                    {d.name}
+                  </Select.Option>
                 ))}
-              </div>
-            ) : (
-              <Result status="success" title="Khong co hoa don chua thanh toan" />
-            )}
-          </>
-        )}
-      </Modal>
-
-      {/* Appointment Modal */}
-      <Modal
-        title="Dat lich hen"
-        open={isAppointmentModalOpen}
-        onCancel={() => setIsAppointmentModalOpen(false)}
-        onOk={() => appointmentForm.submit()}
-      >
-        <Form form={appointmentForm} layout="vertical" onFinish={handleBookAppointment}>
-          <Form.Item name="patientId" label="Benh nhan" rules={[{ required: true }]}>
-            <Select>
-              {patients.map((p) => (
-                <Select.Option key={p.patientId} value={p.patientId}>
-                  {p.fullName}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="specialty" label="Chuyen khoa" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="Noi khoa">Noi khoa</Select.Option>
-              <Select.Option value="Ngoai khoa">Ngoai khoa</Select.Option>
-              <Select.Option value="Tim mach">Tim mach</Select.Option>
-              <Select.Option value="Da lieu">Da lieu</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="doctorId" label="Bac si">
-            <Select>
-              <Select.Option value="D001">BS. Nguyen Van X</Select.Option>
-              <Select.Option value="D002">BS. Tran Thi Y</Select.Option>
-            </Select>
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="date" label="Ngay" rules={[{ required: true }]}>
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="time" label="Gio" rules={[{ required: true }]}>
-                <Select>
-                  <Select.Option value="08:00">08:00</Select.Option>
-                  <Select.Option value="09:00">09:00</Select.Option>
-                  <Select.Option value="10:00">10:00</Select.Option>
-                  <Select.Option value="14:00">14:00</Select.Option>
-                  <Select.Option value="15:00">15:00</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="type" label="Loai kham" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="new">Kham moi</Select.Option>
-              <Select.Option value="follow_up">Tai kham</Select.Option>
-              <Select.Option value="telemedicine">Kham tu xa</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="notes" label="Ghi chu">
-            <TextArea rows={2} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Feedback Modal */}
-      <Modal
-        title="Gui danh gia"
-        open={isFeedbackModalOpen}
-        onCancel={() => setIsFeedbackModalOpen(false)}
-        onOk={() => feedbackForm.submit()}
-      >
-        <Form form={feedbackForm} layout="vertical" onFinish={handleSubmitFeedback}>
-          <Form.Item name="visitDate" label="Ngay kham" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="department" label="Khoa" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="Noi khoa">Noi khoa</Select.Option>
-              <Select.Option value="Ngoai khoa">Ngoai khoa</Select.Option>
-              <Select.Option value="CDHA">Chan doan hinh anh</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="rating" label="Diem danh gia" rules={[{ required: true }]}>
-            <Rate />
-          </Form.Item>
-          <Form.Item name="comment" label="Nhan xet" rules={[{ required: true }]}>
-            <TextArea rows={4} placeholder="Chia se trai nghiem cua ban..." />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
+              </Select>
+            </Form.Item>
+            <Form.Item name="rating" label="Diem danh gia" rules={[{ required: true, message: 'Vui long chon diem' }]}>
+              <Rate />
+            </Form.Item>
+            <Form.Item name="comment" label="Nhan xet" rules={[{ required: true, message: 'Vui long nhap nhan xet' }]}>
+              <TextArea rows={4} placeholder="Chia se trai nghiem cua ban..." />
+            </Form.Item>
+          </Form>
+        </Modal>
+      </div>
+    </Spin>
   );
 };
 
