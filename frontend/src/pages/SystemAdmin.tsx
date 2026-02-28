@@ -46,6 +46,10 @@ import {
   CloudServerOutlined,
   ApiOutlined,
   HddOutlined,
+  LockOutlined,
+  AuditOutlined,
+  TableOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -63,6 +67,14 @@ import {
   type AuditLogSearchDto as AuditLogLevel6Search,
   type AuditLogPagedResult,
 } from '../api/audit';
+import {
+  getAccessControlMatrix,
+  getSensitiveAccessReport,
+  getComplianceSummary,
+  type AccessControlMatrixDto,
+  type SensitiveDataAccessReportDto,
+  type ComplianceSummaryDto,
+} from '../api/security';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -172,6 +184,17 @@ const SystemAdmin: React.FC = () => {
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthLastUpdated, setHealthLastUpdated] = useState<Date | null>(null);
   const healthIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Access Control Matrix & Compliance state
+  const [matrixData, setMatrixData] = useState<AccessControlMatrixDto[]>([]);
+  const [matrixLoading, setMatrixLoading] = useState(false);
+  const [complianceSummary, setComplianceSummary] = useState<ComplianceSummaryDto | null>(null);
+  const [sensitiveReport, setSensitiveReport] = useState<SensitiveDataAccessReportDto[]>([]);
+  const [complianceLoading, setComplianceLoading] = useState(false);
+  const [sensitiveReportDateRange, setSensitiveReportDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().subtract(7, 'day'),
+    dayjs(),
+  ]);
 
   // Helper to extract array data from API response (handles both direct array and { data: [...] } wrapper)
   const extractData = (response: any): any[] => {
@@ -328,6 +351,61 @@ const SystemAdmin: React.FC = () => {
       }
     };
   }, [activeTab, fetchHealthData]);
+
+  // Fetch access control matrix
+  const fetchMatrixData = useCallback(async () => {
+    setMatrixLoading(true);
+    try {
+      const res = await getAccessControlMatrix();
+      const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      setMatrixData(data);
+    } catch (error) {
+      console.warn('Error fetching access control matrix:', error);
+    } finally {
+      setMatrixLoading(false);
+    }
+  }, []);
+
+  // Fetch compliance summary + sensitive access report
+  const fetchComplianceData = useCallback(async () => {
+    setComplianceLoading(true);
+    try {
+      const [summaryRes, reportRes] = await Promise.allSettled([
+        getComplianceSummary(),
+        getSensitiveAccessReport(
+          sensitiveReportDateRange[0].format('YYYY-MM-DD'),
+          sensitiveReportDateRange[1].format('YYYY-MM-DD'),
+          50
+        ),
+      ]);
+      if (summaryRes.status === 'fulfilled') {
+        const d = summaryRes.value.data;
+        setComplianceSummary((d as any)?.data || d);
+      }
+      if (reportRes.status === 'fulfilled') {
+        const d = reportRes.value.data;
+        setSensitiveReport(Array.isArray(d) ? d : (d as any)?.data || []);
+      }
+    } catch (error) {
+      console.warn('Error fetching compliance data:', error);
+    } finally {
+      setComplianceLoading(false);
+    }
+  }, [sensitiveReportDateRange]);
+
+  // Auto-load matrix data when tab is active
+  useEffect(() => {
+    if (activeTab === 'access-matrix') {
+      fetchMatrixData();
+    }
+  }, [activeTab, fetchMatrixData]);
+
+  // Auto-load compliance data when tab is active
+  useEffect(() => {
+    if (activeTab === 'compliance') {
+      fetchComplianceData();
+    }
+  }, [activeTab, fetchComplianceData]);
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -1633,6 +1711,348 @@ const SystemAdmin: React.FC = () => {
                       )}
                     </>
                   )}
+                </Spin>
+              ),
+            },
+            {
+              key: 'access-matrix',
+              label: (
+                <span>
+                  <TableOutlined /> Ma tran quyen
+                </span>
+              ),
+              children: (
+                <Spin spinning={matrixLoading}>
+                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
+                    <Col flex="auto">
+                      <Typography.Text strong style={{ fontSize: 16 }}>
+                        <LockOutlined /> Ma tran kiem soat truy cap
+                      </Typography.Text>
+                    </Col>
+                    <Col>
+                      <Space>
+                        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+                          Xuat bao cao
+                        </Button>
+                        <Button icon={<ReloadOutlined />} onClick={fetchMatrixData}>
+                          Lam moi
+                        </Button>
+                      </Space>
+                    </Col>
+                  </Row>
+
+                  <Table
+                    dataSource={matrixData}
+                    rowKey="roleCode"
+                    size="small"
+                    scroll={{ x: 1200 }}
+                    pagination={false}
+                    expandable={{
+                      expandedRowRender: (record: AccessControlMatrixDto) => (
+                        <div style={{ padding: '8px 16px' }}>
+                          {record.modulePermissions?.map((mp) => (
+                            <div key={mp.module} style={{ marginBottom: 12 }}>
+                              <Typography.Text strong>{mp.module}</Typography.Text>
+                              <div style={{ marginTop: 4 }}>
+                                {mp.permissions?.map((p) => (
+                                  <Tag key={p.permissionCode} color="blue" style={{ marginBottom: 4 }}>
+                                    {p.permissionName}
+                                  </Tag>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          {(!record.modulePermissions || record.modulePermissions.length === 0) && (
+                            <Typography.Text type="secondary">Khong co quyen nao</Typography.Text>
+                          )}
+                        </div>
+                      ),
+                    }}
+                    columns={[
+                      {
+                        title: 'Ma vai tro',
+                        dataIndex: 'roleCode',
+                        key: 'roleCode',
+                        width: 130,
+                        render: (code: string) => {
+                          const color = code === 'ADMIN' ? 'blue' :
+                            ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECH'].includes(code) ? 'green' : 'default';
+                          return <Tag color={color}>{code}</Tag>;
+                        },
+                      },
+                      {
+                        title: 'Ten vai tro',
+                        dataIndex: 'roleName',
+                        key: 'roleName',
+                        width: 180,
+                      },
+                      {
+                        title: 'So nguoi dung',
+                        dataIndex: 'userCount',
+                        key: 'userCount',
+                        width: 130,
+                        align: 'center' as const,
+                        render: (count: number) => <Badge count={count} showZero overflowCount={9999} style={{ backgroundColor: count > 0 ? '#1890ff' : '#d9d9d9' }} />,
+                      },
+                      {
+                        title: 'So module',
+                        key: 'moduleCount',
+                        width: 120,
+                        align: 'center' as const,
+                        render: (_: unknown, record: AccessControlMatrixDto) => record.modulePermissions?.length || 0,
+                      },
+                      {
+                        title: 'Tong quyen',
+                        key: 'totalPermissions',
+                        width: 120,
+                        align: 'center' as const,
+                        render: (_: unknown, record: AccessControlMatrixDto) =>
+                          record.modulePermissions?.reduce((sum, mp) => sum + (mp.permissions?.length || 0), 0) || 0,
+                      },
+                      {
+                        title: 'Mo ta',
+                        dataIndex: 'description',
+                        key: 'description',
+                        ellipsis: true,
+                      },
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
+            {
+              key: 'compliance',
+              label: (
+                <span>
+                  <AuditOutlined /> Tuan thu
+                </span>
+              ),
+              children: (
+                <Spin spinning={complianceLoading}>
+                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
+                    <Col flex="auto">
+                      <Typography.Text strong style={{ fontSize: 16 }}>
+                        <SafetyOutlined /> Dashboard tuan thu bao mat
+                      </Typography.Text>
+                    </Col>
+                    <Col>
+                      <Button icon={<ReloadOutlined />} onClick={fetchComplianceData}>
+                        Lam moi
+                      </Button>
+                    </Col>
+                  </Row>
+
+                  {/* Compliance Summary Cards */}
+                  <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="Tong nguoi dung"
+                          value={complianceSummary?.totalUsers ?? 0}
+                          prefix={<UserOutlined />}
+                        />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="Nguoi dung hoat dong"
+                          value={complianceSummary?.activeUsers ?? 0}
+                          prefix={<CheckCircleOutlined />}
+                          styles={{ content: { color: '#3f8600' } }}
+                        />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="2FA da bat"
+                          value={complianceSummary?.totalUsers ? Math.round((complianceSummary.usersWithTwoFactor / complianceSummary.totalUsers) * 100) : 0}
+                          suffix="%"
+                          prefix={<LockOutlined />}
+                          styles={{ content: { color: (complianceSummary?.usersWithTwoFactor ?? 0) > 0 ? '#3f8600' : '#cf1322' } }}
+                        />
+                        <div style={{ fontSize: 11, color: '#888' }}>
+                          {complianceSummary?.usersWithTwoFactor ?? 0} / {complianceSummary?.totalUsers ?? 0} nguoi dung
+                        </div>
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="TDE (Ma hoa du lieu)"
+                          value={complianceSummary?.tdeEnabled ? 'BAT' : 'TAT'}
+                          prefix={complianceSummary?.tdeEnabled ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+                          styles={{ content: { color: complianceSummary?.tdeEnabled ? '#3f8600' : '#cf1322' } }}
+                        />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="Ma hoa cot"
+                          value={complianceSummary?.columnEncryptionEnabled ? 'BAT' : 'TAT'}
+                          prefix={complianceSummary?.columnEncryptionEnabled ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+                          styles={{ content: { color: complianceSummary?.columnEncryptionEnabled ? '#3f8600' : '#cf1322' } }}
+                        />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="Sao luu gan nhat"
+                          value={complianceSummary?.lastBackupDate ? dayjs(complianceSummary.lastBackupDate).format('DD/MM HH:mm') : 'Chua co'}
+                          prefix={(() => {
+                            if (!complianceSummary?.lastBackupDate) return <WarningOutlined style={{ color: '#ff4d4f' }} />;
+                            const hoursAgo = dayjs().diff(dayjs(complianceSummary.lastBackupDate), 'hour');
+                            return hoursAgo > 24 ? <WarningOutlined style={{ color: '#faad14' }} /> : <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+                          })()}
+                        />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="Nhat ky (30 ngay)"
+                          value={complianceSummary?.auditLogsLast30Days ?? 0}
+                          prefix={<FileTextOutlined />}
+                        />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={8} md={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="Truy cap nhay cam (30 ngay)"
+                          value={complianceSummary?.sensitiveAccessLast30Days ?? 0}
+                          prefix={<WarningOutlined />}
+                          styles={{ content: { color: (complianceSummary?.sensitiveAccessLast30Days ?? 0) > 100 ? '#cf1322' : '#3f8600' } }}
+                        />
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  {/* Sensitive Data Access Report */}
+                  <Typography.Title level={5} style={{ marginBottom: 16 }}>
+                    Bao cao truy cap du lieu nhay cam
+                  </Typography.Title>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col>
+                      <RangePicker
+                        format="DD/MM/YYYY"
+                        value={sensitiveReportDateRange}
+                        onChange={(dates) => {
+                          if (dates && dates[0] && dates[1]) {
+                            setSensitiveReportDateRange([dates[0], dates[1]]);
+                          }
+                        }}
+                      />
+                    </Col>
+                    <Col>
+                      <Button icon={<SearchOutlined />} onClick={fetchComplianceData}>
+                        Tim kiem
+                      </Button>
+                    </Col>
+                  </Row>
+
+                  <Table
+                    dataSource={sensitiveReport}
+                    rowKey="userId"
+                    size="small"
+                    scroll={{ x: 800 }}
+                    pagination={{
+                      showSizeChanger: true,
+                      showTotal: (total) => `Tong: ${total} nguoi dung`,
+                    }}
+                    expandable={{
+                      expandedRowRender: (record: SensitiveDataAccessReportDto) => (
+                        <Table
+                          dataSource={record.recentAccesses}
+                          rowKey={(item) => `${item.timestamp}-${item.entityId}`}
+                          size="small"
+                          pagination={false}
+                          columns={[
+                            {
+                              title: 'Thoi gian',
+                              dataIndex: 'timestamp',
+                              key: 'timestamp',
+                              width: 160,
+                              render: (ts: string) => ts ? dayjs(ts).format('DD/MM/YYYY HH:mm:ss') : '-',
+                            },
+                            {
+                              title: 'Doi tuong',
+                              dataIndex: 'entityType',
+                              key: 'entityType',
+                              width: 120,
+                            },
+                            {
+                              title: 'ID',
+                              dataIndex: 'entityId',
+                              key: 'entityId',
+                              width: 250,
+                              ellipsis: true,
+                            },
+                            {
+                              title: 'Duong dan',
+                              dataIndex: 'requestPath',
+                              key: 'requestPath',
+                              ellipsis: true,
+                            },
+                            {
+                              title: 'Phan he',
+                              dataIndex: 'module',
+                              key: 'module',
+                              width: 110,
+                              render: (mod: string) => mod ? <Tag color="blue">{mod}</Tag> : '-',
+                            },
+                          ]}
+                        />
+                      ),
+                    }}
+                    columns={[
+                      {
+                        title: 'Nguoi dung',
+                        key: 'user',
+                        width: 200,
+                        render: (_: unknown, record: SensitiveDataAccessReportDto) => (
+                          <>
+                            <div>{record.userFullName || record.userName}</div>
+                            {record.userName && (
+                              <div style={{ fontSize: 11, color: '#888' }}>@{record.userName}</div>
+                            )}
+                          </>
+                        ),
+                      },
+                      {
+                        title: 'Tong truy cap',
+                        dataIndex: 'totalAccesses',
+                        key: 'totalAccesses',
+                        width: 130,
+                        align: 'center' as const,
+                        sorter: (a: SensitiveDataAccessReportDto, b: SensitiveDataAccessReportDto) => a.totalAccesses - b.totalAccesses,
+                        defaultSortOrder: 'descend' as const,
+                        render: (count: number) => (
+                          <Tag color={count > 50 ? 'red' : count > 20 ? 'orange' : 'green'}>{count}</Tag>
+                        ),
+                      },
+                      {
+                        title: 'Truy cap gan nhat',
+                        key: 'mostRecent',
+                        width: 160,
+                        render: (_: unknown, record: SensitiveDataAccessReportDto) => {
+                          const recent = record.recentAccesses?.[0];
+                          return recent ? dayjs(recent.timestamp).format('DD/MM/YYYY HH:mm') : '-';
+                        },
+                      },
+                      {
+                        title: 'Doi tuong chinh',
+                        key: 'mainEntityType',
+                        render: (_: unknown, record: SensitiveDataAccessReportDto) => {
+                          const types = [...new Set(record.recentAccesses?.map((a) => a.entityType) || [])];
+                          return types.map((t) => <Tag key={t}>{t}</Tag>);
+                        },
+                      },
+                    ]}
+                  />
                 </Spin>
               ),
             },

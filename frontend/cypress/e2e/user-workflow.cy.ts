@@ -181,7 +181,7 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
       });
 
       // Fill CCCD
-      cy.get('input[placeholder="Nhập số CCCD"]')
+      cy.get('input[placeholder="Nhập số CCCD (12 chữ số)"]')
         .clear()
         .type(PATIENT.cccd);
 
@@ -198,7 +198,7 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
 
       // Select Phòng khám
       cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Phòng khám').parents('.ant-form-item').find('.ant-select').click();
+        cy.get('.ant-form-item').contains('Phong kham').parents('.ant-form-item').find('.ant-select').click();
       });
       // Select first available room
       cy.get('.ant-select-dropdown:visible .ant-select-item', { timeout: 5000 })
@@ -206,7 +206,7 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
         .click();
 
       // Fill Địa chỉ
-      cy.get('textarea[placeholder="Nhập địa chỉ"]')
+      cy.get('textarea[placeholder="Nhap dia chi"]')
         .clear()
         .type(PATIENT.address);
 
@@ -234,7 +234,7 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
       cy.get('.ant-select-dropdown:visible').contains(PATIENT2.gender).click();
 
       // CCCD
-      cy.get('input[placeholder="Nhập số CCCD"]').clear().type(PATIENT2.cccd);
+      cy.get('input[placeholder="Nhập số CCCD (12 chữ số)"]').clear().type(PATIENT2.cccd);
 
       // SĐT
       cy.get('input[placeholder="Nhập SĐT"]').clear().type(PATIENT2.phone);
@@ -247,12 +247,12 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
 
       // Phòng khám
       cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Phòng khám').parents('.ant-form-item').find('.ant-select').click();
+        cy.get('.ant-form-item').contains('Phong kham').parents('.ant-form-item').find('.ant-select').click();
       });
       cy.get('.ant-select-dropdown:visible .ant-select-item', { timeout: 5000 }).first().click();
 
       // Địa chỉ
-      cy.get('textarea[placeholder="Nhập địa chỉ"]').clear().type(PATIENT2.address);
+      cy.get('textarea[placeholder="Nhap dia chi"]').clear().type(PATIENT2.address);
 
       // Submit
       cy.get('.ant-modal-footer').contains('button', 'Đăng ký').click();
@@ -826,7 +826,7 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
 
       // Should show room validation error
       cy.get('.ant-form-item-explain-error', { timeout: 3000 }).should('exist');
-      cy.contains('Vui lòng chọn phòng khám').should('exist');
+      cy.contains('Vui long chon phong kham').should('exist');
 
       // Close
       cy.get('.ant-modal-footer').contains('button', 'Hủy').click();

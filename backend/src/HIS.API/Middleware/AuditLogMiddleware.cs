@@ -26,6 +26,18 @@ public class AuditLogMiddleware
         "/api/metrics"
     };
 
+    // Sensitive paths that require GET request auditing (Level 6 compliance).
+    // Only detail-level GETs (with an ID segment) are logged, not list endpoints.
+    private static readonly string[] SensitiveGetPaths = new[]
+    {
+        "/api/patients/",
+        "/api/examination/",
+        "/api/emr/",
+        "/api/inpatient/",
+        "/api/prescription/",
+        "/api/reception/patient"
+    };
+
     // Map API route prefixes to module names
     private static readonly Dictionary<string, string> RouteModuleMap = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -153,18 +165,48 @@ public class AuditLogMiddleware
 
     private static bool ShouldAudit(string path, string method)
     {
-        // Only log POST, PUT, DELETE (not GET to avoid noise)
-        if (method.Equals("GET", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        // Skip non-API and excluded paths
+        // Skip non-API and excluded paths first
         foreach (var skipPath in SkipPaths)
         {
             if (path.StartsWith(skipPath, StringComparison.OrdinalIgnoreCase))
                 return false;
         }
 
-        return path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase);
+        if (!path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // POST, PUT, DELETE are always audited
+        if (!method.Equals("GET", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // GET requests: only audit sensitive paths that access specific records (with ID).
+        // List endpoints (e.g., /api/patients) are NOT logged to avoid audit volume explosion.
+        // Detail endpoints (e.g., /api/patients/123) ARE logged for Level 6 compliance.
+        return IsSensitiveGetRequest(path);
+    }
+
+    /// <summary>
+    /// Checks if a GET request targets a sensitive patient data endpoint with a specific record ID.
+    /// Only detail-level requests (path segments beyond the prefix) are considered sensitive.
+    /// Examples:
+    ///   /api/patients/abc-123       -> TRUE  (accessing specific patient)
+    ///   /api/patients               -> FALSE (listing, too noisy)
+    ///   /api/examination/abc-123    -> TRUE  (accessing specific examination)
+    ///   /api/emr/records/abc-123    -> TRUE  (accessing specific EMR record)
+    /// </summary>
+    private static bool IsSensitiveGetRequest(string path)
+    {
+        foreach (var sensitivePrefix in SensitiveGetPaths)
+        {
+            if (path.StartsWith(sensitivePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                // Ensure there's actual content after the prefix (an ID or sub-resource)
+                var remainder = path.Substring(sensitivePrefix.Length).TrimEnd('/');
+                if (!string.IsNullOrEmpty(remainder))
+                    return true;
+            }
+        }
+        return false;
     }
 
     private static string ResolveModule(string path)
@@ -194,6 +236,7 @@ public class AuditLogMiddleware
 
         return method.ToUpperInvariant() switch
         {
+            "GET" => "Read",
             "POST" => "Create",
             "PUT" => "Update",
             "PATCH" => "Update",

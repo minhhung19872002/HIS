@@ -153,6 +153,9 @@ public static class DependencyInjection
         // Audit Logging (Level 6 security compliance)
         services.AddScoped<IAuditLogService, AuditLogService>();
 
+        // Security Compliance (Level 6 - access control matrix, sensitive data access reports)
+        services.AddScoped<ISecurityService, SecurityService>();
+
         // Health Check & Monitoring
         services.AddScoped<IHealthCheckService, HealthCheckService>();
         services.AddSingleton<MetricsService>();

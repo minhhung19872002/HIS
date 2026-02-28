@@ -1,14 +1,23 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Linq.Expressions;
 using HIS.Core.Entities;
+using HIS.Infrastructure.Security;
 
 namespace HIS.Infrastructure.Data;
 
 public class HISDbContext : DbContext
 {
+    private readonly IDataProtectionProvider? _dataProtectionProvider;
+
     public HISDbContext(DbContextOptions<HISDbContext> options) : base(options)
     {
+    }
+
+    public HISDbContext(DbContextOptions<HISDbContext> options, IDataProtectionProvider dataProtectionProvider) : base(options)
+    {
+        _dataProtectionProvider = dataProtectionProvider;
     }
 
     // Quản lý bệnh nhân
@@ -414,6 +423,19 @@ public class HISDbContext : DbContext
             .WithMany()
             .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        // Column-level encryption for Patient PII (SEC-02: Data encryption at rest)
+        if (_dataProtectionProvider != null)
+        {
+            var encryptedConverter = new EncryptedStringConverter(_dataProtectionProvider);
+            modelBuilder.Entity<Patient>(entity =>
+            {
+                entity.Property(p => p.IdentityNumber).HasConversion(encryptedConverter);
+                entity.Property(p => p.PhoneNumber).HasConversion(encryptedConverter);
+                entity.Property(p => p.Email).HasConversion(encryptedConverter);
+                entity.Property(p => p.InsuranceNumber).HasConversion(encryptedConverter);
+            });
+        }
 
         // Handle legacy uniqueidentifier columns stored in CreatedBy/UpdatedBy
         // Many tables have uniqueidentifier type for these columns but entity uses string?

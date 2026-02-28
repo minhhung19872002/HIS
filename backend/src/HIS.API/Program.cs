@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using HIS.Application;
@@ -113,6 +114,12 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
+// Data Protection for column-level encryption of Patient PII (SEC-02)
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys")))
+    .SetApplicationName("HIS");
 
 var app = builder.Build();
 

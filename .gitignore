@@ -110,6 +110,11 @@ frontend/playwright-report/
 frontend/test-results/
 
 # =========================
+# Data Protection Keys (encryption at rest)
+# =========================
+App_Data/
+
+# =========================
 # Claude Code Settings
 # =========================
 .claude/settings.local.json
