@@ -18,11 +18,11 @@ Requirements for Level 6 certification + competitive features. Each maps to road
 
 ### BHXH Gateway (BHXH)
 
-- [ ] **BHXH-01**: Real-time insurance card verification via BHXH gateway API (replace mock)
-- [ ] **BHXH-02**: Patient treatment history lookup from BHXH portal
-- [ ] **BHXH-03**: Insurance cost submission to BHXH gateway
-- [ ] **BHXH-04**: Assessment results retrieval from BHXH portal
-- [ ] **BHXH-05**: Error handling for BHXH gateway rate limits, timeouts, schema changes
+- [x] **BHXH-01**: Real-time insurance card verification via BHXH gateway API (replace mock)
+- [x] **BHXH-02**: Patient treatment history lookup from BHXH portal
+- [x] **BHXH-03**: Insurance cost submission to BHXH gateway
+- [x] **BHXH-04**: Assessment results retrieval from BHXH portal
+- [x] **BHXH-05**: Error handling for BHXH gateway rate limits, timeouts, schema changes
 
 ### XML 4210 Export (XML)
 
@@ -129,11 +129,11 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BHXH-01 | Phase 1: BHXH Gateway + XML 4210 | Pending |
-| BHXH-02 | Phase 1: BHXH Gateway + XML 4210 | Pending |
-| BHXH-03 | Phase 1: BHXH Gateway + XML 4210 | Pending |
-| BHXH-04 | Phase 1: BHXH Gateway + XML 4210 | Pending |
-| BHXH-05 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| BHXH-01 | Phase 1: BHXH Gateway + XML 4210 | Complete |
+| BHXH-02 | Phase 1: BHXH Gateway + XML 4210 | Complete |
+| BHXH-03 | Phase 1: BHXH Gateway + XML 4210 | Complete |
+| BHXH-04 | Phase 1: BHXH Gateway + XML 4210 | Complete |
+| BHXH-05 | Phase 1: BHXH Gateway + XML 4210 | Complete |
 | XML-01 | Phase 1: BHXH Gateway + XML 4210 | Pending |
 | XML-02 | Phase 1: BHXH Gateway + XML 4210 | Pending |
 | XML-03 | Phase 1: BHXH Gateway + XML 4210 | Pending |
