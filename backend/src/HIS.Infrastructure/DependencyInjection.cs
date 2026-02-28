@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Polly;
+using Polly.Extensions.Http;
 using HIS.Core.Interfaces;
 using HIS.Application.Services;
+using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Services;
 using HIS.Infrastructure.Services.HL7;
@@ -62,6 +65,38 @@ public static class DependencyInjection
 
         // Phân hệ 12: Giám định BHYT - XML Export
         services.AddScoped<IInsuranceXmlService, InsuranceXmlService>();
+
+        // BHXH Gateway Client (conditional: mock for dev, real HTTP for production)
+        services.Configure<BhxhGatewayOptions>(configuration.GetSection(BhxhGatewayOptions.SectionName));
+        var bhxhOptions = configuration.GetSection(BhxhGatewayOptions.SectionName).Get<BhxhGatewayOptions>()
+            ?? new BhxhGatewayOptions();
+
+        if (bhxhOptions.UseMock)
+        {
+            services.AddScoped<IBhxhGatewayClient, BhxhGatewayMockClient>();
+        }
+        else
+        {
+            services.AddHttpClient<IBhxhGatewayClient, BhxhGatewayClient>(client =>
+            {
+                client.BaseAddress = new Uri(bhxhOptions.BaseUrl);
+                client.Timeout = TimeSpan.FromSeconds(bhxhOptions.TimeoutSeconds);
+            })
+            .AddPolicyHandler(HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .WaitAndRetryAsync(
+                    bhxhOptions.RetryCount,
+                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    onRetry: (outcome, delay, retryCount, _) =>
+                    {
+                        // Logged via ILogger in production
+                    }))
+            .AddPolicyHandler(HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .CircuitBreakerAsync(
+                    bhxhOptions.CircuitBreakerThreshold,
+                    TimeSpan.FromSeconds(bhxhOptions.CircuitBreakerDurationSeconds)));
+        }
 
         // Phân hệ: Hệ thống (System - Catalog/Finance/Statistics/Admin)
         services.AddScoped<ISystemCompleteService, SystemCompleteService>();
