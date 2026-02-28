@@ -45,6 +45,7 @@ import MedicalSupply from './pages/MedicalSupply';
 import FollowUp from './pages/FollowUp';
 import AppointmentBooking from './pages/AppointmentBooking';
 import BookingManagement from './pages/BookingManagement';
+import SmsManagement from './pages/SmsManagement';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -100,6 +101,7 @@ const AppRoutes: React.FC = () => {
         <Route path="medical-supply" element={<MedicalSupply />} />
         <Route path="follow-up" element={<FollowUp />} />
         <Route path="booking-management" element={<BookingManagement />} />
+        <Route path="sms-management" element={<SmsManagement />} />
         <Route path="lab" element={<Laboratory />} />
         <Route path="radiology" element={<Radiology />} />
         <Route path="blood-bank" element={<BloodBank />} />

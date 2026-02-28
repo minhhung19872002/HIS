@@ -36,8 +36,25 @@ public class SmsController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
             return BadRequest(new { message = "Vui lòng nhập số điện thoại" });
 
-        var result = await _smsService.SendSmsAsync(dto.PhoneNumber, dto.Message ?? "Tin nhan thu nghiem tu HIS. Neu nhan duoc tin nay, SMS Gateway da hoat dong thanh cong.");
+        var result = await _smsService.SendSmsAsync(
+            dto.PhoneNumber,
+            dto.Message ?? "Tin nhan thu nghiem tu HIS. Neu nhan duoc tin nay, SMS Gateway da hoat dong thanh cong.",
+            "Test");
         return Ok(new { success = result, phone = dto.PhoneNumber });
+    }
+
+    [HttpGet("logs")]
+    public async Task<IActionResult> GetLogs([FromQuery] SmsLogSearchDto search)
+    {
+        var result = await _smsService.GetSmsLogsAsync(search);
+        return Ok(result);
+    }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+    {
+        var result = await _smsService.GetSmsStatsAsync(fromDate, toDate);
+        return Ok(result);
     }
 }
 

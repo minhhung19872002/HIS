@@ -40,6 +40,7 @@ const pages = [
   { route: '/medical-supply', name: 'Medical Supply (Vat tu y te)' },
   { route: '/follow-up', name: 'Follow Up (Tai kham)' },
   { route: '/booking-management', name: 'Booking Management (Quan ly dat lich)' },
+  { route: '/sms-management', name: 'SMS Management (SMS Gateway)' },
   { route: '/help', name: 'Help (Tro giup)' },
 ];
 

@@ -241,6 +241,7 @@ public class HISDbContext : DbContext
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
+    public DbSet<SmsLog> SmsLogs => Set<SmsLog>();
 
     // Ngân hàng máu (Blood Bank)
     public DbSet<BloodUnit> BloodUnits => Set<BloodUnit>();

@@ -155,6 +155,7 @@ const MainLayout: React.FC = () => {
         { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
         { key: '/admin', icon: <SettingOutlined />, label: 'Quản trị' },
         { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
+        { key: '/sms-management', icon: <MobileOutlined />, label: 'SMS Gateway' },
         { key: '/help', icon: <QuestionCircleOutlined />, label: 'Hướng dẫn' },
       ],
     },

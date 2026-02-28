@@ -61,6 +61,23 @@ public class Notification : BaseEntity
 }
 
 /// <summary>
+/// Nhật ký SMS - SMS Log
+/// </summary>
+public class SmsLog : BaseEntity
+{
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string MessageType { get; set; } = string.Empty; // OTP, Result, Booking, Reminder, Critical, Test, Queue, General
+    public string Provider { get; set; } = string.Empty; // esms, speedsms, dev
+    public int Status { get; set; } // 0: Sent, 1: Failed, 2: DevMode
+    public string? ErrorMessage { get; set; }
+    public string? ProviderResponse { get; set; } // Raw JSON from provider
+    public string? PatientName { get; set; } // For tracking context
+    public string? RelatedEntityType { get; set; } // LabResult, Appointment, QueueTicket, etc.
+    public Guid? RelatedEntityId { get; set; }
+}
+
+/// <summary>
 /// Tác vụ định kỳ - Scheduled Task
 /// </summary>
 public class ScheduledTask : BaseEntity
