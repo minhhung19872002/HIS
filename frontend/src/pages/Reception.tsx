@@ -40,10 +40,13 @@ import {
   SwapOutlined,
   HistoryOutlined,
   ScanOutlined,
+  SafetyCertificateOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as receptionApi from '../api/reception';
+import * as insuranceApi from '../api/insurance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import WebcamCapture from '../components/WebcamCapture';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -120,6 +123,14 @@ const Reception: React.FC = () => {
   const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(dayjs());
   const [allData, setAllData] = useState<ReceptionRecord[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  // Inline insurance verification in registration form
+  const [inlineCardVerification, setInlineCardVerification] = useState<insuranceApi.InsuranceCardVerificationDto | null>(null);
+  const [inlineVerifyLoading, setInlineVerifyLoading] = useState(false);
+  const [inlineVerifyStatus, setInlineVerifyStatus] = useState<'none' | 'valid' | 'invalid' | 'error'>('none');
+  const [isInsuranceHistoryModalOpen, setIsInsuranceHistoryModalOpen] = useState(false);
+  const [bhxhHistory, setBhxhHistory] = useState<insuranceApi.InsuranceHistoryDto | null>(null);
+  const [bhxhHistoryLoading, setBhxhHistoryLoading] = useState(false);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -381,6 +392,60 @@ const Reception: React.FC = () => {
       message.error(error?.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Inline insurance verification in registration modal
+  const handleInlineInsuranceVerify = async () => {
+    const insuranceNumber = form.getFieldValue('insuranceNumber');
+    if (!insuranceNumber || insuranceNumber.length < 10) {
+      message.warning('Vui long nhap so the BHYT hop le');
+      return;
+    }
+    setInlineVerifyLoading(true);
+    setInlineCardVerification(null);
+    setInlineVerifyStatus('none');
+    try {
+      const patientName = form.getFieldValue('fullName') || '';
+      const dob = form.getFieldValue('dateOfBirth');
+      const result = await insuranceApi.verifyInsuranceCard({
+        insuranceNumber,
+        patientName,
+        dateOfBirth: dob ? dob.format('YYYY-MM-DD') : '',
+      });
+      const data = (result as any).data || result;
+      setInlineCardVerification(data);
+      if (data.duDkKcb) {
+        setInlineVerifyStatus('valid');
+        message.success('The BHYT hop le - Du dieu kien KCB');
+      } else {
+        setInlineVerifyStatus('invalid');
+        message.warning(data.lyDoKhongDuDk || 'The BHYT khong du dieu kien');
+      }
+    } catch (error) {
+      console.warn('Inline insurance verification error:', error);
+      setInlineVerifyStatus('error');
+      message.warning('Khong ket noi duoc cong BHXH. Co the nhap thu cong.');
+    } finally {
+      setInlineVerifyLoading(false);
+    }
+  };
+
+  // Insurance history from verified card
+  const handleViewBhxhHistory = async () => {
+    const insuranceNumber = inlineCardVerification?.maThe || form.getFieldValue('insuranceNumber');
+    if (!insuranceNumber) return;
+    setBhxhHistoryLoading(true);
+    setIsInsuranceHistoryModalOpen(true);
+    try {
+      const result = await insuranceApi.getInsuranceHistory(insuranceNumber);
+      const data = (result as any).data || result;
+      setBhxhHistory(data);
+    } catch (error) {
+      console.warn('Error fetching BHXH history:', error);
+      message.warning('Khong the tai lich su KCB');
+    } finally {
+      setBhxhHistoryLoading(false);
     }
   };
 
@@ -1250,7 +1315,11 @@ const Reception: React.FC = () => {
         }
         open={isModalOpen}
         onOk={handleCreate}
-        onCancel={() => setIsModalOpen(false)}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setInlineCardVerification(null);
+          setInlineVerifyStatus('none');
+        }}
         width={900}
         okText="Đăng ký"
         cancelText="Hủy"
@@ -1329,21 +1398,36 @@ const Reception: React.FC = () => {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="insuranceNumber" label="Số thẻ BHYT">
-                <Input placeholder="Nhập số thẻ BHYT" />
+            <Col span={10}>
+              <Form.Item name="insuranceNumber" label="So the BHYT">
+                <Input
+                  placeholder="Nhap so the BHYT"
+                  maxLength={15}
+                  onBlur={handleInlineInsuranceVerify}
+                />
               </Form.Item>
+            </Col>
+            <Col span={2} style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 24 }}>
+              <Tooltip title="Xac minh the BHYT qua cong BHXH">
+                <Button
+                  icon={<SafetyCertificateOutlined />}
+                  onClick={handleInlineInsuranceVerify}
+                  loading={inlineVerifyLoading}
+                >
+                  Xac minh
+                </Button>
+              </Tooltip>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="roomId"
-                label="Phòng khám"
-                rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
+                label="Phong kham"
+                rules={[{ required: true, message: 'Vui long chon phong kham' }]}
               >
                 <Select
-                  placeholder="Chọn phòng khám"
+                  placeholder="Chon phong kham"
                   loading={loadingRooms}
-                  notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
+                  notFoundContent={loadingRooms ? <Spin size="small" /> : 'Khong co du lieu'}
                 >
                   {rooms.map(room => (
                     <Select.Option key={room.roomId} value={room.roomId}>
@@ -1355,8 +1439,58 @@ const Reception: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item name="address" label="Địa chỉ">
-            <Input.TextArea rows={2} placeholder="Nhập địa chỉ" />
+          {/* Inline insurance verification result */}
+          {inlineVerifyStatus === 'valid' && inlineCardVerification && (
+            <div style={{ marginBottom: 16 }}>
+              <Alert
+                title={
+                  <Space>
+                    <Tag color="green">Du dieu kien KCB</Tag>
+                    <Text>Muc huong: {inlineCardVerification.mucHuong}%</Text>
+                    <Text type="secondary">
+                      Hieu luc: {inlineCardVerification.gtTheTu ? dayjs(inlineCardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - {inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen).format('DD/MM/YYYY') : ''}
+                    </Text>
+                    <Button size="small" type="link" icon={<HistoryOutlined />} onClick={handleViewBhxhHistory}>
+                      Xem lich su KCB
+                    </Button>
+                  </Space>
+                }
+                type="success"
+                showIcon
+              />
+            </div>
+          )}
+          {inlineVerifyStatus === 'invalid' && inlineCardVerification && (
+            <div style={{ marginBottom: 16 }}>
+              <Alert
+                title={
+                  <Space>
+                    <Tag color="red">Khong du dieu kien</Tag>
+                    <Text type="danger">{inlineCardVerification.lyDoKhongDuDk || 'Khong co thong tin'}</Text>
+                  </Space>
+                }
+                type="error"
+                showIcon
+              />
+            </div>
+          )}
+          {inlineVerifyStatus === 'error' && (
+            <div style={{ marginBottom: 16 }}>
+              <Alert
+                title={
+                  <Space>
+                    <Tag color="gold">Khong ket noi duoc cong BHXH</Tag>
+                    <Text type="warning">Co the nhap thu cong va tiep tuc dang ky</Text>
+                  </Space>
+                }
+                type="warning"
+                showIcon
+              />
+            </div>
+          )}
+
+          <Form.Item name="address" label="Dia chi">
+            <Input.TextArea rows={2} placeholder="Nhap dia chi" />
           </Form.Item>
         </Form>
       </Modal>
@@ -1551,8 +1685,67 @@ const Reception: React.FC = () => {
         open={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={handleBarcodeScan}
-        title="Quét mã vạch / QR Code bệnh nhân"
+        title="Quet ma vach / QR Code benh nhan"
       />
+
+      {/* BHXH Insurance History Modal */}
+      <Modal
+        title="Lich su kham chua benh BHYT"
+        open={isInsuranceHistoryModalOpen}
+        onCancel={() => {
+          setIsInsuranceHistoryModalOpen(false);
+          setBhxhHistory(null);
+        }}
+        footer={null}
+        width={800}
+      >
+        <Spin spinning={bhxhHistoryLoading}>
+          {bhxhHistory ? (
+            <>
+              <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
+                <Descriptions.Item label="Ma the BHYT">
+                  <Text code>{bhxhHistory.maThe}</Text>
+                </Descriptions.Item>
+              </Descriptions>
+              <Table
+                size="small"
+                columns={[
+                  {
+                    title: 'Ngay KCB',
+                    dataIndex: 'ngayKcb',
+                    key: 'ngayKcb',
+                    width: 110,
+                    render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
+                  },
+                  {
+                    title: 'Ten CSKCB',
+                    dataIndex: 'tenCsKcb',
+                    key: 'tenCsKcb',
+                  },
+                  {
+                    title: 'Ma benh chinh',
+                    dataIndex: 'maBenhChinh',
+                    key: 'maBenhChinh',
+                    width: 120,
+                  },
+                  {
+                    title: 'Tien BHYT',
+                    dataIndex: 'tienBhyt',
+                    key: 'tienBhyt',
+                    width: 130,
+                    align: 'right' as const,
+                    render: (amount: number) => new Intl.NumberFormat('vi-VN').format(amount) + ' VND',
+                  },
+                ]}
+                dataSource={(bhxhHistory.visits || []).map((v, idx) => ({ ...v, key: idx }))}
+                pagination={false}
+              />
+            </>
+          ) : (
+            <Empty description="Khong co lich su KCB" />
+          )}
+        </Spin>
+      </Modal>
     </div>
   );
 };
