@@ -985,6 +985,37 @@ If a new service/controller is added, register it there or you get 500 errors.
 - TypeScript: 0 errors
 - Cypress cda-dqgvn: 17/17 pass (5 skipped - patient dependent)
 
+**94. NangCap2.pdf Analysis - Goi thau LIS-HIS BV Tu Du (37 hang muc)**
+
+DA CO trong HIS:
+- Ky so PKQ (DigitalSignatureService + PKCS#11) → #1,2,3,16,24
+- Ket noi HIS-LIS (HL7 receiver + sender) → #4,5,6
+- Barcode scanning (html5-qrcode) → #7 (can them print barcode label)
+- BloodBank module → #15,17
+- QueueDisplay → #29,30,31 (can mo rong cho LIS queues)
+- Laboratory module + bao cao → #32
+- Ket noi may XN (HL7) → #33
+
+CAN LAM MOI:
+- **Sang loc So sinh** (#8): form nhap thong tin tre (can nang, ngay sinh, tinh trang), phieu ket qua
+- **Sang loc Truoc sinh** (#9): thai ky, sieu am, tien su thai, phieu ket qua
+- **Luu mau** (#10,11,27): QR scan ong mau, chon mau (xanh/khac), vi tri luu, canh bao thoi gian, so do ong mau
+- **Luu chung Vi Sinh** (#12): quan ly tu, hop, mau luu chung, canh bao, tim kiem
+- **Giao nhan mau nang cao** (#13,14,26,36): tu choi mau (barcode, ly do, thoi gian, user), xoa tu choi, lap lai, nhat ky
+- **QLHC Hoa chat** (#18,23,37): so luong hoa chat theo XN/may, nhap-xuat-ton, date su dung
+- **Ket noi HIS-QLHC** (#19,20,25): ket noi Phan mem Quan ly BV de dat hang du tru
+- **Giai phau benh & Te bao hoc** (#21): SID XN, ket qua TBH/GPB/PAP, tieu ban/block, thong ke
+- **Ket noi HIS-GPB** (#22): chi dinh va gui ket qua GPB
+- **Ket noi kinh hien vi** (#28): 07 kinh, camera, ket noi (hardware-dependent)
+- **QC (Quality Control)** (#34): lo QC, ket qua QC, canh bao vi pham, Levey-Jennings chart, import tu LIS
+- **Vi Sinh ket qua** (#35): nuoi cay, vi khuan, khang sinh do, bao cao theo loai mau/vi khuan
+
+CAN NANG CAP:
+- Ky so: tich hop vao LIS PDF output (hien chi co cho Radiology/EMR)
+- Giao nhan mau: them tu choi/lap lai/nhat ky (hien chi co basic tracking)
+- Queue display: mo rong cho XN/Vi Sinh/Di Truyen (hien chi phong kham)
+- BloodBank: them gelcard, kiem ke tui mau theo nhom, kiem ke han dung
+
 ---
 
 ### DA HOAN THANH (Session 16 - 2026-02-27)
