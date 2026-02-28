@@ -81,12 +81,21 @@ Plans:
 
 **Why:** Level 6 certification audit requires security documentation per Decree 85/2016 and CCCD national ID validation per TT 13/2025. Lower technical complexity but mandatory for compliance paperwork.
 
+**Goal:** Encrypt sensitive patient data at rest (TDE + column-level AES), enhance audit logging for sensitive data access, implement real database backup/restore, fix SHA256 password hashing, create compliance documentation package (access control matrix, backup procedures, incident response plan), and verify pre-existing CCCD validation.
+
 **Requirements:**
 - SEC-01: Access control matrix documentation per Decree 85/2016
 - SEC-02: Data encryption at rest for sensitive patient data
 - SEC-03: Backup and recovery procedures documented and tested
 - SEC-04: Security incident response plan
 - SEC-05: CCCD/National ID validation on patient registration
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Data encryption (TDE + AES column encryption via ValueConverter) + SHA256 password hash fix + SEC-05 verification
+- [ ] 03-02-PLAN.md — Audit middleware enhancement for sensitive GET logging + SecurityService + real backup/restore + permission matrix seed
+- [ ] 03-03-PLAN.md — Frontend compliance UI (access matrix + compliance dashboard) + compliance documents + Cypress tests
 
 **Success criteria:**
 1. A receptionist entering a patient's CCCD number sees immediate validation feedback (format check, checksum verification) and the system rejects obviously invalid numbers
@@ -244,3 +253,4 @@ All 52 v1 requirements are mapped. Zero unmapped.
 *Roadmap created: 2026-02-28*
 *Phase 1 planned: 2026-02-28 (4 plans, 2 waves)*
 *Phase 2 planned: 2026-02-28 (4 plans, 2 waves)*
+*Phase 3 planned: 2026-02-28 (3 plans, 2 waves)*
