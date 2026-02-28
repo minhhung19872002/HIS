@@ -223,6 +223,86 @@ public class InsuranceXmlController : ControllerBase
     }
 
     /// <summary>
+    /// Tạo dữ liệu XML6 - Máu và chế phẩm máu
+    /// </summary>
+    [HttpPost("xml/generate/xml6")]
+    public async Task<ActionResult<List<Xml6BloodDto>>> GenerateXml6Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml6DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo dữ liệu XML8 - Vận chuyển người bệnh
+    /// </summary>
+    [HttpPost("xml/generate/xml8")]
+    public async Task<ActionResult<List<Xml8TransportDto>>> GenerateXml8Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml8DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo dữ liệu XML9 - Giấy nghỉ việc hưởng BHXH
+    /// </summary>
+    [HttpPost("xml/generate/xml9")]
+    public async Task<ActionResult<List<Xml9SickLeaveDto>>> GenerateXml9Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml9DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo dữ liệu XML10 - Kết quả giám định
+    /// </summary>
+    [HttpPost("xml/generate/xml10")]
+    public async Task<ActionResult<List<Xml10AssessmentDto>>> GenerateXml10Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml10DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo dữ liệu XML11 - Sổ BHXH
+    /// </summary>
+    [HttpPost("xml/generate/xml11")]
+    public async Task<ActionResult<List<Xml11SocialInsuranceDto>>> GenerateXml11Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml11DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo dữ liệu XML13 - Giấy hẹn tái khám
+    /// </summary>
+    [HttpPost("xml/generate/xml13")]
+    public async Task<ActionResult<List<Xml13ReExamDto>>> GenerateXml13Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml13DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo dữ liệu XML14 - Phiếu chuyển tuyến (QĐ 3176)
+    /// </summary>
+    [HttpPost("xml/generate/xml14")]
+    public async Task<ActionResult<List<Xml14ReferralCertDto>>> GenerateXml14Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml14DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo dữ liệu XML15 - Điều trị lao
+    /// </summary>
+    [HttpPost("xml/generate/xml15")]
+    public async Task<ActionResult<List<Xml15TbTreatmentDto>>> GenerateXml15Data([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.GenerateXml15DataAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Xuất file XML tổng hợp
     /// </summary>
     [HttpPost("xml/export")]

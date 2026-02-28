@@ -367,53 +367,298 @@ public class InsuranceXmlService : IInsuranceXmlService
     public async Task<List<Xml1MedicalRecordDto>> GenerateXml1DataAsync(XmlExportConfigDto config)
     {
         var claims = await GetClaimsForExport(config);
-        return claims.Select(c => new Xml1MedicalRecordDto
+        var result = new List<Xml1MedicalRecordDto>();
+
+        foreach (var c in claims)
         {
-            MaLk = c.ClaimCode,
-            MaBn = c.Patient?.PatientCode ?? "",
-            HoTen = c.Patient?.FullName ?? "",
-            NgaySinh = c.Patient?.DateOfBirth ?? DateTime.MinValue,
-            GioiTinh = c.Patient?.Gender ?? 1,
-            DiaChi = c.Patient?.Address ?? "",
-            MaThe = c.InsuranceNumber ?? "",
-            MaDkbd = c.InsuranceFacilityCode ?? "",
-            GtTheTu = c.InsuranceStartDate ?? DateTime.MinValue,
-            GtTheDen = c.InsuranceEndDate ?? DateTime.MinValue,
-            NgayVao = c.ServiceDate,
-            NgayRa = c.DischargeDate,
-            MaBenhChinh = c.MainDiagnosisCode ?? "",
-            MaLoaiKcb = c.TreatmentType.ToString(),
-            MaKhoa = "",
-            TienBhyt = c.InsuranceAmount,
-            TienBnCct = c.PatientAmount,
-            TienNguoibenh = c.OutOfPocketAmount,
-            MaPhong = ""
-        }).ToList();
+            // Sum cost fields grouped by ItemType from ClaimDetails
+            var details = c.ClaimDetails ?? new List<InsuranceClaimDetail>();
+            var examCost = details.Where(d => d.ItemType == 1).Sum(d => d.Amount);
+            var bedCost = details.Where(d => d.ItemType == 4).Sum(d => d.Amount);
+            var totalBhyt = details.Sum(d => d.InsuranceAmount);
+            var totalCopay = details.Sum(d => d.PatientAmount);
+
+            // Calculate treatment days
+            var daysOfTreatment = c.DischargeDate.HasValue
+                ? Math.Max(1, (int)(c.DischargeDate.Value - c.ServiceDate).TotalDays)
+                : 1;
+
+            result.Add(new Xml1MedicalRecordDto
+            {
+                MaLk = c.ClaimCode,
+                MaBn = c.Patient?.PatientCode ?? "",
+                HoTen = c.Patient?.FullName ?? "",
+                NgaySinh = c.Patient?.DateOfBirth ?? DateTime.MinValue,
+                GioiTinh = c.Patient?.Gender ?? 1,
+                DiaChi = c.Patient?.Address ?? "",
+                MaThe = c.InsuranceNumber ?? "",
+                MaDkbd = c.InsuranceFacilityCode ?? "",
+                GtTheTu = c.InsuranceStartDate ?? DateTime.MinValue,
+                GtTheDen = c.InsuranceEndDate ?? DateTime.MinValue,
+                NgayVao = c.ServiceDate,
+                NgayRa = c.DischargeDate,
+                SoNgayDt = daysOfTreatment,
+                MaBenhChinh = c.MainDiagnosisCode ?? "",
+                MaBenhKt = c.SubDiagnosisCodes,
+                MaLoaiKcb = c.TreatmentType.ToString(),
+                MaKhoa = c.Department?.DepartmentCode ?? "",
+                MaPhong = c.Department?.DepartmentCode ?? "", // Room code from exam room if available
+                TienKham = Math.Round(examCost, 2),
+                TienGiuong = Math.Round(bedCost, 2),
+                TienBhyt = Math.Round(c.InsuranceAmount > 0 ? c.InsuranceAmount : totalBhyt, 2),
+                TienBnCct = Math.Round(c.PatientAmount > 0 ? c.PatientAmount : totalCopay, 2),
+                TienNguoibenh = Math.Round(c.OutOfPocketAmount, 2),
+                TienTuphitru = 0,
+                TienNgoaitruth = 0,
+                MaDoiTuong = c.InsuranceType.ToString(),
+                KetQuaDt = c.TreatmentType switch { 1 => "1", 2 => "1", 3 => "1", _ => "1" } // 1-Khoi
+            });
+        }
+
+        return result;
     }
 
     public async Task<List<Xml2MedicineDto>> GenerateXml2DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml2MedicineDto>();
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml2MedicineDto>();
+
+        foreach (var claim in claims)
+        {
+            // Get medicine claim details (ItemType=2 for medicines, covered by insurance)
+            var medicineDetails = (claim.ClaimDetails ?? new List<InsuranceClaimDetail>())
+                .Where(d => d.ItemType == 2 && d.IsInsuranceCovered)
+                .ToList();
+
+            var stt = 1;
+            foreach (var detail in medicineDetails)
+            {
+                result.Add(new Xml2MedicineDto
+                {
+                    MaLk = claim.ClaimCode,
+                    Stt = stt++,
+                    MaThuoc = detail.Medicine?.MedicineCodeBYT ?? detail.ItemCode,
+                    MaNhom = detail.Medicine?.MedicineGroupCode ?? "",
+                    TenThuoc = detail.Medicine?.MedicineName ?? detail.ItemName,
+                    DonViTinh = detail.Medicine?.Unit ?? detail.Unit,
+                    HamLuong = detail.Medicine?.Concentration,
+                    DuongDung = detail.Medicine?.RouteName,
+                    SoLuong = Math.Round(detail.Quantity, 2),
+                    DonGia = Math.Round(detail.UnitPrice, 2),
+                    TyLeThanhToan = detail.InsuranceCoverage > 0 ? (int)detail.InsuranceCoverage : 100,
+                    ThanhTien = Math.Round(detail.Amount, 2),
+                    ThanhTienBv = Math.Round(detail.Amount, 2),
+                    MaKhoa = claim.Department?.DepartmentCode,
+                    MaBacSi = claim.Doctor?.EmployeeCode ?? claim.Doctor?.UserCode,
+                    NgayYl = detail.ServiceDate,
+                    TienBhyt = Math.Round(detail.InsuranceAmount, 2),
+                    TienBnCct = Math.Round(detail.PatientAmount, 2),
+                    TienNguoiBenh = 0,
+                    MucHuong = claim.InsurancePaymentRate > 0 ? (int)claim.InsurancePaymentRate : 80
+                });
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<Xml3ServiceDto>> GenerateXml3DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml3ServiceDto>();
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml3ServiceDto>();
+
+        foreach (var claim in claims)
+        {
+            // Get service claim details (ItemType=1 for services)
+            var serviceDetails = (claim.ClaimDetails ?? new List<InsuranceClaimDetail>())
+                .Where(d => d.ItemType == 1)
+                .ToList();
+
+            var stt = 1;
+            foreach (var detail in serviceDetails)
+            {
+                result.Add(new Xml3ServiceDto
+                {
+                    MaLk = claim.ClaimCode,
+                    Stt = stt++,
+                    MaDvu = detail.Service?.ServiceCodeBHYT ?? detail.ItemCode,
+                    MaNhom = detail.Service?.ServiceGroup?.GroupCode ?? "",
+                    TenDvu = detail.Service?.ServiceName ?? detail.ItemName,
+                    DonViTinh = detail.Service?.Unit ?? detail.Unit,
+                    SoLuong = Math.Round(detail.Quantity, 2),
+                    DonGia = Math.Round(detail.UnitPrice, 2),
+                    TyLeThanhToan = detail.InsuranceCoverage > 0 ? (int)detail.InsuranceCoverage : 100,
+                    ThanhTien = Math.Round(detail.Amount, 2),
+                    ThanhTienBv = Math.Round(detail.Amount, 2),
+                    MaKhoa = claim.Department?.DepartmentCode,
+                    MaBacSi = claim.Doctor?.EmployeeCode ?? claim.Doctor?.UserCode,
+                    NgayYl = detail.ServiceDate,
+                    NgayKq = null, // Result date filled from ServiceRequestDetail if available
+                    TienBhyt = Math.Round(detail.InsuranceAmount, 2),
+                    TienBnCct = Math.Round(detail.PatientAmount, 2),
+                    TienNguoiBenh = 0,
+                    MucHuong = claim.InsurancePaymentRate > 0 ? (int)claim.InsurancePaymentRate : 80
+                });
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<Xml4OtherMedicineDto>> GenerateXml4DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml4OtherMedicineDto>();
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml4OtherMedicineDto>();
+
+        foreach (var claim in claims)
+        {
+            // Get non-covered medicine details (ItemType=2 and NOT covered by insurance)
+            var otherMeds = (claim.ClaimDetails ?? new List<InsuranceClaimDetail>())
+                .Where(d => d.ItemType == 2 && !d.IsInsuranceCovered)
+                .ToList();
+
+            var stt = 1;
+            foreach (var detail in otherMeds)
+            {
+                result.Add(new Xml4OtherMedicineDto
+                {
+                    MaLk = claim.ClaimCode,
+                    Stt = stt++,
+                    MaThuoc = detail.Medicine?.MedicineCodeBYT ?? detail.ItemCode,
+                    TenThuoc = detail.Medicine?.MedicineName ?? detail.ItemName,
+                    DonViTinh = detail.Medicine?.Unit ?? detail.Unit,
+                    HamLuong = detail.Medicine?.Concentration,
+                    DuongDung = detail.Medicine?.RouteName,
+                    SoLuong = Math.Round(detail.Quantity, 2),
+                    DonGia = Math.Round(detail.UnitPrice, 2),
+                    ThanhTien = Math.Round(detail.Amount, 2),
+                    MaKhoa = claim.Department?.DepartmentCode,
+                    MaBacSi = claim.Doctor?.EmployeeCode ?? claim.Doctor?.UserCode,
+                    NgayYl = detail.ServiceDate
+                });
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<Xml5PrescriptionDto>> GenerateXml5DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml5PrescriptionDto>();
+        // Get claims for the period to identify medical records
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml5PrescriptionDto>();
+        var medicalRecordIds = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .Select(c => c.MedicalRecordId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (medicalRecordIds.Count == 0) return result;
+
+        // Build a claim code lookup by medical record ID
+        var claimLookup = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .GroupBy(c => c.MedicalRecordId!.Value)
+            .ToDictionary(g => g.Key, g => g.First().ClaimCode);
+
+        // Query prescriptions linked to these medical records
+        var prescriptions = await _context.Prescriptions
+            .AsNoTracking()
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Where(p => medicalRecordIds.Contains(p.MedicalRecordId) && !p.IsDeleted && p.Status != 4)
+            .ToListAsync();
+
+        foreach (var rx in prescriptions)
+        {
+            if (!claimLookup.TryGetValue(rx.MedicalRecordId, out var maLk)) continue;
+
+            var stt = 1;
+            foreach (var detail in rx.Details)
+            {
+                result.Add(new Xml5PrescriptionDto
+                {
+                    MaLk = maLk,
+                    Stt = stt++,
+                    MaThuoc = detail.Medicine?.MedicineCodeBYT ?? detail.Medicine?.MedicineCode ?? "",
+                    TenThuoc = detail.Medicine?.MedicineName ?? "",
+                    SoDk = detail.Medicine?.RegistrationNumber,
+                    HamLuong = detail.Medicine?.Concentration,
+                    SoLuong = Math.Round(detail.Quantity, 2),
+                    DonGia = Math.Round(detail.UnitPrice, 2),
+                    ThanhTien = Math.Round(detail.Amount, 2),
+                    LieuDung = detail.Dosage,
+                    CachDung = detail.Usage ?? detail.UsageInstructions,
+                    SoNgay = detail.Days > 0 ? detail.Days : rx.TotalDays,
+                    MaBenh = rx.IcdCode ?? rx.DiagnosisCode,
+                    NgayKeDon = rx.PrescriptionDate
+                });
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<Xml7ReferralDto>> GenerateXml7DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml7ReferralDto>();
+        // Get claims for the period
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml7ReferralDto>();
+
+        // Find discharges that are referrals (DischargeType=2 means transfer/referral)
+        var admissionIds = claims
+            .Where(c => c.MedicalRecord != null)
+            .Select(c => c.MedicalRecordId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        if (admissionIds.Count == 0) return result;
+
+        // Build a claim code lookup
+        var claimLookup = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .GroupBy(c => c.MedicalRecordId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Query Discharge records that are referrals
+        var discharges = await _context.Discharges
+            .AsNoTracking()
+            .Include(d => d.Admission)
+            .Where(d => d.DischargeType == 2 && !d.IsDeleted) // 2=Transfer/referral
+            .ToListAsync();
+
+        var stt = 1;
+        foreach (var discharge in discharges)
+        {
+            // Find the matching claim via admission's MedicalRecordId
+            var matchingClaim = claimLookup.Values
+                .FirstOrDefault(c => c.MedicalRecord?.Id == discharge.Admission?.MedicalRecordId
+                    || c.MedicalRecordId == discharge.Admission?.MedicalRecordId);
+
+            if (matchingClaim == null) continue;
+
+            result.Add(new Xml7ReferralDto
+            {
+                MaLk = matchingClaim.ClaimCode,
+                Stt = stt++,
+                SoHoSo = matchingClaim.MedicalRecord?.MedicalRecordCode ?? "",
+                MaBnChuyenDi = matchingClaim.Patient?.PatientCode ?? "",
+                MaCskbChuyenDi = matchingClaim.InsuranceFacilityCode ?? "",
+                NgayChuyenDi = discharge.DischargeDate,
+                MaCskbChuyenDen = "", // Would come from referral destination entity if available
+                LyDoChuyenVien = discharge.DischargeDiagnosis ?? "Chuyen tuyen dieu tri",
+                MaBenhChinh = matchingClaim.MainDiagnosisCode,
+                MaBenhKt = matchingClaim.SubDiagnosisCodes,
+                TomTatKq = discharge.DischargeInstructions,
+                HuongDieuTri = discharge.DischargeInstructions,
+                PhuongTienVc = "Xe cap cuu",
+                HoTenNguoiHt = null,
+                ChucDanhNguoiHt = null
+            });
+        }
+
+        return result;
     }
 
     public async Task<List<Xml6BloodDto>> GenerateXml6DataAsync(XmlExportConfigDto config)
@@ -1280,6 +1525,13 @@ public class InsuranceXmlService : IInsuranceXmlService
     {
         var query = _context.InsuranceClaims
             .Include(c => c.Patient)
+            .Include(c => c.Department)
+            .Include(c => c.Doctor)
+            .Include(c => c.MedicalRecord)
+            .Include(c => c.ClaimDetails).ThenInclude(d => d.Medicine)
+            .Include(c => c.ClaimDetails).ThenInclude(d => d.Service).ThenInclude(s => s!.ServiceGroup)
+            .AsNoTracking()
+            .Where(c => !c.IsDeleted)
             .AsQueryable();
 
         if (config.FromDate.HasValue)
