@@ -119,6 +119,12 @@ public static class DependencyInjection
         // PDF Generation (EMR forms - HTML for browser printing)
         services.AddScoped<IPdfGenerationService, PdfGenerationService>();
 
+        // Online Appointment Booking (Public - không cần đăng nhập)
+        services.AddScoped<IAppointmentBookingService, AppointmentBookingService>();
+
+        // Medical Record Archive (Lưu trữ hồ sơ bệnh án)
+        services.AddScoped<IMedicalRecordArchiveService, MedicalRecordArchiveService>();
+
         return services;
     }
 }

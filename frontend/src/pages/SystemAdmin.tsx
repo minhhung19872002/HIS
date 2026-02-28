@@ -1458,7 +1458,7 @@ const SystemAdmin: React.FC = () => {
                               <Statistic
                                 title="Lỗi"
                                 value={metricsData.errorCount}
-                                valueStyle={{ color: metricsData.errorCount > 0 ? '#cf1322' : '#3f8600' }}
+                                styles={{ content: { color: metricsData.errorCount > 0 ? '#cf1322' : '#3f8600' } }}
                               />
                             </Card>
                           </Col>
@@ -1469,7 +1469,7 @@ const SystemAdmin: React.FC = () => {
                                 value={metricsData.errorRate}
                                 precision={2}
                                 suffix="%"
-                                valueStyle={{ color: metricsData.errorRate > 5 ? '#cf1322' : '#3f8600' }}
+                                styles={{ content: { color: metricsData.errorRate > 5 ? '#cf1322' : '#3f8600' } }}
                               />
                             </Card>
                           </Col>
@@ -1586,7 +1586,7 @@ const SystemAdmin: React.FC = () => {
                                         <Statistic
                                           title={`HTTP ${code}`}
                                           value={count}
-                                          valueStyle={{ color, fontSize: 20 }}
+                                          styles={{ content: { color, fontSize: 20 } }}
                                         />
                                       </Card>
                                     </Col>

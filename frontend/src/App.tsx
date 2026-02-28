@@ -42,6 +42,7 @@ import QueueDisplay from './pages/QueueDisplay';
 import EMR from './pages/EMR';
 import MedicalSupply from './pages/MedicalSupply';
 import FollowUp from './pages/FollowUp';
+import AppointmentBooking from './pages/AppointmentBooking';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -73,6 +74,7 @@ const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path="/queue-display" element={<QueueDisplay />} />
+      <Route path="/dat-lich" element={<AppointmentBooking />} />
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
