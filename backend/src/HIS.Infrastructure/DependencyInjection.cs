@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Extensions.Http;
 using HIS.Core.Interfaces;
@@ -64,6 +65,13 @@ public static class DependencyInjection
         services.AddScoped<IBloodBankCompleteService, BloodBankCompleteService>();
 
         // Phân hệ 12: Giám định BHYT - XML Export
+        services.AddSingleton<XmlExportService>();
+        services.AddSingleton<XmlSchemaValidator>(sp =>
+        {
+            // XSD path relative to content root -- overridden from Program.cs if needed
+            var xsdPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "xsd", "bhxh");
+            return new XmlSchemaValidator(xsdPath, sp.GetRequiredService<ILogger<XmlSchemaValidator>>());
+        });
         services.AddScoped<IInsuranceXmlService, InsuranceXmlService>();
 
         // BHXH Gateway Client (conditional: mock for dev, real HTTP for production)
