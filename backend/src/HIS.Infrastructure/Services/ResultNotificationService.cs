@@ -16,17 +16,20 @@ public class ResultNotificationService : IResultNotificationService
 {
     private readonly HISDbContext _context;
     private readonly IEmailService _emailService;
+    private readonly ISmsService _smsService;
     private readonly ILogger<ResultNotificationService> _logger;
     private readonly string _portalUrl;
 
     public ResultNotificationService(
         HISDbContext context,
         IEmailService emailService,
+        ISmsService smsService,
         ILogger<ResultNotificationService> logger,
         IConfiguration configuration)
     {
         _context = context;
         _emailService = emailService;
+        _smsService = smsService;
         _logger = logger;
         _portalUrl = configuration["PortalUrl"] ?? "http://localhost:3001";
     }
@@ -57,6 +60,10 @@ public class ResultNotificationService : IResultNotificationService
                 testNames,
                 approvedByName,
                 DateTime.Now);
+
+            // SMS notification (fire-and-forget)
+            if (!string.IsNullOrEmpty(request.Patient.PhoneNumber))
+                _ = _smsService.SendResultNotificationSmsAsync(request.Patient.PhoneNumber, request.Patient.FullName, "Xet nghiem", testNames);
         }
         catch (Exception ex)
         {
@@ -93,6 +100,9 @@ public class ResultNotificationService : IResultNotificationService
                 serviceName,
                 approvedByName,
                 DateTime.Now);
+
+            if (!string.IsNullOrEmpty(patient.PhoneNumber))
+                _ = _smsService.SendResultNotificationSmsAsync(patient.PhoneNumber, patient.FullName, "CDHA", serviceName);
         }
         catch (Exception ex)
         {
@@ -117,6 +127,9 @@ public class ResultNotificationService : IResultNotificationService
                 testName,
                 value,
                 normalRange);
+
+            if (!string.IsNullOrEmpty(request.Patient.PhoneNumber))
+                _ = _smsService.SendCriticalValueSmsAsync(request.Patient.PhoneNumber, request.Patient.FullName, testName);
         }
         catch (Exception ex)
         {

@@ -14,12 +14,14 @@ public class AppointmentBookingService : IAppointmentBookingService
     private readonly HISDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
+    private readonly ISmsService _smsService;
 
-    public AppointmentBookingService(HISDbContext context, IUnitOfWork unitOfWork, IEmailService emailService)
+    public AppointmentBookingService(HISDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, ISmsService smsService)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
+        _smsService = smsService;
     }
 
     public async Task<List<BookingDepartmentDto>> GetBookingDepartmentsAsync()
@@ -226,6 +228,11 @@ public class AppointmentBookingService : IAppointmentBookingService
                 appointment.AppointmentDate, appointment.AppointmentTime,
                 deptName, docName, roomName);
         }
+
+        // Gửi SMS xác nhận (fire-and-forget)
+        _ = _smsService.SendBookingConfirmationSmsAsync(
+            dto.PhoneNumber.Trim(), dto.PatientName.Trim(), code,
+            appointment.AppointmentDate, appointment.AppointmentTime, deptName);
 
         return new BookingResultDto
         {
