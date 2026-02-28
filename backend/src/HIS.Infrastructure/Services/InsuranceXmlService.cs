@@ -1,10 +1,13 @@
+using System.IO.Compression;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.Services;
 using HIS.Core.Entities;
+using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
@@ -14,20 +17,30 @@ namespace HIS.Infrastructure.Services;
 /// Implementation of IInsuranceXmlService
 /// Handles insurance claim management, XML export, settlement, and BHYT workflows.
 /// Gateway-dependent methods delegate to IBhxhGatewayClient (mock or real).
+/// XML export pipeline: validate -> generate DTOs -> generate XML bytes -> XSD validate -> write files.
 /// </summary>
 public class InsuranceXmlService : IInsuranceXmlService
 {
     private readonly HISDbContext _context;
     private readonly IBhxhGatewayClient _gatewayClient;
+    private readonly XmlExportService _xmlExportService;
+    private readonly XmlSchemaValidator _schemaValidator;
+    private readonly BhxhGatewayOptions _gatewayOptions;
     private readonly ILogger<InsuranceXmlService> _logger;
 
     public InsuranceXmlService(
         HISDbContext context,
         IBhxhGatewayClient gatewayClient,
+        XmlExportService xmlExportService,
+        XmlSchemaValidator schemaValidator,
+        IOptions<BhxhGatewayOptions> gatewayOptions,
         ILogger<InsuranceXmlService> logger)
     {
         _context = context;
         _gatewayClient = gatewayClient;
+        _xmlExportService = xmlExportService;
+        _schemaValidator = schemaValidator;
+        _gatewayOptions = gatewayOptions.Value;
         _logger = logger;
     }
 
@@ -902,16 +915,226 @@ public class InsuranceXmlService : IInsuranceXmlService
         return new List<Xml15TbTreatmentDto>();
     }
 
+    public async Task<XmlExportPreviewDto> PreviewExportAsync(XmlExportConfigDto config)
+    {
+        _logger.LogInformation("Generating export preview for {Month}/{Year}", config.Month, config.Year);
+
+        // Generate all table data
+        var xml1Data = await GenerateXml1DataAsync(config);
+        var xml2Data = await GenerateXml2DataAsync(config);
+        var xml3Data = await GenerateXml3DataAsync(config);
+        var xml4Data = await GenerateXml4DataAsync(config);
+        var xml5Data = await GenerateXml5DataAsync(config);
+        var xml6Data = await GenerateXml6DataAsync(config);
+        var xml7Data = await GenerateXml7DataAsync(config);
+        var xml8Data = await GenerateXml8DataAsync(config);
+        var xml9Data = await GenerateXml9DataAsync(config);
+        var xml10Data = await GenerateXml10DataAsync(config);
+        var xml11Data = await GenerateXml11DataAsync(config);
+        var xml13Data = await GenerateXml13DataAsync(config);
+        var xml14Data = await GenerateXml14DataAsync(config);
+        var xml15Data = await GenerateXml15DataAsync(config);
+
+        // Build table preview list
+        var tables = new List<XmlTablePreview>
+        {
+            new() { TableName = "XML1", Description = "Thong tin chung ho so KCB", RecordCount = xml1Data.Count },
+            new() { TableName = "XML2", Description = "Thuoc dieu tri", RecordCount = xml2Data.Count },
+            new() { TableName = "XML3", Description = "Dich vu ky thuat", RecordCount = xml3Data.Count },
+            new() { TableName = "XML4", Description = "Thuoc ngoai danh muc", RecordCount = xml4Data.Count },
+            new() { TableName = "XML5", Description = "Chi dinh thuoc", RecordCount = xml5Data.Count },
+            new() { TableName = "XML6", Description = "Mau va che pham mau", RecordCount = xml6Data.Count },
+            new() { TableName = "XML7", Description = "Giay chuyen tuyen", RecordCount = xml7Data.Count },
+            new() { TableName = "XML8", Description = "Van chuyen nguoi benh", RecordCount = xml8Data.Count },
+            new() { TableName = "XML9", Description = "Giay nghi viec huong BHXH", RecordCount = xml9Data.Count },
+            new() { TableName = "XML10", Description = "Ket qua giam dinh", RecordCount = xml10Data.Count },
+            new() { TableName = "XML11", Description = "So BHXH", RecordCount = xml11Data.Count },
+            new() { TableName = "XML13", Description = "Giay hen tai kham", RecordCount = xml13Data.Count },
+            new() { TableName = "XML14", Description = "Phieu chuyen tuyen (QD 3176)", RecordCount = xml14Data.Count },
+            new() { TableName = "XML15", Description = "Dieu tri lao", RecordCount = xml15Data.Count },
+        };
+
+        // Calculate cost totals from XML1 records
+        var totalCost = xml1Data.Sum(r => r.TienKham + r.TienGiuong + r.TienNgoaitruth + r.TienBhyt + r.TienBnCct + r.TienNguoibenh);
+        var totalInsurance = xml1Data.Sum(r => r.TienBhyt);
+        var totalPatient = xml1Data.Sum(r => r.TienNguoibenh + r.TienBnCct);
+
+        // Run validation if requested
+        var validationErrors = new List<InsuranceValidationResultDto>();
+        var hasBlockingErrors = false;
+        if (config.ValidateBeforeExport)
+        {
+            validationErrors = await ValidateBeforeExportAsync(config);
+            hasBlockingErrors = validationErrors.Any(r => !r.IsValid);
+        }
+
+        // Resolve department name if filtered
+        string? deptName = null;
+        if (config.DepartmentId.HasValue)
+        {
+            deptName = await _context.Departments
+                .Where(d => d.Id == config.DepartmentId.Value)
+                .Select(d => d.DepartmentName)
+                .FirstOrDefaultAsync();
+        }
+
+        return new XmlExportPreviewDto
+        {
+            TotalRecords = xml1Data.Count,
+            DateRangeFrom = config.FromDate ?? new DateTime(config.Year, config.Month, 1),
+            DateRangeTo = config.ToDate ?? new DateTime(config.Year, config.Month, 1).AddMonths(1).AddDays(-1),
+            DepartmentName = deptName,
+            TotalCostAmount = totalCost,
+            TotalInsuranceAmount = totalInsurance,
+            TotalPatientAmount = totalPatient,
+            Tables = tables,
+            ValidationErrors = validationErrors,
+            HasBlockingErrors = hasBlockingErrors
+        };
+    }
+
     public async Task<XmlExportResultDto> ExportXmlAsync(XmlExportConfigDto config)
     {
-        var claims = await GetClaimsForExport(config);
+        _logger.LogInformation("Starting XML export for {Month}/{Year}", config.Month, config.Year);
+
+        // Step 1: Validate all records (blocking per locked decision)
+        if (config.ValidateBeforeExport)
+        {
+            var validationResults = await ValidateBeforeExportAsync(config);
+            var blockingErrors = validationResults.Where(r => !r.IsValid).ToList();
+            if (blockingErrors.Any())
+            {
+                _logger.LogWarning("XML export blocked: {Count} records with validation errors", blockingErrors.Count);
+                return new XmlExportResultDto
+                {
+                    BatchId = Guid.Empty,
+                    TotalRecords = validationResults.Count,
+                    FailedRecords = blockingErrors.Count,
+                    Errors = blockingErrors.SelectMany(r => r.Errors.Select(e => new XmlExportError
+                    {
+                        MaLk = r.MaLk,
+                        ErrorCode = e.ErrorCode,
+                        ErrorMessage = e.Message
+                    })).ToList(),
+                    ExportTime = DateTime.Now
+                };
+            }
+        }
+
+        // Step 2: Generate all table data
+        var xml1Data = await GenerateXml1DataAsync(config);
+        var xml2Data = await GenerateXml2DataAsync(config);
+        var xml3Data = await GenerateXml3DataAsync(config);
+        var xml4Data = await GenerateXml4DataAsync(config);
+        var xml5Data = await GenerateXml5DataAsync(config);
+        var xml6Data = await GenerateXml6DataAsync(config);
+        var xml7Data = await GenerateXml7DataAsync(config);
+        var xml8Data = await GenerateXml8DataAsync(config);
+        var xml9Data = await GenerateXml9DataAsync(config);
+        var xml10Data = await GenerateXml10DataAsync(config);
+        var xml11Data = await GenerateXml11DataAsync(config);
+        var xml13Data = await GenerateXml13DataAsync(config);
+        var xml14Data = await GenerateXml14DataAsync(config);
+        var xml15Data = await GenerateXml15DataAsync(config);
+
+        // Step 3: Generate XML bytes using XmlExportService
+        var xml1Bytes = await _xmlExportService.GenerateXml1FileAsync(xml1Data);
+        var xml2Bytes = await _xmlExportService.GenerateXml2FileAsync(xml2Data);
+        var xml3Bytes = await _xmlExportService.GenerateXml3FileAsync(xml3Data);
+        var xml4Bytes = await _xmlExportService.GenerateXml4FileAsync(xml4Data);
+        var xml5Bytes = await _xmlExportService.GenerateXml5FileAsync(xml5Data);
+        var xml6Bytes = await _xmlExportService.GenerateXml6FileAsync(xml6Data);
+        var xml7Bytes = await _xmlExportService.GenerateXml7FileAsync(xml7Data);
+        var xml8Bytes = await _xmlExportService.GenerateXml8FileAsync(xml8Data);
+        var xml9Bytes = await _xmlExportService.GenerateXml9FileAsync(xml9Data);
+        var xml10Bytes = await _xmlExportService.GenerateXml10FileAsync(xml10Data);
+        var xml11Bytes = await _xmlExportService.GenerateXml11FileAsync(xml11Data);
+        var xml13Bytes = await _xmlExportService.GenerateXml13FileAsync(xml13Data);
+        var xml14Bytes = await _xmlExportService.GenerateXml14FileAsync(xml14Data);
+        var xml15Bytes = await _xmlExportService.GenerateXml15FileAsync(xml15Data);
+
+        // Step 4: XSD validation of generated XML (per locked decision)
+        var xsdErrors = new List<XmlValidationError>();
+        xsdErrors.AddRange(_schemaValidator.Validate(xml1Bytes, "XML1"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml2Bytes, "XML2"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml3Bytes, "XML3"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml4Bytes, "XML4"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml5Bytes, "XML5"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml6Bytes, "XML6"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml7Bytes, "XML7"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml8Bytes, "XML8"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml9Bytes, "XML9"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml10Bytes, "XML10"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml11Bytes, "XML11"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml13Bytes, "XML13"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml14Bytes, "XML14"));
+        xsdErrors.AddRange(_schemaValidator.Validate(xml15Bytes, "XML15"));
+
+        if (xsdErrors.Any(e => e.Severity == "Error"))
+        {
+            _logger.LogWarning("XML export blocked by XSD validation: {Count} errors", xsdErrors.Count(e => e.Severity == "Error"));
+            return new XmlExportResultDto
+            {
+                BatchId = Guid.Empty,
+                TotalRecords = xml1Data.Count,
+                FailedRecords = xml1Data.Count,
+                Errors = xsdErrors.Where(e => e.Severity == "Error").Select(e => new XmlExportError
+                {
+                    MaLk = "",
+                    ErrorCode = $"XSD_{e.TableName}",
+                    ErrorMessage = $"[{e.TableName}] Line {e.LineNumber}: {e.Message}"
+                }).ToList(),
+                ExportTime = DateTime.Now
+            };
+        }
+
+        // Step 5: Write files to disk with BHXH naming convention
+        var facilityCode = !string.IsNullOrEmpty(_gatewayOptions.FacilityCode) ? _gatewayOptions.FacilityCode : "00000";
+        var period = $"{config.Year}{config.Month:D2}";
+        var batchCode = $"XML-{period}-{DateTime.Now:HHmmss}";
+        var outputPath = Path.Combine("exports", "xml", batchCode);
+        Directory.CreateDirectory(outputPath);
+
+        // Always write ALL 14 tables (per locked decision), even empty ones
+        var xmlFiles = new Dictionary<string, byte[]>
+        {
+            { $"{facilityCode}_{period}_XML1.xml", xml1Bytes },
+            { $"{facilityCode}_{period}_XML2.xml", xml2Bytes },
+            { $"{facilityCode}_{period}_XML3.xml", xml3Bytes },
+            { $"{facilityCode}_{period}_XML4.xml", xml4Bytes },
+            { $"{facilityCode}_{period}_XML5.xml", xml5Bytes },
+            { $"{facilityCode}_{period}_XML6.xml", xml6Bytes },
+            { $"{facilityCode}_{period}_XML7.xml", xml7Bytes },
+            { $"{facilityCode}_{period}_XML8.xml", xml8Bytes },
+            { $"{facilityCode}_{period}_XML9.xml", xml9Bytes },
+            { $"{facilityCode}_{period}_XML10.xml", xml10Bytes },
+            { $"{facilityCode}_{period}_XML11.xml", xml11Bytes },
+            { $"{facilityCode}_{period}_XML13.xml", xml13Bytes },
+            { $"{facilityCode}_{period}_XML14.xml", xml14Bytes },
+            { $"{facilityCode}_{period}_XML15.xml", xml15Bytes },
+        };
+
+        long totalFileSize = 0;
+        foreach (var (fileName, bytes) in xmlFiles)
+        {
+            var filePath = Path.Combine(outputPath, fileName);
+            await File.WriteAllBytesAsync(filePath, bytes);
+            totalFileSize += bytes.Length;
+        }
+
+        _logger.LogInformation("XML export complete: {Count} files, {Size} bytes total, path={Path}",
+            xmlFiles.Count, totalFileSize, outputPath);
+
+        // Step 6: Return success result
         return new XmlExportResultDto
         {
             BatchId = Guid.NewGuid(),
-            BatchCode = $"XML-{config.Year}{config.Month:D2}-{DateTime.Now:HHmmss}",
-            TotalRecords = claims.Count,
-            SuccessRecords = claims.Count,
+            BatchCode = batchCode,
+            TotalRecords = xml1Data.Count,
+            SuccessRecords = xml1Data.Count,
             FailedRecords = 0,
+            FilePath = outputPath,
+            FileSize = totalFileSize,
             ExportTime = DateTime.Now
         };
     }
@@ -943,11 +1166,57 @@ public class InsuranceXmlService : IInsuranceXmlService
     {
         try
         {
-            var html = BuildTableReport("XML BHYT", $"Batch: {batchId}", DateTime.Now,
-                new[] { "Thong tin" }, new List<string[]> { new[] { "Du lieu XML chua duoc tao cho batch nay" } });
-            return Encoding.UTF8.GetBytes(html);
+            // Search exports folder for the batch by scanning directories
+            var exportsDir = Path.Combine("exports", "xml");
+            if (!Directory.Exists(exportsDir))
+            {
+                _logger.LogWarning("Exports directory not found: {Path}", exportsDir);
+                return Array.Empty<byte>();
+            }
+
+            // Find the batch folder (match by looking for XML files)
+            var batchDirs = Directory.GetDirectories(exportsDir);
+            string? batchPath = null;
+
+            // Try to find by convention -- most recent folder with XML files
+            foreach (var dir in batchDirs.OrderByDescending(d => Directory.GetCreationTime(d)))
+            {
+                var xmlFiles = Directory.GetFiles(dir, "*.xml");
+                if (xmlFiles.Length > 0)
+                {
+                    batchPath = dir;
+                    break;
+                }
+            }
+
+            if (batchPath == null)
+            {
+                _logger.LogWarning("No XML batch found for download (batchId={BatchId})", batchId);
+                return Array.Empty<byte>();
+            }
+
+            // Create zip archive of all XML files in the batch folder
+            using var zipStream = new MemoryStream();
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var xmlFile in Directory.GetFiles(batchPath, "*.xml"))
+                {
+                    var entry = archive.CreateEntry(Path.GetFileName(xmlFile), CompressionLevel.Optimal);
+                    using var entryStream = entry.Open();
+                    var fileBytes = await File.ReadAllBytesAsync(xmlFile);
+                    await entryStream.WriteAsync(fileBytes);
+                }
+            }
+
+            _logger.LogInformation("Created ZIP download for batch at {Path} ({Size} bytes)",
+                batchPath, zipStream.Length);
+            return zipStream.ToArray();
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to create ZIP download for batch {BatchId}", batchId);
+            return Array.Empty<byte>();
+        }
     }
 
     #endregion

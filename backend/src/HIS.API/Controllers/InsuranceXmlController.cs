@@ -303,6 +303,16 @@ public class InsuranceXmlController : ControllerBase
     }
 
     /// <summary>
+    /// Preview trước khi xuất XML - hiển thị số lượng bản ghi, chi phí, lỗi blocking
+    /// </summary>
+    [HttpPost("xml/preview")]
+    public async Task<ActionResult<XmlExportPreviewDto>> PreviewExport([FromBody] XmlExportConfigDto config)
+    {
+        var result = await _insuranceService.PreviewExportAsync(config);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Xuất file XML tổng hợp
     /// </summary>
     [HttpPost("xml/export")]

@@ -150,6 +150,11 @@ public interface IInsuranceXmlService
     Task<List<Xml15TbTreatmentDto>> GenerateXml15DataAsync(XmlExportConfigDto config);
 
     /// <summary>
+    /// Preview trước khi xuất - hiển thị số lượng bản ghi, chi phí, lỗi blocking
+    /// </summary>
+    Task<XmlExportPreviewDto> PreviewExportAsync(XmlExportConfigDto config);
+
+    /// <summary>
     /// Xuất file XML tổng hợp
     /// </summary>
     Task<XmlExportResultDto> ExportXmlAsync(XmlExportConfigDto config);

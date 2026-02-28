@@ -597,6 +597,33 @@ public class XmlExportConfigDto
 }
 
 /// <summary>
+/// DTO preview trước khi xuất XML - hiển thị số lượng bản ghi, chi phí, lỗi blocking
+/// </summary>
+public class XmlExportPreviewDto
+{
+    public int TotalRecords { get; set; }
+    public DateTime? DateRangeFrom { get; set; }
+    public DateTime? DateRangeTo { get; set; }
+    public string? DepartmentName { get; set; }
+    public decimal TotalCostAmount { get; set; }
+    public decimal TotalInsuranceAmount { get; set; }
+    public decimal TotalPatientAmount { get; set; }
+    public List<XmlTablePreview> Tables { get; set; } = new();
+    public List<InsuranceValidationResultDto> ValidationErrors { get; set; } = new();
+    public bool HasBlockingErrors { get; set; }
+}
+
+/// <summary>
+/// Thông tin preview cho từng bảng XML
+/// </summary>
+public class XmlTablePreview
+{
+    public string TableName { get; set; } = string.Empty; // "XML1", "XML2", etc.
+    public string Description { get; set; } = string.Empty; // Vietnamese name
+    public int RecordCount { get; set; }
+}
+
+/// <summary>
 /// DTO kết quả xuất XML
 /// </summary>
 public class XmlExportResultDto
