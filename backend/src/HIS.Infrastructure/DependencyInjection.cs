@@ -53,8 +53,11 @@ public static class DependencyInjection
 
         // Phân hệ 8: Chẩn đoán hình ảnh RIS/PACS (Radiology)
         services.AddScoped<IRISCompleteService, RISCompleteService>();
-        services.AddScoped<IDigitalSignatureService, DigitalSignatureService>(); // USB Token signing
+        services.AddScoped<IDigitalSignatureService, DigitalSignatureService>(); // USB Token signing (Windows CryptoAPI)
         services.AddScoped<IPdfSignatureService, PdfSignatureService>(); // PDF generation and signing
+        services.AddSingleton<Pkcs11SessionManager>(); // PKCS#11 session caching (singleton)
+        services.AddScoped<ITokenRegistryService, TokenRegistryService>(); // Token-user mapping
+        services.Configure<Pkcs11Configuration>(configuration.GetSection("DigitalSignature"));
 
         // Phân hệ 7: Xét nghiệm LIS (Laboratory Information System)
         services.AddSingleton<HL7ConnectionManager>();

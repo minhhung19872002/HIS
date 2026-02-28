@@ -1377,6 +1377,21 @@ public class ReceptionCompleteController : ControllerBase
     }
 
     #endregion
+
+    #region CCCD/National ID Validation
+
+    /// <summary>
+    /// Validate CCCD (Citizen Identity Card) number
+    /// </summary>
+    [HttpGet("validate-cccd")]
+    [AllowAnonymous]
+    public ActionResult<CccdValidationResultDto> ValidateCccd([FromQuery] string cccd)
+    {
+        var result = CccdValidator.Validate(cccd);
+        return Ok(result);
+    }
+
+    #endregion
 }
 
 #region Request DTOs
@@ -1449,21 +1464,6 @@ public class ChangeRoomRequestDto
 public class EmergencyDepositDto
 {
     public decimal Amount { get; set; }
-}
-
-#endregion
-
-#region CCCD/National ID Validation
-
-/// <summary>
-/// Validate CCCD (Citizen Identity Card) number
-/// </summary>
-[HttpGet("validate-cccd")]
-[AllowAnonymous]
-public ActionResult<CccdValidationResultDto> ValidateCccd([FromQuery] string cccd)
-{
-    var result = CccdValidator.Validate(cccd);
-    return Ok(result);
 }
 
 #endregion

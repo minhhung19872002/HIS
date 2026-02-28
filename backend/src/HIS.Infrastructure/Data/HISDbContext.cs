@@ -217,6 +217,10 @@ public class HISDbContext : DbContext
     public DbSet<OperatingRoom> OperatingRooms => Set<OperatingRoom>();
     public DbSet<SurgeryTeamMember> SurgeryTeamMembers => Set<SurgeryTeamMember>();
 
+    // Ky so (Digital Signature)
+    public DbSet<DocumentSignature> DocumentSignatures => Set<DocumentSignature>();
+    public DbSet<TokenUserMapping> TokenUserMappings => Set<TokenUserMapping>();
+
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
@@ -386,6 +390,29 @@ public class HISDbContext : DbContext
             .HasOne(r => r.ApprovedByUser)
             .WithMany()
             .HasForeignKey(r => r.ApprovedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Digital Signature indexes and FK mappings
+        modelBuilder.Entity<DocumentSignature>()
+            .HasIndex(ds => new { ds.DocumentId, ds.DocumentType })
+            .HasDatabaseName("IX_DocumentSignatures_DocumentId_DocumentType");
+        modelBuilder.Entity<DocumentSignature>()
+            .HasIndex(ds => ds.SignedByUserId)
+            .HasDatabaseName("IX_DocumentSignatures_SignedByUserId");
+        modelBuilder.Entity<DocumentSignature>()
+            .HasOne(ds => ds.SignedByUser)
+            .WithMany()
+            .HasForeignKey(ds => ds.SignedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<TokenUserMapping>()
+            .HasIndex(t => t.TokenSerial)
+            .IsUnique()
+            .HasDatabaseName("IX_TokenUserMappings_TokenSerial");
+        modelBuilder.Entity<TokenUserMapping>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.NoAction);
 
         // Handle legacy uniqueidentifier columns stored in CreatedBy/UpdatedBy

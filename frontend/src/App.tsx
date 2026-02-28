@@ -4,6 +4,7 @@ import viVN from 'antd/locale/vi_VN';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { SigningProvider } from './contexts/SigningContext';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -137,7 +138,9 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <NotificationProvider>
-              <AppRoutes />
+              <SigningProvider>
+                <AppRoutes />
+              </SigningProvider>
             </NotificationProvider>
           </AuthProvider>
         </BrowserRouter>

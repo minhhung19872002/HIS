@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using HIS.Infrastructure.Configuration;
 using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Element;
@@ -10,6 +11,8 @@ using iText.Signatures;
 using iText.Bouncycastle.Crypto;
 using iText.Bouncycastle.X509;
 using iText.Commons.Bouncycastle.Cert;
+using Microsoft.Extensions.Logging;
+using Net.Pkcs11Interop.X509Store;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
@@ -35,6 +38,33 @@ public interface IPdfSignatureService
     /// Tạo và ký PDF trong một bước
     /// </summary>
     Task<PdfSignatureResult> GenerateAndSignRadiologyReportAsync(RadiologyReportData reportData, string certificateThumbprint);
+
+    /// <summary>
+    /// Sign PDF using PKCS#11 token with TSA + OCSP + CRL
+    /// </summary>
+    Task<PdfSignatureResult> SignPdfWithPkcs11Async(
+        byte[] pdfBytes,
+        Pkcs11X509Certificate pkcs11Cert,
+        Pkcs11Configuration config,
+        string reason,
+        string location,
+        string signerName);
+
+    /// <summary>
+    /// Convert HTML byte[] to PDF byte[] (for EMR form signing pipeline)
+    /// </summary>
+    Task<byte[]> ConvertHtmlToPdfAsync(byte[] htmlBytes);
+
+    /// <summary>
+    /// Generate PDF from HTML and sign in one step
+    /// </summary>
+    Task<PdfSignatureResult> ConvertAndSignAsync(
+        byte[] htmlBytes,
+        Pkcs11X509Certificate pkcs11Cert,
+        Pkcs11Configuration config,
+        string reason,
+        string location,
+        string signerName);
 }
 
 public class RadiologyReportData
@@ -109,9 +139,14 @@ public class PdfSignatureService : IPdfSignatureService
 {
     private readonly string _fontPath;
     private readonly string _outputFolder;
+    private readonly ILogger<PdfSignatureService>? _logger;
 
-    public PdfSignatureService()
+    public PdfSignatureService() : this(null) { }
+
+    public PdfSignatureService(ILogger<PdfSignatureService>? logger)
     {
+        _logger = logger;
+
         // Sử dụng font Times New Roman có sẵn trong Windows
         _fontPath = @"C:\Windows\Fonts\times.ttf";
 
@@ -562,6 +597,175 @@ public class PdfSignatureService : IPdfSignatureService
         table.AddCell(new Cell(1, 3)
             .Add(new Paragraph(value).SetFont(font).SetFontSize(10))
             .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+    }
+
+    #endregion
+
+    #region PKCS#11 Signing Methods (TSA + OCSP + CRL)
+
+    public async Task<PdfSignatureResult> SignPdfWithPkcs11Async(
+        byte[] pdfBytes,
+        Pkcs11X509Certificate pkcs11Cert,
+        Pkcs11Configuration config,
+        string reason,
+        string location,
+        string signerName)
+    {
+        try
+        {
+            var x509 = pkcs11Cert.Info!.ParsedCertificate!;
+
+            // Build certificate chain for iText
+            var parser = new X509CertificateParser();
+            var bcCert = parser.ReadCertificate(x509.RawData);
+            var bcCertWrapped = new X509CertificateBC(bcCert);
+            IX509Certificate[] chain = new IX509Certificate[] { bcCertWrapped };
+
+            // Create PKCS#11 external signature
+            var externalSignature = new Pkcs11ExternalSignature(pkcs11Cert, config.DefaultHashAlgorithm);
+
+            // TSA client with fallback
+            ITSAClient? tsaClient = null;
+            foreach (var tsaUrl in config.TsaUrls)
+            {
+                try
+                {
+                    tsaClient = new TSAClientBouncyCastle(tsaUrl);
+                    _logger?.LogInformation("Using TSA server: {TsaUrl}", tsaUrl);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "TSA server {TsaUrl} failed, trying next", tsaUrl);
+                }
+            }
+
+            if (tsaClient == null)
+                _logger?.LogWarning("No TSA server available. Signing without timestamp.");
+
+            // OCSP client
+            IOcspClient? ocspClient = null;
+            if (config.EnableOcsp)
+            {
+                ocspClient = new OcspClientBouncyCastle(null);
+            }
+
+            // CRL client
+            ICollection<ICrlClient>? crlClients = null;
+            if (config.EnableCrl)
+            {
+                crlClients = new List<ICrlClient> { new CrlClientOnline(chain) };
+            }
+
+            // Sign PDF
+            using var inputStream = new MemoryStream(pdfBytes);
+            using var outputStream = new MemoryStream();
+
+            var reader = new PdfReader(inputStream);
+            var signer = new PdfSigner(reader, outputStream, new StampingProperties());
+
+            // Visible signature appearance on last page
+            var document = signer.GetDocument();
+            var lastPage = document.GetNumberOfPages();
+            var appearance = config.SignatureAppearance;
+
+            float x = 36;
+            float y = 36;
+            if (appearance.PagePosition == "bottom-right")
+            {
+                x = 595 - 36 - appearance.Width; // A4 width - margin - stamp width
+                y = 36;
+            }
+
+            var rect = new iText.Kernel.Geom.Rectangle(x, y, appearance.Width, appearance.Height);
+            var fieldName = $"Sig_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N")[..8]}";
+
+            signer.SetFieldName(fieldName);
+            signer.SetPageNumber(lastPage);
+            signer.SetPageRect(rect);
+
+            var signatureAppearance = signer.GetSignatureAppearance();
+            signatureAppearance
+                .SetReason(reason)
+                .SetLocation(location)
+                .SetContact(signerName)
+                .SetSignatureCreator("HIS Digital Signature");
+
+            // Set visible text
+            var stampText = $"Ký bởi: {signerName}\nNgày: {DateTime.Now:dd/MM/yyyy HH:mm:ss}\nSố CT: {x509.SerialNumber}";
+            signatureAppearance.SetLayer2Text(stampText);
+
+            // Estimated size: 15000 with TSA+OCSP+CRL, 8192 without
+            int estimatedSize = tsaClient != null ? 15000 : 8192;
+
+            signer.SignDetached(externalSignature, chain, crlClients, ocspClient, tsaClient, estimatedSize,
+                PdfSigner.CryptoStandard.CMS);
+
+            var signedBytes = outputStream.ToArray();
+
+            _logger?.LogInformation("PDF signed with PKCS#11. Signer: {Signer}, Cert: {Serial}", signerName, x509.SerialNumber);
+
+            return new PdfSignatureResult
+            {
+                Success = true,
+                Message = "Ký số thành công",
+                SignedPdfBytes = signedBytes,
+                SignerName = signerName,
+                SignedAt = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"),
+                CertificateSerial = x509.SerialNumber,
+                CertificateThumbprint = x509.Thumbprint
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error signing PDF with PKCS#11");
+
+            var message = ex.Message.Contains("CKR_PIN_INCORRECT")
+                ? "PIN không đúng. Vui lòng kiểm tra lại."
+                : ex.Message.Contains("CKR_DEVICE_REMOVED")
+                    ? "USB Token đã bị rút ra. Vui lòng cắm lại và thử lại."
+                    : $"Lỗi ký số: {ex.Message}";
+
+            return new PdfSignatureResult
+            {
+                Success = false,
+                Message = message
+            };
+        }
+    }
+
+    public Task<byte[]> ConvertHtmlToPdfAsync(byte[] htmlBytes)
+    {
+        using var htmlStream = new MemoryStream(htmlBytes);
+        using var outputStream = new MemoryStream();
+
+        var converterProperties = new iText.Html2pdf.ConverterProperties();
+
+        // Set font provider with Vietnamese font support
+        var fontProvider = new iText.Layout.Font.FontProvider();
+        fontProvider.AddStandardPdfFonts();
+        if (File.Exists(_fontPath))
+        {
+            fontProvider.AddFont(_fontPath);
+        }
+        converterProperties.SetFontProvider(fontProvider);
+
+        iText.Html2pdf.HtmlConverter.ConvertToPdf(htmlStream, outputStream, converterProperties);
+
+        _logger?.LogInformation("Converted HTML to PDF ({Size} bytes)", outputStream.Length);
+        return Task.FromResult(outputStream.ToArray());
+    }
+
+    public async Task<PdfSignatureResult> ConvertAndSignAsync(
+        byte[] htmlBytes,
+        Pkcs11X509Certificate pkcs11Cert,
+        Pkcs11Configuration config,
+        string reason,
+        string location,
+        string signerName)
+    {
+        var pdfBytes = await ConvertHtmlToPdfAsync(htmlBytes);
+        return await SignPdfWithPkcs11Async(pdfBytes, pkcs11Cert, config, reason, location, signerName);
     }
 
     #endregion

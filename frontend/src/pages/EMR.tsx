@@ -34,6 +34,10 @@ import {
 } from '../components/EMRPrintTemplates';
 import { printEmrForm } from '../api/pdf';
 import PatientTimeline from '../components/PatientTimeline';
+import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
+import { useSigningContext } from '../contexts/SigningContext';
+import { getSignatures } from '../api/digitalSignature';
+import type { DocumentSignatureDto } from '../api/digitalSignature';
 import {
   NursingCarePlanPrint, ICUNursingCarePlanPrint, NursingAssessmentPrint,
   DailyNursingCarePrint, InfusionMonitoringPrint, BloodTransfusionLabPrint,
@@ -93,6 +97,16 @@ const EMR: React.FC = () => {
 
   const searchInputRef = useRef<ReturnType<typeof Input.Search> | null>(null);
 
+  // Digital signature
+  const { sessionActive, openSession, signDocument } = useSigningContext();
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [verificationPanelOpen, setVerificationPanelOpen] = useState(false);
+  const [selectedSignature, setSelectedSignature] = useState<DocumentSignatureDto | null>(null);
+  const [signatureMap, setSignatureMap] = useState<Map<string, DocumentSignatureDto>>(new Map());
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState('');
+
   // Print preview
   const [printDrawerOpen, setPrintDrawerOpen] = useState(false);
   const [printType, setPrintType] = useState<string>('summary');
@@ -114,6 +128,63 @@ const EMR: React.FC = () => {
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
+  };
+
+  // Digital signature handlers
+  const loadSignatureForExam = useCallback(async (examId: string) => {
+    try {
+      const res = await getSignatures(examId);
+      if (res.data.length > 0) {
+        setSignatureMap(prev => new Map(prev).set(examId, res.data[0]));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const handlePinSubmit = async (pin: string) => {
+    setPinLoading(true);
+    setPinError('');
+    try {
+      const res = await openSession(pin);
+      if (res.success) {
+        setPinModalOpen(false);
+        message.success('Phiên ký số đã mở');
+        // If we have a selected exam, sign it
+        if (selectedExam) {
+          const signRes = await signDocument(selectedExam.id, 'EMR', 'Ký xác nhận hồ sơ bệnh án');
+          if (signRes.success) {
+            message.success('Ký số thành công');
+            loadSignatureForExam(selectedExam.id);
+          } else {
+            message.warning(signRes.message || 'Ký số thất bại');
+          }
+        }
+      } else {
+        setPinError(res.message || 'PIN không đúng');
+      }
+    } catch {
+      setPinError('Không thể kết nối USB Token');
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleSignExam = async () => {
+    if (!selectedExam) return;
+    if (!sessionActive) {
+      setPinModalOpen(true);
+      return;
+    }
+    try {
+      const res = await signDocument(selectedExam.id, 'EMR', 'Ký xác nhận hồ sơ bệnh án');
+      if (res.success) {
+        message.success('Ký số thành công');
+        loadSignatureForExam(selectedExam.id);
+      } else {
+        message.warning(res.message || 'Ký số thất bại');
+      }
+    } catch {
+      message.warning('Lỗi ký số');
+    }
   };
 
   // Search examinations
@@ -694,6 +765,22 @@ const EMR: React.FC = () => {
                 ], onClick: ({ key }) => { if (selectedExam) printEmrForm(selectedExam.id, key); } }}>
                   <Button size="small" icon={<FilePdfOutlined />} type="primary" ghost>In PDF</Button>
                 </Dropdown>
+                <Tooltip title="Ký số hồ sơ">
+                  <Button size="small" type="primary" icon={<SafetyOutlined />} onClick={handleSignExam}>Ký số</Button>
+                </Tooltip>
+                <Tooltip title="Ký hàng loạt">
+                  <Button size="small" icon={<SafetyOutlined />} onClick={() => setBatchModalOpen(true)}>Ký hàng loạt</Button>
+                </Tooltip>
+                {selectedExam && signatureMap.has(selectedExam.id) && (
+                  <SignatureStatusIcon
+                    signed={true}
+                    signatureInfo={signatureMap.get(selectedExam.id)}
+                    onVerifyClick={() => {
+                      setSelectedSignature(signatureMap.get(selectedExam.id) || null);
+                      setVerificationPanelOpen(true);
+                    }}
+                  />
+                )}
               </Space>
             )}
             style={{ height: '100%' }}
@@ -938,6 +1025,32 @@ const EMR: React.FC = () => {
           {printType === 'dd21-vap' && <VAPMonitoringPrint ref={printRef} record={medicalRecord} />}
         </div>
       </Drawer>
+
+      {/* Digital Signature Modals */}
+      <PinEntryModal
+        open={pinModalOpen}
+        onSubmit={handlePinSubmit}
+        onCancel={() => { setPinModalOpen(false); setPinError(''); }}
+        loading={pinLoading}
+        error={pinError}
+      />
+      <BatchSigningModal
+        open={batchModalOpen}
+        onClose={() => setBatchModalOpen(false)}
+        documents={examinations.filter(e => !signatureMap.has(e.id)).map(e => ({ id: e.id, code: e.patientCode, name: e.patientName }))}
+        documentType="EMR"
+        onComplete={() => { examinations.forEach(e => loadSignatureForExam(e.id)); }}
+      />
+      <SignatureVerificationPanel
+        open={verificationPanelOpen}
+        onClose={() => setVerificationPanelOpen(false)}
+        signatureInfo={selectedSignature}
+        onRevoked={() => {
+          if (selectedExam) {
+            setSignatureMap(prev => { const m = new Map(prev); m.delete(selectedExam.id); return m; });
+          }
+        }}
+      />
     </div>
   );
 };
