@@ -19,7 +19,7 @@ public interface IInsuranceXmlService
     /// <summary>
     /// Tra cứu lịch sử KCB từ cổng BHXH
     /// </summary>
-    Task<InsuranceHistoryDto> GetInsuranceHistoryAsync(string insuranceNumber);
+    Task<InsuranceHistoryDto> GetInsuranceHistoryAsync(string insuranceNumber, string? otp = null);
 
     /// <summary>
     /// Kiểm tra tính hợp lệ thẻ BHYT
