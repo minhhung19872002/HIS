@@ -10,6 +10,9 @@ public interface IEmailService
     Task<bool> SendOtpAsync(string toEmail, string otpCode, int validityMinutes);
     Task<bool> SendResultNotificationAsync(string toEmail, string patientName, string resultType, string testName, string approvedBy, DateTime approvedAt);
     Task<bool> SendCriticalValueNotificationAsync(string toEmail, string patientName, string testName, string value, string normalRange);
+    Task<bool> SendBookingConfirmationAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate, TimeSpan? appointmentTime, string? departmentName, string? doctorName, string? roomName);
+    Task<bool> SendBookingCancellationAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate);
+    Task<bool> SendBookingReminderAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate, TimeSpan? appointmentTime, string? departmentName);
 }
 
 public class EmailService : IEmailService
@@ -118,6 +121,74 @@ public class EmailService : IEmailService
                     <p style='margin: 4px 0;'><strong>Giá trị tham chiếu:</strong> {normalRange}</p>
                 </div>
                 <p><strong>Vui lòng liên hệ bác sĩ điều trị để được tư vấn.</strong></p>
+                <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;' />
+                <p style='color: #999; font-size: 12px;'>HIS - Hệ thống thông tin bệnh viện</p>
+            </div>";
+
+        return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    public async Task<bool> SendBookingConfirmationAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate, TimeSpan? appointmentTime, string? departmentName, string? doctorName, string? roomName)
+    {
+        var timeStr = appointmentTime.HasValue ? $"{appointmentTime.Value:hh\\:mm}" : "Chưa xác định";
+        var subject = $"Xác nhận đặt lịch khám - {appointmentCode}";
+        var body = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2 style='color: #1890ff;'>Xác nhận đặt lịch khám thành công</h2>
+                <p>Kính gửi <strong>{patientName}</strong>,</p>
+                <p>Lịch hẹn của bạn đã được ghi nhận với thông tin sau:</p>
+                <table style='width: 100%; border-collapse: collapse; margin: 16px 0;'>
+                    <tr><td style='padding: 8px; border: 1px solid #eee; color: #666; width: 140px;'>Mã hẹn</td><td style='padding: 8px; border: 1px solid #eee; font-weight: bold; font-size: 18px; color: #1890ff;'>{appointmentCode}</td></tr>
+                    <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Ngày khám</td><td style='padding: 8px; border: 1px solid #eee; font-weight: bold;'>{appointmentDate:dd/MM/yyyy}</td></tr>
+                    <tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Giờ khám</td><td style='padding: 8px; border: 1px solid #eee;'>{timeStr}</td></tr>
+                    {(departmentName != null ? $"<tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Khoa</td><td style='padding: 8px; border: 1px solid #eee;'>{departmentName}</td></tr>" : "")}
+                    {(doctorName != null ? $"<tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Bác sĩ</td><td style='padding: 8px; border: 1px solid #eee;'>{doctorName}</td></tr>" : "")}
+                    {(roomName != null ? $"<tr><td style='padding: 8px; border: 1px solid #eee; color: #666;'>Phòng</td><td style='padding: 8px; border: 1px solid #eee;'>{roomName}</td></tr>" : "")}
+                </table>
+                <div style='background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; padding: 12px; margin: 16px 0;'>
+                    <p style='margin: 0; color: #52c41a;'><strong>Lưu ý:</strong></p>
+                    <ul style='margin: 8px 0; padding-left: 20px; color: #333;'>
+                        <li>Vui lòng đến viện trước giờ hẹn <strong>15 phút</strong></li>
+                        <li>Mang theo CCCD/CMND và thẻ BHYT (nếu có)</li>
+                        <li>Để hủy hoặc đổi lịch, truy cập trang đặt lịch và nhập mã hẹn</li>
+                    </ul>
+                </div>
+                <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;' />
+                <p style='color: #999; font-size: 12px;'>HIS - Hệ thống thông tin bệnh viện</p>
+            </div>";
+
+        return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    public async Task<bool> SendBookingCancellationAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate)
+    {
+        var subject = $"Hủy lịch hẹn - {appointmentCode}";
+        var body = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2 style='color: #ff4d4f;'>Lịch hẹn đã được hủy</h2>
+                <p>Kính gửi <strong>{patientName}</strong>,</p>
+                <p>Lịch hẹn <strong>{appointmentCode}</strong> ngày <strong>{appointmentDate:dd/MM/yyyy}</strong> đã được hủy.</p>
+                <p>Nếu bạn cần đặt lịch mới, vui lòng truy cập trang đặt lịch khám trực tuyến.</p>
+                <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;' />
+                <p style='color: #999; font-size: 12px;'>HIS - Hệ thống thông tin bệnh viện</p>
+            </div>";
+
+        return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    public async Task<bool> SendBookingReminderAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate, TimeSpan? appointmentTime, string? departmentName)
+    {
+        var timeStr = appointmentTime.HasValue ? $" lúc {appointmentTime.Value:hh\\:mm}" : "";
+        var subject = $"Nhắc lịch hẹn khám ngày mai - {appointmentCode}";
+        var body = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2 style='color: #faad14;'>Nhắc nhở lịch hẹn khám</h2>
+                <p>Kính gửi <strong>{patientName}</strong>,</p>
+                <p>Bạn có lịch hẹn khám vào <strong>ngày mai ({appointmentDate:dd/MM/yyyy}){timeStr}</strong>{(departmentName != null ? $" tại <strong>{departmentName}</strong>" : "")}.</p>
+                <p>Mã hẹn: <strong>{appointmentCode}</strong></p>
+                <div style='background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; padding: 12px; margin: 16px 0;'>
+                    <p style='margin: 0;'>Vui lòng đến viện trước giờ hẹn 15 phút và mang theo giấy tờ tùy thân.</p>
+                </div>
                 <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;' />
                 <p style='color: #999; font-size: 12px;'>HIS - Hệ thống thông tin bệnh viện</p>
             </div>";

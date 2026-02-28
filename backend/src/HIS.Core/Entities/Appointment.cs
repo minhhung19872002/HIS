@@ -53,6 +53,33 @@ public class AppointmentService : BaseEntity
 }
 
 /// <summary>
+/// Lịch làm việc bác sĩ - DoctorSchedule
+/// </summary>
+public class DoctorSchedule : BaseEntity
+{
+    public Guid DoctorId { get; set; }
+    public virtual User Doctor { get; set; } = null!;
+
+    public Guid DepartmentId { get; set; }
+    public virtual Department Department { get; set; } = null!;
+
+    public Guid? RoomId { get; set; }
+    public virtual Room? Room { get; set; }
+
+    public DateTime ScheduleDate { get; set; } // Ngày làm việc
+    public TimeSpan StartTime { get; set; } // Giờ bắt đầu
+    public TimeSpan EndTime { get; set; } // Giờ kết thúc
+    public int MaxPatients { get; set; } = 30; // Số BN tối đa trong ca
+    public int SlotDurationMinutes { get; set; } = 30; // Thời gian mỗi slot (phút)
+
+    public int ScheduleType { get; set; } = 1; // 1-Thường, 2-Trực, 3-Hẹn trước
+    public string? Note { get; set; }
+    public bool IsActive { get; set; } = true;
+    public int DayOfWeek { get; set; } // 0=CN, 1=T2, ..., 6=T7 (for recurring)
+    public bool IsRecurring { get; set; } // Lịch lặp hàng tuần
+}
+
+/// <summary>
 /// Hàng đợi - Queue
 /// </summary>
 public class Queue : BaseEntity

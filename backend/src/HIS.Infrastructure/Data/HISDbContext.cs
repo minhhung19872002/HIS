@@ -28,6 +28,7 @@ public class HISDbContext : DbContext
     public DbSet<Examination> Examinations => Set<Examination>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentService> AppointmentServices => Set<AppointmentService>();
+    public DbSet<DoctorSchedule> DoctorSchedules => Set<DoctorSchedule>();
 
     // Quản lý người dùng
     public DbSet<User> Users => Set<User>();

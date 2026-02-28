@@ -32,6 +32,7 @@ import {
   QuestionCircleOutlined,
   FolderOpenOutlined,
   CalendarOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -90,6 +91,7 @@ const MainLayout: React.FC = () => {
         { key: '/surgery', icon: <HeartOutlined />, label: 'Phẫu thuật' },
         { key: '/emr', icon: <FolderOpenOutlined />, label: 'Hồ sơ BA (EMR)' },
         { key: '/follow-up', icon: <CalendarOutlined />, label: 'Tái khám' },
+        { key: '/booking-management', icon: <ScheduleOutlined />, label: 'Quản lý đặt lịch' },
       ],
     },
     {

@@ -171,6 +171,9 @@ public static class DependencyInjection
         // Online Appointment Booking (Public - không cần đăng nhập)
         services.AddScoped<IAppointmentBookingService, AppointmentBookingService>();
 
+        // Booking Management (Staff - cần đăng nhập)
+        services.AddScoped<IBookingManagementService, BookingManagementService>();
+
         // Medical Record Archive (Lưu trữ hồ sơ bệnh án)
         services.AddScoped<IMedicalRecordArchiveService, MedicalRecordArchiveService>();
 

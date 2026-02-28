@@ -13,11 +13,13 @@ public class AppointmentBookingService : IAppointmentBookingService
 {
     private readonly HISDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IEmailService _emailService;
 
-    public AppointmentBookingService(HISDbContext context, IUnitOfWork unitOfWork)
+    public AppointmentBookingService(HISDbContext context, IUnitOfWork unitOfWork, IEmailService emailService)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _emailService = emailService;
     }
 
     public async Task<List<BookingDepartmentDto>> GetBookingDepartmentsAsync()
@@ -216,6 +218,15 @@ public class AppointmentBookingService : IAppointmentBookingService
         if (dto.DoctorId.HasValue)
             docName = await _context.Users.Where(u => u.Id == dto.DoctorId).Select(u => u.FullName).FirstOrDefaultAsync();
 
+        // Gửi email xác nhận (fire-and-forget)
+        if (!string.IsNullOrWhiteSpace(dto.Email))
+        {
+            _ = _emailService.SendBookingConfirmationAsync(
+                dto.Email.Trim(), dto.PatientName.Trim(), code,
+                appointment.AppointmentDate, appointment.AppointmentTime,
+                deptName, docName, roomName);
+        }
+
         return new BookingResultDto
         {
             Success = true,
@@ -281,6 +292,14 @@ public class AppointmentBookingService : IAppointmentBookingService
         appointment.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync();
+
+        // Gửi email thông báo hủy (fire-and-forget)
+        if (!string.IsNullOrWhiteSpace(appointment.Patient?.Email))
+        {
+            _ = _emailService.SendBookingCancellationAsync(
+                appointment.Patient.Email, appointment.Patient.FullName,
+                appointment.AppointmentCode, appointment.AppointmentDate);
+        }
 
         return MapToBookingStatus(appointment);
     }
