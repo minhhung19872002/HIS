@@ -140,6 +140,9 @@ public class HISDbContext : DbContext
     public DbSet<ClinicalTerm> ClinicalTerms => Set<ClinicalTerm>();
     public DbSet<SnomedIcdMapping> SnomedIcdMappings => Set<SnomedIcdMapping>();
 
+    // DQGVN - Lien thong du lieu y te quoc gia
+    public DbSet<DqgvnSubmission> DqgvnSubmissions => Set<DqgvnSubmission>();
+
     // Xét nghiệm (LIS)
     public DbSet<LabRequest> LabRequests => Set<LabRequest>();
     public DbSet<LabRequestItem> LabRequestItems => Set<LabRequestItem>();
@@ -233,6 +236,9 @@ public class HISDbContext : DbContext
 
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    // HL7 CDA Documents
+    public DbSet<CdaDocument> CdaDocuments => Set<CdaDocument>();
 
     // System Administration
     public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
@@ -425,6 +431,27 @@ public class HISDbContext : DbContext
             .WithMany()
             .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        // CDA Document FK mappings
+        modelBuilder.Entity<CdaDocument>()
+            .HasOne(c => c.Patient)
+            .WithMany()
+            .HasForeignKey(c => c.PatientId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<CdaDocument>()
+            .HasOne(c => c.SignedByUser)
+            .WithMany()
+            .HasForeignKey(c => c.SignedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<CdaDocument>()
+            .HasIndex(c => c.PatientId)
+            .HasDatabaseName("IX_CdaDocuments_PatientId");
+        modelBuilder.Entity<CdaDocument>()
+            .HasIndex(c => c.DocumentType)
+            .HasDatabaseName("IX_CdaDocuments_DocumentType");
+        modelBuilder.Entity<CdaDocument>()
+            .HasIndex(c => c.Status)
+            .HasDatabaseName("IX_CdaDocuments_Status");
 
         // Column-level encryption for Patient PII (SEC-02: Data encryption at rest)
         if (_dataProtectionProvider != null)

@@ -169,6 +169,9 @@ public static class DependencyInjection
         // PDF Generation (EMR forms - HTML for browser printing)
         services.AddScoped<IPdfGenerationService, PdfGenerationService>();
 
+        // HL7 CDA R2 Document Generation (health information exchange)
+        services.AddScoped<ICdaDocumentService, CdaDocumentService>();
+
         // Online Appointment Booking (Public - không cần đăng nhập)
         services.AddScoped<IAppointmentBookingService, AppointmentBookingService>();
 
@@ -177,6 +180,9 @@ public static class DependencyInjection
 
         // Medical Record Archive (Lưu trữ hồ sơ bệnh án)
         services.AddScoped<IMedicalRecordArchiveService, MedicalRecordArchiveService>();
+
+        // DQGVN National Health Data Exchange (Cong du lieu y te quoc gia)
+        services.AddScoped<IDqgvnService, DqgvnService>();
 
         return services;
     }

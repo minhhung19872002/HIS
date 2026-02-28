@@ -161,3 +161,47 @@ public class AuditLog : BaseEntity
     public string? RequestMethod { get; set; }             // HTTP method (GET, POST, PUT, DELETE)
     public int? ResponseStatusCode { get; set; }           // HTTP response status code
 }
+
+/// <summary>
+/// HL7 CDA R2 Document - tai lieu lam sang CDA
+/// Stores generated CDA XML documents for health information exchange
+/// </summary>
+public class CdaDocument : BaseEntity
+{
+    public string DocumentId { get; set; } = string.Empty; // CDA unique ID (OID-based)
+    public int DocumentType { get; set; } // 1=DischargeSummary, 2=LabReport, 3=RadiologyReport, 4=ProgressNote, 5=ConsultationNote, 6=OperativeNote, 7=ReferralNote, 8=PrescriptionDocument
+    public Guid PatientId { get; set; }
+    public Guid? MedicalRecordId { get; set; }
+    public Guid? SourceEntityId { get; set; } // Examination, LabRequest, RadiologyReport, etc.
+    public string CdaXml { get; set; } = string.Empty;
+    public int Status { get; set; } // 0=Draft, 1=Final, 2=Signed, 3=Sent, 4=Acknowledged
+    public bool IsSigned { get; set; }
+    public Guid? SignedByUserId { get; set; }
+    public DateTime? SignedAt { get; set; }
+    public string? ValidationErrors { get; set; }
+
+    // Navigation
+    public virtual Patient? Patient { get; set; }
+    public virtual User? SignedByUser { get; set; }
+}
+
+/// <summary>
+/// DQGVN Submission - Lien thong du lieu y te quoc gia
+/// Tracks all data submissions to the Vietnam National Health Data Exchange portal
+/// </summary>
+public class DqgvnSubmission : BaseEntity
+{
+    public int SubmissionType { get; set; } // 1-PatientDemographics, 2-Encounter, 3-Lab, 4-Radiology, 5-Prescription, 6-Discharge, 7-Death, 8-InfectiousDisease, 9-Birth, 10-Vaccination
+    public Guid? PatientId { get; set; }
+    public Guid? SourceEntityId { get; set; } // ExaminationId, LabRequestId, AdmissionId, etc.
+    public string? RequestPayload { get; set; } // JSON sent to DQGVN
+    public string? ResponsePayload { get; set; } // JSON received from DQGVN
+    public int Status { get; set; } // 0=Pending, 1=Submitted, 2=Accepted, 3=Rejected, 4=Error
+    public string? ErrorMessage { get; set; }
+    public string? TransactionId { get; set; } // Transaction ID returned by DQGVN
+    public int RetryCount { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? ResponseAt { get; set; }
+
+    public virtual Patient? Patient { get; set; }
+}

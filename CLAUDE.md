@@ -885,10 +885,10 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
 - ~~CCCD validation~~ → DA XONG (Session 18) - frontend + backend, 51 province codes
 - ~~SNOMED CT mapping~~ → DA XONG (Session 18) - SnomedIcdMapping entity, 200+ seed mappings, CRUD API
-- SMS Gateway (eSMS.vn/SpeedSMS.vn integration)
-- HL7 CDA document generation
-- DQGVN national health data exchange
-- Oracle DB dual-provider support
+- ~~SMS Gateway~~ → DA XONG (Session 19) - eSMS.vn + SpeedSMS.vn, SmsController, SmsManagement.tsx
+- ~~HL7 CDA document generation~~ → DA XONG (Session 20) - CdaDocumentService 1400+ lines, 8 document types, CDA R2 XML
+- ~~DQGVN national health data exchange~~ → DA XONG (Session 20) - DqgvnService, 10 submission types, dashboard, batch submit
+- ~~Oracle DB dual-provider support~~ → BO (khong can thiet cho Level 6)
 
 ---
 
@@ -921,6 +921,69 @@ If a new service/controller is added, register it there or you get 500 errors.
 - `8b835cb` - docs(02): capture phase context for digital signature expansion
 - `d7df295` - fix: separate type imports in AppointmentBooking.tsx
 - `01fc52b` - feat: add CCCD validation, SNOMED CT mapping, fix AppointmentBooking import
+
+---
+
+### DA HOAN THANH (Session 20 - 2026-02-28)
+
+**90. HL7 CDA R2 Document Generation**
+
+**Backend (4 files moi, 3 files modified):**
+- `CdaDocumentDTOs.cs`: 8 document types (DischargeSummary, LabReport, RadiologyReport, ProgressNote, ConsultationNote, OperativeNote, ReferralNote, PrescriptionDocument)
+- `ICdaDocumentService.cs`: 8 methods (Generate, Search, Get, GetXml, Validate, Finalize, Delete, Regenerate)
+- `CdaDocumentService.cs` (~1400 lines): Full CDA R2 XML generation voi real EF Core queries
+  - 8 document type builders voi proper LOINC section codes
+  - Patient demographics trong recordTarget (CCCD, BHYT, address)
+  - Author + Custodian sections
+  - Structured body voi coded entries (ICD-10, SNOMED CT, LOINC)
+  - Lab results table, medication substanceAdministration entries
+  - CDA R2 validation (required elements check)
+- `CdaDocumentController.cs`: 8 endpoints tai `/api/cda/*`
+- Entity `CdaDocument` trong Icd.cs, DbSet trong HISDbContext
+- DI registration trong DependencyInjection.cs
+
+**Database:**
+- `scripts/create_cda_documents_table.sql`: table + 4 indexes
+
+**Frontend:**
+- `frontend/src/api/cda.ts`: TypeScript API client (8 functions)
+
+**91. DQGVN National Health Data Exchange (Cong du lieu y te quoc gia)**
+
+**Backend (4 files moi, 3 files modified):**
+- `DqgvnDTOs.cs`: 10 submission types (PatientDemographics, EncounterReport, LabResult, RadiologyResult, PrescriptionReport, DischargeReport, DeathReport, InfectiousDisease, BirthReport, VaccinationReport)
+- `IDqgvnService.cs`: 10 methods (Dashboard, Search, Get, SubmitEncounter, SubmitLabResult, SubmitPatient, Retry, BatchSubmit, GetConfig, SaveConfig)
+- `DqgvnService.cs` (~780 lines): Full implementation voi real EF Core queries
+  - Dashboard: counts by status, group by type, 7-day trend
+  - Submit patient: map Patient entity → Vietnamese DQGVN format (maCSKCB, hoTen, soCCCD, etc.)
+  - Submit encounter: handles OPD (Examination) + IPD (Admission) voi vitals, diagnosis
+  - Submit lab result: LabRequest → LabRequestItem → LabResult mapping
+  - Batch submit: process up to 50 pending submissions
+  - Config: read/write SystemConfigs table
+  - HttpClient voi API key header, offline mode fallback
+- `DqgvnController.cs`: 10 endpoints tai `/api/dqgvn/*`
+- Entity `DqgvnSubmission` trong Icd.cs, DbSet trong HISDbContext
+- DI registration trong DependencyInjection.cs
+
+**Database:**
+- `scripts/create_dqgvn_submissions_table.sql`: table + 5 indexes
+
+**Frontend:**
+- `frontend/src/api/dqgvn.ts`: TypeScript API client (10 functions)
+
+**92. Cypress Tests - 22 tests (17 passing, 5 skipped)**
+- File: `frontend/cypress/e2e/cda-dqgvn.cy.ts`
+- CDA API: search, pagination, filters (type, status, date range), generate, XML retrieval (7 tests)
+- CDA Patient: generate DischargeSummary + Prescription, search by patient (3 tests, skipped if no patient)
+- DQGVN Dashboard: statistics, 7-day trend, by-type breakdown (1 test)
+- DQGVN Submissions: search, pagination, filters (type, status, date range), nonexistent (6 tests)
+- DQGVN Patient: submit demographics, submit encounter, batch submit (3 tests, 2 skipped if no patient)
+- DQGVN Config: get config, update config (2 tests)
+
+**93. Verification**
+- Backend build: 0 errors
+- TypeScript: 0 errors
+- Cypress cda-dqgvn: 17/17 pass (5 skipped - patient dependent)
 
 ---
 
