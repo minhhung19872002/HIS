@@ -2,17 +2,17 @@
 
 **Updated:** 2026-02-28
 **Current phase:** 01-bhxh-gateway-xml4210
-**Current Plan:** 3 of 4 in Phase
+**Current Plan:** 4 of 4 in Phase
 
 ## Active Phase
 
-Phase 1: BHXH Gateway + XML 4210 Export (Plan 2 of 4 complete)
+Phase 1: BHXH Gateway + XML 4210 Export (Plan 3 of 4 complete)
 
 ## Phase Status
 
 | Phase | Name | Status | Requirements | Completed |
 |-------|------|--------|-------------|-----------|
-| 1 | BHXH Gateway + XML 4210 Export | In Progress (Plan 2/4) | 9 (BHXH-01..05, XML-01..04) | 6/9 |
+| 1 | BHXH Gateway + XML 4210 Export | In Progress (Plan 3/4) | 9 (BHXH-01..05, XML-01..04) | 8/9 |
 | 2 | Digital Signature Expansion | Not started | 6 (SIGN-01..06) | 0/6 |
 | 3 | Security Hardening + CCCD | Not started | 5 (SEC-01..05) | 0/5 |
 | 4 | SMS Gateway + Online Booking | Not started | 8 (SMS-01..04, BOOK-01..04) | 0/8 |
@@ -20,7 +20,7 @@ Phase 1: BHXH Gateway + XML 4210 Export (Plan 2 of 4 complete)
 | 6 | DQGVN + SNOMED CT + HL7 CDA | Not started | 11 (HIE-01..03, INTOP-01..04, ARCH-01..04) | 0/11 |
 | 7 | AI/CDSS + Biometric + Smart Card | Not started | 10 (AI-01..04, BIO-01..03, CARD-01..03) | 0/10 |
 
-**Overall:** 6/52 requirements completed
+**Overall:** 8/52 requirements completed
 
 ## Existing System Baseline
 
@@ -48,6 +48,10 @@ The system is mature with 17 development sessions complete:
 - Use ClaimDetails grouped by ItemType for XML2/XML3 instead of separate entity queries
 - XML6 uses BloodRequest (not BloodTransfusion) for MedicalRecordId/BloodType access
 - All XML money fields use Math.Round(value, 2) per BHXH spec
+- XmlExportService and XmlSchemaValidator registered as Singletons (stateless services)
+- XSD validation gracefully skipped when no schema files present (hospital adds later)
+- Export pipeline: validate -> generate -> XSD check -> write files (blocking on errors)
+- Preview-then-generate workflow: PreviewExportAsync returns counts/costs before committing to file generation
 
 ## Performance Metrics
 
@@ -55,9 +59,11 @@ The system is mature with 17 development sessions complete:
 |------------|----------|-------|-------|
 | 01-01 | 7min | 2 | 10 |
 | 01-02 | 7min | 3 | 4 |
+| 01-03 | 6min | 2 | 8 |
 
 ## Recent Changes
 
+- 2026-02-28: Plan 01-03 completed -- XML export pipeline with XmlExportService, XmlSchemaValidator, preview workflow
 - 2026-02-28: Plan 01-02 completed -- 14 XML table generators with real EF Core queries
 - 2026-02-28: Plan 01-01 completed -- BHXH gateway client abstraction + InsuranceXmlService rewired
 - 2026-02-28: GSD initialized -- PROJECT.md, REQUIREMENTS.md, config.json, research completed
@@ -66,8 +72,8 @@ The system is mature with 17 development sessions complete:
 
 ## Last Session
 
-- **Stopped at:** Completed 01-02-PLAN.md
-- **Timestamp:** 2026-02-28T06:32:51Z
+- **Stopped at:** Completed 01-03-PLAN.md
+- **Timestamp:** 2026-02-28T06:42:03Z
 
 ---
 *State file created: 2026-02-28*
