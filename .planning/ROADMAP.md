@@ -48,6 +48,8 @@ Plans:
 
 **Why:** Level 6 requires "paperless with digital signatures." Without programmatic USB Token signing via PKCS#11, doctors cannot sign EMR forms during clinical workflow -- the current Windows PIN popup blocks automation. XML 4210 from Phase 1 also requires digital signatures.
 
+**Goal:** Replace Windows CryptoAPI signing with programmatic PKCS#11 via Pkcs11Interop, add TSA timestamps and OCSP/CRL revocation to signed PDFs, support multiple Vietnamese CA providers, and enable batch signing for clinical workflows.
+
 **Requirements:**
 - SIGN-01: All 38 EMR forms can be digitally signed via USB Token (Pkcs11Interop)
 - SIGN-02: Prescriptions and lab results can be digitally signed by authorized doctors
@@ -55,6 +57,14 @@ Plans:
 - SIGN-04: PDF exports include embedded digital signature with timestamp (TSA) and revocation check (OCSP/CRL)
 - SIGN-05: System supports multiple Vietnamese CA providers (VNPT-CA, Viettel-CA, BKAV-CA, FPT-CA)
 - SIGN-06: Batch signing workflow for doctors signing multiple documents at once
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Core PKCS#11 infrastructure: entities, config, session manager, IExternalSignature adapter, token registry, controller
+- [ ] 02-02-PLAN.md — PDF signing pipeline with TSA + OCSP + CRL, HTML-to-PDF conversion for EMR forms
+- [ ] 02-03-PLAN.md — Frontend signing UI: PIN modal, signature status icon, verification panel, batch modal, SigningContext
+- [ ] 02-04-PLAN.md — Batch signing endpoint with SignalR progress, integration into EMR/Prescription/Lab pages, Cypress tests
 
 **Success criteria:**
 1. A doctor can sign an EMR form by entering their USB Token PIN once in the browser and the signed PDF is generated server-side without a Windows dialog popup
@@ -233,3 +243,4 @@ All 52 v1 requirements are mapped. Zero unmapped.
 ---
 *Roadmap created: 2026-02-28*
 *Phase 1 planned: 2026-02-28 (4 plans, 2 waves)*
+*Phase 2 planned: 2026-02-28 (4 plans, 2 waves)*
