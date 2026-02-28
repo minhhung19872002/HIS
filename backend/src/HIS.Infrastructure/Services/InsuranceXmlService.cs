@@ -663,41 +663,242 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<List<Xml6BloodDto>> GenerateXml6DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml6BloodDto>();
+        // Blood products from BloodRequest records linked to medical records in the period
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml6BloodDto>();
+
+        var medicalRecordIds = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .Select(c => c.MedicalRecordId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (medicalRecordIds.Count == 0)
+        {
+            _logger.LogInformation("XML6: No medical records found for period {Month}/{Year}", config.Month, config.Year);
+            return result;
+        }
+
+        var claimLookup = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .GroupBy(c => c.MedicalRecordId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        try
+        {
+            // BloodRequest has MedicalRecordId, BloodType, RhFactor, Volume, RequestDate
+            var bloodRequests = await _context.BloodRequests
+                .AsNoTracking()
+                .Include(br => br.Department)
+                .Where(br => br.MedicalRecordId.HasValue
+                    && medicalRecordIds.Contains(br.MedicalRecordId!.Value)
+                    && !br.IsDeleted
+                    && br.Status >= 1) // Approved or higher
+                .ToListAsync();
+
+            foreach (var br in bloodRequests)
+            {
+                if (!br.MedicalRecordId.HasValue || !claimLookup.TryGetValue(br.MedicalRecordId.Value, out var claim))
+                    continue;
+
+                result.Add(new Xml6BloodDto
+                {
+                    MaLk = claim.ClaimCode,
+                    Stt = result.Count(r => r.MaLk == claim.ClaimCode) + 1,
+                    MaMau = br.BloodType,
+                    TenMau = $"{br.BloodType} {br.RhFactor ?? ""}".Trim(),
+                    TheTich = Math.Round(br.Volume, 2),
+                    DonGia = 0, // Blood product pricing from InsurancePriceConfig if available
+                    ThanhTien = 0,
+                    TienBhyt = 0,
+                    TienBnCct = 0,
+                    TienNguoiBenh = 0,
+                    NgayYl = br.RequestDate,
+                    MaKhoa = br.Department?.DepartmentCode ?? claim.Department?.DepartmentCode,
+                    MaBacSi = claim.Doctor?.EmployeeCode ?? claim.Doctor?.UserCode
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "XML6: Error querying blood request data, returning empty list");
+        }
+
+        return result;
     }
 
     public async Task<List<Xml8TransportDto>> GenerateXml8DataAsync(XmlExportConfigDto config)
     {
+        // Transport records are not yet tracked in HIS
+        _logger.LogInformation("XML8: No transport records module available for period {Month}/{Year}. Returning empty list.", config.Month, config.Year);
         return new List<Xml8TransportDto>();
     }
 
     public async Task<List<Xml9SickLeaveDto>> GenerateXml9DataAsync(XmlExportConfigDto config)
     {
+        // Sick leave certificates are not yet tracked in HIS
+        _logger.LogInformation("XML9: No sick leave certificate module available for period {Month}/{Year}. Returning empty list.", config.Month, config.Year);
         return new List<Xml9SickLeaveDto>();
     }
 
     public async Task<List<Xml10AssessmentDto>> GenerateXml10DataAsync(XmlExportConfigDto config)
     {
+        // Assessment results come from BHXH feedback, not generated locally
+        _logger.LogInformation("XML10: Assessment results come from BHXH feedback. Returning empty list.");
         return new List<Xml10AssessmentDto>();
     }
 
     public async Task<List<Xml11SocialInsuranceDto>> GenerateXml11DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml11SocialInsuranceDto>();
+        // Social insurance certificates linked to patients in claims
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml11SocialInsuranceDto>();
+
+        // Deduplicate by patient to avoid multiple entries for same person
+        var processedPatients = new HashSet<Guid>();
+
+        foreach (var claim in claims)
+        {
+            if (claim.Patient == null || processedPatients.Contains(claim.PatientId)) continue;
+            processedPatients.Add(claim.PatientId);
+
+            // Only include patients with insurance numbers (social insurance data)
+            if (string.IsNullOrEmpty(claim.InsuranceNumber)) continue;
+
+            result.Add(new Xml11SocialInsuranceDto
+            {
+                MaLk = claim.ClaimCode,
+                MaBhxh = claim.InsuranceNumber ?? "",
+                HoTen = claim.Patient.FullName,
+                SoSoBhxh = claim.InsuranceNumber ?? "", // Social insurance book number = insurance number
+                NgaySinh = claim.Patient.DateOfBirth,
+                GioiTinh = claim.Patient.Gender
+            });
+        }
+
+        return result;
     }
 
     public async Task<List<Xml13ReExamDto>> GenerateXml13DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml13ReExamDto>();
+        // Re-examination appointments linked to claims in the period
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml13ReExamDto>();
+
+        var medicalRecordIds = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .Select(c => c.MedicalRecordId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (medicalRecordIds.Count == 0) return result;
+
+        var claimLookup = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .GroupBy(c => c.MedicalRecordId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        try
+        {
+            // Query Appointments that are re-examination type (AppointmentType=1)
+            var appointments = await _context.Appointments
+                .AsNoTracking()
+                .Include(a => a.Doctor)
+                .Include(a => a.Department)
+                .Where(a => a.PreviousMedicalRecordId.HasValue
+                    && medicalRecordIds.Contains(a.PreviousMedicalRecordId.Value)
+                    && a.AppointmentType == 1 // Re-examination
+                    && !a.IsDeleted)
+                .ToListAsync();
+
+            foreach (var appt in appointments)
+            {
+                if (!appt.PreviousMedicalRecordId.HasValue
+                    || !claimLookup.TryGetValue(appt.PreviousMedicalRecordId.Value, out var claim))
+                    continue;
+
+                result.Add(new Xml13ReExamDto
+                {
+                    MaLk = claim.ClaimCode,
+                    Stt = result.Count(r => r.MaLk == claim.ClaimCode) + 1,
+                    NgayHen = appt.AppointmentDate,
+                    NoiDung = appt.Reason ?? appt.Note ?? "Tai kham",
+                    MaBacSi = appt.Doctor?.EmployeeCode ?? appt.Doctor?.UserCode,
+                    MaKhoa = appt.Department?.DepartmentCode
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "XML13: Error querying appointment data, returning empty list");
+        }
+
+        return result;
     }
 
     public async Task<List<Xml14ReferralCertDto>> GenerateXml14DataAsync(XmlExportConfigDto config)
     {
-        return new List<Xml14ReferralCertDto>();
+        // Referral certificates (similar to XML7 but per QD 3176 format)
+        var claims = await GetClaimsForExport(config);
+        var result = new List<Xml14ReferralCertDto>();
+
+        var medicalRecordIds = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .Select(c => c.MedicalRecordId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (medicalRecordIds.Count == 0) return result;
+
+        var claimLookup = claims
+            .Where(c => c.MedicalRecordId.HasValue)
+            .GroupBy(c => c.MedicalRecordId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        try
+        {
+            // Query Discharge records that are referrals (DischargeType=2)
+            var discharges = await _context.Discharges
+                .AsNoTracking()
+                .Include(d => d.Admission)
+                .Where(d => d.DischargeType == 2 && !d.IsDeleted)
+                .ToListAsync();
+
+            var stt = 1;
+            foreach (var discharge in discharges)
+            {
+                var matchingClaim = claimLookup.Values
+                    .FirstOrDefault(c => c.MedicalRecordId == discharge.Admission?.MedicalRecordId);
+
+                if (matchingClaim == null) continue;
+
+                result.Add(new Xml14ReferralCertDto
+                {
+                    MaLk = matchingClaim.ClaimCode,
+                    Stt = stt++,
+                    SoPhieu = matchingClaim.MedicalRecord?.MedicalRecordCode ?? "",
+                    MaCskbChuyenDen = "", // Destination facility code from referral data
+                    TenCskbChuyenDen = "", // Destination facility name
+                    NgayChuyen = discharge.DischargeDate,
+                    LyDoChuyen = discharge.DischargeDiagnosis ?? "Chuyen tuyen dieu tri",
+                    ChanDoanChuyen = matchingClaim.MainDiagnosisCode,
+                    HuongDieuTri = discharge.DischargeInstructions,
+                    MaBacSi = matchingClaim.Doctor?.EmployeeCode ?? matchingClaim.Doctor?.UserCode
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "XML14: Error querying referral data, returning empty list");
+        }
+
+        return result;
     }
 
     public async Task<List<Xml15TbTreatmentDto>> GenerateXml15DataAsync(XmlExportConfigDto config)
     {
+        // TB treatment tracking is specialized and not yet available in HIS
+        _logger.LogInformation("XML15: TB treatment module not available. Returning empty list.");
         return new List<Xml15TbTreatmentDto>();
     }
 
