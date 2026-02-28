@@ -883,6 +883,44 @@ If a new service/controller is added, register it there or you get 500 errors.
 - ~~Drug interaction checking~~ → DA XONG (already existed) - DrugInteraction entity, 3 API endpoints, Prescription.tsx
 - ~~PDF generation~~ → DA XONG (Session 16) - 38 EMR forms HTML + iText7 digital signature
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
+- ~~CCCD validation~~ → DA XONG (Session 18) - frontend + backend, 51 province codes
+- ~~SNOMED CT mapping~~ → DA XONG (Session 18) - SnomedIcdMapping entity, 200+ seed mappings, CRUD API
+- SMS Gateway (eSMS.vn/SpeedSMS.vn integration)
+- HL7 CDA document generation
+- DQGVN national health data exchange
+- Oracle DB dual-provider support
+
+---
+
+### DA HOAN THANH (Session 18 - 2026-02-28)
+
+**85. Phase 2 Digital Signature Context**
+- Thao luan va capture CONTEXT.md cho Phase 2: PKCS#11 + TSA
+- Quyet dinh: PIN trong browser, phien 30 phut, token o server, batch ky 50/lot
+- File: `.planning/phases/02-digital-signature-expansion-pkcs-11-tsa/02-CONTEXT.md`
+
+**86. Fix AppointmentBooking.tsx verbatimModuleSyntax error**
+- Root cause: `verbatimModuleSyntax: true` trong tsconfig → interface phai dung `import type`
+- Fix: tach `import type { BookingDepartmentDto, ... }` khoi value imports
+
+**87. CCCD/National ID Validation (NangCap SEC-05)**
+- Backend: `CccdValidator.cs` utility - 12-digit format, 51 province code validation, gender/century extraction
+- Backend: `GET /api/reception/validate-cccd` endpoint (AllowAnonymous)
+- Frontend: validation rules tren ca 2 form CCCD trong Reception.tsx
+- Real-time province display khi nhap dung 12 so
+
+**88. SNOMED CT ICD-10 Mapping (NangCap INTOP-02/03)**
+- Entity: `SnomedIcdMapping` (IcdCode, IcdName, SnomedCtCode, SnomedCtDisplay, MapRule)
+- Them `SnomedCtCode`, `SnomedCtDisplay` vao ClinicalTerm entity
+- DbSet + 4 API endpoints: GET/POST/DELETE `/api/catalog/snomed-mappings`, GET `/api/catalog/snomed-search`
+- Service: GetSnomedMappingsAsync, SaveSnomedMappingAsync, DeleteSnomedMappingAsync, SearchSnomedByIcdAsync
+- SQL seed: `scripts/create_snomed_mapping.sql` - 200+ common Vietnamese ICD-10 mappings
+- Coverage: Infectious, Cancer, Endocrine, Mental, Neuro, Cardio, Respiratory, GI, MSK, OB/GYN, Injury
+
+**89. Git Commits (Session 18)**
+- `8b835cb` - docs(02): capture phase context for digital signature expansion
+- `d7df295` - fix: separate type imports in AppointmentBooking.tsx
+- `01fc52b` - feat: add CCCD validation, SNOMED CT mapping, fix AppointmentBooking import
 
 ---
 
