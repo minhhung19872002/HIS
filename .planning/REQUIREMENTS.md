@@ -26,7 +26,7 @@ Requirements for Level 6 certification + competitive features. Each maps to road
 
 ### XML 4210 Export (XML)
 
-- [ ] **XML-01**: Generate all 12 XML 4210 tables per QD 130/4750/3176 (check-in, summary, medicines, materials, services, subclinical, blood, transport, referral, sick leave, assessment, TB)
+- [x] **XML-01**: Generate all 12 XML 4210 tables per QD 130/4750/3176 (check-in, summary, medicines, materials, services, subclinical, blood, transport, referral, sick leave, assessment, TB)
 - [ ] **XML-02**: XML export validation against current BHXH XSD schema
 - [ ] **XML-03**: Batch XML export for period settlement (monthly/quarterly)
 - [ ] **XML-04**: XML signing with digital signature before submission
@@ -134,7 +134,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | BHXH-03 | Phase 1: BHXH Gateway + XML 4210 | Complete |
 | BHXH-04 | Phase 1: BHXH Gateway + XML 4210 | Complete |
 | BHXH-05 | Phase 1: BHXH Gateway + XML 4210 | Complete |
-| XML-01 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| XML-01 | Phase 1: BHXH Gateway + XML 4210 | Complete |
 | XML-02 | Phase 1: BHXH Gateway + XML 4210 | Pending |
 | XML-03 | Phase 1: BHXH Gateway + XML 4210 | Pending |
 | XML-04 | Phase 1: BHXH Gateway + XML 4210 | Pending |
