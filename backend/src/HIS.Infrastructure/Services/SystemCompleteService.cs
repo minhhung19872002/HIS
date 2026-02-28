@@ -2506,6 +2506,65 @@ public class SystemCompleteService : ISystemCompleteService
         return true;
     }
 
+    // SNOMED CT Mapping
+    public async Task<List<SnomedIcdMappingDto>> GetSnomedMappingsAsync(string? keyword, string? icdCode)
+    {
+        var query = _context.SnomedIcdMappings.Where(m => m.IsActive);
+        if (!string.IsNullOrWhiteSpace(icdCode))
+            query = query.Where(m => m.IcdCode.Contains(icdCode));
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query = query.Where(m => m.IcdName.Contains(keyword) || m.SnomedCtDisplay.Contains(keyword) || m.SnomedCtCode.Contains(keyword));
+        return await query.OrderBy(m => m.IcdCode).Take(200).Select(m => new SnomedIcdMappingDto
+        {
+            Id = m.Id, IcdCode = m.IcdCode, IcdName = m.IcdName,
+            SnomedCtCode = m.SnomedCtCode, SnomedCtDisplay = m.SnomedCtDisplay,
+            MapGroup = m.MapGroup, MapPriority = m.MapPriority, MapRule = m.MapRule, IsActive = m.IsActive
+        }).ToListAsync();
+    }
+
+    public async Task<SnomedIcdMappingDto> SaveSnomedMappingAsync(SnomedIcdMappingDto dto)
+    {
+        SnomedIcdMapping entity;
+        if (dto.Id != Guid.Empty)
+        {
+            entity = await _context.SnomedIcdMappings.FindAsync(dto.Id) ?? new SnomedIcdMapping();
+        }
+        else
+        {
+            entity = new SnomedIcdMapping();
+            _context.SnomedIcdMappings.Add(entity);
+        }
+        entity.IcdCode = dto.IcdCode; entity.IcdName = dto.IcdName;
+        entity.SnomedCtCode = dto.SnomedCtCode; entity.SnomedCtDisplay = dto.SnomedCtDisplay;
+        entity.MapGroup = dto.MapGroup; entity.MapPriority = dto.MapPriority;
+        entity.MapRule = dto.MapRule; entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteSnomedMappingAsync(Guid mappingId)
+    {
+        var entity = await _context.SnomedIcdMappings.FindAsync(mappingId);
+        if (entity == null) return false;
+        _context.SnomedIcdMappings.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<List<SnomedIcdMappingDto>> SearchSnomedByIcdAsync(string icdCode)
+    {
+        return await _context.SnomedIcdMappings
+            .Where(m => m.IsActive && m.IcdCode == icdCode)
+            .OrderBy(m => m.MapPriority)
+            .Select(m => new SnomedIcdMappingDto
+            {
+                Id = m.Id, IcdCode = m.IcdCode, IcdName = m.IcdName,
+                SnomedCtCode = m.SnomedCtCode, SnomedCtDisplay = m.SnomedCtDisplay,
+                MapGroup = m.MapGroup, MapPriority = m.MapPriority, MapRule = m.MapRule, IsActive = m.IsActive
+            }).ToListAsync();
+    }
+
     // 13.18 Dong bo danh muc BHXH
     public async Task<SyncResultDto> SyncBHXHMedicinesAsync()
     {

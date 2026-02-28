@@ -112,7 +112,24 @@ public class ClinicalTerm : BaseEntity
     public string Category { get; set; } = string.Empty; // Symptom, Sign, Examination, ReviewOfSystems, Procedure, Other
     public string? BodySystem { get; set; } // Cardiovascular, Respiratory, GI, Neuro, MSK, Skin, General, etc.
     public string? Description { get; set; }
+    public string? SnomedCtCode { get; set; } // SNOMED CT concept ID
+    public string? SnomedCtDisplay { get; set; } // SNOMED CT preferred term
     public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// ICD-10 to SNOMED CT mapping table (NangCap Level 6 INTOP-02/03)
+/// </summary>
+public class SnomedIcdMapping : BaseEntity
+{
+    public string IcdCode { get; set; } = string.Empty;
+    public string IcdName { get; set; } = string.Empty;
+    public string SnomedCtCode { get; set; } = string.Empty;
+    public string SnomedCtDisplay { get; set; } = string.Empty;
+    public string? MapGroup { get; set; }
+    public int MapPriority { get; set; } = 1;
+    public string MapRule { get; set; } = "EQUIVALENT"; // EQUIVALENT, BROADER, NARROWER
     public bool IsActive { get; set; } = true;
 }
 

@@ -217,6 +217,12 @@ namespace HIS.Application.Services
         Task<ClinicalTermCatalogDto> SaveClinicalTermAsync(ClinicalTermCatalogDto dto);
         Task<bool> DeleteClinicalTermAsync(Guid termId);
 
+        // SNOMED CT Mapping
+        Task<List<SnomedIcdMappingDto>> GetSnomedMappingsAsync(string? keyword, string? icdCode);
+        Task<SnomedIcdMappingDto> SaveSnomedMappingAsync(SnomedIcdMappingDto dto);
+        Task<bool> DeleteSnomedMappingAsync(Guid mappingId);
+        Task<List<SnomedIcdMappingDto>> SearchSnomedByIcdAsync(string icdCode);
+
         // 13.18 Đồng bộ danh mục BHXH
         Task<SyncResultDto> SyncBHXHMedicinesAsync();
         Task<SyncResultDto> SyncBHXHServicesAsync();

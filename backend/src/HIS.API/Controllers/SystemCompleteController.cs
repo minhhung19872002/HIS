@@ -714,6 +714,38 @@ namespace HIS.API.Controllers
             return Ok(result);
         }
 
+        // SNOMED CT Mapping
+        [HttpGet("api/catalog/snomed-mappings")]
+        public async Task<ActionResult<List<SnomedIcdMappingDto>>> GetSnomedMappings(
+            [FromQuery] string? keyword, [FromQuery] string? icdCode)
+        {
+            var result = await _service.GetSnomedMappingsAsync(keyword, icdCode);
+            return Ok(result);
+        }
+
+        [HttpPost("api/catalog/snomed-mappings")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<SnomedIcdMappingDto>> SaveSnomedMapping([FromBody] SnomedIcdMappingDto dto)
+        {
+            var result = await _service.SaveSnomedMappingAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/catalog/snomed-mappings/{mappingId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteSnomedMapping(Guid mappingId)
+        {
+            var result = await _service.DeleteSnomedMappingAsync(mappingId);
+            return Ok(result);
+        }
+
+        [HttpGet("api/catalog/snomed-search")]
+        public async Task<ActionResult<List<SnomedIcdMappingDto>>> SearchSnomedByIcd([FromQuery] string icdCode)
+        {
+            var result = await _service.SearchSnomedByIcdAsync(icdCode);
+            return Ok(result);
+        }
+
         // 13.18 Đồng bộ BHXH
         [HttpPost("api/catalog/sync/bhxh/medicines")]
         [Authorize(Roles = "Admin")]

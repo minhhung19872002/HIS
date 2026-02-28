@@ -437,8 +437,23 @@ namespace HIS.Application.DTOs.System
         public string Category { get; set; } // Symptom, Sign, Examination, ReviewOfSystems, Procedure, Other
         public string BodySystem { get; set; } // Cardiovascular, Respiratory, GI, Neuro, MSK, Skin, General
         public string Description { get; set; }
+        public string? SnomedCtCode { get; set; }
+        public string? SnomedCtDisplay { get; set; }
         public int SortOrder { get; set; }
         public bool IsActive { get; set; }
+    }
+
+    public class SnomedIcdMappingDto
+    {
+        public Guid Id { get; set; }
+        public string IcdCode { get; set; } = string.Empty;
+        public string IcdName { get; set; } = string.Empty;
+        public string SnomedCtCode { get; set; } = string.Empty;
+        public string SnomedCtDisplay { get; set; } = string.Empty;
+        public string? MapGroup { get; set; }
+        public int MapPriority { get; set; } = 1;
+        public string MapRule { get; set; } = "EQUIVALENT";
+        public bool IsActive { get; set; } = true;
     }
 
     #endregion

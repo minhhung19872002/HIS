@@ -128,6 +128,7 @@ public class HISDbContext : DbContext
     public DbSet<Ward> Wards => Set<Ward>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<ClinicalTerm> ClinicalTerms => Set<ClinicalTerm>();
+    public DbSet<SnomedIcdMapping> SnomedIcdMappings => Set<SnomedIcdMapping>();
 
     // Xét nghiệm (LIS)
     public DbSet<LabRequest> LabRequests => Set<LabRequest>();
