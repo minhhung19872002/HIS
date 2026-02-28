@@ -622,7 +622,35 @@ export const unlockInsuranceClaim = (maLk: string, reason: string) =>
 
 // #endregion
 
+// Preview export types
+export interface XmlExportPreviewDto {
+  totalRecords: number;
+  dateRangeFrom?: string;
+  dateRangeTo?: string;
+  departmentName?: string;
+  totalCostAmount: number;
+  totalInsuranceAmount: number;
+  totalPatientAmount: number;
+  tables: XmlTablePreview[];
+  validationErrors: InsuranceValidationResultDto[];
+  hasBlockingErrors: boolean;
+}
+
+export interface XmlTablePreview {
+  tableName: string;
+  description: string;
+  recordCount: number;
+}
+
 // #region 12.3 Xuất XML theo chuẩn BHXH
+
+// Preview export before generating
+export const previewExport = (config: XmlExportConfigDto) =>
+  request.post<XmlExportPreviewDto>('/insurance/xml/preview', config);
+
+// Sign XML batch with digital signature
+export const signXmlBatch = (batchId: string) =>
+  request.post<{ success: boolean; message: string }>(`/insurance/xml/sign/${batchId}`);
 
 export const generateXml1Data = (config: XmlExportConfigDto) =>
   request.post<Xml1MedicalRecordDto[]>('/insurance/xml/generate/xml1', config);

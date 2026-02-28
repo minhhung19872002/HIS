@@ -20,6 +20,9 @@ import {
   Progress,
   Select,
   Tooltip,
+  Spin,
+  Form,
+  Divider,
 } from 'antd';
 import {
   SearchOutlined,
@@ -34,6 +37,11 @@ import {
   LockOutlined,
   ExportOutlined,
   FileSearchOutlined,
+  DownloadOutlined,
+  SafetyCertificateOutlined,
+  IdcardOutlined,
+  EyeOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -88,10 +96,29 @@ const Insurance: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [claimSearchText, setClaimSearchText] = useState('');
   const [claimDateRange, setClaimDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
-  const [xmlTypeFilter, setXmlTypeFilter] = useState('4210');
-  const [xmlMonthRange, setXmlMonthRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [syncLoading, setSyncLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState<string | null>(null);
+
+  // XML Export workflow state
+  const [exportDateRange, setExportDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().startOf('month'),
+    dayjs().endOf('month'),
+  ]);
+  const [exportDepartmentId, setExportDepartmentId] = useState<string | undefined>(undefined);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [exportPreview, setExportPreview] = useState<insuranceApi.XmlExportPreviewDto | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportResult, setExportResult] = useState<insuranceApi.XmlExportResultDto | null>(null);
+  const [signLoading, setSignLoading] = useState(false);
+  const [signResult, setSignResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Card verification state
+  const [verifyForm] = Form.useForm();
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [cardVerification, setCardVerification] = useState<insuranceApi.InsuranceCardVerificationDto | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [insuranceHistory, setInsuranceHistory] = useState<insuranceApi.InsuranceHistoryDto | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   // Fetch data on mount
   useEffect(() => {
@@ -126,7 +153,7 @@ const Insurance: React.FC = () => {
       setClaims(mappedClaims);
       setFilteredClaims(mappedClaims);
     } catch (error) {
-      message.error('Không thể tải danh sách hồ sơ giám định');
+      message.warning('Khong the tai danh sach ho so giam dinh');
       console.warn('Failed to fetch claims:', error);
     } finally {
       setLoading(false);
@@ -168,11 +195,11 @@ const Insurance: React.FC = () => {
         createdDate: batch.createdAt,
         submittedDate: batch.submitDate,
         status: batch.status,
-        xmlType: 'QĐ 4210',
+        xmlType: 'QD 4210',
       }));
       setXmlBatches(mappedBatches);
     } catch (error) {
-      message.error('Không thể tải danh sách lô XML');
+      message.warning('Khong the tai danh sach lo XML');
       console.warn('Failed to fetch XML batches:', error);
     }
   };
@@ -185,23 +212,27 @@ const Insurance: React.FC = () => {
     }).format(amount);
   };
 
+  const formatVND = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN').format(amount) + ' VND';
+  };
+
   // Get status tag
   const getClaimStatusTag = (status: number) => {
     switch (status) {
       case 0:
-        return <Tag color="default">Nháp</Tag>;
+        return <Tag color="default">Nhap</Tag>;
       case 1:
-        return <Tag color="orange" icon={<ClockCircleOutlined />}>Chờ giám định</Tag>;
+        return <Tag color="orange" icon={<ClockCircleOutlined />}>Cho giam dinh</Tag>;
       case 2:
-        return <Tag color="blue" icon={<CloudUploadOutlined />}>Đã gửi BHXH</Tag>;
+        return <Tag color="blue" icon={<CloudUploadOutlined />}>Da gui BHXH</Tag>;
       case 3:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Đã duyệt</Tag>;
+        return <Tag color="green" icon={<CheckCircleOutlined />}>Da duyet</Tag>;
       case 4:
-        return <Tag color="red" icon={<WarningOutlined />}>Từ chối</Tag>;
+        return <Tag color="red" icon={<WarningOutlined />}>Tu choi</Tag>;
       case 5:
-        return <Tag color="purple" icon={<LockOutlined />}>Đã khóa</Tag>;
+        return <Tag color="purple" icon={<LockOutlined />}>Da khoa</Tag>;
       default:
-        return <Tag>Không xác định</Tag>;
+        return <Tag>Khong xac dinh</Tag>;
     }
   };
 
@@ -209,27 +240,27 @@ const Insurance: React.FC = () => {
   const getXmlStatusTag = (status: number) => {
     switch (status) {
       case 0:
-        return <Tag color="default">Nháp</Tag>;
+        return <Tag color="default">Nhap</Tag>;
       case 1:
-        return <Tag color="blue">Sẵn sàng</Tag>;
+        return <Tag color="blue">San sang</Tag>;
       case 2:
-        return <Tag color="orange" icon={<CloudUploadOutlined />}>Đã gửi</Tag>;
+        return <Tag color="orange" icon={<CloudUploadOutlined />}>Da gui</Tag>;
       case 3:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Xác nhận</Tag>;
+        return <Tag color="green" icon={<CheckCircleOutlined />}>Xac nhan</Tag>;
       default:
-        return <Tag>Không xác định</Tag>;
+        return <Tag>Khong xac dinh</Tag>;
     }
   };
 
   // Handle approve claims
   const handleApproveClaims = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui lòng chọn hồ sơ cần duyệt');
+      message.warning('Vui long chon ho so can duyet');
       return;
     }
     Modal.confirm({
-      title: 'Xác nhận duyệt giám định',
-      content: `Bạn có chắc chắn muốn duyệt ${selectedRowKeys.length} hồ sơ đã chọn?`,
+      title: 'Xac nhan duyet giam dinh',
+      content: `Ban co chac chan muon duyet ${selectedRowKeys.length} ho so da chon?`,
       onOk: async () => {
         try {
           const claimIds = selectedRowKeys.map(key => {
@@ -237,11 +268,11 @@ const Insurance: React.FC = () => {
             return claim?.claimCode || '';
           }).filter(Boolean);
           await insuranceApi.validateClaimsBatch(claimIds);
-          message.success(`Đã duyệt ${selectedRowKeys.length} hồ sơ`);
+          message.success(`Da duyet ${selectedRowKeys.length} ho so`);
           setSelectedRowKeys([]);
           await fetchClaims();
         } catch (error) {
-          message.error('Lỗi khi duyệt hồ sơ giám định');
+          message.warning('Loi khi duyet ho so giam dinh');
           console.warn('Error approving claims:', error);
         }
       },
@@ -251,12 +282,12 @@ const Insurance: React.FC = () => {
   // Handle lock claims
   const handleLockClaims = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui lòng chọn hồ sơ cần khóa');
+      message.warning('Vui long chon ho so can khoa');
       return;
     }
     Modal.confirm({
-      title: 'Xác nhận khóa giám định',
-      content: `Bạn có chắc chắn muốn khóa ${selectedRowKeys.length} hồ sơ đã chọn? Hồ sơ sau khi khóa không thể chỉnh sửa.`,
+      title: 'Xac nhan khoa giam dinh',
+      content: `Ban co chac chan muon khoa ${selectedRowKeys.length} ho so da chon? Ho so sau khi khoa khong the chinh sua.`,
       onOk: async () => {
         try {
           const lockPromises = selectedRowKeys.map(key => {
@@ -267,71 +298,230 @@ const Insurance: React.FC = () => {
             return Promise.resolve();
           });
           await Promise.all(lockPromises);
-          message.success(`Đã khóa ${selectedRowKeys.length} hồ sơ`);
+          message.success(`Da khoa ${selectedRowKeys.length} ho so`);
           setSelectedRowKeys([]);
           await fetchClaims();
         } catch (error) {
-          message.error('Lỗi khi khóa hồ sơ giám định');
+          message.warning('Loi khi khoa ho so giam dinh');
           console.warn('Error locking claims:', error);
         }
       },
     });
   };
 
-  // Handle export XML
-  const handleExportXml = (type: string) => {
-    const now = dayjs();
-    const month = xmlMonthRange ? xmlMonthRange[0].month() + 1 : now.month() + 1;
-    const year = xmlMonthRange ? xmlMonthRange[0].year() : now.year();
-    Modal.confirm({
-      title: `Xuất XML ${type}`,
-      content: `Bạn có chắc chắn muốn xuất file XML cho kỳ ${month.toString().padStart(2, '0')}/${year}?`,
-      onOk: async () => {
+  // =============================================
+  // XML Export workflow handlers
+  // =============================================
+
+  const buildExportConfig = (): insuranceApi.XmlExportConfigDto => {
+    const [from, to] = exportDateRange;
+    return {
+      month: from.month() + 1,
+      year: from.year(),
+      fromDate: from.format('YYYY-MM-DD'),
+      toDate: to.format('YYYY-MM-DD'),
+      departmentId: exportDepartmentId,
+      includeXml1: true,
+      includeXml2: true,
+      includeXml3: true,
+      includeXml4: true,
+      includeXml5: true,
+      includeXml7: true,
+      validateBeforeExport: true,
+      compressOutput: true,
+    };
+  };
+
+  const handlePreviewExport = async () => {
+    setPreviewLoading(true);
+    setExportPreview(null);
+    setExportResult(null);
+    setSignResult(null);
+    try {
+      const config = buildExportConfig();
+      const result = await insuranceApi.previewExport(config);
+      const data = (result as any).data || result;
+      setExportPreview(data);
+    } catch (error) {
+      // Fallback: if preview endpoint not yet available, build preview from individual generators
+      console.warn('Preview endpoint not available, using fallback:', error);
+      try {
+        const config = buildExportConfig();
+        const [xml1Res, xml2Res, xml3Res, xml4Res, xml5Res, xml7Res] = await Promise.allSettled([
+          insuranceApi.generateXml1Data(config),
+          insuranceApi.generateXml2Data(config),
+          insuranceApi.generateXml3Data(config),
+          insuranceApi.generateXml4Data(config),
+          insuranceApi.generateXml5Data(config),
+          insuranceApi.generateXml7Data(config),
+        ]);
+
+        const getCount = (res: PromiseSettledResult<any>) =>
+          res.status === 'fulfilled' ? ((res.value as any).data?.length || 0) : 0;
+
+        const xml1Count = getCount(xml1Res);
+        const xml2Count = getCount(xml2Res);
+        const xml3Count = getCount(xml3Res);
+        const xml4Count = getCount(xml4Res);
+        const xml5Count = getCount(xml5Res);
+        const xml7Count = getCount(xml7Res);
+
+        // Calculate totals from XML1 data
+        const xml1Data = xml1Res.status === 'fulfilled' ? ((xml1Res.value as any).data || []) : [];
+        const totalCost = xml1Data.reduce((sum: number, r: any) =>
+          sum + (r.tienKham || 0) + (r.tienGiuong || 0) + (r.tienNgoaitruth || 0), 0);
+        const totalInsurance = xml1Data.reduce((sum: number, r: any) => sum + (r.tienBhyt || 0), 0);
+        const totalPatient = xml1Data.reduce((sum: number, r: any) => sum + (r.tienNguoibenh || 0), 0);
+
+        // Also run validation
+        let validationErrors: insuranceApi.InsuranceValidationResultDto[] = [];
+        let hasBlockingErrors = false;
         try {
-          setLoading(true);
-          const config: insuranceApi.XmlExportConfigDto = {
-            month,
-            year,
-            includeXml1: true,
-            includeXml2: true,
-            includeXml3: true,
-            includeXml4: true,
-            includeXml5: true,
-            includeXml7: true,
-            validateBeforeExport: true,
-            compressOutput: true,
-          };
-          const result = await insuranceApi.exportXml(config);
-          const resultData = (result as any).data;
-          if (resultData?.batchId) {
-            // Download the exported file
-            try {
-              const fileResponse = await insuranceApi.downloadXmlFile(resultData.batchId);
-              const blob = new Blob([(fileResponse as any).data], { type: 'application/xml' });
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `XML-${type}-${month.toString().padStart(2, '0')}-${year}.zip`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              window.URL.revokeObjectURL(url);
-            } catch {
-              // If download fails, still show success for export
-            }
-            message.success(`Đã xuất XML ${type} (${resultData.totalRecords || 0} hồ sơ)`);
-            await fetchXmlBatches();
-          } else {
-            message.success(`Đang xuất XML ${type}...`);
-          }
-        } catch (error) {
-          message.error(`Lỗi khi xuất XML ${type}`);
-          console.warn('Error exporting XML:', error);
-        } finally {
-          setLoading(false);
+          const validationResult = await insuranceApi.validateBeforeExport(config);
+          validationErrors = (validationResult as any).data || [];
+          hasBlockingErrors = validationErrors.some(v => !v.isValid && v.errors.length > 0);
+        } catch {
+          // validation endpoint may fail, that's ok
         }
-      },
-    });
+
+        const preview: insuranceApi.XmlExportPreviewDto = {
+          totalRecords: xml1Count,
+          dateRangeFrom: exportDateRange[0].format('YYYY-MM-DD'),
+          dateRangeTo: exportDateRange[1].format('YYYY-MM-DD'),
+          departmentName: exportDepartmentId || undefined,
+          totalCostAmount: totalCost,
+          totalInsuranceAmount: totalInsurance,
+          totalPatientAmount: totalPatient,
+          tables: [
+            { tableName: 'XML1', description: 'Thong tin chung ho so KCB', recordCount: xml1Count },
+            { tableName: 'XML2', description: 'Chi tiet thuoc', recordCount: xml2Count },
+            { tableName: 'XML3', description: 'Dich vu ky thuat', recordCount: xml3Count },
+            { tableName: 'XML4', description: 'Chi phi ngoai danh muc', recordCount: xml4Count },
+            { tableName: 'XML5', description: 'Chi dinh thuoc', recordCount: xml5Count },
+            { tableName: 'XML7', description: 'Giay chuyen tuyen', recordCount: xml7Count },
+          ],
+          validationErrors,
+          hasBlockingErrors,
+        };
+        setExportPreview(preview);
+      } catch (fallbackError) {
+        message.warning('Khong the tao xem truoc. Vui long thu lai.');
+        console.warn('Preview fallback failed:', fallbackError);
+      }
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleConfirmExport = async () => {
+    setExportLoading(true);
+    setExportResult(null);
+    setSignResult(null);
+    try {
+      const config = buildExportConfig();
+      const result = await insuranceApi.exportXml(config);
+      const data = (result as any).data || result;
+      setExportResult(data);
+      message.success(`Xuat XML thanh cong! Ma lo: ${data.batchCode || data.batchId}`);
+      await fetchXmlBatches();
+    } catch (error) {
+      message.warning('Loi khi xuat XML');
+      console.warn('Error exporting XML:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDownloadExport = async () => {
+    if (!exportResult?.batchId) return;
+    try {
+      const response = await insuranceApi.downloadXmlFile(exportResult.batchId);
+      const blob = new Blob([(response as any).data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `XML-BHYT-${exportResult.batchCode || exportResult.batchId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      message.success('Da tai xuong file XML');
+    } catch (error) {
+      message.warning('Loi khi tai file XML');
+      console.warn('Error downloading XML:', error);
+    }
+  };
+
+  const handleSignExport = async () => {
+    if (!exportResult?.batchId) return;
+    setSignLoading(true);
+    setSignResult(null);
+    try {
+      const result = await insuranceApi.signXmlBatch(exportResult.batchId);
+      const data = (result as any).data || result;
+      setSignResult(data);
+      if (data.success) {
+        message.success('Ky so XML thanh cong!');
+      } else {
+        message.warning(`Ky so khong thanh cong: ${data.message || 'Loi khong xac dinh'}`);
+      }
+    } catch (error) {
+      message.warning('Loi khi ky so XML. Co the chua cau hinh USB Token.');
+      console.warn('Error signing XML:', error);
+      setSignResult({ success: false, message: 'Loi ket noi dich vu ky so' });
+    } finally {
+      setSignLoading(false);
+    }
+  };
+
+  // =============================================
+  // Card verification handlers
+  // =============================================
+
+  const handleVerifyCard = async () => {
+    try {
+      const values = await verifyForm.validateFields();
+      setVerifyLoading(true);
+      setCardVerification(null);
+      setInsuranceHistory(null);
+
+      const result = await insuranceApi.verifyInsuranceCard({
+        insuranceNumber: values.insuranceNumber,
+        patientName: values.patientName || '',
+        dateOfBirth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : '',
+      });
+      const data = (result as any).data || result;
+      setCardVerification(data);
+
+      if (data.duDkKcb) {
+        message.success('The BHYT hop le - Du dieu kien KCB');
+      } else {
+        message.warning(data.lyDoKhongDuDk || 'The BHYT khong du dieu kien');
+      }
+    } catch (error) {
+      message.warning('Khong ket noi duoc cong BHXH. Vui long thu lai sau.');
+      console.warn('Card verification error:', error);
+      // Set a fallback for gateway error display
+      setCardVerification(null);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleViewHistory = async () => {
+    if (!cardVerification?.maThe) return;
+    setHistoryLoading(true);
+    setIsHistoryModalOpen(true);
+    try {
+      const result = await insuranceApi.getInsuranceHistory(cardVerification.maThe);
+      const data = (result as any).data || result;
+      setInsuranceHistory(data);
+    } catch (error) {
+      message.warning('Khong the tai lich su KCB');
+      console.warn('Error fetching insurance history:', error);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   // Handle sync with BHXH portal
@@ -341,54 +531,16 @@ const Insurance: React.FC = () => {
       const result = await insuranceApi.testPortalConnection();
       const data = (result as any).data;
       if (data?.isConnected) {
-        message.success(`Đồng bộ thành công (${data.responseTimeMs}ms)`);
+        message.success(`Dong bo thanh cong (${data.responseTimeMs}ms)`);
         await fetchClaims();
       } else {
-        message.warning(`Không thể kết nối cổng BHXH: ${data?.errorMessage || 'Không xác định'}`);
+        message.warning(`Khong the ket noi cong BHXH: ${data?.errorMessage || 'Khong xac dinh'}`);
       }
     } catch (error) {
-      message.error('Lỗi khi đồng bộ với cổng BHXH');
+      message.warning('Loi khi dong bo voi cong BHXH');
       console.warn('Error syncing:', error);
     } finally {
       setSyncLoading(false);
-    }
-  };
-
-  // Handle auto-submit to BHXH portal
-  const handleAutoSubmit = async () => {
-    try {
-      setLoading(true);
-      const portalConfig = await insuranceApi.getPortalConfig();
-      const config = (portalConfig as any).data;
-      if (!config) {
-        message.warning('Chưa cấu hình kết nối cổng BHXH');
-        return;
-      }
-      // Get the latest ready batch
-      const readyBatches = xmlBatches.filter(b => b.status === 1);
-      if (readyBatches.length === 0) {
-        message.warning('Không có lô XML sẵn sàng để gửi');
-        return;
-      }
-      const result = await insuranceApi.submitToInsurancePortal({
-        batchId: readyBatches[0].id,
-        username: config.username || '',
-        password: config.password || '',
-        certificatePath: config.certificatePath || '',
-        testMode: config.testMode ?? true,
-      });
-      const submitData = (result as any).data;
-      if (submitData?.success) {
-        message.success(`Đã gửi thành công (Mã giao dịch: ${submitData.transactionId || '-'})`);
-        await fetchXmlBatches();
-      } else {
-        message.warning(`Gửi không thành công: ${submitData?.message || 'Lỗi không xác định'}`);
-      }
-    } catch (error) {
-      message.error('Lỗi khi gửi tự động lên cổng BHXH');
-      console.warn('Error auto-submitting:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -405,9 +557,9 @@ const Insurance: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      message.success(`Đã tải xuống lô ${batch.batchCode}`);
+      message.success(`Da tai xuong lo ${batch.batchCode}`);
     } catch (error) {
-      message.error('Lỗi khi tải xuống');
+      message.warning('Loi khi tai xuong');
       console.warn('Error downloading batch:', error);
     }
   };
@@ -427,13 +579,13 @@ const Insurance: React.FC = () => {
       });
       const submitData = (result as any).data;
       if (submitData?.success) {
-        message.success(`Đã gửi lô ${batch.batchCode} thành công`);
+        message.success(`Da gui lo ${batch.batchCode} thanh cong`);
         await fetchXmlBatches();
       } else {
-        message.warning(`Gửi không thành công: ${submitData?.message || 'Lỗi không xác định'}`);
+        message.warning(`Gui khong thanh cong: ${submitData?.message || 'Loi khong xac dinh'}`);
       }
     } catch (error) {
-      message.error(`Lỗi khi gửi lô ${batch.batchCode}`);
+      message.warning(`Loi khi gui lo ${batch.batchCode}`);
       console.warn('Error submitting batch:', error);
     } finally {
       setLoading(false);
@@ -492,9 +644,9 @@ const Insurance: React.FC = () => {
         // Export not available for all report types
       }
 
-      message.success(`Đã tải ${reportName}`);
+      message.success(`Da tai ${reportName}`);
     } catch (error) {
-      message.error(`Lỗi khi tải ${reportName}`);
+      message.warning(`Loi khi tai ${reportName}`);
       console.warn(`Error loading report ${reportType}:`, error);
     } finally {
       setReportLoading(null);
@@ -511,46 +663,46 @@ const Insurance: React.FC = () => {
   // Claim columns
   const claimColumns: ColumnsType<InsuranceClaim> = [
     {
-      title: 'Mã giám định',
+      title: 'Ma giam dinh',
       dataIndex: 'claimCode',
       key: 'claimCode',
       width: 130,
       fixed: 'left',
     },
     {
-      title: 'Mã BN',
+      title: 'Ma BN',
       dataIndex: 'patientCode',
       key: 'patientCode',
       width: 120,
     },
     {
-      title: 'Họ tên BN',
+      title: 'Ho ten BN',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 150,
     },
     {
-      title: 'Số thẻ BHYT',
+      title: 'So the BHYT',
       dataIndex: 'insuranceNumber',
       key: 'insuranceNumber',
       width: 160,
       render: (num) => <Text code>{num}</Text>,
     },
     {
-      title: 'Ngày khám',
+      title: 'Ngay kham',
       dataIndex: 'visitDate',
       key: 'visitDate',
       width: 110,
       render: (date) => dayjs(date).format('DD/MM/YYYY'),
     },
     {
-      title: 'Khoa/Phòng',
+      title: 'Khoa/Phong',
       dataIndex: 'department',
       key: 'department',
       width: 120,
     },
     {
-      title: 'Chẩn đoán',
+      title: 'Chan doan',
       dataIndex: 'diagnosis',
       key: 'diagnosis',
       width: 250,
@@ -562,7 +714,7 @@ const Insurance: React.FC = () => {
       ),
     },
     {
-      title: 'BHYT chi trả',
+      title: 'BHYT chi tra',
       dataIndex: 'insuranceAmount',
       key: 'insuranceAmount',
       width: 140,
@@ -570,21 +722,21 @@ const Insurance: React.FC = () => {
       render: (amount) => <Text type="success">{formatCurrency(amount)}</Text>,
     },
     {
-      title: 'Trạng thái',
+      title: 'Trang thai',
       dataIndex: 'status',
       key: 'status',
       width: 140,
       render: (status) => getClaimStatusTag(status),
       filters: [
-        { text: 'Chờ giám định', value: 1 },
-        { text: 'Đã gửi BHXH', value: 2 },
-        { text: 'Đã duyệt', value: 3 },
-        { text: 'Từ chối', value: 4 },
+        { text: 'Cho giam dinh', value: 1 },
+        { text: 'Da gui BHXH', value: 2 },
+        { text: 'Da duyet', value: 3 },
+        { text: 'Tu choi', value: 4 },
       ],
       onFilter: (value, record) => record.status === value,
     },
     {
-      title: 'Thao tác',
+      title: 'Thao tac',
       key: 'action',
       width: 100,
       fixed: 'right',
@@ -598,7 +750,7 @@ const Insurance: React.FC = () => {
               setIsDetailModalOpen(true);
             }}
           >
-            Chi tiết
+            Chi tiet
           </Button>
         </Space>
       ),
@@ -608,33 +760,33 @@ const Insurance: React.FC = () => {
   // XML batch columns
   const xmlColumns: ColumnsType<XmlBatch> = [
     {
-      title: 'Mã lô',
+      title: 'Ma lo',
       dataIndex: 'batchCode',
       key: 'batchCode',
       width: 150,
     },
     {
-      title: 'Loại XML',
+      title: 'Loai XML',
       dataIndex: 'xmlType',
       key: 'xmlType',
       width: 130,
       render: (type) => <Tag color="blue">{type}</Tag>,
     },
     {
-      title: 'Kỳ',
+      title: 'Ky',
       dataIndex: 'period',
       key: 'period',
       width: 100,
     },
     {
-      title: 'Số hồ sơ',
+      title: 'So ho so',
       dataIndex: 'claimCount',
       key: 'claimCount',
       width: 100,
       align: 'right',
     },
     {
-      title: 'Tổng tiền',
+      title: 'Tong tien',
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       width: 180,
@@ -642,41 +794,87 @@ const Insurance: React.FC = () => {
       render: (amount) => <Text strong>{formatCurrency(amount)}</Text>,
     },
     {
-      title: 'Ngày tạo',
+      title: 'Ngay tao',
       dataIndex: 'createdDate',
       key: 'createdDate',
       width: 120,
       render: (date) => dayjs(date).format('DD/MM/YYYY'),
     },
     {
-      title: 'Ngày gửi',
-      dataIndex: 'submittedDate',
-      key: 'submittedDate',
-      width: 120,
-      render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
-    },
-    {
-      title: 'Trạng thái',
+      title: 'Trang thai',
       dataIndex: 'status',
       key: 'status',
       width: 130,
       render: (status) => getXmlStatusTag(status),
     },
     {
-      title: 'Thao tác',
+      title: 'Thao tac',
       key: 'action',
       width: 200,
       render: (_, record) => (
         <Space>
           <Button size="small" icon={<ExportOutlined />} onClick={() => handleDownloadBatch(record)}>
-            Tải xuống
+            Tai xuong
           </Button>
           {record.status === 1 && (
             <Button size="small" type="primary" icon={<CloudUploadOutlined />} onClick={() => handleSubmitBatch(record)}>
-              Gửi BHXH
+              Gui BHXH
             </Button>
           )}
         </Space>
+      ),
+    },
+  ];
+
+  // Preview table columns
+  const previewTableColumns: ColumnsType<insuranceApi.XmlTablePreview> = [
+    {
+      title: 'Bang',
+      dataIndex: 'tableName',
+      key: 'tableName',
+      width: 100,
+      render: (name) => <Tag color="blue">{name}</Tag>,
+    },
+    {
+      title: 'Mo ta',
+      dataIndex: 'description',
+      key: 'description',
+    },
+    {
+      title: 'So ban ghi',
+      dataIndex: 'recordCount',
+      key: 'recordCount',
+      width: 120,
+      align: 'right',
+      render: (count) => <Text strong>{new Intl.NumberFormat('vi-VN').format(count)}</Text>,
+    },
+  ];
+
+  // Validation errors columns
+  const validationErrorColumns: ColumnsType<any> = [
+    {
+      title: 'MaLk',
+      dataIndex: 'maLk',
+      key: 'maLk',
+      width: 140,
+    },
+    {
+      title: 'Truong',
+      key: 'field',
+      width: 120,
+      render: (_: any, record: any) => record.errors?.[0]?.field || '-',
+    },
+    {
+      title: 'Ma loi',
+      key: 'errorCode',
+      width: 100,
+      render: (_: any, record: any) => record.errors?.[0]?.errorCode || '-',
+    },
+    {
+      title: 'Mo ta loi',
+      key: 'message',
+      render: (_: any, record: any) => (
+        <Text type="danger">{record.errors?.map((e: any) => e.message).join('; ') || '-'}</Text>
       ),
     },
   ];
@@ -689,16 +887,362 @@ const Insurance: React.FC = () => {
     }),
   };
 
+  // =============================================
+  // XML Export tab content - 4-step workflow
+  // =============================================
+  const renderXmlExportTab = () => (
+    <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      {/* Step 1: Configure export */}
+      <Card title="Buoc 1: Cau hinh xuat XML" size="small">
+        <Row gutter={16} align="middle">
+          <Col span={10}>
+            <Text strong>Khoang thoi gian: </Text>
+            <RangePicker
+              format="DD/MM/YYYY"
+              value={exportDateRange}
+              onChange={(dates) => {
+                if (dates && dates[0] && dates[1]) {
+                  setExportDateRange([dates[0], dates[1]]);
+                }
+              }}
+              style={{ marginLeft: 8 }}
+            />
+          </Col>
+          <Col span={8}>
+            <Text strong>Khoa: </Text>
+            <Select
+              placeholder="Tat ca cac khoa"
+              allowClear
+              style={{ width: 200, marginLeft: 8 }}
+              value={exportDepartmentId}
+              onChange={(value) => setExportDepartmentId(value)}
+            >
+              <Select.Option value="">Tat ca cac khoa</Select.Option>
+            </Select>
+          </Col>
+          <Col span={6} style={{ textAlign: 'right' }}>
+            <Button
+              type="primary"
+              icon={<EyeOutlined />}
+              onClick={handlePreviewExport}
+              loading={previewLoading}
+              size="large"
+            >
+              Xem truoc
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Step 2: Preview results */}
+      {exportPreview && (
+        <Card title="Buoc 2: Ket qua xem truoc" size="small">
+          {/* Summary cards */}
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Tong ho so"
+                  value={exportPreview.totalRecords}
+                  prefix={<FileDoneOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Tong chi phi"
+                  value={exportPreview.totalCostAmount}
+                  formatter={(value) => formatVND(value as number)}
+                  styles={{ content: { color: '#1890ff', fontSize: 16 } }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="BHYT chi tra"
+                  value={exportPreview.totalInsuranceAmount}
+                  formatter={(value) => formatVND(value as number)}
+                  styles={{ content: { color: '#52c41a', fontSize: 16 } }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Nguoi benh tra"
+                  value={exportPreview.totalPatientAmount}
+                  formatter={(value) => formatVND(value as number)}
+                  styles={{ content: { color: '#faad14', fontSize: 16 } }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Table listing all XML tables with record counts */}
+          <Table
+            columns={previewTableColumns}
+            dataSource={exportPreview.tables}
+            rowKey="tableName"
+            size="small"
+            pagination={false}
+            style={{ marginBottom: 16 }}
+          />
+
+          {/* Blocking errors or success */}
+          {exportPreview.hasBlockingErrors ? (
+            <>
+              <Alert
+                title="Du lieu chua day du - Khong the xuat XML"
+                type="error"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+              <Table
+                columns={validationErrorColumns}
+                dataSource={exportPreview.validationErrors.filter(v => !v.isValid)}
+                rowKey="maLk"
+                size="small"
+                pagination={{ pageSize: 10 }}
+                style={{ marginBottom: 16 }}
+              />
+              <Button type="primary" disabled size="large">
+                Xac nhan xuat XML
+              </Button>
+            </>
+          ) : (
+            <>
+              <Alert
+                title="Du lieu hop le - San sang xuat XML"
+                type="success"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+              <Button
+                type="primary"
+                icon={<ExportOutlined />}
+                onClick={handleConfirmExport}
+                loading={exportLoading}
+                size="large"
+              >
+                Xac nhan xuat XML
+              </Button>
+            </>
+          )}
+        </Card>
+      )}
+
+      {/* Step 3: Export result */}
+      {exportResult && (
+        <Card title="Buoc 3: Ket qua xuat XML" size="small">
+          <Alert
+            title={`Xuat XML thanh cong! Ma lo: ${exportResult.batchCode || exportResult.batchId}`}
+            description={`Tong: ${exportResult.totalRecords} ho so, Thanh cong: ${exportResult.successRecords}, That bai: ${exportResult.failedRecords}`}
+            type="success"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          {exportResult.errors && exportResult.errors.length > 0 && (
+            <Alert
+              title={`Co ${exportResult.errors.length} ho so loi`}
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          <Space>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={handleDownloadExport}
+              size="large"
+            >
+              Tai XML
+            </Button>
+            <Button
+              icon={<SafetyCertificateOutlined />}
+              onClick={handleSignExport}
+              loading={signLoading}
+              size="large"
+            >
+              Ky so XML
+            </Button>
+          </Space>
+        </Card>
+      )}
+
+      {/* Step 4: Sign result */}
+      {signResult && (
+        <Card title="Buoc 4: Ket qua ky so" size="small">
+          <Alert
+            title={signResult.success ? 'Ky so XML thanh cong!' : 'Ky so XML khong thanh cong'}
+            description={signResult.message}
+            type={signResult.success ? 'success' : 'error'}
+            showIcon
+          />
+        </Card>
+      )}
+
+      {/* Existing batches table */}
+      <Card title="Lich su xuat XML" size="small">
+        <Table
+          columns={xmlColumns}
+          dataSource={xmlBatches}
+          rowKey="id"
+          size="small"
+          loading={loading}
+          pagination={{
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `Tong: ${total} lo`,
+          }}
+        />
+      </Card>
+    </Space>
+  );
+
+  // =============================================
+  // Card verification tab content
+  // =============================================
+  const renderCardVerificationTab = () => (
+    <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      <Card title="Tra cuu the BHYT" size="small">
+        <Form form={verifyForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="insuranceNumber"
+                label="So the BHYT"
+                rules={[{ required: true, message: 'Vui long nhap so the BHYT' }]}
+              >
+                <Input placeholder="Nhap so the BHYT (15 ky tu)" maxLength={15} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="patientName" label="Ho ten benh nhan">
+                <Input placeholder="Nhap ho ten (khong bat buoc)" />
+              </Form.Item>
+            </Col>
+            <Col span={5}>
+              <Form.Item name="dateOfBirth" label="Ngay sinh">
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={3}>
+              <Form.Item label=" ">
+                <Button
+                  type="primary"
+                  icon={<SearchOutlined />}
+                  onClick={handleVerifyCard}
+                  loading={verifyLoading}
+                  block
+                >
+                  Xac minh
+                </Button>
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Card>
+
+      {cardVerification && (
+        <Card
+          title="Ket qua xac minh"
+          size="small"
+          extra={
+            <Button
+              icon={<HistoryOutlined />}
+              onClick={handleViewHistory}
+              loading={historyLoading}
+            >
+              Xem lich su KCB
+            </Button>
+          }
+        >
+          <Alert
+            title={cardVerification.duDkKcb ? 'Du dieu kien KCB' : 'Khong du dieu kien KCB'}
+            description={cardVerification.duDkKcb
+              ? `Muc huong: ${cardVerification.mucHuong}% | Hieu luc: ${cardVerification.gtTheTu ? dayjs(cardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - ${cardVerification.gtTheDen ? dayjs(cardVerification.gtTheDen).format('DD/MM/YYYY') : ''}`
+              : cardVerification.lyDoKhongDuDk || 'Khong co thong tin'}
+            type={cardVerification.duDkKcb ? 'success' : 'error'}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Ma the" span={2}>
+              <Text code strong>{cardVerification.maThe}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Ho ten">
+              {cardVerification.hoTen}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngay sinh">
+              {cardVerification.ngaySinh ? dayjs(cardVerification.ngaySinh).format('DD/MM/YYYY') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Gioi tinh">
+              {cardVerification.gioiTinh === 1 ? 'Nam' : cardVerification.gioiTinh === 2 ? 'Nu' : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Dia chi">
+              {cardVerification.diaChi || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="GT the tu">
+              {cardVerification.gtTheTu ? dayjs(cardVerification.gtTheTu).format('DD/MM/YYYY') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="GT the den">
+              {cardVerification.gtTheDen ? dayjs(cardVerification.gtTheDen).format('DD/MM/YYYY') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Noi DKKCB BD" span={2}>
+              {cardVerification.tenDkbd || '-'} ({cardVerification.maDkbd || '-'})
+            </Descriptions.Item>
+            <Descriptions.Item label="Muc huong">
+              <Text strong style={{ color: '#1890ff' }}>{cardVerification.mucHuong}%</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Du DK KCB">
+              {cardVerification.duDkKcb ? (
+                <Tag color="green" icon={<CheckCircleOutlined />}>Du dieu kien</Tag>
+              ) : (
+                <Tag color="red" icon={<WarningOutlined />}>Khong du DK</Tag>
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Mien cung CT">
+              {cardVerification.mienCungCt ? <Tag color="green">Co</Tag> : <Tag>Khong</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="Loai the">
+              {cardVerification.loaiThe || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ma khu vuc">
+              {cardVerification.maKv || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tra truoc">
+              {cardVerification.isTraTruoc ? <Tag color="orange">Co</Tag> : <Tag>Khong</Tag>}
+            </Descriptions.Item>
+            {cardVerification.lyDoKhongDuDk && (
+              <Descriptions.Item label="Ly do khong du DK" span={2}>
+                <Text type="danger">{cardVerification.lyDoKhongDuDk}</Text>
+              </Descriptions.Item>
+            )}
+            <Descriptions.Item label="Thoi gian xac minh" span={2}>
+              {cardVerification.verificationTime ? dayjs(cardVerification.verificationTime).format('DD/MM/YYYY HH:mm:ss') : '-'}
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+      )}
+    </Space>
+  );
+
   return (
     <div>
-      <Title level={4}>Giám định BHYT</Title>
+      <Title level={4}>Giam dinh BHYT</Title>
 
       {/* Summary Cards */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
             <Statistic
-              title="Tổng hồ sơ"
+              title="Tong ho so"
               value={totalClaims}
               prefix={<FileDoneOutlined />}
             />
@@ -707,7 +1251,7 @@ const Insurance: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Chờ giám định"
+              title="Cho giam dinh"
               value={pendingClaims}
               styles={{ content: { color: pendingClaims > 0 ? '#faad14' : '#52c41a' } }}
               prefix={<ClockCircleOutlined />}
@@ -717,7 +1261,7 @@ const Insurance: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Đã duyệt / Từ chối"
+              title="Da duyet / Tu choi"
               value={approvedClaims}
               suffix={`/ ${rejectedClaims}`}
               styles={{ content: { color: '#52c41a' } }}
@@ -733,11 +1277,11 @@ const Insurance: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Tổng BHYT chi trả"
+              title="Tong BHYT chi tra"
               value={totalInsuranceAmount}
               precision={0}
               styles={{ content: { color: '#1890ff' } }}
-              suffix="VNĐ"
+              suffix="VND"
               formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
             />
           </Card>
@@ -754,7 +1298,7 @@ const Insurance: React.FC = () => {
               label: (
                 <span>
                   <FileDoneOutlined />
-                  Hồ sơ giám định
+                  Ho so giam dinh
                   {pendingClaims > 0 && <Badge count={pendingClaims} style={{ marginLeft: 8 }} />}
                 </span>
               ),
@@ -764,7 +1308,7 @@ const Insurance: React.FC = () => {
                     <Col flex="auto">
                       <Space>
                         <Search
-                          placeholder="Tìm theo mã giám định, mã BN, số thẻ BHYT..."
+                          placeholder="Tim theo ma giam dinh, ma BN, so the BHYT..."
                           allowClear
                           enterButton={<SearchOutlined />}
                           style={{ width: 400 }}
@@ -798,17 +1342,17 @@ const Insurance: React.FC = () => {
                           onClick={handleApproveClaims}
                           disabled={selectedRowKeys.length === 0}
                         >
-                          Duyệt giám định
+                          Duyet giam dinh
                         </Button>
                         <Button
                           icon={<LockOutlined />}
                           onClick={handleLockClaims}
                           disabled={selectedRowKeys.length === 0}
                         >
-                          Khóa giám định
+                          Khoa giam dinh
                         </Button>
                         <Button icon={<SyncOutlined />} onClick={handleSync} loading={syncLoading}>
-                          Đồng bộ
+                          Dong bo
                         </Button>
                       </Space>
                     </Col>
@@ -816,7 +1360,7 @@ const Insurance: React.FC = () => {
 
                   {rejectedClaims > 0 && (
                     <Alert
-                      title={`Có ${rejectedClaims} hồ sơ bị từ chối cần xử lý`}
+                      title={`Co ${rejectedClaims} ho so bi tu choi can xu ly`}
                       type="warning"
                       showIcon
                       style={{ marginBottom: 16 }}
@@ -832,7 +1376,7 @@ const Insurance: React.FC = () => {
                             }
                           }}
                         >
-                          Xem chi tiết
+                          Xem chi tiet
                         </Button>
                       }
                     />
@@ -849,7 +1393,7 @@ const Insurance: React.FC = () => {
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
-                      showTotal: (total) => `Tổng: ${total} hồ sơ`,
+                      showTotal: (total) => `Tong: ${total} ho so`,
                     }}
                     onRow={(record) => ({
                       onDoubleClick: () => {
@@ -867,98 +1411,27 @@ const Insurance: React.FC = () => {
               label: (
                 <span>
                   <CloudUploadOutlined />
-                  Xuất XML
+                  Xuat XML
                 </span>
               ),
-              children: (
-                <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
-                      <Space>
-                        <Select
-                          value={xmlTypeFilter}
-                          style={{ width: 200 }}
-                          onChange={(value) => setXmlTypeFilter(value)}
-                        >
-                          <Select.Option value="4210">QĐ 4210 (Bảng 1,2,3,4,5)</Select.Option>
-                          <Select.Option value="130">QĐ 130</Select.Option>
-                          <Select.Option value="4750">QĐ 4750</Select.Option>
-                          <Select.Option value="3176">QĐ 3176</Select.Option>
-                          <Select.Option value="917">QĐ 917</Select.Option>
-                        </Select>
-                        <RangePicker
-                          picker="month"
-                          format="MM/YYYY"
-                          value={xmlMonthRange}
-                          onChange={(dates) => {
-                            setXmlMonthRange(dates ? [dates[0]!, dates[1]!] : null);
-                          }}
-                        />
-                      </Space>
-                    </Col>
-                    <Col>
-                      <Space>
-                        <Button
-                          type="primary"
-                          icon={<FileExcelOutlined />}
-                          onClick={() => handleExportXml(`QĐ ${xmlTypeFilter}`)}
-                          loading={loading}
-                        >
-                          Tạo XML
-                        </Button>
-                        <Button
-                          icon={<CloudUploadOutlined />}
-                          onClick={handleAutoSubmit}
-                          loading={loading}
-                        >
-                          Gửi tự động
-                        </Button>
-                      </Space>
-                    </Col>
-                  </Row>
-
-                  <Table
-                    columns={xmlColumns}
-                    dataSource={xmlBatches}
-                    rowKey="id"
-                    size="small"
-                    loading={loading}
-                    pagination={{
-                      showSizeChanger: true,
-                      showQuickJumper: true,
-                      showTotal: (total) => `Tổng: ${total} lô`,
-                    }}
-                    onRow={(record) => ({
-                      onDoubleClick: () => {
-                        Modal.info({
-                          title: 'Chi tiết lô XML',
-                          width: 600,
-                          content: (
-                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Mã lô">{record.batchCode}</Descriptions.Item>
-                              <Descriptions.Item label="Loại">{record.xmlType}</Descriptions.Item>
-                              <Descriptions.Item label="Số hồ sơ">{record.totalRecords}</Descriptions.Item>
-                              <Descriptions.Item label="Tổng tiền">{record.totalAmount?.toLocaleString('vi-VN')} đ</Descriptions.Item>
-                              <Descriptions.Item label="Ngày tạo">
-                                {record.createdDate ? dayjs(record.createdDate).format('DD/MM/YYYY HH:mm') : '-'}
-                              </Descriptions.Item>
-                              <Descriptions.Item label="Trạng thái">{record.status}</Descriptions.Item>
-                            </Descriptions>
-                          ),
-                        });
-                      },
-                      style: { cursor: 'pointer' },
-                    })}
-                  />
-                </>
+              children: renderXmlExportTab(),
+            },
+            {
+              key: 'verify',
+              label: (
+                <span>
+                  <IdcardOutlined />
+                  Tra cuu the
+                </span>
               ),
+              children: renderCardVerificationTab(),
             },
             {
               key: 'reports',
               label: (
                 <span>
                   <PrinterOutlined />
-                  Báo cáo BHYT
+                  Bao cao BHYT
                 </span>
               ),
               children: (
@@ -967,14 +1440,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau19'}
-                      onClick={() => handleReportClick('mau19', 'Báo cáo mẫu 19')}
+                      onClick={() => handleReportClick('mau19', 'Bao cao mau 19')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#1890ff' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 19</Text>
+                          <Text strong>Bao cao mau 19</Text>
                           <br />
-                          <Text type="secondary">Báo cáo tổng hợp KCB BHYT</Text>
+                          <Text type="secondary">Bao cao tong hop KCB BHYT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -983,14 +1456,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau20'}
-                      onClick={() => handleReportClick('mau20', 'Báo cáo mẫu 20')}
+                      onClick={() => handleReportClick('mau20', 'Bao cao mau 20')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#52c41a' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 20</Text>
+                          <Text strong>Bao cao mau 20</Text>
                           <br />
-                          <Text type="secondary">Chi tiết chi phí KCB BHYT</Text>
+                          <Text type="secondary">Chi tiet chi phi KCB BHYT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -999,14 +1472,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau21'}
-                      onClick={() => handleReportClick('mau21', 'Báo cáo mẫu 21')}
+                      onClick={() => handleReportClick('mau21', 'Bao cao mau 21')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 21</Text>
+                          <Text strong>Bao cao mau 21</Text>
                           <br />
-                          <Text type="secondary">Báo cáo chi tiết theo đối tượng</Text>
+                          <Text type="secondary">Bao cao chi tiet theo doi tuong</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1015,14 +1488,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau79'}
-                      onClick={() => handleReportClick('mau79', 'Báo cáo mẫu 79')}
+                      onClick={() => handleReportClick('mau79', 'Bao cao mau 79')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#722ed1' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 79</Text>
+                          <Text strong>Bao cao mau 79</Text>
                           <br />
-                          <Text type="secondary">Báo cáo chi tiết PTTT</Text>
+                          <Text type="secondary">Bao cao chi tiet PTTT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1031,14 +1504,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau80'}
-                      onClick={() => handleReportClick('mau80', 'Báo cáo mẫu 80')}
+                      onClick={() => handleReportClick('mau80', 'Bao cao mau 80')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#faad14' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 80</Text>
+                          <Text strong>Bao cao mau 80</Text>
                           <br />
-                          <Text type="secondary">Tổng hợp chi phí thuốc BHYT</Text>
+                          <Text type="secondary">Tong hop chi phi thuoc BHYT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1047,14 +1520,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'tt102'}
-                      onClick={() => handleReportClick('tt102', 'Báo cáo TT 102/2018')}
+                      onClick={() => handleReportClick('tt102', 'Bao cao TT 102/2018')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#13c2c2' }} />
                         <div>
-                          <Text strong>Báo cáo TT 102/2018</Text>
+                          <Text strong>Bao cao TT 102/2018</Text>
                           <br />
-                          <Text type="secondary">Báo cáo theo Thông tư 102/2018/TT-BTC</Text>
+                          <Text type="secondary">Bao cao theo Thong tu 102/2018/TT-BTC</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1068,7 +1541,7 @@ const Insurance: React.FC = () => {
 
       {/* Detail Modal */}
       <Modal
-        title="Chi tiết hồ sơ giám định"
+        title="Chi tiet ho so giam dinh"
         open={isDetailModalOpen}
         onCancel={() => {
           setIsDetailModalOpen(false);
@@ -1079,17 +1552,17 @@ const Insurance: React.FC = () => {
             key="print"
             icon={<PrinterOutlined />}
             onClick={() => {
-              if (!selectedClaim) { message.warning('Vui lòng chọn hồ sơ cần in'); return; }
+              if (!selectedClaim) { message.warning('Vui long chon ho so can in'); return; }
               const printWindow = window.open('', '_blank');
               if (!printWindow) {
-                message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+                message.warning('Khong the mo cua so in. Vui long cho phep popup.');
                 return;
               }
               printWindow.document.write(`
                 <!DOCTYPE html>
                 <html>
                 <head>
-                  <title>Bảng kê giám định BHYT - ${selectedClaim.claimCode}</title>
+                  <title>Bang ke giam dinh BHYT - ${selectedClaim.claimCode}</title>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.5; padding: 20px; }
@@ -1102,7 +1575,6 @@ const Insurance: React.FC = () => {
                     table th, table td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
                     table th { background-color: #f0f0f0; font-weight: bold; }
                     .text-right { text-align: right; }
-                    .text-center { text-align: center; }
                     .total-row { font-weight: bold; background-color: #f0f5ff; }
                     .signature-row { display: flex; justify-content: space-between; margin-top: 30px; text-align: center; }
                     .signature-col { width: 30%; }
@@ -1114,48 +1586,48 @@ const Insurance: React.FC = () => {
                   <div class="header">
                     <div class="header-left">
                       <div><strong>${HOSPITAL_NAME}</strong></div>
-                      <div>Phòng Tài chính - Kế toán</div>
+                      <div>Phong Tai chinh - Ke toan</div>
                     </div>
                     <div style="text-align: right;">
-                      <div><strong>Mẫu: BHYT-BK</strong></div>
-                      <div>Số: ${selectedClaim.claimCode}</div>
+                      <div><strong>Mau: BHYT-BK</strong></div>
+                      <div>So: ${selectedClaim.claimCode}</div>
                     </div>
                   </div>
 
-                  <div class="title">BẢNG KÊ CHI PHÍ KHÁM CHỮA BỆNH BHYT</div>
+                  <div class="title">BANG KE CHI PHI KHAM CHUA BENH BHYT</div>
                   <div style="text-align: center; margin-bottom: 15px;">
-                    Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}
+                    Ngay ${dayjs().format('DD')} thang ${dayjs().format('MM')} nam ${dayjs().format('YYYY')}
                   </div>
 
-                  <div class="info-row">Mã giám định: <span class="field"><strong>${selectedClaim.claimCode}</strong></span></div>
-                  <div class="info-row">Mã BN: <span class="field">${selectedClaim.patientCode}</span> Họ tên BN: <span class="field" style="width: 250px;"><strong>${selectedClaim.patientName}</strong></span></div>
-                  <div class="info-row">Số thẻ BHYT: <span class="field">${selectedClaim.insuranceNumber}</span></div>
-                  <div class="info-row">Ngày khám: <span class="field">${dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}</span> Ngày ra viện: <span class="field">${selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '---'}</span></div>
-                  <div class="info-row">Khoa/Phòng: <span class="field">${selectedClaim.department || '---'}</span></div>
-                  <div class="info-row">Chẩn đoán: <span class="field" style="width: 400px;">${selectedClaim.diagnosis}</span></div>
+                  <div class="info-row">Ma giam dinh: <span class="field"><strong>${selectedClaim.claimCode}</strong></span></div>
+                  <div class="info-row">Ma BN: <span class="field">${selectedClaim.patientCode}</span> Ho ten BN: <span class="field" style="width: 250px;"><strong>${selectedClaim.patientName}</strong></span></div>
+                  <div class="info-row">So the BHYT: <span class="field">${selectedClaim.insuranceNumber}</span></div>
+                  <div class="info-row">Ngay kham: <span class="field">${dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}</span> Ngay ra vien: <span class="field">${selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '---'}</span></div>
+                  <div class="info-row">Khoa/Phong: <span class="field">${selectedClaim.department || '---'}</span></div>
+                  <div class="info-row">Chan doan: <span class="field" style="width: 400px;">${selectedClaim.diagnosis}</span></div>
 
                   <table>
                     <thead>
                       <tr>
-                        <th>Nội dung</th>
-                        <th class="text-right" style="width: 180px;">Số tiền (VNĐ)</th>
+                        <th>Noi dung</th>
+                        <th class="text-right" style="width: 180px;">So tien (VND)</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>Tổng chi phí KCB</td>
+                        <td>Tong chi phi KCB</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
                       </tr>
                       <tr>
-                        <td>BHYT chi trả</td>
+                        <td>BHYT chi tra</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.insuranceAmount)}</td>
                       </tr>
                       <tr>
-                        <td>Người bệnh chi trả</td>
+                        <td>Nguoi benh chi tra</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.patientAmount)}</td>
                       </tr>
                       <tr class="total-row">
-                        <td>Tổng cộng</td>
+                        <td>Tong cong</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
                       </tr>
                     </tbody>
@@ -1163,24 +1635,24 @@ const Insurance: React.FC = () => {
 
                   ${selectedClaim.status === 4 && selectedClaim.rejectReason ? `
                     <div class="reject-box">
-                      <strong>Lý do từ chối:</strong> ${selectedClaim.rejectReason}
+                      <strong>Ly do tu choi:</strong> ${selectedClaim.rejectReason}
                     </div>
                   ` : ''}
 
-                  ${selectedClaim.submittedDate ? `<div class="info-row">Ngày gửi BHXH: <span class="field">${dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}</span></div>` : ''}
+                  ${selectedClaim.submittedDate ? `<div class="info-row">Ngay gui BHXH: <span class="field">${dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}</span></div>` : ''}
 
                   <div class="signature-row">
                     <div class="signature-col">
-                      <div><strong>NGƯỜI LẬP BẢNG KÊ</strong></div>
-                      <div>(Ký, ghi rõ họ tên)</div>
+                      <div><strong>NGUOI LAP BANG KE</strong></div>
+                      <div>(Ky, ghi ro ho ten)</div>
                     </div>
                     <div class="signature-col">
-                      <div><strong>KẾ TOÁN VIỆN PHÍ</strong></div>
-                      <div>(Ký, ghi rõ họ tên)</div>
+                      <div><strong>KE TOAN VIEN PHI</strong></div>
+                      <div>(Ky, ghi ro ho ten)</div>
                     </div>
                     <div class="signature-col">
-                      <div><strong>GIÁM ĐỐC BỆNH VIỆN</strong></div>
-                      <div>(Ký tên, đóng dấu)</div>
+                      <div><strong>GIAM DOC BENH VIEN</strong></div>
+                      <div>(Ky ten, dong dau)</div>
                     </div>
                   </div>
                 </body>
@@ -1191,10 +1663,10 @@ const Insurance: React.FC = () => {
               setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
             }}
           >
-            In bảng kê
+            In bang ke
           </Button>,
           <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-            Đóng
+            Dong
           </Button>,
         ]}
         width={800}
@@ -1202,42 +1674,42 @@ const Insurance: React.FC = () => {
         {selectedClaim && (
           <>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Mã giám định">{selectedClaim.claimCode}</Descriptions.Item>
-              <Descriptions.Item label="Trạng thái">{getClaimStatusTag(selectedClaim.status)}</Descriptions.Item>
-              <Descriptions.Item label="Mã BN">{selectedClaim.patientCode}</Descriptions.Item>
-              <Descriptions.Item label="Họ tên BN">{selectedClaim.patientName}</Descriptions.Item>
-              <Descriptions.Item label="Số thẻ BHYT" span={2}>
+              <Descriptions.Item label="Ma giam dinh">{selectedClaim.claimCode}</Descriptions.Item>
+              <Descriptions.Item label="Trang thai">{getClaimStatusTag(selectedClaim.status)}</Descriptions.Item>
+              <Descriptions.Item label="Ma BN">{selectedClaim.patientCode}</Descriptions.Item>
+              <Descriptions.Item label="Ho ten BN">{selectedClaim.patientName}</Descriptions.Item>
+              <Descriptions.Item label="So the BHYT" span={2}>
                 <Text code>{selectedClaim.insuranceNumber}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Ngày khám">
+              <Descriptions.Item label="Ngay kham">
                 {dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}
               </Descriptions.Item>
-              <Descriptions.Item label="Ngày ra viện">
+              <Descriptions.Item label="Ngay ra vien">
                 {selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="Khoa/Phòng">{selectedClaim.department}</Descriptions.Item>
-              <Descriptions.Item label="Chẩn đoán" span={2}>{selectedClaim.diagnosis}</Descriptions.Item>
-              <Descriptions.Item label="Tổng chi phí">
+              <Descriptions.Item label="Khoa/Phong">{selectedClaim.department}</Descriptions.Item>
+              <Descriptions.Item label="Chan doan" span={2}>{selectedClaim.diagnosis}</Descriptions.Item>
+              <Descriptions.Item label="Tong chi phi">
                 <Text strong>{formatCurrency(selectedClaim.totalAmount)}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="BHYT chi trả">
+              <Descriptions.Item label="BHYT chi tra">
                 <Text type="success" strong>{formatCurrency(selectedClaim.insuranceAmount)}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="BN chi trả">
+              <Descriptions.Item label="BN chi tra">
                 {formatCurrency(selectedClaim.patientAmount)}
               </Descriptions.Item>
               {selectedClaim.submittedDate && (
-                <Descriptions.Item label="Ngày gửi BHXH">
+                <Descriptions.Item label="Ngay gui BHXH">
                   {dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}
                 </Descriptions.Item>
               )}
               {selectedClaim.approvedDate && (
-                <Descriptions.Item label="Ngày duyệt">
+                <Descriptions.Item label="Ngay duyet">
                   {dayjs(selectedClaim.approvedDate).format('DD/MM/YYYY')}
                 </Descriptions.Item>
               )}
               {selectedClaim.rejectReason && (
-                <Descriptions.Item label="Lý do từ chối" span={2}>
+                <Descriptions.Item label="Ly do tu choi" span={2}>
                   <Text type="danger">{selectedClaim.rejectReason}</Text>
                 </Descriptions.Item>
               )}
@@ -1245,8 +1717,8 @@ const Insurance: React.FC = () => {
 
             {selectedClaim.status === 4 && (
               <Alert
-                title="Hồ sơ bị từ chối"
-                description={`Lý do: ${selectedClaim.rejectReason}. Vui lòng kiểm tra và cập nhật hồ sơ.`}
+                title="Ho so bi tu choi"
+                description={`Ly do: ${selectedClaim.rejectReason}. Vui long kiem tra va cap nhat ho so.`}
                 type="error"
                 showIcon
                 style={{ marginTop: 16 }}
@@ -1254,6 +1726,68 @@ const Insurance: React.FC = () => {
             )}
           </>
         )}
+      </Modal>
+
+      {/* Insurance History Modal */}
+      <Modal
+        title="Lich su kham chua benh BHYT"
+        open={isHistoryModalOpen}
+        onCancel={() => {
+          setIsHistoryModalOpen(false);
+          setInsuranceHistory(null);
+        }}
+        footer={null}
+        width={800}
+      >
+        <Spin spinning={historyLoading}>
+          {insuranceHistory && (
+            <>
+              <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
+                <Descriptions.Item label="Ma the BHYT">
+                  <Text code>{insuranceHistory.maThe}</Text>
+                </Descriptions.Item>
+              </Descriptions>
+              <Table
+                size="small"
+                columns={[
+                  {
+                    title: 'Ngay KCB',
+                    dataIndex: 'ngayKcb',
+                    key: 'ngayKcb',
+                    width: 110,
+                    render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
+                  },
+                  {
+                    title: 'Ten CSKCB',
+                    dataIndex: 'tenCsKcb',
+                    key: 'tenCsKcb',
+                  },
+                  {
+                    title: 'Ma benh chinh',
+                    dataIndex: 'maBenhChinh',
+                    key: 'maBenhChinh',
+                    width: 120,
+                  },
+                  {
+                    title: 'Ten benh chinh',
+                    dataIndex: 'tenBenhChinh',
+                    key: 'tenBenhChinh',
+                  },
+                  {
+                    title: 'Tien BHYT',
+                    dataIndex: 'tienBhyt',
+                    key: 'tienBhyt',
+                    width: 130,
+                    align: 'right',
+                    render: (amount: number) => formatVND(amount),
+                  },
+                ]}
+                dataSource={(insuranceHistory.visits || []).map((v, idx) => ({ ...v, key: idx }))}
+                pagination={false}
+              />
+            </>
+          )}
+        </Spin>
       </Modal>
     </div>
   );
