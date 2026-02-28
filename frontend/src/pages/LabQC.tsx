@@ -240,7 +240,7 @@ const LabQC: React.FC = () => {
               <Col span={6}><Statistic title="Mean" value={ljData.mean} suffix={ljData.unit} /></Col>
               <Col span={6}><Statistic title="SD" value={ljData.sd} /></Col>
               <Col span={6}><Statistic title="Số điểm" value={ljData.points.length} /></Col>
-              <Col span={6}><Statistic title="Vi phạm" value={ljData.points.filter(p => p.violation).length} styles={{ content: { color: '#cf1322' }} /></Col>
+              <Col span={6}><Statistic title="Vi phạm" value={ljData.points.filter(p => p.violation).length} styles={{ content: { color: '#cf1322' } }} /></Col>
             </Row>
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={ljData.points.map(p => ({ ...p, date: dayjs(p.date).format('DD/MM') }))}>
