@@ -880,6 +880,12 @@ public class InpatientCompleteService : IInpatientCompleteService
         if (newBed == null)
             throw new Exception("New bed not found");
 
+        // Check destination bed availability
+        var bedOccupied = await _context.Set<BedAssignment>()
+            .AnyAsync(ba => ba.BedId == dto.NewBedId && ba.Status == 0);
+        if (bedOccupied)
+            throw new Exception($"Giường {newBed.BedName} đã có bệnh nhân, vui lòng chọn giường khác");
+
         // Create new assignment
         var newAssignment = new BedAssignment
         {
@@ -2913,29 +2919,44 @@ public class InpatientCompleteService : IInpatientCompleteService
         var unclaimedRx = await _context.Prescriptions
             .CountAsync(p => p.MedicalRecordId == admission.MedicalRecordId && p.Status < 2);
 
-        // Check pending results - simplified check
-        var hasUnpaidBalance = false; // Would check billing in full impl
+        // Check pending results
+        var pendingResults = await _context.ServiceRequests
+            .CountAsync(sr => sr.MedicalRecordId == admission.MedicalRecordId && sr.Status < 2);
+
+        // Query billing for unpaid balance
+        var totalServiceAmount = await _context.ServiceRequests
+            .Where(sr => sr.MedicalRecordId == admission.MedicalRecordId && sr.Status != 4)
+            .SumAsync(sr => sr.PatientAmount);
+        var totalPaid = await _context.Receipts
+            .Where(r => r.PatientId == admission.PatientId && r.ReceiptType == 2 && r.Status == 1)
+            .SumAsync(r => r.FinalAmount);
+        var remainingAmount = totalServiceAmount - totalPaid;
+        var hasUnpaidBalance = remainingAmount > 0;
 
         var warnings = new List<string>();
         if (unclaimedRx > 0)
             warnings.Add($"Còn {unclaimedRx} đơn thuốc chưa cấp phát");
+        if (hasUnpaidBalance)
+            warnings.Add($"Còn nợ viện phí {remainingAmount:N0}đ");
+        if (pendingResults > 0)
+            warnings.Add($"Còn {pendingResults} chỉ định chưa có kết quả");
 
         return new PreDischargeCheckDto
         {
             AdmissionId = admissionId,
             PatientName = admission.Patient.FullName,
             IsInsuranceValid = true,
-            TotalAmount = 0,
-            PaidAmount = 0,
-            RemainingAmount = 0,
+            TotalAmount = totalServiceAmount,
+            PaidAmount = totalPaid,
+            RemainingAmount = remainingAmount,
             HasUnpaidBalance = hasUnpaidBalance,
             HasUnclaimedMedicine = unclaimedRx > 0,
             UnclaimedPrescriptionCount = unclaimedRx,
-            HasPendingResults = false,
-            PendingResultCount = 0,
+            HasPendingResults = pendingResults > 0,
+            PendingResultCount = pendingResults,
             IsMedicalRecordComplete = true,
             MissingDocuments = new List<string>(),
-            CanDischarge = !hasUnpaidBalance && unclaimedRx == 0,
+            CanDischarge = !hasUnpaidBalance && unclaimedRx == 0 && pendingResults == 0,
             Warnings = warnings
         };
     }
@@ -2947,6 +2968,16 @@ public class InpatientCompleteService : IInpatientCompleteService
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
         if (admission == null)
             throw new Exception("Admission not found");
+        if (admission.Status != 0)
+            throw new Exception("Bệnh nhân không trong trạng thái đang điều trị, không thể xuất viện");
+
+        // Enforce pre-discharge checks
+        var preCheck = await CheckPreDischargeAsync(dto.AdmissionId);
+        if (!preCheck.CanDischarge)
+        {
+            var issues = preCheck.Warnings.Any() ? string.Join("; ", preCheck.Warnings) : "Chưa đủ điều kiện xuất viện";
+            throw new Exception($"Không thể xuất viện: {issues}");
+        }
 
         // Create discharge record
         var discharge = new Discharge

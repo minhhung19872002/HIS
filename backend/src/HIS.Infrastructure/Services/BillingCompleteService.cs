@@ -230,7 +230,7 @@ public class BillingCompleteService : IBillingCompleteService
         var deposit = new Deposit
         {
             Id = Guid.NewGuid(),
-            ReceiptNumber = $"TU{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptNumber = $"TU{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
             PatientId = dto.PatientId,
             MedicalRecordId = dto.MedicalRecordId,
@@ -280,7 +280,7 @@ public class BillingCompleteService : IBillingCompleteService
         return new DepartmentDepositDto
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"TUK{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = $"TUK{DateTime.Now:yyyyMMddHHmmssfff}",
             DepartmentId = departmentId,
             DepartmentCode = department?.DepartmentCode ?? string.Empty,
             DepartmentName = department?.DepartmentName ?? string.Empty,
@@ -384,7 +384,7 @@ public class BillingCompleteService : IBillingCompleteService
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
             PatientId = deposit.PatientId ?? Guid.Empty,
             ReceiptType = 2,
@@ -446,6 +446,23 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<PaymentDto> CreatePaymentAsync(CreatePaymentDto dto, Guid userId)
     {
+        // Verify patient has service requests to pay for
+        var patientMedicalRecordIds = await _context.MedicalRecords
+            .Where(m => m.PatientId == dto.PatientId && m.Status != 4) // Not cancelled
+            .Select(m => m.Id)
+            .ToListAsync();
+
+        var unpaidServiceRequests = await _context.ServiceRequests
+            .Where(sr => patientMedicalRecordIds.Contains(sr.MedicalRecordId) && !sr.IsPaid && sr.Status != 4)
+            .ToListAsync();
+
+        if (!unpaidServiceRequests.Any())
+            throw new Exception("Bệnh nhân không có dịch vụ chưa thanh toán");
+
+        var totalOwed = unpaidServiceRequests.Sum(sr => sr.PatientAmount);
+        if (dto.Amount > totalOwed)
+            throw new Exception($"Số tiền thanh toán ({dto.Amount:N0}đ) vượt quá số tiền còn nợ ({totalOwed:N0}đ)");
+
         // Parse payment method to int
         int paymentMethod = 1; // Default: Tiền mặt
         if (int.TryParse(dto.PaymentMethod, out int pm))
@@ -457,7 +474,7 @@ public class BillingCompleteService : IBillingCompleteService
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
             PatientId = dto.PatientId,
             ReceiptType = 2, // Thanh toán
@@ -541,11 +558,36 @@ public class BillingCompleteService : IBillingCompleteService
         if (patient == null)
             throw new Exception("Patient not found");
 
+        // Verify original payment/deposit exists and has sufficient amount
+        if (dto.RefundType == 1 && dto.OriginalDepositId.HasValue)
+        {
+            var originalDeposit = await _context.Deposits.FindAsync(dto.OriginalDepositId.Value);
+            if (originalDeposit == null)
+                throw new Exception("Phiếu tạm ứng gốc không tồn tại");
+            var availableAmount = originalDeposit.Amount - originalDeposit.UsedAmount;
+            if (dto.RefundAmount > availableAmount)
+                throw new Exception($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số dư tạm ứng ({availableAmount:N0}đ)");
+        }
+        else if (dto.RefundType == 2 && dto.OriginalPaymentId.HasValue)
+        {
+            var originalPayment = await _context.Receipts.FindAsync(dto.OriginalPaymentId.Value);
+            if (originalPayment == null)
+                throw new Exception("Phiếu thanh toán gốc không tồn tại");
+            if (originalPayment.Status == 2)
+                throw new Exception("Phiếu thanh toán gốc đã bị hủy");
+            if (dto.RefundAmount > originalPayment.FinalAmount)
+                throw new Exception($"Số tiền hoàn ({dto.RefundAmount:N0}đ) vượt quá số tiền đã thanh toán ({originalPayment.FinalAmount:N0}đ)");
+        }
+        else
+        {
+            throw new Exception("Cần chỉ định phiếu tạm ứng hoặc phiếu thanh toán gốc");
+        }
+
         // Create refund receipt
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"HT{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = $"HT{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
             PatientId = dto.PatientId,
             ReceiptType = 3, // Hoàn trả
@@ -1015,7 +1057,7 @@ public class BillingCompleteService : IBillingCompleteService
             var invoice = new InvoiceSummary
             {
                 Id = Guid.NewGuid(),
-                InvoiceCode = $"HD{DateTime.Now:yyyyMMddHHmmss}",
+                InvoiceCode = $"HD{DateTime.Now:yyyyMMddHHmmssfff}",
                 InvoiceDate = DateTime.Now,
                 MedicalRecordId = dto.MedicalRecordId,
                 TotalMedicineAmount = invoiceDto.MedicineTotal,
@@ -1615,7 +1657,7 @@ public class BillingCompleteService : IBillingCompleteService
             Id = Guid.NewGuid(),
             InvoiceId = dto.InvoiceId,
             InvoiceCode = invoice?.InvoiceCode ?? string.Empty,
-            EInvoiceNumber = $"HDDT{DateTime.Now:yyyyMMddHHmmss}",
+            EInvoiceNumber = $"HDDT{DateTime.Now:yyyyMMddHHmmssfff}",
             EInvoiceSeries = $"C{DateTime.Now:yy}TAA",
             EInvoiceDate = DateTime.Now,
             Provider = "VNInvoice",
@@ -1630,7 +1672,7 @@ public class BillingCompleteService : IBillingCompleteService
             Status = 1,
             StatusName = "Đã phát hành",
             LookupUrl = $"https://einvoice.example.com/lookup/{Guid.NewGuid():N}",
-            LookupCode = $"LK{DateTime.Now:yyyyMMddHHmmss}",
+            LookupCode = $"LK{DateTime.Now:yyyyMMddHHmmssfff}",
             CreatedAt = DateTime.Now,
             CreatedBy = userId.ToString()
         };

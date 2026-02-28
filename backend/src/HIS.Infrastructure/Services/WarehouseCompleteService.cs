@@ -623,6 +623,10 @@ public class WarehouseCompleteService : IWarehouseCompleteService
         var warehouseId = prescription.WarehouseId ?? throw new Exception("Prescription has no warehouse assigned");
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+
         // Create export receipt
         var exportReceipt = new ExportReceipt
         {
@@ -645,11 +649,12 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
         foreach (var detail in prescription.Details)
         {
-            // Find inventory with FEFO (First Expired First Out)
+            // Find inventory with FEFO (First Expired First Out) - exclude expired items
             var stock = await _context.InventoryItems
                 .Where(i => i.WarehouseId == warehouseId
                     && i.MedicineId == detail.MedicineId
-                    && (i.Quantity - i.ReservedQuantity) >= detail.Quantity)
+                    && (i.Quantity - i.ReservedQuantity) >= detail.Quantity
+                    && i.ExpiryDate >= DateTime.Today)
                 .OrderBy(i => i.ExpiryDate)
                 .FirstOrDefaultAsync();
 
@@ -694,11 +699,11 @@ public class WarehouseCompleteService : IWarehouseCompleteService
                     UnitPrice = detail.UnitPrice,
                     Amount = amount
                 });
-            }
 
-            // Update prescription detail status
-            detail.DispensedQuantity = detail.Quantity;
-            detail.Status = 1; // Đã cấp
+                // Update prescription detail status only when stock was found
+                detail.DispensedQuantity = detail.Quantity;
+                detail.Status = 1; // Đã cấp
+            }
         }
 
         exportReceipt.TotalAmount = totalAmount;
@@ -711,6 +716,7 @@ public class WarehouseCompleteService : IWarehouseCompleteService
         prescription.Status = 2; // Đã cấp phát
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var patient = prescription.MedicalRecord.Patient;
 
@@ -732,6 +738,13 @@ public class WarehouseCompleteService : IWarehouseCompleteService
             CreatedBy = userId,
             CreatedAt = exportReceipt.CreatedAt
         };
+
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<StockIssueDto> DispenseInpatientOrderAsync(Guid orderSummaryId, Guid userId)

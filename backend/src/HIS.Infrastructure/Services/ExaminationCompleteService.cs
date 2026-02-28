@@ -2777,18 +2777,25 @@ public class ExaminationCompleteService : IExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
         if (examination == null) throw new Exception("Examination not found");
+        if (examination.Status == 4) throw new Exception("Đã hoàn thành, cần mở khóa trước");
 
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
         examination.FollowUpDate = dto.NextAppointmentDate;
-        examination.Status = 4; // Completed
-        examination.EndTime = DateTime.Now;
 
         if (!string.IsNullOrEmpty(dto.FinalDiagnosisCode))
         {
             examination.MainIcdCode = dto.FinalDiagnosisCode;
             examination.MainDiagnosis = dto.FinalDiagnosisName;
         }
+
+        // Validate before completing
+        var validation = await ValidateExaminationForCompletionAsync(examinationId);
+        if (!validation.IsValid)
+            throw new Exception($"Không thể hoàn thành: {string.Join(", ", validation.Errors)}");
+
+        examination.Status = 4; // Completed
+        examination.EndTime = DateTime.Now;
 
         // Update medical record
         examination.MedicalRecord.MainIcdCode = examination.MainIcdCode;
@@ -2811,7 +2818,39 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<ExaminationConclusionDto> UpdateConclusionAsync(Guid examinationId, CompleteExaminationDto dto)
     {
-        return await CompleteExaminationAsync(examinationId, dto);
+        var examination = await _context.Examinations
+            .Include(e => e.MedicalRecord)
+            .FirstOrDefaultAsync(e => e.Id == examinationId);
+
+        if (examination == null) throw new Exception("Examination not found");
+        if (examination.Status == 5) throw new Exception("Phiếu khám đã hủy, không thể sửa kết luận");
+        if (examination.Status < 4) throw new Exception("Phiếu khám chưa hoàn thành, vui lòng dùng CompleteExamination");
+
+        examination.ConclusionType = dto.ConclusionType;
+        examination.ConclusionNote = dto.ConclusionNotes;
+        examination.FollowUpDate = dto.NextAppointmentDate;
+
+        if (!string.IsNullOrEmpty(dto.FinalDiagnosisCode))
+        {
+            examination.MainIcdCode = dto.FinalDiagnosisCode;
+            examination.MainDiagnosis = dto.FinalDiagnosisName;
+        }
+
+        examination.MedicalRecord.MainIcdCode = examination.MainIcdCode;
+        examination.MedicalRecord.MainDiagnosis = examination.MainDiagnosis;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new ExaminationConclusionDto
+        {
+            Id = Guid.NewGuid(),
+            ExaminationId = examinationId,
+            ConclusionType = dto.ConclusionType,
+            ConclusionNotes = dto.ConclusionNotes,
+            NextAppointmentDate = dto.NextAppointmentDate,
+            SickLeaveDays = dto.SickLeaveDays,
+            ConcludedAt = DateTime.Now
+        };
     }
 
     public async Task<Application.DTOs.ExaminationDto> RequestHospitalizationAsync(Guid examinationId, HospitalizationRequestDto dto)

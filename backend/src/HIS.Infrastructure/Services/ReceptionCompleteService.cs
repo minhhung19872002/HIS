@@ -262,6 +262,15 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
         var room = await _roomRepo.GetByIdAsync(dto.RoomId);
 
+        // Check duplicate ticket: same patient, same room, same day
+        var existingTicket = await _context.QueueTickets
+            .FirstOrDefaultAsync(t => t.PatientId == dto.PatientId
+                && t.RoomId == dto.RoomId
+                && t.IssueDate.Date == today
+                && t.Status < 2); // Waiting or InProgress
+        if (existingTicket != null)
+            throw new Exception($"Bệnh nhân đã có số thứ tự {existingTicket.TicketNumber} tại phòng này hôm nay");
+
         var ticket = new QueueTicket
         {
             Id = Guid.NewGuid(),
@@ -949,6 +958,12 @@ public class ReceptionCompleteService : IReceptionCompleteService
             throw new Exception($"The BHYT khong hop le: {insuranceResult.ErrorMessage}");
         }
 
+        // Check insurance card expiry date
+        if (insuranceResult.EndDate.HasValue && insuranceResult.EndDate.Value.Date < DateTime.Today)
+        {
+            throw new Exception($"Thẻ BHYT đã hết hạn ngày {insuranceResult.EndDate.Value:dd/MM/yyyy}");
+        }
+
         // Update patient insurance info
         patient.InsuranceNumber = dto.InsuranceNumber;
         patient.InsuranceExpireDate = insuranceResult.EndDate;
@@ -1163,6 +1178,12 @@ public class ReceptionCompleteService : IReceptionCompleteService
         {
             throw new Exception("Khong tim thay benh nhan. Vui long nhap thong tin moi.");
         }
+
+        // Check existing active medical record for this patient
+        var existingActiveRecord = await _context.MedicalRecords
+            .FirstOrDefaultAsync(m => m.PatientId == patient.Id && m.Status < 3 && m.TreatmentType == 1);
+        if (existingActiveRecord != null)
+            throw new Exception($"Bệnh nhân đã có hồ sơ khám đang hoạt động (Mã: {existingActiveRecord.MedicalRecordCode})");
 
         // Create medical record
         var room = await _context.Rooms.Include(r => r.Department).FirstOrDefaultAsync(r => r.Id == dto.RoomId);
