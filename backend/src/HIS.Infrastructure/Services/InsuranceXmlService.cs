@@ -416,6 +416,46 @@ public class InsuranceXmlService : IInsuranceXmlService
         return new List<Xml7ReferralDto>();
     }
 
+    public async Task<List<Xml6BloodDto>> GenerateXml6DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml6BloodDto>();
+    }
+
+    public async Task<List<Xml8TransportDto>> GenerateXml8DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml8TransportDto>();
+    }
+
+    public async Task<List<Xml9SickLeaveDto>> GenerateXml9DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml9SickLeaveDto>();
+    }
+
+    public async Task<List<Xml10AssessmentDto>> GenerateXml10DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml10AssessmentDto>();
+    }
+
+    public async Task<List<Xml11SocialInsuranceDto>> GenerateXml11DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml11SocialInsuranceDto>();
+    }
+
+    public async Task<List<Xml13ReExamDto>> GenerateXml13DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml13ReExamDto>();
+    }
+
+    public async Task<List<Xml14ReferralCertDto>> GenerateXml14DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml14ReferralCertDto>();
+    }
+
+    public async Task<List<Xml15TbTreatmentDto>> GenerateXml15DataAsync(XmlExportConfigDto config)
+    {
+        return new List<Xml15TbTreatmentDto>();
+    }
+
     public async Task<XmlExportResultDto> ExportXmlAsync(XmlExportConfigDto config)
     {
         var claims = await GetClaimsForExport(config);

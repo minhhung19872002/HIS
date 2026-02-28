@@ -110,6 +110,46 @@ public interface IInsuranceXmlService
     Task<List<Xml7ReferralDto>> GenerateXml7DataAsync(XmlExportConfigDto config);
 
     /// <summary>
+    /// Tạo dữ liệu XML6 - Máu và chế phẩm máu
+    /// </summary>
+    Task<List<Xml6BloodDto>> GenerateXml6DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
+    /// Tạo dữ liệu XML8 - Vận chuyển người bệnh
+    /// </summary>
+    Task<List<Xml8TransportDto>> GenerateXml8DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
+    /// Tạo dữ liệu XML9 - Giấy nghỉ việc hưởng BHXH
+    /// </summary>
+    Task<List<Xml9SickLeaveDto>> GenerateXml9DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
+    /// Tạo dữ liệu XML10 - Kết quả giám định
+    /// </summary>
+    Task<List<Xml10AssessmentDto>> GenerateXml10DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
+    /// Tạo dữ liệu XML11 - Sổ BHXH
+    /// </summary>
+    Task<List<Xml11SocialInsuranceDto>> GenerateXml11DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
+    /// Tạo dữ liệu XML13 - Giấy hẹn tái khám
+    /// </summary>
+    Task<List<Xml13ReExamDto>> GenerateXml13DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
+    /// Tạo dữ liệu XML14 - Phiếu chuyển tuyến (QĐ 3176)
+    /// </summary>
+    Task<List<Xml14ReferralCertDto>> GenerateXml14DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
+    /// Tạo dữ liệu XML15 - Điều trị lao
+    /// </summary>
+    Task<List<Xml15TbTreatmentDto>> GenerateXml15DataAsync(XmlExportConfigDto config);
+
+    /// <summary>
     /// Xuất file XML tổng hợp
     /// </summary>
     Task<XmlExportResultDto> ExportXmlAsync(XmlExportConfigDto config);

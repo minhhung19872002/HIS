@@ -185,6 +185,127 @@ public class Xml7ReferralDto
     public string? ChucDanhNguoiHt { get; set; }
 }
 
+/// <summary>
+/// Bảng XML6 - Máu và chế phẩm máu (Blood and blood products)
+/// </summary>
+public class Xml6BloodDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public int Stt { get; set; }
+    public string MaMau { get; set; } = string.Empty; // Blood product code
+    public string TenMau { get; set; } = string.Empty;
+    public decimal TheTich { get; set; } // Volume (ml)
+    public decimal DonGia { get; set; }
+    public decimal ThanhTien { get; set; }
+    public decimal? TienBhyt { get; set; }
+    public decimal? TienBnCct { get; set; }
+    public decimal? TienNguoiBenh { get; set; }
+    public DateTime? NgayYl { get; set; }
+    public string? MaKhoa { get; set; }
+    public string? MaBacSi { get; set; }
+}
+
+/// <summary>
+/// Bảng XML8 - Vận chuyển người bệnh (Patient transport)
+/// </summary>
+public class Xml8TransportDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public int Stt { get; set; }
+    public string PhuongTien { get; set; } = string.Empty; // Transport type
+    public decimal KhoangCach { get; set; } // Distance (km)
+    public decimal PhiVc { get; set; } // Transport fee
+    public decimal? TienBhyt { get; set; }
+    public DateTime? NgayVc { get; set; }
+    public string? NoiDi { get; set; }
+    public string? NoiDen { get; set; }
+}
+
+/// <summary>
+/// Bảng XML9 - Giấy nghỉ việc hưởng BHXH (Sick leave certificates)
+/// </summary>
+public class Xml9SickLeaveDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public int Stt { get; set; }
+    public DateTime TuNgay { get; set; }
+    public DateTime DenNgay { get; set; }
+    public int SoNgay { get; set; }
+    public string LyDo { get; set; } = string.Empty;
+    public string? MaBenh { get; set; }
+    public string? MaBacSi { get; set; }
+}
+
+/// <summary>
+/// Bảng XML10 - Kết quả giám định (Assessment results)
+/// </summary>
+public class Xml10AssessmentDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public string KetQua { get; set; } = string.Empty; // Assessment result
+    public string? GhiChu { get; set; }
+    public DateTime NgayGiamDinh { get; set; }
+    public string? MaNguoiGd { get; set; } // Assessor code
+    public string? TenNguoiGd { get; set; }
+}
+
+/// <summary>
+/// Bảng XML11 - Sổ BHXH (Social insurance certificate)
+/// </summary>
+public class Xml11SocialInsuranceDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public string MaBhxh { get; set; } = string.Empty;
+    public string HoTen { get; set; } = string.Empty;
+    public string SoSoBhxh { get; set; } = string.Empty;
+    public DateTime? NgaySinh { get; set; }
+    public int? GioiTinh { get; set; }
+}
+
+/// <summary>
+/// Bảng XML13 - Giấy hẹn tái khám (Re-examination appointments) - QĐ 3176
+/// </summary>
+public class Xml13ReExamDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public int Stt { get; set; }
+    public DateTime NgayHen { get; set; }
+    public string NoiDung { get; set; } = string.Empty;
+    public string? MaBacSi { get; set; }
+    public string? MaKhoa { get; set; }
+}
+
+/// <summary>
+/// Bảng XML14 - Phiếu chuyển tuyến (Referral certificates) - QĐ 3176
+/// </summary>
+public class Xml14ReferralCertDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public int Stt { get; set; }
+    public string SoPhieu { get; set; } = string.Empty;
+    public string MaCskbChuyenDen { get; set; } = string.Empty;
+    public string TenCskbChuyenDen { get; set; } = string.Empty;
+    public DateTime NgayChuyen { get; set; }
+    public string LyDoChuyen { get; set; } = string.Empty;
+    public string? ChanDoanChuyen { get; set; }
+    public string? HuongDieuTri { get; set; }
+    public string? MaBacSi { get; set; }
+}
+
+/// <summary>
+/// Bảng XML15 - Điều trị lao (TB treatment details) - QĐ 3176
+/// </summary>
+public class Xml15TbTreatmentDto
+{
+    public string MaLk { get; set; } = string.Empty;
+    public int Stt { get; set; }
+    public string PhacDo { get; set; } = string.Empty; // Treatment regimen
+    public string GiaiDoan { get; set; } = string.Empty; // Treatment phase
+    public DateTime? NgayBatDau { get; set; }
+    public DateTime? NgayKetThuc { get; set; }
+    public string? KetQua { get; set; }
+}
+
 #endregion
 
 #region Thống kê và báo cáo BHYT
@@ -461,7 +582,15 @@ public class XmlExportConfigDto
     public bool IncludeXml3 { get; set; } = true;
     public bool IncludeXml4 { get; set; } = true;
     public bool IncludeXml5 { get; set; } = true;
+    public bool IncludeXml6 { get; set; } = true;
     public bool IncludeXml7 { get; set; } = true;
+    public bool IncludeXml8 { get; set; } = true;
+    public bool IncludeXml9 { get; set; } = true;
+    public bool IncludeXml10 { get; set; } = true;
+    public bool IncludeXml11 { get; set; } = true;
+    public bool IncludeXml13 { get; set; } = true;
+    public bool IncludeXml14 { get; set; } = true;
+    public bool IncludeXml15 { get; set; } = true;
 
     public bool ValidateBeforeExport { get; set; } = true;
     public bool CompressOutput { get; set; } = true;
