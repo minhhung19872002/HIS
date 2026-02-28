@@ -46,6 +46,13 @@ import FollowUp from './pages/FollowUp';
 import AppointmentBooking from './pages/AppointmentBooking';
 import BookingManagement from './pages/BookingManagement';
 import SmsManagement from './pages/SmsManagement';
+// LIS sub-modules (NangCap2)
+import LabQC from './pages/LabQC';
+import Microbiology from './pages/Microbiology';
+import SampleStorage from './pages/SampleStorage';
+import Screening from './pages/Screening';
+import ReagentManagement from './pages/ReagentManagement';
+import SampleTracking from './pages/SampleTracking';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -103,6 +110,12 @@ const AppRoutes: React.FC = () => {
         <Route path="booking-management" element={<BookingManagement />} />
         <Route path="sms-management" element={<SmsManagement />} />
         <Route path="lab" element={<Laboratory />} />
+        <Route path="lab-qc" element={<LabQC />} />
+        <Route path="microbiology" element={<Microbiology />} />
+        <Route path="sample-storage" element={<SampleStorage />} />
+        <Route path="screening" element={<Screening />} />
+        <Route path="reagent-management" element={<ReagentManagement />} />
+        <Route path="sample-tracking" element={<SampleTracking />} />
         <Route path="radiology" element={<Radiology />} />
         <Route path="blood-bank" element={<BloodBank />} />
         <Route path="billing" element={<Billing />} />

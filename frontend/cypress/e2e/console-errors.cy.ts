@@ -42,6 +42,12 @@ const pages = [
   { route: '/booking-management', name: 'Booking Management (Quan ly dat lich)' },
   { route: '/sms-management', name: 'SMS Management (SMS Gateway)' },
   { route: '/help', name: 'Help (Tro giup)' },
+  { route: '/lab-qc', name: 'Lab QC (Kiem dinh chat luong)' },
+  { route: '/microbiology', name: 'Microbiology (Vi sinh)' },
+  { route: '/sample-storage', name: 'Sample Storage (Luu tru mau)' },
+  { route: '/screening', name: 'Screening (Sang loc)' },
+  { route: '/reagent-management', name: 'Reagent Management (Hoa chat XN)' },
+  { route: '/sample-tracking', name: 'Sample Tracking (Theo doi mau)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

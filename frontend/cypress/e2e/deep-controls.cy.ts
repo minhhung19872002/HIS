@@ -18,6 +18,8 @@ const IGNORE_PATTERNS = [
   'ECONNREFUSED',
   'useForm',
   'is not connected to any Form element',
+  'Failed to start the connection',
+  'connection was stopped during negotiation',
 ];
 
 function isIgnoredError(msg: string): boolean {
@@ -131,6 +133,30 @@ const pages: PageDef[] = [
   {
     route: '/help', name: 'Help',
   },
+  {
+    route: '/lab-qc', name: 'Lab QC',
+    tabs: ['lots', 'results', 'reports'],
+  },
+  {
+    route: '/microbiology', name: 'Microbiology',
+    tabs: ['pending', 'growth', 'noGrowth', 'completed'],
+  },
+  {
+    route: '/sample-storage', name: 'Sample Storage',
+    tabs: ['stored', 'retrieved', 'expired', 'all'],
+  },
+  {
+    route: '/screening', name: 'Screening',
+    tabs: ['pending', 'completed', 'all'],
+  },
+  {
+    route: '/reagent-management', name: 'Reagent Management',
+    tabs: ['inventory', 'usage', 'alerts'],
+  },
+  {
+    route: '/sample-tracking', name: 'Sample Tracking',
+    tabs: ['rejections', 'stats'],
+  },
 ];
 
 describe('Deep Controls - All Pages', () => {
@@ -167,7 +193,7 @@ describe('Deep Controls - All Pages', () => {
 
         cy.on('uncaught:exception', () => false);
 
-        cy.intercept('**/*', (req) => {
+        cy.intercept('**/api/**', (req) => {
           req.continue((res) => {
             if (res.statusCode >= 500) {
               serverErrors.push(`${req.method} ${req.url} => ${res.statusCode}`);

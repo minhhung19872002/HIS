@@ -100,6 +100,12 @@ const MainLayout: React.FC = () => {
       label: 'Cận lâm sàng',
       children: [
         { key: '/lab', icon: <ExperimentOutlined />, label: 'Xét nghiệm' },
+        { key: '/lab-qc', icon: <ExperimentOutlined />, label: 'QC Kiểm định' },
+        { key: '/microbiology', icon: <ExperimentOutlined />, label: 'Vi sinh' },
+        { key: '/screening', icon: <HeartOutlined />, label: 'Sàng lọc SS/TS' },
+        { key: '/sample-storage', icon: <ExperimentOutlined />, label: 'Lưu trữ mẫu' },
+        { key: '/sample-tracking', icon: <ExperimentOutlined />, label: 'Theo dõi mẫu' },
+        { key: '/reagent-management', icon: <MedicineBoxOutlined />, label: 'Hóa chất XN' },
         { key: '/radiology', icon: <ScanOutlined />, label: 'CĐHA' },
         { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
