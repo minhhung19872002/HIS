@@ -11,6 +11,8 @@
 
 **Why:** Every patient registration currently uses mock insurance data. BHXH integration directly affects hospital revenue collection and is a prerequisite for DQGVN submission (Phase 6). XML 4210 is the mandatory cost reporting format since Jan 2025.
 
+**Goal:** Replace all mock BHXH gateway responses with real abstracted client and implement complete XML 4210 export pipeline with validation, batch export, and digital signing.
+
 **Requirements:**
 - BHXH-01: Real-time insurance card verification via BHXH gateway API
 - BHXH-02: Patient treatment history lookup from BHXH portal
@@ -21,6 +23,14 @@
 - XML-02: XML export validation against current BHXH XSD schema
 - XML-03: Batch XML export for period settlement
 - XML-04: XML signing with digital signature before submission
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — BHXH Gateway client abstraction + mock/real implementations + InsuranceXmlService rewiring
+- [ ] 01-02-PLAN.md — XML 4210 table data generators (all 15 tables with real EF Core queries)
+- [ ] 01-03-PLAN.md — XML file generation pipeline (XmlExportService + XSD validation + batch export workflow)
+- [ ] 01-04-PLAN.md — Frontend Insurance page batch export UI + Reception verification + Cypress tests
 
 **Success criteria:**
 1. A receptionist can verify a patient's BHXH insurance card in real-time during registration and see coverage details without manual lookup
@@ -222,4 +232,4 @@ All 52 v1 requirements are mapped. Zero unmapped.
 
 ---
 *Roadmap created: 2026-02-28*
-*Ready for planning: Phase 1 and Phase 2 can begin immediately*
+*Phase 1 planned: 2026-02-28 (4 plans, 2 waves)*
