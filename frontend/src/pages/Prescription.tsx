@@ -22,6 +22,7 @@ import {
   Descriptions,
   Drawer,
   Spin,
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -36,6 +37,7 @@ import {
   MedicineBoxOutlined,
   InfoCircleOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -43,6 +45,10 @@ import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '
 import { patientApi, type Patient as ApiPatient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signature';
+import { useSigningContext } from '../contexts/SigningContext';
+import { getSignatures } from '../api/digitalSignature';
+import type { DocumentSignatureDto } from '../api/digitalSignature';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -343,6 +349,58 @@ const Prescription: React.FC = () => {
 
   // Data inheritance state (OPD → Prescription context)
   const [rxContext, setRxContext] = useState<PrescriptionContextDto | null>(null);
+
+  // Digital signature
+  const { sessionActive, openSession, signDocument } = useSigningContext();
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [signatureMap, setSignatureMap] = useState<Map<string, DocumentSignatureDto>>(new Map());
+
+  const loadPrescriptionSignature = async (prescriptionId: string) => {
+    try {
+      const res = await getSignatures(prescriptionId);
+      if (res.data.length > 0) {
+        setSignatureMap(prev => new Map(prev).set(prescriptionId, res.data[0]));
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    setPinLoading(true);
+    setPinError('');
+    try {
+      const res = await openSession(pin);
+      if (res.success) {
+        setPinModalOpen(false);
+        message.success('Phiên ký số đã mở');
+      } else {
+        setPinError(res.message || 'PIN không đúng');
+      }
+    } catch {
+      setPinError('Không thể kết nối USB Token');
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleSignPrescription = async (prescriptionId: string) => {
+    if (!sessionActive) {
+      setPinModalOpen(true);
+      return;
+    }
+    try {
+      const res = await signDocument(prescriptionId, 'Prescription', 'Ký xác nhận đơn thuốc');
+      if (res.success) {
+        message.success('Ký đơn thuốc thành công');
+        loadPrescriptionSignature(prescriptionId);
+      } else {
+        message.warning(res.message || 'Ký số thất bại');
+      }
+    } catch {
+      message.warning('Lỗi ký số');
+    }
+  };
 
   // Calculate totals
   const totalCost = prescriptionItems.reduce((sum, item) => sum + item.totalCost, 0);
@@ -1295,6 +1353,19 @@ const Prescription: React.FC = () => {
               <Button icon={<PrinterOutlined />} onClick={handlePrintPrescription}>
                 In đơn
               </Button>
+              {patient && form.getFieldValue('id') && (
+                <Tooltip title={signatureMap.has(form.getFieldValue('id')) ? 'Đã ký số' : 'Ký số đơn thuốc'}>
+                  <Button
+                    icon={<SafetyCertificateOutlined />}
+                    onClick={() => handleSignPrescription(form.getFieldValue('id'))}
+                    style={signatureMap.has(form.getFieldValue('id'))
+                      ? { color: '#52c41a', borderColor: '#52c41a' }
+                      : undefined}
+                  >
+                    {signatureMap.has(form.getFieldValue('id')) ? 'Đã ký' : 'Ký đơn'}
+                  </Button>
+                </Tooltip>
+              )}
               <Button
                 type="primary"
                 icon={<SaveOutlined />}
@@ -1686,6 +1757,15 @@ const Prescription: React.FC = () => {
           </Card>
         )}
       </Drawer>
+
+      {/* Digital Signature - PIN Entry Modal */}
+      <PinEntryModal
+        open={pinModalOpen}
+        onSubmit={handlePinSubmit}
+        onCancel={() => { setPinModalOpen(false); setPinError(''); }}
+        loading={pinLoading}
+        error={pinError}
+      />
     </div>
   );
 };

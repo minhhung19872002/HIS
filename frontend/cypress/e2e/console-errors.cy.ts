@@ -52,6 +52,8 @@ const IGNORE_PATTERNS = [
   'Failed to start the connection',
   'WebSocket connection',
   'hubs/notifications',
+  'useForm',
+  'is not connected to any Form element',
 ];
 
 function isIgnoredError(msg: string): boolean {

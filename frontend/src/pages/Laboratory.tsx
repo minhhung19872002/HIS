@@ -33,12 +33,17 @@ import {
   WarningOutlined,
   FileSearchOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import laboratoryApi from '../api/laboratory';
 import type { LabRequest, TestResult, TestParameter, LabTestItem } from '../api/laboratory';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signature';
+import { useSigningContext } from '../contexts/SigningContext';
+import { getSignatures } from '../api/digitalSignature';
+import type { DocumentSignatureDto } from '../api/digitalSignature';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -59,6 +64,58 @@ const Laboratory: React.FC = () => {
   const [collectionForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Digital signature
+  const { sessionActive, openSession, signDocument } = useSigningContext();
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [signatureMap, setSignatureMap] = useState<Map<string, DocumentSignatureDto>>(new Map());
+
+  const loadResultSignature = async (resultId: string) => {
+    try {
+      const res = await getSignatures(resultId);
+      if (res.data.length > 0) {
+        setSignatureMap(prev => new Map(prev).set(resultId, res.data[0]));
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    setPinLoading(true);
+    setPinError('');
+    try {
+      const res = await openSession(pin);
+      if (res.success) {
+        setPinModalOpen(false);
+        message.success('Phiên ký số đã mở');
+      } else {
+        setPinError(res.message || 'PIN không đúng');
+      }
+    } catch {
+      setPinError('Không thể kết nối USB Token');
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleSignResult = async (resultId: string) => {
+    if (!sessionActive) {
+      setPinModalOpen(true);
+      return;
+    }
+    try {
+      const res = await signDocument(resultId, 'LabResult', 'Ký xác nhận kết quả xét nghiệm');
+      if (res.success) {
+        message.success('Ký kết quả xét nghiệm thành công');
+        loadResultSignature(resultId);
+      } else {
+        message.warning(res.message || 'Ký số thất bại');
+      }
+    } catch {
+      message.warning('Lỗi ký số');
+    }
+  };
 
   // Fetch data from API
   const fetchLabRequests = async () => {
@@ -905,9 +962,22 @@ const Laboratory: React.FC = () => {
       },
     },
     {
+      title: 'Chữ ký',
+      key: 'signature',
+      width: 60,
+      render: (_, record) => (
+        record.status === 2 ? (
+          <SignatureStatusIcon
+            signed={signatureMap.has(record.id)}
+            signatureInfo={signatureMap.get(record.id)}
+          />
+        ) : null
+      ),
+    },
+    {
       title: 'Thao tác',
       key: 'action',
-      width: 200,
+      width: 250,
       fixed: 'right',
       render: (_, record) => (
         <Space>
@@ -940,6 +1010,17 @@ const Laboratory: React.FC = () => {
               >
                 In
               </Button>
+              {!signatureMap.has(record.id) && (
+                <Tooltip title="Ký số kết quả xét nghiệm">
+                  <Button
+                    size="small"
+                    icon={<SafetyCertificateOutlined />}
+                    onClick={() => handleSignResult(record.id)}
+                  >
+                    Ký KQ
+                  </Button>
+                </Tooltip>
+              )}
             </>
           )}
         </Space>
@@ -1711,6 +1792,15 @@ const Laboratory: React.FC = () => {
           </Descriptions>
         )}
       </Modal>
+
+      {/* Digital Signature - PIN Entry Modal */}
+      <PinEntryModal
+        open={pinModalOpen}
+        onSubmit={handlePinSubmit}
+        onCancel={() => { setPinModalOpen(false); setPinError(''); }}
+        loading={pinLoading}
+        error={pinError}
+      />
     </div>
   );
 };
