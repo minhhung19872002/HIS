@@ -129,66 +129,66 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SIGN-01 | TBD | Pending |
-| SIGN-02 | TBD | Pending |
-| SIGN-03 | TBD | Pending |
-| SIGN-04 | TBD | Pending |
-| SIGN-05 | TBD | Pending |
-| SIGN-06 | TBD | Pending |
-| BHXH-01 | TBD | Pending |
-| BHXH-02 | TBD | Pending |
-| BHXH-03 | TBD | Pending |
-| BHXH-04 | TBD | Pending |
-| BHXH-05 | TBD | Pending |
-| XML-01 | TBD | Pending |
-| XML-02 | TBD | Pending |
-| XML-03 | TBD | Pending |
-| XML-04 | TBD | Pending |
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| SEC-03 | TBD | Pending |
-| SEC-04 | TBD | Pending |
-| SEC-05 | TBD | Pending |
-| SMS-01 | TBD | Pending |
-| SMS-02 | TBD | Pending |
-| SMS-03 | TBD | Pending |
-| SMS-04 | TBD | Pending |
-| BOOK-01 | TBD | Pending |
-| BOOK-02 | TBD | Pending |
-| BOOK-03 | TBD | Pending |
-| BOOK-04 | TBD | Pending |
-| ORA-01 | TBD | Pending |
-| ORA-02 | TBD | Pending |
-| ORA-03 | TBD | Pending |
-| ORA-04 | TBD | Pending |
-| ORA-05 | TBD | Pending |
-| AI-01 | TBD | Pending |
-| AI-02 | TBD | Pending |
-| AI-03 | TBD | Pending |
-| AI-04 | TBD | Pending |
-| INTOP-01 | TBD | Pending |
-| INTOP-02 | TBD | Pending |
-| INTOP-03 | TBD | Pending |
-| INTOP-04 | TBD | Pending |
-| BIO-01 | TBD | Pending |
-| BIO-02 | TBD | Pending |
-| BIO-03 | TBD | Pending |
-| CARD-01 | TBD | Pending |
-| CARD-02 | TBD | Pending |
-| CARD-03 | TBD | Pending |
-| ARCH-01 | TBD | Pending |
-| ARCH-02 | TBD | Pending |
-| ARCH-03 | TBD | Pending |
-| ARCH-04 | TBD | Pending |
-| HIE-01 | TBD | Pending |
-| HIE-02 | TBD | Pending |
-| HIE-03 | TBD | Pending |
+| BHXH-01 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| BHXH-02 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| BHXH-03 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| BHXH-04 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| BHXH-05 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| XML-01 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| XML-02 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| XML-03 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| XML-04 | Phase 1: BHXH Gateway + XML 4210 | Pending |
+| SIGN-01 | Phase 2: Digital Signature Expansion | Pending |
+| SIGN-02 | Phase 2: Digital Signature Expansion | Pending |
+| SIGN-03 | Phase 2: Digital Signature Expansion | Pending |
+| SIGN-04 | Phase 2: Digital Signature Expansion | Pending |
+| SIGN-05 | Phase 2: Digital Signature Expansion | Pending |
+| SIGN-06 | Phase 2: Digital Signature Expansion | Pending |
+| SEC-01 | Phase 3: Security Hardening + CCCD | Pending |
+| SEC-02 | Phase 3: Security Hardening + CCCD | Pending |
+| SEC-03 | Phase 3: Security Hardening + CCCD | Pending |
+| SEC-04 | Phase 3: Security Hardening + CCCD | Pending |
+| SEC-05 | Phase 3: Security Hardening + CCCD | Pending |
+| SMS-01 | Phase 4: SMS Gateway + Online Booking | Pending |
+| SMS-02 | Phase 4: SMS Gateway + Online Booking | Pending |
+| SMS-03 | Phase 4: SMS Gateway + Online Booking | Pending |
+| SMS-04 | Phase 4: SMS Gateway + Online Booking | Pending |
+| BOOK-01 | Phase 4: SMS Gateway + Online Booking | Pending |
+| BOOK-02 | Phase 4: SMS Gateway + Online Booking | Pending |
+| BOOK-03 | Phase 4: SMS Gateway + Online Booking | Pending |
+| BOOK-04 | Phase 4: SMS Gateway + Online Booking | Pending |
+| ORA-01 | Phase 5: Oracle DB Dual-Provider | Pending |
+| ORA-02 | Phase 5: Oracle DB Dual-Provider | Pending |
+| ORA-03 | Phase 5: Oracle DB Dual-Provider | Pending |
+| ORA-04 | Phase 5: Oracle DB Dual-Provider | Pending |
+| ORA-05 | Phase 5: Oracle DB Dual-Provider | Pending |
+| HIE-01 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| HIE-02 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| HIE-03 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| INTOP-01 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| INTOP-02 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| INTOP-03 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| INTOP-04 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| ARCH-01 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| ARCH-02 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| ARCH-03 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| ARCH-04 | Phase 6: DQGVN + SNOMED CT + HL7 CDA | Pending |
+| AI-01 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| AI-02 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| AI-03 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| AI-04 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| BIO-01 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| BIO-02 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| BIO-03 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| CARD-01 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| CARD-02 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
+| CARD-03 | Phase 7: AI/CDSS + Biometric + Smart Card | Pending |
 
 **Coverage:**
 - v1 requirements: 52 total
-- Mapped to phases: 0
-- Unmapped: 52
+- Mapped to phases: 52
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-28*
-*Last updated: 2026-02-28 after initial definition*
+*Last updated: 2026-02-28 -- all 52 requirements mapped to roadmap phases*
