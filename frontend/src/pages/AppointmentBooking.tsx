@@ -4,6 +4,8 @@ import { CalendarOutlined, UserOutlined, PhoneOutlined, SearchOutlined, ClockCir
 import dayjs from 'dayjs';
 import {
   getBookingDepartments, getBookingDoctors, getAvailableSlots, bookAppointment, lookupAppointment, cancelBooking,
+} from '../api/appointmentBooking';
+import type {
   BookingDepartmentDto, BookingDoctorDto, BookingSlotResult, BookingTimeSlot, BookingResultDto, BookingStatusDto
 } from '../api/appointmentBooking';
 import { HOSPITAL_NAME } from '../constants/hospital';
