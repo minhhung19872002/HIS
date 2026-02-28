@@ -8,7 +8,7 @@ import {
 import type {
   BookingDepartmentDto, BookingDoctorDto, BookingSlotResult, BookingTimeSlot, BookingResultDto, BookingStatusDto
 } from '../api/appointmentBooking';
-import { HOSPITAL_NAME } from '../constants/hospital';
+import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -165,10 +165,14 @@ const AppointmentBooking = () => {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+      <div style={{ textAlign: 'center', marginBottom: 16, padding: '16px 0', borderBottom: '2px solid #1890ff' }}>
         <MedicineBoxOutlined style={{ fontSize: 48, color: '#1890ff' }} />
         <Title level={2} style={{ marginTop: 8, marginBottom: 4 }}>Đặt Lịch Khám Trực Tuyến</Title>
-        <Text type="secondary">{HOSPITAL_NAME}</Text>
+        <Title level={5} style={{ margin: 0, color: '#1890ff' }}>{HOSPITAL_NAME}</Title>
+        <Text type="secondary">{HOSPITAL_ADDRESS} | ĐT: {HOSPITAL_PHONE}</Text>
+        <div style={{ marginTop: 8, padding: '8px 16px', background: '#f6ffed', borderRadius: 6, display: 'inline-block' }}>
+          <Text style={{ color: '#52c41a' }}>Đặt lịch trước - Không cần chờ đợi - Ưu tiên khám</Text>
+        </div>
       </div>
 
       {/* Toggle: Book vs Lookup */}
@@ -472,7 +476,13 @@ const AppointmentBooking = () => {
                     {bookingResult.departmentName && <Paragraph><Text strong>Khoa:</Text> {bookingResult.departmentName}</Paragraph>}
                     {bookingResult.doctorName && <Paragraph><Text strong>BS:</Text> {bookingResult.doctorName}</Paragraph>}
                     {bookingResult.roomName && <Paragraph><Text strong>Phòng:</Text> {bookingResult.roomName}</Paragraph>}
-                    <Paragraph type="secondary">Vui lòng lưu mã hẹn. Đến viện trước giờ hẹn 15 phút.</Paragraph>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 4 }}>
+                      Vui lòng lưu mã hẹn và đến viện trước giờ hẹn 15 phút.
+                    </Paragraph>
+                    <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
+                      Mang theo CCCD/CMND và thẻ BHYT (nếu có). Liên hệ {HOSPITAL_PHONE} nếu cần hỗ trợ.
+                    </Paragraph>
                   </Card>
                 </Card>
               )}
