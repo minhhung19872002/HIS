@@ -55,6 +55,7 @@ import ReagentManagement from './pages/ReagentManagement';
 import SampleTracking from './pages/SampleTracking';
 import Pathology from './pages/Pathology';
 import CultureCollection from './pages/CultureCollection';
+import DigitalSignature from './pages/DigitalSignature';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -128,6 +129,7 @@ const AppRoutes: React.FC = () => {
         <Route path="master-data" element={<MasterData />} />
         <Route path="reports" element={<Reports />} />
         <Route path="admin" element={<SystemAdmin />} />
+        <Route path="digital-signature" element={<DigitalSignature />} />
         <Route path="settings" element={<div>Cài đặt hệ thống</div>} />
         {/* New modules - Flow 11-18 */}
         <Route path="telemedicine" element={<Telemedicine />} />

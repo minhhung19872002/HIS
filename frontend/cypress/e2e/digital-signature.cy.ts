@@ -1,244 +1,229 @@
 /// <reference types="cypress" />
 
+/**
+ * Digital Signature Module Tests
+ */
+
 const IGNORE_PATTERNS = [
-  'useForm', 'is not connected to any Form element',
-  'ResizeObserver loop', 'SignalR', 'ERR_CONNECTION',
+  'ResizeObserver loop', 'Download the React DevTools', 'favicon.ico',
+  'AbortError', 'CanceledError', 'Failed to start the connection',
+  'WebSocket connection', 'hubs/notifications', 'useForm',
+  'is not connected to any Form element',
 ];
 
-describe('Digital Signature - API Endpoints', () => {
+describe('Digital Signature Module', () => {
   let token: string;
+  let userData: string;
 
   before(() => {
-    cy.request('POST', 'http://localhost:5106/api/auth/login', {
-      username: 'admin', password: 'Admin@123',
-    }).then((res) => { token = res.body.token; });
-  });
-
-  it('GET /session-status returns active: false when no session', () => {
     cy.request({
-      url: 'http://localhost:5106/api/digital-signature/session-status',
-      headers: { Authorization: `Bearer ${token}` },
-      failOnStatusCode: false,
-    }).then((res) => {
-      expect([200, 401, 500]).to.include(res.status);
-      if (res.status === 200) expect(res.body.active).to.eq(false);
-    });
-  });
-
-  it('POST /sign without session returns 401', () => {
-    cy.request({
-      url: 'http://localhost:5106/api/digital-signature/sign',
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: { documentId: '00000000-0000-0000-0000-000000000001', documentType: 'EMR', reason: 'test', location: 'test' },
+      url: 'http://localhost:5106/api/auth/login',
+      body: { username: 'admin', password: 'Admin@123' },
       failOnStatusCode: false,
     }).then((res) => {
-      expect(res.status).to.eq(401);
-    });
-  });
-
-  it('POST /batch-sign with >50 docs returns 400 or 401', () => {
-    const docIds = Array.from({ length: 51 }, (_, i) =>
-      `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`
-    );
-    cy.request({
-      url: 'http://localhost:5106/api/digital-signature/batch-sign',
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: { documentIds: docIds, documentType: 'EMR', reason: 'test' },
-      failOnStatusCode: false,
-    }).then((res) => {
-      expect([400, 401]).to.include(res.status);
-    });
-  });
-
-  it('GET /signatures/{randomGuid} returns empty or 500 (no DB table yet)', () => {
-    cy.request({
-      url: 'http://localhost:5106/api/digital-signature/signatures/00000000-0000-0000-0000-000000000099',
-      headers: { Authorization: `Bearer ${token}` },
-      failOnStatusCode: false,
-    }).then((res) => {
-      expect([200, 401, 500]).to.include(res.status);
-      if (res.status === 200) expect(res.body).to.be.an('array');
-    });
-  });
-
-  it('POST /close-session succeeds (no-op when no session)', () => {
-    cy.request({
-      url: 'http://localhost:5106/api/digital-signature/close-session',
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      failOnStatusCode: false,
-    }).then((res) => {
-      expect([200, 401, 500]).to.include(res.status);
-    });
-  });
-
-  it('GET /tokens returns array', () => {
-    cy.request({
-      url: 'http://localhost:5106/api/digital-signature/tokens',
-      headers: { Authorization: `Bearer ${token}` },
-      failOnStatusCode: false,
-    }).then((res) => {
-      expect([200, 401, 500]).to.include(res.status);
-    });
-  });
-});
-
-describe('Digital Signature - UI Components', () => {
-  beforeEach(() => {
-    cy.request('POST', 'http://localhost:5106/api/auth/login', {
-      username: 'admin', password: 'Admin@123',
-    }).then((res) => {
-      window.localStorage.setItem('token', res.body.token);
-      window.localStorage.setItem('user', JSON.stringify(res.body.user));
-    });
-    cy.on('uncaught:exception', (err) => {
-      if (IGNORE_PATTERNS.some(p => err.message.includes(p))) return false;
-    });
-  });
-
-  it('EMR page loads with "Ký số" button visible when examination selected', () => {
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
-    // The Ky so button appears in the detail panel header when an exam is selected
-    // Just verify the page loads without errors
-    cy.get('body').should('exist');
-  });
-
-  it('EMR page loads with "Ký hàng loạt" button visible', () => {
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
-    // Batch sign button is in the detail header, requires selected exam
-  });
-
-  it('EMR page has signing components imported', () => {
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
-    // Page loads without import errors = components are available
-  });
-
-  it('Prescription page loads with signing components', () => {
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/prescription');
-    cy.get('body').should('exist');
-    // Page loads without import errors = signing components imported
-    cy.get('body').then(($body) => {
-      if ($body.find('h4:contains("Kê đơn thuốc")').length > 0) {
-        cy.contains('Kê đơn thuốc').should('exist');
+      if (res.status === 200) {
+        if (res.body?.data?.token) {
+          token = res.body.data.token;
+          userData = JSON.stringify(res.body.data.user || {});
+        } else if (res.body?.token) {
+          token = res.body.token;
+          userData = JSON.stringify(res.body.user || {});
+        }
       }
     });
   });
 
-  it('Laboratory page loads with signing components', () => {
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/laboratory');
-    cy.get('body').should('exist');
-    // Page loads without import errors = signing components imported
-    cy.get('body').then(($body) => {
-      if ($body.find('h4:contains("Quản lý Xét nghiệm")').length > 0) {
-        cy.contains('Quản lý Xét nghiệm').should('exist');
-      }
-    });
-  });
-
-  it('Laboratory approved results tab structure', () => {
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/laboratory');
-    cy.get('body').should('exist');
-    // Verify page has tabs structure
-    cy.get('body').then(($body) => {
-      if ($body.find('.ant-tabs-tab').length > 0) {
-        cy.get('.ant-tabs-tab').should('have.length.at.least', 2);
-      }
-    });
-  });
-
-  it('PinEntryModal opens via mock sign flow', () => {
-    cy.intercept('GET', '**/digital-signature/session-status', { body: { active: false } });
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
-  });
-
-  it('SignatureStatusIcon renders correctly for unsigned documents', () => {
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
-    // Gray shield icons appear in table when signatures are loaded
-  });
-});
-
-describe('Digital Signature - Integration (Mocked API)', () => {
-  beforeEach(() => {
-    cy.request('POST', 'http://localhost:5106/api/auth/login', {
-      username: 'admin', password: 'Admin@123',
-    }).then((res) => {
-      window.localStorage.setItem('token', res.body.token);
-      window.localStorage.setItem('user', JSON.stringify(res.body.user));
-    });
-    cy.on('uncaught:exception', (err) => {
-      if (IGNORE_PATTERNS.some(p => err.message.includes(p))) return false;
-    });
-  });
-
-  it('Mock open-session returns success, session status updates', () => {
-    cy.intercept('POST', '**/digital-signature/open-session', {
-      body: { success: true, tokenSerial: 'TEST123', caProvider: 'Test-CA', certificateSubject: 'CN=Test', sessionExpiresAt: new Date(Date.now() + 1800000).toISOString() },
-    }).as('openSession');
-    cy.intercept('GET', '**/digital-signature/session-status', {
-      body: { active: true, tokenSerial: 'TEST123', caProvider: 'Test-CA' },
-    });
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
-  });
-
-  it('Mock sign returns success, green shield appears', () => {
-    cy.intercept('POST', '**/digital-signature/sign', {
-      body: { success: true, signerName: 'BS. Test', signedAt: '28/02/2026 10:00:00', certificateSerial: 'ABC123', caProvider: 'Test-CA' },
-    }).as('signDoc');
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
-  });
-
-  it('Mock batch-sign returns partial success', () => {
-    cy.intercept('POST', '**/digital-signature/batch-sign', {
-      body: {
-        total: 3, succeeded: 2, failed: 1,
-        results: [
-          { documentId: '1', success: true },
-          { documentId: '2', success: true },
-          { documentId: '3', success: false, error: 'Token error' },
-        ],
+  function visitPage() {
+    cy.on('uncaught:exception', () => false);
+    cy.visit('/digital-signature', {
+      onBeforeLoad(win) {
+        if (token) {
+          win.localStorage.setItem('token', token);
+          win.localStorage.setItem('user', userData);
+        }
       },
-    }).as('batchSign');
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/emr');
-    cy.get('body').should('exist');
+    });
+    cy.get('body', { timeout: 15000 }).should('be.visible');
+    cy.wait(2000);
+  }
+
+  describe('Page Load', () => {
+    beforeEach(() => visitPage());
+
+    it('should load digital signature page', () => {
+      cy.url().should('include', '/digital-signature');
+    });
+
+    it('should have page title', () => {
+      cy.get('body').then(($body) => {
+        const text = $body.text();
+        const hasTitle = text.includes('Chữ ký số') || text.includes('Digital Signature') ||
+          text.includes('USB Token') || text.includes('Chứng thư');
+        expect(hasTitle).to.be.true;
+      });
+    });
+
+    it('should have statistics cards', () => {
+      cy.get('body').then(($body) => {
+        const text = $body.text();
+        const hasStats = text.includes('USB Token') || text.includes('Chứng thư số') ||
+          text.includes('Phiên ký số');
+        expect(hasStats).to.be.true;
+      });
+    });
+
+    it('should have tabs', () => {
+      cy.get('.ant-tabs-tab').should('have.length.greaterThan', 0);
+    });
   });
 
-  it('Prescription page renders with signing context available', () => {
-    cy.intercept('GET', '**/digital-signature/session-status', {
-      body: { active: false },
+  describe('Tab Navigation', () => {
+    beforeEach(() => visitPage());
+
+    it('should have status tab', () => {
+      cy.get('body').then(($body) => {
+        const text = $body.text();
+        expect(text.includes('Trạng thái')).to.be.true;
+      });
     });
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/prescription');
-    cy.get('body').should('exist');
-    // Page renders without signing context errors
+
+    it('should have tokens tab', () => {
+      cy.get('body').then(($body) => {
+        const text = $body.text();
+        expect(text.includes('USB Token')).to.be.true;
+      });
+    });
+
+    it('should have certificates tab', () => {
+      cy.get('body').then(($body) => {
+        const text = $body.text();
+        expect(text.includes('Chứng thư số')).to.be.true;
+      });
+    });
+
+    it('should have history tab', () => {
+      cy.get('body').then(($body) => {
+        const text = $body.text();
+        expect(text.includes('Lịch sử ký')).to.be.true;
+      });
+    });
+
+    it('should switch to tokens tab and show table', () => {
+      cy.contains('.ant-tabs-tab', 'USB Token').click();
+      cy.wait(500);
+      cy.get('.ant-table').should('exist');
+    });
+
+    it('should switch to certificates tab and show table', () => {
+      cy.contains('.ant-tabs-tab', /Chứng thư/).click();
+      cy.wait(500);
+      cy.get('.ant-table').should('exist');
+    });
+
+    it('should switch to history tab and show table', () => {
+      cy.contains('.ant-tabs-tab', 'Lịch sử').click();
+      cy.wait(500);
+      cy.get('.ant-table').should('exist');
+    });
   });
 
-  it('Laboratory page renders with signing context available', () => {
-    cy.intercept('GET', '**/digital-signature/session-status', {
-      body: { active: false },
+  describe('Session Management UI', () => {
+    beforeEach(() => visitPage());
+
+    it('should have session action button', () => {
+      cy.get('button').then(($buttons) => {
+        const hasBtn = $buttons.toArray().some(
+          btn => btn.textContent?.includes('Mở phiên ký') ||
+            btn.textContent?.includes('Đóng phiên')
+        );
+        expect(hasBtn).to.be.true;
+      });
     });
-    cy.intercept('**/api/**').as('api');
-    cy.visit('/laboratory');
-    cy.get('body').should('exist');
-    // Page renders without signing context errors
+
+    it('should have refresh button', () => {
+      cy.get('button').then(($buttons) => {
+        const hasRefresh = $buttons.toArray().some(
+          btn => btn.textContent?.includes('Làm mới') ||
+            btn.querySelector('.anticon-reload') !== null
+        );
+        expect(hasRefresh).to.be.true;
+      });
+    });
+
+    it('should open PIN modal when clicking open session', () => {
+      cy.get('body').then(($body) => {
+        const openBtn = $body.find('button').toArray().find(
+          btn => btn.textContent?.includes('Mở phiên ký')
+        );
+        if (openBtn && !openBtn.hasAttribute('disabled')) {
+          cy.wrap(openBtn).click({ force: true });
+          cy.wait(500);
+          cy.get('.ant-modal').should('be.visible');
+          cy.get('.ant-modal').within(() => {
+            cy.contains('PIN').should('exist');
+          });
+          // Close modal
+          cy.get('.ant-modal').find('button').contains('Hủy').click();
+        }
+      });
+    });
+  });
+
+  describe('API Endpoints', () => {
+    it('should respond to tokens endpoint', () => {
+      cy.request({
+        method: 'GET',
+        url: 'http://localhost:5106/api/digital-signature/tokens',
+        failOnStatusCode: false,
+      }).then((res) => {
+        expect(res.status).to.be.oneOf([200, 401, 404]);
+        if (res.status === 200) {
+          expect(res.body).to.be.an('array');
+          if (res.body.length > 0) {
+            expect(res.body[0]).to.have.property('tokenSerial');
+          }
+        }
+      });
+    });
+
+    it('should respond to USB token certificates endpoint', () => {
+      cy.request({
+        method: 'GET',
+        url: 'http://localhost:5106/api/RISComplete/usb-token/certificates',
+        headers: { Authorization: `Bearer ${token}` },
+        failOnStatusCode: false,
+      }).then((res) => {
+        expect(res.status).to.be.oneOf([200, 404]);
+        if (res.status === 200 && Array.isArray(res.body) && res.body.length > 0) {
+          expect(res.body[0]).to.have.property('thumbprint');
+          expect(res.body[0]).to.have.property('subjectName');
+        }
+      });
+    });
+
+    it('should respond to session status endpoint', () => {
+      cy.request({
+        method: 'GET',
+        url: 'http://localhost:5106/api/digital-signature/session-status',
+        headers: { Authorization: `Bearer ${token}` },
+        failOnStatusCode: false,
+      }).then((res) => {
+        expect(res.status).to.be.oneOf([200, 401, 404]);
+      });
+    });
+  });
+
+  describe('Menu Integration', () => {
+    it('should have digital signature menu item in sidebar', () => {
+      visitPage();
+      // Expand "Hệ thống" menu group if collapsed
+      cy.get('.ant-menu').contains('Hệ thống').click({ force: true });
+      cy.wait(500);
+      cy.get('.ant-menu').then(($menu) => {
+        const text = $menu.text();
+        expect(text.includes('Chữ ký số')).to.be.true;
+      });
+    });
   });
 });

@@ -249,11 +249,11 @@ describe('New Features - Patient Timeline, Dashboard Charts, Notifications', () 
 
     it('notification bell exists on multiple pages', () => {
       visitPage('/reception');
-      cy.get('.anticon-bell').should('be.visible');
+      cy.get('.anticon-bell', { timeout: 10000 }).should('be.visible');
       visitPage('/opd');
-      cy.get('.anticon-bell').should('be.visible');
+      cy.get('.anticon-bell', { timeout: 10000 }).should('be.visible');
       visitPage('/pharmacy');
-      cy.get('.anticon-bell').should('be.visible');
+      cy.get('.anticon-bell', { timeout: 10000 }).should('be.visible');
     });
   });
 

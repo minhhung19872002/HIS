@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using HIS.Infrastructure.Configuration;
 using Microsoft.Extensions.Logging;
@@ -279,7 +280,12 @@ public class FixedPinProvider : IPinProvider
 
     public FixedPinProvider(string pin)
     {
-        _pin = System.Text.Encoding.UTF8.GetBytes(pin);
+        // WINCA and most PKCS#11 tokens expect ASCII-encoded PIN.
+        // UTF-8 is identical for ASCII characters but may differ for extended chars.
+        // Try ASCII first; fall back to UTF-8 for non-ASCII PINs.
+        _pin = pin.All(c => c < 128)
+            ? System.Text.Encoding.ASCII.GetBytes(pin)
+            : System.Text.Encoding.UTF8.GetBytes(pin);
     }
 
     public GetPinResult GetKeyPin(Pkcs11X509StoreInfo storeInfo, Pkcs11SlotInfo slotInfo,

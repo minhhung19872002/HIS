@@ -525,11 +525,13 @@ namespace HIS.API.Controllers
         [HttpGet("reports/qc")]
         // Authorize removed for testing
         public async Task<ActionResult<QCReportDto>> GetQCReport(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
             [FromQuery] Guid? analyzerId = null)
         {
-            var result = await _lisService.GetQCReportAsync(fromDate, toDate, analyzerId);
+            var from = fromDate ?? DateTime.Today.AddMonths(-1);
+            var to = toDate ?? DateTime.Today.AddDays(1);
+            var result = await _lisService.GetQCReportAsync(from, to, analyzerId);
             return Ok(result);
         }
 

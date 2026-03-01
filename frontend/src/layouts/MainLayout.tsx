@@ -33,6 +33,7 @@ import {
   FolderOpenOutlined,
   CalendarOutlined,
   ScheduleOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -162,6 +163,7 @@ const MainLayout: React.FC = () => {
         { key: '/master-data', icon: <DatabaseOutlined />, label: 'Danh mục' },
         { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
         { key: '/admin', icon: <SettingOutlined />, label: 'Quản trị' },
+        { key: '/digital-signature', icon: <SafetyCertificateOutlined />, label: 'Chữ ký số' },
         { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
         { key: '/sms-management', icon: <MobileOutlined />, label: 'SMS Gateway' },
         { key: '/help', icon: <QuestionCircleOutlined />, label: 'Hướng dẫn' },

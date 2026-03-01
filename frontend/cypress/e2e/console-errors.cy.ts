@@ -50,6 +50,7 @@ const pages = [
   { route: '/sample-tracking', name: 'Sample Tracking (Theo doi mau)' },
   { route: '/pathology', name: 'Pathology (Giai phau benh)' },
   { route: '/culture-collection', name: 'Culture Collection (Luu chung VS)' },
+  { route: '/digital-signature', name: 'Digital Signature (Chu ky so)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise
