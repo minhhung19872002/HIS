@@ -173,10 +173,10 @@ describe('Click-Through Workflow - Full Patient Journey', () => {
       });
       cy.get('.ant-select-dropdown:visible').contains('Viện phí').click();
 
-      // Select Phòng khám - first available room
+      // Select Phong kham - first available room
       cy.get('.ant-modal').within(() => {
         cy.get('.ant-form-item')
-          .contains('Phòng khám')
+          .contains(/Phong kham|Phòng khám/i)
           .parents('.ant-form-item')
           .find('.ant-select')
           .click();
@@ -185,10 +185,11 @@ describe('Click-Through Workflow - Full Patient Journey', () => {
         .first()
         .click();
 
-      // Fill Địa chỉ
-      cy.get('textarea[placeholder="Nhập địa chỉ"]')
+      // Fill Dia chi
+      cy.get('textarea[placeholder*="dia chi"], textarea[placeholder*="địa chỉ"]', { timeout: 5000 })
+        .first()
         .clear()
-        .type('123 Trần Phú, Q5, TP.HCM');
+        .type('123 Tran Phu, Q5, TP.HCM');
 
       // Submit registration
       cy.get('.ant-modal-footer').contains('button', 'Đăng ký').click();

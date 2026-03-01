@@ -21,6 +21,7 @@ const IGNORE = [
   'ResizeObserver loop', 'Download the React DevTools', 'favicon.ico',
   'AbortError', 'CanceledError', 'NotImplementedException', 'not implemented', 'ECONNREFUSED',
   'Failed to start the connection', 'connection was stopped during negotiation',
+  'useForm', 'is not connected to any Form element',
 ];
 function isIgnored(msg: string) {
   return IGNORE.some(p => msg.toLowerCase().includes(p.toLowerCase()));
