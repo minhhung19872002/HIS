@@ -187,6 +187,9 @@ public static class DependencyInjection
         // Giải phẫu bệnh & Tế bào học (Pathology)
         services.AddScoped<IPathologyService, PathologyService>();
 
+        // Kho lưu chủng Vi Sinh (Culture Stock)
+        services.AddScoped<ICultureStockService, CultureStockService>();
+
         return services;
     }
 }

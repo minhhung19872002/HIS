@@ -54,6 +54,7 @@ import Screening from './pages/Screening';
 import ReagentManagement from './pages/ReagentManagement';
 import SampleTracking from './pages/SampleTracking';
 import Pathology from './pages/Pathology';
+import CultureCollection from './pages/CultureCollection';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -113,6 +114,7 @@ const AppRoutes: React.FC = () => {
         <Route path="lab" element={<Laboratory />} />
         <Route path="lab-qc" element={<LabQC />} />
         <Route path="microbiology" element={<Microbiology />} />
+        <Route path="culture-collection" element={<CultureCollection />} />
         <Route path="sample-storage" element={<SampleStorage />} />
         <Route path="screening" element={<Screening />} />
         <Route path="reagent-management" element={<ReagentManagement />} />

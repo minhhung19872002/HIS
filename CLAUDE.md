@@ -1117,3 +1117,88 @@ If a new service/controller is added, register it there or you get 500 errors.
 - `3f236ff` - feat: add 6 LIS sub-modules for NangCap2 LIS-HIS integration
 - `3d942cb` - fix: missing closing brace in LabQC.tsx Statistic styles prop
 - `dd9b0f1` - fix: add SignalR ignore pattern to all Cypress spec files
+
+### DA HOAN THANH (Session 21 - 2026-03-01)
+
+**94. Pathology Module (Giai phau benh & Te bao hoc) - Full Stack**
+
+**Backend (5 files):**
+- `Pathology.cs`: PathologyRequest + PathologyResult entities
+- `PathologyDTOs.cs`: 9 DTOs (search, request, detail, result, create, update, stats, specimen types)
+- `IPathologyService.cs`: Interface voi 7 methods
+- `PathologyService.cs`: Full implementation voi EF Core queries, statistics, HTML print report
+- `PathologyController.cs`: 7 API endpoints (requests, results, statistics, specimen-types, print)
+- DI registration trong DependencyInjection.cs, DbSet trong HISDbContext
+
+**Database:**
+- `scripts/create_pathology_tables.sql`: PathologyRequests + PathologyResults tables voi indexes + FK
+
+**Frontend (3 files):**
+- `Pathology.tsx`: Full page voi stats cards, tabs (Cho mo ta/Dang xu ly/Hoan thanh/Tat ca), filters, detail modal, result form modal
+- `pathology.ts`: API client voi 7 functions
+- Route `/pathology`, menu item "Giai phau benh" trong sidebar
+
+**95. Fix 6 flaky EMR dropdown tests**
+- `emr.cy.ts`: `.should('be.visible')` → `.should('exist')` cho drawer titles opened qua dropdown menu
+- Root cause: Antd dropdown overlay covers drawer h2 element (z-index issue)
+
+**96. Update NangCap_PhanTich.md**
+- Mark Pathology (#21, #22) as DA XONG in NangCap2 section
+- NangCap2 LIS-HIS: 2 remaining items (Vi Sinh luu chung, Kinh hien vi hardware)
+
+**97. Test verification**
+
+| Test Suite | Pass | Status |
+|---|---|---|
+| Cypress console-errors | 40 | PASS |
+| Cypress deep-controls | 122 | PASS |
+| Cypress user-workflow | 40 | PASS |
+| Cypress manual-user-workflow | 34 | PASS |
+| Cypress all-flows | 60 | PASS |
+| Cypress real-workflow | 71 | PASS |
+| Cypress emr | 34 | PASS |
+| Cypress new-features | 34 | PASS |
+| Cypress pathology | 15 | PASS |
+| TypeScript | 0 errors | PASS |
+| Vite build | success | PASS |
+| Backend build | 0 errors | PASS |
+
+**98. Git Commits (Session 21)**
+- `b542386` - feat: add Pathology module (Giai phau benh & Te bao hoc) full stack
+- `89c3e97` - fix: resolve 6 flaky EMR dropdown tests, update NangCap analysis
+
+### DA HOAN THANH (Session 22 - 2026-03-01)
+
+**99. Culture Collection / Lưu chủng Vi Sinh (NangCap2 #12)**
+
+**Backend (4 files mới):**
+- `CultureStock.cs` entity: CultureStock + CultureStockLog (storage location, preservation method, passage, aliquots, viability)
+- `CultureStockDTOs.cs`: 9 DTOs (Search, Create, Update, Retrieve, Viability, Subculture, Log, Stats, OrganismSummary)
+- `ICultureStockService.cs`: 11 methods interface
+- `CultureStockService.cs`: Full EF Core implementation - auto stock code generation (VS-YYYY-NNNN), subculture with passage tracking, aliquot management, viability check logging, statistics
+- `CultureStockController.cs`: 11 endpoints at `/api/culture-stock`
+
+**Database:**
+- `scripts/create_culture_stock_tables.sql`: CultureStocks + CultureStockLogs tables with 9 indexes
+
+**Frontend (3 files mới):**
+- `cultureStock.ts`: 11 API functions with error handling
+- `CultureCollection.tsx` (~350 lines): Full page with store/retrieve/viability/subculture modals, expiry alerts, aliquot progress bars, log timeline
+- Route `/culture-collection`, menu item "Lưu chủng VS" in sidebar
+
+**Features:**
+- Lưu trữ chủng VK/nấm với vị trí tủ/rack/hộp/position
+- 4 PP bảo quản: glycerol stock, đông khô, đông lạnh sâu, sữa gầy
+- Cấy chuyền (subculture) tăng passage number tự động
+- Kiểm tra viability (subculture/nhuộm/PCR) với logging
+- Cảnh báo: sắp hết hạn (30d), cần KT viability (>90d), sắp hết ống
+- Lịch sử hoạt động (Timeline) cho mỗi chủng
+
+**Verification:**
+- Console-errors: 41/41 pass (+1 culture-collection)
+- Deep-controls: 122/122 pass
+- Pathology: 15/15 pass
+- TypeScript: 0 errors
+- Backend build: 0 errors
+
+**NangCap2 Status: 27/28 complete** (only #28 microscope connectivity remaining - hardware dependent)

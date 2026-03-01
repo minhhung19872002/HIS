@@ -147,6 +147,10 @@ public class HISDbContext : DbContext
     public DbSet<PathologyRequest> PathologyRequests => Set<PathologyRequest>();
     public DbSet<PathologyResult> PathologyResults => Set<PathologyResult>();
 
+    // Kho lưu chủng Vi Sinh (Culture Stock)
+    public DbSet<CultureStock> CultureStocks => Set<CultureStock>();
+    public DbSet<CultureStockLog> CultureStockLogs => Set<CultureStockLog>();
+
     // Xét nghiệm (LIS)
     public DbSet<LabRequest> LabRequests => Set<LabRequest>();
     public DbSet<LabRequestItem> LabRequestItems => Set<LabRequestItem>();

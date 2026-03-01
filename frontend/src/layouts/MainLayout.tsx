@@ -102,6 +102,7 @@ const MainLayout: React.FC = () => {
         { key: '/lab', icon: <ExperimentOutlined />, label: 'Xét nghiệm' },
         { key: '/lab-qc', icon: <ExperimentOutlined />, label: 'QC Kiểm định' },
         { key: '/microbiology', icon: <ExperimentOutlined />, label: 'Vi sinh' },
+        { key: '/culture-collection', icon: <ExperimentOutlined />, label: 'Lưu chủng VS' },
         { key: '/screening', icon: <HeartOutlined />, label: 'Sàng lọc SS/TS' },
         { key: '/sample-storage', icon: <ExperimentOutlined />, label: 'Lưu trữ mẫu' },
         { key: '/sample-tracking', icon: <ExperimentOutlined />, label: 'Theo dõi mẫu' },

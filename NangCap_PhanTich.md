@@ -251,12 +251,17 @@
 | 21 | Giai phau benh & Te bao hoc | `/pathology` - Pathology.tsx | DA XONG - Yeu cau, ket qua (dai the/vi the/nhuom/IHC/phan tu), thong ke, in phieu |
 | 22 | Ket noi HIS-GPB | PathologyController (7 endpoints) | DA XONG - API chi dinh + tra ket qua GPB |
 
-### CAN LAM TIEP (2 hang muc)
+### CAN LAM TIEP (1 hang muc)
 
 | # | Yeu cau | Mo ta | Do kho |
 |---|---------|-------|--------|
-| 12 | Luu chung Vi Sinh | Quan ly tu, hop, mau luu chung, canh bao, tim kiem | Trung binh |
 | 28 | Ket noi kinh hien vi | 07 kinh, camera, ket noi (HARDWARE-DEPENDENT) | Kho |
+
+### DA BUILD (Session 22)
+
+| # | Yeu cau | Mo ta | Trang thai |
+|---|---------|-------|------------|
+| 12 | Luu chung Vi Sinh | `/culture-collection` - CultureCollection.tsx | DA XONG - CRUD, vị trí tủ/rack/hộp, viability check, cấy chuyền passage, cảnh báo hết hạn, lịch sử log |
 
 ### CAN NANG CAP (4 hang muc)
 
