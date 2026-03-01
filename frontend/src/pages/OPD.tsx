@@ -54,6 +54,8 @@ import {
 import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useKeyboardShortcuts, formatShortcut } from '../hooks/useKeyboardShortcuts';
+import cdsApi from '../api/clinicalDecisionSupport';
+import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
 
 // Type aliases for compatibility
 type QueuePatient = RoomPatientListDto;
@@ -151,6 +153,12 @@ const OPD: React.FC = () => {
 
   // State for data inheritance (Reception → OPD context)
   const [opdContext, setOpdContext] = useState<OpdContextDto | null>(null);
+
+  // AI Clinical Decision Support
+  const [aiSuggestions, setAiSuggestions] = useState<DiagnosisSuggestion[]>([]);
+  const [earlyWarningScore, setEarlyWarningScore] = useState<EarlyWarningScore | null>(null);
+  const [clinicalAlerts, setClinicalAlerts] = useState<ClinicalAlert[]>([]);
+  const [loadingAi, setLoadingAi] = useState(false);
 
   // Barcode scanner
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -352,6 +360,84 @@ const OPD: React.FC = () => {
     }
     return 'N/A';
   };
+
+  // AI Clinical Decision Support - trigger on tab change to diagnosis
+  const fetchAiSuggestions = useCallback(async () => {
+    if (!examination || !selectedPatient) return;
+    setLoadingAi(true);
+    try {
+      const formValues = examForm.getFieldsValue();
+      const symptoms: string[] = [];
+      const signs: string[] = [];
+
+      // Extract symptoms from chief complaint
+      const chiefComplaint = formValues.chiefComplaint || formValues.medicalHistory?.chiefComplaint || '';
+      if (chiefComplaint) {
+        chiefComplaint.split(/[;,.\n]/).forEach((s: string) => {
+          const trimmed = s.trim();
+          if (trimmed) symptoms.push(trimmed);
+        });
+      }
+
+      // Extract signs from physical exam
+      const pe = formValues.physicalExamination || formValues;
+      for (const field of ['generalAppearance', 'cardiovascular', 'respiratory', 'gastrointestinal', 'neurological']) {
+        const val = pe[field];
+        if (val && typeof val === 'string') {
+          val.split(/[;,.\n]/).forEach((s: string) => {
+            const trimmed = s.trim();
+            if (trimmed) signs.push(trimmed);
+          });
+        }
+      }
+
+      const age = selectedPatient.dateOfBirth ? dayjs().diff(dayjs(selectedPatient.dateOfBirth), 'year') : undefined;
+
+      const request = {
+        symptoms,
+        signs,
+        age,
+        gender: selectedPatient.gender,
+        temperature: formValues.temperature ? Number(formValues.temperature) : undefined,
+        pulse: formValues.pulse ? Number(formValues.pulse) : undefined,
+        bloodPressureSystolic: formValues.systolicBP ? Number(formValues.systolicBP) : undefined,
+        bloodPressureDiastolic: formValues.diastolicBP ? Number(formValues.diastolicBP) : undefined,
+        respiratoryRate: formValues.respiratoryRate ? Number(formValues.respiratoryRate) : undefined,
+        spO2: formValues.spO2 ? Number(formValues.spO2) : undefined,
+        departmentId: examination.departmentId,
+      };
+
+      const [suggestRes, alertsRes] = await Promise.allSettled([
+        cdsApi.suggestDiagnoses(request),
+        cdsApi.getClinicalAlerts(examination.patientId, examination.id),
+      ]);
+
+      if (suggestRes.status === 'fulfilled' && suggestRes.value.data) {
+        setAiSuggestions(suggestRes.value.data);
+      }
+      if (alertsRes.status === 'fulfilled' && alertsRes.value.data) {
+        setClinicalAlerts(alertsRes.value.data);
+      }
+
+      // Calculate NEWS2 if vital signs present
+      if (formValues.pulse || formValues.spO2 || formValues.temperature) {
+        try {
+          const ewsRes = await cdsApi.calculateEarlyWarningScore({
+            pulse: formValues.pulse ? Number(formValues.pulse) : undefined,
+            bloodPressureSystolic: formValues.systolicBP ? Number(formValues.systolicBP) : undefined,
+            respiratoryRate: formValues.respiratoryRate ? Number(formValues.respiratoryRate) : undefined,
+            temperature: formValues.temperature ? Number(formValues.temperature) : undefined,
+            spO2: formValues.spO2 ? Number(formValues.spO2) : undefined,
+          });
+          if (ewsRes.data) setEarlyWarningScore(ewsRes.data);
+        } catch { /* ignore */ }
+      }
+    } catch {
+      // CDS is supplementary, don't show errors
+    } finally {
+      setLoadingAi(false);
+    }
+  }, [examination, selectedPatient, examForm]);
 
   const handleSearchICD = async (value: string) => {
     if (!value || value.length < 2) {
@@ -1343,6 +1429,7 @@ const OPD: React.FC = () => {
                         </span>
                       ),
                       children: (
+                        <>
                         <Row gutter={16}>
                           <Col xs={24} sm={12} md={8}>
                             <Form.Item
@@ -1480,6 +1567,36 @@ const OPD: React.FC = () => {
                             </Form.Item>
                           </Col>
                         </Row>
+
+                        {/* NEWS2 Early Warning Score */}
+                        {earlyWarningScore && (
+                          <Card size="small" style={{ marginTop: 12, borderColor: earlyWarningScore.riskColor === 'red' ? '#ff4d4f' : earlyWarningScore.riskColor === 'orange' ? '#fa8c16' : earlyWarningScore.riskColor === 'gold' ? '#faad14' : '#52c41a' }}>
+                            <Row align="middle" gutter={16}>
+                              <Col>
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: 28, fontWeight: 'bold', color: earlyWarningScore.riskColor === 'green' ? '#52c41a' : earlyWarningScore.riskColor === 'gold' ? '#faad14' : earlyWarningScore.riskColor === 'orange' ? '#fa8c16' : '#ff4d4f' }}>
+                                    {earlyWarningScore.totalScore}
+                                  </div>
+                                  <Tag color={earlyWarningScore.riskColor === 'green' ? 'success' : earlyWarningScore.riskColor === 'gold' ? 'warning' : earlyWarningScore.riskColor === 'orange' ? 'orange' : 'error'}>
+                                    NEWS2: {earlyWarningScore.riskLevel}
+                                  </Tag>
+                                </div>
+                              </Col>
+                              <Col flex="auto">
+                                <Text strong>Khuyến nghị: </Text>
+                                <Text>{earlyWarningScore.recommendation}</Text>
+                                <div style={{ marginTop: 4 }}>
+                                  {earlyWarningScore.parameters.filter(p => p.score > 0).map((p, i) => (
+                                    <Tag key={i} color={p.score >= 3 ? 'red' : p.score >= 2 ? 'orange' : 'gold'}>
+                                      {p.name}: {p.value} (+{p.score})
+                                    </Tag>
+                                  ))}
+                                </div>
+                              </Col>
+                            </Row>
+                          </Card>
+                        )}
+                        </>
                       ),
                     },
                     {
@@ -1716,6 +1833,54 @@ const OPD: React.FC = () => {
                               Thêm chẩn đoán phụ
                             </Button>
                           </Space>
+
+                          {/* AI Diagnosis Suggestions */}
+                          <div style={{ marginBottom: 16 }}>
+                            <Button
+                              type="dashed"
+                              icon={<AimOutlined />}
+                              onClick={fetchAiSuggestions}
+                              loading={loadingAi}
+                              style={{ marginBottom: 8 }}
+                            >
+                              Gợi ý chẩn đoán (AI)
+                            </Button>
+                            {aiSuggestions.length > 0 && (
+                              <Card size="small" title="Gợi ý chẩn đoán từ AI" style={{ marginBottom: 12, background: '#f6ffed', borderColor: '#b7eb8f' }}>
+                                {aiSuggestions.map((s, i) => (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 6, gap: 8 }}>
+                                    <Tag color={s.confidenceLevel === 'Cao' ? 'green' : s.confidenceLevel === 'Trung bình' ? 'gold' : 'default'}>
+                                      {Math.round(s.confidence * 100)}%
+                                    </Tag>
+                                    <Button
+                                      type="link"
+                                      size="small"
+                                      style={{ padding: 0 }}
+                                      onClick={() => handleAddDiagnosis(s.icdCode, diagnoses.length === 0 ? 1 : 2)}
+                                    >
+                                      <strong>{s.icdCode}</strong> - {s.icdName}
+                                    </Button>
+                                    {s.isCommonInDepartment && <Tag color="blue">Thường gặp</Tag>}
+                                    <Text type="secondary" style={{ fontSize: 11 }}>{s.reasoning}</Text>
+                                  </div>
+                                ))}
+                              </Card>
+                            )}
+                            {clinicalAlerts.length > 0 && (
+                              <div style={{ marginBottom: 12 }}>
+                                {clinicalAlerts.map((alert, i) => (
+                                  <Alert
+                                    key={i}
+                                    type={alert.severity === 'Critical' ? 'error' : alert.severity === 'Warning' ? 'warning' : 'info'}
+                                    title={alert.title}
+                                    description={`${alert.message}${alert.actionRecommendation ? ' → ' + alert.actionRecommendation : ''}`}
+                                    showIcon
+                                    style={{ marginBottom: 4 }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
                           <Table
                             columns={diagnosisColumns}

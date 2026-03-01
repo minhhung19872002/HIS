@@ -147,6 +147,7 @@ public static class DependencyInjection
 
         // Level 6 Reconciliation Reports (Đối chiếu Level 6 - 8 báo cáo)
         services.AddScoped<IReconciliationReportService, ReconciliationReportService>();
+        services.AddScoped<IClinicalDecisionSupportService, ClinicalDecisionSupportService>();
 
         // Data Inheritance (Kế thừa dữ liệu giữa các phân hệ - Level 6 item 1.8)
         services.AddScoped<IDataInheritanceService, DataInheritanceService>();
