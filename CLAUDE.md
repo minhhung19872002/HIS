@@ -1224,4 +1224,4 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Cypress: 9 new tests in queue-display.cy.ts (22/22 total pass)
 - Console-errors: 41/41 pass
 
-**NangCap2 CAN MO RONG: 3/4 complete** (only Ký số LIS PDF remaining)
+**NangCap2 CAN MO RONG: 4/4 complete** (Ký số LIS PDF: Laboratory.tsx already has SignatureStatusIcon + handleSignResult + useSigningContext + PinEntryModal integration)

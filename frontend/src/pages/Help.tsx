@@ -111,7 +111,7 @@ const Help: React.FC = () => {
 ## Đăng nhập hệ thống
 
 ### Bước 1: Truy cập trang đăng nhập
-Mở trình duyệt và truy cập địa chỉ: http://localhost:3000
+Mở trình duyệt và truy cập địa chỉ hệ thống HIS (do quản trị viên cung cấp)
 
 ### Bước 2: Nhập thông tin đăng nhập
 - **Tên đăng nhập**: Nhập tên tài khoản được cấp

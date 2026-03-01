@@ -1473,7 +1473,7 @@ const SystemAdmin: React.FC = () => {
 
                   {!healthData && !healthLoading && (
                     <Alert title="Không thể kết nối đến máy chủ" type="warning" showIcon
-                      description="Vui lòng kiểm tra backend API đang chạy tại http://localhost:5106"
+                      description={`Vui lòng kiểm tra backend API đang chạy tại ${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5106'}`}
                     />
                   )}
 

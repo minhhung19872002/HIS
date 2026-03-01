@@ -3,16 +3,19 @@ using HIS.Application.Services;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace HIS.Infrastructure.Services;
 
 public class ClinicalDecisionSupportService : IClinicalDecisionSupportService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<ClinicalDecisionSupportService> _logger;
 
-    public ClinicalDecisionSupportService(HISDbContext context)
+    public ClinicalDecisionSupportService(HISDbContext context, ILogger<ClinicalDecisionSupportService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     // ========== SYMPTOM → DIAGNOSIS MAPPING ==========
@@ -426,7 +429,7 @@ public class ClinicalDecisionSupportService : IClinicalDecisionSupportService
                 });
             }
         }
-        catch { }
+        catch (Exception ex) { _logger.LogWarning(ex, "CDS: Failed to load allergy alerts for patient {PatientId}", patientId); }
 
         // 2. Check abnormal lab results (recent 7 days)
         try
@@ -517,7 +520,7 @@ public class ClinicalDecisionSupportService : IClinicalDecisionSupportService
                         });
                 }
             }
-            catch { }
+            catch (Exception ex) { _logger.LogWarning(ex, "CDS: Failed to load vital sign alerts for patient {PatientId}", patientId); }
         }
 
         // 4. Check contraindications
@@ -542,7 +545,7 @@ public class ClinicalDecisionSupportService : IClinicalDecisionSupportService
                 });
             }
         }
-        catch { }
+        catch (Exception ex) { _logger.LogWarning(ex, "CDS: Failed to load contraindication alerts for patient {PatientId}", patientId); }
 
         return alerts.OrderByDescending(a => a.Severity == "Critical" ? 2 : a.Severity == "Warning" ? 1 : 0)
             .ThenByDescending(a => a.Timestamp)

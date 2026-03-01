@@ -176,6 +176,11 @@
 27. Patient photo capture (webcam)
 28. Dashboard charts (recharts)
 29. Patient timeline (EMR)
+30. Digital Signature UI: DigitalSignature.tsx (4 tabs, session management, PIN modal)
+31. LIS PDF ky so: Laboratory.tsx (SignatureStatusIcon, handleSignResult, useSigningContext)
+32. LIS ApprovedBy: JWT user ID truyen vao 3 approve methods (ko con DBNull)
+33. BHXH connection check: wired to IBhxhGatewayClient.TestConnectionAsync (ko con hardcoded true)
+34. PKCS#11 PIN fix: ASCII encoding cho ASCII-only PINs (Pkcs11SessionManager)
 
 ### CON LAI (hardware/production dependent - KHONG THE LAM TRONG MOI TRUONG DEV)
 
@@ -252,3 +257,30 @@
 
 > **Ket luan**: He thong HIS da hoan thanh 99.2% yeu cau. Tat ca cac hang muc phan mem da duoc implement.
 > Cac hang muc con lai deu yeu cau phan cung hoac moi truong production khong kha dung trong moi truong dev.
+
+### TEST VERIFICATION (cap nhat 2026-03-01)
+
+| Test Suite | Pass | Total |
+|---|---|---|
+| Cypress console-errors | 42 | 42 |
+| Cypress deep-controls | 122 | 122 |
+| Cypress digital-signature | 18 | 18 |
+| Cypress new-features | 34 | 34 |
+| Cypress emr | 34 | 34 |
+| Cypress user-workflow | 40 | 40 |
+| Cypress all-flows | 60 | 60 |
+| Cypress manual-user-workflow | 34 | 34 |
+| Cypress real-workflow | 71 | 71 |
+| Cypress form-interactions | 27 | 27 |
+| Cypress click-through-workflow | 23 | 23 |
+| Cypress two-factor-auth | 9 | 9 |
+| Cypress queue-display | 22 | 22 |
+| Cypress lis-complete | 33 | 33 |
+| Cypress ris-pacs-complete | 67 | 67 |
+| Cypress fhir-health-pdf | 37 | 37 |
+| Playwright (10 specs) | 255 | 255 |
+| **TONG** | **928** | **928** |
+
+- TypeScript: 0 errors
+- Vite build: success
+- Backend build: 0 errors

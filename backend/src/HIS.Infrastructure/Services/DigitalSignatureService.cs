@@ -321,7 +321,7 @@ namespace HIS.Infrastructure.Services
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to extract key usage from certificate"); }
 
             // Try to get provider name (indicates if USB Token)
             try
