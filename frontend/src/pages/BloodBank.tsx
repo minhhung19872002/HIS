@@ -59,6 +59,9 @@ interface BloodUnit {
   location: string;
   donorId?: string;
   testResults?: string;
+  bagCode?: string;
+  collectionDate?: string;
+  source?: string;
 }
 
 interface BloodRequest {

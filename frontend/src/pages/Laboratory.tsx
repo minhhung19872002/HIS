@@ -1269,7 +1269,7 @@ const Laboratory: React.FC = () => {
                     }}
                     onRow={(record) => ({
                       onDoubleClick: () => {
-                        setSelectedRequest(record);
+                        setSelectedRequest(record as unknown as LabRequest);
                         setIsLabDetailModalOpen(true);
                       },
                       style: { cursor: 'pointer' },

@@ -273,7 +273,7 @@ const Surgery: React.FC = () => {
     try {
       const response = await examinationApi.searchExaminations({
         keyword,
-        pageNumber: 1,
+        pageIndex: 1,
         pageSize: 20,
       });
       if (response.data?.items) {

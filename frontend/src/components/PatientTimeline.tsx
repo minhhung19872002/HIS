@@ -254,7 +254,7 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ patientId, onExaminat
                     {/* Extra details for lab results */}
                     {event.module === 'Lab' && event.extra && (
                       <Descriptions size="small" column={3} style={{ marginTop: 4 }}>
-                        {(event.extra as Record<string, unknown>).normalRange && (
+                        {(event.extra as Record<string, unknown>).normalRange != null && (
                           <Descriptions.Item label="GTBT">
                             {String((event.extra as Record<string, unknown>).normalRange)}
                           </Descriptions.Item>

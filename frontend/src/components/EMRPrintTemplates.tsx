@@ -143,11 +143,11 @@ export const MedicalRecordSummaryPrint = forwardRef<HTMLDivElement, MedicalRecor
             <div className="row">
               <div className="col"><Field label="Mạch" value={vs.pulse ? `${vs.pulse} l/ph` : undefined} /></div>
               <div className="col"><Field label="Nhiệt độ" value={vs.temperature ? `${vs.temperature}°C` : undefined} /></div>
-              <div className="col"><Field label="HA" value={vs.systolicBp ? `${vs.systolicBp}/${vs.diastolicBp} mmHg` : undefined} /></div>
+              <div className="col"><Field label="HA" value={vs.systolicBP ? `${vs.systolicBP}/${vs.diastolicBP} mmHg` : undefined} /></div>
               <div className="col"><Field label="Cân nặng" value={vs.weight ? `${vs.weight} kg` : undefined} /></div>
             </div>
           )}
-          {pe?.general && <Field label="Toàn thân" value={pe.general} />}
+          {pe?.generalAppearance && <Field label="Toàn thân" value={pe.generalAppearance} />}
           {pe?.cardiovascular && <Field label="Tim mạch" value={pe.cardiovascular} />}
           {pe?.respiratory && <Field label="Hô hấp" value={pe.respiratory} />}
           {pe?.gastrointestinal && <Field label="Tiêu hóa" value={pe.gastrointestinal} />}
@@ -524,7 +524,7 @@ export const PreAnestheticExamPrint = forwardRef<HTMLDivElement, PreAnestheticEx
           <Field label="Tiền sử bệnh" value={iv?.pastMedicalHistory} />
           <Field label="Tiền sử dị ứng" value={record.allergies?.map(a => a.allergenName).join(', ') || 'Không'} />
           <Field label="Tiền sử phẫu thuật / gây mê" value={iv?.surgicalHistory} />
-          <Field label="Thuốc đang dùng" value={iv?.currentMedications} />
+          <Field label="Thuốc đang dùng" value={iv?.medicationHistory} />
         </div>
 
         <div className="section">
@@ -533,13 +533,13 @@ export const PreAnestheticExamPrint = forwardRef<HTMLDivElement, PreAnestheticEx
             <>
               <div className="row">
                 <div className="col"><Field label="Mạch" value={vs.pulse ? `${vs.pulse} l/ph` : undefined} /></div>
-                <div className="col"><Field label="HA" value={vs.systolicBp ? `${vs.systolicBp}/${vs.diastolicBp} mmHg` : undefined} /></div>
+                <div className="col"><Field label="HA" value={vs.systolicBP ? `${vs.systolicBP}/${vs.diastolicBP} mmHg` : undefined} /></div>
                 <div className="col"><Field label="Nhiệt độ" value={vs.temperature ? `${vs.temperature}°C` : undefined} /></div>
               </div>
               <div className="row">
                 <div className="col"><Field label="Cân nặng" value={vs.weight ? `${vs.weight} kg` : undefined} /></div>
                 <div className="col"><Field label="Chiều cao" value={vs.height ? `${vs.height} cm` : undefined} /></div>
-                <div className="col"><Field label="SpO2" value={vs.spo2 ? `${vs.spo2}%` : undefined} /></div>
+                <div className="col"><Field label="SpO2" value={vs.spO2 ? `${vs.spO2}%` : undefined} /></div>
               </div>
             </>
           )}
@@ -702,7 +702,7 @@ export const TreatmentProgressNotePrint = forwardRef<HTMLDivElement, TreatmentPr
           {vs && (
             <div className="row" style={{ marginBottom: 8 }}>
               <div className="col"><Field label="Mạch" value={vs.pulse ? `${vs.pulse} l/ph` : undefined} /></div>
-              <div className="col"><Field label="HA" value={vs.systolicBp ? `${vs.systolicBp}/${vs.diastolicBp}` : undefined} /></div>
+              <div className="col"><Field label="HA" value={vs.systolicBP ? `${vs.systolicBP}/${vs.diastolicBP}` : undefined} /></div>
               <div className="col"><Field label="Nhiệt độ" value={vs.temperature ? `${vs.temperature}°C` : undefined} /></div>
             </div>
           )}
@@ -993,13 +993,13 @@ export const MedicalRecordFinalSummaryPrint = forwardRef<HTMLDivElement, Medical
               <strong style={{ fontSize: 12 }}>Khám lúc vào viện:</strong>
               <div className="row">
                 <div className="col"><Field label="Mạch" value={vs.pulse ? `${vs.pulse} l/ph` : undefined} /></div>
-                <div className="col"><Field label="HA" value={vs.systolicBp ? `${vs.systolicBp}/${vs.diastolicBp}` : undefined} /></div>
+                <div className="col"><Field label="HA" value={vs.systolicBP ? `${vs.systolicBP}/${vs.diastolicBP}` : undefined} /></div>
                 <div className="col"><Field label="Nhiệt độ" value={vs.temperature ? `${vs.temperature}°C` : undefined} /></div>
                 <div className="col"><Field label="CN" value={vs.weight ? `${vs.weight}kg` : undefined} /></div>
               </div>
             </div>
           )}
-          {pe?.general && <Field label="Khám toàn thân" value={pe.general} />}
+          {pe?.generalAppearance && <Field label="Khám toàn thân" value={pe.generalAppearance} />}
         </div>
 
         <div className="section">
@@ -1068,8 +1068,8 @@ export const NutritionExamPrint = forwardRef<HTMLDivElement, NutritionExamProps>
         <h2>PHIẾU KHÁM DINH DƯỠNG</h2>
         <div className="section">
           <div className="row"><div className="col"><Field label="Họ tên" value={p?.fullName} /></div><div className="col"><Field label="Tuổi" value={p?.dateOfBirth ? dayjs().diff(dayjs(p.dateOfBirth), 'year') + '' : undefined} /></div><div className="col"><Field label="Giới" value={p?.gender === 1 ? 'Nam' : p?.gender === 2 ? 'Nữ' : undefined} /></div></div>
-          <div className="row"><div className="col"><Field label="Khoa" value={record?.departmentName} /></div><div className="col"><Field label="Buồng" /></div><div className="col"><Field label="Giường" /></div></div>
-          <Field label="Chẩn đoán" value={record?.mainDiagnosis} />
+          <div className="row"><div className="col"><Field label="Khoa" value={(record as any)?.departmentName} /></div><div className="col"><Field label="Buồng" /></div><div className="col"><Field label="Giường" /></div></div>
+          <Field label="Chẩn đoán" value={record?.diagnoses?.[0]?.icdName} />
         </div>
         <div className="section">
           <div className="section-title">I. ĐÁNH GIÁ DINH DƯỠNG</div>
@@ -1117,8 +1117,8 @@ export const SurgeryRecordPrint = forwardRef<HTMLDivElement, SurgeryRecordProps>
         <h2>PHIẾU PHẪU THUẬT / THỦ THUẬT</h2>
         <div className="section">
           <div className="row"><div className="col"><Field label="Họ tên" value={p?.fullName} /></div><div className="col"><Field label="Tuổi" value={p?.dateOfBirth ? dayjs().diff(dayjs(p.dateOfBirth), 'year') + '' : undefined} /></div><div className="col"><Field label="Giới" value={p?.gender === 1 ? 'Nam' : p?.gender === 2 ? 'Nữ' : undefined} /></div></div>
-          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={record?.departmentName} /></div></div>
-          <Field label="Chẩn đoán trước mổ" value={record?.mainDiagnosis} />
+          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={(record as any)?.departmentName} /></div></div>
+          <Field label="Chẩn đoán trước mổ" value={record?.diagnoses?.[0]?.icdName} />
           <Field label="Chẩn đoán sau mổ" />
         </div>
         <div className="section">
@@ -1173,8 +1173,8 @@ export const SurgeryApprovalPrint = forwardRef<HTMLDivElement, SurgeryApprovalPr
         <h2>PHIẾU DUYỆT PHẪU THUẬT / THỦ THUẬT</h2>
         <div className="section">
           <div className="row"><div className="col"><Field label="Họ tên" value={p?.fullName} /></div><div className="col"><Field label="Tuổi" value={p?.dateOfBirth ? dayjs().diff(dayjs(p.dateOfBirth), 'year') + '' : undefined} /></div><div className="col"><Field label="Giới" value={p?.gender === 1 ? 'Nam' : p?.gender === 2 ? 'Nữ' : undefined} /></div></div>
-          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={record?.departmentName} /></div></div>
-          <Field label="Chẩn đoán" value={record?.mainDiagnosis} />
+          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={(record as any)?.departmentName} /></div></div>
+          <Field label="Chẩn đoán" value={record?.diagnoses?.[0]?.icdName} />
         </div>
         <div className="section">
           <div className="section-title">I. ĐỀ NGHỊ PHẪU THUẬT</div>
@@ -1225,8 +1225,8 @@ export const SurgerySummaryPrint = forwardRef<HTMLDivElement, SurgerySummaryProp
         <h2>SƠ KẾT PHẪU THUẬT / THỦ THUẬT</h2>
         <div className="section">
           <div className="row"><div className="col"><Field label="Họ tên" value={p?.fullName} /></div><div className="col"><Field label="Tuổi" value={p?.dateOfBirth ? dayjs().diff(dayjs(p.dateOfBirth), 'year') + '' : undefined} /></div></div>
-          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={record?.departmentName} /></div></div>
-          <Field label="Chẩn đoán trước mổ" value={record?.mainDiagnosis} />
+          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={(record as any)?.departmentName} /></div></div>
+          <Field label="Chẩn đoán trước mổ" value={record?.diagnoses?.[0]?.icdName} />
         </div>
         <div className="section">
           <div className="section-title">I. TÓM TẮT PHẪU THUẬT</div>
@@ -1269,13 +1269,13 @@ export const DepartmentTransferPrint = forwardRef<HTMLDivElement, DeptTransferPr
         <h2>PHIẾU BÀN GIAO NGƯỜI BỆNH CHUYỂN KHOA</h2>
         <div className="section">
           <div className="row"><div className="col"><Field label="Họ tên" value={p?.fullName} /></div><div className="col"><Field label="Tuổi" value={p?.dateOfBirth ? dayjs().diff(dayjs(p.dateOfBirth), 'year') + '' : undefined} /></div><div className="col"><Field label="Giới" value={p?.gender === 1 ? 'Nam' : p?.gender === 2 ? 'Nữ' : undefined} /></div></div>
-          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Số BHYT" value={p?.insuranceNumber} /></div></div>
-          <div className="row"><div className="col"><Field label="Khoa chuyển" value={record?.departmentName} /></div><div className="col"><Field label="Khoa nhận" /></div></div>
+          <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Số BHYT" value={(p as any)?.insuranceNumber} /></div></div>
+          <div className="row"><div className="col"><Field label="Khoa chuyển" value={(record as any)?.departmentName} /></div><div className="col"><Field label="Khoa nhận" /></div></div>
           <div className="row"><div className="col"><Field label="Ngày giờ chuyển" /></div><div className="col"><Field label="Ngày giờ nhận" /></div></div>
         </div>
         <div className="section">
           <div className="section-title">I. TÌNH TRẠNG NGƯỜI BỆNH KHI CHUYỂN</div>
-          <Field label="Chẩn đoán" value={record?.mainDiagnosis} />
+          <Field label="Chẩn đoán" value={record?.diagnoses?.[0]?.icdName} />
           <Field label="Tóm tắt diễn biến bệnh" />
           <Field label="Điều trị đã thực hiện" />
           <div className="row"><div className="col"><Field label="Tri giác" /></div><div className="col"><Field label="Mạch" /></div><div className="col"><Field label="Huyết áp" /></div></div>
@@ -1334,7 +1334,7 @@ export const AdmissionExamPrint = forwardRef<HTMLDivElement, AdmissionExamProps>
           <div className="section-title">III. TIỀN SỬ</div>
           <Field label="Bản thân" />
           <Field label="Gia đình" />
-          <Field label="Dị ứng" value={record?.allergies} />
+          <Field label="Dị ứng" value={record?.allergies?.map(a => a.allergenName).join(', ') || 'Không'} />
         </div>
         <div className="section">
           <div className="section-title">IV. KHÁM LÂM SÀNG</div>
@@ -1359,7 +1359,7 @@ export const AdmissionExamPrint = forwardRef<HTMLDivElement, AdmissionExamProps>
         </div>
         <div className="section">
           <div className="section-title">VI. CHẨN ĐOÁN</div>
-          <Field label="Chẩn đoán sơ bộ" value={record?.mainDiagnosis} />
+          <Field label="Chẩn đoán sơ bộ" value={record?.diagnoses?.[0]?.icdName} />
           <Field label="Chẩn đoán phân biệt" />
           <Field label="Hướng điều trị" />
         </div>

@@ -1262,7 +1262,7 @@ const HealthExchange: React.FC = () => {
   // Helper to extract a human-readable summary from a FHIR resource
   function extractResourceSummary(resource: FhirResource | undefined): string {
     if (!resource) return '';
-    const r = resource as Record<string, unknown>;
+    const r = resource as unknown as Record<string, unknown>;
     // Patient
     if (r.name && Array.isArray(r.name) && r.name.length > 0) {
       return (r.name[0] as Record<string, unknown>)?.text as string || '';

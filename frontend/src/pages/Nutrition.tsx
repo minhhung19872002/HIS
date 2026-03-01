@@ -190,7 +190,6 @@ const Nutrition: React.FC = () => {
         screeningTool: 'NRS-2002',
         nrsNutritionalScore: (values.bmiScore || 0) + (values.weightLossScore || 0) + (values.intakeScore || 0),
         nrsSeverityScore: values.diseaseScore || 0,
-        nrsAgeAdjustment: undefined,
         mustBMIScore: values.bmiScore,
         mustWeightLossScore: values.weightLossScore,
         mustAcuteIllnessScore: values.diseaseScore,

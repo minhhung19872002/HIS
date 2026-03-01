@@ -465,12 +465,12 @@ const EMR: React.FC = () => {
             <Descriptions size="small" column={4}>
               <Descriptions.Item label="Mạch">{vitalSigns.pulse ?? '-'} l/ph</Descriptions.Item>
               <Descriptions.Item label="Nhiệt độ">{vitalSigns.temperature ?? '-'} °C</Descriptions.Item>
-              <Descriptions.Item label="HA">{vitalSigns.systolicBp ?? '-'}/{vitalSigns.diastolicBp ?? '-'} mmHg</Descriptions.Item>
+              <Descriptions.Item label="HA">{vitalSigns.systolicBP ?? '-'}/{vitalSigns.diastolicBP ?? '-'} mmHg</Descriptions.Item>
               <Descriptions.Item label="Nhịp thở">{vitalSigns.respiratoryRate ?? '-'} l/ph</Descriptions.Item>
               <Descriptions.Item label="Cân nặng">{vitalSigns.weight ?? '-'} kg</Descriptions.Item>
               <Descriptions.Item label="Chiều cao">{vitalSigns.height ?? '-'} cm</Descriptions.Item>
               <Descriptions.Item label="BMI">{vitalSigns.bmi ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="SpO2">{vitalSigns.spo2 ?? '-'} %</Descriptions.Item>
+              <Descriptions.Item label="SpO2">{vitalSigns.spO2 ?? '-'} %</Descriptions.Item>
             </Descriptions>
           </Card>
         )}
@@ -492,7 +492,7 @@ const EMR: React.FC = () => {
         {physicalExam && (
           <Card size="small" title={<><ExperimentOutlined /> Khám lâm sàng</>} style={{ marginBottom: 12 }}>
             <Descriptions size="small" column={1} layout="vertical">
-              {physicalExam.general && <Descriptions.Item label="Toàn thân">{physicalExam.general}</Descriptions.Item>}
+              {physicalExam.generalAppearance && <Descriptions.Item label="Toàn thân">{physicalExam.generalAppearance}</Descriptions.Item>}
               {physicalExam.cardiovascular && <Descriptions.Item label="Tim mạch">{physicalExam.cardiovascular}</Descriptions.Item>}
               {physicalExam.respiratory && <Descriptions.Item label="Hô hấp">{physicalExam.respiratory}</Descriptions.Item>}
               {physicalExam.gastrointestinal && <Descriptions.Item label="Tiêu hóa">{physicalExam.gastrointestinal}</Descriptions.Item>}
@@ -531,7 +531,7 @@ const EMR: React.FC = () => {
           <Card size="small" title="Kết luận" style={{ marginBottom: 12 }}>
             <Descriptions size="small" column={1}>
               <Descriptions.Item label="Kết luận">{medicalRecord.conclusion.conclusionType === 1 ? 'Về nhà' : medicalRecord.conclusion.conclusionType === 2 ? 'Nhập viện' : medicalRecord.conclusion.conclusionType === 3 ? 'Chuyển viện' : 'Khác'}</Descriptions.Item>
-              {medicalRecord.conclusion.note && <Descriptions.Item label="Ghi chú">{medicalRecord.conclusion.note}</Descriptions.Item>}
+              {medicalRecord.conclusion.conclusionNotes && <Descriptions.Item label="Ghi chú">{medicalRecord.conclusion.conclusionNotes}</Descriptions.Item>}
             </Descriptions>
           </Card>
         )}

@@ -244,9 +244,9 @@ const Dashboard: React.FC = () => {
                         <YAxis yAxisId="right" orientation="right" fontSize={12}
                           tickFormatter={(v) => `${(v / 1000000).toFixed(0)}tr`} />
                         <RechartsTooltip
-                          formatter={(value: number, name: string) => {
-                            if (name === 'Doanh thu') return [`${value.toLocaleString('vi-VN')} ₫`, name];
-                            return [value, name];
+                          formatter={(value: any, name: any) => {
+                            if (name === 'Doanh thu') return [`${(value ?? 0).toLocaleString('vi-VN')} ₫`, 'Doanh thu'];
+                            return [value ?? 0, name];
                           }}
                         />
                         <Legend />
@@ -299,7 +299,7 @@ const Dashboard: React.FC = () => {
                           outerRadius={100}
                           paddingAngle={3}
                           dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          label={({ name, percent }: any) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
                         >
                           {pieData.map((entry, i) => (
                             <Cell key={`cell-${i}`} fill={entry.color} />

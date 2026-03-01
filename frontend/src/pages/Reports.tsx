@@ -985,7 +985,7 @@ const ExistingReportsContent: React.FC = () => {
                 </div>
               ) : (
                 <Tabs
-                  tabPlacement="left"
+                  tabPlacement="start"
                   activeKey={activeCategory}
                   onChange={setActiveCategory}
                   items={Object.entries(reportCategories).map(([key, value]) => ({

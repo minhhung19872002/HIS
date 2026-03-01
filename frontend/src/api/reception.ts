@@ -887,4 +887,7 @@ export const getQueueConfiguration = (roomId: string, queueType: number) =>
 export const saveQueueConfiguration = (dto: any) =>
   api.post('/reception/queue/config', dto);
 
+export const searchPatient = (keyword: string) =>
+  api.get<any[]>('/reception/patients/search', { params: { keyword } });
+
 // #endregion

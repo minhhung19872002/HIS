@@ -97,14 +97,12 @@ const MedicalSupply: React.FC = () => {
           pageSize: 50,
         }),
         warehouseApi.getReusableSupplies(selectedWarehouse),
-        warehouseApi.getProcurementRequests({
-          warehouseId: selectedWarehouse,
-          status: undefined,
-          fromDate: dayjs().subtract(90, 'day').format('YYYY-MM-DD'),
-          toDate: dayjs().format('YYYY-MM-DD'),
-          page: 1,
-          pageSize: 50,
-        }),
+        warehouseApi.getProcurementRequests(
+          selectedWarehouse,
+          undefined,
+          dayjs().subtract(90, 'day').format('YYYY-MM-DD'),
+          dayjs().format('YYYY-MM-DD'),
+        ),
       ]);
 
       if (results[0].status === 'fulfilled' && results[0].value.data) {
@@ -135,7 +133,7 @@ const MedicalSupply: React.FC = () => {
         setReusableSupplies(results[4].value.data || []);
       }
       if (results[5].status === 'fulfilled' && results[5].value.data) {
-        const allProcurements = results[5].value.data?.items || results[5].value.data || [];
+        const allProcurements = (results[5].value.data as any)?.items || results[5].value.data || [];
         setProcurements(Array.isArray(allProcurements) ? allProcurements : []);
       }
 

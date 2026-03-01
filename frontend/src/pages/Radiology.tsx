@@ -44,6 +44,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import risApi from '../api/ris';
+import type { USBTokenCertificate, PdfGenerateSignRequest } from '../api/ris';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
@@ -266,7 +267,7 @@ const Radiology: React.FC = () => {
   };
 
   // USB Token state
-  const [usbTokenCertificates, setUsbTokenCertificates] = useState<risApi.USBTokenCertificate[]>([]);
+  const [usbTokenCertificates, setUsbTokenCertificates] = useState<USBTokenCertificate[]>([]);
   const [loadingCertificates, setLoadingCertificates] = useState(false);
 
   // Handle digital signature
@@ -313,7 +314,7 @@ const Radiology: React.FC = () => {
         }
 
         // Generate and sign PDF with radiology report data
-        const pdfRequest: risApi.PdfGenerateSignRequest = {
+        const pdfRequest: PdfGenerateSignRequest = {
           patientCode: selectedReportToSign.patientCode,
           patientName: selectedReportToSign.patientName,
           requestCode: selectedReportToSign.requestCode,

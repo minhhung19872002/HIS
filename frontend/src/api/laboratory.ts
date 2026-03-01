@@ -38,6 +38,8 @@ export interface LabRequest {
   analyzer?: string;
   processingStartTime?: string;
   processingEndTime?: string;
+  clinicalInfo?: string;
+  notes?: string;
 }
 
 export interface TestParameter {

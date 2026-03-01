@@ -247,7 +247,7 @@ const LabQC: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis domain={[ljData.mean - 4 * ljData.sd, ljData.mean + 4 * ljData.sd]} />
-                <RTooltip formatter={(value: number) => value.toFixed(2)} />
+                <RTooltip formatter={(value: number | undefined) => (value ?? 0).toFixed(2)} />
                 <Legend />
                 <ReferenceLine y={ljData.mean} stroke="#1890ff" strokeDasharray="5 5" label="Mean" />
                 <ReferenceLine y={ljData.mean + ljData.sd} stroke="#52c41a" strokeDasharray="3 3" label="+1SD" />

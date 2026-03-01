@@ -79,8 +79,8 @@ const PatientInfoBlock: React.FC<{ record?: MedicalRecordFullDto | null }> = ({ 
   return (
     <div className="section">
       <div className="row"><div className="col"><Field label="Họ tên" value={p?.fullName} /></div><div className="col"><Field label="Tuổi" value={p?.dateOfBirth ? dayjs().diff(dayjs(p.dateOfBirth), 'year') + '' : undefined} /></div><div className="col"><Field label="Giới" value={p?.gender === 1 ? 'Nam' : p?.gender === 2 ? 'Nữ' : undefined} /></div></div>
-      <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={record?.departmentName} /></div><div className="col"><Field label="Buồng/Giường" /></div></div>
-      <Field label="Chẩn đoán" value={record?.mainDiagnosis} />
+      <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={(record as any)?.departmentName} /></div><div className="col"><Field label="Buồng/Giường" /></div></div>
+      <Field label="Chẩn đoán" value={record?.diagnoses?.[0]?.icdName} />
     </div>
   );
 };
@@ -154,7 +154,7 @@ export const NursingAssessmentPrint = forwardRef<HTMLDivElement, NursingProps>(
       <div className="section">
         <div className="section-title">I. NHẬN ĐỊNH BAN ĐẦU</div>
         <div className="row"><div className="col"><Field label="Ngày nhập viện" /></div><div className="col"><Field label="Lý do nhập viện" /></div></div>
-        <Field label="Tiền sử bệnh" /><Field label="Dị ứng" value={record?.allergies} />
+        <Field label="Tiền sử bệnh" /><Field label="Dị ứng" value={record?.allergies?.map(a => a.allergenName).join(', ') || 'Không'} />
         <Field label="Thuốc đang dùng" />
       </div>
       <div className="section">

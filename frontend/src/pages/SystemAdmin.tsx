@@ -1055,7 +1055,7 @@ const SystemAdmin: React.FC = () => {
                               <Descriptions.Item label="Trạng thái">
                                 <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Khóa'}</Tag>
                               </Descriptions.Item>
-                              <Descriptions.Item label="Đăng nhập cuối">{record.lastLogin || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Đăng nhập cuối">{record.lastLoginAt || '-'}</Descriptions.Item>
                             </Descriptions>
                           ),
                         });
@@ -1097,15 +1097,15 @@ const SystemAdmin: React.FC = () => {
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: `Chi tiết vai trò - ${record.name}`,
+                          title: `Chi tiết vai trò - ${record.roleName}`,
                           width: 500,
                           content: (
                             <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Tên vai trò">{record.name}</Descriptions.Item>
+                              <Descriptions.Item label="Tên vai trò">{record.roleName}</Descriptions.Item>
                               <Descriptions.Item label="Mô tả">{record.description || '-'}</Descriptions.Item>
                               <Descriptions.Item label="Số người dùng">{record.userCount || 0}</Descriptions.Item>
                               <Descriptions.Item label="Quyền">
-                                {record.permissions?.map((p: string) => <Tag key={p}>{p}</Tag>) || '-'}
+                                {record.permissions?.map((p) => <Tag key={p.id}>{p.permissionName}</Tag>) || '-'}
                               </Descriptions.Item>
                             </Descriptions>
                           ),
@@ -1138,14 +1138,14 @@ const SystemAdmin: React.FC = () => {
                   onRow={(record) => ({
                     onDoubleClick: () => {
                       Modal.info({
-                        title: `Chi tiết cấu hình - ${record.key}`,
+                        title: `Chi tiết cấu hình - ${record.configKey}`,
                         width: 500,
                         content: (
                           <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                            <Descriptions.Item label="Khóa">{record.key}</Descriptions.Item>
-                            <Descriptions.Item label="Giá trị">{record.value}</Descriptions.Item>
+                            <Descriptions.Item label="Khóa">{record.configKey}</Descriptions.Item>
+                            <Descriptions.Item label="Giá trị">{record.configValue}</Descriptions.Item>
                             <Descriptions.Item label="Mô tả">{record.description || '-'}</Descriptions.Item>
-                            <Descriptions.Item label="Nhóm">{record.group || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="Nhóm">{record.configType || '-'}</Descriptions.Item>
                           </Descriptions>
                         ),
                       });
@@ -1412,9 +1412,9 @@ const SystemAdmin: React.FC = () => {
                             <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
                               <Descriptions.Item label="Tiêu đề">{record.title}</Descriptions.Item>
                               <Descriptions.Item label="Nội dung">{record.content}</Descriptions.Item>
-                              <Descriptions.Item label="Loại">{record.type}</Descriptions.Item>
-                              <Descriptions.Item label="Đối tượng">{record.target || 'Tất cả'}</Descriptions.Item>
-                              <Descriptions.Item label="Ngày gửi">{record.sentDate}</Descriptions.Item>
+                              <Descriptions.Item label="Loại">{record.notificationType}</Descriptions.Item>
+                              <Descriptions.Item label="Đối tượng">{record.targetUserId || record.targetRoleId || 'Tất cả'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày gửi">{record.createdAt}</Descriptions.Item>
                             </Descriptions>
                           ),
                         });
