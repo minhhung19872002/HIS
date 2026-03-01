@@ -1202,3 +1202,10 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Backend build: 0 errors
 
 **NangCap2 Status: 27/28 complete** (only #28 microscope connectivity remaining - hardware dependent)
+
+**100. BloodBank Enhancement - 3 new tabs (CAN NANG CAP)**
+- Tab "Theo nhóm máu": 8 blood group cards (A±/B±/AB±/O±) with available count, volume, expiry alerts + summary table with totals
+- Tab "Hạn sử dụng": 4 KPI cards (expired/≤7d/8-30d/>30d) + sub-tabs with filtered inventory tables + expired alert
+- Tab "Gelcard": Gel card test result recording (ABO/Rh, cross-match, antibody screening, DAT) + pending/tested status display
+- Console-errors: 41/41 pass
+- User-workflow: 40/40, All-flows: 60/60

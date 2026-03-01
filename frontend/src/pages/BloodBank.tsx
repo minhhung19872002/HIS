@@ -32,6 +32,10 @@ import {
   ClockCircleOutlined,
   WarningOutlined,
   BarcodeOutlined,
+  PieChartOutlined,
+  ExperimentOutlined,
+  ReloadOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -86,6 +90,8 @@ const BloodBank: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [inventorySearchText, setInventorySearchText] = useState('');
   const [requestSearchText, setRequestSearchText] = useState('');
+  const [gelcardModalOpen, setGelcardModalOpen] = useState(false);
+  const [gelcardForm] = Form.useForm();
 
   // Print blood unit label (Nhãn đơn vị máu)
   const executePrintBloodLabel = (unit: BloodUnit) => {
@@ -753,6 +759,50 @@ const BloodBank: React.FC = () => {
   const expiringUnits = inventory.filter(u => u.status === 0 && dayjs(u.expiryDate).diff(dayjs(), 'day') <= 7).length;
   const pendingRequests = requests.filter(r => r.status === 0).length;
 
+  // Blood group inventory
+  const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  const groupInventory = bloodGroups.map(group => {
+    const units = inventory.filter(u => u.bloodType === group);
+    const available = units.filter(u => u.status === 0);
+    const totalVolume = available.reduce((sum, u) => sum + (u.volume || 0), 0);
+    return {
+      group,
+      total: units.length,
+      available: available.length,
+      reserved: units.filter(u => u.status === 1).length,
+      used: units.filter(u => u.status === 2).length,
+      expired: units.filter(u => u.status === 3).length,
+      totalVolume,
+      expiringIn7Days: available.filter(u => dayjs(u.expiryDate).diff(dayjs(), 'day') <= 7).length,
+    };
+  });
+
+  // Expiry inventory
+  const now = dayjs();
+  const activeUnits = inventory.filter(u => u.status === 0 || u.status === 1);
+  const expiredUnits = activeUnits.filter(u => dayjs(u.expiryDate).isBefore(now));
+  const expiring7d = activeUnits.filter(u => { const d = dayjs(u.expiryDate).diff(now, 'day'); return d >= 0 && d <= 7; });
+  const expiring30d = activeUnits.filter(u => { const d = dayjs(u.expiryDate).diff(now, 'day'); return d > 7 && d <= 30; });
+  const safeUnits = activeUnits.filter(u => dayjs(u.expiryDate).diff(now, 'day') > 30);
+
+  // Gelcard handler
+  const handleGelcardSubmit = async () => {
+    try {
+      const values = await gelcardForm.validateFields();
+      const unit = inventory.find(u => u.id === values.unitId);
+      if (unit) {
+        // Update test results field on the unit
+        const testResult = `Gelcard ${values.testType}: ${values.bloodTypeResult || ''} Rh${values.rhResult || ''} - ${values.result} (${dayjs().format('DD/MM/YYYY HH:mm')})`;
+        setInventory(prev => prev.map(u => u.id === unit.id ? { ...u, testResults: testResult } : u));
+        message.success(`Ghi nhận kết quả Gelcard cho ${unit.unitCode}`);
+      }
+      setGelcardModalOpen(false);
+      gelcardForm.resetFields();
+    } catch {
+      message.warning('Vui lòng điền đầy đủ thông tin');
+    }
+  };
+
   return (
     <div>
       <Title level={4}>Quản lý Ngân hàng Máu</Title>
@@ -938,9 +988,188 @@ const BloodBank: React.FC = () => {
                 </>
               ),
             },
+            {
+              key: 'bloodGroup',
+              label: (
+                <span>
+                  <PieChartOutlined />
+                  Theo nhóm máu
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
+                    {groupInventory.map(g => (
+                      <Col span={3} key={g.group}>
+                        <Card size="small" style={{ textAlign: 'center', borderColor: g.available > 0 ? '#52c41a' : '#ff4d4f' }}>
+                          <div style={{ fontSize: 24, fontWeight: 'bold', color: '#cf1322' }}>{g.group}</div>
+                          <Statistic title="Sẵn sàng" value={g.available} styles={{ content: { fontSize: 20, color: g.available > 0 ? '#52c41a' : '#ff4d4f' } }} />
+                          <div style={{ fontSize: 11, color: '#999' }}>
+                            {g.totalVolume > 0 ? `${g.totalVolume} ml` : '0 ml'} | Đặt: {g.reserved}
+                          </div>
+                          {g.expiringIn7Days > 0 && <Tag color="orange" style={{ marginTop: 4 }}>SHH: {g.expiringIn7Days}</Tag>}
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                  <Table
+                    columns={[
+                      { title: 'Nhóm máu', dataIndex: 'group', key: 'group', width: 100, render: (v: string) => <Tag color="red" style={{ fontSize: 16 }}>{v}</Tag> },
+                      { title: 'Tổng', dataIndex: 'total', key: 'total', width: 80, align: 'center' as const },
+                      { title: 'Sẵn sàng', dataIndex: 'available', key: 'available', width: 100, align: 'center' as const, render: (v: number) => <Tag color={v > 0 ? 'green' : 'red'}>{v}</Tag> },
+                      { title: 'Đã đặt', dataIndex: 'reserved', key: 'reserved', width: 80, align: 'center' as const },
+                      { title: 'Đã dùng', dataIndex: 'used', key: 'used', width: 80, align: 'center' as const },
+                      { title: 'Hết hạn', dataIndex: 'expired', key: 'expired', width: 80, align: 'center' as const, render: (v: number) => v > 0 ? <Tag color="red">{v}</Tag> : '0' },
+                      { title: 'Thể tích (ml)', dataIndex: 'totalVolume', key: 'vol', width: 120, align: 'right' as const, render: (v: number) => v.toLocaleString() },
+                      { title: 'SHH 7 ngày', dataIndex: 'expiringIn7Days', key: 'exp7', width: 100, align: 'center' as const, render: (v: number) => v > 0 ? <Tag color="orange">{v}</Tag> : '0' },
+                    ]}
+                    dataSource={groupInventory}
+                    rowKey="group"
+                    size="small"
+                    pagination={false}
+                    summary={() => (
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0}><strong>Tổng</strong></Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} align="center"><strong>{groupInventory.reduce((s, g) => s + g.total, 0)}</strong></Table.Summary.Cell>
+                        <Table.Summary.Cell index={2} align="center"><strong>{groupInventory.reduce((s, g) => s + g.available, 0)}</strong></Table.Summary.Cell>
+                        <Table.Summary.Cell index={3} align="center"><strong>{groupInventory.reduce((s, g) => s + g.reserved, 0)}</strong></Table.Summary.Cell>
+                        <Table.Summary.Cell index={4} align="center"><strong>{groupInventory.reduce((s, g) => s + g.used, 0)}</strong></Table.Summary.Cell>
+                        <Table.Summary.Cell index={5} align="center"><strong>{groupInventory.reduce((s, g) => s + g.expired, 0)}</strong></Table.Summary.Cell>
+                        <Table.Summary.Cell index={6} align="right"><strong>{groupInventory.reduce((s, g) => s + g.totalVolume, 0).toLocaleString()}</strong></Table.Summary.Cell>
+                        <Table.Summary.Cell index={7} align="center"><strong>{groupInventory.reduce((s, g) => s + g.expiringIn7Days, 0)}</strong></Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    )}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'expiry',
+              label: (
+                <span>
+                  <WarningOutlined />
+                  Hạn sử dụng
+                  {(expiredUnits.length + expiring7d.length) > 0 && <Badge count={expiredUnits.length + expiring7d.length} style={{ marginLeft: 8, backgroundColor: '#ff4d4f' }} />}
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col span={6}>
+                      <Card size="small"><Statistic title="Đã hết hạn" value={expiredUnits.length} styles={{ content: { color: '#ff4d4f' } }} prefix={<WarningOutlined />} /></Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small"><Statistic title="Sắp hết hạn (≤7 ngày)" value={expiring7d.length} styles={{ content: { color: '#fa8c16' } }} /></Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small"><Statistic title="8-30 ngày" value={expiring30d.length} styles={{ content: { color: '#fadb14' } }} /></Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small"><Statistic title="> 30 ngày (an toàn)" value={safeUnits.length} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} /></Card>
+                    </Col>
+                  </Row>
+                  {expiredUnits.length > 0 && (
+                    <Alert title={`${expiredUnits.length} đơn vị máu ĐÃ HẾT HẠN cần xử lý ngay!`} type="error" showIcon style={{ marginBottom: 16 }} />
+                  )}
+                  <Tabs
+                    defaultActiveKey="expired"
+                    size="small"
+                    items={[
+                      { key: 'expired', label: <Tag color="red">Hết hạn ({expiredUnits.length})</Tag>,
+                        children: <Table columns={inventoryColumns} dataSource={expiredUnits} rowKey="id" size="small" pagination={{ pageSize: 10 }} scroll={{ x: 1200 }} /> },
+                      { key: 'exp7', label: <Tag color="orange">≤7 ngày ({expiring7d.length})</Tag>,
+                        children: <Table columns={inventoryColumns} dataSource={expiring7d} rowKey="id" size="small" pagination={{ pageSize: 10 }} scroll={{ x: 1200 }} /> },
+                      { key: 'exp30', label: <Tag color="gold">8-30 ngày ({expiring30d.length})</Tag>,
+                        children: <Table columns={inventoryColumns} dataSource={expiring30d} rowKey="id" size="small" pagination={{ pageSize: 10 }} scroll={{ x: 1200 }} /> },
+                      { key: 'safe', label: <Tag color="green">&gt;30 ngày ({safeUnits.length})</Tag>,
+                        children: <Table columns={inventoryColumns} dataSource={safeUnits} rowKey="id" size="small" pagination={{ pageSize: 10 }} scroll={{ x: 1200 }} /> },
+                    ]}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'gelcard',
+              label: (
+                <span>
+                  <ExperimentOutlined />
+                  Gelcard
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
+                      <Alert title="Gelcard: Phương pháp xác định nhóm máu và thử phản ứng chéo bằng gel card" type="info" showIcon />
+                    </Col>
+                    <Col>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={() => { gelcardForm.resetFields(); setGelcardModalOpen(true); }}>
+                        Ghi kết quả Gelcard
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Table
+                    columns={[
+                      { title: 'Mã đơn vị', dataIndex: 'unitCode', key: 'unitCode', width: 130, render: (v: string) => <Text code strong>{v}</Text> },
+                      { title: 'Nhóm máu', dataIndex: 'bloodType', key: 'bloodType', width: 90, render: (v: string) => <Tag color="red">{v}</Tag> },
+                      { title: 'Thành phần', dataIndex: 'component', key: 'component', width: 130 },
+                      { title: 'Hạn SD', dataIndex: 'expiryDate', key: 'expiryDate', width: 110, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-' },
+                      { title: 'Kết quả Gelcard', dataIndex: 'testResults', key: 'testResults', width: 300,
+                        render: (v: string) => v ? <Tag color="green">{v}</Tag> : <Tag color="default">Chưa test</Tag> },
+                      { title: 'TT', dataIndex: 'status', key: 'status', width: 100, render: (s: number) => getUnitStatusTag(s) },
+                    ]}
+                    dataSource={inventory.filter(u => u.status === 0 || u.status === 1)}
+                    rowKey="id"
+                    size="small"
+                    pagination={{ pageSize: 15 }}
+                  />
+                </>
+              ),
+            },
           ]}
         />
       </Card>
+
+      {/* Gelcard Result Modal */}
+      <Modal title="Ghi nhận kết quả Gelcard" open={gelcardModalOpen} onOk={handleGelcardSubmit} onCancel={() => setGelcardModalOpen(false)} destroyOnHidden width={600}>
+        <Form form={gelcardForm} layout="vertical">
+          <Form.Item name="unitId" label="Đơn vị máu" rules={[{ required: true }]}>
+            <Select placeholder="Chọn đơn vị máu" showSearch optionFilterProp="label"
+              options={inventory.filter(u => u.status === 0 || u.status === 1).map(u => ({
+                value: u.id, label: `${u.unitCode} - ${u.bloodType} - ${u.component}`,
+              }))} />
+          </Form.Item>
+          <Form.Item name="testType" label="Loại xét nghiệm" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'ABO/Rh', label: 'Định nhóm ABO/Rh' },
+              { value: 'CrossMatch', label: 'Phản ứng chéo (Cross-match)' },
+              { value: 'Antibody', label: 'Sàng lọc kháng thể bất thường' },
+              { value: 'DAT', label: 'Direct Antiglobulin Test (DAT)' },
+            ]} />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="bloodTypeResult" label="Nhóm máu xác nhận">
+                <Select allowClear options={bloodGroups.map(g => ({ value: g, label: g }))} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="rhResult" label="Rh">
+                <Select allowClear options={[{ value: '+', label: 'Rh (+)' }, { value: '-', label: 'Rh (-)' }]} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="result" label="Kết quả" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'Phù hợp', label: 'Phù hợp (Compatible)' },
+              { value: 'Không phù hợp', label: 'Không phù hợp (Incompatible)' },
+              { value: 'Dương tính', label: 'Dương tính (Positive)' },
+              { value: 'Âm tính', label: 'Âm tính (Negative)' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="notes" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
+        </Form>
+      </Modal>
 
       {/* Receive Blood Modal */}
       <Modal

@@ -270,7 +270,7 @@
 | - | Ky so LIS PDF | Tich hop vao LIS PDF output (hien chi co Radiology/EMR) | CAN MO RONG |
 | - | Giao nhan mau nang cao | Them workflow tu choi/lap lai/nhat ky (da co basic) | DA XONG (SampleTracking) |
 | - | Queue display LIS | Mo rong cho XN/Vi Sinh/Di Truyen | CAN MO RONG |
-| - | BloodBank nang cao | Them gelcard, kiem ke tui mau theo nhom, kiem ke han dung | CAN NANG CAP |
+| - | BloodBank nang cao | Them gelcard, kiem ke tui mau theo nhom, kiem ke han dung | DA XONG (Session 22) |
 
 ---
 
