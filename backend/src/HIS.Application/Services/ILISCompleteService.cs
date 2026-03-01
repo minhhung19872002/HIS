@@ -170,12 +170,12 @@ namespace HIS.Application.Services
         /// <summary>
         /// 7.3.7 Duyệt kết quả xét nghiệm (2 bước - duyệt sơ bộ)
         /// </summary>
-        Task<bool> PreliminaryApproveLabResultAsync(Guid orderId, string technicianNote);
+        Task<bool> PreliminaryApproveLabResultAsync(Guid orderId, string technicianNote, Guid? approvedByUserId = null);
 
         /// <summary>
         /// 7.3.8 Duyệt kết quả xét nghiệm (2 bước - duyệt chính thức)
         /// </summary>
-        Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote);
+        Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote, Guid? approvedByUserId = null);
 
         /// <summary>
         /// 7.3.9 Hủy duyệt kết quả
@@ -564,6 +564,7 @@ namespace HIS.Application.Services
         public List<Guid> ItemIds { get; set; }
         public string Note { get; set; }
         public string Conclusion { get; set; }
+        public Guid? ApprovedByUserId { get; set; }
     }
 
     public class ProcessCriticalValueDto

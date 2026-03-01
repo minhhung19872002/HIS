@@ -840,7 +840,7 @@ public class LISCompleteService : ILISCompleteService
                                        WHERE Id = @OrderId";
                 using var updateCmd = new SqlCommand(updateOrderSql, connection);
                 updateCmd.Parameters.AddWithValue("@OrderId", dto.OrderId);
-                updateCmd.Parameters.AddWithValue("@ApprovedBy", DBNull.Value); // TODO: get from auth context
+                updateCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedByUserId.HasValue ? (object)dto.ApprovedByUserId.Value : DBNull.Value);
                 await updateCmd.ExecuteNonQueryAsync();
             }
         }
@@ -849,23 +849,25 @@ public class LISCompleteService : ILISCompleteService
         return true;
     }
 
-    public async Task<bool> PreliminaryApproveLabResultAsync(Guid orderId, string technicianNote)
+    public async Task<bool> PreliminaryApproveLabResultAsync(Guid orderId, string technicianNote, Guid? approvedByUserId = null)
     {
         using var connection = new SqlConnection(_context.Database.GetConnectionString());
         await connection.OpenAsync();
 
         // Set order status to 4 (Sơ duyệt - Preliminary approved)
-        var sql = @"UPDATE LabOrders SET Status = 4, Notes = COALESCE(Notes + CHAR(10), '') + @Note
+        var sql = @"UPDATE LabOrders SET Status = 4, ApprovedBy = @ApprovedBy,
+                    Notes = COALESCE(Notes + CHAR(10), '') + @Note
                     WHERE Id = @OrderId AND Status >= 3";
         using var cmd = new SqlCommand(sql, connection);
         cmd.Parameters.AddWithValue("@OrderId", orderId);
+        cmd.Parameters.AddWithValue("@ApprovedBy", approvedByUserId.HasValue ? (object)approvedByUserId.Value : DBNull.Value);
         cmd.Parameters.AddWithValue("@Note", $"[KTV] {technicianNote ?? ""}");
         await cmd.ExecuteNonQueryAsync();
 
         return true;
     }
 
-    public async Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote)
+    public async Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote, Guid? approvedByUserId = null)
     {
         using var connection = new SqlConnection(_context.Database.GetConnectionString());
         await connection.OpenAsync();
@@ -880,12 +882,13 @@ public class LISCompleteService : ILISCompleteService
         }
 
         // Set order status to 5 (Đã duyệt cuối)
-        var sql = @"UPDATE LabOrders SET Status = 5, ApprovedAt = GETDATE(),
+        var sql = @"UPDATE LabOrders SET Status = 5, ApprovedAt = GETDATE(), ApprovedBy = @ApprovedBy,
                     Notes = COALESCE(Notes + CHAR(10), '') + @Note
                     WHERE Id = @OrderId";
         using (var cmd = new SqlCommand(sql, connection))
         {
             cmd.Parameters.AddWithValue("@OrderId", orderId);
+            cmd.Parameters.AddWithValue("@ApprovedBy", approvedByUserId.HasValue ? (object)approvedByUserId.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@Note", $"[BS duyệt] {doctorNote ?? ""}");
             await cmd.ExecuteNonQueryAsync();
         }

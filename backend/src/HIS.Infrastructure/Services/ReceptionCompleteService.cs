@@ -33,6 +33,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
     private readonly IRepository<Department> _departmentRepo;
     private readonly IRepository<User> _userRepo;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBhxhGatewayClient _bhxhClient;
 
     public ReceptionCompleteService(
         HISDbContext context,
@@ -44,7 +45,8 @@ public class ReceptionCompleteService : IReceptionCompleteService
         IRepository<Room> roomRepo,
         IRepository<Department> departmentRepo,
         IRepository<User> userRepo,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IBhxhGatewayClient bhxhClient)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -56,6 +58,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
         _departmentRepo = departmentRepo;
         _userRepo = userRepo;
         _unitOfWork = unitOfWork;
+        _bhxhClient = bhxhClient;
     }
 
     #region 1.1 Room Overview
@@ -2535,8 +2538,14 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
     public async Task<bool> CheckBHXHConnectionAsync()
     {
-        // TODO: Implement BHXH gateway connection check
-        return true;
+        try
+        {
+            return await _bhxhClient.TestConnectionAsync();
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     #endregion

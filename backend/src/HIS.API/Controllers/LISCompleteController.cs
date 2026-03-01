@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +24,12 @@ namespace HIS.API.Controllers
         public LISCompleteController(ILISCompleteService lisService)
         {
             _lisService = lisService;
+        }
+
+        private Guid? GetUserId()
+        {
+            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return Guid.TryParse(claim, out var id) ? id : null;
         }
 
         #region DEV Endpoints
@@ -349,6 +356,7 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> ApproveLabResult([FromBody] ApproveLabResultDto dto)
         {
+            dto.ApprovedByUserId ??= GetUserId();
             await _lisService.ApproveLabResultAsync(dto);
             return Ok(new { success = true });
         }
@@ -362,7 +370,7 @@ namespace HIS.API.Controllers
             Guid orderId,
             [FromBody] PreliminaryApproveRequest request)
         {
-            await _lisService.PreliminaryApproveLabResultAsync(orderId, request.TechnicianNote);
+            await _lisService.PreliminaryApproveLabResultAsync(orderId, request.TechnicianNote, GetUserId());
             return Ok(new { success = true });
         }
 
@@ -375,7 +383,7 @@ namespace HIS.API.Controllers
             Guid orderId,
             [FromBody] FinalApproveRequest request)
         {
-            await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote);
+            await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote, GetUserId());
             return Ok(new { success = true });
         }
 
