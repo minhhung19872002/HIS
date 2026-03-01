@@ -244,13 +244,18 @@
 | 18,23,37 | QLHC Hoa chat | `/reagent-management` - ReagentManagement.tsx | DA XONG - Ton kho, su dung, canh bao het/het han, Progress bars |
 | 13,14,26,36 | Giao nhan mau | `/sample-tracking` - SampleTracking.tsx | DA XONG - Tu choi (8 ma ly do), hoan tac, lay lai, timeline, thong ke |
 
-### CAN LAM TIEP (4 hang muc)
+### DA BUILD (Session 21, 2026-03-01)
+
+| # | Yeu cau | Module moi | Trang thai |
+|---|---------|------------|------------|
+| 21 | Giai phau benh & Te bao hoc | `/pathology` - Pathology.tsx | DA XONG - Yeu cau, ket qua (dai the/vi the/nhuom/IHC/phan tu), thong ke, in phieu |
+| 22 | Ket noi HIS-GPB | PathologyController (7 endpoints) | DA XONG - API chi dinh + tra ket qua GPB |
+
+### CAN LAM TIEP (2 hang muc)
 
 | # | Yeu cau | Mo ta | Do kho |
 |---|---------|-------|--------|
 | 12 | Luu chung Vi Sinh | Quan ly tu, hop, mau luu chung, canh bao, tim kiem | Trung binh |
-| 21 | Giai phau benh & Te bao hoc | SID XN, ket qua TBH/GPB/PAP, tieu ban/block, thong ke | Kho |
-| 22 | Ket noi HIS-GPB | Chi dinh va gui ket qua GPB | Trung binh |
 | 28 | Ket noi kinh hien vi | 07 kinh, camera, ket noi (HARDWARE-DEPENDENT) | Kho |
 
 ### CAN NANG CAP (4 hang muc)
@@ -295,6 +300,7 @@
 | HL7 CDA R2 | CDA document generation | 19 |
 | DQGVN | National health data exchange | 19 |
 | 6 LIS sub-modules | QC, Vi Sinh, Luu mau, Sang loc, Hoa chat, Giao nhan mau | 20 |
+| Giai phau benh (Pathology) | Pathology.tsx + PathologyController (7 endpoints) + DB tables | 21 |
 
 ### CON LAI (khong lam)
 

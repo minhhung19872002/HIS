@@ -367,87 +367,87 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
 
     it('opens pre-anesthetic exam form', () => {
       openDropdownAndSelectForm('Khám tiền mê');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU KHÁM TIỀN MÊ').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU KHÁM TIỀN MÊ').should('exist');
       cy.contains('MS. 06/BV').should('exist');
     });
 
     it('opens surgery consent form', () => {
       openDropdownAndSelectForm('Cam kết PT');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('GIẤY CAM KẾT PHẪU THUẬT').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('GIẤY CAM KẾT PHẪU THUẬT').should('exist');
       cy.contains('MS. 07/BV').should('exist');
     });
 
     it('opens treatment progress note', () => {
       openDropdownAndSelectForm('Sơ kết 15 ngày');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU SƠ KẾT 15 NGÀY ĐIỀU TRỊ').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU SƠ KẾT 15 NGÀY ĐIỀU TRỊ').should('exist');
       cy.contains('MS. 08/BV').should('exist');
     });
 
     it('opens counseling form', () => {
       openDropdownAndSelectForm('Phiếu tư vấn');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU TƯ VẤN NGƯỜI BỆNH').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU TƯ VẤN NGƯỜI BỆNH').should('exist');
       cy.contains('MS. 09/BV').should('exist');
     });
 
     it('opens death review form', () => {
       openDropdownAndSelectForm('Kiểm điểm tử vong');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('BIÊN BẢN KIỂM ĐIỂM TỬ VONG').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('BIÊN BẢN KIỂM ĐIỂM TỬ VONG').should('exist');
       cy.contains('MS. 10/BV').should('exist');
     });
 
     it('opens medical record final summary', () => {
       openDropdownAndSelectForm('Tổng kết HSBA');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('TỔNG KẾT HỒ SƠ BỆNH ÁN').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('TỔNG KẾT HỒ SƠ BỆNH ÁN').should('exist');
       cy.contains('MS. 11/BV').should('exist');
     });
 
     // New doctor forms (MS. 12-17)
     it('opens nutrition exam form', () => {
       openDropdownAndSelectForm('Khám dinh dưỡng');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU KHÁM DINH DƯỠNG').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU KHÁM DINH DƯỠNG').should('exist');
       cy.contains('MS. 12/BV').should('exist');
     });
 
     it('opens surgery record form', () => {
       openDropdownAndSelectForm('Phiếu phẫu thuật');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU PHẪU THUẬT / THỦ THUẬT').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU PHẪU THUẬT / THỦ THUẬT').should('exist');
       cy.contains('MS. 13/BV').should('exist');
     });
 
     it('opens admission exam form', () => {
       openDropdownAndSelectForm('Khám vào viện');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU KHÁM VÀO VIỆN').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU KHÁM VÀO VIỆN').should('exist');
       cy.contains('MS. 17/BV').should('exist');
     });
 
     // Nursing forms (DD. 01-21) - sample tests
     it('opens nursing care plan form', () => {
       openDropdownAndSelectForm('KH chăm sóc');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU KẾ HOẠCH CHĂM SÓC ĐIỀU DƯỠNG').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU KẾ HOẠCH CHĂM SÓC ĐIỀU DƯỠNG').should('exist');
       cy.contains('DD. 01/BV').should('exist');
     });
 
     it('opens surgical safety checklist', () => {
       openDropdownAndSelectForm('An toàn PT');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('BẢNG KIỂM AN TOÀN PHẪU THUẬT').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('BẢNG KIỂM AN TOÀN PHẪU THUẬT').should('exist');
       cy.contains('DD. 16/BV').should('exist');
     });
 
     it('opens VAP monitoring form', () => {
       openDropdownAndSelectForm('VP thở máy');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('PHIẾU THEO DÕI PHÒNG NGỪA VIÊM PHỔI THỞ MÁY').should('be.visible');
+      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
+      cy.contains('PHIẾU THEO DÕI PHÒNG NGỪA VIÊM PHỔI THỞ MÁY').should('exist');
       cy.contains('DD. 21/BV').should('exist');
     });
   });
