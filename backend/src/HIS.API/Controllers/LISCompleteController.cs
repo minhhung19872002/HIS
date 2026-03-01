@@ -958,7 +958,6 @@ namespace HIS.API.Controllers
         }
 
         #endregion
-    }
 
     #region Request DTOs
 
@@ -1008,4 +1007,5 @@ namespace HIS.API.Controllers
     }
 
     #endregion
+    }
 }
