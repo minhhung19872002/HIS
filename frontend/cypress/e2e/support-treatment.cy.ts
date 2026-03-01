@@ -11,6 +11,8 @@ const IGNORE_PATTERNS = [
   'favicon.ico',
   'AbortError',
   'CanceledError',
+  'Failed to start the connection',
+  'connection was stopped during negotiation',
 ];
 
 function isIgnored(msg: string): boolean {

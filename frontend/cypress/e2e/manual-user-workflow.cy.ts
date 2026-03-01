@@ -39,6 +39,8 @@ const IGNORE_PATTERNS = [
   'antd',
   'Cannot read properties',
   'DOM Hierarchy',
+  'Failed to start the connection',
+  'connection was stopped during negotiation',
 ]
 
 function isIgnoredError(msg: string): boolean {

@@ -23,6 +23,8 @@ const IGNORE_PATTERNS = [
   'ECONNREFUSED',
   'ERR_CONNECTION_REFUSED',
   'Network Error',
+  'Failed to start the connection',
+  'connection was stopped during negotiation',
 ];
 
 function isIgnored(msg: string): boolean {

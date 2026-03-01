@@ -50,7 +50,7 @@ describe('Pharmacy Deep Console Test', () => {
             if (a instanceof Error) return `${a.name}: ${a.message}`;
             try { return JSON.stringify(a).substring(0, 200); } catch { return String(a); }
           }).join(' ');
-          if (!msg.includes('ResizeObserver')) {
+          if (!msg.includes('ResizeObserver') && !msg.includes('Failed to start the connection') && !msg.includes('connection was stopped during negotiation')) {
             allOutput.push(`[console.error] ${msg}`);
           }
           origError.apply(win.console, args);

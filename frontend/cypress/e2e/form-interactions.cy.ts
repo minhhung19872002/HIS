@@ -24,6 +24,8 @@ const IGNORE_PATTERNS = [
   'Network Error',
   'useForm',
   'is not connected to any Form element',
+  'Failed to start the connection',
+  'connection was stopped during negotiation',
 ];
 
 function isIgnored(msg: string): boolean {

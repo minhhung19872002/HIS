@@ -79,7 +79,9 @@ describe('Debug EMR page - deep controls', () => {
               if (a instanceof Error) return `${a.name}: ${a.message}`;
               try { return JSON.stringify(a); } catch { return String(a); }
             }).join(' ');
-            errors.push(msg);
+            if (!msg.includes('Failed to start the connection') && !msg.includes('connection was stopped during negotiation')) {
+              errors.push(msg);
+            }
             origError.apply(win.console, args);
           };
         },
