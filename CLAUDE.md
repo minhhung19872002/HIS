@@ -885,10 +885,10 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Ky so CKS/USB Token tich hop (can Pkcs11Interop cho programmatic PIN)
 - ~~CCCD validation~~ → DA XONG (Session 18) - frontend + backend, 51 province codes
 - ~~SNOMED CT mapping~~ → DA XONG (Session 18) - SnomedIcdMapping entity, 200+ seed mappings, CRUD API
-- ~~SMS Gateway~~ → DA XONG (Session 19) - eSMS.vn + SpeedSMS.vn, SmsController, SmsManagement.tsx
-- ~~HL7 CDA document generation~~ → DA XONG (Session 20) - CdaDocumentService 1400+ lines, 8 document types, CDA R2 XML
-- ~~DQGVN national health data exchange~~ → DA XONG (Session 20) - DqgvnService, 10 submission types, dashboard, batch submit
-- ~~Oracle DB dual-provider support~~ → BO (khong can thiet cho Level 6)
+- ~~SMS Gateway~~ → DA XONG (Session 19) - eSMS.vn/SpeedSMS.vn + SmsManagement.tsx
+- ~~HL7 CDA document generation~~ → DA XONG (Session 19) - CDA R2 API + frontend
+- ~~DQGVN national health data exchange~~ → DA XONG (Session 19) - DQGVN API + frontend
+- ~~Oracle DB dual-provider~~ → LOAI BO (khong can thiet, chi dung SQL Server)
 
 ---
 
@@ -897,7 +897,7 @@ If a new service/controller is added, register it there or you get 500 errors.
 **85. Phase 2 Digital Signature Context**
 - Thao luan va capture CONTEXT.md cho Phase 2: PKCS#11 + TSA
 - Quyet dinh: PIN trong browser, phien 30 phut, token o server, batch ky 50/lot
-- File: `.planning/phases/02-digital-signature-expansion-pkcs-11-tsa/02-CONTEXT.md`
+- (Planning files da xoa)
 
 **86. Fix AppointmentBooking.tsx verbatimModuleSyntax error**
 - Root cause: `verbatimModuleSyntax: true` trong tsconfig → interface phai dung `import type`
@@ -921,100 +921,6 @@ If a new service/controller is added, register it there or you get 500 errors.
 - `8b835cb` - docs(02): capture phase context for digital signature expansion
 - `d7df295` - fix: separate type imports in AppointmentBooking.tsx
 - `01fc52b` - feat: add CCCD validation, SNOMED CT mapping, fix AppointmentBooking import
-
----
-
-### DA HOAN THANH (Session 20 - 2026-02-28)
-
-**90. HL7 CDA R2 Document Generation**
-
-**Backend (4 files moi, 3 files modified):**
-- `CdaDocumentDTOs.cs`: 8 document types (DischargeSummary, LabReport, RadiologyReport, ProgressNote, ConsultationNote, OperativeNote, ReferralNote, PrescriptionDocument)
-- `ICdaDocumentService.cs`: 8 methods (Generate, Search, Get, GetXml, Validate, Finalize, Delete, Regenerate)
-- `CdaDocumentService.cs` (~1400 lines): Full CDA R2 XML generation voi real EF Core queries
-  - 8 document type builders voi proper LOINC section codes
-  - Patient demographics trong recordTarget (CCCD, BHYT, address)
-  - Author + Custodian sections
-  - Structured body voi coded entries (ICD-10, SNOMED CT, LOINC)
-  - Lab results table, medication substanceAdministration entries
-  - CDA R2 validation (required elements check)
-- `CdaDocumentController.cs`: 8 endpoints tai `/api/cda/*`
-- Entity `CdaDocument` trong Icd.cs, DbSet trong HISDbContext
-- DI registration trong DependencyInjection.cs
-
-**Database:**
-- `scripts/create_cda_documents_table.sql`: table + 4 indexes
-
-**Frontend:**
-- `frontend/src/api/cda.ts`: TypeScript API client (8 functions)
-
-**91. DQGVN National Health Data Exchange (Cong du lieu y te quoc gia)**
-
-**Backend (4 files moi, 3 files modified):**
-- `DqgvnDTOs.cs`: 10 submission types (PatientDemographics, EncounterReport, LabResult, RadiologyResult, PrescriptionReport, DischargeReport, DeathReport, InfectiousDisease, BirthReport, VaccinationReport)
-- `IDqgvnService.cs`: 10 methods (Dashboard, Search, Get, SubmitEncounter, SubmitLabResult, SubmitPatient, Retry, BatchSubmit, GetConfig, SaveConfig)
-- `DqgvnService.cs` (~780 lines): Full implementation voi real EF Core queries
-  - Dashboard: counts by status, group by type, 7-day trend
-  - Submit patient: map Patient entity → Vietnamese DQGVN format (maCSKCB, hoTen, soCCCD, etc.)
-  - Submit encounter: handles OPD (Examination) + IPD (Admission) voi vitals, diagnosis
-  - Submit lab result: LabRequest → LabRequestItem → LabResult mapping
-  - Batch submit: process up to 50 pending submissions
-  - Config: read/write SystemConfigs table
-  - HttpClient voi API key header, offline mode fallback
-- `DqgvnController.cs`: 10 endpoints tai `/api/dqgvn/*`
-- Entity `DqgvnSubmission` trong Icd.cs, DbSet trong HISDbContext
-- DI registration trong DependencyInjection.cs
-
-**Database:**
-- `scripts/create_dqgvn_submissions_table.sql`: table + 5 indexes
-
-**Frontend:**
-- `frontend/src/api/dqgvn.ts`: TypeScript API client (10 functions)
-
-**92. Cypress Tests - 22 tests (17 passing, 5 skipped)**
-- File: `frontend/cypress/e2e/cda-dqgvn.cy.ts`
-- CDA API: search, pagination, filters (type, status, date range), generate, XML retrieval (7 tests)
-- CDA Patient: generate DischargeSummary + Prescription, search by patient (3 tests, skipped if no patient)
-- DQGVN Dashboard: statistics, 7-day trend, by-type breakdown (1 test)
-- DQGVN Submissions: search, pagination, filters (type, status, date range), nonexistent (6 tests)
-- DQGVN Patient: submit demographics, submit encounter, batch submit (3 tests, 2 skipped if no patient)
-- DQGVN Config: get config, update config (2 tests)
-
-**93. Verification**
-- Backend build: 0 errors
-- TypeScript: 0 errors
-- Cypress cda-dqgvn: 17/17 pass (5 skipped - patient dependent)
-
-**94. NangCap2.pdf Analysis - Goi thau LIS-HIS BV Tu Du (37 hang muc)**
-
-DA CO trong HIS:
-- Ky so PKQ (DigitalSignatureService + PKCS#11) → #1,2,3,16,24
-- Ket noi HIS-LIS (HL7 receiver + sender) → #4,5,6
-- Barcode scanning (html5-qrcode) → #7 (can them print barcode label)
-- BloodBank module → #15,17
-- QueueDisplay → #29,30,31 (can mo rong cho LIS queues)
-- Laboratory module + bao cao → #32
-- Ket noi may XN (HL7) → #33
-
-CAN LAM MOI:
-- **Sang loc So sinh** (#8): form nhap thong tin tre (can nang, ngay sinh, tinh trang), phieu ket qua
-- **Sang loc Truoc sinh** (#9): thai ky, sieu am, tien su thai, phieu ket qua
-- **Luu mau** (#10,11,27): QR scan ong mau, chon mau (xanh/khac), vi tri luu, canh bao thoi gian, so do ong mau
-- **Luu chung Vi Sinh** (#12): quan ly tu, hop, mau luu chung, canh bao, tim kiem
-- **Giao nhan mau nang cao** (#13,14,26,36): tu choi mau (barcode, ly do, thoi gian, user), xoa tu choi, lap lai, nhat ky
-- **QLHC Hoa chat** (#18,23,37): so luong hoa chat theo XN/may, nhap-xuat-ton, date su dung
-- **Ket noi HIS-QLHC** (#19,20,25): ket noi Phan mem Quan ly BV de dat hang du tru
-- **Giai phau benh & Te bao hoc** (#21): SID XN, ket qua TBH/GPB/PAP, tieu ban/block, thong ke
-- **Ket noi HIS-GPB** (#22): chi dinh va gui ket qua GPB
-- **Ket noi kinh hien vi** (#28): 07 kinh, camera, ket noi (hardware-dependent)
-- **QC (Quality Control)** (#34): lo QC, ket qua QC, canh bao vi pham, Levey-Jennings chart, import tu LIS
-- **Vi Sinh ket qua** (#35): nuoi cay, vi khuan, khang sinh do, bao cao theo loai mau/vi khuan
-
-CAN NANG CAP:
-- Ky so: tich hop vao LIS PDF output (hien chi co cho Radiology/EMR)
-- Giao nhan mau: them tu choi/lap lai/nhat ky (hien chi co basic tracking)
-- Queue display: mo rong cho XN/Vi Sinh/Di Truyen (hien chi phong kham)
-- BloodBank: them gelcard, kiem ke tui mau theo nhom, kiem ke han dung
 
 ---
 
@@ -1181,3 +1087,33 @@ CAN NANG CAP:
 - `218deb8` - Add patient timeline view and dashboard charts with recharts
 - `43bab3b` - Add comprehensive Cypress tests for new features (34 tests)
 - `c742446` - Fix EMR consultation modal test and 2FA OTP verify test
+
+### DA HOAN THANH (Session 20 - 2026-03-01)
+
+**90. 6 LIS Sub-modules (NangCap2 LIS-HIS)**
+- LabQC.tsx: QC lots, results, Levey-Jennings chart (recharts LineChart), Westgard rules
+- Microbiology.tsx: Culture management, organism ID, AST (S/I/R), Gram stain
+- SampleStorage.tsx: QR/barcode scan, freezer/rack/box locations, expiry alerts
+- Screening.tsx: Newborn + Prenatal screening, Segmented control, result interpretation
+- ReagentManagement.tsx: Inventory with Progress bars, usage tracking, alerts
+- SampleTracking.tsx: Rejection workflow (8 codes), undo, recollect, timeline, stats
+- 6 API clients: labQC.ts, microbiology.ts, sampleStorage.ts, screening.ts, reagent.ts, sampleTracking.ts
+- Routes: /lab-qc, /microbiology, /sample-storage, /screening, /reagent-management, /sample-tracking
+- Menu items added under "Can lam sang" group in MainLayout.tsx
+
+**91. Fix Cypress tests**
+- deep-controls.cy.ts: SignalR ignore patterns + intercept fix
+- online-booking.cy.ts: Fix auth setup (onBeforeLoad), fix modal scope (cy.within)
+- bhxh-insurance.cy.ts: Fix Vietnamese diacritic regex → exact text match
+- click-through-workflow.cy.ts: Fix CCCD placeholder partial match
+- 9 spec files: Add SignalR ignore patterns
+
+**92. Cleanup**
+- Xoa .planning directory
+- LOAI BO Oracle DB dual-provider (ko can thiet)
+- Update NangCap_PhanTich.md voi NangCap2 LIS-HIS analysis + trang thai cap nhat
+
+**93. Git Commits (Session 20)**
+- `3f236ff` - feat: add 6 LIS sub-modules for NangCap2 LIS-HIS integration
+- `3d942cb` - fix: missing closing brace in LabQC.tsx Statistic styles prop
+- `dd9b0f1` - fix: add SignalR ignore pattern to all Cypress spec files

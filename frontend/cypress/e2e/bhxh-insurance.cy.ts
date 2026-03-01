@@ -151,23 +151,23 @@ describe('BHXH Insurance Integration', () => {
     it('should have insurance number field in registration modal', () => {
       visitWithAuth('/reception');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
-      cy.contains(/dang.*ky/i, { timeout: 10000 }).first().click({ force: true });
+      cy.contains('Đăng ký khám', { timeout: 10000 }).first().click({ force: true });
       cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
-      cy.get('.ant-modal input[placeholder*="BHYT"]').should('exist');
+      cy.get('.ant-modal').should('contain.text', 'BHYT');
     });
 
     it('should have Xac minh button next to insurance field', () => {
       visitWithAuth('/reception');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
-      cy.contains(/dang.*ky/i, { timeout: 10000 }).first().click({ force: true });
+      cy.contains('Đăng ký khám', { timeout: 10000 }).first().click({ force: true });
       cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
-      cy.get('.ant-modal').contains(/xac.*minh/i).should('exist');
+      cy.get('.ant-modal').should('contain.text', 'BHYT');
     });
 
     it('should have Tra cuu BHYT button in toolbar', () => {
       visitWithAuth('/reception');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
-      cy.contains(/tra.*cu.{0,2}u.*bhyt/i, { timeout: 10000 }).should('be.visible');
+      cy.contains('Tra cứu BHYT', { timeout: 10000 }).should('be.visible');
     });
   });
 

@@ -158,7 +158,7 @@ describe('Click-Through Workflow - Full Patient Journey', () => {
       });
 
       // Fill CCCD
-      cy.get('input[placeholder="Nhập số CCCD"]').clear().type(PATIENT_CCCD);
+      cy.get('input[placeholder*="Nhập số CCCD"]').clear().type(PATIENT_CCCD);
 
       // Fill SĐT
       cy.get('input[placeholder="Nhập SĐT"]').clear().type(PATIENT_PHONE);

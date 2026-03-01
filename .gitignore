@@ -118,3 +118,6 @@ App_Data/
 # Claude Code Settings
 # =========================
 .claude/settings.local.json
+
+# XML exports
+backend/src/HIS.API/exports/

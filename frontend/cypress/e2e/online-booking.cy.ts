@@ -106,26 +106,21 @@ describe('Online Booking System', () => {
   // Staff booking management (requires auth)
   describe('Booking Management Page (/booking-management)', () => {
     beforeEach(() => {
-      const token = Cypress.env('AUTH_TOKEN');
-      if (token) {
-        cy.window().then((win) => {
-          win.localStorage.setItem('token', token);
-        });
-      } else {
-        cy.request({
-          method: 'POST', url: `${API}/auth/login`,
-          body: { username: 'admin', password: 'Admin@123' },
+      cy.request({
+        method: 'POST', url: `${API}/auth/login`,
+        body: { username: 'admin', password: 'Admin@123' },
+        failOnStatusCode: false,
+      }).then((res) => {
+        const token = res.body?.data?.token || res.body?.token || '';
+        const user = JSON.stringify(res.body?.data?.user || res.body?.user || {});
+        cy.visit('/booking-management', {
           failOnStatusCode: false,
-        }).then((res) => {
-          if (res.body?.token) {
-            cy.window().then((win) => {
-              win.localStorage.setItem('token', res.body.token);
-              win.localStorage.setItem('user', JSON.stringify(res.body.user || {}));
-            });
-          }
+          onBeforeLoad(win) {
+            win.localStorage.setItem('token', token);
+            win.localStorage.setItem('user', user);
+          },
         });
-      }
-      cy.visit('/booking-management', { failOnStatusCode: false });
+      });
       cy.get('body', { timeout: 10000 }).should('be.visible');
     });
 
@@ -153,14 +148,16 @@ describe('Online Booking System', () => {
     it('schedule add modal opens with form fields', () => {
       cy.contains('Lịch bác sĩ').click();
       cy.contains('button', 'Thêm lịch làm việc').click();
-      cy.contains('Thêm lịch làm việc').should('be.visible');
-      cy.contains('Bác sĩ').should('be.visible');
-      cy.contains('Khoa').should('be.visible');
-      cy.contains('Giờ bắt đầu').should('be.visible');
-      cy.contains('Giờ kết thúc').should('be.visible');
-      cy.contains('Số BN tối đa').should('be.visible');
-      cy.get('.ant-modal-footer').find('button').contains('OK').should('be.visible');
-      cy.get('.ant-modal-footer').find('button').contains('Cancel').click();
+      cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
+      cy.get('.ant-modal').within(() => {
+        cy.contains('Thêm lịch làm việc').should('be.visible');
+        cy.contains('Bác sĩ').should('be.visible');
+        cy.contains('Khoa').should('be.visible');
+        cy.contains('Giờ bắt đầu').should('be.visible');
+        cy.contains('Giờ kết thúc').should('be.visible');
+        cy.contains('Số BN tối đa').should('be.visible');
+      });
+      cy.get('.ant-modal-footer').find('button').first().click();
     });
 
     it('stats tab shows statistics', () => {
