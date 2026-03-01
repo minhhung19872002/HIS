@@ -805,3 +805,52 @@ public class PrintLabRegisterDto
 }
 
 #endregion
+
+#region Queue Display (Public)
+
+/// <summary>
+/// DTO cho màn hình hiển thị hàng đợi xét nghiệm (public, AllowAnonymous)
+/// </summary>
+public class LabQueueDisplayDto
+{
+    public DateTime UpdatedAt { get; set; }
+
+    // Thống kê
+    public int TotalPending { get; set; }
+    public int TotalProcessing { get; set; }
+    public int TotalCompletedToday { get; set; }
+    public int AverageProcessingMinutes { get; set; }
+
+    // Mẫu đang xử lý
+    public List<LabQueueItemDto> ProcessingItems { get; set; } = new();
+    // Mẫu chờ
+    public List<LabQueueItemDto> WaitingItems { get; set; } = new();
+    // Kết quả vừa hoàn thành (10 gần nhất)
+    public List<LabQueueItemDto> CompletedItems { get; set; } = new();
+}
+
+/// <summary>
+/// DTO cho 1 item trong hàng đợi xét nghiệm
+/// </summary>
+public class LabQueueItemDto
+{
+    public Guid Id { get; set; }
+    public string OrderCode { get; set; } = string.Empty;
+    public string? SampleBarcode { get; set; }
+    public string PatientName { get; set; } = string.Empty;
+    public string? PatientCode { get; set; }
+    public string? SampleType { get; set; }
+    public int TestCount { get; set; }
+    public string TestSummary { get; set; } = string.Empty;
+    public bool IsPriority { get; set; }
+    public bool IsEmergency { get; set; }
+    public int Status { get; set; }
+    public string StatusName { get; set; } = string.Empty;
+    public DateTime OrderedAt { get; set; }
+    public DateTime? CollectedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public int WaitMinutes { get; set; }
+    public string? DepartmentName { get; set; }
+}
+
+#endregion

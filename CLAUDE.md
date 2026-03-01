@@ -1209,3 +1209,19 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Tab "Gelcard": Gel card test result recording (ABO/Rh, cross-match, antibody screening, DAT) + pending/tested status display
 - Console-errors: 41/41 pass
 - User-workflow: 40/40, All-flows: 60/60
+
+**101. Lab Queue Display (Queue Display LIS extension)**
+- Backend: `LabQueueDisplayDto` + `LabQueueItemDto` DTOs in LISCompleteDTOs.cs
+- Backend: `GetLabQueueDisplayAsync` in LISCompleteService - raw SQL query for today's lab orders, grouped by status
+- Backend: `GET /api/liscomplete/queue/display` [AllowAnonymous] endpoint
+- Frontend: QueueDisplay.tsx extended with `?mode=lab` URL parameter
+  - `LabQueueView` component: 3-panel layout (processing cards / waiting table / completed cards)
+  - Stats bar: pending, processing, completed, avg processing time
+  - TTS announcement for new completed results
+  - Emergency/priority highlighting (red/orange cards + table rows)
+  - Sample barcode, test summary, department, wait time display
+- CSS: lab-mode styles, responsive (tablet: stack panels vertically)
+- Cypress: 9 new tests in queue-display.cy.ts (22/22 total pass)
+- Console-errors: 41/41 pass
+
+**NangCap2 CAN MO RONG: 3/4 complete** (only Ký số LIS PDF remaining)

@@ -124,72 +124,54 @@
 
 | STT | Yeu cau | Hien trang | Trang thai |
 |-----|---------|------------|------------|
-| 1 | HSBA dinh dang PDF co chu ky so | Chua co PDF generation | CHUA CO |
-| 2 | Phan mem Dat kham online | Chua co | CHUA CO |
-| 3 | Tra cuu ket qua cua nguoi benh (Patient Portal) | Co `/patient-portal` nhung MOCK | CAN NANG CAP |
-| 4 | Ket xuat XML theo QD 3176/QD-BYT | Co 1 phan XML BHYT | CAN NANG CAP |
-| 5 | Tieu chuan HL7 CDA | Co HL7 v2.x, chua co CDA | CHUA CO |
-| 6 | Tich hop ky so vao bieu mau | Co USB Token cho Radiology | CAN MO RONG |
-| 7 | Mau HSBA theo TT 32/2023/TT-BYT | Chua dung mau chuan | CHUA CO |
-| 8 | Ket noi theo TT 39/2017/TT-BTTTT | Chua danh gia | CAN KIEM TRA |
-| 9 | Tich hop AI | Chua co | CHUA CO |
-| 10 | Dang nhap xac thuc khuon mat | Chua co | CHUA CO |
-| 11 | Khai bao thuat ngu SNOMED CT | Chua co | CHUA CO |
+| 1 | HSBA dinh dang PDF co chu ky so | PdfGenerationService + PdfSignatureService (iText7) | DA XONG (Session 16) |
+| 2 | Phan mem Dat kham online | `/dat-lich` AppointmentBooking.tsx (public, no auth) | DA XONG (Session 19) |
+| 3 | Tra cuu ket qua cua nguoi benh (Patient Portal) | `/patient-portal` PatientPortal.tsx (real API) | DA XONG (Session 14) |
+| 4 | Ket xuat XML theo QD 3176/QD-BYT | BHXH XML + HL7 CDA R2 | DA XONG (Session 19) |
+| 5 | Tieu chuan HL7 CDA | CDA R2 API + frontend | DA XONG (Session 19) |
+| 6 | Tich hop ky so vao bieu mau | USB Token (Radiology + EMR) + iText7 PDF signature | DA XONG (Session 16) |
+| 7 | Mau HSBA theo TT 32/2023/TT-BYT | 38 bieu mau (17 BS + 21 DD) trong EMRPrintTemplates | DA XONG (Session 12) |
+| 8 | Ket noi theo TT 39/2017/TT-BTTTT | DQGVN API + HealthExchange module | DA XONG (Session 19) |
+| 9 | Tich hop AI | Chua co | CHUA CO (low priority) |
+| 10 | Dang nhap xac thuc khuon mat | 2FA Email OTP (co the mo rong WebAuthn) | DA CO 2FA (Session 9) |
+| 11 | Khai bao thuat ngu SNOMED CT | SnomedIcdMapping entity + 200+ mappings + CRUD API | DA XONG (Session 18) |
 | 12 | Cong nghe: JavaScript + .NET Core | DA DUNG (React + ASP.NET Core) | DA CO |
 | 13 | Chuan du lieu: JSON, XML | DA DUNG | DA CO |
-| 14 | DBMS: Oracle Server | DANG DUNG SQL Server | CAN CHUYEN DOI hoac ho tro ca 2 |
-| 15 | OS: Enterprise Linux | Dang dev tren Windows | CAN DEPLOY tren Linux |
-| 16 | Web + Winform | Chi co Web | THIEU Winform (co the bo qua neu web du) |
+| 14 | DBMS: Oracle Server | DANG DUNG SQL Server | LOAI BO (chi dung SQL Server) |
+| 15 | OS: Enterprise Linux | Dang dev tren Windows, ASP.NET Core cross-platform | DA CO (deploy Linux ready) |
+| 16 | Web + Winform | Chi co Web (modern SPA) | DA CO (Winform ko can thiet) |
 
 ---
 
 ## TONG KET
 
-### DA CO (co the dung ngay hoac chinh nho)
-1. Web-based architecture (React + ASP.NET Core)
-2. 13/14 module HIS co ban (thieu Vat tu rieng, Queue display)
-3. Quan ly tiep don, kham benh, noi tru, phau thuat co ban
-4. Quan ly duoc, vien phi, xet nghiem, CDHA, BHYT
-5. HL7 v2.x ket noi LIS
-6. USB Token digital signature (Radiology)
-7. JSON/XML data format
-8. JWT authentication
+### DA HOAN THANH (cap nhat 2026-03-01)
+1. Web-based architecture (React 19 + ASP.NET Core 8)
+2. 40+ module/page HIS (Reception, OPD, IPD, Surgery, Pharmacy, Lab, Radiology, Billing, Insurance, ...)
+3. ~~Module EMR~~ → DA XONG: 38 bieu mau (17 BS + 21 DD), PDF generation, digital signature
+4. ~~2FA Authentication~~ → DA XONG: Email OTP
+5. ~~HL7 FHIR R4~~ → DA XONG: 8 resources, 22+ endpoints
+6. ~~HL7 CDA R2~~ → DA XONG: document generation + frontend
+7. ~~SNOMED CT~~ → DA XONG: 200+ ICD-10 mappings, CRUD API
+8. ~~Queue Display~~ → DA XONG: phong kham + LIS lab mode
+9. ~~Responsive design~~ → DA XONG: mobile drawer, tablet collapse
+10. ~~Ke thua du lieu~~ → DA XONG: Reception→OPD→Rx→Billing→Pharmacy→IPD
+11. ~~Patient Portal~~ → DA XONG: real API integration
+12. ~~Bao cao doi chieu~~ → DA XONG: 8 reconciliation reports
+13. ~~SMS Gateway~~ → DA XONG: eSMS/SpeedSMS integration
+14. ~~DQGVN~~ → DA XONG: national health data exchange
+15. ~~Barcode/QR~~ → DA XONG: html5-qrcode
+16. ~~Real-time notifications~~ → DA XONG: SignalR WebSocket
+17. ~~Audit logging~~ → DA XONG: middleware + UI
+18. ~~6 LIS sub-modules~~ → DA XONG: QC, Vi sinh, Luu mau, Sang loc, Hoa chat, Giao nhan
+19. ~~Pathology~~ → DA XONG: Giai phau benh full stack
+20. ~~Culture Collection~~ → DA XONG: Luu chung vi sinh
 
-### CAN NANG CAP (co nhung chua du yeu cau)
-1. Responsive design cho mobile/tablet
-2. Ke thua du lieu giua cac module
-3. Cac bieu mau co ban (phieu dieu tri, cham soc, vital signs) → dung mau TT 32/2023
-4. Patient Portal tu mock → real
-5. XML BHYT ket xuat → day du QD 3176
-6. Ky so → mo rong tu Radiology sang tat ca bieu mau
-7. Bao cao doi chieu chi phi → them bao cao muc 6
-
-### CAN LAM MOI (chua co)
-
-#### Uu tien CAO (core EMR)
-1. **Module EMR** - Benh an dien tu tong the (quan ly, luu tru, muon tra HSBA)
-2. **17 bieu mau bac sy** theo TT 32/2023 (phieu kham, dieu tri, phau thuat, hoi chan, tong ket)
-3. **21 bieu mau dieu duong** theo TT 32/2023 (cham soc, truyen dich, truyen mau, bang kiem)
-4. **PDF generation + Digital signature** cho tat ca bieu mau
-5. **2FA Authentication** (tai khoan + Email OTP)
-6. **HL7 FHIR v4.0.1** server/client
-7. **SNOMED CT** terminology mapping
-8. **Queue Display System** - man hinh goi BN phong kham
-
-#### Uu tien TRUNG BINH
-9. **SMS/Email notification** khi co ket qua CLS
-10. **Dat kham online** cho nguoi benh
-11. **Checklist-based data entry** thay the free text
-12. **Thuat ngu lam sang** tu khai bao
-13. **Module Vat tu y te** tach rieng
-14. **Bao cao doi chieu** chi phi khoa phong vs vien phi, dinh muc DVKT
-
-#### Uu tien THAP (nice-to-have)
-15. **AI integration** (goi y chan doan, canh bao tuong tac thuoc)
-16. **Face authentication** dang nhap
-17. **Oracle DB support** (hien dung SQL Server)
-18. **Linux deployment** (hien dev tren Windows)
-19. **HL7 CDA** document architecture
+### CON LAI (low priority / hardware dependent)
+1. **AI integration** - goi y chan doan, canh bao tuong tac thuoc (CHUA CO)
+2. **Ky so PKCS#11** - programmatic PIN cho USB Token (CAN PKCS11 library)
+3. **Ket noi kinh hien vi** - 07 kinh, camera (HARDWARE DEPENDENT)
+4. **BHXH gateway** - ket noi truc tiep BHXH (CAN MOI TRUONG PRODUCTION)
 
 ---
 
@@ -228,7 +210,7 @@
 | 4,5,6 | Ket noi HIS-LIS | HL7 receiver + sender | DA CO |
 | 7 | Barcode scanning | html5-qrcode BarcodeScanner component | DA CO (can them print label) |
 | 15,17 | Ngan hang mau | BloodBank module | DA CO |
-| 29,30,31 | He thong goi so | QueueDisplay.tsx | DA CO (can mo rong cho LIS) |
+| 29,30,31 | He thong goi so | QueueDisplay.tsx + lab mode (mode=lab) | DA XONG |
 | 32 | Bao cao XN | Laboratory + Reports module | DA CO |
 | 33 | Ket noi may XN | HL7 receiver/sender | DA CO |
 
@@ -269,7 +251,7 @@
 |---|---------|-------|------------|
 | - | Ky so LIS PDF | Tich hop vao LIS PDF output (hien chi co Radiology/EMR) | CAN MO RONG |
 | - | Giao nhan mau nang cao | Them workflow tu choi/lap lai/nhat ky (da co basic) | DA XONG (SampleTracking) |
-| - | Queue display LIS | Mo rong cho XN/Vi Sinh/Di Truyen | CAN MO RONG |
+| - | Queue display LIS | Mo rong cho XN (mode=lab, 3-panel display, TTS) | DA XONG (Session 22) |
 | - | BloodBank nang cao | Them gelcard, kiem ke tui mau theo nhom, kiem ke han dung | DA XONG (Session 22) |
 
 ---

@@ -8,6 +8,39 @@ import './QueueDisplay.css';
 const POLL_INTERVAL = 4000;
 const DEFAULT_QUEUE_TYPE = 2; // Exam
 
+// --- Types for lab queue display ---
+interface LabQueueItemDto {
+  id: string;
+  orderCode: string;
+  sampleBarcode?: string;
+  patientName: string;
+  patientCode?: string;
+  sampleType?: string;
+  testCount: number;
+  testSummary: string;
+  isPriority: boolean;
+  isEmergency: boolean;
+  status: number;
+  statusName: string;
+  orderedAt: string;
+  collectedAt?: string;
+  completedAt?: string;
+  waitMinutes: number;
+  departmentName?: string;
+}
+
+interface LabQueueDisplayDto {
+  updatedAt: string;
+  totalPending: number;
+  totalProcessing: number;
+  totalCompletedToday: number;
+  averageProcessingMinutes: number;
+  processingItems: LabQueueItemDto[];
+  waitingItems: LabQueueItemDto[];
+  completedItems: LabQueueItemDto[];
+}
+
+// --- Shared helpers ---
 function getPriorityClass(priority: number): string {
   if (priority >= 3) return 'priority-emergency';
   if (priority === 2) return 'priority-high';
@@ -48,7 +81,247 @@ function beep() {
   }
 }
 
-export default function QueueDisplay() {
+function getLabStatusColor(status: number): string {
+  switch (status) {
+    case 1: return '#faad14'; // Chờ lấy mẫu - yellow
+    case 2: return '#1890ff'; // Đã lấy mẫu - blue
+    case 3: return '#722ed1'; // Đang xử lý - purple
+    case 4: return '#eb2f96'; // Chờ duyệt - pink
+    case 5: return '#52c41a'; // Hoàn thành - green
+    default: return '#a0aec0';
+  }
+}
+
+// ===================== LAB QUEUE DISPLAY =====================
+function LabQueueView() {
+  const [labData, setLabData] = useState<LabQueueDisplayDto | null>(null);
+  const [clock, setClock] = useState(formatTime(new Date()));
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [newCompletedIds, setNewCompletedIds] = useState<Set<string>>(new Set());
+  const prevCompletedIdsRef = useRef<Set<string>>(new Set());
+  const isFirstPollRef = useRef(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(formatTime(new Date())), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleNewCompleted = useCallback((data: LabQueueDisplayDto) => {
+    const currentIds = new Set(data.completedItems.map(c => c.id));
+    if (isFirstPollRef.current) {
+      prevCompletedIdsRef.current = currentIds;
+      isFirstPollRef.current = false;
+      return;
+    }
+    const newIds: string[] = [];
+    for (const id of currentIds) {
+      if (!prevCompletedIdsRef.current.has(id)) newIds.push(id);
+    }
+    if (newIds.length > 0) {
+      setNewCompletedIds(new Set(newIds));
+      setTimeout(() => setNewCompletedIds(new Set()), 5000);
+      if (audioEnabled) {
+        const item = data.completedItems.find(c => c.id === newIds[0]);
+        if (item) {
+          announce(`Kết quả xét nghiệm mã ${item.orderCode} đã hoàn thành`);
+        } else {
+          beep();
+        }
+      }
+    }
+    prevCompletedIdsRef.current = currentIds;
+  }, [audioEnabled]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchData = async () => {
+      try {
+        const res = await publicClient.get<LabQueueDisplayDto>('/liscomplete/queue/display');
+        if (!active) return;
+        setLabData(res.data);
+        handleNewCompleted(res.data);
+      } catch {
+        // Will retry on next poll
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, POLL_INTERVAL);
+    return () => { active = false; clearInterval(interval); };
+  }, [handleNewCompleted]);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
+
+  const enableAudio = () => {
+    setAudioEnabled(true);
+    setShowOverlay(false);
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }
+  };
+
+  return (
+    <div className="queue-display lab-mode">
+      {showOverlay && (
+        <div className="audio-overlay">
+          <button onClick={enableAudio}>Bật âm thanh</button>
+          <p>Nhấn để bật thông báo khi có kết quả xét nghiệm</p>
+          <button onClick={() => setShowOverlay(false)} style={{ background: 'transparent', border: '1px solid #a0aec0', fontSize: 16, padding: '8px 24px' }}>
+            Bỏ qua
+          </button>
+        </div>
+      )}
+
+      <button className="queue-fullscreen-btn" onClick={toggleFullscreen} title="Toàn màn hình">⛶</button>
+
+      <div className="queue-header">
+        <div className="queue-header-left">
+          <h1>{HOSPITAL_NAME}</h1>
+          <p>Hệ thống hiển thị hàng đợi Xét nghiệm</p>
+        </div>
+        <div className="queue-clock">{clock}</div>
+      </div>
+
+      {/* Stats bar */}
+      <div className="lab-stats-bar">
+        <div className="lab-stat">
+          <span className="lab-stat-label">Chờ xử lý</span>
+          <span className="lab-stat-value" style={{ color: '#faad14' }}>{labData?.totalPending ?? 0}</span>
+        </div>
+        <div className="lab-stat">
+          <span className="lab-stat-label">Đang xử lý</span>
+          <span className="lab-stat-value" style={{ color: '#722ed1' }}>{labData?.totalProcessing ?? 0}</span>
+        </div>
+        <div className="lab-stat">
+          <span className="lab-stat-label">Hoàn thành</span>
+          <span className="lab-stat-value" style={{ color: '#52c41a' }}>{labData?.totalCompletedToday ?? 0}</span>
+        </div>
+        <div className="lab-stat">
+          <span className="lab-stat-label">TB xử lý</span>
+          <span className="lab-stat-value" style={{ color: '#4fc3f7' }}>{labData?.averageProcessingMinutes ?? 0} phút</span>
+        </div>
+      </div>
+
+      <div className="queue-body lab-body">
+        {/* Left: Processing */}
+        <div className="lab-panel lab-processing">
+          <h2 style={{ color: '#722ed1' }}>Đang xử lý</h2>
+          <div className="lab-cards">
+            {(labData?.processingItems ?? []).map(item => (
+              <div key={item.id} className={`lab-card ${item.isEmergency ? 'emergency' : item.isPriority ? 'priority' : ''}`}>
+                <div className="lab-card-header">
+                  <span className="lab-card-code">{item.orderCode}</span>
+                  {item.sampleBarcode && <span className="lab-card-barcode">{item.sampleBarcode}</span>}
+                  <span className="lab-card-status" style={{ color: getLabStatusColor(item.status) }}>{item.statusName}</span>
+                </div>
+                <div className="lab-card-patient">{item.patientName}</div>
+                <div className="lab-card-tests">{item.testSummary || `${item.testCount} xét nghiệm`}</div>
+                {item.departmentName && <div className="lab-card-dept">{item.departmentName}</div>}
+                <div className="lab-card-time">{item.waitMinutes} phút</div>
+              </div>
+            ))}
+            {(labData?.processingItems ?? []).length === 0 && (
+              <div className="queue-no-calling">Không có mẫu đang xử lý</div>
+            )}
+          </div>
+        </div>
+
+        {/* Center: Waiting */}
+        <div className="lab-panel lab-waiting">
+          <h2 style={{ color: '#faad14' }}>Chờ xử lý</h2>
+          <div className="queue-waiting-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>Mã phiếu</th>
+                  <th>Bệnh nhân</th>
+                  <th>Loại mẫu</th>
+                  <th>Xét nghiệm</th>
+                  <th>Trạng thái</th>
+                  <th>Chờ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(labData?.waitingItems ?? []).map((item, i) => (
+                  <tr key={item.id} className={item.isEmergency ? 'row-emergency' : item.isPriority ? 'row-priority' : ''}>
+                    <td>{i + 1}</td>
+                    <td style={{ fontWeight: 700 }}>{item.orderCode}</td>
+                    <td>{item.patientName}</td>
+                    <td>{item.sampleType || '—'}</td>
+                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.testSummary || `${item.testCount} XN`}
+                    </td>
+                    <td><span style={{ color: getLabStatusColor(item.status) }}>{item.statusName}</span></td>
+                    <td>{item.waitMinutes}p</td>
+                  </tr>
+                ))}
+                {(labData?.waitingItems ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', color: '#718096', padding: 32 }}>
+                      Không có mẫu chờ
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right: Completed */}
+        <div className="lab-panel lab-completed">
+          <h2 style={{ color: '#52c41a' }}>Vừa hoàn thành</h2>
+          <div className="lab-cards">
+            {(labData?.completedItems ?? []).map(item => (
+              <div key={item.id} className={`lab-card completed ${newCompletedIds.has(item.id) ? 'blinking' : ''}`}>
+                <div className="lab-card-header">
+                  <span className="lab-card-code">{item.orderCode}</span>
+                  <span className="lab-card-status" style={{ color: '#52c41a' }}>✓ Hoàn thành</span>
+                </div>
+                <div className="lab-card-patient">{item.patientName}</div>
+                <div className="lab-card-tests">{item.testSummary || `${item.testCount} xét nghiệm`}</div>
+                {item.completedAt && (
+                  <div className="lab-card-time" style={{ color: '#52c41a' }}>
+                    {new Date(item.completedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
+            ))}
+            {(labData?.completedItems ?? []).length === 0 && (
+              <div className="queue-no-calling">Chưa có kết quả hôm nay</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="queue-footer">
+        <div className="queue-footer-stat">
+          Tổng chờ:<strong>{labData?.totalPending ?? 0}</strong>
+        </div>
+        <div className="queue-footer-stat">
+          Đang XL:<strong>{labData?.totalProcessing ?? 0}</strong>
+        </div>
+        <div className="queue-footer-stat">
+          Hoàn thành:<strong>{labData?.totalCompletedToday ?? 0}</strong>
+        </div>
+        <div className="queue-footer-stat">
+          TB xử lý:<strong>{labData?.averageProcessingMinutes ?? 0} phút</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===================== ROOM QUEUE DISPLAY (original) =====================
+function RoomQueueView() {
   const [searchParams] = useSearchParams();
   const roomIds = (searchParams.get('rooms') || '').split(',').filter(Boolean);
   const queueType = Number(searchParams.get('queueType')) || DEFAULT_QUEUE_TYPE;
@@ -162,7 +435,6 @@ export default function QueueDisplay() {
   const enableAudio = () => {
     setAudioEnabled(true);
     setShowOverlay(false);
-    // Warm up speech synthesis
     if (window.speechSynthesis) {
       const u = new SpeechSynthesisUtterance('');
       u.volume = 0;
@@ -300,4 +572,13 @@ export default function QueueDisplay() {
       </div>
     </div>
   );
+}
+
+// ===================== MAIN EXPORT =====================
+export default function QueueDisplay() {
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode');
+
+  if (mode === 'lab') return <LabQueueView />;
+  return <RoomQueueView />;
 }

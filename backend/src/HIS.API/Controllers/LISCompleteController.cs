@@ -993,4 +993,19 @@ namespace HIS.API.Controllers
     }
 
     #endregion
+
+    #region Queue Display (Public)
+
+    /// <summary>
+    /// Màn hình hiển thị hàng đợi xét nghiệm (public API, không cần đăng nhập)
+    /// </summary>
+    [HttpGet("queue/display")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LabQueueDisplayDto>> GetLabQueueDisplay()
+    {
+        var result = await _lisService.GetLabQueueDisplayAsync();
+        return Ok(result);
+    }
+
+    #endregion
 }

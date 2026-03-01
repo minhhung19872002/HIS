@@ -630,7 +630,124 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<byte[]> PrintLabResultAsync(Guid orderId, string format = "A4")
     {
-        return System.Text.Encoding.UTF8.GetBytes($"LAB RESULT: {orderId}");
+        try
+        {
+            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
+            await connection.OpenAsync();
+
+            // Get order info
+            var orderSql = @"
+                SELECT o.OrderCode, o.OrderedAt, o.SampleBarcode, o.SampleType, o.Diagnosis,
+                       o.CollectedAt, o.ProcessingStartTime, o.ProcessingEndTime,
+                       p.FullName AS PatientName, p.PatientCode, p.DateOfBirth, p.Gender, p.Address,
+                       d.DepartmentName, u.FullName AS DoctorName
+                FROM LabOrders o
+                INNER JOIN Patients p ON o.PatientId = p.Id
+                LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
+                LEFT JOIN Users u ON o.OrderDoctorId = u.Id
+                WHERE o.Id = @OrderId AND o.IsDeleted = 0";
+
+            string? orderCode = null, patientName = null, patientCode = null, gender = null, address = null;
+            string? sampleBarcode = null, sampleType = null, diagnosis = null, deptName = null, doctorName = null;
+            DateTime? dob = null, orderedAt = null, collectedAt = null, completedAt = null;
+
+            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(orderSql, connection))
+            {
+                cmd.Parameters.AddWithValue("@OrderId", orderId);
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    orderCode = reader["OrderCode"]?.ToString();
+                    orderedAt = reader["OrderedAt"] as DateTime?;
+                    sampleBarcode = reader["SampleBarcode"]?.ToString();
+                    sampleType = reader["SampleType"]?.ToString();
+                    diagnosis = reader["Diagnosis"]?.ToString();
+                    collectedAt = reader["CollectedAt"] as DateTime?;
+                    completedAt = reader["ProcessingEndTime"] as DateTime?;
+                    patientName = reader["PatientName"]?.ToString();
+                    patientCode = reader["PatientCode"]?.ToString();
+                    dob = reader["DateOfBirth"] as DateTime?;
+                    gender = reader["Gender"]?.ToString();
+                    address = reader["Address"]?.ToString();
+                    deptName = reader["DepartmentName"]?.ToString();
+                    doctorName = reader["DoctorName"]?.ToString();
+                }
+            }
+
+            if (orderCode == null)
+                return System.Text.Encoding.UTF8.GetBytes("Order not found");
+
+            // Get test results
+            var resultSql = @"
+                SELECT s.ServiceName AS TestName, s.ServiceCode AS TestCode,
+                       r.ParameterName, r.Result, r.NumericResult, r.Unit,
+                       r.ReferenceRange, r.ReferenceMin, r.ReferenceMax,
+                       r.IsAbnormal, r.AbnormalType, r.SequenceNumber,
+                       ri.TestId
+                FROM LabResults r
+                INNER JOIN LabRequestItems ri ON r.LabRequestItemId = ri.Id
+                INNER JOIN LabRequests lr ON ri.LabRequestId = lr.Id
+                INNER JOIN Services s ON ri.TestId = s.Id
+                WHERE lr.LabOrderId = @OrderId AND r.IsDeleted = 0 AND ri.IsDeleted = 0
+                ORDER BY s.ServiceName, r.SequenceNumber";
+
+            var results = new System.Collections.Generic.List<(string testName, string paramName, string result, string unit, string refRange, bool isAbnormal, int? abnormalType)>();
+
+            using (var cmd2 = new Microsoft.Data.SqlClient.SqlCommand(resultSql, connection))
+            {
+                cmd2.Parameters.AddWithValue("@OrderId", orderId);
+                using var reader2 = await cmd2.ExecuteReaderAsync();
+                while (await reader2.ReadAsync())
+                {
+                    results.Add((
+                        reader2["TestName"]?.ToString() ?? "",
+                        reader2["ParameterName"]?.ToString() ?? "",
+                        reader2["Result"]?.ToString() ?? reader2["NumericResult"]?.ToString() ?? "",
+                        reader2["Unit"]?.ToString() ?? "",
+                        reader2["ReferenceRange"]?.ToString() ?? (reader2["ReferenceMin"] != DBNull.Value && reader2["ReferenceMax"] != DBNull.Value
+                            ? $"{reader2["ReferenceMin"]} - {reader2["ReferenceMax"]}" : ""),
+                        reader2["IsAbnormal"] is bool ab && ab,
+                        reader2["AbnormalType"] as int?
+                    ));
+                }
+            }
+
+            // Get approver
+            var approverSql = @"
+                SELECT u.FullName FROM LabRequests lr
+                INNER JOIN Users u ON lr.ApprovedBy = u.Id
+                WHERE lr.LabOrderId = @OrderId AND lr.IsDeleted = 0 AND lr.ApprovedBy IS NOT NULL";
+            string? approverName = null;
+            using (var cmd3 = new Microsoft.Data.SqlClient.SqlCommand(approverSql, connection))
+            {
+                cmd3.Parameters.AddWithValue("@OrderId", orderId);
+                approverName = (await cmd3.ExecuteScalarAsync())?.ToString();
+            }
+
+            // Build HTML using existing PdfTemplateHelper
+            int genderInt = gender?.ToLower() switch { "nam" or "male" => 1, "nữ" or "nu" or "female" => 2, _ => 0 };
+            var labResults = results.Select(r => new PdfTemplateHelper.LabResultRow
+            {
+                TestName = string.IsNullOrEmpty(r.paramName) ? r.testName : $"{r.testName} - {r.paramName}",
+                Result = r.result,
+                Unit = r.unit,
+                ReferenceRange = r.refRange,
+                IsAbnormal = r.isAbnormal
+            }).ToList();
+
+            var html = PdfTemplateHelper.GetLabResult(
+                patientCode, patientName, genderInt, dob,
+                address, null, null,
+                diagnosis, doctorName, deptName,
+                orderedAt ?? DateTime.Now, completedAt,
+                labResults, approverName);
+
+            return System.Text.Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return System.Text.Encoding.UTF8.GetBytes($"LAB RESULT: {orderId}");
+        }
     }
 
     public async Task<bool> ProcessCriticalValueAsync(ProcessCriticalValueDto dto)
@@ -1401,6 +1518,133 @@ public class LISCompleteService : ILISCompleteService
             "FILE" => 4,
             _ => 2 // Default to TCP
         };
+    }
+
+    #endregion
+
+    #region Queue Display (Public)
+
+    public async Task<LabQueueDisplayDto> GetLabQueueDisplayAsync()
+    {
+        var today = DateTime.Today;
+        var now = DateTime.Now;
+
+        var result = new LabQueueDisplayDto { UpdatedAt = now };
+
+        try
+        {
+            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
+            await connection.OpenAsync();
+
+            // Query all today's lab orders with patient + department info
+            var sql = @"
+                SELECT
+                    o.Id, o.OrderCode, o.Status, o.IsPriority, o.IsEmergency,
+                    o.SampleBarcode, o.SampleType, o.OrderedAt, o.CollectedAt,
+                    o.ProcessingStartTime, o.ProcessingEndTime,
+                    p.FullName AS PatientName, p.PatientCode,
+                    d.DepartmentName,
+                    (SELECT COUNT(*) FROM LabRequestItems ri
+                     INNER JOIN LabRequests lr ON ri.LabRequestId = lr.Id
+                     WHERE lr.LabOrderId = o.Id AND ri.IsDeleted = 0) AS TestCount,
+                    (SELECT STRING_AGG(s.ServiceName, N', ')
+                     FROM LabRequestItems ri
+                     INNER JOIN LabRequests lr ON ri.LabRequestId = lr.Id
+                     INNER JOIN Services s ON ri.TestId = s.Id
+                     WHERE lr.LabOrderId = o.Id AND ri.IsDeleted = 0) AS TestSummary
+                FROM LabOrders o
+                INNER JOIN Patients p ON o.PatientId = p.Id
+                LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
+                WHERE o.IsDeleted = 0
+                AND CAST(o.OrderedAt AS DATE) = CAST(@Today AS DATE)
+                ORDER BY o.IsEmergency DESC, o.IsPriority DESC, o.OrderedAt ASC
+            ";
+
+            using var command = new Microsoft.Data.SqlClient.SqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@Today", today);
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var status = reader.GetInt32(reader.GetOrdinal("Status"));
+                var orderedAt = reader.GetDateTime(reader.GetOrdinal("OrderedAt"));
+                DateTime? collectedAt = reader.IsDBNull(reader.GetOrdinal("CollectedAt")) ? null : reader.GetDateTime(reader.GetOrdinal("CollectedAt"));
+                DateTime? completedAt = reader.IsDBNull(reader.GetOrdinal("ProcessingEndTime")) ? null : reader.GetDateTime(reader.GetOrdinal("ProcessingEndTime"));
+
+                var item = new LabQueueItemDto
+                {
+                    Id = reader.GetGuid(reader.GetOrdinal("Id")),
+                    OrderCode = reader.GetString(reader.GetOrdinal("OrderCode")),
+                    SampleBarcode = reader.IsDBNull(reader.GetOrdinal("SampleBarcode")) ? null : reader.GetString(reader.GetOrdinal("SampleBarcode")),
+                    PatientName = reader.GetString(reader.GetOrdinal("PatientName")),
+                    PatientCode = reader.IsDBNull(reader.GetOrdinal("PatientCode")) ? null : reader.GetString(reader.GetOrdinal("PatientCode")),
+                    SampleType = reader.IsDBNull(reader.GetOrdinal("SampleType")) ? null : reader.GetString(reader.GetOrdinal("SampleType")),
+                    TestCount = reader.GetInt32(reader.GetOrdinal("TestCount")),
+                    TestSummary = reader.IsDBNull(reader.GetOrdinal("TestSummary")) ? "" : reader.GetString(reader.GetOrdinal("TestSummary")),
+                    IsPriority = reader.GetBoolean(reader.GetOrdinal("IsPriority")),
+                    IsEmergency = reader.GetBoolean(reader.GetOrdinal("IsEmergency")),
+                    Status = status,
+                    StatusName = status switch
+                    {
+                        1 => "Chờ lấy mẫu",
+                        2 => "Đã lấy mẫu",
+                        3 => "Đang xử lý",
+                        4 => "Chờ duyệt",
+                        5 => "Hoàn thành",
+                        6 => "Đã hủy",
+                        _ => "Không rõ"
+                    },
+                    OrderedAt = orderedAt,
+                    CollectedAt = collectedAt,
+                    CompletedAt = completedAt,
+                    WaitMinutes = (int)(now - orderedAt).TotalMinutes,
+                    DepartmentName = reader.IsDBNull(reader.GetOrdinal("DepartmentName")) ? null : reader.GetString(reader.GetOrdinal("DepartmentName"))
+                };
+
+                switch (status)
+                {
+                    case 1 or 2: // Waiting (pending collection or collected)
+                        result.WaitingItems.Add(item);
+                        break;
+                    case 3 or 4: // Processing or awaiting approval
+                        result.ProcessingItems.Add(item);
+                        break;
+                    case 5: // Completed
+                        result.CompletedItems.Add(item);
+                        break;
+                    // Skip cancelled (6)
+                }
+            }
+
+            // Limit completed to 10 most recent
+            if (result.CompletedItems.Count > 10)
+            {
+                result.CompletedItems = result.CompletedItems
+                    .OrderByDescending(c => c.CompletedAt)
+                    .Take(10)
+                    .ToList();
+            }
+
+            result.TotalPending = result.WaitingItems.Count;
+            result.TotalProcessing = result.ProcessingItems.Count;
+            result.TotalCompletedToday = result.CompletedItems.Count;
+
+            // Average processing time from completed items
+            var completedWithTimes = result.CompletedItems
+                .Where(c => c.CollectedAt.HasValue && c.CompletedAt.HasValue)
+                .ToList();
+            if (completedWithTimes.Count > 0)
+            {
+                result.AverageProcessingMinutes = (int)completedWithTimes
+                    .Average(c => (c.CompletedAt!.Value - c.CollectedAt!.Value).TotalMinutes);
+            }
+        }
+        catch
+        {
+            // Return empty display on DB error
+        }
+
+        return result;
     }
 
     #endregion

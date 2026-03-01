@@ -168,3 +168,168 @@ describe('Queue Display System', () => {
     cy.get('.queue-footer').should('contain.text', '7 phút');
   });
 });
+
+describe('Lab Queue Display (mode=lab)', () => {
+  beforeEach(() => {
+    cy.clearLocalStorage();
+    cy.on('uncaught:exception', () => false);
+  });
+
+  it('loads at /queue-display?mode=lab without auth', () => {
+    cy.visit('/queue-display?mode=lab');
+    cy.get('.queue-display.lab-mode').should('exist');
+  });
+
+  it('shows lab-specific header text', () => {
+    cy.visit('/queue-display?mode=lab');
+    cy.get('.queue-header-left p').should('contain.text', 'Xét nghiệm');
+  });
+
+  it('displays stats bar with 4 metrics', () => {
+    cy.visit('/queue-display?mode=lab');
+    cy.get('.lab-stats-bar .lab-stat').should('have.length', 4);
+    cy.get('.lab-stats-bar').should('contain.text', 'Chờ xử lý');
+    cy.get('.lab-stats-bar').should('contain.text', 'Đang xử lý');
+    cy.get('.lab-stats-bar').should('contain.text', 'Hoàn thành');
+    cy.get('.lab-stats-bar').should('contain.text', 'TB xử lý');
+  });
+
+  it('has 3 panels: processing, waiting, completed', () => {
+    cy.visit('/queue-display?mode=lab');
+    cy.get('.lab-processing').should('exist');
+    cy.get('.lab-waiting').should('exist');
+    cy.get('.lab-completed').should('exist');
+    cy.contains('h2', 'Đang xử lý').should('be.visible');
+    cy.contains('h2', 'Chờ xử lý').should('be.visible');
+    cy.contains('h2', 'Vừa hoàn thành').should('be.visible');
+  });
+
+  it('waiting table has correct columns', () => {
+    cy.visit('/queue-display?mode=lab');
+    cy.get('.lab-waiting .queue-waiting-table thead th').should('have.length', 7);
+    cy.get('.lab-waiting .queue-waiting-table thead').should('contain.text', 'Mã phiếu');
+    cy.get('.lab-waiting .queue-waiting-table thead').should('contain.text', 'Bệnh nhân');
+    cy.get('.lab-waiting .queue-waiting-table thead').should('contain.text', 'Xét nghiệm');
+  });
+
+  it('polls the lab queue display API', () => {
+    cy.intercept('GET', '**/api/liscomplete/queue/display*').as('labQueuePoll');
+    cy.visit('/queue-display?mode=lab');
+    cy.wait('@labQueuePoll', { timeout: 10000 });
+  });
+
+  it('shows footer with lab stats', () => {
+    cy.visit('/queue-display?mode=lab');
+    cy.get('.queue-footer').should('be.visible');
+    cy.get('.queue-footer').should('contain.text', 'Tổng chờ');
+    cy.get('.queue-footer').should('contain.text', 'Đang XL');
+    cy.get('.queue-footer').should('contain.text', 'Hoàn thành');
+  });
+
+  it('has audio overlay and fullscreen button', () => {
+    cy.visit('/queue-display?mode=lab');
+    cy.get('.audio-overlay').should('be.visible');
+    cy.get('.queue-fullscreen-btn').should('exist');
+    cy.contains('button', 'Bỏ qua').click();
+    cy.get('.audio-overlay').should('not.exist');
+  });
+
+  it('renders with mocked lab data', () => {
+    const mockLabData = {
+      updatedAt: new Date().toISOString(),
+      totalPending: 5,
+      totalProcessing: 3,
+      totalCompletedToday: 12,
+      averageProcessingMinutes: 25,
+      processingItems: [
+        {
+          id: 'proc-1',
+          orderCode: 'XN-2026-0001',
+          sampleBarcode: 'BC001',
+          patientName: 'Nguyễn Văn A',
+          patientCode: 'BN001',
+          sampleType: 'Máu',
+          testCount: 3,
+          testSummary: 'CTM, SHM, Đông máu',
+          isPriority: false,
+          isEmergency: true,
+          status: 3,
+          statusName: 'Đang xử lý',
+          orderedAt: new Date().toISOString(),
+          collectedAt: new Date().toISOString(),
+          waitMinutes: 15,
+          departmentName: 'Khoa Nội',
+        },
+      ],
+      waitingItems: [
+        {
+          id: 'wait-1',
+          orderCode: 'XN-2026-0002',
+          sampleBarcode: 'BC002',
+          patientName: 'Trần Thị B',
+          patientCode: 'BN002',
+          sampleType: 'Nước tiểu',
+          testCount: 2,
+          testSummary: 'Tổng phân tích NT',
+          isPriority: true,
+          isEmergency: false,
+          status: 1,
+          statusName: 'Chờ lấy mẫu',
+          orderedAt: new Date().toISOString(),
+          waitMinutes: 30,
+          departmentName: 'Khoa Ngoại',
+        },
+      ],
+      completedItems: [
+        {
+          id: 'done-1',
+          orderCode: 'XN-2026-0003',
+          patientName: 'Lê Văn C',
+          patientCode: 'BN003',
+          testCount: 1,
+          testSummary: 'HbA1c',
+          isPriority: false,
+          isEmergency: false,
+          status: 5,
+          statusName: 'Hoàn thành',
+          orderedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          waitMinutes: 45,
+        },
+      ],
+    };
+
+    cy.intercept('GET', '**/api/liscomplete/queue/display*', {
+      statusCode: 200,
+      body: mockLabData,
+    }).as('mockLabQueue');
+
+    cy.visit('/queue-display?mode=lab');
+    cy.wait('@mockLabQueue');
+
+    // Stats
+    cy.get('.lab-stats-bar').should('contain.text', '5');
+    cy.get('.lab-stats-bar').should('contain.text', '3');
+    cy.get('.lab-stats-bar').should('contain.text', '12');
+
+    // Processing card
+    cy.get('.lab-processing .lab-card').should('have.length', 1);
+    cy.get('.lab-processing .lab-card').should('contain.text', 'XN-2026-0001');
+    cy.get('.lab-processing .lab-card').should('contain.text', 'Nguyễn Văn A');
+    cy.get('.lab-processing .lab-card.emergency').should('exist');
+
+    // Waiting table
+    cy.get('.lab-waiting tbody tr').should('have.length', 1);
+    cy.get('.lab-waiting tbody').should('contain.text', 'XN-2026-0002');
+    cy.get('.lab-waiting tbody').should('contain.text', 'Trần Thị B');
+
+    // Completed card
+    cy.get('.lab-completed .lab-card').should('have.length', 1);
+    cy.get('.lab-completed .lab-card').should('contain.text', 'XN-2026-0003');
+    cy.get('.lab-completed .lab-card').should('contain.text', 'Hoàn thành');
+
+    // Footer
+    cy.get('.queue-footer').should('contain.text', '5');
+    cy.get('.queue-footer').should('contain.text', '25 phút');
+  });
+});

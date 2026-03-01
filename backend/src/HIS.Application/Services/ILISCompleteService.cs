@@ -433,6 +433,15 @@ namespace HIS.Application.Services
         Task<MicrobiologyStatisticsDto> GetMicrobiologyStatisticsAsync(DateTime fromDate, DateTime toDate);
 
         #endregion
+
+        #region Queue Display (Public)
+
+        /// <summary>
+        /// Lấy dữ liệu hiển thị hàng đợi xét nghiệm (public, không cần auth)
+        /// </summary>
+        Task<LabQueueDisplayDto> GetLabQueueDisplayAsync();
+
+        #endregion
     }
 
     #region Additional DTOs for LIS Service
@@ -1125,4 +1134,5 @@ namespace HIS.Application.Services
     }
 
     #endregion
+
 }
