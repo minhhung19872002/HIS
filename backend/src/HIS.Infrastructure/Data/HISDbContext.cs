@@ -143,6 +143,10 @@ public class HISDbContext : DbContext
     // DQGVN - Lien thong du lieu y te quoc gia
     public DbSet<DqgvnSubmission> DqgvnSubmissions => Set<DqgvnSubmission>();
 
+    // Giải phẫu bệnh (Pathology)
+    public DbSet<PathologyRequest> PathologyRequests => Set<PathologyRequest>();
+    public DbSet<PathologyResult> PathologyResults => Set<PathologyResult>();
+
     // Xét nghiệm (LIS)
     public DbSet<LabRequest> LabRequests => Set<LabRequest>();
     public DbSet<LabRequestItem> LabRequestItems => Set<LabRequestItem>();

@@ -184,6 +184,9 @@ public static class DependencyInjection
         // DQGVN National Health Data Exchange (Cong du lieu y te quoc gia)
         services.AddScoped<IDqgvnService, DqgvnService>();
 
+        // Giải phẫu bệnh & Tế bào học (Pathology)
+        services.AddScoped<IPathologyService, PathologyService>();
+
         return services;
     }
 }

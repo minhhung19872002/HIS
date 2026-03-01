@@ -48,6 +48,7 @@ const pages = [
   { route: '/screening', name: 'Screening (Sang loc)' },
   { route: '/reagent-management', name: 'Reagent Management (Hoa chat XN)' },
   { route: '/sample-tracking', name: 'Sample Tracking (Theo doi mau)' },
+  { route: '/pathology', name: 'Pathology (Giai phau benh)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

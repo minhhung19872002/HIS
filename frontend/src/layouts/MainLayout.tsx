@@ -109,6 +109,7 @@ const MainLayout: React.FC = () => {
         { key: '/radiology', icon: <ScanOutlined />, label: 'CĐHA' },
         { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
+        { key: '/pathology', icon: <ExperimentOutlined />, label: 'Giải phẫu bệnh' },
       ],
     },
     {
