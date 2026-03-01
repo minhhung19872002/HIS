@@ -71,8 +71,8 @@ const Help: React.FC = () => {
     try {
       const response = await risApi.getHelpCategories();
       setCategories(response.data || []);
-    } catch (error) {
-      // Use mock data
+    } catch {
+      // Fallback: built-in help categories when API unavailable
       setCategories([
         { id: '1', code: 'getting-started', name: 'Bắt đầu sử dụng', description: 'Hướng dẫn cơ bản cho người mới', sortOrder: 1, isActive: true },
         { id: '2', code: 'user-guide', name: 'Hướng dẫn sử dụng', description: 'Hướng dẫn chi tiết các tính năng', sortOrder: 2, isActive: true },
@@ -95,8 +95,8 @@ const Help: React.FC = () => {
         pageSize: 50,
       });
       setArticles(response.data?.items || []);
-    } catch (error) {
-      // Use mock data
+    } catch {
+      // Fallback: built-in help articles when API unavailable
       setArticles([
         {
           id: '1',
