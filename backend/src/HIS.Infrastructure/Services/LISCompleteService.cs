@@ -1137,7 +1137,7 @@ public class LISCompleteService : ILISCompleteService
                    u.FullName AS ApprovedBy
             FROM LabOrderItems i
             INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            LEFT JOIN Users u ON o.ApprovedBy = u.Id
+            LEFT JOIN Users u ON o.ApprovedById = u.Id
             WHERE o.PatientId = @PatientId AND o.IsDeleted = 0
               AND o.OrderedAt >= @FromDate
               AND i.Result IS NOT NULL AND i.Result <> ''";
