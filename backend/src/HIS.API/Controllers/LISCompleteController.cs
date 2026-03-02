@@ -1003,6 +1003,125 @@ namespace HIS.API.Controllers
 
     #endregion
 
+    #region LIS Sub-modules - QC Lots, Sample Storage, Screening, Reagents, Sample Tracking
+
+    /// <summary>
+    /// Danh sách lô QC
+    /// </summary>
+    [HttpGet("qc/lots")]
+    public ActionResult GetQCLots(
+        [FromQuery] Guid? analyzerId = null,
+        [FromQuery] Guid? testId = null,
+        [FromQuery] string status = null)
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Kết quả QC
+    /// </summary>
+    [HttpGet("qc/results")]
+    public ActionResult GetQCResults(
+        [FromQuery] Guid? lotId = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Danh sách mẫu lưu trữ
+    /// </summary>
+    [HttpGet("sample-storage")]
+    public ActionResult GetSampleStorageRecords(
+        [FromQuery] string status = null,
+        [FromQuery] string keyword = null)
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Vị trí lưu trữ
+    /// </summary>
+    [HttpGet("sample-storage/locations")]
+    public ActionResult GetStorageLocations()
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Cảnh báo lưu trữ
+    /// </summary>
+    [HttpGet("sample-storage/alerts")]
+    public ActionResult GetStorageAlerts()
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Yêu cầu sàng lọc
+    /// </summary>
+    [HttpGet("screening/requests")]
+    public ActionResult GetScreeningRequests(
+        [FromQuery] string type = null,
+        [FromQuery] string status = null)
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Chương trình sàng lọc
+    /// </summary>
+    [HttpGet("screening/programs")]
+    public ActionResult GetScreeningPrograms()
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Danh sách hóa chất
+    /// </summary>
+    [HttpGet("reagents")]
+    public ActionResult GetReagents(
+        [FromQuery] string keyword = null,
+        [FromQuery] string status = null)
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Lịch sử sử dụng hóa chất
+    /// </summary>
+    [HttpGet("reagents/usage")]
+    public ActionResult GetReagentUsage(
+        [FromQuery] Guid? reagentId = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Cảnh báo hóa chất
+    /// </summary>
+    [HttpGet("reagents/alerts")]
+    public ActionResult GetReagentAlerts()
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Tồn kho hóa chất
+    /// </summary>
+    [HttpGet("reagents/inventory")]
+    public ActionResult GetReagentInventory()
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Mẫu bị từ chối
+    /// </summary>
+    [HttpGet("sample-tracking/rejections")]
+    public ActionResult GetSampleRejections(
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
+        => Ok(new List<object>());
+
+    /// <summary>
+    /// Tổng hợp theo dõi mẫu
+    /// </summary>
+    [HttpGet("sample-tracking/summary")]
+    public ActionResult GetSampleTrackingSummary()
+        => Ok(new { totalSamples = 0, rejected = 0, pending = 0, completed = 0, rejectionRate = 0.0 });
+
+    /// <summary>
+    /// Lý do từ chối mẫu
+    /// </summary>
+    [HttpGet("sample-tracking/rejection-reasons")]
+    public ActionResult GetRejectionReasons()
+        => Ok(new List<object>());
+
+    #endregion
+
     #region Queue Display (Public)
 
     /// <summary>

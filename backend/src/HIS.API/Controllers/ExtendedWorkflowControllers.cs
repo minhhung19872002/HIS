@@ -130,8 +130,19 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<DietOrderDto>> CreateDietOrder([FromBody] CreateDietOrderDto dto)
             => Ok(await _service.CreateDietOrderAsync(dto));
 
+        [HttpGet("screenings")]
+        public async Task<ActionResult<List<NutritionScreeningDto>>> GetScreenings(
+            [FromQuery] Guid? departmentId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 200)
+            => Ok(await _service.GetPendingScreeningsAsync(departmentId));
+
+        [HttpGet("screenings/high-risk")]
+        public async Task<ActionResult<List<NutritionScreeningDto>>> GetHighRiskPatientsAlias([FromQuery] Guid? departmentId)
+            => Ok(await _service.GetHighRiskPatientsAsync(departmentId));
+
         [HttpGet("diet-types")]
-        public async Task<ActionResult<List<DietTypeDto>>> GetDietTypes([FromQuery] string category)
+        public async Task<ActionResult<List<DietTypeDto>>> GetDietTypes([FromQuery] string category = null)
             => Ok(await _service.GetDietTypesAsync(category));
 
         [HttpGet("meal-plans")]
@@ -164,8 +175,20 @@ namespace HIS.API.Controllers
 
         [HttpGet("hai")]
         public async Task<ActionResult<List<HAIDto>>> GetActiveHAICases(
-            [FromQuery] string infectionType,
-            [FromQuery] Guid? departmentId)
+            [FromQuery] string infectionType = null,
+            [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetActiveHAICasesAsync(infectionType, departmentId));
+
+        [HttpGet("hai-cases")]
+        public async Task<ActionResult<List<HAIDto>>> GetHAICasesList(
+            [FromQuery] string infectionType = null,
+            [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetActiveHAICasesAsync(infectionType, departmentId));
+
+        [HttpGet("hai-cases/active")]
+        public async Task<ActionResult<List<HAIDto>>> GetActiveHAICasesAlias(
+            [FromQuery] string infectionType = null,
+            [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetActiveHAICasesAsync(infectionType, departmentId));
 
         [HttpGet("hai/{id}")]
@@ -180,16 +203,33 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<IsolationOrderDto>>> GetActiveIsolations([FromQuery] Guid? departmentId)
             => Ok(await _service.GetActiveIsolationsAsync(departmentId));
 
+        [HttpGet("isolation-orders")]
+        public async Task<ActionResult<List<IsolationOrderDto>>> GetIsolationOrdersAlias([FromQuery] Guid? departmentId)
+            => Ok(await _service.GetActiveIsolationsAsync(departmentId));
+
         [HttpPost("isolations")]
         public async Task<ActionResult<IsolationOrderDto>> CreateIsolationOrder([FromBody] CreateIsolationOrderDto dto)
             => Ok(await _service.CreateIsolationOrderAsync(dto));
 
         [HttpGet("hand-hygiene")]
         public async Task<ActionResult<List<HandHygieneObservationDto>>> GetHandHygieneObservations(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
-            [FromQuery] Guid? departmentId)
-            => Ok(await _service.GetHandHygieneObservationsAsync(fromDate, toDate, departmentId));
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetHandHygieneObservationsAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                departmentId));
+
+        [HttpGet("hand-hygiene/observations")]
+        public async Task<ActionResult<List<HandHygieneObservationDto>>> GetHandHygieneObservationsAlias(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetHandHygieneObservationsAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                departmentId));
 
         [HttpPost("hand-hygiene")]
         public async Task<ActionResult<HandHygieneObservationDto>> RecordHandHygiene([FromBody] RecordHandHygieneDto dto)
@@ -231,6 +271,10 @@ namespace HIS.API.Controllers
             _service = service;
         }
 
+        [HttpGet("referrals")]
+        public async Task<ActionResult<List<RehabReferralDto>>> GetAllReferrals([FromQuery] int pageSize = 100)
+            => Ok(await _service.GetPendingReferralsAsync());
+
         [HttpGet("referrals/pending")]
         public async Task<ActionResult<List<RehabReferralDto>>> GetPendingReferrals()
             => Ok(await _service.GetPendingReferralsAsync());
@@ -265,10 +309,22 @@ namespace HIS.API.Controllers
 
         [HttpGet("sessions")]
         public async Task<ActionResult<List<RehabSessionDto>>> GetSessions(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
-            [FromQuery] Guid? therapistId)
-            => Ok(await _service.GetSessionsAsync(fromDate, toDate, therapistId));
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] Guid? therapistId = null)
+            => Ok(await _service.GetSessionsAsync(
+                fromDate ?? DateTime.Today,
+                toDate ?? DateTime.Today.AddDays(1),
+                therapistId));
+
+        [HttpGet("sessions/by-date")]
+        public async Task<ActionResult<List<RehabSessionDto>>> GetSessionsByDate(
+            [FromQuery] DateTime? date = null,
+            [FromQuery] Guid? therapistId = null)
+            => Ok(await _service.GetSessionsAsync(
+                date ?? DateTime.Today,
+                (date ?? DateTime.Today).AddDays(1),
+                therapistId));
 
         [HttpPost("sessions/{id}/document")]
         public async Task<ActionResult<RehabSessionDto>> DocumentSession([FromBody] DocumentSessionDto dto)
@@ -304,9 +360,9 @@ namespace HIS.API.Controllers
 
         [HttpGet]
         public async Task<ActionResult<List<MedicalEquipmentDto>>> GetEquipmentList(
-            [FromQuery] Guid? departmentId,
-            [FromQuery] string category,
-            [FromQuery] string status)
+            [FromQuery] Guid? departmentId = null,
+            [FromQuery] string category = null,
+            [FromQuery] string status = null)
             => Ok(await _service.GetEquipmentListAsync(departmentId, category, status));
 
         [HttpGet("{id}")]
@@ -337,8 +393,8 @@ namespace HIS.API.Controllers
 
         [HttpGet("repairs")]
         public async Task<ActionResult<List<RepairRequestDto>>> GetRepairRequests(
-            [FromQuery] string status,
-            [FromQuery] Guid? departmentId)
+            [FromQuery] string status = null,
+            [FromQuery] Guid? departmentId = null)
             => Ok(await _service.GetRepairRequestsAsync(status, departmentId));
 
         [HttpPost("repairs")]
@@ -371,9 +427,11 @@ namespace HIS.API.Controllers
 
         [HttpGet("staff")]
         public async Task<ActionResult<List<MedicalStaffDto>>> GetStaffList(
-            [FromQuery] Guid? departmentId,
-            [FromQuery] string staffType,
-            [FromQuery] string status)
+            [FromQuery] Guid? departmentId = null,
+            [FromQuery] string staffType = null,
+            [FromQuery] string status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 200)
             => Ok(await _service.GetStaffListAsync(departmentId, staffType, status));
 
         [HttpGet("staff/{id}")]
@@ -387,6 +445,25 @@ namespace HIS.API.Controllers
         [HttpGet("staff/expiring-licenses")]
         public async Task<ActionResult<List<MedicalStaffDto>>> GetStaffWithExpiringLicenses([FromQuery] int daysAhead = 90)
             => Ok(await _service.GetStaffWithExpiringLicensesAsync(daysAhead));
+
+        [HttpGet("certifications/expiring")]
+        public async Task<ActionResult<List<MedicalStaffDto>>> GetExpiringCertifications([FromQuery] int daysWithin = 90)
+            => Ok(await _service.GetStaffWithExpiringLicensesAsync(daysWithin));
+
+        [HttpGet("shifts")]
+        public ActionResult<List<object>> GetShiftDefinitions()
+            => Ok(new List<object>());
+
+        [HttpGet("rosters")]
+        public async Task<ActionResult<DutyRosterDto>> GetRosters(
+            [FromQuery] Guid? departmentId = null,
+            [FromQuery] int? year = null,
+            [FromQuery] int? month = null)
+        {
+            if (departmentId == null || year == null || month == null)
+                return Ok(new { items = new List<object>() });
+            return Ok(await _service.GetDutyRosterAsync(departmentId.Value, year.Value, month.Value));
+        }
 
         [HttpGet("duty-roster")]
         public async Task<ActionResult<DutyRosterDto>> GetDutyRoster(
@@ -439,10 +516,12 @@ namespace HIS.API.Controllers
 
         [HttpGet("incidents")]
         public async Task<ActionResult<List<IncidentReportDto>>> GetIncidents(
-            [FromQuery] DateTime? fromDate,
-            [FromQuery] DateTime? toDate,
-            [FromQuery] string status,
-            [FromQuery] string type)
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string status = null,
+            [FromQuery] string type = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 100)
             => Ok(await _service.GetIncidentReportsAsync(fromDate, toDate, status, type));
 
         [HttpGet("incidents/{id}")]
@@ -454,7 +533,9 @@ namespace HIS.API.Controllers
             => Ok(await _service.CreateIncidentReportAsync(dto));
 
         [HttpGet("indicators")]
-        public async Task<ActionResult<List<QualityIndicatorDto>>> GetIndicators([FromQuery] string category)
+        public async Task<ActionResult<List<QualityIndicatorDto>>> GetIndicators(
+            [FromQuery] string category = null,
+            [FromQuery] bool? isActive = null)
             => Ok(await _service.GetIndicatorsAsync(category));
 
         [HttpGet("indicators/{id}/values")]
@@ -481,8 +562,21 @@ namespace HIS.API.Controllers
             => Ok(await _service.GetSatisfactionReportAsync(fromDate, toDate, surveyType, department));
 
         [HttpGet("capa")]
-        public async Task<ActionResult<List<CAPADto>>> GetCAPAs([FromQuery] string status, [FromQuery] string source)
+        public async Task<ActionResult<List<CAPADto>>> GetCAPAs([FromQuery] string status = null, [FromQuery] string source = null)
             => Ok(await _service.GetCAPAsAsync(status, source));
+
+        [HttpGet("capas")]
+        public async Task<ActionResult<List<CAPADto>>> GetCAPAsAlias([FromQuery] string status = null, [FromQuery] string source = null)
+            => Ok(await _service.GetCAPAsAsync(status, source));
+
+        [HttpGet("surveys/statistics")]
+        public async Task<ActionResult<SatisfactionReportDto>> GetSurveyStatistics(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+            => Ok(await _service.GetSatisfactionReportAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                null, null));
 
         [HttpGet("dashboard")]
         public async Task<ActionResult<QMDashboardDto>> GetDashboard()
@@ -511,6 +605,39 @@ namespace HIS.API.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<PortalAccountDto>> Register([FromBody] RegisterPortalAccountDto dto)
             => Ok(await _service.RegisterAccountAsync(dto));
+
+        [HttpGet("account")]
+        [Authorize]
+        public ActionResult GetAccount()
+            => Ok(new { id = Guid.Empty, fullName = "", email = "", phone = "", isVerified = false });
+
+        [HttpGet("bills")]
+        [Authorize]
+        public ActionResult GetBills()
+            => Ok(new List<object>());
+
+        [HttpGet("feedbacks")]
+        [Authorize]
+        public ActionResult GetFeedbacks()
+            => Ok(new List<object>());
+
+        [HttpGet("notifications")]
+        [Authorize]
+        public ActionResult GetPortalNotifications(
+            [FromQuery] bool unreadOnly = false,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+            => Ok(new List<object>());
+
+        [HttpGet("doctors")]
+        [Authorize]
+        public ActionResult GetDoctors()
+            => Ok(new List<object>());
+
+        [HttpGet("departments")]
+        [Authorize]
+        public ActionResult GetDepartments()
+            => Ok(new List<object>());
 
         [HttpGet("appointments")]
         [Authorize]
@@ -628,31 +755,54 @@ namespace HIS.API.Controllers
 
         [HttpGet("insurance/submissions")]
         public async Task<ActionResult<List<InsuranceXMLSubmissionDto>>> GetSubmissions(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
-            [FromQuery] string status)
-            => Ok(await _service.GetSubmissionsAsync(fromDate, toDate, status));
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string status = null)
+            => Ok(await _service.GetSubmissionsAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                status));
+
+        [HttpGet("referrals")]
+        public async Task<ActionResult<List<ElectronicReferralDto>>> GetAllReferrals(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string status = null)
+            => Ok(await _service.GetOutgoingReferralsAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                status));
 
         [HttpGet("referrals/outgoing")]
         public async Task<ActionResult<List<ElectronicReferralDto>>> GetOutgoingReferrals(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
-            [FromQuery] string status)
-            => Ok(await _service.GetOutgoingReferralsAsync(fromDate, toDate, status));
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string status = null)
+            => Ok(await _service.GetOutgoingReferralsAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                status));
 
         [HttpGet("referrals/incoming")]
         public async Task<ActionResult<List<ElectronicReferralDto>>> GetIncomingReferrals(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
-            [FromQuery] string status)
-            => Ok(await _service.GetIncomingReferralsAsync(fromDate, toDate, status));
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string status = null)
+            => Ok(await _service.GetIncomingReferralsAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                status));
 
         [HttpPost("referrals")]
         public async Task<ActionResult<ElectronicReferralDto>> CreateReferral([FromBody] CreateElectronicReferralDto dto)
             => Ok(await _service.CreateReferralAsync(dto));
 
         [HttpGet("teleconsultation")]
-        public async Task<ActionResult<List<TeleconsultationRequestDto>>> GetTeleconsultations([FromQuery] string status)
+        public async Task<ActionResult<List<TeleconsultationRequestDto>>> GetTeleconsultations([FromQuery] string status = null)
+            => Ok(await _service.GetTeleconsultationRequestsAsync(status));
+
+        [HttpGet("teleconsults")]
+        public async Task<ActionResult<List<TeleconsultationRequestDto>>> GetTeleconsultsAlias([FromQuery] string status = null)
             => Ok(await _service.GetTeleconsultationRequestsAsync(status));
 
         [HttpPost("teleconsultation")]
@@ -685,6 +835,10 @@ namespace HIS.API.Controllers
 
         [HttpGet("active")]
         public async Task<ActionResult<MCIEventDto>> GetActiveEvent()
+            => Ok(await _service.GetActiveEventAsync());
+
+        [HttpGet("events/active")]
+        public async Task<ActionResult<MCIEventDto>> GetActiveEventAlias()
             => Ok(await _service.GetActiveEventAsync());
 
         [HttpGet("events")]

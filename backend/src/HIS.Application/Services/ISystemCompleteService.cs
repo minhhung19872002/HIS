@@ -517,9 +517,9 @@ namespace HIS.Application.Services
     // Medicine Catalog Search
     public class MedicineCatalogSearchDto
     {
-        public string Keyword { get; set; }
+        public string? Keyword { get; set; }
         public Guid? MedicineGroupId { get; set; }
-        public string BHXHCode { get; set; }
+        public string? BHXHCode { get; set; }
         public bool? IsNarcotic { get; set; }
         public bool? IsPsychotropic { get; set; }
         public bool? IsPrecursor { get; set; }
@@ -567,9 +567,10 @@ namespace HIS.Application.Services
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public Guid? UserId { get; set; }
-        public string Action { get; set; }
-        public string EntityType { get; set; }
-        public string Keyword { get; set; }
+        public string? Action { get; set; }
+        public string? EntityType { get; set; }
+        public string? Keyword { get; set; }
+        public string? Module { get; set; }
         public int? PageIndex { get; set; }
         public int? PageSize { get; set; }
     }
