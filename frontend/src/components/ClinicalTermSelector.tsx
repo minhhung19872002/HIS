@@ -37,19 +37,24 @@ const bodySystemLabels: Record<string, string> = {
   Urogenital: 'Tiết niệu - Sinh dục',
 };
 
+const EMPTY_TERMS: string[] = [];
+
 const ClinicalTermSelector: React.FC<ClinicalTermSelectorProps> = ({
   category,
   bodySystem,
   value = '',
-  selectedTerms = [],
+  selectedTerms,
   onChange,
   placeholder,
   maxHeight = 200,
 }) => {
+  // Use stable reference for empty array to prevent infinite re-render loop
+  const stableTerms = selectedTerms ?? EMPTY_TERMS;
+
   const [terms, setTerms] = useState<ClinicalTermCatalogDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set(selectedTerms));
+  const [selected, setSelected] = useState<Set<string>>(new Set(stableTerms));
   const [freeText, setFreeText] = useState(value);
 
   // Load terms from API
@@ -73,14 +78,20 @@ const ClinicalTermSelector: React.FC<ClinicalTermSelectorProps> = ({
     return () => { active = false; };
   }, [category, bodySystem]);
 
-  // Sync external selectedTerms prop
+  // Sync external selectedTerms prop - use functional update to avoid unnecessary re-renders
   useEffect(() => {
-    setSelected(new Set(selectedTerms));
-  }, [selectedTerms]);
+    setSelected(prev => {
+      const newIds = stableTerms;
+      if (prev.size === newIds.length && newIds.every(id => prev.has(id))) {
+        return prev; // Same content - return same reference to skip re-render
+      }
+      return new Set(newIds);
+    });
+  }, [stableTerms]);
 
   // Sync external value prop
   useEffect(() => {
-    setFreeText(value);
+    setFreeText(prev => prev === value ? prev : value);
   }, [value]);
 
   const toggleTerm = useCallback((term: ClinicalTermCatalogDto) => {
