@@ -854,20 +854,51 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<List<Application.DTOs.MedicalHistoryDto>> GetPatientMedicalHistoryAsync(Guid patientId, int limit = 20)
     {
-        var records = await _context.MedicalRecords
-            .Where(m => m.PatientId == patientId)
-            .OrderByDescending(m => m.AdmissionDate)
+        // Query Examinations table to get actual examination history with room, doctor, diagnosis
+        var exams = await _context.Examinations
+            .Include(e => e.MedicalRecord)
+            .Where(e => e.MedicalRecord.PatientId == patientId && !e.IsDeleted)
+            .OrderByDescending(e => e.StartTime != null ? e.StartTime.Value : e.CreatedAt)
             .Take(limit)
+            .Select(e => new
+            {
+                e.Id,
+                PatientId = e.MedicalRecord.PatientId,
+                ExamDate = e.StartTime != null ? e.StartTime.Value : e.CreatedAt,
+                e.Status,
+                e.ConclusionType,
+                RoomName = e.Room != null ? e.Room.RoomName : null,
+                DoctorName = e.Doctor != null ? e.Doctor.FullName : null,
+                e.MainIcdCode,
+                e.MainDiagnosis,
+            })
             .ToListAsync();
 
-        return records.Select(m => new Application.DTOs.MedicalHistoryDto
+        return exams.Select(e => new Application.DTOs.MedicalHistoryDto
         {
-            Id = m.Id,
-            PatientId = m.PatientId,
-            HistoryType = m.TreatmentType == 1 ? "Ngoai tru" : "Noi tru",
-            Description = m.MainDiagnosis,
-            OccurrenceDate = m.AdmissionDate,
-            CreatedDate = m.CreatedAt
+            Id = e.Id,
+            PatientId = e.PatientId,
+            ExaminationId = e.Id.ToString(),
+            ExaminationDate = e.ExamDate.ToString("yyyy-MM-dd"),
+            RoomName = e.RoomName ?? "",
+            DoctorName = e.DoctorName ?? "",
+            DiagnosisCode = e.MainIcdCode ?? "",
+            DiagnosisName = e.MainDiagnosis ?? "",
+            ConclusionType = e.ConclusionType,
+            ConclusionTypeName = e.ConclusionType switch
+            {
+                1 => "Cho về",
+                2 => "Kê đơn",
+                3 => "Nhập viện",
+                4 => "Chuyển viện",
+                5 => "Hẹn khám lại",
+                6 => "Tử vong",
+                _ => e.Status >= 4 ? "Hoàn thành" : "Đang khám",
+            },
+            HistoryType = "Ngoại trú",
+            OccurrenceDate = e.ExamDate,
+            Description = e.MainDiagnosis,
+            CreatedDate = e.ExamDate,
         }).ToList();
     }
 

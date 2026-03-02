@@ -415,6 +415,15 @@ namespace HIS.Application.DTOs
         public string Outcome { get; set; }
         public string Note { get; set; }
         public DateTime CreatedDate { get; set; }
+        // Fields expected by frontend EMR page
+        public string ExaminationId { get; set; }
+        public string ExaminationDate { get; set; }
+        public string RoomName { get; set; }
+        public string DoctorName { get; set; }
+        public string DiagnosisCode { get; set; }
+        public string DiagnosisName { get; set; }
+        public int? ConclusionType { get; set; }
+        public string ConclusionTypeName { get; set; }
     }
 
     // ============================================================================

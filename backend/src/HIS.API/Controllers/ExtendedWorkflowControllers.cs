@@ -58,6 +58,10 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime toDate)
             => Ok(await _service.GetAvailableSlotsAsync(doctorId, specialityId, fromDate, toDate));
 
+        [HttpGet("sessions")]
+        public ActionResult<List<TeleSessionDto>> GetSessions()
+            => Ok(new List<TeleSessionDto>());
+
         [HttpPost("sessions/start")]
         public async Task<ActionResult<TeleSessionDto>> StartSession([FromBody] StartVideoCallDto dto)
             => Ok(await _service.StartSessionAsync(dto));

@@ -1475,6 +1475,8 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<InsuranceSettlementBatchDto> CreateSettlementBatchAsync(int month, int year)
     {
+        if (month <= 0 || month > 12) month = DateTime.Now.Month;
+        if (year <= 0 || year > 9999) year = DateTime.Now.Year;
         var startDate = new DateTime(year, month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
 
@@ -1602,6 +1604,8 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<MonthlyInsuranceReportDto> GetMonthlyInsuranceReportAsync(int month, int year)
     {
+        if (month <= 0 || month > 12) month = DateTime.Now.Month;
+        if (year <= 0 || year > 9999) year = DateTime.Now.Year;
         var startDate = new DateTime(year, month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
 
