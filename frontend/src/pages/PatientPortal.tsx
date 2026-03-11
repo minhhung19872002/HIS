@@ -782,6 +782,33 @@ const PatientPortal: React.FC = () => {
                 ),
               },
               {
+                key: 'news',
+                label: 'Tin tuc',
+                children: (
+                  <div>
+                    <Row gutter={[16, 16]}>
+                      {[
+                        { title: 'Huong dan su dung cong benh nhan', date: '2026-03-01', category: 'Huong dan', content: 'Tai lieu huong dan cach dang ky, dat lich, xem ket qua xet nghiem truc tuyen.' },
+                        { title: 'Lich kham chuyen gia thang 3/2026', date: '2026-02-28', category: 'Thong bao', content: 'Danh sach bac si chuyen gia kham tai benh vien trong thang 3.' },
+                        { title: 'Chuong trinh kham suc khoe dinh ky', date: '2026-02-25', category: 'Su kien', content: 'Chuong trinh kham suc khoe tong quat giam 30% tu 01/03 den 31/03/2026.' },
+                        { title: 'Quyen loi BHYT moi nhat 2026', date: '2026-02-20', category: 'Chinh sach', content: 'Cap nhat quyen loi bao hiem y te theo quy dinh moi cua Chinh phu.' },
+                        { title: 'Tam ngung phong kham ngoai gio', date: '2026-02-15', category: 'Thong bao', content: 'Tu ngay 20/02, tam ngung phong kham ngoai gio de bao tri he thong.' },
+                      ].map((item, idx) => (
+                        <Col span={24} key={idx}>
+                          <Card size="small" hoverable onClick={() => Modal.info({ title: item.title, width: 600, content: (<div><Tag color={item.category === 'Thong bao' ? 'blue' : item.category === 'Huong dan' ? 'green' : item.category === 'Su kien' ? 'purple' : 'orange'}>{item.category}</Tag><Text type="secondary" style={{ marginLeft: 8 }}>{dayjs(item.date).format('DD/MM/YYYY')}</Text><Divider /><Paragraph>{item.content}</Paragraph></div>) })}>
+                            <Space>
+                              <Tag color={item.category === 'Thong bao' ? 'blue' : item.category === 'Huong dan' ? 'green' : item.category === 'Su kien' ? 'purple' : 'orange'}>{item.category}</Tag>
+                              <Text strong>{item.title}</Text>
+                              <Text type="secondary">{dayjs(item.date).format('DD/MM/YYYY')}</Text>
+                            </Space>
+                          </Card>
+                        </Col>
+                      ))}
+                    </Row>
+                  </div>
+                ),
+              },
+              {
                 key: 'notifications',
                 label: (
                   <Badge count={notifications.filter((n) => !n.isRead).length} size="small" offset={[8, 0]}>

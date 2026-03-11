@@ -44,7 +44,7 @@ import dayjs from 'dayjs';
 import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '../api/examination';
 import { patientApi, type Patient as ApiPatient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
-import { HOSPITAL_NAME } from '../constants/hospital';
+import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../constants/hospital';
 import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
@@ -342,6 +342,7 @@ const Prescription: React.FC = () => {
   const [medicineSearchResults, setMedicineSearchResults] = useState<Medicine[]>([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [isInteractionDrawerOpen, setIsInteractionDrawerOpen] = useState(false);
+  const [isDrugDisclosureDrawerOpen, setIsDrugDisclosureDrawerOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [templateDiagnosis, setTemplateDiagnosis] = useState('');
@@ -858,6 +859,108 @@ const Prescription: React.FC = () => {
     setTimeout(() => { printWindow.print(); }, 500);
   };
 
+  const handlePrintDrugDisclosure = () => {
+    const diagnosis = form.getFieldValue('diagnosis') || '';
+    const isBHYT = !!patient?.insuranceNumber;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.warning('Khong the mo cua so in. Vui long cho phep popup.');
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Phieu cong khai thuoc</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; font-size: 13px; padding: 20px; }
+        .header { text-align: center; margin-bottom: 10px; }
+        .header .hospital { font-size: 14px; font-weight: bold; }
+        .header .address { font-size: 12px; }
+        .form-title { font-size: 16px; font-weight: bold; text-align: center; margin: 15px 0 10px; text-transform: uppercase; }
+        .info { margin: 4px 0; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+        th, td { border: 1px solid #000; padding: 4px 6px; }
+        th { background: #f0f0f0; text-align: center; font-weight: bold; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .total-row { font-weight: bold; background: #fafafa; }
+        .signature-section { display: flex; justify-content: space-between; margin-top: 30px; }
+        .signature-col { width: 40%; text-align: center; }
+        .signature-col .title { font-weight: bold; margin-bottom: 60px; }
+        .signature-col .note { font-style: italic; font-size: 12px; }
+        @media print { body { padding: 10px; } }
+      </style></head><body>
+        <div class="header">
+          <div class="hospital">${HOSPITAL_NAME}</div>
+          <div class="address">${HOSPITAL_ADDRESS}</div>
+        </div>
+        <div class="form-title">PHIEU CONG KHAI THUOC</div>
+        ${patient ? `
+          <div class="info">Ho ten: <strong>${patient.fullName}</strong> &nbsp;&nbsp; Ma BN: <strong>${patient.patientCode}</strong></div>
+          <div class="info">Ngay sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} &nbsp;&nbsp; Gioi tinh: ${patient.gender === 1 ? 'Nam' : 'Nu'}</div>
+          ${patient.insuranceNumber ? `<div class="info">So the BHYT: <strong>${patient.insuranceNumber}</strong></div>` : ''}
+        ` : ''}
+        <div class="info">Chan doan: <strong>${diagnosis}</strong></div>
+        <table>
+          <thead><tr>
+            <th style="width:35px;">STT</th>
+            <th>Ten thuoc</th>
+            <th>Ham luong</th>
+            <th>DVT</th>
+            <th>SL</th>
+            <th>Don gia</th>
+            <th>Thanh tien</th>
+            <th>BHYT chi tra</th>
+            <th>BN chi tra</th>
+            <th>Ghi chu</th>
+          </tr></thead>
+          <tbody>
+            ${prescriptionItems.map((item, i) => {
+              const itemTotal = item.totalCost;
+              const bhytPays = isBHYT && item.medicine.insuranceCovered ? Math.round(itemTotal * 0.8) : 0;
+              const patientPays = itemTotal - bhytPays;
+              return `<tr>
+                <td class="text-center">${i + 1}</td>
+                <td><strong>${item.medicine.name}</strong>${item.medicine.activeIngredient ? `<br/><small>${item.medicine.activeIngredient}</small>` : ''}</td>
+                <td class="text-center">${item.strength || item.medicine.strength || ''}</td>
+                <td class="text-center">${item.medicine.unit}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-right">${item.medicine.unitPrice.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${itemTotal.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${bhytPays > 0 ? bhytPays.toLocaleString('vi-VN') : '-'}</td>
+                <td class="text-right">${patientPays.toLocaleString('vi-VN')}</td>
+                <td>${item.notes || ''}</td>
+              </tr>`;
+            }).join('')}
+            <tr class="total-row">
+              <td colspan="6" class="text-center"><strong>Tong cong</strong></td>
+              <td class="text-right"><strong>${totalCost.toLocaleString('vi-VN')}</strong></td>
+              <td class="text-right"><strong>${isBHYT ? totalInsurance.toLocaleString('vi-VN') : '-'}</strong></td>
+              <td class="text-right"><strong>${finalCost.toLocaleString('vi-VN')}</strong></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="info"><em>Tong so: ${prescriptionItems.length} khoan thuoc</em></div>
+        <div class="signature-section">
+          <div class="signature-col">
+            <div class="note">(Ky, ghi ro ho ten)</div>
+            <div class="title">Nguoi lap</div>
+          </div>
+          <div class="signature-col">
+            <div class="note">(Ky, ghi ro ho ten)</div>
+            <div class="title">Benh nhan/Nguoi nha</div>
+          </div>
+        </div>
+        <div style="text-align: right; margin-top: 15px; font-size: 12px;">
+          Ngay ${dayjs().format('DD')} thang ${dayjs().format('MM')} nam ${dayjs().format('YYYY')}
+        </div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
+
   const handleSendToPharmacy = () => {
     if (prescriptionItems.length === 0) {
       message.error('Đơn thuốc chưa có thuốc nào');
@@ -1353,6 +1456,9 @@ const Prescription: React.FC = () => {
               <Button icon={<PrinterOutlined />} onClick={handlePrintPrescription}>
                 In đơn
               </Button>
+              <Button icon={<FileTextOutlined />} onClick={() => setIsDrugDisclosureDrawerOpen(true)}>
+                Phiếu công khai thuốc
+              </Button>
               {patient && form.getFieldValue('id') && (
                 <Tooltip title={signatureMap.has(form.getFieldValue('id')) ? 'Đã ký số' : 'Ký số đơn thuốc'}>
                   <Button
@@ -1684,6 +1790,153 @@ const Prescription: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Drug Disclosure Drawer */}
+      <Drawer
+        title="Phiếu công khai thuốc"
+        placement="right"
+        onClose={() => setIsDrugDisclosureDrawerOpen(false)}
+        open={isDrugDisclosureDrawerOpen}
+        size="large"
+        extra={
+          <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrintDrugDisclosure} disabled={prescriptionItems.length === 0}>
+            In phiếu
+          </Button>
+        }
+      >
+        <div style={{ fontFamily: "'Times New Roman', serif" }}>
+          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+            <div style={{ fontWeight: 'bold', fontSize: 14 }}>{HOSPITAL_NAME}</div>
+            <div style={{ fontSize: 12 }}>{HOSPITAL_ADDRESS}</div>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 'bold', margin: '15px 0 10px', textTransform: 'uppercase' as const }}>
+            Phiếu công khai thuốc
+          </div>
+          {patient ? (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 4 }}>Họ tên: <strong>{patient.fullName}</strong> &nbsp;&nbsp; Mã BN: <strong>{patient.patientCode}</strong></div>
+              <div style={{ marginBottom: 4 }}>Ngày sinh: {patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} &nbsp;&nbsp; Giới tính: {patient.gender === 1 ? 'Nam' : 'Nữ'}</div>
+              {patient.insuranceNumber && <div style={{ marginBottom: 4 }}>Số thẻ BHYT: <strong>{patient.insuranceNumber}</strong></div>}
+              <div>Chẩn đoán: <strong>{form.getFieldValue('diagnosis') || ''}</strong></div>
+            </div>
+          ) : (
+            <Alert title="Chưa chọn bệnh nhân" type="info" showIcon style={{ marginBottom: 12 }} />
+          )}
+          {prescriptionItems.length === 0 ? (
+            <Alert title="Chưa có thuốc nào trong đơn" type="warning" showIcon />
+          ) : (
+            <>
+              <Table
+                dataSource={prescriptionItems}
+                rowKey="id"
+                size="small"
+                pagination={false}
+                scroll={{ x: 900 }}
+                columns={[
+                  {
+                    title: 'STT',
+                    width: 45,
+                    align: 'center' as const,
+                    render: (_: unknown, __: PrescriptionItem, index: number) => index + 1,
+                  },
+                  {
+                    title: 'Tên thuốc',
+                    width: 160,
+                    render: (_: unknown, record: PrescriptionItem) => (
+                      <div>
+                        <div><strong>{record.medicine.name}</strong></div>
+                        {record.medicine.activeIngredient && <Text type="secondary" style={{ fontSize: 11 }}>{record.medicine.activeIngredient}</Text>}
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Hàm lượng',
+                    width: 80,
+                    align: 'center' as const,
+                    render: (_: unknown, record: PrescriptionItem) => record.strength || record.medicine.strength || '',
+                  },
+                  {
+                    title: 'ĐVT',
+                    dataIndex: ['medicine', 'unit'],
+                    width: 55,
+                    align: 'center' as const,
+                  },
+                  {
+                    title: 'SL',
+                    dataIndex: 'quantity',
+                    width: 50,
+                    align: 'center' as const,
+                  },
+                  {
+                    title: 'Đơn giá',
+                    width: 85,
+                    align: 'right' as const,
+                    render: (_: unknown, record: PrescriptionItem) => record.medicine.unitPrice.toLocaleString('vi-VN'),
+                  },
+                  {
+                    title: 'Thành tiền',
+                    width: 95,
+                    align: 'right' as const,
+                    render: (_: unknown, record: PrescriptionItem) => record.totalCost.toLocaleString('vi-VN'),
+                  },
+                  {
+                    title: 'BHYT chi trả',
+                    width: 95,
+                    align: 'right' as const,
+                    render: (_: unknown, record: PrescriptionItem) => {
+                      if (!patient?.insuranceNumber || !record.medicine.insuranceCovered) return '-';
+                      return Math.round(record.totalCost * 0.8).toLocaleString('vi-VN');
+                    },
+                  },
+                  {
+                    title: 'BN chi trả',
+                    width: 95,
+                    align: 'right' as const,
+                    render: (_: unknown, record: PrescriptionItem) => {
+                      const bhyt = patient?.insuranceNumber && record.medicine.insuranceCovered ? Math.round(record.totalCost * 0.8) : 0;
+                      return (record.totalCost - bhyt).toLocaleString('vi-VN');
+                    },
+                  },
+                  {
+                    title: 'Ghi chú',
+                    dataIndex: 'notes',
+                    width: 100,
+                    render: (notes: string | undefined) => notes || '',
+                  },
+                ]}
+                summary={() => (
+                  <Table.Summary fixed>
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={6} align="center"><strong>Tổng cộng</strong></Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right"><strong>{totalCost.toLocaleString('vi-VN')}</strong></Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right"><strong>{patient?.insuranceNumber ? totalInsurance.toLocaleString('vi-VN') : '-'}</strong></Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right"><strong>{finalCost.toLocaleString('vi-VN')}</strong></Table.Summary.Cell>
+                      <Table.Summary.Cell index={4} />
+                    </Table.Summary.Row>
+                  </Table.Summary>
+                )}
+              />
+              <div style={{ margin: '12px 0', fontSize: 13 }}>
+                <em>Tổng số: {prescriptionItems.length} khoản thuốc</em>
+              </div>
+              <Divider />
+              <Row gutter={48} style={{ marginTop: 24, textAlign: 'center' }}>
+                <Col span={12}>
+                  <div style={{ fontStyle: 'italic', fontSize: 12, marginBottom: 4 }}>(Ký, ghi rõ họ tên)</div>
+                  <div style={{ fontWeight: 'bold' }}>Người lập</div>
+                </Col>
+                <Col span={12}>
+                  <div style={{ fontStyle: 'italic', fontSize: 12, marginBottom: 4 }}>(Ký, ghi rõ họ tên)</div>
+                  <div style={{ fontWeight: 'bold' }}>Bệnh nhân/Người nhà</div>
+                </Col>
+              </Row>
+              <div style={{ textAlign: 'right', marginTop: 20, fontSize: 12 }}>
+                Ngày {dayjs().format('DD')} tháng {dayjs().format('MM')} năm {dayjs().format('YYYY')}
+              </div>
+            </>
+          )}
+        </div>
+      </Drawer>
 
       {/* Interaction Detail Drawer */}
       <Drawer
