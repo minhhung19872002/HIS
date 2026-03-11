@@ -251,7 +251,8 @@
 | PHAN 2: 21 bieu mau DD | 21 | 21 | 0 | 100% |
 | PHAN 3: Ky thuat | 16 | 16 | 0 | 100% |
 | PHAN 4: NangCap2 LIS | 37 | 36 | 1* | 97% |
-| **TONG** | **128** | **127** | **1*** | **99.2%** |
+| PHAN 5: NangCap3 EMR Da lieu | 10 | 10 | 0 | 100% |
+| **TONG** | **138** | **137** | **1*** | **99.3%** |
 
 *\* 1 hang muc con lai la "Ket noi kinh hien vi" - yeu cau phan cung (HARDWARE-DEPENDENT)*
 
@@ -284,3 +285,77 @@
 - TypeScript: 0 errors
 - Vite build: success
 - Backend build: 0 errors
+
+---
+
+## PHAN 5: NANGCAP3 - GOI THAU EMR BV DA LIEU THANH HOA (10 muc)
+
+> Nguon: NangCap3.pdf - Cung cap phan mem Ho so benh an dien tu (EMR)
+
+### 10 muc yeu cau
+
+| STT | Muc | Module/Page | Trang thai | Session |
+|-----|-----|-------------|------------|---------|
+| 1 | Benh an da lieu chung (ngoai tru) | EMR.tsx - enhanced | DA XONG | 24 |
+| 2 | Benh an da lieu chung (noi tru) | EMR.tsx - multi-day copy, XML/PDF export | DA XONG | 24 |
+| 3 | So hoa bieu mau kham + phieu cong khai thuoc | Prescription.tsx - DrugDisclosure drawer | DA XONG | 24 |
+| 4 | Quan ly luu tru, muon tra, ban giao HSBA | MedicalRecordArchive.tsx (3 tabs) | DA XONG | 24 |
+| 5 | Doi soat BHXH va truyen ho so | BhxhAudit.tsx (4 tabs) | DA XONG | 24 |
+| 6 | Quy trinh ky so (luong tai lieu cho ky) | DigitalSignature.tsx - pending docs queue | DA XONG | 24 |
+| 7 | Cong thong tin giam dinh vien BHXH | BhxhAudit.tsx - Auditor portal tab | DA XONG | 24 |
+| 8 | Ung dung bac si (mobile/desktop portal) | DoctorPortal.tsx (4 sections) | DA XONG | 24 |
+| 9 | Ung dung benh nhan (khao sat + tin tuc) | SatisfactionSurvey.tsx + PatientPortal.tsx | DA XONG | 24 |
+| 10 | Tich hop APP-HIS (API keys, webhooks, push) | SystemAdmin.tsx - Integration tab | DA XONG | 24 |
+
+### Chi tiet tung module
+
+**1-2. Benh an da lieu (EMR.tsx)**
+- Multi-day copy (To dieu tri + Phieu cham soc): copy N ngay lien tiep
+- XML export (QD 3176/QD-BYT): xuat XML co chu ky so
+- PDF export: tong ket benh an lam sang
+
+**3. Phieu cong khai thuoc (Prescription.tsx)**
+- Drawer chi tiet thuoc voi tinh toan BHYT 80%
+- In phieu cong khai: ten thuoc, don gia, BHYT tra, benh nhan tra
+
+**4. Luu tru HSBA (MedicalRecordArchive.tsx)**
+- Tab 1: Tong hop HSBA voi Tree View cau truc (to dieu tri, CLS, phieu cham soc...)
+- Tab 2: Duyệt truoc ban giao (progress check, form count, completeness)
+- Tab 3: Ban giao (pending→sent→received→approved workflow)
+
+**5+7. BHXH Giam dinh (BhxhAudit.tsx)**
+- Tab 1: Ho so gui giam dinh (filter, search, send, approve/reject)
+- Tab 2: Quan ly tai khoan giam dinh vien
+- Tab 3: Kiem tra XML (validate format)
+- Tab 4: Cong giam dinh vien (portal view voi danh sach BV)
+
+**6. Ky so workflow (DigitalSignature.tsx)**
+- Tab "Tai lieu cho ky": pending docs queue voi document type filter
+- Ky don: chon 1 tai lieu → nhap PIN → ky
+- Ky hang loat: checkbox nhieu tai lieu → batch sign
+- DOC_TYPE_LABELS: EMR, Don thuoc, KQ XN, KQ CDHA, Ra vien, Hoi chan, Phau thuat
+
+**8. Cong bac si (DoctorPortal.tsx)**
+- Segmented control 4 sections: Ngoai tru / Noi tru / Ky so / Lich truc
+- Ngoai tru: search today's patients, detail drawer voi vital signs + diagnoses
+- Noi tru: inpatient list voi status badges, detail drawer
+- Ky so: pending documents voi batch sign modal
+- Lich truc: calendar view, on-call/night shift highlighting
+
+**9. Khao sat hai long + Tin tuc**
+- SatisfactionSurvey.tsx: 4 tabs (Mau khao sat CRUD, Ket qua, Phan tich, Cau hinh)
+- PatientPortal.tsx: them tab "Tin tuc" voi news cards + detail modal
+
+**10. Tich hop APP-HIS (SystemAdmin.tsx)**
+- Sub-tab API Keys: table CRUD, copy key
+- Sub-tab Webhooks: event subscription management
+- Sub-tab Ung dung: connected app cards voi status
+- Sub-tab Push: Firebase push notification configuration
+
+### Tong hop NangCap3
+
+| Hang muc | Tong | Da xong | % |
+|----------|------|---------|---|
+| 10 muc yeu cau | 10 | 10 | 100% |
+
+> **Ket luan**: Tat ca 10 muc yeu cau NangCap3 da duoc implement voi 4 pages moi + 4 pages nang cap.
