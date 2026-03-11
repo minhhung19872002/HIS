@@ -256,14 +256,15 @@
 
 *\* 1 hang muc con lai la "Ket noi kinh hien vi" - yeu cau phan cung (HARDWARE-DEPENDENT)*
 
-> **Ket luan**: He thong HIS da hoan thanh 99.2% yeu cau. Tat ca cac hang muc phan mem da duoc implement.
+> **Ket luan**: He thong HIS da hoan thanh 99.3% yeu cau (137/138). Tat ca cac hang muc phan mem da duoc implement.
 > Cac hang muc con lai deu yeu cau phan cung hoac moi truong production khong kha dung trong moi truong dev.
 
-### TEST VERIFICATION (cap nhat 2026-03-01)
+### TEST VERIFICATION (cap nhat 2026-03-11)
 
 | Test Suite | Pass | Total |
 |---|---|---|
-| Cypress console-errors | 42 | 42 |
+| Cypress console-errors | 46 | 46 |
+| Cypress nangcap3-modules | 46 | 46 |
 | Cypress deep-controls | 122 | 122 |
 | Cypress digital-signature | 18 | 18 |
 | Cypress new-features | 34 | 34 |
@@ -280,7 +281,7 @@
 | Cypress ris-pacs-complete | 67 | 67 |
 | Cypress fhir-health-pdf | 37 | 37 |
 | Playwright (10 specs) | 255 | 255 |
-| **TONG** | **928** | **928** |
+| **TONG** | **978** | **978** |
 
 - TypeScript: 0 errors
 - Vite build: success
