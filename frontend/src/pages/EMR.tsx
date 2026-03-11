@@ -9,7 +9,8 @@ import {
   ExperimentOutlined, PrinterOutlined, EditOutlined, EyeOutlined,
   PlusOutlined, UserOutlined, CalendarOutlined, ReloadOutlined,
   FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined,
-  FilePdfOutlined, HistoryOutlined,
+  FilePdfOutlined, HistoryOutlined, CopyOutlined, FileExcelOutlined,
+  DownloadOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -33,6 +34,7 @@ import {
   SurgerySummaryPrint, DepartmentTransferPrint, AdmissionExamPrint,
 } from '../components/EMRPrintTemplates';
 import { printEmrForm } from '../api/pdf';
+import client from '../api/client';
 import PatientTimeline from '../components/PatientTimeline';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
@@ -185,6 +187,157 @@ const EMR: React.FC = () => {
     } catch {
       message.warning('Lỗi ký số');
     }
+  };
+
+  // Copy multi-day for treatment sheets
+  const handleCopyTreatmentMultiDay = async (sheet: TreatmentSheetDto, days: number) => {
+    if (!selectedExam) return;
+    setFormLoading(true);
+    try {
+      const baseDate = dayjs(sheet.treatmentDate);
+      for (let i = 1; i <= days; i++) {
+        const dto: TreatmentSheetDto = {
+          ...sheet,
+          id: '',
+          treatmentDate: baseDate.add(i, 'day').format('YYYY-MM-DD'),
+          dayNumber: (sheet.dayNumber ?? 0) + i,
+        };
+        await createTreatmentSheet(dto);
+      }
+      message.success(`Đã sao chép phiếu điều trị cho ${days} ngày tiếp theo`);
+      const resp = await getTreatmentSheets(selectedExam.id);
+      setTreatmentSheets((resp.data as unknown as TreatmentSheetDto[]) ?? []);
+    } catch {
+      message.warning('Không thể sao chép phiếu điều trị');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Copy multi-day for nursing care sheets
+  const handleCopyNursingMultiDay = async (sheet: NursingCareSheetDto, days: number) => {
+    if (!selectedExam) return;
+    setFormLoading(true);
+    try {
+      const baseDate = dayjs(sheet.careDate);
+      for (let i = 1; i <= days; i++) {
+        const dto: NursingCareSheetDto = {
+          ...sheet,
+          id: '',
+          careDate: baseDate.add(i, 'day').format('YYYY-MM-DD'),
+        };
+        await createNursingCareSheet(dto);
+      }
+      message.success(`Đã sao chép phiếu chăm sóc cho ${days} ngày tiếp theo`);
+      const resp = await getNursingCareSheets(selectedExam.id);
+      setNursingCareSheets((resp.data as unknown as NursingCareSheetDto[]) ?? []);
+    } catch {
+      message.warning('Không thể sao chép phiếu chăm sóc');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Export medical record as XML (CDA R2)
+  const handleExportXml = async () => {
+    if (!selectedExam) return;
+    try {
+      const resp = await client.post(`/cda/generate/${selectedExam.id}`, {});
+      if (resp.data?.cdaDocumentId) {
+        const xmlResp = await client.get(`/cda/${resp.data.cdaDocumentId}/xml`, { responseType: 'blob' });
+        const url = window.URL.createObjectURL(new Blob([xmlResp.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `EMR_${selectedExam.patientCode}_${dayjs().format('YYYYMMDD')}.xml`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        message.success('Xuất file XML thành công');
+      }
+    } catch {
+      message.warning('Không thể xuất file XML. Hệ thống sẽ tạo file XML từ dữ liệu hiện tại.');
+      // Fallback: generate simple XML client-side
+      if (medicalRecord) {
+        const xml = generateLocalXml(medicalRecord, selectedExam);
+        const blob = new Blob([xml], { type: 'application/xml' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `EMR_${selectedExam.patientCode}_${dayjs().format('YYYYMMDD')}.xml`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        message.success('Đã tạo file XML cục bộ');
+      }
+    }
+  };
+
+  // Export as PDF
+  const handleExportPdf = async () => {
+    if (!selectedExam) return;
+    try {
+      const resp = await client.get(`/pdf/emr/${selectedExam.id}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `EMR_${selectedExam.patientCode}_${dayjs().format('YYYYMMDD')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('Xuất file PDF thành công');
+    } catch {
+      message.warning('Không thể xuất PDF. Sử dụng chức năng In để lưu PDF.');
+    }
+  };
+
+  // Generate simple XML from local data
+  const generateLocalXml = (record: MedicalRecordFullDto, exam: ExaminationDto): string => {
+    const p = record.patient;
+    const vs = record.vitalSigns;
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<ClinicalDocument xmlns="urn:hl7-org:v3">
+  <typeId root="2.16.840.1.113883.1.3" extension="POCD_HD000040"/>
+  <id root="${exam.id}"/>
+  <code code="34133-9" displayName="Summarization of Episode Note"/>
+  <title>Hồ sơ bệnh án điện tử - ${p?.fullName ?? ''}</title>
+  <effectiveTime value="${dayjs().format('YYYYMMDDHHmmss')}"/>
+  <recordTarget>
+    <patientRole>
+      <id extension="${p?.patientCode ?? ''}"/>
+      <patient>
+        <name>${p?.fullName ?? ''}</name>
+        <administrativeGenderCode code="${p?.gender === 1 ? 'M' : 'F'}"/>
+        <birthTime value="${p?.dateOfBirth ? dayjs(p.dateOfBirth).format('YYYYMMDD') : ''}"/>
+      </patient>
+    </patientRole>
+  </recordTarget>
+  <component>
+    <structuredBody>
+      <component>
+        <section>
+          <title>Sinh hiệu</title>
+          <text>
+            <paragraph>Cân nặng: ${vs?.weight ?? ''}kg, Chiều cao: ${vs?.height ?? ''}cm</paragraph>
+            <paragraph>Huyết áp: ${vs?.bloodPressureSystolic ?? ''}/${vs?.bloodPressureDiastolic ?? ''}mmHg</paragraph>
+            <paragraph>Mạch: ${vs?.pulse ?? ''} lần/phút, Nhiệt độ: ${vs?.temperature ?? ''}°C</paragraph>
+            <paragraph>SpO2: ${vs?.spO2 ?? ''}%, Nhịp thở: ${vs?.respiratoryRate ?? ''} lần/phút</paragraph>
+          </text>
+        </section>
+      </component>
+      <component>
+        <section>
+          <title>Chẩn đoán</title>
+          <text>
+${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.icdName}</paragraph>`).join('\n')}
+          </text>
+        </section>
+      </component>
+    </structuredBody>
+  </component>
+</ClinicalDocument>`;
   };
 
   // Search examinations
@@ -385,12 +538,22 @@ const EMR: React.FC = () => {
     { title: 'Diễn biến', dataIndex: 'dailyProgress', key: 'progress', ellipsis: true },
     { title: 'BS', dataIndex: 'doctorName', key: 'doctor', width: 120, ellipsis: true },
     {
-      title: '', key: 'actions', width: 80,
+      title: 'Người tạo', dataIndex: 'createdByName', key: 'creator', width: 100, ellipsis: true,
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '', key: 'actions', width: 120,
       render: (_: unknown, r: TreatmentSheetDto) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />}
-            onClick={() => { setEditingTreatment(r); treatmentForm.setFieldsValue({ ...r, treatmentDate: dayjs(r.treatmentDate) }); setTreatmentModalOpen(true); }} />
-          <Button type="link" size="small" icon={<EyeOutlined />} />
+          <Tooltip title="Sửa"><Button type="link" size="small" icon={<EditOutlined />}
+            onClick={() => { setEditingTreatment(r); treatmentForm.setFieldsValue({ ...r, treatmentDate: dayjs(r.treatmentDate) }); setTreatmentModalOpen(true); }} /></Tooltip>
+          <Dropdown menu={{ items: [
+            { key: '1', label: 'Sao chép 1 ngày' },
+            { key: '3', label: 'Sao chép 3 ngày' },
+            { key: '7', label: 'Sao chép 7 ngày' },
+          ], onClick: ({ key }) => handleCopyTreatmentMultiDay(r, Number(key)) }}>
+            <Tooltip title="Sao chép nhiều ngày"><Button type="link" size="small" icon={<CopyOutlined />} /></Tooltip>
+          </Dropdown>
         </Space>
       ),
     },
@@ -429,12 +592,22 @@ const EMR: React.FC = () => {
     { title: 'Can thiệp', dataIndex: 'nursingInterventions', key: 'interventions', ellipsis: true },
     { title: 'ĐD', dataIndex: 'nurseName', key: 'nurse', width: 120, ellipsis: true },
     {
-      title: '', key: 'actions', width: 80,
+      title: 'Người tạo', dataIndex: 'createdByName', key: 'creator', width: 100, ellipsis: true,
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '', key: 'actions', width: 120,
       render: (_: unknown, r: NursingCareSheetDto) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />}
-            onClick={() => { setEditingNursing(r); nursingForm.setFieldsValue({ ...r, careDate: dayjs(r.careDate) }); setNursingModalOpen(true); }} />
-          <Button type="link" size="small" icon={<EyeOutlined />} />
+          <Tooltip title="Sửa"><Button type="link" size="small" icon={<EditOutlined />}
+            onClick={() => { setEditingNursing(r); nursingForm.setFieldsValue({ ...r, careDate: dayjs(r.careDate) }); setNursingModalOpen(true); }} /></Tooltip>
+          <Dropdown menu={{ items: [
+            { key: '1', label: 'Sao chép 1 ngày' },
+            { key: '3', label: 'Sao chép 3 ngày' },
+            { key: '7', label: 'Sao chép 7 ngày' },
+          ], onClick: ({ key }) => handleCopyNursingMultiDay(r, Number(key)) }}>
+            <Tooltip title="Sao chép nhiều ngày"><Button type="link" size="small" icon={<CopyOutlined />} /></Tooltip>
+          </Dropdown>
         </Space>
       ),
     },
@@ -765,6 +938,12 @@ const EMR: React.FC = () => {
                 ], onClick: ({ key }) => { if (selectedExam) printEmrForm(selectedExam.id, key); } }}>
                   <Button size="small" icon={<FilePdfOutlined />} type="primary" ghost>In PDF</Button>
                 </Dropdown>
+                <Tooltip title="Xuất XML (CDA R2)">
+                  <Button size="small" icon={<FileExcelOutlined />} onClick={handleExportXml}>XML</Button>
+                </Tooltip>
+                <Tooltip title="Xuất PDF">
+                  <Button size="small" icon={<DownloadOutlined />} onClick={handleExportPdf}>PDF</Button>
+                </Tooltip>
                 <Tooltip title="Ký số hồ sơ">
                   <Button size="small" type="primary" icon={<SafetyOutlined />} onClick={handleSignExam}>Ký số</Button>
                 </Tooltip>

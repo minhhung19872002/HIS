@@ -56,6 +56,11 @@ import SampleTracking from './pages/SampleTracking';
 import Pathology from './pages/Pathology';
 import CultureCollection from './pages/CultureCollection';
 import DigitalSignature from './pages/DigitalSignature';
+// NangCap3 EMR modules
+import MedicalRecordArchive from './pages/MedicalRecordArchive';
+import BhxhAudit from './pages/BhxhAudit';
+import DoctorPortal from './pages/DoctorPortal';
+import SatisfactionSurvey from './pages/SatisfactionSurvey';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -148,6 +153,11 @@ const AppRoutes: React.FC = () => {
         <Route path="consultation" element={<Consultation />} />
         <Route path="help" element={<Help />} />
         <Route path="radiology/viewer" element={<DicomViewer />} />
+        {/* NangCap3 EMR modules */}
+        <Route path="medical-record-archive" element={<MedicalRecordArchive />} />
+        <Route path="bhxh-audit" element={<BhxhAudit />} />
+        <Route path="doctor-portal" element={<DoctorPortal />} />
+        <Route path="satisfaction-survey" element={<SatisfactionSurvey />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

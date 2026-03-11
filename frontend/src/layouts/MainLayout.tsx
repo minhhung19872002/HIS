@@ -34,6 +34,10 @@ import {
   CalendarOutlined,
   ScheduleOutlined,
   SafetyCertificateOutlined,
+  ContainerOutlined,
+  InsuranceOutlined,
+  SmileOutlined,
+  LaptopOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -91,6 +95,7 @@ const MainLayout: React.FC = () => {
         { key: '/ipd', icon: <FileTextOutlined />, label: 'Nội trú' },
         { key: '/surgery', icon: <HeartOutlined />, label: 'Phẫu thuật' },
         { key: '/emr', icon: <FolderOpenOutlined />, label: 'Hồ sơ BA (EMR)' },
+        { key: '/medical-record-archive', icon: <ContainerOutlined />, label: 'Lưu trữ HSBA' },
         { key: '/follow-up', icon: <CalendarOutlined />, label: 'Tái khám' },
         { key: '/booking-management', icon: <ScheduleOutlined />, label: 'Quản lý đặt lịch' },
       ],
@@ -133,6 +138,7 @@ const MainLayout: React.FC = () => {
         { key: '/billing', icon: <DollarOutlined />, label: 'Viện phí' },
         { key: '/finance', icon: <BankOutlined />, label: 'Quản lý tài chính' },
         { key: '/insurance', icon: <SafetyOutlined />, label: 'Giám định BHYT' },
+        { key: '/bhxh-audit', icon: <InsuranceOutlined />, label: 'BHXH Giám định' },
       ],
     },
     {
@@ -165,6 +171,8 @@ const MainLayout: React.FC = () => {
         { key: '/admin', icon: <SettingOutlined />, label: 'Quản trị' },
         { key: '/digital-signature', icon: <SafetyCertificateOutlined />, label: 'Chữ ký số' },
         { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
+        { key: '/doctor-portal', icon: <LaptopOutlined />, label: 'Cổng bác sĩ' },
+        { key: '/satisfaction-survey', icon: <SmileOutlined />, label: 'Khảo sát hài lòng' },
         { key: '/sms-management', icon: <MobileOutlined />, label: 'SMS Gateway' },
         { key: '/help', icon: <QuestionCircleOutlined />, label: 'Hướng dẫn' },
       ],

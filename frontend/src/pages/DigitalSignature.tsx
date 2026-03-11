@@ -13,7 +13,7 @@ import dayjs from 'dayjs';
 import * as dsApi from '../api/digitalSignature';
 import type {
   TokenInfoDto, DocumentSignatureDto, SessionStatusResponse,
-  BatchSignResponse
+  BatchSignResponse, BatchSignItemResult
 } from '../api/digitalSignature';
 import { apiClient } from '../api/client';
 
@@ -33,8 +33,31 @@ interface CertificateInfo {
   providerName: string;
 }
 
+interface PendingDocument {
+  id: string;
+  documentCode: string;
+  documentType: string;
+  patientName: string;
+  patientCode: string;
+  department: string;
+  createdAt: string;
+  createdBy: string;
+  status: string;
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  EMR: 'Bệnh án',
+  Prescription: 'Đơn thuốc',
+  LabResult: 'KQ xét nghiệm',
+  Radiology: 'KQ CĐHA',
+  Discharge: 'Giấy ra viện',
+  Surgery: 'Phiếu phẫu thuật',
+  TreatmentSheet: 'Tờ điều trị',
+  Consultation: 'Biên bản hội chẩn',
+};
+
 const DigitalSignature: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('status');
+  const [activeTab, setActiveTab] = useState('pending');
   const [loading, setLoading] = useState(false);
   const [tokens, setTokens] = useState<TokenInfoDto[]>([]);
   const [certificates, setCertificates] = useState<CertificateInfo[]>([]);
@@ -43,18 +66,24 @@ const DigitalSignature: React.FC = () => {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [batchResult, setBatchResult] = useState<BatchSignResponse | null>(null);
   const [loginForm] = Form.useForm();
+  const [pendingDocs, setPendingDocs] = useState<PendingDocument[]>([]);
+  const [selectedDocIds, setSelectedDocIds] = useState<React.Key[]>([]);
+  const [signLoading, setSignLoading] = useState(false);
+  const [docTypeFilter, setDocTypeFilter] = useState<string>('all');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [tokensRes, certsRes, statusRes] = await Promise.allSettled([
+      const [tokensRes, certsRes, statusRes, pendingRes] = await Promise.allSettled([
         dsApi.getTokens(),
         apiClient.get<CertificateInfo[]>('/RISComplete/usb-token/certificates'),
         dsApi.getSessionStatus(),
+        apiClient.get<PendingDocument[]>('/digital-signature/pending'),
       ]);
       if (tokensRes.status === 'fulfilled') setTokens(Array.isArray(tokensRes.value?.data) ? tokensRes.value.data : []);
       if (certsRes.status === 'fulfilled') setCertificates(Array.isArray(certsRes.value?.data) ? certsRes.value.data : []);
       if (statusRes.status === 'fulfilled') setSessionStatus(statusRes.value?.data || null);
+      if (pendingRes.status === 'fulfilled') setPendingDocs(Array.isArray(pendingRes.value?.data) ? pendingRes.value.data : []);
     } catch {
       message.warning('Không thể tải thông tin chữ ký số');
     } finally {
@@ -104,6 +133,68 @@ const DigitalSignature: React.FC = () => {
       message.warning('Không thể đăng ký token');
     }
   };
+
+  const handleSignSingle = async (doc: PendingDocument) => {
+    if (!isSessionActive) {
+      message.warning('Vui lòng mở phiên ký số trước');
+      setLoginModalOpen(true);
+      return;
+    }
+    setSignLoading(true);
+    try {
+      const res = await dsApi.signDocument({
+        documentId: doc.id,
+        documentType: doc.documentType,
+        reason: 'Ký duyệt tài liệu',
+        location: 'HIS System',
+      });
+      if (res.data?.success) {
+        message.success(`Đã ký ${doc.documentCode}`);
+        setPendingDocs(prev => prev.filter(d => d.id !== doc.id));
+      } else {
+        message.warning(res.data?.message || 'Không thể ký tài liệu');
+      }
+    } catch {
+      message.warning('Lỗi khi ký tài liệu');
+    } finally {
+      setSignLoading(false);
+    }
+  };
+
+  const handleBatchSign = async () => {
+    if (!isSessionActive) {
+      message.warning('Vui lòng mở phiên ký số trước');
+      setLoginModalOpen(true);
+      return;
+    }
+    if (selectedDocIds.length === 0) {
+      message.warning('Vui lòng chọn tài liệu cần ký');
+      return;
+    }
+    setSignLoading(true);
+    try {
+      const res = await dsApi.batchSign({
+        documentIds: selectedDocIds as string[],
+        documentType: 'mixed',
+        reason: 'Ký duyệt hàng loạt',
+      });
+      setBatchResult(res.data);
+      if (res.data?.succeeded > 0) {
+        const successIds = res.data.results.filter((r: BatchSignItemResult) => r.success).map((r: BatchSignItemResult) => r.documentId);
+        setPendingDocs(prev => prev.filter(d => !successIds.includes(d.id)));
+        setSelectedDocIds([]);
+        message.success(`Đã ký thành công ${res.data.succeeded}/${res.data.total} tài liệu`);
+      }
+    } catch {
+      message.warning('Lỗi khi ký hàng loạt');
+    } finally {
+      setSignLoading(false);
+    }
+  };
+
+  const filteredPendingDocs = docTypeFilter === 'all'
+    ? pendingDocs
+    : pendingDocs.filter(d => d.documentType === docTypeFilter);
 
   // Signing status
   const isSessionActive = sessionStatus?.active === true;
@@ -180,7 +271,80 @@ const DigitalSignature: React.FC = () => {
     },
   ];
 
+  const pendingColumns = [
+    { title: 'Mã tài liệu', dataIndex: 'documentCode', key: 'doc', width: 140 },
+    { title: 'Loại', dataIndex: 'documentType', key: 'type', width: 130,
+      render: (v: string) => {
+        const colors: Record<string, string> = { EMR: 'blue', Prescription: 'green', LabResult: 'orange', Radiology: 'purple', Discharge: 'cyan', Surgery: 'red', TreatmentSheet: 'geekblue', Consultation: 'magenta' };
+        return <Tag color={colors[v] || 'default'}>{DOC_TYPE_LABELS[v] || v}</Tag>;
+      }
+    },
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patient',
+      render: (v: string, r: PendingDocument) => <span>{v} <span style={{ color: '#999', fontSize: 12 }}>({r.patientCode})</span></span>
+    },
+    { title: 'Khoa', dataIndex: 'department', key: 'dept' },
+    { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'created',
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-' },
+    { title: 'Người tạo', dataIndex: 'createdBy', key: 'by' },
+    { title: 'Thao tác', key: 'action', width: 100,
+      render: (_: unknown, record: PendingDocument) => (
+        <Button type="primary" size="small" icon={<SafetyCertificateOutlined />}
+          onClick={() => handleSignSingle(record)} loading={signLoading}
+          disabled={!isSessionActive}>Ký</Button>
+      )
+    },
+  ];
+
+  const docTypeOptions = [
+    { label: `Tất cả (${pendingDocs.length})`, value: 'all' },
+    ...Object.entries(DOC_TYPE_LABELS)
+      .map(([k, v]) => ({ label: `${v} (${pendingDocs.filter(d => d.documentType === k).length})`, value: k }))
+      .filter(o => o.label.indexOf('(0)') === -1),
+  ];
+
   const tabItems = [
+    {
+      key: 'pending',
+      label: <span><FileProtectOutlined /> Chờ ký ({pendingDocs.length})</span>,
+      children: (
+        <div>
+          <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
+            <Col flex="auto">
+              <Space>
+                <span>Lọc loại:</span>
+                {docTypeOptions.map(opt => (
+                  <Tag key={opt.value}
+                    color={docTypeFilter === opt.value ? 'blue' : 'default'}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setDocTypeFilter(opt.value)}>{opt.label}</Tag>
+                ))}
+              </Space>
+            </Col>
+            <Col>
+              <Button type="primary" icon={<SafetyCertificateOutlined />}
+                onClick={handleBatchSign} loading={signLoading}
+                disabled={selectedDocIds.length === 0 || !isSessionActive}>
+                Ký hàng loạt ({selectedDocIds.length})
+              </Button>
+            </Col>
+          </Row>
+          {!isSessionActive && pendingDocs.length > 0 && (
+            <Alert type="warning" showIcon title="Chưa mở phiên ký"
+              description="Cần mở phiên ký số trước khi ký tài liệu."
+              action={<Button size="small" type="primary" onClick={() => setLoginModalOpen(true)}>Mở phiên</Button>}
+              style={{ marginBottom: 16 }} />
+          )}
+          <Table dataSource={filteredPendingDocs} columns={pendingColumns} rowKey="id"
+            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} tài liệu` }}
+            size="small"
+            rowSelection={{
+              selectedRowKeys: selectedDocIds,
+              onChange: (keys) => setSelectedDocIds(keys),
+            }}
+            locale={{ emptyText: 'Không có tài liệu chờ ký.' }} />
+        </div>
+      ),
+    },
     {
       key: 'status',
       label: <span><SafetyCertificateOutlined /> Trạng thái</span>,

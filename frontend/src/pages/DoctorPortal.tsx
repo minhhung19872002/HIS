@@ -1,0 +1,709 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Card, Row, Col, Segmented, Spin, Table, Tag, Button, Modal,
+  Descriptions, Badge, Calendar, Space, message, Statistic, Input,
+  Avatar, Checkbox, Tooltip, Empty, Typography,
+} from 'antd';
+import {
+  UserOutlined, MedicineBoxOutlined, ExperimentOutlined, SaveOutlined,
+  ReloadOutlined, FileProtectOutlined, CalendarOutlined, EditOutlined,
+  CheckCircleOutlined, ClockCircleOutlined, TeamOutlined, ScheduleOutlined,
+  SolutionOutlined, LogoutOutlined, AlertOutlined, FileTextOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
+import client from '../api/client';
+import * as examApi from '../api/examination';
+import * as inpatientApi from '../api/inpatient';
+import * as digitalSignApi from '../api/digitalSignature';
+import * as hrApi from '../api/medicalHR';
+
+const { Search } = Input;
+const { Title, Text } = Typography;
+
+// ============================================================================
+// Local interfaces
+// ============================================================================
+
+interface PendingDocument {
+  id: string;
+  documentId: string;
+  documentType: string;
+  documentCode: string;
+  patientName?: string;
+  title: string;
+  createdAt: string;
+  status: string;
+}
+
+interface DutyShift {
+  date: string;
+  shiftName: string;
+  shiftStart: string;
+  shiftEnd: string;
+  location?: string;
+  isOnCall: boolean;
+  isNightShift: boolean;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+const DoctorPortal: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<string>('outpatient');
+  const [loading, setLoading] = useState(false);
+
+  // Outpatient
+  const [opdPatients, setOpdPatients] = useState<examApi.ExaminationDto[]>([]);
+  const [opdTotal, setOpdTotal] = useState(0);
+  const [opdKeyword, setOpdKeyword] = useState('');
+  const [opdPage, setOpdPage] = useState(1);
+  const [selectedOpd, setSelectedOpd] = useState<examApi.ExaminationDto | null>(null);
+  const [opdDetailOpen, setOpdDetailOpen] = useState(false);
+
+  // Inpatient
+  const [ipdPatients, setIpdPatients] = useState<inpatientApi.InpatientListDto[]>([]);
+  const [ipdTotal, setIpdTotal] = useState(0);
+  const [ipdKeyword, setIpdKeyword] = useState('');
+  const [ipdPage, setIpdPage] = useState(1);
+  const [selectedIpd, setSelectedIpd] = useState<inpatientApi.InpatientListDto | null>(null);
+  const [ipdDetailOpen, setIpdDetailOpen] = useState(false);
+
+  // Digital signature
+  const [pendingDocs, setPendingDocs] = useState<PendingDocument[]>([]);
+  const [sigLoading, setSigLoading] = useState(false);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [signModalOpen, setSignModalOpen] = useState(false);
+  const [signingDoc, setSigningDoc] = useState<PendingDocument | null>(null);
+
+  // Duty schedule
+  const [dutyShifts, setDutyShifts] = useState<DutyShift[]>([]);
+  const [dutyMonth, setDutyMonth] = useState(dayjs());
+
+  // ============================================================================
+  // Data fetching
+  // ============================================================================
+
+  const fetchOutpatients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const res = await examApi.searchExaminations({
+        keyword: opdKeyword || undefined,
+        fromDate: today,
+        toDate: today,
+        pageIndex: opdPage,
+        pageSize: 20,
+      });
+      if (res.data) {
+        setOpdPatients(res.data.items || []);
+        setOpdTotal(res.data.totalCount || 0);
+      }
+    } catch {
+      message.warning('Khong the tai danh sach benh nhan ngoai tru');
+    } finally {
+      setLoading(false);
+    }
+  }, [opdKeyword, opdPage]);
+
+  const fetchInpatients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await inpatientApi.getInpatientList({
+        keyword: ipdKeyword || undefined,
+        status: 1,
+        page: ipdPage,
+        pageSize: 20,
+      });
+      if (res.data) {
+        setIpdPatients(res.data.items || []);
+        setIpdTotal(res.data.totalCount || 0);
+      }
+    } catch {
+      message.warning('Khong the tai danh sach benh nhan noi tru');
+    } finally {
+      setLoading(false);
+    }
+  }, [ipdKeyword, ipdPage]);
+
+  const fetchPendingDocuments = useCallback(async () => {
+    setSigLoading(true);
+    try {
+      const res = await client.get<PendingDocument[]>('/digital-signature/pending');
+      setPendingDocs(res.data || []);
+    } catch {
+      setPendingDocs([]);
+    } finally {
+      setSigLoading(false);
+    }
+  }, []);
+
+  const fetchDutySchedule = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = localStorage.getItem('user');
+      const userId = user ? JSON.parse(user).id : null;
+      if (!userId) { setDutyShifts([]); setLoading(false); return; }
+      const res = await hrApi.getStaffRoster(userId, dutyMonth.year(), dutyMonth.month() + 1);
+      if (res.data) {
+        setDutyShifts((res.data || []).map((a: hrApi.RosterAssignmentDto) => ({
+          date: a.date,
+          shiftName: a.shiftName,
+          shiftStart: a.shiftStart,
+          shiftEnd: a.shiftEnd,
+          location: a.location,
+          isOnCall: a.isOnCall,
+          isNightShift: (a.shiftName || '').toLowerCase().includes('dem'),
+        })));
+      }
+    } catch {
+      setDutyShifts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [dutyMonth]);
+
+  useEffect(() => {
+    if (activeTab === 'outpatient') fetchOutpatients();
+    else if (activeTab === 'inpatient') fetchInpatients();
+    else if (activeTab === 'signature') fetchPendingDocuments();
+    else if (activeTab === 'schedule') fetchDutySchedule();
+  }, [activeTab, fetchOutpatients, fetchInpatients, fetchPendingDocuments, fetchDutySchedule]);
+
+  // ============================================================================
+  // Handlers
+  // ============================================================================
+
+  const handleRefresh = () => {
+    if (activeTab === 'outpatient') fetchOutpatients();
+    else if (activeTab === 'inpatient') fetchInpatients();
+    else if (activeTab === 'signature') fetchPendingDocuments();
+    else if (activeTab === 'schedule') fetchDutySchedule();
+  };
+
+  const handleSignDocument = (doc: PendingDocument) => {
+    setSigningDoc(doc);
+    setSignModalOpen(true);
+  };
+
+  const handleConfirmSign = async () => {
+    if (!signingDoc) return;
+    try {
+      await digitalSignApi.signDocument({
+        documentId: signingDoc.documentId,
+        documentType: signingDoc.documentType,
+        reason: 'Ky xac nhan',
+        location: 'Benh vien',
+      });
+      message.success('Ky so thanh cong');
+      setSignModalOpen(false);
+      setSigningDoc(null);
+      fetchPendingDocuments();
+    } catch {
+      message.warning('Khong the ky so tai lieu');
+    }
+  };
+
+  const handleBatchSign = async () => {
+    if (selectedDocIds.length === 0) {
+      message.warning('Vui long chon tai lieu can ky');
+      return;
+    }
+    try {
+      const docType = pendingDocs.find(d => d.id === selectedDocIds[0])?.documentType || 'EMR';
+      await digitalSignApi.batchSign({
+        documentIds: selectedDocIds,
+        documentType: docType,
+        reason: 'Ky hang loat',
+      });
+      message.success(`Da ky ${selectedDocIds.length} tai lieu`);
+      setSelectedDocIds([]);
+      fetchPendingDocuments();
+    } catch {
+      message.warning('Ky hang loat that bai');
+    }
+  };
+
+  // ============================================================================
+  // Helpers
+  // ============================================================================
+
+  const getOpdStatusTag = (status: number) => {
+    const map: Record<number, { color: string; label: string }> = {
+      0: { color: 'default', label: 'Cho kham' },
+      1: { color: 'blue', label: 'Dang kham' },
+      2: { color: 'orange', label: 'Cho KQ CLS' },
+      3: { color: 'green', label: 'Hoan thanh' },
+      4: { color: 'red', label: 'Da khoa' },
+    };
+    const info = map[status] || { color: 'default', label: String(status) };
+    return <Tag color={info.color}>{info.label}</Tag>;
+  };
+
+  const getIpdStatusTag = (status: number) => {
+    const map: Record<number, { color: string; label: string }> = {
+      1: { color: 'blue', label: 'Dang dieu tri' },
+      2: { color: 'orange', label: 'Cho xuat vien' },
+      3: { color: 'green', label: 'Da xuat vien' },
+      4: { color: 'red', label: 'Chuyen vien' },
+    };
+    const info = map[status] || { color: 'default', label: String(status) };
+    return <Tag color={info.color}>{info.label}</Tag>;
+  };
+
+  const getShiftColor = (name: string) => {
+    const l = (name || '').toLowerCase();
+    if (l.includes('sang') || l.includes('morning')) return '#52c41a';
+    if (l.includes('chieu') || l.includes('afternoon')) return '#faad14';
+    if (l.includes('dem') || l.includes('night')) return '#722ed1';
+    if (l.includes('24') || l.includes('truc')) return '#f5222d';
+    return '#1890ff';
+  };
+
+  // ============================================================================
+  // Outpatient Tab
+  // ============================================================================
+
+  const opdWaiting = opdPatients.filter(p => p.status === 0).length;
+  const opdInProgress = opdPatients.filter(p => p.status === 1).length;
+  const opdCompleted = opdPatients.filter(p => p.status === 3).length;
+
+  const opdColumns: ColumnsType<examApi.ExaminationDto> = [
+    {
+      title: 'STT', dataIndex: 'queueNumber', key: 'queueNumber', width: 70,
+      render: (num: number) => <Avatar size="small" style={{ backgroundColor: '#1890ff' }}>{num}</Avatar>,
+    },
+    { title: 'Ho ten', dataIndex: 'patientName', key: 'patientName', ellipsis: true },
+    { title: 'Ma BN', dataIndex: 'patientCode', key: 'patientCode', width: 110, responsive: ['md'] as const },
+    { title: 'Phong', dataIndex: 'roomName', key: 'roomName', width: 120, responsive: ['lg'] as const },
+    {
+      title: 'Chan doan', dataIndex: 'diagnosisName', key: 'diagnosisName', ellipsis: true,
+      responsive: ['md'] as const,
+      render: (t: string) => t || <Text type="secondary">Chua co</Text>,
+    },
+    {
+      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 130,
+      render: (s: number) => getOpdStatusTag(s),
+    },
+    {
+      title: '', key: 'action', width: 80,
+      render: (_: unknown, r: examApi.ExaminationDto) => (
+        <Button type="link" size="small" icon={<EditOutlined />}
+          onClick={() => { setSelectedOpd(r); setOpdDetailOpen(true); }}>Xem</Button>
+      ),
+    },
+  ];
+
+  const renderOutpatientTab = () => (
+    <>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={8} md={6}>
+          <Card size="small"><Statistic title="Cho kham" value={opdWaiting} prefix={<ClockCircleOutlined />}
+            styles={{ content: { color: '#faad14', fontSize: 20 } }} /></Card>
+        </Col>
+        <Col xs={8} md={6}>
+          <Card size="small"><Statistic title="Dang kham" value={opdInProgress} prefix={<UserOutlined />}
+            styles={{ content: { color: '#1890ff', fontSize: 20 } }} /></Card>
+        </Col>
+        <Col xs={8} md={6}>
+          <Card size="small"><Statistic title="Hoan thanh" value={opdCompleted} prefix={<CheckCircleOutlined />}
+            styles={{ content: { color: '#52c41a', fontSize: 20 } }} /></Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card size="small"><Statistic title="Tong hom nay" value={opdTotal} prefix={<TeamOutlined />} /></Card>
+        </Col>
+      </Row>
+
+      <Row style={{ marginBottom: 12 }}>
+        <Col xs={24} sm={16} md={12}>
+          <Search placeholder="Tim benh nhan (ten, ma BN)..."
+            onSearch={(v) => { setOpdKeyword(v); setOpdPage(1); }} allowClear enterButton />
+        </Col>
+      </Row>
+
+      <Table columns={opdColumns} dataSource={opdPatients} rowKey="id" size="small" loading={loading}
+        pagination={{ current: opdPage, pageSize: 20, total: opdTotal, showSizeChanger: false,
+          showTotal: (t) => `${t} benh nhan`, onChange: (p) => setOpdPage(p), size: 'small' }}
+        onRow={(r) => ({ onClick: () => { setSelectedOpd(r); setOpdDetailOpen(true); }, style: { cursor: 'pointer' } })}
+        scroll={{ x: 600 }} />
+
+      <Modal title={<Space><UserOutlined /><span>Benh nhan - {selectedOpd?.patientName}</span></Space>}
+        open={opdDetailOpen} onCancel={() => { setOpdDetailOpen(false); setSelectedOpd(null); }}
+        destroyOnHidden width={700}
+        footer={selectedOpd ? (
+          <Space wrap>
+            <Button icon={<MedicineBoxOutlined />} type="primary">Ke don</Button>
+            <Button icon={<ExperimentOutlined />}>Chi dinh CLS</Button>
+            <Button icon={<SaveOutlined />}>Luu</Button>
+            <Button onClick={() => setOpdDetailOpen(false)}>Dong</Button>
+          </Space>
+        ) : null}>
+        {selectedOpd && (
+          <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
+            <Descriptions.Item label="Ma benh nhan">{selectedOpd.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Ho ten">{selectedOpd.patientName}</Descriptions.Item>
+            <Descriptions.Item label="So thu tu">
+              <Badge count={selectedOpd.queueNumber} style={{ backgroundColor: '#1890ff' }} />
+            </Descriptions.Item>
+            <Descriptions.Item label="Trang thai">{getOpdStatusTag(selectedOpd.status)}</Descriptions.Item>
+            <Descriptions.Item label="Phong kham">{selectedOpd.roomName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Bac si">{selectedOpd.doctorName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Ngay kham">
+              {dayjs(selectedOpd.examinationDate).format('DD/MM/YYYY HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Chan doan">
+              {selectedOpd.diagnosisCode
+                ? `${selectedOpd.diagnosisCode} - ${selectedOpd.diagnosisName}`
+                : <Text type="secondary">Chua co chan doan</Text>}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+    </>
+  );
+
+  // ============================================================================
+  // Inpatient Tab
+  // ============================================================================
+
+  const ipdActive = ipdPatients.filter(p => p.status === 1).length;
+  const ipdPendingDischarge = ipdPatients.filter(p => p.status === 2).length;
+  const ipdAlerts = ipdPatients.filter(p => p.hasPendingOrders || p.hasPendingLabResults || p.hasUnclaimedMedicine).length;
+
+  const ipdColumns: ColumnsType<inpatientApi.InpatientListDto> = [
+    {
+      title: 'Giuong', dataIndex: 'bedName', key: 'bedName', width: 80,
+      render: (b: string, r: inpatientApi.InpatientListDto) => <Tag color={r.isDebtWarning ? 'red' : 'blue'}>{b || '-'}</Tag>,
+    },
+    {
+      title: 'Ho ten', dataIndex: 'patientName', key: 'patientName', ellipsis: true,
+      render: (n: string, r: inpatientApi.InpatientListDto) => (
+        <Space><span>{n}</span>
+          {r.hasPendingOrders && <Badge status="processing" />}
+          {r.hasPendingLabResults && <Badge status="warning" />}
+          {r.hasUnclaimedMedicine && <Badge status="error" />}
+        </Space>
+      ),
+    },
+    { title: 'Khoa', dataIndex: 'departmentName', key: 'dept', width: 120, ellipsis: true, responsive: ['md'] as const },
+    {
+      title: 'Ngay NV', dataIndex: 'daysOfStay', key: 'days', width: 85,
+      render: (d: number) => <Tag color={d > 14 ? 'orange' : 'default'}>{d} ngay</Tag>,
+    },
+    {
+      title: 'Chan doan', dataIndex: 'mainDiagnosis', key: 'diag', ellipsis: true,
+      responsive: ['lg'] as const,
+      render: (t: string) => t || <Text type="secondary">-</Text>,
+    },
+    {
+      title: 'TT', dataIndex: 'status', key: 'status', width: 110,
+      render: (s: number) => getIpdStatusTag(s),
+    },
+  ];
+
+  const renderInpatientTab = () => (
+    <>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={8} md={6}>
+          <Card size="small"><Statistic title="Dang dieu tri" value={ipdActive} prefix={<MedicineBoxOutlined />}
+            styles={{ content: { color: '#1890ff', fontSize: 20 } }} /></Card>
+        </Col>
+        <Col xs={8} md={6}>
+          <Card size="small"><Statistic title="Cho xuat vien" value={ipdPendingDischarge} prefix={<LogoutOutlined />}
+            styles={{ content: { color: '#faad14', fontSize: 20 } }} /></Card>
+        </Col>
+        <Col xs={8} md={6}>
+          <Card size="small"><Statistic title="Co canh bao" value={ipdAlerts} prefix={<AlertOutlined />}
+            styles={{ content: { color: ipdAlerts > 0 ? '#f5222d' : '#52c41a', fontSize: 20 } }} /></Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card size="small"><Statistic title="Tong noi tru" value={ipdTotal} prefix={<TeamOutlined />} /></Card>
+        </Col>
+      </Row>
+
+      <Row style={{ marginBottom: 12 }}>
+        <Col xs={24} sm={16} md={12}>
+          <Search placeholder="Tim benh nhan (ten, ma BN, giuong)..."
+            onSearch={(v) => { setIpdKeyword(v); setIpdPage(1); }} allowClear enterButton />
+        </Col>
+      </Row>
+
+      <Table columns={ipdColumns} dataSource={ipdPatients} rowKey="admissionId" size="small" loading={loading}
+        pagination={{ current: ipdPage, pageSize: 20, total: ipdTotal, showSizeChanger: false,
+          showTotal: (t) => `${t} benh nhan`, onChange: (p) => setIpdPage(p), size: 'small' }}
+        onRow={(r) => ({ onClick: () => { setSelectedIpd(r); setIpdDetailOpen(true); }, style: { cursor: 'pointer' } })}
+        scroll={{ x: 600 }} />
+
+      <Modal title={<Space><SolutionOutlined /><span>Benh nhan noi tru - {selectedIpd?.patientName}</span></Space>}
+        open={ipdDetailOpen} onCancel={() => { setIpdDetailOpen(false); setSelectedIpd(null); }}
+        destroyOnHidden width={750}
+        footer={selectedIpd ? (
+          <Space wrap>
+            <Button icon={<EditOutlined />} type="primary">Y lenh</Button>
+            <Button icon={<FileTextOutlined />}>Phieu dieu tri</Button>
+            <Button icon={<LogoutOutlined />} danger>Xuat vien</Button>
+            <Button onClick={() => setIpdDetailOpen(false)}>Dong</Button>
+          </Space>
+        ) : null}>
+        {selectedIpd && (
+          <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
+            <Descriptions.Item label="Ma benh nhan">{selectedIpd.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Ho ten">{selectedIpd.patientName}</Descriptions.Item>
+            <Descriptions.Item label="Gioi tinh">
+              {selectedIpd.gender === 1 ? 'Nam' : selectedIpd.gender === 2 ? 'Nu' : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tuoi">{selectedIpd.age ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="Khoa">{selectedIpd.departmentName}</Descriptions.Item>
+            <Descriptions.Item label="Phong">{selectedIpd.roomName}</Descriptions.Item>
+            <Descriptions.Item label="Giuong">{selectedIpd.bedName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="So ngay">
+              <Tag color={selectedIpd.daysOfStay > 14 ? 'orange' : 'blue'}>{selectedIpd.daysOfStay} ngay</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngay nhap vien">
+              {dayjs(selectedIpd.admissionDate).format('DD/MM/YYYY HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trang thai">{getIpdStatusTag(selectedIpd.status)}</Descriptions.Item>
+            <Descriptions.Item label="Chan doan" span={2}>
+              {selectedIpd.mainDiagnosis || <Text type="secondary">Chua co chan doan</Text>}
+            </Descriptions.Item>
+            <Descriptions.Item label="BS dieu tri">{selectedIpd.attendingDoctorName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Bao hiem">
+              {selectedIpd.isInsurance
+                ? <Tag color="green">BHYT: {selectedIpd.insuranceNumber}</Tag>
+                : <Tag color="default">Thu phi</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="Canh bao" span={2}>
+              <Space wrap>
+                {selectedIpd.hasPendingOrders && <Tag color="processing">Y lenh chua TH</Tag>}
+                {selectedIpd.hasPendingLabResults && <Tag color="warning">Cho KQ XN</Tag>}
+                {selectedIpd.hasUnclaimedMedicine && <Tag color="error">Thuoc chua nhan</Tag>}
+                {selectedIpd.isDebtWarning && (
+                  <Tag color="red">No: {(selectedIpd.totalDebt ?? 0).toLocaleString('vi-VN')} VND</Tag>
+                )}
+                {!selectedIpd.hasPendingOrders && !selectedIpd.hasPendingLabResults
+                  && !selectedIpd.hasUnclaimedMedicine && !selectedIpd.isDebtWarning
+                  && <Tag color="green">Khong co canh bao</Tag>}
+              </Space>
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+    </>
+  );
+
+  // ============================================================================
+  // Digital Signature Tab
+  // ============================================================================
+
+  const docTypeLabel = (type: string) => {
+    const m: Record<string, { l: string; c: string }> = {
+      EMR: { l: 'Ho so BA', c: 'blue' }, PRESCRIPTION: { l: 'Don thuoc', c: 'green' },
+      LAB: { l: 'Xet nghiem', c: 'orange' }, RADIOLOGY: { l: 'CDHA', c: 'purple' },
+      DISCHARGE: { l: 'Ra vien', c: 'cyan' },
+    };
+    const info = m[type] || { l: type, c: 'default' };
+    return <Tag color={info.c}>{info.l}</Tag>;
+  };
+
+  const sigColumns: ColumnsType<PendingDocument> = [
+    {
+      title: (
+        <Checkbox
+          checked={selectedDocIds.length > 0 && selectedDocIds.length === pendingDocs.length}
+          indeterminate={selectedDocIds.length > 0 && selectedDocIds.length < pendingDocs.length}
+          onChange={(e) => setSelectedDocIds(e.target.checked ? pendingDocs.map(d => d.id) : [])}
+        />
+      ),
+      key: 'sel', width: 50,
+      render: (_: unknown, r: PendingDocument) => (
+        <Checkbox checked={selectedDocIds.includes(r.id)}
+          onChange={(e) => setSelectedDocIds(prev =>
+            e.target.checked ? [...prev, r.id] : prev.filter(id => id !== r.id))} />
+      ),
+    },
+    { title: 'Ma', dataIndex: 'documentCode', key: 'code', width: 130 },
+    { title: 'Loai', dataIndex: 'documentType', key: 'type', width: 120,
+      render: (t: string) => docTypeLabel(t) },
+    { title: 'Tieu de', dataIndex: 'title', key: 'title', ellipsis: true },
+    { title: 'Benh nhan', dataIndex: 'patientName', key: 'pn', width: 150, responsive: ['md'] as const },
+    { title: 'Ngay tao', dataIndex: 'createdAt', key: 'date', width: 130, responsive: ['lg'] as const,
+      render: (d: string) => dayjs(d).format('DD/MM/YYYY HH:mm') },
+    { title: '', key: 'act', width: 80,
+      render: (_: unknown, r: PendingDocument) => (
+        <Button type="primary" size="small" icon={<FileProtectOutlined />}
+          onClick={() => handleSignDocument(r)}>Ky</Button>
+      ),
+    },
+  ];
+
+  const renderSignatureTab = () => (
+    <>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <Card size="small"><Statistic title="Cho ky" value={pendingDocs.length}
+            prefix={<FileProtectOutlined />}
+            styles={{ content: { color: pendingDocs.length > 0 ? '#faad14' : '#52c41a', fontSize: 20 } }} /></Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small"><Statistic title="Da chon" value={selectedDocIds.length}
+            prefix={<CheckCircleOutlined />}
+            styles={{ content: { color: '#1890ff', fontSize: 20 } }} /></Card>
+        </Col>
+      </Row>
+
+      {selectedDocIds.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <Button type="primary" icon={<FileProtectOutlined />} onClick={handleBatchSign}>
+            Ky hang loat ({selectedDocIds.length} tai lieu)
+          </Button>
+        </div>
+      )}
+
+      <Table columns={sigColumns} dataSource={pendingDocs} rowKey="id" size="small" loading={sigLoading}
+        locale={{ emptyText: <Empty description="Khong co tai lieu cho ky" /> }}
+        pagination={{ pageSize: 20, showTotal: (t) => `${t} tai lieu` }}
+        scroll={{ x: 600 }} />
+
+      <Modal title={<Space><FileProtectOutlined /><span>Xac nhan ky so</span></Space>}
+        open={signModalOpen} onCancel={() => { setSignModalOpen(false); setSigningDoc(null); }}
+        destroyOnHidden onOk={handleConfirmSign} okText="Ky so" cancelText="Huy">
+        {signingDoc && (
+          <Descriptions bordered column={1} size="small">
+            <Descriptions.Item label="Ma">{signingDoc.documentCode}</Descriptions.Item>
+            <Descriptions.Item label="Loai">{signingDoc.documentType}</Descriptions.Item>
+            <Descriptions.Item label="Tieu de">{signingDoc.title}</Descriptions.Item>
+            <Descriptions.Item label="Benh nhan">{signingDoc.patientName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Ngay tao">{dayjs(signingDoc.createdAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+          </Descriptions>
+        )}
+        <div style={{ marginTop: 16, padding: 12, background: '#fffbe6', borderRadius: 6 }}>
+          <Text type="warning">
+            <AlertOutlined /> Ban sap ky so tai lieu nay. Hanh dong nay khong the hoan tac.
+          </Text>
+        </div>
+      </Modal>
+    </>
+  );
+
+  // ============================================================================
+  // Duty Schedule Tab
+  // ============================================================================
+
+  const getShiftsForDate = (date: Dayjs): DutyShift[] =>
+    dutyShifts.filter(s => s.date === date.format('YYYY-MM-DD'));
+
+  const dateCellRender = (date: Dayjs) => {
+    const shifts = getShiftsForDate(date);
+    if (shifts.length === 0) return null;
+    return (
+      <div>{shifts.map((s, i) => (
+        <Tooltip key={i} title={`${s.shiftStart} - ${s.shiftEnd}${s.location ? ` | ${s.location}` : ''}${s.isOnCall ? ' (Truc)' : ''}`}>
+          <Tag color={getShiftColor(s.shiftName)} style={{ marginBottom: 2, fontSize: 11, cursor: 'pointer' }}>
+            {s.shiftName}{s.isOnCall && ' *'}
+          </Tag>
+        </Tooltip>
+      ))}</div>
+    );
+  };
+
+  const renderScheduleTab = () => {
+    const today = dayjs();
+    const upcoming = dutyShifts
+      .filter(s => dayjs(s.date).isSame(today, 'day') || dayjs(s.date).isAfter(today))
+      .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 7);
+
+    return (
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={17}>
+          <Card size="small" title="Lich truc" extra={
+            <Space>
+              {['Sang', 'Chieu', 'Dem', 'Truc 24h'].map(l => (
+                <Tag key={l} color={getShiftColor(l)}>{l}</Tag>
+              ))}
+            </Space>
+          }>
+            <Calendar fullscreen={false} value={dutyMonth}
+              onChange={(d) => setDutyMonth(d)} cellRender={(d) => dateCellRender(d)} />
+          </Card>
+        </Col>
+        <Col xs={24} md={7}>
+          <Card size="small" title="Lich sap toi">
+            {upcoming.length === 0 ? <Empty description="Khong co ca truc sap toi" /> :
+              upcoming.map((s, i) => {
+                const isToday = dayjs(s.date).isSame(today, 'day');
+                return (
+                  <Card key={i} size="small" style={{ marginBottom: 8,
+                    borderLeft: `3px solid ${getShiftColor(s.shiftName)}`,
+                    background: isToday ? '#e6f7ff' : undefined }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <Text strong={isToday}>{isToday ? 'Hom nay' : dayjs(s.date).format('DD/MM (ddd)')}</Text>
+                        <br />
+                        <Tag color={getShiftColor(s.shiftName)} style={{ marginTop: 4 }}>{s.shiftName}</Tag>
+                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{s.shiftStart} - {s.shiftEnd}</Text>
+                      </div>
+                      {s.isOnCall && <Badge status="processing" text="Truc" />}
+                    </div>
+                    {s.location && (
+                      <Text type="secondary" style={{ fontSize: 12 }}><ScheduleOutlined /> {s.location}</Text>
+                    )}
+                  </Card>
+                );
+              })}
+          </Card>
+          <Card size="small" title="Thong ke thang" style={{ marginTop: 12 }}>
+            <Statistic title="Tong ca truc" value={dutyShifts.length} prefix={<CalendarOutlined />}
+              styles={{ content: { fontSize: 18 } }} />
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary">
+                Ca dem: {dutyShifts.filter(s => s.isNightShift).length} |
+                Truc: {dutyShifts.filter(s => s.isOnCall).length}
+              </Text>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+    );
+  };
+
+  // ============================================================================
+  // Main render
+  // ============================================================================
+
+  return (
+    <Spin spinning={loading && opdPatients.length === 0 && ipdPatients.length === 0}>
+      <div style={{ padding: 0 }}>
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+            <Title level={4} style={{ margin: 0 }}><SolutionOutlined /> Cong Bac si</Title>
+            <Tooltip title="Lam moi"><Button icon={<ReloadOutlined />} onClick={handleRefresh} /></Tooltip>
+          </div>
+
+          <div style={{ marginBottom: 16, overflowX: 'auto' }}>
+            <Segmented value={activeTab} onChange={(v) => setActiveTab(v as string)}
+              options={[
+                { label: <Space><UserOutlined /><span>Ngoai tru</span>
+                  {opdTotal > 0 && <Badge count={opdTotal} size="small" />}</Space>, value: 'outpatient' },
+                { label: <Space><MedicineBoxOutlined /><span>Noi tru</span>
+                  {ipdTotal > 0 && <Badge count={ipdTotal} size="small" />}</Space>, value: 'inpatient' },
+                { label: <Space><FileProtectOutlined /><span>Chu ky so</span>
+                  {pendingDocs.length > 0 && <Badge count={pendingDocs.length} size="small" />}</Space>, value: 'signature' },
+                { label: <Space><CalendarOutlined /><span>Lich truc</span></Space>, value: 'schedule' },
+              ]}
+              block style={{ minWidth: 400 }} />
+          </div>
+
+          {activeTab === 'outpatient' && renderOutpatientTab()}
+          {activeTab === 'inpatient' && renderInpatientTab()}
+          {activeTab === 'signature' && renderSignatureTab()}
+          {activeTab === 'schedule' && renderScheduleTab()}
+        </Card>
+      </div>
+    </Spin>
+  );
+};
+
+export default DoctorPortal;

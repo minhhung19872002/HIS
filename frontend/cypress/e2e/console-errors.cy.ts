@@ -51,6 +51,10 @@ const pages = [
   { route: '/pathology', name: 'Pathology (Giai phau benh)' },
   { route: '/culture-collection', name: 'Culture Collection (Luu chung VS)' },
   { route: '/digital-signature', name: 'Digital Signature (Chu ky so)' },
+  { route: '/medical-record-archive', name: 'Medical Record Archive (Luu tru HSBA)' },
+  { route: '/bhxh-audit', name: 'BHXH Audit (Giam dinh BHXH)' },
+  { route: '/doctor-portal', name: 'Doctor Portal (Cong bac si)' },
+  { route: '/satisfaction-survey', name: 'Satisfaction Survey (Khao sat hai long)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise
