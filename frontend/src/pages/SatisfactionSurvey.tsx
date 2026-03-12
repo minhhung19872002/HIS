@@ -754,7 +754,7 @@ const SatisfactionSurvey: React.FC = () => {
                 </Descriptions.Item>
                 <Descriptions.Item label="Trang thai">
                   <Tag color={selectedResult.status === 'completed' ? 'green' : 'orange'}>
-                    {selectedResult.status === 'completed' ? 'Hoan thanh' : 'Dang do'}
+                    {selectedResult.status === 'completed' ? 'Hoàn thành' : 'Đang dở'}
                   </Tag>
                 </Descriptions.Item>
               </Descriptions>

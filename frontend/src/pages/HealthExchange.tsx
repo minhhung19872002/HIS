@@ -583,7 +583,7 @@ const HealthExchange: React.FC = () => {
                 }
               }}
             >
-              Gui
+              Gửi
             </Button>
           )}
           <Button
@@ -610,32 +610,32 @@ const HealthExchange: React.FC = () => {
 
   const consultationColumns: ColumnsType<TeleconsultationRequestDto> = [
     {
-      title: 'Ma',
+      title: 'Mã',
       dataIndex: 'requestCode',
       key: 'requestCode',
     },
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       dataIndex: 'patientName',
       key: 'patientName',
     },
     {
-      title: 'BS yeu cau',
+      title: 'BS yêu cầu',
       dataIndex: 'requestingDoctorName',
       key: 'requestingDoctorName',
     },
     {
-      title: 'BV hoi chan',
+      title: 'BV hội chẩn',
       dataIndex: 'consultingFacilityName',
       key: 'consultingFacilityName',
     },
     {
-      title: 'Chuyen khoa',
+      title: 'Chuyên khoa',
       dataIndex: 'consultingSpecialty',
       key: 'consultingSpecialty',
     },
     {
-      title: 'Lich hen',
+      title: 'Lịch hẹn',
       dataIndex: 'scheduledDate',
       key: 'scheduledDate',
       render: (val: string, record: TeleconsultationRequestDto) => {
@@ -645,7 +645,7 @@ const HealthExchange: React.FC = () => {
       },
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status: number, record: TeleconsultationRequestDto) => {
@@ -660,7 +660,7 @@ const HealthExchange: React.FC = () => {
       },
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: TeleconsultationRequestDto) => (
         <Space>
@@ -689,7 +689,7 @@ const HealthExchange: React.FC = () => {
             </Button>
           )}
           <Button type="link" icon={<FileTextOutlined />}>
-            Chi tiet
+            Chi tiết
           </Button>
         </Space>
       ),
@@ -714,11 +714,11 @@ const HealthExchange: React.FC = () => {
       });
       setReferralModalVisible(false);
       referralForm.resetFields();
-      message.success('Tao phieu chuyen vien thanh cong!');
+      message.success('Tạo phiếu chuyển viện thành công!');
       fetchData();
     } catch (err) {
       console.warn('Create referral failed:', err);
-      message.warning('Tao phieu chuyen vien that bai');
+      message.warning('Tạo phiếu chuyển viện thất bại');
     }
   };
 
@@ -739,11 +739,11 @@ const HealthExchange: React.FC = () => {
       });
       setConsultationModalVisible(false);
       consultationForm.resetFields();
-      message.success('Gui yeu cau hoi chan thanh cong!');
+      message.success('Gửi yêu cầu hội chẩn thành công!');
       fetchData();
     } catch (err) {
       console.warn('Create teleconsult failed:', err);
-      message.warning('Gui yeu cau hoi chan that bai');
+      message.warning('Gửi yêu cầu hội chẩn thất bại');
     }
   };
 
@@ -757,19 +757,19 @@ const HealthExchange: React.FC = () => {
         patientIds: values.patientId ? [values.patientId] : undefined,
       });
       if (result.data?.success) {
-        message.success(`Tao XML thanh cong! ${result.data.totalRecords} ban ghi, ${result.data.validRecords} hop le`);
+        message.success(`Tạo XML thành công! ${result.data.totalRecords} bản ghi, ${result.data.validRecords} hợp lệ`);
         if (result.data.invalidRecords > 0) {
-          message.warning(`${result.data.invalidRecords} ban ghi loi - vui long kiem tra lai`);
+          message.warning(`${result.data.invalidRecords} bản ghi lỗi - vui lòng kiểm tra lại`);
         }
       } else {
-        message.warning('Tao XML that bai');
+        message.warning('Tạo XML thất bại');
       }
       setXmlModalVisible(false);
       xmlForm.resetFields();
       fetchData();
     } catch (err) {
       console.warn('Generate XML failed:', err);
-      message.warning('Gui du lieu XML that bai');
+      message.warning('Gửi dữ liệu XML thất bại');
     }
   };
 
@@ -779,7 +779,7 @@ const HealthExchange: React.FC = () => {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Phieu Chuyen vien</title>
+            <title>Phiếu Chuyển viện</title>
             <style>
               body { font-family: Arial, sans-serif; padding: 20px; }
               h1 { text-align: center; }
@@ -792,25 +792,25 @@ const HealthExchange: React.FC = () => {
           </head>
           <body>
             <div class="header">
-              <h2>BENH VIEN QUAN 1</h2>
-              <h1>PHIEU CHUYEN VIEN</h1>
+              <h2>BỆNH VIỆN QUẬN 1</h2>
+              <h1>PHIẾU CHUYỂN VIỆN</h1>
             </div>
             <table>
-              <tr><td><strong>Ho ten BN:</strong></td><td>_________________</td></tr>
-              <tr><td><strong>Ma benh nhan:</strong></td><td>_________________</td></tr>
-              <tr><td><strong>Chan doan:</strong></td><td>_________________</td></tr>
-              <tr><td><strong>BV tiep nhan:</strong></td><td>_________________</td></tr>
-              <tr><td><strong>Ly do chuyen:</strong></td><td>_________________</td></tr>
-              <tr><td><strong>Tom tat dieu tri:</strong></td><td>_________________</td></tr>
+              <tr><td><strong>Họ tên BN:</strong></td><td>_________________</td></tr>
+              <tr><td><strong>Mã bệnh nhân:</strong></td><td>_________________</td></tr>
+              <tr><td><strong>Chẩn đoán:</strong></td><td>_________________</td></tr>
+              <tr><td><strong>BV tiếp nhận:</strong></td><td>_________________</td></tr>
+              <tr><td><strong>Lý do chuyển:</strong></td><td>_________________</td></tr>
+              <tr><td><strong>Tóm tắt điều trị:</strong></td><td>_________________</td></tr>
             </table>
             <div class="signature">
               <div style="text-align: center;">
-                <p>Bac si dieu tri</p>
+                <p>Bác sĩ điều trị</p>
                 <br/><br/>
                 <p>_______________</p>
               </div>
               <div style="text-align: center;">
-                <p>Giam doc benh vien</p>
+                <p>Giám đốc bệnh viện</p>
                 <br/><br/>
                 <p>_______________</p>
               </div>
@@ -829,14 +829,14 @@ const HealthExchange: React.FC = () => {
       label: (
         <span>
           <ApiOutlined />
-          Ket noi ({connectedCount}/{totalConnections})
+          Kết nối ({connectedCount}/{totalConnections})
         </span>
       ),
       children: (
         <div>
           <Alert
-            title="Trang thai ket noi"
-            description={`${connectedCount}/${totalConnections} cong ket noi dang hoat dong`}
+            title="Trạng thái kết nối"
+            description={`${connectedCount}/${totalConnections} cổng kết nối đang hoạt động`}
             type={connectedCount === totalConnections ? 'success' : 'warning'}
             showIcon
             style={{ marginBottom: 16 }}
@@ -850,30 +850,30 @@ const HealthExchange: React.FC = () => {
             onRow={(record) => ({
               onDoubleClick: () => {
                 Modal.info({
-                  title: `Chi tiet ket noi - ${record.connectionName}`,
+                  title: `Chi tiết kết nối - ${record.connectionName}`,
                   width: 600,
                   content: (
                     <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                      <Descriptions.Item label="Ten">{record.connectionName}</Descriptions.Item>
-                      <Descriptions.Item label="Loai">{record.connectionTypeName || record.connectionType}</Descriptions.Item>
-                      <Descriptions.Item label="Doi tac">{record.partnerName} ({record.partnerCode})</Descriptions.Item>
+                      <Descriptions.Item label="Tên">{record.connectionName}</Descriptions.Item>
+                      <Descriptions.Item label="Loại">{record.connectionTypeName || record.connectionType}</Descriptions.Item>
+                      <Descriptions.Item label="Đối tác">{record.partnerName} ({record.partnerCode})</Descriptions.Item>
                       <Descriptions.Item label="Endpoint">{record.endpoint || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="Giao thuc">{record.protocolName || record.protocol}</Descriptions.Item>
-                      <Descriptions.Item label="Xac thuc">{record.authType || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="Trang thai">
+                      <Descriptions.Item label="Giao thức">{record.protocolName || record.protocol}</Descriptions.Item>
+                      <Descriptions.Item label="Xác thực">{record.authType || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">
                         {getConnectionStatusTag(record.status, record.statusName)}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Lan dong bo cuoi">{record.lastSyncAt ? dayjs(record.lastSyncAt).format('YYYY-MM-DD HH:mm') : '-'}</Descriptions.Item>
-                      <Descriptions.Item label="So loi">{record.errorCount}</Descriptions.Item>
+                      <Descriptions.Item label="Lần đồng bộ cuối">{record.lastSyncAt ? dayjs(record.lastSyncAt).format('YYYY-MM-DD HH:mm') : '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Số lỗi">{record.errorCount}</Descriptions.Item>
                       {record.lastError && (
-                        <Descriptions.Item label="Loi cuoi">{record.lastError}</Descriptions.Item>
+                        <Descriptions.Item label="Lỗi cuối">{record.lastError}</Descriptions.Item>
                       )}
                       {record.certificateExpiry && (
-                        <Descriptions.Item label="Chung chi het han">{dayjs(record.certificateExpiry).format('YYYY-MM-DD')}</Descriptions.Item>
+                        <Descriptions.Item label="Chứng chỉ hết hạn">{dayjs(record.certificateExpiry).format('YYYY-MM-DD')}</Descriptions.Item>
                       )}
-                      <Descriptions.Item label="Dinh dang">{record.dataExchangeFormat}</Descriptions.Item>
+                      <Descriptions.Item label="Định dạng">{record.dataExchangeFormat}</Descriptions.Item>
                       {record.supportedOperations?.length > 0 && (
-                        <Descriptions.Item label="Chuc nang">
+                        <Descriptions.Item label="Chức năng">
                           {record.supportedOperations.map((op: string) => (
                             <Tag key={op}>{op}</Tag>
                           ))}
@@ -894,7 +894,7 @@ const HealthExchange: React.FC = () => {
       label: (
         <span>
           <CloudUploadOutlined />
-          Gui du lieu ({pendingSubmissions} cho)
+          Gửi dữ liệu ({pendingSubmissions} chờ)
         </span>
       ),
       children: (
@@ -905,10 +905,10 @@ const HealthExchange: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setXmlModalVisible(true)}
             >
-              Gui XML BHXH
+              Gửi XML BHXH
             </Button>
             <Button icon={<SyncOutlined />} onClick={fetchData}>
-              Dong bo tat ca
+              Đồng bộ tất cả
             </Button>
           </Space>
           <Table
@@ -920,24 +920,24 @@ const HealthExchange: React.FC = () => {
             onRow={(record) => ({
               onDoubleClick: () => {
                 Modal.info({
-                  title: 'Chi tiet gui du lieu',
+                  title: 'Chi tiết gửi dữ liệu',
                   width: 600,
                   content: (
                     <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                      <Descriptions.Item label="Ma">{record.submissionCode}</Descriptions.Item>
-                      <Descriptions.Item label="Loai">{record.submissionTypeName || record.submissionType}</Descriptions.Item>
-                      <Descriptions.Item label="Ky tu">{record.periodFrom}</Descriptions.Item>
-                      <Descriptions.Item label="Ky den">{record.periodTo}</Descriptions.Item>
+                      <Descriptions.Item label="Mã">{record.submissionCode}</Descriptions.Item>
+                      <Descriptions.Item label="Loại">{record.submissionTypeName || record.submissionType}</Descriptions.Item>
+                      <Descriptions.Item label="Kỳ từ">{record.periodFrom}</Descriptions.Item>
+                      <Descriptions.Item label="Kỳ đến">{record.periodTo}</Descriptions.Item>
                       <Descriptions.Item label="Khoa">{record.departmentName || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="Tong ban ghi">{record.totalRecords}</Descriptions.Item>
-                      <Descriptions.Item label="Hop le">{record.validRecords}</Descriptions.Item>
-                      <Descriptions.Item label="Khong hop le">{record.invalidRecords}</Descriptions.Item>
-                      <Descriptions.Item label="So tien">{record.totalClaimAmount?.toLocaleString('vi-VN')} VND</Descriptions.Item>
-                      <Descriptions.Item label="BHXH duyet">{record.bhxhApprovedAmount?.toLocaleString('vi-VN') || '-'} VND</Descriptions.Item>
-                      <Descriptions.Item label="BHXH tu choi">{record.bhxhRejectedAmount?.toLocaleString('vi-VN') || '-'} VND</Descriptions.Item>
-                      <Descriptions.Item label="BHXH trang thai">{record.bhxhStatusName || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="Nguoi gui">{record.submittedByName}</Descriptions.Item>
-                      <Descriptions.Item label="Trang thai">{record.statusName || String(record.status)}</Descriptions.Item>
+                      <Descriptions.Item label="Tổng bản ghi">{record.totalRecords}</Descriptions.Item>
+                      <Descriptions.Item label="Hợp lệ">{record.validRecords}</Descriptions.Item>
+                      <Descriptions.Item label="Không hợp lệ">{record.invalidRecords}</Descriptions.Item>
+                      <Descriptions.Item label="Số tiền">{record.totalClaimAmount?.toLocaleString('vi-VN')} VND</Descriptions.Item>
+                      <Descriptions.Item label="BHXH duyệt">{record.bhxhApprovedAmount?.toLocaleString('vi-VN') || '-'} VND</Descriptions.Item>
+                      <Descriptions.Item label="BHXH từ chối">{record.bhxhRejectedAmount?.toLocaleString('vi-VN') || '-'} VND</Descriptions.Item>
+                      <Descriptions.Item label="BHXH trạng thái">{record.bhxhStatusName || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Người gửi">{record.submittedByName}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">{record.statusName || String(record.status)}</Descriptions.Item>
                     </Descriptions>
                   ),
                 });
@@ -953,7 +953,7 @@ const HealthExchange: React.FC = () => {
       label: (
         <span>
           <SwapOutlined />
-          Chuyen vien ({activeReferrals})
+          Chuyển viện ({activeReferrals})
         </span>
       ),
       children: (
@@ -964,10 +964,10 @@ const HealthExchange: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setReferralModalVisible(true)}
             >
-              Tao phieu chuyen
+              Tạo phiếu chuyển
             </Button>
             <Button icon={<PrinterOutlined />} onClick={handlePrintReferral}>
-              In mau
+              In mẫu
             </Button>
           </Space>
           <Table
@@ -979,42 +979,42 @@ const HealthExchange: React.FC = () => {
             onRow={(record) => ({
               onDoubleClick: () => {
                 Modal.info({
-                  title: 'Chi tiet chuyen vien',
+                  title: 'Chi tiết chuyển viện',
                   width: 700,
                   content: (
                     <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
-                      <Descriptions.Item label="Ma phieu">{record.referralCode}</Descriptions.Item>
-                      <Descriptions.Item label="Loai">{record.referralTypeName || record.referralType}</Descriptions.Item>
-                      <Descriptions.Item label="Benh nhan">{record.patientName} ({record.patientCode})</Descriptions.Item>
-                      <Descriptions.Item label="Ngay sinh">{record.dateOfBirth}</Descriptions.Item>
-                      <Descriptions.Item label="So BHYT">{record.insuranceNumber || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="Muc do">{record.urgencyName}</Descriptions.Item>
-                      <Descriptions.Item label="Noi chuyen">{record.sourceFacilityName}</Descriptions.Item>
-                      <Descriptions.Item label="Khoa chuyen">{record.sourceDepartment}</Descriptions.Item>
-                      <Descriptions.Item label="Noi nhan">{record.destinationFacilityName}</Descriptions.Item>
-                      <Descriptions.Item label="Khoa nhan">{record.destinationDepartment || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="Chan doan" span={2}>{record.diagnosis} ({record.diagnosisIcd})</Descriptions.Item>
-                      <Descriptions.Item label="Ly do" span={2}>{record.reasonForReferral}</Descriptions.Item>
-                      <Descriptions.Item label="Tom tat lam sang" span={2}>{record.clinicalSummary || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Mã phiếu">{record.referralCode}</Descriptions.Item>
+                      <Descriptions.Item label="Loại">{record.referralTypeName || record.referralType}</Descriptions.Item>
+                      <Descriptions.Item label="Bệnh nhân">{record.patientName} ({record.patientCode})</Descriptions.Item>
+                      <Descriptions.Item label="Ngày sinh">{record.dateOfBirth}</Descriptions.Item>
+                      <Descriptions.Item label="Số BHYT">{record.insuranceNumber || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Mức độ">{record.urgencyName}</Descriptions.Item>
+                      <Descriptions.Item label="Nơi chuyển">{record.sourceFacilityName}</Descriptions.Item>
+                      <Descriptions.Item label="Khoa chuyển">{record.sourceDepartment}</Descriptions.Item>
+                      <Descriptions.Item label="Nơi nhận">{record.destinationFacilityName}</Descriptions.Item>
+                      <Descriptions.Item label="Khoa nhận">{record.destinationDepartment || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Chẩn đoán" span={2}>{record.diagnosis} ({record.diagnosisIcd})</Descriptions.Item>
+                      <Descriptions.Item label="Lý do" span={2}>{record.reasonForReferral}</Descriptions.Item>
+                      <Descriptions.Item label="Tóm tắt lâm sàng" span={2}>{record.clinicalSummary || '-'}</Descriptions.Item>
                       {record.treatmentHistory && (
-                        <Descriptions.Item label="Tien su dieu tri" span={2}>{record.treatmentHistory}</Descriptions.Item>
+                        <Descriptions.Item label="Tiền sử điều trị" span={2}>{record.treatmentHistory}</Descriptions.Item>
                       )}
                       {record.currentMedications && (
-                        <Descriptions.Item label="Thuoc hien tai" span={2}>{record.currentMedications}</Descriptions.Item>
+                        <Descriptions.Item label="Thuốc hiện tại" span={2}>{record.currentMedications}</Descriptions.Item>
                       )}
-                      <Descriptions.Item label="Trang thai">{record.statusName}</Descriptions.Item>
-                      <Descriptions.Item label="Ngay tao">{dayjs(record.createdAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">{record.statusName}</Descriptions.Item>
+                      <Descriptions.Item label="Ngày tạo">{dayjs(record.createdAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
                       {record.sentAt && (
-                        <Descriptions.Item label="Ngay gui">{dayjs(record.sentAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
+                        <Descriptions.Item label="Ngày gửi">{dayjs(record.sentAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
                       )}
                       {record.acceptedDate && (
-                        <Descriptions.Item label="Ngay chap nhan">{dayjs(record.acceptedDate).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
+                        <Descriptions.Item label="Ngày chấp nhận">{dayjs(record.acceptedDate).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
                       )}
                       {record.rejectionReason && (
-                        <Descriptions.Item label="Ly do tu choi" span={2}>{record.rejectionReason}</Descriptions.Item>
+                        <Descriptions.Item label="Lý do từ chối" span={2}>{record.rejectionReason}</Descriptions.Item>
                       )}
                       {record.outcome && (
-                        <Descriptions.Item label="Ket qua" span={2}>{record.outcome}</Descriptions.Item>
+                        <Descriptions.Item label="Kết quả" span={2}>{record.outcome}</Descriptions.Item>
                       )}
                     </Descriptions>
                   ),
@@ -1031,7 +1031,7 @@ const HealthExchange: React.FC = () => {
       label: (
         <span>
           <TeamOutlined />
-          Hoi chan tu xa
+          Hội chẩn từ xa
         </span>
       ),
       children: (
@@ -1042,7 +1042,7 @@ const HealthExchange: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setConsultationModalVisible(true)}
             >
-              Yeu cau hoi chan
+              Yêu cầu hội chẩn
             </Button>
           </Space>
           <Table
@@ -1054,39 +1054,39 @@ const HealthExchange: React.FC = () => {
             onRow={(record) => ({
               onDoubleClick: () => {
                 Modal.info({
-                  title: 'Chi tiet hoi chan tu xa',
+                  title: 'Chi tiết hội chẩn từ xa',
                   width: 700,
                   content: (
                     <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
-                      <Descriptions.Item label="Ma">{record.requestCode}</Descriptions.Item>
-                      <Descriptions.Item label="Loai">{record.requestTypeName || record.requestType}</Descriptions.Item>
-                      <Descriptions.Item label="Benh nhan">{record.patientName} ({record.patientCode})</Descriptions.Item>
-                      <Descriptions.Item label="Muc do">{record.urgencyName}</Descriptions.Item>
-                      <Descriptions.Item label="BV yeu cau">{record.requestingFacilityName}</Descriptions.Item>
-                      <Descriptions.Item label="BS yeu cau">{record.requestingDoctorName}</Descriptions.Item>
-                      <Descriptions.Item label="BV hoi chan">{record.consultingFacilityName}</Descriptions.Item>
-                      <Descriptions.Item label="Chuyen khoa">{record.consultingSpecialty}</Descriptions.Item>
+                      <Descriptions.Item label="Mã">{record.requestCode}</Descriptions.Item>
+                      <Descriptions.Item label="Loại">{record.requestTypeName || record.requestType}</Descriptions.Item>
+                      <Descriptions.Item label="Bệnh nhân">{record.patientName} ({record.patientCode})</Descriptions.Item>
+                      <Descriptions.Item label="Mức độ">{record.urgencyName}</Descriptions.Item>
+                      <Descriptions.Item label="BV yêu cầu">{record.requestingFacilityName}</Descriptions.Item>
+                      <Descriptions.Item label="BS yêu cầu">{record.requestingDoctorName}</Descriptions.Item>
+                      <Descriptions.Item label="BV hội chẩn">{record.consultingFacilityName}</Descriptions.Item>
+                      <Descriptions.Item label="Chuyên khoa">{record.consultingSpecialty}</Descriptions.Item>
                       {record.consultingDoctorName && (
-                        <Descriptions.Item label="Chuyen gia" span={2}>{record.consultingDoctorName}</Descriptions.Item>
+                        <Descriptions.Item label="Chuyên gia" span={2}>{record.consultingDoctorName}</Descriptions.Item>
                       )}
-                      <Descriptions.Item label="Ly do chinh" span={2}>{record.chiefComplaint}</Descriptions.Item>
-                      <Descriptions.Item label="Cau hoi lam sang" span={2}>{record.clinicalQuestion}</Descriptions.Item>
+                      <Descriptions.Item label="Lý do chính" span={2}>{record.chiefComplaint}</Descriptions.Item>
+                      <Descriptions.Item label="Câu hỏi lâm sàng" span={2}>{record.clinicalQuestion}</Descriptions.Item>
                       {record.scheduledDate && (
-                        <Descriptions.Item label="Lich hen">{record.scheduledDate} {record.scheduledTime || ''}</Descriptions.Item>
+                        <Descriptions.Item label="Lịch hẹn">{record.scheduledDate} {record.scheduledTime || ''}</Descriptions.Item>
                       )}
                       {record.duration && (
-                        <Descriptions.Item label="Thoi luong">{record.duration} phut</Descriptions.Item>
+                        <Descriptions.Item label="Thời lượng">{record.duration} phút</Descriptions.Item>
                       )}
-                      <Descriptions.Item label="Trang thai">{record.statusName}</Descriptions.Item>
-                      <Descriptions.Item label="Ngay tao">{dayjs(record.createdAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái">{record.statusName}</Descriptions.Item>
+                      <Descriptions.Item label="Ngày tạo">{dayjs(record.createdAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
                       {record.consultationNotes && (
-                        <Descriptions.Item label="Ghi chu hoi chan" span={2}>{record.consultationNotes}</Descriptions.Item>
+                        <Descriptions.Item label="Ghi chú hội chẩn" span={2}>{record.consultationNotes}</Descriptions.Item>
                       )}
                       {record.recommendations && (
-                        <Descriptions.Item label="Khuyen nghi" span={2}>{record.recommendations}</Descriptions.Item>
+                        <Descriptions.Item label="Khuyến nghị" span={2}>{record.recommendations}</Descriptions.Item>
                       )}
                       {record.followUpNeeded && (
-                        <Descriptions.Item label="Theo doi" span={2}>{record.followUpInstructions || 'Can theo doi'}</Descriptions.Item>
+                        <Descriptions.Item label="Theo dõi" span={2}>{record.followUpInstructions || 'Cần theo dõi'}</Descriptions.Item>
                       )}
                     </Descriptions>
                   ),
@@ -1114,13 +1114,13 @@ const HealthExchange: React.FC = () => {
             description={
               fhirMetadata
                 ? `${fhirMetadata.software?.name || 'HIS FHIR'} v${fhirMetadata.software?.version || '1.0'} - FHIR ${fhirMetadata.fhirVersion} - ${fhirMetadata.rest?.[0]?.resource?.length || 0} resource types`
-                : 'Dang ket noi...'
+                : 'Đang kết nối...'
             }
             type={fhirMetadata ? 'success' : 'info'}
             showIcon
             action={
               <Button size="small" onClick={handleFhirLoadMetadata}>
-                <ReloadOutlined /> Kiem tra
+                <ReloadOutlined /> Kiểm tra
               </Button>
             }
             style={{ marginBottom: 16 }}
@@ -1128,7 +1128,7 @@ const HealthExchange: React.FC = () => {
 
           {/* Supported Resources */}
           {fhirMetadata?.rest?.[0]?.resource && (
-            <Card size="small" title="Tai nguyen ho tro" style={{ marginBottom: 16 }}>
+            <Card size="small" title="Tài nguyên hỗ trợ" style={{ marginBottom: 16 }}>
               <Space wrap>
                 {fhirMetadata.rest[0].resource.map(r => (
                   <Tag key={r.type} color="blue">{r.type} ({r.interaction?.map(i => i.code).join(', ')})</Tag>
@@ -1138,7 +1138,7 @@ const HealthExchange: React.FC = () => {
           )}
 
           {/* Search Section */}
-          <Card size="small" title="Tim kiem FHIR Resources" style={{ marginBottom: 16 }}>
+          <Card size="small" title="Tìm kiếm FHIR Resources" style={{ marginBottom: 16 }}>
             <Row gutter={[16, 8]}>
               <Col span={6}>
                 <Select
@@ -1163,7 +1163,7 @@ const HealthExchange: React.FC = () => {
               ))}
               <Col>
                 <Button type="primary" icon={<SearchOutlined />} onClick={handleFhirSearch} loading={fhirSearchLoading}>
-                  Tim kiem
+                  Tìm kiếm
                 </Button>
               </Col>
             </Row>
@@ -1171,7 +1171,7 @@ const HealthExchange: React.FC = () => {
 
           {/* Search Results */}
           {fhirSearchResults && (
-            <Card size="small" title={`Ket qua: ${fhirSearchResults.total} ${fhirSearchType}`} style={{ marginBottom: 16 }}>
+            <Card size="small" title={`Kết quả: ${fhirSearchResults.total} ${fhirSearchType}`} style={{ marginBottom: 16 }}>
               <Table
                 dataSource={fhirSearchResults.entry?.map((e, i) => ({
                   key: e.fullUrl || `entry-${i}`,
@@ -1184,10 +1184,10 @@ const HealthExchange: React.FC = () => {
                 columns={[
                   { title: 'ID', dataIndex: 'id', key: 'id', width: 200, ellipsis: true },
                   { title: 'Type', dataIndex: 'resourceType', key: 'type', width: 150 },
-                  { title: 'Tom tat', dataIndex: 'summary', key: 'summary', ellipsis: true },
-                  { title: 'Cap nhat', dataIndex: 'lastUpdated', key: 'updated', width: 180,
+                  { title: 'Tóm tắt', dataIndex: 'summary', key: 'summary', ellipsis: true },
+                  { title: 'Cập nhật', dataIndex: 'lastUpdated', key: 'updated', width: 180,
                     render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
-                  { title: 'Thao tac', key: 'action', width: 120,
+                  { title: 'Thao tác', key: 'action', width: 120,
                     render: (_: unknown, record: { resourceType: string; id: string }) => (
                       <Button size="small" type="link" onClick={() => handleFhirViewJson(record.resourceType, record.id)}>
                         Xem JSON
@@ -1204,7 +1204,7 @@ const HealthExchange: React.FC = () => {
           {/* Export Patient Bundle */}
           <Row gutter={16}>
             <Col span={12}>
-              <Card size="small" title="Xuat du lieu FHIR Bundle">
+              <Card size="small" title="Xuất dữ liệu FHIR Bundle">
                 <Space>
                   <Input
                     placeholder="Patient ID (GUID)"
@@ -1218,7 +1218,7 @@ const HealthExchange: React.FC = () => {
                     onClick={handleFhirExportPatient}
                     loading={fhirSearchLoading}
                   >
-                    Xuat Bundle
+                    Xuất Bundle
                   </Button>
                 </Space>
                 <div style={{ marginTop: 8 }}>
@@ -1229,7 +1229,7 @@ const HealthExchange: React.FC = () => {
               </Card>
             </Col>
             <Col span={12}>
-              <Card size="small" title="Ket noi FHIR Server ngoai">
+              <Card size="small" title="Kết nối FHIR Server ngoài">
                 <Space>
                   <Input
                     placeholder="https://other-hospital.vn/fhir"
@@ -1246,10 +1246,10 @@ const HealthExchange: React.FC = () => {
                   </Button>
                 </Space>
                 {fhirExternalStatus === 'success' && (
-                  <Alert title="Ket noi thanh cong" type="success" showIcon style={{ marginTop: 8 }} />
+                  <Alert title="Kết nối thành công" type="success" showIcon style={{ marginTop: 8 }} />
                 )}
                 {fhirExternalStatus === 'error' && (
-                  <Alert title="Ket noi that bai" type="error" showIcon style={{ marginTop: 8 }} />
+                  <Alert title="Kết nối thất bại" type="error" showIcon style={{ marginTop: 8 }} />
                 )}
               </Card>
             </Col>
@@ -1286,9 +1286,9 @@ const HealthExchange: React.FC = () => {
     <Spin spinning={loading && connections.length === 0}>
       <div>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-          <Title level={3} style={{ margin: 0 }}>Lien thong Y te (HIE)</Title>
+          <Title level={3} style={{ margin: 0 }}>Liên thông Y tế (HIE)</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-            Lam moi
+            Làm mới
           </Button>
         </Space>
 
@@ -1297,7 +1297,7 @@ const HealthExchange: React.FC = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="Ket noi hoat dong"
+                title="Kết nối hoạt động"
                 value={connectedCount}
                 suffix={`/ ${totalConnections}`}
                 prefix={<ApiOutlined />}
@@ -1308,7 +1308,7 @@ const HealthExchange: React.FC = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="Du lieu cho xu ly"
+                title="Dữ liệu chờ xử lý"
                 value={pendingSubmissions}
                 prefix={<ClockCircleOutlined />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -1318,7 +1318,7 @@ const HealthExchange: React.FC = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="Chuyen vien cho"
+                title="Chuyển viện chờ"
                 value={activeReferrals}
                 suffix={`/ ${referrals.length}`}
                 prefix={<SwapOutlined />}
@@ -1328,7 +1328,7 @@ const HealthExchange: React.FC = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="Hoi chan tu xa"
+                title="Hội chẩn từ xa"
                 value={activeConsultations}
                 prefix={<TeamOutlined />}
               />
@@ -1339,7 +1339,7 @@ const HealthExchange: React.FC = () => {
         {/* Dashboard alerts */}
         {dashboard?.alerts && dashboard.alerts.length > 0 && (
           <Alert
-            title={`${dashboard.alerts.length} canh bao`}
+            title={`${dashboard.alerts.length} cảnh báo`}
             description={dashboard.alerts.map((a) => a.message).join('; ')}
             type="warning"
             showIcon
@@ -1355,7 +1355,7 @@ const HealthExchange: React.FC = () => {
 
         {/* Referral Modal */}
         <Modal
-          title="Tao phieu chuyen vien dien tu"
+          title="Tạo phiếu chuyển viện điện tử"
           open={referralModalVisible}
           onCancel={() => setReferralModalVisible(false)}
           onOk={() => referralForm.submit()}
@@ -1364,71 +1364,71 @@ const HealthExchange: React.FC = () => {
           <Form form={referralForm} layout="vertical" onFinish={handleCreateReferral}>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="patientId" label="Ma benh nhan" rules={[{ required: true }]}>
-                  <Input placeholder="Nhap ma benh nhan" />
+                <Form.Item name="patientId" label="Mã bệnh nhân" rules={[{ required: true }]}>
+                  <Input placeholder="Nhập mã bệnh nhân" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="destinationFacilityCode" label="Ma BV tiep nhan" rules={[{ required: true }]}>
-                  <Input placeholder="Ma co so tiep nhan" />
+                <Form.Item name="destinationFacilityCode" label="Mã BV tiếp nhận" rules={[{ required: true }]}>
+                  <Input placeholder="Mã cơ sở tiếp nhận" />
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="destinationDepartment" label="Khoa tiep nhan">
-                  <Input placeholder="Khoa tiep nhan (tuy chon)" />
+                <Form.Item name="destinationDepartment" label="Khoa tiếp nhận">
+                  <Input placeholder="Khoa tiếp nhận (tùy chọn)" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="urgency" label="Muc do khan cap" rules={[{ required: true }]}>
-                  <Select placeholder="Chon muc do">
-                    <Select.Option value={1}>Thuong quy</Select.Option>
-                    <Select.Option value={2}>Khan cap</Select.Option>
-                    <Select.Option value={3}>Cap cuu</Select.Option>
+                <Form.Item name="urgency" label="Mức độ khẩn cấp" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn mức độ">
+                    <Select.Option value={1}>Thường quy</Select.Option>
+                    <Select.Option value={2}>Khẩn cấp</Select.Option>
+                    <Select.Option value={3}>Cấp cứu</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="diagnosis" label="Chan doan" rules={[{ required: true }]}>
-                  <Input placeholder="Chan doan chinh" />
+                <Form.Item name="diagnosis" label="Chẩn đoán" rules={[{ required: true }]}>
+                  <Input placeholder="Chẩn đoán chính" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="diagnosisIcd" label="Ma ICD">
+                <Form.Item name="diagnosisIcd" label="Mã ICD">
                   <Input placeholder="VD: J18.9" />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="reason" label="Ly do chuyen vien" rules={[{ required: true }]}>
-              <TextArea rows={2} placeholder="Ly do chuyen vien" />
+            <Form.Item name="reason" label="Lý do chuyển viện" rules={[{ required: true }]}>
+              <TextArea rows={2} placeholder="Lý do chuyển viện" />
             </Form.Item>
-            <Form.Item name="clinicalSummary" label="Tom tat lam sang">
-              <TextArea rows={3} placeholder="Tom tat tinh trang lam sang, dieu tri da thuc hien" />
+            <Form.Item name="clinicalSummary" label="Tóm tắt lâm sàng">
+              <TextArea rows={3} placeholder="Tóm tắt tình trạng lâm sàng, điều trị đã thực hiện" />
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="currentMedications" label="Thuoc dang dung">
-                  <TextArea rows={2} placeholder="Danh sach thuoc hien tai" />
+                <Form.Item name="currentMedications" label="Thuốc đang dùng">
+                  <TextArea rows={2} placeholder="Danh sách thuốc hiện tại" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="allergies" label="Di ung">
-                  <TextArea rows={2} placeholder="Tien su di ung (neu co)" />
+                <Form.Item name="allergies" label="Dị ứng">
+                  <TextArea rows={2} placeholder="Tiền sử dị ứng (nếu có)" />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="specialInstructions" label="Chi dan dac biet">
-              <TextArea rows={2} placeholder="Huong dan dac biet cho co so tiep nhan" />
+            <Form.Item name="specialInstructions" label="Chỉ dẫn đặc biệt">
+              <TextArea rows={2} placeholder="Hướng dẫn đặc biệt cho cơ sở tiếp nhận" />
             </Form.Item>
           </Form>
         </Modal>
 
         {/* Consultation Modal */}
         <Modal
-          title="Yeu cau hoi chan tu xa"
+          title="Yêu cầu hội chẩn từ xa"
           open={consultationModalVisible}
           onCancel={() => setConsultationModalVisible(false)}
           onOk={() => consultationForm.submit()}
@@ -1437,65 +1437,65 @@ const HealthExchange: React.FC = () => {
           <Form form={consultationForm} layout="vertical" onFinish={handleCreateConsultation}>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="patientId" label="Ma benh nhan" rules={[{ required: true }]}>
-                  <Input placeholder="Nhap ma benh nhan" />
+                <Form.Item name="patientId" label="Mã bệnh nhân" rules={[{ required: true }]}>
+                  <Input placeholder="Nhập mã bệnh nhân" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="requestType" label="Loai yeu cau" rules={[{ required: true }]}>
-                  <Select placeholder="Chon loai">
-                    <Select.Option value="SecondOpinion">Y kien thu hai</Select.Option>
-                    <Select.Option value="Consultation">Hoi chan</Select.Option>
-                    <Select.Option value="EmergencyConsult">Hoi chan cap cuu</Select.Option>
+                <Form.Item name="requestType" label="Loại yêu cầu" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn loại">
+                    <Select.Option value="SecondOpinion">Ý kiến thứ hai</Select.Option>
+                    <Select.Option value="Consultation">Hội chẩn</Select.Option>
+                    <Select.Option value="EmergencyConsult">Hội chẩn cấp cứu</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="consultingFacilityCode" label="Ma BV hoi chan" rules={[{ required: true }]}>
-                  <Input placeholder="Ma co so hoi chan" />
+                <Form.Item name="consultingFacilityCode" label="Mã BV hội chẩn" rules={[{ required: true }]}>
+                  <Input placeholder="Mã cơ sở hội chẩn" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="specialty" label="Chuyen khoa" rules={[{ required: true }]}>
-                  <Select placeholder="Chon chuyen khoa">
-                    <Select.Option value="Tim mach">Tim mach</Select.Option>
-                    <Select.Option value="Than kinh">Than kinh</Select.Option>
-                    <Select.Option value="Ung buou">Ung buou</Select.Option>
+                <Form.Item name="specialty" label="Chuyên khoa" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn chuyên khoa">
+                    <Select.Option value="Tim mạch">Tim mạch</Select.Option>
+                    <Select.Option value="Thần kinh">Thần kinh</Select.Option>
+                    <Select.Option value="Ung bướu">Ung bướu</Select.Option>
                     <Select.Option value="Nhi khoa">Nhi khoa</Select.Option>
-                    <Select.Option value="San phu khoa">San phu khoa</Select.Option>
-                    <Select.Option value="Chinh hinh">Chinh hinh</Select.Option>
-                    <Select.Option value="Mat">Mat</Select.Option>
-                    <Select.Option value="Tai Mui Hong">Tai Mui Hong</Select.Option>
+                    <Select.Option value="Sản phụ khoa">Sản phụ khoa</Select.Option>
+                    <Select.Option value="Chỉnh hình">Chỉnh hình</Select.Option>
+                    <Select.Option value="Mắt">Mắt</Select.Option>
+                    <Select.Option value="Tai Mũi Họng">Tai Mũi Họng</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="chiefComplaint" label="Ly do chinh" rules={[{ required: true }]}>
-              <TextArea rows={2} placeholder="Ly do yeu cau hoi chan" />
+            <Form.Item name="chiefComplaint" label="Lý do chính" rules={[{ required: true }]}>
+              <TextArea rows={2} placeholder="Lý do yêu cầu hội chẩn" />
             </Form.Item>
-            <Form.Item name="clinicalQuestion" label="Cau hoi lam sang" rules={[{ required: true }]}>
-              <TextArea rows={2} placeholder="Cau hoi can tu van" />
+            <Form.Item name="clinicalQuestion" label="Câu hỏi lâm sàng" rules={[{ required: true }]}>
+              <TextArea rows={2} placeholder="Câu hỏi cần tư vấn" />
             </Form.Item>
-            <Form.Item name="relevantHistory" label="Tien su lien quan">
-              <TextArea rows={2} placeholder="Tien su benh, dieu tri" />
+            <Form.Item name="relevantHistory" label="Tiền sử liên quan">
+              <TextArea rows={2} placeholder="Tiền sử bệnh, điều trị" />
             </Form.Item>
-            <Form.Item name="currentFindings" label="Ket qua hien tai">
-              <TextArea rows={2} placeholder="Ket qua kham, xet nghiem hien tai" />
+            <Form.Item name="currentFindings" label="Kết quả hiện tại">
+              <TextArea rows={2} placeholder="Kết quả khám, xét nghiệm hiện tại" />
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="preferredDate" label="Ngay mong muon">
+                <Form.Item name="preferredDate" label="Ngày mong muốn">
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="urgency" label="Muc do" initialValue={1}>
+                <Form.Item name="urgency" label="Mức độ" initialValue={1}>
                   <Select>
-                    <Select.Option value={1}>Thuong</Select.Option>
-                    <Select.Option value={2}>Khan cap</Select.Option>
-                    <Select.Option value={3}>Cap cuu</Select.Option>
+                    <Select.Option value={1}>Thường</Select.Option>
+                    <Select.Option value={2}>Khẩn cấp</Select.Option>
+                    <Select.Option value={3}>Cấp cứu</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -1505,15 +1505,15 @@ const HealthExchange: React.FC = () => {
 
         {/* XML Submit Modal */}
         <Modal
-          title="Gui du lieu XML BHXH"
+          title="Gửi dữ liệu XML BHXH"
           open={xmlModalVisible}
           onCancel={() => setXmlModalVisible(false)}
           onOk={() => xmlForm.submit()}
           width={600}
         >
           <Form form={xmlForm} layout="vertical" onFinish={handleSubmitXML}>
-            <Form.Item name="xmlType" label="Loai XML" rules={[{ required: true }]}>
-              <Select placeholder="Chon loai XML">
+            <Form.Item name="xmlType" label="Loại XML" rules={[{ required: true }]}>
+              <Select placeholder="Chọn loại XML">
                 <Select.Option value="XML130">XML 130 - Thuoc, VTYT</Select.Option>
                 <Select.Option value="XML131">XML 131 - DVKT</Select.Option>
                 <Select.Option value="XML4210">XML 4210 - Ho so BHYT</Select.Option>
@@ -1522,21 +1522,21 @@ const HealthExchange: React.FC = () => {
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="periodFrom" label="Tu ngay" rules={[{ required: true }]}>
+                <Form.Item name="periodFrom" label="Từ ngày" rules={[{ required: true }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="periodTo" label="Den ngay" rules={[{ required: true }]}>
+                <Form.Item name="periodTo" label="Đến ngày" rules={[{ required: true }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="departmentId" label="Khoa (tuy chon)">
-              <Input placeholder="Ma khoa (de trong de gui tat ca)" />
+            <Form.Item name="departmentId" label="Khoa (tùy chọn)">
+              <Input placeholder="Mã khoa (để trống để gửi tất cả)" />
             </Form.Item>
-            <Form.Item name="patientId" label="Ma benh nhan (tuy chon)">
-              <Input placeholder="Ma BN (de trong de gui tat ca BN trong ky)" />
+            <Form.Item name="patientId" label="Mã bệnh nhân (tùy chọn)">
+              <Input placeholder="Mã BN (để trống để gửi tất cả BN trong kỳ)" />
             </Form.Item>
           </Form>
         </Modal>
@@ -1545,8 +1545,8 @@ const HealthExchange: React.FC = () => {
           title={
             <Space>
               <span>FHIR JSON - {fhirJsonTitle}</span>
-              <Button size="small" icon={<CopyOutlined />} onClick={handleCopyJson}>Sao chep</Button>
-              <Button size="small" icon={<DownloadOutlined />} onClick={handleDownloadJson}>Tai xuong</Button>
+              <Button size="small" icon={<CopyOutlined />} onClick={handleCopyJson}>Sao chép</Button>
+              <Button size="small" icon={<DownloadOutlined />} onClick={handleDownloadJson}>Tải xuống</Button>
             </Space>
           }
           open={fhirJsonDrawerOpen}

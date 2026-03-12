@@ -1720,7 +1720,7 @@ const SystemAdmin: React.FC = () => {
               key: 'access-matrix',
               label: (
                 <span>
-                  <TableOutlined /> Ma tran quyen
+                  <TableOutlined /> Ma trận quyền
                 </span>
               ),
               children: (
@@ -1728,16 +1728,16 @@ const SystemAdmin: React.FC = () => {
                   <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
                     <Col flex="auto">
                       <Typography.Text strong style={{ fontSize: 16 }}>
-                        <LockOutlined /> Ma tran kiem soat truy cap
+                        <LockOutlined /> Ma trận kiểm soát truy cập
                       </Typography.Text>
                     </Col>
                     <Col>
                       <Space>
                         <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-                          Xuat bao cao
+                          Xuất báo cáo
                         </Button>
                         <Button icon={<ReloadOutlined />} onClick={fetchMatrixData}>
-                          Lam moi
+                          Làm mới
                         </Button>
                       </Space>
                     </Col>
@@ -1765,14 +1765,14 @@ const SystemAdmin: React.FC = () => {
                             </div>
                           ))}
                           {(!record.modulePermissions || record.modulePermissions.length === 0) && (
-                            <Typography.Text type="secondary">Khong co quyen nao</Typography.Text>
+                            <Typography.Text type="secondary">Không có quyền nào</Typography.Text>
                           )}
                         </div>
                       ),
                     }}
                     columns={[
                       {
-                        title: 'Ma vai tro',
+                        title: 'Mã vai trò',
                         dataIndex: 'roleCode',
                         key: 'roleCode',
                         width: 130,
@@ -1783,13 +1783,13 @@ const SystemAdmin: React.FC = () => {
                         },
                       },
                       {
-                        title: 'Ten vai tro',
+                        title: 'Tên vai trò',
                         dataIndex: 'roleName',
                         key: 'roleName',
                         width: 180,
                       },
                       {
-                        title: 'So nguoi dung',
+                        title: 'Số người dùng',
                         dataIndex: 'userCount',
                         key: 'userCount',
                         width: 130,
@@ -1797,14 +1797,14 @@ const SystemAdmin: React.FC = () => {
                         render: (count: number) => <Badge count={count} showZero overflowCount={9999} style={{ backgroundColor: count > 0 ? '#1890ff' : '#d9d9d9' }} />,
                       },
                       {
-                        title: 'So module',
+                        title: 'Số module',
                         key: 'moduleCount',
                         width: 120,
                         align: 'center' as const,
                         render: (_: unknown, record: AccessControlMatrixDto) => record.modulePermissions?.length || 0,
                       },
                       {
-                        title: 'Tong quyen',
+                        title: 'Tổng quyền',
                         key: 'totalPermissions',
                         width: 120,
                         align: 'center' as const,
@@ -1812,7 +1812,7 @@ const SystemAdmin: React.FC = () => {
                           record.modulePermissions?.reduce((sum, mp) => sum + (mp.permissions?.length || 0), 0) || 0,
                       },
                       {
-                        title: 'Mo ta',
+                        title: 'Mô tả',
                         dataIndex: 'description',
                         key: 'description',
                         ellipsis: true,
@@ -1826,7 +1826,7 @@ const SystemAdmin: React.FC = () => {
               key: 'compliance',
               label: (
                 <span>
-                  <AuditOutlined /> Tuan thu
+                  <AuditOutlined /> Tuân thủ
                 </span>
               ),
               children: (
@@ -1834,12 +1834,12 @@ const SystemAdmin: React.FC = () => {
                   <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
                     <Col flex="auto">
                       <Typography.Text strong style={{ fontSize: 16 }}>
-                        <SafetyOutlined /> Dashboard tuan thu bao mat
+                        <SafetyOutlined /> Dashboard tuân thủ bảo mật
                       </Typography.Text>
                     </Col>
                     <Col>
                       <Button icon={<ReloadOutlined />} onClick={fetchComplianceData}>
-                        Lam moi
+                        Làm mới
                       </Button>
                     </Col>
                   </Row>
@@ -1849,7 +1849,7 @@ const SystemAdmin: React.FC = () => {
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="Tong nguoi dung"
+                          title="Tổng người dùng"
                           value={complianceSummary?.totalUsers ?? 0}
                           prefix={<UserOutlined />}
                         />
@@ -1858,7 +1858,7 @@ const SystemAdmin: React.FC = () => {
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="Nguoi dung hoat dong"
+                          title="Người dùng hoạt động"
                           value={complianceSummary?.activeUsers ?? 0}
                           prefix={<CheckCircleOutlined />}
                           styles={{ content: { color: '#3f8600' } }}
@@ -1868,22 +1868,22 @@ const SystemAdmin: React.FC = () => {
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="2FA da bat"
+                          title="2FA đã bật"
                           value={complianceSummary?.totalUsers ? Math.round((complianceSummary.usersWithTwoFactor / complianceSummary.totalUsers) * 100) : 0}
                           suffix="%"
                           prefix={<LockOutlined />}
                           styles={{ content: { color: (complianceSummary?.usersWithTwoFactor ?? 0) > 0 ? '#3f8600' : '#cf1322' } }}
                         />
                         <div style={{ fontSize: 11, color: '#888' }}>
-                          {complianceSummary?.usersWithTwoFactor ?? 0} / {complianceSummary?.totalUsers ?? 0} nguoi dung
+                          {complianceSummary?.usersWithTwoFactor ?? 0} / {complianceSummary?.totalUsers ?? 0} người dùng
                         </div>
                       </Card>
                     </Col>
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="TDE (Ma hoa du lieu)"
-                          value={complianceSummary?.tdeEnabled ? 'BAT' : 'TAT'}
+                          title="TDE (Mã hóa dữ liệu)"
+                          value={complianceSummary?.tdeEnabled ? 'BẬT' : 'TẮT'}
                           prefix={complianceSummary?.tdeEnabled ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
                           styles={{ content: { color: complianceSummary?.tdeEnabled ? '#3f8600' : '#cf1322' } }}
                         />
@@ -1892,8 +1892,8 @@ const SystemAdmin: React.FC = () => {
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="Ma hoa cot"
-                          value={complianceSummary?.columnEncryptionEnabled ? 'BAT' : 'TAT'}
+                          title="Mã hóa cột"
+                          value={complianceSummary?.columnEncryptionEnabled ? 'BẬT' : 'TẮT'}
                           prefix={complianceSummary?.columnEncryptionEnabled ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
                           styles={{ content: { color: complianceSummary?.columnEncryptionEnabled ? '#3f8600' : '#cf1322' } }}
                         />
@@ -1902,8 +1902,8 @@ const SystemAdmin: React.FC = () => {
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="Sao luu gan nhat"
-                          value={complianceSummary?.lastBackupDate ? dayjs(complianceSummary.lastBackupDate).format('DD/MM HH:mm') : 'Chua co'}
+                          title="Sao lưu gần nhất"
+                          value={complianceSummary?.lastBackupDate ? dayjs(complianceSummary.lastBackupDate).format('DD/MM HH:mm') : 'Chưa có'}
                           prefix={(() => {
                             if (!complianceSummary?.lastBackupDate) return <WarningOutlined style={{ color: '#ff4d4f' }} />;
                             const hoursAgo = dayjs().diff(dayjs(complianceSummary.lastBackupDate), 'hour');
@@ -1915,7 +1915,7 @@ const SystemAdmin: React.FC = () => {
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="Nhat ky (30 ngay)"
+                          title="Nhật ký (30 ngày)"
                           value={complianceSummary?.auditLogsLast30Days ?? 0}
                           prefix={<FileTextOutlined />}
                         />
@@ -1924,7 +1924,7 @@ const SystemAdmin: React.FC = () => {
                     <Col xs={12} sm={8} md={6}>
                       <Card size="small">
                         <Statistic
-                          title="Truy cap nhay cam (30 ngay)"
+                          title="Truy cập nhạy cảm (30 ngày)"
                           value={complianceSummary?.sensitiveAccessLast30Days ?? 0}
                           prefix={<WarningOutlined />}
                           styles={{ content: { color: (complianceSummary?.sensitiveAccessLast30Days ?? 0) > 100 ? '#cf1322' : '#3f8600' } }}
@@ -1935,7 +1935,7 @@ const SystemAdmin: React.FC = () => {
 
                   {/* Sensitive Data Access Report */}
                   <Typography.Title level={5} style={{ marginBottom: 16 }}>
-                    Bao cao truy cap du lieu nhay cam
+                    Báo cáo truy cập dữ liệu nhạy cảm
                   </Typography.Title>
                   <Row gutter={16} style={{ marginBottom: 16 }}>
                     <Col>
@@ -1951,7 +1951,7 @@ const SystemAdmin: React.FC = () => {
                     </Col>
                     <Col>
                       <Button icon={<SearchOutlined />} onClick={fetchComplianceData}>
-                        Tim kiem
+                        Tìm kiếm
                       </Button>
                     </Col>
                   </Row>
@@ -1963,7 +1963,7 @@ const SystemAdmin: React.FC = () => {
                     scroll={{ x: 800 }}
                     pagination={{
                       showSizeChanger: true,
-                      showTotal: (total) => `Tong: ${total} nguoi dung`,
+                      showTotal: (total) => `Tổng: ${total} người dùng`,
                     }}
                     expandable={{
                       expandedRowRender: (record: SensitiveDataAccessReportDto) => (
@@ -1974,14 +1974,14 @@ const SystemAdmin: React.FC = () => {
                           pagination={false}
                           columns={[
                             {
-                              title: 'Thoi gian',
+                              title: 'Thời gian',
                               dataIndex: 'timestamp',
                               key: 'timestamp',
                               width: 160,
                               render: (ts: string) => ts ? dayjs(ts).format('DD/MM/YYYY HH:mm:ss') : '-',
                             },
                             {
-                              title: 'Doi tuong',
+                              title: 'Đối tượng',
                               dataIndex: 'entityType',
                               key: 'entityType',
                               width: 120,
@@ -1994,13 +1994,13 @@ const SystemAdmin: React.FC = () => {
                               ellipsis: true,
                             },
                             {
-                              title: 'Duong dan',
+                              title: 'Đường dẫn',
                               dataIndex: 'requestPath',
                               key: 'requestPath',
                               ellipsis: true,
                             },
                             {
-                              title: 'Phan he',
+                              title: 'Phân hệ',
                               dataIndex: 'module',
                               key: 'module',
                               width: 110,
@@ -2012,7 +2012,7 @@ const SystemAdmin: React.FC = () => {
                     }}
                     columns={[
                       {
-                        title: 'Nguoi dung',
+                        title: 'Người dùng',
                         key: 'user',
                         width: 200,
                         render: (_: unknown, record: SensitiveDataAccessReportDto) => (
@@ -2025,7 +2025,7 @@ const SystemAdmin: React.FC = () => {
                         ),
                       },
                       {
-                        title: 'Tong truy cap',
+                        title: 'Tổng truy cập',
                         dataIndex: 'totalAccesses',
                         key: 'totalAccesses',
                         width: 130,
@@ -2037,7 +2037,7 @@ const SystemAdmin: React.FC = () => {
                         ),
                       },
                       {
-                        title: 'Truy cap gan nhat',
+                        title: 'Truy cập gần nhất',
                         key: 'mostRecent',
                         width: 160,
                         render: (_: unknown, record: SensitiveDataAccessReportDto) => {
@@ -2046,7 +2046,7 @@ const SystemAdmin: React.FC = () => {
                         },
                       },
                       {
-                        title: 'Doi tuong chinh',
+                        title: 'Đối tượng chính',
                         key: 'mainEntityType',
                         render: (_: unknown, record: SensitiveDataAccessReportDto) => {
                           const types = [...new Set(record.recentAccesses?.map((a) => a.entityType) || [])];
@@ -2062,7 +2062,7 @@ const SystemAdmin: React.FC = () => {
               key: 'integration',
               label: (
                 <span>
-                  <ApiOutlined /> Tich hop APP
+                  <ApiOutlined /> Tích hợp APP
                 </span>
               ),
               children: (
@@ -2080,12 +2080,12 @@ const SystemAdmin: React.FC = () => {
                     </Col>
                     <Col xs={24} sm={12} md={6}>
                       <Card size="small">
-                        <Statistic title="App ket noi" value={2} prefix={<MobileOutlined />} styles={{ content: { color: '#722ed1' } }} />
+                        <Statistic title="App kết nối" value={2} prefix={<MobileOutlined />} styles={{ content: { color: '#722ed1' } }} />
                       </Card>
                     </Col>
                     <Col xs={24} sm={12} md={6}>
                       <Card size="small">
-                        <Statistic title="Goi API hom nay" value={1247} prefix={<ThunderboltOutlined />} styles={{ content: { color: '#faad14' } }} />
+                        <Statistic title="Gọi API hôm nay" value={1247} prefix={<ThunderboltOutlined />} styles={{ content: { color: '#faad14' } }} />
                       </Card>
                     </Col>
                   </Row>
@@ -2095,19 +2095,19 @@ const SystemAdmin: React.FC = () => {
                       label: 'API Keys',
                       children: (
                         <div>
-                          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }}>Tao API Key</Button>
+                          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }}>Tạo API Key</Button>
                           <Table size="small" rowKey="id" dataSource={[
-                            { id: '1', name: 'App Bac si', key: 'his_dk_****_a1b2', created: '2026-02-01', lastUsed: '2026-03-11', status: 'active', scope: 'doctor-portal' },
-                            { id: '2', name: 'App Benh nhan', key: 'his_pt_****_c3d4', created: '2026-02-15', lastUsed: '2026-03-11', status: 'active', scope: 'patient-portal' },
+                            { id: '1', name: 'App Bác sĩ', key: 'his_dk_****_a1b2', created: '2026-02-01', lastUsed: '2026-03-11', status: 'active', scope: 'doctor-portal' },
+                            { id: '2', name: 'App Bệnh nhân', key: 'his_pt_****_c3d4', created: '2026-02-15', lastUsed: '2026-03-11', status: 'active', scope: 'patient-portal' },
                             { id: '3', name: 'LIS Integration', key: 'his_lis_****_e5f6', created: '2026-01-10', lastUsed: '2026-03-10', status: 'active', scope: 'laboratory' },
                           ]} columns={[
-                            { title: 'Ten', dataIndex: 'name', key: 'name' },
+                            { title: 'Tên', dataIndex: 'name', key: 'name' },
                             { title: 'API Key', dataIndex: 'key', key: 'key', render: (v: string) => <Typography.Text copyable code>{v}</Typography.Text> },
-                            { title: 'Pham vi', dataIndex: 'scope', key: 'scope', render: (v: string) => <Tag color="blue">{v}</Tag> },
-                            { title: 'Ngay tao', dataIndex: 'created', key: 'created', render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
-                            { title: 'Su dung cuoi', dataIndex: 'lastUsed', key: 'lastUsed', render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
-                            { title: 'Trang thai', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? 'Hoat dong' : 'Vo hieu'}</Tag> },
-                            { title: 'Thao tac', key: 'action', render: () => <Space><Button size="small" type="link" danger>Thu hoi</Button></Space> },
+                            { title: 'Phạm vi', dataIndex: 'scope', key: 'scope', render: (v: string) => <Tag color="blue">{v}</Tag> },
+                            { title: 'Ngày tạo', dataIndex: 'created', key: 'created', render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+                            { title: 'Sử dụng cuối', dataIndex: 'lastUsed', key: 'lastUsed', render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+                            { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? 'Hoạt động' : 'Vô hiệu'}</Tag> },
+                            { title: 'Thao tác', key: 'action', render: () => <Space><Button size="small" type="link" danger>Thu hồi</Button></Space> },
                           ]} pagination={false} />
                         </div>
                       ),
@@ -2117,7 +2117,7 @@ const SystemAdmin: React.FC = () => {
                       label: 'Webhooks',
                       children: (
                         <div>
-                          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }}>Them Webhook</Button>
+                          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }}>Thêm Webhook</Button>
                           <Table size="small" rowKey="id" dataSource={[
                             { id: '1', event: 'patient.registered', url: 'https://app.his.vn/webhooks/patient', status: 'active', lastTriggered: '2026-03-11 10:30' },
                             { id: '2', event: 'lab.result.approved', url: 'https://app.his.vn/webhooks/lab', status: 'active', lastTriggered: '2026-03-11 09:15' },
@@ -2125,31 +2125,31 @@ const SystemAdmin: React.FC = () => {
                             { id: '4', event: 'prescription.signed', url: 'https://app.his.vn/webhooks/rx', status: 'active', lastTriggered: '2026-03-10 14:20' },
                             { id: '5', event: 'discharge.completed', url: 'https://notification.his.vn/push', status: 'active', lastTriggered: '2026-03-09 11:00' },
                           ]} columns={[
-                            { title: 'Su kien', dataIndex: 'event', key: 'event', render: (v: string) => <Tag>{v}</Tag> },
+                            { title: 'Sự kiện', dataIndex: 'event', key: 'event', render: (v: string) => <Tag>{v}</Tag> },
                             { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
-                            { title: 'Trang thai', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? 'Hoat dong' : 'Tam dung'}</Tag> },
-                            { title: 'Goi cuoi', dataIndex: 'lastTriggered', key: 'lastTriggered' },
-                            { title: 'Thao tac', key: 'action', render: () => <Space><Button size="small" type="link">Sua</Button><Button size="small" type="link" danger>Xoa</Button></Space> },
+                            { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? 'Hoạt động' : 'Tạm dừng'}</Tag> },
+                            { title: 'Gọi cuối', dataIndex: 'lastTriggered', key: 'lastTriggered' },
+                            { title: 'Thao tác', key: 'action', render: () => <Space><Button size="small" type="link">Sửa</Button><Button size="small" type="link" danger>Xóa</Button></Space> },
                           ]} pagination={false} />
                         </div>
                       ),
                     },
                     {
                       key: 'apps',
-                      label: 'Ung dung ket noi',
+                      label: 'Ứng dụng kết nối',
                       children: (
                         <Row gutter={[16, 16]}>
                           {[
-                            { name: 'App Bac si', version: '2.1.0', platform: 'iOS + Android', users: 45, status: 'active', desc: 'Ung dung kham benh, ky so cho bac si' },
-                            { name: 'App Benh nhan', version: '1.5.2', platform: 'iOS + Android', users: 1250, status: 'active', desc: 'Dat lich, xem KQ, thanh toan truc tuyen' },
+                            { name: 'App Bác sĩ', version: '2.1.0', platform: 'iOS + Android', users: 45, status: 'active', desc: 'Ứng dụng khám bệnh, ký số cho bác sĩ' },
+                            { name: 'App Bệnh nhân', version: '1.5.2', platform: 'iOS + Android', users: 1250, status: 'active', desc: 'Đặt lịch, xem KQ, thanh toán trực tuyến' },
                           ].map((app, idx) => (
                             <Col span={12} key={idx}>
                               <Card size="small" title={<Space><MobileOutlined />{app.name} <Tag color="blue">v{app.version}</Tag></Space>}
-                                extra={<Tag color={app.status === 'active' ? 'green' : 'red'}>{app.status === 'active' ? 'Hoat dong' : 'Bao tri'}</Tag>}>
+                                extra={<Tag color={app.status === 'active' ? 'green' : 'red'}>{app.status === 'active' ? 'Hoạt động' : 'Bảo trì'}</Tag>}>
                                 <Descriptions size="small" column={1}>
-                                  <Descriptions.Item label="Mo ta">{app.desc}</Descriptions.Item>
-                                  <Descriptions.Item label="Nen tang">{app.platform}</Descriptions.Item>
-                                  <Descriptions.Item label="Nguoi dung">{app.users}</Descriptions.Item>
+                                  <Descriptions.Item label="Mô tả">{app.desc}</Descriptions.Item>
+                                  <Descriptions.Item label="Nền tảng">{app.platform}</Descriptions.Item>
+                                  <Descriptions.Item label="Người dùng">{app.users}</Descriptions.Item>
                                 </Descriptions>
                               </Card>
                             </Col>
@@ -2164,20 +2164,20 @@ const SystemAdmin: React.FC = () => {
                         <div>
                           <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
                             <Descriptions.Item label="Firebase Project">his-hospital-app</Descriptions.Item>
-                            <Descriptions.Item label="Trang thai"><Tag color="green">Ket noi</Tag></Descriptions.Item>
-                            <Descriptions.Item label="Thiet bi dang ky">1,295</Descriptions.Item>
-                            <Descriptions.Item label="Gui hom nay">342</Descriptions.Item>
+                            <Descriptions.Item label="Trạng thái"><Tag color="green">Kết nối</Tag></Descriptions.Item>
+                            <Descriptions.Item label="Thiết bị đăng ký">1,295</Descriptions.Item>
+                            <Descriptions.Item label="Gửi hôm nay">342</Descriptions.Item>
                           </Descriptions>
                           <Table size="small" rowKey="id" dataSource={[
-                            { id: '1', type: 'lab_result', title: 'KQ xet nghiem', template: 'Ket qua XN cua ban da co. Tap vao de xem chi tiet.', enabled: true },
-                            { id: '2', type: 'appointment_reminder', title: 'Nhac lich hen', template: 'Ban co lich hen kham ngay {date} luc {time} tai {dept}.', enabled: true },
-                            { id: '3', type: 'prescription_ready', title: 'Don thuoc san sang', template: 'Don thuoc cua ban da san sang nhan tai quay {counter}.', enabled: true },
-                            { id: '4', type: 'payment_due', title: 'Nhac thanh toan', template: 'Ban co hoa don {amount} chua thanh toan.', enabled: false },
+                            { id: '1', type: 'lab_result', title: 'KQ xét nghiệm', template: 'Kết quả XN của bạn đã có. Tập vào để xem chi tiết.', enabled: true },
+                            { id: '2', type: 'appointment_reminder', title: 'Nhắc lịch hẹn', template: 'Bạn có lịch hẹn khám ngày {date} lúc {time} tại {dept}.', enabled: true },
+                            { id: '3', type: 'prescription_ready', title: 'Đơn thuốc sẵn sàng', template: 'Đơn thuốc của bạn đã sẵn sàng nhận tại quầy {counter}.', enabled: true },
+                            { id: '4', type: 'payment_due', title: 'Nhắc thanh toán', template: 'Bạn có hóa đơn {amount} chưa thanh toán.', enabled: false },
                           ]} columns={[
-                            { title: 'Loai', dataIndex: 'type', key: 'type', render: (v: string) => <Tag>{v}</Tag> },
-                            { title: 'Tieu de', dataIndex: 'title', key: 'title' },
-                            { title: 'Mau noi dung', dataIndex: 'template', key: 'template', ellipsis: true },
-                            { title: 'Bat', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Bat' : 'Tat'}</Tag> },
+                            { title: 'Loại', dataIndex: 'type', key: 'type', render: (v: string) => <Tag>{v}</Tag> },
+                            { title: 'Tiêu đề', dataIndex: 'title', key: 'title' },
+                            { title: 'Mẫu nội dung', dataIndex: 'template', key: 'template', ellipsis: true },
+                            { title: 'Bật', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Bật' : 'Tắt'}</Tag> },
                           ]} pagination={false} />
                         </div>
                       ),

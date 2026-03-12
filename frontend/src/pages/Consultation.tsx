@@ -711,7 +711,7 @@ const Consultation: React.FC = () => {
                       <div><Text strong>{`${caseItem.patientName} (${caseItem.patientCode})`}</Text></div>
                       <div>
                         <div><Text type="secondary">{caseItem.serviceName}</Text></div>
-                        <div><Text type="secondary">Ly do: {caseItem.reason || 'Chua co'}</Text></div>
+                        <div><Text type="secondary">Lý do: {caseItem.reason || 'Chưa có'}</Text></div>
                       </div>
                     </div>
                   </div>

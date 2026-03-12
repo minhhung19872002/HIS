@@ -639,7 +639,7 @@ const DoctorPortal: React.FC = () => {
                     background: isToday ? '#e6f7ff' : undefined }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <Text strong={isToday}>{isToday ? 'Hom nay' : dayjs(s.date).format('DD/MM (ddd)')}</Text>
+                        <Text strong={isToday}>{isToday ? 'Hôm nay' : dayjs(s.date).format('DD/MM (ddd)')}</Text>
                         <br />
                         <Tag color={getShiftColor(s.shiftName)} style={{ marginTop: 4 }}>{s.shiftName}</Tag>
                         <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{s.shiftStart} - {s.shiftEnd}</Text>

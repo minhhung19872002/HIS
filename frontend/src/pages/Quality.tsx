@@ -476,7 +476,7 @@ const Quality: React.FC = () => {
       })(),
     },
     {
-      title: 'Khoa/Phong',
+      title: 'Khoa/Phòng',
       dataIndex: 'departmentName',
       key: 'departmentName',
     },
@@ -557,7 +557,7 @@ const Quality: React.FC = () => {
       key: 'responsiblePersonName',
     },
     {
-      title: 'Han',
+      title: 'Hạn',
       dataIndex: 'dueDate',
       key: 'dueDate',
       width: 100,
@@ -575,7 +575,7 @@ const Quality: React.FC = () => {
           4: { color: 'green' },
           5: { color: 'default' },
         };
-        return <Tag color={config[status]?.color || 'default'}>{record.statusName || `Trang thai ${status}`}</Tag>;
+        return <Tag color={config[status]?.color || 'default'}>{record.statusName || `Trạng thái ${status}`}</Tag>;
       },
     },
   ];
@@ -610,11 +610,11 @@ const Quality: React.FC = () => {
       <div>
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
-            <Title level={4} style={{ margin: 0 }}>Quan ly chat luong</Title>
+            <Title level={4} style={{ margin: 0 }}>Quản lý chất lượng</Title>
           </Col>
           <Col>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>
-              Lam moi
+              Làm mới
             </Button>
           </Col>
         </Row>
@@ -624,7 +624,7 @@ const Quality: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Su co chua xu ly"
+                title="Sự cố chưa xử lý"
                 value={openIncidents}
                 prefix={<AlertOutlined style={{ color: '#ff4d4f' }} />}
                 styles={{ content: { color: '#ff4d4f' } }}
@@ -634,7 +634,7 @@ const Quality: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="KPI canh bao"
+                title="KPI cảnh báo"
                 value={criticalKPIs}
                 prefix={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
                 styles={{ content: { color: '#faad14' } }}
@@ -644,7 +644,7 @@ const Quality: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Audit sap toi"
+                title="Audit sắp tới"
                 value={upcomingAudits}
                 prefix={<FileSearchOutlined style={{ color: '#1890ff' }} />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -658,18 +658,18 @@ const Quality: React.FC = () => {
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
             <Col xs={24} sm={6}>
               <Card size="small">
-                <Statistic title="Su co thang nay" value={dashboard.incidentsThisMonth} />
+                <Statistic title="Sự cố tháng này" value={dashboard.incidentsThisMonth} />
               </Card>
             </Col>
             <Col xs={24} sm={6}>
               <Card size="small">
-                <Statistic title="Audit hoan thanh" value={dashboard.auditsCompleted} />
+                <Statistic title="Audit hoàn thành" value={dashboard.auditsCompleted} />
               </Card>
             </Col>
             <Col xs={24} sm={6}>
               <Card size="small">
                 <Statistic
-                  title="Hai long BN"
+                  title="Hài lòng BN"
                   value={dashboard.overallSatisfaction}
                   suffix="%"
                   styles={{ content: { color: dashboard.overallSatisfaction >= 80 ? '#52c41a' : '#faad14' } }}
@@ -679,7 +679,7 @@ const Quality: React.FC = () => {
             <Col xs={24} sm={6}>
               <Card size="small">
                 <Statistic
-                  title="CAPA qua han"
+                  title="CAPA quá hạn"
                   value={dashboard.overdueCAPAs}
                   styles={{ content: { color: dashboard.overdueCAPAs > 0 ? '#ff4d4f' : '#52c41a' } }}
                 />
@@ -693,7 +693,7 @@ const Quality: React.FC = () => {
           extra={
             <Space>
               <Button icon={<PrinterOutlined />} onClick={executePrintReport}>
-                In bao cao
+                In báo cáo
               </Button>
               <Button
                 type="primary"
@@ -701,7 +701,7 @@ const Quality: React.FC = () => {
                 icon={<AlertOutlined />}
                 onClick={() => setIsReportModalOpen(true)}
               >
-                Bao cao su co
+                Báo cáo sự cố
               </Button>
             </Space>
           }
@@ -711,10 +711,10 @@ const Quality: React.FC = () => {
             items={[
               {
                 key: 'kpi',
-                label: 'Chi so chat luong (KPI)',
+                label: 'Chỉ số chất lượng (KPI)',
                 children: indicators.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-                    Chua co chi so chat luong nao
+                    Chưa có chỉ số chất lượng nào
                   </div>
                 ) : (
                   <Row gutter={[16, 16]}>
@@ -743,11 +743,11 @@ const Quality: React.FC = () => {
                                       } }}
                                     />
                                   ) : (
-                                    <Text type="secondary">Chua co du lieu</Text>
+                                    <Text type="secondary">Chưa có dữ liệu</Text>
                                   )}
                                 </Col>
                                 <Col>
-                                  <Text type="secondary">Muc tieu: {ind.targetValue}</Text>
+                                  <Text type="secondary">Mục tiêu: {ind.targetValue}</Text>
                                 </Col>
                               </Row>
                               {currentValue != null && (
@@ -775,7 +775,7 @@ const Quality: React.FC = () => {
               },
               {
                 key: 'incidents',
-                label: `Su co y khoa (${openIncidents})`,
+                label: `Sự cố y khoa (${openIncidents})`,
                 children: (
                   <Table
                     columns={incidentColumns}
@@ -808,7 +808,7 @@ const Quality: React.FC = () => {
                       style={{ marginBottom: 16 }}
                       onClick={() => setIsAuditModalOpen(true)}
                     >
-                      Len lich audit
+                      Lên lịch audit
                     </Button>
                     <Table
                       columns={auditColumns}
@@ -817,23 +817,23 @@ const Quality: React.FC = () => {
                       onRow={(record) => ({
                         onDoubleClick: () => {
                           Modal.info({
-                            title: `Chi tiet Audit - ${record.auditCode}`,
+                            title: `Chi tiết Audit - ${record.auditCode}`,
                             width: 600,
                             content: (
                               <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                                <Descriptions.Item label="Tieu de">{record.title}</Descriptions.Item>
-                                <Descriptions.Item label="Khoa/Phong">{record.departmentName}</Descriptions.Item>
-                                <Descriptions.Item label="Loai">{record.auditTypeName || record.auditType}</Descriptions.Item>
-                                <Descriptions.Item label="Ngay du kien">{record.scheduledDate ? dayjs(record.scheduledDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Ngay thuc te">{record.actualDate ? dayjs(record.actualDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Truong doan">{record.leadAuditorName}</Descriptions.Item>
-                                <Descriptions.Item label="Pham vi">{record.scope || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Muc tieu">{record.objective || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Tong phat hien">{record.totalFindings ?? '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Nghiem trong">{record.criticalFindings ?? '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Trang thai">{record.statusName}</Descriptions.Item>
-                                <Descriptions.Item label="Ket luan">{record.overallConclusion || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Ghi chu">{record.notes || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Tiêu đề">{record.title}</Descriptions.Item>
+                                <Descriptions.Item label="Khoa/Phòng">{record.departmentName}</Descriptions.Item>
+                                <Descriptions.Item label="Loại">{record.auditTypeName || record.auditType}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày dự kiến">{record.scheduledDate ? dayjs(record.scheduledDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày thực tế">{record.actualDate ? dayjs(record.actualDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trưởng đoàn">{record.leadAuditorName}</Descriptions.Item>
+                                <Descriptions.Item label="Phạm vi">{record.scope || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Mục tiêu">{record.objective || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Tổng phát hiện">{record.totalFindings ?? '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Nghiêm trọng">{record.criticalFindings ?? '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trạng thái">{record.statusName}</Descriptions.Item>
+                                <Descriptions.Item label="Kết luận">{record.overallConclusion || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Ghi chú">{record.notes || '-'}</Descriptions.Item>
                               </Descriptions>
                             ),
                           });
@@ -859,24 +859,24 @@ const Quality: React.FC = () => {
                           width: 600,
                           content: (
                             <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Tieu de">{record.title}</Descriptions.Item>
-                              <Descriptions.Item label="Mo ta">{record.description}</Descriptions.Item>
-                              <Descriptions.Item label="Van de">{record.problemStatement}</Descriptions.Item>
-                              <Descriptions.Item label="Nguyen nhan goc">{record.rootCauseAnalysis || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Nguoi chiu TN">{record.responsiblePersonName}</Descriptions.Item>
-                              <Descriptions.Item label="Han">{record.dueDate ? dayjs(record.dueDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Trang thai">{record.statusName}</Descriptions.Item>
-                              <Descriptions.Item label="Hanh dong khac phuc">
+                              <Descriptions.Item label="Tiêu đề">{record.title}</Descriptions.Item>
+                              <Descriptions.Item label="Mô tả">{record.description}</Descriptions.Item>
+                              <Descriptions.Item label="Vấn đề">{record.problemStatement}</Descriptions.Item>
+                              <Descriptions.Item label="Nguyên nhân gốc">{record.rootCauseAnalysis || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Người chịu TN">{record.responsiblePersonName}</Descriptions.Item>
+                              <Descriptions.Item label="Hạn">{record.dueDate ? dayjs(record.dueDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Trạng thái">{record.statusName}</Descriptions.Item>
+                              <Descriptions.Item label="Hành động khắc phục">
                                 {record.correctiveActions?.length > 0
                                   ? record.correctiveActions.map(a => a.actionDescription).join('; ')
                                   : '-'}
                               </Descriptions.Item>
-                              <Descriptions.Item label="Hanh dong phong ngua">
+                              <Descriptions.Item label="Hành động phòng ngừa">
                                 {record.preventiveActions?.length > 0
                                   ? record.preventiveActions.map(a => a.actionDescription).join('; ')
                                   : '-'}
                               </Descriptions.Item>
-                              <Descriptions.Item label="Ghi chu">{record.notes || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ghi chú">{record.notes || '-'}</Descriptions.Item>
                             </Descriptions>
                           ),
                         });
@@ -888,18 +888,18 @@ const Quality: React.FC = () => {
               },
               {
                 key: 'standards',
-                label: 'Tieu chuan',
+                label: 'Tiêu chuẩn',
                 children: (
                   <Row gutter={[16, 16]}>
                     <Col span={8}>
                       <Card title="JCI (Joint Commission International)">
                         <div>
                         {[
-                            'IPSG - Muc tieu an toan quoc te',
-                            'ACC - Tiep nhan va lien tuc',
-                            'PFR - Quyen benh nhan',
-                            'AOP - Danh gia benh nhan',
-                            'COP - Cham soc benh nhan',
+                            'IPSG - Mục tiêu an toàn quốc tế',
+                            'ACC - Tiếp nhận và liên tục',
+                            'PFR - Quyền bệnh nhân',
+                            'AOP - Đánh giá bệnh nhân',
+                            'COP - Chăm sóc bệnh nhân',
                           ].map((item) => (
                           <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                         ))}
@@ -910,13 +910,13 @@ const Quality: React.FC = () => {
                       <Card title="ISO 9001:2015">
                         <div>
                         {[
-                            'Boi canh to chuc',
-                            'Lanh dao',
-                            'Hoach dinh',
-                            'Ho tro',
-                            'Van hanh',
-                            'Danh gia ket qua',
-                            'Cai tien',
+                            'Bối cảnh tổ chức',
+                            'Lãnh đạo',
+                            'Hoạch định',
+                            'Hỗ trợ',
+                            'Vận hành',
+                            'Đánh giá kết quả',
+                            'Cải tiến',
                           ].map((item) => (
                           <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                         ))}
@@ -924,14 +924,14 @@ const Quality: React.FC = () => {
                       </Card>
                     </Col>
                     <Col span={8}>
-                      <Card title="83 Tieu chi Bo Y te">
+                      <Card title="83 Tiêu chí Bộ Y tế">
                         <div>
                         {[
-                            'Nhom A: An toan nguoi benh',
-                            'Nhom B: To chuc quan ly',
-                            'Nhom C: Nang luc NVYT',
-                            'Nhom D: Co so ha tang',
-                            'Nhom E: Cham soc nguoi benh',
+                            'Nhóm A: An toàn người bệnh',
+                            'Nhóm B: Tổ chức quản lý',
+                            'Nhóm C: Năng lực NVYT',
+                            'Nhóm D: Cơ sở hạ tầng',
+                            'Nhóm E: Chăm sóc người bệnh',
                           ].map((item) => (
                           <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                         ))}
@@ -943,11 +943,11 @@ const Quality: React.FC = () => {
               },
               {
                 key: 'satisfaction',
-                label: 'Hai long BN',
+                label: 'Hài lòng BN',
                 children: (
                   <Row gutter={[16, 16]}>
                     <Col span={12}>
-                      <Card title="Diem hai long trung binh">
+                      <Card title="Điểm hài lòng trung bình">
                         <Row align="middle" gutter={16}>
                           <Col>
                             <Rate disabled value={satisfactionStats
@@ -973,30 +973,30 @@ const Quality: React.FC = () => {
                       </Card>
                     </Col>
                     <Col span={12}>
-                      <Card title="Ty le phan hoi">
+                      <Card title="Tỷ lệ phản hồi">
                         <Progress percent={satisfactionStats?.responseRate ?? 0} />
                         <Text type="secondary">
                           {satisfactionStats
-                            ? `${satisfactionStats.completedSurveys}/${satisfactionStats.totalSurveys} phieu thu thap`
+                            ? `${satisfactionStats.completedSurveys}/${satisfactionStats.totalSurveys} phiếu thu thập`
                             : dashboard
-                            ? `${dashboard.surveysCompleted} phieu hoan thanh`
-                            : 'Chua co du lieu'}
+                            ? `${dashboard.surveysCompleted} phiếu hoàn thành`
+                            : 'Chưa có dữ liệu'}
                         </Text>
                       </Card>
                     </Col>
                     {satisfactionStats?.byDepartment && satisfactionStats.byDepartment.length > 0 && (
                       <Col span={24}>
-                        <Card title="Theo khoa/phong" size="small">
+                        <Card title="Theo khoa/phòng" size="small">
                           <Table
                             size="small"
                             dataSource={satisfactionStats.byDepartment}
                             rowKey="departmentId"
                             pagination={false}
                             columns={[
-                              { title: 'Khoa/Phong', dataIndex: 'departmentName', key: 'departmentName' },
-                              { title: 'So phieu', dataIndex: 'surveyCount', key: 'surveyCount', width: 80 },
+                              { title: 'Khoa/Phòng', dataIndex: 'departmentName', key: 'departmentName' },
+                              { title: 'Số phiếu', dataIndex: 'surveyCount', key: 'surveyCount', width: 80 },
                               {
-                                title: 'Diem hai long',
+                                title: 'Điểm hài lòng',
                                 dataIndex: 'satisfactionScore',
                                 key: 'satisfactionScore',
                                 width: 120,
@@ -1024,7 +1024,7 @@ const Quality: React.FC = () => {
 
         {/* Report Incident Modal */}
         <Modal
-          title="Bao cao su co y khoa"
+          title="Báo cáo sự cố y khoa"
           open={isReportModalOpen}
           onCancel={() => setIsReportModalOpen(false)}
           onOk={() => reportForm.submit()}
@@ -1033,17 +1033,17 @@ const Quality: React.FC = () => {
           <Form form={reportForm} layout="vertical" onFinish={handleReportIncident}>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="incidentDate" label="Ngay xay ra" rules={[{ required: true }]}>
+                <Form.Item name="incidentDate" label="Ngày xảy ra" rules={[{ required: true }]}>
                   <DatePicker showTime style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="departmentId" label="Khoa/Phong" rules={[{ required: true }]}>
-                  <Select placeholder="Chon khoa/phong">
-                    <Select.Option value="noi-khoa">Noi khoa</Select.Option>
-                    <Select.Option value="ngoai-khoa">Ngoai khoa</Select.Option>
+                <Form.Item name="departmentId" label="Khoa/Phòng" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn khoa/phòng">
+                    <Select.Option value="noi-khoa">Nội khoa</Select.Option>
+                    <Select.Option value="ngoai-khoa">Ngoại khoa</Select.Option>
                     <Select.Option value="pttt">PTTT</Select.Option>
-                    <Select.Option value="cap-cuu">Cap cuu</Select.Option>
+                    <Select.Option value="cap-cuu">Cấp cứu</Select.Option>
                     <Select.Option value="icu">ICU</Select.Option>
                   </Select>
                 </Form.Item>
@@ -1051,8 +1051,8 @@ const Quality: React.FC = () => {
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="incidentType" label="Loai su co" rules={[{ required: true }]}>
-                  <Select placeholder="Chon loai su co">
+                <Form.Item name="incidentType" label="Loại sự cố" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn loại sự cố">
                     {INCIDENT_TYPES.map((t) => (
                       <Select.Option key={t.value} value={t.value}>
                         {t.label}
@@ -1062,8 +1062,8 @@ const Quality: React.FC = () => {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="severity" label="Muc do" rules={[{ required: true }]}>
-                  <Select placeholder="Chon muc do">
+                <Form.Item name="severity" label="Mức độ" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn mức độ">
                     {SEVERITY_LEVELS.map((s) => (
                       <Select.Option key={s.value} value={s.value}>
                         {s.label}
@@ -1073,31 +1073,31 @@ const Quality: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="locationDescription" label="Vi tri xay ra">
-              <Input placeholder="VD: Phong benh 301, nha ve sinh tang 2..." />
+            <Form.Item name="locationDescription" label="Vị trí xảy ra">
+              <Input placeholder="VD: Phòng bệnh 301, nhà vệ sinh tầng 2..." />
             </Form.Item>
-            <Form.Item name="description" label="Mo ta su co" rules={[{ required: true }]}>
+            <Form.Item name="description" label="Mô tả sự cố" rules={[{ required: true }]}>
               <TextArea rows={4} />
             </Form.Item>
-            <Form.Item name="immediateActions" label="Xu ly ban dau">
-              <TextArea rows={2} placeholder="Cac bien phap da thuc hien ngay..." />
+            <Form.Item name="immediateActions" label="Xử lý ban đầu">
+              <TextArea rows={2} placeholder="Các biện pháp đã thực hiện ngay..." />
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="patientId" label="Ma benh nhan (neu co)">
+                <Form.Item name="patientId" label="Mã bệnh nhân (nếu có)">
                   <Input placeholder="BN-XXXX" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="isReportable" label="Bao cao co quan">
+                <Form.Item name="isReportable" label="Báo cáo cơ quan">
                   <Select defaultValue={false}>
-                    <Select.Option value={true}>Co</Select.Option>
-                    <Select.Option value={false}>Khong</Select.Option>
+                    <Select.Option value={true}>Có</Select.Option>
+                    <Select.Option value={false}>Không</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="notes" label="Ghi chu them">
+            <Form.Item name="notes" label="Ghi chú thêm">
               <TextArea rows={2} />
             </Form.Item>
           </Form>
@@ -1105,7 +1105,7 @@ const Quality: React.FC = () => {
 
         {/* Investigation Modal */}
         <Modal
-          title="Chi tiet su co"
+          title="Chi tiết sự cố"
           open={isInvestigationModalOpen}
           onCancel={() => {
             setIsInvestigationModalOpen(false);
@@ -1117,64 +1117,64 @@ const Quality: React.FC = () => {
           {selectedIncident && (
             <>
               <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Ma su co">
+                <Descriptions.Item label="Mã sự cố">
                   {selectedIncident.incidentCode}
                 </Descriptions.Item>
-                <Descriptions.Item label="Ngay bao cao">
+                <Descriptions.Item label="Ngày báo cáo">
                   {selectedIncident.reportedDate ? dayjs(selectedIncident.reportedDate).format('DD/MM/YYYY') : '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Ngay xay ra">
+                <Descriptions.Item label="Ngày xảy ra">
                   {selectedIncident.incidentDate ? dayjs(selectedIncident.incidentDate).format('DD/MM/YYYY HH:mm') : '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Khoa">{selectedIncident.departmentName}</Descriptions.Item>
-                <Descriptions.Item label="Loai">{selectedIncident.incidentTypeName || selectedIncident.incidentType}</Descriptions.Item>
-                <Descriptions.Item label="Muc do">
+                <Descriptions.Item label="Loại">{selectedIncident.incidentTypeName || selectedIncident.incidentType}</Descriptions.Item>
+                <Descriptions.Item label="Mức độ">
                   {selectedIncident.severityName
                     ? <Tag color={SEVERITY_LEVELS.find(s => s.value === selectedIncident.severity)?.color}>{selectedIncident.severityName}</Tag>
                     : getSeverityTag(selectedIncident.severity)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Mo ta" span={2}>
+                <Descriptions.Item label="Mô tả" span={2}>
                   {selectedIncident.description}
                 </Descriptions.Item>
                 {selectedIncident.immediateActions && (
-                  <Descriptions.Item label="Xu ly ban dau" span={2}>
+                  <Descriptions.Item label="Xử lý ban đầu" span={2}>
                     {selectedIncident.immediateActions}
                   </Descriptions.Item>
                 )}
                 {selectedIncident.patientName && (
-                  <Descriptions.Item label="Benh nhan" span={2}>
+                  <Descriptions.Item label="Bệnh nhân" span={2}>
                     {selectedIncident.patientCode} - {selectedIncident.patientName}
                   </Descriptions.Item>
                 )}
-                <Descriptions.Item label="Nguoi bao cao" span={2}>
+                <Descriptions.Item label="Người báo cáo" span={2}>
                   {selectedIncident.reportedByName || '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Trang thai" span={2}>
+                <Descriptions.Item label="Trạng thái" span={2}>
                   {getIncidentStatusTag(selectedIncident.status)}
                 </Descriptions.Item>
               </Descriptions>
 
-              <Divider>Phan tich nguyen nhan goc (RCA)</Divider>
+              <Divider>Phân tích nguyên nhân gốc (RCA)</Divider>
 
               <Form form={investigationForm} layout="vertical" onFinish={handleInvestigation}>
                 <Form.Item
                   name="investigationFindings"
-                  label="Ket qua dieu tra"
+                  label="Kết quả điều tra"
                 >
-                  <TextArea rows={3} placeholder="Ket qua dieu tra chi tiet..." />
+                  <TextArea rows={3} placeholder="Kết quả điều tra chi tiết..." />
                 </Form.Item>
                 <Row gutter={16}>
                   <Col span={16}>
                     <Form.Item
                       name="rootCauseAnalysis"
-                      label="Nguyen nhan goc"
+                      label="Nguyên nhân gốc"
                     >
-                      <TextArea rows={3} placeholder="Su dung phuong phap 5 Whys, Fishbone..." />
+                      <TextArea rows={3} placeholder="Sử dụng phương pháp 5 Whys, Fishbone..." />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
-                    <Form.Item name="rcaMethod" label="Phuong phap RCA">
-                      <Select placeholder="Chon">
+                    <Form.Item name="rcaMethod" label="Phương pháp RCA">
+                      <Select placeholder="Chọn">
                         <Select.Option value="5Whys">5 Whys</Select.Option>
                         <Select.Option value="Fishbone">Fishbone</Select.Option>
                         <Select.Option value="FMEA">FMEA</Select.Option>
@@ -1184,13 +1184,13 @@ const Quality: React.FC = () => {
                 </Row>
                 <Form.Item
                   name="preventiveMeasures"
-                  label="Bien phap phong ngua"
+                  label="Biện pháp phòng ngừa"
                 >
                   <TextArea rows={2} />
                 </Form.Item>
                 <Form.Item
                   name="lessonLearned"
-                  label="Bai hoc kinh nghiem"
+                  label="Bài học kinh nghiệm"
                 >
                   <TextArea rows={2} />
                 </Form.Item>
@@ -1199,18 +1199,18 @@ const Quality: React.FC = () => {
               {/* Existing corrective actions */}
               {selectedIncident.correctiveActions && selectedIncident.correctiveActions.length > 0 && (
                 <>
-                  <Divider>Hanh dong khac phuc</Divider>
+                  <Divider>Hành động khắc phục</Divider>
                   <Table
                     size="small"
                     dataSource={selectedIncident.correctiveActions}
                     rowKey="id"
                     pagination={false}
                     columns={[
-                      { title: 'Hanh dong', dataIndex: 'actionDescription', key: 'actionDescription' },
-                      { title: 'Loai', dataIndex: 'actionType', key: 'actionType', width: 100 },
-                      { title: 'Nguoi thuc hien', dataIndex: 'responsiblePersonName', key: 'responsiblePersonName' },
-                      { title: 'Han', dataIndex: 'dueDate', key: 'dueDate', width: 100, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-' },
-                      { title: 'Trang thai', dataIndex: 'statusName', key: 'statusName', width: 100 },
+                      { title: 'Hành động', dataIndex: 'actionDescription', key: 'actionDescription' },
+                      { title: 'Loại', dataIndex: 'actionType', key: 'actionType', width: 100 },
+                      { title: 'Người thực hiện', dataIndex: 'responsiblePersonName', key: 'responsiblePersonName' },
+                      { title: 'Hạn', dataIndex: 'dueDate', key: 'dueDate', width: 100, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-' },
+                      { title: 'Trạng thái', dataIndex: 'statusName', key: 'statusName', width: 100 },
                     ]}
                   />
                 </>
@@ -1221,59 +1221,59 @@ const Quality: React.FC = () => {
 
         {/* Audit Modal */}
         <Modal
-          title="Len lich audit"
+          title="Lên lịch audit"
           open={isAuditModalOpen}
           onCancel={() => setIsAuditModalOpen(false)}
           onOk={() => auditForm.submit()}
           width={600}
         >
           <Form form={auditForm} layout="vertical" onFinish={handleAddAudit}>
-            <Form.Item name="title" label="Ten audit" rules={[{ required: true }]}>
+            <Form.Item name="title" label="Tên audit" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="auditType" label="Loai" rules={[{ required: true }]}>
-                  <Select placeholder="Chon loai audit">
-                    <Select.Option value="Scheduled">Dinh ky</Select.Option>
-                    <Select.Option value="Unscheduled">Dot xuat</Select.Option>
-                    <Select.Option value="FollowUp">Theo doi</Select.Option>
-                    <Select.Option value="Surveillance">Giam sat</Select.Option>
+                <Form.Item name="auditType" label="Loại" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn loại audit">
+                    <Select.Option value="Scheduled">Định kỳ</Select.Option>
+                    <Select.Option value="Unscheduled">Đột xuất</Select.Option>
+                    <Select.Option value="FollowUp">Theo dõi</Select.Option>
+                    <Select.Option value="Surveillance">Giám sát</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="departmentId" label="Khoa/Phong" rules={[{ required: true }]}>
-                  <Select placeholder="Chon khoa/phong">
-                    <Select.Option value="toan-vien">Toan vien</Select.Option>
-                    <Select.Option value="noi-khoa">Noi khoa</Select.Option>
-                    <Select.Option value="ngoai-khoa">Ngoai khoa</Select.Option>
+                <Form.Item name="departmentId" label="Khoa/Phòng" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn khoa/phòng">
+                    <Select.Option value="toan-vien">Toàn viện</Select.Option>
+                    <Select.Option value="noi-khoa">Nội khoa</Select.Option>
+                    <Select.Option value="ngoai-khoa">Ngoại khoa</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="scheduledDate" label="Ngay" rules={[{ required: true }]}>
+                <Form.Item name="scheduledDate" label="Ngày" rules={[{ required: true }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="leadAuditorId" label="Truong doan audit">
-                  <Input placeholder="ID nguoi thuc hien" />
+                <Form.Item name="leadAuditorId" label="Trưởng đoàn audit">
+                  <Input placeholder="ID người thực hiện" />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="scope" label="Pham vi">
-              <TextArea rows={2} placeholder="Pham vi audit..." />
+            <Form.Item name="scope" label="Phạm vi">
+              <TextArea rows={2} placeholder="Phạm vi audit..." />
             </Form.Item>
-            <Form.Item name="objective" label="Muc tieu">
-              <TextArea rows={2} placeholder="Muc tieu audit..." />
+            <Form.Item name="objective" label="Mục tiêu">
+              <TextArea rows={2} placeholder="Mục tiêu audit..." />
             </Form.Item>
-            <Form.Item name="criteria" label="Tieu chi">
+            <Form.Item name="criteria" label="Tiêu chí">
               <Input placeholder="VD: ISO 9001:2015, JCI..." />
             </Form.Item>
-            <Form.Item name="notes" label="Ghi chu">
+            <Form.Item name="notes" label="Ghi chú">
               <TextArea rows={2} />
             </Form.Item>
           </Form>

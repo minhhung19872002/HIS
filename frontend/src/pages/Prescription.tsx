@@ -679,7 +679,7 @@ const Prescription: React.FC = () => {
     // Load template items into prescription
     if (template.items && template.items.length > 0) {
       const templateItems: PrescriptionItem[] = template.items.map((item) => ({
-        id: Date.now().toString() + Math.random().toString(36).substring(2),
+        id: `tpl-${Date.now()}-${index}`,
         medicine: item.medicine,
         dosageForm: item.dosageForm,
         strength: item.strength,

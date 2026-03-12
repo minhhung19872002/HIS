@@ -786,7 +786,7 @@ const HR: React.FC = () => {
                         },
                       },
                       {
-                        title: 'Trang thai',
+                        title: 'Trạng thái',
                         key: 'status',
                         render: (_, record: StaffProfileDto) => {
                           const cert = record.certifications?.[0];

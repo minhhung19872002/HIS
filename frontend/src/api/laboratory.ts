@@ -170,7 +170,7 @@ export const collectSample = async (id: string, data: CollectSampleRequest) => {
 
 // Start processing - only update local state (no API call needed)
 export const startProcessing = async (id: string, _data: ProcessSampleRequest) => {
-  return { success: true, message: 'Da chuyen sang trang thai xu ly' };
+  return { success: true, message: 'Đã chuyển sang trạng thái xử lý' };
 };
 
 // Complete processing (approve)

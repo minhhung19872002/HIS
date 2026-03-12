@@ -59,19 +59,19 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const INFECTION_TYPES = [
-  { value: 'SSI', label: 'SSI - Nhiem khuan vet mo' },
-  { value: 'VAP', label: 'VAP - Viem phoi tho may' },
-  { value: 'CAUTI', label: 'CAUTI - NK tiet nieu do sonde' },
-  { value: 'CLABSI', label: 'CLABSI - NK huyet do catheter' },
+  { value: 'SSI', label: 'SSI - Nhiễm khuẩn vết mổ' },
+  { value: 'VAP', label: 'VAP - Viêm phổi thở máy' },
+  { value: 'CAUTI', label: 'CAUTI - NK tiết niệu do sonde' },
+  { value: 'CLABSI', label: 'CLABSI - NK huyết do catheter' },
   { value: 'CDI', label: 'CDI - Clostridium difficile' },
-  { value: 'Other', label: 'Khac' },
+  { value: 'Other', label: 'Khác' },
 ];
 
 const ISOLATION_TYPES = [
-  { value: 'Contact', label: 'Cach ly tiep xuc' },
-  { value: 'Droplet', label: 'Cach ly giot ban' },
-  { value: 'Airborne', label: 'Cach ly khong khi' },
-  { value: 'Protective', label: 'Cach ly bao ve' },
+  { value: 'Contact', label: 'Cách ly tiếp xúc' },
+  { value: 'Droplet', label: 'Cách ly giọt bắn' },
+  { value: 'Airborne', label: 'Cách ly không khí' },
+  { value: 'Protective', label: 'Cách ly bảo vệ' },
 ];
 
 const InfectionControl: React.FC = () => {
@@ -157,7 +157,7 @@ const InfectionControl: React.FC = () => {
       CAUTI: { color: 'purple', text: 'CAUTI' },
       CLABSI: { color: 'volcano', text: 'CLABSI' },
       CDI: { color: 'cyan', text: 'CDI' },
-      Other: { color: 'default', text: 'Khac' },
+      Other: { color: 'default', text: 'Khác' },
     };
     const c = config[type] || { color: 'default', text: type };
     return <Tag color={c.color}>{c.text}</Tag>;
@@ -194,7 +194,7 @@ const InfectionControl: React.FC = () => {
 
   const getSeverityTag = (severity: number, severityName?: string) => {
     const colors: Record<number, string> = { 1: 'green', 2: 'orange', 3: 'red' };
-    return <Tag color={colors[severity] || 'default'}>{severityName || `Muc ${severity}`}</Tag>;
+    return <Tag color={colors[severity] || 'default'}>{severityName || `Mức ${severity}`}</Tag>;
   };
 
   const handleReportCase = async (values: any) => {
@@ -296,7 +296,7 @@ const InfectionControl: React.FC = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Bao cao KSNK</title>
+        <title>Báo cáo KSNK</title>
         <style>
           body { font-family: 'Times New Roman', serif; padding: 20px; }
           .header { text-align: center; margin-bottom: 20px; }
@@ -310,54 +310,54 @@ const InfectionControl: React.FC = () => {
       <body>
         <div class="header">
           <strong>${HOSPITAL_NAME}</strong><br/>
-          Khoa Kiem soat nhiem khuan
+          Khoa Kiểm soát nhiễm khuẩn
         </div>
 
-        <div class="title">BAO CAO NHIEM KHUAN BENH VIEN</div>
-        <p style="text-align: center;">Thang ${dayjs().format('MM/YYYY')}</p>
+        <div class="title">BÁO CÁO NHIỄM KHUẨN BỆNH VIỆN</div>
+        <p style="text-align: center;">Tháng ${dayjs().format('MM/YYYY')}</p>
 
-        <h3>1. Tong hop ca nhiem khuan</h3>
+        <h3>1. Tổng hợp ca nhiễm khuẩn</h3>
         <table>
           <thead>
             <tr>
-              <th>Loai NK</th>
-              <th>So ca</th>
-              <th>Ty le</th>
+              <th>Loại NK</th>
+              <th>Số ca</th>
+              <th>Tỷ lệ</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>SSI - Nhiem khuan vet mo</td>
+              <td>SSI - Nhiễm khuẩn vết mổ</td>
               <td>${dashboard?.ssiRate != null ? Math.round(dashboard.ssiRate) : haiCases.filter((c) => c.infectionType === 'SSI').length}</td>
               <td>${dashboard?.ssiRate != null ? dashboard.ssiRate.toFixed(2) + '/1000' : '-'}</td>
             </tr>
             <tr>
-              <td>VAP - Viem phoi tho may</td>
+              <td>VAP - Viêm phổi thở máy</td>
               <td>${dashboard?.vapRate != null ? Math.round(dashboard.vapRate) : haiCases.filter((c) => c.infectionType === 'VAP').length}</td>
               <td>${dashboard?.vapRate != null ? dashboard.vapRate.toFixed(2) + '/1000' : '-'}</td>
             </tr>
             <tr>
-              <td>CAUTI - NK tiet nieu</td>
+              <td>CAUTI - NK tiết niệu</td>
               <td>${dashboard?.cautiRate != null ? Math.round(dashboard.cautiRate) : haiCases.filter((c) => c.infectionType === 'CAUTI').length}</td>
               <td>${dashboard?.cautiRate != null ? dashboard.cautiRate.toFixed(2) + '/1000' : '-'}</td>
             </tr>
             <tr>
-              <td>CLABSI - NK huyet</td>
+              <td>CLABSI - NK huyết</td>
               <td>${dashboard?.clabsiRate != null ? Math.round(dashboard.clabsiRate) : haiCases.filter((c) => c.infectionType === 'CLABSI').length}</td>
               <td>${dashboard?.clabsiRate != null ? dashboard.clabsiRate.toFixed(2) + '/1000' : '-'}</td>
             </tr>
           </tbody>
         </table>
 
-        <h3>2. Chi tiet ca nhiem khuan</h3>
+        <h3>2. Chi tiết ca nhiễm khuẩn</h3>
         <table>
           <thead>
             <tr>
               <th>STT</th>
-              <th>Benh nhan</th>
+              <th>Bệnh nhân</th>
               <th>Khoa</th>
-              <th>Loai NK</th>
-              <th>Trang thai</th>
+              <th>Loại NK</th>
+              <th>Trạng thái</th>
             </tr>
           </thead>
           <tbody>
@@ -374,8 +374,8 @@ const InfectionControl: React.FC = () => {
         </table>
 
         <div style="margin-top: 50px; text-align: right;">
-          <p>Ngay ${dayjs().format('DD/MM/YYYY')}</p>
-          <p><strong>Truong khoa KSNK</strong></p>
+          <p>Ngày ${dayjs().format('DD/MM/YYYY')}</p>
+          <p><strong>Trưởng khoa KSNK</strong></p>
         </div>
 
         <script>window.onload = function() { window.print(); }</script>
@@ -387,13 +387,13 @@ const InfectionControl: React.FC = () => {
 
   const caseColumns: ColumnsType<HAISurveillanceDto> = [
     {
-      title: 'Ma ca',
+      title: 'Mã ca',
       dataIndex: 'caseCode',
       key: 'caseCode',
       width: 100,
     },
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       key: 'patient',
       render: (_, record) => (
         <Space orientation="vertical" size={0}>
@@ -405,22 +405,22 @@ const InfectionControl: React.FC = () => {
       ),
     },
     {
-      title: 'Loai NK',
+      title: 'Loại NK',
       dataIndex: 'infectionType',
       key: 'infectionType',
       width: 100,
       render: (type) => getInfectionTypeTag(type),
     },
     {
-      title: 'Vi tri',
+      title: 'Vị trí',
       dataIndex: 'infectionSite',
       key: 'infectionSite',
     },
     {
-      title: 'Vi khuan',
+      title: 'Vi khuẩn',
       dataIndex: 'organism',
       key: 'organism',
-      render: (text) => text || <Text type="secondary">Chua xac dinh</Text>,
+      render: (text) => text || <Text type="secondary">Chưa xác định</Text>,
     },
     {
       title: 'MDRO',
@@ -432,37 +432,37 @@ const InfectionControl: React.FC = () => {
         ) : null,
     },
     {
-      title: 'Muc do',
+      title: 'Mức độ',
       key: 'severity',
       width: 100,
       render: (_, record) => getSeverityTag(record.severity, record.severityName),
     },
     {
-      title: 'Ngay phat hien',
+      title: 'Ngày phát hiện',
       dataIndex: 'diagnosisDate',
       key: 'diagnosisDate',
       width: 120,
       render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       key: 'status',
       width: 100,
       render: (_, record) => getStatusTag(record.status, record.statusName),
     },
     {
-      title: 'Cach ly',
+      title: 'Cách ly',
       key: 'isolation',
       width: 100,
       render: (_, record) =>
         record.requiresIsolation ? (
           <Tag color="red" icon={<SafetyOutlined />}>
-            Co
+            Có
           </Tag>
         ) : null,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 120,
       render: (_, record) => (
@@ -474,7 +474,7 @@ const InfectionControl: React.FC = () => {
               setIsInvestigationModalOpen(true);
             }}
           >
-            Chi tiet
+            Chi tiết
           </Button>
         </Space>
       ),
@@ -483,13 +483,13 @@ const InfectionControl: React.FC = () => {
 
   const isolationColumns: ColumnsType<IsolationOrderDto> = [
     {
-      title: 'Ma lenh',
+      title: 'Mã lệnh',
       dataIndex: 'orderCode',
       key: 'orderCode',
       width: 110,
     },
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       key: 'patient',
       render: (_, record) => (
         <Space orientation="vertical" size={0}>
@@ -501,32 +501,32 @@ const InfectionControl: React.FC = () => {
       ),
     },
     {
-      title: 'Loai cach ly',
+      title: 'Loại cách ly',
       key: 'isolationType',
       width: 120,
       render: (_, record) => getIsolationTypeTag(record.isolationType),
     },
     {
-      title: 'Ly do',
+      title: 'Lý do',
       dataIndex: 'reason',
       key: 'reason',
       ellipsis: true,
     },
     {
-      title: 'Vi khuan',
+      title: 'Vi khuẩn',
       dataIndex: 'organism',
       key: 'organism',
       render: (text) => text || '-',
     },
     {
-      title: 'Ngay bat dau',
+      title: 'Ngày bắt đầu',
       dataIndex: 'startDate',
       key: 'startDate',
       width: 120,
       render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       key: 'status',
       width: 100,
       render: (_, record) => getStatusTag(record.status, record.statusName),
@@ -552,7 +552,7 @@ const InfectionControl: React.FC = () => {
       key: 'departmentName',
     },
     {
-      title: 'Ngay',
+      title: 'Ngày',
       dataIndex: 'observationDate',
       key: 'observationDate',
       width: 120,
@@ -565,25 +565,25 @@ const InfectionControl: React.FC = () => {
       width: 80,
     },
     {
-      title: 'Doi tuong',
+      title: 'Đối tượng',
       dataIndex: 'staffCategoryName',
       key: 'staffCategoryName',
       width: 100,
     },
     {
-      title: 'Tong co hoi',
+      title: 'Tổng cơ hội',
       dataIndex: 'totalOpportunities',
       key: 'totalOpportunities',
       width: 100,
     },
     {
-      title: 'Dung cach',
+      title: 'Đúng cách',
       dataIndex: 'correctActions',
       key: 'correctActions',
       width: 100,
     },
     {
-      title: 'Ty le tuan thu',
+      title: 'Tỷ lệ tuân thủ',
       dataIndex: 'complianceRate',
       key: 'complianceRate',
       width: 140,
@@ -596,7 +596,7 @@ const InfectionControl: React.FC = () => {
       ),
     },
     {
-      title: 'Nguoi quan sat',
+      title: 'Người quan sát',
       dataIndex: 'observedByName',
       key: 'observedByName',
     },
@@ -604,23 +604,23 @@ const InfectionControl: React.FC = () => {
 
   const outbreakColumns: ColumnsType<OutbreakDto> = [
     {
-      title: 'Ma',
+      title: 'Mã',
       dataIndex: 'outbreakCode',
       key: 'outbreakCode',
       width: 100,
     },
     {
-      title: 'Ten',
+      title: 'Tên',
       dataIndex: 'name',
       key: 'name',
     },
     {
-      title: 'Vi khuan',
+      title: 'Vi khuẩn',
       dataIndex: 'organism',
       key: 'organism',
     },
     {
-      title: 'Khoa anh huong',
+      title: 'Khoa ảnh hưởng',
       key: 'departments',
       render: (_, record) =>
         record.affectedDepartmentNames?.map((d, i) => (
@@ -628,29 +628,29 @@ const InfectionControl: React.FC = () => {
         )) || '-',
     },
     {
-      title: 'So ca',
+      title: 'Số ca',
       key: 'cases',
       width: 100,
       render: (_, record) => (
         <span>
-          {record.confirmedCases} XN / {record.totalCases} tong
+          {record.confirmedCases} XN / {record.totalCases} tổng
         </span>
       ),
     },
     {
-      title: 'Muc do',
+      title: 'Mức độ',
       key: 'severity',
       width: 100,
       render: (_, record) => getSeverityTag(record.severity, record.severityName),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       key: 'status',
       width: 100,
       render: (_, record) => getStatusTag(record.status, record.statusName),
     },
     {
-      title: 'Ngay bat dau',
+      title: 'Ngày bắt đầu',
       dataIndex: 'startDate',
       key: 'startDate',
       width: 120,
@@ -664,12 +664,12 @@ const InfectionControl: React.FC = () => {
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
             <Title level={4} style={{ margin: 0 }}>
-              Kiem soat nhiem khuan
+              Kiểm soát nhiễm khuẩn
             </Title>
           </Col>
           <Col>
             <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-              Lam moi
+              Làm mới
             </Button>
           </Col>
         </Row>
@@ -679,7 +679,7 @@ const InfectionControl: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Ca dang theo doi"
+                title="Ca đang theo dõi"
                 value={activeCasesCount}
                 prefix={<BugOutlined style={{ color: '#ff4d4f' }} />}
                 styles={{ content: { color: '#ff4d4f' } }}
@@ -689,7 +689,7 @@ const InfectionControl: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Da xac nhan"
+                title="Đã xác nhận"
                 value={confirmedCount}
                 prefix={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
                 styles={{ content: { color: '#faad14' } }}
@@ -699,7 +699,7 @@ const InfectionControl: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Cho dieu tra"
+                title="Chờ điều tra"
                 value={pendingInvestigation}
                 prefix={<AlertOutlined style={{ color: '#1890ff' }} />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -709,7 +709,7 @@ const InfectionControl: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Dang cach ly"
+                title="Đang cách ly"
                 value={activeIsolationsCount}
                 prefix={<SafetyOutlined style={{ color: '#722ed1' }} />}
                 styles={{ content: { color: '#722ed1' } }}
@@ -733,7 +733,7 @@ const InfectionControl: React.FC = () => {
             <Col xs={12} sm={6}>
               <Card size="small">
                 <Statistic
-                  title="Ve sinh tay"
+                  title="Vệ sinh tay"
                   value={dashboard.hhComplianceRate}
                   suffix="%"
                   styles={{
@@ -748,7 +748,7 @@ const InfectionControl: React.FC = () => {
             <Col xs={12} sm={6}>
               <Card size="small">
                 <Statistic
-                  title="Dich dang hoat dong"
+                  title="Dịch đang hoạt động"
                   value={dashboard.activeOutbreaks}
                   styles={{
                     content: {
@@ -762,7 +762,7 @@ const InfectionControl: React.FC = () => {
             <Col xs={12} sm={6}>
               <Card size="small">
                 <Statistic
-                  title="Canh bao"
+                  title="Cảnh báo"
                   value={dashboard.alertsCount}
                   styles={{
                     content: {
@@ -779,8 +779,8 @@ const InfectionControl: React.FC = () => {
         {/* Alerts */}
         {confirmedCount > 0 && (
           <Alert
-            title="Canh bao NKBV"
-            description={`Hien co ${confirmedCount} ca nhiem khuan benh vien da xac nhan can theo doi`}
+            title="Cảnh báo NKBV"
+            description={`Hiện có ${confirmedCount} ca nhiễm khuẩn bệnh viện đã xác nhận cần theo dõi`}
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
@@ -789,8 +789,8 @@ const InfectionControl: React.FC = () => {
 
         {dashboard && dashboard.activeOutbreaks > 0 && (
           <Alert
-            title="Canh bao dich"
-            description={`Co ${dashboard.activeOutbreaks} dich dang hoat dong. Vui long kiem tra tab "Quan ly dich".`}
+            title="Cảnh báo dịch"
+            description={`Có ${dashboard.activeOutbreaks} dịch đang hoạt động. Vui lòng kiểm tra tab "Quản lý dịch".`}
             type="error"
             showIcon
             style={{ marginBottom: 16 }}
@@ -802,7 +802,7 @@ const InfectionControl: React.FC = () => {
           extra={
             <Space>
               <Button icon={<PrinterOutlined />} onClick={executePrintReport}>
-                In bao cao
+                In báo cáo
               </Button>
               <Button
                 type="primary"
@@ -810,7 +810,7 @@ const InfectionControl: React.FC = () => {
                 icon={<AlertOutlined />}
                 onClick={() => setIsReportModalOpen(true)}
               >
-                Bao cao ca NK
+                Báo cáo ca NK
               </Button>
             </Space>
           }
@@ -822,7 +822,7 @@ const InfectionControl: React.FC = () => {
                 key: 'cases',
                 label: (
                   <Badge count={activeCasesCount} offset={[10, 0]}>
-                    Ca nhiem khuan
+                    Ca nhiễm khuẩn
                   </Badge>
                 ),
                 children: (
@@ -846,7 +846,7 @@ const InfectionControl: React.FC = () => {
                 key: 'isolation',
                 label: (
                   <Badge count={activeIsolationsCount} offset={[10, 0]}>
-                    Cach ly
+                    Cách ly
                   </Badge>
                 ),
                 children: (
@@ -859,28 +859,28 @@ const InfectionControl: React.FC = () => {
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: `Chi tiet cach ly - ${record.patientName}`,
+                          title: `Chi tiết cách ly - ${record.patientName}`,
                           width: 600,
                           content: (
                             <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Ma lenh">{record.orderCode}</Descriptions.Item>
-                              <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
+                              <Descriptions.Item label="Mã lệnh">{record.orderCode}</Descriptions.Item>
+                              <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
                               <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
-                              <Descriptions.Item label="Phong">{record.roomName || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Giuong">{record.bedNumber || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Loai cach ly">{record.isolationTypeName}</Descriptions.Item>
-                              <Descriptions.Item label="Ly do" span={2}>{record.reason}</Descriptions.Item>
-                              <Descriptions.Item label="Vi khuan">{record.organism || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="MDRO">{record.isMDRO ? 'Co' : 'Khong'}</Descriptions.Item>
-                              <Descriptions.Item label="Ngay bat dau">{record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Ngay ket thuc">{record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : 'Chua ket thuc'}</Descriptions.Item>
-                              <Descriptions.Item label="Yeu cau PPE" span={2}>
+                              <Descriptions.Item label="Phòng">{record.roomName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Giường">{record.bedNumber || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Loại cách ly">{record.isolationTypeName}</Descriptions.Item>
+                              <Descriptions.Item label="Lý do" span={2}>{record.reason}</Descriptions.Item>
+                              <Descriptions.Item label="Vi khuẩn">{record.organism || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="MDRO">{record.isMDRO ? 'Có' : 'Không'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày bắt đầu">{record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày kết thúc">{record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : 'Chưa kết thúc'}</Descriptions.Item>
+                              <Descriptions.Item label="Yêu cầu PPE" span={2}>
                                 {record.ppeRequirements?.join(', ') || '-'}
                               </Descriptions.Item>
-                              <Descriptions.Item label="Han che tham benh" span={2}>
+                              <Descriptions.Item label="Hạn chế thăm bệnh" span={2}>
                                 {record.visitorRestrictions || '-'}
                               </Descriptions.Item>
-                              <Descriptions.Item label="Chi dan dac biet" span={2}>
+                              <Descriptions.Item label="Chỉ dẫn đặc biệt" span={2}>
                                 {record.specialInstructions || '-'}
                               </Descriptions.Item>
                             </Descriptions>
@@ -894,12 +894,12 @@ const InfectionControl: React.FC = () => {
               },
               {
                 key: 'surveillance',
-                label: 'Giam sat thuong quy',
+                label: 'Giám sát thường quy',
                 children: (
                   <>
                     <Alert
-                      title="Tieu chi giam sat theo CDC"
-                      description="SSI: Theo doi 30 ngay (90 ngay voi implant) | VAP: Tho may > 48h | CAUTI: Sonde > 48h | CLABSI: Catheter TM trung tam > 48h"
+                      title="Tiêu chí giám sát theo CDC"
+                      description="SSI: Theo dõi 30 ngày (90 ngày với implant) | VAP: Thở máy > 48h | CAUTI: Sonde > 48h | CLABSI: Catheter TM trung tâm > 48h"
                       type="info"
                       showIcon
                       style={{ marginBottom: 16 }}
@@ -909,31 +909,31 @@ const InfectionControl: React.FC = () => {
                         dataSource={dashboard.haiByDepartment}
                         columns={[
                           { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName' },
-                          { title: 'So ca NK', dataIndex: 'haiCount', key: 'haiCount' },
+                          { title: 'Số ca NK', dataIndex: 'haiCount', key: 'haiCount' },
                           {
-                            title: 'Ty le (/1000 ngay)',
+                            title: 'Tỷ lệ (/1000 ngày)',
                             dataIndex: 'haiRate',
                             key: 'haiRate',
                             render: (val) => (val != null ? val.toFixed(2) : '-'),
                           },
-                          { title: 'Ngay benh nhan', dataIndex: 'patientDays', key: 'patientDays' },
+                          { title: 'Ngày bệnh nhân', dataIndex: 'patientDays', key: 'patientDays' },
                         ]}
                         rowKey="departmentId"
                         pagination={false}
-                        locale={{ emptyText: 'Chua co du lieu giam sat' }}
+                        locale={{ emptyText: 'Chưa có dữ liệu giám sát' }}
                         onRow={(record) => ({
                           onDoubleClick: () => {
                             Modal.info({
-                              title: `Chi tiet giam sat - ${record.departmentName}`,
+                              title: `Chi tiết giám sát - ${record.departmentName}`,
                               width: 500,
                               content: (
                                 <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
                                   <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
-                                  <Descriptions.Item label="So ca NK">{record.haiCount}</Descriptions.Item>
-                                  <Descriptions.Item label="Ty le NK">
-                                    {record.haiRate?.toFixed(2) || '-'}/1000 ngay BN
+                                  <Descriptions.Item label="Số ca NK">{record.haiCount}</Descriptions.Item>
+                                  <Descriptions.Item label="Tỷ lệ NK">
+                                    {record.haiRate?.toFixed(2) || '-'}/1000 ngày BN
                                   </Descriptions.Item>
-                                  <Descriptions.Item label="Ngay benh nhan">{record.patientDays}</Descriptions.Item>
+                                  <Descriptions.Item label="Ngày bệnh nhân">{record.patientDays}</Descriptions.Item>
                                 </Descriptions>
                               ),
                             });
@@ -946,11 +946,11 @@ const InfectionControl: React.FC = () => {
                         dataSource={[]}
                         columns={[
                           { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName' },
-                          { title: 'So ca NK', dataIndex: 'haiCount', key: 'haiCount' },
-                          { title: 'Ty le', dataIndex: 'haiRate', key: 'haiRate' },
+                          { title: 'Số ca NK', dataIndex: 'haiCount', key: 'haiCount' },
+                          { title: 'Tỷ lệ', dataIndex: 'haiRate', key: 'haiRate' },
                         ]}
                         rowKey="departmentId"
-                        locale={{ emptyText: 'Chua co du lieu giam sat' }}
+                        locale={{ emptyText: 'Chưa có dữ liệu giám sát' }}
                       />
                     )}
                   </>
@@ -958,7 +958,7 @@ const InfectionControl: React.FC = () => {
               },
               {
                 key: 'compliance',
-                label: 'Kiem tra tuan thu',
+                label: 'Kiểm tra tuân thủ',
                 children: (
                   <>
                     <Button
@@ -966,32 +966,32 @@ const InfectionControl: React.FC = () => {
                       style={{ marginBottom: 16 }}
                       onClick={() => setIsAuditModalOpen(true)}
                     >
-                      Them kiem tra moi
+                      Thêm kiểm tra mới
                     </Button>
                     <Table
                       columns={hhColumns}
                       dataSource={hhObservations}
                       rowKey="id"
                       loading={loading}
-                      locale={{ emptyText: 'Chua co du lieu kiem tra' }}
+                      locale={{ emptyText: 'Chưa có dữ liệu kiểm tra' }}
                       onRow={(record) => ({
                         onDoubleClick: () => {
                           Modal.info({
-                            title: 'Chi tiet kiem tra tuan thu',
+                            title: 'Chi tiết kiểm tra tuân thủ',
                             width: 600,
                             content: (
                               <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
                                 <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
-                                <Descriptions.Item label="Ngay">{record.observationDate ? dayjs(record.observationDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Nguoi quan sat">{record.observedByName}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày">{record.observationDate ? dayjs(record.observationDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Người quan sát">{record.observedByName}</Descriptions.Item>
                                 <Descriptions.Item label="Ca">{record.observationShift}</Descriptions.Item>
-                                <Descriptions.Item label="Doi tuong">{record.staffCategoryName}</Descriptions.Item>
-                                <Descriptions.Item label="Ty le tuan thu">{Math.round(record.complianceRate || 0)}%</Descriptions.Item>
-                                <Descriptions.Item label="Tong co hoi">{record.totalOpportunities}</Descriptions.Item>
-                                <Descriptions.Item label="Dung cach">{record.correctActions}</Descriptions.Item>
-                                <Descriptions.Item label="San pham">{record.productUsed}</Descriptions.Item>
-                                <Descriptions.Item label="Gang tay">{record.gloveUsage || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Ghi chu" span={2}>{record.notes || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Đối tượng">{record.staffCategoryName}</Descriptions.Item>
+                                <Descriptions.Item label="Tỷ lệ tuân thủ">{Math.round(record.complianceRate || 0)}%</Descriptions.Item>
+                                <Descriptions.Item label="Tổng cơ hội">{record.totalOpportunities}</Descriptions.Item>
+                                <Descriptions.Item label="Đúng cách">{record.correctActions}</Descriptions.Item>
+                                <Descriptions.Item label="Sản phẩm">{record.productUsed}</Descriptions.Item>
+                                <Descriptions.Item label="Găng tay">{record.gloveUsage || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Ghi chú" span={2}>{record.notes || '-'}</Descriptions.Item>
                               </Descriptions>
                             ),
                           });
@@ -1006,7 +1006,7 @@ const InfectionControl: React.FC = () => {
                 key: 'outbreaks',
                 label: (
                   <Badge count={dashboard?.activeOutbreaks || 0} offset={[10, 0]}>
-                    Quan ly dich
+                    Quản lý dịch
                   </Badge>
                 ),
                 children: (
@@ -1019,28 +1019,28 @@ const InfectionControl: React.FC = () => {
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: `Chi tiet dich - ${record.name}`,
+                          title: `Chi tiết dịch - ${record.name}`,
                           width: 700,
                           content: (
                             <>
                               <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
-                                <Descriptions.Item label="Ten">{record.name}</Descriptions.Item>
-                                <Descriptions.Item label="Vi khuan">{record.organism}</Descriptions.Item>
-                                <Descriptions.Item label="Ngay bat dau">{record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Ngay ket thuc">{record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : 'Chua ket thuc'}</Descriptions.Item>
-                                <Descriptions.Item label="Tong ca">{record.totalCases}</Descriptions.Item>
-                                <Descriptions.Item label="Xac nhan">{record.confirmedCases}</Descriptions.Item>
-                                <Descriptions.Item label="Hoi phuc">{record.recoveredCases}</Descriptions.Item>
-                                <Descriptions.Item label="Tu vong">{record.deaths}</Descriptions.Item>
-                                <Descriptions.Item label="Nguon">{record.source || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Duong truyen">{record.transmissionMode || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Bao co quan" span={2}>
-                                  {record.reportedToAuthority ? `Co - ${record.reportedDate ? dayjs(record.reportedDate).format('DD/MM/YYYY') : ''}` : 'Chua'}
+                                <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                                <Descriptions.Item label="Vi khuẩn">{record.organism}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày bắt đầu">{record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày kết thúc">{record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : 'Chưa kết thúc'}</Descriptions.Item>
+                                <Descriptions.Item label="Tổng ca">{record.totalCases}</Descriptions.Item>
+                                <Descriptions.Item label="Xác nhận">{record.confirmedCases}</Descriptions.Item>
+                                <Descriptions.Item label="Hồi phục">{record.recoveredCases}</Descriptions.Item>
+                                <Descriptions.Item label="Tử vong">{record.deaths}</Descriptions.Item>
+                                <Descriptions.Item label="Nguồn">{record.source || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Đường truyền">{record.transmissionMode || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Báo cơ quan" span={2}>
+                                  {record.reportedToAuthority ? `Có - ${record.reportedDate ? dayjs(record.reportedDate).format('DD/MM/YYYY') : ''}` : 'Chưa'}
                                 </Descriptions.Item>
                               </Descriptions>
                               {record.controlMeasures?.length > 0 && (
                                 <>
-                                  <Divider>Bien phap kiem soat</Divider>
+                                  <Divider>Biện pháp kiểm soát</Divider>
                                   <ul>
                                     {record.controlMeasures.map((m, i) => (
                                       <li key={i}>{m}</li>
@@ -1050,7 +1050,7 @@ const InfectionControl: React.FC = () => {
                               )}
                               {record.timeline?.length > 0 && (
                                 <>
-                                  <Divider>Dien bien</Divider>
+                                  <Divider>Diễn biến</Divider>
                                   <Timeline
                                     items={record.timeline.map((t) => ({
                                       color: t.eventType === 'Critical' ? 'red' : 'blue',
@@ -1061,7 +1061,7 @@ const InfectionControl: React.FC = () => {
                                           {t.description}
                                           {t.actionsTaken && (
                                             <div>
-                                              <Text type="secondary">Hanh dong: {t.actionsTaken}</Text>
+                                              <Text type="secondary">Hành động: {t.actionsTaken}</Text>
                                             </div>
                                           )}
                                         </>
@@ -1081,32 +1081,32 @@ const InfectionControl: React.FC = () => {
               },
               {
                 key: 'guidelines',
-                label: 'Huong dan cach ly',
+                label: 'Hướng dẫn cách ly',
                 children: (
                   <Row gutter={[16, 16]}>
                     <Col span={8}>
                       <Card
                         title={
                           <span>
-                            <Tag color="yellow">Tiep xuc</Tag> Contact Isolation
+                            <Tag color="yellow">Tiếp xúc</Tag> Contact Isolation
                           </span>
                         }
                       >
                         <p>
-                          <strong>Chi dinh:</strong>
+                          <strong>Chỉ định:</strong>
                         </p>
                         <ul>
                           <li>MDRO (VRE, MRSA, CRE)</li>
                           <li>Clostridium difficile</li>
-                          <li>Nhiem khuan da</li>
+                          <li>Nhiễm khuẩn da</li>
                         </ul>
                         <p>
-                          <strong>Bien phap:</strong>
+                          <strong>Biện pháp:</strong>
                         </p>
                         <ul>
-                          <li>Phong rieng hoac cohort</li>
-                          <li>Gang tay + Ao choang</li>
-                          <li>Dung cu rieng</li>
+                          <li>Phòng riêng hoặc cohort</li>
+                          <li>Găng tay + Áo choàng</li>
+                          <li>Dụng cụ riêng</li>
                         </ul>
                       </Card>
                     </Col>
@@ -1114,25 +1114,25 @@ const InfectionControl: React.FC = () => {
                       <Card
                         title={
                           <span>
-                            <Tag color="blue">Giot ban</Tag> Droplet Isolation
+                            <Tag color="blue">Giọt bắn</Tag> Droplet Isolation
                           </span>
                         }
                       >
                         <p>
-                          <strong>Chi dinh:</strong>
+                          <strong>Chỉ định:</strong>
                         </p>
                         <ul>
-                          <li>Cum</li>
+                          <li>Cúm</li>
                           <li>RSV</li>
-                          <li>Ho ga</li>
+                          <li>Ho gà</li>
                         </ul>
                         <p>
-                          <strong>Bien phap:</strong>
+                          <strong>Biện pháp:</strong>
                         </p>
                         <ul>
-                          <li>Phong rieng</li>
-                          <li>Khau trang y te</li>
-                          <li>Khoang cach 1-2m</li>
+                          <li>Phòng riêng</li>
+                          <li>Khẩu trang y tế</li>
+                          <li>Khoảng cách 1-2m</li>
                         </ul>
                       </Card>
                     </Col>
@@ -1140,26 +1140,26 @@ const InfectionControl: React.FC = () => {
                       <Card
                         title={
                           <span>
-                            <Tag color="purple">Khong khi</Tag> Airborne Isolation
+                            <Tag color="purple">Không khí</Tag> Airborne Isolation
                           </span>
                         }
                       >
                         <p>
-                          <strong>Chi dinh:</strong>
+                          <strong>Chỉ định:</strong>
                         </p>
                         <ul>
-                          <li>Lao phoi</li>
-                          <li>Soi</li>
+                          <li>Lao phổi</li>
+                          <li>Sởi</li>
                           <li>COVID-19</li>
-                          <li>Thuy dau</li>
+                          <li>Thủy đậu</li>
                         </ul>
                         <p>
-                          <strong>Bien phap:</strong>
+                          <strong>Biện pháp:</strong>
                         </p>
                         <ul>
-                          <li>Phong ap luc am</li>
-                          <li>Khau trang N95</li>
-                          <li>Cua dong kin</li>
+                          <li>Phòng áp lực âm</li>
+                          <li>Khẩu trang N95</li>
+                          <li>Cửa đóng kín</li>
                         </ul>
                       </Card>
                     </Col>
@@ -1172,7 +1172,7 @@ const InfectionControl: React.FC = () => {
 
         {/* Report Infection Modal */}
         <Modal
-          title="Bao cao ca nhiem khuan"
+          title="Báo cáo ca nhiễm khuẩn"
           open={isReportModalOpen}
           onCancel={() => setIsReportModalOpen(false)}
           onOk={() => reportForm.submit()}
@@ -1180,7 +1180,7 @@ const InfectionControl: React.FC = () => {
           width={700}
         >
           <Alert
-            title="Bao cao trong 24h voi su co nghiem trong"
+            title="Báo cáo trong 24h với sự cố nghiêm trọng"
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
@@ -1218,16 +1218,16 @@ const InfectionControl: React.FC = () => {
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="organism" label="Vi khuan (neu biet)">
+                <Form.Item name="organism" label="Vi khuẩn (nếu biết)">
                   <Input placeholder="VD: Staphylococcus aureus" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="severity" label="Muc do" rules={[{ required: true }]}>
-                  <Select placeholder="Chon muc do">
-                    <Select.Option value={1}>Nhe</Select.Option>
-                    <Select.Option value={2}>Trung binh</Select.Option>
-                    <Select.Option value={3}>Nang</Select.Option>
+                <Form.Item name="severity" label="Mức độ" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn mức độ">
+                    <Select.Option value={1}>Nhẹ</Select.Option>
+                    <Select.Option value={2}>Trung bình</Select.Option>
+                    <Select.Option value={3}>Nặng</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -1236,14 +1236,14 @@ const InfectionControl: React.FC = () => {
               <Col span={12}>
                 <Form.Item name="isMDRO" label="MDRO" valuePropName="checked" initialValue={false}>
                   <Select>
-                    <Select.Option value={false}>Khong</Select.Option>
-                    <Select.Option value={true}>Co</Select.Option>
+                    <Select.Option value={false}>Không</Select.Option>
+                    <Select.Option value={true}>Có</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="mdroType" label="Loai MDRO">
-                  <Select placeholder="Chon loai MDRO" allowClear>
+                <Form.Item name="mdroType" label="Loại MDRO">
+                  <Select placeholder="Chọn loại MDRO" allowClear>
                     <Select.Option value="MRSA">MRSA</Select.Option>
                     <Select.Option value="VRE">VRE</Select.Option>
                     <Select.Option value="ESBL">ESBL</Select.Option>
@@ -1254,48 +1254,48 @@ const InfectionControl: React.FC = () => {
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="deviceAssociated" label="Lien quan thiet bi" initialValue={false}>
+                <Form.Item name="deviceAssociated" label="Liên quan thiết bị" initialValue={false}>
                   <Select>
-                    <Select.Option value={false}>Khong</Select.Option>
-                    <Select.Option value={true}>Co</Select.Option>
+                    <Select.Option value={false}>Không</Select.Option>
+                    <Select.Option value={true}>Có</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="deviceType" label="Loai thiet bi">
-                  <Select placeholder="Chon loai" allowClear>
+                <Form.Item name="deviceType" label="Loại thiết bị">
+                  <Select placeholder="Chọn loại" allowClear>
                     <Select.Option value="Catheter">Catheter</Select.Option>
-                    <Select.Option value="Ventilator">Tho may</Select.Option>
-                    <Select.Option value="CentralLine">Catheter TM trung tam</Select.Option>
-                    <Select.Option value="UrinaryCatheter">Sonde tieu</Select.Option>
+                    <Select.Option value="Ventilator">Thở máy</Select.Option>
+                    <Select.Option value="CentralLine">Catheter TM trung tâm</Select.Option>
+                    <Select.Option value="UrinaryCatheter">Sonde tiểu</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="surgeryRelated" label="Lien quan phau thuat" initialValue={false}>
+                <Form.Item name="surgeryRelated" label="Liên quan phẫu thuật" initialValue={false}>
                   <Select>
-                    <Select.Option value={false}>Khong</Select.Option>
-                    <Select.Option value={true}>Co</Select.Option>
+                    <Select.Option value={false}>Không</Select.Option>
+                    <Select.Option value={true}>Có</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="cdcCriteria" label="Tieu chi CDC">
+                <Form.Item name="cdcCriteria" label="Tiêu chí CDC">
                   <Input placeholder="VD: NHSN SSI criteria" />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="notes" label="Mo ta chi tiet">
-              <TextArea rows={3} placeholder="Mo ta dien bien, yeu to nguy co..." />
+            <Form.Item name="notes" label="Mô tả chi tiết">
+              <TextArea rows={3} placeholder="Mô tả diễn biến, yếu tố nguy cơ..." />
             </Form.Item>
           </Form>
         </Modal>
 
         {/* Investigation Modal */}
         <Modal
-          title="Chi tiet dieu tra ca nhiem khuan"
+          title="Chi tiết điều tra ca nhiễm khuẩn"
           open={isInvestigationModalOpen}
           onCancel={() => {
             setIsInvestigationModalOpen(false);
@@ -1308,58 +1308,58 @@ const InfectionControl: React.FC = () => {
           {selectedCase && (
             <>
               <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Ma ca">{selectedCase.caseCode}</Descriptions.Item>
-                <Descriptions.Item label="Benh nhan">{selectedCase.patientName}</Descriptions.Item>
+                <Descriptions.Item label="Mã ca">{selectedCase.caseCode}</Descriptions.Item>
+                <Descriptions.Item label="Bệnh nhân">{selectedCase.patientName}</Descriptions.Item>
                 <Descriptions.Item label="Khoa">{selectedCase.departmentName}</Descriptions.Item>
-                <Descriptions.Item label="Giuong">{selectedCase.bedNumber || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Loai NK">
+                <Descriptions.Item label="Giường">{selectedCase.bedNumber || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Loại NK">
                   {getInfectionTypeTag(selectedCase.infectionType)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Trang thai">
+                <Descriptions.Item label="Trạng thái">
                   {getStatusTag(selectedCase.status, selectedCase.statusName)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Vi tri">{selectedCase.infectionSite || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Vi khuan">
-                  {selectedCase.organism || 'Chua xac dinh'}
+                <Descriptions.Item label="Vị trí">{selectedCase.infectionSite || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Vi khuẩn">
+                  {selectedCase.organism || 'Chưa xác định'}
                 </Descriptions.Item>
                 <Descriptions.Item label="MDRO">
                   {selectedCase.isMDRO ? (
-                    <Tag color="red">{selectedCase.mdroType || 'Co'}</Tag>
+                    <Tag color="red">{selectedCase.mdroType || 'Có'}</Tag>
                   ) : (
-                    'Khong'
+                    'Không'
                   )}
                 </Descriptions.Item>
-                <Descriptions.Item label="Muc do">
+                <Descriptions.Item label="Mức độ">
                   {getSeverityTag(selectedCase.severity, selectedCase.severityName)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Ngay phat hien">
+                <Descriptions.Item label="Ngày phát hiện">
                   {selectedCase.diagnosisDate ? dayjs(selectedCase.diagnosisDate).format('DD/MM/YYYY') : '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Ngay khoi phat">
+                <Descriptions.Item label="Ngày khởi phát">
                   {selectedCase.onsetDate ? dayjs(selectedCase.onsetDate).format('DD/MM/YYYY') : '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Nguoi bao cao">{selectedCase.reportedByName}</Descriptions.Item>
-                <Descriptions.Item label="Ngay bao cao">
+                <Descriptions.Item label="Người báo cáo">{selectedCase.reportedByName}</Descriptions.Item>
+                <Descriptions.Item label="Ngày báo cáo">
                   {selectedCase.reportedDate ? dayjs(selectedCase.reportedDate).format('DD/MM/YYYY') : '-'}
                 </Descriptions.Item>
                 {selectedCase.cultureSource && (
-                  <Descriptions.Item label="Nguon cay" span={2}>
-                    {selectedCase.cultureSource} - {selectedCase.cultureResult || 'Chua co ket qua'}
+                  <Descriptions.Item label="Nguồn cấy" span={2}>
+                    {selectedCase.cultureSource} - {selectedCase.cultureResult || 'Chưa có kết quả'}
                   </Descriptions.Item>
                 )}
                 {selectedCase.riskFactors?.length > 0 && (
-                  <Descriptions.Item label="Yeu to nguy co" span={2}>
+                  <Descriptions.Item label="Yếu tố nguy cơ" span={2}>
                     {selectedCase.riskFactors.join(', ')}
                   </Descriptions.Item>
                 )}
                 {selectedCase.notes && (
-                  <Descriptions.Item label="Ghi chu" span={2}>
+                  <Descriptions.Item label="Ghi chú" span={2}>
                     {selectedCase.notes}
                   </Descriptions.Item>
                 )}
               </Descriptions>
 
-              <Divider>Qua trinh dieu tra</Divider>
+              <Divider>Quá trình điều tra</Divider>
 
               <Timeline
                 items={[
@@ -1370,7 +1370,7 @@ const InfectionControl: React.FC = () => {
                         {selectedCase.reportedDate
                           ? dayjs(selectedCase.reportedDate).format('DD/MM/YYYY')
                           : '-'}{' '}
-                        - Bao cao ca nghi ngo boi {selectedCase.reportedByName}
+                        - Báo cáo ca nghi ngờ bởi {selectedCase.reportedByName}
                       </>
                     ),
                   },
@@ -1380,7 +1380,7 @@ const InfectionControl: React.FC = () => {
                           color: 'orange' as const,
                           content: (
                             <>
-                              Ket qua cay: {selectedCase.organism}
+                              Kết quả cấy: {selectedCase.organism}
                               {selectedCase.antibioticSensitivity && (
                                 <div>
                                   <Text type="secondary">
@@ -1399,7 +1399,7 @@ const InfectionControl: React.FC = () => {
                           color: 'green' as const,
                           content: (
                             <>
-                              Dieu tra boi {selectedCase.investigatedByName}
+                              Điều tra bởi {selectedCase.investigatedByName}
                               {selectedCase.investigatedDate && (
                                 <> - {dayjs(selectedCase.investigatedDate).format('DD/MM/YYYY')}</>
                               )}
@@ -1412,7 +1412,7 @@ const InfectionControl: React.FC = () => {
                     ? [
                         {
                           color: 'red' as const,
-                          content: <>Xac nhan NKBV - {selectedCase.cdcCriteria || 'CDC criteria'}</>,
+                          content: <>Xác nhận NKBV - {selectedCase.cdcCriteria || 'CDC criteria'}</>,
                         },
                       ]
                     : []),
@@ -1427,28 +1427,28 @@ const InfectionControl: React.FC = () => {
                 ]}
               />
 
-              <Divider>Cap nhat</Divider>
+              <Divider>Cập nhật</Divider>
 
               <Form form={investigationForm} layout="vertical" onFinish={handleUpdateInvestigation}>
                 <Row gutter={16}>
                   <Col span={12}>
-                    <Form.Item name="status" label="Trang thai">
+                    <Form.Item name="status" label="Trạng thái">
                       <Select defaultValue={selectedCase.status}>
-                        <Select.Option value={1}>Nghi ngo</Select.Option>
-                        <Select.Option value={2}>Xac nhan</Select.Option>
-                        <Select.Option value={3}>Da khoi</Select.Option>
-                        <Select.Option value={4}>Loai tru</Select.Option>
+                        <Select.Option value={1}>Nghi ngờ</Select.Option>
+                        <Select.Option value={2}>Xác nhận</Select.Option>
+                        <Select.Option value={3}>Đã khỏi</Select.Option>
+                        <Select.Option value={4}>Loại trừ</Select.Option>
                       </Select>
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item name="outcome" label="Ket qua">
-                      <Input placeholder="VD: Khoi hoan toan, Chuyen vien..." />
+                    <Form.Item name="outcome" label="Kết quả">
+                      <Input placeholder="VD: Khỏi hoàn toàn, Chuyển viện..." />
                     </Form.Item>
                   </Col>
                 </Row>
-                <Form.Item name="notes" label="Ghi chu dieu tra">
-                  <TextArea rows={3} placeholder="Mo ta ket qua dieu tra, bien phap da thuc hien..." />
+                <Form.Item name="notes" label="Ghi chú điều tra">
+                  <TextArea rows={3} placeholder="Mô tả kết quả điều tra, biện pháp đã thực hiện..." />
                 </Form.Item>
               </Form>
             </>
@@ -1457,7 +1457,7 @@ const InfectionControl: React.FC = () => {
 
         {/* Audit / Hand Hygiene Observation Modal */}
         <Modal
-          title="Kiem tra tuan thu KSNK - Quan sat ve sinh tay"
+          title="Kiểm tra tuân thủ KSNK - Quan sát vệ sinh tay"
           open={isAuditModalOpen}
           onCancel={() => setIsAuditModalOpen(false)}
           onOk={() => auditForm.submit()}
@@ -1467,111 +1467,111 @@ const InfectionControl: React.FC = () => {
           <Form form={auditForm} layout="vertical" onFinish={handleCreateAudit}>
             <Row gutter={16}>
               <Col span={8}>
-                <Form.Item name="departmentId" label="Khoa" rules={[{ required: true, message: 'Chon khoa' }]}>
-                  <Input placeholder="Ma khoa (Department ID)" />
+                <Form.Item name="departmentId" label="Khoa" rules={[{ required: true, message: 'Chọn khoa' }]}>
+                  <Input placeholder="Mã khoa (Department ID)" />
                 </Form.Item>
               </Col>
               <Col span={8}>
-                <Form.Item name="auditDate" label="Ngay quan sat" rules={[{ required: true, message: 'Chon ngay' }]}>
+                <Form.Item name="auditDate" label="Ngày quan sát" rules={[{ required: true, message: 'Chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
               <Col span={8}>
                 <Form.Item name="shift" label="Ca" rules={[{ required: true }]}>
-                  <Select placeholder="Chon ca">
-                    <Select.Option value="Morning">Sang</Select.Option>
-                    <Select.Option value="Afternoon">Chieu</Select.Option>
-                    <Select.Option value="Night">Dem</Select.Option>
+                  <Select placeholder="Chọn ca">
+                    <Select.Option value="Morning">Sáng</Select.Option>
+                    <Select.Option value="Afternoon">Chiều</Select.Option>
+                    <Select.Option value="Night">Đêm</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="staffCategory" label="Doi tuong" rules={[{ required: true }]}>
-                  <Select placeholder="Chon doi tuong">
-                    <Select.Option value="Doctor">Bac si</Select.Option>
-                    <Select.Option value="Nurse">Dieu duong</Select.Option>
-                    <Select.Option value="Allied">Ky thuat vien</Select.Option>
-                    <Select.Option value="Support">Ho tro</Select.Option>
+                <Form.Item name="staffCategory" label="Đối tượng" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn đối tượng">
+                    <Select.Option value="Doctor">Bác sĩ</Select.Option>
+                    <Select.Option value="Nurse">Điều dưỡng</Select.Option>
+                    <Select.Option value="Allied">Kỹ thuật viên</Select.Option>
+                    <Select.Option value="Support">Hỗ trợ</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="productUsed" label="San pham su dung">
-                  <Select placeholder="Chon san pham">
-                    <Select.Option value="ABHR">Dung dich sat khuan tay nhanh</Select.Option>
-                    <Select.Option value="Soap">Xa phong</Select.Option>
+                <Form.Item name="productUsed" label="Sản phẩm sử dụng">
+                  <Select placeholder="Chọn sản phẩm">
+                    <Select.Option value="ABHR">Dung dịch sát khuẩn tay nhanh</Select.Option>
+                    <Select.Option value="Soap">Xà phòng</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
 
-            <Divider>5 thoi diem ve sinh tay (WHO)</Divider>
+            <Divider>5 thời điểm vệ sinh tay (WHO)</Divider>
 
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="moment1Before" label="1. Truoc tiep xuc BN - Co hoi">
+                <Form.Item name="moment1Before" label="1. Trước tiếp xúc BN - Cơ hội">
                   <Input type="number" min={0} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="moment1Correct" label="1. Truoc tiep xuc BN - Dung cach">
-                  <Input type="number" min={0} />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="moment2Before" label="2. Truoc thu thuat vo khuan - Co hoi">
-                  <Input type="number" min={0} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="moment2Correct" label="2. Truoc thu thuat vo khuan - Dung cach">
+                <Form.Item name="moment1Correct" label="1. Trước tiếp xúc BN - Đúng cách">
                   <Input type="number" min={0} />
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="moment3After" label="3. Sau phoi nhiem dich co the - Co hoi">
+                <Form.Item name="moment2Before" label="2. Trước thủ thuật vô khuẩn - Cơ hội">
                   <Input type="number" min={0} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="moment3Correct" label="3. Sau phoi nhiem dich co the - Dung cach">
-                  <Input type="number" min={0} />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="moment4After" label="4. Sau tiep xuc BN - Co hoi">
-                  <Input type="number" min={0} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="moment4Correct" label="4. Sau tiep xuc BN - Dung cach">
+                <Form.Item name="moment2Correct" label="2. Trước thủ thuật vô khuẩn - Đúng cách">
                   <Input type="number" min={0} />
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="moment5After" label="5. Sau tiep xuc moi truong BN - Co hoi">
+                <Form.Item name="moment3After" label="3. Sau phơi nhiễm dịch cơ thể - Cơ hội">
                   <Input type="number" min={0} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="moment5Correct" label="5. Sau tiep xuc moi truong BN - Dung cach">
+                <Form.Item name="moment3Correct" label="3. Sau phơi nhiễm dịch cơ thể - Đúng cách">
+                  <Input type="number" min={0} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="moment4After" label="4. Sau tiếp xúc BN - Cơ hội">
+                  <Input type="number" min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="moment4Correct" label="4. Sau tiếp xúc BN - Đúng cách">
+                  <Input type="number" min={0} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="moment5After" label="5. Sau tiếp xúc môi trường BN - Cơ hội">
+                  <Input type="number" min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="moment5Correct" label="5. Sau tiếp xúc môi trường BN - Đúng cách">
                   <Input type="number" min={0} />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Form.Item name="findings" label="Phat hien/Khuyen nghi">
-              <TextArea rows={3} placeholder="Ghi chu, nhan xet, khuyen nghi..." />
+            <Form.Item name="findings" label="Phát hiện/Khuyến nghị">
+              <TextArea rows={3} placeholder="Ghi chú, nhận xét, khuyến nghị..." />
             </Form.Item>
           </Form>
         </Modal>

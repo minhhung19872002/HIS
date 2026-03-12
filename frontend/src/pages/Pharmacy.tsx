@@ -327,7 +327,7 @@ const Pharmacy: React.FC = () => {
 
   // Handle "Them thuoc" in transfer modal
   const handleAddTransferDrug = () => {
-    setTransferDrugItems(prev => [...prev, { _key: `td-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, medicationCode: '', medicationName: '', quantity: 1, unit: 'viên' }]);
+    setTransferDrugItems(prev => [...prev, { _key: `td-${Date.now()}-${prev.length}`, medicationCode: '', medicationName: '', quantity: 1, unit: 'viên' }]);
   };
 
   // Handle update transfer drug item
