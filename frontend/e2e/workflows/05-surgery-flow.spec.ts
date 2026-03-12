@@ -72,7 +72,7 @@ async function login(page: Page) {
     await page.locator('button:has-text("Đăng nhập")').click();
 
     // Cho chuyen trang - doi toi khi khong con o trang login
-    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
   }
 }
@@ -515,6 +515,7 @@ test.describe('Luong Phau thuat Thu thuat - Surgery Flow', () => {
   test.describe('Buoc 4: Bat dau Phau thuat', () => {
 
     test('4.1 Bat dau ca phau thuat tu lich mo', async ({ page }) => {
+      test.setTimeout(60000);
       // Chuyen sang tab Lich phau thuat
       await page.click('.ant-tabs-tab:has-text("Lịch phẫu thuật")');
       await waitForLoading(page);

@@ -10,6 +10,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-antd': ['antd', '@ant-design/icons'],
+          'vendor-charts': ['recharts'],
+          'vendor-signalr': ['@microsoft/signalr'],
+          'vendor-utils': ['axios', 'dayjs', '@tanstack/react-query'],
+        },
+      },
+    },
+  },
   server: {
     port: 3001,
     proxy: {
