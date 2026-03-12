@@ -24,6 +24,7 @@ import {
   Radio,
   Checkbox,
   Typography,
+  Popconfirm,
 } from 'antd';
 import {
   FormOutlined,
@@ -96,22 +97,22 @@ interface SurveyConfig {
 }
 
 const TARGET_GROUPS = [
-  { value: 'outpatient', label: 'Ngoai tru' },
-  { value: 'inpatient', label: 'Noi tru' },
-  { value: 'all', label: 'Tat ca' },
+  { value: 'outpatient', label: 'Ngoại trú' },
+  { value: 'inpatient', label: 'Nội trú' },
+  { value: 'all', label: 'Tất cả' },
 ];
 
 const QUESTION_TYPES = [
-  { value: 'rating', label: 'Danh gia 1-5 sao' },
-  { value: 'yesno', label: 'Co / Khong' },
-  { value: 'text', label: 'Van ban tu do' },
-  { value: 'multiple_choice', label: 'Chon nhieu' },
+  { value: 'rating', label: 'Đánh giá 1-5 sao' },
+  { value: 'yesno', label: 'Có / Không' },
+  { value: 'text', label: 'Văn bản tự do' },
+  { value: 'multiple_choice', label: 'Chọn nhiều' },
 ];
 
 const CHANNEL_OPTIONS = [
   { label: 'SMS', value: 'sms' },
   { label: 'Email', value: 'email' },
-  { label: 'Ung dung', value: 'app' },
+  { label: 'Ứng dụng', value: 'app' },
 ];
 
 const SatisfactionSurvey: React.FC = () => {
@@ -173,7 +174,7 @@ const SatisfactionSurvey: React.FC = () => {
       }
     } catch {
       console.warn('Failed to load satisfaction survey data');
-      message.warning('Khong the tai du lieu khao sat hai long');
+      message.warning('Không thể tải dữ liệu khảo sát hài lòng');
     } finally {
       setLoading(false);
     }
@@ -223,28 +224,28 @@ const SatisfactionSurvey: React.FC = () => {
 
       if (editingTemplate) {
         await client.put(`/satisfaction-survey/templates/${editingTemplate.id}`, payload);
-        message.success('Cap nhat mau khao sat thanh cong');
+        message.success('Cập nhật mẫu khảo sát thành công');
       } else {
         await client.post('/satisfaction-survey/templates', payload);
-        message.success('Tao mau khao sat thanh cong');
+        message.success('Tạo mẫu khảo sát thành công');
       }
 
       setTemplateModalOpen(false);
       fetchData();
     } catch {
       console.warn('Failed to save survey template');
-      message.warning('Khong the luu mau khao sat');
+      message.warning('Không thể lưu mẫu khảo sát');
     }
   };
 
   const handleDeleteTemplate = async (id: string) => {
     try {
       await client.delete(`/satisfaction-survey/templates/${id}`);
-      message.success('Xoa mau khao sat thanh cong');
+      message.success('Xóa mẫu khảo sát thành công');
       fetchData();
     } catch {
       console.warn('Failed to delete survey template');
-      message.warning('Khong the xoa mau khao sat');
+      message.warning('Không thể xóa mẫu khảo sát');
     }
   };
 
@@ -277,59 +278,61 @@ const SatisfactionSurvey: React.FC = () => {
       message.success('Luu cau hinh thanh cong');
     } catch {
       console.warn('Failed to save survey config');
-      message.warning('Khong the luu cau hinh');
+      message.warning('Không thể lưu cấu hình');
     }
   };
 
   // --- Column definitions ---
 
   const templateColumns: ColumnsType<SurveyTemplate> = [
-    { title: 'Ten mau', dataIndex: 'name', key: 'name', width: 200 },
-    { title: 'Mo ta', dataIndex: 'description', key: 'description', ellipsis: true },
+    { title: 'Tên mẫu', dataIndex: 'name', key: 'name', width: 200 },
+    { title: 'Mô tả', dataIndex: 'description', key: 'description', ellipsis: true },
     {
-      title: 'So cau hoi',
+      title: 'Số câu hỏi',
       dataIndex: 'questions',
       key: 'questionCount',
       width: 110,
       render: (qs: SurveyQuestion[]) => qs?.length || 0,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 110,
       render: (s: string) => (
         <Tag color={s === 'active' ? 'green' : 'default'}>
-          {s === 'active' ? 'Hoat dong' : 'Ngung'}
+          {s === 'active' ? 'Hoạt động' : 'Ngừng'}
         </Tag>
       ),
     },
     {
-      title: 'Ngay tao',
+      title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 130,
       render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 120,
       render: (_: unknown, record: SurveyTemplate) => (
         <Space>
           <Button type="link" icon={<EditOutlined />} onClick={() => openTemplateModal(record)} />
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDeleteTemplate(record.id)} />
+          <Popconfirm title="Xác nhận xóa mẫu khảo sát này?" onConfirm={() => handleDeleteTemplate(record.id)} okText="Xóa" cancelText="Hủy">
+            <Button type="link" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
   const resultColumns: ColumnsType<SurveyResult> = [
-    { title: 'Ma BN', dataIndex: 'patientCode', key: 'patientCode', width: 120 },
-    { title: 'Ho ten', dataIndex: 'patientName', key: 'patientName', width: 180 },
-    { title: 'Mau khao sat', dataIndex: 'templateName', key: 'templateName', width: 180 },
+    { title: 'Mã BN', dataIndex: 'patientCode', key: 'patientCode', width: 120 },
+    { title: 'Họ tên', dataIndex: 'patientName', key: 'patientName', width: 180 },
+    { title: 'Mẫu khảo sát', dataIndex: 'templateName', key: 'templateName', width: 180 },
     {
-      title: 'Diem',
+      title: 'Điểm',
       dataIndex: 'score',
       key: 'score',
       width: 100,
@@ -340,37 +343,37 @@ const SatisfactionSurvey: React.FC = () => {
       ),
     },
     {
-      title: 'Ngay',
+      title: 'Ngày',
       dataIndex: 'date',
       key: 'date',
       width: 130,
       render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 110,
       render: (s: string) => (
         <Tag color={s === 'completed' ? 'green' : s === 'partial' ? 'orange' : 'default'}>
-          {s === 'completed' ? 'Hoan thanh' : s === 'partial' ? 'Dang do' : s}
+          {s === 'completed' ? 'Hoàn thành' : s === 'partial' ? 'Đang dở' : s}
         </Tag>
       ),
     },
   ];
 
   const departmentColumns: ColumnsType<DepartmentAnalysis> = [
-    { title: 'Khoa / Phong', dataIndex: 'department', key: 'department' },
+    { title: 'Khoa / Phòng', dataIndex: 'department', key: 'department' },
     {
-      title: 'Diem TB',
+      title: 'Điểm TB',
       dataIndex: 'avgScore',
       key: 'avgScore',
       width: 100,
       render: (v: number) => <Tag color={v >= 4 ? 'green' : v >= 3 ? 'orange' : 'red'}>{v?.toFixed(1)}</Tag>,
     },
-    { title: 'So phan hoi', dataIndex: 'responseCount', key: 'responseCount', width: 120 },
+    { title: 'Số phản hồi', dataIndex: 'responseCount', key: 'responseCount', width: 120 },
     {
-      title: 'Ty le hai long',
+      title: 'Tỷ lệ hài lòng',
       dataIndex: 'satisfactionRate',
       key: 'satisfactionRate',
       width: 130,
@@ -392,12 +395,12 @@ const SatisfactionSurvey: React.FC = () => {
   const tabItems = [
     {
       key: 'templates',
-      label: <span><FormOutlined /> Mau khao sat</span>,
+      label: <span><FormOutlined /> Mẫu khảo sát</span>,
       children: (
         <div>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openTemplateModal()}>
-              Them mau moi
+              Thêm mẫu mới
             </Button>
           </div>
           <Table
@@ -412,13 +415,13 @@ const SatisfactionSurvey: React.FC = () => {
     },
     {
       key: 'results',
-      label: <span><BarChartOutlined /> Ket qua</span>,
+      label: <span><BarChartOutlined /> Kết quả</span>,
       children: (
         <div>
           <Card size="small" style={{ marginBottom: 16 }}>
             <Space orientation="horizontal" size="middle">
               <Select
-                placeholder="Chon mau khao sat"
+                placeholder="Chọn mẫu khảo sát"
                 allowClear
                 style={{ width: 200 }}
                 value={resultFilterTemplate}
@@ -436,22 +439,22 @@ const SatisfactionSurvey: React.FC = () => {
           <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col span={6}>
               <Card size="small">
-                <Statistic title="Thai do phuc vu" value={stats.averageScore > 0 ? (stats.averageScore * 0.95).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
+                <Statistic title="Thái độ phục vụ" value={stats.averageScore > 0 ? (stats.averageScore * 0.95).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
               </Card>
             </Col>
             <Col span={6}>
               <Card size="small">
-                <Statistic title="Co so vat chat" value={stats.averageScore > 0 ? (stats.averageScore * 0.90).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
+                <Statistic title="Cơ sở vật chất" value={stats.averageScore > 0 ? (stats.averageScore * 0.90).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
               </Card>
             </Col>
             <Col span={6}>
               <Card size="small">
-                <Statistic title="Thoi gian cho" value={stats.averageScore > 0 ? (stats.averageScore * 0.85).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
+                <Statistic title="Thời gian chờ" value={stats.averageScore > 0 ? (stats.averageScore * 0.85).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
               </Card>
             </Col>
             <Col span={6}>
               <Card size="small">
-                <Statistic title="Chat luong dieu tri" value={stats.averageScore > 0 ? (stats.averageScore * 1.02).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
+                <Statistic title="Chất lượng điều trị" value={stats.averageScore > 0 ? (stats.averageScore * 1.02).toFixed(1) : '-'} suffix="/ 5" prefix={<StarOutlined />} />
               </Card>
             </Col>
           </Row>
@@ -475,10 +478,10 @@ const SatisfactionSurvey: React.FC = () => {
     },
     {
       key: 'analysis',
-      label: <span><PieChartOutlined /> Phan tich</span>,
+      label: <span><PieChartOutlined /> Phân tích</span>,
       children: (
         <div>
-          <Title level={5}>So sanh theo khoa / phong</Title>
+          <Title level={5}>So sánh theo khoa / phòng</Title>
           <Table
             columns={departmentColumns}
             dataSource={departmentAnalysis}
@@ -488,17 +491,17 @@ const SatisfactionSurvey: React.FC = () => {
             style={{ marginBottom: 24 }}
           />
 
-          <Title level={5}>Xu huong theo thang</Title>
+          <Title level={5}>Xu hướng theo tháng</Title>
           <Table
             columns={[
-              { title: 'Thang', dataIndex: 'month', key: 'month' },
+              { title: 'Tháng', dataIndex: 'month', key: 'month' },
               {
-                title: 'Diem TB',
+                title: 'Điểm TB',
                 dataIndex: 'avgScore',
                 key: 'avgScore',
                 render: (v: number) => v?.toFixed(1),
               },
-              { title: 'So phan hoi', dataIndex: 'count', key: 'count' },
+              { title: 'Số phản hồi', dataIndex: 'count', key: 'count' },
             ]}
             dataSource={monthlyStats}
             rowKey="month"
@@ -507,12 +510,12 @@ const SatisfactionSurvey: React.FC = () => {
             style={{ marginBottom: 24 }}
           />
 
-          <Title level={5}>Phan anh thuong gap</Title>
+          <Title level={5}>Phản ánh thường gặp</Title>
           {topComplaints.length > 0 ? (
             <Table
               columns={[
-                { title: 'Noi dung phan anh', dataIndex: 'complaint', key: 'complaint' },
-                { title: 'So lan', dataIndex: 'count', key: 'count', width: 100 },
+                { title: 'Nội dung phản ánh', dataIndex: 'complaint', key: 'complaint' },
+                { title: 'Số lần', dataIndex: 'count', key: 'count', width: 100 },
               ]}
               dataSource={topComplaints}
               rowKey="complaint"
@@ -521,17 +524,17 @@ const SatisfactionSurvey: React.FC = () => {
               style={{ marginBottom: 24 }}
             />
           ) : (
-            <Text type="secondary">Chua co du lieu phan anh.</Text>
+            <Text type="secondary">Chưa có dữ liệu phản ánh.</Text>
           )}
 
           <Card size="small" style={{ marginTop: 24 }}>
-            <Title level={5}>Kien nghi cai tien</Title>
+            <Title level={5}>Kiến nghị cải tiến</Title>
             <ul style={{ paddingLeft: 20 }}>
-              <li>Tang cuong dao tao thai do phuc vu cho nhan vien tiep xuc benh nhan</li>
-              <li>Rut ngan thoi gian cho kham bang he thong so thu tu dien tu</li>
-              <li>Nang cap co so vat chat phong cho va phong kham</li>
-              <li>Cai thien quy trinh huong dan va cung cap thong tin cho benh nhan</li>
-              <li>Trien khai khao sat dinh ky de theo doi xu huong hai long</li>
+              <li>Tăng cường đào tạo thái độ phục vụ cho nhân viên tiếp xúc bệnh nhân</li>
+              <li>Rút ngắn thời gian chờ khám bằng hệ thống số thứ tự điện tử</li>
+              <li>Nâng cấp cơ sở vật chất phòng chờ và phòng khám</li>
+              <li>Cải thiện quy trình hướng dẫn và cung cấp thông tin cho bệnh nhân</li>
+              <li>Triển khai khảo sát định kỳ để theo dõi xu hướng hài lòng</li>
             </ul>
           </Card>
         </div>
@@ -539,11 +542,11 @@ const SatisfactionSurvey: React.FC = () => {
     },
     {
       key: 'settings',
-      label: <span><SettingOutlined /> Cau hinh</span>,
+      label: <span><SettingOutlined /> Cấu hình</span>,
       children: (
         <Card>
           <Form layout="vertical" style={{ maxWidth: 600 }}>
-            <Form.Item label="Tu dong gui khao sat sau khi ra vien">
+            <Form.Item label="Tự động gửi khảo sát sau khi ra viện">
               <Switch
                 checked={config.autoSend}
                 onChange={(checked) => setConfig(prev => ({ ...prev, autoSend: checked }))}
@@ -664,7 +667,7 @@ const SatisfactionSurvey: React.FC = () => {
 
         {/* Template Add/Edit Modal */}
         <Modal
-          title={editingTemplate ? 'Chinh sua mau khao sat' : 'Them mau khao sat moi'}
+          title={editingTemplate ? 'Chỉnh sửa mẫu khảo sát' : 'Thêm mẫu khảo sát mới'}
           open={templateModalOpen}
           onOk={handleSaveTemplate}
           onCancel={() => setTemplateModalOpen(false)}
@@ -672,13 +675,13 @@ const SatisfactionSurvey: React.FC = () => {
           destroyOnHidden
         >
           <Form form={templateForm} layout="vertical">
-            <Form.Item name="name" label="Ten mau" rules={[{ required: true, message: 'Vui long nhap ten mau' }]}>
-              <Input placeholder="Nhap ten mau khao sat" />
+            <Form.Item name="name" label="Tên mẫu" rules={[{ required: true, message: 'Vui lòng nhập tên mẫu' }]}>
+              <Input placeholder="Nhập tên mẫu khảo sát" />
             </Form.Item>
-            <Form.Item name="description" label="Mo ta">
-              <TextArea rows={2} placeholder="Mo ta mau khao sat" />
+            <Form.Item name="description" label="Mô tả">
+              <TextArea rows={2} placeholder="Mô tả mẫu khảo sát" />
             </Form.Item>
-            <Form.Item name="targetGroup" label="Doi tuong" rules={[{ required: true, message: 'Vui long chon doi tuong' }]}>
+            <Form.Item name="targetGroup" label="Đối tượng" rules={[{ required: true, message: 'Vui lòng chọn đối tượng' }]}>
               <Radio.Group options={TARGET_GROUPS} />
             </Form.Item>
           </Form>

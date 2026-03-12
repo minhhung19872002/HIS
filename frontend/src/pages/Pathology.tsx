@@ -43,10 +43,10 @@ const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 
 const SPECIMEN_TYPE_LABELS: Record<string, string> = {
-  biopsy: 'Sinh thiet',
-  cytology: 'Te bao hoc',
+  biopsy: 'Sinh thiết',
+  cytology: 'Tế bào học',
   pap: 'Pap smear',
-  frozenSection: 'Cat lanh',
+  frozenSection: 'Cắt lạnh',
 };
 
 const SPECIMEN_TYPE_COLORS: Record<string, string> = {
@@ -57,11 +57,11 @@ const SPECIMEN_TYPE_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<number, string> = {
-  0: 'Cho xu ly',
-  1: 'Mo ta dai the',
-  2: 'Dang xu ly',
-  3: 'Hoan thanh',
-  4: 'Da xac nhan',
+  0: 'Chờ xử lý',
+  1: 'Mô tả đại thể',
+  2: 'Đang xử lý',
+  3: 'Hoàn thành',
+  4: 'Đã xác nhận',
 };
 
 const STATUS_COLORS: Record<number, string> = {
@@ -137,7 +137,7 @@ const Pathology: React.FC = () => {
         setStats(results[1].value);
       }
     } catch {
-      message.warning('Khong the tai du lieu giai phau benh');
+      message.warning('Không thể tải dữ liệu giải phẫu bệnh');
     } finally {
       setLoading(false);
     }
@@ -166,12 +166,12 @@ const Pathology: React.FC = () => {
         requestId: selectedRequest?.id,
         ...values,
       });
-      message.success('Da luu ket qua giai phau benh');
+      message.success('Đã lưu kết quả giải phẫu bệnh');
       setIsResultFormOpen(false);
       fetchData();
     } catch (err: any) {
       if (err?.errorFields) return; // validation error
-      message.warning('Khong the luu ket qua');
+      message.warning('Không thể lưu kết quả');
     } finally {
       setSaving(false);
     }
@@ -183,31 +183,31 @@ const Pathology: React.FC = () => {
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch {
-      message.warning('Khong the in phieu ket qua');
+      message.warning('Không thể in phiếu kết quả');
     }
   };
 
   const columns: ColumnsType<PathologyRequest> = [
     {
-      title: 'Ma YC',
+      title: 'Mã YC',
       dataIndex: 'requestCode',
       key: 'requestCode',
       width: 120,
     },
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 160,
     },
     {
-      title: 'Ma BN',
+      title: 'Mã BN',
       dataIndex: 'patientCode',
       key: 'patientCode',
       width: 100,
     },
     {
-      title: 'Loai mau',
+      title: 'Loại mẫu',
       dataIndex: 'specimenType',
       key: 'specimenType',
       width: 120,
@@ -218,38 +218,38 @@ const Pathology: React.FC = () => {
       ),
     },
     {
-      title: 'Vi tri lay mau',
+      title: 'Vị trí lấy mẫu',
       dataIndex: 'specimenSite',
       key: 'specimenSite',
       width: 150,
       ellipsis: true,
     },
     {
-      title: 'BS yeu cau',
+      title: 'BS yêu cầu',
       dataIndex: 'requestingDoctor',
       key: 'requestingDoctor',
       width: 140,
     },
     {
-      title: 'Ngay YC',
+      title: 'Ngày YC',
       dataIndex: 'requestDate',
       key: 'requestDate',
       width: 110,
       render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Uu tien',
+      title: 'Ưu tiên',
       dataIndex: 'priority',
       key: 'priority',
       width: 80,
       render: (p: string) => (
         <Tag color={p === 'urgent' ? 'red' : 'default'}>
-          {p === 'urgent' ? 'Khan' : 'Thuong'}
+          {p === 'urgent' ? 'Khẩn' : 'Thường'}
         </Tag>
       ),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -260,7 +260,7 @@ const Pathology: React.FC = () => {
       ),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 150,
       render: (_: unknown, record: PathologyRequest) => (
@@ -316,12 +316,12 @@ const Pathology: React.FC = () => {
             <Col>
               <Title level={4} style={{ margin: 0 }}>
                 <ExperimentOutlined style={{ marginRight: 8 }} />
-                Giai phau benh & Te bao hoc
+                Giải phẫu bệnh & Tế bào học
               </Title>
             </Col>
             <Col>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>
-                Lam moi
+                Làm mới
               </Button>
             </Col>
           </Row>
@@ -332,7 +332,7 @@ const Pathology: React.FC = () => {
           <Row gutter={[16, 12]}>
             <Col xs={24} sm={8} md={6}>
               <Search
-                placeholder="Tim kiem benh nhan, ma YC..."
+                placeholder="Tìm kiếm bệnh nhân, mã YC..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onSearch={fetchData}
@@ -342,33 +342,33 @@ const Pathology: React.FC = () => {
             </Col>
             <Col xs={12} sm={8} md={4}>
               <Select
-                placeholder="Loai mau"
+                placeholder="Loại mẫu"
                 allowClear
                 style={{ width: '100%' }}
                 value={specimenTypeFilter}
                 onChange={setSpecimenTypeFilter}
                 options={[
-                  { value: 'biopsy', label: 'Sinh thiet' },
-                  { value: 'cytology', label: 'Te bao hoc' },
+                  { value: 'biopsy', label: 'Sinh thiết' },
+                  { value: 'cytology', label: 'Tế bào học' },
                   { value: 'pap', label: 'Pap smear' },
-                  { value: 'frozenSection', label: 'Cat lanh' },
+                  { value: 'frozenSection', label: 'Cắt lạnh' },
                 ]}
               />
             </Col>
             {activeTab === 'all' && (
               <Col xs={12} sm={8} md={4}>
                 <Select
-                  placeholder="Trang thai"
+                  placeholder="Trạng thái"
                   allowClear
                   style={{ width: '100%' }}
                   value={statusFilter}
                   onChange={setStatusFilter}
                   options={[
-                    { value: 0, label: 'Cho xu ly' },
-                    { value: 1, label: 'Mo ta dai the' },
-                    { value: 2, label: 'Dang xu ly' },
-                    { value: 3, label: 'Hoan thanh' },
-                    { value: 4, label: 'Da xac nhan' },
+                    { value: 0, label: 'Chờ xử lý' },
+                    { value: 1, label: 'Mô tả đại thể' },
+                    { value: 2, label: 'Đang xử lý' },
+                    { value: 3, label: 'Hoàn thành' },
+                    { value: 4, label: 'Đã xác nhận' },
                   ]}
                 />
               </Col>
@@ -389,7 +389,7 @@ const Pathology: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card>
               <Statistic
-                title="Tong mau"
+                title="Tổng mẫu"
                 value={stats.totalRequests}
                 prefix={<ExperimentOutlined />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -399,7 +399,7 @@ const Pathology: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card>
               <Statistic
-                title="Cho xu ly"
+                title="Chờ xử lý"
                 value={stats.pendingCount}
                 prefix={<ClockCircleOutlined />}
                 styles={{ content: { color: '#faad14' } }}
@@ -409,7 +409,7 @@ const Pathology: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card>
               <Statistic
-                title="Dang XL"
+                title="Đang XL"
                 value={processingCount}
                 prefix={<FileSearchOutlined />}
                 styles={{ content: { color: '#722ed1' } }}
@@ -419,7 +419,7 @@ const Pathology: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card>
               <Statistic
-                title="Da hoan thanh"
+                title="Đã hoàn thành"
                 value={stats.completedCount}
                 prefix={<CheckCircleOutlined />}
                 styles={{ content: { color: '#52c41a' } }}
@@ -438,7 +438,7 @@ const Pathology: React.FC = () => {
                 key: 'pending',
                 label: (
                   <span>
-                    <ClockCircleOutlined /> Cho mo ta ({requests.filter((r) => r.status <= 1).length})
+                    <ClockCircleOutlined /> Chờ mô tả ({requests.filter((r) => r.status <= 1).length})
                   </span>
                 ),
               },
@@ -446,7 +446,7 @@ const Pathology: React.FC = () => {
                 key: 'processing',
                 label: (
                   <span>
-                    <FileSearchOutlined /> Dang xu ly ({processingCount})
+                    <FileSearchOutlined /> Đang xử lý ({processingCount})
                   </span>
                 ),
               },
@@ -454,13 +454,13 @@ const Pathology: React.FC = () => {
                 key: 'completed',
                 label: (
                   <span>
-                    <CheckCircleOutlined /> Hoan thanh ({requests.filter((r) => r.status >= 3).length})
+                    <CheckCircleOutlined /> Hoàn thành ({requests.filter((r) => r.status >= 3).length})
                   </span>
                 ),
               },
               {
                 key: 'all',
-                label: `Tat ca (${requests.length})`,
+                label: `Tất cả (${requests.length})`,
               },
             ]}
           />
@@ -469,7 +469,7 @@ const Pathology: React.FC = () => {
             columns={columns}
             rowKey="id"
             size="small"
-            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Tong ${t} ban ghi` }}
+            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Tổng ${t} bản ghi` }}
             scroll={{ x: 1200 }}
             onRow={(record) => ({
               onDoubleClick: () => handleViewDetail(record),
@@ -480,12 +480,12 @@ const Pathology: React.FC = () => {
 
         {/* Detail Modal */}
         <Modal
-          title="Chi tiet yeu cau giai phau benh"
+          title="Chi tiết yêu cầu giải phẫu bệnh"
           open={isDetailModalOpen}
           onCancel={() => setIsDetailModalOpen(false)}
           footer={[
             <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-              Dong
+              Đóng
             </Button>,
             selectedRequest && selectedRequest.status >= 3 && (
               <Button
@@ -494,7 +494,7 @@ const Pathology: React.FC = () => {
                 icon={<PrinterOutlined />}
                 onClick={() => handlePrint(selectedRequest.id)}
               >
-                In ket qua
+                In kết quả
               </Button>
             ),
           ]}
@@ -503,30 +503,30 @@ const Pathology: React.FC = () => {
           {selectedRequest && (
             <>
               <Descriptions column={2} bordered size="small">
-                <Descriptions.Item label="Ma yeu cau">{selectedRequest.requestCode}</Descriptions.Item>
-                <Descriptions.Item label="Ngay yeu cau">
+                <Descriptions.Item label="Mã yêu cầu">{selectedRequest.requestCode}</Descriptions.Item>
+                <Descriptions.Item label="Ngày yêu cầu">
                   {selectedRequest.requestDate ? dayjs(selectedRequest.requestDate).format('DD/MM/YYYY HH:mm') : '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Benh nhan">{selectedRequest.patientName}</Descriptions.Item>
-                <Descriptions.Item label="Ma BN">{selectedRequest.patientCode}</Descriptions.Item>
-                <Descriptions.Item label="Loai mau">
+                <Descriptions.Item label="Bệnh nhân">{selectedRequest.patientName}</Descriptions.Item>
+                <Descriptions.Item label="Mã BN">{selectedRequest.patientCode}</Descriptions.Item>
+                <Descriptions.Item label="Loại mẫu">
                   <Tag color={SPECIMEN_TYPE_COLORS[selectedRequest.specimenType]}>
                     {SPECIMEN_TYPE_LABELS[selectedRequest.specimenType] || selectedRequest.specimenType}
                   </Tag>
                 </Descriptions.Item>
-                <Descriptions.Item label="Uu tien">
+                <Descriptions.Item label="Ưu tiên">
                   <Tag color={selectedRequest.priority === 'urgent' ? 'red' : 'default'}>
-                    {selectedRequest.priority === 'urgent' ? 'Khan' : 'Thuong'}
+                    {selectedRequest.priority === 'urgent' ? 'Khẩn' : 'Thường'}
                   </Tag>
                 </Descriptions.Item>
-                <Descriptions.Item label="Vi tri lay mau" span={2}>
+                <Descriptions.Item label="Vị trí lấy mẫu" span={2}>
                   {selectedRequest.specimenSite || '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Chan doan lam sang" span={2}>
+                <Descriptions.Item label="Chẩn đoán lâm sàng" span={2}>
                   {selectedRequest.clinicalDiagnosis || '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="BS yeu cau">{selectedRequest.requestingDoctor}</Descriptions.Item>
-                <Descriptions.Item label="Trang thai">
+                <Descriptions.Item label="BS yêu cầu">{selectedRequest.requestingDoctor}</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
                   <Tag color={STATUS_COLORS[selectedRequest.status]}>
                     {STATUS_LABELS[selectedRequest.status]}
                   </Tag>
@@ -538,12 +538,12 @@ const Pathology: React.FC = () => {
 
         {/* Result Form Modal */}
         <Modal
-          title="Nhap ket qua giai phau benh"
+          title="Nhập kết quả giải phẫu bệnh"
           open={isResultFormOpen}
           onCancel={() => setIsResultFormOpen(false)}
           onOk={handleSaveResult}
-          okText="Luu ket qua"
-          cancelText="Huy"
+          okText="Lưu kết quả"
+          cancelText="Hủy"
           confirmLoading={saving}
           width={800}
           destroyOnHidden
@@ -551,14 +551,14 @@ const Pathology: React.FC = () => {
           {selectedRequest && (
             <>
               <Descriptions column={2} size="small" style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="Ma YC">{selectedRequest.requestCode}</Descriptions.Item>
-                <Descriptions.Item label="Benh nhan">{selectedRequest.patientName}</Descriptions.Item>
-                <Descriptions.Item label="Loai mau">
+                <Descriptions.Item label="Mã YC">{selectedRequest.requestCode}</Descriptions.Item>
+                <Descriptions.Item label="Bệnh nhân">{selectedRequest.patientName}</Descriptions.Item>
+                <Descriptions.Item label="Loại mẫu">
                   <Tag color={SPECIMEN_TYPE_COLORS[selectedRequest.specimenType]}>
                     {SPECIMEN_TYPE_LABELS[selectedRequest.specimenType]}
                   </Tag>
                 </Descriptions.Item>
-                <Descriptions.Item label="Vi tri">{selectedRequest.specimenSite || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Vị trí">{selectedRequest.specimenSite || '-'}</Descriptions.Item>
               </Descriptions>
               <Divider />
               <Form form={resultForm} layout="vertical">
@@ -566,72 +566,72 @@ const Pathology: React.FC = () => {
                   <Col span={24}>
                     <Form.Item
                       name="grossDescription"
-                      label="Mo ta dai the"
-                      rules={[{ required: true, message: 'Vui long nhap mo ta dai the' }]}
+                      label="Mô tả đại thể"
+                      rules={[{ required: true, message: 'Vui lòng nhập mô tả đại thể' }]}
                     >
-                      <TextArea rows={3} placeholder="Mo ta hinh thai, kich thuoc, mau sac, mat cat mau benh pham..." />
+                      <TextArea rows={3} placeholder="Mô tả hình thái, kích thước, màu sắc, mặt cắt mẫu bệnh phẩm..." />
                     </Form.Item>
                   </Col>
                   <Col span={24}>
                     <Form.Item
                       name="microscopicDescription"
-                      label="Mo ta vi the"
-                      rules={[{ required: true, message: 'Vui long nhap mo ta vi the' }]}
+                      label="Mô tả vi thể"
+                      rules={[{ required: true, message: 'Vui lòng nhập mô tả vi thể' }]}
                     >
-                      <TextArea rows={3} placeholder="Mo ta cau truc mo hoc duoi kinh hien vi..." />
+                      <TextArea rows={3} placeholder="Mô tả cấu trúc mô học dưới kính hiển vi..." />
                     </Form.Item>
                   </Col>
                   <Col span={24}>
                     <Form.Item
                       name="diagnosis"
-                      label="Chan doan giai phau benh"
-                      rules={[{ required: true, message: 'Vui long nhap chan doan' }]}
+                      label="Chẩn đoán giải phẫu bệnh"
+                      rules={[{ required: true, message: 'Vui lòng nhập chẩn đoán' }]}
                     >
-                      <TextArea rows={2} placeholder="Ket luan chan doan giai phau benh..." />
+                      <TextArea rows={2} placeholder="Kết luận chẩn đoán giải phẫu bệnh..." />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item name="icdCode" label="Ma ICD">
+                    <Form.Item name="icdCode" label="Mã ICD">
                       <Input placeholder="VD: C34.1" />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item name="stainingMethods" label="Phuong phap nhuom">
+                    <Form.Item name="stainingMethods" label="Phương pháp nhuộm">
                       <Select
                         mode="multiple"
-                        placeholder="Chon phuong phap nhuom"
+                        placeholder="Chọn phương pháp nhuộm"
                         options={STAINING_OPTIONS}
                       />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
-                    <Form.Item name="slideCount" label="So lam kinh">
+                    <Form.Item name="slideCount" label="Số lam kính">
                       <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
-                    <Form.Item name="blockCount" label="So block">
+                    <Form.Item name="blockCount" label="Số block">
                       <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
-                    <Form.Item name="pathologist" label="BS giai phau benh">
-                      <Input placeholder="Ten bac si" />
+                    <Form.Item name="pathologist" label="BS giải phẫu bệnh">
+                      <Input placeholder="Tên bác sĩ" />
                     </Form.Item>
                   </Col>
                   <Col span={24}>
-                    <Form.Item name="specialStains" label="Nhuom dac biet">
-                      <TextArea rows={2} placeholder="Ket qua nhuom dac biet (neu co)..." />
+                    <Form.Item name="specialStains" label="Nhuộm đặc biệt">
+                      <TextArea rows={2} placeholder="Kết quả nhuộm đặc biệt (nếu có)..." />
                     </Form.Item>
                   </Col>
                   <Col span={24}>
-                    <Form.Item name="immunohistochemistry" label="Hoa mo mien dich (IHC)">
-                      <TextArea rows={2} placeholder="Ket qua IHC: marker, cuong do, ty le duong tinh..." />
+                    <Form.Item name="immunohistochemistry" label="Hóa mô miễn dịch (IHC)">
+                      <TextArea rows={2} placeholder="Kết quả IHC: marker, cường độ, tỷ lệ dương tính..." />
                     </Form.Item>
                   </Col>
                   <Col span={24}>
-                    <Form.Item name="molecularTests" label="Xet nghiem phan tu">
-                      <TextArea rows={2} placeholder="Ket qua xet nghiem phan tu/gen (neu co)..." />
+                    <Form.Item name="molecularTests" label="Xét nghiệm phân tử">
+                      <TextArea rows={2} placeholder="Kết quả xét nghiệm phân tử/gen (nếu có)..." />
                     </Form.Item>
                   </Col>
                 </Row>

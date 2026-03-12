@@ -105,34 +105,34 @@ const InfectionControl: React.FC = () => {
       if (results[0].status === 'fulfilled') {
         setHaiCases(results[0].value?.data || []);
       } else {
-        message.warning('Khong the tai danh sach ca nhiem khuan');
+        message.warning('Không thể tải danh sách ca nhiễm khuẩn');
       }
 
       if (results[1].status === 'fulfilled') {
         setIsolationOrders(results[1].value?.data || []);
       } else {
-        message.warning('Khong the tai danh sach cach ly');
+        message.warning('Không thể tải danh sách cách ly');
       }
 
       if (results[2].status === 'fulfilled') {
         setHhObservations(results[2].value?.data || []);
       } else {
-        message.warning('Khong the tai du lieu ve sinh tay');
+        message.warning('Không thể tải dữ liệu vệ sinh tay');
       }
 
       if (results[3].status === 'fulfilled') {
         setDashboard(results[3].value?.data || null);
       } else {
-        message.warning('Khong the tai dashboard KSNK');
+        message.warning('Không thể tải dashboard KSNK');
       }
 
       if (results[4].status === 'fulfilled') {
         setOutbreaks(results[4].value?.data || []);
       } else {
-        message.warning('Khong the tai danh sach dich');
+        message.warning('Không thể tải danh sách dịch');
       }
     } catch {
-      message.warning('Loi khi tai du lieu KSNK');
+      message.warning('Lỗi khi tải dữ liệu KSNK');
     } finally {
       setLoading(false);
     }
@@ -165,11 +165,11 @@ const InfectionControl: React.FC = () => {
 
   const getStatusTag = (status: number, statusName?: string) => {
     const config: Record<number, { color: string; text: string }> = {
-      0: { color: 'default', text: 'Moi' },
-      1: { color: 'orange', text: 'Nghi ngo' },
-      2: { color: 'red', text: 'Xac nhan' },
-      3: { color: 'green', text: 'Da khoi' },
-      4: { color: 'default', text: 'Loai tru' },
+      0: { color: 'default', text: 'Mới' },
+      1: { color: 'orange', text: 'Nghi ngờ' },
+      2: { color: 'red', text: 'Xác nhận' },
+      3: { color: 'green', text: 'Đã khỏi' },
+      4: { color: 'default', text: 'Loại trừ' },
     };
     const c = config[status] || { color: 'default', text: statusName || `Status ${status}` };
     return <Tag color={c.color}>{statusName || c.text}</Tag>;
@@ -178,10 +178,10 @@ const InfectionControl: React.FC = () => {
   const getIsolationTypeTag = (type?: string) => {
     if (!type) return null;
     const config: Record<string, { color: string; text: string }> = {
-      Contact: { color: 'yellow', text: 'Tiep xuc' },
-      Droplet: { color: 'blue', text: 'Giot ban' },
-      Airborne: { color: 'purple', text: 'Khong khi' },
-      Protective: { color: 'green', text: 'Bao ve' },
+      Contact: { color: 'yellow', text: 'Tiếp xúc' },
+      Droplet: { color: 'blue', text: 'Giọt bắn' },
+      Airborne: { color: 'purple', text: 'Không khí' },
+      Protective: { color: 'green', text: 'Bảo vệ' },
     };
     const c = config[type];
     if (!c) return <Tag>{type}</Tag>;
@@ -221,12 +221,12 @@ const InfectionControl: React.FC = () => {
         severity: values.severity || 1,
         notes: values.notes,
       });
-      message.success('Da bao cao ca nhiem khuan');
+      message.success('Đã báo cáo ca nhiễm khuẩn');
       setIsReportModalOpen(false);
       reportForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the bao cao ca nhiem khuan');
+      message.warning('Không thể báo cáo ca nhiễm khuẩn');
     } finally {
       setSubmitting(false);
     }
@@ -243,12 +243,12 @@ const InfectionControl: React.FC = () => {
         // Investigate case
         await investigateHAICase(selectedCase.id, values.notes || '', values.actions || []);
       }
-      message.success('Da cap nhat ket qua dieu tra');
+      message.success('Đã cập nhật kết quả điều tra');
       setIsInvestigationModalOpen(false);
       investigationForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the cap nhat ca nhiem khuan');
+      message.warning('Không thể cập nhật ca nhiễm khuẩn');
     } finally {
       setSubmitting(false);
     }
@@ -277,12 +277,12 @@ const InfectionControl: React.FC = () => {
         gloveUsage: values.gloveUsage,
         notes: values.findings,
       });
-      message.success('Da luu ket qua kiem tra tuan thu');
+      message.success('Đã lưu kết quả kiểm tra tuân thủ');
       setIsAuditModalOpen(false);
       auditForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the luu kiem tra tuan thu');
+      message.warning('Không thể lưu kiểm tra tuân thủ');
     } finally {
       setSubmitting(false);
     }
@@ -831,7 +831,7 @@ const InfectionControl: React.FC = () => {
                     dataSource={haiCases}
                     rowKey="id"
                     loading={loading}
-                    locale={{ emptyText: 'Khong co ca nhiem khuan nao' }}
+                    locale={{ emptyText: 'Không có ca nhiễm khuẩn nào' }}
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         setSelectedCase(record);
@@ -855,7 +855,7 @@ const InfectionControl: React.FC = () => {
                     dataSource={isolationOrders}
                     rowKey="id"
                     loading={loading}
-                    locale={{ emptyText: 'Khong co lenh cach ly nao' }}
+                    locale={{ emptyText: 'Không có lệnh cách ly nào' }}
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
@@ -1015,7 +1015,7 @@ const InfectionControl: React.FC = () => {
                     dataSource={outbreaks}
                     rowKey="id"
                     loading={loading}
-                    locale={{ emptyText: 'Khong co dich dang hoat dong' }}
+                    locale={{ emptyText: 'Không có dịch đang hoạt động' }}
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
@@ -1188,13 +1188,13 @@ const InfectionControl: React.FC = () => {
           <Form form={reportForm} layout="vertical" onFinish={handleReportCase}>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="admissionId" label="Ma nhap vien" rules={[{ required: true, message: 'Vui long nhap ma nhap vien' }]}>
-                  <Input placeholder="Ma nhap vien (Admission ID)" />
+                <Form.Item name="admissionId" label="Mã nhập viện" rules={[{ required: true, message: 'Vui lòng nhập mã nhập viện' }]}>
+                  <Input placeholder="Mã nhập viện (Admission ID)" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="infectionType" label="Loai nhiem khuan" rules={[{ required: true, message: 'Vui long chon loai NK' }]}>
-                  <Select placeholder="Chon loai NK">
+                <Form.Item name="infectionType" label="Loại nhiễm khuẩn" rules={[{ required: true, message: 'Vui lòng chọn loại NK' }]}>
+                  <Select placeholder="Chọn loại NK">
                     {INFECTION_TYPES.map((t) => (
                       <Select.Option key={t.value} value={t.value}>
                         {t.label}
@@ -1206,12 +1206,12 @@ const InfectionControl: React.FC = () => {
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="infectionSite" label="Vi tri nhiem khuan">
-                  <Input placeholder="VD: Vet mo bung, Phoi, Tiet nieu" />
+                <Form.Item name="infectionSite" label="Vị trí nhiễm khuẩn">
+                  <Input placeholder="VD: Vết mổ bụng, Phổi, Tiết niệu" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="onsetDate" label="Ngay khoi phat" rules={[{ required: true, message: 'Vui long chon ngay' }]}>
+                <Form.Item name="onsetDate" label="Ngày khởi phát" rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>

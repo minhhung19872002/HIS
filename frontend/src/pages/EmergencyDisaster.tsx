@@ -148,7 +148,7 @@ const EmergencyDisaster: React.FC = () => {
         setEventHistory(Array.isArray(eventsRes.value.data) ? eventsRes.value.data : []);
       }
     } catch {
-      message.warning('Khong the tai du lieu cap cuu tham hoa');
+      message.warning('Không thể tải dữ liệu cấp cứu thảm họa');
     } finally {
       setLoading(false);
     }
@@ -170,10 +170,10 @@ const EmergencyDisaster: React.FC = () => {
   const getAlertLevelLabel = (level: number, name?: string) => {
     if (name) return name;
     switch (level) {
-      case 1: return 'CODE GREEN (san sang)';
-      case 2: return 'CODE YELLOW (5-10 nan nhan)';
-      case 3: return 'CODE ORANGE (10-50 nan nhan)';
-      case 4: return 'CODE RED (>50 nan nhan hoac CBRN)';
+      case 1: return 'CODE GREEN (sẵn sàng)';
+      case 2: return 'CODE YELLOW (5-10 nạn nhân)';
+      case 3: return 'CODE ORANGE (10-50 nạn nhân)';
+      case 4: return 'CODE RED (>50 nạn nhân hoặc CBRN)';
       default: return `Level ${level}`;
     }
   };
@@ -193,20 +193,20 @@ const EmergencyDisaster: React.FC = () => {
   const getTriageLabel = (category: string, name?: string) => {
     if (name) return name;
     switch (category) {
-      case 'Immediate': return 'DO - Cap cuu ngay';
-      case 'Delayed': return 'VANG - Tri hoan duoc';
-      case 'Minor': return 'XANH - Nhe';
-      case 'Expectant': return 'DEN - Khong cuu duoc';
-      case 'Deceased': return 'DEN - Tu vong';
+      case 'Immediate': return 'ĐỎ - Cấp cứu ngay';
+      case 'Delayed': return 'VÀNG - Trì hoãn được';
+      case 'Minor': return 'XANH - Nhẹ';
+      case 'Expectant': return 'ĐEN - Không cứu được';
+      case 'Deceased': return 'ĐEN - Tử vong';
       default: return category;
     }
   };
 
   const getStatusTag = (status: number, statusName?: string) => {
     const configs: Record<number, { color: string; label: string }> = {
-      1: { color: 'processing', label: 'Phan loai' },
-      2: { color: 'blue', label: 'Dieu tri' },
-      3: { color: 'green', label: 'Da xu ly' },
+      1: { color: 'processing', label: 'Phân loại' },
+      2: { color: 'blue', label: 'Điều trị' },
+      3: { color: 'green', label: 'Đã xử lý' },
     };
     const config = configs[status] || { color: 'default', label: statusName || `Status ${status}` };
     return <Tag color={config.color}>{statusName || config.label}</Tag>;
@@ -215,12 +215,12 @@ const EmergencyDisaster: React.FC = () => {
   const getDispositionTag = (disposition?: string, dispositionName?: string) => {
     if (!disposition) return '-';
     const configs: Record<string, { color: string; label: string }> = {
-      Admitted: { color: 'blue', label: 'Nhap vien' },
-      OR: { color: 'orange', label: 'Phau thuat' },
+      Admitted: { color: 'blue', label: 'Nhập viện' },
+      OR: { color: 'orange', label: 'Phẫu thuật' },
       ICU: { color: 'red', label: 'ICU' },
-      Discharged: { color: 'green', label: 'Xuat vien' },
-      Transferred: { color: 'purple', label: 'Chuyen vien' },
-      Deceased: { color: 'default', label: 'Tu vong' },
+      Discharged: { color: 'green', label: 'Xuất viện' },
+      Transferred: { color: 'purple', label: 'Chuyển viện' },
+      Deceased: { color: 'default', label: 'Tử vong' },
     };
     const config = configs[disposition] || { color: 'default', label: dispositionName || disposition };
     return <Tag color={config.color}>{dispositionName || config.label}</Tag>;
@@ -241,14 +241,14 @@ const EmergencyDisaster: React.FC = () => {
       ),
     },
     {
-      title: 'Phan loai',
+      title: 'Phân loại',
       dataIndex: 'triageCategory',
       key: 'triageCategory',
       filters: [
-        { text: 'Do', value: 'Immediate' },
-        { text: 'Vang', value: 'Delayed' },
+        { text: 'Đỏ', value: 'Immediate' },
+        { text: 'Vàng', value: 'Delayed' },
         { text: 'Xanh', value: 'Minor' },
-        { text: 'Den', value: 'Expectant' },
+        { text: 'Đen', value: 'Expectant' },
       ],
       onFilter: (value, record) => record.triageCategory === value,
       render: (category, record) => (
@@ -256,13 +256,13 @@ const EmergencyDisaster: React.FC = () => {
       ),
     },
     {
-      title: 'Ho ten',
+      title: 'Họ tên',
       dataIndex: 'fullName',
       key: 'fullName',
-      render: (name) => name || <Text type="secondary">Chua xac dinh</Text>,
+      render: (name) => name || <Text type="secondary">Chưa xác định</Text>,
     },
     {
-      title: 'Thuong tich',
+      title: 'Thương tích',
       key: 'injuries',
       width: 200,
       ellipsis: true,
@@ -273,7 +273,7 @@ const EmergencyDisaster: React.FC = () => {
       },
     },
     {
-      title: 'Vi tri',
+      title: 'Vị trí',
       dataIndex: 'assignedAreaName',
       key: 'assignedAreaName',
       render: (loc, record) => (
@@ -284,25 +284,25 @@ const EmergencyDisaster: React.FC = () => {
       ),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       key: 'status',
       render: (_, record) => record.disposition
         ? getDispositionTag(record.disposition, record.dispositionName)
         : getStatusTag(record.status, record.statusName),
     },
     {
-      title: 'Bac si',
+      title: 'Bác sĩ',
       dataIndex: 'attendingDoctorName',
       key: 'attendingDoctorName',
       render: (doc) => doc || '-',
     },
     {
-      title: 'Lien lac GD',
+      title: 'Liên lạc GĐ',
       dataIndex: 'familyNotified',
       key: 'familyNotified',
       render: (notified, record) => (
         notified ? (
-          <Tag icon={<CheckCircleOutlined />} color="success">Da lien lac</Tag>
+          <Tag icon={<CheckCircleOutlined />} color="success">Đã liên lạc</Tag>
         ) : (
           <Button
             size="small"
@@ -310,7 +310,7 @@ const EmergencyDisaster: React.FC = () => {
             icon={<PhoneOutlined />}
             onClick={async () => {
               if (!record.familyContactPhone) {
-                message.warning('Chua co thong tin lien lac gia dinh');
+                message.warning('Chưa có thông tin liên lạc gia đình');
                 return;
               }
               try {
@@ -320,23 +320,23 @@ const EmergencyDisaster: React.FC = () => {
                   relationship: '',
                   phone: record.familyContactPhone,
                   notificationType: 'Initial',
-                  message: `Thong bao ve nan nhan ${record.fullName || record.victimCode}`,
+                  message: `Thông báo về nạn nhân ${record.fullName || record.victimCode}`,
                   notificationMethod: 'Phone',
                 });
-                message.success('Da gui thong bao cho gia dinh');
+                message.success('Đã gửi thông báo cho gia đình');
                 fetchData();
               } catch {
-                message.warning('Khong the gui thong bao');
+                message.warning('Không thể gửi thông báo');
               }
             }}
           >
-            Lien lac
+            Liên lạc
           </Button>
         )
       ),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       render: (_, record) => (
         <Space>
@@ -347,7 +347,7 @@ const EmergencyDisaster: React.FC = () => {
               setVictimDetailModalVisible(true);
             }}
           >
-            Chi tiet
+            Chi tiết
           </Button>
           <Button
             type="link"
@@ -357,14 +357,14 @@ const EmergencyDisaster: React.FC = () => {
                   victimId: record.id,
                   treatmentNotes: record.treatmentNotes,
                 });
-                message.success('Da cap nhat');
+                message.success('Đã cập nhật');
                 fetchData();
               } catch {
-                message.warning('Khong the cap nhat nan nhan');
+                message.warning('Không thể cập nhật nạn nhân');
               }
             }}
           >
-            Cap nhat
+            Cập nhật
           </Button>
         </Space>
       ),
@@ -383,7 +383,7 @@ const EmergencyDisaster: React.FC = () => {
       };
       const res = await activateMCI(dto);
       if (res.data) {
-        message.success(`Da kich hoat ${getAlertLevelLabel(values.alertLevel)}! Ma su kien: ${res.data.eventCode || ''}`);
+        message.success(`Đã kích hoạt ${getAlertLevelLabel(values.alertLevel)}! Mã sự kiện: ${res.data.eventCode || ''}`);
         if (res.data.warnings && res.data.warnings.length > 0) {
           res.data.warnings.forEach((w: string) => message.warning(w));
         }
@@ -392,7 +392,7 @@ const EmergencyDisaster: React.FC = () => {
       activateForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the kich hoat su kien MCI');
+      message.warning('Không thể kích hoạt sự kiện MCI');
     }
   };
 
@@ -414,30 +414,30 @@ const EmergencyDisaster: React.FC = () => {
         injuries: values.injuries ? [values.injuries] : undefined,
         ambulatory: values.triageCategory === 'green',
       });
-      message.success('Da them nan nhan moi!');
+      message.success('Đã thêm nạn nhân mới!');
       setAddVictimModalVisible(false);
       victimForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the them nan nhan');
+      message.warning('Không thể thêm nạn nhân');
     }
   };
 
   const handleEndMCI = () => {
     Modal.confirm({
-      title: 'Ket thuc su kien MCI?',
-      content: 'Ban chac chan muon ket thuc su kien cap cuu tham hoa nay?',
+      title: 'Kết thúc sự kiện MCI?',
+      content: 'Bạn chắc chắn muốn kết thúc sự kiện cấp cứu thảm họa này?',
       onOk: async () => {
         if (mciEvent) {
           try {
             await deactivateMCI({
               eventId: mciEvent.id,
-              reason: 'Ket thuc su kien',
+              reason: 'Kết thúc sự kiện',
             });
-            message.success('Da ket thuc su kien MCI');
+            message.success('Đã kết thúc sự kiện MCI');
             fetchData();
           } catch {
-            message.warning('Khong the ket thuc su kien');
+            message.warning('Không thể kết thúc sự kiện');
           }
         }
       },
@@ -450,7 +450,7 @@ const EmergencyDisaster: React.FC = () => {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Bao cao Cap cuu Tham hoa</title>
+            <title>Báo cáo Cấp cứu Thảm họa</title>
             <style>
               body { font-family: Arial, sans-serif; padding: 20px; }
               h1 { text-align: center; color: #f5222d; }
@@ -467,21 +467,21 @@ const EmergencyDisaster: React.FC = () => {
           </head>
           <body>
             <div class="header">
-              <h2>BENH VIEN CAP CUU</h2>
-              <h1>BAO CAO SU KIEN CAP CUU THAM HOA</h1>
+              <h2>BỆNH VIỆN CẤP CỨU</h2>
+              <h1>BÁO CÁO SỰ KIỆN CẤP CỨU THẢM HỌA</h1>
             </div>
 
-            <h3>Thong tin su kien</h3>
+            <h3>Thông tin sự kiện</h3>
             <table>
-              <tr><td><strong>Ma su kien:</strong></td><td>${mciEvent.eventCode}</td></tr>
-              <tr><td><strong>Cap do:</strong></td><td>${getAlertLevelLabel(mciEvent.alertLevel, mciEvent.alertLevelName)}</td></tr>
-              <tr><td><strong>Mo ta:</strong></td><td>${mciEvent.eventName}</td></tr>
-              <tr><td><strong>Dia diem:</strong></td><td>${mciEvent.location}</td></tr>
-              <tr><td><strong>Thoi gian kich hoat:</strong></td><td>${mciEvent.activatedAt}</td></tr>
-              <tr><td><strong>Nguoi kich hoat:</strong></td><td>${mciEvent.activatedByName || mciEvent.activatedBy}</td></tr>
+              <tr><td><strong>Mã sự kiện:</strong></td><td>${mciEvent.eventCode}</td></tr>
+              <tr><td><strong>Cấp độ:</strong></td><td>${getAlertLevelLabel(mciEvent.alertLevel, mciEvent.alertLevelName)}</td></tr>
+              <tr><td><strong>Mô tả:</strong></td><td>${mciEvent.eventName}</td></tr>
+              <tr><td><strong>Địa điểm:</strong></td><td>${mciEvent.location}</td></tr>
+              <tr><td><strong>Thời gian kích hoạt:</strong></td><td>${mciEvent.activatedAt}</td></tr>
+              <tr><td><strong>Người kích hoạt:</strong></td><td>${mciEvent.activatedByName || mciEvent.activatedBy}</td></tr>
             </table>
 
-            <h3>Thong ke nan nhan</h3>
+            <h3>Thống kê nạn nhân</h3>
             <div class="stats">
               <div class="stat-box"><span class="red">DO: ${mciEvent.immediateRed ?? redCount}</span></div>
               <div class="stat-box"><span class="yellow">VANG: ${mciEvent.delayedYellow ?? yellowCount}</span></div>
@@ -490,21 +490,21 @@ const EmergencyDisaster: React.FC = () => {
               <div class="stat-box"><strong>TONG: ${mciEvent.totalVictims ?? victims.length}</strong></div>
             </div>
 
-            <h3>Danh sach nan nhan</h3>
+            <h3>Danh sách nạn nhân</h3>
             <table>
               <tr>
                 <th>Tag</th>
-                <th>Phan loai</th>
-                <th>Ho ten</th>
-                <th>Thuong tich</th>
-                <th>Vi tri</th>
-                <th>Trang thai</th>
+                <th>Phân loại</th>
+                <th>Họ tên</th>
+                <th>Thương tích</th>
+                <th>Vị trí</th>
+                <th>Trạng thái</th>
               </tr>
               ${victims.map(v => `
                 <tr>
                   <td>${v.victimCode || v.temporaryId}</td>
                   <td>${getTriageLabel(v.triageCategory, v.triageCategoryName)}</td>
-                  <td>${v.fullName || 'Chua xac dinh'}</td>
+                  <td>${v.fullName || 'Chưa xác định'}</td>
                   <td>${v.injuries ? v.injuries.join(', ') : v.chiefComplaint || ''}</td>
                   <td>${v.assignedAreaName || v.assignedArea || ''}</td>
                   <td>${v.dispositionName || v.statusName || ''}</td>
@@ -529,34 +529,34 @@ const EmergencyDisaster: React.FC = () => {
     const bed = resources.bedSummary;
     if (bed) {
       resourceItems.push(
-        { id: 'bed', type: 'bed', name: 'Giuong cap cuu', total: bed.totalReserved + bed.available, available: bed.available, reserved: bed.occupied },
-        { id: 'icu', type: 'icu', name: 'Giuong ICU', total: bed.icuReserved + bed.icuAvailable, available: bed.icuAvailable, reserved: bed.icuOccupied },
+        { id: 'bed', type: 'bed', name: 'Giường cấp cứu', total: bed.totalReserved + bed.available, available: bed.available, reserved: bed.occupied },
+        { id: 'icu', type: 'icu', name: 'Giường ICU', total: bed.icuReserved + bed.icuAvailable, available: bed.icuAvailable, reserved: bed.icuOccupied },
       );
     }
     const or = resources.orSummary;
     if (or) {
       resourceItems.push(
-        { id: 'or', type: 'or', name: 'Phong mo', total: or.totalReady, available: or.available, reserved: or.inUse },
+        { id: 'or', type: 'or', name: 'Phòng mổ', total: or.totalReady, available: or.available, reserved: or.inUse },
       );
     }
     const equip = resources.equipmentSummary;
     if (equip?.ventilators) {
       resourceItems.push(
-        { id: 'vent', type: 'ventilator', name: 'May tho', total: equip.ventilators.total, available: equip.ventilators.available, reserved: equip.ventilators.inUse },
+        { id: 'vent', type: 'ventilator', name: 'Máy thở', total: equip.ventilators.total, available: equip.ventilators.available, reserved: equip.ventilators.inUse },
       );
     }
     const blood = resources.bloodSummary;
     if (blood) {
       resourceItems.push(
-        { id: 'blood-o', type: 'blood', name: 'Mau O+ (don vi)', total: blood.unitsReady, available: blood.oPositive, reserved: blood.unitsReady - blood.oPositive },
-        { id: 'blood-a', type: 'blood', name: 'Mau A+ (don vi)', total: blood.unitsReady, available: blood.aPositive, reserved: blood.unitsReady - blood.aPositive },
+        { id: 'blood-o', type: 'blood', name: 'Máu O+ (đơn vị)', total: blood.unitsReady, available: blood.oPositive, reserved: blood.unitsReady - blood.oPositive },
+        { id: 'blood-a', type: 'blood', name: 'Máu A+ (đơn vị)', total: blood.unitsReady, available: blood.aPositive, reserved: blood.unitsReady - blood.aPositive },
       );
     }
     const staff = resources.staffSummary;
     if (staff) {
       resourceItems.push(
-        { id: 'staff-doc', type: 'staff', name: 'Bac si', total: staff.physicians + staff.nurses, available: staff.physicians, reserved: staff.present },
-        { id: 'staff-nurse', type: 'staff', name: 'Dieu duong', total: staff.nurses + staff.support, available: staff.nurses, reserved: staff.present },
+        { id: 'staff-doc', type: 'staff', name: 'Bác sĩ', total: staff.physicians + staff.nurses, available: staff.physicians, reserved: staff.present },
+        { id: 'staff-nurse', type: 'staff', name: 'Điều dưỡng', total: staff.nurses + staff.support, available: staff.nurses, reserved: staff.present },
       );
     }
   }
@@ -565,10 +565,10 @@ const EmergencyDisaster: React.FC = () => {
   if (resourceItems.length === 0 && mciEvent) {
     // Fallback using event-level stats
     resourceItems.push(
-      { id: 'bed-f', type: 'bed', name: 'Giuong da phan bo', total: mciEvent.bedsReserved || 0, available: mciEvent.bedsReserved || 0, reserved: 0 },
-      { id: 'icu-f', type: 'icu', name: 'Giuong ICU', total: mciEvent.icuBedsReady || 0, available: mciEvent.icuBedsReady || 0, reserved: 0 },
-      { id: 'or-f', type: 'or', name: 'Phong mo', total: mciEvent.orsReady || 0, available: mciEvent.orsReady || 0, reserved: 0 },
-      { id: 'blood-f', type: 'blood', name: 'Mau (don vi)', total: mciEvent.bloodUnitsReady || 0, available: mciEvent.bloodUnitsReady || 0, reserved: 0 },
+      { id: 'bed-f', type: 'bed', name: 'Giường đã phân bổ', total: mciEvent.bedsReserved || 0, available: mciEvent.bedsReserved || 0, reserved: 0 },
+      { id: 'icu-f', type: 'icu', name: 'Giường ICU', total: mciEvent.icuBedsReady || 0, available: mciEvent.icuBedsReady || 0, reserved: 0 },
+      { id: 'or-f', type: 'or', name: 'Phòng mổ', total: mciEvent.orsReady || 0, available: mciEvent.orsReady || 0, reserved: 0 },
+      { id: 'blood-f', type: 'blood', name: 'Máu (đơn vị)', total: mciEvent.bloodUnitsReady || 0, available: mciEvent.bloodUnitsReady || 0, reserved: 0 },
     );
   }
 
@@ -578,7 +578,7 @@ const EmergencyDisaster: React.FC = () => {
     if (commandCenter.incidentCommander) {
       const ic = commandCenter.incidentCommander;
       staffCards.push({
-        id: ic.staffId, name: ic.staffName, role: 'Chi huy truong', department: ic.position,
+        id: ic.staffId, name: ic.staffName, role: 'Chỉ huy trưởng', department: ic.position,
         status: 'arrived', phone: ic.phone, notifiedAt: ic.assignedAt,
       });
     }
@@ -594,7 +594,7 @@ const EmergencyDisaster: React.FC = () => {
   if (resources?.staffSummary?.byDepartment) {
     resources.staffSummary.byDepartment.forEach((dept: DepartmentStaffDto) => {
       staffCards.push({
-        id: dept.departmentId, name: `${dept.total} nhan vien`, role: dept.departmentName,
+        id: dept.departmentId, name: `${dept.total} nhân viên`, role: dept.departmentName,
         department: dept.departmentName, status: 'on_duty', phone: '',
       });
     });
@@ -630,9 +630,9 @@ const EmergencyDisaster: React.FC = () => {
           color: 'blue' as const,
           content: (
             <>
-              <Text strong>{dayjs(mciEvent.activatedAt).add(2, 'minute').format('HH:mm')} - Huy dong nhan luc</Text>
+              <Text strong>{dayjs(mciEvent.activatedAt).add(2, 'minute').format('HH:mm')} - Huy động nhân lực</Text>
               <br />
-              <Text type="secondary">{mciEvent.staffActivated} nhan vien duoc thong bao</Text>
+              <Text type="secondary">{mciEvent.staffActivated} nhân viên được thông báo</Text>
             </>
           ),
         },
@@ -641,9 +641,9 @@ const EmergencyDisaster: React.FC = () => {
           color: 'green' as const,
           content: (
             <>
-              <Text strong>{dayjs(victims[victims.length - 1]?.arrivalTime || mciEvent.activatedAt).format('HH:mm')} - Nan nhan dau tien den</Text>
+              <Text strong>{dayjs(victims[victims.length - 1]?.arrivalTime || mciEvent.activatedAt).format('HH:mm')} - Nạn nhân đầu tiên đến</Text>
               <br />
-              <Text type="secondary">Da tiep nhan {victims.length} nan nhan</Text>
+              <Text type="secondary">Đã tiếp nhận {victims.length} nạn nhân</Text>
             </>
           ),
         }] : []),
@@ -665,7 +665,7 @@ const EmergencyDisaster: React.FC = () => {
             <Col span={6}>
               <Card style={{ backgroundColor: '#fff1f0', borderColor: '#ffa39e' }}>
                 <Statistic
-                  title={<span style={{ color: '#cf1322' }}>DO - Cap cuu ngay</span>}
+                  title={<span style={{ color: '#cf1322' }}>ĐỎ - Cấp cứu ngay</span>}
                   value={mciEvent?.immediateRed ?? redCount}
                   styles={{ content: { color: '#cf1322', fontSize: 48 } }}
                 />
@@ -674,7 +674,7 @@ const EmergencyDisaster: React.FC = () => {
             <Col span={6}>
               <Card style={{ backgroundColor: '#fffbe6', borderColor: '#ffe58f' }}>
                 <Statistic
-                  title={<span style={{ color: '#d48806' }}>VANG - Tri hoan duoc</span>}
+                  title={<span style={{ color: '#d48806' }}>VÀNG - Trì hoãn được</span>}
                   value={mciEvent?.delayedYellow ?? yellowCount}
                   styles={{ content: { color: '#d48806', fontSize: 48 } }}
                 />
@@ -683,7 +683,7 @@ const EmergencyDisaster: React.FC = () => {
             <Col span={6}>
               <Card style={{ backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
                 <Statistic
-                  title={<span style={{ color: '#389e0d' }}>XANH - Nhe</span>}
+                  title={<span style={{ color: '#389e0d' }}>XANH - Nhẹ</span>}
                   value={mciEvent?.minorGreen ?? greenCount}
                   styles={{ content: { color: '#389e0d', fontSize: 48 } }}
                 />
@@ -692,7 +692,7 @@ const EmergencyDisaster: React.FC = () => {
             <Col span={6}>
               <Card style={{ backgroundColor: '#f5f5f5', borderColor: '#d9d9d9' }}>
                 <Statistic
-                  title="DEN - Tu vong"
+                  title="ĐEN - Tử vong"
                   value={(mciEvent?.expectantBlack ?? 0) + (mciEvent?.deceased ?? blackCount)}
                   styles={{ content: { fontSize: 48 } }}
                 />
@@ -701,7 +701,7 @@ const EmergencyDisaster: React.FC = () => {
           </Row>
 
           {/* Resources */}
-          <Card title="Tai nguyen kha dung" style={{ marginBottom: 24 }}>
+          <Card title="Tài nguyên khả dụng" style={{ marginBottom: 24 }}>
             <Row gutter={16}>
               {resourceItems.slice(0, 4).map(r => (
                 <Col span={6} key={r.id}>
@@ -717,7 +717,7 @@ const EmergencyDisaster: React.FC = () => {
                       status={r.available < 3 ? 'exception' : 'normal'}
                       size="small"
                     />
-                    <Text type="secondary">Da phan bo: {r.reserved}</Text>
+                    <Text type="secondary">Đã phân bổ: {r.reserved}</Text>
                   </Card>
                 </Col>
               ))}
@@ -725,11 +725,11 @@ const EmergencyDisaster: React.FC = () => {
           </Card>
 
           {/* Timeline */}
-          <Card title="Dien bien su kien">
+          <Card title="Diễn biến sự kiện">
             {timelineItems.length > 0 ? (
               <Timeline items={timelineItems} />
             ) : (
-              <Text type="secondary">Chua co dien bien nao</Text>
+              <Text type="secondary">Chưa có diễn biến nào</Text>
             )}
           </Card>
         </div>
@@ -740,7 +740,7 @@ const EmergencyDisaster: React.FC = () => {
       label: (
         <span>
           <UserOutlined />
-          Nan nhan ({mciEvent?.totalVictims ?? victims.length})
+          Nạn nhân ({mciEvent?.totalVictims ?? victims.length})
         </span>
       ),
       children: (
@@ -751,13 +751,13 @@ const EmergencyDisaster: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setAddVictimModalVisible(true)}
             >
-              Them nan nhan
+              Thêm nạn nhân
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>
-              Lam moi
+              Làm mới
             </Button>
             <Button icon={<PrinterOutlined />} onClick={handlePrintReport}>
-              In bao cao
+              In báo cáo
             </Button>
           </Space>
           <Table
@@ -786,20 +786,20 @@ const EmergencyDisaster: React.FC = () => {
       label: (
         <span>
           <MedicineBoxOutlined />
-          Tai nguyen
+          Tài nguyên
         </span>
       ),
       children: (
         <div>
           <Row gutter={16}>
             <Col span={12}>
-              <Card title="Giuong & Phong">
+              <Card title="Giường & Phòng">
                 <div>
                   {resourceItems.filter(r => ['bed', 'icu', 'or'].includes(r.type)).map((item) => (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 500 }}>{item.name}</div>
-                        <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Kha dung: ${item.available} / ${item.total}`}</div>
+                        <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Khả dụng: ${item.available} / ${item.total}`}</div>
                       </div>
                       <Progress
                         percent={item.total > 0 ? Math.round((item.available / item.total) * 100) : 0}
@@ -812,13 +812,13 @@ const EmergencyDisaster: React.FC = () => {
               </Card>
             </Col>
             <Col span={12}>
-              <Card title="Mau & Thiet bi">
+              <Card title="Máu & Thiết bị">
                 <div>
                   {resourceItems.filter(r => ['blood', 'ventilator', 'staff'].includes(r.type)).map((item) => (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 500 }}>{item.name}</div>
-                        <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Kha dung: ${item.available} / ${item.total}`}</div>
+                        <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{`Khả dụng: ${item.available} / ${item.total}`}</div>
                       </div>
                       <Progress
                         percent={item.total > 0 ? Math.round((item.available / item.total) * 100) : 0}
@@ -839,14 +839,14 @@ const EmergencyDisaster: React.FC = () => {
       label: (
         <span>
           <TeamOutlined />
-          Nhan su ({staffCards.length || (mciEvent?.staffActivated ?? 0)})
+          Nhân sự ({staffCards.length || (mciEvent?.staffActivated ?? 0)})
         </span>
       ),
       children: (
         <div>
           <Alert
-            title="Tinh trang nhan su"
-            description={`${staffCards.filter(s => s.status === 'arrived').length} nhan vien da co mat, ${staffCards.filter(s => s.status === 'notified').length} dang tren duong. Tong da huy dong: ${mciEvent?.staffActivated ?? 0}`}
+            title="Tình trạng nhân sự"
+            description={`${staffCards.filter(s => s.status === 'arrived').length} nhân viên đã có mặt, ${staffCards.filter(s => s.status === 'notified').length} đang trên đường. Tổng đã huy động: ${mciEvent?.staffActivated ?? 0}`}
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -870,9 +870,9 @@ const EmergencyDisaster: React.FC = () => {
                               item.status === 'notified' ? 'warning' : 'default'
                             }
                           >
-                            {item.status === 'arrived' ? 'Da co mat' :
-                             item.status === 'on_duty' ? 'Dang truc' :
-                             item.status === 'notified' ? 'Da thong bao' : 'Cho'}
+                            {item.status === 'arrived' ? 'Đã có mặt' :
+                             item.status === 'on_duty' ? 'Đang trực' :
+                             item.status === 'notified' ? 'Đã thông báo' : 'Chờ'}
                           </Tag>
                           <br />
                           {item.phone && <><PhoneOutlined /> {item.phone}</>}
@@ -884,7 +884,7 @@ const EmergencyDisaster: React.FC = () => {
               ))}
             </Row>
           ) : (
-            <Text type="secondary">Chua co du lieu nhan su</Text>
+            <Text type="secondary">Chưa có dữ liệu nhân sự</Text>
           )}
         </div>
       ),
@@ -894,37 +894,37 @@ const EmergencyDisaster: React.FC = () => {
       label: (
         <span>
           <AlertOutlined />
-          Huong dan START
+          Hướng dẫn START
         </span>
       ),
       children: (
-        <Card title="Quy trinh Phan loai START">
+        <Card title="Quy trình Phân loại START">
           <Steps
             direction="vertical"
             items={[
               {
-                title: 'Buoc 1: Di lai duoc?',
-                description: 'Co → XANH (Minor). Khong → Tiep tuc',
+                title: 'Bước 1: Đi lại được?',
+                description: 'Có → XANH (Minor). Không → Tiếp tục',
                 status: 'process',
               },
               {
-                title: 'Buoc 2: Tu tho?',
-                description: 'Khong → Mo duong tho → Van khong tho → DEN (Tu vong)',
+                title: 'Bước 2: Tự thở?',
+                description: 'Không → Mở đường thở → Vẫn không thở → ĐEN (Tử vong)',
                 status: 'process',
               },
               {
-                title: 'Buoc 3: Nhip tho',
-                description: '>30 lan/phut → DO (Immediate)',
+                title: 'Bước 3: Nhịp thở',
+                description: '>30 lần/phút → ĐỎ (Immediate)',
                 status: 'process',
               },
               {
-                title: 'Buoc 4: Mach quay',
-                description: 'Khong co mach quay → DO (Immediate)',
+                title: 'Bước 4: Mạch quay',
+                description: 'Không có mạch quay → ĐỎ (Immediate)',
                 status: 'process',
               },
               {
-                title: 'Buoc 5: Lam theo lenh',
-                description: 'Khong lam theo lenh don gian → DO. Co → VANG (Delayed)',
+                title: 'Bước 5: Làm theo lệnh',
+                description: 'Không làm theo lệnh đơn giản → ĐỎ. Có → VÀNG (Delayed)',
                 status: 'process',
               },
             ]}
@@ -934,25 +934,25 @@ const EmergencyDisaster: React.FC = () => {
             <Col span={6}>
               <Card size="small" style={{ backgroundColor: '#fff1f0' }}>
                 <Title level={4} style={{ color: '#cf1322' }}>DO</Title>
-                <Text>Cap cuu ngay lap tuc</Text>
+                <Text>Cấp cứu ngay lập tức</Text>
               </Card>
             </Col>
             <Col span={6}>
               <Card size="small" style={{ backgroundColor: '#fffbe6' }}>
                 <Title level={4} style={{ color: '#d48806' }}>VANG</Title>
-                <Text>Co the tri hoan 1-4h</Text>
+                <Text>Có thể trì hoãn 1-4h</Text>
               </Card>
             </Col>
             <Col span={6}>
               <Card size="small" style={{ backgroundColor: '#f6ffed' }}>
                 <Title level={4} style={{ color: '#389e0d' }}>XANH</Title>
-                <Text>Thuong tich nhe</Text>
+                <Text>Thương tích nhẹ</Text>
               </Card>
             </Col>
             <Col span={6}>
               <Card size="small" style={{ backgroundColor: '#f5f5f5' }}>
                 <Title level={4}>DEN</Title>
-                <Text>Tu vong/Khong cuu</Text>
+                <Text>Tử vong/Không cứu</Text>
               </Card>
             </Col>
           </Row>
@@ -971,20 +971,20 @@ const EmergencyDisaster: React.FC = () => {
               <Space>
                 <SoundOutlined />
                 <Text strong style={{ fontSize: 18 }}>
-                  {getAlertLevelLabel(mciEvent.alertLevel, mciEvent.alertLevelName)} - {mciEvent.statusName || 'DANG HOAT DONG'}
+                  {getAlertLevelLabel(mciEvent.alertLevel, mciEvent.alertLevelName)} - {mciEvent.statusName || 'ĐANG HOẠT ĐỘNG'}
                 </Text>
               </Space>
             }
             description={
               <Row gutter={16}>
                 <Col span={8}>
-                  <Text>Mo ta: {mciEvent.eventName}</Text>
+                  <Text>Mô tả: {mciEvent.eventName}</Text>
                 </Col>
                 <Col span={8}>
-                  <Text>Dia diem: {mciEvent.location}</Text>
+                  <Text>Địa điểm: {mciEvent.location}</Text>
                 </Col>
                 <Col span={8}>
-                  <Text>Kich hoat: {dayjs(mciEvent.activatedAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
+                  <Text>Kích hoạt: {dayjs(mciEvent.activatedAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
                 </Col>
               </Row>
             }
@@ -994,13 +994,13 @@ const EmergencyDisaster: React.FC = () => {
             action={
               <Space orientation="vertical">
                 <Button danger onClick={handleEndMCI}>
-                  Ket thuc su kien
+                  Kết thúc sự kiện
                 </Button>
                 <Button onClick={handlePrintReport} icon={<PrinterOutlined />}>
-                  Bao cao
+                  Báo cáo
                 </Button>
                 <Button icon={<ReloadOutlined />} onClick={fetchData}>
-                  Lam moi
+                  Làm mới
                 </Button>
               </Space>
             }
@@ -1011,17 +1011,17 @@ const EmergencyDisaster: React.FC = () => {
             <Row justify="space-between" align="middle">
               <Col>
                 <Title level={3} style={{ margin: 0 }}>
-                  <AlertOutlined /> Cap cuu Tham hoa (MCI)
+                  <AlertOutlined /> Cấp cứu Thảm họa (MCI)
                 </Title>
-                <Text type="secondary">Khong co su kien MCI dang hoat dong</Text>
+                <Text type="secondary">Không có sự kiện MCI đang hoạt động</Text>
                 {dashboard && (
                   <div style={{ marginTop: 8 }}>
                     <Space>
-                      <Text type="secondary">Su kien trong nam: {dashboard.eventsThisYear}</Text>
+                      <Text type="secondary">Sự kiện trong năm: {dashboard.eventsThisYear}</Text>
                       <Text type="secondary">|</Text>
-                      <Text type="secondary">Nan nhan trong nam: {dashboard.totalVictimsThisYear}</Text>
+                      <Text type="secondary">Nạn nhân trong năm: {dashboard.totalVictimsThisYear}</Text>
                       <Text type="secondary">|</Text>
-                      <Text type="secondary">Diem san sang: {dashboard.readinessScore}%</Text>
+                      <Text type="secondary">Điểm sẵn sàng: {dashboard.readinessScore}%</Text>
                       <Text type="secondary">|</Text>
                       <Text type="secondary">Nhan vien truc: {dashboard.staffOnCall}</Text>
                     </Space>
@@ -1031,7 +1031,7 @@ const EmergencyDisaster: React.FC = () => {
               <Col>
                 <Space>
                   <Button icon={<ReloadOutlined />} onClick={fetchData}>
-                    Lam moi
+                    Làm mới
                   </Button>
                   <Button
                     type="primary"
@@ -1057,30 +1057,30 @@ const EmergencyDisaster: React.FC = () => {
 
         {/* Event History when no active event */}
         {(!mciEvent || (mciEvent.status !== 1 && mciEvent.status !== 2)) && eventHistory.length > 0 && (
-          <Card title="Lich su su kien MCI" style={{ marginTop: 16 }}>
+          <Card title="Lịch sử sự kiện MCI" style={{ marginTop: 16 }}>
             <Table
               dataSource={eventHistory}
               rowKey="id"
               pagination={{ pageSize: 5 }}
               columns={[
                 { title: 'Ma', dataIndex: 'eventCode', key: 'eventCode' },
-                { title: 'Ten su kien', dataIndex: 'eventName', key: 'eventName' },
+                { title: 'Tên sự kiện', dataIndex: 'eventName', key: 'eventName' },
                 {
-                  title: 'Cap do', dataIndex: 'alertLevel', key: 'alertLevel',
+                  title: 'Cấp độ', dataIndex: 'alertLevel', key: 'alertLevel',
                   render: (level: number, record: MCIEventDto) => (
                     <Tag color={getAlertLevelColor(level)}>{record.alertLevelName || `Level ${level}`}</Tag>
                   ),
                 },
-                { title: 'Dia diem', dataIndex: 'location', key: 'location' },
+                { title: 'Địa điểm', dataIndex: 'location', key: 'location' },
                 {
-                  title: 'Thoi gian', dataIndex: 'activatedAt', key: 'activatedAt',
+                  title: 'Thời gian', dataIndex: 'activatedAt', key: 'activatedAt',
                   render: (val: string) => dayjs(val).format('DD/MM/YYYY HH:mm'),
                 },
                 {
-                  title: 'Nan nhan', dataIndex: 'totalVictims', key: 'totalVictims',
+                  title: 'Nạn nhân', dataIndex: 'totalVictims', key: 'totalVictims',
                 },
                 {
-                  title: 'Trang thai', dataIndex: 'statusName', key: 'statusName',
+                  title: 'Trạng thái', dataIndex: 'statusName', key: 'statusName',
                   render: (name: string, record: MCIEventDto) => {
                     const color = record.status === 4 ? 'default' : record.status === 3 ? 'warning' : 'success';
                     return <Tag color={color}>{name || `Status ${record.status}`}</Tag>;
@@ -1096,53 +1096,53 @@ const EmergencyDisaster: React.FC = () => {
           title={
             <Space>
               <AlertOutlined style={{ color: '#f5222d' }} />
-              <span>Kich hoat Code Cap cuu Tham hoa</span>
+              <span>Kích hoạt Code Cấp cứu Thảm họa</span>
             </Space>
           }
           open={activateModalVisible}
           onCancel={() => setActivateModalVisible(false)}
           onOk={() => activateForm.submit()}
-          okText="KICH HOAT"
+          okText="KÍCH HOẠT"
           okButtonProps={{ danger: true }}
           width={600}
         >
           <Alert
-            title="Canh bao"
-            description="Kich hoat Code MCI se gui thong bao den tat ca nhan vien va khoi dong quy trinh cap cuu tham hoa."
+            title="Cảnh báo"
+            description="Kích hoạt Code MCI sẽ gửi thông báo đến tất cả nhân viên và khởi động quy trình cấp cứu thảm họa."
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
           />
           <Form form={activateForm} layout="vertical" onFinish={handleActivateMCI}>
-            <Form.Item name="alertLevel" label="Cap do" rules={[{ required: true, message: 'Vui long chon cap do' }]}>
+            <Form.Item name="alertLevel" label="Cấp độ" rules={[{ required: true, message: 'Vui lòng chọn cấp độ' }]}>
               <Select>
                 <Select.Option value={2}>
-                  <Tag color="yellow">CODE YELLOW</Tag> - 5-10 nan nhan
+                  <Tag color="yellow">CODE YELLOW</Tag> - 5-10 nạn nhân
                 </Select.Option>
                 <Select.Option value={3}>
-                  <Tag color="orange">CODE ORANGE</Tag> - 10-50 nan nhan
+                  <Tag color="orange">CODE ORANGE</Tag> - 10-50 nạn nhân
                 </Select.Option>
                 <Select.Option value={4}>
-                  <Tag color="red">CODE RED</Tag> - {'>'}50 nan nhan hoac CBRN
+                  <Tag color="red">CODE RED</Tag> - {'>'}50 nạn nhân hoặc CBRN
                 </Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item name="eventType" label="Loai su kien" rules={[{ required: true, message: 'Vui long chon loai su kien' }]}>
+            <Form.Item name="eventType" label="Loại sự kiện" rules={[{ required: true, message: 'Vui lòng chọn loại sự kiện' }]}>
               <Select>
-                <Select.Option value="Natural">Thien tai</Select.Option>
-                <Select.Option value="Industrial">Cong nghiep</Select.Option>
-                <Select.Option value="Transport">Giao thong</Select.Option>
-                <Select.Option value="Violence">Bao luc</Select.Option>
-                <Select.Option value="Other">Khac</Select.Option>
+                <Select.Option value="Natural">Thiên tai</Select.Option>
+                <Select.Option value="Industrial">Công nghiệp</Select.Option>
+                <Select.Option value="Transport">Giao thông</Select.Option>
+                <Select.Option value="Violence">Bạo lực</Select.Option>
+                <Select.Option value="Other">Khác</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item name="description" label="Mo ta su kien" rules={[{ required: true, message: 'Vui long nhap mo ta' }]}>
-              <Input placeholder="VD: Tai nan giao thong, Hoa hoan..." />
+            <Form.Item name="description" label="Mô tả sự kiện" rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}>
+              <Input placeholder="VD: Tai nạn giao thông, Hỏa hoạn..." />
             </Form.Item>
-            <Form.Item name="location" label="Dia diem" rules={[{ required: true, message: 'Vui long nhap dia diem' }]}>
+            <Form.Item name="location" label="Địa điểm" rules={[{ required: true, message: 'Vui lòng nhập địa điểm' }]}>
               <Input placeholder="VD: Cao toc TP.HCM - Long Thanh" />
             </Form.Item>
-            <Form.Item name="estimatedCasualties" label="So nan nhan du kien">
+            <Form.Item name="estimatedCasualties" label="Số nạn nhân dự kiến">
               <Input type="number" />
             </Form.Item>
           </Form>
@@ -1150,7 +1150,7 @@ const EmergencyDisaster: React.FC = () => {
 
         {/* Add Victim Modal */}
         <Modal
-          title="Them nan nhan"
+          title="Thêm nạn nhân"
           open={addVictimModalVisible}
           onCancel={() => setAddVictimModalVisible(false)}
           onOk={() => victimForm.submit()}
@@ -1159,32 +1159,32 @@ const EmergencyDisaster: React.FC = () => {
           <Form form={victimForm} layout="vertical" onFinish={handleAddVictim}>
             <Form.Item
               name="triageCategory"
-              label="Phan loai START"
-              rules={[{ required: true, message: 'Vui long chon phan loai' }]}
+              label="Phân loại START"
+              rules={[{ required: true, message: 'Vui lòng chọn phân loại' }]}
             >
               <Select>
                 <Select.Option value="red">
-                  <Tag color="red">DO</Tag> - Cap cuu ngay
+                  <Tag color="red">ĐỎ</Tag> - Cấp cứu ngay
                 </Select.Option>
                 <Select.Option value="yellow">
-                  <Tag color="orange">VANG</Tag> - Tri hoan duoc
+                  <Tag color="orange">VÀNG</Tag> - Trì hoãn được
                 </Select.Option>
                 <Select.Option value="green">
-                  <Tag color="green">XANH</Tag> - Nhe
+                  <Tag color="green">XANH</Tag> - Nhẹ
                 </Select.Option>
                 <Select.Option value="black">
-                  <Tag>DEN</Tag> - Tu vong
+                  <Tag>ĐEN</Tag> - Tử vong
                 </Select.Option>
               </Select>
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="name" label="Ho ten (neu biet)">
+                <Form.Item name="name" label="Họ tên (nếu biết)">
                   <Input />
                 </Form.Item>
               </Col>
               <Col span={6}>
-                <Form.Item name="gender" label="Gioi tinh">
+                <Form.Item name="gender" label="Giới tính">
                   <Select>
                     <Select.Option value="male">Nam</Select.Option>
                     <Select.Option value="female">Nu</Select.Option>
@@ -1192,22 +1192,22 @@ const EmergencyDisaster: React.FC = () => {
                 </Form.Item>
               </Col>
               <Col span={6}>
-                <Form.Item name="estimatedAge" label="Tuoi uoc tinh">
+                <Form.Item name="estimatedAge" label="Tuổi ước tính">
                   <Input type="number" />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="injuries" label="Mo ta thuong tich" rules={[{ required: true, message: 'Vui long nhap mo ta thuong tich' }]}>
+            <Form.Item name="injuries" label="Mô tả thương tích" rules={[{ required: true, message: 'Vui lòng nhập mô tả thương tích' }]}>
               <TextArea rows={3} />
             </Form.Item>
-            <Form.Item name="currentLocation" label="Vi tri hien tai" rules={[{ required: true, message: 'Vui long chon vi tri' }]}>
+            <Form.Item name="currentLocation" label="Vị trí hiện tại" rules={[{ required: true, message: 'Vui lòng chọn vị trí' }]}>
               <Select>
-                <Select.Option value="Phong mo 1">Phong mo 1</Select.Option>
-                <Select.Option value="Phong mo 2">Phong mo 2</Select.Option>
+                <Select.Option value="Phòng mổ 1">Phòng mổ 1</Select.Option>
+                <Select.Option value="Phòng mổ 2">Phòng mổ 2</Select.Option>
                 <Select.Option value="ICU">ICU</Select.Option>
-                <Select.Option value="Khu dieu tri 1">Khu dieu tri 1</Select.Option>
-                <Select.Option value="Khu dieu tri 2">Khu dieu tri 2</Select.Option>
-                <Select.Option value="Khu cho">Khu cho</Select.Option>
+                <Select.Option value="Khu điều trị 1">Khu điều trị 1</Select.Option>
+                <Select.Option value="Khu điều trị 2">Khu điều trị 2</Select.Option>
+                <Select.Option value="Khu chờ">Khu chờ</Select.Option>
                 <Select.Option value="Nha xac">Nha xac</Select.Option>
               </Select>
             </Form.Item>
@@ -1248,10 +1248,10 @@ const EmergencyDisaster: React.FC = () => {
               <Descriptions.Item label="Ho ten" span={1}>
                 {selectedVictim.fullName || 'Chua xac dinh'}
               </Descriptions.Item>
-              <Descriptions.Item label="Gioi tinh" span={1}>
+              <Descriptions.Item label="Giới tính" span={1}>
                 {selectedVictim.gender === 'male' ? 'Nam' : selectedVictim.gender === 'female' ? 'Nu' : selectedVictim.gender || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="Tuoi uoc tinh" span={1}>
+              <Descriptions.Item label="Tuổi ước tính" span={1}>
                 {selectedVictim.estimatedAge || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Thoi gian den" span={1}>
@@ -1260,7 +1260,7 @@ const EmergencyDisaster: React.FC = () => {
               <Descriptions.Item label="Thuong tich" span={2}>
                 {selectedVictim.injuries ? selectedVictim.injuries.join(', ') : selectedVictim.chiefComplaint || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="Vi tri hien tai" span={1}>
+              <Descriptions.Item label="Vị trí hiện tại" span={1}>
                 {selectedVictim.assignedAreaName || selectedVictim.assignedArea || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Trang thai" span={1}>
@@ -1268,7 +1268,7 @@ const EmergencyDisaster: React.FC = () => {
                   ? getDispositionTag(selectedVictim.disposition, selectedVictim.dispositionName)
                   : getStatusTag(selectedVictim.status, selectedVictim.statusName)}
               </Descriptions.Item>
-              <Descriptions.Item label="Bac si phu trach" span={1}>
+              <Descriptions.Item label="Bác sĩ phu trach" span={1}>
                 {selectedVictim.attendingDoctorName || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Lien lac gia dinh" span={1}>

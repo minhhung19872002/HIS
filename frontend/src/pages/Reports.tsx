@@ -429,7 +429,7 @@ const ReconciliationTab: React.FC = () => {
 
   const handleRunReport = useCallback(async () => {
     if (!selectedReport) {
-      message.warning('Vui long chon loai bao cao doi chieu');
+      message.warning('Vui lòng chọn loại báo cáo đối chiếu');
       return;
     }
 
@@ -474,11 +474,11 @@ const ReconciliationTab: React.FC = () => {
       if (data) {
         setSummaryData(data);
         setReportData(data.items || []);
-        message.success(`Da tai bao cao: ${reconciliationReports.find(r => r.id === selectedReport)?.name}`);
+        message.success(`Đã tải báo cáo: ${reconciliationReports.find(r => r.id === selectedReport)?.name}`);
       }
     } catch (err: unknown) {
       console.warn('Error loading reconciliation report:', err);
-      message.warning('Khong the tai bao cao. Vui long thu lai.');
+      message.warning('Không thể tải báo cáo. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -820,10 +820,10 @@ const ReconciliationTab: React.FC = () => {
             <Table
               columns={getColumns()}
               dataSource={reportData}
-              rowKey={(record: any) => record.supplierId || record.medicalRecordId || record.departmentId || record.serviceId || record.serviceRequestId || record.departmentCode || Math.random().toString()} // eslint-disable-line @typescript-eslint/no-explicit-any
+              rowKey={(record: any, index?: number) => record.supplierId || record.medicalRecordId || record.departmentId || record.serviceId || record.serviceRequestId || record.departmentCode || `row-${index}`} // eslint-disable-line @typescript-eslint/no-explicit-any
               size="small"
               scroll={{ x: 1200 }}
-              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Tong: ${total} dong` }}
+              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Tổng: ${total} dòng` }}
               bordered
             />
           ) : (
@@ -860,7 +860,7 @@ const ExistingReportsContent: React.FC = () => {
   // Handle export to Excel, PDF, or Print
   const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'print') => {
     if (!selectedReport) {
-      message.warning('Vui long chon bao cao');
+      message.warning('Vui lòng chọn báo cáo');
       return;
     }
 

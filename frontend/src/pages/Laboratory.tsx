@@ -327,7 +327,7 @@ const Laboratory: React.FC = () => {
             ? {
                 ...req,
                 status: 1,
-                sampleBarcode: result?.sampleBarcode || `BC${dayjs().format('YYMMDD')}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+                sampleBarcode: result?.sampleBarcode || `BC${dayjs().format('YYMMDD')}${String(selectedRequest.id || '').slice(-4).padStart(4, '0')}`,
                 sampleType: values.sampleType,
                 collectionTime: values.collectionTime.format('YYYY-MM-DDTHH:mm:ss'),
                 collectorName: values.collectorName,

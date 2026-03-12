@@ -61,21 +61,21 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const INCIDENT_TYPES = [
-  { value: 'MedicationError', label: 'Sai sot thuoc' },
-  { value: 'Fall', label: 'Te nga' },
-  { value: 'HAI', label: 'Nhiem khuan' },
-  { value: 'PatientSafety', label: 'Sai dinh danh' },
-  { value: 'Equipment', label: 'Thiet bi hong' },
-  { value: 'Other', label: 'Khac' },
+  { value: 'MedicationError', label: 'Sai sót thuốc' },
+  { value: 'Fall', label: 'Té ngã' },
+  { value: 'HAI', label: 'Nhiễm khuẩn' },
+  { value: 'PatientSafety', label: 'Sai định danh' },
+  { value: 'Equipment', label: 'Thiết bị hỏng' },
+  { value: 'Other', label: 'Khác' },
 ];
 
 const SEVERITY_LEVELS = [
-  { value: 1, label: 'Suyt xay ra', color: 'blue' },
-  { value: 2, label: 'Khong ton thuong', color: 'cyan' },
-  { value: 3, label: 'Nhe', color: 'green' },
-  { value: 4, label: 'Vua', color: 'orange' },
-  { value: 5, label: 'Nang', color: 'red' },
-  { value: 6, label: 'Trong yeu', color: 'volcano' },
+  { value: 1, label: 'Suýt xảy ra', color: 'blue' },
+  { value: 2, label: 'Không tổn thương', color: 'cyan' },
+  { value: 3, label: 'Nhẹ', color: 'green' },
+  { value: 4, label: 'Vừa', color: 'orange' },
+  { value: 5, label: 'Nặng', color: 'red' },
+  { value: 6, label: 'Trọng yếu', color: 'volcano' },
 ];
 
 const Quality: React.FC = () => {
@@ -116,7 +116,7 @@ const Quality: React.FC = () => {
           setIncidents(Array.isArray(data) ? data : (data as any).items || []);
         }
       } else {
-        message.warning('Khong the tai danh sach su co');
+        message.warning('Không thể tải danh sách sự cố');
       }
 
       // Indicators
@@ -126,7 +126,7 @@ const Quality: React.FC = () => {
           setIndicators(Array.isArray(data) ? data : []);
         }
       } else {
-        message.warning('Khong the tai chi so chat luong');
+        message.warning('Không thể tải chỉ số chất lượng');
       }
 
       // Audits
@@ -136,7 +136,7 @@ const Quality: React.FC = () => {
           setAudits(Array.isArray(data) ? data : []);
         }
       } else {
-        message.warning('Khong the tai danh sach audit');
+        message.warning('Không thể tải danh sách audit');
       }
 
       // Dashboard
@@ -169,7 +169,7 @@ const Quality: React.FC = () => {
         // Satisfaction stats are supplementary
       }
     } catch {
-      message.warning('Khong the tai du lieu chat luong');
+      message.warning('Không thể tải dữ liệu chất lượng');
     } finally {
       setLoading(false);
     }
@@ -192,18 +192,18 @@ const Quality: React.FC = () => {
 
   const getSeverityTag = (severity: number) => {
     const config = SEVERITY_LEVELS.find((s) => s.value === severity);
-    return <Tag color={config?.color || 'default'}>{config?.label || `Cap ${severity}`}</Tag>;
+    return <Tag color={config?.color || 'default'}>{config?.label || `Cấp ${severity}`}</Tag>;
   };
 
   const getIncidentStatusTag = (status: number) => {
     const config: Record<number, { color: string; text: string }> = {
-      1: { color: 'blue', text: 'Da bao cao' },
-      2: { color: 'orange', text: 'Dang dieu tra' },
-      3: { color: 'cyan', text: 'Da dieu tra' },
-      4: { color: 'gold', text: 'Cho xu ly' },
-      5: { color: 'green', text: 'Da dong' },
+      1: { color: 'blue', text: 'Đã báo cáo' },
+      2: { color: 'orange', text: 'Đang điều tra' },
+      3: { color: 'cyan', text: 'Đã điều tra' },
+      4: { color: 'gold', text: 'Chờ xử lý' },
+      5: { color: 'green', text: 'Đã đóng' },
     };
-    const c = config[status] || { color: 'default', text: `Trang thai ${status}` };
+    const c = config[status] || { color: 'default', text: `Trạng thái ${status}` };
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
@@ -224,10 +224,10 @@ const Quality: React.FC = () => {
       });
       setIsReportModalOpen(false);
       reportForm.resetFields();
-      message.success('Da bao cao su co');
+      message.success('Đã báo cáo sự cố');
       fetchData();
     } catch {
-      message.warning('Khong the bao cao su co');
+      message.warning('Không thể báo cáo sự cố');
     }
   };
 
@@ -247,10 +247,10 @@ const Quality: React.FC = () => {
       });
       setIsInvestigationModalOpen(false);
       investigationForm.resetFields();
-      message.success('Da cap nhat ket qua dieu tra');
+      message.success('Đã cập nhật kết quả điều tra');
       fetchData();
     } catch {
-      message.warning('Khong the cap nhat dieu tra');
+      message.warning('Không thể cập nhật điều tra');
     }
   };
 
@@ -268,12 +268,12 @@ const Quality: React.FC = () => {
         auditTeam: [],
         notes: values.notes,
       });
-      message.success('Da len lich audit');
+      message.success('Đã lên lịch audit');
       setIsAuditModalOpen(false);
       auditForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the tao audit');
+      message.warning('Không thể tạo audit');
     }
   };
 
@@ -285,7 +285,7 @@ const Quality: React.FC = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Bao cao chat luong</title>
+        <title>Báo cáo chất lượng</title>
         <style>
           body { font-family: 'Times New Roman', serif; padding: 20px; }
           .header { text-align: center; margin-bottom: 20px; }
@@ -299,43 +299,43 @@ const Quality: React.FC = () => {
       <body>
         <div class="header">
           <strong>${HOSPITAL_NAME}</strong><br/>
-          Phong Quan ly chat luong
+          Phòng Quản lý chất lượng
         </div>
 
-        <div class="title">BAO CAO CHAT LUONG THANG ${dayjs().format('MM/YYYY')}</div>
+        <div class="title">BÁO CÁO CHẤT LƯỢNG THÁNG ${dayjs().format('MM/YYYY')}</div>
 
-        <h3>1. Chi so chat luong</h3>
+        <h3>1. Chỉ số chất lượng</h3>
         <table>
           <tr>
-            <th>Chi so</th>
-            <th>Muc tieu</th>
-            <th>Danh gia</th>
+            <th>Chỉ số</th>
+            <th>Mục tiêu</th>
+            <th>Đánh giá</th>
           </tr>
           ${indicators.map((ind) => `
             <tr>
               <td>${ind.name}</td>
               <td>${ind.targetValue}</td>
-              <td>${ind.isActive ? 'Dang theo doi' : 'Tam ngung'}</td>
+              <td>${ind.isActive ? 'Đang theo dõi' : 'Tạm ngưng'}</td>
             </tr>
           `).join('')}
         </table>
 
-        <h3>2. Su co y khoa</h3>
+        <h3>2. Sự cố y khoa</h3>
         <table>
           <tr>
-            <th>Loai</th>
-            <th>So luong</th>
+            <th>Loại</th>
+            <th>Số lượng</th>
           </tr>
           <tr>
-            <td>Tong su co</td>
+            <td>Tổng sự cố</td>
             <td>${incidents.length}</td>
           </tr>
           <tr>
-            <td>Da dong</td>
+            <td>Đã đóng</td>
             <td>${incidents.filter((i) => i.status === 5).length}</td>
           </tr>
           <tr>
-            <td>Chua xu ly</td>
+            <td>Chưa xử lý</td>
             <td>${incidents.filter((i) => i.status !== 5).length}</td>
           </tr>
         </table>
@@ -343,10 +343,10 @@ const Quality: React.FC = () => {
         <h3>3. Audit</h3>
         <table>
           <tr>
-            <th>Ten audit</th>
-            <th>Khoa/Phong</th>
-            <th>Ngay</th>
-            <th>Trang thai</th>
+            <th>Tên audit</th>
+            <th>Khoa/Phòng</th>
+            <th>Ngày</th>
+            <th>Trạng thái</th>
           </tr>
           ${audits.map((a) => `
             <tr>
@@ -359,8 +359,8 @@ const Quality: React.FC = () => {
         </table>
 
         <div style="margin-top: 50px; text-align: right;">
-          <p>Ngay ${dayjs().format('DD/MM/YYYY')}</p>
-          <p><strong>Truong phong QLCL</strong></p>
+          <p>Ngày ${dayjs().format('DD/MM/YYYY')}</p>
+          <p><strong>Trưởng phòng QLCL</strong></p>
         </div>
 
         <script>window.onload = function() { window.print(); }</script>
@@ -372,13 +372,13 @@ const Quality: React.FC = () => {
 
   const incidentColumns: ColumnsType<IncidentReportDto> = [
     {
-      title: 'Ma',
+      title: 'Mã',
       dataIndex: 'incidentCode',
       key: 'incidentCode',
       width: 100,
     },
     {
-      title: 'Ngay',
+      title: 'Ngày',
       dataIndex: 'incidentDate',
       key: 'incidentDate',
       width: 100,
@@ -390,13 +390,13 @@ const Quality: React.FC = () => {
       key: 'departmentName',
     },
     {
-      title: 'Loai su co',
+      title: 'Loại sự cố',
       dataIndex: 'incidentTypeName',
       key: 'incidentTypeName',
       render: (val, record) => val || record.incidentType,
     },
     {
-      title: 'Muc do',
+      title: 'Mức độ',
       dataIndex: 'severity',
       key: 'severity',
       width: 120,
@@ -407,13 +407,13 @@ const Quality: React.FC = () => {
       ) : getSeverityTag(severity),
     },
     {
-      title: 'Mo ta',
+      title: 'Mô tả',
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -426,7 +426,7 @@ const Quality: React.FC = () => {
       ) : getIncidentStatusTag(status),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 120,
       render: (_, record) => (
@@ -443,7 +443,7 @@ const Quality: React.FC = () => {
             setIsInvestigationModalOpen(true);
           }}
         >
-          Chi tiet
+          Chi tiết
         </Button>
       ),
     },
@@ -451,26 +451,26 @@ const Quality: React.FC = () => {
 
   const auditColumns: ColumnsType<InternalAuditDto> = [
     {
-      title: 'Ma',
+      title: 'Mã',
       dataIndex: 'auditCode',
       key: 'auditCode',
       width: 100,
     },
     {
-      title: 'Ten audit',
+      title: 'Tên audit',
       dataIndex: 'title',
       key: 'title',
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'auditType',
       key: 'auditType',
       render: (type, record) => record.auditTypeName || (() => {
         const labels: Record<string, string> = {
-          Scheduled: 'Dinh ky',
-          Unscheduled: 'Dot xuat',
-          FollowUp: 'Theo doi',
-          Surveillance: 'Giam sat',
+          Scheduled: 'Định kỳ',
+          Unscheduled: 'Đột xuất',
+          FollowUp: 'Theo dõi',
+          Surveillance: 'Giám sát',
         };
         return labels[type] || type;
       })(),
@@ -481,37 +481,37 @@ const Quality: React.FC = () => {
       key: 'departmentName',
     },
     {
-      title: 'Ngay',
+      title: 'Ngày',
       dataIndex: 'scheduledDate',
       key: 'scheduledDate',
       render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Truong doan',
+      title: 'Trưởng đoàn',
       dataIndex: 'leadAuditorName',
       key: 'leadAuditorName',
     },
     {
-      title: 'Phat hien',
+      title: 'Phát hiện',
       dataIndex: 'totalFindings',
       key: 'totalFindings',
       width: 80,
       render: (val) => val ?? '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status, record) => {
         const config: Record<number, { color: string; text: string }> = {
-          1: { color: 'blue', text: 'Da len lich' },
-          2: { color: 'orange', text: 'Dang thuc hien' },
-          3: { color: 'green', text: 'Hoan thanh' },
-          4: { color: 'cyan', text: 'Theo doi' },
-          5: { color: 'default', text: 'Da dong' },
+          1: { color: 'blue', text: 'Đã lên lịch' },
+          2: { color: 'orange', text: 'Đang thực hiện' },
+          3: { color: 'green', text: 'Hoàn thành' },
+          4: { color: 'cyan', text: 'Theo dõi' },
+          5: { color: 'default', text: 'Đã đóng' },
         };
         const c = config[status];
-        return <Tag color={c?.color || 'default'}>{record.statusName || c?.text || `Trang thai ${status}`}</Tag>;
+        return <Tag color={c?.color || 'default'}>{record.statusName || c?.text || `Trạng thái ${status}`}</Tag>;
       },
     },
   ];
@@ -519,19 +519,19 @@ const Quality: React.FC = () => {
   // CAPA columns
   const capaColumns: ColumnsType<CAPADto> = [
     {
-      title: 'Ma',
+      title: 'Mã',
       dataIndex: 'capaCode',
       key: 'capaCode',
       width: 100,
     },
     {
-      title: 'Tieu de',
+      title: 'Tiêu đề',
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
     },
     {
-      title: 'Nguon',
+      title: 'Nguồn',
       dataIndex: 'sourceTypeName',
       key: 'sourceTypeName',
       render: (val, record) => val || record.sourceType,
@@ -542,7 +542,7 @@ const Quality: React.FC = () => {
       key: 'departmentName',
     },
     {
-      title: 'Uu tien',
+      title: 'Ưu tiên',
       dataIndex: 'priority',
       key: 'priority',
       width: 90,
@@ -552,7 +552,7 @@ const Quality: React.FC = () => {
       },
     },
     {
-      title: 'Nguoi chiu TN',
+      title: 'Người chịu TN',
       dataIndex: 'responsiblePersonName',
       key: 'responsiblePersonName',
     },
@@ -564,7 +564,7 @@ const Quality: React.FC = () => {
       render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status, record) => {

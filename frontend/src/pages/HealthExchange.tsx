@@ -158,7 +158,7 @@ const HealthExchange: React.FC = () => {
       }
     } catch (err) {
       console.warn('Failed to fetch HIE data:', err);
-      message.warning('Khong the tai du lieu lien thong y te');
+      message.warning('Không thể tải dữ liệu liên thông y tế');
     } finally {
       setLoading(false);
     }
@@ -190,7 +190,7 @@ const HealthExchange: React.FC = () => {
       setFhirSearchResults(results);
     } catch (err) {
       console.warn('FHIR search failed:', err);
-      message.warning('Tim kiem FHIR that bai');
+      message.warning('Tìm kiếm FHIR thất bại');
     } finally {
       setFhirSearchLoading(false);
     }
@@ -204,13 +204,13 @@ const HealthExchange: React.FC = () => {
       setFhirJsonDrawerOpen(true);
     } catch (err) {
       console.warn('Failed to read FHIR resource:', err);
-      message.warning('Khong the doc tai nguyen FHIR');
+      message.warning('Không thể đọc tài nguyên FHIR');
     }
   };
 
   const handleFhirExportPatient = async () => {
     if (!fhirExportPatientId) {
-      message.warning('Vui long nhap Patient ID');
+      message.warning('Vui lòng nhập Patient ID');
       return;
     }
     try {
@@ -221,7 +221,7 @@ const HealthExchange: React.FC = () => {
       setFhirJsonDrawerOpen(true);
     } catch (err) {
       console.warn('Failed to export patient bundle:', err);
-      message.warning('Xuat du lieu FHIR that bai');
+      message.warning('Xuất dữ liệu FHIR thất bại');
     } finally {
       setFhirSearchLoading(false);
     }
@@ -229,7 +229,7 @@ const HealthExchange: React.FC = () => {
 
   const handleFhirTestExternal = async () => {
     if (!fhirExternalUrl) {
-      message.warning('Vui long nhap URL may chu FHIR');
+      message.warning('Vui lòng nhập URL máy chủ FHIR');
       return;
     }
     setFhirExternalStatus('loading');
@@ -237,20 +237,20 @@ const HealthExchange: React.FC = () => {
       const result = await fetchExternalMetadata(fhirExternalUrl);
       if (result) {
         setFhirExternalStatus('success');
-        message.success(`Ket noi thanh cong: ${result.software?.name || 'FHIR Server'} v${result.fhirVersion}`);
+        message.success(`Kết nối thành công: ${result.software?.name || 'FHIR Server'} v${result.fhirVersion}`);
       } else {
         setFhirExternalStatus('error');
-        message.error('Khong the ket noi den may chu FHIR');
+        message.error('Không thể kết nối đến máy chủ FHIR');
       }
     } catch {
       setFhirExternalStatus('error');
-      message.error('Ket noi FHIR that bai');
+      message.error('Kết nối FHIR thất bại');
     }
   };
 
   const handleCopyJson = () => {
     navigator.clipboard.writeText(fhirJsonContent).then(() => {
-      message.success('Da sao chep JSON');
+      message.success('Đã sao chép JSON');
     });
   };
 
@@ -267,35 +267,35 @@ const HealthExchange: React.FC = () => {
   // FHIR resource type search parameter definitions
   const fhirResourceSearchParams: Record<string, Array<{ name: string; label: string; placeholder: string }>> = {
     Patient: [
-      { name: 'name', label: 'Ten', placeholder: 'Tim theo ten...' },
-      { name: 'identifier', label: 'Ma BN/CCCD/BHYT', placeholder: 'Ma dinh danh...' },
-      { name: 'phone', label: 'SDT', placeholder: 'So dien thoai...' },
+      { name: 'name', label: 'Tên', placeholder: 'Tìm theo tên...' },
+      { name: 'identifier', label: 'Mã BN/CCCD/BHYT', placeholder: 'Mã định danh...' },
+      { name: 'phone', label: 'SĐT', placeholder: 'Số điện thoại...' },
     ],
     Encounter: [
-      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
-      { name: 'status', label: 'Trang thai', placeholder: 'planned|in-progress|finished' },
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID bệnh nhân...' },
+      { name: 'status', label: 'Trạng thái', placeholder: 'planned|in-progress|finished' },
     ],
     Observation: [
-      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
-      { name: 'category', label: 'Loai', placeholder: 'vital-signs|laboratory' },
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID bệnh nhân...' },
+      { name: 'category', label: 'Loại', placeholder: 'vital-signs|laboratory' },
     ],
     MedicationRequest: [
-      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
-      { name: 'status', label: 'Trang thai', placeholder: 'active|completed|cancelled' },
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID bệnh nhân...' },
+      { name: 'status', label: 'Trạng thái', placeholder: 'active|completed|cancelled' },
     ],
     DiagnosticReport: [
-      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
-      { name: 'category', label: 'Loai', placeholder: 'LAB|RAD' },
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID bệnh nhân...' },
+      { name: 'category', label: 'Loại', placeholder: 'LAB|RAD' },
     ],
     Condition: [
-      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
-      { name: 'code', label: 'Ma ICD', placeholder: 'ICD-10 code...' },
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID bệnh nhân...' },
+      { name: 'code', label: 'Mã ICD', placeholder: 'ICD-10 code...' },
     ],
     AllergyIntolerance: [
-      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID bệnh nhân...' },
     ],
     Procedure: [
-      { name: 'patient', label: 'Patient ID', placeholder: 'GUID benh nhan...' },
+      { name: 'patient', label: 'Patient ID', placeholder: 'GUID bệnh nhân...' },
     ],
   };
 
@@ -309,11 +309,11 @@ const HealthExchange: React.FC = () => {
   const getConnectionStatusTag = (status: number, statusName?: string) => {
     switch (status) {
       case 1:
-        return <Tag icon={<CheckCircleOutlined />} color="success">{statusName || 'Ket noi'}</Tag>;
+        return <Tag icon={<CheckCircleOutlined />} color="success">{statusName || 'Kết nối'}</Tag>;
       case 2:
-        return <Tag icon={<ClockCircleOutlined />} color="default">{statusName || 'Ngat ket noi'}</Tag>;
+        return <Tag icon={<ClockCircleOutlined />} color="default">{statusName || 'Ngắt kết nối'}</Tag>;
       case 3:
-        return <Tag icon={<ExclamationCircleOutlined />} color="error">{statusName || 'Loi'}</Tag>;
+        return <Tag icon={<ExclamationCircleOutlined />} color="error">{statusName || 'Lỗi'}</Tag>;
       default:
         return <Tag>{statusName || String(status)}</Tag>;
     }
@@ -322,17 +322,17 @@ const HealthExchange: React.FC = () => {
   const getSubmissionStatusTag = (status: number, statusName?: string) => {
     switch (status) {
       case 1:
-        return <Tag icon={<ClockCircleOutlined />} color="default">{statusName || 'Nhap'}</Tag>;
+        return <Tag icon={<ClockCircleOutlined />} color="default">{statusName || 'Nhập'}</Tag>;
       case 2:
-        return <Tag icon={<SyncOutlined />} color="blue">{statusName || 'Da xac minh'}</Tag>;
+        return <Tag icon={<SyncOutlined />} color="blue">{statusName || 'Đã xác minh'}</Tag>;
       case 3:
-        return <Tag icon={<SyncOutlined spin />} color="processing">{statusName || 'Da gui'}</Tag>;
+        return <Tag icon={<SyncOutlined spin />} color="processing">{statusName || 'Đã gửi'}</Tag>;
       case 4:
-        return <Tag icon={<CheckCircleOutlined />} color="success">{statusName || 'Chap nhan'}</Tag>;
+        return <Tag icon={<CheckCircleOutlined />} color="success">{statusName || 'Chấp nhận'}</Tag>;
       case 5:
-        return <Tag icon={<ExclamationCircleOutlined />} color="warning">{statusName || 'Tu choi 1 phan'}</Tag>;
+        return <Tag icon={<ExclamationCircleOutlined />} color="warning">{statusName || 'Từ chối 1 phần'}</Tag>;
       case 6:
-        return <Tag icon={<ExclamationCircleOutlined />} color="error">{statusName || 'Tu choi'}</Tag>;
+        return <Tag icon={<ExclamationCircleOutlined />} color="error">{statusName || 'Từ chối'}</Tag>;
       default:
         return <Tag>{statusName || String(status)}</Tag>;
     }
@@ -340,40 +340,40 @@ const HealthExchange: React.FC = () => {
 
   const handleTestConnection = async (connectionId: string) => {
     try {
-      message.info('Dang kiem tra ket noi...');
+      message.info('Đang kiểm tra kết nối...');
       const res = await testConnection(connectionId);
       const result = res.data;
       if (result?.success) {
-        message.success(`Ket noi thanh cong! Thoi gian: ${result.responseTime}ms`);
+        message.success(`Kết nối thành công! Thời gian: ${result.responseTime}ms`);
       } else {
-        message.warning(result?.message || 'Ket noi that bai');
+        message.warning(result?.message || 'Kết nối thất bại');
       }
     } catch (err) {
       console.warn('Connection test failed:', err);
-      message.warning('Khong the kiem tra ket noi');
+      message.warning('Không thể kiểm tra kết nối');
     }
   };
 
   const handleSyncConnection = async (connectionId: string, currentStatus: number) => {
     try {
-      message.info('Dang dong bo...');
+      message.info('Đang đồng bộ...');
       if (currentStatus === 1) {
         await deactivateConnection(connectionId);
-        message.success('Da ngat ket noi');
+        message.success('Đã ngắt kết nối');
       } else {
         await activateConnection(connectionId);
-        message.success('Da kich hoat ket noi');
+        message.success('Đã kích hoạt kết nối');
       }
       fetchData();
     } catch (err) {
       console.warn('Sync failed:', err);
-      message.warning('Dong bo that bai');
+      message.warning('Đồng bộ thất bại');
     }
   };
 
   const connectionColumns: ColumnsType<HIEConnectionDto> = [
     {
-      title: 'Ten ket noi',
+      title: 'Tên kết nối',
       dataIndex: 'connectionName',
       key: 'connectionName',
       render: (text: string) => (
@@ -384,7 +384,7 @@ const HealthExchange: React.FC = () => {
       ),
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'connectionTypeName',
       key: 'connectionTypeName',
       render: (text: string, record: HIEConnectionDto) => (
@@ -392,25 +392,25 @@ const HealthExchange: React.FC = () => {
       ),
     },
     {
-      title: 'Giao thuc',
+      title: 'Giao thức',
       dataIndex: 'protocolName',
       key: 'protocolName',
       render: (text: string, record: HIEConnectionDto) => text || record.protocol,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status: number, record: HIEConnectionDto) => getConnectionStatusTag(status, record.statusName),
     },
     {
-      title: 'Dong bo cuoi',
+      title: 'Đồng bộ cuối',
       dataIndex: 'lastSyncAt',
       key: 'lastSyncAt',
       render: (val: string) => val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: HIEConnectionDto) => (
         <Space>
@@ -419,7 +419,7 @@ const HealthExchange: React.FC = () => {
             icon={<SyncOutlined />}
             onClick={() => handleSyncConnection(record.id, record.status)}
           >
-            Dong bo
+            Đồng bộ
           </Button>
           <Button
             type="link"
@@ -435,47 +435,47 @@ const HealthExchange: React.FC = () => {
 
   const submissionColumns: ColumnsType<InsuranceSubmissionDto> = [
     {
-      title: 'Ma',
+      title: 'Mã',
       dataIndex: 'submissionCode',
       key: 'submissionCode',
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'submissionTypeName',
       key: 'submissionTypeName',
       render: (text: string, record: InsuranceSubmissionDto) => text || record.submissionType,
     },
     {
-      title: 'So ban ghi',
+      title: 'Số bản ghi',
       dataIndex: 'totalRecords',
       key: 'totalRecords',
     },
     {
-      title: 'So tien BHXH',
+      title: 'Số tiền BHXH',
       dataIndex: 'totalClaimAmount',
       key: 'totalClaimAmount',
       render: (val: number) => val ? val.toLocaleString('vi-VN') + ' VND' : '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status: number, record: InsuranceSubmissionDto) => getSubmissionStatusTag(status, record.statusName),
     },
     {
-      title: 'Thoi gian gui',
+      title: 'Thời gian gửi',
       dataIndex: 'submittedAt',
       key: 'submittedAt',
       render: (val: string) => val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: 'BHXH phan hoi',
+      title: 'BHXH phản hồi',
       dataIndex: 'bhxhStatusName',
       key: 'bhxhStatusName',
       render: (val: string) => val || '-',
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: InsuranceSubmissionDto) => (
         <Space>
@@ -489,15 +489,15 @@ const HealthExchange: React.FC = () => {
               onClick={async () => {
                 try {
                   await submitToInsurance({ submissionId: record.id, signatureRequired: false });
-                  message.success('Da gui lai thanh cong');
+                  message.success('Đã gửi lại thành công');
                   fetchData();
                 } catch (err) {
                   console.warn('Resubmit failed:', err);
-                  message.warning('Gui lai that bai');
+                  message.warning('Gửi lại thất bại');
                 }
               }}
             >
-              Gui lai
+              Gửi lại
             </Button>
           )}
         </Space>
@@ -507,32 +507,32 @@ const HealthExchange: React.FC = () => {
 
   const referralColumns: ColumnsType<ElectronicReferralDto> = [
     {
-      title: 'Ma',
+      title: 'Mã',
       dataIndex: 'referralCode',
       key: 'referralCode',
     },
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       dataIndex: 'patientName',
       key: 'patientName',
     },
     {
-      title: 'Tu BV',
+      title: 'Từ BV',
       dataIndex: 'sourceFacilityName',
       key: 'sourceFacilityName',
     },
     {
-      title: 'Den BV',
+      title: 'Đến BV',
       dataIndex: 'destinationFacilityName',
       key: 'destinationFacilityName',
     },
     {
-      title: 'Chan doan',
+      title: 'Chẩn đoán',
       dataIndex: 'diagnosis',
       key: 'diagnosis',
     },
     {
-      title: 'Muc do',
+      title: 'Mức độ',
       dataIndex: 'urgency',
       key: 'urgency',
       render: (urgency: number, record: ElectronicReferralDto) => {
@@ -545,7 +545,7 @@ const HealthExchange: React.FC = () => {
       },
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status: number, record: ElectronicReferralDto) => {
@@ -561,12 +561,12 @@ const HealthExchange: React.FC = () => {
       },
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: ElectronicReferralDto) => (
         <Space>
           <Button type="link" icon={<FileTextOutlined />}>
-            Chi tiet
+            Chi tiết
           </Button>
           {record.status === 1 && (
             <Button
@@ -575,11 +575,11 @@ const HealthExchange: React.FC = () => {
               onClick={async () => {
                 try {
                   await sendReferral(record.id);
-                  message.success('Da gui phieu chuyen vien');
+                  message.success('Đã gửi phiếu chuyển viện');
                   fetchData();
                 } catch (err) {
                   console.warn('Send referral failed:', err);
-                  message.warning('Gui phieu that bai');
+                  message.warning('Gửi phiếu thất bại');
                 }
               }}
             >
@@ -597,7 +597,7 @@ const HealthExchange: React.FC = () => {
                 window.open(url, '_blank');
               } catch (err) {
                 console.warn('Print referral failed:', err);
-                message.warning('Khong the in phieu chuyen vien');
+                message.warning('Không thể in phiếu chuyển viện');
               }
             }}
           >
@@ -680,12 +680,12 @@ const HealthExchange: React.FC = () => {
                   if (record.videoRoomUrl) {
                     window.open(record.videoRoomUrl, '_blank');
                   } else {
-                    message.warning('Khong the vao phong hoi chan');
+                    message.warning('Không thể vào phòng hội chẩn');
                   }
                 }
               }}
             >
-              Vao phong
+              Vào phòng
             </Button>
           )}
           <Button type="link" icon={<FileTextOutlined />}>

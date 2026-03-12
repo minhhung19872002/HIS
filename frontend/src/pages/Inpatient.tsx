@@ -98,6 +98,7 @@ const Inpatient: React.FC = () => {
   const [total, setTotal] = useState(0);
 
   const [isAdmitModalOpen, setIsAdmitModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isCareModalOpen, setIsCareModalOpen] = useState(false);
   const [isDischargeModalOpen, setIsDischargeModalOpen] = useState(false);
@@ -426,7 +427,7 @@ const Inpatient: React.FC = () => {
             : undefined,
           reasonForAdmission: ctx.conclusionNote || ctx.chiefComplaint || undefined,
         });
-        message.success('Da tai du lieu kham benh tu OPD');
+        message.success('Đã tải dữ liệu khám bệnh từ OPD');
       }
     } catch {
       // Non-critical
@@ -437,6 +438,7 @@ const Inpatient: React.FC = () => {
   };
 
   const handleAdmitPatient = async () => {
+    setSubmitting(true);
     try {
       const values = await form.validateFields();
 
@@ -459,6 +461,8 @@ const Inpatient: React.FC = () => {
     } catch (error) {
       console.warn('Admit patient error:', error);
       message.error('Lỗi khi nhập viện. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1492,6 +1496,7 @@ const Inpatient: React.FC = () => {
         open={isAdmitModalOpen}
         onOk={handleAdmitPatient}
         onCancel={() => { setIsAdmitModalOpen(false); setAdmissionCtx(null); }}
+        confirmLoading={submitting}
         width={900}
         okText="Nhập viện"
         cancelText="Hủy"

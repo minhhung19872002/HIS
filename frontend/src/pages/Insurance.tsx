@@ -153,7 +153,7 @@ const Insurance: React.FC = () => {
       setClaims(mappedClaims);
       setFilteredClaims(mappedClaims);
     } catch (error) {
-      message.warning('Khong the tai danh sach ho so giam dinh');
+      message.warning('Không thể tải danh sách hồ sơ giám định');
       console.warn('Failed to fetch claims:', error);
     } finally {
       setLoading(false);
@@ -199,7 +199,7 @@ const Insurance: React.FC = () => {
       }));
       setXmlBatches(mappedBatches);
     } catch (error) {
-      message.warning('Khong the tai danh sach lo XML');
+      message.warning('Không thể tải danh sách lô XML');
       console.warn('Failed to fetch XML batches:', error);
     }
   };
@@ -220,19 +220,19 @@ const Insurance: React.FC = () => {
   const getClaimStatusTag = (status: number) => {
     switch (status) {
       case 0:
-        return <Tag color="default">Nhap</Tag>;
+        return <Tag color="default">Nháp</Tag>;
       case 1:
-        return <Tag color="orange" icon={<ClockCircleOutlined />}>Cho giam dinh</Tag>;
+        return <Tag color="orange" icon={<ClockCircleOutlined />}>Chờ giám định</Tag>;
       case 2:
-        return <Tag color="blue" icon={<CloudUploadOutlined />}>Da gui BHXH</Tag>;
+        return <Tag color="blue" icon={<CloudUploadOutlined />}>Đã gửi BHXH</Tag>;
       case 3:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Da duyet</Tag>;
+        return <Tag color="green" icon={<CheckCircleOutlined />}>Đã duyệt</Tag>;
       case 4:
-        return <Tag color="red" icon={<WarningOutlined />}>Tu choi</Tag>;
+        return <Tag color="red" icon={<WarningOutlined />}>Từ chối</Tag>;
       case 5:
-        return <Tag color="purple" icon={<LockOutlined />}>Da khoa</Tag>;
+        return <Tag color="purple" icon={<LockOutlined />}>Đã khóa</Tag>;
       default:
-        return <Tag>Khong xac dinh</Tag>;
+        return <Tag>Không xác định</Tag>;
     }
   };
 
@@ -240,27 +240,27 @@ const Insurance: React.FC = () => {
   const getXmlStatusTag = (status: number) => {
     switch (status) {
       case 0:
-        return <Tag color="default">Nhap</Tag>;
+        return <Tag color="default">Nháp</Tag>;
       case 1:
-        return <Tag color="blue">San sang</Tag>;
+        return <Tag color="blue">Sẵn sàng</Tag>;
       case 2:
-        return <Tag color="orange" icon={<CloudUploadOutlined />}>Da gui</Tag>;
+        return <Tag color="orange" icon={<CloudUploadOutlined />}>Đã gửi</Tag>;
       case 3:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Xac nhan</Tag>;
+        return <Tag color="green" icon={<CheckCircleOutlined />}>Xác nhận</Tag>;
       default:
-        return <Tag>Khong xac dinh</Tag>;
+        return <Tag>Không xác định</Tag>;
     }
   };
 
   // Handle approve claims
   const handleApproveClaims = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui long chon ho so can duyet');
+      message.warning('Vui lòng chọn hồ sơ cần duyệt');
       return;
     }
     Modal.confirm({
-      title: 'Xac nhan duyet giam dinh',
-      content: `Ban co chac chan muon duyet ${selectedRowKeys.length} ho so da chon?`,
+      title: 'Xác nhận duyệt giám định',
+      content: `Bạn có chắc chắn muốn duyệt ${selectedRowKeys.length} hồ sơ đã chọn?`,
       onOk: async () => {
         try {
           const claimIds = selectedRowKeys.map(key => {
@@ -268,11 +268,11 @@ const Insurance: React.FC = () => {
             return claim?.claimCode || '';
           }).filter(Boolean);
           await insuranceApi.validateClaimsBatch(claimIds);
-          message.success(`Da duyet ${selectedRowKeys.length} ho so`);
+          message.success(`Đã duyệt ${selectedRowKeys.length} hồ sơ`);
           setSelectedRowKeys([]);
           await fetchClaims();
         } catch (error) {
-          message.warning('Loi khi duyet ho so giam dinh');
+          message.warning('Lỗi khi duyệt hồ sơ giám định');
           console.warn('Error approving claims:', error);
         }
       },
@@ -282,12 +282,12 @@ const Insurance: React.FC = () => {
   // Handle lock claims
   const handleLockClaims = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui long chon ho so can khoa');
+      message.warning('Vui lòng chọn hồ sơ cần khóa');
       return;
     }
     Modal.confirm({
-      title: 'Xac nhan khoa giam dinh',
-      content: `Ban co chac chan muon khoa ${selectedRowKeys.length} ho so da chon? Ho so sau khi khoa khong the chinh sua.`,
+      title: 'Xác nhận khóa giám định',
+      content: `Bạn có chắc chắn muốn khóa ${selectedRowKeys.length} hồ sơ đã chọn? Hồ sơ sau khi khóa không thể chỉnh sửa.`,
       onOk: async () => {
         try {
           const lockPromises = selectedRowKeys.map(key => {
@@ -298,11 +298,11 @@ const Insurance: React.FC = () => {
             return Promise.resolve();
           });
           await Promise.all(lockPromises);
-          message.success(`Da khoa ${selectedRowKeys.length} ho so`);
+          message.success(`Đã khóa ${selectedRowKeys.length} hồ sơ`);
           setSelectedRowKeys([]);
           await fetchClaims();
         } catch (error) {
-          message.warning('Loi khi khoa ho so giam dinh');
+          message.warning('Lỗi khi khóa hồ sơ giám định');
           console.warn('Error locking claims:', error);
         }
       },
@@ -393,19 +393,19 @@ const Insurance: React.FC = () => {
           totalInsuranceAmount: totalInsurance,
           totalPatientAmount: totalPatient,
           tables: [
-            { tableName: 'XML1', description: 'Thong tin chung ho so KCB', recordCount: xml1Count },
-            { tableName: 'XML2', description: 'Chi tiet thuoc', recordCount: xml2Count },
-            { tableName: 'XML3', description: 'Dich vu ky thuat', recordCount: xml3Count },
-            { tableName: 'XML4', description: 'Chi phi ngoai danh muc', recordCount: xml4Count },
-            { tableName: 'XML5', description: 'Chi dinh thuoc', recordCount: xml5Count },
-            { tableName: 'XML7', description: 'Giay chuyen tuyen', recordCount: xml7Count },
+            { tableName: 'XML1', description: 'Thông tin chung hồ sơ KCB', recordCount: xml1Count },
+            { tableName: 'XML2', description: 'Chi tiết thuốc', recordCount: xml2Count },
+            { tableName: 'XML3', description: 'Dịch vụ kỹ thuật', recordCount: xml3Count },
+            { tableName: 'XML4', description: 'Chi phí ngoài danh mục', recordCount: xml4Count },
+            { tableName: 'XML5', description: 'Chỉ định thuốc', recordCount: xml5Count },
+            { tableName: 'XML7', description: 'Giấy chuyển tuyến', recordCount: xml7Count },
           ],
           validationErrors,
           hasBlockingErrors,
         };
         setExportPreview(preview);
       } catch (fallbackError) {
-        message.warning('Khong the tao xem truoc. Vui long thu lai.');
+        message.warning('Không thể tạo xem trước. Vui lòng thử lại.');
         console.warn('Preview fallback failed:', fallbackError);
       }
     } finally {
@@ -422,10 +422,10 @@ const Insurance: React.FC = () => {
       const result = await insuranceApi.exportXml(config);
       const data = (result as any).data || result;
       setExportResult(data);
-      message.success(`Xuat XML thanh cong! Ma lo: ${data.batchCode || data.batchId}`);
+      message.success(`Xuất XML thành công! Mã lô: ${data.batchCode || data.batchId}`);
       await fetchXmlBatches();
     } catch (error) {
-      message.warning('Loi khi xuat XML');
+      message.warning('Lỗi khi xuất XML');
       console.warn('Error exporting XML:', error);
     } finally {
       setExportLoading(false);
@@ -445,9 +445,9 @@ const Insurance: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      message.success('Da tai xuong file XML');
+      message.success('Đã tải xuống file XML');
     } catch (error) {
-      message.warning('Loi khi tai file XML');
+      message.warning('Lỗi khi tải file XML');
       console.warn('Error downloading XML:', error);
     }
   };
@@ -461,14 +461,14 @@ const Insurance: React.FC = () => {
       const data = (result as any).data || result;
       setSignResult(data);
       if (data.success) {
-        message.success('Ky so XML thanh cong!');
+        message.success('Ký số XML thành công!');
       } else {
-        message.warning(`Ky so khong thanh cong: ${data.message || 'Loi khong xac dinh'}`);
+        message.warning(`Ký số không thành công: ${data.message || 'Lỗi không xác định'}`);
       }
     } catch (error) {
-      message.warning('Loi khi ky so XML. Co the chua cau hinh USB Token.');
+      message.warning('Lỗi khi ký số XML. Có thể chưa cấu hình USB Token.');
       console.warn('Error signing XML:', error);
-      setSignResult({ success: false, message: 'Loi ket noi dich vu ky so' });
+      setSignResult({ success: false, message: 'Lỗi kết nối dịch vụ ký số' });
     } finally {
       setSignLoading(false);
     }
@@ -494,12 +494,12 @@ const Insurance: React.FC = () => {
       setCardVerification(data);
 
       if (data.duDkKcb) {
-        message.success('The BHYT hop le - Du dieu kien KCB');
+        message.success('Thẻ BHYT hợp lệ - Đủ điều kiện KCB');
       } else {
-        message.warning(data.lyDoKhongDuDk || 'The BHYT khong du dieu kien');
+        message.warning(data.lyDoKhongDuDk || 'Thẻ BHYT không đủ điều kiện');
       }
     } catch (error) {
-      message.warning('Khong ket noi duoc cong BHXH. Vui long thu lai sau.');
+      message.warning('Không kết nối được cổng BHXH. Vui lòng thử lại sau.');
       console.warn('Card verification error:', error);
       // Set a fallback for gateway error display
       setCardVerification(null);
@@ -517,7 +517,7 @@ const Insurance: React.FC = () => {
       const data = (result as any).data || result;
       setInsuranceHistory(data);
     } catch (error) {
-      message.warning('Khong the tai lich su KCB');
+      message.warning('Không thể tải lịch sử KCB');
       console.warn('Error fetching insurance history:', error);
     } finally {
       setHistoryLoading(false);
@@ -531,13 +531,13 @@ const Insurance: React.FC = () => {
       const result = await insuranceApi.testPortalConnection();
       const data = (result as any).data;
       if (data?.isConnected) {
-        message.success(`Dong bo thanh cong (${data.responseTimeMs}ms)`);
+        message.success(`Đồng bộ thành công (${data.responseTimeMs}ms)`);
         await fetchClaims();
       } else {
-        message.warning(`Khong the ket noi cong BHXH: ${data?.errorMessage || 'Khong xac dinh'}`);
+        message.warning(`Không thể kết nối cổng BHXH: ${data?.errorMessage || 'Không xác định'}`);
       }
     } catch (error) {
-      message.warning('Loi khi dong bo voi cong BHXH');
+      message.warning('Lỗi khi đồng bộ với cổng BHXH');
       console.warn('Error syncing:', error);
     } finally {
       setSyncLoading(false);
@@ -557,9 +557,9 @@ const Insurance: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      message.success(`Da tai xuong lo ${batch.batchCode}`);
+      message.success(`Đã tải xuống lô ${batch.batchCode}`);
     } catch (error) {
-      message.warning('Loi khi tai xuong');
+      message.warning('Lỗi khi tải xuống');
       console.warn('Error downloading batch:', error);
     }
   };
@@ -579,13 +579,13 @@ const Insurance: React.FC = () => {
       });
       const submitData = (result as any).data;
       if (submitData?.success) {
-        message.success(`Da gui lo ${batch.batchCode} thanh cong`);
+        message.success(`Đã gửi lô ${batch.batchCode} thành công`);
         await fetchXmlBatches();
       } else {
-        message.warning(`Gui khong thanh cong: ${submitData?.message || 'Loi khong xac dinh'}`);
+        message.warning(`Gửi không thành công: ${submitData?.message || 'Lỗi không xác định'}`);
       }
     } catch (error) {
-      message.warning(`Loi khi gui lo ${batch.batchCode}`);
+      message.warning(`Lỗi khi gửi lô ${batch.batchCode}`);
       console.warn('Error submitting batch:', error);
     } finally {
       setLoading(false);
@@ -644,9 +644,9 @@ const Insurance: React.FC = () => {
         // Export not available for all report types
       }
 
-      message.success(`Da tai ${reportName}`);
+      message.success(`Đã tải ${reportName}`);
     } catch (error) {
-      message.warning(`Loi khi tai ${reportName}`);
+      message.warning(`Lỗi khi tải ${reportName}`);
       console.warn(`Error loading report ${reportType}:`, error);
     } finally {
       setReportLoading(null);
@@ -663,33 +663,33 @@ const Insurance: React.FC = () => {
   // Claim columns
   const claimColumns: ColumnsType<InsuranceClaim> = [
     {
-      title: 'Ma giam dinh',
+      title: 'Mã giám định',
       dataIndex: 'claimCode',
       key: 'claimCode',
       width: 130,
       fixed: 'left',
     },
     {
-      title: 'Ma BN',
+      title: 'Mã BN',
       dataIndex: 'patientCode',
       key: 'patientCode',
       width: 120,
     },
     {
-      title: 'Ho ten BN',
+      title: 'Họ tên BN',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 150,
     },
     {
-      title: 'So the BHYT',
+      title: 'Số thẻ BHYT',
       dataIndex: 'insuranceNumber',
       key: 'insuranceNumber',
       width: 160,
       render: (num) => <Text code>{num}</Text>,
     },
     {
-      title: 'Ngay kham',
+      title: 'Ngày khám',
       dataIndex: 'visitDate',
       key: 'visitDate',
       width: 110,
@@ -702,7 +702,7 @@ const Insurance: React.FC = () => {
       width: 120,
     },
     {
-      title: 'Chan doan',
+      title: 'Chẩn đoán',
       dataIndex: 'diagnosis',
       key: 'diagnosis',
       width: 250,
@@ -714,7 +714,7 @@ const Insurance: React.FC = () => {
       ),
     },
     {
-      title: 'BHYT chi tra',
+      title: 'BHYT chi trả',
       dataIndex: 'insuranceAmount',
       key: 'insuranceAmount',
       width: 140,
@@ -722,21 +722,21 @@ const Insurance: React.FC = () => {
       render: (amount) => <Text type="success">{formatCurrency(amount)}</Text>,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 140,
       render: (status) => getClaimStatusTag(status),
       filters: [
-        { text: 'Cho giam dinh', value: 1 },
-        { text: 'Da gui BHXH', value: 2 },
-        { text: 'Da duyet', value: 3 },
-        { text: 'Tu choi', value: 4 },
+        { text: 'Chờ giám định', value: 1 },
+        { text: 'Đã gửi BHXH', value: 2 },
+        { text: 'Đã duyệt', value: 3 },
+        { text: 'Từ chối', value: 4 },
       ],
       onFilter: (value, record) => record.status === value,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 100,
       fixed: 'right',
@@ -750,7 +750,7 @@ const Insurance: React.FC = () => {
               setIsDetailModalOpen(true);
             }}
           >
-            Chi tiet
+            Chi tiết
           </Button>
         </Space>
       ),
@@ -760,33 +760,33 @@ const Insurance: React.FC = () => {
   // XML batch columns
   const xmlColumns: ColumnsType<XmlBatch> = [
     {
-      title: 'Ma lo',
+      title: 'Mã lô',
       dataIndex: 'batchCode',
       key: 'batchCode',
       width: 150,
     },
     {
-      title: 'Loai XML',
+      title: 'Loại XML',
       dataIndex: 'xmlType',
       key: 'xmlType',
       width: 130,
       render: (type) => <Tag color="blue">{type}</Tag>,
     },
     {
-      title: 'Ky',
+      title: 'Kỳ',
       dataIndex: 'period',
       key: 'period',
       width: 100,
     },
     {
-      title: 'So ho so',
+      title: 'Số hồ sơ',
       dataIndex: 'claimCount',
       key: 'claimCount',
       width: 100,
       align: 'right',
     },
     {
-      title: 'Tong tien',
+      title: 'Tổng tiền',
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       width: 180,
@@ -794,31 +794,31 @@ const Insurance: React.FC = () => {
       render: (amount) => <Text strong>{formatCurrency(amount)}</Text>,
     },
     {
-      title: 'Ngay tao',
+      title: 'Ngày tạo',
       dataIndex: 'createdDate',
       key: 'createdDate',
       width: 120,
       render: (date) => dayjs(date).format('DD/MM/YYYY'),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 130,
       render: (status) => getXmlStatusTag(status),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 200,
       render: (_, record) => (
         <Space>
           <Button size="small" icon={<ExportOutlined />} onClick={() => handleDownloadBatch(record)}>
-            Tai xuong
+            Tải xuống
           </Button>
           {record.status === 1 && (
             <Button size="small" type="primary" icon={<CloudUploadOutlined />} onClick={() => handleSubmitBatch(record)}>
-              Gui BHXH
+              Gửi BHXH
             </Button>
           )}
         </Space>
@@ -829,19 +829,19 @@ const Insurance: React.FC = () => {
   // Preview table columns
   const previewTableColumns: ColumnsType<insuranceApi.XmlTablePreview> = [
     {
-      title: 'Bang',
+      title: 'Bảng',
       dataIndex: 'tableName',
       key: 'tableName',
       width: 100,
       render: (name) => <Tag color="blue">{name}</Tag>,
     },
     {
-      title: 'Mo ta',
+      title: 'Mô tả',
       dataIndex: 'description',
       key: 'description',
     },
     {
-      title: 'So ban ghi',
+      title: 'Số bản ghi',
       dataIndex: 'recordCount',
       key: 'recordCount',
       width: 120,
@@ -859,19 +859,19 @@ const Insurance: React.FC = () => {
       width: 140,
     },
     {
-      title: 'Truong',
+      title: 'Trường',
       key: 'field',
       width: 120,
       render: (_: any, record: any) => record.errors?.[0]?.field || '-',
     },
     {
-      title: 'Ma loi',
+      title: 'Mã lỗi',
       key: 'errorCode',
       width: 100,
       render: (_: any, record: any) => record.errors?.[0]?.errorCode || '-',
     },
     {
-      title: 'Mo ta loi',
+      title: 'Mô tả lỗi',
       key: 'message',
       render: (_: any, record: any) => (
         <Text type="danger">{record.errors?.map((e: any) => e.message).join('; ') || '-'}</Text>
@@ -893,10 +893,10 @@ const Insurance: React.FC = () => {
   const renderXmlExportTab = () => (
     <Space orientation="vertical" style={{ width: '100%' }} size="large">
       {/* Step 1: Configure export */}
-      <Card title="Buoc 1: Cau hinh xuat XML" size="small">
+      <Card title="Bước 1: Cấu hình xuất XML" size="small">
         <Row gutter={16} align="middle">
           <Col span={10}>
-            <Text strong>Khoang thoi gian: </Text>
+            <Text strong>Khoảng thời gian: </Text>
             <RangePicker
               format="DD/MM/YYYY"
               value={exportDateRange}
@@ -911,13 +911,13 @@ const Insurance: React.FC = () => {
           <Col span={8}>
             <Text strong>Khoa: </Text>
             <Select
-              placeholder="Tat ca cac khoa"
+              placeholder="Tất cả các khoa"
               allowClear
               style={{ width: 200, marginLeft: 8 }}
               value={exportDepartmentId}
               onChange={(value) => setExportDepartmentId(value)}
             >
-              <Select.Option value="">Tat ca cac khoa</Select.Option>
+              <Select.Option value="">Tất cả các khoa</Select.Option>
             </Select>
           </Col>
           <Col span={6} style={{ textAlign: 'right' }}>
@@ -928,7 +928,7 @@ const Insurance: React.FC = () => {
               loading={previewLoading}
               size="large"
             >
-              Xem truoc
+              Xem trước
             </Button>
           </Col>
         </Row>
@@ -936,13 +936,13 @@ const Insurance: React.FC = () => {
 
       {/* Step 2: Preview results */}
       {exportPreview && (
-        <Card title="Buoc 2: Ket qua xem truoc" size="small">
+        <Card title="Bước 2: Kết quả xem trước" size="small">
           {/* Summary cards */}
           <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col span={6}>
               <Card>
                 <Statistic
-                  title="Tong ho so"
+                  title="Tổng hồ sơ"
                   value={exportPreview.totalRecords}
                   prefix={<FileDoneOutlined />}
                 />
@@ -951,7 +951,7 @@ const Insurance: React.FC = () => {
             <Col span={6}>
               <Card>
                 <Statistic
-                  title="Tong chi phi"
+                  title="Tổng chi phí"
                   value={exportPreview.totalCostAmount}
                   formatter={(value) => formatVND(value as number)}
                   styles={{ content: { color: '#1890ff', fontSize: 16 } }}
@@ -961,7 +961,7 @@ const Insurance: React.FC = () => {
             <Col span={6}>
               <Card>
                 <Statistic
-                  title="BHYT chi tra"
+                  title="BHYT chi trả"
                   value={exportPreview.totalInsuranceAmount}
                   formatter={(value) => formatVND(value as number)}
                   styles={{ content: { color: '#52c41a', fontSize: 16 } }}
@@ -971,7 +971,7 @@ const Insurance: React.FC = () => {
             <Col span={6}>
               <Card>
                 <Statistic
-                  title="Nguoi benh tra"
+                  title="Người bệnh trả"
                   value={exportPreview.totalPatientAmount}
                   formatter={(value) => formatVND(value as number)}
                   styles={{ content: { color: '#faad14', fontSize: 16 } }}
@@ -994,7 +994,7 @@ const Insurance: React.FC = () => {
           {exportPreview.hasBlockingErrors ? (
             <>
               <Alert
-                title="Du lieu chua day du - Khong the xuat XML"
+                title="Dữ liệu chưa đầy đủ - Không thể xuất XML"
                 type="error"
                 showIcon
                 style={{ marginBottom: 16 }}
@@ -1008,13 +1008,13 @@ const Insurance: React.FC = () => {
                 style={{ marginBottom: 16 }}
               />
               <Button type="primary" disabled size="large">
-                Xac nhan xuat XML
+                Xác nhận xuất XML
               </Button>
             </>
           ) : (
             <>
               <Alert
-                title="Du lieu hop le - San sang xuat XML"
+                title="Dữ liệu hợp lệ - Sẵn sàng xuất XML"
                 type="success"
                 showIcon
                 style={{ marginBottom: 16 }}
@@ -1026,7 +1026,7 @@ const Insurance: React.FC = () => {
                 loading={exportLoading}
                 size="large"
               >
-                Xac nhan xuat XML
+                Xác nhận xuất XML
               </Button>
             </>
           )}
@@ -1035,10 +1035,10 @@ const Insurance: React.FC = () => {
 
       {/* Step 3: Export result */}
       {exportResult && (
-        <Card title="Buoc 3: Ket qua xuat XML" size="small">
+        <Card title="Bước 3: Kết quả xuất XML" size="small">
           <Alert
-            title={`Xuat XML thanh cong! Ma lo: ${exportResult.batchCode || exportResult.batchId}`}
-            description={`Tong: ${exportResult.totalRecords} ho so, Thanh cong: ${exportResult.successRecords}, That bai: ${exportResult.failedRecords}`}
+            title={`Xuất XML thành công! Mã lô: ${exportResult.batchCode || exportResult.batchId}`}
+            description={`Tổng: ${exportResult.totalRecords} hồ sơ, Thành công: ${exportResult.successRecords}, Thất bại: ${exportResult.failedRecords}`}
             type="success"
             showIcon
             style={{ marginBottom: 16 }}
@@ -1046,7 +1046,7 @@ const Insurance: React.FC = () => {
 
           {exportResult.errors && exportResult.errors.length > 0 && (
             <Alert
-              title={`Co ${exportResult.errors.length} ho so loi`}
+              title={`Có ${exportResult.errors.length} hồ sơ lỗi`}
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
@@ -1060,7 +1060,7 @@ const Insurance: React.FC = () => {
               onClick={handleDownloadExport}
               size="large"
             >
-              Tai XML
+              Tải XML
             </Button>
             <Button
               icon={<SafetyCertificateOutlined />}
@@ -1068,7 +1068,7 @@ const Insurance: React.FC = () => {
               loading={signLoading}
               size="large"
             >
-              Ky so XML
+              Ký số XML
             </Button>
           </Space>
         </Card>
@@ -1076,9 +1076,9 @@ const Insurance: React.FC = () => {
 
       {/* Step 4: Sign result */}
       {signResult && (
-        <Card title="Buoc 4: Ket qua ky so" size="small">
+        <Card title="Bước 4: Kết quả ký số" size="small">
           <Alert
-            title={signResult.success ? 'Ky so XML thanh cong!' : 'Ky so XML khong thanh cong'}
+            title={signResult.success ? 'Ký số XML thành công!' : 'Ký số XML không thành công'}
             description={signResult.message}
             type={signResult.success ? 'success' : 'error'}
             showIcon
@@ -1087,7 +1087,7 @@ const Insurance: React.FC = () => {
       )}
 
       {/* Existing batches table */}
-      <Card title="Lich su xuat XML" size="small">
+      <Card title="Lịch sử xuất XML" size="small">
         <Table
           columns={xmlColumns}
           dataSource={xmlBatches}
@@ -1097,7 +1097,7 @@ const Insurance: React.FC = () => {
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `Tong: ${total} lo`,
+            showTotal: (total) => `Tổng: ${total} lô`,
           }}
         />
       </Card>
@@ -1109,25 +1109,25 @@ const Insurance: React.FC = () => {
   // =============================================
   const renderCardVerificationTab = () => (
     <Space orientation="vertical" style={{ width: '100%' }} size="large">
-      <Card title="Tra cuu the BHYT" size="small">
+      <Card title="Tra cứu thẻ BHYT" size="small">
         <Form form={verifyForm} layout="vertical">
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item
                 name="insuranceNumber"
-                label="So the BHYT"
-                rules={[{ required: true, message: 'Vui long nhap so the BHYT' }]}
+                label="Số thẻ BHYT"
+                rules={[{ required: true, message: 'Vui lòng nhập số thẻ BHYT' }]}
               >
-                <Input placeholder="Nhap so the BHYT (15 ky tu)" maxLength={15} />
+                <Input placeholder="Nhập số thẻ BHYT (15 ký tự)" maxLength={15} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="patientName" label="Ho ten benh nhan">
-                <Input placeholder="Nhap ho ten (khong bat buoc)" />
+              <Form.Item name="patientName" label="Họ tên bệnh nhân">
+                <Input placeholder="Nhập họ tên (không bắt buộc)" />
               </Form.Item>
             </Col>
             <Col span={5}>
-              <Form.Item name="dateOfBirth" label="Ngay sinh">
+              <Form.Item name="dateOfBirth" label="Ngày sinh">
                 <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
@@ -1140,7 +1140,7 @@ const Insurance: React.FC = () => {
                   loading={verifyLoading}
                   block
                 >
-                  Xac minh
+                  Xác minh
                 </Button>
               </Form.Item>
             </Col>
@@ -1150,7 +1150,7 @@ const Insurance: React.FC = () => {
 
       {cardVerification && (
         <Card
-          title="Ket qua xac minh"
+          title="Kết quả xác minh"
           size="small"
           extra={
             <Button
@@ -1158,73 +1158,73 @@ const Insurance: React.FC = () => {
               onClick={handleViewHistory}
               loading={historyLoading}
             >
-              Xem lich su KCB
+              Xem lịch sử KCB
             </Button>
           }
         >
           <Alert
-            title={cardVerification.duDkKcb ? 'Du dieu kien KCB' : 'Khong du dieu kien KCB'}
+            title={cardVerification.duDkKcb ? 'Đủ điều kiện KCB' : 'Không đủ điều kiện KCB'}
             description={cardVerification.duDkKcb
-              ? `Muc huong: ${cardVerification.mucHuong}% | Hieu luc: ${cardVerification.gtTheTu ? dayjs(cardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - ${cardVerification.gtTheDen ? dayjs(cardVerification.gtTheDen).format('DD/MM/YYYY') : ''}`
-              : cardVerification.lyDoKhongDuDk || 'Khong co thong tin'}
+              ? `Mức hưởng: ${cardVerification.mucHuong}% | Hiệu lực: ${cardVerification.gtTheTu ? dayjs(cardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - ${cardVerification.gtTheDen ? dayjs(cardVerification.gtTheDen).format('DD/MM/YYYY') : ''}`
+              : cardVerification.lyDoKhongDuDk || 'Không có thông tin'}
             type={cardVerification.duDkKcb ? 'success' : 'error'}
             showIcon
             style={{ marginBottom: 16 }}
           />
 
           <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="Ma the" span={2}>
+            <Descriptions.Item label="Mã thẻ" span={2}>
               <Text code strong>{cardVerification.maThe}</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="Ho ten">
+            <Descriptions.Item label="Họ tên">
               {cardVerification.hoTen}
             </Descriptions.Item>
-            <Descriptions.Item label="Ngay sinh">
+            <Descriptions.Item label="Ngày sinh">
               {cardVerification.ngaySinh ? dayjs(cardVerification.ngaySinh).format('DD/MM/YYYY') : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Gioi tinh">
-              {cardVerification.gioiTinh === 1 ? 'Nam' : cardVerification.gioiTinh === 2 ? 'Nu' : '-'}
+            <Descriptions.Item label="Giới tính">
+              {cardVerification.gioiTinh === 1 ? 'Nam' : cardVerification.gioiTinh === 2 ? 'Nữ' : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Dia chi">
+            <Descriptions.Item label="Địa chỉ">
               {cardVerification.diaChi || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="GT the tu">
+            <Descriptions.Item label="GT thẻ từ">
               {cardVerification.gtTheTu ? dayjs(cardVerification.gtTheTu).format('DD/MM/YYYY') : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="GT the den">
+            <Descriptions.Item label="GT thẻ đến">
               {cardVerification.gtTheDen ? dayjs(cardVerification.gtTheDen).format('DD/MM/YYYY') : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Noi DKKCB BD" span={2}>
+            <Descriptions.Item label="Nơi ĐKKCB BĐ" span={2}>
               {cardVerification.tenDkbd || '-'} ({cardVerification.maDkbd || '-'})
             </Descriptions.Item>
-            <Descriptions.Item label="Muc huong">
+            <Descriptions.Item label="Mức hưởng">
               <Text strong style={{ color: '#1890ff' }}>{cardVerification.mucHuong}%</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="Du DK KCB">
+            <Descriptions.Item label="Đủ ĐK KCB">
               {cardVerification.duDkKcb ? (
-                <Tag color="green" icon={<CheckCircleOutlined />}>Du dieu kien</Tag>
+                <Tag color="green" icon={<CheckCircleOutlined />}>Đủ điều kiện</Tag>
               ) : (
-                <Tag color="red" icon={<WarningOutlined />}>Khong du DK</Tag>
+                <Tag color="red" icon={<WarningOutlined />}>Không đủ ĐK</Tag>
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="Mien cung CT">
-              {cardVerification.mienCungCt ? <Tag color="green">Co</Tag> : <Tag>Khong</Tag>}
+            <Descriptions.Item label="Miễn cùng CT">
+              {cardVerification.mienCungCt ? <Tag color="green">Có</Tag> : <Tag>Không</Tag>}
             </Descriptions.Item>
-            <Descriptions.Item label="Loai the">
+            <Descriptions.Item label="Loại thẻ">
               {cardVerification.loaiThe || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Ma khu vuc">
+            <Descriptions.Item label="Mã khu vực">
               {cardVerification.maKv || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Tra truoc">
-              {cardVerification.isTraTruoc ? <Tag color="orange">Co</Tag> : <Tag>Khong</Tag>}
+            <Descriptions.Item label="Trả trước">
+              {cardVerification.isTraTruoc ? <Tag color="orange">Có</Tag> : <Tag>Không</Tag>}
             </Descriptions.Item>
             {cardVerification.lyDoKhongDuDk && (
-              <Descriptions.Item label="Ly do khong du DK" span={2}>
+              <Descriptions.Item label="Lý do không đủ ĐK" span={2}>
                 <Text type="danger">{cardVerification.lyDoKhongDuDk}</Text>
               </Descriptions.Item>
             )}
-            <Descriptions.Item label="Thoi gian xac minh" span={2}>
+            <Descriptions.Item label="Thời gian xác minh" span={2}>
               {cardVerification.verificationTime ? dayjs(cardVerification.verificationTime).format('DD/MM/YYYY HH:mm:ss') : '-'}
             </Descriptions.Item>
           </Descriptions>
@@ -1235,14 +1235,14 @@ const Insurance: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Giam dinh BHYT</Title>
+      <Title level={4}>Giám định BHYT</Title>
 
       {/* Summary Cards */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
             <Statistic
-              title="Tong ho so"
+              title="Tổng hồ sơ"
               value={totalClaims}
               prefix={<FileDoneOutlined />}
             />
@@ -1251,7 +1251,7 @@ const Insurance: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Cho giam dinh"
+              title="Chờ giám định"
               value={pendingClaims}
               styles={{ content: { color: pendingClaims > 0 ? '#faad14' : '#52c41a' } }}
               prefix={<ClockCircleOutlined />}
@@ -1261,7 +1261,7 @@ const Insurance: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Da duyet / Tu choi"
+              title="Đã duyệt / Từ chối"
               value={approvedClaims}
               suffix={`/ ${rejectedClaims}`}
               styles={{ content: { color: '#52c41a' } }}
@@ -1277,7 +1277,7 @@ const Insurance: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Tong BHYT chi tra"
+              title="Tổng BHYT chi trả"
               value={totalInsuranceAmount}
               precision={0}
               styles={{ content: { color: '#1890ff' } }}
@@ -1298,7 +1298,7 @@ const Insurance: React.FC = () => {
               label: (
                 <span>
                   <FileDoneOutlined />
-                  Ho so giam dinh
+                  Hồ sơ giám định
                   {pendingClaims > 0 && <Badge count={pendingClaims} style={{ marginLeft: 8 }} />}
                 </span>
               ),
@@ -1308,7 +1308,7 @@ const Insurance: React.FC = () => {
                     <Col flex="auto">
                       <Space>
                         <Search
-                          placeholder="Tim theo ma giam dinh, ma BN, so the BHYT..."
+                          placeholder="Tìm theo mã giám định, mã BN, số thẻ BHYT..."
                           allowClear
                           enterButton={<SearchOutlined />}
                           style={{ width: 400 }}
@@ -1342,17 +1342,17 @@ const Insurance: React.FC = () => {
                           onClick={handleApproveClaims}
                           disabled={selectedRowKeys.length === 0}
                         >
-                          Duyet giam dinh
+                          Duyệt giám định
                         </Button>
                         <Button
                           icon={<LockOutlined />}
                           onClick={handleLockClaims}
                           disabled={selectedRowKeys.length === 0}
                         >
-                          Khoa giam dinh
+                          Khóa giám định
                         </Button>
                         <Button icon={<SyncOutlined />} onClick={handleSync} loading={syncLoading}>
-                          Dong bo
+                          Đồng bộ
                         </Button>
                       </Space>
                     </Col>
@@ -1360,7 +1360,7 @@ const Insurance: React.FC = () => {
 
                   {rejectedClaims > 0 && (
                     <Alert
-                      title={`Co ${rejectedClaims} ho so bi tu choi can xu ly`}
+                      title={`Có ${rejectedClaims} hồ sơ bị từ chối cần xử lý`}
                       type="warning"
                       showIcon
                       style={{ marginBottom: 16 }}
@@ -1376,7 +1376,7 @@ const Insurance: React.FC = () => {
                             }
                           }}
                         >
-                          Xem chi tiet
+                          Xem chi tiết
                         </Button>
                       }
                     />
@@ -1393,7 +1393,7 @@ const Insurance: React.FC = () => {
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
-                      showTotal: (total) => `Tong: ${total} ho so`,
+                      showTotal: (total) => `Tổng: ${total} hồ sơ`,
                     }}
                     onRow={(record) => ({
                       onDoubleClick: () => {
@@ -1411,7 +1411,7 @@ const Insurance: React.FC = () => {
               label: (
                 <span>
                   <CloudUploadOutlined />
-                  Xuat XML
+                  Xuất XML
                 </span>
               ),
               children: renderXmlExportTab(),
@@ -1421,7 +1421,7 @@ const Insurance: React.FC = () => {
               label: (
                 <span>
                   <IdcardOutlined />
-                  Tra cuu the
+                  Tra cứu thẻ
                 </span>
               ),
               children: renderCardVerificationTab(),
@@ -1431,7 +1431,7 @@ const Insurance: React.FC = () => {
               label: (
                 <span>
                   <PrinterOutlined />
-                  Bao cao BHYT
+                  Báo cáo BHYT
                 </span>
               ),
               children: (
@@ -1440,14 +1440,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau19'}
-                      onClick={() => handleReportClick('mau19', 'Bao cao mau 19')}
+                      onClick={() => handleReportClick('mau19', 'Báo cáo mẫu 19')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#1890ff' }} />
                         <div>
-                          <Text strong>Bao cao mau 19</Text>
+                          <Text strong>Báo cáo mẫu 19</Text>
                           <br />
-                          <Text type="secondary">Bao cao tong hop KCB BHYT</Text>
+                          <Text type="secondary">Báo cáo tổng hợp KCB BHYT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1456,14 +1456,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau20'}
-                      onClick={() => handleReportClick('mau20', 'Bao cao mau 20')}
+                      onClick={() => handleReportClick('mau20', 'Báo cáo mẫu 20')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#52c41a' }} />
                         <div>
-                          <Text strong>Bao cao mau 20</Text>
+                          <Text strong>Báo cáo mẫu 20</Text>
                           <br />
-                          <Text type="secondary">Chi tiet chi phi KCB BHYT</Text>
+                          <Text type="secondary">Chi tiết chi phí KCB BHYT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1472,14 +1472,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau21'}
-                      onClick={() => handleReportClick('mau21', 'Bao cao mau 21')}
+                      onClick={() => handleReportClick('mau21', 'Báo cáo mẫu 21')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />
                         <div>
-                          <Text strong>Bao cao mau 21</Text>
+                          <Text strong>Báo cáo mẫu 21</Text>
                           <br />
-                          <Text type="secondary">Bao cao chi tiet theo doi tuong</Text>
+                          <Text type="secondary">Báo cáo chi tiết theo đối tượng</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1488,14 +1488,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau79'}
-                      onClick={() => handleReportClick('mau79', 'Bao cao mau 79')}
+                      onClick={() => handleReportClick('mau79', 'Báo cáo mẫu 79')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#722ed1' }} />
                         <div>
-                          <Text strong>Bao cao mau 79</Text>
+                          <Text strong>Báo cáo mẫu 79</Text>
                           <br />
-                          <Text type="secondary">Bao cao chi tiet PTTT</Text>
+                          <Text type="secondary">Báo cáo chi tiết PTTT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1504,14 +1504,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'mau80'}
-                      onClick={() => handleReportClick('mau80', 'Bao cao mau 80')}
+                      onClick={() => handleReportClick('mau80', 'Báo cáo mẫu 80')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#faad14' }} />
                         <div>
-                          <Text strong>Bao cao mau 80</Text>
+                          <Text strong>Báo cáo mẫu 80</Text>
                           <br />
-                          <Text type="secondary">Tong hop chi phi thuoc BHYT</Text>
+                          <Text type="secondary">Tổng hợp chi phí thuốc BHYT</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1520,14 +1520,14 @@ const Insurance: React.FC = () => {
                     <Card
                       hoverable
                       loading={reportLoading === 'tt102'}
-                      onClick={() => handleReportClick('tt102', 'Bao cao TT 102/2018')}
+                      onClick={() => handleReportClick('tt102', 'Báo cáo TT 102/2018')}
                     >
                       <Space>
                         <PrinterOutlined style={{ fontSize: 24, color: '#13c2c2' }} />
                         <div>
-                          <Text strong>Bao cao TT 102/2018</Text>
+                          <Text strong>Báo cáo TT 102/2018</Text>
                           <br />
-                          <Text type="secondary">Bao cao theo Thong tu 102/2018/TT-BTC</Text>
+                          <Text type="secondary">Báo cáo theo Thông tư 102/2018/TT-BTC</Text>
                         </div>
                       </Space>
                     </Card>
@@ -1541,7 +1541,7 @@ const Insurance: React.FC = () => {
 
       {/* Detail Modal */}
       <Modal
-        title="Chi tiet ho so giam dinh"
+        title="Chi tiết hồ sơ giám định"
         open={isDetailModalOpen}
         onCancel={() => {
           setIsDetailModalOpen(false);
@@ -1552,17 +1552,17 @@ const Insurance: React.FC = () => {
             key="print"
             icon={<PrinterOutlined />}
             onClick={() => {
-              if (!selectedClaim) { message.warning('Vui long chon ho so can in'); return; }
+              if (!selectedClaim) { message.warning('Vui lòng chọn hồ sơ cần in'); return; }
               const printWindow = window.open('', '_blank');
               if (!printWindow) {
-                message.warning('Khong the mo cua so in. Vui long cho phep popup.');
+                message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
                 return;
               }
               printWindow.document.write(`
                 <!DOCTYPE html>
                 <html>
                 <head>
-                  <title>Bang ke giam dinh BHYT - ${selectedClaim.claimCode}</title>
+                  <title>Bảng kê giám định BHYT - ${selectedClaim.claimCode}</title>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.5; padding: 20px; }
@@ -1586,48 +1586,48 @@ const Insurance: React.FC = () => {
                   <div class="header">
                     <div class="header-left">
                       <div><strong>${HOSPITAL_NAME}</strong></div>
-                      <div>Phong Tai chinh - Ke toan</div>
+                      <div>Phòng Tài chính - Kế toán</div>
                     </div>
                     <div style="text-align: right;">
-                      <div><strong>Mau: BHYT-BK</strong></div>
-                      <div>So: ${selectedClaim.claimCode}</div>
+                      <div><strong>Mẫu: BHYT-BK</strong></div>
+                      <div>Số: ${selectedClaim.claimCode}</div>
                     </div>
                   </div>
 
-                  <div class="title">BANG KE CHI PHI KHAM CHUA BENH BHYT</div>
+                  <div class="title">BẢNG KÊ CHI PHÍ KHÁM CHỮA BỆNH BHYT</div>
                   <div style="text-align: center; margin-bottom: 15px;">
-                    Ngay ${dayjs().format('DD')} thang ${dayjs().format('MM')} nam ${dayjs().format('YYYY')}
+                    Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}
                   </div>
 
-                  <div class="info-row">Ma giam dinh: <span class="field"><strong>${selectedClaim.claimCode}</strong></span></div>
-                  <div class="info-row">Ma BN: <span class="field">${selectedClaim.patientCode}</span> Ho ten BN: <span class="field" style="width: 250px;"><strong>${selectedClaim.patientName}</strong></span></div>
-                  <div class="info-row">So the BHYT: <span class="field">${selectedClaim.insuranceNumber}</span></div>
-                  <div class="info-row">Ngay kham: <span class="field">${dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}</span> Ngay ra vien: <span class="field">${selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '---'}</span></div>
-                  <div class="info-row">Khoa/Phong: <span class="field">${selectedClaim.department || '---'}</span></div>
-                  <div class="info-row">Chan doan: <span class="field" style="width: 400px;">${selectedClaim.diagnosis}</span></div>
+                  <div class="info-row">Mã giám định: <span class="field"><strong>${selectedClaim.claimCode}</strong></span></div>
+                  <div class="info-row">Mã BN: <span class="field">${selectedClaim.patientCode}</span> Họ tên BN: <span class="field" style="width: 250px;"><strong>${selectedClaim.patientName}</strong></span></div>
+                  <div class="info-row">Số thẻ BHYT: <span class="field">${selectedClaim.insuranceNumber}</span></div>
+                  <div class="info-row">Ngày khám: <span class="field">${dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}</span> Ngày ra viện: <span class="field">${selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '---'}</span></div>
+                  <div class="info-row">Khoa/Phòng: <span class="field">${selectedClaim.department || '---'}</span></div>
+                  <div class="info-row">Chẩn đoán: <span class="field" style="width: 400px;">${selectedClaim.diagnosis}</span></div>
 
                   <table>
                     <thead>
                       <tr>
-                        <th>Noi dung</th>
-                        <th class="text-right" style="width: 180px;">So tien (VND)</th>
+                        <th>Nội dung</th>
+                        <th class="text-right" style="width: 180px;">Số tiền (VND)</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>Tong chi phi KCB</td>
+                        <td>Tổng chi phí KCB</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
                       </tr>
                       <tr>
-                        <td>BHYT chi tra</td>
+                        <td>BHYT chi trả</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.insuranceAmount)}</td>
                       </tr>
                       <tr>
-                        <td>Nguoi benh chi tra</td>
+                        <td>Người bệnh chi trả</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.patientAmount)}</td>
                       </tr>
                       <tr class="total-row">
-                        <td>Tong cong</td>
+                        <td>Tổng cộng</td>
                         <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
                       </tr>
                     </tbody>
@@ -1635,24 +1635,24 @@ const Insurance: React.FC = () => {
 
                   ${selectedClaim.status === 4 && selectedClaim.rejectReason ? `
                     <div class="reject-box">
-                      <strong>Ly do tu choi:</strong> ${selectedClaim.rejectReason}
+                      <strong>Lý do từ chối:</strong> ${selectedClaim.rejectReason}
                     </div>
                   ` : ''}
 
-                  ${selectedClaim.submittedDate ? `<div class="info-row">Ngay gui BHXH: <span class="field">${dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}</span></div>` : ''}
+                  ${selectedClaim.submittedDate ? `<div class="info-row">Ngày gửi BHXH: <span class="field">${dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}</span></div>` : ''}
 
                   <div class="signature-row">
                     <div class="signature-col">
-                      <div><strong>NGUOI LAP BANG KE</strong></div>
-                      <div>(Ky, ghi ro ho ten)</div>
+                      <div><strong>NGƯỜI LẬP BẢNG KÊ</strong></div>
+                      <div>(Ký, ghi rõ họ tên)</div>
                     </div>
                     <div class="signature-col">
-                      <div><strong>KE TOAN VIEN PHI</strong></div>
-                      <div>(Ky, ghi ro ho ten)</div>
+                      <div><strong>KẾ TOÁN VIỆN PHÍ</strong></div>
+                      <div>(Ký, ghi rõ họ tên)</div>
                     </div>
                     <div class="signature-col">
-                      <div><strong>GIAM DOC BENH VIEN</strong></div>
-                      <div>(Ky ten, dong dau)</div>
+                      <div><strong>GIÁM ĐỐC BỆNH VIỆN</strong></div>
+                      <div>(Ký tên, đóng dấu)</div>
                     </div>
                   </div>
                 </body>
@@ -1663,10 +1663,10 @@ const Insurance: React.FC = () => {
               setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
             }}
           >
-            In bang ke
+            In bảng kê
           </Button>,
           <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-            Dong
+            Đóng
           </Button>,
         ]}
         width={800}
@@ -1674,42 +1674,42 @@ const Insurance: React.FC = () => {
         {selectedClaim && (
           <>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ma giam dinh">{selectedClaim.claimCode}</Descriptions.Item>
-              <Descriptions.Item label="Trang thai">{getClaimStatusTag(selectedClaim.status)}</Descriptions.Item>
-              <Descriptions.Item label="Ma BN">{selectedClaim.patientCode}</Descriptions.Item>
-              <Descriptions.Item label="Ho ten BN">{selectedClaim.patientName}</Descriptions.Item>
-              <Descriptions.Item label="So the BHYT" span={2}>
+              <Descriptions.Item label="Mã giám định">{selectedClaim.claimCode}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">{getClaimStatusTag(selectedClaim.status)}</Descriptions.Item>
+              <Descriptions.Item label="Mã BN">{selectedClaim.patientCode}</Descriptions.Item>
+              <Descriptions.Item label="Họ tên BN">{selectedClaim.patientName}</Descriptions.Item>
+              <Descriptions.Item label="Số thẻ BHYT" span={2}>
                 <Text code>{selectedClaim.insuranceNumber}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Ngay kham">
+              <Descriptions.Item label="Ngày khám">
                 {dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}
               </Descriptions.Item>
-              <Descriptions.Item label="Ngay ra vien">
+              <Descriptions.Item label="Ngày ra viện">
                 {selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="Khoa/Phong">{selectedClaim.department}</Descriptions.Item>
-              <Descriptions.Item label="Chan doan" span={2}>{selectedClaim.diagnosis}</Descriptions.Item>
-              <Descriptions.Item label="Tong chi phi">
+              <Descriptions.Item label="Khoa/Phòng">{selectedClaim.department}</Descriptions.Item>
+              <Descriptions.Item label="Chẩn đoán" span={2}>{selectedClaim.diagnosis}</Descriptions.Item>
+              <Descriptions.Item label="Tổng chi phí">
                 <Text strong>{formatCurrency(selectedClaim.totalAmount)}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="BHYT chi tra">
+              <Descriptions.Item label="BHYT chi trả">
                 <Text type="success" strong>{formatCurrency(selectedClaim.insuranceAmount)}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="BN chi tra">
+              <Descriptions.Item label="BN chi trả">
                 {formatCurrency(selectedClaim.patientAmount)}
               </Descriptions.Item>
               {selectedClaim.submittedDate && (
-                <Descriptions.Item label="Ngay gui BHXH">
+                <Descriptions.Item label="Ngày gửi BHXH">
                   {dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}
                 </Descriptions.Item>
               )}
               {selectedClaim.approvedDate && (
-                <Descriptions.Item label="Ngay duyet">
+                <Descriptions.Item label="Ngày duyệt">
                   {dayjs(selectedClaim.approvedDate).format('DD/MM/YYYY')}
                 </Descriptions.Item>
               )}
               {selectedClaim.rejectReason && (
-                <Descriptions.Item label="Ly do tu choi" span={2}>
+                <Descriptions.Item label="Lý do từ chối" span={2}>
                   <Text type="danger">{selectedClaim.rejectReason}</Text>
                 </Descriptions.Item>
               )}
@@ -1717,8 +1717,8 @@ const Insurance: React.FC = () => {
 
             {selectedClaim.status === 4 && (
               <Alert
-                title="Ho so bi tu choi"
-                description={`Ly do: ${selectedClaim.rejectReason}. Vui long kiem tra va cap nhat ho so.`}
+                title="Hồ sơ bị từ chối"
+                description={`Lý do: ${selectedClaim.rejectReason}. Vui lòng kiểm tra và cập nhật hồ sơ.`}
                 type="error"
                 showIcon
                 style={{ marginTop: 16 }}
@@ -1730,7 +1730,7 @@ const Insurance: React.FC = () => {
 
       {/* Insurance History Modal */}
       <Modal
-        title="Lich su kham chua benh BHYT"
+        title="Lịch sử khám chữa bệnh BHYT"
         open={isHistoryModalOpen}
         onCancel={() => {
           setIsHistoryModalOpen(false);
@@ -1743,7 +1743,7 @@ const Insurance: React.FC = () => {
           {insuranceHistory && (
             <>
               <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="Ma the BHYT">
+                <Descriptions.Item label="Mã thẻ BHYT">
                   <Text code>{insuranceHistory.maThe}</Text>
                 </Descriptions.Item>
               </Descriptions>
@@ -1751,30 +1751,30 @@ const Insurance: React.FC = () => {
                 size="small"
                 columns={[
                   {
-                    title: 'Ngay KCB',
+                    title: 'Ngày KCB',
                     dataIndex: 'ngayKcb',
                     key: 'ngayKcb',
                     width: 110,
                     render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
                   },
                   {
-                    title: 'Ten CSKCB',
+                    title: 'Tên CSKCB',
                     dataIndex: 'tenCsKcb',
                     key: 'tenCsKcb',
                   },
                   {
-                    title: 'Ma benh chinh',
+                    title: 'Mã bệnh chính',
                     dataIndex: 'maBenhChinh',
                     key: 'maBenhChinh',
                     width: 120,
                   },
                   {
-                    title: 'Ten benh chinh',
+                    title: 'Tên bệnh chính',
                     dataIndex: 'tenBenhChinh',
                     key: 'tenBenhChinh',
                   },
                   {
-                    title: 'Tien BHYT',
+                    title: 'Tiền BHYT',
                     dataIndex: 'tienBhyt',
                     key: 'tienBhyt',
                     width: 130,

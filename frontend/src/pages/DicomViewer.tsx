@@ -226,7 +226,7 @@ const DicomViewer: React.FC = () => {
               <p>Để xem ảnh DICOM, cần có Orthanc PACS Server đang chạy.</p>
               <p>Cấu hình mặc định:</p>
               <ul>
-                <li>Orthanc Web: http://localhost:8042</li>
+                <li>Orthanc Web: {ORTHANC_BASE}</li>
                 <li>DICOM Port: 4242</li>
               </ul>
               <p>

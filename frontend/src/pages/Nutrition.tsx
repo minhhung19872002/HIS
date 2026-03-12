@@ -211,7 +211,7 @@ const Nutrition: React.FC = () => {
       fetchData();
     } catch (err) {
       console.warn('Failed to create screening:', err);
-      message.warning('Khong the luu ket qua sang loc. Vui long thu lai.');
+      message.warning('Không thể lưu kết quả sàng lọc. Vui lòng thử lại.');
     }
   };
 
@@ -240,11 +240,11 @@ const Nutrition: React.FC = () => {
 
       setIsPlanModalOpen(false);
       planForm.resetFields();
-      message.success('Da tao ke hoach dinh duong');
+      message.success('Đã tạo kế hoạch dinh dưỡng');
       fetchData();
     } catch (err) {
       console.warn('Failed to create diet order:', err);
-      message.warning('Khong the tao ke hoach dinh duong. Vui long thu lai.');
+      message.warning('Không thể tạo kế hoạch dinh dưỡng. Vui lòng thử lại.');
     }
   };
 
@@ -413,10 +413,10 @@ const Nutrition: React.FC = () => {
           return <Tag color={colorMap[record.statusName] || 'default'}>{record.statusName}</Tag>;
         }
         const statusConfig: Record<number, { color: string; text: string }> = {
-          0: { color: 'orange', text: 'Cho sang loc' },
-          1: { color: 'blue', text: 'Da sang loc' },
-          2: { color: 'green', text: 'Dang theo doi' },
-          3: { color: 'default', text: 'Da xuat vien' },
+          0: { color: 'orange', text: 'Chờ sàng lọc' },
+          1: { color: 'blue', text: 'Đã sàng lọc' },
+          2: { color: 'green', text: 'Đang theo dõi' },
+          3: { color: 'default', text: 'Đã xuất viện' },
         };
         const c = statusConfig[record.status] || { color: 'default', text: `Status ${record.status}` };
         return <Tag color={c.color}>{c.text}</Tag>;
@@ -612,10 +612,10 @@ const Nutrition: React.FC = () => {
       width: 120,
       render: (_, record) => {
         const deliveryLabels: Record<number, { color: string; text: string }> = {
-          0: { color: 'default', text: 'Cho' },
-          1: { color: 'blue', text: 'Dang che bien' },
-          2: { color: 'orange', text: 'Da giao' },
-          3: { color: 'green', text: 'Da an' },
+          0: { color: 'default', text: 'Chờ' },
+          1: { color: 'blue', text: 'Đang chế biến' },
+          2: { color: 'orange', text: 'Đã giao' },
+          3: { color: 'green', text: 'Đã ăn' },
         };
         const c = deliveryLabels[record.deliveryStatus] || { color: 'default', text: `${record.deliveryStatus}` };
         return <Tag color={c.color}>{c.text}</Tag>;

@@ -45,7 +45,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import risApi from '../api/ris';
 import type { USBTokenCertificate, PdfGenerateSignRequest } from '../api/ris';
-import { HOSPITAL_NAME } from '../constants/hospital';
+import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -326,8 +326,8 @@ const Radiology: React.FC = () => {
           reportedBy: selectedReportToSign.radiologistName || selectedReportToSign.doctorName || '',
           reportedDate: selectedReportToSign.reportDate || dayjs().format('YYYY-MM-DD HH:mm'),
           hospitalName: HOSPITAL_NAME,
-          hospitalAddress: '123 Đường ABC, Quận 1, TP.HCM',
-          hospitalPhone: '028-12345678',
+          hospitalAddress: HOSPITAL_ADDRESS,
+          hospitalPhone: HOSPITAL_PHONE,
           certificateThumbprint: values.certificateThumbprint,
         };
 

@@ -102,7 +102,7 @@ const DoctorPortal: React.FC = () => {
         setOpdTotal(res.data.totalCount || 0);
       }
     } catch {
-      message.warning('Khong the tai danh sach benh nhan ngoai tru');
+      message.warning('Không thể tải danh sách bệnh nhân ngoại trú');
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ const DoctorPortal: React.FC = () => {
         setIpdTotal(res.data.totalCount || 0);
       }
     } catch {
-      message.warning('Khong the tai danh sach benh nhan noi tru');
+      message.warning('Không thể tải danh sách bệnh nhân nội trú');
     } finally {
       setLoading(false);
     }
@@ -194,21 +194,21 @@ const DoctorPortal: React.FC = () => {
       await digitalSignApi.signDocument({
         documentId: signingDoc.documentId,
         documentType: signingDoc.documentType,
-        reason: 'Ky xac nhan',
-        location: 'Benh vien',
+        reason: 'Ký xác nhận',
+        location: 'Bệnh viện',
       });
-      message.success('Ky so thanh cong');
+      message.success('Ký số thành công');
       setSignModalOpen(false);
       setSigningDoc(null);
       fetchPendingDocuments();
     } catch {
-      message.warning('Khong the ky so tai lieu');
+      message.warning('Không thể ký số tài liệu');
     }
   };
 
   const handleBatchSign = async () => {
     if (selectedDocIds.length === 0) {
-      message.warning('Vui long chon tai lieu can ky');
+      message.warning('Vui lòng chọn tài liệu cần ký');
       return;
     }
     try {
@@ -216,13 +216,13 @@ const DoctorPortal: React.FC = () => {
       await digitalSignApi.batchSign({
         documentIds: selectedDocIds,
         documentType: docType,
-        reason: 'Ky hang loat',
+        reason: 'Ký hàng loạt',
       });
-      message.success(`Da ky ${selectedDocIds.length} tai lieu`);
+      message.success(`Đã ký ${selectedDocIds.length} tài liệu`);
       setSelectedDocIds([]);
       fetchPendingDocuments();
     } catch {
-      message.warning('Ky hang loat that bai');
+      message.warning('Ký hàng loạt thất bại');
     }
   };
 
@@ -232,11 +232,11 @@ const DoctorPortal: React.FC = () => {
 
   const getOpdStatusTag = (status: number) => {
     const map: Record<number, { color: string; label: string }> = {
-      0: { color: 'default', label: 'Cho kham' },
-      1: { color: 'blue', label: 'Dang kham' },
-      2: { color: 'orange', label: 'Cho KQ CLS' },
-      3: { color: 'green', label: 'Hoan thanh' },
-      4: { color: 'red', label: 'Da khoa' },
+      0: { color: 'default', label: 'Chờ khám' },
+      1: { color: 'blue', label: 'Đang khám' },
+      2: { color: 'orange', label: 'Chờ KQ CLS' },
+      3: { color: 'green', label: 'Hoàn thành' },
+      4: { color: 'red', label: 'Đã khóa' },
     };
     const info = map[status] || { color: 'default', label: String(status) };
     return <Tag color={info.color}>{info.label}</Tag>;
@@ -244,10 +244,10 @@ const DoctorPortal: React.FC = () => {
 
   const getIpdStatusTag = (status: number) => {
     const map: Record<number, { color: string; label: string }> = {
-      1: { color: 'blue', label: 'Dang dieu tri' },
-      2: { color: 'orange', label: 'Cho xuat vien' },
-      3: { color: 'green', label: 'Da xuat vien' },
-      4: { color: 'red', label: 'Chuyen vien' },
+      1: { color: 'blue', label: 'Đang điều trị' },
+      2: { color: 'orange', label: 'Chờ xuất viện' },
+      3: { color: 'green', label: 'Đã xuất viện' },
+      4: { color: 'red', label: 'Chuyển viện' },
     };
     const info = map[status] || { color: 'default', label: String(status) };
     return <Tag color={info.color}>{info.label}</Tag>;
@@ -275,16 +275,16 @@ const DoctorPortal: React.FC = () => {
       title: 'STT', dataIndex: 'queueNumber', key: 'queueNumber', width: 70,
       render: (num: number) => <Avatar size="small" style={{ backgroundColor: '#1890ff' }}>{num}</Avatar>,
     },
-    { title: 'Ho ten', dataIndex: 'patientName', key: 'patientName', ellipsis: true },
-    { title: 'Ma BN', dataIndex: 'patientCode', key: 'patientCode', width: 110, responsive: ['md'] as const },
-    { title: 'Phong', dataIndex: 'roomName', key: 'roomName', width: 120, responsive: ['lg'] as const },
+    { title: 'Họ tên', dataIndex: 'patientName', key: 'patientName', ellipsis: true },
+    { title: 'Mã BN', dataIndex: 'patientCode', key: 'patientCode', width: 110, responsive: ['md'] as const },
+    { title: 'Phòng', dataIndex: 'roomName', key: 'roomName', width: 120, responsive: ['lg'] as const },
     {
-      title: 'Chan doan', dataIndex: 'diagnosisName', key: 'diagnosisName', ellipsis: true,
+      title: 'Chẩn đoán', dataIndex: 'diagnosisName', key: 'diagnosisName', ellipsis: true,
       responsive: ['md'] as const,
-      render: (t: string) => t || <Text type="secondary">Chua co</Text>,
+      render: (t: string) => t || <Text type="secondary">Chưa có</Text>,
     },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 130,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130,
       render: (s: number) => getOpdStatusTag(s),
     },
     {
@@ -300,63 +300,63 @@ const DoctorPortal: React.FC = () => {
     <>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={8} md={6}>
-          <Card size="small"><Statistic title="Cho kham" value={opdWaiting} prefix={<ClockCircleOutlined />}
+          <Card size="small"><Statistic title="Chờ khám" value={opdWaiting} prefix={<ClockCircleOutlined />}
             styles={{ content: { color: '#faad14', fontSize: 20 } }} /></Card>
         </Col>
         <Col xs={8} md={6}>
-          <Card size="small"><Statistic title="Dang kham" value={opdInProgress} prefix={<UserOutlined />}
+          <Card size="small"><Statistic title="Đang khám" value={opdInProgress} prefix={<UserOutlined />}
             styles={{ content: { color: '#1890ff', fontSize: 20 } }} /></Card>
         </Col>
         <Col xs={8} md={6}>
-          <Card size="small"><Statistic title="Hoan thanh" value={opdCompleted} prefix={<CheckCircleOutlined />}
+          <Card size="small"><Statistic title="Hoàn thành" value={opdCompleted} prefix={<CheckCircleOutlined />}
             styles={{ content: { color: '#52c41a', fontSize: 20 } }} /></Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card size="small"><Statistic title="Tong hom nay" value={opdTotal} prefix={<TeamOutlined />} /></Card>
+          <Card size="small"><Statistic title="Tổng hôm nay" value={opdTotal} prefix={<TeamOutlined />} /></Card>
         </Col>
       </Row>
 
       <Row style={{ marginBottom: 12 }}>
         <Col xs={24} sm={16} md={12}>
-          <Search placeholder="Tim benh nhan (ten, ma BN)..."
+          <Search placeholder="Tìm bệnh nhân (tên, mã BN)..."
             onSearch={(v) => { setOpdKeyword(v); setOpdPage(1); }} allowClear enterButton />
         </Col>
       </Row>
 
       <Table columns={opdColumns} dataSource={opdPatients} rowKey="id" size="small" loading={loading}
         pagination={{ current: opdPage, pageSize: 20, total: opdTotal, showSizeChanger: false,
-          showTotal: (t) => `${t} benh nhan`, onChange: (p) => setOpdPage(p), size: 'small' }}
+          showTotal: (t) => `${t} bệnh nhân`, onChange: (p) => setOpdPage(p), size: 'small' }}
         onRow={(r) => ({ onClick: () => { setSelectedOpd(r); setOpdDetailOpen(true); }, style: { cursor: 'pointer' } })}
         scroll={{ x: 600 }} />
 
-      <Modal title={<Space><UserOutlined /><span>Benh nhan - {selectedOpd?.patientName}</span></Space>}
+      <Modal title={<Space><UserOutlined /><span>Bệnh nhân - {selectedOpd?.patientName}</span></Space>}
         open={opdDetailOpen} onCancel={() => { setOpdDetailOpen(false); setSelectedOpd(null); }}
         destroyOnHidden width={700}
         footer={selectedOpd ? (
           <Space wrap>
-            <Button icon={<MedicineBoxOutlined />} type="primary">Ke don</Button>
-            <Button icon={<ExperimentOutlined />}>Chi dinh CLS</Button>
-            <Button icon={<SaveOutlined />}>Luu</Button>
-            <Button onClick={() => setOpdDetailOpen(false)}>Dong</Button>
+            <Button icon={<MedicineBoxOutlined />} type="primary">Kê đơn</Button>
+            <Button icon={<ExperimentOutlined />}>Chỉ định CLS</Button>
+            <Button icon={<SaveOutlined />}>Lưu</Button>
+            <Button onClick={() => setOpdDetailOpen(false)}>Đóng</Button>
           </Space>
         ) : null}>
         {selectedOpd && (
           <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
-            <Descriptions.Item label="Ma benh nhan">{selectedOpd.patientCode}</Descriptions.Item>
-            <Descriptions.Item label="Ho ten">{selectedOpd.patientName}</Descriptions.Item>
-            <Descriptions.Item label="So thu tu">
+            <Descriptions.Item label="Mã bệnh nhân">{selectedOpd.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Họ tên">{selectedOpd.patientName}</Descriptions.Item>
+            <Descriptions.Item label="Số thứ tự">
               <Badge count={selectedOpd.queueNumber} style={{ backgroundColor: '#1890ff' }} />
             </Descriptions.Item>
-            <Descriptions.Item label="Trang thai">{getOpdStatusTag(selectedOpd.status)}</Descriptions.Item>
-            <Descriptions.Item label="Phong kham">{selectedOpd.roomName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Bac si">{selectedOpd.doctorName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Ngay kham">
+            <Descriptions.Item label="Trạng thái">{getOpdStatusTag(selectedOpd.status)}</Descriptions.Item>
+            <Descriptions.Item label="Phòng khám">{selectedOpd.roomName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Bác sĩ">{selectedOpd.doctorName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Ngày khám">
               {dayjs(selectedOpd.examinationDate).format('DD/MM/YYYY HH:mm')}
             </Descriptions.Item>
-            <Descriptions.Item label="Chan doan">
+            <Descriptions.Item label="Chẩn đoán">
               {selectedOpd.diagnosisCode
                 ? `${selectedOpd.diagnosisCode} - ${selectedOpd.diagnosisName}`
-                : <Text type="secondary">Chua co chan doan</Text>}
+                : <Text type="secondary">Chưa có chẩn đoán</Text>}
             </Descriptions.Item>
           </Descriptions>
         )}
@@ -374,11 +374,11 @@ const DoctorPortal: React.FC = () => {
 
   const ipdColumns: ColumnsType<inpatientApi.InpatientListDto> = [
     {
-      title: 'Giuong', dataIndex: 'bedName', key: 'bedName', width: 80,
+      title: 'Giường', dataIndex: 'bedName', key: 'bedName', width: 80,
       render: (b: string, r: inpatientApi.InpatientListDto) => <Tag color={r.isDebtWarning ? 'red' : 'blue'}>{b || '-'}</Tag>,
     },
     {
-      title: 'Ho ten', dataIndex: 'patientName', key: 'patientName', ellipsis: true,
+      title: 'Họ tên', dataIndex: 'patientName', key: 'patientName', ellipsis: true,
       render: (n: string, r: inpatientApi.InpatientListDto) => (
         <Space><span>{n}</span>
           {r.hasPendingOrders && <Badge status="processing" />}
@@ -389,11 +389,11 @@ const DoctorPortal: React.FC = () => {
     },
     { title: 'Khoa', dataIndex: 'departmentName', key: 'dept', width: 120, ellipsis: true, responsive: ['md'] as const },
     {
-      title: 'Ngay NV', dataIndex: 'daysOfStay', key: 'days', width: 85,
-      render: (d: number) => <Tag color={d > 14 ? 'orange' : 'default'}>{d} ngay</Tag>,
+      title: 'Ngày NV', dataIndex: 'daysOfStay', key: 'days', width: 85,
+      render: (d: number) => <Tag color={d > 14 ? 'orange' : 'default'}>{d} ngày</Tag>,
     },
     {
-      title: 'Chan doan', dataIndex: 'mainDiagnosis', key: 'diag', ellipsis: true,
+      title: 'Chẩn đoán', dataIndex: 'mainDiagnosis', key: 'diag', ellipsis: true,
       responsive: ['lg'] as const,
       render: (t: string) => t || <Text type="secondary">-</Text>,
     },
@@ -407,84 +407,84 @@ const DoctorPortal: React.FC = () => {
     <>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={8} md={6}>
-          <Card size="small"><Statistic title="Dang dieu tri" value={ipdActive} prefix={<MedicineBoxOutlined />}
+          <Card size="small"><Statistic title="Đang điều trị" value={ipdActive} prefix={<MedicineBoxOutlined />}
             styles={{ content: { color: '#1890ff', fontSize: 20 } }} /></Card>
         </Col>
         <Col xs={8} md={6}>
-          <Card size="small"><Statistic title="Cho xuat vien" value={ipdPendingDischarge} prefix={<LogoutOutlined />}
+          <Card size="small"><Statistic title="Chờ xuất viện" value={ipdPendingDischarge} prefix={<LogoutOutlined />}
             styles={{ content: { color: '#faad14', fontSize: 20 } }} /></Card>
         </Col>
         <Col xs={8} md={6}>
-          <Card size="small"><Statistic title="Co canh bao" value={ipdAlerts} prefix={<AlertOutlined />}
+          <Card size="small"><Statistic title="Có cảnh báo" value={ipdAlerts} prefix={<AlertOutlined />}
             styles={{ content: { color: ipdAlerts > 0 ? '#f5222d' : '#52c41a', fontSize: 20 } }} /></Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card size="small"><Statistic title="Tong noi tru" value={ipdTotal} prefix={<TeamOutlined />} /></Card>
+          <Card size="small"><Statistic title="Tổng nội trú" value={ipdTotal} prefix={<TeamOutlined />} /></Card>
         </Col>
       </Row>
 
       <Row style={{ marginBottom: 12 }}>
         <Col xs={24} sm={16} md={12}>
-          <Search placeholder="Tim benh nhan (ten, ma BN, giuong)..."
+          <Search placeholder="Tìm bệnh nhân (tên, mã BN, giường)..."
             onSearch={(v) => { setIpdKeyword(v); setIpdPage(1); }} allowClear enterButton />
         </Col>
       </Row>
 
       <Table columns={ipdColumns} dataSource={ipdPatients} rowKey="admissionId" size="small" loading={loading}
         pagination={{ current: ipdPage, pageSize: 20, total: ipdTotal, showSizeChanger: false,
-          showTotal: (t) => `${t} benh nhan`, onChange: (p) => setIpdPage(p), size: 'small' }}
+          showTotal: (t) => `${t} bệnh nhân`, onChange: (p) => setIpdPage(p), size: 'small' }}
         onRow={(r) => ({ onClick: () => { setSelectedIpd(r); setIpdDetailOpen(true); }, style: { cursor: 'pointer' } })}
         scroll={{ x: 600 }} />
 
-      <Modal title={<Space><SolutionOutlined /><span>Benh nhan noi tru - {selectedIpd?.patientName}</span></Space>}
+      <Modal title={<Space><SolutionOutlined /><span>Bệnh nhân nội trú - {selectedIpd?.patientName}</span></Space>}
         open={ipdDetailOpen} onCancel={() => { setIpdDetailOpen(false); setSelectedIpd(null); }}
         destroyOnHidden width={750}
         footer={selectedIpd ? (
           <Space wrap>
-            <Button icon={<EditOutlined />} type="primary">Y lenh</Button>
-            <Button icon={<FileTextOutlined />}>Phieu dieu tri</Button>
-            <Button icon={<LogoutOutlined />} danger>Xuat vien</Button>
-            <Button onClick={() => setIpdDetailOpen(false)}>Dong</Button>
+            <Button icon={<EditOutlined />} type="primary">Y lệnh</Button>
+            <Button icon={<FileTextOutlined />}>Phiếu điều trị</Button>
+            <Button icon={<LogoutOutlined />} danger>Xuất viện</Button>
+            <Button onClick={() => setIpdDetailOpen(false)}>Đóng</Button>
           </Space>
         ) : null}>
         {selectedIpd && (
           <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
-            <Descriptions.Item label="Ma benh nhan">{selectedIpd.patientCode}</Descriptions.Item>
-            <Descriptions.Item label="Ho ten">{selectedIpd.patientName}</Descriptions.Item>
-            <Descriptions.Item label="Gioi tinh">
-              {selectedIpd.gender === 1 ? 'Nam' : selectedIpd.gender === 2 ? 'Nu' : '-'}
+            <Descriptions.Item label="Mã bệnh nhân">{selectedIpd.patientCode}</Descriptions.Item>
+            <Descriptions.Item label="Họ tên">{selectedIpd.patientName}</Descriptions.Item>
+            <Descriptions.Item label="Giới tính">
+              {selectedIpd.gender === 1 ? 'Nam' : selectedIpd.gender === 2 ? 'Nữ' : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Tuoi">{selectedIpd.age ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="Tuổi">{selectedIpd.age ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="Khoa">{selectedIpd.departmentName}</Descriptions.Item>
-            <Descriptions.Item label="Phong">{selectedIpd.roomName}</Descriptions.Item>
-            <Descriptions.Item label="Giuong">{selectedIpd.bedName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="So ngay">
-              <Tag color={selectedIpd.daysOfStay > 14 ? 'orange' : 'blue'}>{selectedIpd.daysOfStay} ngay</Tag>
+            <Descriptions.Item label="Phòng">{selectedIpd.roomName}</Descriptions.Item>
+            <Descriptions.Item label="Giường">{selectedIpd.bedName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Số ngày">
+              <Tag color={selectedIpd.daysOfStay > 14 ? 'orange' : 'blue'}>{selectedIpd.daysOfStay} ngày</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Ngay nhap vien">
+            <Descriptions.Item label="Ngày nhập viện">
               {dayjs(selectedIpd.admissionDate).format('DD/MM/YYYY HH:mm')}
             </Descriptions.Item>
-            <Descriptions.Item label="Trang thai">{getIpdStatusTag(selectedIpd.status)}</Descriptions.Item>
-            <Descriptions.Item label="Chan doan" span={2}>
-              {selectedIpd.mainDiagnosis || <Text type="secondary">Chua co chan doan</Text>}
+            <Descriptions.Item label="Trạng thái">{getIpdStatusTag(selectedIpd.status)}</Descriptions.Item>
+            <Descriptions.Item label="Chẩn đoán" span={2}>
+              {selectedIpd.mainDiagnosis || <Text type="secondary">Chưa có chẩn đoán</Text>}
             </Descriptions.Item>
-            <Descriptions.Item label="BS dieu tri">{selectedIpd.attendingDoctorName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Bao hiem">
+            <Descriptions.Item label="BS điều trị">{selectedIpd.attendingDoctorName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Bảo hiểm">
               {selectedIpd.isInsurance
                 ? <Tag color="green">BHYT: {selectedIpd.insuranceNumber}</Tag>
-                : <Tag color="default">Thu phi</Tag>}
+                : <Tag color="default">Thu phí</Tag>}
             </Descriptions.Item>
-            <Descriptions.Item label="Canh bao" span={2}>
+            <Descriptions.Item label="Cảnh báo" span={2}>
               <Space wrap>
-                {selectedIpd.hasPendingOrders && <Tag color="processing">Y lenh chua TH</Tag>}
-                {selectedIpd.hasPendingLabResults && <Tag color="warning">Cho KQ XN</Tag>}
-                {selectedIpd.hasUnclaimedMedicine && <Tag color="error">Thuoc chua nhan</Tag>}
+                {selectedIpd.hasPendingOrders && <Tag color="processing">Y lệnh chưa TH</Tag>}
+                {selectedIpd.hasPendingLabResults && <Tag color="warning">Chờ KQ XN</Tag>}
+                {selectedIpd.hasUnclaimedMedicine && <Tag color="error">Thuốc chưa nhận</Tag>}
                 {selectedIpd.isDebtWarning && (
-                  <Tag color="red">No: {(selectedIpd.totalDebt ?? 0).toLocaleString('vi-VN')} VND</Tag>
+                  <Tag color="red">Nợ: {(selectedIpd.totalDebt ?? 0).toLocaleString('vi-VN')} VND</Tag>
                 )}
                 {!selectedIpd.hasPendingOrders && !selectedIpd.hasPendingLabResults
                   && !selectedIpd.hasUnclaimedMedicine && !selectedIpd.isDebtWarning
-                  && <Tag color="green">Khong co canh bao</Tag>}
+                  && <Tag color="green">Không có cảnh báo</Tag>}
               </Space>
             </Descriptions.Item>
           </Descriptions>
@@ -499,9 +499,9 @@ const DoctorPortal: React.FC = () => {
 
   const docTypeLabel = (type: string) => {
     const m: Record<string, { l: string; c: string }> = {
-      EMR: { l: 'Ho so BA', c: 'blue' }, PRESCRIPTION: { l: 'Don thuoc', c: 'green' },
-      LAB: { l: 'Xet nghiem', c: 'orange' }, RADIOLOGY: { l: 'CDHA', c: 'purple' },
-      DISCHARGE: { l: 'Ra vien', c: 'cyan' },
+      EMR: { l: 'Hồ sơ BA', c: 'blue' }, PRESCRIPTION: { l: 'Đơn thuốc', c: 'green' },
+      LAB: { l: 'Xét nghiệm', c: 'orange' }, RADIOLOGY: { l: 'CĐHA', c: 'purple' },
+      DISCHARGE: { l: 'Ra viện', c: 'cyan' },
     };
     const info = m[type] || { l: type, c: 'default' };
     return <Tag color={info.c}>{info.l}</Tag>;
@@ -523,17 +523,17 @@ const DoctorPortal: React.FC = () => {
             e.target.checked ? [...prev, r.id] : prev.filter(id => id !== r.id))} />
       ),
     },
-    { title: 'Ma', dataIndex: 'documentCode', key: 'code', width: 130 },
-    { title: 'Loai', dataIndex: 'documentType', key: 'type', width: 120,
+    { title: 'Mã', dataIndex: 'documentCode', key: 'code', width: 130 },
+    { title: 'Loại', dataIndex: 'documentType', key: 'type', width: 120,
       render: (t: string) => docTypeLabel(t) },
-    { title: 'Tieu de', dataIndex: 'title', key: 'title', ellipsis: true },
-    { title: 'Benh nhan', dataIndex: 'patientName', key: 'pn', width: 150, responsive: ['md'] as const },
-    { title: 'Ngay tao', dataIndex: 'createdAt', key: 'date', width: 130, responsive: ['lg'] as const,
+    { title: 'Tiêu đề', dataIndex: 'title', key: 'title', ellipsis: true },
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'pn', width: 150, responsive: ['md'] as const },
+    { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'date', width: 130, responsive: ['lg'] as const,
       render: (d: string) => dayjs(d).format('DD/MM/YYYY HH:mm') },
     { title: '', key: 'act', width: 80,
       render: (_: unknown, r: PendingDocument) => (
         <Button type="primary" size="small" icon={<FileProtectOutlined />}
-          onClick={() => handleSignDocument(r)}>Ky</Button>
+          onClick={() => handleSignDocument(r)}>Ký</Button>
       ),
     },
   ];
@@ -542,12 +542,12 @@ const DoctorPortal: React.FC = () => {
     <>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}>
-          <Card size="small"><Statistic title="Cho ky" value={pendingDocs.length}
+          <Card size="small"><Statistic title="Chờ ký" value={pendingDocs.length}
             prefix={<FileProtectOutlined />}
             styles={{ content: { color: pendingDocs.length > 0 ? '#faad14' : '#52c41a', fontSize: 20 } }} /></Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small"><Statistic title="Da chon" value={selectedDocIds.length}
+          <Card size="small"><Statistic title="Đã chọn" value={selectedDocIds.length}
             prefix={<CheckCircleOutlined />}
             styles={{ content: { color: '#1890ff', fontSize: 20 } }} /></Card>
         </Col>
@@ -556,31 +556,31 @@ const DoctorPortal: React.FC = () => {
       {selectedDocIds.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <Button type="primary" icon={<FileProtectOutlined />} onClick={handleBatchSign}>
-            Ky hang loat ({selectedDocIds.length} tai lieu)
+            Ký hàng loạt ({selectedDocIds.length} tài liệu)
           </Button>
         </div>
       )}
 
       <Table columns={sigColumns} dataSource={pendingDocs} rowKey="id" size="small" loading={sigLoading}
-        locale={{ emptyText: <Empty description="Khong co tai lieu cho ky" /> }}
-        pagination={{ pageSize: 20, showTotal: (t) => `${t} tai lieu` }}
+        locale={{ emptyText: <Empty description="Không có tài liệu chờ ký" /> }}
+        pagination={{ pageSize: 20, showTotal: (t) => `${t} tài liệu` }}
         scroll={{ x: 600 }} />
 
-      <Modal title={<Space><FileProtectOutlined /><span>Xac nhan ky so</span></Space>}
+      <Modal title={<Space><FileProtectOutlined /><span>Xác nhận ký số</span></Space>}
         open={signModalOpen} onCancel={() => { setSignModalOpen(false); setSigningDoc(null); }}
-        destroyOnHidden onOk={handleConfirmSign} okText="Ky so" cancelText="Huy">
+        destroyOnHidden onOk={handleConfirmSign} okText="Ký số" cancelText="Hủy">
         {signingDoc && (
           <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="Ma">{signingDoc.documentCode}</Descriptions.Item>
-            <Descriptions.Item label="Loai">{signingDoc.documentType}</Descriptions.Item>
-            <Descriptions.Item label="Tieu de">{signingDoc.title}</Descriptions.Item>
-            <Descriptions.Item label="Benh nhan">{signingDoc.patientName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Ngay tao">{dayjs(signingDoc.createdAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+            <Descriptions.Item label="Mã">{signingDoc.documentCode}</Descriptions.Item>
+            <Descriptions.Item label="Loại">{signingDoc.documentType}</Descriptions.Item>
+            <Descriptions.Item label="Tiêu đề">{signingDoc.title}</Descriptions.Item>
+            <Descriptions.Item label="Bệnh nhân">{signingDoc.patientName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Ngày tạo">{dayjs(signingDoc.createdAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
           </Descriptions>
         )}
         <div style={{ marginTop: 16, padding: 12, background: '#fffbe6', borderRadius: 6 }}>
           <Text type="warning">
-            <AlertOutlined /> Ban sap ky so tai lieu nay. Hanh dong nay khong the hoan tac.
+            <AlertOutlined /> Bạn sắp ký số tài liệu này. Hành động này không thể hoàn tác.
           </Text>
         </div>
       </Modal>
@@ -617,7 +617,7 @@ const DoctorPortal: React.FC = () => {
     return (
       <Row gutter={[16, 16]}>
         <Col xs={24} md={17}>
-          <Card size="small" title="Lich truc" extra={
+          <Card size="small" title="Lịch trực" extra={
             <Space>
               {['Sang', 'Chieu', 'Dem', 'Truc 24h'].map(l => (
                 <Tag key={l} color={getShiftColor(l)}>{l}</Tag>

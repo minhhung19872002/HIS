@@ -110,13 +110,13 @@ interface HandoverSummary {
 // ---------------------------------------------------------------------------
 
 const HANDOVER_STATUS_MAP: Record<number, { label: string; color: string }> = {
-  0: { label: 'Cho ban giao', color: 'default' },
-  1: { label: 'Da gui', color: 'processing' },
-  2: { label: 'Da nhan', color: 'warning' },
-  3: { label: 'Da duyet', color: 'success' },
+  0: { label: 'Chờ bàn giao', color: 'default' },
+  1: { label: 'Đã gửi', color: 'processing' },
+  2: { label: 'Đã nhận', color: 'warning' },
+  3: { label: 'Đã duyệt', color: 'success' },
 };
 
-const GENDER_MAP: Record<number, string> = { 0: 'Nam', 1: 'Nu', 2: 'Khac' };
+const GENDER_MAP: Record<number, string> = { 0: 'Nam', 1: 'Nữ', 2: 'Khác' };
 
 // ---------------------------------------------------------------------------
 // Component
@@ -183,7 +183,7 @@ const MedicalRecordArchive: React.FC = () => {
     if (data.medicalRecord) {
       nodes.push({
         key: `record-${data.medicalRecord.id}`,
-        title: `Benh an - ${data.medicalRecord.code || 'N/A'}`,
+        title: `Bệnh án - ${data.medicalRecord.code || 'N/A'}`,
         icon: <FileTextOutlined />,
         isLeaf: true,
       });
@@ -206,17 +206,17 @@ const MedicalRecordArchive: React.FC = () => {
       }
     };
 
-    addGroup('treatment-sheets', 'To dieu tri', data.treatmentSheets, <FileTextOutlined />);
-    addGroup('service-orders', 'Phieu chi dinh CLS', data.serviceOrders, <FolderOutlined />);
-    addGroup('service-results', 'Ket qua CLS', data.serviceResults, <CheckCircleOutlined />);
-    addGroup('treatment-orders', 'Y lenh dieu tri', data.treatmentOrders, <AuditOutlined />);
-    addGroup('nursing-care', 'Phieu cham soc', data.nursingCareSheets, <FileTextOutlined />);
-    addGroup('vital-signs', 'Phieu theo doi chuc nang song', data.vitalSignsRecords, <FileTextOutlined />);
-    addGroup('infusion', 'Phieu truyen dich', data.infusionRecords, <FileTextOutlined />);
-    addGroup('blood-transfusion', 'Phieu theo doi truyen mau', data.bloodTransfusionRecords, <FileTextOutlined />);
-    addGroup('cost-summary', 'Bang ke chi phi', data.costSummary, <FileExcelOutlined />);
-    addGroup('surgery', 'Phieu phau thuat thu thuat', data.surgeryRecords, <FileTextOutlined />);
-    addGroup('admission-exam', 'Phieu kham benh vao vien', data.admissionExam, <FileTextOutlined />);
+    addGroup('treatment-sheets', 'Tờ điều trị', data.treatmentSheets, <FileTextOutlined />);
+    addGroup('service-orders', 'Phiếu chỉ định CLS', data.serviceOrders, <FolderOutlined />);
+    addGroup('service-results', 'Kết quả CLS', data.serviceResults, <CheckCircleOutlined />);
+    addGroup('treatment-orders', 'Y lệnh điều trị', data.treatmentOrders, <AuditOutlined />);
+    addGroup('nursing-care', 'Phiếu chăm sóc', data.nursingCareSheets, <FileTextOutlined />);
+    addGroup('vital-signs', 'Phiếu theo dõi chức năng sống', data.vitalSignsRecords, <FileTextOutlined />);
+    addGroup('infusion', 'Phiếu truyền dịch', data.infusionRecords, <FileTextOutlined />);
+    addGroup('blood-transfusion', 'Phiếu theo dõi truyền máu', data.bloodTransfusionRecords, <FileTextOutlined />);
+    addGroup('cost-summary', 'Bảng kê chi phí', data.costSummary, <FileExcelOutlined />);
+    addGroup('surgery', 'Phiếu phẫu thuật thủ thuật', data.surgeryRecords, <FileTextOutlined />);
+    addGroup('admission-exam', 'Phiếu khám bệnh vào viện', data.admissionExam, <FileTextOutlined />);
 
     return nodes;
   };
@@ -227,23 +227,23 @@ const MedicalRecordArchive: React.FC = () => {
   ): { detail: Record<string, unknown> | null; title: string } => {
     // Determine group and item index from key
     const groups: Record<string, { items: TreeItem[]; title: string }> = {
-      'treatment-sheets': { items: data.treatmentSheets, title: 'To dieu tri' },
-      'service-orders': { items: data.serviceOrders, title: 'Phieu chi dinh CLS' },
-      'service-results': { items: data.serviceResults, title: 'Ket qua CLS' },
-      'treatment-orders': { items: data.treatmentOrders, title: 'Y lenh dieu tri' },
-      'nursing-care': { items: data.nursingCareSheets, title: 'Phieu cham soc' },
-      'vital-signs': { items: data.vitalSignsRecords, title: 'Phieu theo doi chuc nang song' },
-      'infusion': { items: data.infusionRecords, title: 'Phieu truyen dich' },
-      'blood-transfusion': { items: data.bloodTransfusionRecords, title: 'Phieu theo doi truyen mau' },
-      'cost-summary': { items: data.costSummary, title: 'Bang ke chi phi' },
-      'surgery': { items: data.surgeryRecords, title: 'Phieu phau thuat thu thuat' },
-      'admission-exam': { items: data.admissionExam, title: 'Phieu kham benh vao vien' },
+      'treatment-sheets': { items: data.treatmentSheets, title: 'Tờ điều trị' },
+      'service-orders': { items: data.serviceOrders, title: 'Phiếu chỉ định CLS' },
+      'service-results': { items: data.serviceResults, title: 'Kết quả CLS' },
+      'treatment-orders': { items: data.treatmentOrders, title: 'Y lệnh điều trị' },
+      'nursing-care': { items: data.nursingCareSheets, title: 'Phiếu chăm sóc' },
+      'vital-signs': { items: data.vitalSignsRecords, title: 'Phiếu theo dõi chức năng sống' },
+      'infusion': { items: data.infusionRecords, title: 'Phiếu truyền dịch' },
+      'blood-transfusion': { items: data.bloodTransfusionRecords, title: 'Phiếu theo dõi truyền máu' },
+      'cost-summary': { items: data.costSummary, title: 'Bảng kê chi phí' },
+      'surgery': { items: data.surgeryRecords, title: 'Phiếu phẫu thuật thủ thuật' },
+      'admission-exam': { items: data.admissionExam, title: 'Phiếu khám bệnh vào viện' },
     };
 
     if (nodeKey.startsWith('record-')) {
       return {
         detail: (data.medicalRecord as unknown as Record<string, unknown>) || null,
-        title: 'Benh an',
+        title: 'Bệnh án',
       };
     }
 
@@ -305,7 +305,7 @@ const MedicalRecordArchive: React.FC = () => {
       setSummaryPage(page);
       setSummaryPageSize(size);
     } catch {
-      message.warning('Khong the tai danh sach ho so');
+      message.warning('Không thể tải danh sách hồ sơ');
       setSummaryExams([]);
     } finally {
       setSummaryLoading(false);
@@ -329,67 +329,67 @@ const MedicalRecordArchive: React.FC = () => {
         } : undefined,
         treatmentSheets: (rawData.treatmentSheets || []).map((s: Record<string, unknown>) => ({
           id: s.id as string,
-          title: `To dieu tri ngay ${s.treatmentDate ? dayjs(s.treatmentDate as string).format('DD/MM/YYYY') : 'N/A'}`,
+          title: `Tờ điều trị ngày ${s.treatmentDate ? dayjs(s.treatmentDate as string).format('DD/MM/YYYY') : 'N/A'}`,
           date: s.treatmentDate as string,
           detail: s,
         })),
         serviceOrders: (rawData.serviceOrders || []).map((o: Record<string, unknown>) => ({
           id: o.id as string,
-          title: (o.serviceName as string) || (o.testName as string) || `Chi dinh #${o.id}`,
+          title: (o.serviceName as string) || (o.testName as string) || `Chỉ định #${o.id}`,
           date: o.orderDate as string || o.createdAt as string,
           status: o.status as number,
           detail: o,
         })),
         serviceResults: (rawData.labResults || rawData.serviceResults || []).map((r: Record<string, unknown>) => ({
           id: r.id as string,
-          title: (r.testName as string) || (r.serviceName as string) || `Ket qua #${r.id}`,
+          title: (r.testName as string) || (r.serviceName as string) || `Kết quả #${r.id}`,
           date: r.resultDate as string || r.completedAt as string,
           detail: r,
         })),
         treatmentOrders: (rawData.prescriptions || []).map((p: Record<string, unknown>) => ({
           id: p.id as string,
-          title: `Don thuoc ${p.prescriptionDate ? dayjs(p.prescriptionDate as string).format('DD/MM/YYYY') : ''}`,
+          title: `Đơn thuốc ${p.prescriptionDate ? dayjs(p.prescriptionDate as string).format('DD/MM/YYYY') : ''}`,
           date: p.prescriptionDate as string || p.createdAt as string,
           detail: p,
         })),
         nursingCareSheets: (rawData.nursingCareSheets || []).map((n: Record<string, unknown>) => ({
           id: n.id as string,
-          title: `Cham soc ${n.date ? dayjs(n.date as string).format('DD/MM/YYYY') : ''} ${n.shift || ''}`,
+          title: `Chăm sóc ${n.date ? dayjs(n.date as string).format('DD/MM/YYYY') : ''} ${n.shift || ''}`,
           date: n.date as string,
           detail: n,
         })),
         vitalSignsRecords: rawData.vitalSigns ? [{
           id: 'vs-1',
-          title: `Sinh hieu ${rawData.vitalSigns.measuredAt ? dayjs(rawData.vitalSigns.measuredAt).format('DD/MM/YYYY HH:mm') : ''}`,
+          title: `Sinh hiệu ${rawData.vitalSigns.measuredAt ? dayjs(rawData.vitalSigns.measuredAt).format('DD/MM/YYYY HH:mm') : ''}`,
           date: rawData.vitalSigns.measuredAt,
           detail: rawData.vitalSigns,
         }] : [],
         infusionRecords: (rawData.infusionRecords || []).map((inf: Record<string, unknown>) => ({
           id: inf.id as string,
-          title: `Truyen dich ${inf.startTime ? dayjs(inf.startTime as string).format('DD/MM/YYYY HH:mm') : ''}`,
+          title: `Truyền dịch ${inf.startTime ? dayjs(inf.startTime as string).format('DD/MM/YYYY HH:mm') : ''}`,
           date: inf.startTime as string,
           detail: inf,
         })),
         bloodTransfusionRecords: (rawData.bloodTransfusionRecords || []).map((bt: Record<string, unknown>) => ({
           id: bt.id as string,
-          title: `Truyen mau ${bt.transfusionDate ? dayjs(bt.transfusionDate as string).format('DD/MM/YYYY') : ''}`,
+          title: `Truyền máu ${bt.transfusionDate ? dayjs(bt.transfusionDate as string).format('DD/MM/YYYY') : ''}`,
           date: bt.transfusionDate as string,
           detail: bt,
         })),
         costSummary: rawData.costSummary ? [{
           id: 'cost-1',
-          title: 'Bang ke chi phi kham chua benh',
+          title: 'Bảng kê chi phí khám chữa bệnh',
           detail: rawData.costSummary,
         }] : [],
         surgeryRecords: (rawData.surgeryRecords || []).map((s: Record<string, unknown>) => ({
           id: s.id as string,
-          title: `Phau thuat ${s.surgeryName || ''} ${s.surgeryDate ? dayjs(s.surgeryDate as string).format('DD/MM/YYYY') : ''}`,
+          title: `Phẫu thuật ${s.surgeryName || ''} ${s.surgeryDate ? dayjs(s.surgeryDate as string).format('DD/MM/YYYY') : ''}`,
           date: s.surgeryDate as string,
           detail: s,
         })),
         admissionExam: rawData.admissionExam ? [{
           id: 'adm-1',
-          title: 'Phieu kham benh vao vien',
+          title: 'Phiếu khám bệnh vào viện',
           date: rawData.admissionExam.examDate,
           detail: rawData.admissionExam,
         }] : [],
@@ -398,7 +398,7 @@ const MedicalRecordArchive: React.FC = () => {
       setRecordTreeRaw(tree);
       setRecordTree(buildTreeData(tree));
     } catch {
-      message.warning('Khong the tai ho so benh an');
+      message.warning('Không thể tải hồ sơ bệnh án');
       setRecordTree([]);
       setRecordTreeRaw(null);
     } finally {
@@ -409,7 +409,7 @@ const MedicalRecordArchive: React.FC = () => {
   // -- Tab 2 search single record
   const searchReviewRecord = useCallback(async () => {
     if (!reviewKeyword.trim()) {
-      message.warning('Vui long nhap ma kham chua benh');
+      message.warning('Vui lòng nhập mã khám chữa bệnh');
       return;
     }
     setReviewLoading(true);
@@ -422,7 +422,7 @@ const MedicalRecordArchive: React.FC = () => {
       });
       const items = res.data.items || [];
       if (items.length === 0) {
-        message.warning('Khong tim thay ho so benh an');
+        message.warning('Không tìm thấy hồ sơ bệnh án');
         setReviewExam(null);
         setReviewTree([]);
         setReviewTreeRaw(null);
@@ -445,66 +445,66 @@ const MedicalRecordArchive: React.FC = () => {
         } : undefined,
         treatmentSheets: (rawData.treatmentSheets || []).map((s: Record<string, unknown>) => ({
           id: s.id as string,
-          title: `To dieu tri ngay ${s.treatmentDate ? dayjs(s.treatmentDate as string).format('DD/MM/YYYY') : 'N/A'}`,
+          title: `Tờ điều trị ngày ${s.treatmentDate ? dayjs(s.treatmentDate as string).format('DD/MM/YYYY') : 'N/A'}`,
           date: s.treatmentDate as string,
           detail: s,
         })),
         serviceOrders: (rawData.serviceOrders || []).map((o: Record<string, unknown>) => ({
           id: o.id as string,
-          title: (o.serviceName as string) || `Chi dinh #${o.id}`,
+          title: (o.serviceName as string) || `Chỉ định #${o.id}`,
           date: o.orderDate as string,
           detail: o,
         })),
         serviceResults: (rawData.labResults || rawData.serviceResults || []).map((r: Record<string, unknown>) => ({
           id: r.id as string,
-          title: (r.testName as string) || `Ket qua #${r.id}`,
+          title: (r.testName as string) || `Kết quả #${r.id}`,
           date: r.resultDate as string,
           detail: r,
         })),
         treatmentOrders: (rawData.prescriptions || []).map((p: Record<string, unknown>) => ({
           id: p.id as string,
-          title: `Don thuoc ${p.prescriptionDate ? dayjs(p.prescriptionDate as string).format('DD/MM/YYYY') : ''}`,
+          title: `Đơn thuốc ${p.prescriptionDate ? dayjs(p.prescriptionDate as string).format('DD/MM/YYYY') : ''}`,
           date: p.prescriptionDate as string,
           detail: p,
         })),
         nursingCareSheets: (rawData.nursingCareSheets || []).map((n: Record<string, unknown>) => ({
           id: n.id as string,
-          title: `Cham soc ${n.date ? dayjs(n.date as string).format('DD/MM/YYYY') : ''}`,
+          title: `Chăm sóc ${n.date ? dayjs(n.date as string).format('DD/MM/YYYY') : ''}`,
           date: n.date as string,
           detail: n,
         })),
         vitalSignsRecords: rawData.vitalSigns ? [{
           id: 'vs-1',
-          title: `Sinh hieu ${rawData.vitalSigns.measuredAt ? dayjs(rawData.vitalSigns.measuredAt).format('DD/MM/YYYY HH:mm') : ''}`,
+          title: `Sinh hiệu ${rawData.vitalSigns.measuredAt ? dayjs(rawData.vitalSigns.measuredAt).format('DD/MM/YYYY HH:mm') : ''}`,
           date: rawData.vitalSigns.measuredAt,
           detail: rawData.vitalSigns,
         }] : [],
         infusionRecords: (rawData.infusionRecords || []).map((inf: Record<string, unknown>) => ({
           id: inf.id as string,
-          title: `Truyen dich ${inf.startTime ? dayjs(inf.startTime as string).format('DD/MM/YYYY HH:mm') : ''}`,
+          title: `Truyền dịch ${inf.startTime ? dayjs(inf.startTime as string).format('DD/MM/YYYY HH:mm') : ''}`,
           date: inf.startTime as string,
           detail: inf,
         })),
         bloodTransfusionRecords: (rawData.bloodTransfusionRecords || []).map((bt: Record<string, unknown>) => ({
           id: bt.id as string,
-          title: `Truyen mau ${bt.transfusionDate ? dayjs(bt.transfusionDate as string).format('DD/MM/YYYY') : ''}`,
+          title: `Truyền máu ${bt.transfusionDate ? dayjs(bt.transfusionDate as string).format('DD/MM/YYYY') : ''}`,
           date: bt.transfusionDate as string,
           detail: bt,
         })),
         costSummary: rawData.costSummary ? [{
           id: 'cost-1',
-          title: 'Bang ke chi phi kham chua benh',
+          title: 'Bảng kê chi phí khám chữa bệnh',
           detail: rawData.costSummary,
         }] : [],
         surgeryRecords: (rawData.surgeryRecords || []).map((s: Record<string, unknown>) => ({
           id: s.id as string,
-          title: `Phau thuat ${s.surgeryName || ''}`,
+          title: `Phẫu thuật ${s.surgeryName || ''}`,
           date: s.surgeryDate as string,
           detail: s,
         })),
         admissionExam: rawData.admissionExam ? [{
           id: 'adm-1',
-          title: 'Phieu kham benh vao vien',
+          title: 'Phiếu khám bệnh vào viện',
           detail: rawData.admissionExam,
         }] : [],
       };
@@ -512,7 +512,7 @@ const MedicalRecordArchive: React.FC = () => {
       setReviewTreeRaw(tree);
       setReviewTree(buildTreeData(tree));
     } catch {
-      message.warning('Khong the tim ho so benh an');
+      message.warning('Không thể tìm hồ sơ bệnh án');
       setReviewExam(null);
       setReviewTree([]);
       setReviewTreeRaw(null);
@@ -545,7 +545,7 @@ const MedicalRecordArchive: React.FC = () => {
       setHandoverTotal(data.totalCount || (Array.isArray(data) ? data.length : 0));
       setHandoverPage(page);
     } catch {
-      message.warning('Khong the tai danh sach ban giao');
+      message.warning('Không thể tải danh sách bàn giao');
       setHandoverRecords([]);
     } finally {
       setHandoverLoading(false);
@@ -564,25 +564,25 @@ const MedicalRecordArchive: React.FC = () => {
 
   const handleHandover = useCallback(async () => {
     if (selectedHandoverKeys.length === 0) {
-      message.warning('Vui long chon ho so can ban giao');
+      message.warning('Vui lòng chọn hồ sơ cần bàn giao');
       return;
     }
     try {
       await client.post('/inpatient/medical-record-archive/handover', {
         recordIds: selectedHandoverKeys,
       });
-      message.success(`Da ban giao ${selectedHandoverKeys.length} ho so`);
+      message.success(`Đã bàn giao ${selectedHandoverKeys.length} hồ sơ`);
       setSelectedHandoverKeys([]);
       fetchHandoverList(handoverPage);
       fetchStats();
     } catch {
-      message.warning('Khong the ban giao ho so');
+      message.warning('Không thể bàn giao hồ sơ');
     }
   }, [selectedHandoverKeys, fetchHandoverList, handoverPage, fetchStats]);
 
   const handleApprove = useCallback(async () => {
     if (selectedHandoverKeys.length === 0) {
-      message.warning('Vui long chon ho so can duyet');
+      message.warning('Vui lòng chọn hồ sơ cần duyệt');
       return;
     }
     setApproveLoading(true);
@@ -591,14 +591,14 @@ const MedicalRecordArchive: React.FC = () => {
         recordIds: selectedHandoverKeys,
         comments: approveComments,
       });
-      message.success(`Da duyet ${selectedHandoverKeys.length} ho so`);
+      message.success(`Đã duyệt ${selectedHandoverKeys.length} hồ sơ`);
       setSelectedHandoverKeys([]);
       setApproveModalOpen(false);
       setApproveComments('');
       fetchHandoverList(handoverPage);
       fetchStats();
     } catch {
-      message.warning('Khong the duyet ho so');
+      message.warning('Không thể duyệt hồ sơ');
     } finally {
       setApproveLoading(false);
     }
@@ -612,7 +612,7 @@ const MedicalRecordArchive: React.FC = () => {
       // Open print window with full medical record
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
-        message.warning('Trinh duyet chan popup, vui long cho phep popup');
+        message.warning('Trình duyệt chặn popup, vui lòng cho phép popup');
         return;
       }
 
@@ -623,7 +623,7 @@ const MedicalRecordArchive: React.FC = () => {
 
       printWindow.document.write(`<!DOCTYPE html><html><head>
         <meta charset="utf-8"/>
-        <title>Ho so benh an - ${patientInfo.fullName || ''}</title>
+        <title>Hồ sơ bệnh án - ${patientInfo.fullName || ''}</title>
         <style>
           body { font-family: 'Times New Roman', serif; font-size: 13px; margin: 20px; }
           h1 { text-align: center; font-size: 16px; }
@@ -637,41 +637,41 @@ const MedicalRecordArchive: React.FC = () => {
           @media print { body { margin: 10mm; } }
         </style>
       </head><body>
-        <h1>HO SO BENH AN</h1>
-        <h2>Thong tin benh nhan</h2>
+        <h1>HỒ SƠ BỆNH ÁN</h1>
+        <h2>Thông tin bệnh nhân</h2>
         <div class="section">
-          <div class="field"><span class="label">Ho ten:</span> ${patientInfo.fullName || ''}</div>
-          <div class="field"><span class="label">Ma benh nhan:</span> ${patientInfo.patientCode || ''}</div>
-          <div class="field"><span class="label">Gioi tinh:</span> ${GENDER_MAP[patientInfo.gender] || ''}</div>
-          <div class="field"><span class="label">Ngay sinh:</span> ${patientInfo.dateOfBirth ? dayjs(patientInfo.dateOfBirth).format('DD/MM/YYYY') : ''}</div>
-          <div class="field"><span class="label">Dia chi:</span> ${patientInfo.address || ''}</div>
-          <div class="field"><span class="label">SDT:</span> ${patientInfo.phoneNumber || ''}</div>
+          <div class="field"><span class="label">Họ tên:</span> ${patientInfo.fullName || ''}</div>
+          <div class="field"><span class="label">Mã bệnh nhân:</span> ${patientInfo.patientCode || ''}</div>
+          <div class="field"><span class="label">Giới tính:</span> ${GENDER_MAP[patientInfo.gender] || ''}</div>
+          <div class="field"><span class="label">Ngày sinh:</span> ${patientInfo.dateOfBirth ? dayjs(patientInfo.dateOfBirth).format('DD/MM/YYYY') : ''}</div>
+          <div class="field"><span class="label">Địa chỉ:</span> ${patientInfo.address || ''}</div>
+          <div class="field"><span class="label">SĐT:</span> ${patientInfo.phoneNumber || ''}</div>
         </div>
-        <h2>Chan doan</h2>
+        <h2>Chẩn đoán</h2>
         <div class="section">
           ${diagnoses.map((d: Record<string, unknown>) => `<div class="field">${d.icdCode || ''} - ${d.icdName || d.diagnosisName || ''}</div>`).join('')}
         </div>
-        <h2>Sinh hieu</h2>
+        <h2>Sinh hiệu</h2>
         <div class="section">
-          <div class="field"><span class="label">Huyet ap:</span> ${vitalSigns.systolicBP || '-'}/${vitalSigns.diastolicBP || '-'} mmHg</div>
-          <div class="field"><span class="label">Mach:</span> ${vitalSigns.pulse || '-'} l/p</div>
-          <div class="field"><span class="label">Nhiet do:</span> ${vitalSigns.temperature || '-'} C</div>
-          <div class="field"><span class="label">Can nang:</span> ${vitalSigns.weight || '-'} kg</div>
-          <div class="field"><span class="label">Chieu cao:</span> ${vitalSigns.height || '-'} cm</div>
+          <div class="field"><span class="label">Huyết áp:</span> ${vitalSigns.systolicBP || '-'}/${vitalSigns.diastolicBP || '-'} mmHg</div>
+          <div class="field"><span class="label">Mạch:</span> ${vitalSigns.pulse || '-'} l/p</div>
+          <div class="field"><span class="label">Nhiệt độ:</span> ${vitalSigns.temperature || '-'} C</div>
+          <div class="field"><span class="label">Cân nặng:</span> ${vitalSigns.weight || '-'} kg</div>
+          <div class="field"><span class="label">Chiều cao:</span> ${vitalSigns.height || '-'} cm</div>
           <div class="field"><span class="label">SpO2:</span> ${vitalSigns.spO2 || '-'} %</div>
         </div>
-        <h2>Benh su</h2>
+        <h2>Bệnh sử</h2>
         <div class="section">
-          <div class="field"><span class="label">Ly do kham:</span> ${interview.chiefComplaint || ''}</div>
-          <div class="field"><span class="label">Benh su:</span> ${interview.historyOfPresentIllness || ''}</div>
-          <div class="field"><span class="label">Tien su ban than:</span> ${interview.pastMedicalHistory || ''}</div>
-          <div class="field"><span class="label">Tien su gia dinh:</span> ${interview.familyHistory || ''}</div>
+          <div class="field"><span class="label">Lý do khám:</span> ${interview.chiefComplaint || ''}</div>
+          <div class="field"><span class="label">Bệnh sử:</span> ${interview.historyOfPresentIllness || ''}</div>
+          <div class="field"><span class="label">Tiền sử bản thân:</span> ${interview.pastMedicalHistory || ''}</div>
+          <div class="field"><span class="label">Tiền sử gia đình:</span> ${interview.familyHistory || ''}</div>
         </div>
         <script>window.print();</script>
       </body></html>`);
       printWindow.document.close();
     } catch {
-      message.warning('Khong the xuat PDF ho so benh an');
+      message.warning('Không thể xuất PDF hồ sơ bệnh án');
     }
   }, []);
 
@@ -699,33 +699,33 @@ const MedicalRecordArchive: React.FC = () => {
 
   const summaryColumns: ColumnsType<ArchiveExamination> = [
     {
-      title: 'Ma BN',
+      title: 'Mã BN',
       dataIndex: 'patientCode',
       key: 'patientCode',
       width: 100,
     },
     {
-      title: 'Ho ten',
+      title: 'Họ tên',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 160,
     },
     {
-      title: 'Ngay kham',
+      title: 'Ngày khám',
       dataIndex: 'examinationDate',
       key: 'examinationDate',
       width: 110,
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Khoa/Phong',
+      title: 'Khoa/Phòng',
       dataIndex: 'roomName',
       key: 'roomName',
       width: 130,
       render: (v: string, r: ArchiveExamination) => r.departmentName || v || '-',
     },
     {
-      title: 'Chan doan',
+      title: 'Chẩn đoán',
       dataIndex: 'diagnosisName',
       key: 'diagnosisName',
       ellipsis: true,
@@ -736,23 +736,23 @@ const MedicalRecordArchive: React.FC = () => {
       ),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 110,
       render: (v: number, r: ArchiveExamination) => {
         const colors: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'warning', 3: 'orange', 4: 'success' };
-        const names: Record<number, string> = { 0: 'Cho kham', 1: 'Dang kham', 2: 'Cho CLS', 3: 'Cho ket luan', 4: 'Hoan thanh' };
+        const names: Record<number, string> = { 0: 'Chờ khám', 1: 'Đang khám', 2: 'Chờ CLS', 3: 'Chờ kết luận', 4: 'Hoàn thành' };
         return <Tag color={colors[v] || 'default'}>{r.statusName || names[v] || `Status ${v}`}</Tag>;
       },
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 140,
       render: (_: unknown, record: ArchiveExamination) => (
         <Space>
-          <Tooltip title="Xem ho so">
+          <Tooltip title="Xem hồ sơ">
             <Button
               type="link"
               size="small"
@@ -763,7 +763,7 @@ const MedicalRecordArchive: React.FC = () => {
               }}
             />
           </Tooltip>
-          <Tooltip title="Xuat PDF">
+          <Tooltip title="Xuất PDF">
             <Button
               type="link"
               size="small"
@@ -778,19 +778,19 @@ const MedicalRecordArchive: React.FC = () => {
 
   const handoverColumns: ColumnsType<HandoverRecord> = [
     {
-      title: 'Ma HSBA',
+      title: 'Mã HSBA',
       dataIndex: 'medicalRecordCode',
       key: 'medicalRecordCode',
       width: 120,
     },
     {
-      title: 'Ma BN',
+      title: 'Mã BN',
       dataIndex: 'patientCode',
       key: 'patientCode',
       width: 100,
     },
     {
-      title: 'Ho ten',
+      title: 'Họ tên',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 160,
@@ -802,14 +802,14 @@ const MedicalRecordArchive: React.FC = () => {
       width: 130,
     },
     {
-      title: 'Ngay ra vien',
+      title: 'Ngày ra viện',
       dataIndex: 'dischargeDate',
       key: 'dischargeDate',
       width: 110,
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'handoverStatus',
       key: 'handoverStatus',
       width: 120,
@@ -819,7 +819,7 @@ const MedicalRecordArchive: React.FC = () => {
       },
     },
     {
-      title: 'Hoan thanh',
+      title: 'Hoàn thành',
       key: 'completeness',
       width: 100,
       render: (_: unknown, record: HandoverRecord) => {
@@ -830,26 +830,26 @@ const MedicalRecordArchive: React.FC = () => {
       },
     },
     {
-      title: 'Ngay ban giao',
+      title: 'Ngày bàn giao',
       dataIndex: 'handoverDate',
       key: 'handoverDate',
       width: 110,
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Ghi chu',
+      title: 'Ghi chú',
       dataIndex: 'comments',
       key: 'comments',
       ellipsis: true,
       width: 150,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 120,
       render: (_: unknown, record: HandoverRecord) => (
         <Space>
-          <Tooltip title="Xem truoc">
+          <Tooltip title="Xem trước">
             <Button
               type="link"
               size="small"
@@ -883,27 +883,27 @@ const MedicalRecordArchive: React.FC = () => {
                       })),
                       serviceOrders: (rawData.serviceOrders || []).map((o: Record<string, unknown>) => ({
                         id: o.id as string,
-                        title: (o.serviceName as string) || `Chi dinh #${o.id}`,
+                        title: (o.serviceName as string) || `Chỉ định #${o.id}`,
                         detail: o,
                       })),
                       serviceResults: (rawData.labResults || rawData.serviceResults || []).map((r: Record<string, unknown>) => ({
                         id: r.id as string,
-                        title: (r.testName as string) || `Ket qua #${r.id}`,
+                        title: (r.testName as string) || `Kết quả #${r.id}`,
                         detail: r,
                       })),
                       treatmentOrders: (rawData.prescriptions || []).map((p: Record<string, unknown>) => ({
                         id: p.id as string,
-                        title: `Don thuoc`,
+                        title: `Đơn thuốc`,
                         detail: p,
                       })),
                       nursingCareSheets: (rawData.nursingCareSheets || []).map((n: Record<string, unknown>) => ({
                         id: n.id as string,
-                        title: `Cham soc`,
+                        title: `Chăm sóc`,
                         detail: n,
                       })),
                       vitalSignsRecords: rawData.vitalSigns ? [{
                         id: 'vs-1',
-                        title: 'Sinh hieu',
+                        title: 'Sinh hiệu',
                         detail: rawData.vitalSigns,
                       }] : [],
                       infusionRecords: [],
@@ -921,7 +921,7 @@ const MedicalRecordArchive: React.FC = () => {
               }}
             />
           </Tooltip>
-          <Tooltip title="Xuat PDF">
+          <Tooltip title="Xuất PDF">
             <Button
               type="link"
               size="small"
@@ -940,10 +940,10 @@ const MedicalRecordArchive: React.FC = () => {
                     if (items.length > 0) {
                       handleExportPdf(items[0].id);
                     } else {
-                      message.warning('Khong tim thay ho so');
+                      message.warning('Không tìm thấy hồ sơ');
                     }
                   } catch {
-                    message.warning('Khong the xuat PDF');
+                    message.warning('Không thể xuất PDF');
                   }
                 };
                 searchAndExport();
@@ -981,7 +981,7 @@ const MedicalRecordArchive: React.FC = () => {
 
   const renderDetailContent = () => {
     if (!detailContent) {
-      return <Result status="info" title="Khong co du lieu chi tiet" />;
+      return <Result status="info" title="Không có dữ liệu chi tiết" />;
     }
 
     const entries = Object.entries(detailContent).filter(
@@ -1048,20 +1048,20 @@ const MedicalRecordArchive: React.FC = () => {
     if (!exam) return null;
     return (
       <Descriptions bordered column={{ xs: 1, sm: 2, md: 3 }} size="small" style={{ marginBottom: 16 }}>
-        <Descriptions.Item label="Ma benh nhan">{exam.patientCode}</Descriptions.Item>
-        <Descriptions.Item label="Ho ten">{exam.patientName}</Descriptions.Item>
-        <Descriptions.Item label="Gioi tinh">{GENDER_MAP[exam.gender] || '-'}</Descriptions.Item>
-        <Descriptions.Item label="Ngay sinh">
+        <Descriptions.Item label="Mã bệnh nhân">{exam.patientCode}</Descriptions.Item>
+        <Descriptions.Item label="Họ tên">{exam.patientName}</Descriptions.Item>
+        <Descriptions.Item label="Giới tính">{GENDER_MAP[exam.gender] || '-'}</Descriptions.Item>
+        <Descriptions.Item label="Ngày sinh">
           {exam.dateOfBirth ? dayjs(exam.dateOfBirth).format('DD/MM/YYYY') : '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="Ngay kham">
+        <Descriptions.Item label="Ngày khám">
           {exam.examinationDate ? dayjs(exam.examinationDate).format('DD/MM/YYYY') : '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="Khoa/Phong">
+        <Descriptions.Item label="Khoa/Phòng">
           {exam.departmentName || exam.roomName || '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="Bac si">{exam.doctorName || '-'}</Descriptions.Item>
-        <Descriptions.Item label="Chan doan" span={2}>
+        <Descriptions.Item label="Bác sĩ">{exam.doctorName || '-'}</Descriptions.Item>
+        <Descriptions.Item label="Chẩn đoán" span={2}>
           {exam.diagnosisCode ? `${exam.diagnosisCode} - ` : ''}{exam.diagnosisName || '-'}
         </Descriptions.Item>
       </Descriptions>
@@ -1077,9 +1077,9 @@ const MedicalRecordArchive: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col flex="auto">
           <Search
-            placeholder="Tim theo ten, ma benh nhan, ma ho so..."
+            placeholder="Tìm theo tên, mã bệnh nhân, mã hồ sơ..."
             allowClear
-            enterButton={<><SearchOutlined /> Tim kiem</>}
+            enterButton={<><SearchOutlined /> Tìm kiếm</>}
             value={summaryKeyword}
             onChange={(e) => setSummaryKeyword(e.target.value)}
             onSearch={() => searchSummaryExams(1, summaryPageSize)}
@@ -1088,7 +1088,7 @@ const MedicalRecordArchive: React.FC = () => {
         </Col>
         <Col>
           <Button icon={<ReloadOutlined />} onClick={() => searchSummaryExams(summaryPage, summaryPageSize)}>
-            Lam moi
+            Làm mới
           </Button>
         </Col>
       </Row>
@@ -1107,7 +1107,7 @@ const MedicalRecordArchive: React.FC = () => {
               pageSize: summaryPageSize,
               total: summaryTotal,
               showSizeChanger: true,
-              showTotal: (total) => `Tong: ${total} ho so`,
+              showTotal: (total) => `Tổng: ${total} hồ sơ`,
               onChange: (page, size) => searchSummaryExams(page, size),
             }}
             onRow={(record) => ({
@@ -1129,7 +1129,7 @@ const MedicalRecordArchive: React.FC = () => {
               title={
                 <Space>
                   <FolderOutlined />
-                  <span>Ho so benh an: {selectedExam.patientName}</span>
+                  <span>Hồ sơ bệnh án: {selectedExam.patientName}</span>
                 </Space>
               }
               extra={
@@ -1138,7 +1138,7 @@ const MedicalRecordArchive: React.FC = () => {
                     icon={<FilePdfOutlined />}
                     onClick={() => handleExportPdf(selectedExam.id)}
                   >
-                    Xuat PDF
+                    Xuất PDF
                   </Button>
                   <Button
                     type="text"
@@ -1148,7 +1148,7 @@ const MedicalRecordArchive: React.FC = () => {
                       setRecordTreeRaw(null);
                     }}
                   >
-                    Dong
+                    Đóng
                   </Button>
                 </Space>
               }
@@ -1169,8 +1169,8 @@ const MedicalRecordArchive: React.FC = () => {
                 ) : (
                   <Result
                     status="info"
-                    title="Chon ho so de xem cay cau truc"
-                    subTitle="Click vao benh nhan trong danh sach ben trai"
+                    title="Chọn hồ sơ để xem cây cấu trúc"
+                    subTitle="Click vào bệnh nhân trong danh sách bên trái"
                   />
                 )}
               </Spin>
@@ -1186,9 +1186,9 @@ const MedicalRecordArchive: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col flex="auto">
           <Search
-            placeholder="Nhap ma kham chua benh (ma ho so)"
+            placeholder="Nhập mã khám chữa bệnh (mã hồ sơ)"
             allowClear
-            enterButton={<><SearchOutlined /> Tim kiem</>}
+            enterButton={<><SearchOutlined /> Tìm kiếm</>}
             value={reviewKeyword}
             onChange={(e) => setReviewKeyword(e.target.value)}
             onSearch={searchReviewRecord}
@@ -1206,7 +1206,7 @@ const MedicalRecordArchive: React.FC = () => {
               title={
                 <Space>
                   <AuditOutlined />
-                  <span>Soat ho so benh an truoc ban giao</span>
+                  <span>Soát hồ sơ bệnh án trước bàn giao</span>
                 </Space>
               }
               extra={
@@ -1215,7 +1215,7 @@ const MedicalRecordArchive: React.FC = () => {
                   icon={<FilePdfOutlined />}
                   onClick={() => reviewExam && handleExportPdf(reviewExam.id)}
                 >
-                  Xuat PDF toan bo
+                  Xuất PDF toàn bộ
                 </Button>
               }
               size="small"
@@ -1231,7 +1231,7 @@ const MedicalRecordArchive: React.FC = () => {
               ) : (
                 <Result
                   status="info"
-                  title="Khong co du lieu ho so"
+                  title="Không có dữ liệu hồ sơ"
                 />
               )}
             </Card>
@@ -1239,8 +1239,8 @@ const MedicalRecordArchive: React.FC = () => {
         ) : (
           <Result
             icon={<AuditOutlined style={{ color: '#1890ff' }} />}
-            title="Soat ho so truoc ban giao"
-            subTitle="Nhap ma kham chua benh de tim va soat ho so benh an truoc khi ban giao cho phong luu tru"
+            title="Soát hồ sơ trước bàn giao"
+            subTitle="Nhập mã khám chữa bệnh để tìm và soát hồ sơ bệnh án trước khi bàn giao cho phòng lưu trữ"
           />
         )}
       </Spin>
@@ -1255,7 +1255,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Cho ban giao"
+                title="Chờ bàn giao"
                 value={handoverSummary.totalPending}
                 prefix={<ClockCircleOutlined />}
                 styles={{ content: { color: '#fa8c16' } }}
@@ -1265,7 +1265,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Da gui"
+                title="Đã gửi"
                 value={handoverSummary.totalSent}
                 prefix={<SwapOutlined />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -1275,7 +1275,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Da nhan"
+                title="Đã nhận"
                 value={handoverSummary.totalReceived}
                 prefix={<ExportOutlined />}
                 styles={{ content: { color: '#722ed1' } }}
@@ -1285,7 +1285,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Da duyet"
+                title="Đã duyệt"
                 value={handoverSummary.totalApproved}
                 prefix={<CheckCircleOutlined />}
                 styles={{ content: { color: '#52c41a' } }}
@@ -1299,7 +1299,7 @@ const MedicalRecordArchive: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
           <Search
-            placeholder="Tim theo ma HSBA, ma BN, ten..."
+            placeholder="Tìm theo mã HSBA, mã BN, tên..."
             allowClear
             value={handoverKeyword}
             onChange={(e) => setHandoverKeyword(e.target.value)}
@@ -1308,7 +1308,7 @@ const MedicalRecordArchive: React.FC = () => {
         </Col>
         <Col xs={12} sm={5}>
           <Select
-            placeholder="Trang thai"
+            placeholder="Trạng thái"
             allowClear
             style={{ width: '100%' }}
             value={handoverStatusFilter}
@@ -1317,10 +1317,10 @@ const MedicalRecordArchive: React.FC = () => {
               setTimeout(() => fetchHandoverList(1), 0);
             }}
             options={[
-              { value: 0, label: 'Cho ban giao' },
-              { value: 1, label: 'Da gui' },
-              { value: 2, label: 'Da nhan' },
-              { value: 3, label: 'Da duyet' },
+              { value: 0, label: 'Chờ bàn giao' },
+              { value: 1, label: 'Đã gửi' },
+              { value: 2, label: 'Đã nhận' },
+              { value: 3, label: 'Đã duyệt' },
             ]}
           />
         </Col>
@@ -1345,7 +1345,7 @@ const MedicalRecordArchive: React.FC = () => {
               setHandoverDateRange([dayjs().subtract(30, 'day'), dayjs()]);
               fetchHandoverList(1);
             }}>
-              Dat lai
+              Đặt lại
             </Button>
           </Space>
         </Col>
@@ -1361,18 +1361,18 @@ const MedicalRecordArchive: React.FC = () => {
               disabled={selectedHandoverKeys.length === 0}
               onClick={handleHandover}
             >
-              Ban giao ({selectedHandoverKeys.length})
+              Bàn giao ({selectedHandoverKeys.length})
             </Button>
             <Button
               icon={<CheckCircleOutlined />}
               disabled={selectedHandoverKeys.length === 0}
               onClick={() => setApproveModalOpen(true)}
             >
-              Duyet ({selectedHandoverKeys.length})
+              Duyệt ({selectedHandoverKeys.length})
             </Button>
             {selectedHandoverKeys.length > 0 && (
               <Button type="link" onClick={() => setSelectedHandoverKeys([])}>
-                Bo chon tat ca
+                Bỏ chọn tất cả
               </Button>
             )}
           </Space>
@@ -1394,7 +1394,7 @@ const MedicalRecordArchive: React.FC = () => {
           current: handoverPage,
           pageSize: 20,
           total: handoverTotal,
-          showTotal: (total) => `Tong: ${total} ho so`,
+          showTotal: (total) => `Tổng: ${total} hồ sơ`,
           onChange: (page) => fetchHandoverList(page),
         }}
         scroll={{ x: 1200 }}
@@ -1402,7 +1402,7 @@ const MedicalRecordArchive: React.FC = () => {
 
       {/* Approve modal */}
       <Modal
-        title="Duyet ho so ban giao"
+        title="Duyệt hồ sơ bàn giao"
         open={approveModalOpen}
         onOk={handleApprove}
         onCancel={() => {
@@ -1410,19 +1410,19 @@ const MedicalRecordArchive: React.FC = () => {
           setApproveComments('');
         }}
         confirmLoading={approveLoading}
-        okText="Duyet"
-        cancelText="Huy"
+        okText="Duyệt"
+        cancelText="Hủy"
         destroyOnHidden
       >
         <div style={{ marginBottom: 12 }}>
           <Badge count={selectedHandoverKeys.length} style={{ backgroundColor: '#52c41a' }}>
-            <Tag>Ho so duoc chon</Tag>
+            <Tag>Hồ sơ được chọn</Tag>
           </Badge>
         </div>
-        <div style={{ marginBottom: 8 }}>Ghi chu duyet (tuy chon):</div>
+        <div style={{ marginBottom: 8 }}>Ghi chú duyệt (tùy chọn):</div>
         <TextArea
           rows={3}
-          placeholder="Nhap ghi chu duyet..."
+          placeholder="Nhập ghi chú duyệt..."
           value={approveComments}
           onChange={(e) => setApproveComments(e.target.value)}
         />
@@ -1430,7 +1430,7 @@ const MedicalRecordArchive: React.FC = () => {
 
       {/* Preview drawer */}
       <Drawer
-        title={previewRecord ? `Xem truoc: ${previewRecord.patientName} - ${previewRecord.medicalRecordCode}` : 'Xem truoc'}
+        title={previewRecord ? `Xem trước: ${previewRecord.patientName} - ${previewRecord.medicalRecordCode}` : 'Xem trước'}
         open={previewDrawerOpen}
         onClose={() => {
           setPreviewDrawerOpen(false);
@@ -1442,26 +1442,26 @@ const MedicalRecordArchive: React.FC = () => {
         {previewRecord && (
           <div>
             <Descriptions bordered column={2} size="small" style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="Ma HSBA">{previewRecord.medicalRecordCode}</Descriptions.Item>
-              <Descriptions.Item label="Ma BN">{previewRecord.patientCode}</Descriptions.Item>
-              <Descriptions.Item label="Ho ten">{previewRecord.patientName}</Descriptions.Item>
+              <Descriptions.Item label="Mã HSBA">{previewRecord.medicalRecordCode}</Descriptions.Item>
+              <Descriptions.Item label="Mã BN">{previewRecord.patientCode}</Descriptions.Item>
+              <Descriptions.Item label="Họ tên">{previewRecord.patientName}</Descriptions.Item>
               <Descriptions.Item label="Khoa">{previewRecord.departmentName}</Descriptions.Item>
-              <Descriptions.Item label="Ngay ra vien">
+              <Descriptions.Item label="Ngày ra viện">
                 {previewRecord.dischargeDate ? dayjs(previewRecord.dischargeDate).format('DD/MM/YYYY') : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="Trang thai">
+              <Descriptions.Item label="Trạng thái">
                 <Tag color={HANDOVER_STATUS_MAP[previewRecord.handoverStatus]?.color || 'default'}>
                   {HANDOVER_STATUS_MAP[previewRecord.handoverStatus]?.label || '-'}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Hoan thanh bieu mau" span={2}>
+              <Descriptions.Item label="Hoàn thành biểu mẫu" span={2}>
                 <Progress
                   percent={previewRecord.totalForms > 0
                     ? Math.round((previewRecord.completedForms / previewRecord.totalForms) * 100)
                     : 0}
                   size="small"
                 />
-                {previewRecord.completedForms}/{previewRecord.totalForms} bieu mau
+                {previewRecord.completedForms}/{previewRecord.totalForms} biểu mẫu
               </Descriptions.Item>
             </Descriptions>
 
@@ -1473,7 +1473,7 @@ const MedicalRecordArchive: React.FC = () => {
                 style={{ minHeight: 200 }}
               />
             ) : (
-              <Result status="info" title="Dang tai cau truc ho so..." />
+              <Result status="info" title="Đang tải cấu trúc hồ sơ..." />
             )}
           </div>
         )}
@@ -1492,7 +1492,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Tong ho so"
+                title="Tổng hồ sơ"
                 value={stats.totalRecords}
                 prefix={<FileTextOutlined />}
               />
@@ -1501,7 +1501,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Cho soat"
+                title="Chờ soát"
                 value={stats.pendingReview}
                 prefix={<ClockCircleOutlined />}
                 styles={{ content: { color: '#fa8c16' } }}
@@ -1511,7 +1511,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Da ban giao"
+                title="Đã bàn giao"
                 value={stats.handedOver}
                 prefix={<SwapOutlined />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -1521,7 +1521,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Col xs={12} sm={6}>
             <Card size="small">
               <Statistic
-                title="Da duyet"
+                title="Đã duyệt"
                 value={stats.approved}
                 prefix={<CheckCircleOutlined />}
                 styles={{ content: { color: '#52c41a' } }}
@@ -1539,7 +1539,7 @@ const MedicalRecordArchive: React.FC = () => {
                 key: 'summary',
                 label: (
                   <span>
-                    <FolderOutlined /> Tong hop ho so BA
+                    <FolderOutlined /> Tổng hợp hồ sơ BA
                   </span>
                 ),
                 children: renderSummaryTab(),
@@ -1548,7 +1548,7 @@ const MedicalRecordArchive: React.FC = () => {
                 key: 'review',
                 label: (
                   <span>
-                    <AuditOutlined /> Soat HSBA truoc ban giao
+                    <AuditOutlined /> Soát HSBA trước bàn giao
                   </span>
                 ),
                 children: renderReviewTab(),
@@ -1557,7 +1557,7 @@ const MedicalRecordArchive: React.FC = () => {
                 key: 'handover',
                 label: (
                   <span>
-                    <SwapOutlined /> Ban giao HSBA{' '}
+                    <SwapOutlined /> Bàn giao HSBA{' '}
                     {stats.pendingReview > 0 && (
                       <Badge count={stats.pendingReview} size="small" />
                     )}
@@ -1571,7 +1571,7 @@ const MedicalRecordArchive: React.FC = () => {
 
         {/* Detail drawer for tree node clicks */}
         <Drawer
-          title={detailTitle || 'Chi tiet'}
+          title={detailTitle || 'Chi tiết'}
           open={detailDrawerOpen}
           onClose={() => {
             setDetailDrawerOpen(false);

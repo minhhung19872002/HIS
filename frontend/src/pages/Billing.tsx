@@ -59,7 +59,7 @@ import {
   type DebtStatisticsDto,
   getOutpatientRevenueReport,
 } from '../api/billing';
-import { HOSPITAL_NAME } from '../constants/hospital';
+import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -145,6 +145,7 @@ const Billing: React.FC = () => {
   const [debtData, setDebtData] = useState<DebtStatisticsDto | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [depositDetailVisible, setDepositDetailVisible] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<Deposit | null>(null);
   const [refundDetailVisible, setRefundDetailVisible] = useState(false);
@@ -200,12 +201,12 @@ const Billing: React.FC = () => {
         <div class="header">
           <div class="header-left">
             <div><strong>${HOSPITAL_NAME}</strong></div>
-            <div>Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM</div>
-            <div>ĐT: 028 1234 5678</div>
+            <div>Địa chỉ: ${HOSPITAL_ADDRESS}</div>
+            <div>ĐT: ${HOSPITAL_PHONE}</div>
           </div>
           <div class="header-right">
             <div><strong>MS: 04/BV-02</strong></div>
-            <div>Số: HD-${dayjs().format('YYYYMMDD')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}</div>
+            <div>Số: HD-${dayjs().format('YYYYMMDD')}-${String(selectedPatient?.id || '').slice(-3).padStart(3, '0')}</div>
           </div>
         </div>
 
@@ -311,7 +312,7 @@ const Billing: React.FC = () => {
       <body>
         <div class="header">
           <div><strong>${HOSPITAL_NAME}</strong></div>
-          <div>123 Đường ABC, Quận XYZ, TP.HCM - ĐT: 028 1234 5678</div>
+          <div>${HOSPITAL_ADDRESS} - ĐT: ${HOSPITAL_PHONE}</div>
         </div>
 
         <div class="title" style="text-align: center;">PHIẾU TẠM ỨNG</div>
@@ -377,7 +378,7 @@ const Billing: React.FC = () => {
       <body>
         <div class="header">
           <div><strong>${HOSPITAL_NAME}</strong></div>
-          <div>123 Đường ABC, Quận XYZ, TP.HCM - ĐT: 028 1234 5678</div>
+          <div>${HOSPITAL_ADDRESS} - ĐT: ${HOSPITAL_PHONE}</div>
         </div>
 
         <div class="title" style="text-align: center;">PHIẾU HOÀN TIỀN</div>
@@ -860,6 +861,7 @@ const Billing: React.FC = () => {
   // ============= PAYMENT TAB =============
 
   const handlePayment = async () => {
+    setSubmitting(true);
     try {
       const values = await paymentForm.validateFields();
 
@@ -914,6 +916,8 @@ const Billing: React.FC = () => {
     } catch (error) {
       console.warn('Payment error:', error);
       message.error('Lỗi khi thanh toán. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -923,6 +927,7 @@ const Billing: React.FC = () => {
       open={paymentModalVisible}
       onOk={handlePayment}
       onCancel={() => setPaymentModalVisible(false)}
+      confirmLoading={submitting}
       width={800}
       okText="Xác nhận thanh toán"
       cancelText="Hủy"
@@ -1080,10 +1085,10 @@ const Billing: React.FC = () => {
       }
     >
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={4}>BỆNH VIỆN ĐA KHOA</Title>
-        <Text>123 Đường ABC, Quận XYZ, TP.HCM</Text>
+        <Title level={4}>{HOSPITAL_NAME}</Title>
+        <Text>{HOSPITAL_ADDRESS}</Text>
         <br />
-        <Text>SĐT: 028 1234 5678</Text>
+        <Text>SĐT: {HOSPITAL_PHONE}</Text>
         <Divider />
         <Title level={3}>HÓA ĐƠN THANH TOÁN</Title>
         <Text>Số: HD-{dayjs().format('YYYYMMDD')}-001</Text>

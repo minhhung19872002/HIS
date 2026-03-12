@@ -429,7 +429,7 @@ const Reception: React.FC = () => {
   const handleInlineInsuranceVerify = async () => {
     const insuranceNumber = form.getFieldValue('insuranceNumber');
     if (!insuranceNumber || insuranceNumber.length < 10) {
-      message.warning('Vui long nhap so the BHYT hop le');
+      message.warning('Vui lòng nhập số thẻ BHYT hợp lệ');
       return;
     }
     setInlineVerifyLoading(true);
@@ -447,15 +447,15 @@ const Reception: React.FC = () => {
       setInlineCardVerification(data);
       if (data.duDkKcb) {
         setInlineVerifyStatus('valid');
-        message.success('The BHYT hop le - Du dieu kien KCB');
+        message.success('Thẻ BHYT hợp lệ - Đủ điều kiện KCB');
       } else {
         setInlineVerifyStatus('invalid');
-        message.warning(data.lyDoKhongDuDk || 'The BHYT khong du dieu kien');
+        message.warning(data.lyDoKhongDuDk || 'Thẻ BHYT không đủ điều kiện');
       }
     } catch (error) {
       console.warn('Inline insurance verification error:', error);
       setInlineVerifyStatus('error');
-      message.warning('Khong ket noi duoc cong BHXH. Co the nhap thu cong.');
+      message.warning('Không kết nối được cổng BHXH. Có thể nhập thủ công.');
     } finally {
       setInlineVerifyLoading(false);
     }
@@ -473,7 +473,7 @@ const Reception: React.FC = () => {
       setBhxhHistory(data);
     } catch (error) {
       console.warn('Error fetching BHXH history:', error);
-      message.warning('Khong the tai lich su KCB');
+      message.warning('Không thể tải lịch sử KCB');
     } finally {
       setBhxhHistoryLoading(false);
     }
@@ -1443,35 +1443,35 @@ const Reception: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={10}>
-              <Form.Item name="insuranceNumber" label="So the BHYT">
+              <Form.Item name="insuranceNumber" label="Số thẻ BHYT">
                 <Input
-                  placeholder="Nhap so the BHYT"
+                  placeholder="Nhập số thẻ BHYT"
                   maxLength={15}
                   onBlur={handleInlineInsuranceVerify}
                 />
               </Form.Item>
             </Col>
             <Col span={2} style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 24 }}>
-              <Tooltip title="Xac minh the BHYT qua cong BHXH">
+              <Tooltip title="Xác minh thẻ BHYT qua cổng BHXH">
                 <Button
                   icon={<SafetyCertificateOutlined />}
                   onClick={handleInlineInsuranceVerify}
                   loading={inlineVerifyLoading}
                 >
-                  Xac minh
+                  Xác minh
                 </Button>
               </Tooltip>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="roomId"
-                label="Phong kham"
-                rules={[{ required: true, message: 'Vui long chon phong kham' }]}
+                label="Phòng khám"
+                rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
               >
                 <Select
-                  placeholder="Chon phong kham"
+                  placeholder="Chọn phòng khám"
                   loading={loadingRooms}
-                  notFoundContent={loadingRooms ? <Spin size="small" /> : 'Khong co du lieu'}
+                  notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
                 >
                   {rooms.map(room => (
                     <Select.Option key={room.roomId} value={room.roomId}>
@@ -1489,13 +1489,13 @@ const Reception: React.FC = () => {
               <Alert
                 title={
                   <Space>
-                    <Tag color="green">Du dieu kien KCB</Tag>
-                    <Text>Muc huong: {inlineCardVerification.mucHuong}%</Text>
+                    <Tag color="green">Đủ điều kiện KCB</Tag>
+                    <Text>Mức hưởng: {inlineCardVerification.mucHuong}%</Text>
                     <Text type="secondary">
-                      Hieu luc: {inlineCardVerification.gtTheTu ? dayjs(inlineCardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - {inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen).format('DD/MM/YYYY') : ''}
+                      Hiệu lực: {inlineCardVerification.gtTheTu ? dayjs(inlineCardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - {inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen).format('DD/MM/YYYY') : ''}
                     </Text>
                     <Button size="small" type="link" icon={<HistoryOutlined />} onClick={handleViewBhxhHistory}>
-                      Xem lich su KCB
+                      Xem lịch sử KCB
                     </Button>
                   </Space>
                 }
@@ -1509,8 +1509,8 @@ const Reception: React.FC = () => {
               <Alert
                 title={
                   <Space>
-                    <Tag color="red">Khong du dieu kien</Tag>
-                    <Text type="danger">{inlineCardVerification.lyDoKhongDuDk || 'Khong co thong tin'}</Text>
+                    <Tag color="red">Không đủ điều kiện</Tag>
+                    <Text type="danger">{inlineCardVerification.lyDoKhongDuDk || 'Không có thông tin'}</Text>
                   </Space>
                 }
                 type="error"
@@ -1523,8 +1523,8 @@ const Reception: React.FC = () => {
               <Alert
                 title={
                   <Space>
-                    <Tag color="gold">Khong ket noi duoc cong BHXH</Tag>
-                    <Text type="warning">Co the nhap thu cong va tiep tuc dang ky</Text>
+                    <Tag color="gold">Không kết nối được cổng BHXH</Tag>
+                    <Text type="warning">Có thể nhập thủ công và tiếp tục đăng ký</Text>
                   </Space>
                 }
                 type="warning"
@@ -1533,8 +1533,8 @@ const Reception: React.FC = () => {
             </div>
           )}
 
-          <Form.Item name="address" label="Dia chi">
-            <Input.TextArea rows={2} placeholder="Nhap dia chi" />
+          <Form.Item name="address" label="Địa chỉ">
+            <Input.TextArea rows={2} placeholder="Nhập địa chỉ" />
           </Form.Item>
         </Form>
       </Modal>
@@ -1736,12 +1736,12 @@ const Reception: React.FC = () => {
         open={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={handleBarcodeScan}
-        title="Quet ma vach / QR Code benh nhan"
+        title="Quét mã vạch / QR Code bệnh nhân"
       />
 
       {/* BHXH Insurance History Modal */}
       <Modal
-        title="Lich su kham chua benh BHYT"
+        title="Lịch sử khám chữa bệnh BHYT"
         open={isInsuranceHistoryModalOpen}
         onCancel={() => {
           setIsInsuranceHistoryModalOpen(false);
@@ -1754,7 +1754,7 @@ const Reception: React.FC = () => {
           {bhxhHistory ? (
             <>
               <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="Ma the BHYT">
+                <Descriptions.Item label="Mã thẻ BHYT">
                   <Text code>{bhxhHistory.maThe}</Text>
                 </Descriptions.Item>
               </Descriptions>
@@ -1762,25 +1762,25 @@ const Reception: React.FC = () => {
                 size="small"
                 columns={[
                   {
-                    title: 'Ngay KCB',
+                    title: 'Ngày KCB',
                     dataIndex: 'ngayKcb',
                     key: 'ngayKcb',
                     width: 110,
                     render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
                   },
                   {
-                    title: 'Ten CSKCB',
+                    title: 'Tên CSKCB',
                     dataIndex: 'tenCsKcb',
                     key: 'tenCsKcb',
                   },
                   {
-                    title: 'Ma benh chinh',
+                    title: 'Mã bệnh chính',
                     dataIndex: 'maBenhChinh',
                     key: 'maBenhChinh',
                     width: 120,
                   },
                   {
-                    title: 'Tien BHYT',
+                    title: 'Tiền BHYT',
                     dataIndex: 'tienBhyt',
                     key: 'tienBhyt',
                     width: 130,
@@ -1793,7 +1793,7 @@ const Reception: React.FC = () => {
               />
             </>
           ) : (
-            <Empty description="Khong co lich su KCB" />
+            <Empty description="Không có lịch sử KCB" />
           )}
         </Spin>
       </Modal>

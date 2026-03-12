@@ -231,7 +231,7 @@ const BhxhAudit: React.FC = () => {
       setStats(newStats);
     } catch (err) {
       console.warn('Failed to fetch audit records:', err);
-      message.warning('Khong the tai danh sach ho so giam dinh');
+      message.warning('Không thể tải danh sách hồ sơ giám định');
     } finally {
       setLoading(false);
     }
@@ -264,7 +264,7 @@ const BhxhAudit: React.FC = () => {
           fullName: a.fullName || '',
           email: a.email || '',
           phone: a.phone,
-          organization: a.organization || 'BHXH Tinh',
+          organization: a.organization || 'BHXH Tỉnh',
           role: a.role || 'auditor',
           isActive: a.isActive ?? true,
           createdAt: a.createdAt || '',
@@ -273,7 +273,7 @@ const BhxhAudit: React.FC = () => {
       );
     } catch (err) {
       console.warn('Failed to fetch auditor accounts:', err);
-      message.warning('Khong the tai danh sach tai khoan giam dinh vien');
+      message.warning('Không thể tải danh sách tài khoản giám định viên');
     } finally {
       setAccountsLoading(false);
     }
@@ -306,7 +306,7 @@ const BhxhAudit: React.FC = () => {
       );
     } catch (err) {
       console.warn('Failed to fetch portal records:', err);
-      message.warning('Khong the tai ho so tren cong giam dinh');
+      message.warning('Không thể tải hồ sơ trên cổng giám định');
     } finally {
       setPortalLoading(false);
     }
@@ -335,35 +335,35 @@ const BhxhAudit: React.FC = () => {
   const getAuditStatusTag = (status: number) => {
     switch (status) {
       case 0:
-        return <Tag color="orange">Chua duyet</Tag>;
+        return <Tag color="orange">Chưa duyệt</Tag>;
       case 1:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Da duyet</Tag>;
+        return <Tag color="green" icon={<CheckCircleOutlined />}>Đã duyệt</Tag>;
       case 2:
-        return <Tag color="red" icon={<CloseCircleOutlined />}>Tu choi</Tag>;
+        return <Tag color="red" icon={<CloseCircleOutlined />}>Từ chối</Tag>;
       default:
-        return <Tag>Khong xac dinh</Tag>;
+        return <Tag>Không xác định</Tag>;
     }
   };
 
   const getPaymentStatusTag = (status: number) => {
     switch (status) {
       case 0:
-        return <Tag color="default">Chua thanh toan</Tag>;
+        return <Tag color="default">Chưa thanh toán</Tag>;
       case 1:
-        return <Tag color="green">Da thanh toan</Tag>;
+        return <Tag color="green">Đã thanh toán</Tag>;
       default:
-        return <Tag>Khong xac dinh</Tag>;
+        return <Tag>Không xác định</Tag>;
     }
   };
 
   const getAuditorRoleTag = (role: string) => {
     switch (role) {
       case 'admin':
-        return <Tag color="red">Quan tri</Tag>;
+        return <Tag color="red">Quản trị</Tag>;
       case 'senior_auditor':
-        return <Tag color="blue">GDV Cap cao</Tag>;
+        return <Tag color="blue">GĐV Cấp cao</Tag>;
       case 'auditor':
-        return <Tag color="green">Giam dinh vien</Tag>;
+        return <Tag color="green">Giám định viên</Tag>;
       default:
         return <Tag>{role}</Tag>;
     }
@@ -387,7 +387,7 @@ const BhxhAudit: React.FC = () => {
 
   const handleImportExcel = async () => {
     if (fileList.length === 0) {
-      message.warning('Vui long chon file Excel');
+      message.warning('Vui lòng chọn file Excel');
       return;
     }
 
@@ -409,10 +409,10 @@ const BhxhAudit: React.FC = () => {
         records: preview?.records || [],
       });
 
-      message.success(`Da doc ${preview?.totalRows ?? 0} dong tu file Excel`);
+      message.success(`Đã đọc ${preview?.totalRows ?? 0} dòng từ file Excel`);
     } catch (err) {
       console.warn('Failed to import Excel:', err);
-      message.warning('Khong the doc file Excel. Vui long kiem tra dinh dang file');
+      message.warning('Không thể đọc file Excel. Vui lòng kiểm tra định dạng file');
     } finally {
       setImportLoading(false);
     }
@@ -426,10 +426,10 @@ const BhxhAudit: React.FC = () => {
       setImportModalOpen(false);
       setImportPreview(null);
       setFileList([]);
-      message.success('Import danh sach ho so giam dinh thanh cong');
+      message.success('Import danh sách hồ sơ giám định thành công');
     } catch (err) {
       console.warn('Failed to confirm import:', err);
-      message.warning('Loi khi xac nhan import');
+      message.warning('Lỗi khi xác nhận import');
     } finally {
       setImportLoading(false);
     }
@@ -437,7 +437,7 @@ const BhxhAudit: React.FC = () => {
 
   const handleApproveRecords = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui long chon it nhat 1 ho so de duyet');
+      message.warning('Vui lòng chọn ít nhất 1 hồ sơ để duyệt');
       return;
     }
 
@@ -446,12 +446,12 @@ const BhxhAudit: React.FC = () => {
       await client.post('/insurance-xml/bhxh-audit/approve', {
         recordIds: selectedRowKeys,
       });
-      message.success(`Da duyet ${selectedRowKeys.length} ho so`);
+      message.success(`Đã duyệt ${selectedRowKeys.length} hồ sơ`);
       setSelectedRowKeys([]);
       await fetchRecords();
     } catch (err) {
       console.warn('Failed to approve records:', err);
-      message.warning('Khong the duyet ho so giam dinh');
+      message.warning('Không thể duyệt hồ sơ giám định');
     } finally {
       setLoading(false);
     }
@@ -459,7 +459,7 @@ const BhxhAudit: React.FC = () => {
 
   const handleSendToPortal = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui long chon ho so de gui len cong giam dinh');
+      message.warning('Vui lòng chọn hồ sơ để gửi lên cổng giám định');
       return;
     }
 
@@ -468,12 +468,12 @@ const BhxhAudit: React.FC = () => {
       await client.post('/insurance-xml/submit', {
         recordIds: selectedRowKeys,
       });
-      message.success(`Da gui ${selectedRowKeys.length} ho so len cong giam dinh dien tu BHXH tinh`);
+      message.success(`Đã gửi ${selectedRowKeys.length} hồ sơ lên cổng giám định điện tử BHXH tỉnh`);
       setSelectedRowKeys([]);
       await fetchRecords();
     } catch (err) {
       console.warn('Failed to send to BHXH portal:', err);
-      message.warning('Khong the gui ho so len cong giam dinh BHXH');
+      message.warning('Không thể gửi hồ sơ lên cổng giám định BHXH');
     } finally {
       setLoading(false);
     }
@@ -495,13 +495,13 @@ const BhxhAudit: React.FC = () => {
           <td>${r.diagnosisCode}</td>
           <td style="text-align:right">${formatVND(r.totalAmount)}</td>
           <td style="text-align:right">${formatVND(r.insuranceAmount)}</td>
-          <td>${r.auditStatus === 1 ? 'Da duyet' : r.auditStatus === 2 ? 'Tu choi' : 'Chua duyet'}</td>
+          <td>${r.auditStatus === 1 ? 'Đã duyệt' : r.auditStatus === 2 ? 'Từ chối' : 'Chưa duyệt'}</td>
         </tr>`
       )
       .join('');
 
     printWindow.document.write(`
-      <html><head><title>Danh sach ho so giam dinh BHXH</title>
+      <html><head><title>Danh sách hồ sơ giám định BHXH</title>
       <style>
         body { font-family: 'Times New Roman', serif; margin: 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -512,19 +512,19 @@ const BhxhAudit: React.FC = () => {
       </style></head><body>
         <div class="header">
           <p>${HOSPITAL_NAME}</p>
-          <h2>DANH SACH HO SO GUI GIAM DINH BHXH</h2>
-          <p>Ngay in: ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
+          <h2>DANH SÁCH HỒ SƠ GỬI GIÁM ĐỊNH BHXH</h2>
+          <p>Ngày in: ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
         </div>
         <table>
           <thead><tr>
-            <th>STT</th><th>Ma lien ket</th><th>Ho ten BN</th>
-            <th>So the BHYT</th><th>Ma benh</th><th>Tong chi phi</th>
-            <th>BHYT chi tra</th><th>Trang thai</th>
+            <th>STT</th><th>Mã liên kết</th><th>Họ tên BN</th>
+            <th>Số thẻ BHYT</th><th>Mã bệnh</th><th>Tổng chi phí</th>
+            <th>BHYT chi trả</th><th>Trạng thái</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
         <div style="margin-top:30px;text-align:right">
-          <p><strong>Nguoi in</strong></p><br/><br/>
+          <p><strong>Người in</strong></p><br/><br/>
           <p>____________________</p>
         </div>
       </body></html>
@@ -569,14 +569,14 @@ const BhxhAudit: React.FC = () => {
         ...values,
         id: editingAccount?.id,
       });
-      message.success(editingAccount ? 'Cap nhat tai khoan thanh cong' : 'Tao tai khoan thanh cong');
+      message.success(editingAccount ? 'Cập nhật tài khoản thành công' : 'Tạo tài khoản thành công');
       setAccountModalOpen(false);
       accountForm.resetFields();
       setEditingAccount(null);
       await fetchAuditorAccounts();
     } catch (err) {
       console.warn('Failed to save auditor account:', err);
-      message.warning('Khong the luu tai khoan giam dinh vien');
+      message.warning('Không thể lưu tài khoản giám định viên');
     }
   };
 
@@ -643,35 +643,35 @@ const BhxhAudit: React.FC = () => {
       render: (_, __, idx) => idx + 1,
     },
     {
-      title: 'Ma lien ket',
+      title: 'Mã liên kết',
       dataIndex: 'maLk',
       key: 'maLk',
       width: 130,
       ellipsis: true,
     },
     {
-      title: 'Ho ten BN',
+      title: 'Họ tên BN',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 160,
       ellipsis: true,
     },
     {
-      title: 'So the BHYT',
+      title: 'Số thẻ BHYT',
       dataIndex: 'insuranceNumber',
       key: 'insuranceNumber',
       width: 155,
       ellipsis: true,
     },
     {
-      title: 'Ngay vao',
+      title: 'Ngày vào',
       dataIndex: 'admissionDate',
       key: 'admissionDate',
       width: 100,
       render: (v: string) => (v ? dayjs(v).format('DD/MM/YYYY') : '-'),
     },
     {
-      title: 'Ngay ra',
+      title: 'Ngày ra',
       dataIndex: 'dischargeDate',
       key: 'dischargeDate',
       width: 100,
@@ -685,13 +685,13 @@ const BhxhAudit: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: 'Ma benh',
+      title: 'Mã bệnh',
       dataIndex: 'diagnosisCode',
       key: 'diagnosisCode',
       width: 90,
     },
     {
-      title: 'Tong CP',
+      title: 'Tổng CP',
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       width: 120,
@@ -699,7 +699,7 @@ const BhxhAudit: React.FC = () => {
       render: (v: number) => new Intl.NumberFormat('vi-VN').format(v),
     },
     {
-      title: 'BHYT tra',
+      title: 'BHYT trả',
       dataIndex: 'insuranceAmount',
       key: 'insuranceAmount',
       width: 120,
@@ -707,7 +707,7 @@ const BhxhAudit: React.FC = () => {
       render: (v: number) => new Intl.NumberFormat('vi-VN').format(v),
     },
     {
-      title: 'Giam dinh',
+      title: 'Giám định',
       dataIndex: 'auditStatus',
       key: 'auditStatus',
       width: 110,
@@ -715,7 +715,7 @@ const BhxhAudit: React.FC = () => {
       render: (status: number) => getAuditStatusTag(status),
     },
     {
-      title: 'Thanh toan',
+      title: 'Thanh toán',
       dataIndex: 'paymentStatus',
       key: 'paymentStatus',
       width: 120,
@@ -723,12 +723,12 @@ const BhxhAudit: React.FC = () => {
       render: (status: number) => getPaymentStatusTag(status),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 80,
       align: 'center',
       render: (_, record: AuditRecord) => (
-        <Tooltip title="Xem chi tiet">
+        <Tooltip title="Xem chi tiết">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
         </Tooltip>
       ),
@@ -748,13 +748,13 @@ const BhxhAudit: React.FC = () => {
       render: (_, __, idx) => idx + 1,
     },
     {
-      title: 'Ten dang nhap',
+      title: 'Tên đăng nhập',
       dataIndex: 'username',
       key: 'username',
       width: 140,
     },
     {
-      title: 'Ho ten',
+      title: 'Họ tên',
       dataIndex: 'fullName',
       key: 'fullName',
       width: 180,
@@ -767,14 +767,14 @@ const BhxhAudit: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: 'To chuc',
+      title: 'Tổ chức',
       dataIndex: 'organization',
       key: 'organization',
       width: 160,
       ellipsis: true,
     },
     {
-      title: 'Vai tro',
+      title: 'Vai trò',
       dataIndex: 'role',
       key: 'role',
       width: 120,
@@ -782,29 +782,29 @@ const BhxhAudit: React.FC = () => {
       render: (role: string) => getAuditorRoleTag(role),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'isActive',
       key: 'isActive',
       width: 100,
       align: 'center',
       render: (active: boolean) =>
-        active ? <Badge status="success" text="Hoat dong" /> : <Badge status="default" text="Khoa" />,
+        active ? <Badge status="success" text="Hoạt động" /> : <Badge status="default" text="Khóa" />,
     },
     {
-      title: 'Dang nhap cuoi',
+      title: 'Đăng nhập cuối',
       dataIndex: 'lastLoginAt',
       key: 'lastLoginAt',
       width: 140,
       render: (v?: string) => (v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-'),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 80,
       align: 'center',
       render: (_, record: AuditorAccount) => (
         <Button type="link" size="small" onClick={() => handleEditAccount(record)}>
-          Sua
+          Sửa
         </Button>
       ),
     },
@@ -823,40 +823,40 @@ const BhxhAudit: React.FC = () => {
       render: (_, __, idx) => idx + 1,
     },
     {
-      title: 'Ma lien ket',
+      title: 'Mã liên kết',
       dataIndex: 'maLk',
       key: 'maLk',
       width: 130,
       ellipsis: true,
     },
     {
-      title: 'Ho ten BN',
+      title: 'Họ tên BN',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 160,
     },
     {
-      title: 'So the BHYT',
+      title: 'Số thẻ BHYT',
       dataIndex: 'insuranceNumber',
       key: 'insuranceNumber',
       width: 155,
     },
     {
-      title: 'Ngay vao',
+      title: 'Ngày vào',
       dataIndex: 'admissionDate',
       key: 'admissionDate',
       width: 100,
       render: (v: string) => (v ? dayjs(v).format('DD/MM/YYYY') : '-'),
     },
     {
-      title: 'Chan doan',
+      title: 'Chẩn đoán',
       key: 'diagnosis',
       width: 180,
       ellipsis: true,
       render: (_, r: PortalRecord) => `${r.diagnosisCode} - ${r.diagnosisName}`,
     },
     {
-      title: 'BHYT chi tra',
+      title: 'BHYT chi trả',
       dataIndex: 'insuranceAmount',
       key: 'insuranceAmount',
       width: 120,
@@ -871,31 +871,31 @@ const BhxhAudit: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: 'Ngay gui',
+      title: 'Ngày gửi',
       dataIndex: 'sentDate',
       key: 'sentDate',
       width: 100,
       render: (v: string) => (v ? dayjs(v).format('DD/MM/YYYY') : '-'),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 100,
       align: 'center',
       render: (status: string) => {
-        if (status === 'approved') return <Tag color="green">Da duyet</Tag>;
-        if (status === 'rejected') return <Tag color="red">Tu choi</Tag>;
-        return <Tag color="blue">Da gui</Tag>;
+        if (status === 'approved') return <Tag color="green">Đã duyệt</Tag>;
+        if (status === 'rejected') return <Tag color="red">Từ chối</Tag>;
+        return <Tag color="blue">Đã gửi</Tag>;
       },
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 80,
       align: 'center',
       render: (_, record: PortalRecord) => (
-        <Tooltip title="Xem ho so PDF">
+        <Tooltip title="Xem hồ sơ PDF">
           <Button type="link" size="small" icon={<FilePdfOutlined />} onClick={() => handleViewRecordPdf(record)} />
         </Tooltip>
       ),
@@ -903,7 +903,7 @@ const BhxhAudit: React.FC = () => {
   ];
 
   // ---------------------------------------------------------------------------
-  // Tab 1 content: Danh sach ho so gui giam dinh
+  // Tab 1 content: Danh sách hồ sơ gửi giám định
   // ---------------------------------------------------------------------------
 
   const filteredRecords = getFilteredRecords();
@@ -915,7 +915,7 @@ const BhxhAudit: React.FC = () => {
         <Col xs={12} sm={8} md={4}>
           <Card size="small">
             <Statistic
-              title="Tong ho so"
+              title="Tổng hồ sơ"
               value={stats.total}
               prefix={<AuditOutlined />}
               styles={{ content: { color: '#1890ff' } }}
@@ -925,7 +925,7 @@ const BhxhAudit: React.FC = () => {
         <Col xs={12} sm={8} md={4}>
           <Card size="small">
             <Statistic
-              title="Cho giam dinh"
+              title="Chờ giám định"
               value={stats.pending}
               prefix={<FilterOutlined />}
               styles={{ content: { color: '#fa8c16' } }}
@@ -935,7 +935,7 @@ const BhxhAudit: React.FC = () => {
         <Col xs={12} sm={8} md={4}>
           <Card size="small">
             <Statistic
-              title="Da duyet"
+              title="Đã duyệt"
               value={stats.approved}
               prefix={<CheckCircleOutlined />}
               styles={{ content: { color: '#52c41a' } }}
@@ -945,7 +945,7 @@ const BhxhAudit: React.FC = () => {
         <Col xs={12} sm={8} md={4}>
           <Card size="small">
             <Statistic
-              title="Tu choi"
+              title="Từ chối"
               value={stats.rejected}
               prefix={<CloseCircleOutlined />}
               styles={{ content: { color: '#ff4d4f' } }}
@@ -955,7 +955,7 @@ const BhxhAudit: React.FC = () => {
         <Col xs={24} sm={16} md={8}>
           <Card size="small">
             <Statistic
-              title="Tong BHYT chi tra"
+              title="Tổng BHYT chi trả"
               value={stats.totalAmount}
               prefix="VND"
               formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
@@ -970,7 +970,7 @@ const BhxhAudit: React.FC = () => {
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} md={6}>
             <Search
-              placeholder="Tim kiem: ma LK, ten BN, so the..."
+              placeholder="Tìm kiếm: mã LK, tên BN, số thẻ..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               onSearch={handleSearch}
@@ -985,13 +985,13 @@ const BhxhAudit: React.FC = () => {
               onChange={(dates) =>
                 setDateRange(dates ? [dates[0]!, dates[1]!] : null)
               }
-              placeholder={['Tu ngay', 'Den ngay']}
+              placeholder={['Từ ngày', 'Đến ngày']}
             />
           </Col>
           <Col xs={24} md={4}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Khoa phong"
+              placeholder="Khoa phòng"
               value={departmentFilter}
               onChange={(v) => setDepartmentFilter(v)}
               allowClear
@@ -1007,7 +1007,7 @@ const BhxhAudit: React.FC = () => {
                 type={auditStatusFilter === 0 ? 'primary' : 'default'}
                 onClick={() => handleFilterByAuditStatus(0)}
               >
-                Chua duyet GD
+                Chưa duyệt GĐ
               </Button>
               <Button
                 size="small"
@@ -1015,21 +1015,21 @@ const BhxhAudit: React.FC = () => {
                 onClick={() => handleFilterByAuditStatus(1)}
                 icon={<CheckCircleOutlined />}
               >
-                Da duyet GD
+                Đã duyệt GĐ
               </Button>
               <Button
                 size="small"
                 type={paymentStatusFilter === 1 ? 'primary' : 'default'}
                 onClick={() => handleFilterByPaymentStatus(1)}
               >
-                BN da TT
+                BN đã TT
               </Button>
               <Button
                 size="small"
                 type={paymentStatusFilter === 0 ? 'primary' : 'default'}
                 onClick={() => handleFilterByPaymentStatus(0)}
               >
-                BN chua TT
+                BN chưa TT
               </Button>
             </Space>
           </Col>
@@ -1040,11 +1040,11 @@ const BhxhAudit: React.FC = () => {
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space wrap>
           <Button icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>
-            Import Excel tu BHXH
+            Import Excel từ BHXH
           </Button>
           <Popconfirm
-            title={`Duyet ${selectedRowKeys.length} ho so?`}
-            description="Ho so se duoc danh dau da duyet giam dinh BHXH"
+            title={`Duyệt ${selectedRowKeys.length} hồ sơ?`}
+            description="Hồ sơ sẽ được đánh dấu đã duyệt giám định BHXH"
             onConfirm={handleApproveRecords}
             disabled={selectedRowKeys.length === 0}
           >
@@ -1053,15 +1053,15 @@ const BhxhAudit: React.FC = () => {
               icon={<CheckCircleOutlined />}
               disabled={selectedRowKeys.length === 0}
             >
-              Duyet giam dinh ({selectedRowKeys.length})
+              Duyệt giám định ({selectedRowKeys.length})
             </Button>
           </Popconfirm>
           <Button icon={<PrinterOutlined />} onClick={handlePrintList}>
-            In danh sach
+            In danh sách
           </Button>
           <Popconfirm
-            title={`Gui ${selectedRowKeys.length} ho so len cong giam dinh?`}
-            description="Ho so se duoc gui len cong giam dinh dien tu BHXH tinh"
+            title={`Gửi ${selectedRowKeys.length} hồ sơ lên cổng giám định?`}
+            description="Hồ sơ sẽ được gửi lên cổng giám định điện tử BHXH tỉnh"
             onConfirm={handleSendToPortal}
             disabled={selectedRowKeys.length === 0}
           >
@@ -1070,11 +1070,11 @@ const BhxhAudit: React.FC = () => {
               disabled={selectedRowKeys.length === 0}
               style={{ background: selectedRowKeys.length > 0 ? '#722ed1' : undefined, color: selectedRowKeys.length > 0 ? '#fff' : undefined }}
             >
-              Gui cong GD BHXH tinh
+              Gửi cổng GĐ BHXH tỉnh
             </Button>
           </Popconfirm>
           <Button icon={<ReloadOutlined />} onClick={() => { setAuditStatusFilter(undefined); setPaymentStatusFilter(undefined); setDepartmentFilter(undefined); setSearchText(''); setDateRange(null); fetchRecords(); }}>
-            Lam moi
+            Làm mới
           </Button>
         </Space>
       </Card>
@@ -1092,7 +1092,7 @@ const BhxhAudit: React.FC = () => {
             pageSize: 50,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100', '200'],
-            showTotal: (total) => `Tong ${total} ho so`,
+            showTotal: (total) => `Tổng ${total} hồ sơ`,
           }}
           rowSelection={{
             selectedRowKeys,
@@ -1107,7 +1107,7 @@ const BhxhAudit: React.FC = () => {
   );
 
   // ---------------------------------------------------------------------------
-  // Tab 2 content: Cong giam dinh
+  // Tab 2 content: Cổng giám định
   // ---------------------------------------------------------------------------
 
   const renderPortalTab = () => (
@@ -1118,12 +1118,12 @@ const BhxhAudit: React.FC = () => {
         title={
           <Space>
             <TeamOutlined />
-            <span>Quan ly tai khoan giam dinh vien</span>
+            <span>Quản lý tài khoản giám định viên</span>
           </Space>
         }
         extra={
           <Button type="primary" icon={<UserOutlined />} onClick={handleCreateAccount}>
-            Tao tai khoan
+            Tạo tài khoản
           </Button>
         }
         style={{ marginBottom: 16 }}
@@ -1134,7 +1134,7 @@ const BhxhAudit: React.FC = () => {
           dataSource={auditorAccounts}
           loading={accountsLoading}
           size="small"
-          pagination={{ pageSize: 10, showTotal: (total) => `Tong ${total} tai khoan` }}
+          pagination={{ pageSize: 10, showTotal: (total) => `Tổng ${total} tài khoản` }}
         />
       </Card>
 
@@ -1146,13 +1146,13 @@ const BhxhAudit: React.FC = () => {
         title={
           <Space>
             <AuditOutlined />
-            <span>Ho so benh an dien tu gui giam dinh</span>
+            <span>Hồ sơ bệnh án điện tử gửi giám định</span>
           </Space>
         }
         extra={
           <Space>
             <Search
-              placeholder="Tim kiem: ma LK, ten BN, so the..."
+              placeholder="Tìm kiếm: mã LK, tên BN, số thẻ..."
               value={portalSearch}
               onChange={(e) => setPortalSearch(e.target.value)}
               onSearch={handlePortalSearch}
@@ -1160,7 +1160,7 @@ const BhxhAudit: React.FC = () => {
               style={{ width: 300 }}
             />
             <Button icon={<ReloadOutlined />} onClick={fetchPortalRecords}>
-              Lam moi
+              Làm mới
             </Button>
           </Space>
         }
@@ -1176,7 +1176,7 @@ const BhxhAudit: React.FC = () => {
             pageSize: 50,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-            showTotal: (total) => `Tong ${total} ho so`,
+            showTotal: (total) => `Tổng ${total} hồ sơ`,
           }}
           onRow={(record) => ({
             onDoubleClick: () => handleViewRecordPdf(record),
@@ -1196,7 +1196,7 @@ const BhxhAudit: React.FC = () => {
         title={
           <Space>
             <AuditOutlined style={{ fontSize: 20, color: '#722ed1' }} />
-            <span>Giam dinh BHXH</span>
+            <span>Giám định BHXH</span>
           </Space>
         }
         styles={{ body: { padding: 16 } }}
@@ -1210,7 +1210,7 @@ const BhxhAudit: React.FC = () => {
               label: (
                 <span>
                   <FileExcelOutlined />
-                  {' '}Danh sach ho so giam dinh
+                  {' '}Danh sách hồ sơ giám định
                 </span>
               ),
               children: renderRecordsTab(),
@@ -1220,7 +1220,7 @@ const BhxhAudit: React.FC = () => {
               label: (
                 <span>
                   <CloudUploadOutlined />
-                  {' '}Cong giam dinh
+                  {' '}Cổng giám định
                 </span>
               ),
               children: renderPortalTab(),
@@ -1234,7 +1234,7 @@ const BhxhAudit: React.FC = () => {
         title={
           <Space>
             <FileExcelOutlined style={{ color: '#52c41a' }} />
-            <span>Import danh sach ho so tu BHXH</span>
+            <span>Import danh sách hồ sơ từ BHXH</span>
           </Space>
         }
         open={importModalOpen}
@@ -1247,9 +1247,9 @@ const BhxhAudit: React.FC = () => {
         footer={
           importPreview ? (
             <Space>
-              <Button onClick={() => { setImportPreview(null); setFileList([]); }}>Chon lai file</Button>
+              <Button onClick={() => { setImportPreview(null); setFileList([]); }}>Chọn lại file</Button>
               <Button type="primary" onClick={handleConfirmImport} loading={importLoading}>
-                Xac nhan import ({importPreview.matchedRows} ho so)
+                Xác nhận import ({importPreview.matchedRows} hồ sơ)
               </Button>
             </Space>
           ) : null
@@ -1258,7 +1258,7 @@ const BhxhAudit: React.FC = () => {
         {!importPreview ? (
           <div>
             <p style={{ marginBottom: 16 }}>
-              Chon file Excel (*.xlsx, *.xls) chua danh sach ho so BHXH gui ve de doi chieu va giam dinh.
+              Chọn file Excel (*.xlsx, *.xls) chứa danh sách hồ sơ BHXH gửi về để đối chiếu và giám định.
             </p>
             <Upload.Dragger
               accept=".xlsx,.xls"
@@ -1271,8 +1271,8 @@ const BhxhAudit: React.FC = () => {
               <p className="ant-upload-drag-icon">
                 <UploadOutlined style={{ fontSize: 48, color: '#52c41a' }} />
               </p>
-              <p className="ant-upload-text">Keo tha file Excel vao day hoac click de chon file</p>
-              <p className="ant-upload-hint">Ho tro dinh dang .xlsx va .xls</p>
+              <p className="ant-upload-text">Kéo thả file Excel vào đây hoặc click để chọn file</p>
+              <p className="ant-upload-hint">Hỗ trợ định dạng .xlsx và .xls</p>
             </Upload.Dragger>
             <Button
               type="primary"
@@ -1282,35 +1282,35 @@ const BhxhAudit: React.FC = () => {
               disabled={fileList.length === 0}
               block
             >
-              Doc file Excel
+              Đọc file Excel
             </Button>
           </div>
         ) : (
           <div>
             <Row gutter={16} style={{ marginBottom: 16 }}>
               <Col span={8}>
-                <Statistic title="Tong dong" value={importPreview.totalRows} styles={{ content: { color: '#1890ff' } }} />
+                <Statistic title="Tổng dòng" value={importPreview.totalRows} styles={{ content: { color: '#1890ff' } }} />
               </Col>
               <Col span={8}>
-                <Statistic title="Khop ma lien ket" value={importPreview.matchedRows} styles={{ content: { color: '#52c41a' } }} />
+                <Statistic title="Khớp mã liên kết" value={importPreview.matchedRows} styles={{ content: { color: '#52c41a' } }} />
               </Col>
               <Col span={8}>
-                <Statistic title="Khong khop" value={importPreview.unmatchedRows} styles={{ content: { color: '#ff4d4f' } }} />
+                <Statistic title="Không khớp" value={importPreview.unmatchedRows} styles={{ content: { color: '#ff4d4f' } }} />
               </Col>
             </Row>
             {importPreview.unmatchedRows > 0 && (
               <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4 }}>
-                Co {importPreview.unmatchedRows} dong khong khop ma lien ket voi du lieu trong he thong. Cac dong nay se bi bo qua.
+                Có {importPreview.unmatchedRows} dòng không khớp mã liên kết với dữ liệu trong hệ thống. Các dòng này sẽ bị bỏ qua.
               </div>
             )}
             <Table
               rowKey="maLk"
               columns={[
                 { title: 'STT', key: 'stt', width: 55, render: (_, __, idx) => idx + 1 },
-                { title: 'Ma lien ket', dataIndex: 'maLk', width: 130 },
-                { title: 'Ho ten BN', dataIndex: 'patientName', width: 160 },
-                { title: 'So the BHYT', dataIndex: 'insuranceNumber', width: 155 },
-                { title: 'Tong CP', dataIndex: 'totalAmount', width: 120, align: 'right' as const, render: (v: number) => new Intl.NumberFormat('vi-VN').format(v || 0) },
+                { title: 'Mã liên kết', dataIndex: 'maLk', width: 130 },
+                { title: 'Họ tên BN', dataIndex: 'patientName', width: 160 },
+                { title: 'Số thẻ BHYT', dataIndex: 'insuranceNumber', width: 155 },
+                { title: 'Tổng CP', dataIndex: 'totalAmount', width: 120, align: 'right' as const, render: (v: number) => new Intl.NumberFormat('vi-VN').format(v || 0) },
               ]}
               dataSource={importPreview.records}
               size="small"
@@ -1323,7 +1323,7 @@ const BhxhAudit: React.FC = () => {
 
       {/* Detail Drawer */}
       <Drawer
-        title="Chi tiet ho so giam dinh"
+        title="Chi tiết hồ sơ giám định"
         open={detailDrawerOpen}
         onClose={() => setDetailDrawerOpen(false)}
         size="default"
@@ -1331,42 +1331,42 @@ const BhxhAudit: React.FC = () => {
         {selectedRecord && (
           <div>
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="Ma lien ket" span={2}>{selectedRecord.maLk}</Descriptions.Item>
-              <Descriptions.Item label="Ho ten BN">{selectedRecord.patientName}</Descriptions.Item>
-              <Descriptions.Item label="Ma BN">{selectedRecord.patientCode}</Descriptions.Item>
-              <Descriptions.Item label="So the BHYT" span={2}>{selectedRecord.insuranceNumber}</Descriptions.Item>
-              <Descriptions.Item label="Ngay vao">{selectedRecord.admissionDate ? dayjs(selectedRecord.admissionDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Ngay ra">{selectedRecord.dischargeDate ? dayjs(selectedRecord.dischargeDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Khoa dieu tri" span={2}>{selectedRecord.departmentName}</Descriptions.Item>
-              <Descriptions.Item label="Chan doan" span={2}>{selectedRecord.diagnosisCode} - {selectedRecord.diagnosisName}</Descriptions.Item>
+              <Descriptions.Item label="Mã liên kết" span={2}>{selectedRecord.maLk}</Descriptions.Item>
+              <Descriptions.Item label="Họ tên BN">{selectedRecord.patientName}</Descriptions.Item>
+              <Descriptions.Item label="Mã BN">{selectedRecord.patientCode}</Descriptions.Item>
+              <Descriptions.Item label="Số thẻ BHYT" span={2}>{selectedRecord.insuranceNumber}</Descriptions.Item>
+              <Descriptions.Item label="Ngày vào">{selectedRecord.admissionDate ? dayjs(selectedRecord.admissionDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+              <Descriptions.Item label="Ngày ra">{selectedRecord.dischargeDate ? dayjs(selectedRecord.dischargeDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+              <Descriptions.Item label="Khoa điều trị" span={2}>{selectedRecord.departmentName}</Descriptions.Item>
+              <Descriptions.Item label="Chẩn đoán" span={2}>{selectedRecord.diagnosisCode} - {selectedRecord.diagnosisName}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Chi phi</Divider>
+            <Divider orientation="left">Chi phí</Divider>
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="Tong chi phi">{formatVND(selectedRecord.totalAmount)}</Descriptions.Item>
-              <Descriptions.Item label="BHYT chi tra">{formatVND(selectedRecord.insuranceAmount)}</Descriptions.Item>
-              <Descriptions.Item label="BN tu tra" span={2}>{formatVND(selectedRecord.patientAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Tổng chi phí">{formatVND(selectedRecord.totalAmount)}</Descriptions.Item>
+              <Descriptions.Item label="BHYT chi trả">{formatVND(selectedRecord.insuranceAmount)}</Descriptions.Item>
+              <Descriptions.Item label="BN tự trả" span={2}>{formatVND(selectedRecord.patientAmount)}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Trang thai</Divider>
+            <Divider orientation="left">Trạng thái</Divider>
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="Giam dinh">{getAuditStatusTag(selectedRecord.auditStatus)}</Descriptions.Item>
-              <Descriptions.Item label="Thanh toan">{getPaymentStatusTag(selectedRecord.paymentStatus)}</Descriptions.Item>
-              <Descriptions.Item label="Gui cong GD">
+              <Descriptions.Item label="Giám định">{getAuditStatusTag(selectedRecord.auditStatus)}</Descriptions.Item>
+              <Descriptions.Item label="Thanh toán">{getPaymentStatusTag(selectedRecord.paymentStatus)}</Descriptions.Item>
+              <Descriptions.Item label="Gửi cổng GĐ">
                 {selectedRecord.sentToPortal ? (
-                  <Tag color="blue">Da gui ({selectedRecord.sentDate ? dayjs(selectedRecord.sentDate).format('DD/MM/YYYY') : ''})</Tag>
+                  <Tag color="blue">Đã gửi ({selectedRecord.sentDate ? dayjs(selectedRecord.sentDate).format('DD/MM/YYYY') : ''})</Tag>
                 ) : (
-                  <Tag>Chua gui</Tag>
+                  <Tag>Chưa gửi</Tag>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="Ngay duyet">
+              <Descriptions.Item label="Ngày duyệt">
                 {selectedRecord.approvedDate ? dayjs(selectedRecord.approvedDate).format('DD/MM/YYYY') : '-'}
               </Descriptions.Item>
             </Descriptions>
 
             {selectedRecord.rejectReason && (
               <>
-                <Divider orientation="left">Ly do tu choi</Divider>
+                <Divider orientation="left">Lý do từ chối</Divider>
                 <div style={{ padding: '8px 12px', background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 4 }}>
                   {selectedRecord.rejectReason}
                 </div>
@@ -1375,7 +1375,7 @@ const BhxhAudit: React.FC = () => {
 
             {selectedRecord.auditorNote && (
               <>
-                <Divider orientation="left">Ghi chu giam dinh vien</Divider>
+                <Divider orientation="left">Ghi chú giám định viên</Divider>
                 <div style={{ padding: '8px 12px', background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: 4 }}>
                   {selectedRecord.auditorNote}
                 </div>
@@ -1387,7 +1387,7 @@ const BhxhAudit: React.FC = () => {
 
       {/* Auditor Account Modal */}
       <Modal
-        title={editingAccount ? 'Cap nhat tai khoan giam dinh vien' : 'Tao tai khoan giam dinh vien'}
+        title={editingAccount ? 'Cập nhật tài khoản giám định viên' : 'Tạo tài khoản giám định viên'}
         open={accountModalOpen}
         onOk={handleSaveAccount}
         onCancel={() => {
@@ -1395,28 +1395,28 @@ const BhxhAudit: React.FC = () => {
           accountForm.resetFields();
           setEditingAccount(null);
         }}
-        okText={editingAccount ? 'Cap nhat' : 'Tao'}
-        cancelText="Huy"
+        okText={editingAccount ? 'Cập nhật' : 'Tạo'}
+        cancelText="Hủy"
         size="default"
       >
         <Form form={accountForm} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                label="Ten dang nhap"
+                label="Tên đăng nhập"
                 name="username"
-                rules={[{ required: true, message: 'Nhap ten dang nhap' }]}
+                rules={[{ required: true, message: 'Nhập tên đăng nhập' }]}
               >
                 <Input prefix={<UserOutlined />} placeholder="username" disabled={!!editingAccount} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                label="Ho va ten"
+                label="Họ và tên"
                 name="fullName"
-                rules={[{ required: true, message: 'Nhap ho va ten' }]}
+                rules={[{ required: true, message: 'Nhập họ và tên' }]}
               >
-                <Input placeholder="Nguyen Van A" />
+                <Input placeholder="Nguyễn Văn A" />
               </Form.Item>
             </Col>
           </Row>
@@ -1426,15 +1426,15 @@ const BhxhAudit: React.FC = () => {
                 label="Email"
                 name="email"
                 rules={[
-                  { required: true, message: 'Nhap email' },
-                  { type: 'email', message: 'Email khong hop le' },
+                  { required: true, message: 'Nhập email' },
+                  { type: 'email', message: 'Email không hợp lệ' },
                 ]}
               >
                 <Input placeholder="email@bhxh.gov.vn" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item label="So dien thoai" name="phone">
+              <Form.Item label="Số điện thoại" name="phone">
                 <Input placeholder="0912345678" />
               </Form.Item>
             </Col>
@@ -1442,25 +1442,25 @@ const BhxhAudit: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                label="To chuc"
+                label="Tổ chức"
                 name="organization"
-                rules={[{ required: true, message: 'Nhap to chuc' }]}
+                rules={[{ required: true, message: 'Nhập tổ chức' }]}
               >
-                <Input placeholder="BHXH Tinh / Thanh pho" />
+                <Input placeholder="BHXH Tỉnh / Thành phố" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                label="Vai tro"
+                label="Vai trò"
                 name="role"
-                rules={[{ required: true, message: 'Chon vai tro' }]}
+                rules={[{ required: true, message: 'Chọn vai trò' }]}
               >
                 <Select
-                  placeholder="Chon vai tro"
+                  placeholder="Chọn vai trò"
                   options={[
-                    { value: 'auditor', label: 'Giam dinh vien' },
-                    { value: 'senior_auditor', label: 'GDV Cap cao' },
-                    { value: 'admin', label: 'Quan tri' },
+                    { value: 'auditor', label: 'Giám định viên' },
+                    { value: 'senior_auditor', label: 'GĐV Cấp cao' },
+                    { value: 'admin', label: 'Quản trị' },
                   ]}
                 />
               </Form.Item>
@@ -1468,19 +1468,19 @@ const BhxhAudit: React.FC = () => {
           </Row>
           {editingAccount && (
             <Form.Item name="isActive" valuePropName="checked">
-              <Checkbox>Tai khoan dang hoat dong</Checkbox>
+              <Checkbox>Tài khoản đang hoạt động</Checkbox>
             </Form.Item>
           )}
           {!editingAccount && (
             <Form.Item
-              label="Mat khau"
+              label="Mật khẩu"
               name="password"
               rules={[
-                { required: true, message: 'Nhap mat khau' },
-                { min: 6, message: 'Mat khau it nhat 6 ky tu' },
+                { required: true, message: 'Nhập mật khẩu' },
+                { min: 6, message: 'Mật khẩu ít nhất 6 ký tự' },
               ]}
             >
-              <Input.Password placeholder="Nhap mat khau" />
+              <Input.Password placeholder="Nhập mật khẩu" />
             </Form.Item>
           )}
         </Form>
@@ -1491,7 +1491,7 @@ const BhxhAudit: React.FC = () => {
         title={
           <Space>
             <FilePdfOutlined style={{ color: '#ff4d4f' }} />
-            <span>Ho so benh an dien tu</span>
+            <span>Hồ sơ bệnh án điện tử</span>
           </Space>
         }
         open={pdfDrawerOpen}
@@ -1501,17 +1501,17 @@ const BhxhAudit: React.FC = () => {
         {selectedPortalRecord && (
           <div>
             <Descriptions column={2} size="small" bordered style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="Ma lien ket">{selectedPortalRecord.maLk}</Descriptions.Item>
-              <Descriptions.Item label="Ho ten BN">{selectedPortalRecord.patientName}</Descriptions.Item>
-              <Descriptions.Item label="So the BHYT">{selectedPortalRecord.insuranceNumber}</Descriptions.Item>
+              <Descriptions.Item label="Mã liên kết">{selectedPortalRecord.maLk}</Descriptions.Item>
+              <Descriptions.Item label="Họ tên BN">{selectedPortalRecord.patientName}</Descriptions.Item>
+              <Descriptions.Item label="Số thẻ BHYT">{selectedPortalRecord.insuranceNumber}</Descriptions.Item>
               <Descriptions.Item label="CSKCB">{selectedPortalRecord.hospitalName}</Descriptions.Item>
-              <Descriptions.Item label="Ngay vao">{selectedPortalRecord.admissionDate ? dayjs(selectedPortalRecord.admissionDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Ngay ra">{selectedPortalRecord.dischargeDate ? dayjs(selectedPortalRecord.dischargeDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Chan doan" span={2}>
+              <Descriptions.Item label="Ngày vào">{selectedPortalRecord.admissionDate ? dayjs(selectedPortalRecord.admissionDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+              <Descriptions.Item label="Ngày ra">{selectedPortalRecord.dischargeDate ? dayjs(selectedPortalRecord.dischargeDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+              <Descriptions.Item label="Chẩn đoán" span={2}>
                 {selectedPortalRecord.diagnosisCode} - {selectedPortalRecord.diagnosisName}
               </Descriptions.Item>
-              <Descriptions.Item label="Tong chi phi">{new Intl.NumberFormat('vi-VN').format(selectedPortalRecord.totalAmount)} VND</Descriptions.Item>
-              <Descriptions.Item label="BHYT chi tra">{new Intl.NumberFormat('vi-VN').format(selectedPortalRecord.insuranceAmount)} VND</Descriptions.Item>
+              <Descriptions.Item label="Tổng chi phí">{new Intl.NumberFormat('vi-VN').format(selectedPortalRecord.totalAmount)} VND</Descriptions.Item>
+              <Descriptions.Item label="BHYT chi trả">{new Intl.NumberFormat('vi-VN').format(selectedPortalRecord.insuranceAmount)} VND</Descriptions.Item>
             </Descriptions>
 
             <Divider />
@@ -1527,7 +1527,7 @@ const BhxhAudit: React.FC = () => {
               }}
             >
               <FilePdfOutlined style={{ fontSize: 64, color: '#ff4d4f', marginBottom: 16 }} />
-              <p style={{ fontSize: 16, fontWeight: 500 }}>Ho so benh an dien tu</p>
+              <p style={{ fontSize: 16, fontWeight: 500 }}>Hồ sơ bệnh án điện tử</p>
               <p style={{ color: '#888', marginBottom: 24 }}>
                 {selectedPortalRecord.patientName} - {selectedPortalRecord.maLk}
               </p>
@@ -1553,7 +1553,7 @@ const BhxhAudit: React.FC = () => {
                     link.click();
                   }}
                 >
-                  Tai xuong
+                  Tải xuống
                 </Button>
               </Space>
             </div>

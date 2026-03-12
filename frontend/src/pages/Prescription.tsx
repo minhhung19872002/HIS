@@ -864,12 +864,12 @@ const Prescription: React.FC = () => {
     const isBHYT = !!patient?.insuranceNumber;
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.warning('Khong the mo cua so in. Vui long cho phep popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html><head><title>Phieu cong khai thuoc</title>
+      <html><head><title>Phiếu công khai thuốc</title>
       <style>
         body { font-family: 'Times New Roman', serif; font-size: 13px; padding: 20px; }
         .header { text-align: center; margin-bottom: 10px; }
@@ -893,25 +893,25 @@ const Prescription: React.FC = () => {
           <div class="hospital">${HOSPITAL_NAME}</div>
           <div class="address">${HOSPITAL_ADDRESS}</div>
         </div>
-        <div class="form-title">PHIEU CONG KHAI THUOC</div>
+        <div class="form-title">PHIẾU CÔNG KHAI THUỐC</div>
         ${patient ? `
-          <div class="info">Ho ten: <strong>${patient.fullName}</strong> &nbsp;&nbsp; Ma BN: <strong>${patient.patientCode}</strong></div>
-          <div class="info">Ngay sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} &nbsp;&nbsp; Gioi tinh: ${patient.gender === 1 ? 'Nam' : 'Nu'}</div>
-          ${patient.insuranceNumber ? `<div class="info">So the BHYT: <strong>${patient.insuranceNumber}</strong></div>` : ''}
+          <div class="info">Họ tên: <strong>${patient.fullName}</strong> &nbsp;&nbsp; Mã BN: <strong>${patient.patientCode}</strong></div>
+          <div class="info">Ngày sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} &nbsp;&nbsp; Giới tính: ${patient.gender === 1 ? 'Nam' : 'Nữ'}</div>
+          ${patient.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${patient.insuranceNumber}</strong></div>` : ''}
         ` : ''}
-        <div class="info">Chan doan: <strong>${diagnosis}</strong></div>
+        <div class="info">Chẩn đoán: <strong>${diagnosis}</strong></div>
         <table>
           <thead><tr>
             <th style="width:35px;">STT</th>
-            <th>Ten thuoc</th>
-            <th>Ham luong</th>
-            <th>DVT</th>
+            <th>Tên thuốc</th>
+            <th>Hàm lượng</th>
+            <th>ĐVT</th>
             <th>SL</th>
-            <th>Don gia</th>
-            <th>Thanh tien</th>
-            <th>BHYT chi tra</th>
-            <th>BN chi tra</th>
-            <th>Ghi chu</th>
+            <th>Đơn giá</th>
+            <th>Thành tiền</th>
+            <th>BHYT chi trả</th>
+            <th>BN chi trả</th>
+            <th>Ghi chú</th>
           </tr></thead>
           <tbody>
             ${prescriptionItems.map((item, i) => {
@@ -932,7 +932,7 @@ const Prescription: React.FC = () => {
               </tr>`;
             }).join('')}
             <tr class="total-row">
-              <td colspan="6" class="text-center"><strong>Tong cong</strong></td>
+              <td colspan="6" class="text-center"><strong>Tổng cộng</strong></td>
               <td class="text-right"><strong>${totalCost.toLocaleString('vi-VN')}</strong></td>
               <td class="text-right"><strong>${isBHYT ? totalInsurance.toLocaleString('vi-VN') : '-'}</strong></td>
               <td class="text-right"><strong>${finalCost.toLocaleString('vi-VN')}</strong></td>
@@ -940,19 +940,19 @@ const Prescription: React.FC = () => {
             </tr>
           </tbody>
         </table>
-        <div class="info"><em>Tong so: ${prescriptionItems.length} khoan thuoc</em></div>
+        <div class="info"><em>Tổng số: ${prescriptionItems.length} khoản thuốc</em></div>
         <div class="signature-section">
           <div class="signature-col">
-            <div class="note">(Ky, ghi ro ho ten)</div>
-            <div class="title">Nguoi lap</div>
+            <div class="note">(Ký, ghi rõ họ tên)</div>
+            <div class="title">Người lập</div>
           </div>
           <div class="signature-col">
-            <div class="note">(Ky, ghi ro ho ten)</div>
-            <div class="title">Benh nhan/Nguoi nha</div>
+            <div class="note">(Ký, ghi rõ họ tên)</div>
+            <div class="title">Bệnh nhân/Người nhà</div>
           </div>
         </div>
         <div style="text-align: right; margin-top: 15px; font-size: 12px;">
-          Ngay ${dayjs().format('DD')} thang ${dayjs().format('MM')} nam ${dayjs().format('YYYY')}
+          Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}
         </div>
       </body></html>
     `);
@@ -1182,23 +1182,23 @@ const Prescription: React.FC = () => {
               {rxContext && (
                 <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '8px 12px' } }}>
                   <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
-                    Thong tin kham benh (OPD)
+                    Thông tin khám bệnh (OPD)
                   </Typography.Text>
                   <Descriptions column={1} size="small" style={{ marginTop: 4 }}>
                     {rxContext.mainDiagnosis && (
-                      <Descriptions.Item label="Chan doan">
+                      <Descriptions.Item label="Chẩn đoán">
                         <Text strong style={{ fontSize: 12 }}>
                           {rxContext.mainIcdCode && `${rxContext.mainIcdCode} - `}{rxContext.mainDiagnosis}
                         </Text>
                       </Descriptions.Item>
                     )}
                     {rxContext.chiefComplaint && (
-                      <Descriptions.Item label="Ly do kham">
+                      <Descriptions.Item label="Lý do khám">
                         <Text style={{ fontSize: 12 }}>{rxContext.chiefComplaint}</Text>
                       </Descriptions.Item>
                     )}
                     {(rxContext.weight || rxContext.bloodPressureSystolic) && (
-                      <Descriptions.Item label="Sinh hieu">
+                      <Descriptions.Item label="Sinh hiệu">
                         <Space orientation="horizontal" size={4}>
                           {rxContext.weight && <Tag>{rxContext.weight}kg</Tag>}
                           {rxContext.bloodPressureSystolic && (
@@ -1210,14 +1210,14 @@ const Prescription: React.FC = () => {
                       </Descriptions.Item>
                     )}
                     {rxContext.doctorName && (
-                      <Descriptions.Item label="BS kham">
+                      <Descriptions.Item label="BS khám">
                         <Text style={{ fontSize: 12 }}>{rxContext.doctorName}</Text>
                       </Descriptions.Item>
                     )}
                   </Descriptions>
                   {rxContext.allergies && rxContext.allergies.length > 0 && (
                     <Alert
-                      title="Di ung"
+                      title="Dị ứng"
                       type="error"
                       showIcon
                       style={{ marginTop: 4 }}
@@ -1234,7 +1234,7 @@ const Prescription: React.FC = () => {
                   )}
                   {rxContext.allergyHistory && !rxContext.allergies?.length && (
                     <Alert
-                      title={`Di ung: ${rxContext.allergyHistory}`}
+                      title={`Dị ứng: ${rxContext.allergyHistory}`}
                       type="warning"
                       showIcon
                       style={{ marginTop: 4 }}

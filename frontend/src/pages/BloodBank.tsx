@@ -406,7 +406,7 @@ const BloodBank: React.FC = () => {
     receiveForm.validateFields().then(async (values) => {
       const newUnit: BloodUnit = {
         id: `${Date.now()}`,
-        unitCode: `BU${dayjs().format('YYMMDD')}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+        unitCode: `BU${dayjs().format('YYMMDD')}${String(Date.now()).slice(-4)}`,
         bloodType: values.bloodType,
         component: values.component,
         volume: values.volume,

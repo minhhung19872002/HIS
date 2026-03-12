@@ -78,7 +78,7 @@ const Equipment: React.FC = () => {
       if (repairRes.status === 'fulfilled') setRepairList(repairRes.value.data || []);
       if (dashRes.status === 'fulfilled') setDashboard(dashRes.value.data);
     } catch {
-      message.warning('Khong the tai du lieu trang thiet bi');
+      message.warning('Không thể tải dữ liệu trang thiết bị');
     } finally {
       setLoading(false);
     }
@@ -95,10 +95,10 @@ const Equipment: React.FC = () => {
 
   const getStatusTag = (status: number) => {
     const config: Record<number, { color: string; text: string }> = {
-      1: { color: 'green', text: 'Hoat dong' },
-      2: { color: 'blue', text: 'Bao tri' },
-      3: { color: 'red', text: 'Ngung hoat dong' },
-      4: { color: 'default', text: 'Thanh ly' },
+      1: { color: 'green', text: 'Hoạt động' },
+      2: { color: 'blue', text: 'Bảo trì' },
+      3: { color: 'red', text: 'Ngừng hoạt động' },
+      4: { color: 'default', text: 'Thanh lý' },
     };
     const c = config[status] || { color: 'default', text: `Status ${status}` };
     return <Tag color={c.color}>{c.text}</Tag>;
@@ -106,13 +106,13 @@ const Equipment: React.FC = () => {
 
   const getRiskClassTag = (riskClass: string) => {
     const config: Record<string, { color: string; text: string }> = {
-      'I': { color: 'default', text: 'Loai I' },
-      'II': { color: 'blue', text: 'Loai II' },
-      'III': { color: 'orange', text: 'Loai III' },
-      'A': { color: 'red', text: 'Loai A' },
-      'B': { color: 'orange', text: 'Loai B' },
-      'C': { color: 'blue', text: 'Loai C' },
-      'D': { color: 'default', text: 'Loai D' },
+      'I': { color: 'default', text: 'Loại I' },
+      'II': { color: 'blue', text: 'Loại II' },
+      'III': { color: 'orange', text: 'Loại III' },
+      'A': { color: 'red', text: 'Loại A' },
+      'B': { color: 'orange', text: 'Loại B' },
+      'C': { color: 'blue', text: 'Loại C' },
+      'D': { color: 'default', text: 'Loại D' },
     };
     const c = config[riskClass] || { color: 'default', text: riskClass };
     return <Tag color={c.color}>{c.text}</Tag>;
@@ -128,12 +128,12 @@ const Equipment: React.FC = () => {
         equipmentLocation: selectedEquipment.locationName || selectedEquipment.departmentName,
         contactPerson: values.reportedBy,
       });
-      message.success('Da gui yeu cau sua chua');
+      message.success('Đã gửi yêu cầu sửa chữa');
       setIsRepairModalOpen(false);
       repairForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the gui yeu cau sua chua');
+      message.warning('Không thể gửi yêu cầu sửa chữa');
     }
   };
 
@@ -143,16 +143,16 @@ const Equipment: React.FC = () => {
         equipmentId: values.equipmentId,
         maintenanceType: values.maintenanceType,
         performedDate: values.scheduledDate?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
-        description: `Bao tri ${values.maintenanceType === 'preventive' ? 'phong ngua' : 'kiem dinh'}`,
-        workPerformed: values.technician ? `Don vi thuc hien: ${values.technician}` : '',
+        description: `Bao tri ${values.maintenanceType === 'preventive' ? 'phòng ngừa' : 'kiểm định'}`,
+        workPerformed: values.technician ? `Đơn vị thực hiện: ${values.technician}` : '',
         afterStatus: 1,
       });
-      message.success('Da len lich bao tri');
+      message.success('Đã lên lịch bảo trì');
       setIsMaintenanceModalOpen(false);
       maintenanceForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the len lich bao tri');
+      message.warning('Không thể lên lịch bảo trì');
     }
   };
 
@@ -165,7 +165,7 @@ const Equipment: React.FC = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Phieu thiet bi</title>
+        <title>Phiếu thiết bị</title>
         <style>
           body { font-family: 'Times New Roman', serif; padding: 20px; max-width: 800px; margin: auto; }
           .header { text-align: center; margin-bottom: 20px; }
@@ -178,27 +178,27 @@ const Equipment: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <strong>BENH VIEN DA KHOA</strong><br/>
-          Phong Vat tu - Thiet bi y te
+          <strong>BỆNH VIỆN ĐA KHOA</strong><br/>
+          Phòng Vật tư - Thiết bị y tế
         </div>
-        <div class="title">PHIEU LY LICH THIET BI Y TE</div>
+        <div class="title">PHIẾU LÝ LỊCH THIẾT BỊ Y TẾ</div>
         <table>
-          <tr><th>Ma thiet bi</th><td>${selectedEquipment.equipmentCode}</td></tr>
-          <tr><th>Ten thiet bi</th><td>${selectedEquipment.name}</td></tr>
-          <tr><th>Hang san xuat</th><td>${selectedEquipment.manufacturer}</td></tr>
+          <tr><th>Mã thiết bị</th><td>${selectedEquipment.equipmentCode}</td></tr>
+          <tr><th>Tên thiết bị</th><td>${selectedEquipment.name}</td></tr>
+          <tr><th>Hãng sản xuất</th><td>${selectedEquipment.manufacturer}</td></tr>
           <tr><th>Model</th><td>${selectedEquipment.model}</td></tr>
-          <tr><th>So seri</th><td>${selectedEquipment.serialNumber}</td></tr>
-          <tr><th>Khoa/Phong</th><td>${selectedEquipment.departmentName}</td></tr>
-          <tr><th>Vi tri</th><td>${selectedEquipment.locationName || selectedEquipment.roomName || '-'}</td></tr>
-          <tr><th>Ngay mua</th><td>${selectedEquipment.purchaseDate || '-'}</td></tr>
-          <tr><th>Han bao hanh</th><td>${selectedEquipment.warrantyExpiry || 'Het bao hanh'}</td></tr>
-          <tr><th>Nhom nguy co</th><td>${selectedEquipment.riskClass}</td></tr>
-          <tr><th>Nguyen gia</th><td>${(selectedEquipment.purchasePrice || 0).toLocaleString('vi-VN')} VND</td></tr>
-          <tr><th>Trang thai</th><td>${selectedEquipment.operationalStatusName}</td></tr>
+          <tr><th>Số seri</th><td>${selectedEquipment.serialNumber}</td></tr>
+          <tr><th>Khoa/Phòng</th><td>${selectedEquipment.departmentName}</td></tr>
+          <tr><th>Vị trí</th><td>${selectedEquipment.locationName || selectedEquipment.roomName || '-'}</td></tr>
+          <tr><th>Ngày mua</th><td>${selectedEquipment.purchaseDate || '-'}</td></tr>
+          <tr><th>Hạn bảo hành</th><td>${selectedEquipment.warrantyExpiry || 'Hết bảo hành'}</td></tr>
+          <tr><th>Nhóm nguy cơ</th><td>${selectedEquipment.riskClass}</td></tr>
+          <tr><th>Nguyên giá</th><td>${(selectedEquipment.purchasePrice || 0).toLocaleString('vi-VN')} VND</td></tr>
+          <tr><th>Trạng thái</th><td>${selectedEquipment.operationalStatusName}</td></tr>
         </table>
         <div style="margin-top: 50px; text-align: right;">
           <p>Ngay ${dayjs().format('DD/MM/YYYY')}</p>
-          <p><strong>Truong phong VTYT</strong></p>
+          <p><strong>Trưởng phòng VTYT</strong></p>
         </div>
         <script>window.onload = function() { window.print(); }</script>
       </body>
@@ -209,13 +209,13 @@ const Equipment: React.FC = () => {
 
   const equipmentColumns: ColumnsType<EquipmentDto> = [
     {
-      title: 'Ma TB',
+      title: 'Mã TB',
       dataIndex: 'equipmentCode',
       key: 'equipmentCode',
       width: 100,
     },
     {
-      title: 'Ten thiet bi',
+      title: 'Tên thiết bị',
       key: 'name',
       render: (_, record) => (
         <Space orientation="vertical" size={0}>
@@ -225,19 +225,19 @@ const Equipment: React.FC = () => {
       ),
     },
     {
-      title: 'Khoa/Phong',
+      title: 'Khoa/Phòng',
       dataIndex: 'departmentName',
       key: 'departmentName',
     },
     {
-      title: 'Nhom',
+      title: 'Nhóm',
       dataIndex: 'riskClass',
       key: 'riskClass',
       width: 80,
       render: (riskClass) => getRiskClassTag(riskClass),
     },
     {
-      title: 'Bao tri tiep',
+      title: 'Bảo trì tiếp',
       dataIndex: 'nextMaintenanceDate',
       key: 'nextMaintenanceDate',
       width: 120,
@@ -249,14 +249,14 @@ const Equipment: React.FC = () => {
       },
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'operationalStatus',
       key: 'operationalStatus',
       width: 120,
       render: (status) => getStatusTag(status),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 150,
       render: (_, record) => (
@@ -287,29 +287,29 @@ const Equipment: React.FC = () => {
 
   const maintenanceColumns: ColumnsType<MaintenanceScheduleDto> = [
     {
-      title: 'Thiet bi',
+      title: 'Thiết bị',
       dataIndex: 'equipmentName',
       key: 'equipmentName',
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'maintenanceTypeName',
       key: 'maintenanceTypeName',
     },
     {
-      title: 'Ngay den han',
+      title: 'Ngày đến hạn',
       dataIndex: 'nextDueDate',
       key: 'nextDueDate',
       render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Don vi',
+      title: 'Đơn vị',
       dataIndex: 'assignedToName',
       key: 'assignedToName',
       render: (name) => name || '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'statusName',
       key: 'statusName',
       render: (name, record) => {
@@ -321,7 +321,7 @@ const Equipment: React.FC = () => {
 
   const repairColumns: ColumnsType<RepairRequestDto> = [
     {
-      title: 'Thiet bi',
+      title: 'Thiết bị',
       dataIndex: 'equipmentName',
       key: 'equipmentName',
     },
@@ -331,13 +331,13 @@ const Equipment: React.FC = () => {
       key: 'departmentName',
     },
     {
-      title: 'Mo ta loi',
+      title: 'Mô tả lỗi',
       dataIndex: 'problemDescription',
       key: 'problemDescription',
       ellipsis: true,
     },
     {
-      title: 'Uu tien',
+      title: 'Ưu tiên',
       dataIndex: 'priority',
       key: 'priority',
       render: (priority, record) => {
@@ -346,7 +346,7 @@ const Equipment: React.FC = () => {
       },
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status, record) => {
@@ -360,9 +360,9 @@ const Equipment: React.FC = () => {
     <Spin spinning={loading}>
       <div>
         <Title level={4}>
-          Quan ly trang thiet bi y te
+          Quản lý trang thiết bị y tế
           <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ marginLeft: 12 }} size="small">
-            Lam moi
+            Làm mới
           </Button>
         </Title>
 
@@ -371,7 +371,7 @@ const Equipment: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Thiet bi hoat dong"
+                title="Thiết bị hoạt động"
                 value={activeEquipment}
                 prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                 styles={{ content: { color: '#52c41a' } }}
@@ -382,7 +382,7 @@ const Equipment: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Can bao tri"
+                title="Cần bảo trì"
                 value={maintenanceDue}
                 prefix={<CalendarOutlined style={{ color: '#faad14' }} />}
                 styles={{ content: { color: '#faad14' } }}
@@ -392,7 +392,7 @@ const Equipment: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Yeu cau sua chua"
+                title="Yêu cầu sửa chữa"
                 value={pendingRepairs}
                 prefix={<ToolOutlined style={{ color: '#ff4d4f' }} />}
                 styles={{ content: { color: '#ff4d4f' } }}
@@ -405,7 +405,7 @@ const Equipment: React.FC = () => {
         <Card
           extra={
             <Button type="primary" icon={<PlusOutlined />}>
-              Them thiet bi
+              Thêm thiết bị
             </Button>
           }
         >
@@ -414,7 +414,7 @@ const Equipment: React.FC = () => {
             items={[
               {
                 key: 'equipment',
-                label: 'Danh sach thiet bi',
+                label: 'Danh sách thiết bị',
                 children: (
                   <Table
                     columns={equipmentColumns}
@@ -434,7 +434,7 @@ const Equipment: React.FC = () => {
                 key: 'maintenance',
                 label: (
                   <Badge count={maintenanceDue} offset={[10, 0]}>
-                    Lich bao tri
+                    Lịch bảo trì
                   </Badge>
                 ),
                 children: (
@@ -445,7 +445,7 @@ const Equipment: React.FC = () => {
                       style={{ marginBottom: 16 }}
                       onClick={() => setIsMaintenanceModalOpen(true)}
                     >
-                      Len lich bao tri
+                      Lên lịch bảo trì
                     </Button>
                     <Table
                       columns={maintenanceColumns}
@@ -459,7 +459,7 @@ const Equipment: React.FC = () => {
                 key: 'repairs',
                 label: (
                   <Badge count={pendingRepairs} offset={[10, 0]}>
-                    Yeu cau sua chua
+                    Yêu cầu sửa chữa
                   </Badge>
                 ),
                 children: (
@@ -472,22 +472,22 @@ const Equipment: React.FC = () => {
               },
               {
                 key: 'calibration',
-                label: 'Kiem dinh',
+                label: 'Kiểm định',
                 children: (
                   <div>
-                    <Title level={5}>Quy dinh kiem dinh</Title>
+                    <Title level={5}>Quy định kiểm định</Title>
                     <ul>
-                      <li><strong>Nhom A:</strong> Kiem dinh moi 1 nam (X-quang, CT, MRI, may gia toc)</li>
-                      <li><strong>Nhom B:</strong> Kiem dinh moi 2 nam</li>
-                      <li><strong>Nhom C:</strong> Kiem dinh khi can</li>
+                      <li><strong>Nhom A:</strong> Kiểm định mỗi 1 năm (X-quang, CT, MRI, may gia toc)</li>
+                      <li><strong>Nhom B:</strong> Kiểm định mỗi 2 năm</li>
+                      <li><strong>Nhom C:</strong> Kiểm định khi cần</li>
                     </ul>
                     <Divider />
                     <Table
                       columns={[
-                        { title: 'Thiet bi', dataIndex: 'name', key: 'name' },
-                        { title: 'Nhom', dataIndex: 'riskClass', key: 'riskClass', render: (c: string) => getRiskClassTag(c) },
-                        { title: 'Kiem dinh gan nhat', dataIndex: 'lastCalibrationDate', key: 'lastCalibrationDate', render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-                        { title: 'Kiem dinh tiep theo', dataIndex: 'nextCalibrationDate', key: 'nextCalibrationDate', render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                        { title: 'Thiết bị', dataIndex: 'name', key: 'name' },
+                        { title: 'Nhóm', dataIndex: 'riskClass', key: 'riskClass', render: (c: string) => getRiskClassTag(c) },
+                        { title: 'Kiểm định gần nhất', dataIndex: 'lastCalibrationDate', key: 'lastCalibrationDate', render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                        { title: 'Kiểm định tiếp theo', dataIndex: 'nextCalibrationDate', key: 'nextCalibrationDate', render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
                       ]}
                       dataSource={equipmentList.filter((e) => e.riskClass === 'A' || e.riskClass === 'B' || e.riskClass === 'I' || e.riskClass === 'II')}
                       rowKey="id"
@@ -501,12 +501,12 @@ const Equipment: React.FC = () => {
 
         {/* Detail Modal */}
         <Modal
-          title="Chi tiet thiet bi"
+          title="Chi tiết thiết bị"
           open={isDetailModalOpen}
           onCancel={() => setIsDetailModalOpen(false)}
           footer={[
             <Button key="print" icon={<PrinterOutlined />} onClick={executePrintEquipmentCard}>
-              In phieu
+              In phiếu
             </Button>,
             <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
               Dong
@@ -518,38 +518,38 @@ const Equipment: React.FC = () => {
             <>
               <Descriptions bordered size="small" column={2}>
                 <Descriptions.Item label="Ma TB">{selectedEquipment.equipmentCode}</Descriptions.Item>
-                <Descriptions.Item label="Trang thai">
+                <Descriptions.Item label="Trạng thái">
                   {getStatusTag(selectedEquipment.operationalStatus)}
                 </Descriptions.Item>
                 <Descriptions.Item label="Ten" span={2}>
                   {selectedEquipment.name}
                 </Descriptions.Item>
-                <Descriptions.Item label="Hang SX">{selectedEquipment.manufacturer}</Descriptions.Item>
+                <Descriptions.Item label="Hãng SX">{selectedEquipment.manufacturer}</Descriptions.Item>
                 <Descriptions.Item label="Model">{selectedEquipment.model}</Descriptions.Item>
                 <Descriptions.Item label="Serial">{selectedEquipment.serialNumber}</Descriptions.Item>
                 <Descriptions.Item label="Nhom">{getRiskClassTag(selectedEquipment.riskClass)}</Descriptions.Item>
-                <Descriptions.Item label="Khoa/Phong">{selectedEquipment.departmentName}</Descriptions.Item>
-                <Descriptions.Item label="Vi tri">{selectedEquipment.locationName || selectedEquipment.roomName || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Ngay mua">{selectedEquipment.purchaseDate ? dayjs(selectedEquipment.purchaseDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                <Descriptions.Item label="Bao hanh">{selectedEquipment.warrantyExpiry ? dayjs(selectedEquipment.warrantyExpiry).format('DD/MM/YYYY') : 'Het'}</Descriptions.Item>
-                <Descriptions.Item label="Nguyen gia" span={2}>
+                <Descriptions.Item label="Khoa/Phòng">{selectedEquipment.departmentName}</Descriptions.Item>
+                <Descriptions.Item label="Vị trí">{selectedEquipment.locationName || selectedEquipment.roomName || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Ngày mua">{selectedEquipment.purchaseDate ? dayjs(selectedEquipment.purchaseDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                <Descriptions.Item label="Bảo hành">{selectedEquipment.warrantyExpiry ? dayjs(selectedEquipment.warrantyExpiry).format('DD/MM/YYYY') : 'Hết'}</Descriptions.Item>
+                <Descriptions.Item label="Nguyên giá" span={2}>
                   {(selectedEquipment.purchasePrice || 0).toLocaleString('vi-VN')} VND
                 </Descriptions.Item>
               </Descriptions>
 
-              <Divider>Thong tin bao tri</Divider>
+              <Divider>Thông tin bảo trì</Divider>
 
               <Row gutter={16}>
                 <Col span={12}>
                   <Card size="small" title="Bao tri">
-                    <p><strong>Lan cuoi:</strong> {selectedEquipment.lastMaintenanceDate ? dayjs(selectedEquipment.lastMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
-                    <p><strong>Lan tiep:</strong> {selectedEquipment.nextMaintenanceDate ? dayjs(selectedEquipment.nextMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
+                    <p><strong>Lần cuối:</strong> {selectedEquipment.lastMaintenanceDate ? dayjs(selectedEquipment.lastMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
+                    <p><strong>Lần tiếp:</strong> {selectedEquipment.nextMaintenanceDate ? dayjs(selectedEquipment.nextMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
                   </Card>
                 </Col>
                 <Col span={12}>
-                  <Card size="small" title="Kiem dinh">
-                    <p><strong>Lan cuoi:</strong> {selectedEquipment.lastCalibrationDate ? dayjs(selectedEquipment.lastCalibrationDate).format('DD/MM/YYYY') : '-'}</p>
-                    <p><strong>Lan tiep:</strong> {selectedEquipment.nextCalibrationDate ? dayjs(selectedEquipment.nextCalibrationDate).format('DD/MM/YYYY') : '-'}</p>
+                  <Card size="small" title="Kiểm định">
+                    <p><strong>Lần cuối:</strong> {selectedEquipment.lastCalibrationDate ? dayjs(selectedEquipment.lastCalibrationDate).format('DD/MM/YYYY') : '-'}</p>
+                    <p><strong>Lần tiếp:</strong> {selectedEquipment.nextCalibrationDate ? dayjs(selectedEquipment.nextCalibrationDate).format('DD/MM/YYYY') : '-'}</p>
                   </Card>
                 </Col>
               </Row>
@@ -559,7 +559,7 @@ const Equipment: React.FC = () => {
 
         {/* Repair Modal */}
         <Modal
-          title="Bao cao hong"
+          title="Báo cáo hỏng"
           open={isRepairModalOpen}
           onCancel={() => setIsRepairModalOpen(false)}
           onOk={() => repairForm.submit()}
@@ -568,18 +568,18 @@ const Equipment: React.FC = () => {
             <Form.Item label="Thiet bi">
               <Input value={selectedEquipment?.name} disabled />
             </Form.Item>
-            <Form.Item name="reportedBy" label="Nguoi bao cao" rules={[{ required: true }]}>
+            <Form.Item name="reportedBy" label="Người báo cáo" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="issueDescription" label="Mo ta loi" rules={[{ required: true }]}>
+            <Form.Item name="issueDescription" label="Mô tả lỗi" rules={[{ required: true }]}>
               <TextArea rows={3} />
             </Form.Item>
-            <Form.Item name="priority" label="Muc do uu tien" rules={[{ required: true }]}>
+            <Form.Item name="priority" label="Mức độ ưu tiên" rules={[{ required: true }]}>
               <Select>
-                <Select.Option value={1}>Thap</Select.Option>
-                <Select.Option value={2}>Trung binh</Select.Option>
+                <Select.Option value={1}>Thấp</Select.Option>
+                <Select.Option value={2}>Trung bình</Select.Option>
                 <Select.Option value={3}>Cao</Select.Option>
-                <Select.Option value={4}>Khan cap</Select.Option>
+                <Select.Option value={4}>Khẩn cấp</Select.Option>
               </Select>
             </Form.Item>
           </Form>
@@ -587,7 +587,7 @@ const Equipment: React.FC = () => {
 
         {/* Maintenance Modal */}
         <Modal
-          title="Len lich bao tri"
+          title="Lên lịch bảo trì"
           open={isMaintenanceModalOpen}
           onCancel={() => setIsMaintenanceModalOpen(false)}
           onOk={() => maintenanceForm.submit()}
@@ -602,16 +602,16 @@ const Equipment: React.FC = () => {
                 ))}
               </Select>
             </Form.Item>
-            <Form.Item name="maintenanceType" label="Loai bao tri" rules={[{ required: true }]}>
+            <Form.Item name="maintenanceType" label="Loại bảo trì" rules={[{ required: true }]}>
               <Select>
-                <Select.Option value="Preventive">Bao tri phong ngua</Select.Option>
-                <Select.Option value="Calibration">Kiem dinh</Select.Option>
+                <Select.Option value="Preventive">Bao tri phòng ngừa</Select.Option>
+                <Select.Option value="Calibration">Kiểm định</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item name="scheduledDate" label="Ngay du kien" rules={[{ required: true }]}>
+            <Form.Item name="scheduledDate" label="Ngày dự kiến" rules={[{ required: true }]}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="technician" label="Don vi thuc hien">
+            <Form.Item name="technician" label="Đơn vị thực hiện">
               <Input placeholder="VD: Siemens VN, GE Healthcare" />
             </Form.Item>
           </Form>

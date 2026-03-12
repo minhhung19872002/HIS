@@ -139,7 +139,7 @@ const PatientPortal: React.FC = () => {
         setDoctors(doctorsRes.value.data ?? []);
       }
     } catch {
-      message.warning('Khong the tai du lieu cong benh nhan');
+      message.warning('Không thể tải dữ liệu cổng bệnh nhân');
     } finally {
       setLoading(false);
     }
@@ -158,11 +158,11 @@ const PatientPortal: React.FC = () => {
 
   const getAccountStatusTag = (status: number) => {
     const config: Record<number, { color: string; text: string }> = {
-      1: { color: 'green', text: 'Hoat dong' },
-      2: { color: 'red', text: 'Tam khoa' },
-      3: { color: 'default', text: 'Vo hieu hoa' },
+      1: { color: 'green', text: 'Hoạt động' },
+      2: { color: 'red', text: 'Tạm khóa' },
+      3: { color: 'default', text: 'Vô hiệu hóa' },
     };
-    const c = config[status] || { color: 'default', text: 'Khong ro' };
+    const c = config[status] || { color: 'default', text: 'Không rõ' };
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
@@ -180,7 +180,7 @@ const PatientPortal: React.FC = () => {
         insuranceUsed: false,
         notes: values.notes,
       });
-      message.success('Da dat lich hen thanh cong');
+      message.success('Đã đặt lịch hẹn thành công');
       setIsAppointmentModalOpen(false);
       appointmentForm.resetFields();
       // Refresh appointments
@@ -189,7 +189,7 @@ const PatientPortal: React.FC = () => {
         setAppointments(res.data ?? []);
       } catch { /* ignore refresh error */ }
     } catch {
-      message.warning('Khong the dat lich hen. Vui long thu lai.');
+      message.warning('Không thể đặt lịch hẹn. Vui lòng thử lại.');
     }
   };
 
@@ -199,12 +199,12 @@ const PatientPortal: React.FC = () => {
         feedbackType: 'General',
         category: 'Service',
         departmentId: values.departmentId,
-        subject: values.department || 'Danh gia dich vu',
+        subject: values.department || 'Đánh giá dịch vụ',
         message: values.comment,
         rating: values.rating,
         visitId: values.visitId,
       });
-      message.success('Cam on quy khach da gop y');
+      message.success('Cảm ơn quý khách đã góp ý');
       setIsFeedbackModalOpen(false);
       feedbackForm.resetFields();
       // Refresh feedbacks
@@ -213,7 +213,7 @@ const PatientPortal: React.FC = () => {
         setFeedbacks(res.data ?? []);
       } catch { /* ignore refresh error */ }
     } catch {
-      message.warning('Khong the gui danh gia. Vui long thu lai.');
+      message.warning('Không thể gửi đánh giá. Vui lòng thử lại.');
     }
   };
 
@@ -228,18 +228,18 @@ const PatientPortal: React.FC = () => {
 
   const appointmentColumns: ColumnsType<OnlineAppointmentDto> = [
     {
-      title: 'Ngay',
+      title: 'Ngày',
       dataIndex: 'preferredDate',
       key: 'preferredDate',
       render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Gio',
+      title: 'Giờ',
       dataIndex: 'preferredTime',
       key: 'preferredTime',
     },
     {
-      title: 'Bac si',
+      title: 'Bác sĩ',
       dataIndex: 'doctorName',
       key: 'doctorName',
       render: (val) => val || '-',
@@ -250,23 +250,23 @@ const PatientPortal: React.FC = () => {
       key: 'departmentName',
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'appointmentTypeName',
       key: 'appointmentTypeName',
       render: (val) => val || '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status: number, record) => {
         const config: Record<number, { color: string; text: string }> = {
-          1: { color: 'blue', text: 'Yeu cau' },
-          2: { color: 'green', text: 'Xac nhan' },
-          3: { color: 'cyan', text: 'Da check-in' },
-          4: { color: 'default', text: 'Hoan thanh' },
-          5: { color: 'red', text: 'Da huy' },
-          6: { color: 'volcano', text: 'Vang mat' },
+          1: { color: 'blue', text: 'Yêu cầu' },
+          2: { color: 'green', text: 'Xác nhận' },
+          3: { color: 'cyan', text: 'Đã check-in' },
+          4: { color: 'default', text: 'Hoàn thành' },
+          5: { color: 'red', text: 'Đã hủy' },
+          6: { color: 'volcano', text: 'Vắng mặt' },
         };
         const c = config[status] || { color: 'default', text: record.statusName || 'N/A' };
         return <Tag color={c.color}>{c.text}</Tag>;
@@ -276,28 +276,28 @@ const PatientPortal: React.FC = () => {
 
   const labResultColumns: ColumnsType<LabResultDto> = [
     {
-      title: 'Ten xet nghiem',
+      title: 'Tên xét nghiệm',
       dataIndex: 'testName',
       key: 'testName',
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'testCategory',
       key: 'testCategory',
     },
     {
-      title: 'Ngay lam',
+      title: 'Ngày làm',
       dataIndex: 'testDate',
       key: 'testDate',
       render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'BS chi dinh',
+      title: 'BS chỉ định',
       dataIndex: 'orderingDoctor',
       key: 'orderingDoctor',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status: string, record) => {
@@ -306,21 +306,21 @@ const PatientPortal: React.FC = () => {
       },
     },
     {
-      title: 'Bat thuong',
+      title: 'Bất thường',
       dataIndex: 'isAbnormal',
       key: 'isAbnormal',
-      render: (val) => val ? <Tag color="red">Co</Tag> : <Tag color="green">Khong</Tag>,
+      render: (val) => val ? <Tag color="red">Có</Tag> : <Tag color="green">Không</Tag>,
     },
   ];
 
   const billColumns: ColumnsType<BillSummaryDto> = [
     {
-      title: 'Ma hoa don',
+      title: 'Mã hóa đơn',
       dataIndex: 'billCode',
       key: 'billCode',
     },
     {
-      title: 'Ngay',
+      title: 'Ngày',
       dataIndex: 'billDate',
       key: 'billDate',
       render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-',
@@ -332,25 +332,25 @@ const PatientPortal: React.FC = () => {
       render: (val) => val || '-',
     },
     {
-      title: 'Tong tien',
+      title: 'Tổng tiền',
       dataIndex: 'subtotal',
       key: 'subtotal',
       render: (val) => `${(val ?? 0).toLocaleString('vi-VN')} VND`,
     },
     {
-      title: 'BHYT chi tra',
+      title: 'BHYT chi trả',
       dataIndex: 'insuranceCoverage',
       key: 'insuranceCoverage',
       render: (val) => `${(val ?? 0).toLocaleString('vi-VN')} VND`,
     },
     {
-      title: 'BN tra',
+      title: 'BN trả',
       dataIndex: 'patientResponsibility',
       key: 'patientResponsibility',
       render: (val) => `${(val ?? 0).toLocaleString('vi-VN')} VND`,
     },
     {
-      title: 'Con no',
+      title: 'Còn nợ',
       dataIndex: 'amountDue',
       key: 'amountDue',
       render: (val) => (
@@ -360,7 +360,7 @@ const PatientPortal: React.FC = () => {
       ),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (status: string, record) => {
@@ -372,7 +372,7 @@ const PatientPortal: React.FC = () => {
 
   const feedbackColumns: ColumnsType<FeedbackDto> = [
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       dataIndex: 'patientName',
       key: 'patientName',
     },
@@ -383,44 +383,44 @@ const PatientPortal: React.FC = () => {
       render: (val) => val || '-',
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'feedbackTypeName',
       key: 'feedbackTypeName',
     },
     {
-      title: 'Chu de',
+      title: 'Chủ đề',
       dataIndex: 'subject',
       key: 'subject',
       ellipsis: true,
     },
     {
-      title: 'Diem',
+      title: 'Điểm',
       dataIndex: 'rating',
       key: 'rating',
       render: (rating) => rating ? <Rate disabled defaultValue={rating} /> : '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       key: 'status',
       render: (_, record) => {
         const config: Record<number, { color: string; text: string }> = {
-          1: { color: 'blue', text: 'Da gui' },
-          2: { color: 'orange', text: 'Dang xu ly' },
-          3: { color: 'green', text: 'Da giai quyet' },
-          4: { color: 'default', text: 'Da dong' },
+          1: { color: 'blue', text: 'Đã gửi' },
+          2: { color: 'orange', text: 'Đang xử lý' },
+          3: { color: 'green', text: 'Đã giải quyết' },
+          4: { color: 'default', text: 'Đã đóng' },
         };
         const c = config[record.status] || { color: 'default', text: record.statusName || 'N/A' };
         return <Tag color={c.color}>{c.text}</Tag>;
       },
     },
     {
-      title: 'Phan hoi',
+      title: 'Phản hồi',
       key: 'response',
       render: (_, record) =>
         record.responseMessage ? (
-          <Tag color="green">Da phan hoi</Tag>
+          <Tag color="green">Đã phản hồi</Tag>
         ) : (
-          <Tag color="orange">Chua phan hoi</Tag>
+          <Tag color="orange">Chưa phản hồi</Tag>
         ),
     },
   ];
@@ -437,9 +437,9 @@ const PatientPortal: React.FC = () => {
     <Spin spinning={loading}>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0 }}>Cong benh nhan (Patient Portal)</Title>
+          <Title level={4} style={{ margin: 0 }}>Cổng bệnh nhân (Patient Portal)</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-            Lam moi
+            Làm mới
           </Button>
         </div>
 
@@ -448,7 +448,7 @@ const PatientPortal: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Tai khoan"
+                title="Tài khoản"
                 value={account ? 1 : 0}
                 prefix={<UserOutlined style={{ color: '#52c41a' }} />}
                 styles={{ content: { color: '#52c41a' } }}
@@ -459,7 +459,7 @@ const PatientPortal: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Lich hen sap toi"
+                title="Lịch hẹn sắp tới"
                 value={upcomingAppointments}
                 prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -469,7 +469,7 @@ const PatientPortal: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Ket qua cho tra"
+                title="Kết quả chờ trả"
                 value={pendingResults}
                 prefix={<FileTextOutlined style={{ color: '#faad14' }} />}
                 styles={{ content: { color: '#faad14' } }}
@@ -479,7 +479,7 @@ const PatientPortal: React.FC = () => {
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Cong no"
+                title="Công nợ"
                 value={outstandingBalance}
                 prefix={<CreditCardOutlined style={{ color: '#ff4d4f' }} />}
                 styles={{ content: { color: outstandingBalance > 0 ? '#ff4d4f' : '#52c41a' } }}
@@ -496,7 +496,7 @@ const PatientPortal: React.FC = () => {
             items={[
               {
                 key: 'appointments',
-                label: 'Lich hen',
+                label: 'Lịch hẹn',
                 children: (
                   <>
                     <Button
@@ -505,7 +505,7 @@ const PatientPortal: React.FC = () => {
                       style={{ marginBottom: 16 }}
                       onClick={() => setIsAppointmentModalOpen(true)}
                     >
-                      Dat lich moi
+                      Đặt lịch mới
                     </Button>
                     <Table
                       columns={appointmentColumns}
@@ -514,22 +514,22 @@ const PatientPortal: React.FC = () => {
                       onRow={(record) => ({
                         onDoubleClick: () => {
                           Modal.info({
-                            title: 'Chi tiet lich hen',
+                            title: 'Chi tiết lịch hẹn',
                             width: 500,
                             content: (
                               <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                                <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
-                                <Descriptions.Item label="Ngay hen">{record.preferredDate ? dayjs(record.preferredDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Gio">{record.preferredTime}</Descriptions.Item>
+                                <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày hẹn">{record.preferredDate ? dayjs(record.preferredDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Giờ">{record.preferredTime}</Descriptions.Item>
                                 <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
-                                <Descriptions.Item label="Bac si">{record.doctorName || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Ly do">{record.chiefComplaint || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Trang thai">{record.statusName}</Descriptions.Item>
+                                <Descriptions.Item label="Bác sĩ">{record.doctorName || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Lý do">{record.chiefComplaint || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trạng thái">{record.statusName}</Descriptions.Item>
                                 {record.confirmationCode && (
-                                  <Descriptions.Item label="Ma xac nhan">{record.confirmationCode}</Descriptions.Item>
+                                  <Descriptions.Item label="Mã xác nhận">{record.confirmationCode}</Descriptions.Item>
                                 )}
                                 {record.notes && (
-                                  <Descriptions.Item label="Ghi chu">{record.notes}</Descriptions.Item>
+                                  <Descriptions.Item label="Ghi chú">{record.notes}</Descriptions.Item>
                                 )}
                               </Descriptions>
                             ),
@@ -543,7 +543,7 @@ const PatientPortal: React.FC = () => {
               },
               {
                 key: 'labResults',
-                label: 'Ket qua xet nghiem',
+                label: 'Kết quả xét nghiệm',
                 children: (
                   <Table
                     columns={labResultColumns}
@@ -552,17 +552,17 @@ const PatientPortal: React.FC = () => {
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: `Ket qua: ${record.testName}`,
+                          title: `Kết quả: ${record.testName}`,
                           width: 600,
                           content: (
                             <div style={{ marginTop: 16 }}>
                               <Descriptions bordered size="small" column={2}>
-                                <Descriptions.Item label="Ngay lam">{record.testDate ? dayjs(record.testDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Trang thai">{record.statusName || record.status}</Descriptions.Item>
-                                <Descriptions.Item label="BS chi dinh">{record.orderingDoctor}</Descriptions.Item>
-                                <Descriptions.Item label="Bat thuong">{record.isAbnormal ? 'Co' : 'Khong'}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày làm">{record.testDate ? dayjs(record.testDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trạng thái">{record.statusName || record.status}</Descriptions.Item>
+                                <Descriptions.Item label="BS chỉ định">{record.orderingDoctor}</Descriptions.Item>
+                                <Descriptions.Item label="Bất thường">{record.isAbnormal ? 'Có' : 'Không'}</Descriptions.Item>
                                 {record.interpretation && (
-                                  <Descriptions.Item label="Nhan dinh" span={2}>{record.interpretation}</Descriptions.Item>
+                                  <Descriptions.Item label="Nhận định" span={2}>{record.interpretation}</Descriptions.Item>
                                 )}
                               </Descriptions>
                               {record.results && record.results.length > 0 && (
@@ -573,11 +573,11 @@ const PatientPortal: React.FC = () => {
                                   rowKey="testItemName"
                                   pagination={false}
                                   columns={[
-                                    { title: 'Chi so', dataIndex: 'testItemName', key: 'testItemName' },
-                                    { title: 'Ket qua', dataIndex: 'value', key: 'value', render: (val, row) => (
+                                    { title: 'Chỉ số', dataIndex: 'testItemName', key: 'testItemName' },
+                                    { title: 'Kết quả', dataIndex: 'value', key: 'value', render: (val, row) => (
                                       <Text type={row.isAbnormal ? 'danger' : undefined} strong={row.isAbnormal}>{val} {row.unit || ''}</Text>
                                     )},
-                                    { title: 'Tham chieu', dataIndex: 'referenceRange', key: 'referenceRange' },
+                                    { title: 'Tham chiếu', dataIndex: 'referenceRange', key: 'referenceRange' },
                                     { title: 'Flag', dataIndex: 'flag', key: 'flag', render: (val) => val ? <Tag color="red">{val}</Tag> : '-' },
                                   ]}
                                 />
@@ -593,7 +593,7 @@ const PatientPortal: React.FC = () => {
               },
               {
                 key: 'bills',
-                label: 'Hoa don',
+                label: 'Hóa đơn',
                 children: (
                   <Table
                     columns={billColumns}
@@ -602,17 +602,17 @@ const PatientPortal: React.FC = () => {
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: `Hoa don: ${record.billCode}`,
+                          title: `Hóa đơn: ${record.billCode}`,
                           width: 600,
                           content: (
                             <div style={{ marginTop: 16 }}>
                               <Descriptions bordered size="small" column={2}>
-                                <Descriptions.Item label="Ngay">{record.billDate ? dayjs(record.billDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Trang thai">{record.statusName || record.status}</Descriptions.Item>
-                                <Descriptions.Item label="Tong">{(record.subtotal ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
+                                <Descriptions.Item label="Ngày">{record.billDate ? dayjs(record.billDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Trạng thái">{record.statusName || record.status}</Descriptions.Item>
+                                <Descriptions.Item label="Tổng">{(record.subtotal ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
                                 <Descriptions.Item label="BHYT">{(record.insuranceCoverage ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
-                                <Descriptions.Item label="BN tra">{(record.patientResponsibility ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
-                                <Descriptions.Item label="Con no">{(record.amountDue ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
+                                <Descriptions.Item label="BN trả">{(record.patientResponsibility ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
+                                <Descriptions.Item label="Còn nợ">{(record.amountDue ?? 0).toLocaleString('vi-VN')} VND</Descriptions.Item>
                               </Descriptions>
                               {record.items && record.items.length > 0 && (
                                 <Table
@@ -622,11 +622,11 @@ const PatientPortal: React.FC = () => {
                                   rowKey="description"
                                   pagination={false}
                                   columns={[
-                                    { title: 'Dich vu', dataIndex: 'description', key: 'description' },
+                                    { title: 'Dịch vụ', dataIndex: 'description', key: 'description' },
                                     { title: 'SL', dataIndex: 'quantity', key: 'quantity' },
-                                    { title: 'Don gia', dataIndex: 'unitPrice', key: 'unitPrice', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
-                                    { title: 'Thanh tien', dataIndex: 'amount', key: 'amount', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
-                                    { title: 'BN tra', dataIndex: 'patientPays', key: 'patientPays', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
+                                    { title: 'Đơn giá', dataIndex: 'unitPrice', key: 'unitPrice', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
+                                    { title: 'Thành tiền', dataIndex: 'amount', key: 'amount', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
+                                    { title: 'BN trả', dataIndex: 'patientPays', key: 'patientPays', render: (v) => `${(v ?? 0).toLocaleString('vi-VN')}` },
                                   ]}
                                 />
                               )}
@@ -641,7 +641,7 @@ const PatientPortal: React.FC = () => {
               },
               {
                 key: 'feedbacks',
-                label: 'Danh gia dich vu',
+                label: 'Đánh giá dịch vụ',
                 children: (
                   <>
                     <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -651,13 +651,13 @@ const PatientPortal: React.FC = () => {
                           icon={<StarOutlined />}
                           onClick={() => setIsFeedbackModalOpen(true)}
                         >
-                          Gui danh gia
+                          Gửi đánh giá
                         </Button>
                       </Col>
                       <Col span={6}>
                         <Card size="small">
                           <Statistic
-                            title="Diem trung binh"
+                            title="Điểm trung bình"
                             value={avgRating ? avgRating.toFixed(1) : 0}
                             suffix="/5"
                             prefix={<StarOutlined />}
@@ -666,13 +666,13 @@ const PatientPortal: React.FC = () => {
                       </Col>
                       <Col span={6}>
                         <Card size="small">
-                          <Statistic title="Tong danh gia" value={feedbacks.length} />
+                          <Statistic title="Tổng đánh giá" value={feedbacks.length} />
                         </Card>
                       </Col>
                       <Col span={6}>
                         <Card size="small">
                           <Statistic
-                            title="Ty le phan hoi"
+                            title="Tỷ lệ phản hồi"
                             value={responseRate}
                             suffix="%"
                           />
@@ -686,17 +686,17 @@ const PatientPortal: React.FC = () => {
                       onRow={(record) => ({
                         onDoubleClick: () => {
                           Modal.info({
-                            title: 'Chi tiet danh gia',
+                            title: 'Chi tiết đánh giá',
                             width: 500,
                             content: (
                               <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                                <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
-                                <Descriptions.Item label="Loai">{record.feedbackTypeName}</Descriptions.Item>
+                                <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+                                <Descriptions.Item label="Loại">{record.feedbackTypeName}</Descriptions.Item>
                                 <Descriptions.Item label="Khoa">{record.departmentName || '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Diem">{record.rating ? `${record.rating}/5` : '-'}</Descriptions.Item>
-                                <Descriptions.Item label="Noi dung">{record.message}</Descriptions.Item>
-                                <Descriptions.Item label="Phan hoi">{record.responseMessage || 'Chua phan hoi'}</Descriptions.Item>
-                                <Descriptions.Item label="Ngay gui">{record.createdAt ? dayjs(record.createdAt).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Điểm">{record.rating ? `${record.rating}/5` : '-'}</Descriptions.Item>
+                                <Descriptions.Item label="Nội dung">{record.message}</Descriptions.Item>
+                                <Descriptions.Item label="Phản hồi">{record.responseMessage || 'Chưa phản hồi'}</Descriptions.Item>
+                                <Descriptions.Item label="Ngày gửi">{record.createdAt ? dayjs(record.createdAt).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
                               </Descriptions>
                             ),
                           });
@@ -709,16 +709,16 @@ const PatientPortal: React.FC = () => {
               },
               {
                 key: 'features',
-                label: 'Tinh nang Portal',
+                label: 'Tính năng Portal',
                 children: (
                   <Row gutter={[16, 16]}>
                     <Col span={8}>
                       <Card>
                         <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                           <CalendarOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-                          <Title level={5}>Dat lich kham</Title>
+                          <Title level={5}>Đặt lịch khám</Title>
                           <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                            Dat lich hen truc tuyen, chon bac si va khung gio phu hop
+                            Đặt lịch hẹn trực tuyến, chọn bác sĩ và khung giờ phù hợp
                           </Paragraph>
                         </Space>
                       </Card>
@@ -727,9 +727,9 @@ const PatientPortal: React.FC = () => {
                       <Card>
                         <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                           <FileTextOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-                          <Title level={5}>Xem ket qua</Title>
+                          <Title level={5}>Xem kết quả</Title>
                           <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                            Tra cuu ket qua xet nghiem, CDHA truc tuyen
+                            Tra cứu kết quả xét nghiệm, CĐHA trực tuyến
                           </Paragraph>
                         </Space>
                       </Card>
@@ -738,9 +738,9 @@ const PatientPortal: React.FC = () => {
                       <Card>
                         <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                           <MedicineBoxOutlined style={{ fontSize: 48, color: '#722ed1' }} />
-                          <Title level={5}>Don thuoc</Title>
+                          <Title level={5}>Đơn thuốc</Title>
                           <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                            Xem don thuoc, gui den nha thuoc lien ket
+                            Xem đơn thuốc, gửi đến nhà thuốc liên kết
                           </Paragraph>
                         </Space>
                       </Card>
@@ -749,9 +749,9 @@ const PatientPortal: React.FC = () => {
                       <Card>
                         <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                           <CreditCardOutlined style={{ fontSize: 48, color: '#eb2f96' }} />
-                          <Title level={5}>Thanh toan</Title>
+                          <Title level={5}>Thanh toán</Title>
                           <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                            Thanh toan truc tuyen qua VNPay, Momo, The
+                            Thanh toán trực tuyến qua VNPay, Momo, Thẻ
                           </Paragraph>
                         </Space>
                       </Card>
@@ -760,9 +760,9 @@ const PatientPortal: React.FC = () => {
                       <Card>
                         <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                           <HistoryOutlined style={{ fontSize: 48, color: '#faad14' }} />
-                          <Title level={5}>Lich su kham</Title>
+                          <Title level={5}>Lịch sử khám</Title>
                           <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                            Xem lich su kham benh, ho so suc khoe ca nhan
+                            Xem lịch sử khám bệnh, hồ sơ sức khỏe cá nhân
                           </Paragraph>
                         </Space>
                       </Card>
@@ -771,9 +771,9 @@ const PatientPortal: React.FC = () => {
                       <Card>
                         <Space orientation="vertical" align="center" style={{ width: '100%' }}>
                           <StarOutlined style={{ fontSize: 48, color: '#13c2c2' }} />
-                          <Title level={5}>Danh gia</Title>
+                          <Title level={5}>Đánh giá</Title>
                           <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-                            Gui danh gia, gop y ve chat luong dich vu
+                            Gửi đánh giá, góp ý về chất lượng dịch vụ
                           </Paragraph>
                         </Space>
                       </Card>
@@ -783,21 +783,21 @@ const PatientPortal: React.FC = () => {
               },
               {
                 key: 'news',
-                label: 'Tin tuc',
+                label: 'Tin tức',
                 children: (
                   <div>
                     <Row gutter={[16, 16]}>
                       {[
-                        { title: 'Huong dan su dung cong benh nhan', date: '2026-03-01', category: 'Huong dan', content: 'Tai lieu huong dan cach dang ky, dat lich, xem ket qua xet nghiem truc tuyen.' },
-                        { title: 'Lich kham chuyen gia thang 3/2026', date: '2026-02-28', category: 'Thong bao', content: 'Danh sach bac si chuyen gia kham tai benh vien trong thang 3.' },
-                        { title: 'Chuong trinh kham suc khoe dinh ky', date: '2026-02-25', category: 'Su kien', content: 'Chuong trinh kham suc khoe tong quat giam 30% tu 01/03 den 31/03/2026.' },
-                        { title: 'Quyen loi BHYT moi nhat 2026', date: '2026-02-20', category: 'Chinh sach', content: 'Cap nhat quyen loi bao hiem y te theo quy dinh moi cua Chinh phu.' },
-                        { title: 'Tam ngung phong kham ngoai gio', date: '2026-02-15', category: 'Thong bao', content: 'Tu ngay 20/02, tam ngung phong kham ngoai gio de bao tri he thong.' },
+                        { title: 'Hướng dẫn sử dụng cổng bệnh nhân', date: '2026-03-01', category: 'Hướng dẫn', content: 'Tài liệu hướng dẫn cách đăng ký, đặt lịch, xem kết quả xét nghiệm trực tuyến.' },
+                        { title: 'Lịch khám chuyên gia tháng 3/2026', date: '2026-02-28', category: 'Thông báo', content: 'Danh sách bác sĩ chuyên gia khám tại bệnh viện trong tháng 3.' },
+                        { title: 'Chương trình khám sức khỏe định kỳ', date: '2026-02-25', category: 'Sự kiện', content: 'Chương trình khám sức khỏe tổng quát giảm 30% từ 01/03 đến 31/03/2026.' },
+                        { title: 'Quyền lợi BHYT mới nhất 2026', date: '2026-02-20', category: 'Chính sách', content: 'Cập nhật quyền lợi bảo hiểm y tế theo quy định mới của Chính phủ.' },
+                        { title: 'Tạm ngừng phòng khám ngoài giờ', date: '2026-02-15', category: 'Thông báo', content: 'Từ ngày 20/02, tạm ngừng phòng khám ngoài giờ để bảo trì hệ thống.' },
                       ].map((item, idx) => (
                         <Col span={24} key={idx}>
-                          <Card size="small" hoverable onClick={() => Modal.info({ title: item.title, width: 600, content: (<div><Tag color={item.category === 'Thong bao' ? 'blue' : item.category === 'Huong dan' ? 'green' : item.category === 'Su kien' ? 'purple' : 'orange'}>{item.category}</Tag><Text type="secondary" style={{ marginLeft: 8 }}>{dayjs(item.date).format('DD/MM/YYYY')}</Text><Divider /><Paragraph>{item.content}</Paragraph></div>) })}>
+                          <Card size="small" hoverable onClick={() => Modal.info({ title: item.title, width: 600, content: (<div><Tag color={item.category === 'Thông báo' ? 'blue' : item.category === 'Hướng dẫn' ? 'green' : item.category === 'Sự kiện' ? 'purple' : 'orange'}>{item.category}</Tag><Text type="secondary" style={{ marginLeft: 8 }}>{dayjs(item.date).format('DD/MM/YYYY')}</Text><Divider /><Paragraph>{item.content}</Paragraph></div>) })}>
                             <Space>
-                              <Tag color={item.category === 'Thong bao' ? 'blue' : item.category === 'Huong dan' ? 'green' : item.category === 'Su kien' ? 'purple' : 'orange'}>{item.category}</Tag>
+                              <Tag color={item.category === 'Thông báo' ? 'blue' : item.category === 'Hướng dẫn' ? 'green' : item.category === 'Sự kiện' ? 'purple' : 'orange'}>{item.category}</Tag>
                               <Text strong>{item.title}</Text>
                               <Text type="secondary">{dayjs(item.date).format('DD/MM/YYYY')}</Text>
                             </Space>
@@ -812,13 +812,13 @@ const PatientPortal: React.FC = () => {
                 key: 'notifications',
                 label: (
                   <Badge count={notifications.filter((n) => !n.isRead).length} size="small" offset={[8, 0]}>
-                    Thong bao
+                    Thông báo
                   </Badge>
                 ),
                 children: (
                   <div>
                     {notifications.length === 0 ? (
-                      <Result status="info" title="Khong co thong bao" />
+                      <Result status="info" title="Không có thông báo" />
                     ) : (
                       notifications.map((item) => (
                         <div
@@ -850,7 +850,7 @@ const PatientPortal: React.FC = () => {
                             </Space>
                           </div>
                           {!item.isRead && (
-                            <Tag color="blue" style={{ flexShrink: 0 }}>Moi</Tag>
+                            <Tag color="blue" style={{ flexShrink: 0 }}>Mới</Tag>
                           )}
                         </div>
                       ))
@@ -860,7 +860,7 @@ const PatientPortal: React.FC = () => {
               },
               {
                 key: 'account',
-                label: 'Tai khoan',
+                label: 'Tài khoản',
                 children: account ? (
                   <>
                     <Row gutter={16}>
@@ -869,47 +869,47 @@ const PatientPortal: React.FC = () => {
                       </Col>
                       <Col span={18}>
                         <Descriptions bordered size="small" column={2}>
-                          <Descriptions.Item label="Ho ten">{account.fullName}</Descriptions.Item>
-                          <Descriptions.Item label="Trang thai">
+                          <Descriptions.Item label="Họ tên">{account.fullName}</Descriptions.Item>
+                          <Descriptions.Item label="Trạng thái">
                             {getAccountStatusTag(account.accountStatus)}
                           </Descriptions.Item>
-                          <Descriptions.Item label="SDT">{account.phone}</Descriptions.Item>
+                          <Descriptions.Item label="SĐT">{account.phone}</Descriptions.Item>
                           <Descriptions.Item label="Email">{account.email || '-'}</Descriptions.Item>
-                          <Descriptions.Item label="Ngay sinh">
+                          <Descriptions.Item label="Ngày sinh">
                             {account.dateOfBirth ? dayjs(account.dateOfBirth).format('DD/MM/YYYY') : '-'}
                           </Descriptions.Item>
                           <Descriptions.Item label="CCCD">{account.idNumber || '-'}</Descriptions.Item>
                           <Descriptions.Item label="BHYT" span={2}>
-                            {account.healthInsurance?.cardNumber || 'Khong co'}
+                            {account.healthInsurance?.cardNumber || 'Không có'}
                           </Descriptions.Item>
-                          <Descriptions.Item label="Dia chi" span={2}>
+                          <Descriptions.Item label="Địa chỉ" span={2}>
                             {account.address || '-'}
                           </Descriptions.Item>
-                          <Descriptions.Item label="Lien ket BN">
+                          <Descriptions.Item label="Liên kết BN">
                             {account.isLinkedToPatient ? (
-                              <Tag color="green">Da lien ket ({account.patientCode})</Tag>
+                              <Tag color="green">Đã liên kết ({account.patientCode})</Tag>
                             ) : (
-                              <Tag color="orange">Chua lien ket</Tag>
+                              <Tag color="orange">Chưa liên kết</Tag>
                             )}
                           </Descriptions.Item>
                           <Descriptions.Item label="2FA">
                             {account.twoFactorEnabled ? (
-                              <Tag color="green">Bat</Tag>
+                              <Tag color="green">Bật</Tag>
                             ) : (
-                              <Tag color="default">Tat</Tag>
+                              <Tag color="default">Tắt</Tag>
                             )}
                           </Descriptions.Item>
-                          <Descriptions.Item label="Dang nhap gan nhat">
+                          <Descriptions.Item label="Đăng nhập gần nhất">
                             {account.lastLoginAt ? dayjs(account.lastLoginAt).format('DD/MM/YYYY HH:mm') : '-'}
                           </Descriptions.Item>
-                          <Descriptions.Item label="So lan dang nhap">
+                          <Descriptions.Item label="Số lần đăng nhập">
                             {account.loginCount}
                           </Descriptions.Item>
                         </Descriptions>
                       </Col>
                     </Row>
 
-                    <Divider>Hoa don chua thanh toan</Divider>
+                    <Divider>Hóa đơn chưa thanh toán</Divider>
 
                     {bills.filter((b) => b.status === 'Pending' || b.status === 'Overdue' || b.status === 'PartialPaid').length > 0 ? (
                       <div>
@@ -918,9 +918,9 @@ const PatientPortal: React.FC = () => {
                           .map((item) => (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 500 }}>{`Hoa don ${item.billCode}`}</div>
+                                <div style={{ fontWeight: 500 }}>{`Hóa đơn ${item.billCode}`}</div>
                                 <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>
-                                  {`Ngay: ${item.billDate ? dayjs(item.billDate).format('DD/MM/YYYY') : '-'} | ${item.department || ''}`}
+                                  {`Ngày: ${item.billDate ? dayjs(item.billDate).format('DD/MM/YYYY') : '-'} | ${item.department || ''}`}
                                 </div>
                               </div>
                               <Text strong style={{ color: '#ff4d4f' }}>
@@ -930,11 +930,11 @@ const PatientPortal: React.FC = () => {
                           ))}
                       </div>
                     ) : (
-                      <Result status="success" title="Khong co hoa don chua thanh toan" />
+                      <Result status="success" title="Không có hóa đơn chưa thanh toán" />
                     )}
                   </>
                 ) : (
-                  <Result status="info" title="Chua co thong tin tai khoan" />
+                  <Result status="info" title="Chưa có thông tin tài khoản" />
                 ),
               },
             ]}
@@ -943,14 +943,14 @@ const PatientPortal: React.FC = () => {
 
         {/* Appointment Modal */}
         <Modal
-          title="Dat lich hen"
+          title="Đặt lịch hẹn"
           open={isAppointmentModalOpen}
           onCancel={() => setIsAppointmentModalOpen(false)}
           onOk={() => appointmentForm.submit()}
         >
           <Form form={appointmentForm} layout="vertical" onFinish={handleBookAppointment}>
-            <Form.Item name="departmentId" label="Khoa" rules={[{ required: true, message: 'Vui long chon khoa' }]}>
-              <Select placeholder="Chon khoa">
+            <Form.Item name="departmentId" label="Khoa" rules={[{ required: true, message: 'Vui lòng chọn khoa' }]}>
+              <Select placeholder="Chọn khoa">
                 {departments.map((d) => (
                   <Select.Option key={d.id} value={d.id}>
                     {d.name}
@@ -958,8 +958,8 @@ const PatientPortal: React.FC = () => {
                 ))}
               </Select>
             </Form.Item>
-            <Form.Item name="doctorId" label="Bac si">
-              <Select placeholder="Chon bac si (khong bat buoc)" allowClear>
+            <Form.Item name="doctorId" label="Bác sĩ">
+              <Select placeholder="Chọn bác sĩ (không bắt buộc)" allowClear>
                 {doctors.map((d) => (
                   <Select.Option key={d.id} value={d.id}>
                     {d.title ? `${d.title} ${d.name}` : d.name} - {d.specialty}
@@ -969,13 +969,13 @@ const PatientPortal: React.FC = () => {
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="date" label="Ngay" rules={[{ required: true, message: 'Vui long chon ngay' }]}>
+                <Form.Item name="date" label="Ngày" rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="time" label="Gio" rules={[{ required: true, message: 'Vui long chon gio' }]}>
-                  <Select placeholder="Chon gio">
+                <Form.Item name="time" label="Giờ" rules={[{ required: true, message: 'Vui lòng chọn giờ' }]}>
+                  <Select placeholder="Chọn giờ">
                     <Select.Option value="08:00">08:00</Select.Option>
                     <Select.Option value="08:30">08:30</Select.Option>
                     <Select.Option value="09:00">09:00</Select.Option>
@@ -990,30 +990,30 @@ const PatientPortal: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="type" label="Loai kham" rules={[{ required: true, message: 'Vui long chon loai kham' }]}>
-              <Select placeholder="Chon loai kham">
-                <Select.Option value="NewVisit">Kham moi</Select.Option>
-                <Select.Option value="FollowUp">Tai kham</Select.Option>
-                <Select.Option value="HealthCheck">Kham suc khoe</Select.Option>
-                <Select.Option value="Telemedicine">Kham tu xa</Select.Option>
+            <Form.Item name="type" label="Loại khám" rules={[{ required: true, message: 'Vui lòng chọn loại khám' }]}>
+              <Select placeholder="Chọn loại khám">
+                <Select.Option value="NewVisit">Khám mới</Select.Option>
+                <Select.Option value="FollowUp">Tái khám</Select.Option>
+                <Select.Option value="HealthCheck">Khám sức khỏe</Select.Option>
+                <Select.Option value="Telemedicine">Khám từ xa</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item name="notes" label="Ly do kham / Ghi chu">
-              <TextArea rows={2} placeholder="Mo ta trieu chung hoac ly do kham..." />
+            <Form.Item name="notes" label="Lý do khám / Ghi chú">
+              <TextArea rows={2} placeholder="Mô tả triệu chứng hoặc lý do khám..." />
             </Form.Item>
           </Form>
         </Modal>
 
         {/* Feedback Modal */}
         <Modal
-          title="Gui danh gia"
+          title="Gửi đánh giá"
           open={isFeedbackModalOpen}
           onCancel={() => setIsFeedbackModalOpen(false)}
           onOk={() => feedbackForm.submit()}
         >
           <Form form={feedbackForm} layout="vertical" onFinish={handleSubmitFeedback}>
             <Form.Item name="departmentId" label="Khoa">
-              <Select placeholder="Chon khoa (khong bat buoc)" allowClear>
+              <Select placeholder="Chọn khoa (không bắt buộc)" allowClear>
                 {departments.map((d) => (
                   <Select.Option key={d.id} value={d.id}>
                     {d.name}
@@ -1021,11 +1021,11 @@ const PatientPortal: React.FC = () => {
                 ))}
               </Select>
             </Form.Item>
-            <Form.Item name="rating" label="Diem danh gia" rules={[{ required: true, message: 'Vui long chon diem' }]}>
+            <Form.Item name="rating" label="Điểm đánh giá" rules={[{ required: true, message: 'Vui lòng chọn điểm' }]}>
               <Rate />
             </Form.Item>
-            <Form.Item name="comment" label="Nhan xet" rules={[{ required: true, message: 'Vui long nhap nhan xet' }]}>
-              <TextArea rows={4} placeholder="Chia se trai nghiem cua ban..." />
+            <Form.Item name="comment" label="Nhận xét" rules={[{ required: true, message: 'Vui lòng nhập nhận xét' }]}>
+              <TextArea rows={4} placeholder="Chia sẻ trải nghiệm của bạn..." />
             </Form.Item>
           </Form>
         </Modal>

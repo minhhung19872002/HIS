@@ -96,7 +96,7 @@ const Telemedicine: React.FC = () => {
           setAppointments([]);
         }
       } else {
-        message.warning('Khong the tai danh sach lich hen');
+        message.warning('Không thể tải danh sách lịch hẹn');
         setAppointments([]);
       }
 
@@ -106,7 +106,7 @@ const Telemedicine: React.FC = () => {
         setDashboard(null);
       }
     } catch {
-      message.warning('Loi khi tai du lieu');
+      message.warning('Lỗi khi tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -127,13 +127,13 @@ const Telemedicine: React.FC = () => {
   // Status mapping: API uses numeric status
   const getStatusTag = (status: number, statusName?: string) => {
     const statusConfig: Record<number, { color: string; text: string }> = {
-      0: { color: 'default', text: 'Moi tao' },
-      1: { color: 'blue', text: 'Da dat lich' },
-      2: { color: 'orange', text: 'Cho kham' },
-      3: { color: 'green', text: 'Dang kham' },
-      4: { color: 'default', text: 'Hoan thanh' },
-      5: { color: 'red', text: 'Da huy' },
-      6: { color: 'volcano', text: 'Vang mat' },
+      0: { color: 'default', text: 'Mới tạo' },
+      1: { color: 'blue', text: 'Đã đặt lịch' },
+      2: { color: 'orange', text: 'Chờ khám' },
+      3: { color: 'green', text: 'Đang khám' },
+      4: { color: 'default', text: 'Hoàn thành' },
+      5: { color: 'red', text: 'Đã hủy' },
+      6: { color: 'volcano', text: 'Vắng mặt' },
     };
     const config = statusConfig[status] || { color: 'default', text: statusName || `Status ${status}` };
     return <Tag color={config.color}>{statusName || config.text}</Tag>;
@@ -141,9 +141,9 @@ const Telemedicine: React.FC = () => {
 
   const getPaymentStatusTag = (paymentStatus: number, paymentStatusName?: string) => {
     const config: Record<number, { color: string; text: string }> = {
-      0: { color: 'warning', text: 'Chua thanh toan' },
-      1: { color: 'success', text: 'Da thanh toan' },
-      2: { color: 'error', text: 'Da hoan tien' },
+      0: { color: 'warning', text: 'Chưa thanh toán' },
+      1: { color: 'success', text: 'Đã thanh toán' },
+      2: { color: 'error', text: 'Đã hoàn tiền' },
     };
     const c = config[paymentStatus] || { color: 'default', text: paymentStatusName || `Payment ${paymentStatus}` };
     return <Tag color={c.color}>{paymentStatusName || c.text}</Tag>;
@@ -174,7 +174,7 @@ const Telemedicine: React.FC = () => {
       fetchData();
       setIsConsultModalOpen(true);
     } catch {
-      message.warning('Khong the bat dau phien kham. Vui long thu lai.');
+      message.warning('Không thể bắt đầu phiên khám. Vui lòng thử lại.');
     } finally {
       setSessionLoading(false);
     }
@@ -183,7 +183,7 @@ const Telemedicine: React.FC = () => {
   const handleEndConsultation = async () => {
     try {
       if (activeSession?.id) {
-        await endSession(activeSession.id, 'Ket thuc kham');
+        await endSession(activeSession.id, 'Kết thúc khám');
       }
       if (activeConsultation?.id && selectedAppointment) {
         await completeConsultation({
@@ -197,10 +197,10 @@ const Telemedicine: React.FC = () => {
       setActiveSession(null);
       setActiveConsultation(null);
       setIsConsultModalOpen(false);
-      message.success('Da ket thuc buoi kham');
+      message.success('Đã kết thúc buổi khám');
       fetchData();
     } catch {
-      message.warning('Loi khi ket thuc phien kham');
+      message.warning('Lỗi khi kết thúc phiên khám');
     }
   };
 
@@ -220,10 +220,10 @@ const Telemedicine: React.FC = () => {
       });
       setIsBookingModalOpen(false);
       form.resetFields();
-      message.success('Da dat lich hen thanh cong');
+      message.success('Đã đặt lịch hẹn thành công');
       fetchData();
     } catch {
-      message.warning('Khong the dat lich hen. Vui long thu lai.');
+      message.warning('Không thể đặt lịch hẹn. Vui lòng thử lại.');
     } finally {
       setBookingLoading(false);
     }
@@ -231,18 +231,18 @@ const Telemedicine: React.FC = () => {
 
   const handleCancelAppointment = async (appointment: TelemedicineAppointmentDto) => {
     Modal.confirm({
-      title: 'Xac nhan huy lich hen',
-      content: `Ban co chac muon huy lich hen cua ${appointment.patientName}?`,
-      okText: 'Huy lich',
+      title: 'Xác nhận hủy lịch hẹn',
+      content: `Bạn có chắc muốn hủy lịch hẹn của ${appointment.patientName}?`,
+      okText: 'Hủy lịch',
       okType: 'danger',
-      cancelText: 'Dong',
+      cancelText: 'Đóng',
       onOk: async () => {
         try {
-          await cancelAppointment(appointment.id, 'Huy boi bac si');
-          message.success('Da huy lich hen');
+          await cancelAppointment(appointment.id, 'Hủy bởi bác sĩ');
+          message.success('Đã hủy lịch hẹn');
           fetchData();
         } catch {
-          message.warning('Khong the huy lich hen');
+          message.warning('Không thể hủy lịch hẹn');
         }
       },
     });
@@ -252,7 +252,7 @@ const Telemedicine: React.FC = () => {
     try {
       const values = prescriptionForm.getFieldsValue();
       if (!activeConsultation?.id) {
-        message.warning('Khong co phien kham de ke don');
+        message.warning('Không có phiên khám để kê đơn');
         return;
       }
       await createEPrescription({
@@ -268,10 +268,10 @@ const Telemedicine: React.FC = () => {
         })),
         instructions: values.advice,
       });
-      message.success('Da luu don thuoc');
+      message.success('Đã lưu đơn thuốc');
       setIsPrescriptionModalOpen(false);
     } catch {
-      message.warning('Khong the luu don thuoc');
+      message.warning('Không thể lưu đơn thuốc');
     }
   };
 
@@ -284,7 +284,7 @@ const Telemedicine: React.FC = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Don thuoc dien tu</title>
+        <title>Đơn thuốc điện tử</title>
         <style>
           body { font-family: 'Times New Roman', serif; padding: 20px; max-width: 800px; margin: auto; }
           .header { text-align: center; margin-bottom: 20px; }
@@ -303,23 +303,23 @@ const Telemedicine: React.FC = () => {
       <body>
         <div class="header">
           <div class="hospital-name">${HOSPITAL_NAME}</div>
-          <div>Dia chi: ${HOSPITAL_ADDRESS}</div>
+          <div>Địa chỉ: ${HOSPITAL_ADDRESS}</div>
           <div>DT: ${HOSPITAL_PHONE}</div>
         </div>
 
-        <div class="title" style="text-align: center;">DON THUOC DIEN TU</div>
-        <div style="text-align: center; margin-bottom: 20px;">(Kham benh tu xa - Telemedicine)</div>
+        <div class="title" style="text-align: center;">ĐƠN THUỐC ĐIỆN TỬ</div>
+        <div style="text-align: center; margin-bottom: 20px;">(Khám bệnh từ xa - Telemedicine)</div>
 
         <div class="info-row">
-          <span class="info-label">Ho ten BN:</span>
+          <span class="info-label">Họ tên BN:</span>
           <span>${selectedAppointment.patientName}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">SDT:</span>
+          <span class="info-label">SĐT:</span>
           <span>${selectedAppointment.phone}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Chan doan:</span>
+          <span class="info-label">Chẩn đoán:</span>
           <span>${values.diagnosis || ''}</span>
         </div>
 
@@ -327,10 +327,10 @@ const Telemedicine: React.FC = () => {
           <thead>
             <tr>
               <th>STT</th>
-              <th>Ten thuoc</th>
-              <th>Lieu dung</th>
-              <th>So luong</th>
-              <th>Cach dung</th>
+              <th>Tên thuốc</th>
+              <th>Liều dùng</th>
+              <th>Số lượng</th>
+              <th>Cách dùng</th>
             </tr>
           </thead>
           <tbody>
@@ -347,18 +347,18 @@ const Telemedicine: React.FC = () => {
         </table>
 
         <div class="info-row">
-          <span class="info-label">Loi dan:</span>
+          <span class="info-label">Lời dặn:</span>
           <span>${values.advice || ''}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Tai kham:</span>
+          <span class="info-label">Tái khám:</span>
           <span>${values.followUp || ''}</span>
         </div>
 
         <div class="signature">
-          <div>Ngay ${dayjs().format('DD')} thang ${dayjs().format('MM')} nam ${dayjs().format('YYYY')}</div>
-          <div style="margin-top: 10px; font-weight: bold;">BAC SI KE DON</div>
-          <div class="digital-signature">[Chu ky so]</div>
+          <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
+          <div style="margin-top: 10px; font-weight: bold;">BÁC SĨ KÊ ĐƠN</div>
+          <div class="digital-signature">[Chữ ký số]</div>
           <div style="margin-top: 30px; font-weight: bold;">${selectedAppointment.doctorName}</div>
         </div>
 
@@ -372,9 +372,9 @@ const Telemedicine: React.FC = () => {
   const getTypeTag = (appointmentType: number, appointmentTypeName?: string) => {
     // appointmentType: 1=FirstVisit, 2=FollowUp, 3=SecondOpinion
     const config: Record<number, { icon: React.ReactNode; color: string; text: string }> = {
-      1: { icon: <UserOutlined />, color: 'blue', text: 'Kham lan dau' },
-      2: { icon: <CalendarOutlined />, color: 'green', text: 'Tai kham' },
-      3: { icon: <FileTextOutlined />, color: 'purple', text: 'Hoi y' },
+      1: { icon: <UserOutlined />, color: 'blue', text: 'Khám lần đầu' },
+      2: { icon: <CalendarOutlined />, color: 'green', text: 'Tái khám' },
+      3: { icon: <FileTextOutlined />, color: 'purple', text: 'Hội ý' },
     };
     const c = config[appointmentType] || { icon: <VideoCameraOutlined />, color: 'default', text: appointmentTypeName || `Type ${appointmentType}` };
     return (
@@ -398,18 +398,18 @@ const Telemedicine: React.FC = () => {
 
   const columns: ColumnsType<TelemedicineAppointmentDto> = [
     {
-      title: 'Thoi gian',
+      title: 'Thời gian',
       key: 'time',
       width: 100,
       render: (_, record) => (
         <Space orientation="vertical" size={0}>
           <Text strong>{record.scheduledTime}</Text>
-          <Text type="secondary">{record.durationMinutes} phut</Text>
+          <Text type="secondary">{record.durationMinutes} phút</Text>
         </Space>
       ),
     },
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       key: 'patient',
       render: (_, record) => (
         <Space>
@@ -422,7 +422,7 @@ const Telemedicine: React.FC = () => {
       ),
     },
     {
-      title: 'Bac si',
+      title: 'Bác sĩ',
       key: 'doctor',
       render: (_, record) => (
         <Space orientation="vertical" size={0}>
@@ -432,20 +432,20 @@ const Telemedicine: React.FC = () => {
       ),
     },
     {
-      title: 'Loai',
+      title: 'Loại',
       dataIndex: 'appointmentType',
       key: 'appointmentType',
       width: 130,
       render: (type, record) => getTypeTag(type, record.appointmentTypeName),
     },
     {
-      title: 'Ly do kham',
+      title: 'Lý do khám',
       dataIndex: 'chiefComplaint',
       key: 'chiefComplaint',
       ellipsis: true,
     },
     {
-      title: 'Thanh toan',
+      title: 'Thanh toán',
       key: 'payment',
       width: 140,
       render: (_, record) => (
@@ -456,14 +456,14 @@ const Telemedicine: React.FC = () => {
       ),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (status, record) => getStatusTag(status, record.statusName),
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 200,
       render: (_, record) => (
@@ -477,7 +477,7 @@ const Telemedicine: React.FC = () => {
                 loading={sessionLoading}
                 onClick={() => handleStartConsultation(record)}
               >
-                Bat dau
+                Bắt đầu
               </Button>
               <Button
                 danger
@@ -485,7 +485,7 @@ const Telemedicine: React.FC = () => {
                 icon={<CloseCircleOutlined />}
                 onClick={() => handleCancelAppointment(record)}
               >
-                Huy
+                Hủy
               </Button>
             </>
           )}
@@ -499,7 +499,7 @@ const Telemedicine: React.FC = () => {
                 setIsConsultModalOpen(true);
               }}
             >
-              Tiep tuc
+              Tiếp tục
             </Button>
           )}
           {record.status === 4 && (
@@ -514,22 +514,22 @@ const Telemedicine: React.FC = () => {
 
   const renderDetailModal = (record: TelemedicineAppointmentDto) => {
     Modal.info({
-      title: 'Chi tiet lich kham tu xa',
+      title: 'Chi tiết lịch khám từ xa',
       width: 500,
       content: (
         <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-          <Descriptions.Item label="Ma lich hen">{record.appointmentCode}</Descriptions.Item>
-          <Descriptions.Item label="Benh nhan">{record.patientName}</Descriptions.Item>
-          <Descriptions.Item label="SDT">{record.phone}</Descriptions.Item>
-          <Descriptions.Item label="Ngay hen">{record.scheduledDate?.substring(0, 10)}</Descriptions.Item>
-          <Descriptions.Item label="Gio">{record.scheduledTime}</Descriptions.Item>
-          <Descriptions.Item label="Bac si">{record.doctorName}</Descriptions.Item>
+          <Descriptions.Item label="Mã lịch hẹn">{record.appointmentCode}</Descriptions.Item>
+          <Descriptions.Item label="Bệnh nhân">{record.patientName}</Descriptions.Item>
+          <Descriptions.Item label="SĐT">{record.phone}</Descriptions.Item>
+          <Descriptions.Item label="Ngày hẹn">{record.scheduledDate?.substring(0, 10)}</Descriptions.Item>
+          <Descriptions.Item label="Giờ">{record.scheduledTime}</Descriptions.Item>
+          <Descriptions.Item label="Bác sĩ">{record.doctorName}</Descriptions.Item>
           <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
-          <Descriptions.Item label="Ly do">{record.chiefComplaint || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Trang thai">{record.statusName || `Status ${record.status}`}</Descriptions.Item>
-          <Descriptions.Item label="Phi">{record.fee?.toLocaleString('vi-VN')}d</Descriptions.Item>
-          <Descriptions.Item label="Thanh toan">{record.paymentStatusName || '-'}</Descriptions.Item>
-          {record.notes && <Descriptions.Item label="Ghi chu">{record.notes}</Descriptions.Item>}
+          <Descriptions.Item label="Lý do">{record.chiefComplaint || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Trạng thái">{record.statusName || `Status ${record.status}`}</Descriptions.Item>
+          <Descriptions.Item label="Phí">{record.fee?.toLocaleString('vi-VN')}đ</Descriptions.Item>
+          <Descriptions.Item label="Thanh toán">{record.paymentStatusName || '-'}</Descriptions.Item>
+          {record.notes && <Descriptions.Item label="Ghi chú">{record.notes}</Descriptions.Item>}
         </Descriptions>
       ),
     });
@@ -539,9 +539,9 @@ const Telemedicine: React.FC = () => {
     <Spin spinning={loading}>
       <div>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-          <Title level={4} style={{ margin: 0 }}>Kham benh tu xa (Telemedicine)</Title>
+          <Title level={4} style={{ margin: 0 }}>Khám bệnh từ xa (Telemedicine)</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-            Lam moi
+            Làm mới
           </Button>
         </Space>
 
@@ -550,7 +550,7 @@ const Telemedicine: React.FC = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                title="Lich hen hom nay"
+                title="Lịch hẹn hôm nay"
                 value={todayTotal}
                 prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -560,7 +560,7 @@ const Telemedicine: React.FC = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                title="Dang cho"
+                title="Đang chờ"
                 value={waitingCount}
                 prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
                 styles={{ content: { color: '#faad14' } }}
@@ -570,7 +570,7 @@ const Telemedicine: React.FC = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                title="Dang kham"
+                title="Đang khám"
                 value={inProgressCount}
                 prefix={<VideoCameraOutlined style={{ color: '#52c41a' }} />}
                 styles={{ content: { color: '#52c41a' } }}
@@ -580,7 +580,7 @@ const Telemedicine: React.FC = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                title="Hoan thanh"
+                title="Hoàn thành"
                 value={completedCount}
                 prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
                 styles={{ content: { color: '#722ed1' } }}
@@ -595,18 +595,18 @@ const Telemedicine: React.FC = () => {
             <Col xs={24} sm={8}>
               <Card size="small">
                 <Statistic
-                  title="Thoi gian cho TB"
+                  title="Thời gian chờ TB"
                   value={dashboard.averageWaitTimeMinutes}
-                  suffix="phut"
+                  suffix="phút"
                 />
               </Card>
             </Col>
             <Col xs={24} sm={8}>
               <Card size="small">
                 <Statistic
-                  title="Thoi gian kham TB"
+                  title="Thời gian khám TB"
                   value={dashboard.averageConsultationDurationMinutes}
-                  suffix="phut"
+                  suffix="phút"
                 />
               </Card>
             </Col>
@@ -624,16 +624,16 @@ const Telemedicine: React.FC = () => {
 
         {/* Main Content */}
         <Card
-          title="Danh sach lich hen"
+          title="Danh sách lịch hẹn"
           extra={
             <Button type="primary" onClick={() => setIsBookingModalOpen(true)}>
-              Dat lich moi
+              Đặt lịch mới
             </Button>
           }
         >
           <Alert
-            title="Luu y"
-            description="Chi ap dung cho tai kham, tu van, benh man tinh on dinh. Khong ap dung cho cap cuu, PTTT, thu thuat xam lan."
+            title="Lưu ý"
+            description="Chỉ áp dụng cho tái khám, tư vấn, bệnh mạn tính ổn định. Không áp dụng cho cấp cứu, PTTT, thủ thuật xâm lấn."
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -644,7 +644,7 @@ const Telemedicine: React.FC = () => {
             items={[
               {
                 key: 'today',
-                label: `Hom nay (${todayAppointments.length})`,
+                label: `Hôm nay (${todayAppointments.length})`,
                 children: (
                   <Table
                     columns={columns}
@@ -660,7 +660,7 @@ const Telemedicine: React.FC = () => {
               },
               {
                 key: 'upcoming',
-                label: `Sap toi (${upcomingAppointments.length})`,
+                label: `Sắp tới (${upcomingAppointments.length})`,
                 children: (
                   <Table
                     columns={columns}
@@ -675,7 +675,7 @@ const Telemedicine: React.FC = () => {
               },
               {
                 key: 'history',
-                label: `Lich su (${historyAppointments.length})`,
+                label: `Lịch sử (${historyAppointments.length})`,
                 children: (
                   <Table
                     columns={columns}
@@ -694,7 +694,7 @@ const Telemedicine: React.FC = () => {
 
         {/* Booking Modal */}
         <Modal
-          title="Dat lich kham tu xa"
+          title="Đặt lịch khám từ xa"
           open={isBookingModalOpen}
           onCancel={() => setIsBookingModalOpen(false)}
           onOk={() => form.submit()}
@@ -706,8 +706,8 @@ const Telemedicine: React.FC = () => {
               <Col span={12}>
                 <Form.Item
                   name="patientId"
-                  label="Ma benh nhan"
-                  rules={[{ required: true, message: 'Vui long nhap ma benh nhan' }]}
+                  label="Mã bệnh nhân"
+                  rules={[{ required: true, message: 'Vui lòng nhập mã bệnh nhân' }]}
                 >
                   <Input placeholder="VD: P001" />
                 </Form.Item>
@@ -715,8 +715,8 @@ const Telemedicine: React.FC = () => {
               <Col span={12}>
                 <Form.Item
                   name="doctorId"
-                  label="Ma bac si"
-                  rules={[{ required: true, message: 'Vui long nhap ma bac si' }]}
+                  label="Mã bác sĩ"
+                  rules={[{ required: true, message: 'Vui lòng nhập mã bác sĩ' }]}
                 >
                   <Input placeholder="VD: D001" />
                 </Form.Item>
@@ -726,8 +726,8 @@ const Telemedicine: React.FC = () => {
               <Col span={12}>
                 <Form.Item
                   name="departmentId"
-                  label="Ma khoa"
-                  rules={[{ required: true, message: 'Vui long nhap ma khoa' }]}
+                  label="Mã khoa"
+                  rules={[{ required: true, message: 'Vui lòng nhập mã khoa' }]}
                 >
                   <Input placeholder="VD: DEP001" />
                 </Form.Item>
@@ -735,13 +735,13 @@ const Telemedicine: React.FC = () => {
               <Col span={12}>
                 <Form.Item
                   name="appointmentType"
-                  label="Loai kham"
-                  rules={[{ required: true, message: 'Vui long chon loai kham' }]}
+                  label="Loại khám"
+                  rules={[{ required: true, message: 'Vui lòng chọn loại khám' }]}
                 >
-                  <Select placeholder="Chon loai kham">
-                    <Select.Option value={1}>Kham lan dau</Select.Option>
-                    <Select.Option value={2}>Tai kham</Select.Option>
-                    <Select.Option value={3}>Hoi y / Second Opinion</Select.Option>
+                  <Select placeholder="Chọn loại khám">
+                    <Select.Option value={1}>Khám lần đầu</Select.Option>
+                    <Select.Option value={2}>Tái khám</Select.Option>
+                    <Select.Option value={3}>Hội ý / Second Opinion</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -750,8 +750,8 @@ const Telemedicine: React.FC = () => {
               <Col span={12}>
                 <Form.Item
                   name="appointmentDate"
-                  label="Ngay kham"
-                  rules={[{ required: true, message: 'Vui long chon ngay' }]}
+                  label="Ngày khám"
+                  rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}
                 >
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
@@ -759,8 +759,8 @@ const Telemedicine: React.FC = () => {
               <Col span={12}>
                 <Form.Item
                   name="appointmentTime"
-                  label="Gio kham"
-                  rules={[{ required: true, message: 'Vui long chon gio' }]}
+                  label="Giờ khám"
+                  rules={[{ required: true, message: 'Vui lòng chọn giờ' }]}
                 >
                   <TimePicker format="HH:mm" style={{ width: '100%' }} />
                 </Form.Item>
@@ -768,12 +768,12 @@ const Telemedicine: React.FC = () => {
             </Row>
             <Form.Item
               name="reason"
-              label="Ly do kham"
-              rules={[{ required: true, message: 'Vui long nhap ly do kham' }]}
+              label="Lý do khám"
+              rules={[{ required: true, message: 'Vui lòng nhập lý do khám' }]}
             >
               <TextArea rows={3} />
             </Form.Item>
-            <Form.Item name="notes" label="Ghi chu">
+            <Form.Item name="notes" label="Ghi chú">
               <TextArea rows={2} />
             </Form.Item>
           </Form>
@@ -847,7 +847,7 @@ const Telemedicine: React.FC = () => {
                       </Text>
                     </div>
                     <div>
-                      <Text type="secondary">SDT:</Text>
+                      <Text type="secondary">SĐT:</Text>
                       <Text style={{ marginLeft: 8 }}>{selectedAppointment.phone}</Text>
                     </div>
                     <div>
@@ -906,13 +906,13 @@ const Telemedicine: React.FC = () => {
           width={700}
         >
           <Alert
-            title="Don thuoc dien tu se duoc ky so va gui den nha thuoc lien ket"
+            title="Đơn thuốc điện tử se duoc ky so va gui den nha thuoc lien ket"
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
           />
           <Form form={prescriptionForm} layout="vertical">
-            <Form.Item name="diagnosis" label="Chan doan" rules={[{ required: true }]}>
+            <Form.Item name="diagnosis" label="Chẩn đoán" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
             <Form.List name="medicines">
@@ -926,12 +926,12 @@ const Telemedicine: React.FC = () => {
                           name={[name, 'name']}
                           rules={[{ required: true }]}
                         >
-                          <Input placeholder="Ten thuoc" />
+                          <Input placeholder="Tên thuốc" />
                         </Form.Item>
                       </Col>
                       <Col span={4}>
                         <Form.Item {...restField} name={[name, 'dosage']}>
-                          <Input placeholder="Lieu dung" />
+                          <Input placeholder="Liều dùng" />
                         </Form.Item>
                       </Col>
                       <Col span={3}>
@@ -941,7 +941,7 @@ const Telemedicine: React.FC = () => {
                       </Col>
                       <Col span={9}>
                         <Form.Item {...restField} name={[name, 'instruction']}>
-                          <Input placeholder="Cach dung" />
+                          <Input placeholder="Cách dùng" />
                         </Form.Item>
                       </Col>
                       <Col span={2}>
@@ -958,7 +958,7 @@ const Telemedicine: React.FC = () => {
               )}
             </Form.List>
             <Divider />
-            <Form.Item name="advice" label="Loi dan">
+            <Form.Item name="advice" label="Lời dặn">
               <TextArea rows={2} />
             </Form.Item>
             <Form.Item name="followUp" label="Hen tai kham">
