@@ -103,7 +103,7 @@ const AnalyzerConfigTab: React.FC = () => {
       const res = await getAnalyzers();
       setAnalyzers(Array.isArray(res.data) ? res.data : []);
     } catch {
-      message.warning('Khong the tai danh sach may xet nghiem');
+      message.warning('Không thể tải danh sách máy xét nghiệm');
       setAnalyzers([]);
     } finally {
       setLoading(false);
@@ -117,10 +117,10 @@ const AnalyzerConfigTab: React.FC = () => {
       const values = await form.validateFields();
       if (editingId) {
         await updateAnalyzer(editingId, values);
-        message.success('Cap nhat may xet nghiem thanh cong');
+        message.success('Cập nhật máy xét nghiệm thành công');
       } else {
         await createAnalyzer(values);
-        message.success('Them may xet nghiem thanh cong');
+        message.success('Thêm máy xét nghiệm thành công');
       }
       setIsModalOpen(false);
       form.resetFields();
@@ -128,7 +128,7 @@ const AnalyzerConfigTab: React.FC = () => {
       fetchData();
     } catch (err: any) {
       if (err?.errorFields) return; // form validation
-      message.warning('Loi khi luu cau hinh may xet nghiem');
+      message.warning('Lỗi khi lưu cấu hình máy xét nghiệm');
     }
   };
 
@@ -141,18 +141,18 @@ const AnalyzerConfigTab: React.FC = () => {
 
   const handleDelete = (id: string) => {
     Modal.confirm({
-      title: 'Xac nhan xoa may xet nghiem?',
-      content: 'Thao tac nay khong the hoan tac.',
-      okText: 'Xoa',
-      cancelText: 'Huy',
+      title: 'Xác nhận xóa máy xét nghiệm?',
+      content: 'Thao tác này không thể hoàn tác.',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await deleteAnalyzer(id);
-          message.success('Da xoa may xet nghiem');
+          message.success('Đã xóa máy xét nghiệm');
           fetchData();
         } catch {
-          message.warning('Loi khi xoa may xet nghiem');
+          message.warning('Lỗi khi xóa máy xét nghiệm');
         }
       },
     });
@@ -163,22 +163,22 @@ const AnalyzerConfigTab: React.FC = () => {
     try {
       const res = await testAnalyzerConnection(id);
       if (res.data?.success) {
-        message.success(res.data.message || 'Ket noi thanh cong');
+        message.success(res.data.message || 'Kết nối thành công');
       } else {
-        message.warning(res.data?.message || 'Ket noi that bai');
+        message.warning(res.data?.message || 'Kết nối thất bại');
       }
       fetchData();
     } catch {
-      message.warning('Khong the ket noi den may xet nghiem');
+      message.warning('Không thể kết nối đến máy xét nghiệm');
     } finally {
       setTestingId(null);
     }
   };
 
   const columns: ColumnsType<AnalyzerDto> = [
-    { title: 'Ten may', dataIndex: 'name', key: 'name', width: 180 },
+    { title: 'Tên máy', dataIndex: 'name', key: 'name', width: 180 },
     { title: 'Model', dataIndex: 'model', key: 'model', width: 120 },
-    { title: 'Hang SX', dataIndex: 'manufacturer', key: 'manufacturer', width: 130 },
+    { title: 'Hãng SX', dataIndex: 'manufacturer', key: 'manufacturer', width: 130 },
     {
       title: 'IP/Port',
       key: 'address',
@@ -186,37 +186,37 @@ const AnalyzerConfigTab: React.FC = () => {
       render: (_, r) => r.ipAddress ? `${r.ipAddress}:${r.port || ''}` : '-',
     },
     {
-      title: 'Giao thuc',
+      title: 'Giao thức',
       dataIndex: 'connectionType',
       key: 'connectionType',
       width: 100,
       render: (val: string) => <Tag color={val === 'HL7' ? 'blue' : val === 'ASTM' ? 'purple' : 'orange'}>{val}</Tag>,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'isActive',
       key: 'isActive',
       width: 100,
-      render: (val: boolean) => val ? <Tag color="green">Hoat dong</Tag> : <Tag color="default">Ngung</Tag>,
+      render: (val: boolean) => val ? <Tag color="green">Hoạt động</Tag> : <Tag color="default">Ngừng</Tag>,
     },
     {
-      title: 'Ket noi',
+      title: 'Kết nối',
       dataIndex: 'connectionStatus',
       key: 'connectionStatus',
       width: 120,
       render: (val: string) => {
-        if (val === 'Connected') return <Badge status="success" text="Da ket noi" />;
-        if (val === 'Disconnected') return <Badge status="error" text="Mat ket noi" />;
-        return <Badge status="default" text="Chua kiem tra" />;
+        if (val === 'Connected') return <Badge status="success" text="Đã kết nối" />;
+        if (val === 'Disconnected') return <Badge status="error" text="Mất kết nối" />;
+        return <Badge status="default" text="Chưa kiểm tra" />;
       },
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 200,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="Test ket noi">
+          <Tooltip title="Test kết nối">
             <Button
               size="small"
               icon={<ApiOutlined />}
@@ -236,7 +236,7 @@ const AnalyzerConfigTab: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col flex="auto">
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-            Lam moi
+            Làm mới
           </Button>
         </Col>
         <Col>
@@ -251,7 +251,7 @@ const AnalyzerConfigTab: React.FC = () => {
               setIsModalOpen(true);
             }}
           >
-            Them may XN
+            Thêm máy XN
           </Button>
         </Col>
       </Row>
@@ -263,40 +263,40 @@ const AnalyzerConfigTab: React.FC = () => {
         size="small"
         loading={loading}
         scroll={{ x: 1100 }}
-        pagination={{ showSizeChanger: true, showTotal: (t) => `Tong: ${t} may` }}
-        locale={{ emptyText: 'Chua co may xet nghiem nao' }}
+        pagination={{ showSizeChanger: true, showTotal: (t) => `Tổng: ${t} máy` }}
+        locale={{ emptyText: 'Chưa có máy xét nghiệm nào' }}
       />
 
       <Modal
-        title={editingId ? 'Sua may xet nghiem' : 'Them may xet nghiem'}
+        title={editingId ? 'Sửa máy xét nghiệm' : 'Thêm máy xét nghiệm'}
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => { setIsModalOpen(false); form.resetFields(); setEditingId(null); }}
-        okText="Luu"
-        cancelText="Huy"
+        okText="Lưu"
+        cancelText="Hủy"
         width={700}
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="name" label="Ten may" rules={[{ required: true, message: 'Nhap ten may' }]}>
+              <Form.Item name="name" label="Tên máy" rules={[{ required: true, message: 'Nhập tên máy' }]}>
                 <Input placeholder="VD: Cobas 6000" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="model" label="Model" rules={[{ required: true, message: 'Nhap model' }]}>
+              <Form.Item name="model" label="Model" rules={[{ required: true, message: 'Nhập model' }]}>
                 <Input placeholder="VD: c501/e601" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="manufacturer" label="Hang san xuat" rules={[{ required: true, message: 'Nhap hang SX' }]}>
+              <Form.Item name="manufacturer" label="Hãng sản xuất" rules={[{ required: true, message: 'Nhập hãng SX' }]}>
                 <Input placeholder="VD: Roche" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="connectionType" label="Loai ket noi" rules={[{ required: true }]}>
+              <Form.Item name="connectionType" label="Loại kết nối" rules={[{ required: true }]}>
                 <Select onChange={(val) => setConnectionType(val)}>
                   <Select.Option value="HL7">HL7</Select.Option>
                   <Select.Option value="ASTM">ASTM</Select.Option>
@@ -308,7 +308,7 @@ const AnalyzerConfigTab: React.FC = () => {
           {(connectionType === 'HL7' || connectionType === 'ASTM') && (
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="ipAddress" label="Dia chi IP">
+                <Form.Item name="ipAddress" label="Địa chỉ IP">
                   <Input placeholder="VD: 192.168.1.100" />
                 </Form.Item>
               </Col>
@@ -328,7 +328,7 @@ const AnalyzerConfigTab: React.FC = () => {
               </Col>
               <Col span={12}>
                 <Form.Item name="baudRate" label="Baud Rate">
-                  <Select placeholder="Chon baud rate">
+                  <Select placeholder="Chọn baud rate">
                     <Select.Option value={9600}>9600</Select.Option>
                     <Select.Option value={19200}>19200</Select.Option>
                     <Select.Option value={38400}>38400</Select.Option>
@@ -341,18 +341,18 @@ const AnalyzerConfigTab: React.FC = () => {
           )}
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="protocolVersion" label="Phien ban giao thuc">
+              <Form.Item name="protocolVersion" label="Phiên bản giao thức">
                 <Input placeholder="VD: 2.5.1" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="isActive" label="Trang thai" valuePropName="checked">
-                <Switch checkedChildren="Hoat dong" unCheckedChildren="Ngung" />
+              <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+                <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="description" label="Mo ta">
-            <TextArea rows={2} placeholder="Mo ta them ve may xet nghiem" />
+          <Form.Item name="description" label="Mô tả">
+            <TextArea rows={2} placeholder="Mô tả thêm về máy xét nghiệm" />
           </Form.Item>
         </Form>
       </Modal>
@@ -378,7 +378,7 @@ const TestParametersTab: React.FC = () => {
       const res = await getTestParameters();
       setParams(Array.isArray(res.data) ? res.data : []);
     } catch {
-      message.warning('Khong the tai danh sach chi so xet nghiem');
+      message.warning('Không thể tải danh sách chỉ số xét nghiệm');
       setParams([]);
     } finally {
       setLoading(false);
@@ -392,10 +392,10 @@ const TestParametersTab: React.FC = () => {
       const values = await form.validateFields();
       if (editingId) {
         await updateTestParameter(editingId, values);
-        message.success('Cap nhat chi so thanh cong');
+        message.success('Cập nhật chỉ số thành công');
       } else {
         await createTestParameter(values);
-        message.success('Them chi so thanh cong');
+        message.success('Thêm chỉ số thành công');
       }
       setIsModalOpen(false);
       form.resetFields();
@@ -403,7 +403,7 @@ const TestParametersTab: React.FC = () => {
       fetchData();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.warning('Loi khi luu chi so xet nghiem');
+      message.warning('Lỗi khi lưu chỉ số xét nghiệm');
     }
   };
 
@@ -415,17 +415,17 @@ const TestParametersTab: React.FC = () => {
 
   const handleDelete = (id: string) => {
     Modal.confirm({
-      title: 'Xac nhan xoa chi so?',
-      okText: 'Xoa',
-      cancelText: 'Huy',
+      title: 'Xác nhận xóa chỉ số?',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await deleteTestParameter(id);
-          message.success('Da xoa chi so');
+          message.success('Đã xóa chỉ số');
           fetchData();
         } catch {
-          message.warning('Loi khi xoa chi so');
+          message.warning('Lỗi khi xóa chỉ số');
         }
       },
     });
@@ -434,10 +434,10 @@ const TestParametersTab: React.FC = () => {
   const handleCsvImport = async (file: File) => {
     try {
       await importTestParametersCsv(file);
-      message.success('Import CSV thanh cong');
+      message.success('Import CSV thành công');
       fetchData();
     } catch {
-      message.warning('Loi khi import CSV');
+      message.warning('Lỗi khi import CSV');
     }
   };
 
@@ -448,11 +448,11 @@ const TestParametersTab: React.FC = () => {
   });
 
   const columns: ColumnsType<TestParameterDto> = [
-    { title: 'Ma', dataIndex: 'code', key: 'code', width: 100 },
-    { title: 'Ten chi so', dataIndex: 'name', key: 'name', width: 200 },
-    { title: 'Don vi', dataIndex: 'unit', key: 'unit', width: 80 },
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: 100 },
+    { title: 'Tên chỉ số', dataIndex: 'name', key: 'name', width: 200 },
+    { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 80 },
     {
-      title: 'Tham chieu (Low-High)',
+      title: 'Tham chiếu (Low-High)',
       key: 'reference',
       width: 150,
       render: (_, r) => r.referenceLow != null || r.referenceHigh != null
@@ -460,7 +460,7 @@ const TestParametersTab: React.FC = () => {
         : '-',
     },
     {
-      title: 'Nguy hiem (Low-High)',
+      title: 'Nguy hiểm (Low-High)',
       key: 'critical',
       width: 150,
       render: (_, r) => r.criticalLow != null || r.criticalHigh != null
@@ -468,14 +468,14 @@ const TestParametersTab: React.FC = () => {
         : '-',
     },
     {
-      title: 'Kieu du lieu',
+      title: 'Kiểu dữ liệu',
       dataIndex: 'dataType',
       key: 'dataType',
       width: 100,
       render: (val: string) => <Tag>{val}</Tag>,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 120,
       render: (_, record) => (
@@ -493,7 +493,7 @@ const TestParametersTab: React.FC = () => {
         <Col flex="auto">
           <Space>
             <Search
-              placeholder="Tim theo ma, ten chi so..."
+              placeholder="Tìm theo mã, tên chỉ số..."
               allowClear
               enterButton={<SearchOutlined />}
               style={{ width: 300 }}
@@ -501,7 +501,7 @@ const TestParametersTab: React.FC = () => {
               onChange={(e) => { if (!e.target.value) setSearchText(''); }}
             />
             <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-              Lam moi
+              Làm mới
             </Button>
           </Space>
         </Col>
@@ -532,7 +532,7 @@ const TestParametersTab: React.FC = () => {
                 setIsModalOpen(true);
               }}
             >
-              Them chi so
+              Thêm chỉ số
             </Button>
           </Space>
         </Col>
@@ -545,82 +545,82 @@ const TestParametersTab: React.FC = () => {
         size="small"
         loading={loading}
         scroll={{ x: 900 }}
-        pagination={{ showSizeChanger: true, showTotal: (t) => `Tong: ${t} chi so` }}
-        locale={{ emptyText: 'Chua co chi so xet nghiem nao' }}
+        pagination={{ showSizeChanger: true, showTotal: (t) => `Tổng: ${t} chỉ số` }}
+        locale={{ emptyText: 'Chưa có chỉ số xét nghiệm nào' }}
       />
 
       <Modal
-        title={editingId ? 'Sua chi so xet nghiem' : 'Them chi so xet nghiem'}
+        title={editingId ? 'Sửa chỉ số xét nghiệm' : 'Thêm chỉ số xét nghiệm'}
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => { setIsModalOpen(false); form.resetFields(); setEditingId(null); }}
-        okText="Luu"
-        cancelText="Huy"
+        okText="Lưu"
+        cancelText="Hủy"
         width={700}
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="code" label="Ma chi so" rules={[{ required: true, message: 'Nhap ma' }]}>
+              <Form.Item name="code" label="Mã chỉ số" rules={[{ required: true, message: 'Nhập mã' }]}>
                 <Input placeholder="VD: WBC" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="name" label="Ten chi so" rules={[{ required: true, message: 'Nhap ten' }]}>
-                <Input placeholder="VD: Bach cau" />
+              <Form.Item name="name" label="Tên chỉ số" rules={[{ required: true, message: 'Nhập tên' }]}>
+                <Input placeholder="VD: Bạch cầu" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="unit" label="Don vi" rules={[{ required: true, message: 'Nhap don vi' }]}>
+              <Form.Item name="unit" label="Đơn vị" rules={[{ required: true, message: 'Nhập đơn vị' }]}>
                 <Input placeholder="VD: 10^9/L" />
               </Form.Item>
             </Col>
           </Row>
-          <Divider style={{ margin: '8px 0' }}>Dai tham chieu</Divider>
+          <Divider style={{ margin: '8px 0' }}>Dải tham chiếu</Divider>
           <Row gutter={16}>
             <Col span={6}>
-              <Form.Item name="referenceLow" label="Tham chieu thap">
+              <Form.Item name="referenceLow" label="Tham chiếu thấp">
                 <InputNumber style={{ width: '100%' }} placeholder="Low" />
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="referenceHigh" label="Tham chieu cao">
+              <Form.Item name="referenceHigh" label="Tham chiếu cao">
                 <InputNumber style={{ width: '100%' }} placeholder="High" />
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="criticalLow" label="Nguy hiem thap">
+              <Form.Item name="criticalLow" label="Nguy hiểm thấp">
                 <InputNumber style={{ width: '100%' }} placeholder="Critical Low" />
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="criticalHigh" label="Nguy hiem cao">
+              <Form.Item name="criticalHigh" label="Nguy hiểm cao">
                 <InputNumber style={{ width: '100%' }} placeholder="Critical High" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="dataType" label="Kieu du lieu" rules={[{ required: true }]}>
+              <Form.Item name="dataType" label="Kiểu dữ liệu" rules={[{ required: true }]}>
                 <Select>
-                  <Select.Option value="Number">So (Number)</Select.Option>
-                  <Select.Option value="Text">Van ban (Text)</Select.Option>
-                  <Select.Option value="Enum">Lua chon (Enum)</Select.Option>
+                  <Select.Option value="Number">Số (Number)</Select.Option>
+                  <Select.Option value="Text">Văn bản (Text)</Select.Option>
+                  <Select.Option value="Enum">Lựa chọn (Enum)</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="sortOrder" label="Thu tu sap xep">
+              <Form.Item name="sortOrder" label="Thứ tự sắp xếp">
                 <InputNumber style={{ width: '100%' }} min={0} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="isActive" label="Trang thai" valuePropName="checked">
-                <Switch checkedChildren="Hoat dong" unCheckedChildren="Ngung" />
+              <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+                <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="enumValues" label="Gia tri Enum (cach nhau boi dau phay)">
+          <Form.Item name="enumValues" label="Giá trị Enum (cách nhau bởi dấu phẩy)">
             <Input placeholder="VD: Positive,Negative,Trace" />
           </Form.Item>
         </Form>
@@ -651,7 +651,7 @@ const ReferenceRangesTab: React.FC = () => {
       if (rangeRes.status === 'fulfilled') setRanges(Array.isArray(rangeRes.value.data) ? rangeRes.value.data : []);
       if (paramRes.status === 'fulfilled') setTestParams(Array.isArray(paramRes.value.data) ? paramRes.value.data : []);
     } catch {
-      message.warning('Khong the tai du lieu');
+      message.warning('Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -664,10 +664,10 @@ const ReferenceRangesTab: React.FC = () => {
       const values = await form.validateFields();
       if (editingId) {
         await updateReferenceRange(editingId, values);
-        message.success('Cap nhat thanh cong');
+        message.success('Cập nhật thành công');
       } else {
         await createReferenceRange(values);
-        message.success('Them dai chi so thanh cong');
+        message.success('Thêm dải chỉ số thành công');
       }
       setIsModalOpen(false);
       form.resetFields();
@@ -675,7 +675,7 @@ const ReferenceRangesTab: React.FC = () => {
       fetchData();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.warning('Loi khi luu dai chi so');
+      message.warning('Lỗi khi lưu dải chỉ số');
     }
   };
 
@@ -687,71 +687,71 @@ const ReferenceRangesTab: React.FC = () => {
 
   const handleDelete = (id: string) => {
     Modal.confirm({
-      title: 'Xac nhan xoa dai chi so?',
-      okText: 'Xoa',
-      cancelText: 'Huy',
+      title: 'Xác nhận xóa dải chỉ số?',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await deleteReferenceRange(id);
-          message.success('Da xoa');
+          message.success('Đã xóa');
           fetchData();
         } catch {
-          message.warning('Loi khi xoa');
+          message.warning('Lỗi khi xóa');
         }
       },
     });
   };
 
   const ageGroupLabels: Record<string, string> = {
-    Newborn: 'So sinh (0-28 ngay)',
-    Infant: 'Nhu nhi (1-12 thang)',
-    Child: 'Tre em (1-12 tuoi)',
-    Adolescent: 'Thanh thieu nien (13-17)',
-    Adult: 'Nguoi lon (18-64)',
-    Elderly: 'Nguoi cao tuoi (>=65)',
+    Newborn: 'Sơ sinh (0-28 ngày)',
+    Infant: 'Nhũ nhi (1-12 tháng)',
+    Child: 'Trẻ em (1-12 tuổi)',
+    Adolescent: 'Thanh thiếu niên (13-17)',
+    Adult: 'Người lớn (18-64)',
+    Elderly: 'Người cao tuổi (>=65)',
   };
 
   const genderLabels: Record<string, string> = {
     Male: 'Nam',
-    Female: 'Nu',
-    Both: 'Ca hai',
+    Female: 'Nữ',
+    Both: 'Cả hai',
   };
 
   const columns: ColumnsType<ReferenceRangeDto> = [
-    { title: 'Ma XN', dataIndex: 'testCode', key: 'testCode', width: 100 },
-    { title: 'Ten XN', dataIndex: 'testName', key: 'testName', width: 160 },
+    { title: 'Mã XN', dataIndex: 'testCode', key: 'testCode', width: 100 },
+    { title: 'Tên XN', dataIndex: 'testName', key: 'testName', width: 160 },
     {
-      title: 'Nhom tuoi',
+      title: 'Nhóm tuổi',
       dataIndex: 'ageGroup',
       key: 'ageGroup',
       width: 170,
       render: (val: string) => ageGroupLabels[val] || val,
     },
     {
-      title: 'Gioi tinh',
+      title: 'Giới tính',
       dataIndex: 'gender',
       key: 'gender',
       width: 80,
       render: (val: string) => genderLabels[val] || val,
     },
     {
-      title: 'Tham chieu',
+      title: 'Tham chiếu',
       key: 'range',
       width: 120,
       render: (_, r) => `${r.low ?? ''} - ${r.high ?? ''}`,
     },
     {
-      title: 'Nguy hiem',
+      title: 'Nguy hiểm',
       key: 'critical',
       width: 120,
       render: (_, r) => r.criticalLow != null || r.criticalHigh != null
         ? <Text type="danger">{`${r.criticalLow ?? ''} - ${r.criticalHigh ?? ''}`}</Text>
         : '-',
     },
-    { title: 'Don vi', dataIndex: 'unit', key: 'unit', width: 80 },
+    { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 80 },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 100,
       render: (_, record) => (
@@ -769,7 +769,7 @@ const ReferenceRangesTab: React.FC = () => {
         <Col flex="auto">
           <Space>
             <Select
-              placeholder="Loc theo chi so XN"
+              placeholder="Lọc theo chỉ số XN"
               style={{ width: 250 }}
               allowClear
               showSearch
@@ -782,7 +782,7 @@ const ReferenceRangesTab: React.FC = () => {
               ))}
             </Select>
             <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-              Lam moi
+              Làm mới
             </Button>
           </Space>
         </Col>
@@ -796,7 +796,7 @@ const ReferenceRangesTab: React.FC = () => {
               setIsModalOpen(true);
             }}
           >
-            Them dai chi so
+            Thêm dải chỉ số
           </Button>
         </Col>
       </Row>
@@ -808,22 +808,22 @@ const ReferenceRangesTab: React.FC = () => {
         size="small"
         loading={loading}
         scroll={{ x: 900 }}
-        pagination={{ showSizeChanger: true, showTotal: (t) => `Tong: ${t} ban ghi` }}
-        locale={{ emptyText: 'Chua co dai chi so nao' }}
+        pagination={{ showSizeChanger: true, showTotal: (t) => `Tổng: ${t} bản ghi` }}
+        locale={{ emptyText: 'Chưa có dải chỉ số nào' }}
       />
 
       <Modal
-        title={editingId ? 'Sua dai chi so' : 'Them dai chi so'}
+        title={editingId ? 'Sửa dải chỉ số' : 'Thêm dải chỉ số'}
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => { setIsModalOpen(false); form.resetFields(); setEditingId(null); }}
-        okText="Luu"
-        cancelText="Huy"
+        okText="Lưu"
+        cancelText="Hủy"
         width={600}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="testParameterId" label="Chi so xet nghiem" rules={[{ required: true, message: 'Chon chi so' }]}>
-            <Select placeholder="Chon chi so" showSearch optionFilterProp="children">
+          <Form.Item name="testParameterId" label="Chỉ số xét nghiệm" rules={[{ required: true, message: 'Chọn chỉ số' }]}>
+            <Select placeholder="Chọn chỉ số" showSearch optionFilterProp="children">
               {testParams.map(p => (
                 <Select.Option key={p.id} value={p.id}>{p.code} - {p.name}</Select.Option>
               ))}
@@ -831,7 +831,7 @@ const ReferenceRangesTab: React.FC = () => {
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="ageGroup" label="Nhom tuoi" rules={[{ required: true, message: 'Chon nhom tuoi' }]}>
+              <Form.Item name="ageGroup" label="Nhóm tuổi" rules={[{ required: true, message: 'Chọn nhóm tuổi' }]}>
                 <Select>
                   {Object.entries(ageGroupLabels).map(([key, label]) => (
                     <Select.Option key={key} value={key}>{label}</Select.Option>
@@ -840,7 +840,7 @@ const ReferenceRangesTab: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="gender" label="Gioi tinh" rules={[{ required: true, message: 'Chon gioi tinh' }]}>
+              <Form.Item name="gender" label="Giới tính" rules={[{ required: true, message: 'Chọn giới tính' }]}>
                 <Select>
                   {Object.entries(genderLabels).map(([key, label]) => (
                     <Select.Option key={key} value={key}>{label}</Select.Option>
@@ -849,7 +849,7 @@ const ReferenceRangesTab: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Divider style={{ margin: '8px 0' }}>Gia tri tham chieu</Divider>
+          <Divider style={{ margin: '8px 0' }}>Giá trị tham chiếu</Divider>
           <Row gutter={16}>
             <Col span={6}>
               <Form.Item name="low" label="Low">
@@ -872,7 +872,7 @@ const ReferenceRangesTab: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="unit" label="Don vi" rules={[{ required: true, message: 'Nhap don vi' }]}>
+          <Form.Item name="unit" label="Đơn vị" rules={[{ required: true, message: 'Nhập đơn vị' }]}>
             <Input placeholder="VD: mmol/L" />
           </Form.Item>
         </Form>
@@ -907,7 +907,7 @@ const AnalyzerMappingTab: React.FC = () => {
       if (analyzerRes.status === 'fulfilled') setAnalyzers(Array.isArray(analyzerRes.value.data) ? analyzerRes.value.data : []);
       if (paramRes.status === 'fulfilled') setTestParams(Array.isArray(paramRes.value.data) ? paramRes.value.data : []);
     } catch {
-      message.warning('Khong the tai du lieu');
+      message.warning('Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -920,10 +920,10 @@ const AnalyzerMappingTab: React.FC = () => {
       const values = await form.validateFields();
       if (editingId) {
         await updateAnalyzerMapping(editingId, values);
-        message.success('Cap nhat thanh cong');
+        message.success('Cập nhật thành công');
       } else {
         await createAnalyzerMapping(values);
-        message.success('Them anh xa thanh cong');
+        message.success('Thêm ánh xạ thành công');
       }
       setIsModalOpen(false);
       form.resetFields();
@@ -931,7 +931,7 @@ const AnalyzerMappingTab: React.FC = () => {
       fetchData();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.warning('Loi khi luu anh xa');
+      message.warning('Lỗi khi lưu ánh xạ');
     }
   };
 
@@ -943,17 +943,17 @@ const AnalyzerMappingTab: React.FC = () => {
 
   const handleDelete = (id: string) => {
     Modal.confirm({
-      title: 'Xac nhan xoa anh xa?',
-      okText: 'Xoa',
-      cancelText: 'Huy',
+      title: 'Xác nhận xóa ánh xạ?',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await deleteAnalyzerMapping(id);
-          message.success('Da xoa');
+          message.success('Đã xóa');
           fetchData();
         } catch {
-          message.warning('Loi khi xoa');
+          message.warning('Lỗi khi xóa');
         }
       },
     });
@@ -961,35 +961,35 @@ const AnalyzerMappingTab: React.FC = () => {
 
   const handleAutoMap = async () => {
     if (!filterAnalyzerId) {
-      message.warning('Vui long chon may xet nghiem truoc');
+      message.warning('Vui lòng chọn máy xét nghiệm trước');
       return;
     }
     setAutoMapping(true);
     try {
       const res = await autoMapAnalyzer(filterAnalyzerId);
-      message.success(res.data?.message || `Da anh xa tu dong ${res.data?.mappedCount || 0} chi so`);
+      message.success(res.data?.message || `Đã ánh xạ tự động ${res.data?.mappedCount || 0} chỉ số`);
       fetchData();
     } catch {
-      message.warning('Loi khi tu dong anh xa');
+      message.warning('Lỗi khi tự động ánh xạ');
     } finally {
       setAutoMapping(false);
     }
   };
 
   const columns: ColumnsType<AnalyzerMappingDto> = [
-    { title: 'May XN', dataIndex: 'analyzerName', key: 'analyzerName', width: 150 },
-    { title: 'Ma chi so may', dataIndex: 'analyzerTestCode', key: 'analyzerTestCode', width: 140 },
-    { title: 'Ma chi so HIS', dataIndex: 'hisTestCode', key: 'hisTestCode', width: 120 },
-    { title: 'Ten chi so HIS', dataIndex: 'hisTestName', key: 'hisTestName', width: 180 },
+    { title: 'Máy XN', dataIndex: 'analyzerName', key: 'analyzerName', width: 150 },
+    { title: 'Mã chỉ số máy', dataIndex: 'analyzerTestCode', key: 'analyzerTestCode', width: 140 },
+    { title: 'Mã chỉ số HIS', dataIndex: 'hisTestCode', key: 'hisTestCode', width: 120 },
+    { title: 'Tên chỉ số HIS', dataIndex: 'hisTestName', key: 'hisTestName', width: 180 },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'isActive',
       key: 'isActive',
       width: 100,
-      render: (val: boolean) => val ? <Tag color="green">Hoat dong</Tag> : <Tag>Ngung</Tag>,
+      render: (val: boolean) => val ? <Tag color="green">Hoạt động</Tag> : <Tag>Ngừng</Tag>,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'action',
       width: 100,
       render: (_, record) => (
@@ -1007,7 +1007,7 @@ const AnalyzerMappingTab: React.FC = () => {
         <Col flex="auto">
           <Space>
             <Select
-              placeholder="Loc theo may XN"
+              placeholder="Lọc theo máy XN"
               style={{ width: 250 }}
               allowClear
               showSearch
@@ -1020,7 +1020,7 @@ const AnalyzerMappingTab: React.FC = () => {
               ))}
             </Select>
             <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-              Lam moi
+              Làm mới
             </Button>
           </Space>
         </Col>
@@ -1032,7 +1032,7 @@ const AnalyzerMappingTab: React.FC = () => {
               onClick={handleAutoMap}
               disabled={!filterAnalyzerId}
             >
-              Tu dong anh xa
+              Tự động ánh xạ
             </Button>
             <Button
               type="primary"
@@ -1044,7 +1044,7 @@ const AnalyzerMappingTab: React.FC = () => {
                 setIsModalOpen(true);
               }}
             >
-              Them anh xa
+              Thêm ánh xạ
             </Button>
           </Space>
         </Col>
@@ -1057,39 +1057,39 @@ const AnalyzerMappingTab: React.FC = () => {
         size="small"
         loading={loading}
         scroll={{ x: 800 }}
-        pagination={{ showSizeChanger: true, showTotal: (t) => `Tong: ${t} anh xa` }}
-        locale={{ emptyText: 'Chua co anh xa nao' }}
+        pagination={{ showSizeChanger: true, showTotal: (t) => `Tổng: ${t} ánh xạ` }}
+        locale={{ emptyText: 'Chưa có ánh xạ nào' }}
       />
 
       <Modal
-        title={editingId ? 'Sua anh xa' : 'Them anh xa'}
+        title={editingId ? 'Sửa ánh xạ' : 'Thêm ánh xạ'}
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => { setIsModalOpen(false); form.resetFields(); setEditingId(null); }}
-        okText="Luu"
-        cancelText="Huy"
+        okText="Lưu"
+        cancelText="Hủy"
         width={600}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="analyzerId" label="May xet nghiem" rules={[{ required: true, message: 'Chon may' }]}>
-            <Select placeholder="Chon may" showSearch optionFilterProp="children">
+          <Form.Item name="analyzerId" label="Máy xét nghiệm" rules={[{ required: true, message: 'Chọn máy' }]}>
+            <Select placeholder="Chọn máy" showSearch optionFilterProp="children">
               {analyzers.map(a => (
                 <Select.Option key={a.id} value={a.id}>{a.name} ({a.model})</Select.Option>
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="analyzerTestCode" label="Ma chi so tren may" rules={[{ required: true, message: 'Nhap ma chi so may' }]}>
+          <Form.Item name="analyzerTestCode" label="Mã chỉ số trên máy" rules={[{ required: true, message: 'Nhập mã chỉ số máy' }]}>
             <Input placeholder="VD: WBC, RBC, HGB" />
           </Form.Item>
-          <Form.Item name="hisTestParameterId" label="Chi so HIS tuong ung" rules={[{ required: true, message: 'Chon chi so HIS' }]}>
-            <Select placeholder="Chon chi so HIS" showSearch optionFilterProp="children">
+          <Form.Item name="hisTestParameterId" label="Chỉ số HIS tương ứng" rules={[{ required: true, message: 'Chọn chỉ số HIS' }]}>
+            <Select placeholder="Chọn chỉ số HIS" showSearch optionFilterProp="children">
               {testParams.map(p => (
                 <Select.Option key={p.id} value={p.id}>{p.code} - {p.name}</Select.Option>
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="isActive" label="Trang thai" valuePropName="checked">
-            <Switch checkedChildren="Hoat dong" unCheckedChildren="Ngung" />
+          <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+            <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
           </Form.Item>
         </Form>
       </Modal>
@@ -1117,7 +1117,7 @@ const LabconnectTab: React.FC = () => {
       if (statusRes.status === 'fulfilled') setStatus(statusRes.value.data);
       if (historyRes.status === 'fulfilled') setHistory(Array.isArray(historyRes.value.data) ? historyRes.value.data : []);
     } catch {
-      message.warning('Khong the tai trang thai Labconnect');
+      message.warning('Không thể tải trạng thái Labconnect');
     } finally {
       setLoading(false);
     }
@@ -1130,13 +1130,13 @@ const LabconnectTab: React.FC = () => {
     try {
       const res = await syncLabconnect(direction);
       if (res.data?.success) {
-        message.success(res.data.message || `Dong bo thanh cong: ${res.data.syncedCount || 0} ban ghi`);
+        message.success(res.data.message || `Đồng bộ thành công: ${res.data.syncedCount || 0} bản ghi`);
       } else {
-        message.warning(res.data?.message || 'Dong bo that bai');
+        message.warning(res.data?.message || 'Đồng bộ thất bại');
       }
       fetchData();
     } catch {
-      message.warning('Loi khi dong bo');
+      message.warning('Lỗi khi đồng bộ');
     } finally {
       setSyncing(false);
     }
@@ -1146,10 +1146,10 @@ const LabconnectTab: React.FC = () => {
     setRetrying(true);
     try {
       const res = await retryFailedSyncs();
-      message.success(`Da thu lai ${res.data?.retriedCount || 0} ban ghi`);
+      message.success(`Đã thử lại ${res.data?.retriedCount || 0} bản ghi`);
       fetchData();
     } catch {
-      message.warning('Loi khi thu lai');
+      message.warning('Lỗi khi thử lại');
     } finally {
       setRetrying(false);
     }
@@ -1157,48 +1157,48 @@ const LabconnectTab: React.FC = () => {
 
   const historyColumns: ColumnsType<LabconnectSyncHistoryDto> = [
     {
-      title: 'Thoi gian',
+      title: 'Thời gian',
       dataIndex: 'syncTime',
       key: 'syncTime',
       width: 160,
       render: (val: string) => val ? dayjs(val).format('DD/MM/YYYY HH:mm:ss') : '-',
     },
     {
-      title: 'Huong',
+      title: 'Hướng',
       dataIndex: 'direction',
       key: 'direction',
       width: 100,
       render: (val: string) => val === 'Send'
-        ? <Tag color="blue">Gui</Tag>
-        : <Tag color="green">Nhan</Tag>,
+        ? <Tag color="blue">Gửi</Tag>
+        : <Tag color="green">Nhận</Tag>,
     },
     {
-      title: 'So ban ghi',
+      title: 'Số bản ghi',
       dataIndex: 'recordCount',
       key: 'recordCount',
       width: 100,
       align: 'center',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (val: string) => {
-        if (val === 'Success') return <Tag color="green" icon={<CheckCircleOutlined />}>Thanh cong</Tag>;
-        if (val === 'Failed') return <Tag color="red" icon={<CloseCircleOutlined />}>That bai</Tag>;
-        return <Tag color="orange" icon={<WarningOutlined />}>Mot phan</Tag>;
+        if (val === 'Success') return <Tag color="green" icon={<CheckCircleOutlined />}>Thành công</Tag>;
+        if (val === 'Failed') return <Tag color="red" icon={<CloseCircleOutlined />}>Thất bại</Tag>;
+        return <Tag color="orange" icon={<WarningOutlined />}>Một phần</Tag>;
       },
     },
     {
-      title: 'Thoi gian (ms)',
+      title: 'Thời gian (ms)',
       dataIndex: 'duration',
       key: 'duration',
       width: 100,
       render: (val?: number) => val != null ? `${val}ms` : '-',
     },
     {
-      title: 'Loi',
+      title: 'Lỗi',
       dataIndex: 'errorMessage',
       key: 'errorMessage',
       ellipsis: true,
@@ -1216,14 +1216,14 @@ const LabconnectTab: React.FC = () => {
             <Row gutter={24} align="middle">
               <Col>
                 {status?.isConnected ? (
-                  <Badge status="success" text={<Text strong style={{ fontSize: 16 }}>Da ket noi Labconnect</Text>} />
+                  <Badge status="success" text={<Text strong style={{ fontSize: 16 }}>Đã kết nối Labconnect</Text>} />
                 ) : (
-                  <Badge status="error" text={<Text strong style={{ fontSize: 16 }}>Chua ket noi Labconnect</Text>} />
+                  <Badge status="error" text={<Text strong style={{ fontSize: 16 }}>Chưa kết nối Labconnect</Text>} />
                 )}
               </Col>
               <Col>
                 <Text type="secondary">
-                  Dong bo lan cuoi: {status?.lastSyncTime ? dayjs(status.lastSyncTime).format('DD/MM/YYYY HH:mm:ss') : 'Chua co'}
+                  Đồng bộ lần cuối: {status?.lastSyncTime ? dayjs(status.lastSyncTime).format('DD/MM/YYYY HH:mm:ss') : 'Chưa có'}
                 </Text>
               </Col>
               {status?.serverUrl && (
@@ -1243,7 +1243,7 @@ const LabconnectTab: React.FC = () => {
         <Col span={8}>
           <Card size="small">
             <Statistic
-              title="Cho gui"
+              title="Chờ gửi"
               value={status?.pendingSendCount ?? 0}
               prefix={<SyncOutlined />}
               styles={{ content: { color: '#1890ff' } }}
@@ -1253,7 +1253,7 @@ const LabconnectTab: React.FC = () => {
         <Col span={8}>
           <Card size="small">
             <Statistic
-              title="Cho nhan"
+              title="Chờ nhận"
               value={status?.pendingReceiveCount ?? 0}
               prefix={<SyncOutlined />}
               styles={{ content: { color: '#52c41a' } }}
@@ -1263,7 +1263,7 @@ const LabconnectTab: React.FC = () => {
         <Col span={8}>
           <Card size="small">
             <Statistic
-              title="Dong bo loi"
+              title="Đồng bộ lỗi"
               value={failedCount}
               prefix={<WarningOutlined />}
               styles={{ content: { color: failedCount > 0 ? '#ff4d4f' : '#52c41a' } }}
@@ -1275,17 +1275,17 @@ const LabconnectTab: React.FC = () => {
           <Row gutter={8} style={{ marginBottom: 16 }}>
             <Col>
               <Button type="primary" icon={<SyncOutlined />} loading={syncing} onClick={() => handleSync()}>
-                Dong bo
+                Đồng bộ
               </Button>
             </Col>
             <Col>
               <Button icon={<SyncOutlined />} loading={syncing} onClick={() => handleSync('Send')}>
-                Gui du lieu
+                Gửi dữ liệu
               </Button>
             </Col>
             <Col>
               <Button icon={<SyncOutlined />} loading={syncing} onClick={() => handleSync('Receive')}>
-                Nhan du lieu
+                Nhận dữ liệu
               </Button>
             </Col>
             <Col>
@@ -1296,27 +1296,27 @@ const LabconnectTab: React.FC = () => {
                 disabled={failedCount === 0}
                 danger
               >
-                Thu lai loi ({failedCount})
+                Thử lại lỗi ({failedCount})
               </Button>
             </Col>
             <Col>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>
-                Lam moi
+                Làm mới
               </Button>
             </Col>
           </Row>
         </Col>
 
         <Col span={24}>
-          <Title level={5}>Lich su dong bo</Title>
+          <Title level={5}>Lịch sử đồng bộ</Title>
           <Table
             columns={historyColumns}
             dataSource={history}
             rowKey="id"
             size="small"
             scroll={{ x: 800 }}
-            pagination={{ showSizeChanger: true, pageSize: 10, showTotal: (t) => `Tong: ${t} lan dong bo` }}
-            locale={{ emptyText: 'Chua co lich su dong bo' }}
+            pagination={{ showSizeChanger: true, pageSize: 10, showTotal: (t) => `Tổng: ${t} lần đồng bộ` }}
+            locale={{ emptyText: 'Chưa có lịch sử đồng bộ' }}
           />
         </Col>
       </Row>
@@ -1330,7 +1330,7 @@ const LabconnectTab: React.FC = () => {
 const LISConfig: React.FC = () => {
   return (
     <div>
-      <Title level={4}>Cau hinh he thong xet nghiem (LIS)</Title>
+      <Title level={4}>Cấu hình hệ thống xét nghiệm (LIS)</Title>
 
       <Card>
         <Tabs
@@ -1338,35 +1338,35 @@ const LISConfig: React.FC = () => {
             {
               key: 'analyzers',
               label: (
-                <span><SettingOutlined /> Cau hinh may XN</span>
+                <span><SettingOutlined /> Cấu hình máy XN</span>
               ),
               children: <AnalyzerConfigTab />,
             },
             {
               key: 'test-params',
               label: (
-                <span><ExperimentOutlined /> Chi so xet nghiem</span>
+                <span><ExperimentOutlined /> Chỉ số xét nghiệm</span>
               ),
               children: <TestParametersTab />,
             },
             {
               key: 'reference-ranges',
               label: (
-                <span><BarChartOutlined /> Dai chi so</span>
+                <span><BarChartOutlined /> Dải chỉ số</span>
               ),
               children: <ReferenceRangesTab />,
             },
             {
               key: 'mappings',
               label: (
-                <span><LinkOutlined /> Anh xa chi so</span>
+                <span><LinkOutlined /> Ánh xạ chỉ số</span>
               ),
               children: <AnalyzerMappingTab />,
             },
             {
               key: 'labconnect',
               label: (
-                <span><ApiOutlined /> Ket noi Labconnect</span>
+                <span><ApiOutlined /> Kết nối Labconnect</span>
               ),
               children: <LabconnectTab />,
             },

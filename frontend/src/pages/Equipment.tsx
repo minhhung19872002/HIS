@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   Card,
   Row,
@@ -178,7 +179,7 @@ const Equipment: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <strong>BỆNH VIỆN ĐA KHOA</strong><br/>
+          <strong>${HOSPITAL_NAME}</strong><br/>
           Phòng Vật tư - Thiết bị y tế
         </div>
         <div class="title">PHIẾU LÝ LỊCH THIẾT BỊ Y TẾ</div>

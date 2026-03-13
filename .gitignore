@@ -102,8 +102,14 @@ msbuild_nowrk.txt
 restore_diag.txt
 restore_local_sdk.txt
 tmp_exam.pdf
+tmp_login.json
 codex.md
 *.b64
+build_diag_latest.txt
+NangCap*.pdf
+
+# Cypress debug output
+frontend/cypress/debug-emr-output.txt
 
 # Playwright reports
 frontend/playwright-report/
