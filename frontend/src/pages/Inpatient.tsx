@@ -898,7 +898,7 @@ const Inpatient: React.FC = () => {
     };
     const ok = printBirthCertificate(certData);
     if (!ok) {
-      message.error('Khong the mo cua so in. Vui long cho phep popup.');
+      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
     }
   };
 

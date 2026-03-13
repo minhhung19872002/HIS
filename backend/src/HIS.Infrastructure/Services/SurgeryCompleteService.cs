@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Surgery;
 using HIS.Application.Services;
@@ -164,20 +165,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
             await _context.SaveChangesAsync();
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist (development mode)
-            return new SurgeryDto
-            {
-                Id = dto.SurgeryId,
-                SurgeryCode = "PT2024020001",
-                PatientName = "Nguyễn Văn A",
-                Status = dto.IsApproved ? 1 : 4,
-                StatusName = dto.IsApproved ? "Đã duyệt" : "Từ chối",
-                ScheduledDate = dto.ScheduledDate,
-                ApprovedAt = DateTime.Now,
-                ApprovedBy = userId.ToString()
-            };
+            System.Diagnostics.Debug.WriteLine($"ApproveSurgeryAsync: missing table/column - {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId, Status = dto.IsApproved ? 1 : 4 };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ApproveSurgeryAsync error: {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
         }
     }
 
@@ -225,21 +221,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
             await _context.SaveChangesAsync();
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist (development mode)
-            return new SurgeryDto
-            {
-                Id = dto.SurgeryId,
-                SurgeryCode = "PT2024020001",
-                PatientName = "Nguyễn Văn A",
-                OperatingRoomId = dto.OperatingRoomId,
-                OperatingRoomName = "Phòng mổ 1",
-                ScheduledDate = dto.ScheduledDate,
-                DurationMinutes = dto.EstimatedDurationMinutes,
-                Status = 2,
-                StatusName = "Đã lên lịch"
-            };
+            System.Diagnostics.Debug.WriteLine($"ScheduleSurgeryAsync: missing table/column - {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ScheduleSurgeryAsync error: {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
         }
     }
 
@@ -285,51 +275,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
 
             return result;
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist
-            return new List<SurgeryScheduleDto>
-            {
-                new()
-                {
-                    Date = date,
-                    OperatingRoomId = operatingRoomId ?? Guid.Parse("f237ab29-2b23-4333-8801-6239e79ca28a"),
-                    OperatingRoomName = "Phòng mổ 1 - Tim mạch",
-                    Surgeries = new List<SurgeryScheduleItemDto>
-                    {
-                        new()
-                        {
-                            SurgeryId = Guid.NewGuid(),
-                            SurgeryCode = "PT2024020001",
-                            PatientName = "Nguyễn Văn A",
-                            PatientCode = "BN000123",
-                            SurgeryServiceName = "Cắt ruột thừa nội soi",
-                            SurgeryType = 1,
-                            SurgeryNature = 2,
-                            ScheduledTime = date.AddHours(8),
-                            EstimatedDuration = 90,
-                            Status = 2,
-                            StatusName = "Đã lên lịch",
-                            SurgeonName = "BS. Nguyễn Văn A"
-                        },
-                        new()
-                        {
-                            SurgeryId = Guid.NewGuid(),
-                            SurgeryCode = "PT2024020002",
-                            PatientName = "Trần Thị B",
-                            PatientCode = "BN000124",
-                            SurgeryServiceName = "Mổ sỏi thận qua da",
-                            SurgeryType = 1,
-                            SurgeryNature = 2,
-                            ScheduledTime = date.AddHours(10),
-                            EstimatedDuration = 120,
-                            Status = 2,
-                            StatusName = "Đã lên lịch",
-                            SurgeonName = "BS. Trần Văn B"
-                        }
-                    }
-                }
-            };
+            System.Diagnostics.Debug.WriteLine($"GetSurgeryScheduleAsync: missing table/column - {ex.Message}");
+            return new List<SurgeryScheduleDto>();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"GetSurgeryScheduleAsync error: {ex.Message}");
+            return new List<SurgeryScheduleDto>();
         }
     }
 
@@ -350,20 +304,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
 
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist
-            return new SurgeryDto
-            {
-                Id = dto.SurgeryId,
-                SurgeryCode = "PT2024020001",
-                PatientName = "Nguyễn Văn A",
-                PatientCode = "BN000123",
-                OperatingRoomId = dto.OperatingRoomId,
-                OperatingRoomName = "Phòng mổ 1",
-                Status = 2,
-                StatusName = "Đang chuẩn bị"
-            };
+            System.Diagnostics.Debug.WriteLine($"CheckInPatientAsync: missing table/column - {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CheckInPatientAsync error: {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
         }
     }
 
@@ -428,10 +377,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
                 PageSize = dto.PageSize
             };
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist (development mode)
-            return GetMockSurgeries(dto);
+            System.Diagnostics.Debug.WriteLine($"GetSurgeriesAsync: missing table/column - {ex.Message}");
+            return new PagedResultDto<SurgeryDto> { Items = new List<SurgeryDto>(), TotalCount = 0, Page = dto.Page, PageSize = dto.PageSize };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"GetSurgeriesAsync error: {ex.Message}");
+            return new PagedResultDto<SurgeryDto> { Items = new List<SurgeryDto>(), TotalCount = 0, Page = dto.Page, PageSize = dto.PageSize };
         }
     }
 
@@ -585,45 +539,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
                 CreatedAt = request.CreatedAt
             };
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist
-            return new SurgeryDto
-            {
-                Id = id,
-                SurgeryCode = "PT2024020001",
-                PatientId = Guid.NewGuid(),
-                PatientCode = "BN000123",
-                PatientName = "Nguyễn Văn A",
-                DateOfBirth = new DateTime(1985, 5, 15),
-                Gender = "Nam",
-                MedicalRecordId = Guid.NewGuid(),
-                SurgeryType = 1,
-                SurgeryTypeName = "Phẫu thuật",
-                SurgeryClass = 2,
-                SurgeryClassName = "Loại 1",
-                SurgeryNature = 2,
-                SurgeryNatureName = "Chương trình",
-                PreOperativeDiagnosis = "Viêm ruột thừa cấp",
-                PreOperativeIcdCode = "K35",
-                SurgeryServiceId = Guid.NewGuid(),
-                SurgeryServiceCode = "PT001",
-                SurgeryServiceName = "Cắt ruột thừa nội soi",
-                SurgeryMethod = "Nội soi 3 lỗ trocar",
-                AnesthesiaType = 2,
-                AnesthesiaTypeName = "Gây mê toàn thân",
-                OperatingRoomName = "Phòng mổ 1",
-                ScheduledDate = DateTime.Today,
-                StartTime = DateTime.Now.AddHours(-1),
-                DurationMinutes = 90,
-                Status = 4,
-                StatusName = "Hoàn thành",
-                ServiceCost = 5000000,
-                MedicineCost = 2000000,
-                SupplyCost = 1500000,
-                TotalCost = 8500000,
-                CreatedAt = DateTime.Now.AddHours(-3)
-            };
+            System.Diagnostics.Debug.WriteLine($"GetSurgeryByIdAsync: missing table/column - {ex.Message}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"GetSurgeryByIdAsync error: {ex.Message}");
+            return null;
         }
     }
 
@@ -856,10 +780,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
                 IsActive = r.IsActive
             }).ToListAsync();
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist
-            return GetMockOperatingRooms(roomType, status);
+            System.Diagnostics.Debug.WriteLine($"GetOperatingRoomsAsync: missing table/column - {ex.Message}");
+            return new List<OperatingRoomDto>();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"GetOperatingRoomsAsync error: {ex.Message}");
+            return new List<OperatingRoomDto>();
         }
     }
 
@@ -937,18 +866,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
 
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist (development mode)
-            return new SurgeryDto
-            {
-                Id = dto.SurgeryId,
-                SurgeryCode = "PT2024020001",
-                PatientName = "Nguyễn Văn A",
-                StartTime = dto.StartTime,
-                Status = 3,
-                StatusName = "Đang phẫu thuật"
-            };
+            System.Diagnostics.Debug.WriteLine($"StartSurgeryAsync: missing table/column - {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"StartSurgeryAsync error: {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
         }
     }
 
@@ -983,22 +909,15 @@ public class SurgeryCompleteService : ISurgeryCompleteService
 
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
         }
-        catch
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
-            // Return mock data when table doesn't exist (development mode)
-            return new SurgeryDto
-            {
-                Id = dto.SurgeryId,
-                SurgeryCode = "PT2024020001",
-                PatientName = "Nguyễn Văn A",
-                EndTime = dto.EndTime,
-                PostOperativeDiagnosis = dto.PostOperativeDiagnosis,
-                PostOperativeIcdCode = dto.PostOperativeIcdCode,
-                Conclusion = dto.Conclusion,
-                Complications = dto.Complications,
-                Status = 4,
-                StatusName = "Hoàn thành"
-            };
+            System.Diagnostics.Debug.WriteLine($"CompleteSurgeryAsync: missing table/column - {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CompleteSurgeryAsync error: {ex.Message}");
+            return new SurgeryDto { Id = dto.SurgeryId };
         }
     }
 

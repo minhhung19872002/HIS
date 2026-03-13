@@ -18,6 +18,7 @@ import {
   Switch,
   InputNumber,
   Descriptions,
+  Upload,
 } from 'antd';
 import {
   SearchOutlined,
@@ -36,6 +37,7 @@ import {
   BankOutlined,
   TeamOutlined,
   IdcardOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
@@ -324,6 +326,33 @@ const MasterData: React.FC = () => {
       style: 'currency',
       currency: 'VND',
     }).format(amount);
+  };
+
+  // Handle Excel import
+  const handleImportExcel = async (file: File, type: 'medicines' | 'icd') => {
+    const arrayBuffer = await file.arrayBuffer();
+    try {
+      if (type === 'medicines') {
+        const result = await catalogApi.importMedicines(arrayBuffer);
+        if (result.data) {
+          message.success('Nhập danh mục thuốc từ Excel thành công');
+        } else {
+          message.warning('Tệp đã được xử lý nhưng không có dữ liệu nào được nhập');
+        }
+      } else {
+        const result = await catalogApi.importICD10(arrayBuffer);
+        if (result.data) {
+          message.success('Nhập danh mục ICD-10 từ Excel thành công');
+        } else {
+          message.warning('Tệp đã được xử lý nhưng không có dữ liệu nào được nhập');
+        }
+      }
+      fetchData();
+    } catch (error) {
+      console.warn('Lỗi nhập Excel:', error);
+      message.error('Nhập Excel thất bại. Vui lòng kiểm tra định dạng tệp và thử lại.');
+    }
+    return false; // Prevent default Upload behavior
   };
 
   // Handle add/edit
@@ -855,18 +884,28 @@ const MasterData: React.FC = () => {
   );
 
   const renderMedicinesTable = () => (
-    <Table
-      columns={medicineColumns}
-      dataSource={filterByKeyword(medicines)}
-      rowKey="id"
-      size="small"
-      scroll={{ x: 1400 }}
-      loading={loading}
-      pagination={{
-        showSizeChanger: true,
-        showQuickJumper: true,
-        showTotal: (total) => `Tổng: ${total} thuốc`,
-      }}
+    <>
+      <div style={{ marginBottom: 12 }}>
+        <Upload
+          accept=".xlsx,.xls"
+          showUploadList={false}
+          beforeUpload={(file) => { handleImportExcel(file, 'medicines'); return false; }}
+        >
+          <Button icon={<UploadOutlined />}>Nhập từ Excel</Button>
+        </Upload>
+      </div>
+      <Table
+        columns={medicineColumns}
+        dataSource={filterByKeyword(medicines)}
+        rowKey="id"
+        size="small"
+        scroll={{ x: 1400 }}
+        loading={loading}
+        pagination={{
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `Tổng: ${total} thuốc`,
+        }}
       onRow={(record) => ({
         onDoubleClick: () => {
           Modal.info({
@@ -894,6 +933,7 @@ const MasterData: React.FC = () => {
         style: { cursor: 'pointer' },
       })}
     />
+    </>
   );
 
   const renderDepartmentsTable = () => (
@@ -932,36 +972,47 @@ const MasterData: React.FC = () => {
   );
 
   const renderIcdTable = () => (
-    <Table
-      columns={icdColumns}
-      dataSource={filterByKeyword(icdCodes)}
-      rowKey="id"
-      size="small"
-      loading={loading}
-      pagination={{
-        showSizeChanger: true,
-        showQuickJumper: true,
-        showTotal: (total) => `Tổng: ${total} mã bệnh`,
-      }}
-      onRow={(record) => ({
-        onDoubleClick: () => {
-          Modal.info({
-            title: `Chi tiết mã ICD - ${record.code}`,
-            width: 500,
-            content: (
-              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                <Descriptions.Item label="Mã ICD">{record.code}</Descriptions.Item>
-                <Descriptions.Item label="Tên bệnh">{record.name}</Descriptions.Item>
-                <Descriptions.Item label="Tên tiếng Anh">{record.nameEnglish || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Nhóm">{record.group || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Chương">{record.chapter || '-'}</Descriptions.Item>
-              </Descriptions>
-            ),
-          });
-        },
-        style: { cursor: 'pointer' },
-      })}
-    />
+    <>
+      <div style={{ marginBottom: 12 }}>
+        <Upload
+          accept=".xlsx,.xls"
+          showUploadList={false}
+          beforeUpload={(file) => { handleImportExcel(file, 'icd'); return false; }}
+        >
+          <Button icon={<UploadOutlined />}>Nhập từ Excel</Button>
+        </Upload>
+      </div>
+      <Table
+        columns={icdColumns}
+        dataSource={filterByKeyword(icdCodes)}
+        rowKey="id"
+        size="small"
+        loading={loading}
+        pagination={{
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `Tổng: ${total} mã bệnh`,
+        }}
+        onRow={(record) => ({
+          onDoubleClick: () => {
+            Modal.info({
+              title: `Chi tiết mã ICD - ${record.code}`,
+              width: 500,
+              content: (
+                <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                  <Descriptions.Item label="Mã ICD">{record.code}</Descriptions.Item>
+                  <Descriptions.Item label="Tên bệnh">{record.name}</Descriptions.Item>
+                  <Descriptions.Item label="Tên tiếng Anh">{record.nameEnglish || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Nhóm">{record.group || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Chương">{record.chapter || '-'}</Descriptions.Item>
+                </Descriptions>
+              ),
+            });
+          },
+          style: { cursor: 'pointer' },
+        })}
+      />
+    </>
   );
 
   // Clinical Terms table columns

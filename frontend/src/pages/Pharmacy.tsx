@@ -587,10 +587,7 @@ const Pharmacy: React.FC = () => {
       return;
     }
 
-    const totalAmount = medicationItems.reduce((sum, item) => {
-      const batch = item.batches?.find(b => b.batchNumber === item.selectedBatch) || item.batches?.[0];
-      return sum + (batch ? item.dispensedQuantity * 10000 : 0); // Mock price
-    }, 0);
+    const totalAmount = selectedPrescription.totalAmount;
 
     printWindow.document.write(`
       <!DOCTYPE html>

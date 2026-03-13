@@ -44,14 +44,14 @@ export interface BirthCertificateData {
 }
 
 const deliveryMethodLabels: Record<string, string> = {
-  normal: 'De thuong',
-  'c-section': 'Mo lay thai',
+  normal: 'Đẻ thường',
+  'c-section': 'Mổ lấy thai',
   forceps: 'Forceps',
-  vacuum: 'Giac hut',
+  vacuum: 'Giác hút',
 };
 
 /**
- * Print a Vietnamese birth certificate (Giay chung sinh) in a new popup window.
+ * Print a Vietnamese birth certificate (Giấy chứng sinh) in a new popup window.
  * Uses the same print-in-popup pattern as Inpatient.tsx medical records.
  */
 export const printBirthCertificate = (data: BirthCertificateData) => {
@@ -66,16 +66,16 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
   const fatherDob = data.fatherDateOfBirth ? dayjs(data.fatherDateOfBirth) : null;
 
   const apgarDisplay = [
-    data.apgar1 != null ? `1 phut: ${data.apgar1}` : null,
-    data.apgar5 != null ? `5 phut: ${data.apgar5}` : null,
-    data.apgar10 != null ? `10 phut: ${data.apgar10}` : null,
+    data.apgar1 != null ? `1 phút: ${data.apgar1}` : null,
+    data.apgar5 != null ? `5 phút: ${data.apgar5}` : null,
+    data.apgar10 != null ? `10 phút: ${data.apgar10}` : null,
   ].filter(Boolean).join(', ') || '..........';
 
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Giay chung sinh</title>
+      <title>Giấy chứng sinh</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -224,139 +224,139 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
     <body>
       <div class="header">
         <div class="header-left">
-          <div class="ministry">Bo Y te</div>
+          <div class="ministry">Bộ Y tế</div>
           <div class="hospital">${HOSPITAL_NAME}</div>
           <div style="font-size: 11px;">${HOSPITAL_ADDRESS}</div>
-          <div style="font-size: 11px;">DT: ${HOSPITAL_PHONE}</div>
+          <div style="font-size: 11px;">ĐT: ${HOSPITAL_PHONE}</div>
         </div>
         <div class="header-right">
-          <div class="country">Cong hoa Xa hoi Chu nghia Viet Nam</div>
-          <div class="slogan">Doc lap - Tu do - Hanh phuc</div>
+          <div class="country">Cộng hòa Xã hội Chủ nghĩa Việt Nam</div>
+          <div class="slogan">Độc lập - Tự do - Hạnh phúc</div>
         </div>
       </div>
 
-      <div class="title">Giay Chung Sinh</div>
-      <div class="subtitle">(Ban hanh kem theo Thong tu so 17/2012/TT-BYT ngay 24/10/2012 cua Bo truong Bo Y te)</div>
-      <div class="cert-number">So: <span class="field" style="min-width: 150px;">${data.certificateNumber || ''}</span>/GCS</div>
+      <div class="title">Giấy Chứng Sinh</div>
+      <div class="subtitle">(Ban hành kèm theo Thông tư số 17/2012/TT-BYT ngày 24/10/2012 của Bộ trưởng Bộ Y tế)</div>
+      <div class="cert-number">Số: <span class="field" style="min-width: 150px;">${data.certificateNumber || ''}</span>/GCS</div>
 
       <!-- SECTION 1: BABY INFO -->
       <div class="section">
-        <div class="section-title">I. Thong tin tre so sinh</div>
+        <div class="section-title">I. Thông tin trẻ sơ sinh</div>
         <div class="row">
-          Ho va ten: <span class="field" style="min-width: 300px;">${data.babyFullName || ''}</span>
+          Họ và tên: <span class="field" style="min-width: 300px;">${data.babyFullName || ''}</span>
         </div>
         <div class="flex-row">
           <div class="col">
-            Gioi tinh:
+            Giới tính:
             <span class="checkbox ${data.babyGender === 'Nam' ? 'checked' : ''}"></span>Nam
-            <span class="checkbox ${data.babyGender === 'Nu' ? 'checked' : ''}"></span>Nu
+            <span class="checkbox ${data.babyGender === 'Nu' ? 'checked' : ''}"></span>Nữ
           </div>
           <div class="col">
-            Con thu: <span class="field">${data.birthOrder ?? ''}</span>
+            Con thứ: <span class="field">${data.birthOrder ?? ''}</span>
           </div>
           <div class="col">
-            So con sinh: <span class="field">${data.numberOfBabies ?? ''}</span>
+            Số con sinh: <span class="field">${data.numberOfBabies ?? ''}</span>
           </div>
         </div>
         <div class="row">
-          Sinh luc <span class="field">${birthDate ? birthDate.format('HH') : ''}</span> gio
-          <span class="field">${birthDate ? birthDate.format('mm') : ''}</span> phut,
-          ngay <span class="field">${birthDate ? birthDate.format('DD') : ''}</span>
-          thang <span class="field">${birthDate ? birthDate.format('MM') : ''}</span>
-          nam <span class="field">${birthDate ? birthDate.format('YYYY') : ''}</span>
+          Sinh lúc <span class="field">${birthDate ? birthDate.format('HH') : ''}</span> giờ
+          <span class="field">${birthDate ? birthDate.format('mm') : ''}</span> phút,
+          ngày <span class="field">${birthDate ? birthDate.format('DD') : ''}</span>
+          tháng <span class="field">${birthDate ? birthDate.format('MM') : ''}</span>
+          năm <span class="field">${birthDate ? birthDate.format('YYYY') : ''}</span>
         </div>
         <div class="flex-row">
           <div class="col">
-            Can nang: <span class="field">${data.birthWeight ? data.birthWeight + ' gram' : ''}</span>
+            Cân nặng: <span class="field">${data.birthWeight ? data.birthWeight + ' gram' : ''}</span>
           </div>
           <div class="col">
-            Chieu dai: <span class="field">${data.birthLength ? data.birthLength + ' cm' : ''}</span>
+            Chiều dài: <span class="field">${data.birthLength ? data.birthLength + ' cm' : ''}</span>
           </div>
         </div>
         <div class="flex-row">
           <div class="col">
-            Tuoi thai: <span class="field">${data.gestationalAge ? data.gestationalAge + ' tuan' : ''}</span>
+            Tuổi thai: <span class="field">${data.gestationalAge ? data.gestationalAge + ' tuần' : ''}</span>
           </div>
           <div class="col">
-            Phuong phap de:
-            <span class="checkbox ${data.deliveryMethod === 'normal' ? 'checked' : ''}"></span>De thuong
-            <span class="checkbox ${data.deliveryMethod === 'c-section' ? 'checked' : ''}"></span>Mo lay thai
+            Phương pháp đẻ:
+            <span class="checkbox ${data.deliveryMethod === 'normal' ? 'checked' : ''}"></span>Đẻ thường
+            <span class="checkbox ${data.deliveryMethod === 'c-section' ? 'checked' : ''}"></span>Mổ lấy thai
             <span class="checkbox ${data.deliveryMethod === 'forceps' ? 'checked' : ''}"></span>Forceps
-            <span class="checkbox ${data.deliveryMethod === 'vacuum' ? 'checked' : ''}"></span>Giac hut
+            <span class="checkbox ${data.deliveryMethod === 'vacuum' ? 'checked' : ''}"></span>Giác hút
           </div>
         </div>
         <div class="row">
-          Diem Apgar: <span class="field" style="min-width: 250px;">${apgarDisplay}</span>
+          Điểm Apgar: <span class="field" style="min-width: 250px;">${apgarDisplay}</span>
         </div>
         <div class="row">
-          Tinh trang suc khoe so sinh: <span class="field-long">${data.birthWeight && data.birthWeight >= 2500 ? 'Binh thuong' : ''}</span>
+          Tình trạng sức khỏe sơ sinh: <span class="field-long">${data.birthWeight && data.birthWeight >= 2500 ? 'Bình thường' : ''}</span>
         </div>
       </div>
 
       <!-- SECTION 2: MOTHER INFO -->
       <div class="section">
-        <div class="section-title">II. Thong tin nguoi me</div>
+        <div class="section-title">II. Thông tin người mẹ</div>
         <div class="row">
-          Ho va ten: <span class="field" style="min-width: 300px;">${data.motherFullName || ''}</span>
+          Họ và tên: <span class="field" style="min-width: 300px;">${data.motherFullName || ''}</span>
         </div>
         <div class="flex-row">
           <div class="col">
-            Ngay sinh: <span class="field">${motherDob ? motherDob.format('DD/MM/YYYY') : ''}</span>
+            Ngày sinh: <span class="field">${motherDob ? motherDob.format('DD/MM/YYYY') : ''}</span>
           </div>
           <div class="col">
-            Dan toc: <span class="field">${data.motherEthnicity || ''}</span>
+            Dân tộc: <span class="field">${data.motherEthnicity || ''}</span>
           </div>
           <div class="col">
-            Quoc tich: <span class="field">${data.motherNationality || 'Viet Nam'}</span>
+            Quốc tịch: <span class="field">${data.motherNationality || 'Việt Nam'}</span>
           </div>
         </div>
         <div class="row">
-          So CMND/CCCD/Ho chieu: <span class="field" style="min-width: 200px;">${data.motherIdNumber || ''}</span>
+          Số CMND/CCCD/Hộ chiếu: <span class="field" style="min-width: 200px;">${data.motherIdNumber || ''}</span>
         </div>
         <div class="row">
-          Nghe nghiep: <span class="field" style="min-width: 200px;">${data.motherOccupation || ''}</span>
+          Nghề nghiệp: <span class="field" style="min-width: 200px;">${data.motherOccupation || ''}</span>
         </div>
         <div class="row">
-          Noi cu tru: <span class="field-long">${data.motherAddress || ''}</span>
+          Nơi cư trú: <span class="field-long">${data.motherAddress || ''}</span>
         </div>
       </div>
 
       <!-- SECTION 3: FATHER INFO -->
       <div class="section">
-        <div class="section-title">III. Thong tin nguoi cha</div>
+        <div class="section-title">III. Thông tin người cha</div>
         <div class="row">
-          Ho va ten: <span class="field" style="min-width: 300px;">${data.fatherFullName || ''}</span>
+          Họ và tên: <span class="field" style="min-width: 300px;">${data.fatherFullName || ''}</span>
         </div>
         <div class="flex-row">
           <div class="col">
-            Ngay sinh: <span class="field">${fatherDob ? fatherDob.format('DD/MM/YYYY') : ''}</span>
+            Ngày sinh: <span class="field">${fatherDob ? fatherDob.format('DD/MM/YYYY') : ''}</span>
           </div>
           <div class="col">
-            Dan toc: <span class="field">${data.fatherEthnicity || ''}</span>
+            Dân tộc: <span class="field">${data.fatherEthnicity || ''}</span>
           </div>
           <div class="col">
-            Quoc tich: <span class="field">${data.fatherNationality || 'Viet Nam'}</span>
+            Quốc tịch: <span class="field">${data.fatherNationality || 'Việt Nam'}</span>
           </div>
         </div>
         <div class="row">
-          So CMND/CCCD/Ho chieu: <span class="field" style="min-width: 200px;">${data.fatherIdNumber || ''}</span>
+          Số CMND/CCCD/Hộ chiếu: <span class="field" style="min-width: 200px;">${data.fatherIdNumber || ''}</span>
         </div>
         <div class="row">
-          Nghe nghiep: <span class="field" style="min-width: 200px;">${data.fatherOccupation || ''}</span>
+          Nghề nghiệp: <span class="field" style="min-width: 200px;">${data.fatherOccupation || ''}</span>
         </div>
         <div class="row">
-          Noi cu tru: <span class="field-long">${data.fatherAddress || ''}</span>
+          Nơi cư trú: <span class="field-long">${data.fatherAddress || ''}</span>
         </div>
       </div>
 
       <!-- SECTION 4: PERSON WHO ANNOUNCES BIRTH -->
       <div class="section">
-        <div class="section-title">IV. Nguoi do de / Nguoi chung kien</div>
+        <div class="section-title">IV. Người đỡ đẻ / Người chứng kiến</div>
         <div class="row">
-          Bac si / Nu ho sinh: <span class="field" style="min-width: 200px;">${data.doctorName || ''}</span>
+          Bác sĩ / Nữ hộ sinh: <span class="field" style="min-width: 200px;">${data.doctorName || ''}</span>
         </div>
         <div class="row">
-          Ho sinh (nu ho sinh): <span class="field" style="min-width: 200px;">${data.midwifeName || ''}</span>
+          Hộ sinh (nữ hộ sinh): <span class="field" style="min-width: 200px;">${data.midwifeName || ''}</span>
         </div>
         <div class="row">
           Khoa: <span class="field" style="min-width: 200px;">${data.departmentName || ''}</span>
@@ -366,24 +366,24 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
       <!-- SIGNATURES -->
       <div class="signature-section">
         <div class="signature-box">
-          <div class="signature-title">NGUOI DO DE</div>
-          <div class="signature-hint">(Ky, ghi ro ho ten)</div>
+          <div class="signature-title">NGƯỜI ĐỠ ĐẺ</div>
+          <div class="signature-hint">(Ký, ghi rõ họ tên)</div>
         </div>
         <div class="signature-box">
           <div style="font-style: italic; font-size: 12px;">
-            Ngay ${issueDate.format('DD')} thang ${issueDate.format('MM')} nam ${issueDate.format('YYYY')}
+            Ngày ${issueDate.format('DD')} tháng ${issueDate.format('MM')} năm ${issueDate.format('YYYY')}
           </div>
-          <div class="signature-title">GIAM DOC BENH VIEN</div>
-          <div class="signature-hint">(Ky ten, dong dau)</div>
+          <div class="signature-title">GIÁM ĐỐC BỆNH VIỆN</div>
+          <div class="signature-hint">(Ký tên, đóng dấu)</div>
           <div class="stamp-area">M.D</div>
         </div>
       </div>
 
       <div class="note">
-        <strong>Ghi chu:</strong>
-        <br/>- Giay chung sinh duoc cap 02 ban: 01 ban giao cho gia dinh tre so sinh, 01 ban luu tai co so y te.
-        <br/>- Giay chung sinh co gia tri de lam thu tuc dang ky khai sinh tai UBND xa, phuong, thi tran noi cu tru cua nguoi me hoac nguoi cha.
-        <br/>- Giay chung sinh co gia tri trong vong 60 ngay ke tu ngay cap.
+        <strong>Ghi chú:</strong>
+        <br/>- Giấy chứng sinh được cấp 02 bản: 01 bản giao cho gia đình trẻ sơ sinh, 01 bản lưu tại cơ sở y tế.
+        <br/>- Giấy chứng sinh có giá trị để làm thủ tục đăng ký khai sinh tại UBND xã, phường, thị trấn nơi cư trú của người mẹ hoặc người cha.
+        <br/>- Giấy chứng sinh có giá trị trong vòng 60 ngày kể từ ngày cấp.
       </div>
     </body>
     </html>

@@ -530,7 +530,7 @@ const callReportApi = async (
 ): Promise<Blob> => {
   const mapping = reportApiMapping[reportId];
   if (!mapping) {
-    throw new Error(`Khong tim thay cau hinh API cho bao cao: ${reportId}`);
+    throw new Error(`Không tìm thấy cấu hình API cho báo cáo: ${reportId}`);
   }
 
   const fromDate = dateRange[0].format('YYYY-MM-DD');
@@ -593,7 +593,7 @@ const callReportApi = async (
   // response may be AxiosResponse with .data as Blob, or already a Blob
   const blob = response?.data instanceof Blob ? response.data : response?.data;
   if (!(blob instanceof Blob)) {
-    throw new Error('Server khong tra ve du lieu bao cao hop le.');
+    throw new Error('Server không trả về dữ liệu báo cáo hợp lệ.');
   }
   return blob;
 };
@@ -653,51 +653,51 @@ interface ReconciliationReportDef {
 const reconciliationReports: ReconciliationReportDef[] = [
   {
     id: 'supplier-procurement',
-    name: 'Theo doi trung thau theo NCC',
-    description: 'Doi chieu ket qua trung thau voi giao hang thuc te theo nha cung cap',
+    name: 'Theo dõi trúng thầu theo NCC',
+    description: 'Đối chiếu kết quả trúng thầu với giao hàng thực tế theo nhà cung cấp',
     icon: <ShopOutlined />,
     hasSupplierFilter: true,
   },
   {
     id: 'revenue-by-record',
-    name: 'Doanh thu chi phi theo HSBA',
-    description: 'Tinh doanh thu, chi phi va loi nhuan theo tung ho so benh an',
+    name: 'Doanh thu chi phí theo HSBA',
+    description: 'Tính doanh thu, chi phí và lợi nhuận theo từng hồ sơ bệnh án',
     icon: <AccountBookOutlined />,
   },
   {
     id: 'dept-cost-vs-fees',
-    name: 'Chi phi khoa phong vs vien phi',
-    description: 'Doi chieu chi phi khoa phong voi vien phi thu duoc',
+    name: 'Chi phí khoa phòng vs viện phí',
+    description: 'Đối chiếu chi phí khoa phòng với viện phí thu được',
     icon: <SwapOutlined />,
   },
   {
     id: 'record-cost-summary',
-    name: 'Tong hop chi phi HSBA: SD vs Thu',
-    description: 'Doi chieu tong chi phi su dung voi so tien da thu theo HSBA',
+    name: 'Tổng hợp chi phí HSBA: SD vs Thu',
+    description: 'Đối chiếu tổng chi phí sử dụng với số tiền đã thu theo HSBA',
     icon: <ReconciliationOutlined />,
   },
   {
     id: 'fees-vs-standards',
-    name: 'Vien phi vs dinh muc DVKT',
-    description: 'Doi chieu vien phi thuc te voi dinh muc gia dich vu ky thuat',
+    name: 'Viện phí vs định mức DVKT',
+    description: 'Đối chiếu viện phí thực tế với định mức giá dịch vụ kỹ thuật',
     icon: <FileSearchOutlined />,
   },
   {
     id: 'service-order-doctors',
-    name: 'BS chi dinh vs BS thuc hien',
-    description: 'Doi chieu dich vu ky thuat giua bac si chi dinh va bac si thuc hien',
+    name: 'BS chỉ định vs BS thực hiện',
+    description: 'Đối chiếu dịch vụ kỹ thuật giữa bác sĩ chỉ định và bác sĩ thực hiện',
     icon: <TeamOutlined />,
   },
   {
     id: 'dispensing-vs-billing',
-    name: 'Xuat kho thuoc/VTYT vs vien phi',
-    description: 'Doi chieu xuat kho thuoc, VTYT voi vien phi thu theo khoa',
+    name: 'Xuất kho thuốc/VTYT vs viện phí',
+    description: 'Đối chiếu xuất kho thuốc, VTYT với viện phí thu theo khoa',
     icon: <MedicineBoxOutlined />,
   },
   {
     id: 'dispensing-vs-standards',
-    name: 'Xuat kho vs dinh muc theo khoa',
-    description: 'Doi chieu xuat kho thuc te voi dinh muc su dung theo khoa phong',
+    name: 'Xuất kho vs định mức theo khoa',
+    description: 'Đối chiếu xuất kho thực tế với định mức sử dụng theo khoa phòng',
     icon: <AuditOutlined />,
   },
 ];
@@ -719,7 +719,7 @@ const ReconciliationTab: React.FC = () => {
 
   const handleRunReport = useCallback(async () => {
     if (!selectedReport) {
-      message.warning('Vui long chon loai bao cao doi chieu');
+      message.warning('Vui lòng chọn loại báo cáo đối chiếu');
       return;
     }
 
@@ -764,11 +764,11 @@ const ReconciliationTab: React.FC = () => {
       if (data) {
         setSummaryData(data);
         setReportData(data.items || []);
-        message.success(`Da tai bao cao: ${reconciliationReports.find(r => r.id === selectedReport)?.name}`);
+        message.success(`Đã tải báo cáo: ${reconciliationReports.find(r => r.id === selectedReport)?.name}`);
       }
     } catch (err: unknown) {
       console.warn('Error loading reconciliation report:', err);
-      message.warning('Khong the tai bao cao. Vui long thu lai.');
+      message.warning('Không thể tải báo cáo. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -789,113 +789,113 @@ const ReconciliationTab: React.FC = () => {
     switch (selectedReport) {
       case 'supplier-procurement':
         return [
-          { title: 'Ma NCC', dataIndex: 'supplierCode', key: 'supplierCode', width: 100 },
-          { title: 'Ten NCC', dataIndex: 'supplierName', key: 'supplierName', width: 200 },
-          { title: 'So mat hang', dataIndex: 'itemCount', key: 'itemCount', width: 100, align: 'right' as const },
-          { title: 'So phieu nhap', dataIndex: 'receiptCount', key: 'receiptCount', width: 100, align: 'right' as const },
-          { title: 'Gia tri HD', dataIndex: 'contractValue', key: 'contractValue', width: 140, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Gia tri giao', dataIndex: 'deliveredValue', key: 'deliveredValue', width: 140, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Ti le thuc hien', dataIndex: 'fulfillmentRate', key: 'fulfillmentRate', width: 110, align: 'right' as const, render: (v: number) => fmtPct(v) },
-          { title: 'Ngay giao cuoi', dataIndex: 'lastDeliveryDate', key: 'lastDeliveryDate', width: 120 },
+          { title: 'Mã NCC', dataIndex: 'supplierCode', key: 'supplierCode', width: 100 },
+          { title: 'Tên NCC', dataIndex: 'supplierName', key: 'supplierName', width: 200 },
+          { title: 'Số mặt hàng', dataIndex: 'itemCount', key: 'itemCount', width: 100, align: 'right' as const },
+          { title: 'Số phiếu nhập', dataIndex: 'receiptCount', key: 'receiptCount', width: 100, align: 'right' as const },
+          { title: 'Giá trị HĐ', dataIndex: 'contractValue', key: 'contractValue', width: 140, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Giá trị giao', dataIndex: 'deliveredValue', key: 'deliveredValue', width: 140, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tỷ lệ thực hiện', dataIndex: 'fulfillmentRate', key: 'fulfillmentRate', width: 110, align: 'right' as const, render: (v: number) => fmtPct(v) },
+          { title: 'Ngày giao cuối', dataIndex: 'lastDeliveryDate', key: 'lastDeliveryDate', width: 120 },
         ] as ColumnsType<SupplierProcurementItemDto>;
 
       case 'revenue-by-record':
         return [
-          { title: 'Ma HSBA', dataIndex: 'medicalRecordCode', key: 'medicalRecordCode', width: 100 },
-          { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 160 },
+          { title: 'Mã HSBA', dataIndex: 'medicalRecordCode', key: 'medicalRecordCode', width: 100 },
+          { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 160 },
           { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName', width: 120 },
-          { title: 'DT Dich vu', dataIndex: 'serviceRevenue', key: 'serviceRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'DT Thuoc', dataIndex: 'medicineRevenue', key: 'medicineRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong DT', dataIndex: 'totalRevenue', key: 'totalRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong CP', dataIndex: 'totalCost', key: 'totalCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Loi nhuan', dataIndex: 'profit', key: 'profit', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
-          { title: 'Ty suat', dataIndex: 'profitMargin', key: 'profitMargin', width: 90, align: 'right' as const, render: (v: number) => fmtPct(v) },
+          { title: 'DT Dịch vụ', dataIndex: 'serviceRevenue', key: 'serviceRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'DT Thuốc', dataIndex: 'medicineRevenue', key: 'medicineRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng DT', dataIndex: 'totalRevenue', key: 'totalRevenue', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng CP', dataIndex: 'totalCost', key: 'totalCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Lợi nhuận', dataIndex: 'profit', key: 'profit', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Tỷ suất', dataIndex: 'profitMargin', key: 'profitMargin', width: 90, align: 'right' as const, render: (v: number) => fmtPct(v) },
         ] as ColumnsType<RevenueByRecordItemDto>;
 
       case 'dept-cost-vs-fees':
         return [
-          { title: 'Ma khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
-          { title: 'Ten khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
-          { title: 'CP Dich vu', dataIndex: 'serviceCost', key: 'serviceCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'CP Thuoc', dataIndex: 'medicineCost', key: 'medicineCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong CP khoa', dataIndex: 'totalDeptCost', key: 'totalDeptCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong VP thu', dataIndex: 'totalHospitalFees', key: 'totalHospitalFees', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Mã khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
+          { title: 'Tên khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
+          { title: 'CP Dịch vụ', dataIndex: 'serviceCost', key: 'serviceCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'CP Thuốc', dataIndex: 'medicineCost', key: 'medicineCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng CP khoa', dataIndex: 'totalDeptCost', key: 'totalDeptCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng VP thu', dataIndex: 'totalHospitalFees', key: 'totalHospitalFees', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
           { title: '% CL', dataIndex: 'differencePercent', key: 'differencePercent', width: 80, align: 'right' as const, render: (v: number) => fmtPct(v) },
         ] as ColumnsType<DeptCostVsFeesItemDto>;
 
       case 'record-cost-summary':
         return [
-          { title: 'Ma HSBA', dataIndex: 'medicalRecordCode', key: 'medicalRecordCode', width: 100 },
-          { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 160 },
+          { title: 'Mã HSBA', dataIndex: 'medicalRecordCode', key: 'medicalRecordCode', width: 100 },
+          { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 160 },
           { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName', width: 120 },
-          { title: 'DV su dung', dataIndex: 'serviceUsed', key: 'serviceUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Thuoc su dung', dataIndex: 'medicineUsed', key: 'medicineUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong su dung', dataIndex: 'totalUsed', key: 'totalUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong da thu', dataIndex: 'totalCollected', key: 'totalCollected', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
-          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => {
+          { title: 'DV sử dụng', dataIndex: 'serviceUsed', key: 'serviceUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Thuốc sử dụng', dataIndex: 'medicineUsed', key: 'medicineUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng sử dụng', dataIndex: 'totalUsed', key: 'totalUsed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng đã thu', dataIndex: 'totalCollected', key: 'totalCollected', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => {
             const color = s === 'Match' ? 'green' : s === 'Overcharged' ? 'orange' : 'red';
-            const text = s === 'Match' ? 'Khop' : s === 'Overcharged' ? 'Thu du' : 'Thu thieu';
+            const text = s === 'Match' ? 'Khớp' : s === 'Overcharged' ? 'Thu đủ' : 'Thu thiếu';
             return <Tag color={color}>{text}</Tag>;
           }},
         ] as ColumnsType<RecordCostSummaryItemDto>;
 
       case 'fees-vs-standards':
         return [
-          { title: 'Ma DV', dataIndex: 'serviceCode', key: 'serviceCode', width: 90 },
-          { title: 'Ten dich vu', dataIndex: 'serviceName', key: 'serviceName', width: 200 },
-          { title: 'So lan', dataIndex: 'usageCount', key: 'usageCount', width: 80, align: 'right' as const },
-          { title: 'Gia dinh muc', dataIndex: 'standardPrice', key: 'standardPrice', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Gia TB thuc te', dataIndex: 'actualAvgPrice', key: 'actualAvgPrice', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong dinh muc', dataIndex: 'totalStandardAmount', key: 'totalStandardAmount', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong thuc te', dataIndex: 'totalActualAmount', key: 'totalActualAmount', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 110, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
-          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Dat' : 'Vuot'}</Tag> },
+          { title: 'Mã DV', dataIndex: 'serviceCode', key: 'serviceCode', width: 90 },
+          { title: 'Tên dịch vụ', dataIndex: 'serviceName', key: 'serviceName', width: 200 },
+          { title: 'Số lần', dataIndex: 'usageCount', key: 'usageCount', width: 80, align: 'right' as const },
+          { title: 'Giá định mức', dataIndex: 'standardPrice', key: 'standardPrice', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Giá TB thực tế', dataIndex: 'actualAvgPrice', key: 'actualAvgPrice', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng định mức', dataIndex: 'totalStandardAmount', key: 'totalStandardAmount', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng thực tế', dataIndex: 'totalActualAmount', key: 'totalActualAmount', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 110, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Đạt' : 'Vượt'}</Tag> },
         ] as ColumnsType<FeesVsStandardsItemDto>;
 
       case 'service-order-doctors':
         return [
-          { title: 'Ma phieu', dataIndex: 'requestCode', key: 'requestCode', width: 110 },
-          { title: 'Ngay', dataIndex: 'requestDate', key: 'requestDate', width: 100, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
-          { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 140 },
-          { title: 'Dich vu', dataIndex: 'serviceName', key: 'serviceName', width: 160 },
-          { title: 'BS chi dinh', dataIndex: 'orderingDoctorName', key: 'orderingDoctorName', width: 140 },
-          { title: 'Khoa CD', dataIndex: 'orderingDepartmentName', key: 'orderingDepartmentName', width: 120 },
-          { title: 'BS thuc hien', dataIndex: 'executingDoctorName', key: 'executingDoctorName', width: 140, render: (v: string) => v || <Text type="secondary">Chua co</Text> },
+          { title: 'Mã phiếu', dataIndex: 'requestCode', key: 'requestCode', width: 110 },
+          { title: 'Ngày', dataIndex: 'requestDate', key: 'requestDate', width: 100, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
+          { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 140 },
+          { title: 'Dịch vụ', dataIndex: 'serviceName', key: 'serviceName', width: 160 },
+          { title: 'BS chỉ định', dataIndex: 'orderingDoctorName', key: 'orderingDoctorName', width: 140 },
+          { title: 'Khoa CĐ', dataIndex: 'orderingDepartmentName', key: 'orderingDepartmentName', width: 120 },
+          { title: 'BS thực hiện', dataIndex: 'executingDoctorName', key: 'executingDoctorName', width: 140, render: (v: string) => v || <Text type="secondary">Chưa có</Text> },
           { title: 'Khoa TH', dataIndex: 'executingDepartmentName', key: 'executingDepartmentName', width: 120 },
-          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 120, render: (s: string) => {
+          { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 120, render: (s: string) => {
             const color = s === 'SameDoctor' ? 'green' : s === 'DifferentDoctor' ? 'blue' : 'orange';
-            const text = s === 'SameDoctor' ? 'Cung BS' : s === 'DifferentDoctor' ? 'Khac BS' : 'Chua TH';
+            const text = s === 'SameDoctor' ? 'Cùng BS' : s === 'DifferentDoctor' ? 'Khác BS' : 'Chưa TH';
             return <Tag color={color}>{text}</Tag>;
           }},
         ] as ColumnsType<ServiceOrderDoctorsItemDto>;
 
       case 'dispensing-vs-billing':
         return [
-          { title: 'Ma khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
-          { title: 'Ten khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
-          { title: 'Thuoc xuat', dataIndex: 'medicineDispensed', key: 'medicineDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'VT xuat', dataIndex: 'supplyDispensed', key: 'supplyDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong xuat', dataIndex: 'totalDispensed', key: 'totalDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Thuoc thu', dataIndex: 'medicineBilled', key: 'medicineBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Mã khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
+          { title: 'Tên khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
+          { title: 'Thuốc xuất', dataIndex: 'medicineDispensed', key: 'medicineDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'VT xuất', dataIndex: 'supplyDispensed', key: 'supplyDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng xuất', dataIndex: 'totalDispensed', key: 'totalDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Thuốc thu', dataIndex: 'medicineBilled', key: 'medicineBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'VT thu', dataIndex: 'supplyBilled', key: 'supplyBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong thu', dataIndex: 'totalBilled', key: 'totalBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Tổng thu', dataIndex: 'totalBilled', key: 'totalBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
         ] as ColumnsType<DispensingVsBillingItemDto>;
 
       case 'dispensing-vs-standards':
         return [
-          { title: 'Ma khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
-          { title: 'Ten khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
-          { title: 'So BN', dataIndex: 'patientCount', key: 'patientCount', width: 80, align: 'right' as const },
-          { title: 'Thuoc xuat', dataIndex: 'medicineDispensed', key: 'medicineDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'VT xuat', dataIndex: 'supplyDispensed', key: 'supplyDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong xuat', dataIndex: 'totalDispensed', key: 'totalDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'DM/BN', dataIndex: 'standardPerPatient', key: 'standardPerPatient', width: 100, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Tong DM', dataIndex: 'totalStandard', key: 'totalStandard', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
-          { title: 'Chenh lech', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
-          { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Dat' : 'Vuot'}</Tag> },
+          { title: 'Mã khoa', dataIndex: 'departmentCode', key: 'departmentCode', width: 90 },
+          { title: 'Tên khoa', dataIndex: 'departmentName', key: 'departmentName', width: 160 },
+          { title: 'Số BN', dataIndex: 'patientCount', key: 'patientCount', width: 80, align: 'right' as const },
+          { title: 'Thuốc xuất', dataIndex: 'medicineDispensed', key: 'medicineDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'VT xuất', dataIndex: 'supplyDispensed', key: 'supplyDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng xuất', dataIndex: 'totalDispensed', key: 'totalDispensed', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'ĐM/BN', dataIndex: 'standardPerPatient', key: 'standardPerPatient', width: 100, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Tổng ĐM', dataIndex: 'totalStandard', key: 'totalStandard', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
+          { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
+          { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Đạt' : 'Vượt'}</Tag> },
         ] as ColumnsType<DispensingVsStandardsItemDto>;
 
       default:
@@ -911,75 +911,75 @@ const ReconciliationTab: React.FC = () => {
       case 'supplier-procurement':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}><Statistic title="Tong NCC" value={summaryData.totalSuppliers} /></Col>
-            <Col span={6}><Statistic title="Tong mat hang" value={summaryData.totalItems} /></Col>
-            <Col span={6}><Statistic title="Gia tri hop dong" value={fmtMoney(summaryData.totalContractValue)} /></Col>
-            <Col span={6}><Statistic title="Ti le thuc hien" value={fmtPct(summaryData.fulfillmentRate)} /></Col>
+            <Col span={6}><Statistic title="Tổng NCC" value={summaryData.totalSuppliers} /></Col>
+            <Col span={6}><Statistic title="Tổng mặt hàng" value={summaryData.totalItems} /></Col>
+            <Col span={6}><Statistic title="Giá trị hợp đồng" value={fmtMoney(summaryData.totalContractValue)} /></Col>
+            <Col span={6}><Statistic title="Tỷ lệ thực hiện" value={fmtPct(summaryData.fulfillmentRate)} /></Col>
           </Row>
         );
       case 'revenue-by-record':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={5}><Statistic title="Tong HSBA" value={summaryData.totalRecords} /></Col>
-            <Col span={5}><Statistic title="Tong doanh thu" value={fmtMoney(summaryData.totalRevenue)} /></Col>
-            <Col span={5}><Statistic title="Tong chi phi" value={fmtMoney(summaryData.totalCost)} /></Col>
-            <Col span={5}><Statistic title="Tong loi nhuan" value={fmtMoney(summaryData.totalProfit)} styles={{ content: { color: summaryData.totalProfit >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
-            <Col span={4}><Statistic title="TB ty suat LN" value={fmtPct(summaryData.averageProfitMargin)} /></Col>
+            <Col span={5}><Statistic title="Tổng HSBA" value={summaryData.totalRecords} /></Col>
+            <Col span={5}><Statistic title="Tổng doanh thu" value={fmtMoney(summaryData.totalRevenue)} /></Col>
+            <Col span={5}><Statistic title="Tổng chi phí" value={fmtMoney(summaryData.totalCost)} /></Col>
+            <Col span={5}><Statistic title="Tổng lợi nhuận" value={fmtMoney(summaryData.totalProfit)} styles={{ content: { color: summaryData.totalProfit >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={4}><Statistic title="TB tỷ suất LN" value={fmtPct(summaryData.averageProfitMargin)} /></Col>
           </Row>
         );
       case 'dept-cost-vs-fees':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={8}><Statistic title="Tong CP khoa phong" value={fmtMoney(summaryData.totalDeptCost)} /></Col>
-            <Col span={8}><Statistic title="Tong VP thu" value={fmtMoney(summaryData.totalHospitalFees)} /></Col>
-            <Col span={8}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={8}><Statistic title="Tổng CP khoa phòng" value={fmtMoney(summaryData.totalDeptCost)} /></Col>
+            <Col span={8}><Statistic title="Tổng VP thu" value={fmtMoney(summaryData.totalHospitalFees)} /></Col>
+            <Col span={8}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
           </Row>
         );
       case 'record-cost-summary':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={4}><Statistic title="Tong HSBA" value={summaryData.totalRecords} /></Col>
-            <Col span={5}><Statistic title="Tong su dung" value={fmtMoney(summaryData.totalUsed)} /></Col>
-            <Col span={5}><Statistic title="Tong da thu" value={fmtMoney(summaryData.totalCollected)} /></Col>
-            <Col span={4}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
-            <Col span={3}><Statistic title="Thu du" value={summaryData.overchargedCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
-            <Col span={3}><Statistic title="Thu thieu" value={summaryData.underchargedCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
+            <Col span={4}><Statistic title="Tổng HSBA" value={summaryData.totalRecords} /></Col>
+            <Col span={5}><Statistic title="Tổng sử dụng" value={fmtMoney(summaryData.totalUsed)} /></Col>
+            <Col span={5}><Statistic title="Tổng đã thu" value={fmtMoney(summaryData.totalCollected)} /></Col>
+            <Col span={4}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={3}><Statistic title="Thu đủ" value={summaryData.overchargedCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
+            <Col span={3}><Statistic title="Thu thiếu" value={summaryData.underchargedCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
           </Row>
         );
       case 'fees-vs-standards':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={4}><Statistic title="Tong DV" value={summaryData.totalServices} /></Col>
-            <Col span={5}><Statistic title="Tong thuc te" value={fmtMoney(summaryData.totalActualFees)} /></Col>
-            <Col span={5}><Statistic title="Tong dinh muc" value={fmtMoney(summaryData.totalStandardFees)} /></Col>
-            <Col span={5}><Statistic title="Dat dinh muc" value={summaryData.withinStandardCount} styles={{ content: { color: '#52c41a' } }} /></Col>
-            <Col span={5}><Statistic title="Vuot dinh muc" value={summaryData.exceedStandardCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
+            <Col span={4}><Statistic title="Tổng DV" value={summaryData.totalServices} /></Col>
+            <Col span={5}><Statistic title="Tổng thực tế" value={fmtMoney(summaryData.totalActualFees)} /></Col>
+            <Col span={5}><Statistic title="Tổng định mức" value={fmtMoney(summaryData.totalStandardFees)} /></Col>
+            <Col span={5}><Statistic title="Đạt định mức" value={summaryData.withinStandardCount} styles={{ content: { color: '#52c41a' } }} /></Col>
+            <Col span={5}><Statistic title="Vượt định mức" value={summaryData.exceedStandardCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
           </Row>
         );
       case 'service-order-doctors':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}><Statistic title="Tong chi dinh" value={summaryData.totalOrders} /></Col>
-            <Col span={6}><Statistic title="Cung BS" value={summaryData.sameDoctorCount} styles={{ content: { color: '#52c41a' } }} /></Col>
-            <Col span={6}><Statistic title="Khac BS" value={summaryData.differentDoctorCount} styles={{ content: { color: '#1890ff' } }} /></Col>
-            <Col span={6}><Statistic title="Chua TH" value={summaryData.noExecutorCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
+            <Col span={6}><Statistic title="Tổng chỉ định" value={summaryData.totalOrders} /></Col>
+            <Col span={6}><Statistic title="Cùng BS" value={summaryData.sameDoctorCount} styles={{ content: { color: '#52c41a' } }} /></Col>
+            <Col span={6}><Statistic title="Khác BS" value={summaryData.differentDoctorCount} styles={{ content: { color: '#1890ff' } }} /></Col>
+            <Col span={6}><Statistic title="Chưa TH" value={summaryData.noExecutorCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
           </Row>
         );
       case 'dispensing-vs-billing':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={8}><Statistic title="Tong xuat kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
-            <Col span={8}><Statistic title="Tong vien phi thu" value={fmtMoney(summaryData.totalBilled)} /></Col>
-            <Col span={8}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={8}><Statistic title="Tổng xuất kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
+            <Col span={8}><Statistic title="Tổng viện phí thu" value={fmtMoney(summaryData.totalBilled)} /></Col>
+            <Col span={8}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
           </Row>
         );
       case 'dispensing-vs-standards':
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}><Statistic title="Tong khoa" value={summaryData.totalDepartments} /></Col>
-            <Col span={6}><Statistic title="Tong xuat kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
-            <Col span={6}><Statistic title="Tong dinh muc" value={fmtMoney(summaryData.totalStandard)} /></Col>
-            <Col span={6}><Statistic title="Chenh lech" value={fmtMoney(summaryData.totalDispensed - summaryData.totalStandard)} styles={{ content: { color: (summaryData.totalDispensed - summaryData.totalStandard) <= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={6}><Statistic title="Tổng khoa" value={summaryData.totalDepartments} /></Col>
+            <Col span={6}><Statistic title="Tổng xuất kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
+            <Col span={6}><Statistic title="Tổng định mức" value={fmtMoney(summaryData.totalStandard)} /></Col>
+            <Col span={6}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDispensed - summaryData.totalStandard)} styles={{ content: { color: (summaryData.totalDispensed - summaryData.totalStandard) <= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
           </Row>
         );
       default:
@@ -992,8 +992,8 @@ const ReconciliationTab: React.FC = () => {
     return (
       <div>
         <Alert
-          title="Doi chieu Level 6 - Theo TT 54/2017/TT-BYT, TT 32/2023/TT-BYT"
-          description="8 bao cao doi chieu danh cho benh vien hang 6. Chon loai bao cao de bat dau."
+          title="Đối chiếu Level 6 - Theo TT 54/2017/TT-BYT, TT 32/2023/TT-BYT"
+          description="8 báo cáo đối chiếu dành cho bệnh viện hạng 6. Chọn loại báo cáo để bắt đầu."
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -1048,7 +1048,7 @@ const ReconciliationTab: React.FC = () => {
         {/* Filters */}
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={8}>
-            <Text strong>Thoi gian:</Text>
+            <Text strong>Thời gian:</Text>
             <br />
             <RangePicker
               format="DD/MM/YYYY"
@@ -1062,24 +1062,24 @@ const ReconciliationTab: React.FC = () => {
             />
           </Col>
           <Col span={8}>
-            <Text strong>{currentReport?.hasSupplierFilter ? 'NCC:' : 'Khoa/Phong:'}</Text>
+            <Text strong>{currentReport?.hasSupplierFilter ? 'NCC:' : 'Khoa/Phòng:'}</Text>
             <br />
             <Select
               style={{ width: '100%', marginTop: 8 }}
               value={departmentFilter}
               onChange={setDepartmentFilter}
               allowClear
-              placeholder={currentReport?.hasSupplierFilter ? 'Tat ca NCC' : 'Tat ca khoa/phong'}
+              placeholder={currentReport?.hasSupplierFilter ? 'Tất cả NCC' : 'Tất cả khoa/phòng'}
             >
               {!currentReport?.hasSupplierFilter && (
                 <>
-                  <Select.Option value="noi">Khoa Noi</Select.Option>
-                  <Select.Option value="ngoai">Khoa Ngoai</Select.Option>
-                  <Select.Option value="san">Khoa San</Select.Option>
+                  <Select.Option value="noi">Khoa Nội</Select.Option>
+                  <Select.Option value="ngoai">Khoa Ngoại</Select.Option>
+                  <Select.Option value="san">Khoa Sản</Select.Option>
                   <Select.Option value="nhi">Khoa Nhi</Select.Option>
-                  <Select.Option value="xn">Khoa Xet nghiem</Select.Option>
-                  <Select.Option value="cdha">Khoa CDHA</Select.Option>
-                  <Select.Option value="duoc">Khoa Duoc</Select.Option>
+                  <Select.Option value="xn">Khoa Xét nghiệm</Select.Option>
+                  <Select.Option value="cdha">Khoa CĐHA</Select.Option>
+                  <Select.Option value="duoc">Khoa Dược</Select.Option>
                 </>
               )}
             </Select>
@@ -1094,14 +1094,14 @@ const ReconciliationTab: React.FC = () => {
               loading={loading}
               style={{ marginTop: 8 }}
             >
-              Chay bao cao
+              Chạy báo cáo
             </Button>
           </Col>
         </Row>
 
         <Divider />
 
-        <Spin spinning={loading} tip="Dang tai du lieu...">
+        <Spin spinning={loading} tip="Đang tải dữ liệu...">
           {/* Summary Statistics */}
           {renderSummary()}
 
@@ -1113,14 +1113,14 @@ const ReconciliationTab: React.FC = () => {
               rowKey={(record: any, index?: number) => record.supplierId || record.medicalRecordId || record.departmentId || record.serviceId || record.serviceRequestId || record.departmentCode || `row-${index}`} // eslint-disable-line @typescript-eslint/no-explicit-any
               size="small"
               scroll={{ x: 1200 }}
-              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Tong: ${total} dong` }}
+              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Tổng: ${total} dòng` }}
               bordered
             />
           ) : (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
               <FileSearchOutlined style={{ fontSize: 48, marginBottom: 16 }} />
               <br />
-              <Text type="secondary">Chon thoi gian va nhan "Chay bao cao" de xem du lieu</Text>
+              <Text type="secondary">Chọn thời gian và nhấn "Chạy báo cáo" để xem dữ liệu</Text>
             </div>
           )}
         </Spin>
@@ -1163,7 +1163,7 @@ const FullReportsContent: React.FC = () => {
   // Handle export to Excel, PDF, or Print
   const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'print') => {
     if (!selectedReport) {
-      message.warning('Vui long chon bao cao');
+      message.warning('Vui lòng chọn báo cáo');
       return;
     }
 
@@ -1184,17 +1184,17 @@ const FullReportsContent: React.FC = () => {
           printWindow.focus();
           printWindow.print();
         } else {
-          message.error('Trinh duyet da chan cua so pop-up. Vui long cho phep pop-up de in bao cao.');
+          message.error('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up để in báo cáo.');
         }
       } else {
         const extension = format === 'excel' ? 'xlsx' : 'pdf';
         const filename = `${reportName}_${dateRange[0].format('YYYYMMDD')}_${dateRange[1].format('YYYYMMDD')}.${extension}`;
         downloadBlob(blob, filename);
-        message.success(`Da xuat bao cao ra ${formatName} thanh cong`);
+        message.success(`Đã xuất báo cáo ra ${formatName} thành công`);
       }
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error exporting report:', error);
-      message.error(`Xuat bao cao ra ${formatName} that bai. Vui long thu lai.`);
+      message.error(`Xuất báo cáo ra ${formatName} thất bại. Vui lòng thử lại.`);
     } finally {
       setExporting(false);
     }
@@ -1211,7 +1211,7 @@ const FullReportsContent: React.FC = () => {
       setPreviewVisible(true);
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error previewing report:', error);
-      message.error('Xem truoc bao cao that bai. Vui long thu lai.');
+      message.error('Xem trước báo cáo thất bại. Vui lòng thử lại.');
     } finally {
       setExporting(false);
     }
@@ -1224,10 +1224,10 @@ const FullReportsContent: React.FC = () => {
       const blob = await callReportApi(reportId, 'excel', dateRange, department, warehouseId || undefined);
       const filename = `${reportName}_${dateRange[0].format('YYYYMMDD')}_${dateRange[1].format('YYYYMMDD')}.xlsx`;
       downloadBlob(blob, filename);
-      message.success(`Da tai xuong: ${reportName}`);
+      message.success(`Đã tải xuống: ${reportName}`);
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error downloading report:', error);
-      message.error('Tai xuong bao cao that bai. Vui long thu lai.');
+      message.error('Tải xuống báo cáo thất bại. Vui lòng thử lại.');
     } finally {
       setExporting(false);
     }
@@ -1275,7 +1275,7 @@ const FullReportsContent: React.FC = () => {
 
   return (
     <>
-      <Spin spinning={exporting} tip="Dang xu ly bao cao...">
+      <Spin spinning={exporting} tip="Đang xử lý báo cáo...">
         <Row gutter={16}>
           {/* Left panel - Report categories + search */}
           <Col span={6}>
@@ -1283,13 +1283,13 @@ const FullReportsContent: React.FC = () => {
               title={
                 <Space>
                   <FolderOpenOutlined />
-                  <span>Danh muc ({totalReportCount} bao cao)</span>
+                  <span>Danh mục ({totalReportCount} báo cáo)</span>
                 </Space>
               }
               size="small"
             >
               <Search
-                placeholder="Tim bao cao (ten, ma 9.xx)..."
+                placeholder="Tìm báo cáo (tên, mã 9.xx)..."
                 allowClear
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
@@ -1299,7 +1299,7 @@ const FullReportsContent: React.FC = () => {
               {filteredReports ? (
                 <div style={{ maxHeight: 600, overflowY: 'auto' }}>
                   <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                    Tim thay {filteredReports.length} bao cao
+                    Tìm thấy {filteredReports.length} báo cáo
                   </Text>
                   {filteredReports.map((item) => (
                     <div
@@ -1386,7 +1386,7 @@ const FullReportsContent: React.FC = () => {
               {/* Filters row */}
               <Row gutter={16} style={{ marginBottom: 16 }}>
                 <Col span={isPharmacyCategory ? 6 : 8}>
-                  <Text strong>Thoi gian:</Text>
+                  <Text strong>Thời gian:</Text>
                   <br />
                   <RangePicker
                     format="DD/MM/YYYY"
@@ -1400,28 +1400,28 @@ const FullReportsContent: React.FC = () => {
                   />
                 </Col>
                 <Col span={isPharmacyCategory ? 5 : 8}>
-                  <Text strong>Khoa/Phong:</Text>
+                  <Text strong>Khoa/Phòng:</Text>
                   <br />
                   <Select
                     style={{ width: '100%', marginTop: 8 }}
                     defaultValue="all"
                     onChange={(value) => setDepartment(value)}
                   >
-                    <Select.Option value="all">Tat ca khoa/phong</Select.Option>
-                    <Select.Option value="noi">Khoa Noi</Select.Option>
-                    <Select.Option value="ngoai">Khoa Ngoai</Select.Option>
-                    <Select.Option value="san">Khoa San</Select.Option>
+                    <Select.Option value="all">Tất cả khoa/phòng</Select.Option>
+                    <Select.Option value="noi">Khoa Nội</Select.Option>
+                    <Select.Option value="ngoai">Khoa Ngoại</Select.Option>
+                    <Select.Option value="san">Khoa Sản</Select.Option>
                     <Select.Option value="nhi">Khoa Nhi</Select.Option>
-                    <Select.Option value="xn">Khoa Xet nghiem</Select.Option>
-                    <Select.Option value="cdha">Khoa CDHA</Select.Option>
-                    <Select.Option value="duoc">Khoa Duoc</Select.Option>
-                    <Select.Option value="cap_cuu">Khoa Cap cuu</Select.Option>
+                    <Select.Option value="xn">Khoa Xét nghiệm</Select.Option>
+                    <Select.Option value="cdha">Khoa CĐHA</Select.Option>
+                    <Select.Option value="duoc">Khoa Dược</Select.Option>
+                    <Select.Option value="cap_cuu">Khoa Cấp cứu</Select.Option>
                     <Select.Option value="hscc">HSCC</Select.Option>
                     <Select.Option value="phcn">Khoa PHCN</Select.Option>
                     <Select.Option value="tmh">Khoa TMH</Select.Option>
-                    <Select.Option value="mat">Khoa Mat</Select.Option>
+                    <Select.Option value="mat">Khoa Mắt</Select.Option>
                     <Select.Option value="rhm">Khoa RHM</Select.Option>
-                    <Select.Option value="da_lieu">Khoa Da lieu</Select.Option>
+                    <Select.Option value="da_lieu">Khoa Da liễu</Select.Option>
                   </Select>
                 </Col>
                 {isPharmacyCategory && (
@@ -1433,21 +1433,21 @@ const FullReportsContent: React.FC = () => {
                       value={warehouseId || undefined}
                       onChange={(value) => setWarehouseId(value || '')}
                       allowClear
-                      placeholder="Tat ca kho"
+                      placeholder="Tất cả kho"
                     >
-                      <Select.Option value="kho_thuoc">Kho Thuoc</Select.Option>
+                      <Select.Option value="kho_thuoc">Kho Thuốc</Select.Option>
                       <Select.Option value="kho_vtyt">Kho VTYT</Select.Option>
-                      <Select.Option value="kho_hc">Kho Hoa chat</Select.Option>
-                      <Select.Option value="tu_truc">Tu truc</Select.Option>
-                      <Select.Option value="nha_thuoc">Nha thuoc</Select.Option>
+                      <Select.Option value="kho_hc">Kho Hóa chất</Select.Option>
+                      <Select.Option value="tu_truc">Tủ trực</Select.Option>
+                      <Select.Option value="nha_thuoc">Nhà thuốc</Select.Option>
                     </Select>
                   </Col>
                 )}
                 <Col span={isPharmacyCategory ? 8 : 8}>
-                  <Text strong>Xuat bao cao:</Text>
+                  <Text strong>Xuất báo cáo:</Text>
                   <br />
                   <Space style={{ marginTop: 8 }}>
-                    <Tooltip title="Xuat Excel">
+                    <Tooltip title="Xuất Excel">
                       <Button
                         icon={<FileExcelOutlined />}
                         onClick={() => handleExport('excel')}
@@ -1457,7 +1457,7 @@ const FullReportsContent: React.FC = () => {
                         Excel
                       </Button>
                     </Tooltip>
-                    <Tooltip title="Xuat PDF">
+                    <Tooltip title="Xuất PDF">
                       <Button
                         icon={<FilePdfOutlined />}
                         onClick={() => handleExport('pdf')}
@@ -1467,7 +1467,7 @@ const FullReportsContent: React.FC = () => {
                         PDF
                       </Button>
                     </Tooltip>
-                    <Tooltip title="In bao cao">
+                    <Tooltip title="In báo cáo">
                       <Button
                         icon={<PrinterOutlined />}
                         onClick={() => handleExport('print')}
@@ -1522,7 +1522,7 @@ const FullReportsContent: React.FC = () => {
                                   handlePreview(item.id, `[${item.code}] ${item.name}`);
                                 }}
                               >
-                                Xem truoc
+                                Xem trước
                               </Button>
                               <Button
                                 size="small"
@@ -1557,7 +1557,7 @@ const FullReportsContent: React.FC = () => {
             </Card>
 
             {/* Quick access to common reports */}
-            <Card title="Bao cao thuong dung" size="small" style={{ marginTop: 12 }}>
+            <Card title="Báo cáo thường dùng" size="small" style={{ marginTop: 12 }}>
               <Row gutter={[12, 12]}>
                 <Col span={4}>
                   <Button
@@ -1566,7 +1566,7 @@ const FullReportsContent: React.FC = () => {
                     icon={<BarChartOutlined />}
                     onClick={() => { setActiveCategory('clinical'); setSelectedReport('r9_7'); }}
                   >
-                    HĐ kham benh
+                    HĐ khám bệnh
                   </Button>
                 </Col>
                 <Col span={4}>
@@ -1576,7 +1576,7 @@ const FullReportsContent: React.FC = () => {
                     icon={<HomeOutlined />}
                     onClick={() => { setActiveCategory('inpatient'); setSelectedReport('r9_6'); }}
                   >
-                    Giao ban giuong
+                    Giao ban giường
                   </Button>
                 </Col>
                 <Col span={4}>
@@ -1586,7 +1586,7 @@ const FullReportsContent: React.FC = () => {
                     icon={<DollarOutlined />}
                     onClick={() => { setActiveCategory('finance'); setSelectedReport('r9_42'); }}
                   >
-                    TH vien phi
+                    TH viện phí
                   </Button>
                 </Col>
                 <Col span={4}>
@@ -1606,7 +1606,7 @@ const FullReportsContent: React.FC = () => {
                     icon={<ExperimentOutlined />}
                     onClick={() => { setActiveCategory('paraclinical'); setSelectedReport('r9_5'); }}
                   >
-                    TH hoat dong CLS
+                    TH hoạt động CLS
                   </Button>
                 </Col>
                 <Col span={4}>
@@ -1657,7 +1657,7 @@ const FullReportsContent: React.FC = () => {
               }
             }}
           >
-            Tai xuong Excel
+            Tải xuống Excel
           </Button>,
         ]}
         width={900}
@@ -1724,7 +1724,7 @@ const FullReportsContent: React.FC = () => {
 const Reports: React.FC = () => {
   return (
     <div>
-      <Title level={4}>Ho so benh an & Bao cao thong ke</Title>
+      <Title level={4}>Hồ sơ bệnh án &amp; Báo cáo thống kê</Title>
 
       <Tabs
         items={[
@@ -1744,7 +1744,7 @@ const Reports: React.FC = () => {
             label: (
               <Space>
                 <AuditOutlined />
-                <span>Doi chieu Level 6</span>
+                <span>Đối chiếu Level 6</span>
                 <Badge count={8} style={{ backgroundColor: '#722ed1' }} size="small" />
               </Space>
             ),

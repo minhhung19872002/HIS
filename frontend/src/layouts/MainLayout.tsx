@@ -234,16 +234,18 @@ const MainLayout: React.FC = () => {
   const contentMargin = isMobile ? '8px 4px' : isTablet ? '12px 8px' : '24px 16px';
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', height: '100vh' }}>
       {/* Desktop/Tablet: Fixed sidebar */}
       {!isMobile && (
         <Sider
           trigger={null}
           collapsible
           collapsed={collapsed}
+          width={240}
           theme="dark"
           breakpoint="lg"
           collapsedWidth={isTablet ? 0 : 80}
+          style={{ overflow: 'auto', height: '100vh', position: 'sticky', top: 0, left: 0 }}
         >
           {sidebarMenu}
         </Sider>
@@ -263,7 +265,7 @@ const MainLayout: React.FC = () => {
         </Drawer>
       )}
 
-      <Layout>
+      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
         <Header style={{
           padding: isMobile ? '0 12px' : '0 24px',
           background: '#fff',
@@ -271,9 +273,8 @@ const MainLayout: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           boxShadow: '0 1px 4px rgba(0,21,41,.08)',
-          position: 'sticky',
-          top: 0,
           zIndex: 10,
+          flex: '0 0 64px',
         }}>
           {React.createElement(
             isMobile ? MenuUnfoldOutlined : (collapsed ? MenuUnfoldOutlined : MenuFoldOutlined),
@@ -299,8 +300,8 @@ const MainLayout: React.FC = () => {
           padding: contentPadding,
           background: '#fff',
           borderRadius: 8,
-          minHeight: 280,
           overflow: 'auto',
+          flex: 1,
         }}>
           <ErrorBoundary>
             <Outlet />

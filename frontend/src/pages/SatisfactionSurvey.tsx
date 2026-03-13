@@ -275,7 +275,7 @@ const SatisfactionSurvey: React.FC = () => {
   const handleSaveConfig = async () => {
     try {
       await client.put('/satisfaction-survey/config', config);
-      message.success('Luu cau hinh thanh cong');
+      message.success('Lưu cấu hình thành công');
     } catch {
       console.warn('Failed to save survey config');
       message.warning('Không thể lưu cấu hình');
@@ -550,12 +550,12 @@ const SatisfactionSurvey: React.FC = () => {
               <Switch
                 checked={config.autoSend}
                 onChange={(checked) => setConfig(prev => ({ ...prev, autoSend: checked }))}
-                checkedChildren="Bat"
-                unCheckedChildren="Tat"
+                checkedChildren="Bật"
+                unCheckedChildren="Tắt"
               />
             </Form.Item>
 
-            <Form.Item label="Thoi gian gui sau khi ra vien">
+            <Form.Item label="Thời gian gửi sau khi ra viện">
               <Space>
                 <InputNumber
                   min={1}
@@ -564,11 +564,11 @@ const SatisfactionSurvey: React.FC = () => {
                   onChange={(val) => setConfig(prev => ({ ...prev, sendDelayHours: val || 24 }))}
                   style={{ width: 120 }}
                 />
-                <Text>gio</Text>
+                <Text>giờ</Text>
               </Space>
             </Form.Item>
 
-            <Form.Item label="Kenh gui khao sat">
+            <Form.Item label="Kênh gửi khảo sát">
               <Checkbox.Group
                 options={CHANNEL_OPTIONS}
                 value={config.channels}
@@ -576,13 +576,13 @@ const SatisfactionSurvey: React.FC = () => {
               />
             </Form.Item>
 
-            <Form.Item label="Gui nhac lai">
+            <Form.Item label="Gửi nhắc lại">
               <Space orientation="horizontal">
                 <Switch
                   checked={config.reminderEnabled}
                   onChange={(checked) => setConfig(prev => ({ ...prev, reminderEnabled: checked }))}
-                  checkedChildren="Bat"
-                  unCheckedChildren="Tat"
+                  checkedChildren="Bật"
+                  unCheckedChildren="Tắt"
                 />
                 {config.reminderEnabled && (
                   <Space>
@@ -594,7 +594,7 @@ const SatisfactionSurvey: React.FC = () => {
                       onChange={(val) => setConfig(prev => ({ ...prev, reminderAfterHours: val || 48 }))}
                       style={{ width: 100 }}
                     />
-                    <Text>gio</Text>
+                    <Text>giờ</Text>
                   </Space>
                 )}
               </Space>
@@ -602,7 +602,7 @@ const SatisfactionSurvey: React.FC = () => {
 
             <Form.Item>
               <Button type="primary" onClick={handleSaveConfig}>
-                Luu cau hinh
+                Lưu cấu hình
               </Button>
             </Form.Item>
           </Form>
@@ -615,15 +615,15 @@ const SatisfactionSurvey: React.FC = () => {
     <Spin spinning={loading}>
       <div style={{ padding: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>Khao sat hai long</Title>
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
+          <Title level={3} style={{ margin: 0 }}>Khảo sát hài lòng</Title>
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
         </div>
 
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={6}>
             <Card size="small">
               <Statistic
-                title="Tong khao sat"
+                title="Tổng khảo sát"
                 value={stats.totalSurveys}
                 prefix={<FormOutlined />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -633,7 +633,7 @@ const SatisfactionSurvey: React.FC = () => {
           <Col span={6}>
             <Card size="small">
               <Statistic
-                title="Da tra loi"
+                title="Đã trả lời"
                 value={stats.totalResponses}
                 styles={{ content: { color: '#52c41a' } }}
               />
@@ -642,7 +642,7 @@ const SatisfactionSurvey: React.FC = () => {
           <Col span={6}>
             <Card size="small">
               <Statistic
-                title="Ty le hai long"
+                title="Tỷ lệ hài lòng"
                 value={stats.satisfactionRate}
                 suffix="%"
                 styles={{ content: { color: stats.satisfactionRate >= 80 ? '#52c41a' : '#fa8c16' } }}
@@ -652,7 +652,7 @@ const SatisfactionSurvey: React.FC = () => {
           <Col span={6}>
             <Card size="small">
               <Statistic
-                title="Diem trung binh"
+                title="Điểm trung bình"
                 value={stats.averageScore}
                 precision={1}
                 suffix="/ 5"
@@ -688,9 +688,9 @@ const SatisfactionSurvey: React.FC = () => {
 
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text strong>Danh sach cau hoi ({questions.length})</Text>
+              <Text strong>Danh sách câu hỏi ({questions.length})</Text>
               <Button type="dashed" icon={<PlusOutlined />} onClick={addQuestion} size="small">
-                Them cau hoi
+                Thêm câu hỏi
               </Button>
             </div>
 
@@ -699,7 +699,7 @@ const SatisfactionSurvey: React.FC = () => {
                 key={q.id}
                 size="small"
                 style={{ marginBottom: 8 }}
-                title={`Cau ${index + 1}`}
+                title={`Câu ${index + 1}`}
                 extra={
                   <Button type="link" danger icon={<DeleteOutlined />} onClick={() => removeQuestion(q.id)} size="small" />
                 }
@@ -707,7 +707,7 @@ const SatisfactionSurvey: React.FC = () => {
                 <Row gutter={12}>
                   <Col span={14}>
                     <Input
-                      placeholder="Noi dung cau hoi"
+                      placeholder="Nội dung câu hỏi"
                       value={q.text}
                       onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
                     />
@@ -725,7 +725,7 @@ const SatisfactionSurvey: React.FC = () => {
                       checked={q.required}
                       onChange={(e) => updateQuestion(q.id, 'required', e.target.checked)}
                     >
-                      Bat buoc
+                      Bắt buộc
                     </Checkbox>
                   </Col>
                 </Row>
@@ -736,7 +736,7 @@ const SatisfactionSurvey: React.FC = () => {
 
         {/* Result Detail Drawer */}
         <Drawer
-          title="Chi tiet phieu khao sat"
+          title="Chi tiết phiếu khảo sát"
           open={detailDrawerOpen}
           onClose={() => setDetailDrawerOpen(false)}
           size="default"
@@ -744,22 +744,22 @@ const SatisfactionSurvey: React.FC = () => {
           {selectedResult && (
             <div>
               <Descriptions column={1} bordered size="small" style={{ marginBottom: 24 }}>
-                <Descriptions.Item label="Ma benh nhan">{selectedResult.patientCode}</Descriptions.Item>
-                <Descriptions.Item label="Ho ten">{selectedResult.patientName}</Descriptions.Item>
-                <Descriptions.Item label="Mau khao sat">{selectedResult.templateName}</Descriptions.Item>
-                <Descriptions.Item label="Ngay">{dayjs(selectedResult.date).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
-                <Descriptions.Item label="Diem tong">
+                <Descriptions.Item label="Mã bệnh nhân">{selectedResult.patientCode}</Descriptions.Item>
+                <Descriptions.Item label="Họ tên">{selectedResult.patientName}</Descriptions.Item>
+                <Descriptions.Item label="Mẫu khảo sát">{selectedResult.templateName}</Descriptions.Item>
+                <Descriptions.Item label="Ngày">{dayjs(selectedResult.date).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+                <Descriptions.Item label="Điểm tổng">
                   <Rate disabled value={Math.round(selectedResult.score)} />
                   <Text style={{ marginLeft: 8 }}>{selectedResult.score?.toFixed(1)} / 5</Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="Trang thai">
+                <Descriptions.Item label="Trạng thái">
                   <Tag color={selectedResult.status === 'completed' ? 'green' : 'orange'}>
                     {selectedResult.status === 'completed' ? 'Hoàn thành' : 'Đang dở'}
                   </Tag>
                 </Descriptions.Item>
               </Descriptions>
 
-              <Title level={5}>Chi tiet tra loi</Title>
+              <Title level={5}>Chi tiết trả lời</Title>
               {selectedResult.answers?.length > 0 ? (
                 selectedResult.answers.map((a, i) => (
                   <Card key={i} size="small" style={{ marginBottom: 8 }}>
@@ -774,7 +774,7 @@ const SatisfactionSurvey: React.FC = () => {
                   </Card>
                 ))
               ) : (
-                <Text type="secondary">Khong co du lieu tra loi.</Text>
+                <Text type="secondary">Không có dữ liệu trả lời.</Text>
               )}
             </div>
           )}
