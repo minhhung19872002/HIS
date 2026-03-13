@@ -229,6 +229,31 @@ namespace HIS.Application.Services
         Task<SyncResultDto> SyncBHXHICD10Async();
         Task<DateTime?> GetLastSyncDateAsync(string syncType);
 
+        // 13.20 Nghề nghiệp (Occupation)
+        Task<List<OccupationCatalogDto>> GetOccupationsAsync(string? keyword = null, bool? isActive = null);
+        Task<OccupationCatalogDto> SaveOccupationAsync(OccupationCatalogDto dto);
+        Task<bool> DeleteOccupationAsync(Guid occupationId);
+
+        // 13.21 Giới tính (Gender)
+        Task<List<GenderCatalogDto>> GetGendersAsync(string? keyword = null, bool? isActive = null);
+        Task<GenderCatalogDto> SaveGenderAsync(GenderCatalogDto dto);
+        Task<bool> DeleteGenderAsync(Guid genderId);
+
+        // 13.22 Đơn vị hành chính (Administrative Division)
+        Task<List<AdministrativeDivisionCatalogDto>> GetAdministrativeDivisionsAsync(string? keyword = null, int? level = null, string? parentCode = null, bool? isActive = null);
+        Task<AdministrativeDivisionCatalogDto> SaveAdministrativeDivisionAsync(AdministrativeDivisionCatalogDto dto);
+        Task<bool> DeleteAdministrativeDivisionAsync(Guid divisionId);
+
+        // 13.23 Quốc gia (Country)
+        Task<List<CountryCatalogDto>> GetCountriesAsync(string? keyword = null, bool? isActive = null);
+        Task<CountryCatalogDto> SaveCountryAsync(CountryCatalogDto dto);
+        Task<bool> DeleteCountryAsync(Guid countryId);
+
+        // 13.24 Cơ sở KCB (Healthcare Facility)
+        Task<List<HealthcareFacilityCatalogDto>> GetHealthcareFacilitiesAsync(string? keyword = null, string? level = null, string? provinceCode = null, bool? isActive = null);
+        Task<HealthcareFacilityCatalogDto> SaveHealthcareFacilityAsync(HealthcareFacilityCatalogDto dto);
+        Task<bool> DeleteHealthcareFacilityAsync(Guid facilityId);
+
         #endregion
 
         #region Module 15: Báo cáo Dược - 17 chức năng
@@ -496,6 +521,11 @@ namespace HIS.Application.Services
         Task<IntegrationConfigDto> SaveIntegrationConfigAsync(IntegrationConfigDto dto);
         Task<bool> TestIntegrationConnectionAsync(Guid integrationId);
         Task<List<IntegrationLogDto>> GetIntegrationLogsAsync(Guid integrationId, DateTime? fromDate = null, DateTime? toDate = null);
+
+        // 17.11 Khóa dịch vụ (Service Locking)
+        Task<List<LockedServiceDto>> GetLockedServicesAsync();
+        Task<LockedServiceDto> LockServiceAsync(LockServiceRequestDto dto, string userId, string userName);
+        Task<bool> UnlockServiceAsync(UnlockServiceRequestDto dto);
 
         #endregion
     }

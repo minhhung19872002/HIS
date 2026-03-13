@@ -39,6 +39,9 @@ import {
   OrderedListOutlined,
   ReloadOutlined,
   ScanOutlined,
+  WarningOutlined,
+  ToolOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -55,6 +58,7 @@ import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useKeyboardShortcuts, formatShortcut } from '../hooks/useKeyboardShortcuts';
 import cdsApi from '../api/clinicalDecisionSupport';
+import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
 import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
 
 // Type aliases for compatibility
@@ -162,6 +166,17 @@ const OPD: React.FC = () => {
 
   // Barcode scanner
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  // Sick leave modal
+  const [isSickLeaveModalOpen, setIsSickLeaveModalOpen] = useState(false);
+  const [sickLeaveForm] = Form.useForm();
+  const [savingSickLeave, setSavingSickLeave] = useState(false);
+
+  // Supply ordering
+  const [supplySearchKeyword, setSupplySearchKeyword] = useState('');
+  const [supplySearchResults, setSupplySearchResults] = useState<StockDto[]>([]);
+  const [searchingSupplies, setSearchingSupplies] = useState(false);
+  const [supplyOrders, setSupplyOrders] = useState<{ id: string; itemId: string; itemCode: string; itemName: string; unit: string; quantity: number; stockQuantity: number }[]>([]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -509,25 +524,66 @@ const OPD: React.FC = () => {
     }
   };
 
-  const handleAddOrder = (serviceId: string, orderType: number) => {
+  const handleAddOrder = async (serviceId: string, orderType: number) => {
     const selectedService = serviceOptions.find((opt) => opt.value === serviceId);
     if (!selectedService) return;
 
-    const newOrder: TreatmentOrder = {
-      id: `temp-${Date.now()}`,
-      serviceId: selectedService.data.id,
-      serviceName: selectedService.data.name,
-      serviceCode: selectedService.data.code,
-      quantity: 1,
-      unitPrice: selectedService.data.unitPrice,
-      amount: selectedService.data.unitPrice,
-      paymentSource: 1,
-      insuranceRatio: 0,
-      status: 0,
+    const addOrderToList = () => {
+      const newOrder: TreatmentOrder = {
+        id: `temp-${Date.now()}`,
+        serviceId: selectedService.data.id,
+        serviceName: selectedService.data.name,
+        serviceCode: selectedService.data.code,
+        quantity: 1,
+        unitPrice: selectedService.data.unitPrice,
+        amount: selectedService.data.unitPrice,
+        paymentSource: 1,
+        insuranceRatio: 0,
+        status: 0,
+      };
+      setOrders((prev) => [...prev, newOrder]);
+      message.success('Đã thêm chỉ định');
     };
 
-    setOrders([...orders, newOrder]);
-    message.success('Đã thêm chỉ định');
+    // Check for duplicate services
+    if (examination && !examination.id.startsWith('temp-')) {
+      try {
+        const allServiceIds = [...orders.map(o => o.serviceId), selectedService.data.id];
+        const response = await examinationApi.checkDuplicateServices(examination.id, allServiceIds);
+        const warnings = response.data;
+        if (warnings && warnings.length > 0) {
+          Modal.confirm({
+            title: 'Cảnh báo dịch vụ trùng lặp',
+            icon: <WarningOutlined style={{ color: '#faad14' }} />,
+            content: (
+              <div>
+                <p>Phát hiện các dịch vụ có thể trùng lặp:</p>
+                <ul style={{ paddingLeft: 20 }}>
+                  {warnings.map((w, i) => (
+                    <li key={i} style={{ color: w.isBlocking ? '#ff4d4f' : '#faad14', marginBottom: 4 }}>
+                      {w.message}
+                    </li>
+                  ))}
+                </ul>
+                {warnings.some(w => w.isBlocking)
+                  ? <p style={{ color: '#ff4d4f', fontWeight: 'bold' }}>Không thể thêm do có dịch vụ bị chặn.</p>
+                  : <p>Bạn có muốn tiếp tục thêm dịch vụ này không?</p>
+                }
+              </div>
+            ),
+            okText: 'Tiếp tục thêm',
+            cancelText: 'Hủy',
+            okButtonProps: { disabled: warnings.some(w => w.isBlocking) },
+            onOk: () => addOrderToList(),
+          });
+          return;
+        }
+      } catch {
+        // If duplicate check fails, still allow adding the order
+      }
+    }
+
+    addOrderToList();
   };
 
   const handleRemoveOrder = (index: number) => {
@@ -539,6 +595,202 @@ const OPD: React.FC = () => {
     const newOrders = [...orders];
     newOrders[index].quantity = quantity;
     setOrders(newOrders);
+  };
+
+  // Sick leave handlers
+  const handleOpenSickLeave = () => {
+    if (!examination || !selectedPatient) {
+      message.warning('Vui lòng chọn bệnh nhân');
+      return;
+    }
+    if (examination.id.startsWith('temp-')) {
+      message.warning('Bệnh nhân chưa được đăng ký khám');
+      return;
+    }
+    const primaryDiagnosis = diagnoses.find(d => d.diagnosisType === 1);
+    sickLeaveForm.setFieldsValue({
+      fromDate: dayjs(),
+      toDate: dayjs().add(3, 'day'),
+      days: 3,
+      reason: primaryDiagnosis ? `${primaryDiagnosis.icdCode} - ${primaryDiagnosis.icdName}` : '',
+    });
+    setIsSickLeaveModalOpen(true);
+  };
+
+  const handleSaveSickLeave = async () => {
+    if (!examination) return;
+    try {
+      setSavingSickLeave(true);
+      const values = await sickLeaveForm.validateFields();
+      await examinationApi.createSickLeave(examination.id, {
+        days: values.days,
+        fromDate: dayjs(values.fromDate).format('YYYY-MM-DD'),
+        toDate: dayjs(values.toDate).format('YYYY-MM-DD'),
+        reason: values.reason,
+      });
+      message.success('Đã tạo giấy nghỉ BHXH');
+      // Print
+      try {
+        const printRes = await examinationApi.printSickLeave(examination.id);
+        if (printRes.data) {
+          const blob = new Blob([printRes.data as BlobPart], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          const printWindow = window.open(url, '_blank');
+          if (printWindow) {
+            printWindow.onload = () => {
+              printWindow.print();
+            };
+          }
+        }
+      } catch {
+        message.warning('Đã lưu giấy nghỉ nhưng không thể in. Vui lòng in lại sau.');
+      }
+      setIsSickLeaveModalOpen(false);
+      sickLeaveForm.resetFields();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.warn('Error creating sick leave:', error);
+      message.error('Không thể tạo giấy nghỉ BHXH');
+    } finally {
+      setSavingSickLeave(false);
+    }
+  };
+
+  // Supply ordering handlers
+  const handleSearchSupplies = async (keyword: string) => {
+    if (!keyword || keyword.length < 2) {
+      setSupplySearchResults([]);
+      return;
+    }
+    try {
+      setSearchingSupplies(true);
+      const response = await getWarehouseStock({ keyword, itemType: 2, page: 0, pageSize: 20 });
+      const data = response?.data;
+      const items = (data as any)?.items || (data as any)?.data || [];
+      setSupplySearchResults(Array.isArray(items) ? items : []);
+    } catch {
+      setSupplySearchResults([]);
+    } finally {
+      setSearchingSupplies(false);
+    }
+  };
+
+  const handleAddSupplyOrder = (supply: StockDto) => {
+    // Check if already added
+    if (supplyOrders.find(s => s.itemId === supply.itemId)) {
+      message.warning('Vật tư đã có trong danh sách');
+      return;
+    }
+    setSupplyOrders((prev) => [
+      ...prev,
+      {
+        id: `supply-${Date.now()}`,
+        itemId: supply.itemId,
+        itemCode: supply.itemCode,
+        itemName: supply.itemName,
+        unit: supply.unit || 'Cái',
+        quantity: 1,
+        stockQuantity: supply.availableQuantity ?? supply.quantity ?? 0,
+      },
+    ]);
+    message.success(`Đã thêm vật tư: ${supply.itemName}`);
+  };
+
+  const handleRemoveSupplyOrder = (index: number) => {
+    setSupplyOrders((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateSupplyQuantity = (index: number, qty: number) => {
+    setSupplyOrders((prev) => {
+      const newOrders = [...prev];
+      newOrders[index] = { ...newOrders[index], quantity: qty };
+      return newOrders;
+    });
+  };
+
+  const handleSaveSupplyOrders = async () => {
+    if (!examination || examination.id.startsWith('temp-')) {
+      message.warning('Vui lòng chọn bệnh nhân từ danh sách chờ');
+      return;
+    }
+    if (supplyOrders.length === 0) {
+      message.warning('Chưa có vật tư nào được kê');
+      return;
+    }
+    try {
+      setSaving(true);
+      const primaryDiagnosis = diagnoses.find(d => d.diagnosisType === 1);
+      await examinationApi.createServiceOrders({
+        examinationId: examination.id,
+        diagnosisCode: primaryDiagnosis?.icdCode,
+        diagnosisName: primaryDiagnosis?.icdName,
+        autoSelectRoom: false,
+        calculateOptimalPath: false,
+        services: supplyOrders.map(supply => ({
+          serviceId: supply.itemId,
+          quantity: supply.quantity,
+          paymentType: 1,
+          isPriority: false,
+          isEmergency: false,
+          notes: `Vật tư: ${supply.itemCode} - ${supply.itemName}`,
+        })),
+      });
+      message.success(`Đã lưu ${supplyOrders.length} vật tư`);
+      setSupplyOrders([]);
+    } catch (error) {
+      console.warn('Error saving supply orders:', error);
+      message.error('Không thể lưu kê vật tư');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePrintSupplyOrders = () => {
+    if (!selectedPatient || supplyOrders.length === 0) {
+      message.warning('Chưa có vật tư để in');
+      return;
+    }
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.error('Không thể mở cửa sổ in');
+      return;
+    }
+    const totalItems = supplyOrders.reduce((sum, s) => sum + s.quantity, 0);
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head>
+        <title>Phiếu kê vật tư</title>
+        <style>
+          body { font-family: 'Times New Roman', serif; font-size: 13px; padding: 20px; }
+          .title { text-align: center; font-size: 16px; font-weight: bold; margin: 15px 0; }
+          table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+          th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+          th { background: #f0f0f0; }
+          .footer { display: flex; justify-content: space-between; margin-top: 30px; text-align: center; }
+          .footer div { width: 45%; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head><body>
+        <div class="title">PHIẾU KÊ VẬT TƯ Y TẾ</div>
+        <p><strong>Bệnh nhân:</strong> ${selectedPatient.fullName} &nbsp;&nbsp; <strong>Mã BN:</strong> ${selectedPatient.patientCode}</p>
+        <p><strong>Chẩn đoán:</strong> ${diagnoses.map(d => `${d.icdCode} - ${d.icdName}`).join('; ') || '-'}</p>
+        <p><strong>Ngày:</strong> ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
+        <table>
+          <thead><tr><th>STT</th><th>Mã VT</th><th>Tên vật tư</th><th>ĐVT</th><th>SL</th></tr></thead>
+          <tbody>
+            ${supplyOrders.map((s, i) => `<tr><td>${i + 1}</td><td>${s.itemCode}</td><td>${s.itemName}</td><td>${s.unit}</td><td>${s.quantity}</td></tr>`).join('')}
+          </tbody>
+          <tfoot><tr><td colspan="4"><strong>Tổng cộng</strong></td><td><strong>${totalItems}</strong></td></tr></tfoot>
+        </table>
+        <div class="footer">
+          <div><strong>Người kê</strong><br/><br/><br/>(Ký, ghi rõ họ tên)</div>
+          <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}<br/><strong>Bác sĩ điều trị</strong><br/><br/><br/>(Ký, ghi rõ họ tên)</div>
+        </div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 500);
   };
 
   const handleAutoSave = useCallback(async () => {
@@ -1405,6 +1657,13 @@ const OPD: React.FC = () => {
                   >
                     In
                   </Button>
+                  <Button
+                    icon={<CalendarOutlined />}
+                    onClick={handleOpenSickLeave}
+                    disabled={!examination?.id}
+                  >
+                    Giấy nghỉ BHXH
+                  </Button>
                 </Space>
               }
             >
@@ -2015,6 +2274,117 @@ const OPD: React.FC = () => {
                         </>
                       ),
                     },
+                    {
+                      key: 'supply-orders',
+                      label: (
+                        <span>
+                          <ToolOutlined /> Kê vật tư
+                        </span>
+                      ),
+                      children: (
+                        <>
+                          <Space style={{ marginBottom: 16 }} wrap>
+                            <AutoComplete
+                              style={{ width: 400 }}
+                              options={supplySearchResults.map((s) => ({
+                                value: s.id,
+                                label: `${s.itemCode} - ${s.itemName} (Tồn: ${s.availableQuantity ?? s.quantity ?? 0} ${s.unit || ''})`,
+                                data: s,
+                              }))}
+                              onSearch={handleSearchSupplies}
+                              onSelect={(_: string, option: any) => {
+                                if (option.data) handleAddSupplyOrder(option.data);
+                              }}
+                              placeholder="Tìm vật tư y tế..."
+                              value={supplySearchKeyword}
+                              onChange={setSupplySearchKeyword}
+                              notFoundContent={
+                                searchingSupplies ? <Spin size="small" /> : 'Không tìm thấy'
+                              }
+                            >
+                              <Input prefix={<SearchOutlined />} />
+                            </AutoComplete>
+                            <Button
+                              type="primary"
+                              icon={<SaveOutlined />}
+                              onClick={handleSaveSupplyOrders}
+                              loading={saving}
+                              disabled={supplyOrders.length === 0}
+                            >
+                              Lưu vật tư ({supplyOrders.length})
+                            </Button>
+                            <Button
+                              icon={<PrinterOutlined />}
+                              onClick={handlePrintSupplyOrders}
+                              disabled={supplyOrders.length === 0}
+                            >
+                              In phiếu
+                            </Button>
+                          </Space>
+
+                          <Table
+                            columns={[
+                              {
+                                title: 'Mã VT',
+                                dataIndex: 'itemCode',
+                                width: 100,
+                              },
+                              {
+                                title: 'Tên vật tư',
+                                dataIndex: 'itemName',
+                              },
+                              {
+                                title: 'ĐVT',
+                                dataIndex: 'unit',
+                                width: 80,
+                              },
+                              {
+                                title: 'Tồn kho',
+                                dataIndex: 'stockQuantity',
+                                width: 90,
+                                render: (qty: number) => (
+                                  <Tag color={qty > 0 ? 'green' : 'red'}>{qty}</Tag>
+                                ),
+                              },
+                              {
+                                title: 'Số lượng',
+                                dataIndex: 'quantity',
+                                width: 100,
+                                render: (qty: number, _: any, index: number) => (
+                                  <InputNumber
+                                    min={1}
+                                    value={qty}
+                                    onChange={(value) => handleUpdateSupplyQuantity(index, value || 1)}
+                                    size="small"
+                                  />
+                                ),
+                              },
+                              {
+                                title: 'Thao tác',
+                                key: 'action',
+                                width: 80,
+                                render: (_: unknown, __: any, index: number) => (
+                                  <Button
+                                    type="link"
+                                    danger
+                                    size="small"
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => handleRemoveSupplyOrder(index)}
+                                  >
+                                    Xóa
+                                  </Button>
+                                ),
+                              },
+                            ]}
+                            dataSource={supplyOrders}
+                            rowKey="id"
+                            size="small"
+                            pagination={false}
+                            locale={{ emptyText: 'Chưa kê vật tư. Tìm kiếm vật tư ở trên để thêm.' }}
+                          />
+                        </>
+                      ),
+                    },
                   ]}
                 />
               </Form>
@@ -2289,6 +2659,99 @@ const OPD: React.FC = () => {
           </Form.Item>
           <Form.Item label="Bệnh kèm theo" name="secondaryDiagnosis">
             <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Sick Leave Modal */}
+      <Modal
+        title={<><CalendarOutlined /> Giấy nghỉ hưởng BHXH</>}
+        open={isSickLeaveModalOpen}
+        onOk={handleSaveSickLeave}
+        onCancel={() => {
+          setIsSickLeaveModalOpen(false);
+          sickLeaveForm.resetFields();
+        }}
+        okText="Lưu & In"
+        cancelText="Hủy"
+        confirmLoading={savingSickLeave}
+        width={550}
+      >
+        <Alert
+          title="Giấy chứng nhận nghỉ việc hưởng BHXH theo mẫu C65-HD"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        {selectedPatient && (
+          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 4 }}>
+            <Text strong>Bệnh nhân: </Text>
+            <Text>{selectedPatient.fullName}</Text>
+            <Text type="secondary"> - Mã BN: {selectedPatient.patientCode}</Text>
+          </div>
+        )}
+        <Form form={sickLeaveForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="fromDate"
+                label="Từ ngày"
+                rules={[{ required: true, message: 'Vui lòng chọn ngày bắt đầu' }]}
+              >
+                <DatePicker
+                  format="DD/MM/YYYY"
+                  style={{ width: '100%' }}
+                  onChange={(date) => {
+                    const toDate = sickLeaveForm.getFieldValue('toDate');
+                    if (date && toDate) {
+                      sickLeaveForm.setFieldValue('days', dayjs(toDate).diff(date, 'day') + 1);
+                    }
+                  }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="toDate"
+                label="Đến ngày"
+                rules={[{ required: true, message: 'Vui lòng chọn ngày kết thúc' }]}
+              >
+                <DatePicker
+                  format="DD/MM/YYYY"
+                  style={{ width: '100%' }}
+                  onChange={(date) => {
+                    const fromDate = sickLeaveForm.getFieldValue('fromDate');
+                    if (date && fromDate) {
+                      sickLeaveForm.setFieldValue('days', dayjs(date).diff(fromDate, 'day') + 1);
+                    }
+                  }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item
+            name="days"
+            label="Số ngày nghỉ"
+            rules={[{ required: true, message: 'Vui lòng nhập số ngày' }]}
+          >
+            <InputNumber
+              min={1}
+              max={180}
+              style={{ width: '100%' }}
+              onChange={(value) => {
+                const fromDate = sickLeaveForm.getFieldValue('fromDate');
+                if (fromDate && value) {
+                  sickLeaveForm.setFieldValue('toDate', dayjs(fromDate).add(Number(value) - 1, 'day'));
+                }
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="reason"
+            label="Chẩn đoán / Lý do nghỉ"
+            rules={[{ required: true, message: 'Vui lòng nhập chẩn đoán' }]}
+          >
+            <Input.TextArea rows={3} placeholder="Nhập chẩn đoán hoặc lý do nghỉ hưởng BHXH..." />
           </Form.Item>
         </Form>
       </Modal>

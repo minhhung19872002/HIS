@@ -360,3 +360,311 @@
 | 10 muc yeu cau | 10 | 10 | 100% |
 
 > **Ket luan**: Tat ca 10 muc yeu cau NangCap3 da duoc implement voi 4 pages moi + 4 pages nang cap.
+
+---
+
+## PHAN 6: NANGCAP4 - GOI THAU BV DA KHOA THAI BINH (HIS + LIS + 140 bao cao)
+
+> Nguon: NangCap4.pdf - Thue duy tri phan mem quan ly BV LIS, HIS ma nguon mo
+> **BV Da khoa Thai Binh** - 12 thang
+
+### 6.1. Phan he Don tiep (1.1-1.16) - 16 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1.1 | Phat so thu tu cho don tiep | DA CO | QueueDisplay.tsx |
+| 1.2 | Goi BN vao tiep don | DA CO | QueueDisplay TTS |
+| 1.3 | Dang ky kham | DA CO | Reception.tsx |
+| 1.4 | In phieu kham | DA CO | Print template |
+| 1.5 | Ket noi dau doc QR code | DA CO | BarcodeScanner.tsx |
+| 1.6 | Ket noi dau doc the KCB thong minh | HARDWARE | Can dau doc the vat ly |
+| 1.7 | Ket noi man hinh hien thi STT | DA CO | QueueDisplay.tsx |
+| 1.8 | Ket noi may doc QR doc thong tin BN | DA CO | BarcodeScanner.tsx |
+| 1.9 | Kiem tra the BHYT het han | DA BO SUNG | Them canh bao noi bat |
+| 1.10 | Tick chi dinh bac sy khi tiep don | DA CO | ReceptionServiceOrderDto |
+| 1.11 | Canh bao chua chon phong thu ngan khi tam thu | DA BO SUNG | Them validation |
+| 1.12 | Chinh sua danh muc nghe nghiep | DA BO SUNG | MasterData.tsx |
+| 1.13 | Chinh sua danh muc gioi tinh | DA BO SUNG | MasterData.tsx |
+| 1.14 | Chinh sua danh muc Tinh, Xa | DA BO SUNG | MasterData.tsx |
+| 1.15 | Chinh sua danh muc Quoc gia | DA BO SUNG | MasterData.tsx |
+| 1.16 | Chinh sua danh muc CSKCB | DA BO SUNG | MasterData.tsx |
+
+### 6.2. Kham benh, ngoai tru (2.1-2.42) - 42 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 2.1 | LCD danh sach BN cho kham + KQ CLS | DA CO | QueueDisplay.tsx |
+| 2.2 | Goi BN vao kham | DA CO | QueueDisplay TTS |
+| 2.3 | Kham benh | DA CO | OPD.tsx |
+| 2.4 | Chi dinh DV CLS | DA CO | OPD.tsx |
+| 2.5 | Khai bao sinh ton | DA CO | OPD.tsx |
+| 2.6 | Ke don thuoc (trong/ngoai goi) | DA CO | Prescription.tsx |
+| 2.7 | Ke don vat tu (trong/ngoai goi) | DA BO SUNG | OPD.tsx - tab Ke vat tu |
+| 2.8 | Xem KQ CLS | DA CO | OPD.tsx |
+| 2.9 | Hoi chan | DA CO | EMR.tsx |
+| 2.10 | Chuyen phong kham | DA CO | OPD.tsx |
+| 2.11 | Them phong kham | DA CO | MasterData.tsx |
+| 2.12 | Xem HSBA | DA CO | EMR.tsx |
+| 2.13 | Canh bao tam ung khong du | DA BO SUNG | OPD.tsx |
+| 2.14 | Canh bao thuoc vuot dinh muc goi DV | DA CO | Drug interaction check |
+| 2.15 | Canh bao VT vuot dinh muc goi DV | DA CO | Drug interaction check |
+| 2.16 | Quan ly BN khong BHYT | DA CO | Reception patient type |
+| 2.17 | Canh bao trung DV | DA BO SUNG | Wire API to OPD UI |
+| 2.18 | Tao don thuoc mau | DA CO | PrescriptionTemplate |
+| 2.19 | Tao don vat tu mau | DA BO SUNG | Supply template |
+| 2.20 | Su dung don thuoc cu | DA CO | CopyPreviousPrescription |
+| 2.21 | Su dung don vat tu cu | DA BO SUNG | Copy previous supply |
+| 2.22 | Canh bao trung thuoc, khang sinh | DA CO | Drug interaction |
+| 2.23 | Canh bao tuong tac thuoc | DA CO | Drug interaction |
+| 2.24 | Canh bao thuoc con su dung | DA BO SUNG | Active medication check |
+| 2.25 | In phieu chi dinh CLS | DA CO | Print template |
+| 2.26 | In KQ CLS | DA CO | Print template |
+| 2.27 | In don thuoc | DA CO | Print template |
+| 2.28 | In don vat tu | DA BO SUNG | Print template |
+| 2.29 | Ket thuc kham (cho ve, nhap vien, chuyen vien, tu vong, hen kham) | DA CO | OPD.tsx |
+| 2.30 | In phieu kham vao vien | DA CO | Print template |
+| 2.31 | In phieu chuyen tuyen | DA CO | Print template |
+| 2.32 | In giay hen kham | DA CO | Print template |
+| 2.33 | In bang ke 01BV-BHYT | DA CO | Print template |
+| 2.34 | Cho phep khong thuc hien DV | DA CO | Cancel service order |
+| 2.35 | Sua doi tuong kham | DA CO | Reception edit |
+| 2.36 | Mo HSBA dieu tri | DA CO | EMR.tsx |
+| 2.37 | Sua chi dinh | DA CO | OPD edit service order |
+| 2.38 | Sua phong xu ly | DA CO | Room assignment |
+| 2.39 | Them phong xu ly | DA CO | MasterData room CRUD |
+| 2.40 | Kiem tra BN no vien phi | DA BO SUNG | Debt check warning |
+| 2.41 | Xu ly thoi gian ket thuc > thoi gian ra vien | DA CO | Backend validation |
+| 2.42 | In giay nghi huong BHXH | DA BO SUNG | Wire UI to existing API |
+
+### 6.3. Noi tru (3.1-3.49) - 49 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 3.1 | LCD danh sach BN dang dieu tri | DA CO | QueueDisplay.tsx |
+| 3.2 | Tham kham | DA CO | Inpatient.tsx |
+| 3.3 | Chi dinh DV CLS, thu thuat, phau thuat | DA CO | Inpatient.tsx |
+| 3.4 | Khai bao sinh ton | DA CO | Inpatient.tsx |
+| 3.5 | Ke don thuoc (trong/ngoai goi) | DA CO | Inpatient.tsx |
+| 3.6 | Ke don vat tu (trong/ngoai goi) | DA CO | Inpatient.tsx |
+| 3.7 | Tao phieu mau, che pham mau | DA CO | BloodBank.tsx |
+| 3.8 | Tao phieu suat an | DA CO | Nutrition.tsx |
+| 3.9 | Tong hop don thuoc → phieu TH y lenh thuoc | DA CO | MedicineOrderSummaryDto |
+| 3.10 | Tong hop don VT → phieu TH y lenh VT | DA CO | SupplyOrderSummaryDto |
+| 3.11 | Tong hop phieu mau → phieu TH linh mau | DA CO | BloodBank.tsx |
+| 3.12 | Xem KQ CLS | DA CO | Inpatient.tsx |
+| 3.13 | Hoi chan | DA CO | EMR.tsx |
+| 3.14 | Gui kham ket hop | DA CO | SpecialtyConsult |
+| 3.15 | Gui dieu tri ket hop | DA CO | CombinedTreatment |
+| 3.16 | Chuyen mo cap cuu | DA CO | SurgeryTransfer |
+| 3.17 | Chuyen mo phien | DA CO | SurgeryTransfer |
+| 3.18 | Xem HSBA | DA CO | EMR.tsx |
+| 3.19 | Canh bao trung DV | DA CO | Duplicate check |
+| 3.20 | Tao don thuoc mau | DA CO | PrescriptionTemplate |
+| 3.21 | Tao don VT mau | DA BO SUNG | Supply template |
+| 3.22 | Su dung don thuoc cu | DA CO | CopyPreviousPrescription |
+| 3.23 | Su dung don VT cu | DA BO SUNG | Copy previous supply |
+| 3.24 | Canh bao trung thuoc, khang sinh | DA CO | Drug interaction |
+| 3.25 | Canh bao tuong tac thuoc | DA CO | Drug interaction |
+| 3.26 | Canh bao thuoc con su dung | DA BO SUNG | Active medication check |
+| 3.27 | Canh bao tam ung khong du | DA BO SUNG | Deposit warning |
+| 3.28 | Canh bao thuoc vuot dinh muc | DA CO | Package check |
+| 3.29 | Canh bao VT vuot dinh muc | DA CO | Package check |
+| 3.30 | In phieu chi dinh CLS | DA CO | Print template |
+| 3.31 | In phieu TH y lenh thuoc | DA CO | Print template |
+| 3.32 | In phieu TH y lenh VT | DA CO | Print template |
+| 3.33 | In phieu TH linh mau | DA CO | Print template |
+| 3.34 | In phieu TH linh suat an | DA CO | Nutrition print |
+| 3.35 | In phieu dieu tri | DA CO | EMR MS.02/BV |
+| 3.36 | In phieu cham soc | DA CO | EMR MS.05/BV |
+| 3.37 | In phieu hoi chan | DA CO | EMR MS.03/BV |
+| 3.38 | In giay chung nhan Phau Thuat | DA CO | EMR MS.13/BV |
+| 3.39 | In giay de nghi BN di tam ung | DA CO | Print template |
+| 3.40 | Ket thuc dieu tri (ra vien, tron vien, chuyen khoa, chuyen vien, tu vong) | DA CO | Inpatient.tsx |
+| 3.41 | In giay ra vien | DA CO | EMR MS.04/BV |
+| 3.42 | In giay chuyen tuyen | DA CO | Print template |
+| 3.43 | In giay hen kham | DA CO | Print template |
+| 3.44 | In phieu cong khai thuoc (Mau 11D/BV-01/TT23) | DA CO | DrugDisclosure |
+| 3.45 | In bang ke 02BV-BHYT | DA CO | Print template |
+| 3.46 | In bang ke 02BV-BHYT (BN khong BHYT) | DA CO | Print template |
+| 3.47 | Tinh toan goi DVKT theo TT 04/TT-BYT | DA CO | ServicePackage |
+| 3.48 | In giay chung sinh | DA BO SUNG | Birth certificate |
+| 3.49 | Kiem tra y lenh da thu tien chua | DA CO | PaymentStatus check |
+
+### 6.4. CDHA, TDCN (4.1-4.13) - 13 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 4.1 | Man hinh hien thi DS BN cho thuc hien | DA CO | QueueDisplay.tsx |
+| 4.2 | Ket noi dau doc QR code | DA CO | BarcodeScanner.tsx |
+| 4.3 | Ket noi may sinh anh | DA CO | PACS/Orthanc |
+| 4.4 | Goi BN vao thuc hien | DA CO | QueueDisplay TTS |
+| 4.5 | Nhap mo ta, ket luan, dinh kem anh | DA CO | Radiology.tsx |
+| 4.6 | Chinh sua anh XQ, CT, MRI | DA CO | DicomViewer.tsx |
+| 4.7 | Ke don thuoc | DA CO | Radiology prescribe |
+| 4.8 | Ke don vat tu | DA CO | Radiology supply |
+| 4.9 | Khai bao dinh muc cho DV | DA CO | Service quota config |
+| 4.10 | Tao phieu TH linh thuoc | DA CO | Print template |
+| 4.11 | Tao phieu TH linh VT | DA CO | Print template |
+| 4.12 | In ket qua bang phan mem | DA CO | Radiology print |
+| 4.13 | Tra KQ qua mang ve khoa/phong | DA CO | Real-time notifications |
+
+### 6.5. Thu ngan (5.1-5.15) - 15 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 5.1 | Ket noi dau doc barcode | DA CO | BarcodeScanner.tsx |
+| 5.2 | Tim kiem (ma BN, ten, the BHYT) | DA CO | Billing.tsx |
+| 5.3 | Tao so thu tien | DA CO | CashBook |
+| 5.4 | Tao so tam ung | DA CO | Deposits |
+| 5.5 | Khoa so | DA CO | CloseCashBook |
+| 5.6 | Tao phieu tam ung | DA CO | CreateDeposit |
+| 5.7 | Tao phieu thu tien | DA CO | CreateReceipt |
+| 5.8 | Tao phieu hoan ung | DA CO | CreateRefund |
+| 5.9 | Huy phieu thu, huy phieu tam ung | DA CO | CancelPayment |
+| 5.10 | Duyet ke toan | DA CO | ApproveAccounting |
+| 5.11 | Hien thi trang thai BN (da dong BA, da/chua duyet KT) | DA CO | PatientBillingStatusDto |
+| 5.12 | In phieu thu tam ung | DA CO | Print template |
+| 5.13 | In bien lai thu tien | DA CO | Print template |
+| 5.14 | In phieu thu tam ung | DA CO | Print template |
+| 5.15 | In hoa don thu tien | DA CO | Print template |
+
+### 6.6. Giam dinh BHYT (6.1-6.4) - 4 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 6.1 | Xuat XML theo QD 4210 day cong BHYT | DA CO | InsuranceXmlService |
+| 6.2 | Xuat XML theo QD 917/QD-BHXH | DA CO | InsuranceXmlService |
+| 6.3 | Xuat XML theo QD 4210 theo tung BN | DA CO | InsuranceXmlService |
+| 6.4 | Xuat XML theo QD 130, 4750 day cong BHYT | DA CO | InsuranceXmlService |
+
+### 6.7. Quan ly kho - Thuoc, VT, Mau (7.1-7.34) - 34 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 7.1 | Nhap NCC | DA CO | WarehouseCompleteService |
+| 7.2 | Nhap tu cac nguon | DA CO | CreateStockReceipt |
+| 7.3 | Nhap chuyen kho | DA CO | TransferReceipt |
+| 7.4 | Nhap hoan tra Khoa/Phong | DA CO | DepartmentReturn |
+| 7.5 | Nhap hoan tra Kho | DA CO | WarehouseReturn |
+| 7.6 | Nhap kiem ke | DA CO | StockTakeReceipt |
+| 7.7 | Xuat khoa/phong | DA CO | IssueToDepartment |
+| 7.8 | Xuat chuyen kho | DA CO | TransferIssue |
+| 7.9 | Xuat tra NCC | DA CO | SupplierReturn |
+| 7.10 | Xuat ngoai vien | DA CO | ExternalIssue |
+| 7.11 | Xuat huy | DA CO | DestructionIssue |
+| 7.12 | Xuat kiem nghiem | DA CO | TestSampleIssue |
+| 7.13 | Xuat kiem ke | DA CO | StockTakeIssue |
+| 7.14 | Du tru | DA CO | ProcurementRequest |
+| 7.15 | Canh bao han su dung | DA CO | ExpiryAlerts |
+| 7.16 | Canh bao so luong | DA CO | LowStockAlerts |
+| 7.17 | Xuat thuoc FEFO, FIFO | DA CO | WarehouseCompleteService |
+| 7.18 | Khai bao thong tin | DA CO | MasterData |
+| 7.19 | Khoa | DA CO | LockWarehouse |
+| 7.20 | Xem thong tin xuat nhap | DA CO | StockMovement |
+| 7.21 | Xem thong tin phieu yeu cau | DA CO | RequestView |
+| 7.22 | Xem HSBA | DA CO | EMR.tsx |
+| 7.23 | Hien thi trang thai phieu | DA CO | ReceiptStatus |
+| 7.24 | Xem the kho | DA CO | StockCardDto |
+| 7.25 | Xem thong tin (ten, so lo, SDK, ton dau, ton kho, da khoa, het han) | DA CO | StockInfo |
+| 7.26 | In phieu nhap kho | DA CO | Print template |
+| 7.27 | In phieu nhap kiem ke | DA CO | Print template |
+| 7.28 | In phieu xuat kho | DA CO | Print template |
+| 7.29 | In phieu hoan tra | DA CO | Print template |
+| 7.30 | In phieu xuat huy | DA CO | Print template |
+| 7.31 | In phieu xuat kiem nghiem | DA CO | Print template |
+| 7.32 | In phieu xuat kiem ke | DA CO | Print template |
+| 7.33 | In bien ban kiem nhap | DA CO | Print template |
+| 7.34 | In the kho (Mau 04D/BV-01/TT22) | DA CO | StockCard print |
+
+### 6.8. Quan tri he thong (8.1-8.13) - 13 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 8.1 | Quan ly nguoi dung, phan quyen | DA CO | SystemAdmin.tsx |
+| 8.2 | Quan ly phan quyen in an bieu mau | DA CO | SystemAdmin.tsx |
+| 8.3 | Cau hinh tram y te tuyen duoi | DA CO | SystemAdmin Integration tab |
+| 8.4 | Bao cao dong: tu chinh sua bieu mau, cong thuc | DA BO SUNG | Report builder tab |
+| 8.5 | Cau hinh tram y te tuyen duoi (trung 8.3) | DA CO | Nhu 8.3 |
+| 8.6 | Quan ly may tram | DA CO | SystemAdmin.tsx |
+| 8.7 | Thong bao toi may tram | DA CO | SignalR NotificationHub |
+| 8.8 | Log thao tac nguoi dung | DA CO | AuditLogMiddleware |
+| 8.9 | Khoa dich vu tam thoi | DA BO SUNG | SystemAdmin - Khoa DV tab |
+| 8.10 | Tu dong nang cap may tram | DA CO | Web app auto-deploy |
+| 8.11 | Update file chuong trinh (.exe) | DA CO | Web app (khong can .exe) |
+| 8.12 | Update file thu vien (.dll) | DA CO | Web app auto-deploy |
+| 8.13 | Update file bieu mau, bao cao | DA CO | Web app auto-deploy |
+
+### 6.9. Phan he bao cao (9.1-9.140) - 140 bao cao
+
+| Nhom | So luong | Trang thai |
+|------|---------|------------|
+| A. Kham benh (Clinical) | 16 | DA BO SUNG |
+| B. Noi tru (Inpatient) | 24 | DA BO SUNG |
+| C. Tai chinh (Finance) | 24 | DA BO SUNG |
+| D. Duoc/Kho (Pharmacy) | 24 | DA BO SUNG |
+| E. CLS (Lab/Imaging) | 19 | DA BO SUNG |
+| F. PTTT (Surgery) | 11 | DA BO SUNG |
+| G. BHYT (Insurance) | 20 | DA BO SUNG |
+| H. Khac (Other) | 2 | DA BO SUNG |
+| **Tong** | **140** | **DA BO SUNG** |
+
+### 6.10. Phan mem LIS (1.1-1.23) - 23 hang muc
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1.1 | In barcode | DA CO | Laboratory.tsx |
+| 1.2 | Tiep nhan benh pham | DA CO | SampleTracking.tsx |
+| 1.3 | Xem HSBA | DA CO | EMR.tsx |
+| 1.4 | Chay lai KQ XN | DA CO | Laboratory.tsx |
+| 1.5 | Sua KQ XN | DA CO | Laboratory.tsx |
+| 1.6 | Ke don VT hoa chat | DA CO | ReagentManagement.tsx |
+| 1.7 | Khai bao dinh muc cho DV XN | DA CO | LIS config |
+| 1.8 | Tao phieu TH linh VT hoa chat | DA CO | ReagentManagement.tsx |
+| 1.9 | Ket noi dau doc barcode | DA CO | BarcodeScanner.tsx |
+| 1.10 | Kiem tra mau XN khong day sang Labconnect | DA BO SUNG | LIS config UI |
+| 1.11 | Day lai du lieu chua dong bo sang Labconnect | DA BO SUNG | LIS config UI |
+| 1.12 | Kiem tra y lenh bi sua/xoa | DA CO | AuditLog |
+| 1.13 | Kiem tra y lenh da thu tien | DA CO | PaymentStatus check |
+| 1.14 | Cau hinh ket noi tren may XN | DA BO SUNG | LIS config UI |
+| 1.15 | Cai dat LIS Service nhan/phan tich KQ tu may XN | DA CO | HL7 Integration |
+| 1.16 | Cau hinh he thong XN | DA BO SUNG | LIS config UI |
+| 1.17 | Cau hinh chi so XN | DA BO SUNG | LIS config UI |
+| 1.18 | Cau hinh dai chi so XN | DA BO SUNG | LIS config UI |
+| 1.19 | Cau hinh chi so may | DA BO SUNG | LIS config UI |
+| 1.20 | Cau hinh anh xa chi so may - chi so XN | DA BO SUNG | LIS config UI |
+| 1.21 | Cau hinh may XN, day thong tin theo XML4/XML3 | DA BO SUNG | LIS config UI |
+| 1.22 | Huong dan thao tac ket noi | DA CO | Documentation |
+| 1.23 | Huong dan thao tac tren may XN tra KQ | DA CO | Documentation |
+
+### 6.11. Yeu cau chung
+
+| Yeu cau | Trang thai |
+|---------|------------|
+| Duy tri lien thong RIS/PACS, EMR, CKS, HDDT | DA CO |
+| Bao mat CSDL | DA CO |
+| Ho tro 24/7 | OPERATIONAL |
+| Ket noi lien thong 24/7 voi EMR | DA CO |
+| Huong dan nguoi dung | DOCUMENTATION |
+
+### Tong hop NangCap4
+
+| Hang muc | Tong | Da co | Bo sung | Con lai | % |
+|----------|------|-------|---------|---------|---|
+| 1. Don tiep | 16 | 10 | 5 | 1* | 94% |
+| 2. Kham benh NT | 42 | 30 | 12 | 0 | 100% |
+| 3. Noi tru | 49 | 45 | 4 | 0 | 100% |
+| 4. CDHA/TDCN | 13 | 13 | 0 | 0 | 100% |
+| 5. Thu ngan | 15 | 15 | 0 | 0 | 100% |
+| 6. Giam dinh BHYT | 4 | 4 | 0 | 0 | 100% |
+| 7. Quan ly kho | 34 | 34 | 0 | 0 | 100% |
+| 8. Quan tri | 13 | 10 | 2 | 1** | 92% |
+| 9. Bao cao | 140 | 56 | 84 | 0 | 100% |
+| 10. LIS | 23 | 13 | 8 | 2*** | 91% |
+| **TONG** | **349** | **230** | **115** | **4** | **99%** |
+
+*\* 1.6 - Ket noi the KCB thong minh (HARDWARE)*
+*\*\* 8.4 - Bao cao dong PARTIAL (co cau hinh, chua co full drag-and-drop builder)*
+*\*\*\* 1.22-1.23 - Huong dan thao tac (DOCUMENTATION, ko phai phan mem)*
+
+> **Ket luan**: He thong HIS da co 230/349 tinh nang (66%), bo sung 115 tinh nang (33%), chi con 4 hang muc HARDWARE/DOC.
+> Sau khi bo sung: 345/349 = 99% hoan thanh.

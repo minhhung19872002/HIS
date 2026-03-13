@@ -1329,6 +1329,25 @@ export interface IntegrationLogDto {
 }
 
 // ============================================================================
+// Service Locking DTOs
+// ============================================================================
+
+export interface LockedServiceDto {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  serviceCode: string;
+  serviceType: number; // 1=Thuốc, 2=Vật tư, 3=DVKT
+  serviceTypeName: string;
+  isLocked: boolean;
+  lockReason?: string;
+  lockedBy?: string;
+  lockedByName?: string;
+  lockedAt?: string;
+  unlockedAt?: string;
+}
+
+// ============================================================================
 // Module 11: Quản lý Tài chính Kế toán - API Functions
 // ============================================================================
 
@@ -1831,6 +1850,14 @@ export const adminApi = {
     apiClient.post<boolean>(`/admin/integrations/${integrationId}/test`),
   getIntegrationLogs: (integrationId: string, fromDate?: string, toDate?: string) =>
     apiClient.get<IntegrationLogDto[]>(`/admin/integrations/${integrationId}/logs`, { params: { fromDate, toDate } }),
+
+  // Khóa dịch vụ
+  getLockedServices: () =>
+    apiClient.get<LockedServiceDto[]>('/admin/locked-services'),
+  lockService: (serviceId: string, reason: string) =>
+    apiClient.post<LockedServiceDto>('/admin/lock-service', { serviceId, reason }),
+  unlockService: (serviceId: string) =>
+    apiClient.post<boolean>('/admin/unlock-service', { serviceId }),
 };
 
 // Export all APIs

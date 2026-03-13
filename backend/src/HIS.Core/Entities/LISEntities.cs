@@ -328,3 +328,94 @@ public class LabConclusionTemplate : BaseEntity
     // Navigation
     public virtual Service? Service { get; set; }
 }
+
+/// <summary>
+/// Cấu hình máy xét nghiệm LIS (LIS Configuration)
+/// Dùng cho module LIS Config frontend
+/// </summary>
+public class LisAnalyzer : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Model { get; set; }
+    public string? Manufacturer { get; set; }
+    public string ConnectionType { get; set; } = "HL7"; // HL7, ASTM, Serial
+    public string? IpAddress { get; set; }
+    public int? Port { get; set; }
+    public string? ComPort { get; set; }
+    public int? BaudRate { get; set; }
+    public string? ProtocolVersion { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime? LastConnectionTime { get; set; }
+    public string? ConnectionStatus { get; set; } // Connected, Disconnected, Unknown
+    public string? Description { get; set; }
+}
+
+/// <summary>
+/// Thông số xét nghiệm (Test Parameters)
+/// </summary>
+public class LisTestParameter : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Unit { get; set; } = string.Empty;
+    public decimal? ReferenceLow { get; set; }
+    public decimal? ReferenceHigh { get; set; }
+    public decimal? CriticalLow { get; set; }
+    public decimal? CriticalHigh { get; set; }
+    public string DataType { get; set; } = "Number"; // Number, Text, Enum
+    public string? EnumValues { get; set; } // JSON array of allowed values for Enum type
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+
+    // Navigation
+    public virtual ICollection<LisReferenceRange> ReferenceRanges { get; set; } = new List<LisReferenceRange>();
+    public virtual ICollection<LisAnalyzerMapping> AnalyzerMappings { get; set; } = new List<LisAnalyzerMapping>();
+}
+
+/// <summary>
+/// Khoảng tham chiếu theo tuổi/giới (Reference Ranges)
+/// </summary>
+public class LisReferenceRange : BaseEntity
+{
+    public Guid TestParameterId { get; set; }
+    public string AgeGroup { get; set; } = "Adult"; // Newborn, Infant, Child, Adolescent, Adult, Elderly
+    public string Gender { get; set; } = "Both"; // Male, Female, Both
+    public decimal? Low { get; set; }
+    public decimal? High { get; set; }
+    public decimal? CriticalLow { get; set; }
+    public decimal? CriticalHigh { get; set; }
+    public string Unit { get; set; } = string.Empty;
+
+    // Navigation
+    public virtual LisTestParameter? TestParameter { get; set; }
+}
+
+/// <summary>
+/// Mapping mã test giữa máy phân tích và HIS (Analyzer Mappings)
+/// </summary>
+public class LisAnalyzerMapping : BaseEntity
+{
+    public Guid AnalyzerId { get; set; }
+    public string AnalyzerTestCode { get; set; } = string.Empty;
+    public Guid HisTestParameterId { get; set; }
+    public string? HisTestCode { get; set; }
+    public string? HisTestName { get; set; }
+    public bool IsActive { get; set; } = true;
+
+    // Navigation
+    public virtual LisAnalyzer? Analyzer { get; set; }
+    public virtual LisTestParameter? TestParameter { get; set; }
+}
+
+/// <summary>
+/// Lịch sử đồng bộ Labconnect (Labconnect Sync History)
+/// </summary>
+public class LabconnectSyncHistory : BaseEntity
+{
+    public DateTime SyncTime { get; set; }
+    public string Direction { get; set; } = "Both"; // Send, Receive, Both
+    public int ItemCount { get; set; }
+    public string Status { get; set; } = "Success"; // Success, Failed, Partial
+    public string? ErrorMessage { get; set; }
+    public int? DurationMs { get; set; }
+}

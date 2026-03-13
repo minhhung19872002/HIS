@@ -2616,6 +2616,289 @@ public class SystemCompleteService : ISystemCompleteService
         return null;
     }
 
+    // 13.20 Nghe nghiep (Occupation)
+    public async Task<List<OccupationCatalogDto>> GetOccupationsAsync(string? keyword = null, bool? isActive = null)
+    {
+        var query = _context.Occupations.AsQueryable();
+        if (!string.IsNullOrEmpty(keyword))
+            query = query.Where(o => o.Code.Contains(keyword) || o.Name.Contains(keyword));
+        if (isActive.HasValue)
+            query = query.Where(o => o.IsActive == isActive.Value);
+
+        return await query.OrderBy(o => o.SortOrder).ThenBy(o => o.Name)
+            .Select(o => new OccupationCatalogDto
+            {
+                Id = o.Id,
+                Code = o.Code,
+                Name = o.Name,
+                SortOrder = o.SortOrder,
+                IsActive = o.IsActive,
+            }).ToListAsync();
+    }
+
+    public async Task<OccupationCatalogDto> SaveOccupationAsync(OccupationCatalogDto dto)
+    {
+        Occupation entity;
+        if (dto.Id != Guid.Empty)
+        {
+            entity = await _context.Occupations.FindAsync(dto.Id);
+            if (entity == null) throw new KeyNotFoundException($"Occupation {dto.Id} not found");
+        }
+        else
+        {
+            entity = new Occupation { Id = Guid.NewGuid() };
+            _context.Occupations.Add(entity);
+        }
+        entity.Code = dto.Code;
+        entity.Name = dto.Name;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteOccupationAsync(Guid occupationId)
+    {
+        var entity = await _context.Occupations.FindAsync(occupationId);
+        if (entity == null) return false;
+        _context.Occupations.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    // 13.21 Gioi tinh (Gender)
+    public async Task<List<GenderCatalogDto>> GetGendersAsync(string? keyword = null, bool? isActive = null)
+    {
+        var query = _context.Genders.AsQueryable();
+        if (!string.IsNullOrEmpty(keyword))
+            query = query.Where(g => g.Code.Contains(keyword) || g.Name.Contains(keyword));
+        if (isActive.HasValue)
+            query = query.Where(g => g.IsActive == isActive.Value);
+
+        return await query.OrderBy(g => g.SortOrder).ThenBy(g => g.Name)
+            .Select(g => new GenderCatalogDto
+            {
+                Id = g.Id,
+                Code = g.Code,
+                Name = g.Name,
+                SortOrder = g.SortOrder,
+                IsActive = g.IsActive,
+            }).ToListAsync();
+    }
+
+    public async Task<GenderCatalogDto> SaveGenderAsync(GenderCatalogDto dto)
+    {
+        Gender entity;
+        if (dto.Id != Guid.Empty)
+        {
+            entity = await _context.Genders.FindAsync(dto.Id);
+            if (entity == null) throw new KeyNotFoundException($"Gender {dto.Id} not found");
+        }
+        else
+        {
+            entity = new Gender { Id = Guid.NewGuid() };
+            _context.Genders.Add(entity);
+        }
+        entity.Code = dto.Code;
+        entity.Name = dto.Name;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteGenderAsync(Guid genderId)
+    {
+        var entity = await _context.Genders.FindAsync(genderId);
+        if (entity == null) return false;
+        _context.Genders.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    // 13.22 Don vi hanh chinh (Administrative Division)
+    public async Task<List<AdministrativeDivisionCatalogDto>> GetAdministrativeDivisionsAsync(string? keyword = null, int? level = null, string? parentCode = null, bool? isActive = null)
+    {
+        var query = _context.AdministrativeDivisions.AsQueryable();
+        if (!string.IsNullOrEmpty(keyword))
+            query = query.Where(d => d.Code.Contains(keyword) || d.Name.Contains(keyword));
+        if (level.HasValue)
+            query = query.Where(d => d.Level == level.Value);
+        if (!string.IsNullOrEmpty(parentCode))
+            query = query.Where(d => d.ParentCode == parentCode);
+        if (isActive.HasValue)
+            query = query.Where(d => d.IsActive == isActive.Value);
+
+        var divisions = await query.OrderBy(d => d.Level).ThenBy(d => d.SortOrder).ThenBy(d => d.Name).ToListAsync();
+
+        // Resolve parent names for Level 2 and 3
+        var parentCodes = divisions.Where(d => d.ParentCode != null).Select(d => d.ParentCode).Distinct().ToList();
+        var parentMap = await _context.AdministrativeDivisions
+            .Where(d => parentCodes.Contains(d.Code))
+            .ToDictionaryAsync(d => d.Code, d => d.Name);
+
+        return divisions.Select(d => new AdministrativeDivisionCatalogDto
+        {
+            Id = d.Id,
+            Code = d.Code,
+            Name = d.Name,
+            Level = d.Level,
+            ParentCode = d.ParentCode,
+            ParentName = d.ParentCode != null && parentMap.ContainsKey(d.ParentCode) ? parentMap[d.ParentCode] : null,
+            SortOrder = d.SortOrder,
+            IsActive = d.IsActive,
+        }).ToList();
+    }
+
+    public async Task<AdministrativeDivisionCatalogDto> SaveAdministrativeDivisionAsync(AdministrativeDivisionCatalogDto dto)
+    {
+        AdministrativeDivision entity;
+        if (dto.Id != Guid.Empty)
+        {
+            entity = await _context.AdministrativeDivisions.FindAsync(dto.Id);
+            if (entity == null) throw new KeyNotFoundException($"AdministrativeDivision {dto.Id} not found");
+        }
+        else
+        {
+            entity = new AdministrativeDivision { Id = Guid.NewGuid() };
+            _context.AdministrativeDivisions.Add(entity);
+        }
+        entity.Code = dto.Code;
+        entity.Name = dto.Name;
+        entity.Level = dto.Level;
+        entity.ParentCode = dto.ParentCode;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteAdministrativeDivisionAsync(Guid divisionId)
+    {
+        var entity = await _context.AdministrativeDivisions.FindAsync(divisionId);
+        if (entity == null) return false;
+        _context.AdministrativeDivisions.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    // 13.23 Quoc gia (Country)
+    public async Task<List<CountryCatalogDto>> GetCountriesAsync(string? keyword = null, bool? isActive = null)
+    {
+        var query = _context.Countries.AsQueryable();
+        if (!string.IsNullOrEmpty(keyword))
+            query = query.Where(c => c.Code.Contains(keyword) || c.Name.Contains(keyword) || (c.NationalityName != null && c.NationalityName.Contains(keyword)));
+        if (isActive.HasValue)
+            query = query.Where(c => c.IsActive == isActive.Value);
+
+        return await query.OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
+            .Select(c => new CountryCatalogDto
+            {
+                Id = c.Id,
+                Code = c.Code,
+                Name = c.Name,
+                NationalityName = c.NationalityName,
+                SortOrder = c.SortOrder,
+                IsActive = c.IsActive,
+            }).ToListAsync();
+    }
+
+    public async Task<CountryCatalogDto> SaveCountryAsync(CountryCatalogDto dto)
+    {
+        Country entity;
+        if (dto.Id != Guid.Empty)
+        {
+            entity = await _context.Countries.FindAsync(dto.Id);
+            if (entity == null) throw new KeyNotFoundException($"Country {dto.Id} not found");
+        }
+        else
+        {
+            entity = new Country { Id = Guid.NewGuid() };
+            _context.Countries.Add(entity);
+        }
+        entity.Code = dto.Code;
+        entity.Name = dto.Name;
+        entity.NationalityName = dto.NationalityName;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteCountryAsync(Guid countryId)
+    {
+        var entity = await _context.Countries.FindAsync(countryId);
+        if (entity == null) return false;
+        _context.Countries.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    // 13.24 Co so KCB (Healthcare Facility)
+    public async Task<List<HealthcareFacilityCatalogDto>> GetHealthcareFacilitiesAsync(string? keyword = null, string? level = null, string? provinceCode = null, bool? isActive = null)
+    {
+        var query = _context.HealthcareFacilities.AsQueryable();
+        if (!string.IsNullOrEmpty(keyword))
+            query = query.Where(f => f.Code.Contains(keyword) || f.Name.Contains(keyword));
+        if (!string.IsNullOrEmpty(level))
+            query = query.Where(f => f.Level == level);
+        if (!string.IsNullOrEmpty(provinceCode))
+            query = query.Where(f => f.ProvinceCode == provinceCode);
+        if (isActive.HasValue)
+            query = query.Where(f => f.IsActive == isActive.Value);
+
+        return await query.OrderBy(f => f.SortOrder).ThenBy(f => f.Name)
+            .Select(f => new HealthcareFacilityCatalogDto
+            {
+                Id = f.Id,
+                Code = f.Code,
+                Name = f.Name,
+                Address = f.Address,
+                Level = f.Level,
+                ProvinceCode = f.ProvinceCode,
+                SortOrder = f.SortOrder,
+                IsActive = f.IsActive,
+            }).ToListAsync();
+    }
+
+    public async Task<HealthcareFacilityCatalogDto> SaveHealthcareFacilityAsync(HealthcareFacilityCatalogDto dto)
+    {
+        HealthcareFacility entity;
+        if (dto.Id != Guid.Empty)
+        {
+            entity = await _context.HealthcareFacilities.FindAsync(dto.Id);
+            if (entity == null) throw new KeyNotFoundException($"HealthcareFacility {dto.Id} not found");
+        }
+        else
+        {
+            entity = new HealthcareFacility { Id = Guid.NewGuid() };
+            _context.HealthcareFacilities.Add(entity);
+        }
+        entity.Code = dto.Code;
+        entity.Name = dto.Name;
+        entity.Address = dto.Address;
+        entity.Level = dto.Level;
+        entity.ProvinceCode = dto.ProvinceCode;
+        entity.SortOrder = dto.SortOrder;
+        entity.IsActive = dto.IsActive;
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id;
+        return dto;
+    }
+
+    public async Task<bool> DeleteHealthcareFacilityAsync(Guid facilityId)
+    {
+        var entity = await _context.HealthcareFacilities.FindAsync(facilityId);
+        if (entity == null) return false;
+        _context.HealthcareFacilities.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     #endregion
 
     #region Module 15: Bao cao Duoc - 17 chuc nang
@@ -6096,6 +6379,106 @@ public class SystemCompleteService : ISystemCompleteService
             _logger.LogError(ex, "Error in GetIntegrationLogsAsync");
             return new List<IntegrationLogDto>();
         }
+    }
+
+    // 17.11 Khoa dich vu (Service Locking)
+    public async Task<List<LockedServiceDto>> GetLockedServicesAsync()
+    {
+        return await _context.LockedServices
+            .OrderByDescending(l => l.LockedAt)
+            .Select(l => new LockedServiceDto
+            {
+                Id = l.Id,
+                ServiceId = l.ServiceId,
+                ServiceName = l.ServiceName,
+                ServiceCode = l.ServiceCode,
+                ServiceType = l.ServiceType,
+                ServiceTypeName = l.ServiceTypeName,
+                IsLocked = l.IsLocked,
+                LockReason = l.LockReason,
+                LockedBy = l.LockedBy,
+                LockedByName = l.LockedByName,
+                LockedAt = l.LockedAt,
+                UnlockedAt = l.UnlockedAt
+            }).ToListAsync();
+    }
+
+    public async Task<LockedServiceDto> LockServiceAsync(LockServiceRequestDto dto, string userId, string userName)
+    {
+        // Check if already locked
+        var existing = await _context.LockedServices
+            .FirstOrDefaultAsync(l => l.ServiceId == dto.ServiceId && l.IsLocked);
+        if (existing != null)
+            throw new InvalidOperationException($"Service {dto.ServiceId} is already locked");
+
+        var entity = new LockedService
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = dto.ServiceId,
+            IsLocked = true,
+            LockReason = dto.Reason,
+            LockedBy = userId,
+            LockedByName = userName,
+            LockedAt = DateTime.UtcNow
+        };
+
+        // Try to resolve service name/code/type from Medicine, MedicalSupply, or Service tables
+        var medicine = await _context.Medicines.FirstOrDefaultAsync(m => m.Id == dto.ServiceId);
+        if (medicine != null)
+        {
+            entity.ServiceCode = medicine.MedicineCode;
+            entity.ServiceName = medicine.MedicineName;
+            entity.ServiceType = 1;
+            entity.ServiceTypeName = "Thuốc";
+        }
+        else
+        {
+            var service = await _context.Services.FirstOrDefaultAsync(s => s.Id == dto.ServiceId);
+            if (service != null)
+            {
+                entity.ServiceCode = service.ServiceCode;
+                entity.ServiceName = service.ServiceName;
+                entity.ServiceType = 3;
+                entity.ServiceTypeName = "DVKT";
+            }
+            else
+            {
+                entity.ServiceCode = "N/A";
+                entity.ServiceName = "N/A";
+                entity.ServiceType = 0;
+                entity.ServiceTypeName = "Khác";
+            }
+        }
+
+        _context.LockedServices.Add(entity);
+        await _context.SaveChangesAsync();
+
+        return new LockedServiceDto
+        {
+            Id = entity.Id,
+            ServiceId = entity.ServiceId,
+            ServiceName = entity.ServiceName,
+            ServiceCode = entity.ServiceCode,
+            ServiceType = entity.ServiceType,
+            ServiceTypeName = entity.ServiceTypeName,
+            IsLocked = entity.IsLocked,
+            LockReason = entity.LockReason,
+            LockedBy = entity.LockedBy,
+            LockedByName = entity.LockedByName,
+            LockedAt = entity.LockedAt,
+            UnlockedAt = entity.UnlockedAt
+        };
+    }
+
+    public async Task<bool> UnlockServiceAsync(UnlockServiceRequestDto dto)
+    {
+        var entity = await _context.LockedServices
+            .FirstOrDefaultAsync(l => l.ServiceId == dto.ServiceId && l.IsLocked);
+        if (entity == null) return false;
+        entity.IsLocked = false;
+        entity.UnlockedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     #endregion

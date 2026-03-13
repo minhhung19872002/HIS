@@ -1150,9 +1150,34 @@ const Reception: React.FC = () => {
           </Row>
         </Form>
 
-        {insuranceVerification && (
+        {insuranceVerification && (() => {
+          const vEndDate = insuranceVerification.endDate ? dayjs(insuranceVerification.endDate) : null;
+          const vDaysLeft = vEndDate ? vEndDate.diff(dayjs(), 'day') : null;
+          const vIsExpired = vDaysLeft !== null && vDaysLeft < 0;
+          const vIsExpiringSoon = vDaysLeft !== null && vDaysLeft >= 0 && vDaysLeft <= 30;
+
+          return (
           <>
             <Divider />
+            {/* Expiry warning for standalone verification */}
+            {vIsExpired && (
+              <Alert
+                title={`Thẻ BHYT đã hết hạn từ ngày ${vEndDate?.format('DD/MM/YYYY')} (${Math.abs(vDaysLeft!)} ngày trước)`}
+                description="Bệnh nhân cần gia hạn thẻ BHYT. Nếu tiếp tục, bệnh nhân sẽ phải thanh toán toàn bộ chi phí."
+                type="error"
+                showIcon
+                style={{ marginBottom: 12 }}
+              />
+            )}
+            {vIsExpiringSoon && (
+              <Alert
+                title={`Thẻ BHYT sắp hết hạn: còn ${vDaysLeft} ngày (hết hạn ngày ${vEndDate?.format('DD/MM/YYYY')})`}
+                description="Vui lòng nhắc bệnh nhân gia hạn thẻ BHYT trước khi hết hạn."
+                type="warning"
+                showIcon
+                style={{ marginBottom: 12 }}
+              />
+            )}
             <Alert
               title={insuranceVerification.isValid ? 'Thẻ BHYT hợp lệ' : 'Thẻ BHYT không hợp lệ'}
               type={insuranceVerification.isValid ? 'success' : 'error'}
@@ -1204,7 +1229,8 @@ const Reception: React.FC = () => {
               </Button>
             </div>
           </>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* Modal Lịch sử khám */}
@@ -1484,26 +1510,66 @@ const Reception: React.FC = () => {
           </Row>
 
           {/* Inline insurance verification result */}
-          {inlineVerifyStatus === 'valid' && inlineCardVerification && (
-            <div style={{ marginBottom: 16 }}>
-              <Alert
-                title={
-                  <Space>
-                    <Tag color="green">Đủ điều kiện KCB</Tag>
-                    <Text>Mức hưởng: {inlineCardVerification.mucHuong}%</Text>
-                    <Text type="secondary">
-                      Hiệu lực: {inlineCardVerification.gtTheTu ? dayjs(inlineCardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - {inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen).format('DD/MM/YYYY') : ''}
-                    </Text>
-                    <Button size="small" type="link" icon={<HistoryOutlined />} onClick={handleViewBhxhHistory}>
-                      Xem lịch sử KCB
-                    </Button>
-                  </Space>
-                }
-                type="success"
-                showIcon
-              />
-            </div>
-          )}
+          {inlineVerifyStatus === 'valid' && inlineCardVerification && (() => {
+            const endDate = inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen) : null;
+            const daysUntilExpiry = endDate ? endDate.diff(dayjs(), 'day') : null;
+            const isExpired = daysUntilExpiry !== null && daysUntilExpiry < 0;
+            const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+
+            return (
+              <div style={{ marginBottom: 16 }}>
+                {/* Expiry warning - shown prominently at top */}
+                {isExpired && (
+                  <Alert
+                    title={
+                      <Space>
+                        <WarningOutlined />
+                        <Text strong type="danger">
+                          Thẻ BHYT đã hết hạn từ ngày {endDate?.format('DD/MM/YYYY')} ({Math.abs(daysUntilExpiry!)} ngày trước)
+                        </Text>
+                      </Space>
+                    }
+                    description="Bệnh nhân cần gia hạn thẻ BHYT. Nếu tiếp tục đăng ký, bệnh nhân sẽ phải thanh toán toàn bộ chi phí."
+                    type="error"
+                    showIcon
+                    style={{ marginBottom: 8 }}
+                  />
+                )}
+                {isExpiringSoon && (
+                  <Alert
+                    title={
+                      <Space>
+                        <WarningOutlined />
+                        <Text strong style={{ color: '#d48806' }}>
+                          Thẻ BHYT sắp hết hạn: còn {daysUntilExpiry} ngày (hết hạn ngày {endDate?.format('DD/MM/YYYY')})
+                        </Text>
+                      </Space>
+                    }
+                    description="Vui lòng nhắc bệnh nhân gia hạn thẻ BHYT trước khi hết hạn để đảm bảo quyền lợi."
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 8 }}
+                  />
+                )}
+                <Alert
+                  title={
+                    <Space>
+                      <Tag color="green">Đủ điều kiện KCB</Tag>
+                      <Text>Mức hưởng: {inlineCardVerification.mucHuong}%</Text>
+                      <Text type="secondary">
+                        Hiệu lực: {inlineCardVerification.gtTheTu ? dayjs(inlineCardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - {inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen).format('DD/MM/YYYY') : ''}
+                      </Text>
+                      <Button size="small" type="link" icon={<HistoryOutlined />} onClick={handleViewBhxhHistory}>
+                        Xem lịch sử KCB
+                      </Button>
+                    </Space>
+                  }
+                  type="success"
+                  showIcon
+                />
+              </div>
+            );
+          })()}
           {inlineVerifyStatus === 'invalid' && inlineCardVerification && (
             <div style={{ marginBottom: 16 }}>
               <Alert

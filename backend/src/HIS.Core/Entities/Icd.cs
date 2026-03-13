@@ -35,6 +35,58 @@ public class Country : BaseEntity
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string? NationalityName { get; set; } // Tên quốc tịch (e.g. "Việt Nam" → "Việt Nam")
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Danh mục nghề nghiệp - Occupation
+/// </summary>
+public class Occupation : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Danh mục giới tính - Gender
+/// </summary>
+public class Gender : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Đơn vị hành chính 3 cấp - AdministrativeDivision
+/// Level: 1=Tỉnh/Thành phố, 2=Quận/Huyện, 3=Xã/Phường
+/// </summary>
+public class AdministrativeDivision : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int Level { get; set; } // 1=Tinh, 2=Huyen, 3=Xa
+    public string? ParentCode { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Danh mục cơ sở khám chữa bệnh - HealthcareFacility (CSKCB)
+/// </summary>
+public class HealthcareFacility : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Address { get; set; }
+    public string? Level { get; set; } // TW, Tinh, Huyen, Xa
+    public string? ProvinceCode { get; set; }
+    public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 }
 
@@ -131,6 +183,25 @@ public class SnomedIcdMapping : BaseEntity
     public int MapPriority { get; set; } = 1;
     public string MapRule { get; set; } = "EQUIVALENT"; // EQUIVALENT, BROADER, NARROWER
     public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Khóa dịch vụ - LockedService
+/// Quản lý khóa/mở khóa dịch vụ (thuốc, vật tư, DVKT)
+/// </summary>
+public class LockedService : BaseEntity
+{
+    public Guid ServiceId { get; set; }
+    public string ServiceName { get; set; } = string.Empty;
+    public string ServiceCode { get; set; } = string.Empty;
+    public int ServiceType { get; set; } // 1=Thuốc, 2=Vật tư, 3=DVKT
+    public string ServiceTypeName { get; set; } = string.Empty;
+    public bool IsLocked { get; set; } = true;
+    public string? LockReason { get; set; }
+    public string? LockedBy { get; set; }
+    public string? LockedByName { get; set; }
+    public DateTime? LockedAt { get; set; }
+    public DateTime? UnlockedAt { get; set; }
 }
 
 /// <summary>

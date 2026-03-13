@@ -20,6 +20,7 @@ import {
   Spin,
   Descriptions,
   Alert,
+  InputNumber,
 } from 'antd';
 import {
   PlusOutlined,
@@ -30,6 +31,7 @@ import {
   ReloadOutlined,
   PrinterOutlined,
   FileTextOutlined,
+  FileProtectOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -53,6 +55,7 @@ import {
   type TransferBedDto,
 } from '../api/inpatient';
 import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheritance';
+import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -115,6 +118,8 @@ const Inpatient: React.FC = () => {
   const [bedAssignForm] = Form.useForm();
   const [medicalRecordForm] = Form.useForm();
   const [treatmentTrackingForm] = Form.useForm();
+  const [birthCertForm] = Form.useForm();
+  const [isBirthCertModalOpen, setIsBirthCertModalOpen] = useState(false);
 
   // Data inheritance state (OPD → Inpatient context)
   const [admissionCtx, setAdmissionCtx] = useState<AdmissionContextDto | null>(null);
@@ -677,6 +682,69 @@ const Inpatient: React.FC = () => {
     }
     return match;
   });
+
+  // Handle birth certificate
+  const handleOpenBirthCert = () => {
+    if (!selectedAdmission) return;
+    birthCertForm.resetFields();
+    birthCertForm.setFieldsValue({
+      motherFullName: selectedAdmission.patientName,
+      departmentName: selectedAdmission.departmentName,
+      motherNationality: 'Viet Nam',
+      fatherNationality: 'Viet Nam',
+      motherEthnicity: 'Kinh',
+      fatherEthnicity: 'Kinh',
+      numberOfBabies: 1,
+      birthOrder: 1,
+      babyGender: 'Nam',
+      deliveryMethod: 'normal',
+      issueDate: dayjs(),
+    });
+    setIsBirthCertModalOpen(true);
+  };
+
+  const handlePrintBirthCert = () => {
+    const values = birthCertForm.getFieldsValue();
+    const certData: BirthCertificateData = {
+      certificateNumber: values.certificateNumber,
+      issueDate: values.issueDate ? dayjs(values.issueDate).toISOString() : undefined,
+      babyFullName: values.babyFullName,
+      babyGender: values.babyGender,
+      dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : undefined,
+      timeOfBirth: values.timeOfBirth ? dayjs(values.timeOfBirth).format('HH:mm') : undefined,
+      birthWeight: values.birthWeight,
+      birthLength: values.birthLength,
+      gestationalAge: values.gestationalAge,
+      apgar1: values.apgar1,
+      apgar5: values.apgar5,
+      apgar10: values.apgar10,
+      deliveryMethod: values.deliveryMethod,
+      birthOrder: values.birthOrder,
+      pregnancyOrder: values.pregnancyOrder,
+      numberOfBabies: values.numberOfBabies,
+      motherFullName: values.motherFullName,
+      motherDateOfBirth: values.motherDateOfBirth ? dayjs(values.motherDateOfBirth).toISOString() : undefined,
+      motherIdNumber: values.motherIdNumber,
+      motherNationality: values.motherNationality,
+      motherEthnicity: values.motherEthnicity,
+      motherAddress: values.motherAddress,
+      motherOccupation: values.motherOccupation,
+      fatherFullName: values.fatherFullName,
+      fatherDateOfBirth: values.fatherDateOfBirth ? dayjs(values.fatherDateOfBirth).toISOString() : undefined,
+      fatherIdNumber: values.fatherIdNumber,
+      fatherNationality: values.fatherNationality,
+      fatherEthnicity: values.fatherEthnicity,
+      fatherAddress: values.fatherAddress,
+      fatherOccupation: values.fatherOccupation,
+      doctorName: values.doctorName,
+      midwifeName: values.midwifeName,
+      departmentName: values.departmentName,
+    };
+    const ok = printBirthCertificate(certData);
+    if (!ok) {
+      message.error('Khong the mo cua so in. Vui long cho phep popup.');
+    }
+  };
 
   // Determine print type based on department
   const determinePrintType = (departmentName?: string): 'noi_khoa' | 'ngoai_khoa' => {
@@ -1927,6 +1995,13 @@ const Inpatient: React.FC = () => {
           >
             In phiếu theo dõi
           </Button>,
+          <Button
+            key="print-birth-cert"
+            icon={<FileProtectOutlined />}
+            onClick={handleOpenBirthCert}
+          >
+            In giấy chứng sinh
+          </Button>,
           <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
             Đóng
           </Button>,
@@ -2677,6 +2752,228 @@ P - Kế hoạch điều trị:
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Birth Certificate Modal */}
+      <Modal
+        title="In Giấy chứng sinh"
+        open={isBirthCertModalOpen}
+        onCancel={() => { setIsBirthCertModalOpen(false); birthCertForm.resetFields(); }}
+        width={900}
+        footer={[
+          <Button key="cancel" onClick={() => setIsBirthCertModalOpen(false)}>
+            Hủy
+          </Button>,
+          <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={handlePrintBirthCert}>
+            In giấy chứng sinh
+          </Button>,
+        ]}
+      >
+        <div style={{ maxHeight: '70vh', overflow: 'auto' }}>
+          <Form form={birthCertForm} layout="vertical" size="small">
+            <Divider><strong>Thông tin giấy chứng sinh</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="certificateNumber" label="Số giấy chứng sinh">
+                  <Input placeholder="VD: 001/2026" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="issueDate" label="Ngày cấp">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider><strong>I. Thông tin trẻ sơ sinh</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="babyFullName" label="Họ và tên trẻ">
+                  <Input placeholder="Họ và tên trẻ sơ sinh" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="babyGender" label="Giới tính">
+                  <Select>
+                    <Select.Option value="Nam">Nam</Select.Option>
+                    <Select.Option value="Nu">Nữ</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="dateOfBirth" label="Ngày giờ sinh">
+                  <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={6}>
+                <Form.Item name="birthWeight" label="Cân nặng (gram)">
+                  <InputNumber style={{ width: '100%' }} min={0} max={10000} placeholder="VD: 3200" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="birthLength" label="Chiều dài (cm)">
+                  <InputNumber style={{ width: '100%' }} min={0} max={100} placeholder="VD: 50" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="gestationalAge" label="Tuổi thai (tuần)">
+                  <InputNumber style={{ width: '100%' }} min={20} max={45} placeholder="VD: 39" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="deliveryMethod" label="Phương pháp đẻ">
+                  <Select>
+                    <Select.Option value="normal">Đẻ thường</Select.Option>
+                    <Select.Option value="c-section">Mổ lấy thai</Select.Option>
+                    <Select.Option value="forceps">Forceps</Select.Option>
+                    <Select.Option value="vacuum">Giác hút</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={6}>
+                <Form.Item name="apgar1" label="Apgar 1 phút">
+                  <InputNumber style={{ width: '100%' }} min={0} max={10} />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="apgar5" label="Apgar 5 phút">
+                  <InputNumber style={{ width: '100%' }} min={0} max={10} />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="apgar10" label="Apgar 10 phút">
+                  <InputNumber style={{ width: '100%' }} min={0} max={10} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="birthOrder" label="Con thứ">
+                  <InputNumber style={{ width: '100%' }} min={1} max={20} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="pregnancyOrder" label="Lần mang thai thứ">
+                  <InputNumber style={{ width: '100%' }} min={1} max={20} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="numberOfBabies" label="Số con sinh">
+                  <InputNumber style={{ width: '100%' }} min={1} max={10} />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider><strong>II. Thông tin người mẹ</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="motherFullName" label="Họ và tên mẹ" rules={[{ required: true, message: 'Nhập tên mẹ' }]}>
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="motherDateOfBirth" label="Ngày sinh mẹ">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="motherIdNumber" label="CMND/CCCD">
+                  <Input placeholder="Số CCCD/CMND" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="motherNationality" label="Quốc tịch">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="motherEthnicity" label="Dân tộc">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="motherOccupation" label="Nghề nghiệp">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="motherAddress" label="Nơi cư trú">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider><strong>III. Thông tin người cha</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="fatherFullName" label="Họ và tên cha">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="fatherDateOfBirth" label="Ngày sinh cha">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="fatherIdNumber" label="CMND/CCCD">
+                  <Input placeholder="Số CCCD/CMND" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="fatherNationality" label="Quốc tịch">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="fatherEthnicity" label="Dân tộc">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="fatherOccupation" label="Nghề nghiệp">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="fatherAddress" label="Nơi cư trú">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider><strong>IV. Người đỡ đẻ</strong></Divider>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="doctorName" label="Bác sĩ">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="midwifeName" label="Nữ hộ sinh">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="departmentName" label="Khoa">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </div>
       </Modal>
     </div>
   );

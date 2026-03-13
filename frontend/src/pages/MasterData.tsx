@@ -31,10 +31,23 @@ import {
   FileTextOutlined,
   FolderOutlined,
   SaveOutlined,
+  EnvironmentOutlined,
+  GlobalOutlined,
+  BankOutlined,
+  TeamOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
 import { catalogApi, type ClinicalTermCatalogDto } from '../api/system';
+import {
+  administrativeCatalogApi,
+  type OccupationDto,
+  type GenderDto,
+  type AdministrativeDivisionDto,
+  type CountryDto,
+  type HealthcareFacilityDto,
+} from '../api/administrativeCatalog';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -147,6 +160,18 @@ const categoryTreeData: DataNode[] = [
       { title: 'Điều dưỡng', key: 'nurses', icon: <FolderOutlined /> },
     ],
   },
+  {
+    title: 'Danh mục hành chính',
+    key: 'administrative',
+    icon: <GlobalOutlined />,
+    children: [
+      { title: 'Nghề nghiệp', key: 'occupations', icon: <IdcardOutlined /> },
+      { title: 'Giới tính', key: 'genders', icon: <TeamOutlined /> },
+      { title: 'Tỉnh/Huyện/Xã', key: 'admin-divisions', icon: <EnvironmentOutlined /> },
+      { title: 'Quốc gia', key: 'countries', icon: <GlobalOutlined /> },
+      { title: 'CSKCB', key: 'healthcare-facilities', icon: <BankOutlined /> },
+    ],
+  },
 ];
 
 const MasterData: React.FC = () => {
@@ -157,6 +182,14 @@ const MasterData: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [icdCodes, setIcdCodes] = useState<IcdCode[]>([]);
   const [clinicalTerms, setClinicalTerms] = useState<ClinicalTermCatalogDto[]>([]);
+  const [occupations, setOccupations] = useState<OccupationDto[]>([]);
+  const [genders, setGenders] = useState<GenderDto[]>([]);
+  const [adminDivisions, setAdminDivisions] = useState<AdministrativeDivisionDto[]>([]);
+  const [adminDivisionLevel, setAdminDivisionLevel] = useState<number | undefined>(undefined);
+  const [adminDivisionParentCode, setAdminDivisionParentCode] = useState<string | undefined>(undefined);
+  const [countries, setCountries] = useState<CountryDto[]>([]);
+  const [healthcareFacilities, setHealthcareFacilities] = useState<HealthcareFacilityDto[]>([]);
+  const [facilityLevelFilter, setFacilityLevelFilter] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
@@ -251,6 +284,31 @@ const MasterData: React.FC = () => {
           setClinicalTerms(mappedCt);
           break;
         }
+        case 'occupations': {
+          const occResponse = await administrativeCatalogApi.getOccupations();
+          setOccupations(extractData(occResponse));
+          break;
+        }
+        case 'genders': {
+          const genResponse = await administrativeCatalogApi.getGenders();
+          setGenders(extractData(genResponse));
+          break;
+        }
+        case 'admin-divisions': {
+          const divResponse = await administrativeCatalogApi.getAdministrativeDivisions(undefined, adminDivisionLevel, adminDivisionParentCode);
+          setAdminDivisions(extractData(divResponse));
+          break;
+        }
+        case 'countries': {
+          const countryResponse = await administrativeCatalogApi.getCountries();
+          setCountries(extractData(countryResponse));
+          break;
+        }
+        case 'healthcare-facilities': {
+          const facResponse = await administrativeCatalogApi.getHealthcareFacilities(undefined, facilityLevelFilter);
+          setHealthcareFacilities(extractData(facResponse));
+          break;
+        }
       }
     } catch (error) {
       console.warn('Error fetching data:', error);
@@ -302,6 +360,21 @@ const MasterData: React.FC = () => {
               break;
             case 'clinical-terms':
               await catalogApi.deleteClinicalTerm(record.id);
+              break;
+            case 'occupations':
+              await administrativeCatalogApi.deleteOccupation(record.id);
+              break;
+            case 'genders':
+              await administrativeCatalogApi.deleteGender(record.id);
+              break;
+            case 'admin-divisions':
+              await administrativeCatalogApi.deleteAdministrativeDivision(record.id);
+              break;
+            case 'countries':
+              await administrativeCatalogApi.deleteCountry(record.id);
+              break;
+            case 'healthcare-facilities':
+              await administrativeCatalogApi.deleteHealthcareFacility(record.id);
               break;
           }
           message.success('Đã xóa thành công');
@@ -389,6 +462,57 @@ const MasterData: React.FC = () => {
             category: values.category,
             bodySystem: values.bodySystem,
             description: values.description,
+            sortOrder: values.sortOrder || 0,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'occupations':
+          await administrativeCatalogApi.saveOccupation({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            sortOrder: values.sortOrder || 0,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'genders':
+          await administrativeCatalogApi.saveGender({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            sortOrder: values.sortOrder || 0,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'admin-divisions':
+          await administrativeCatalogApi.saveAdministrativeDivision({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            level: values.level,
+            parentCode: values.parentCode,
+            sortOrder: values.sortOrder || 0,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'countries':
+          await administrativeCatalogApi.saveCountry({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            nationalityName: values.nationalityName,
+            sortOrder: values.sortOrder || 0,
+            isActive: values.isActive !== false,
+          });
+          break;
+        case 'healthcare-facilities':
+          await administrativeCatalogApi.saveHealthcareFacility({
+            id: editingRecord?.id,
+            code: values.code,
+            name: values.name,
+            address: values.address,
+            level: values.level,
+            provinceCode: values.provinceCode,
             sortOrder: values.sortOrder || 0,
             isActive: values.isActive !== false,
           });
@@ -913,6 +1037,330 @@ const MasterData: React.FC = () => {
     />
   );
 
+  // Occupation columns
+  const occupationColumns: ColumnsType<OccupationDto> = [
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: 120, render: (code: string) => <Text strong>{code}</Text> },
+    { title: 'Tên nghề nghiệp', dataIndex: 'name', key: 'name' },
+    { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 80, align: 'center' },
+    {
+      title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 100,
+      render: (isActive: boolean) => <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'Hoạt động' : 'Ngừng'}</Tag>,
+    },
+    {
+      title: 'Thao tác', key: 'action', width: 100,
+      render: (_: unknown, record: OccupationDto) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+        </Space>
+      ),
+    },
+  ];
+
+  const renderOccupationsTable = () => (
+    <Table
+      columns={occupationColumns}
+      dataSource={filterByKeyword(occupations)}
+      rowKey="id"
+      size="small"
+      loading={loading}
+      pagination={{ showSizeChanger: true, showQuickJumper: true, showTotal: (total) => `Tổng: ${total} nghề nghiệp` }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết nghề nghiệp - ${record.name}`,
+            width: 400,
+            content: (
+              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Thứ tự">{record.sortOrder}</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
+                  <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
+
+  // Gender columns
+  const genderColumns: ColumnsType<GenderDto> = [
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: 120, render: (code: string) => <Text strong>{code}</Text> },
+    { title: 'Tên giới tính', dataIndex: 'name', key: 'name' },
+    { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 80, align: 'center' },
+    {
+      title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 100,
+      render: (isActive: boolean) => <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'Hoạt động' : 'Ngừng'}</Tag>,
+    },
+    {
+      title: 'Thao tác', key: 'action', width: 100,
+      render: (_: unknown, record: GenderDto) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+        </Space>
+      ),
+    },
+  ];
+
+  const renderGendersTable = () => (
+    <Table
+      columns={genderColumns}
+      dataSource={filterByKeyword(genders)}
+      rowKey="id"
+      size="small"
+      loading={loading}
+      pagination={{ showSizeChanger: true, showQuickJumper: true, showTotal: (total) => `Tổng: ${total} giới tính` }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết giới tính - ${record.name}`,
+            width: 400,
+            content: (
+              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Thứ tự">{record.sortOrder}</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
+                  <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
+
+  // Administrative Division columns
+  const adminDivisionColumns: ColumnsType<AdministrativeDivisionDto> = [
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: 100, render: (code: string) => <Text strong>{code}</Text> },
+    { title: 'Tên', dataIndex: 'name', key: 'name', width: 250 },
+    {
+      title: 'Cấp', dataIndex: 'level', key: 'level', width: 100,
+      render: (level: number) => {
+        const labels: Record<number, string> = { 1: 'Tỉnh/TP', 2: 'Quận/Huyện', 3: 'Phường/Xã' };
+        const colors: Record<number, string> = { 1: 'blue', 2: 'cyan', 3: 'green' };
+        return <Tag color={colors[level] || 'default'}>{labels[level] || `Cấp ${level}`}</Tag>;
+      },
+    },
+    {
+      title: 'Mã cha', dataIndex: 'parentCode', key: 'parentCode', width: 100,
+      render: (code: string) => code ? <Text code>{code}</Text> : '-',
+    },
+    { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 80, align: 'center' },
+    {
+      title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 100,
+      render: (isActive: boolean) => <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'Hoạt động' : 'Ngừng'}</Tag>,
+    },
+    {
+      title: 'Thao tác', key: 'action', width: 100,
+      render: (_: unknown, record: AdministrativeDivisionDto) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+        </Space>
+      ),
+    },
+  ];
+
+  const renderAdminDivisionsTable = () => (
+    <div>
+      <Space style={{ marginBottom: 16 }}>
+        <Select
+          placeholder="Lọc theo cấp"
+          allowClear
+          style={{ width: 160 }}
+          value={adminDivisionLevel}
+          onChange={(val) => { setAdminDivisionLevel(val); }}
+          options={[
+            { label: 'Tỉnh/Thành phố', value: 1 },
+            { label: 'Quận/Huyện', value: 2 },
+            { label: 'Phường/Xã', value: 3 },
+          ]}
+        />
+        <Input
+          placeholder="Mã cha (lọc)"
+          allowClear
+          style={{ width: 140 }}
+          value={adminDivisionParentCode}
+          onChange={(e) => setAdminDivisionParentCode(e.target.value || undefined)}
+        />
+        <Button type="primary" size="small" onClick={fetchData}>Lọc</Button>
+      </Space>
+      <Table
+        columns={adminDivisionColumns}
+        dataSource={filterByKeyword(adminDivisions)}
+        rowKey="id"
+        size="small"
+        loading={loading}
+        pagination={{ showSizeChanger: true, showQuickJumper: true, showTotal: (total) => `Tổng: ${total} đơn vị hành chính` }}
+        onRow={(record) => ({
+          onDoubleClick: () => {
+            Modal.info({
+              title: `Chi tiết - ${record.name}`,
+              width: 500,
+              content: (
+                <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                  <Descriptions.Item label="Mã">{record.code}</Descriptions.Item>
+                  <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                  <Descriptions.Item label="Cấp">{record.level === 1 ? 'Tỉnh/TP' : record.level === 2 ? 'Quận/Huyện' : 'Phường/Xã'}</Descriptions.Item>
+                  <Descriptions.Item label="Mã cha">{record.parentCode || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Thứ tự">{record.sortOrder}</Descriptions.Item>
+                  <Descriptions.Item label="Trạng thái">
+                    <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                  </Descriptions.Item>
+                </Descriptions>
+              ),
+            });
+          },
+          style: { cursor: 'pointer' },
+        })}
+      />
+    </div>
+  );
+
+  // Country columns
+  const countryColumns: ColumnsType<CountryDto> = [
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: 100, render: (code: string) => <Text strong>{code}</Text> },
+    { title: 'Tên quốc gia', dataIndex: 'name', key: 'name', width: 250 },
+    { title: 'Tên quốc tịch', dataIndex: 'nationalityName', key: 'nationalityName', width: 200, render: (v: string) => v || '-' },
+    { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 80, align: 'center' },
+    {
+      title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 100,
+      render: (isActive: boolean) => <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'Hoạt động' : 'Ngừng'}</Tag>,
+    },
+    {
+      title: 'Thao tác', key: 'action', width: 100,
+      render: (_: unknown, record: CountryDto) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+        </Space>
+      ),
+    },
+  ];
+
+  const renderCountriesTable = () => (
+    <Table
+      columns={countryColumns}
+      dataSource={filterByKeyword(countries)}
+      rowKey="id"
+      size="small"
+      loading={loading}
+      pagination={{ showSizeChanger: true, showQuickJumper: true, showTotal: (total) => `Tổng: ${total} quốc gia` }}
+      onRow={(record) => ({
+        onDoubleClick: () => {
+          Modal.info({
+            title: `Chi tiết quốc gia - ${record.name}`,
+            width: 400,
+            content: (
+              <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="Mã">{record.code}</Descriptions.Item>
+                <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                <Descriptions.Item label="Quốc tịch">{record.nationalityName || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Thứ tự">{record.sortOrder}</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
+                  <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          });
+        },
+        style: { cursor: 'pointer' },
+      })}
+    />
+  );
+
+  // Healthcare Facility columns
+  const healthcareFacilityColumns: ColumnsType<HealthcareFacilityDto> = [
+    { title: 'Mã CSKCB', dataIndex: 'code', key: 'code', width: 120, render: (code: string) => <Text strong>{code}</Text> },
+    { title: 'Tên cơ sở', dataIndex: 'name', key: 'name', width: 250 },
+    { title: 'Địa chỉ', dataIndex: 'address', key: 'address', width: 200, ellipsis: true, render: (v: string) => v || '-' },
+    {
+      title: 'Tuyến', dataIndex: 'level', key: 'level', width: 100,
+      render: (level: string) => {
+        const colors: Record<string, string> = { TW: 'red', 'Tỉnh': 'blue', 'Huyện': 'cyan', 'Xã': 'green' };
+        return level ? <Tag color={colors[level] || 'default'}>{level}</Tag> : '-';
+      },
+    },
+    {
+      title: 'Mã tỉnh', dataIndex: 'provinceCode', key: 'provinceCode', width: 90,
+      render: (code: string) => code ? <Text code>{code}</Text> : '-',
+    },
+    { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 70, align: 'center' },
+    {
+      title: 'TT', dataIndex: 'isActive', key: 'isActive', width: 70,
+      render: (isActive: boolean) => <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'On' : 'Off'}</Tag>,
+    },
+    {
+      title: '', key: 'action', width: 90,
+      render: (_: unknown, record: HealthcareFacilityDto) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+        </Space>
+      ),
+    },
+  ];
+
+  const renderHealthcareFacilitiesTable = () => (
+    <div>
+      <Space style={{ marginBottom: 16 }}>
+        <Select
+          placeholder="Lọc theo tuyến"
+          allowClear
+          style={{ width: 160 }}
+          value={facilityLevelFilter}
+          onChange={(val) => { setFacilityLevelFilter(val); }}
+          options={[
+            { label: 'Trung ương', value: 'TW' },
+            { label: 'Tỉnh', value: 'Tỉnh' },
+            { label: 'Huyện', value: 'Huyện' },
+            { label: 'Xã', value: 'Xã' },
+          ]}
+        />
+        <Button type="primary" size="small" onClick={fetchData}>Lọc</Button>
+      </Space>
+      <Table
+        columns={healthcareFacilityColumns}
+        dataSource={filterByKeyword(healthcareFacilities)}
+        rowKey="id"
+        size="small"
+        scroll={{ x: 1100 }}
+        loading={loading}
+        pagination={{ showSizeChanger: true, showQuickJumper: true, showTotal: (total) => `Tổng: ${total} cơ sở KCB` }}
+        onRow={(record) => ({
+          onDoubleClick: () => {
+            Modal.info({
+              title: `Chi tiết CSKCB - ${record.name}`,
+              width: 500,
+              content: (
+                <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                  <Descriptions.Item label="Mã CSKCB">{record.code}</Descriptions.Item>
+                  <Descriptions.Item label="Tên">{record.name}</Descriptions.Item>
+                  <Descriptions.Item label="Địa chỉ">{record.address || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Tuyến">{record.level || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Mã tỉnh">{record.provinceCode || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Thứ tự">{record.sortOrder}</Descriptions.Item>
+                  <Descriptions.Item label="Trạng thái">
+                    <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
+                  </Descriptions.Item>
+                </Descriptions>
+              ),
+            });
+          },
+          style: { cursor: 'pointer' },
+        })}
+      />
+    </div>
+  );
+
   const renderForm = () => {
     switch (activeTab) {
       case 'services':
@@ -1241,6 +1689,192 @@ const MasterData: React.FC = () => {
             </Form.Item>
           </>
         );
+      case 'occupations':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã nghề nghiệp" rules={[{ required: true }]}>
+                  <Input placeholder="VD: NN01" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên nghề nghiệp" rules={[{ required: true }]}>
+                  <Input placeholder="VD: Công nhân" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="sortOrder" label="Thứ tự" initialValue={0}>
+                  <InputNumber style={{ width: '100%' }} min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
+        );
+      case 'genders':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã giới tính" rules={[{ required: true }]}>
+                  <Input placeholder="VD: 1, 2, 3" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên giới tính" rules={[{ required: true }]}>
+                  <Input placeholder="VD: Nam, Nữ, Khác" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="sortOrder" label="Thứ tự" initialValue={0}>
+                  <InputNumber style={{ width: '100%' }} min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
+        );
+      case 'admin-divisions':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã đơn vị" rules={[{ required: true }]}>
+                  <Input placeholder="VD: 01, 001, 00001" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên đơn vị" rules={[{ required: true }]}>
+                  <Input placeholder="VD: Hà Nội, Ba Đình, Phúc Xá" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="level" label="Cấp" rules={[{ required: true }]}>
+                  <Select placeholder="Chọn cấp">
+                    <Select.Option value={1}>Tỉnh/Thành phố</Select.Option>
+                    <Select.Option value={2}>Quận/Huyện</Select.Option>
+                    <Select.Option value={3}>Phường/Xã</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="parentCode" label="Mã đơn vị cha">
+                  <Input placeholder="Mã tỉnh/huyện cha" />
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item name="sortOrder" label="Thứ tự" initialValue={0}>
+                  <InputNumber style={{ width: '100%' }} min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="On" unCheckedChildren="Off" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
+        );
+      case 'countries':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã quốc gia" rules={[{ required: true }]}>
+                  <Input placeholder="VD: VN, US, JP" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên quốc gia" rules={[{ required: true }]}>
+                  <Input placeholder="VD: Việt Nam" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="nationalityName" label="Tên quốc tịch">
+                  <Input placeholder="VD: Việt Nam" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="sortOrder" label="Thứ tự" initialValue={0}>
+                  <InputNumber style={{ width: '100%' }} min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
+        );
+      case 'healthcare-facilities':
+        return (
+          <>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="code" label="Mã CSKCB" rules={[{ required: true }]}>
+                  <Input placeholder="VD: 01001" />
+                </Form.Item>
+              </Col>
+              <Col span={16}>
+                <Form.Item name="name" label="Tên cơ sở KCB" rules={[{ required: true }]}>
+                  <Input placeholder="VD: Bệnh viện Bạch Mai" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item name="address" label="Địa chỉ">
+                  <Input placeholder="Nhập địa chỉ cơ sở" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="level" label="Tuyến">
+                  <Select placeholder="Chọn tuyến" allowClear>
+                    <Select.Option value="TW">Trung ương</Select.Option>
+                    <Select.Option value="Tỉnh">Tỉnh</Select.Option>
+                    <Select.Option value="Huyện">Huyện</Select.Option>
+                    <Select.Option value="Xã">Xã</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="provinceCode" label="Mã tỉnh">
+                  <Input placeholder="VD: 01" />
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item name="sortOrder" label="Thứ tự" initialValue={0}>
+                  <InputNumber style={{ width: '100%' }} min={0} />
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+                  <Switch checkedChildren="On" unCheckedChildren="Off" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </>
+        );
       default:
         return (
           <>
@@ -1275,14 +1909,31 @@ const MasterData: React.FC = () => {
               onSelect={(keys) => {
                 if (keys.length > 0) {
                   setSelectedCategory(keys[0] as string);
-                  if (keys[0] === 'services' || keys[0] === 'exam' || keys[0] === 'lab' || keys[0] === 'imaging' || keys[0] === 'surgery') {
+                  const key = keys[0] as string;
+                  if (key === 'services' || key === 'exam' || key === 'lab' || key === 'imaging' || key === 'surgery' || key === 'functional' || key === 'bedday') {
                     setActiveTab('services');
-                  } else if (keys[0] === 'medicine' || keys[0] === 'pharmacy') {
+                  } else if (key === 'medicine' || key === 'pharmacy' || key === 'supplies' || key === 'blood') {
                     setActiveTab('medicines');
-                  } else if (keys[0] === 'departments' || keys[0] === 'organization') {
+                  } else if (key === 'departments' || key === 'organization' || key === 'warehouses' || key === 'clinics') {
                     setActiveTab('departments');
-                  } else if (keys[0] === 'icd10' || keys[0] === 'byt') {
+                  } else if (key === 'icd10' || key === 'byt' || key === 'route' || key === 'ingredient') {
                     setActiveTab('icd');
+                  } else if (key === 'clinical-terms') {
+                    setActiveTab('clinical-terms');
+                  } else if (key === 'occupations') {
+                    setActiveTab('occupations');
+                  } else if (key === 'genders') {
+                    setActiveTab('genders');
+                  } else if (key === 'admin-divisions') {
+                    setActiveTab('admin-divisions');
+                  } else if (key === 'countries') {
+                    setActiveTab('countries');
+                  } else if (key === 'healthcare-facilities') {
+                    setActiveTab('healthcare-facilities');
+                  } else if (key === 'administrative') {
+                    setActiveTab('occupations');
+                  } else if (key === 'employees' || key === 'users' || key === 'doctors' || key === 'nurses') {
+                    setActiveTab('departments');
                   }
                 }
               }}
@@ -1355,6 +2006,51 @@ const MasterData: React.FC = () => {
                     </span>
                   ),
                   children: renderClinicalTermsTable(),
+                },
+                {
+                  key: 'occupations',
+                  label: (
+                    <span>
+                      <IdcardOutlined /> Nghề nghiệp
+                    </span>
+                  ),
+                  children: renderOccupationsTable(),
+                },
+                {
+                  key: 'genders',
+                  label: (
+                    <span>
+                      <TeamOutlined /> Giới tính
+                    </span>
+                  ),
+                  children: renderGendersTable(),
+                },
+                {
+                  key: 'admin-divisions',
+                  label: (
+                    <span>
+                      <EnvironmentOutlined /> Tỉnh/Huyện/Xã
+                    </span>
+                  ),
+                  children: renderAdminDivisionsTable(),
+                },
+                {
+                  key: 'countries',
+                  label: (
+                    <span>
+                      <GlobalOutlined /> Quốc gia
+                    </span>
+                  ),
+                  children: renderCountriesTable(),
+                },
+                {
+                  key: 'healthcare-facilities',
+                  label: (
+                    <span>
+                      <BankOutlined /> CSKCB
+                    </span>
+                  ),
+                  children: renderHealthcareFacilitiesTable(),
                 },
               ]}
             />

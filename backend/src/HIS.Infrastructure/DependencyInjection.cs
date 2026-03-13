@@ -191,6 +191,12 @@ public static class DependencyInjection
         // Kho lưu chủng Vi Sinh (Culture Stock)
         services.AddScoped<ICultureStockService, CultureStockService>();
 
+        // LIS Configuration (Cấu hình máy xét nghiệm, thông số, mapping, Labconnect)
+        services.AddScoped<ILisConfigService, LisConfigService>();
+
+        // Hospital Report Service (140 reports + birth certificate)
+        services.AddScoped<IHospitalReportService, HospitalReportService>();
+
         return services;
     }
 }

@@ -1531,4 +1531,115 @@ namespace HIS.Application.DTOs.System
     }
 
     #endregion
+
+    #region Module 13.20-13.24: Danh mục hành chính (Administrative Catalogs)
+
+    /// <summary>
+    /// Nghề nghiệp (Occupation)
+    /// </summary>
+    public class OccupationCatalogDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Giới tính (Gender)
+    /// </summary>
+    public class GenderCatalogDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Đơn vị hành chính (Administrative Division) - 3 cấp: Tỉnh/Huyện/Xã
+    /// </summary>
+    public class AdministrativeDivisionCatalogDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int Level { get; set; } // 1=Tinh, 2=Huyen, 3=Xa
+        public string? ParentCode { get; set; }
+        public string? ParentName { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Quốc gia (Country)
+    /// </summary>
+    public class CountryCatalogDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? NationalityName { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Cơ sở khám chữa bệnh (Healthcare Facility / CSKCB)
+    /// </summary>
+    public class HealthcareFacilityCatalogDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public string? Level { get; set; } // TW, Tinh, Huyen, Xa
+        public string? ProvinceCode { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    #endregion
+
+    #region Service Locking DTOs
+
+    /// <summary>
+    /// Thông tin dịch vụ bị khóa
+    /// </summary>
+    public class LockedServiceDto
+    {
+        public Guid Id { get; set; }
+        public Guid ServiceId { get; set; }
+        public string ServiceName { get; set; } = string.Empty;
+        public string ServiceCode { get; set; } = string.Empty;
+        public int ServiceType { get; set; } // 1=Thuốc, 2=Vật tư, 3=DVKT
+        public string ServiceTypeName { get; set; } = string.Empty;
+        public bool IsLocked { get; set; }
+        public string? LockReason { get; set; }
+        public string? LockedBy { get; set; }
+        public string? LockedByName { get; set; }
+        public DateTime? LockedAt { get; set; }
+        public DateTime? UnlockedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Yêu cầu khóa dịch vụ
+    /// </summary>
+    public class LockServiceRequestDto
+    {
+        public Guid ServiceId { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Yêu cầu mở khóa dịch vụ
+    /// </summary>
+    public class UnlockServiceRequestDto
+    {
+        public Guid ServiceId { get; set; }
+    }
+
+    #endregion
 }

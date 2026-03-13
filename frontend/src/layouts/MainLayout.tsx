@@ -117,6 +117,7 @@ const MainLayout: React.FC = () => {
         { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
         { key: '/pathology', icon: <ExperimentOutlined />, label: 'Giải phẫu bệnh' },
+        { key: '/lis-config', icon: <SettingOutlined />, label: 'Cấu hình LIS' },
       ],
     },
     {

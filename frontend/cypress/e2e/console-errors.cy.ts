@@ -55,6 +55,7 @@ const pages = [
   { route: '/bhxh-audit', name: 'BHXH Audit (Giam dinh BHXH)' },
   { route: '/doctor-portal', name: 'Doctor Portal (Cong bac si)' },
   { route: '/satisfaction-survey', name: 'Satisfaction Survey (Khao sat hai long)' },
+  { route: '/lis-config', name: 'LIS Config (Cau hinh LIS)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

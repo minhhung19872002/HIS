@@ -139,6 +139,10 @@ public class HISDbContext : DbContext
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<ClinicalTerm> ClinicalTerms => Set<ClinicalTerm>();
     public DbSet<SnomedIcdMapping> SnomedIcdMappings => Set<SnomedIcdMapping>();
+    public DbSet<Occupation> Occupations => Set<Occupation>();
+    public DbSet<Gender> Genders => Set<Gender>();
+    public DbSet<AdministrativeDivision> AdministrativeDivisions => Set<AdministrativeDivision>();
+    public DbSet<HealthcareFacility> HealthcareFacilities => Set<HealthcareFacility>();
 
     // DQGVN - Lien thong du lieu y te quoc gia
     public DbSet<DqgvnSubmission> DqgvnSubmissions => Set<DqgvnSubmission>();
@@ -247,6 +251,16 @@ public class HISDbContext : DbContext
 
     // HL7 CDA Documents
     public DbSet<CdaDocument> CdaDocuments => Set<CdaDocument>();
+
+    // Khóa dịch vụ (Service Locking)
+    public DbSet<LockedService> LockedServices => Set<LockedService>();
+
+    // LIS Configuration
+    public DbSet<LisAnalyzer> LisAnalyzers => Set<LisAnalyzer>();
+    public DbSet<LisTestParameter> LisTestParameters => Set<LisTestParameter>();
+    public DbSet<LisReferenceRange> LisReferenceRanges => Set<LisReferenceRange>();
+    public DbSet<LisAnalyzerMapping> LisAnalyzerMappings => Set<LisAnalyzerMapping>();
+    public DbSet<LabconnectSyncHistory> LabconnectSyncHistories => Set<LabconnectSyncHistory>();
 
     // System Administration
     public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
@@ -460,6 +474,24 @@ public class HISDbContext : DbContext
         modelBuilder.Entity<CdaDocument>()
             .HasIndex(c => c.Status)
             .HasDatabaseName("IX_CdaDocuments_Status");
+
+        // LIS Configuration FK mappings
+        modelBuilder.Entity<LisReferenceRange>()
+            .HasOne(r => r.TestParameter)
+            .WithMany(t => t.ReferenceRanges)
+            .HasForeignKey(r => r.TestParameterId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<LisAnalyzerMapping>()
+            .HasOne(m => m.Analyzer)
+            .WithMany()
+            .HasForeignKey(m => m.AnalyzerId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<LisAnalyzerMapping>()
+            .HasOne(m => m.TestParameter)
+            .WithMany(t => t.AnalyzerMappings)
+            .HasForeignKey(m => m.HisTestParameterId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Column-level encryption for Patient PII (SEC-02: Data encryption at rest)
         if (_dataProtectionProvider != null)

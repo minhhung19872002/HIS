@@ -1661,6 +1661,179 @@ namespace HIS.API.Controllers
             return Ok(result);
         }
 
+        // 13.20 Nghề nghiệp (Occupation)
+        [HttpGet("api/catalog/occupations")]
+        public async Task<ActionResult<List<OccupationCatalogDto>>> GetOccupations(
+            [FromQuery] string? keyword = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _service.GetOccupationsAsync(keyword, isActive);
+            return Ok(result);
+        }
+
+        [HttpPost("api/catalog/occupations")]
+        [Authorize(Roles = "Admin,CatalogManager")]
+        public async Task<ActionResult<OccupationCatalogDto>> SaveOccupation([FromBody] OccupationCatalogDto dto)
+        {
+            var result = await _service.SaveOccupationAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/catalog/occupations/{occupationId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteOccupation(Guid occupationId)
+        {
+            var result = await _service.DeleteOccupationAsync(occupationId);
+            return Ok(result);
+        }
+
+        // 13.21 Giới tính (Gender)
+        [HttpGet("api/catalog/genders")]
+        public async Task<ActionResult<List<GenderCatalogDto>>> GetGenders(
+            [FromQuery] string? keyword = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _service.GetGendersAsync(keyword, isActive);
+            return Ok(result);
+        }
+
+        [HttpPost("api/catalog/genders")]
+        [Authorize(Roles = "Admin,CatalogManager")]
+        public async Task<ActionResult<GenderCatalogDto>> SaveGender([FromBody] GenderCatalogDto dto)
+        {
+            var result = await _service.SaveGenderAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/catalog/genders/{genderId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteGender(Guid genderId)
+        {
+            var result = await _service.DeleteGenderAsync(genderId);
+            return Ok(result);
+        }
+
+        // 13.22 Đơn vị hành chính (Administrative Division)
+        [HttpGet("api/catalog/administrative-divisions")]
+        public async Task<ActionResult<List<AdministrativeDivisionCatalogDto>>> GetAdministrativeDivisions(
+            [FromQuery] string? keyword = null, [FromQuery] int? level = null,
+            [FromQuery] string? parentCode = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _service.GetAdministrativeDivisionsAsync(keyword, level, parentCode, isActive);
+            return Ok(result);
+        }
+
+        [HttpPost("api/catalog/administrative-divisions")]
+        [Authorize(Roles = "Admin,CatalogManager")]
+        public async Task<ActionResult<AdministrativeDivisionCatalogDto>> SaveAdministrativeDivision([FromBody] AdministrativeDivisionCatalogDto dto)
+        {
+            var result = await _service.SaveAdministrativeDivisionAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/catalog/administrative-divisions/{divisionId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteAdministrativeDivision(Guid divisionId)
+        {
+            var result = await _service.DeleteAdministrativeDivisionAsync(divisionId);
+            return Ok(result);
+        }
+
+        // 13.23 Quốc gia (Country)
+        [HttpGet("api/catalog/countries")]
+        public async Task<ActionResult<List<CountryCatalogDto>>> GetCountries(
+            [FromQuery] string? keyword = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _service.GetCountriesAsync(keyword, isActive);
+            return Ok(result);
+        }
+
+        [HttpPost("api/catalog/countries")]
+        [Authorize(Roles = "Admin,CatalogManager")]
+        public async Task<ActionResult<CountryCatalogDto>> SaveCountry([FromBody] CountryCatalogDto dto)
+        {
+            var result = await _service.SaveCountryAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/catalog/countries/{countryId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteCountry(Guid countryId)
+        {
+            var result = await _service.DeleteCountryAsync(countryId);
+            return Ok(result);
+        }
+
+        // 13.24 Cơ sở KCB (Healthcare Facility)
+        [HttpGet("api/catalog/healthcare-facilities")]
+        public async Task<ActionResult<List<HealthcareFacilityCatalogDto>>> GetHealthcareFacilities(
+            [FromQuery] string? keyword = null, [FromQuery] string? level = null,
+            [FromQuery] string? provinceCode = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _service.GetHealthcareFacilitiesAsync(keyword, level, provinceCode, isActive);
+            return Ok(result);
+        }
+
+        [HttpPost("api/catalog/healthcare-facilities")]
+        [Authorize(Roles = "Admin,CatalogManager")]
+        public async Task<ActionResult<HealthcareFacilityCatalogDto>> SaveHealthcareFacility([FromBody] HealthcareFacilityCatalogDto dto)
+        {
+            var result = await _service.SaveHealthcareFacilityAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("api/catalog/healthcare-facilities/{facilityId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteHealthcareFacility(Guid facilityId)
+        {
+            var result = await _service.DeleteHealthcareFacilityAsync(facilityId);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region 17.11 Khóa dịch vụ (Service Locking)
+
+        /// <summary>
+        /// Danh sách dịch vụ bị khóa
+        /// </summary>
+        [HttpGet("api/admin/locked-services")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<List<LockedServiceDto>>> GetLockedServices()
+        {
+            var result = await _service.GetLockedServicesAsync();
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Khóa dịch vụ
+        /// </summary>
+        [HttpPost("api/admin/lock-service")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<LockedServiceDto>> LockService([FromBody] LockServiceRequestDto dto)
+        {
+            try
+            {
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+                var userName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? User.Identity?.Name ?? "";
+                var result = await _service.LockServiceAsync(dto, userId, userName);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Mở khóa dịch vụ
+        /// </summary>
+        [HttpPost("api/admin/unlock-service")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> UnlockService([FromBody] UnlockServiceRequestDto dto)
+        {
+            var result = await _service.UnlockServiceAsync(dto);
+            return Ok(result);
+        }
+
         #endregion
     }
 }

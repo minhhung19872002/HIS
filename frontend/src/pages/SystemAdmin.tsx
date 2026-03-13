@@ -433,6 +433,95 @@ const SystemAdmin: React.FC = () => {
   const [roleForm] = Form.useForm();
   const [configForm] = Form.useForm();
   const [notificationForm] = Form.useForm();
+  const [lockServiceForm] = Form.useForm();
+
+  // Locked services state
+  const [lockedServices, setLockedServices] = useState<any[]>([]);
+  const [lockedServicesLoading, setLockedServicesLoading] = useState(false);
+  const [isLockServiceModalOpen, setIsLockServiceModalOpen] = useState(false);
+  const [lockServiceKeyword, setLockServiceKeyword] = useState('');
+  const [lockServiceSearchResults, setLockServiceSearchResults] = useState<{ id: string; code: string; name: string; serviceType: number }[]>([]);
+
+  // Fetch locked services
+  const fetchLockedServices = useCallback(async () => {
+    setLockedServicesLoading(true);
+    try {
+      const response = await adminApi.getLockedServices();
+      const data = response?.data;
+      setLockedServices(Array.isArray(data) ? data : (data as any)?.data || []);
+    } catch (error) {
+      console.warn('Error fetching locked services:', error);
+    } finally {
+      setLockedServicesLoading(false);
+    }
+  }, []);
+
+  // Auto-load locked services when tab is active
+  useEffect(() => {
+    if (activeTab === 'locked-services') {
+      fetchLockedServices();
+    }
+  }, [activeTab, fetchLockedServices]);
+
+  // Search services when opening lock modal
+  useEffect(() => {
+    if (isLockServiceModalOpen && lockServiceKeyword.trim()) {
+      const searchServices = async () => {
+        try {
+          // Search across different catalog types
+          const [examRes, paraRes, medRes] = await Promise.allSettled([
+            catalogApi.getExaminationServices(lockServiceKeyword),
+            catalogApi.getParaclinicalServices(lockServiceKeyword),
+            catalogApi.getMedicines({ keyword: lockServiceKeyword }),
+          ]);
+          const results: { id: string; code: string; name: string; serviceType: number }[] = [];
+          if (examRes.status === 'fulfilled') {
+            const items = Array.isArray(examRes.value.data) ? examRes.value.data : [];
+            items.forEach((s: any) => results.push({ id: s.id, code: s.serviceCode || s.code || '', name: s.serviceName || s.name || '', serviceType: 3 }));
+          }
+          if (paraRes.status === 'fulfilled') {
+            const items = Array.isArray(paraRes.value.data) ? paraRes.value.data : [];
+            items.forEach((s: any) => results.push({ id: s.id, code: s.serviceCode || s.code || '', name: s.serviceName || s.name || '', serviceType: 3 }));
+          }
+          if (medRes.status === 'fulfilled') {
+            const items = Array.isArray(medRes.value.data) ? medRes.value.data : [];
+            items.forEach((s: any) => results.push({ id: s.id, code: s.medicineCode || s.code || '', name: s.medicineName || s.name || '', serviceType: 1 }));
+          }
+          setLockServiceSearchResults(results.slice(0, 50));
+        } catch {
+          setLockServiceSearchResults([]);
+        }
+      };
+      searchServices();
+    }
+  }, [isLockServiceModalOpen, lockServiceKeyword]);
+
+  const handleLockService = async () => {
+    try {
+      const values = await lockServiceForm.validateFields();
+      await adminApi.lockService(values.serviceId, values.reason);
+      message.success('Đã khóa dịch vụ thành công');
+      setIsLockServiceModalOpen(false);
+      lockServiceForm.resetFields();
+      setLockServiceKeyword('');
+      fetchLockedServices();
+    } catch (error: any) {
+      if (error?.errorFields) return; // validation error
+      console.warn('Error locking service:', error);
+      message.error('Không thể khóa dịch vụ');
+    }
+  };
+
+  const handleUnlockService = async (serviceId: string) => {
+    try {
+      await adminApi.unlockService(serviceId);
+      message.success('Đã mở khóa dịch vụ');
+      fetchLockedServices();
+    } catch (error) {
+      console.warn('Error unlocking service:', error);
+      message.error('Không thể mở khóa dịch vụ');
+    }
+  };
 
   // Fetch audit logs from Level 6 API
   const fetchAuditLogsLevel6 = useCallback(async (pageIdx?: number) => {
@@ -2186,9 +2275,188 @@ const SystemAdmin: React.FC = () => {
                 </div>
               ),
             },
+            {
+              key: 'locked-services',
+              label: (
+                <span>
+                  <LockOutlined /> Khóa dịch vụ
+                </span>
+              ),
+              children: (
+                <Spin spinning={lockedServicesLoading}>
+                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
+                    <Col flex="auto">
+                      <Typography.Text strong style={{ fontSize: 16 }}>
+                        <LockOutlined /> Quản lý khóa dịch vụ
+                      </Typography.Text>
+                      <Typography.Text type="secondary" style={{ marginLeft: 12 }}>
+                        Khi khóa, bác sĩ không thể kê dịch vụ này
+                      </Typography.Text>
+                    </Col>
+                    <Col>
+                      <Button icon={<ReloadOutlined />} onClick={fetchLockedServices}>
+                        Làm mới
+                      </Button>
+                    </Col>
+                  </Row>
+
+                  {/* Lock a new service */}
+                  <Card size="small" style={{ marginBottom: 16 }}>
+                    <Space>
+                      <Input.Search
+                        placeholder="Nhập tên hoặc mã dịch vụ để khóa..."
+                        style={{ width: 400 }}
+                        value={lockServiceKeyword}
+                        onChange={(e) => setLockServiceKeyword(e.target.value)}
+                        onSearch={() => {
+                          if (!lockServiceKeyword.trim()) {
+                            message.warning('Vui lòng nhập tên hoặc mã dịch vụ');
+                            return;
+                          }
+                          setIsLockServiceModalOpen(true);
+                        }}
+                        enterButton={
+                          <Button type="primary" icon={<LockOutlined />}>
+                            Khóa dịch vụ
+                          </Button>
+                        }
+                      />
+                    </Space>
+                  </Card>
+
+                  <Table
+                    columns={[
+                      {
+                        title: 'Mã DV',
+                        dataIndex: 'serviceCode',
+                        width: 100,
+                      },
+                      {
+                        title: 'Tên dịch vụ',
+                        dataIndex: 'serviceName',
+                        ellipsis: true,
+                      },
+                      {
+                        title: 'Loại',
+                        dataIndex: 'serviceTypeName',
+                        width: 100,
+                        render: (text: string, record: any) => {
+                          const colorMap: Record<number, string> = { 1: 'blue', 2: 'orange', 3: 'green' };
+                          return <Tag color={colorMap[record.serviceType] || 'default'}>{text || 'Khác'}</Tag>;
+                        },
+                      },
+                      {
+                        title: 'Trạng thái',
+                        dataIndex: 'isLocked',
+                        width: 100,
+                        render: (isLocked: boolean) => (
+                          <Tag color={isLocked ? 'red' : 'green'} icon={isLocked ? <LockOutlined /> : <CheckCircleOutlined />}>
+                            {isLocked ? 'Đang khóa' : 'Hoạt động'}
+                          </Tag>
+                        ),
+                      },
+                      {
+                        title: 'Lý do khóa',
+                        dataIndex: 'lockReason',
+                        width: 200,
+                        ellipsis: true,
+                        render: (text: string) => text || '-',
+                      },
+                      {
+                        title: 'Người khóa',
+                        dataIndex: 'lockedByName',
+                        width: 120,
+                        render: (text: string) => text || '-',
+                      },
+                      {
+                        title: 'Ngày khóa',
+                        dataIndex: 'lockedAt',
+                        width: 140,
+                        render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY HH:mm') : '-',
+                      },
+                      {
+                        title: 'Thao tác',
+                        key: 'action',
+                        width: 100,
+                        render: (_: unknown, record: any) => (
+                          record.isLocked ? (
+                            <Popconfirm
+                              title="Mở khóa dịch vụ"
+                              description={`Bạn có chắc muốn mở khóa "${record.serviceName}"?`}
+                              onConfirm={() => handleUnlockService(record.serviceId)}
+                              okText="Mở khóa"
+                              cancelText="Hủy"
+                            >
+                              <Button type="link" size="small" icon={<CheckCircleOutlined />}>
+                                Mở khóa
+                              </Button>
+                            </Popconfirm>
+                          ) : null
+                        ),
+                      },
+                    ]}
+                    dataSource={lockedServices}
+                    rowKey="id"
+                    size="small"
+                    pagination={{ pageSize: 10 }}
+                    locale={{ emptyText: 'Chưa có dịch vụ nào bị khóa' }}
+                  />
+                </Spin>
+              ),
+            },
           ]}
         />
       </Card>
+
+      {/* Lock Service Modal */}
+      <Modal
+        title={<><LockOutlined /> Khóa dịch vụ</>}
+        open={isLockServiceModalOpen}
+        onOk={handleLockService}
+        onCancel={() => {
+          setIsLockServiceModalOpen(false);
+          lockServiceForm.resetFields();
+        }}
+        okText="Khóa"
+        cancelText="Hủy"
+        width={500}
+      >
+        <Alert
+          title="Khi khóa dịch vụ, bác sĩ sẽ không thể kê dịch vụ này cho bệnh nhân."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={lockServiceForm} layout="vertical">
+          <Form.Item label="Dịch vụ cần khóa">
+            <Input value={lockServiceKeyword} disabled />
+          </Form.Item>
+          <Form.Item
+            name="serviceId"
+            label="Chọn dịch vụ"
+            rules={[{ required: true, message: 'Vui lòng chọn dịch vụ' }]}
+          >
+            <Select
+              placeholder="Chọn dịch vụ từ danh sách"
+              showSearch
+              optionFilterProp="children"
+            >
+              {lockServiceSearchResults.map((s) => (
+                <Option key={s.id} value={s.id}>
+                  {s.code} - {s.name} ({s.serviceType === 1 ? 'Thuốc' : s.serviceType === 2 ? 'Vật tư' : 'DVKT'})
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="reason"
+            label="Lý do khóa"
+            rules={[{ required: true, message: 'Vui lòng nhập lý do khóa' }]}
+          >
+            <TextArea rows={3} placeholder="Nhập lý do khóa dịch vụ (VD: Hết hàng, Thu hồi, Bảo trì...)" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* User Modal */}
       <Modal
