@@ -784,7 +784,7 @@ const Telemedicine: React.FC = () => {
           title={
             <Space>
               <Badge status="processing" />
-              <span>Phong kham tu xa</span>
+              <span>Phòng khám từ xa</span>
             </Space>
           }
           open={isConsultModalOpen}
@@ -811,8 +811,8 @@ const Telemedicine: React.FC = () => {
                     <Text style={{ color: '#fff' }}>{selectedAppointment.patientName}</Text>
                     <Text style={{ color: '#999' }}>
                       {activeSession?.status === 1
-                        ? 'Dang ket noi...'
-                        : 'Cho benh nhan tham gia'}
+                        ? 'Đang kết nối...'
+                        : 'Chờ bệnh nhân tham gia'}
                     </Text>
                     {selectedAppointment.videoRoomUrl && (
                       <Text style={{ color: '#52c41a', fontSize: 12 }}>
@@ -831,17 +831,17 @@ const Telemedicine: React.FC = () => {
                     icon={<CloseCircleOutlined />}
                     onClick={handleEndConsultation}
                   >
-                    Ket thuc
+                    Kết thúc
                   </Button>
                 </Space>
               </Col>
 
               {/* Patient Info & Notes */}
               <Col span={8}>
-                <Card title="Thong tin benh nhan" size="small">
+                <Card title="Thông tin bệnh nhân" size="small">
                   <Space orientation="vertical" style={{ width: '100%' }}>
                     <div>
-                      <Text type="secondary">Ho ten:</Text>
+                      <Text type="secondary">Họ tên:</Text>
                       <Text strong style={{ marginLeft: 8 }}>
                         {selectedAppointment.patientName}
                       </Text>
@@ -855,18 +855,18 @@ const Telemedicine: React.FC = () => {
                       <Text style={{ marginLeft: 8 }}>{selectedAppointment.departmentName}</Text>
                     </div>
                     <div>
-                      <Text type="secondary">Ly do:</Text>
+                      <Text type="secondary">Lý do:</Text>
                       <Text style={{ marginLeft: 8 }}>{selectedAppointment.chiefComplaint}</Text>
                     </div>
                     <div>
-                      <Text type="secondary">Phi:</Text>
+                      <Text type="secondary">Phí:</Text>
                       <Text style={{ marginLeft: 8 }}>{selectedAppointment.fee?.toLocaleString('vi-VN')}d</Text>
                     </div>
                   </Space>
                 </Card>
 
-                <Card title="Ghi chu kham" size="small" style={{ marginTop: 16 }}>
-                  <TextArea rows={6} placeholder="Nhap ghi chu..." />
+                <Card title="Ghi chú khám" size="small" style={{ marginTop: 16 }}>
+                  <TextArea rows={6} placeholder="Nhập ghi chú..." />
                 </Card>
 
                 <Space style={{ marginTop: 16, width: '100%' }} orientation="vertical">
@@ -876,10 +876,10 @@ const Telemedicine: React.FC = () => {
                     block
                     onClick={() => setIsPrescriptionModalOpen(true)}
                   >
-                    Ke don thuoc
+                    Kê đơn thuốc
                   </Button>
                   <Button icon={<FileTextOutlined />} block>
-                    Xem ho so
+                    Xem hồ sơ
                   </Button>
                 </Space>
               </Col>
@@ -889,24 +889,24 @@ const Telemedicine: React.FC = () => {
 
         {/* E-Prescription Modal */}
         <Modal
-          title="Ke don thuoc dien tu"
+          title="Kê đơn thuốc điện tử"
           open={isPrescriptionModalOpen}
           onCancel={() => setIsPrescriptionModalOpen(false)}
           footer={[
             <Button key="cancel" onClick={() => setIsPrescriptionModalOpen(false)}>
-              Huy
+              Hủy
             </Button>,
             <Button key="print" icon={<PrinterOutlined />} onClick={handlePrintPrescription}>
-              In don
+              In đơn
             </Button>,
             <Button key="save" type="primary" onClick={handleSavePrescription}>
-              Luu & Gui
+              Lưu & Gửi
             </Button>,
           ]}
           width={700}
         >
           <Alert
-            title="Đơn thuốc điện tử se duoc ky so va gui den nha thuoc lien ket"
+            title="Đơn thuốc điện tử sẽ được ký số và gửi đến nhà thuốc liên kết"
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -946,13 +946,13 @@ const Telemedicine: React.FC = () => {
                       </Col>
                       <Col span={2}>
                         <Button danger onClick={() => remove(name)}>
-                          Xoa
+                          Xóa
                         </Button>
                       </Col>
                     </Row>
                   ))}
                   <Button type="dashed" onClick={() => add()} block>
-                    Them thuoc
+                    Thêm thuốc
                   </Button>
                 </>
               )}
@@ -961,8 +961,8 @@ const Telemedicine: React.FC = () => {
             <Form.Item name="advice" label="Lời dặn">
               <TextArea rows={2} />
             </Form.Item>
-            <Form.Item name="followUp" label="Hen tai kham">
-              <Input placeholder="VD: Sau 2 tuan" />
+            <Form.Item name="followUp" label="Hẹn tái khám">
+              <Input placeholder="VD: Sau 2 tuần" />
             </Form.Item>
           </Form>
         </Modal>

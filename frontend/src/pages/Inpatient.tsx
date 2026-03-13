@@ -1729,12 +1729,12 @@ const Inpatient: React.FC = () => {
           {/* Data Inheritance: OPD examination lookup */}
           <Row gutter={16}>
             <Col span={24}>
-              <Form.Item label="Tra cuu luot kham OPD (tu dong dien thong tin)">
+              <Form.Item label="Tra cứu lượt khám OPD (tự động điền thông tin)">
                 <Input.Search
-                  placeholder="Nhap ma luot kham (examination ID) tu OPD"
+                  placeholder="Nhập mã lượt khám (examination ID) từ OPD"
                   onSearch={handleLookupOpdContext}
                   loading={loadingAdmissionCtx}
-                  enterButton="Tra cuu"
+                  enterButton="Tra cứu"
                   allowClear
                 />
               </Form.Item>
@@ -1745,46 +1745,46 @@ const Inpatient: React.FC = () => {
           {admissionCtx && (
             <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '8px 12px' } }}>
               <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
-                Du lieu ke thua tu OPD
+                Dữ liệu kế thừa từ OPD
               </Typography.Text>
               <Descriptions column={2} size="small" style={{ marginTop: 4 }}>
-                <Descriptions.Item label="Benh nhan">
+                <Descriptions.Item label="Bệnh nhân">
                   <Text strong>{admissionCtx.fullName}</Text> ({admissionCtx.patientCode})
                 </Descriptions.Item>
-                <Descriptions.Item label="Tuoi/GT">
-                  {admissionCtx.age} tuoi - {admissionCtx.genderName}
+                <Descriptions.Item label="Tuổi/GT">
+                  {admissionCtx.age} tuổi - {admissionCtx.genderName}
                 </Descriptions.Item>
                 {admissionCtx.mainDiagnosis && (
-                  <Descriptions.Item label="Chan doan" span={2}>
+                  <Descriptions.Item label="Chẩn đoán" span={2}>
                     <Text strong>
                       {admissionCtx.mainIcdCode && `${admissionCtx.mainIcdCode} - `}{admissionCtx.mainDiagnosis}
                     </Text>
                   </Descriptions.Item>
                 )}
                 {(admissionCtx.temperature || admissionCtx.bloodPressureSystolic) && (
-                  <Descriptions.Item label="Sinh hieu" span={2}>
+                  <Descriptions.Item label="Sinh hiệu" span={2}>
                     <Space orientation="horizontal" size={4}>
-                      {admissionCtx.temperature && <Tag>Nhiet do: {String(admissionCtx.temperature)}</Tag>}
+                      {admissionCtx.temperature && <Tag>Nhiệt độ: {String(admissionCtx.temperature)}</Tag>}
                       {admissionCtx.bloodPressureSystolic && (
                         <Tag>HA: {admissionCtx.bloodPressureSystolic}/{admissionCtx.bloodPressureDiastolic}</Tag>
                       )}
-                      {admissionCtx.pulse && <Tag>Mach: {admissionCtx.pulse}</Tag>}
-                      {admissionCtx.weight && <Tag>Can nang: {String(admissionCtx.weight)}kg</Tag>}
+                      {admissionCtx.pulse && <Tag>Mạch: {admissionCtx.pulse}</Tag>}
+                      {admissionCtx.weight && <Tag>Cân nặng: {String(admissionCtx.weight)}kg</Tag>}
                     </Space>
                   </Descriptions.Item>
                 )}
                 {admissionCtx.examDoctorName && (
-                  <Descriptions.Item label="BS kham">
+                  <Descriptions.Item label="BS khám">
                     {admissionCtx.examDoctorName}
                   </Descriptions.Item>
                 )}
                 {admissionCtx.examDepartmentName && (
-                  <Descriptions.Item label="Khoa kham">
+                  <Descriptions.Item label="Khoa khám">
                     {admissionCtx.examDepartmentName}
                   </Descriptions.Item>
                 )}
                 {admissionCtx.allergyHistory && (
-                  <Descriptions.Item label="Di ung" span={2}>
+                  <Descriptions.Item label="Dị ứng" span={2}>
                     <Text type="danger">{admissionCtx.allergyHistory}</Text>
                   </Descriptions.Item>
                 )}

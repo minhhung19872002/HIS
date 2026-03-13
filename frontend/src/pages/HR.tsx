@@ -328,7 +328,7 @@ const HR: React.FC = () => {
       render: (_, record) => record.positionName || record.staffTypeName || '-',
     },
     {
-      title: 'Khoa/Phong',
+      title: 'Khoa/Phòng',
       dataIndex: 'departmentName',
       key: 'departmentName',
     },
@@ -793,12 +793,12 @@ const HR: React.FC = () => {
                           if (!cert?.expiryDate) return '-';
                           const daysUntil = dayjs(cert.expiryDate).diff(dayjs(), 'day');
                           if (daysUntil <= 0) {
-                            return <Tag color="red">Het han</Tag>;
+                            return <Tag color="red">Hết hạn</Tag>;
                           }
                           if (daysUntil <= 90) {
-                            return <Tag color="orange">Sap het han</Tag>;
+                            return <Tag color="orange">Sắp hết hạn</Tag>;
                           }
-                          return <Tag color="green">Con hieu luc</Tag>;
+                          return <Tag color="green">Còn hiệu lực</Tag>;
                         },
                       },
                     ]}
@@ -821,15 +821,15 @@ const HR: React.FC = () => {
 
         {/* Detail Modal */}
         <Modal
-          title="Chi tiet nhan vien"
+          title="Chi tiết nhân viên"
           open={isDetailModalOpen}
           onCancel={() => setIsDetailModalOpen(false)}
           footer={[
             <Button key="print" icon={<PrinterOutlined />} onClick={executePrintEmployeeCard}>
-              In ho so
+              In hồ sơ
             </Button>,
             <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-              Dong
+              Đóng
             </Button>,
           ]}
           width={700}
@@ -842,27 +842,27 @@ const HR: React.FC = () => {
                 </Col>
                 <Col span={18}>
                   <Descriptions bordered size="small" column={2}>
-                    <Descriptions.Item label="Ma NV">{selectedEmployee.staffCode}</Descriptions.Item>
-                    <Descriptions.Item label="Trang thai">
+                    <Descriptions.Item label="Mã NV">{selectedEmployee.staffCode}</Descriptions.Item>
+                    <Descriptions.Item label="Trạng thái">
                       {getStatusTag(selectedEmployee.employmentStatus)}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Ho ten" span={2}>
+                    <Descriptions.Item label="Họ tên" span={2}>
                       {selectedEmployee.fullName}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Gioi tinh">
-                      {selectedEmployee.gender === 'Male' ? 'Nam' : selectedEmployee.gender === 'Female' ? 'Nu' : selectedEmployee.gender || '-'}
+                    <Descriptions.Item label="Giới tính">
+                      {selectedEmployee.gender === 'Male' ? 'Nam' : selectedEmployee.gender === 'Female' ? 'Nữ' : selectedEmployee.gender || '-'}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Ngay sinh">
+                    <Descriptions.Item label="Ngày sinh">
                       {selectedEmployee.dateOfBirth || '-'}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Chuc vu">{selectedEmployee.positionName || selectedEmployee.staffTypeName || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Khoa/Phong">
+                    <Descriptions.Item label="Chức vụ">{selectedEmployee.positionName || selectedEmployee.staffTypeName || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Khoa/Phòng">
                       {selectedEmployee.departmentName}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Chuyen khoa" span={2}>
+                    <Descriptions.Item label="Chuyên khoa" span={2}>
                       {selectedEmployee.specialty || '-'}
                     </Descriptions.Item>
-                    <Descriptions.Item label="SDT">{selectedEmployee.phone || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="SĐT">{selectedEmployee.phone || '-'}</Descriptions.Item>
                     <Descriptions.Item label="Email">{selectedEmployee.email || '-'}</Descriptions.Item>
                   </Descriptions>
                 </Col>
@@ -870,41 +870,41 @@ const HR: React.FC = () => {
 
               {selectedEmployee.qualifications && selectedEmployee.qualifications.length > 0 && (
                 <>
-                  <Divider>Trinh do chuyen mon</Divider>
+                  <Divider>Trình độ chuyên môn</Divider>
                   {selectedEmployee.qualifications.map((q) => (
                     <Descriptions key={q.id} bordered size="small" column={2} style={{ marginBottom: 8 }}>
-                      <Descriptions.Item label="Loai">{q.qualificationType}</Descriptions.Item>
-                      <Descriptions.Item label="Ten">{q.qualificationName}</Descriptions.Item>
-                      <Descriptions.Item label="Co so">{q.institution}</Descriptions.Item>
-                      <Descriptions.Item label="Nam">{q.yearObtained}</Descriptions.Item>
+                      <Descriptions.Item label="Loại">{q.qualificationType}</Descriptions.Item>
+                      <Descriptions.Item label="Tên">{q.qualificationName}</Descriptions.Item>
+                      <Descriptions.Item label="Cơ sở">{q.institution}</Descriptions.Item>
+                      <Descriptions.Item label="Năm">{q.yearObtained}</Descriptions.Item>
                     </Descriptions>
                   ))}
                 </>
               )}
 
-              <Divider>Chung chi hanh nghe</Divider>
+              <Divider>Chứng chỉ hành nghề</Divider>
 
               {selectedEmployee.certifications && selectedEmployee.certifications.length > 0 ? (
                 selectedEmployee.certifications.map((cert) => (
                   <Descriptions key={cert.id} bordered size="small" column={2} style={{ marginBottom: 8 }}>
-                    <Descriptions.Item label="So CCHN">
+                    <Descriptions.Item label="Số CCHN">
                       {cert.licenseNumber}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Ngay het han">
+                    <Descriptions.Item label="Ngày hết hạn">
                       {cert.expiryDate || '-'}
-                      {cert.isExpired && <Tag color="red" style={{ marginLeft: 8 }}>Het han</Tag>}
-                      {cert.expiringWithin30Days && !cert.isExpired && <Tag color="orange" style={{ marginLeft: 8 }}>Sap het han</Tag>}
+                      {cert.isExpired && <Tag color="red" style={{ marginLeft: 8 }}>Hết hạn</Tag>}
+                      {cert.expiringWithin30Days && !cert.isExpired && <Tag color="orange" style={{ marginLeft: 8 }}>Sắp hết hạn</Tag>}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Co quan cap">
+                    <Descriptions.Item label="Cơ quan cấp">
                       {cert.issuingAuthority}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Xac minh">
+                    <Descriptions.Item label="Xác minh">
                       {cert.verificationStatus}
                     </Descriptions.Item>
                   </Descriptions>
                 ))
               ) : (
-                <Text type="secondary">Chua co chung chi</Text>
+                <Text type="secondary">Chưa có chứng chỉ</Text>
               )}
 
               {(() => {
@@ -915,7 +915,7 @@ const HR: React.FC = () => {
                   : 0;
                 return (
                   <>
-                    <Divider>Dao tao lien tuc (CME)</Divider>
+                    <Divider>Đào tạo liên tục (CME)</Divider>
                     <Progress
                       percent={Math.round(percent)}
                       format={() =>
@@ -931,13 +931,13 @@ const HR: React.FC = () => {
 
         {/* Shift Modal */}
         <Modal
-          title="Phan ca truc"
+          title="Phân ca trực"
           open={isShiftModalOpen}
           onCancel={() => setIsShiftModalOpen(false)}
           onOk={() => shiftForm.submit()}
         >
           <Form form={shiftForm} layout="vertical" onFinish={handleAddShift}>
-            <Form.Item name="employeeId" label="Nhan vien" rules={[{ required: true }]}>
+            <Form.Item name="employeeId" label="Nhân viên" rules={[{ required: true }]}>
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -947,7 +947,7 @@ const HR: React.FC = () => {
                 }))}
               />
             </Form.Item>
-            <Form.Item name="date" label="Ngay" rules={[{ required: true }]}>
+            <Form.Item name="date" label="Ngày" rules={[{ required: true }]}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="shiftType" label="Ca" rules={[{ required: true }]}>
@@ -960,10 +960,10 @@ const HR: React.FC = () => {
                   ))
                 ) : (
                   <>
-                    <Select.Option value="morning">Ca sang (07:00 - 14:00)</Select.Option>
-                    <Select.Option value="afternoon">Ca chieu (14:00 - 21:00)</Select.Option>
-                    <Select.Option value="night">Ca dem (21:00 - 07:00)</Select.Option>
-                    <Select.Option value="on_call">Truc</Select.Option>
+                    <Select.Option value="morning">Ca sáng (07:00 - 14:00)</Select.Option>
+                    <Select.Option value="afternoon">Ca chiều (14:00 - 21:00)</Select.Option>
+                    <Select.Option value="night">Ca đêm (21:00 - 07:00)</Select.Option>
+                    <Select.Option value="on_call">Trực</Select.Option>
                   </>
                 )}
               </Select>
@@ -973,13 +973,13 @@ const HR: React.FC = () => {
 
         {/* Training Modal */}
         <Modal
-          title="Dang ky dao tao"
+          title="Đăng ký đào tạo"
           open={isTrainingModalOpen}
           onCancel={() => setIsTrainingModalOpen(false)}
           onOk={() => trainingForm.submit()}
         >
           <Form form={trainingForm} layout="vertical" onFinish={handleAddTraining}>
-            <Form.Item name="employeeId" label="Nhan vien" rules={[{ required: true }]}>
+            <Form.Item name="employeeId" label="Nhân viên" rules={[{ required: true }]}>
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -989,23 +989,23 @@ const HR: React.FC = () => {
                 }))}
               />
             </Form.Item>
-            <Form.Item name="trainingName" label="Ten khoa hoc" rules={[{ required: true }]}>
+            <Form.Item name="trainingName" label="Tên khóa học" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="trainingType" label="Loai" rules={[{ required: true }]}>
+            <Form.Item name="trainingType" label="Loại" rules={[{ required: true }]}>
               <Select>
-                <Select.Option value="Conference">Hoi nghi</Select.Option>
-                <Select.Option value="Workshop">Hoi thao</Select.Option>
+                <Select.Option value="Conference">Hội nghị</Select.Option>
+                <Select.Option value="Workshop">Hội thảo</Select.Option>
                 <Select.Option value="Webinar">Webinar</Select.Option>
-                <Select.Option value="Course">Khoa hoc</Select.Option>
-                <Select.Option value="SelfStudy">Tu hoc</Select.Option>
-                <Select.Option value="Teaching">Giang day</Select.Option>
+                <Select.Option value="Course">Khóa học</Select.Option>
+                <Select.Option value="SelfStudy">Tự học</Select.Option>
+                <Select.Option value="Teaching">Giảng dạy</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item name="startDate" label="Ngay bat dau" rules={[{ required: true }]}>
+            <Form.Item name="startDate" label="Ngày bắt đầu" rules={[{ required: true }]}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="credits" label="So tiet">
+            <Form.Item name="credits" label="Số tiết">
               <Input type="number" />
             </Form.Item>
           </Form>
@@ -1013,7 +1013,7 @@ const HR: React.FC = () => {
 
         {/* Add Employee Modal */}
         <Modal
-          title="Them nhan vien moi"
+          title="Thêm nhân viên mới"
           open={isAddEmployeeModalOpen}
           onCancel={() => setIsAddEmployeeModalOpen(false)}
           onOk={() => employeeForm.submit()}
@@ -1022,46 +1022,46 @@ const HR: React.FC = () => {
           <Form form={employeeForm} layout="vertical" onFinish={handleAddEmployee}>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="staffCode" label="Ma nhan vien" rules={[{ required: true }]}>
+                <Form.Item name="staffCode" label="Mã nhân viên" rules={[{ required: true }]}>
                   <Input />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="fullName" label="Ho va ten" rules={[{ required: true }]}>
+                <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true }]}>
                   <Input />
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="gender" label="Gioi tinh">
+                <Form.Item name="gender" label="Giới tính">
                   <Select>
                     <Select.Option value="Male">Nam</Select.Option>
-                    <Select.Option value="Female">Nu</Select.Option>
+                    <Select.Option value="Female">Nữ</Select.Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="dateOfBirth" label="Ngay sinh">
+                <Form.Item name="dateOfBirth" label="Ngày sinh">
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="staffType" label="Loai nhan vien" rules={[{ required: true }]}>
+                <Form.Item name="staffType" label="Loại nhân viên" rules={[{ required: true }]}>
                   <Select options={POSITIONS} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="specialty" label="Chuyen khoa">
+                <Form.Item name="specialty" label="Chuyên khoa">
                   <Input />
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="phone" label="So dien thoai">
+                <Form.Item name="phone" label="Số điện thoại">
                   <Input />
                 </Form.Item>
               </Col>
@@ -1071,7 +1071,7 @@ const HR: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="hireDate" label="Ngay vao lam">
+            <Form.Item name="hireDate" label="Ngày vào làm">
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
           </Form>

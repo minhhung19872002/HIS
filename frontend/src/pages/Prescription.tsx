@@ -205,7 +205,6 @@ const formatDosage = (dosage: DosageInstruction): string => {
 
 // Local drug interaction check as fallback when API is unavailable.
 // Covers common clinically significant interaction pairs.
-// TODO: Full drug interaction checking should rely on the API (examinationApi.checkDrugInteractions).
 const checkDrugInteractionsLocal = (medicines: Medicine[]): DrugInteraction[] => {
   const interactions: DrugInteraction[] = [];
   const ingredients = medicines.map(m => ({

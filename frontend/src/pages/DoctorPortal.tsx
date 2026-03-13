@@ -599,7 +599,7 @@ const DoctorPortal: React.FC = () => {
     if (shifts.length === 0) return null;
     return (
       <div>{shifts.map((s, i) => (
-        <Tooltip key={i} title={`${s.shiftStart} - ${s.shiftEnd}${s.location ? ` | ${s.location}` : ''}${s.isOnCall ? ' (Truc)' : ''}`}>
+        <Tooltip key={i} title={`${s.shiftStart} - ${s.shiftEnd}${s.location ? ` | ${s.location}` : ''}${s.isOnCall ? ' (Trực)' : ''}`}>
           <Tag color={getShiftColor(s.shiftName)} style={{ marginBottom: 2, fontSize: 11, cursor: 'pointer' }}>
             {s.shiftName}{s.isOnCall && ' *'}
           </Tag>
@@ -619,7 +619,7 @@ const DoctorPortal: React.FC = () => {
         <Col xs={24} md={17}>
           <Card size="small" title="Lịch trực" extra={
             <Space>
-              {['Sang', 'Chieu', 'Dem', 'Truc 24h'].map(l => (
+              {['Sáng', 'Chiều', 'Đêm', 'Trực 24h'].map(l => (
                 <Tag key={l} color={getShiftColor(l)}>{l}</Tag>
               ))}
             </Space>
@@ -629,8 +629,8 @@ const DoctorPortal: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} md={7}>
-          <Card size="small" title="Lich sap toi">
-            {upcoming.length === 0 ? <Empty description="Khong co ca truc sap toi" /> :
+          <Card size="small" title="Lịch sắp tới">
+            {upcoming.length === 0 ? <Empty description="Không có ca trực sắp tới" /> :
               upcoming.map((s, i) => {
                 const isToday = dayjs(s.date).isSame(today, 'day');
                 return (
@@ -644,7 +644,7 @@ const DoctorPortal: React.FC = () => {
                         <Tag color={getShiftColor(s.shiftName)} style={{ marginTop: 4 }}>{s.shiftName}</Tag>
                         <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{s.shiftStart} - {s.shiftEnd}</Text>
                       </div>
-                      {s.isOnCall && <Badge status="processing" text="Truc" />}
+                      {s.isOnCall && <Badge status="processing" text="Trực" />}
                     </div>
                     {s.location && (
                       <Text type="secondary" style={{ fontSize: 12 }}><ScheduleOutlined /> {s.location}</Text>
@@ -653,13 +653,13 @@ const DoctorPortal: React.FC = () => {
                 );
               })}
           </Card>
-          <Card size="small" title="Thong ke thang" style={{ marginTop: 12 }}>
-            <Statistic title="Tong ca truc" value={dutyShifts.length} prefix={<CalendarOutlined />}
+          <Card size="small" title="Thống kê tháng" style={{ marginTop: 12 }}>
+            <Statistic title="Tổng ca trực" value={dutyShifts.length} prefix={<CalendarOutlined />}
               styles={{ content: { fontSize: 18 } }} />
             <div style={{ marginTop: 8 }}>
               <Text type="secondary">
-                Ca dem: {dutyShifts.filter(s => s.isNightShift).length} |
-                Truc: {dutyShifts.filter(s => s.isOnCall).length}
+                Ca đêm: {dutyShifts.filter(s => s.isNightShift).length} |
+                Trực: {dutyShifts.filter(s => s.isOnCall).length}
               </Text>
             </div>
           </Card>
@@ -678,20 +678,20 @@ const DoctorPortal: React.FC = () => {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-            <Title level={4} style={{ margin: 0 }}><SolutionOutlined /> Cong Bac si</Title>
-            <Tooltip title="Lam moi"><Button icon={<ReloadOutlined />} onClick={handleRefresh} /></Tooltip>
+            <Title level={4} style={{ margin: 0 }}><SolutionOutlined /> Cổng Bác sĩ</Title>
+            <Tooltip title="Làm mới"><Button icon={<ReloadOutlined />} onClick={handleRefresh} /></Tooltip>
           </div>
 
           <div style={{ marginBottom: 16, overflowX: 'auto' }}>
             <Segmented value={activeTab} onChange={(v) => setActiveTab(v as string)}
               options={[
-                { label: <Space><UserOutlined /><span>Ngoai tru</span>
+                { label: <Space><UserOutlined /><span>Ngoại trú</span>
                   {opdTotal > 0 && <Badge count={opdTotal} size="small" />}</Space>, value: 'outpatient' },
-                { label: <Space><MedicineBoxOutlined /><span>Noi tru</span>
+                { label: <Space><MedicineBoxOutlined /><span>Nội trú</span>
                   {ipdTotal > 0 && <Badge count={ipdTotal} size="small" />}</Space>, value: 'inpatient' },
-                { label: <Space><FileProtectOutlined /><span>Chu ky so</span>
+                { label: <Space><FileProtectOutlined /><span>Chữ ký số</span>
                   {pendingDocs.length > 0 && <Badge count={pendingDocs.length} size="small" />}</Space>, value: 'signature' },
-                { label: <Space><CalendarOutlined /><span>Lich truc</span></Space>, value: 'schedule' },
+                { label: <Space><CalendarOutlined /><span>Lịch trực</span></Space>, value: 'schedule' },
               ]}
               block style={{ minWidth: 400 }} />
           </div>

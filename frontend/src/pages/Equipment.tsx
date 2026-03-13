@@ -144,7 +144,7 @@ const Equipment: React.FC = () => {
         equipmentId: values.equipmentId,
         maintenanceType: values.maintenanceType,
         performedDate: values.scheduledDate?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
-        description: `Bao tri ${values.maintenanceType === 'preventive' ? 'phòng ngừa' : 'kiểm định'}`,
+        description: `Bảo trì ${values.maintenanceType === 'preventive' ? 'phòng ngừa' : 'kiểm định'}`,
         workPerformed: values.technician ? `Đơn vị thực hiện: ${values.technician}` : '',
         afterStatus: 1,
       });
@@ -198,7 +198,7 @@ const Equipment: React.FC = () => {
           <tr><th>Trạng thái</th><td>${selectedEquipment.operationalStatusName}</td></tr>
         </table>
         <div style="margin-top: 50px; text-align: right;">
-          <p>Ngay ${dayjs().format('DD/MM/YYYY')}</p>
+          <p>Ngày ${dayjs().format('DD/MM/YYYY')}</p>
           <p><strong>Trưởng phòng VTYT</strong></p>
         </div>
         <script>window.onload = function() { window.print(); }</script>
@@ -269,7 +269,7 @@ const Equipment: React.FC = () => {
               setIsDetailModalOpen(true);
             }}
           >
-            Chi tiet
+            Chi tiết
           </Button>
           <Button
             size="small"
@@ -279,7 +279,7 @@ const Equipment: React.FC = () => {
               setIsRepairModalOpen(true);
             }}
           >
-            Bao hong
+            Báo hỏng
           </Button>
         </Space>
       ),
@@ -478,9 +478,9 @@ const Equipment: React.FC = () => {
                   <div>
                     <Title level={5}>Quy định kiểm định</Title>
                     <ul>
-                      <li><strong>Nhom A:</strong> Kiểm định mỗi 1 năm (X-quang, CT, MRI, may gia toc)</li>
-                      <li><strong>Nhom B:</strong> Kiểm định mỗi 2 năm</li>
-                      <li><strong>Nhom C:</strong> Kiểm định khi cần</li>
+                      <li><strong>Nhóm A:</strong> Kiểm định mỗi 1 năm (X-quang, CT, MRI, máy gia tốc)</li>
+                      <li><strong>Nhóm B:</strong> Kiểm định mỗi 2 năm</li>
+                      <li><strong>Nhóm C:</strong> Kiểm định khi cần</li>
                     </ul>
                     <Divider />
                     <Table
@@ -510,7 +510,7 @@ const Equipment: React.FC = () => {
               In phiếu
             </Button>,
             <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-              Dong
+              Đóng
             </Button>,
           ]}
           width={700}
@@ -518,17 +518,17 @@ const Equipment: React.FC = () => {
           {selectedEquipment && (
             <>
               <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Ma TB">{selectedEquipment.equipmentCode}</Descriptions.Item>
+                <Descriptions.Item label="Mã TB">{selectedEquipment.equipmentCode}</Descriptions.Item>
                 <Descriptions.Item label="Trạng thái">
                   {getStatusTag(selectedEquipment.operationalStatus)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Ten" span={2}>
+                <Descriptions.Item label="Tên" span={2}>
                   {selectedEquipment.name}
                 </Descriptions.Item>
                 <Descriptions.Item label="Hãng SX">{selectedEquipment.manufacturer}</Descriptions.Item>
                 <Descriptions.Item label="Model">{selectedEquipment.model}</Descriptions.Item>
                 <Descriptions.Item label="Serial">{selectedEquipment.serialNumber}</Descriptions.Item>
-                <Descriptions.Item label="Nhom">{getRiskClassTag(selectedEquipment.riskClass)}</Descriptions.Item>
+                <Descriptions.Item label="Nhóm">{getRiskClassTag(selectedEquipment.riskClass)}</Descriptions.Item>
                 <Descriptions.Item label="Khoa/Phòng">{selectedEquipment.departmentName}</Descriptions.Item>
                 <Descriptions.Item label="Vị trí">{selectedEquipment.locationName || selectedEquipment.roomName || '-'}</Descriptions.Item>
                 <Descriptions.Item label="Ngày mua">{selectedEquipment.purchaseDate ? dayjs(selectedEquipment.purchaseDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
@@ -542,7 +542,7 @@ const Equipment: React.FC = () => {
 
               <Row gutter={16}>
                 <Col span={12}>
-                  <Card size="small" title="Bao tri">
+                  <Card size="small" title="Bảo trì">
                     <p><strong>Lần cuối:</strong> {selectedEquipment.lastMaintenanceDate ? dayjs(selectedEquipment.lastMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
                     <p><strong>Lần tiếp:</strong> {selectedEquipment.nextMaintenanceDate ? dayjs(selectedEquipment.nextMaintenanceDate).format('DD/MM/YYYY') : '-'}</p>
                   </Card>
@@ -566,7 +566,7 @@ const Equipment: React.FC = () => {
           onOk={() => repairForm.submit()}
         >
           <Form form={repairForm} layout="vertical" onFinish={handleSubmitRepair}>
-            <Form.Item label="Thiet bi">
+            <Form.Item label="Thiết bị">
               <Input value={selectedEquipment?.name} disabled />
             </Form.Item>
             <Form.Item name="reportedBy" label="Người báo cáo" rules={[{ required: true }]}>
@@ -594,7 +594,7 @@ const Equipment: React.FC = () => {
           onOk={() => maintenanceForm.submit()}
         >
           <Form form={maintenanceForm} layout="vertical" onFinish={handleScheduleMaintenance}>
-            <Form.Item name="equipmentId" label="Thiet bi" rules={[{ required: true }]}>
+            <Form.Item name="equipmentId" label="Thiết bị" rules={[{ required: true }]}>
               <Select>
                 {equipmentList.map((e) => (
                   <Select.Option key={e.id} value={e.id}>
@@ -605,7 +605,7 @@ const Equipment: React.FC = () => {
             </Form.Item>
             <Form.Item name="maintenanceType" label="Loại bảo trì" rules={[{ required: true }]}>
               <Select>
-                <Select.Option value="Preventive">Bao tri phòng ngừa</Select.Option>
+                <Select.Option value="Preventive">Bảo trì phòng ngừa</Select.Option>
                 <Select.Option value="Calibration">Kiểm định</Select.Option>
               </Select>
             </Form.Item>

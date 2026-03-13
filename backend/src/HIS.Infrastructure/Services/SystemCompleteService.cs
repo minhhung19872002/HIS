@@ -1074,9 +1074,58 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<bool> ImportMedicinesFromExcelAsync(byte[] fileData)
     {
-        // Excel import not implemented yet
-        _logger.LogWarning("ImportMedicinesFromExcelAsync: Not implemented");
-        return false;
+        try
+        {
+            var text = Encoding.UTF8.GetString(fileData);
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 2)
+            {
+                _logger.LogWarning("ImportMedicinesFromExcelAsync: File has no data rows (expected header + data). Columns: MedicineCode, MedicineName, ActiveIngredient, Unit, Concentration, Manufacturer");
+                return false;
+            }
+
+            var imported = 0;
+            // Skip header row (line 0), parse data rows
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var cols = lines[i].Split('\t');
+                if (cols.Length < 2) continue; // Need at least code and name
+
+                var code = cols[0].Trim();
+                var name = cols[1].Trim();
+                if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) continue;
+
+                // Skip if code already exists
+                var exists = await _context.Medicines.AnyAsync(m => m.MedicineCode == code && !m.IsDeleted);
+                if (exists) continue;
+
+                var medicine = new Medicine
+                {
+                    Id = Guid.NewGuid(),
+                    MedicineCode = code,
+                    MedicineName = name,
+                    ActiveIngredient = cols.Length > 2 ? cols[2].Trim() : null,
+                    Unit = cols.Length > 3 ? cols[3].Trim() : null,
+                    Concentration = cols.Length > 4 ? cols[4].Trim() : null,
+                    Manufacturer = cols.Length > 5 ? cols[5].Trim() : null,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+                _context.Medicines.Add(medicine);
+                imported++;
+            }
+
+            if (imported > 0)
+                await _context.SaveChangesAsync();
+
+            _logger.LogInformation("ImportMedicinesFromExcelAsync: Imported {Count} medicines from {TotalLines} data rows", imported, lines.Length - 1);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ImportMedicinesFromExcelAsync failed");
+            return false;
+        }
     }
 
     public async Task<byte[]> ExportMedicinesToExcelAsync(MedicineCatalogSearchDto search)
@@ -1225,8 +1274,55 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<bool> ImportMedicalSuppliesFromExcelAsync(byte[] fileData)
     {
-        _logger.LogWarning("ImportMedicalSuppliesFromExcelAsync: Not implemented");
-        return false;
+        try
+        {
+            var text = Encoding.UTF8.GetString(fileData);
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 2)
+            {
+                _logger.LogWarning("ImportMedicalSuppliesFromExcelAsync: File has no data rows (expected header + data). Columns: SupplyCode, SupplyName, Unit, Manufacturer, ManufacturerCountry");
+                return false;
+            }
+
+            var imported = 0;
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var cols = lines[i].Split('\t');
+                if (cols.Length < 2) continue;
+
+                var code = cols[0].Trim();
+                var name = cols[1].Trim();
+                if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) continue;
+
+                var exists = await _context.MedicalSupplies.AnyAsync(s => s.SupplyCode == code && !s.IsDeleted);
+                if (exists) continue;
+
+                var supply = new MedicalSupply
+                {
+                    Id = Guid.NewGuid(),
+                    SupplyCode = code,
+                    SupplyName = name,
+                    Unit = cols.Length > 2 ? cols[2].Trim() : null,
+                    Manufacturer = cols.Length > 3 ? cols[3].Trim() : null,
+                    ManufacturerCountry = cols.Length > 4 ? cols[4].Trim() : null,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+                _context.MedicalSupplies.Add(supply);
+                imported++;
+            }
+
+            if (imported > 0)
+                await _context.SaveChangesAsync();
+
+            _logger.LogInformation("ImportMedicalSuppliesFromExcelAsync: Imported {Count} supplies from {TotalLines} data rows", imported, lines.Length - 1);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ImportMedicalSuppliesFromExcelAsync failed");
+            return false;
+        }
     }
 
     public async Task<byte[]> ExportMedicalSuppliesToExcelAsync(string keyword = null, Guid? categoryId = null)
@@ -1363,8 +1459,55 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<bool> ImportICD10FromExcelAsync(byte[] fileData)
     {
-        _logger.LogWarning("ImportICD10FromExcelAsync: Not implemented");
-        return false;
+        try
+        {
+            var text = Encoding.UTF8.GetString(fileData);
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 2)
+            {
+                _logger.LogWarning("ImportICD10FromExcelAsync: File has no data rows (expected header + data). Columns: Code, Name, NameEnglish, ChapterCode, ChapterName");
+                return false;
+            }
+
+            var imported = 0;
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var cols = lines[i].Split('\t');
+                if (cols.Length < 2) continue;
+
+                var code = cols[0].Trim();
+                var name = cols[1].Trim();
+                if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) continue;
+
+                var exists = await _context.IcdCodes.AnyAsync(c => c.Code == code);
+                if (exists) continue;
+
+                var icd = new IcdCode
+                {
+                    Id = Guid.NewGuid(),
+                    Code = code,
+                    Name = name,
+                    NameEnglish = cols.Length > 2 ? cols[2].Trim() : null,
+                    ChapterCode = cols.Length > 3 ? cols[3].Trim() : null,
+                    ChapterName = cols.Length > 4 ? cols[4].Trim() : null,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+                _context.IcdCodes.Add(icd);
+                imported++;
+            }
+
+            if (imported > 0)
+                await _context.SaveChangesAsync();
+
+            _logger.LogInformation("ImportICD10FromExcelAsync: Imported {Count} ICD codes from {TotalLines} data rows", imported, lines.Length - 1);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ImportICD10FromExcelAsync failed");
+            return false;
+        }
     }
 
     public async Task<byte[]> ExportICD10ToExcelAsync(string chapterCode = null)
@@ -2026,8 +2169,72 @@ public class SystemCompleteService : ISystemCompleteService
 
     public async Task<bool> ImportServicePricesFromExcelAsync(byte[] fileData, DateTime effectiveDate)
     {
-        _logger.LogWarning("ImportServicePricesFromExcelAsync: Not implemented");
-        return false;
+        try
+        {
+            var text = Encoding.UTF8.GetString(fileData);
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 2)
+            {
+                _logger.LogWarning("ImportServicePricesFromExcelAsync: File has no data rows (expected header + data). Columns: ServiceCode, PriceType, Price, InsurancePrice");
+                return false;
+            }
+
+            var imported = 0;
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var cols = lines[i].Split('\t');
+                if (cols.Length < 3) continue;
+
+                var serviceCode = cols[0].Trim();
+                var priceType = cols.Length > 1 ? cols[1].Trim() : "BHYT";
+                if (string.IsNullOrWhiteSpace(serviceCode)) continue;
+
+                var service = await _context.Services.FirstOrDefaultAsync(s => s.ServiceCode == serviceCode && !s.IsDeleted);
+                if (service == null)
+                {
+                    _logger.LogWarning("ImportServicePricesFromExcelAsync: Service code '{Code}' not found, skipping row {Row}", serviceCode, i + 1);
+                    continue;
+                }
+
+                if (!decimal.TryParse(cols[2].Trim(), out var price)) continue;
+                var insurancePrice = cols.Length > 3 && decimal.TryParse(cols[3].Trim(), out var ip) ? ip : price;
+
+                // Deactivate existing prices of the same type for this service
+                var existingPrices = await _context.Set<ServicePrice>()
+                    .Where(sp => sp.ServiceId == service.Id && sp.PriceType == priceType && sp.IsActive)
+                    .ToListAsync();
+                foreach (var ep in existingPrices)
+                {
+                    ep.EndDate = effectiveDate.AddDays(-1);
+                    ep.IsActive = false;
+                }
+
+                var newPrice = new ServicePrice
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceId = service.Id,
+                    PriceType = priceType,
+                    Price = price,
+                    InsurancePrice = insurancePrice,
+                    EffectiveDate = effectiveDate,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+                _context.Set<ServicePrice>().Add(newPrice);
+                imported++;
+            }
+
+            if (imported > 0)
+                await _context.SaveChangesAsync();
+
+            _logger.LogInformation("ImportServicePricesFromExcelAsync: Imported {Count} service prices (effective {Date}) from {TotalLines} data rows", imported, effectiveDate.ToString("yyyy-MM-dd"), lines.Length - 1);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ImportServicePricesFromExcelAsync failed");
+            return false;
+        }
     }
 
     public async Task<byte[]> ExportServicePricesToExcelAsync(string priceType = null)
