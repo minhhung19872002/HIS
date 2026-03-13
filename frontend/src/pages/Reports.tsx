@@ -56,6 +56,7 @@ import type {
   StatisticsReportRequest,
 } from '../api/system';
 import { reconciliationApi } from '../api/reconciliation';
+import { hospitalReportApi, type HospitalReportResult } from '../api/hospitalReport';
 import type {
   SupplierProcurementItemDto,
   RevenueByRecordItemDto,
@@ -1146,6 +1147,8 @@ const FullReportsContent: React.FC = () => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewContent, setPreviewContent] = useState<string>('');
   const [previewTitle, setPreviewTitle] = useState<string>('');
+  const [dataViewVisible, setDataViewVisible] = useState(false);
+  const [dataViewResult, setDataViewResult] = useState<HospitalReportResult | null>(null);
 
   // Flatten all reports for search
   const allReports = useMemo(() => {
@@ -1225,6 +1228,28 @@ const FullReportsContent: React.FC = () => {
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error downloading report:', error);
       message.error('Tai xuong bao cao that bai. Vui long thu lai.');
+    } finally {
+      setExporting(false);
+    }
+  }, [dateRange, department, warehouseId]);
+
+  // View data via unified HospitalReportController
+  const handleViewData = useCallback(async (reportId: string, reportName: string) => {
+    const mapping = reportApiMapping[reportId];
+    if (!mapping) return;
+    setExporting(true);
+    try {
+      const fromDate = dateRange[0].format('YYYY-MM-DD');
+      const toDate = dateRange[1].format('YYYY-MM-DD');
+      const deptId = departmentIdMap[department] || undefined;
+      const whId = warehouseId || undefined;
+      const res = await hospitalReportApi.getReport(mapping.reportType, fromDate, toDate, deptId, whId);
+      const data = res.data as unknown as HospitalReportResult;
+      setDataViewResult(data);
+      setDataViewVisible(true);
+    } catch {
+      console.warn('Error viewing report data');
+      message.warning('Không thể tải dữ liệu báo cáo');
     } finally {
       setExporting(false);
     }
@@ -1501,6 +1526,17 @@ const FullReportsContent: React.FC = () => {
                               </Button>
                               <Button
                                 size="small"
+                                icon={<BarChartOutlined />}
+                                loading={exporting}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewData(item.id, item.name);
+                                }}
+                              >
+                                Dữ liệu
+                              </Button>
+                              <Button
+                                size="small"
                                 icon={<DownloadOutlined />}
                                 loading={exporting}
                                 onClick={(e) => {
@@ -1508,7 +1544,7 @@ const FullReportsContent: React.FC = () => {
                                   handleDownload(item.id, item.name);
                                 }}
                               >
-                                Tai xuong
+                                Tải xuống
                               </Button>
                             </Space>
                           )}
@@ -1633,6 +1669,49 @@ const FullReportsContent: React.FC = () => {
           style={{ width: '100%', height: '100%', border: 'none' }}
           title={previewTitle}
         />
+      </Modal>
+
+      {/* Data View Modal - unified HospitalReportController */}
+      <Modal
+        title={dataViewResult ? `${dataViewResult.reportName} [${dataViewResult.reportCode}]` : 'Dữ liệu báo cáo'}
+        open={dataViewVisible}
+        onCancel={() => setDataViewVisible(false)}
+        footer={<Button onClick={() => setDataViewVisible(false)}>Đóng</Button>}
+        width={1000}
+        styles={{ body: { maxHeight: 500, overflow: 'auto' } }}
+      >
+        {dataViewResult && (
+          <>
+            {Object.keys(dataViewResult.summary).length > 0 && (
+              <Card size="small" style={{ marginBottom: 12 }}>
+                <Row gutter={16}>
+                  {Object.entries(dataViewResult.summary).map(([key, val]) => (
+                    <Col span={6} key={key}>
+                      <Statistic title={key} value={typeof val === 'number' ? val : String(val ?? '')} />
+                    </Col>
+                  ))}
+                </Row>
+              </Card>
+            )}
+            <Table
+              dataSource={dataViewResult.data.map((row, i) => ({ ...row, _key: i }))}
+              rowKey="_key"
+              size="small"
+              pagination={{ pageSize: 20, showSizeChanger: true }}
+              scroll={{ x: 'max-content' }}
+              columns={dataViewResult.columns.filter(c => c !== '_key').map(col => ({
+                title: col,
+                dataIndex: col,
+                key: col,
+                width: 150,
+                render: (v: unknown) => typeof v === 'number' ? v.toLocaleString('vi-VN') : String(v ?? ''),
+              }))}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              Tạo lúc: {dayjs(dataViewResult.generatedAt).format('DD/MM/YYYY HH:mm:ss')} | {dataViewResult.data.length} dòng
+            </Text>
+          </>
+        )}
       </Modal>
     </>
   );

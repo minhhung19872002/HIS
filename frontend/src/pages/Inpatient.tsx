@@ -21,6 +21,7 @@ import {
   Descriptions,
   Alert,
   InputNumber,
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -32,6 +33,10 @@ import {
   PrinterOutlined,
   FileTextOutlined,
   FileProtectOutlined,
+  SaveOutlined,
+  FolderOpenOutlined,
+  CopyOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -135,6 +140,152 @@ const Inpatient: React.FC = () => {
   const [nursingSearchText, setNursingSearchText] = useState('');
   const [dischargeSearchText, setDischargeSearchText] = useState('');
   const [dischargeDateRange, setDischargeDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+
+  // NangCap4: Supply order template (localStorage)
+  const SUPPLY_TEMPLATE_KEY = 'inpatient_supply_order_templates';
+  const [supplyTemplates, setSupplyTemplates] = useState<Array<{ name: string; items: string }>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(SUPPLY_TEMPLATE_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [isSupplyTemplateModalOpen, setIsSupplyTemplateModalOpen] = useState(false);
+  const [supplyTemplateName, setSupplyTemplateName] = useState('');
+  const [currentSupplyItems, setCurrentSupplyItems] = useState('');
+
+  // NangCap4: Active medication warning
+  const [activeMedWarning, setActiveMedWarning] = useState<string | null>(null);
+
+  // NangCap4: Deposit insufficient warning
+  const [depositWarning, setDepositWarning] = useState<{ patientName: string; depositBalance: number; pendingCharges: number } | null>(null);
+
+  // NangCap4: Save supply order as template
+  const handleSaveSupplyTemplate = () => {
+    if (!supplyTemplateName.trim()) {
+      message.warning('Vui lòng nhập tên mẫu vật tư');
+      return;
+    }
+    if (!currentSupplyItems.trim()) {
+      message.warning('Vui lòng nhập nội dung đơn vật tư trước khi lưu mẫu');
+      return;
+    }
+    const newTemplate = { name: supplyTemplateName.trim(), items: currentSupplyItems };
+    const updated = [...supplyTemplates.filter(t => t.name !== newTemplate.name), newTemplate];
+    setSupplyTemplates(updated);
+    localStorage.setItem(SUPPLY_TEMPLATE_KEY, JSON.stringify(updated));
+    setIsSupplyTemplateModalOpen(false);
+    setSupplyTemplateName('');
+    message.success(`Đã lưu mẫu vật tư "${newTemplate.name}"`);
+  };
+
+  // NangCap4: Load supply order from template
+  const handleLoadSupplyTemplate = (template: { name: string; items: string }) => {
+    Modal.confirm({
+      title: `Dùng mẫu VT "${template.name}"?`,
+      content: (
+        <div>
+          <p>Nội dung mẫu:</p>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4, fontSize: 12, maxHeight: 200, overflow: 'auto' }}>
+            {template.items}
+          </pre>
+          <p style={{ marginTop: 8, color: '#888' }}>Nội dung hiện tại sẽ bị thay thế.</p>
+        </div>
+      ),
+      okText: 'Áp dụng mẫu',
+      cancelText: 'Hủy',
+      onOk: () => {
+        setCurrentSupplyItems(template.items);
+        message.success(`Đã áp dụng mẫu vật tư "${template.name}"`);
+      },
+    });
+  };
+
+  // NangCap4: Copy supply order from previous admission
+  const handleCopyPreviousSupplyOrder = async (admission: typeof selectedAdmission) => {
+    if (!admission) return;
+    try {
+      // Try to fetch previous supply orders via API
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
+      const token = localStorage.getItem('token');
+      const resp = await fetch(
+        `${apiUrl}/inpatient/supply-orders/previous?patientId=${admission.patientId || ''}&excludeAdmissionId=${admission.admissionId || ''}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const items: string = Array.isArray(data)
+          ? data.map((o: { itemName?: string; quantity?: number; unit?: string }) => `- ${o.itemName || ''} x${o.quantity || 1} ${o.unit || ''}`).join('\n')
+          : '';
+        if (items) {
+          setCurrentSupplyItems(items);
+          message.success('Đã sao chép đơn vật tư từ lần nhập viện trước');
+        } else {
+          message.info('Không tìm thấy đơn vật tư từ lần nhập viện trước');
+        }
+      } else {
+        message.warning('Không thể lấy đơn vật tư cũ. Vui lòng nhập thủ công.');
+      }
+    } catch {
+      message.warning('Không thể kết nối để lấy đơn vật tư cũ. Vui lòng nhập thủ công.');
+    }
+  };
+
+  // NangCap4: Check active medications for a patient
+  const checkActiveMedications = async (patientId: string) => {
+    try {
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
+      const token = localStorage.getItem('token');
+      const resp = await fetch(
+        `${apiUrl}/inpatient/prescriptions/active?patientId=${patientId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const activeCount = Array.isArray(data) ? data.length : (data?.count || 0);
+        if (activeCount > 0) {
+          setActiveMedWarning(`Bệnh nhân có ${activeCount} thuốc đang còn hiệu lực chưa được lĩnh. Kiểm tra trước khi kê đơn mới.`);
+        } else {
+          setActiveMedWarning(null);
+        }
+      } else {
+        setActiveMedWarning(null);
+      }
+    } catch {
+      setActiveMedWarning(null);
+    }
+  };
+
+  // NangCap4: Check deposit balance vs pending charges
+  const checkDepositBalance = async (admission: typeof selectedAdmission) => {
+    if (!admission) return;
+    try {
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
+      const token = localStorage.getItem('token');
+      const resp = await fetch(
+        `${apiUrl}/billing/deposit-balance?patientId=${admission.patientId || ''}&admissionId=${admission.admissionId || ''}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const balance: number = data?.balance || data?.depositBalance || 0;
+        const pending: number = data?.pendingCharges || data?.totalPending || 0;
+        if (pending > balance) {
+          setDepositWarning({
+            patientName: admission.patientName || '',
+            depositBalance: balance,
+            pendingCharges: pending,
+          });
+        } else {
+          setDepositWarning(null);
+        }
+      } else {
+        setDepositWarning(null);
+      }
+    } catch {
+      setDepositWarning(null);
+    }
+  };
 
   // Load data on mount
   useEffect(() => {
@@ -316,6 +467,11 @@ const Inpatient: React.FC = () => {
             onClick={() => {
               setSelectedAdmission(record);
               setIsDetailModalOpen(true);
+              // NangCap4: check deposit and medication warnings when opening detail
+              setDepositWarning(null);
+              setActiveMedWarning(null);
+              setCurrentSupplyItems('');
+              checkDepositBalance(record);
             }}
           >
             Chi tiết
@@ -2129,9 +2285,185 @@ const Inpatient: React.FC = () => {
                   </Space>
                 </Card>
               </Col>
+
+              {/* NangCap4: Deposit insufficient warning */}
+              {depositWarning && (
+                <Col span={24}>
+                  <Alert
+                    type="error"
+                    showIcon
+                    title="Tạm ứng không đủ"
+                    description={
+                      <span>
+                        Bệnh nhân <strong>{depositWarning.patientName}</strong> có tạm ứng{' '}
+                        <strong>{depositWarning.depositBalance.toLocaleString()} VNĐ</strong> nhưng chi phí
+                        đang chờ thanh toán là{' '}
+                        <strong style={{ color: '#ff4d4f' }}>{depositWarning.pendingCharges.toLocaleString()} VNĐ</strong>.
+                        Vui lòng yêu cầu bệnh nhân nộp thêm tạm ứng.
+                      </span>
+                    }
+                    closable
+                    onClose={() => setDepositWarning(null)}
+                  />
+                </Col>
+              )}
+
+              {/* NangCap4: Active medication warning */}
+              {activeMedWarning && (
+                <Col span={24}>
+                  <Alert
+                    type="warning"
+                    showIcon
+                    title="Cảnh báo thuốc đang sử dụng"
+                    description={activeMedWarning}
+                    closable
+                    onClose={() => setActiveMedWarning(null)}
+                  />
+                </Col>
+              )}
+
+              {/* NangCap4: Supply order template section */}
+              <Col span={24}>
+                <Card
+                  size="small"
+                  title={
+                    <Space>
+                      <WarningOutlined style={{ color: '#1677ff' }} />
+                      <span>Vật tư y tế (NangCap4)</span>
+                    </Space>
+                  }
+                  extra={
+                    <Space>
+                      <Tooltip title="Kê đơn mới – kiểm tra thuốc đang dùng">
+                        <Button
+                          size="small"
+                          icon={<WarningOutlined />}
+                          onClick={() => {
+                            // Use patientCode as a proxy identifier since patientId is not in DTO
+                            checkActiveMedications(selectedAdmission.patientCode || selectedAdmission.medicalRecordCode || '');
+                          }}
+                        >
+                          Kiểm tra thuốc đang dùng
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Kiểm tra tạm ứng so với chi phí đang chờ">
+                        <Button
+                          size="small"
+                          icon={<WarningOutlined />}
+                          onClick={() => checkDepositBalance(selectedAdmission)}
+                        >
+                          Kiểm tra tạm ứng
+                        </Button>
+                      </Tooltip>
+                    </Space>
+                  }
+                >
+                  <Row gutter={[8, 8]} align="middle">
+                    <Col flex="auto">
+                      <Input.TextArea
+                        rows={3}
+                        value={currentSupplyItems}
+                        onChange={(e) => setCurrentSupplyItems(e.target.value)}
+                        placeholder="Nhập đơn vật tư y tế (tên vật tư, số lượng, đơn vị)&#10;VD: Bông gạc vô khuẩn x5 gói, Băng keo y tế x2 cuộn..."
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 8 }}>
+                    <Space>
+                      <Tooltip title="Lưu đơn vật tư hiện tại thành mẫu để dùng lại">
+                        <Button
+                          size="small"
+                          icon={<SaveOutlined />}
+                          onClick={() => setIsSupplyTemplateModalOpen(true)}
+                        >
+                          Lưu mẫu VT
+                        </Button>
+                      </Tooltip>
+                      <Select
+                        size="small"
+                        placeholder="Dùng mẫu VT..."
+                        style={{ width: 200 }}
+                        value={undefined}
+                        onSelect={(value: string) => {
+                          const tpl = supplyTemplates.find(t => t.name === value);
+                          if (tpl) handleLoadSupplyTemplate(tpl);
+                        }}
+                        notFoundContent={<span style={{ fontSize: 12 }}>Chưa có mẫu nào</span>}
+                        suffixIcon={<FolderOpenOutlined />}
+                      >
+                        {supplyTemplates.map(t => (
+                          <Select.Option key={t.name} value={t.name}>{t.name}</Select.Option>
+                        ))}
+                      </Select>
+                      <Tooltip title="Sao chép đơn vật tư từ lần nhập viện trước">
+                        <Button
+                          size="small"
+                          icon={<CopyOutlined />}
+                          onClick={() => handleCopyPreviousSupplyOrder(selectedAdmission)}
+                        >
+                          Dùng đơn VT cũ
+                        </Button>
+                      </Tooltip>
+                    </Space>
+                  </Row>
+                </Card>
+              </Col>
             </Row>
           </div>
         )}
+      </Modal>
+
+      {/* NangCap4: Save Supply Template Modal */}
+      <Modal
+        title={
+          <Space>
+            <SaveOutlined />
+            Lưu mẫu vật tư
+          </Space>
+        }
+        open={isSupplyTemplateModalOpen}
+        onOk={handleSaveSupplyTemplate}
+        onCancel={() => { setIsSupplyTemplateModalOpen(false); setSupplyTemplateName(''); }}
+        okText="Lưu mẫu"
+        cancelText="Hủy"
+        width={500}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Tên mẫu vật tư" required>
+            <Input
+              placeholder="VD: Mẫu VT hậu phẫu, Mẫu VT thay băng..."
+              value={supplyTemplateName}
+              onChange={(e) => setSupplyTemplateName(e.target.value)}
+              onPressEnter={handleSaveSupplyTemplate}
+            />
+          </Form.Item>
+          <Form.Item label="Nội dung đơn vật tư">
+            <Input.TextArea
+              rows={4}
+              value={currentSupplyItems}
+              readOnly
+              style={{ background: '#fafafa' }}
+            />
+          </Form.Item>
+          {supplyTemplates.length > 0 && (
+            <Form.Item label="Các mẫu đã lưu">
+              {supplyTemplates.map(t => (
+                <Tag
+                  key={t.name}
+                  closable
+                  onClose={() => {
+                    const updated = supplyTemplates.filter(x => x.name !== t.name);
+                    setSupplyTemplates(updated);
+                    localStorage.setItem(SUPPLY_TEMPLATE_KEY, JSON.stringify(updated));
+                  }}
+                  style={{ marginBottom: 4 }}
+                >
+                  {t.name}
+                </Tag>
+              ))}
+            </Form.Item>
+          )}
+        </Form>
       </Modal>
 
       {/* Print Medical Record Modal */}

@@ -60,6 +60,7 @@ import { useKeyboardShortcuts, formatShortcut } from '../hooks/useKeyboardShortc
 import cdsApi from '../api/clinicalDecisionSupport';
 import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
 import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
+import { getDepositBalance } from '../api/billing';
 
 // Type aliases for compatibility
 type QueuePatient = RoomPatientListDto;
@@ -178,6 +179,27 @@ const OPD: React.FC = () => {
   const [searchingSupplies, setSearchingSupplies] = useState(false);
   const [supplyOrders, setSupplyOrders] = useState<{ id: string; itemId: string; itemCode: string; itemName: string; unit: string; quantity: number; stockQuantity: number }[]>([]);
 
+  // NangCap4: Deposit insufficient warning
+  const [depositBalance, setDepositBalance] = useState<number | null>(null);
+  const [depositInsufficient, setDepositInsufficient] = useState(false);
+
+  // NangCap4: Debt warning
+  const [hasOutstandingDebt, setHasOutstandingDebt] = useState(false);
+
+  // NangCap4: Active medication warning
+  const [hasActiveMedications, setHasActiveMedications] = useState(false);
+
+  // NangCap4: Supply order templates (stored in localStorage)
+  const [supplyTemplates, setSupplyTemplates] = useState<{ name: string; items: typeof supplyOrders }[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('opd_supply_templates') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [templateNameModalVisible, setTemplateNameModalVisible] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+
   // Keyboard shortcuts
   useKeyboardShortcuts([
     { key: 'F2', handler: () => handleSave(), description: 'Lưu khám' },
@@ -267,9 +289,66 @@ const OPD: React.FC = () => {
           // Non-critical: context data is optional enhancement
           setOpdContext(null);
         }
+
+        // NangCap4: fetch deposit balance and debt warnings
+        checkPatientFinancials(queuePatient.patientId, queuePatient.examinationId);
       }
     } catch (error) {
       message.error('Không thể tải thông tin bệnh nhân');
+    }
+  };
+
+  // NangCap4: Check deposit balance, debt, and active medications
+  const checkPatientFinancials = async (patientId: string, examinationId: string) => {
+    // Reset warnings
+    setDepositBalance(null);
+    setDepositInsufficient(false);
+    setHasOutstandingDebt(false);
+    setHasActiveMedications(false);
+
+    // Check deposit balance
+    try {
+      const depRes = await getDepositBalance(patientId);
+      if (depRes.data) {
+        const balance = depRes.data.remainingBalance ?? 0;
+        setDepositBalance(balance);
+        // Warn if balance < 100,000 VND (adjustable threshold)
+        setDepositInsufficient(balance < 100000);
+      }
+    } catch {
+      // Non-critical: billing API may not have data for this patient
+    }
+
+    // Check for outstanding debt via billing summary endpoint
+    try {
+      const debtRes = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/billing/patient/${patientId}/summary`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          },
+        }
+      );
+      if (debtRes.ok) {
+        const data = await debtRes.json();
+        const debt = data?.remainingAmount ?? data?.outstandingDebt ?? 0;
+        setHasOutstandingDebt(debt > 0);
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // Check for active (undispensed) medications from previous visits
+    try {
+      const rxRes = await examinationApi.getPrescriptions(examinationId);
+      if (rxRes.data && Array.isArray(rxRes.data)) {
+        const hasActive = rxRes.data.some(
+          (rx: any) => rx.isDispensed === false && (rx.status === 0 || rx.status === 1)
+        );
+        setHasActiveMedications(hasActive);
+      }
+    } catch {
+      // Non-critical: may be first visit or no prescriptions
     }
   };
 
@@ -676,9 +755,30 @@ const OPD: React.FC = () => {
   };
 
   const handleAddSupplyOrder = (supply: StockDto) => {
-    // Check if already added
+    // Check if already added (NangCap4: duplicate supply warning)
     if (supplyOrders.find(s => s.itemId === supply.itemId)) {
-      message.warning('Vật tư đã có trong danh sách');
+      Modal.confirm({
+        title: 'Vật tư đã được kê',
+        icon: <WarningOutlined style={{ color: '#faad14' }} />,
+        content: `Vật tư "${supply.itemName}" đã có trong danh sách. Bạn có muốn kê thêm lần nữa không?`,
+        okText: 'Thêm lần nữa',
+        cancelText: 'Hủy',
+        onOk: () => {
+          setSupplyOrders(prev => [
+            ...prev,
+            {
+              id: `supply-${Date.now()}`,
+              itemId: supply.itemId,
+              itemCode: supply.itemCode,
+              itemName: supply.itemName,
+              unit: supply.unit || 'Cái',
+              quantity: 1,
+              stockQuantity: supply.availableQuantity ?? supply.quantity ?? 0,
+            },
+          ]);
+          message.success(`Đã thêm vật tư: ${supply.itemName}`);
+        },
+      });
       return;
     }
     setSupplyOrders((prev) => [
@@ -706,6 +806,110 @@ const OPD: React.FC = () => {
       newOrders[index] = { ...newOrders[index], quantity: qty };
       return newOrders;
     });
+  };
+
+  // NangCap4: Save supply orders as a named template
+  const handleSaveAsTemplate = () => {
+    if (supplyOrders.length === 0) {
+      message.warning('Chưa có vật tư nào để lưu mẫu');
+      return;
+    }
+    setNewTemplateName('');
+    setTemplateNameModalVisible(true);
+  };
+
+  const handleConfirmSaveTemplate = () => {
+    const name = newTemplateName.trim();
+    if (!name) {
+      message.warning('Vui lòng nhập tên mẫu vật tư');
+      return;
+    }
+    const updated = [
+      ...supplyTemplates.filter(t => t.name !== name),
+      { name, items: supplyOrders.map(o => ({ ...o })) },
+    ];
+    setSupplyTemplates(updated);
+    try {
+      localStorage.setItem('opd_supply_templates', JSON.stringify(updated));
+    } catch { /* storage full */ }
+    message.success(`Đã lưu mẫu vật tư "${name}"`);
+    setTemplateNameModalVisible(false);
+  };
+
+  // NangCap4: Load a saved template into supply orders
+  const handleLoadTemplate = (templateName: string) => {
+    const tpl = supplyTemplates.find(t => t.name === templateName);
+    if (!tpl) return;
+    // Merge with existing orders, skip duplicates
+    const newItems = tpl.items.filter(ti => !supplyOrders.find(o => o.itemId === ti.itemId));
+    if (newItems.length === 0 && tpl.items.length > 0) {
+      message.info('Tất cả vật tư trong mẫu đã có trong danh sách');
+      return;
+    }
+    setSupplyOrders(prev => [...prev, ...newItems.map(i => ({ ...i, id: `supply-${Date.now()}-${Math.random()}` }))]);
+    message.success(`Đã áp dụng mẫu "${templateName}" (${newItems.length} vật tư)`);
+  };
+
+  // NangCap4: Copy previous visit's supply orders
+  const handleCopyPreviousSupplyOrders = async () => {
+    if (!selectedPatient) {
+      message.warning('Vui lòng chọn bệnh nhân trước');
+      return;
+    }
+    try {
+      // Get medical history to find previous examination
+      const histRes = await examinationApi.getPatientMedicalHistory(selectedPatient.id, 5);
+      const history = histRes.data;
+      if (!history || !Array.isArray(history) || history.length === 0) {
+        message.info('Bệnh nhân chưa có lịch sử khám trước');
+        return;
+      }
+      // Find a previous examination that is not the current one
+      const prevExam = history.find(
+        (h: any) => h.examinationId && h.examinationId !== examination?.id
+      );
+      if (!prevExam) {
+        message.info('Không tìm thấy lần khám trước để sao chép');
+        return;
+      }
+      // Fetch service orders for that examination
+      const ordersRes = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/examination/${prevExam.examinationId}/supply-orders`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          },
+        }
+      );
+      if (ordersRes.ok) {
+        const prevOrders: any[] = await ordersRes.json();
+        if (!Array.isArray(prevOrders) || prevOrders.length === 0) {
+          message.info('Lần khám trước không có đơn vật tư');
+          return;
+        }
+        const newItems = prevOrders
+          .filter((o: any) => !supplyOrders.find(s => s.itemId === (o.serviceId || o.itemId)))
+          .map((o: any) => ({
+            id: `supply-${Date.now()}-${Math.random()}`,
+            itemId: o.serviceId || o.itemId || '',
+            itemCode: o.serviceCode || o.itemCode || '',
+            itemName: o.serviceName || o.itemName || '',
+            unit: o.unit || 'Cái',
+            quantity: o.quantity || 1,
+            stockQuantity: o.stockQuantity || 0,
+          }));
+        if (newItems.length === 0) {
+          message.info('Tất cả vật tư trong đơn cũ đã có trong danh sách');
+          return;
+        }
+        setSupplyOrders(prev => [...prev, ...newItems]);
+        message.success(`Đã sao chép ${newItems.length} vật tư từ lần khám trước`);
+      } else {
+        message.info('Không có đơn vật tư từ lần khám trước');
+      }
+    } catch {
+      message.info('Không thể tải đơn vật tư cũ');
+    }
   };
 
   const handleSaveSupplyOrders = async () => {
@@ -1534,6 +1738,39 @@ const OPD: React.FC = () => {
                     </Card>
                   )}
 
+                  {/* NangCap4: Deposit insufficient warning */}
+                  {depositInsufficient && depositBalance !== null && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      title="Tạm ứng không đủ"
+                      description={`Số dư tạm ứng: ${depositBalance.toLocaleString('vi-VN')} đ. Đề nghị bệnh nhân nộp thêm tạm ứng.`}
+                      style={{ marginBottom: 8 }}
+                    />
+                  )}
+
+                  {/* NangCap4: Debt warning */}
+                  {hasOutstandingDebt && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      title="Bệnh nhân còn nợ viện phí"
+                      description="Bệnh nhân có công nợ chưa thanh toán. Vui lòng yêu cầu bệnh nhân thanh toán trước khi tiếp tục."
+                      style={{ marginBottom: 8 }}
+                    />
+                  )}
+
+                  {/* NangCap4: Active medication warning */}
+                  {hasActiveMedications && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      title="Còn thuốc chưa lĩnh"
+                      description="Bệnh nhân có đơn thuốc từ lần khám trước chưa được cấp phát. Kiểm tra trước khi kê đơn mới."
+                      style={{ marginBottom: 8 }}
+                    />
+                  )}
+
                   <Button
                     block
                     icon={<HistoryOutlined />}
@@ -2320,6 +2557,38 @@ const OPD: React.FC = () => {
                             >
                               In phiếu
                             </Button>
+                            <Tooltip title="Lưu danh sách vật tư hiện tại thành mẫu để dùng lại">
+                              <Button
+                                icon={<SaveOutlined />}
+                                onClick={handleSaveAsTemplate}
+                                disabled={supplyOrders.length === 0}
+                              >
+                                Lưu mẫu VT
+                              </Button>
+                            </Tooltip>
+                            {supplyTemplates.length > 0 && (
+                              <Select
+                                placeholder="Dùng mẫu VT"
+                                style={{ width: 160 }}
+                                onChange={(val: string) => handleLoadTemplate(val)}
+                                value={undefined}
+                              >
+                                {supplyTemplates.map(t => (
+                                  <Select.Option key={t.name} value={t.name}>
+                                    {t.name} ({t.items.length} VT)
+                                  </Select.Option>
+                                ))}
+                              </Select>
+                            )}
+                            <Tooltip title="Sao chép vật tư từ lần khám trước của bệnh nhân">
+                              <Button
+                                icon={<HistoryOutlined />}
+                                onClick={handleCopyPreviousSupplyOrders}
+                                disabled={!selectedPatient}
+                              >
+                                Dùng đơn VT cũ
+                              </Button>
+                            </Tooltip>
                           </Space>
 
                           <Table
@@ -2763,6 +3032,34 @@ const OPD: React.FC = () => {
         onScan={handleBarcodeScan}
         title="Quét mã vạch bệnh nhân"
       />
+
+      {/* NangCap4: Save supply template name modal */}
+      <Modal
+        title="Lưu mẫu vật tư"
+        open={templateNameModalVisible}
+        onOk={handleConfirmSaveTemplate}
+        onCancel={() => setTemplateNameModalVisible(false)}
+        okText="Lưu mẫu"
+        cancelText="Hủy"
+        width={400}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Text type="secondary">Nhập tên để nhận biết mẫu vật tư ({supplyOrders.length} loại vật tư):</Text>
+        </div>
+        <Input
+          placeholder="VD: Phẫu thuật nhỏ, Thay băng, Đặt catheter..."
+          value={newTemplateName}
+          onChange={(e) => setNewTemplateName(e.target.value)}
+          onPressEnter={handleConfirmSaveTemplate}
+          maxLength={100}
+          autoFocus
+        />
+        {supplyTemplates.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>Mẫu đã lưu: {supplyTemplates.map(t => t.name).join(', ')}</Text>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -188,6 +188,18 @@ public class HospitalReportService : IHospitalReportService
         // H. Nhan su / Chuyen tuyen (HR / Referral)
         ["OutboundReferralSummary"] = "Tong hop chuyen tuyen di",
         ["DialysisMachineUsage"] = "Su dung may loc mau",
+
+        // Friendly aliases
+        ["OutpatientRegister"] = "So kham benh ngoai tru",
+        ["InpatientRegister"] = "So nhap vien noi tru",
+        ["PharmacyDispensing"] = "Cap phat thuoc theo khoa",
+        ["RevenueByDept"] = "Doanh thu theo khoa",
+        ["LabResults"] = "So xet nghiem",
+        ["ImagingResults"] = "So chan doan hinh anh",
+        ["SurgerySchedule"] = "Danh sach phau thuat",
+        ["InsuranceSummary"] = "Tong hop bao hiem y te",
+        ["StockInventory"] = "Xuat nhap ton kho",
+        ["BedOccupancy"] = "Cong suat giuong benh",
     };
 
     private static string GetReportName(string reportType) =>
@@ -496,6 +508,38 @@ public class HospitalReportService : IHospitalReportService
                     break;
                 case "DialysisMachineUsage":
                     await FillDialysisMachineUsage(result, fromDate, toDate, departmentId);
+                    break;
+
+                // ==================== Friendly Aliases ====================
+                case "OutpatientRegister":
+                    await FillExaminationRegister(result, fromDate, toDate, departmentId);
+                    break;
+                case "InpatientRegister":
+                    await FillAdmissionByDept(result, fromDate, toDate, departmentId);
+                    break;
+                case "PharmacyDispensing":
+                    await FillDeptDispensingSheet(result, fromDate, toDate, departmentId);
+                    break;
+                case "RevenueByDept":
+                    await FillHospitalFeeSummary(result, fromDate, toDate, departmentId);
+                    break;
+                case "LabResults":
+                    await FillLabRegister(result, fromDate, toDate, departmentId);
+                    break;
+                case "ImagingResults":
+                    await FillImagingRegister(result, fromDate, toDate, departmentId);
+                    break;
+                case "SurgerySchedule":
+                    await FillSurgeryRegister(result, fromDate, toDate, departmentId);
+                    break;
+                case "InsuranceSummary":
+                    await FillInsuranceReport(result, fromDate, toDate, departmentId);
+                    break;
+                case "StockInventory":
+                    await FillStockMovement(result, fromDate, toDate, warehouseId);
+                    break;
+                case "BedOccupancy":
+                    await FillBedCapacity(result, fromDate, toDate, departmentId);
                     break;
 
                 default:
