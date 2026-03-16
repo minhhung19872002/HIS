@@ -46,6 +46,7 @@ import {
   ScissorOutlined,
   SafetyCertificateOutlined,
   HomeOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -626,7 +627,7 @@ const downloadBlob = (blob: Blob, filename: string) => {
 // Format number with thousand separator
 const fmtNum = (v: number) => v?.toLocaleString('vi-VN') ?? '0';
 const fmtPct = (v: number) => `${(v ?? 0).toFixed(1)}%`;
-const fmtMoney = (v: number) => `${fmtNum(Math.round(v ?? 0))} VND`;
+const fmtMoney = (v: number) => `${fmtNum(Math.round(v ?? 0))} đ`;
 
 // ============================================================================
 // Reconciliation Report Definitions (kept from before - 8 reports)
@@ -1184,7 +1185,7 @@ const FullReportsContent: React.FC = () => {
           printWindow.focus();
           printWindow.print();
         } else {
-          message.error('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up để in báo cáo.');
+          message.warning('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up để in báo cáo.');
         }
       } else {
         const extension = format === 'excel' ? 'xlsx' : 'pdf';
@@ -1194,7 +1195,7 @@ const FullReportsContent: React.FC = () => {
       }
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error exporting report:', error);
-      message.error(`Xuất báo cáo ra ${formatName} thất bại. Vui lòng thử lại.`);
+      message.warning(`Xuất báo cáo ra ${formatName} thất bại. Vui lòng thử lại.`);
     } finally {
       setExporting(false);
     }
@@ -1211,7 +1212,7 @@ const FullReportsContent: React.FC = () => {
       setPreviewVisible(true);
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error previewing report:', error);
-      message.error('Xem trước báo cáo thất bại. Vui lòng thử lại.');
+      message.warning('Xem trước báo cáo thất bại. Vui lòng thử lại.');
     } finally {
       setExporting(false);
     }
@@ -1227,7 +1228,7 @@ const FullReportsContent: React.FC = () => {
       message.success(`Đã tải xuống: ${reportName}`);
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.warn('Error downloading report:', error);
-      message.error('Tải xuống báo cáo thất bại. Vui lòng thử lại.');
+      message.warning('Tải xuống báo cáo thất bại. Vui lòng thử lại.');
     } finally {
       setExporting(false);
     }
@@ -1724,7 +1725,10 @@ const FullReportsContent: React.FC = () => {
 const Reports: React.FC = () => {
   return (
     <div>
-      <Title level={4}>Hồ sơ bệnh án &amp; Báo cáo thống kê</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Hồ sơ bệnh án &amp; Báo cáo thống kê</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} size="small">Làm mới</Button>
+      </div>
 
       <Tabs
         items={[

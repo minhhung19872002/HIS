@@ -41,6 +41,7 @@ import {
   PlusOutlined,
   PrinterOutlined,
   ScanOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -189,7 +190,7 @@ const Pharmacy: React.FC = () => {
       setFilteredTransfers(transferList.data);
       setAlerts(alertList.data);
     } catch (error) {
-      message.error('Không thể tải dữ liệu. Vui lòng thử lại.');
+      message.warning('Không thể tải dữ liệu. Vui lòng thử lại.');
       console.warn('Error fetching pharmacy data:', error);
     } finally {
       setLoading(false);
@@ -268,7 +269,7 @@ const Pharmacy: React.FC = () => {
       setSelectedPrescription(record);
       setDetailDrawerVisible(true);
     } catch (error) {
-      message.error('Không thể tải chi tiết đơn thuốc');
+      message.warning('Không thể tải chi tiết đơn thuốc');
       console.warn('Error loading prescription detail:', error);
     } finally {
       setLoading(false);
@@ -291,7 +292,7 @@ const Pharmacy: React.FC = () => {
       setInventoryHistory(response.data);
     } catch (error) {
       console.warn('Error loading inventory history:', error);
-      message.error('Không thể tải lịch sử xuất nhập');
+      message.warning('Không thể tải lịch sử xuất nhập');
       setInventoryHistory([]);
     } finally {
       setInventoryHistoryLoading(false);
@@ -312,7 +313,7 @@ const Pharmacy: React.FC = () => {
       setFilteredInventory(inventory.data);
       message.success('Đã đồng bộ dữ liệu tồn kho');
     } catch (error) {
-      message.error('Lỗi khi đồng bộ tồn kho');
+      message.warning('Lỗi khi đồng bộ tồn kho');
       console.warn('Error syncing inventory:', error);
     } finally {
       setLoading(false);
@@ -351,7 +352,7 @@ const Pharmacy: React.FC = () => {
       setAlerts(prev => prev.filter(a => a.id !== alertId));
       message.success('Đã xử lý cảnh báo');
     } catch (error) {
-      message.error('Không thể xử lý cảnh báo');
+      message.warning('Không thể xử lý cảnh báo');
       console.warn('Error resolving alert:', error);
     }
   };
@@ -397,7 +398,7 @@ const Pharmacy: React.FC = () => {
       const prescriptions = await pharmacyApi.getPendingPrescriptions();
       setPendingPrescriptions(prescriptions.data);
     } catch (error) {
-      message.error('Không thể tiếp nhận đơn thuốc. Vui lòng thử lại.');
+      message.warning('Không thể tiếp nhận đơn thuốc. Vui lòng thử lại.');
       console.warn('Error accepting prescription:', error);
     } finally {
       setLoading(false);
@@ -420,7 +421,7 @@ const Pharmacy: React.FC = () => {
           const prescriptions = await pharmacyApi.getPendingPrescriptions();
           setPendingPrescriptions(prescriptions.data);
         } catch (error) {
-          message.error('Không thể từ chối đơn thuốc. Vui lòng thử lại.');
+          message.warning('Không thể từ chối đơn thuốc. Vui lòng thử lại.');
           console.warn('Error rejecting prescription:', error);
         }
       },
@@ -538,7 +539,7 @@ const Pharmacy: React.FC = () => {
                   setSelectedPrescription(record);
                   setDispensingDrawerVisible(true);
                 } catch (error) {
-                  message.error('Không thể tải thông tin thuốc. Vui lòng thử lại.');
+                  message.warning('Không thể tải thông tin thuốc. Vui lòng thử lại.');
                   console.warn('Error loading medications:', error);
                 } finally {
                   setLoading(false);
@@ -583,7 +584,7 @@ const Pharmacy: React.FC = () => {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -725,7 +726,7 @@ const Pharmacy: React.FC = () => {
               setPendingPrescriptions(prescriptions.data);
             }
           } catch (error) {
-            message.error('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
+            message.warning('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
             console.warn('Error completing dispensing:', error);
           }
         },
@@ -742,7 +743,7 @@ const Pharmacy: React.FC = () => {
           setPendingPrescriptions(prescriptions.data);
         }
       } catch (error) {
-        message.error('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
+        message.warning('Không thể hoàn thành cấp phát. Vui lòng thử lại.');
         console.warn('Error completing dispensing:', error);
       }
     }
@@ -878,7 +879,7 @@ const Pharmacy: React.FC = () => {
       const transferList = await pharmacyApi.getTransferRequests();
       setTransfers(transferList.data);
     } catch (error) {
-      message.error('Không thể duyệt phiếu điều chuyển. Vui lòng thử lại.');
+      message.warning('Không thể duyệt phiếu điều chuyển. Vui lòng thử lại.');
       console.warn('Error approving transfer:', error);
     }
   };
@@ -899,7 +900,7 @@ const Pharmacy: React.FC = () => {
           const transferList = await pharmacyApi.getTransferRequests();
           setTransfers(transferList.data);
         } catch (error) {
-          message.error('Không thể từ chối phiếu điều chuyển. Vui lòng thử lại.');
+          message.warning('Không thể từ chối phiếu điều chuyển. Vui lòng thử lại.');
           console.warn('Error rejecting transfer:', error);
         }
       },
@@ -915,7 +916,7 @@ const Pharmacy: React.FC = () => {
       const transferList = await pharmacyApi.getTransferRequests();
       setTransfers(transferList.data);
     } catch (error) {
-      message.error('Không thể xác nhận nhận hàng. Vui lòng thử lại.');
+      message.warning('Không thể xác nhận nhận hàng. Vui lòng thử lại.');
       console.warn('Error receiving transfer:', error);
     }
   };
@@ -1013,7 +1014,7 @@ const Pharmacy: React.FC = () => {
         // Form validation error, no need to show message
         return;
       }
-      message.error('Không thể tạo phiếu điều chuyển. Vui lòng thử lại.');
+      message.warning('Không thể tạo phiếu điều chuyển. Vui lòng thử lại.');
       console.warn('Error creating transfer:', error);
     }
   };
@@ -1049,7 +1050,7 @@ const Pharmacy: React.FC = () => {
       );
       message.success('Đã xác nhận cảnh báo');
     } catch (error) {
-      message.error('Không thể xác nhận cảnh báo. Vui lòng thử lại.');
+      message.warning('Không thể xác nhận cảnh báo. Vui lòng thử lại.');
       console.warn('Error acknowledging alert:', error);
     }
   };
@@ -1181,7 +1182,7 @@ const Pharmacy: React.FC = () => {
         </div>
       }
       placement="right"
-      size={900}
+      size="large"
       open={dispensingDrawerVisible}
       onClose={() => setDispensingDrawerVisible(false)}
       footer={
@@ -1199,24 +1200,22 @@ const Pharmacy: React.FC = () => {
       {selectedPrescription && (
         <>
           <Alert
-            title={
-              <div>
-                <strong>Thông tin đơn thuốc</strong>
-                <Descriptions size="small" column={2} style={{ marginTop: 8 }}>
-                  <Descriptions.Item label="Bác sĩ">
-                    {selectedPrescription.doctorName}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Khoa">
-                    {selectedPrescription.department}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Tổng tiền">
-                    {selectedPrescription.totalAmount.toLocaleString('vi-VN')} đ
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Thời gian">
-                    {dayjs(selectedPrescription.createdDate).format('DD/MM/YYYY HH:mm')}
-                  </Descriptions.Item>
-                </Descriptions>
-              </div>
+            title="Thông tin đơn thuốc"
+            description={
+              <Descriptions size="small" column={{ xs: 1, sm: 2 }} style={{ marginTop: 4 }}>
+                <Descriptions.Item label="Bác sĩ">
+                  {selectedPrescription.doctorName}
+                </Descriptions.Item>
+                <Descriptions.Item label="Khoa">
+                  {selectedPrescription.department}
+                </Descriptions.Item>
+                <Descriptions.Item label="Tổng tiền">
+                  {selectedPrescription.totalAmount.toLocaleString('vi-VN')} đ
+                </Descriptions.Item>
+                <Descriptions.Item label="Thời gian">
+                  {dayjs(selectedPrescription.createdDate).format('DD/MM/YYYY HH:mm')}
+                </Descriptions.Item>
+              </Descriptions>
             }
             type="info"
             style={{ marginBottom: 16 }}
@@ -1701,7 +1700,10 @@ const Pharmacy: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý nhà thuốc</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý nhà thuốc</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>
+      </div>
 
       <Card>
         <Tabs
@@ -1771,7 +1773,7 @@ const Pharmacy: React.FC = () => {
       <Drawer
         title="Chi tiết đơn thuốc"
         placement="right"
-        size={700}
+        size="large"
         open={detailDrawerVisible}
         onClose={() => {
           setDetailDrawerVisible(false);
@@ -1827,7 +1829,6 @@ const Pharmacy: React.FC = () => {
       <Drawer
         title="Chi tiết thuốc tồn kho"
         placement="right"
-        size={500}
         open={inventoryDetailVisible}
         onClose={() => {
           setInventoryDetailVisible(false);
@@ -1864,7 +1865,6 @@ const Pharmacy: React.FC = () => {
       <Drawer
         title={`Lịch sử xuất nhập - ${selectedInventoryItem?.medicationName || ''}`}
         placement="right"
-        size={500}
         open={inventoryHistoryVisible}
         onClose={() => {
           setInventoryHistoryVisible(false);
@@ -1933,7 +1933,6 @@ const Pharmacy: React.FC = () => {
       <Drawer
         title="Chi tiết phiếu điều chuyển"
         placement="right"
-        size={500}
         open={transferDetailVisible}
         onClose={() => {
           setTransferDetailVisible(false);

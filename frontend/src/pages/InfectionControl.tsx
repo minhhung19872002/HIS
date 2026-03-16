@@ -536,11 +536,9 @@ const InfectionControl: React.FC = () => {
       key: 'ppe',
       render: (_, record) =>
         record.ppeRequirements?.length > 0
-          ? record.ppeRequirements.map((p, i) => (
-              <Tag key={i} color="blue">
-                {p}
-              </Tag>
-            ))
+          ? <Space size={4} wrap>{record.ppeRequirements.map((p, i) => (
+              <Tag key={i} color="blue">{p}</Tag>
+            ))}</Space>
           : '-',
     },
   ];
@@ -623,9 +621,11 @@ const InfectionControl: React.FC = () => {
       title: 'Khoa ảnh hưởng',
       key: 'departments',
       render: (_, record) =>
-        record.affectedDepartmentNames?.map((d, i) => (
-          <Tag key={i}>{d}</Tag>
-        )) || '-',
+        record.affectedDepartmentNames?.length > 0
+          ? <Space size={4} wrap>{record.affectedDepartmentNames.map((d, i) => (
+              <Tag key={i}>{d}</Tag>
+            ))}</Space>
+          : '-',
     },
     {
       title: 'Số ca',

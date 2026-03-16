@@ -360,12 +360,10 @@ const Equipment: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div>
-        <Title level={4}>
-          Quản lý trang thiết bị y tế
-          <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ marginLeft: 12 }} size="small">
-            Làm mới
-          </Button>
-        </Title>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>Quản lý trang thiết bị y tế</Title>
+          <Button icon={<ReloadOutlined />} onClick={fetchData} size="small">Làm mới</Button>
+        </div>
 
         {/* Statistics */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
@@ -405,7 +403,7 @@ const Equipment: React.FC = () => {
         {/* Main Content */}
         <Card
           extra={
-            <Button type="primary" icon={<PlusOutlined />}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => message.info('Chức năng thêm thiết bị đang phát triển')}>
               Thêm thiết bị
             </Button>
           }

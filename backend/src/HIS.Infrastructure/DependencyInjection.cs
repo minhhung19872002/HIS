@@ -197,6 +197,15 @@ public static class DependencyInjection
         // Hospital Report Service (140 reports + birth certificate)
         services.AddScoped<IHospitalReportService, HospitalReportService>();
 
+        // NangCap5: Cổng đơn thuốc quốc gia (CQLKCB)
+        services.AddScoped<INationalPrescriptionService, NationalPrescriptionService>();
+
+        // NangCap5: Sở Y tế monitoring
+        services.AddScoped<IProvincialHealthService, ProvincialHealthService>();
+
+        // NangCap5: Chuyển giao dữ liệu
+        services.AddScoped<IDataManagementService, DataManagementService>();
+
         return services;
     }
 }

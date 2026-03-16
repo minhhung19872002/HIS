@@ -32,6 +32,7 @@ import {
   BarChartOutlined,
   WalletOutlined,
   RollbackOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
@@ -166,7 +167,7 @@ const Billing: React.FC = () => {
     const selectedItems = unpaidServices.filter((s) => selectedServices.includes(s.id));
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -214,7 +215,7 @@ const Billing: React.FC = () => {
         <div class="subtitle">Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
 
         <div class="info-row">Mã bệnh nhân: <span class="field">${selectedPatient.code}</span></div>
-        <div class="info-row">Họ và tên: <span class="field" style="width: 300px;">${selectedPatient.name}</span> Giới tính: <span class="field">${selectedPatient.gender === 1 ? 'Nam' : 'Nữ'}</span></div>
+        <div class="info-row">Họ và tên: <span class="field" style="width: 300px;">${selectedPatient.name}</span> Giới tính: <span class="field">${selectedPatient.gender === 1 ? 'Nam' : selectedPatient.gender === 2 ? 'Nữ' : '-'}</span></div>
         <div class="info-row">Ngày sinh: <span class="field">${selectedPatient.dateOfBirth ? dayjs(selectedPatient.dateOfBirth).format('DD/MM/YYYY') : ''}</span> SĐT: <span class="field">${selectedPatient.phoneNumber || ''}</span></div>
         <div class="info-row">Số thẻ BHYT: <span class="field" style="width: 200px;">${selectedPatient.insuranceNumber || 'Không có'}</span></div>
         <div class="info-row">Đối tượng: <span class="field">${selectedPatient.insuranceNumber ? 'BHYT' : 'Viện phí'}</span></div>
@@ -287,7 +288,7 @@ const Billing: React.FC = () => {
   const executePrintDeposit = (deposit: Deposit) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -353,7 +354,7 @@ const Billing: React.FC = () => {
   const executePrintRefund = (refund: RefundRecord) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -541,7 +542,7 @@ const Billing: React.FC = () => {
         message.info('Không tìm thấy tạm ứng cho bệnh nhân này');
       }
     } catch (error) {
-      message.error('Không thể tải dữ liệu tạm ứng');
+      message.warning('Không thể tải dữ liệu tạm ứng');
       console.warn('Error fetching deposits:', error);
     } finally {
       setLoading(false);
@@ -567,7 +568,7 @@ const Billing: React.FC = () => {
       }));
       setRefunds(mappedRefunds);
     } catch (error) {
-      message.error('Không thể tải dữ liệu hoàn tiền');
+      message.warning('Không thể tải dữ liệu hoàn tiền');
       console.warn('Error fetching refunds:', error);
     } finally {
       setLoading(false);
@@ -601,9 +602,9 @@ const Billing: React.FC = () => {
         id: patientData.patientId,
         code: patientData.patientCode,
         name: patientData.patientName,
-        gender: 1, // Default, API doesn't provide this in billing status
-        dateOfBirth: '', // API doesn't provide in billing status
-        phoneNumber: '', // API doesn't provide in billing status
+        gender: patientData.gender ?? 0, // 0 = unknown
+        dateOfBirth: patientData.dateOfBirth || '',
+        phoneNumber: patientData.phoneNumber || '',
         insuranceNumber: '',
         patientType: 1, // Default
       };
@@ -632,7 +633,7 @@ const Billing: React.FC = () => {
       setUnpaidServices(mappedServices);
       message.success(`Tìm thấy bệnh nhân: ${patient.name}`);
     } catch (error) {
-      message.error('Lỗi khi tìm kiếm bệnh nhân');
+      message.warning('Lỗi khi tìm kiếm bệnh nhân');
       console.warn('Error searching patient:', error);
       setSelectedPatient(null);
       setUnpaidServices([]);
@@ -747,7 +748,7 @@ const Billing: React.FC = () => {
       {selectedPatient && (
         <>
           <Card size="small" style={{ marginBottom: 16 }}>
-            <Descriptions column={4} size="small">
+            <Descriptions column={{ xs: 2, sm: 2, md: 4 }} size="small">
               <Descriptions.Item label="Mã BN">
                 <strong>{selectedPatient.code}</strong>
               </Descriptions.Item>
@@ -755,10 +756,10 @@ const Billing: React.FC = () => {
                 <strong>{selectedPatient.name}</strong>
               </Descriptions.Item>
               <Descriptions.Item label="Giới tính">
-                {selectedPatient.gender === 1 ? 'Nam' : 'Nữ'}
+                {selectedPatient.gender === 1 ? 'Nam' : selectedPatient.gender === 2 ? 'Nữ' : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày sinh">
-                {dayjs(selectedPatient.dateOfBirth).format('DD/MM/YYYY')}
+                {selectedPatient.dateOfBirth ? dayjs(selectedPatient.dateOfBirth).format('DD/MM/YYYY') : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="SĐT">
                 {selectedPatient.phoneNumber}
@@ -866,7 +867,7 @@ const Billing: React.FC = () => {
       const values = await paymentForm.validateFields();
 
       if (!selectedPatient) {
-        message.error('Chưa chọn bệnh nhân');
+        message.warning('Chưa chọn bệnh nhân');
         return;
       }
 
@@ -915,7 +916,7 @@ const Billing: React.FC = () => {
       paymentForm.resetFields();
     } catch (error) {
       console.warn('Payment error:', error);
-      message.error('Lỗi khi thanh toán. Vui lòng thử lại.');
+      message.warning('Lỗi khi thanh toán. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -1200,7 +1201,7 @@ const Billing: React.FC = () => {
       await fetchDeposits();
     } catch (error) {
       console.warn('Create deposit error:', error);
-      message.error('Lỗi khi tạo tạm ứng. Vui lòng thử lại.');
+      message.warning('Lỗi khi tạo tạm ứng. Vui lòng thử lại.');
     }
   };
 
@@ -1299,7 +1300,7 @@ const Billing: React.FC = () => {
                     await fetchDeposits();
                   } catch (error) {
                     console.warn('Refund deposit error:', error);
-                    message.error('Lỗi khi hoàn tiền tạm ứng');
+                    message.warning('Lỗi khi hoàn tiền tạm ứng');
                   }
                 },
               });
@@ -1413,7 +1414,7 @@ const Billing: React.FC = () => {
                   message.warning('Không tìm thấy bệnh nhân');
                 }
               } catch (error) {
-                message.error('Lỗi khi tìm kiếm bệnh nhân');
+                message.warning('Lỗi khi tìm kiếm bệnh nhân');
               }
             }}
           />
@@ -1475,7 +1476,7 @@ const Billing: React.FC = () => {
       await fetchRefunds();
     } catch (error) {
       console.warn('Create refund error:', error);
-      message.error('Lỗi khi tạo yêu cầu hoàn tiền. Vui lòng thử lại.');
+      message.warning('Lỗi khi tạo yêu cầu hoàn tiền. Vui lòng thử lại.');
     }
   };
 
@@ -1560,7 +1561,7 @@ const Billing: React.FC = () => {
                     await fetchRefunds();
                   } catch (error) {
                     console.warn('Approve refund error:', error);
-                    message.error('Lỗi khi duyệt yêu cầu hoàn tiền');
+                    message.warning('Lỗi khi duyệt yêu cầu hoàn tiền');
                   }
                 }}
               >
@@ -1577,7 +1578,7 @@ const Billing: React.FC = () => {
                     await fetchRefunds();
                   } catch (error) {
                     console.warn('Cancel refund error:', error);
-                    message.error('Lỗi khi từ chối yêu cầu hoàn tiền');
+                    message.warning('Lỗi khi từ chối yêu cầu hoàn tiền');
                   }
                 }}
               >
@@ -1709,7 +1710,7 @@ const Billing: React.FC = () => {
                   message.warning('Không tìm thấy bệnh nhân');
                 }
               } catch (error) {
-                message.error('Lỗi khi tìm kiếm bệnh nhân');
+                message.warning('Lỗi khi tìm kiếm bệnh nhân');
               }
             }}
           />
@@ -1795,7 +1796,7 @@ const Billing: React.FC = () => {
       }
     } catch (error) {
       console.warn('View report error:', error);
-      message.error('Không thể tải báo cáo. Vui lòng thử lại.');
+      message.warning('Không thể tải báo cáo. Vui lòng thử lại.');
     } finally {
       setLoadingReport(false);
     }
@@ -1847,7 +1848,7 @@ const Billing: React.FC = () => {
       message.success('Đã xuất file Excel (CSV) thành công');
     } catch (error) {
       console.warn('Export excel error:', error);
-      message.error('Không thể xuất báo cáo. Vui lòng thử lại.');
+      message.warning('Không thể xuất báo cáo. Vui lòng thử lại.');
     } finally {
       setLoadingReport(false);
     }
@@ -2011,7 +2012,10 @@ const Billing: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý viện phí</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý viện phí</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchDeposits(); fetchRefunds(); }} size="small">Làm mới</Button>
+      </div>
 
       <Card>
         <Tabs

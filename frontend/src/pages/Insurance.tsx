@@ -42,6 +42,7 @@ import {
   IdcardOutlined,
   EyeOutlined,
   HistoryOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -1235,7 +1236,10 @@ const Insurance: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Giám định BHYT</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Giám định BHYT</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchClaims(); fetchXmlBatches(); }} size="small">Làm mới</Button>
+      </div>
 
       {/* Summary Cards */}
       <Row gutter={16} style={{ marginBottom: 16 }}>

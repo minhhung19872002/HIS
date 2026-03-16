@@ -130,7 +130,7 @@ const Laboratory: React.FC = () => {
       }
     } catch (error) {
       console.warn('Error fetching lab requests:', error);
-      message.error('Không thể tải danh sách yêu cầu xét nghiệm');
+      message.warning('Không thể tải danh sách yêu cầu xét nghiệm');
     } finally {
       setLoading(false);
     }
@@ -245,7 +245,7 @@ const Laboratory: React.FC = () => {
             setTimeout(() => URL.revokeObjectURL(url), 60000);
           };
         } else {
-          message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+          message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
           URL.revokeObjectURL(url);
         }
         return;
@@ -262,7 +262,7 @@ const Laboratory: React.FC = () => {
       // Last resort: manual print window
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
-        message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+        message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
         return;
       }
       printWindow.document.write(`
@@ -299,7 +299,7 @@ const Laboratory: React.FC = () => {
     collectionForm.setFieldsValue({
       sampleType: record.requestedTests[0],
       collectionTime: dayjs(),
-      collectorName: 'Điều dưỡng Nguyễn D',
+      collectorName: JSON.parse(localStorage.getItem('user') || '{}').fullName || 'N/A',
     });
     setIsCollectionModalOpen(true);
   };
@@ -342,7 +342,7 @@ const Laboratory: React.FC = () => {
       setSelectedRequest(null);
     } catch (error) {
       console.warn('Error collecting sample:', error);
-      message.error('Có lỗi xảy ra khi lấy mẫu. Vui lòng thử lại.');
+      message.warning('Có lỗi xảy ra khi lấy mẫu. Vui lòng thử lại.');
     }
   };
 
@@ -370,7 +370,7 @@ const Laboratory: React.FC = () => {
       message.success('Đã bắt đầu xử lý mẫu');
     } catch (error) {
       console.warn('Error starting processing:', error);
-      message.error('Có lỗi xảy ra khi bắt đầu xử lý mẫu');
+      message.warning('Có lỗi xảy ra khi bắt đầu xử lý mẫu');
     }
   };
 
@@ -393,7 +393,7 @@ const Laboratory: React.FC = () => {
       message.success('Đã hoàn thành xử lý mẫu');
     } catch (error) {
       console.warn('Error completing processing:', error);
-      message.error('Có lỗi xảy ra khi hoàn thành xử lý mẫu');
+      message.warning('Có lỗi xảy ra khi hoàn thành xử lý mẫu');
     }
   };
 
@@ -513,7 +513,7 @@ const Laboratory: React.FC = () => {
       setSelectedResult(null);
     } catch (error) {
       console.warn('Error saving results:', error);
-      message.error('Có lỗi xảy ra khi lưu kết quả. Vui lòng thử lại.');
+      message.warning('Có lỗi xảy ra khi lưu kết quả. Vui lòng thử lại.');
     }
   };
 
@@ -526,7 +526,7 @@ const Laboratory: React.FC = () => {
         try {
           // Call API to approve results
           const approveData = {
-            approvedBy: 'BS. Lê Thị Y',
+            approvedBy: JSON.parse(localStorage.getItem('user') || '{}').fullName || 'N/A',
             approvedTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
           };
 
@@ -538,7 +538,7 @@ const Laboratory: React.FC = () => {
                 ? {
                     ...r,
                     status: 2,
-                    approvedBy: 'BS. Lê Thị Y',
+                    approvedBy: JSON.parse(localStorage.getItem('user') || '{}').fullName || 'N/A',
                     approvedTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
                   }
                 : r
@@ -556,7 +556,7 @@ const Laboratory: React.FC = () => {
           message.success('Đã duyệt kết quả xét nghiệm');
         } catch (error) {
           console.warn('Error approving results:', error);
-          message.error('Có lỗi xảy ra khi duyệt kết quả. Vui lòng thử lại.');
+          message.warning('Có lỗi xảy ra khi duyệt kết quả. Vui lòng thử lại.');
         }
       },
     });
@@ -566,7 +566,7 @@ const Laboratory: React.FC = () => {
   const handlePrintResult = (result: TestResult) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
     printWindow.document.write(`
@@ -1037,7 +1037,10 @@ const Laboratory: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý Xét nghiệm</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Xét nghiệm</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchLabRequests(); fetchTestResults(); }} size="small">Làm mới</Button>
+      </div>
 
       <Card>
         <Tabs

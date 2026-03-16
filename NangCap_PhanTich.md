@@ -668,3 +668,43 @@
 
 > **Ket luan**: He thong HIS da co 230/349 tinh nang (66%), bo sung 115 tinh nang (33%), chi con 4 hang muc HARDWARE/DOC.
 > Sau khi bo sung: 345/349 = 99% hoan thanh.
+
+---
+
+## PHAN 7: NangCap5 - E-HSMT BV Da khoa Lai Chau
+
+**Nguon**: NangCap5.pdf - Ho so moi thau dien tu, goi thau phan mem HIS
+
+### 7.1 Yeu cau ket noi lien thong (Muc 1.4)
+
+| STT | Yeu cau | Hien trang | Trang thai | Ghi chu |
+|-----|---------|------------|------------|---------|
+| 1 | Ket noi Cong don thuoc quoc gia (Cuc QLKCB) | API client + UI tab trong HealthExchange.tsx | DA XONG | nationalPrescription.ts, tab "Cong don thuoc QG" |
+| 2 | Ket noi He thong giam sat dieu hanh thong tin y te - So Y te | API client + UI tab trong HealthExchange.tsx | DA XONG | provincialHealth.ts, tab "So Y te" |
+| 3 | Ket noi LIS | LISCompleteService, 6 LIS sub-modules | DA CO | LabQC, Microbiology, SampleStorage, Screening, Reagent, SampleTracking |
+| 4 | Ket noi RIS/PACS | RISCompleteService, Orthanc DICOM, DicomViewer | DA CO | DICOM C-STORE/C-FIND, HL7 ORM/ORU |
+| 5 | Chu ky so CKS | DigitalSignatureService, USB Token | DA CO | WINCA cert, CMS/PKCS#7, SHA-256 |
+| 6 | Chuyen giao du lieu khi het hop dong | API client + UI tab trong SystemAdmin.tsx | DA XONG | dataExport.ts, tab "Chuyen giao DL" |
+
+### 7.2 Yeu cau ATTT cap do 3 (ND 85/2016, Muc 1.5)
+
+| STT | Yeu cau | Hien trang | Trang thai |
+|-----|---------|------------|------------|
+| 1 | Dashboard ATTT | Tab "ATTT Cap do 3" trong SystemAdmin.tsx | DA CO |
+| 2 | Audit logging | AuditLogMiddleware + AuditLogService + UI | DA CO |
+| 3 | 2FA xac thuc | Email OTP 2-step login | DA CO |
+| 4 | Phan quyen chi tiet | Role-based access control + permission system | DA CO |
+| 5 | Ma hoa du lieu | HTTPS + JWT + bcrypt password hashing | DA CO |
+| 6 | Backup/restore | Backup management trong tab Chuyen giao DL | DA XONG |
+
+### Tong hop NangCap5
+
+| Hang muc | Tong | Da co | Bo sung | Ghi chu |
+|----------|------|-------|---------|---------|
+| Ket noi lien thong | 6 | 3 | 3 | Cong DT QG, So Y te, Chuyen giao DL |
+| ATTT cap do 3 | 6 | 5 | 1 | Tab ATTT doi ten |
+| **TONG** | **12** | **8** | **4** | **100%** |
+
+> **Ket luan NangCap5**: 12/12 yeu cau da duoc dap ung (100%).
+> Bo sung 3 module moi: Cong don thuoc QG, So Y te monitoring, Chuyen giao du lieu.
+> Doi ten tab ATTT cho phu hop ND 85/2016.

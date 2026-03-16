@@ -47,6 +47,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { patientApi, type Patient } from '../api/patient';
 import ClinicalTermSelector from '../components/ClinicalTermSelector';
+import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   examinationApi,
   type RoomPatientListDto,
@@ -233,7 +234,7 @@ const OPD: React.FC = () => {
         }
       }
     } catch (error) {
-      message.error('Không thể tải danh sách phòng khám');
+      message.warning('Không thể tải danh sách phòng khám');
     } finally {
       setLoadingRooms(false);
     }
@@ -251,7 +252,7 @@ const OPD: React.FC = () => {
         setQueueList([]);
       }
     } catch (error) {
-      message.error('Không thể tải danh sách chờ khám');
+      message.warning('Không thể tải danh sách chờ khám');
       setQueueList([]);
     } finally {
       setLoadingQueue(false);
@@ -294,7 +295,7 @@ const OPD: React.FC = () => {
         checkPatientFinancials(queuePatient.patientId, queuePatient.examinationId);
       }
     } catch (error) {
-      message.error('Không thể tải thông tin bệnh nhân');
+      message.warning('Không thể tải thông tin bệnh nhân');
     }
   };
 
@@ -383,7 +384,7 @@ const OPD: React.FC = () => {
         message.warning('Không tìm thấy bệnh nhân');
       }
     } catch (error) {
-      message.error('Lỗi khi tìm kiếm bệnh nhân');
+      message.warning('Lỗi khi tìm kiếm bệnh nhân');
     }
   };
 
@@ -729,7 +730,7 @@ const OPD: React.FC = () => {
     } catch (error: any) {
       if (error?.errorFields) return;
       console.warn('Error creating sick leave:', error);
-      message.error('Không thể tạo giấy nghỉ BHXH');
+      message.warning('Không thể tạo giấy nghỉ BHXH');
     } finally {
       setSavingSickLeave(false);
     }
@@ -943,7 +944,7 @@ const OPD: React.FC = () => {
       setSupplyOrders([]);
     } catch (error) {
       console.warn('Error saving supply orders:', error);
-      message.error('Không thể lưu kê vật tư');
+      message.warning('Không thể lưu kê vật tư');
     } finally {
       setSaving(false);
     }
@@ -956,7 +957,7 @@ const OPD: React.FC = () => {
     }
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in');
+      message.warning('Không thể mở cửa sổ in');
       return;
     }
     const totalItems = supplyOrders.reduce((sum, s) => sum + s.quantity, 0);
@@ -1146,7 +1147,7 @@ const OPD: React.FC = () => {
     } catch (error: unknown) {
       console.warn('Save error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Lỗi khi lưu phiếu khám';
-      message.error(errorMessage);
+      message.warning(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -1205,7 +1206,7 @@ const OPD: React.FC = () => {
         } catch (error: unknown) {
           console.warn('Complete error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Lỗi khi hoàn thành khám bệnh';
-          message.error(errorMessage);
+          message.warning(errorMessage);
         }
       },
     });
@@ -1223,7 +1224,7 @@ const OPD: React.FC = () => {
 
     // Pre-fill print form
     printForm.setFieldsValue({
-      hospitalName: 'Bệnh viện Đa khoa ABC',
+      hospitalName: HOSPITAL_NAME,
       departmentName: examination.departmentName || rooms.find(r => r.id === selectedRoomId)?.departmentName,
       patientName: selectedPatient.fullName?.toUpperCase(),
       dateOfBirth: selectedPatient.dateOfBirth ? dayjs(selectedPatient.dateOfBirth).format('DD/MM/YYYY') : '',
@@ -1274,7 +1275,7 @@ const OPD: React.FC = () => {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -1465,7 +1466,7 @@ const OPD: React.FC = () => {
       setHistoryModalVisible(true);
     } catch (error) {
       console.warn('Error fetching history:', error);
-      message.error('Không thể tải lịch sử khám bệnh');
+      message.warning('Không thể tải lịch sử khám bệnh');
       setPatientHistory([]);
       setHistoryModalVisible(true);
     }
@@ -1820,7 +1821,7 @@ const OPD: React.FC = () => {
                 rowKey="examinationId"
                 size="small"
                 pagination={false}
-                scroll={{ y: 400 }}
+                scroll={{ x: 600, y: 400 }}
                 onRow={(record) => ({
                   onClick: () => handleSelectPatientFromQueue(record),
                   onDoubleClick: () => {

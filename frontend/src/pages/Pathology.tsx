@@ -309,7 +309,7 @@ const Pathology: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ padding: '0 4px' }}>
+      <div>
         {/* Header */}
         <Card style={{ marginBottom: 16 }}>
           <Row justify="space-between" align="middle">

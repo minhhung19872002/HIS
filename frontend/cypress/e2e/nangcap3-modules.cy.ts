@@ -87,7 +87,7 @@ describe('NangCap3 Modules', () => {
 
     it('can switch to handover tab', () => {
       visitPage('/medical-record-archive');
-      cy.get('.ant-tabs-tab').contains(/ban giao|handover/i).click({ force: true });
+      cy.get('.ant-tabs-tab').contains(/[Bb]àn giao|ban giao|handover/i).click({ force: true });
       cy.get('.ant-tabs-tabpane-active').should('exist');
     });
 
@@ -130,7 +130,7 @@ describe('NangCap3 Modules', () => {
 
     it('can switch to auditor portal tab', () => {
       visitPage('/bhxh-audit');
-      cy.get('.ant-tabs-tab').contains(/giam dinh|portal|auditor/i).click({ force: true });
+      cy.get('.ant-tabs-tab').contains(/[Gg]iám định|giam dinh|portal|auditor/i).click({ force: true });
       cy.get('.ant-tabs-tabpane-active').should('exist');
     });
 
@@ -234,12 +234,12 @@ describe('NangCap3 Modules', () => {
 
     it('has add template button', () => {
       visitPage('/satisfaction-survey');
-      cy.get('button').contains(/them|tao|new|add/i).should('exist');
+      cy.get('button').contains(/[Tt]hêm|them|[Tt]ạo|tao|new|add/i).should('exist');
     });
 
     it('can open template creation modal', () => {
       visitPage('/satisfaction-survey');
-      cy.get('button').contains(/them|tao|new|add/i).first().click({ force: true });
+      cy.get('button').contains(/[Tt]hêm|them|[Tt]ạo|tao|new|add/i).first().click({ force: true });
       cy.wait(500);
       cy.get('body').then(($body) => {
         if ($body.find('.ant-modal').length > 0) {
@@ -251,14 +251,14 @@ describe('NangCap3 Modules', () => {
 
     it('can switch to results tab', () => {
       visitPage('/satisfaction-survey');
-      cy.get('.ant-tabs-tab').contains(/ket qua|result/i).click({ force: true });
+      cy.get('.ant-tabs-tab').contains(/[Kk]ết quả|ket qua|result/i).click({ force: true });
       cy.get('.ant-tabs-tabpane-active').should('exist');
     });
 
     it('can switch to analysis tab', () => {
       visitPage('/satisfaction-survey');
       cy.get('.ant-tabs-tab').filter((_: number, el: HTMLElement) =>
-        /phan tich|analysis|Phan/i.test(el.textContent || '')
+        /[Pp]hân tích|phan tich|analysis/i.test(el.textContent || '')
       ).first().click({ force: true });
       cy.get('.ant-tabs-tabpane-active').should('exist');
     });
@@ -266,7 +266,7 @@ describe('NangCap3 Modules', () => {
     it('can switch to settings tab', () => {
       visitPage('/satisfaction-survey');
       cy.get('.ant-tabs-tab').filter((_: number, el: HTMLElement) =>
-        /cau hinh|setting|Cau/i.test(el.textContent || '')
+        /[Cc]ấu hình|cau hinh|setting/i.test(el.textContent || '')
       ).first().click({ force: true });
       cy.get('.ant-tabs-tabpane-active').should('exist');
     });
@@ -274,7 +274,7 @@ describe('NangCap3 Modules', () => {
     it('settings has auto-send toggle', () => {
       visitPage('/satisfaction-survey');
       cy.get('.ant-tabs-tab').filter((_: number, el: HTMLElement) =>
-        /cau hinh|setting|Cau/i.test(el.textContent || '')
+        /[Cc]ấu hình|cau hinh|setting/i.test(el.textContent || '')
       ).first().click({ force: true });
       cy.wait(300);
       cy.get('.ant-tabs-tabpane-active').find('.ant-switch').should('exist');

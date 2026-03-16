@@ -39,6 +39,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, completeSurgery, searchIcdCodes, searchServices, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto, type CompleteSurgeryDto, type IcdCodeDto, type ServiceDto as SurgeryServiceDto } from '../api/surgery';
 import { examinationApi } from '../api/examination';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -162,7 +163,7 @@ const Surgery: React.FC = () => {
       setSurgeryRequests(requests);
     } catch (error) {
       console.warn('Error fetching surgeries:', error);
-      message.error('Không thể tải danh sách phẫu thuật');
+      message.warning('Không thể tải danh sách phẫu thuật');
     } finally {
       setLoading(false);
     }
@@ -392,7 +393,7 @@ const Surgery: React.FC = () => {
       requestForm.resetFields();
     } catch (error) {
       console.warn('Error creating surgery request:', error);
-      message.error('Có lỗi xảy ra khi tạo yêu cầu phẫu thuật');
+      message.warning('Có lỗi xảy ra khi tạo yêu cầu phẫu thuật');
     }
   };
 
@@ -459,7 +460,7 @@ const Surgery: React.FC = () => {
       setSelectedRequest(null);
     } catch (error) {
       console.warn('Error scheduling surgery:', error);
-      message.error('Có lỗi xảy ra khi lên lịch phẫu thuật');
+      message.warning('Có lỗi xảy ra khi lên lịch phẫu thuật');
     }
   };
 
@@ -506,7 +507,7 @@ const Surgery: React.FC = () => {
       setSelectedSchedule(null);
     } catch (error) {
       console.warn('Error starting surgery:', error);
-      message.error('Có lỗi xảy ra khi bắt đầu phẫu thuật');
+      message.warning('Có lỗi xảy ra khi bắt đầu phẫu thuật');
     }
   };
 
@@ -542,7 +543,7 @@ const Surgery: React.FC = () => {
           message.success('Hoàn thành phẫu thuật thành công');
         } catch (error) {
           console.warn('Error completing surgery:', error);
-          message.error('Có lỗi xảy ra khi hoàn thành phẫu thuật');
+          message.warning('Có lỗi xảy ra khi hoàn thành phẫu thuật');
         }
       },
     });
@@ -556,7 +557,7 @@ const Surgery: React.FC = () => {
     const request = surgeryRequests.find(r => r.requestCode === record.requestCode);
 
     printForm.setFieldsValue({
-      hospitalName: 'Bệnh viện Đa khoa ABC',
+      hospitalName: HOSPITAL_NAME,
       patientName: record.patientName,
       patientCode: record.patientCode,
       age: request?.age,
@@ -590,7 +591,7 @@ const Surgery: React.FC = () => {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -1028,7 +1029,10 @@ const Surgery: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý Phẫu thuật / Thủ thuật</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Phẫu thuật / Thủ thuật</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchSurgeries(); fetchOperatingRooms(); }} size="small">Làm mới</Button>
+      </div>
 
       <Card>
         <Tabs
@@ -1115,7 +1119,7 @@ const Surgery: React.FC = () => {
               key: 'schedules',
               label: (
                 <span>
-                  <CalendarOutlined />
+                  <CalendarOutlined />{' '}
                   Lịch phẫu thuật
                   {scheduledSurgeries.length > 0 && (
                     <Badge count={scheduledSurgeries.length} style={{ marginLeft: 8 }} />

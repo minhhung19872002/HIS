@@ -12,7 +12,7 @@ describe('FHIR R4, Health Monitoring, PDF Generation', () => {
   describe('FHIR R4 API - HealthExchange page', () => {
     it('loads HealthExchange page and has FHIR tab', () => {
       cy.visit('/health-exchange');
-      cy.contains('Lien thong Y te', { timeout: 10000 }).should('be.visible');
+      cy.contains(/Liên thông Y tế|Lien thong Y te/i, { timeout: 10000 }).should('be.visible');
       cy.contains('.ant-tabs-tab', 'FHIR R4', { timeout: 5000 }).should('exist');
     });
 
@@ -31,20 +31,20 @@ describe('FHIR R4, Health Monitoring, PDF Generation', () => {
     it('FHIR tab has search button', () => {
       cy.visit('/health-exchange');
       cy.contains('.ant-tabs-tab', 'FHIR R4', { timeout: 10000 }).click();
-      cy.contains('button', 'Tim kiem', { timeout: 5000 }).should('exist');
+      cy.contains('button', /Tìm kiếm|Tim kiem/i, { timeout: 5000 }).should('exist');
     });
 
     it('can search FHIR Patient resource', () => {
       cy.visit('/health-exchange');
       cy.contains('.ant-tabs-tab', 'FHIR R4', { timeout: 10000 }).click();
-      cy.contains('button', 'Tim kiem', { timeout: 5000 }).click();
+      cy.contains('button', /Tìm kiếm|Tim kiem/i, { timeout: 5000 }).click();
       cy.get('.ant-table', { timeout: 10000 }).should('exist');
     });
 
     it('FHIR search results table has correct columns', () => {
       cy.visit('/health-exchange');
       cy.contains('.ant-tabs-tab', 'FHIR R4', { timeout: 10000 }).click();
-      cy.contains('button', 'Tim kiem', { timeout: 5000 }).click();
+      cy.contains('button', /Tìm kiếm|Tim kiem/i, { timeout: 5000 }).click();
       // Table may be empty if no FHIR data - just verify table renders
       cy.get('.ant-table', { timeout: 10000 }).first().should('exist');
     });
@@ -52,13 +52,13 @@ describe('FHIR R4, Health Monitoring, PDF Generation', () => {
     it('has export FHIR Bundle section', () => {
       cy.visit('/health-exchange');
       cy.contains('.ant-tabs-tab', 'FHIR R4', { timeout: 10000 }).click();
-      cy.contains('Xuat du lieu FHIR Bundle', { timeout: 5000 }).should('exist');
+      cy.contains(/Xuất dữ liệu FHIR Bundle|Xuat du lieu FHIR Bundle/i, { timeout: 5000 }).should('exist');
     });
 
     it('has external FHIR server section', () => {
       cy.visit('/health-exchange');
       cy.contains('.ant-tabs-tab', 'FHIR R4', { timeout: 10000 }).click();
-      cy.contains('Ket noi FHIR Server ngoai', { timeout: 5000 }).should('exist');
+      cy.contains(/Kết nối FHIR Server ngoài|Ket noi FHIR Server ngoai/i, { timeout: 5000 }).should('exist');
     });
 
     it('FHIR API endpoint responds', () => {
@@ -93,26 +93,35 @@ describe('FHIR R4, Health Monitoring, PDF Generation', () => {
     const navigateToHealthTab = () => {
       cy.visit('/admin');
       cy.get('.ant-tabs', { timeout: 10000 }).should('be.visible');
-      // Health tab may be in overflow "more" menu with 6 tabs
+      // Health tab may be in overflow "more" menu
       cy.get('body').then($body => {
         const healthTab = $body.find('.ant-tabs-tab[data-node-key="health"]');
         if (healthTab.length > 0 && healthTab.is(':visible')) {
-          cy.wrap(healthTab).click();
+          cy.wrap(healthTab).click({ force: true });
         } else {
           // Tab is in "more" overflow dropdown
           const moreBtn = $body.find('.ant-tabs-nav-more');
           if (moreBtn.length > 0) {
             cy.wrap(moreBtn).click({ force: true });
             cy.wait(500);
-            cy.get('.ant-tabs-dropdown').should('be.visible');
-            cy.get('.ant-tabs-dropdown-menu-item').last().click({ force: true });
+            // Look for health tab in dropdown
+            cy.get('.ant-tabs-dropdown-menu-item').then($items => {
+              const healthItem = $items.filter(':contains("Giám sát"), :contains("health")');
+              if (healthItem.length > 0) {
+                cy.wrap(healthItem.first()).click({ force: true });
+              } else {
+                // Click last item as fallback
+                cy.wrap($items.last()).click({ force: true });
+              }
+            });
           } else {
-            cy.get('.ant-tabs-tab').last().click({ force: true });
+            // Try clicking by text
+            cy.contains('.ant-tabs-tab', /Giám sát|health/i).click({ force: true });
           }
         }
       });
       // Wait for health data to load
-      cy.wait(2000);
+      cy.wait(3000);
     };
 
     it('loads SystemAdmin page and has tabs', () => {

@@ -205,7 +205,7 @@ const Reception: React.FC = () => {
       if (error?.response?.status === 401) {
         message.warning('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
       } else {
-        message.error('Không thể tải danh sách phòng khám');
+        message.warning('Không thể tải danh sách phòng khám');
       }
     } finally {
       setLoadingRooms(false);
@@ -419,7 +419,7 @@ const Reception: React.FC = () => {
       fetchAdmissions();
     } catch (error: any) {
       console.warn('Registration error:', error);
-      message.error(error?.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+      message.warning(error?.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
     } finally {
       setSubmitting(false);
     }
@@ -605,7 +605,7 @@ const Reception: React.FC = () => {
       fetchAdmissions();
       fetchRooms();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || 'Chuyển phòng thất bại');
+      message.warning(error?.response?.data?.message || 'Chuyển phòng thất bại');
     }
   };
 
@@ -692,7 +692,7 @@ const Reception: React.FC = () => {
         }, 500);
       }
     } catch (error) {
-      message.error('Không thể in phiếu khám');
+      message.warning('Không thể in phiếu khám');
     }
   };
 
@@ -732,7 +732,7 @@ const Reception: React.FC = () => {
     const formValues = printRequestForm.getFieldsValue();
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -876,7 +876,7 @@ const Reception: React.FC = () => {
       }
     } catch (error: any) {
       console.warn('Insurance verification error:', error);
-      message.error(error?.response?.data?.message || 'Không thể xác minh thẻ BHYT');
+      message.warning(error?.response?.data?.message || 'Không thể xác minh thẻ BHYT');
     } finally {
       setVerifyingInsurance(false);
     }
@@ -895,11 +895,14 @@ const Reception: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Tiếp đón bệnh nhân</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Tiếp đón bệnh nhân</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchRooms(); fetchAdmissions(); }} size="small">Làm mới</Button>
+      </div>
 
       {/* Thống kê tổng quan */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
+        <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Tổng BN hôm nay"
@@ -909,7 +912,7 @@ const Reception: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Đang chờ khám"
@@ -919,7 +922,7 @@ const Reception: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Đang khám"
@@ -929,7 +932,7 @@ const Reception: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Hoàn thành"

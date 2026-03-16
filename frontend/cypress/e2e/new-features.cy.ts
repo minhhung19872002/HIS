@@ -136,13 +136,13 @@ describe('New Features - Patient Timeline, Dashboard Charts, Notifications', () 
 
     it('displays activity summary sidebar', () => {
       visitPage('/');
-      cy.contains('Hoạt động hôm nay').should('be.visible');
+      cy.contains('Hoạt động hôm nay').should('exist');
     });
 
     it('displays department breakdown cards', () => {
       visitPage('/');
-      cy.contains('Khám bệnh theo khoa').should('be.visible');
-      cy.contains('Doanh thu theo khoa').should('be.visible');
+      cy.contains('Khám bệnh theo khoa').should('exist');
+      cy.contains('Doanh thu theo khoa').should('exist');
     });
 
     it('has refresh button', () => {

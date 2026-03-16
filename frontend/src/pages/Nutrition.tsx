@@ -405,12 +405,13 @@ const Nutrition: React.FC = () => {
       width: 140,
       render: (_, record) => {
         if (record.statusName) {
-          const colorMap: Record<string, string> = {
-            'Pending': 'orange',
-            'Completed': 'green',
-            'InProgress': 'blue',
+          const colorMap: Record<string, { color: string; text: string }> = {
+            'Pending': { color: 'orange', text: 'Chờ xử lý' },
+            'Completed': { color: 'green', text: 'Hoàn thành' },
+            'InProgress': { color: 'blue', text: 'Đang thực hiện' },
           };
-          return <Tag color={colorMap[record.statusName] || 'default'}>{record.statusName}</Tag>;
+          const mapped = colorMap[record.statusName] || { color: 'default', text: record.statusName };
+          return <Tag color={mapped.color}>{mapped.text}</Tag>;
         }
         const statusConfig: Record<number, { color: string; text: string }> = {
           0: { color: 'orange', text: 'Chờ sàng lọc' },
@@ -692,6 +693,7 @@ const Nutrition: React.FC = () => {
                       description="Mọi bệnh nhân nội trú phải được sàng lọc dinh dưỡng trong 24h nhập viện. Tái sàng lọc mỗi 7 ngày."
                       type="info"
                       showIcon
+                      closable
                       style={{ marginBottom: 16 }}
                     />
                     <Table

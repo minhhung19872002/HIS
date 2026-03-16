@@ -100,7 +100,7 @@ const BloodBank: React.FC = () => {
   const executePrintBloodLabel = (unit: BloodUnit) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -169,7 +169,7 @@ const BloodBank: React.FC = () => {
   const executePrintBloodRequest = (request: BloodRequest) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -288,7 +288,7 @@ const BloodBank: React.FC = () => {
       }
     } catch (error) {
       console.warn('Error fetching blood inventory:', error);
-      message.error('Không thể tải danh sách tồn kho máu');
+      message.warning('Không thể tải danh sách tồn kho máu');
     } finally {
       setLoading(false);
     }
@@ -321,7 +321,7 @@ const BloodBank: React.FC = () => {
       }
     } catch (error) {
       console.warn('Error fetching blood requests:', error);
-      message.error('Không thể tải danh sách yêu cầu máu');
+      message.warning('Không thể tải danh sách yêu cầu máu');
     }
   };
 
@@ -478,7 +478,7 @@ const BloodBank: React.FC = () => {
           message.success('Đã duyệt yêu cầu');
         } catch (error) {
           console.warn('Error approving blood request:', error);
-          message.error('Lỗi khi duyệt yêu cầu. Vui lòng thử lại.');
+          message.warning('Lỗi khi duyệt yêu cầu. Vui lòng thử lại.');
         }
       },
     });
@@ -527,7 +527,7 @@ const BloodBank: React.FC = () => {
         issueForm.resetFields();
       } catch (error) {
         console.warn('Error issuing blood:', error);
-        message.error('Lỗi khi xuất máu. Vui lòng thử lại.');
+        message.warning('Lỗi khi xuất máu. Vui lòng thử lại.');
       }
     });
   };
@@ -808,7 +808,10 @@ const BloodBank: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý Ngân hàng Máu</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Ngân hàng Máu</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchBloodInventory(); fetchBloodRequests(); }} size="small">Làm mới</Button>
+      </div>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>

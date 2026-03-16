@@ -400,7 +400,7 @@ const Rehabilitation: React.FC = () => {
         <p>${referral.notes || '-'}</p>
 
         <div style="margin-top: 50px; text-align: right;">
-          <p>Ngay ${dayjs().format('DD/MM/YYYY')}</p>
+          <p>Ngày ${dayjs().format('DD/MM/YYYY')}</p>
           <p><strong>Kỹ thuật viên PHCN</strong></p>
           <p style="margin-top: 50px;">___________________</p>
         </div>

@@ -104,7 +104,7 @@ const DigitalSignature: React.FC = () => {
         loginForm.resetFields();
         fetchData();
       } else {
-        message.error(res.data?.message || 'Không thể mở phiên ký số');
+        message.warning(res.data?.message || 'Không thể mở phiên ký số');
       }
     } catch {
       message.warning('Vui lòng nhập mã PIN');

@@ -467,12 +467,12 @@ const HR: React.FC = () => {
       render: (_, record) => `${record.earnedCredits}/${record.requiredCredits}`,
     },
     {
-      title: 'Category 1',
+      title: 'Loại 1',
       dataIndex: 'category1Credits',
       key: 'category1Credits',
     },
     {
-      title: 'Category 2',
+      title: 'Loại 2',
       dataIndex: 'category2Credits',
       key: 'category2Credits',
     },
@@ -513,12 +513,12 @@ const HR: React.FC = () => {
                   ? 'processing'
                   : 'warning'
               }
-              text={<Text style={{ fontSize: 10 }}>{shift.staffName?.split(' ').pop()}</Text>}
+              text={<Text style={{ fontSize: 11 }}>{shift.staffName?.split(' ').pop()}</Text>}
             />
           </li>
         ))}
         {dayShifts.length > 2 && (
-          <li><Text type="secondary" style={{ fontSize: 10 }}>+{dayShifts.length - 2} khác</Text></li>
+          <li><Text type="secondary" style={{ fontSize: 11 }}>+{dayShifts.length - 2} khác</Text></li>
         )}
       </ul>
     );

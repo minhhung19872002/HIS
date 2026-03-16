@@ -40,6 +40,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   getInpatientList,
   getBedStatus,
@@ -60,6 +61,7 @@ import {
   type TransferBedDto,
 } from '../api/inpatient';
 import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheritance';
+import { patientApi, type Patient } from '../api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 
 const { Title, Text } = Typography;
@@ -129,6 +131,10 @@ const Inpatient: React.FC = () => {
   // Data inheritance state (OPD → Inpatient context)
   const [admissionCtx, setAdmissionCtx] = useState<AdmissionContextDto | null>(null);
   const [loadingAdmissionCtx, setLoadingAdmissionCtx] = useState(false);
+
+  // Patient search for admission modal
+  const [patientSearchResults, setPatientSearchResults] = useState<Patient[]>([]);
+  const [patientSearching, setPatientSearching] = useState(false);
 
   // Bed filter states
   const [bedFilterDepartment, setBedFilterDepartment] = useState<string | undefined>(undefined);
@@ -312,7 +318,7 @@ const Inpatient: React.FC = () => {
       }
     } catch (error) {
       console.warn('Load admissions error:', error);
-      message.error('Không thể tải danh sách bệnh nhân nội trú');
+      message.warning('Không thể tải danh sách bệnh nhân nội trú');
       setAdmissions([]);
     } finally {
       setLoading(false);
@@ -332,7 +338,7 @@ const Inpatient: React.FC = () => {
       }
     } catch (error) {
       console.warn('Load beds error:', error);
-      message.error('Không thể tải danh sách giường');
+      message.warning('Không thể tải danh sách giường');
       setBeds([]);
     } finally {
       setLoadingBeds(false);
@@ -572,6 +578,23 @@ const Inpatient: React.FC = () => {
     },
   ];
 
+  // Search patients for admission modal
+  const handlePatientSearch = async (keyword: string) => {
+    if (!keyword || keyword.length < 2) {
+      setPatientSearchResults([]);
+      return;
+    }
+    try {
+      setPatientSearching(true);
+      const res = await patientApi.search({ keyword, page: 1, pageSize: 20 });
+      setPatientSearchResults(res.data?.items || []);
+    } catch {
+      setPatientSearchResults([]);
+    } finally {
+      setPatientSearching(false);
+    }
+  };
+
   // Lookup OPD context for admission by examination ID
   const handleLookupOpdContext = async (examinationId: string) => {
     if (!examinationId || examinationId.length < 10) return;
@@ -621,7 +644,7 @@ const Inpatient: React.FC = () => {
       loadAdmissions(); // Refresh the list
     } catch (error) {
       console.warn('Admit patient error:', error);
-      message.error('Lỗi khi nhập viện. Vui lòng thử lại.');
+      message.warning('Lỗi khi nhập viện. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -650,7 +673,7 @@ const Inpatient: React.FC = () => {
       form.resetFields();
     } catch (error) {
       console.warn('Create progress error:', error);
-      message.error('Lỗi khi ghi nhận diễn biến. Vui lòng thử lại.');
+      message.warning('Lỗi khi ghi nhận diễn biến. Vui lòng thử lại.');
     }
   };
 
@@ -679,7 +702,7 @@ const Inpatient: React.FC = () => {
       form.resetFields();
     } catch (error) {
       console.warn('Create care error:', error);
-      message.error('Lỗi khi ghi nhận chăm sóc. Vui lòng thử lại.');
+      message.warning('Lỗi khi ghi nhận chăm sóc. Vui lòng thử lại.');
     }
   };
 
@@ -704,7 +727,7 @@ const Inpatient: React.FC = () => {
       loadAdmissions(); // Refresh the list
     } catch (error) {
       console.warn('Discharge error:', error);
-      message.error('Lỗi khi xuất viện. Vui lòng thử lại.');
+      message.warning('Lỗi khi xuất viện. Vui lòng thử lại.');
     }
   };
 
@@ -722,7 +745,7 @@ const Inpatient: React.FC = () => {
     try {
       const values = await bedTransferForm.validateFields();
       if (!selectedBed?.currentAdmissionId) {
-        message.error('Không tìm thấy thông tin bệnh nhân');
+        message.warning('Không tìm thấy thông tin bệnh nhân');
         return;
       }
 
@@ -741,7 +764,7 @@ const Inpatient: React.FC = () => {
       loadAdmissions();
     } catch (error) {
       console.warn('Bed transfer error:', error);
-      message.error('Lỗi khi chuyển giường. Vui lòng thử lại.');
+      message.warning('Lỗi khi chuyển giường. Vui lòng thử lại.');
     }
   };
 
@@ -758,7 +781,7 @@ const Inpatient: React.FC = () => {
     try {
       const values = await bedAssignForm.validateFields();
       if (!selectedBed) {
-        message.error('Không tìm thấy thông tin giường');
+        message.warning('Không tìm thấy thông tin giường');
         return;
       }
 
@@ -776,7 +799,7 @@ const Inpatient: React.FC = () => {
       loadAdmissions();
     } catch (error) {
       console.warn('Bed assign error:', error);
-      message.error('Lỗi khi phân giường. Vui lòng thử lại.');
+      message.warning('Lỗi khi phân giường. Vui lòng thử lại.');
     }
   };
 
@@ -898,7 +921,7 @@ const Inpatient: React.FC = () => {
     };
     const ok = printBirthCertificate(certData);
     if (!ok) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
     }
   };
 
@@ -921,7 +944,7 @@ const Inpatient: React.FC = () => {
 
     // Pre-fill form with patient data
     medicalRecordForm.setFieldsValue({
-      hospitalName: 'Bệnh viện Đa khoa ABC',
+      hospitalName: HOSPITAL_NAME,
       departmentName: selectedAdmission.departmentName,
       bedNumber: selectedAdmission.bedName,
       patientName: selectedAdmission.patientName?.toUpperCase(),
@@ -949,7 +972,7 @@ const Inpatient: React.FC = () => {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -1233,7 +1256,7 @@ const Inpatient: React.FC = () => {
     if (!selectedAdmission) return;
 
     treatmentTrackingForm.setFieldsValue({
-      hospitalName: 'Bệnh viện Đa khoa ABC',
+      hospitalName: HOSPITAL_NAME,
       departmentName: selectedAdmission.departmentName,
       patientName: selectedAdmission.patientName,
       age: selectedAdmission.age,
@@ -1256,7 +1279,7 @@ const Inpatient: React.FC = () => {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -1373,7 +1396,10 @@ const Inpatient: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý nội trú (IPD)</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý nội trú (IPD)</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { loadAdmissions(); loadBeds(); }} size="small">Làm mới</Button>
+      </div>
 
       <Card>
         <Tabs
@@ -1801,12 +1827,16 @@ const Inpatient: React.FC = () => {
               >
                 <Select
                   showSearch
-                  placeholder="Tìm và chọn bệnh nhân"
-                  optionFilterProp="children"
-                >
-                  <Select.Option value="1">BN26000001 - Nguyễn Văn A</Select.Option>
-                  <Select.Option value="2">BN26000002 - Trần Thị B</Select.Option>
-                </Select>
+                  placeholder="Nhập tên hoặc mã bệnh nhân để tìm"
+                  filterOption={false}
+                  onSearch={handlePatientSearch}
+                  loading={patientSearching}
+                  notFoundContent={patientSearching ? <Spin size="small" /> : 'Không tìm thấy'}
+                  options={patientSearchResults.map(p => ({
+                    value: p.id,
+                    label: `${p.patientCode} - ${p.fullName}`,
+                  }))}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -1815,10 +1845,7 @@ const Inpatient: React.FC = () => {
                 label="Hồ sơ bệnh án"
                 rules={[{ required: true }]}
               >
-                <Select placeholder="Chọn hồ sơ">
-                  <Select.Option value="1">HS260130001</Select.Option>
-                  <Select.Option value="2">HS260130002</Select.Option>
-                </Select>
+                <Input placeholder="Nhập mã hồ sơ bệnh án" />
               </Form.Item>
             </Col>
           </Row>

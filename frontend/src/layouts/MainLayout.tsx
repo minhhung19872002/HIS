@@ -38,6 +38,14 @@ import {
   InsuranceOutlined,
   SmileOutlined,
   LaptopOutlined,
+  CheckSquareOutlined,
+  BugOutlined,
+  InboxOutlined,
+  NodeIndexOutlined,
+  FilterOutlined,
+  FileSearchOutlined,
+  MessageOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -77,6 +85,24 @@ const MainLayout: React.FC = () => {
     setMobileDrawerOpen(false);
   }, [location.pathname]);
 
+  // Auto-open the sidebar group containing the current route
+  const getOpenKeys = (): string[] => {
+    const path = location.pathname;
+    const groupMap: Record<string, string[]> = {
+      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/follow-up', '/booking-management'],
+      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/consultation', '/blood-bank', '/pathology', '/lis-config'],
+      support: ['/pharmacy', '/medical-supply', '/nutrition', '/rehabilitation'],
+      finance: ['/billing', '/finance', '/insurance', '/bhxh-audit'],
+      management: ['/infection-control', '/equipment', '/hr', '/quality'],
+      integration: ['/health-exchange', '/emergency-disaster'],
+      system: ['/master-data', '/reports', '/admin', '/digital-signature', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
+    };
+    for (const [group, routes] of Object.entries(groupMap)) {
+      if (routes.includes(path)) return [group];
+    }
+    return [];
+  };
+
   const menuItems = [
     {
       key: '/',
@@ -92,7 +118,7 @@ const MainLayout: React.FC = () => {
         { key: '/opd', icon: <UserOutlined />, label: 'Khám bệnh' },
         { key: '/telemedicine', icon: <VideoCameraOutlined />, label: 'Khám từ xa' },
         { key: '/prescription', icon: <FileTextOutlined />, label: 'Kê đơn' },
-        { key: '/ipd', icon: <FileTextOutlined />, label: 'Nội trú' },
+        { key: '/ipd', icon: <HomeOutlined />, label: 'Nội trú' },
         { key: '/surgery', icon: <HeartOutlined />, label: 'Phẫu thuật' },
         { key: '/emr', icon: <FolderOpenOutlined />, label: 'Hồ sơ BA (EMR)' },
         { key: '/medical-record-archive', icon: <ContainerOutlined />, label: 'Lưu trữ HSBA' },
@@ -106,17 +132,17 @@ const MainLayout: React.FC = () => {
       label: 'Cận lâm sàng',
       children: [
         { key: '/lab', icon: <ExperimentOutlined />, label: 'Xét nghiệm' },
-        { key: '/lab-qc', icon: <ExperimentOutlined />, label: 'QC Kiểm định' },
-        { key: '/microbiology', icon: <ExperimentOutlined />, label: 'Vi sinh' },
-        { key: '/culture-collection', icon: <ExperimentOutlined />, label: 'Lưu chủng VS' },
-        { key: '/screening', icon: <HeartOutlined />, label: 'Sàng lọc SS/TS' },
-        { key: '/sample-storage', icon: <ExperimentOutlined />, label: 'Lưu trữ mẫu' },
-        { key: '/sample-tracking', icon: <ExperimentOutlined />, label: 'Theo dõi mẫu' },
+        { key: '/lab-qc', icon: <CheckSquareOutlined />, label: 'QC Kiểm định' },
+        { key: '/microbiology', icon: <BugOutlined />, label: 'Vi sinh' },
+        { key: '/culture-collection', icon: <InboxOutlined />, label: 'Lưu chủng VS' },
+        { key: '/screening', icon: <FilterOutlined />, label: 'Sàng lọc SS/TS' },
+        { key: '/sample-storage', icon: <DatabaseOutlined />, label: 'Lưu trữ mẫu' },
+        { key: '/sample-tracking', icon: <NodeIndexOutlined />, label: 'Theo dõi mẫu' },
         { key: '/reagent-management', icon: <MedicineBoxOutlined />, label: 'Hóa chất XN' },
         { key: '/radiology', icon: <ScanOutlined />, label: 'CĐHA' },
         { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
-        { key: '/pathology', icon: <ExperimentOutlined />, label: 'Giải phẫu bệnh' },
+        { key: '/pathology', icon: <FileSearchOutlined />, label: 'Giải phẫu bệnh' },
         { key: '/lis-config', icon: <SettingOutlined />, label: 'Cấu hình LIS' },
       ],
     },
@@ -174,7 +200,7 @@ const MainLayout: React.FC = () => {
         { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
         { key: '/doctor-portal', icon: <LaptopOutlined />, label: 'Cổng bác sĩ' },
         { key: '/satisfaction-survey', icon: <SmileOutlined />, label: 'Khảo sát hài lòng' },
-        { key: '/sms-management', icon: <MobileOutlined />, label: 'SMS Gateway' },
+        { key: '/sms-management', icon: <MessageOutlined />, label: 'SMS Gateway' },
         { key: '/help', icon: <QuestionCircleOutlined />, label: 'Hướng dẫn' },
       ],
     },
@@ -224,6 +250,7 @@ const MainLayout: React.FC = () => {
         theme="dark"
         mode="inline"
         selectedKeys={[location.pathname]}
+        defaultOpenKeys={getOpenKeys()}
         items={menuItems}
         onClick={handleMenuClick}
       />
@@ -258,7 +285,7 @@ const MainLayout: React.FC = () => {
           onClose={() => setMobileDrawerOpen(false)}
           open={mobileDrawerOpen}
           styles={{ body: { padding: 0, background: '#001529' } }}
-          width={250}
+          size={250}
           closable={false}
         >
           {sidebarMenu}

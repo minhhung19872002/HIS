@@ -83,6 +83,10 @@ import {
   fetchExternalMetadata,
 } from '../api/fhir';
 import type { FhirCapabilityStatement, FhirBundle, FhirResource } from '../api/fhir';
+import * as nationalRxApi from '../api/nationalPrescription';
+import type { NationalPrescriptionDto, NationalPrescriptionStatsDto } from '../api/nationalPrescription';
+import * as provincialApi from '../api/provincialHealth';
+import type { ProvincialReportDto, ProvincialStatsDto } from '../api/provincialHealth';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -111,6 +115,21 @@ const HealthExchange: React.FC = () => {
   const [fhirExportPatientId, setFhirExportPatientId] = useState<string>('');
   const [fhirExternalUrl, setFhirExternalUrl] = useState<string>('');
   const [fhirExternalStatus, setFhirExternalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  // National Prescription Portal state
+  const [nationalRxList, setNationalRxList] = useState<NationalPrescriptionDto[]>([]);
+  const [nationalRxStats, setNationalRxStats] = useState<NationalPrescriptionStatsDto | null>(null);
+  const [nationalRxTotal, setNationalRxTotal] = useState(0);
+  const [nationalRxLoading, setNationalRxLoading] = useState(false);
+  const [nationalRxSearch, setNationalRxSearch] = useState<{ status?: number; keyword?: string; pageIndex: number }>({ pageIndex: 0 });
+  const [selectedNationalRxIds, setSelectedNationalRxIds] = useState<string[]>([]);
+
+  // Provincial Health Monitoring state
+  const [provReports, setProvReports] = useState<ProvincialReportDto[]>([]);
+  const [provStats, setProvStats] = useState<ProvincialStatsDto | null>(null);
+  const [provTotal, setProvTotal] = useState(0);
+  const [provLoading, setProvLoading] = useState(false);
+  const [provSearch, setProvSearch] = useState<{ reportType?: number; status?: number; pageIndex: number }>({ pageIndex: 0 });
 
   const [referralForm] = Form.useForm();
   const [consultationForm] = Form.useForm();
@@ -167,6 +186,79 @@ const HealthExchange: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // ==================== National Prescription Portal ====================
+  const fetchNationalRx = useCallback(async () => {
+    setNationalRxLoading(true);
+    try {
+      const [listRes, statsRes] = await Promise.allSettled([
+        nationalRxApi.searchPrescriptions({ ...nationalRxSearch, pageSize: 20 }),
+        nationalRxApi.getStats(),
+      ]);
+      if (listRes.status === 'fulfilled') {
+        setNationalRxList(listRes.value?.items || []);
+        setNationalRxTotal(listRes.value?.totalCount || 0);
+      }
+      if (statsRes.status === 'fulfilled') setNationalRxStats(statsRes.value || null);
+    } catch { console.warn('Failed to fetch national prescription data'); }
+    finally { setNationalRxLoading(false); }
+  }, [nationalRxSearch]);
+
+  useEffect(() => { fetchNationalRx(); }, [fetchNationalRx]);
+
+  const handleSubmitNationalRx = async (id: string) => {
+    try {
+      await nationalRxApi.submitPrescription(id);
+      message.success('Đã gửi đơn thuốc lên Cổng quốc gia');
+      fetchNationalRx();
+    } catch { message.warning('Không thể gửi đơn thuốc'); }
+  };
+
+  const handleBatchSubmitNationalRx = async () => {
+    if (selectedNationalRxIds.length === 0) { message.warning('Vui lòng chọn đơn thuốc'); return; }
+    try {
+      const result = await nationalRxApi.submitBatch(selectedNationalRxIds);
+      message.success(`Gửi thành công ${result.successCount}/${selectedNationalRxIds.length} đơn thuốc`);
+      setSelectedNationalRxIds([]);
+      fetchNationalRx();
+    } catch { message.warning('Không thể gửi hàng loạt'); }
+  };
+
+  // ==================== Provincial Health Monitoring ====================
+  const fetchProvReports = useCallback(async () => {
+    setProvLoading(true);
+    try {
+      const [listRes, statsRes] = await Promise.allSettled([
+        provincialApi.searchReports({ ...provSearch, pageSize: 20 }),
+        provincialApi.getStats(),
+      ]);
+      if (listRes.status === 'fulfilled') {
+        setProvReports(listRes.value?.items || []);
+        setProvTotal(listRes.value?.totalCount || 0);
+      }
+      if (statsRes.status === 'fulfilled') setProvStats(statsRes.value || null);
+    } catch { console.warn('Failed to fetch provincial health data'); }
+    finally { setProvLoading(false); }
+  }, [provSearch]);
+
+  useEffect(() => { fetchProvReports(); }, [fetchProvReports]);
+
+  const handleGenerateProvReport = async (reportType: number) => {
+    try {
+      const period = dayjs().format('YYYY-MM');
+      await provincialApi.generateReport(reportType, period);
+      message.success('Đã tạo báo cáo');
+      fetchProvReports();
+    } catch { message.warning('Không thể tạo báo cáo'); }
+  };
+
+  const handleSubmitProvReport = async (id: string) => {
+    try {
+      await provincialApi.submitReport(id);
+      message.success('Đã gửi báo cáo lên Sở Y tế');
+      fetchProvReports();
+    } catch { message.warning('Không thể gửi báo cáo'); }
+  };
 
   // ==================== FHIR Handlers ====================
 
@@ -240,11 +332,11 @@ const HealthExchange: React.FC = () => {
         message.success(`Kết nối thành công: ${result.software?.name || 'FHIR Server'} v${result.fhirVersion}`);
       } else {
         setFhirExternalStatus('error');
-        message.error('Không thể kết nối đến máy chủ FHIR');
+        message.warning('Không thể kết nối đến máy chủ FHIR');
       }
     } catch {
       setFhirExternalStatus('error');
-      message.error('Kết nối FHIR thất bại');
+      message.warning('Kết nối FHIR thất bại');
     }
   };
 
@@ -1255,6 +1347,237 @@ const HealthExchange: React.FC = () => {
             </Col>
           </Row>
         </div>
+      ),
+    },
+    {
+      key: 'national-rx',
+      label: (
+        <span>
+          <MedicineBoxOutlined /> Cổng đơn thuốc QG
+        </span>
+      ),
+      children: (
+        <Spin spinning={nationalRxLoading}>
+          {/* Stats */}
+          {nationalRxStats && (
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="Đã gửi" value={nationalRxStats.totalSubmitted} styles={{ content: { color: '#1890ff' } }} /></Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="Chấp nhận" value={nationalRxStats.totalAccepted} styles={{ content: { color: '#52c41a' } }} /></Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="Từ chối" value={nationalRxStats.totalRejected} styles={{ content: { color: '#ff4d4f' } }} /></Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="Chờ xử lý" value={nationalRxStats.totalPending} styles={{ content: { color: '#faad14' } }} /></Card>
+              </Col>
+            </Row>
+          )}
+          {/* Filters */}
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col flex="auto">
+              <Space wrap>
+                <Select
+                  placeholder="Trạng thái"
+                  allowClear
+                  style={{ width: 150 }}
+                  value={nationalRxSearch.status}
+                  onChange={(v) => setNationalRxSearch(s => ({ ...s, status: v, pageIndex: 0 }))}
+                  options={[
+                    { value: 0, label: 'Nháp' },
+                    { value: 1, label: 'Đã gửi' },
+                    { value: 2, label: 'Chấp nhận' },
+                    { value: 3, label: 'Từ chối' },
+                  ]}
+                />
+                <Input.Search
+                  placeholder="Tìm đơn thuốc..."
+                  allowClear
+                  style={{ width: 250 }}
+                  onSearch={(v) => setNationalRxSearch(s => ({ ...s, keyword: v || undefined, pageIndex: 0 }))}
+                />
+              </Space>
+            </Col>
+            <Col>
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  disabled={selectedNationalRxIds.length === 0}
+                  onClick={handleBatchSubmitNationalRx}
+                >
+                  Gửi hàng loạt ({selectedNationalRxIds.length})
+                </Button>
+                <Button icon={<SyncOutlined />} onClick={() => { nationalRxApi.testConnection().then(r => { message.info(`Kết nối: ${r.connected ? 'OK' : 'Lỗi'} (${r.latencyMs}ms)`); }).catch(() => message.warning('Không thể kết nối')); }}>
+                  Test kết nối
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+          {/* Table */}
+          <Table
+            columns={[
+              { title: 'Mã đơn', dataIndex: 'prescriptionCode', key: 'code', width: 130 },
+              { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patient', width: 150 },
+              { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctor', width: 130 },
+              { title: 'Chẩn đoán', dataIndex: 'diagnosisName', key: 'dx', ellipsis: true },
+              { title: 'Ngày kê', dataIndex: 'prescriptionDate', key: 'date', width: 100, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-' },
+              { title: 'Tổng tiền', dataIndex: 'totalAmount', key: 'amount', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') + ' đ' },
+              {
+                title: 'Trạng thái', dataIndex: 'statusName', key: 'status', width: 110,
+                render: (text: string, record: NationalPrescriptionDto) => {
+                  const colors: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'success', 3: 'error', 4: 'warning' };
+                  return <Tag color={colors[record.status] || 'default'}>{text}</Tag>;
+                },
+              },
+              {
+                title: 'Thao tác', key: 'action', width: 100,
+                render: (_: unknown, record: NationalPrescriptionDto) => (
+                  <Space size={4}>
+                    {record.status === 0 && (
+                      <Button size="small" type="primary" icon={<SendOutlined />} onClick={() => handleSubmitNationalRx(record.id)}>Gửi</Button>
+                    )}
+                    {record.status === 3 && (
+                      <Button size="small" icon={<SyncOutlined />} onClick={() => nationalRxApi.retrySubmission(record.id).then(() => { message.success('Đã gửi lại'); fetchNationalRx(); }).catch(() => message.warning('Lỗi'))}>Gửi lại</Button>
+                    )}
+                  </Space>
+                ),
+              },
+            ] as ColumnsType<NationalPrescriptionDto>}
+            dataSource={nationalRxList}
+            rowKey="id"
+            size="small"
+            scroll={{ x: 1100 }}
+            loading={nationalRxLoading}
+            rowSelection={{
+              selectedRowKeys: selectedNationalRxIds,
+              onChange: (keys) => setSelectedNationalRxIds(keys as string[]),
+              getCheckboxProps: (record: NationalPrescriptionDto) => ({ disabled: record.status !== 0 }),
+            }}
+            pagination={{
+              current: nationalRxSearch.pageIndex + 1,
+              total: nationalRxTotal,
+              pageSize: 20,
+              showTotal: (total) => `Tổng: ${total} đơn thuốc`,
+              onChange: (page) => setNationalRxSearch(s => ({ ...s, pageIndex: page - 1 })),
+            }}
+          />
+        </Spin>
+      ),
+    },
+    {
+      key: 'provincial',
+      label: (
+        <span>
+          <SafetyOutlined /> Sở Y tế
+        </span>
+      ),
+      children: (
+        <Spin spinning={provLoading}>
+          {/* Stats */}
+          {provStats && (
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="BC tháng này" value={provStats.totalReportsThisMonth} styles={{ content: { color: '#1890ff' } }} /></Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="Đã gửi" value={provStats.totalSubmitted} styles={{ content: { color: '#52c41a' } }} /></Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="Chờ xử lý" value={provStats.totalPending} styles={{ content: { color: '#faad14' } }} /></Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card size="small"><Statistic title="Bệnh truyền nhiễm" value={provStats.infectiousDiseaseAlerts} styles={{ content: { color: provStats.infectiousDiseaseAlerts > 0 ? '#ff4d4f' : '#52c41a' } }} /></Card>
+              </Col>
+            </Row>
+          )}
+          {/* Actions */}
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col flex="auto">
+              <Space wrap>
+                <Select
+                  placeholder="Loại báo cáo"
+                  allowClear
+                  style={{ width: 160 }}
+                  value={provSearch.reportType}
+                  onChange={(v) => setProvSearch(s => ({ ...s, reportType: v, pageIndex: 0 }))}
+                  options={[
+                    { value: 1, label: 'Hàng ngày' },
+                    { value: 2, label: 'Hàng tuần' },
+                    { value: 3, label: 'Hàng tháng' },
+                    { value: 4, label: 'Hàng quý' },
+                    { value: 5, label: 'Hàng năm' },
+                  ]}
+                />
+                <Select
+                  placeholder="Trạng thái"
+                  allowClear
+                  style={{ width: 130 }}
+                  value={provSearch.status}
+                  onChange={(v) => setProvSearch(s => ({ ...s, status: v, pageIndex: 0 }))}
+                  options={[
+                    { value: 0, label: 'Nháp' },
+                    { value: 1, label: 'Đã gửi' },
+                    { value: 2, label: 'Đã nhận' },
+                    { value: 3, label: 'Từ chối' },
+                  ]}
+                />
+              </Space>
+            </Col>
+            <Col>
+              <Space>
+                <Button type="primary" icon={<FileTextOutlined />} onClick={() => handleGenerateProvReport(3)}>Tạo BC tháng</Button>
+                <Button icon={<FileTextOutlined />} onClick={() => handleGenerateProvReport(1)}>Tạo BC ngày</Button>
+                <Button icon={<SyncOutlined />} onClick={() => { provincialApi.testConnection().then(r => { message.info(`Kết nối Sở Y tế: ${r.connected ? 'OK' : 'Lỗi'} (${r.latencyMs}ms)`); }).catch(() => message.warning('Không thể kết nối')); }}>
+                  Test kết nối
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+          {/* Reports Table */}
+          <Table
+            columns={[
+              { title: 'Mã BC', dataIndex: 'reportCode', key: 'code', width: 120 },
+              { title: 'Loại', dataIndex: 'reportTypeName', key: 'type', width: 100 },
+              { title: 'Kỳ BC', dataIndex: 'reportPeriod', key: 'period', width: 100 },
+              { title: 'Ngoại trú', dataIndex: 'totalOutpatients', key: 'opd', width: 80, align: 'right' as const },
+              { title: 'Nội trú', dataIndex: 'totalInpatients', key: 'ipd', width: 80, align: 'right' as const },
+              { title: 'Cấp cứu', dataIndex: 'totalEmergencies', key: 'er', width: 80, align: 'right' as const },
+              { title: 'XN', dataIndex: 'totalLabTests', key: 'lab', width: 70, align: 'right' as const },
+              { title: 'CĐHA', dataIndex: 'totalRadiologyExams', key: 'rad', width: 70, align: 'right' as const },
+              { title: 'Công suất giường', dataIndex: 'bedOccupancyRate', key: 'bed', width: 120, render: (v: number) => v ? `${(v * 100).toFixed(1)}%` : '-' },
+              {
+                title: 'Trạng thái', dataIndex: 'statusName', key: 'status', width: 100,
+                render: (text: string, record: ProvincialReportDto) => {
+                  const colors: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'success', 3: 'error' };
+                  return <Tag color={colors[record.status] || 'default'}>{text}</Tag>;
+                },
+              },
+              {
+                title: 'Thao tác', key: 'action', width: 100,
+                render: (_: unknown, record: ProvincialReportDto) => (
+                  record.status === 0 ? (
+                    <Button size="small" type="primary" icon={<SendOutlined />} onClick={() => handleSubmitProvReport(record.id)}>Gửi</Button>
+                  ) : null
+                ),
+              },
+            ] as ColumnsType<ProvincialReportDto>}
+            dataSource={provReports}
+            rowKey="id"
+            size="small"
+            scroll={{ x: 1200 }}
+            loading={provLoading}
+            pagination={{
+              current: provSearch.pageIndex + 1,
+              total: provTotal,
+              pageSize: 20,
+              showTotal: (total) => `Tổng: ${total} báo cáo`,
+              onChange: (page) => setProvSearch(s => ({ ...s, pageIndex: page - 1 })),
+            }}
+          />
+        </Spin>
       ),
     },
   ];

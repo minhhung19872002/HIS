@@ -77,6 +77,8 @@ import {
   type SensitiveDataAccessReportDto,
   type ComplianceSummaryDto,
 } from '../api/security';
+import * as dataExportApi from '../api/dataExport';
+import type { DataStatsDto, ModuleDataCountDto, BackupInfoDto, DataExportResultDto, DataHandoverDto } from '../api/dataExport';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -198,6 +200,14 @@ const SystemAdmin: React.FC = () => {
     dayjs(),
   ]);
 
+  // Data Management state
+  const [dataStats, setDataStats] = useState<DataStatsDto | null>(null);
+  const [moduleCounts, setModuleCounts] = useState<ModuleDataCountDto[]>([]);
+  const [backups, setBackups] = useState<BackupInfoDto[]>([]);
+  const [exportHistory, setExportHistory] = useState<DataExportResultDto[]>([]);
+  const [handovers, setHandovers] = useState<DataHandoverDto[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
+
   // Helper to extract array data from API response (handles both direct array and { data: [...] } wrapper)
   const extractData = (response: any): any[] => {
     const d = response?.data;
@@ -312,7 +322,7 @@ const SystemAdmin: React.FC = () => {
       })));
     } catch (error) {
       console.warn('Error fetching data:', error);
-      message.error('Không thể tải dữ liệu!');
+      message.warning('Không thể tải dữ liệu!');
     } finally {
       setLoading(false);
     }
@@ -408,6 +418,30 @@ const SystemAdmin: React.FC = () => {
       fetchComplianceData();
     }
   }, [activeTab, fetchComplianceData]);
+
+  // Auto-load data management when tab is active
+  const fetchDataManagement = useCallback(async () => {
+    setDataLoading(true);
+    try {
+      const [statsRes, countsRes, backupsRes, exportsRes, handoversRes] = await Promise.allSettled([
+        dataExportApi.getDataStats(),
+        dataExportApi.getModuleDataCounts(),
+        dataExportApi.getBackups(),
+        dataExportApi.getExportHistory(),
+        dataExportApi.getHandovers(),
+      ]);
+      if (statsRes.status === 'fulfilled') setDataStats(statsRes.value);
+      if (countsRes.status === 'fulfilled') setModuleCounts(Array.isArray(countsRes.value) ? countsRes.value : []);
+      if (backupsRes.status === 'fulfilled') setBackups(Array.isArray(backupsRes.value) ? backupsRes.value : []);
+      if (exportsRes.status === 'fulfilled') setExportHistory(Array.isArray(exportsRes.value) ? exportsRes.value : []);
+      if (handoversRes.status === 'fulfilled') setHandovers(Array.isArray(handoversRes.value) ? handoversRes.value : []);
+    } catch { console.warn('Error fetching data management info'); }
+    finally { setDataLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'data-management') fetchDataManagement();
+  }, [activeTab, fetchDataManagement]);
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -508,7 +542,7 @@ const SystemAdmin: React.FC = () => {
     } catch (error: any) {
       if (error?.errorFields) return; // validation error
       console.warn('Error locking service:', error);
-      message.error('Không thể khóa dịch vụ');
+      message.warning('Không thể khóa dịch vụ');
     }
   };
 
@@ -519,7 +553,7 @@ const SystemAdmin: React.FC = () => {
       fetchLockedServices();
     } catch (error) {
       console.warn('Error unlocking service:', error);
-      message.error('Không thể mở khóa dịch vụ');
+      message.warning('Không thể mở khóa dịch vụ');
     }
   };
 
@@ -742,7 +776,7 @@ const SystemAdmin: React.FC = () => {
     } catch (error: any) {
       if (error?.errorFields) return;
       console.warn('Error saving user:', error);
-      message.error('Lưu người dùng thất bại!');
+      message.warning('Lưu người dùng thất bại!');
     }
   };
 
@@ -756,7 +790,7 @@ const SystemAdmin: React.FC = () => {
           message.success('Đặt lại mật khẩu thành công!');
         } catch (error) {
           console.warn('Error resetting password:', error);
-          message.error('Đặt lại mật khẩu thất bại!');
+          message.warning('Đặt lại mật khẩu thất bại!');
         }
       },
     });
@@ -769,7 +803,7 @@ const SystemAdmin: React.FC = () => {
       fetchData();
     } catch (error) {
       console.warn('Error deleting user:', error);
-      message.error('Xóa người dùng thất bại!');
+      message.warning('Xóa người dùng thất bại!');
     }
   };
 
@@ -859,7 +893,7 @@ const SystemAdmin: React.FC = () => {
     } catch (error: any) {
       if (error?.errorFields) return;
       console.warn('Error saving role:', error);
-      message.error('Lưu vai trò thất bại!');
+      message.warning('Lưu vai trò thất bại!');
     }
   };
 
@@ -870,7 +904,7 @@ const SystemAdmin: React.FC = () => {
       fetchData();
     } catch (error) {
       console.warn('Error deleting role:', error);
-      message.error('Xóa vai trò thất bại!');
+      message.warning('Xóa vai trò thất bại!');
     }
   };
 
@@ -952,7 +986,7 @@ const SystemAdmin: React.FC = () => {
     } catch (error: any) {
       if (error?.errorFields) return;
       console.warn('Error saving config:', error);
-      message.error('Cập nhật cấu hình thất bại!');
+      message.warning('Cập nhật cấu hình thất bại!');
     }
   };
 
@@ -1075,13 +1109,16 @@ const SystemAdmin: React.FC = () => {
     } catch (error: any) {
       if (error?.errorFields) return;
       console.warn('Error sending notification:', error);
-      message.error('Gửi thông báo thất bại!');
+      message.warning('Gửi thông báo thất bại!');
     }
   };
 
   return (
     <div>
-      <Title level={4}>Quản trị hệ thống</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản trị hệ thống</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>
+      </div>
 
       <Card>
         <Tabs
@@ -1915,7 +1952,7 @@ const SystemAdmin: React.FC = () => {
               key: 'compliance',
               label: (
                 <span>
-                  <AuditOutlined /> Tuân thủ
+                  <AuditOutlined /> ATTT Cấp độ 3
                 </span>
               ),
               children: (
@@ -1923,7 +1960,7 @@ const SystemAdmin: React.FC = () => {
                   <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
                     <Col flex="auto">
                       <Typography.Text strong style={{ fontSize: 16 }}>
-                        <SafetyOutlined /> Dashboard tuân thủ bảo mật
+                        <SafetyOutlined /> ATTT Cấp độ 3 (NĐ 85/2016/NĐ-CP)
                       </Typography.Text>
                     </Col>
                     <Col>
@@ -2401,6 +2438,150 @@ const SystemAdmin: React.FC = () => {
                     pagination={{ pageSize: 10 }}
                     locale={{ emptyText: 'Chưa có dịch vụ nào bị khóa' }}
                   />
+                </Spin>
+              ),
+            },
+            {
+              key: 'data-management',
+              label: (
+                <span>
+                  <DatabaseOutlined /> Chuyển giao DL
+                </span>
+              ),
+              children: (
+                <Spin spinning={dataLoading}>
+                  {/* Data Overview */}
+                  {dataStats && (
+                    <Row gutter={16} style={{ marginBottom: 16 }}>
+                      <Col xs={12} sm={6} lg={4}>
+                        <Card size="small"><Statistic title="Bệnh nhân" value={dataStats.totalPatients} /></Card>
+                      </Col>
+                      <Col xs={12} sm={6} lg={4}>
+                        <Card size="small"><Statistic title="Lượt khám" value={dataStats.totalExaminations} /></Card>
+                      </Col>
+                      <Col xs={12} sm={6} lg={4}>
+                        <Card size="small"><Statistic title="Đơn thuốc" value={dataStats.totalPrescriptions} /></Card>
+                      </Col>
+                      <Col xs={12} sm={6} lg={4}>
+                        <Card size="small"><Statistic title="KQ XN" value={dataStats.totalLabResults} /></Card>
+                      </Col>
+                      <Col xs={12} sm={6} lg={4}>
+                        <Card size="small"><Statistic title="DB (MB)" value={dataStats.databaseSizeMB} /></Card>
+                      </Col>
+                      <Col xs={12} sm={6} lg={4}>
+                        <Card size="small"><Statistic title="Files (MB)" value={dataStats.attachmentsSizeMB} /></Card>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {/* Module Data Counts */}
+                  <Card size="small" title="Dữ liệu theo module" style={{ marginBottom: 16 }}>
+                    <Table
+                      columns={[
+                        { title: 'Module', dataIndex: 'moduleName', key: 'name' },
+                        { title: 'Số bản ghi', dataIndex: 'recordCount', key: 'count', align: 'right' as const, render: (v: number) => v?.toLocaleString('vi-VN') },
+                        { title: 'Cập nhật cuối', dataIndex: 'lastUpdated', key: 'updated', width: 150, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-' },
+                      ]}
+                      dataSource={moduleCounts}
+                      rowKey="module"
+                      size="small"
+                      pagination={false}
+                    />
+                  </Card>
+
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col span={12}>
+                      {/* Backup History */}
+                      <Card size="small" title="Sao lưu" extra={
+                        <Button size="small" type="primary" icon={<HddOutlined />} onClick={() => {
+                          dataExportApi.createBackup('Full').then(() => { message.success('Đang tạo bản sao lưu...'); fetchDataManagement(); }).catch(() => message.warning('Không thể tạo sao lưu'));
+                        }}>Tạo sao lưu</Button>
+                      }>
+                        <Table
+                          columns={[
+                            { title: 'Loại', dataIndex: 'backupType', key: 'type', width: 100 },
+                            { title: 'File', dataIndex: 'fileName', key: 'file', ellipsis: true },
+                            { title: 'Kích thước', dataIndex: 'fileSize', key: 'size', width: 100, render: (v: number) => v ? `${(v / 1024 / 1024).toFixed(1)} MB` : '-' },
+                            { title: 'Ngày', dataIndex: 'createdAt', key: 'date', width: 140, render: (v: string) => v ? dayjs(v).format('DD/MM/YY HH:mm') : '-' },
+                            { title: 'TT', dataIndex: 'status', key: 'status', width: 80, render: (v: string) => <Tag color={v === 'Completed' ? 'green' : v === 'InProgress' ? 'processing' : 'red'}>{v === 'Completed' ? 'OK' : v === 'InProgress' ? '...' : 'Lỗi'}</Tag> },
+                          ]}
+                          dataSource={backups}
+                          rowKey="id"
+                          size="small"
+                          pagination={{ pageSize: 5 }}
+                        />
+                      </Card>
+                    </Col>
+                    <Col span={12}>
+                      {/* Export History */}
+                      <Card size="small" title="Xuất dữ liệu" extra={
+                        <Button size="small" type="primary" icon={<CloudServerOutlined />} onClick={() => {
+                          dataExportApi.requestExport({ modules: ['all'], format: 'JSON', includeAttachments: false }).then(() => { message.success('Đang xuất dữ liệu...'); fetchDataManagement(); }).catch(() => message.warning('Không thể xuất dữ liệu'));
+                        }}>Xuất toàn bộ</Button>
+                      }>
+                        <Table
+                          columns={[
+                            { title: 'Modules', dataIndex: 'modules', key: 'modules', render: (v: string[]) => v?.join(', ') || '-', ellipsis: true },
+                            { title: 'Format', dataIndex: 'format', key: 'format', width: 70 },
+                            { title: 'Bản ghi', dataIndex: 'recordCount', key: 'count', width: 80, align: 'right' as const },
+                            { title: 'Ngày', dataIndex: 'requestedAt', key: 'date', width: 140, render: (v: string) => v ? dayjs(v).format('DD/MM/YY HH:mm') : '-' },
+                            { title: 'TT', dataIndex: 'status', key: 'status', width: 80, render: (v: string) => <Tag color={v === 'Completed' ? 'green' : v === 'InProgress' ? 'processing' : 'red'}>{v}</Tag> },
+                          ]}
+                          dataSource={exportHistory}
+                          rowKey="id"
+                          size="small"
+                          pagination={{ pageSize: 5 }}
+                        />
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  {/* Handover Management */}
+                  <Card size="small" title="Biên bản chuyển giao dữ liệu" extra={
+                    <Button size="small" type="primary" icon={<FileTextOutlined />} onClick={() => {
+                      Modal.confirm({
+                        title: 'Tạo biên bản chuyển giao',
+                        content: 'Hệ thống sẽ tạo bản sao lưu đầy đủ và biên bản chuyển giao dữ liệu cho bên thuê dịch vụ.',
+                        okText: 'Tạo',
+                        onOk: () => {
+                          dataExportApi.createHandover({ recipientName: 'Chủ đầu tư', recipientOrganization: 'Bệnh viện', modules: ['all'] })
+                            .then(() => { message.success('Đã tạo biên bản chuyển giao'); fetchDataManagement(); })
+                            .catch(() => message.warning('Lỗi tạo biên bản'));
+                        },
+                      });
+                    }}>Tạo biên bản</Button>
+                  }>
+                    <Table
+                      columns={[
+                        { title: 'Mã', dataIndex: 'handoverCode', key: 'code', width: 130 },
+                        { title: 'Ngày', dataIndex: 'handoverDate', key: 'date', width: 110, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-' },
+                        { title: 'Người nhận', dataIndex: 'recipientName', key: 'recipient' },
+                        { title: 'Đơn vị', dataIndex: 'recipientOrganization', key: 'org' },
+                        { title: 'Modules', dataIndex: 'modules', key: 'modules', render: (v: string[]) => v?.length || 0, width: 80 },
+                        { title: 'Bản ghi', dataIndex: 'totalRecords', key: 'records', width: 90, align: 'right' as const, render: (v: number) => v?.toLocaleString('vi-VN') },
+                        {
+                          title: 'Trạng thái', dataIndex: 'statusName', key: 'status', width: 110,
+                          render: (text: string, record: DataHandoverDto) => {
+                            const colors: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'success', 3: 'cyan' };
+                            return <Tag color={colors[record.status] || 'default'}>{text}</Tag>;
+                          },
+                        },
+                        {
+                          title: 'Thao tác', key: 'action', width: 100,
+                          render: (_: unknown, record: DataHandoverDto) => (
+                            record.status === 2 ? (
+                              <Button size="small" type="primary" onClick={() => { dataExportApi.confirmHandover(record.id).then(() => { message.success('Đã xác nhận'); fetchDataManagement(); }).catch(() => message.warning('Lỗi')); }}>Xác nhận</Button>
+                            ) : null
+                          ),
+                        },
+                      ] as ColumnsType<DataHandoverDto>}
+                      dataSource={handovers}
+                      rowKey="id"
+                      size="small"
+                      pagination={{ pageSize: 10 }}
+                      locale={{ emptyText: 'Chưa có biên bản chuyển giao' }}
+                    />
+                  </Card>
                 </Spin>
               ),
             },

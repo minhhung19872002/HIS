@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
-import { UserOutlined, LockOutlined, SafetyOutlined, ArrowLeftOutlined, MailOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, SafetyOutlined, ArrowLeftOutlined, MailOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -94,9 +94,9 @@ const Login: React.FC = () => {
         alignItems: 'center',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       }}>
-        <Card style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+        <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <SafetyOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+            <SafetyOutlined style={{ fontSize: 48, color: '#1677ff' }} />
             <Title level={3} style={{ margin: '12px 0 4px', color: '#1890ff' }}>Xác thực OTP</Title>
             <Typography.Text type="secondary">
               <MailOutlined /> Mã xác thực đã gửi đến {otpPending.maskedEmail}
@@ -154,9 +154,12 @@ const Login: React.FC = () => {
       alignItems: 'center',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     }}>
-      <Card style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+      <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ margin: 0, color: '#1890ff' }}>HIS</Title>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg, #1677ff, #4096ff)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <MedicineBoxOutlined style={{ fontSize: 32, color: '#fff' }} />
+          </div>
+          <Title level={2} style={{ margin: 0, color: '#1677ff' }}>HIS</Title>
           <Typography.Text type="secondary">Hệ thống thông tin bệnh viện</Typography.Text>
         </div>
 
@@ -193,11 +196,13 @@ const Login: React.FC = () => {
           </Form.Item>
         </Form>
 
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Tài khoản mặc định: admin / Admin@123
-          </Typography.Text>
-        </div>
+        {import.meta.env.DEV && (
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Tài khoản mặc định: admin / Admin@123
+            </Typography.Text>
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -488,7 +488,7 @@ const Prescription: React.FC = () => {
         setPatientSearchResults([]);
       }
     } catch (error) {
-      message.error('Không thể tìm kiếm bệnh nhân');
+      message.warning('Không thể tìm kiếm bệnh nhân');
       setPatientSearchResults([]);
     } finally {
       setLoadingPatient(false);
@@ -589,7 +589,7 @@ const Prescription: React.FC = () => {
   const handleAddMedicine = () => {
     medicineForm.validateFields().then((values) => {
       if (!selectedMedicine) {
-        message.error('Vui lòng chọn thuốc');
+        message.warning('Vui lòng chọn thuốc');
         return;
       }
 
@@ -699,7 +699,7 @@ const Prescription: React.FC = () => {
 
   const handleSaveTemplate = () => {
     if (prescriptionItems.length === 0) {
-      message.error('Đơn thuốc chưa có thuốc nào');
+      message.warning('Đơn thuốc chưa có thuốc nào');
       return;
     }
     setIsSaveTemplateModalOpen(true);
@@ -737,13 +737,13 @@ const Prescription: React.FC = () => {
       message.success('Đã lưu đơn thuốc nháp');
     } catch (error) {
       console.warn('Error saving draft:', error);
-      message.error('Lỗi khi lưu đơn thuốc nháp');
+      message.warning('Lỗi khi lưu đơn thuốc nháp');
     }
   };
 
   const handleCompletePrescription = async () => {
     if (prescriptionItems.length === 0) {
-      message.error('Đơn thuốc chưa có thuốc nào');
+      message.warning('Đơn thuốc chưa có thuốc nào');
       return;
     }
 
@@ -790,19 +790,19 @@ const Prescription: React.FC = () => {
       message.success('Hoàn thành đơn thuốc thành công');
     } catch (error) {
       console.warn('Error completing prescription:', error);
-      message.error('Lỗi khi hoàn thành đơn thuốc');
+      message.warning('Lỗi khi hoàn thành đơn thuốc');
     }
   };
 
   const handlePrintPrescription = () => {
     if (prescriptionItems.length === 0) {
-      message.error('Đơn thuốc chưa có thuốc nào');
+      message.warning('Đơn thuốc chưa có thuốc nào');
       return;
     }
     const diagnosis = form.getFieldValue('diagnosis') || '';
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
     printWindow.document.write(`
@@ -962,7 +962,7 @@ const Prescription: React.FC = () => {
 
   const handleSendToPharmacy = () => {
     if (prescriptionItems.length === 0) {
-      message.error('Đơn thuốc chưa có thuốc nào');
+      message.warning('Đơn thuốc chưa có thuốc nào');
       return;
     }
     Modal.confirm({
@@ -994,7 +994,7 @@ const Prescription: React.FC = () => {
           message.success('Đã gửi đơn thuốc đến nhà thuốc');
         } catch (error) {
           console.warn('Error sending to pharmacy:', error);
-          message.error('Lỗi khi gửi đơn thuốc đến nhà thuốc');
+          message.warning('Lỗi khi gửi đơn thuốc đến nhà thuốc');
         }
       },
     });
@@ -1118,7 +1118,10 @@ const Prescription: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Kê đơn thuốc</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Kê đơn thuốc</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} size="small">Làm mới</Button>
+      </div>
 
       <Row gutter={16}>
         {/* LEFT PANEL - Patient Info */}
@@ -1746,7 +1749,7 @@ const Prescription: React.FC = () => {
         onCancel={() => setIsSaveTemplateModalOpen(false)}
         onOk={async () => {
           if (!templateName.trim()) {
-            message.error('Vui lòng nhập tên mẫu');
+            message.warning('Vui lòng nhập tên mẫu');
             return;
           }
           try {
@@ -1774,7 +1777,7 @@ const Prescription: React.FC = () => {
             setTemplateDiagnosis('');
           } catch (error) {
             console.warn('Error saving template:', error);
-            message.error('Lỗi khi lưu mẫu đơn thuốc');
+            message.warning('Lỗi khi lưu mẫu đơn thuốc');
           }
         }}
         okText="Lưu"

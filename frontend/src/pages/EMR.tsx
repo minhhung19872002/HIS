@@ -774,7 +774,7 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
       ) : <Empty description="Chọn bệnh nhân để xem timeline" />,
     },
     {
-      key: 'treatment', label: <Badge count={treatmentSheets.length} size="small" offset={[8, 0]}><FileTextOutlined /> Phiếu điều trị</Badge>,
+      key: 'treatment', label: <Badge count={treatmentSheets.length} showZero={false} size="small" offset={[8, 0]}><FileTextOutlined /> Phiếu điều trị</Badge>,
       children: (
         <>
           <div style={{ marginBottom: 8, textAlign: 'right' }}>
@@ -784,12 +784,12 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
             </Button>
           </div>
           <Table size="small" dataSource={treatmentSheets} columns={treatmentColumns} rowKey="id"
-            pagination={false} scroll={{ y: 400 }} />
+            pagination={false} />
         </>
       ),
     },
     {
-      key: 'consultation', label: <Badge count={consultations.length} size="small" offset={[8, 0]}><TeamOutlined /> Hội chẩn</Badge>,
+      key: 'consultation', label: <Badge count={consultations.length} showZero={false} size="small" offset={[8, 0]}><TeamOutlined /> Hội chẩn</Badge>,
       children: (
         <>
           <div style={{ marginBottom: 8, textAlign: 'right' }}>
@@ -799,12 +799,12 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
             </Button>
           </div>
           <Table size="small" dataSource={consultations} columns={consultationColumns} rowKey="id"
-            pagination={false} scroll={{ y: 400 }} />
+            pagination={false} />
         </>
       ),
     },
     {
-      key: 'nursing', label: <Badge count={nursingSheets.length} size="small" offset={[8, 0]}><MedicineBoxOutlined /> Chăm sóc</Badge>,
+      key: 'nursing', label: <Badge count={nursingSheets.length} showZero={false} size="small" offset={[8, 0]}><MedicineBoxOutlined /> Chăm sóc</Badge>,
       children: (
         <>
           <div style={{ marginBottom: 8, textAlign: 'right' }}>
@@ -814,7 +814,7 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
             </Button>
           </div>
           <Table size="small" dataSource={nursingSheets} columns={nursingColumns} rowKey="id"
-            pagination={false} scroll={{ y: 400 }} />
+            pagination={false} />
         </>
       ),
     },
@@ -872,7 +872,7 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
               : <><FileTextOutlined /> Chi tiết hồ sơ</>
             }
             extra={selectedExam && (
-              <Space>
+              <Space wrap size={4}>
                 <Tooltip title="Tóm tắt BA">
                   <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('summary')} />
                 </Tooltip>

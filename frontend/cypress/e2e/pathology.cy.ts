@@ -65,7 +65,7 @@ describe('Pathology Module (Giai phau benh)', () => {
   describe('Page Load & Structure', () => {
     it('should load pathology page at /pathology', () => {
       visitPathology();
-      cy.contains('Giai phau benh', { timeout: 10000 }).should('exist');
+      cy.contains(/Giải phẫu bệnh|Giai phau benh/i, { timeout: 10000 }).should('exist');
     });
 
     it('should display statistics cards', () => {
@@ -76,9 +76,9 @@ describe('Pathology Module (Giai phau benh)', () => {
     it('should display tabs', () => {
       visitPathology();
       cy.get('.ant-tabs', { timeout: 10000 }).should('exist');
-      cy.contains('Cho mo ta').should('exist');
-      cy.contains('Dang xu ly').should('exist');
-      cy.contains('Hoan thanh').should('exist');
+      cy.contains(/Chờ mô tả|Cho mo ta/i).should('exist');
+      cy.contains(/Đang xử lý|Dang xu ly/i).should('exist');
+      cy.contains(/Hoàn thành|Hoan thanh/i).should('exist');
     });
 
     it('should display data table', () => {
@@ -88,14 +88,14 @@ describe('Pathology Module (Giai phau benh)', () => {
 
     it('should have refresh button', () => {
       visitPathology();
-      cy.contains('Lam moi', { timeout: 10000 }).should('exist');
+      cy.contains(/Làm mới|Lam moi/i, { timeout: 10000 }).should('exist');
     });
   });
 
   describe('Search & Filter', () => {
     it('should have search input', () => {
       visitPathology();
-      cy.get('input[placeholder*="Tim kiem"]', { timeout: 10000 }).should('exist');
+      cy.get('input[placeholder*="Tìm kiếm"], input[placeholder*="Tim kiem"], input[placeholder*="tìm"]', { timeout: 10000 }).should('exist');
     });
 
     it('should have specimen type filter', () => {
@@ -110,9 +110,9 @@ describe('Pathology Module (Giai phau benh)', () => {
 
     it('should switch tabs', () => {
       visitPathology();
-      cy.contains('Dang xu ly', { timeout: 10000 }).click();
-      cy.contains('Hoan thanh').click();
-      cy.contains('Tat ca').click();
+      cy.contains(/Đang xử lý|Dang xu ly/i, { timeout: 10000 }).click();
+      cy.contains(/Hoàn thành|Hoan thanh/i).click();
+      cy.contains(/Tất cả|Tat ca/i).click();
     });
   });
 

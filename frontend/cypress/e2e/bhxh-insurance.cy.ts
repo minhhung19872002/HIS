@@ -108,36 +108,36 @@ describe('BHXH Insurance Integration', () => {
       visitWithAuth('/insurance');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
       cy.contains(/xu.{0,3}t.*xml/i, { timeout: 10000 }).click({ force: true });
-      cy.contains(/buoc 1|cau hinh|khoang thoi gian/i, { timeout: 5000 }).should('be.visible');
+      cy.contains(/Bước 1|Cấu hình|buoc 1|cau hinh|khoang thoi gian/i, { timeout: 5000 }).should('be.visible');
     });
 
     it('should show preview button in export tab', () => {
       visitWithAuth('/insurance');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
       cy.contains(/xu.{0,3}t.*xml/i, { timeout: 10000 }).click({ force: true });
-      cy.contains(/xem.*tru.c/i, { timeout: 5000 }).should('be.visible');
+      cy.contains(/Xem trước|xem.*tru.c/i, { timeout: 5000 }).should('be.visible');
     });
 
     it('should have card verification tab', () => {
       visitWithAuth('/insurance');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
-      cy.contains(/tra.*cu.{0,2}u.*the/i, { timeout: 10000 }).should('be.visible');
+      cy.contains(/Tra cứu thẻ|tra.*cu.{0,2}u.*the/i, { timeout: 10000 }).should('be.visible');
     });
 
     it('should show card verification form when tab clicked', () => {
       visitWithAuth('/insurance');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
-      cy.contains(/tra.*cu.{0,2}u.*the/i, { timeout: 10000 }).click({ force: true });
+      cy.contains(/Tra cứu thẻ|tra.*cu.{0,2}u.*the/i, { timeout: 10000 }).click({ force: true });
       cy.get('.ant-tabs-tabpane-active', { timeout: 5000 }).within(() => {
         cy.get('input[placeholder*="BHYT"]').should('exist');
-        cy.contains(/xac.*minh/i).should('be.visible');
+        cy.contains(/Xác minh|xac.*minh/i).should('be.visible');
       });
     });
 
     it('should have reports tab', () => {
       visitWithAuth('/insurance');
       cy.get('.ant-spin-spinning', { timeout: 10000 }).should('not.exist');
-      cy.contains(/bao.*cao/i, { timeout: 10000 }).should('be.visible');
+      cy.contains(/Báo cáo|bao.*cao/i, { timeout: 10000 }).should('be.visible');
     });
   });
 

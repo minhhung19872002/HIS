@@ -552,7 +552,7 @@ const Quality: React.FC = () => {
       },
     },
     {
-      title: 'Người chịu TN',
+      title: 'Người chịu trách nhiệm',
       dataIndex: 'responsiblePersonName',
       key: 'responsiblePersonName',
     },

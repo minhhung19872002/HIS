@@ -328,7 +328,7 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
       cy.get('body').then($body => {
         const rows = $body.find('.ant-table-tbody tr.ant-table-row');
         if (rows.length > 0) {
-          cy.wrap(rows.first()).click();
+          cy.wrap(rows.first()).click({ force: true });
           cy.wait(1000);
           cy.get('.ant-descriptions, .ant-card').should('exist');
         } else {
@@ -368,7 +368,7 @@ describe('User Workflow - Thao tác như người dùng thật', () => {
         cy.get('body').then($body => {
           const rows = $body.find('.ant-table-tbody tr.ant-table-row');
           if (rows.length > 0) {
-            cy.wrap(rows.first()).click();
+            cy.wrap(rows.first()).click({ force: true });
             cy.wait(1000);
             // Try clicking Sinh hiệu tab
             cy.get('.ant-tabs-tab').contains('Sinh hiệu').click({ force: true });

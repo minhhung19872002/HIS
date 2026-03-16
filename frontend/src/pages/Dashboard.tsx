@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, Tag, message, Progress, Badge, Button, Segmented } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, Tag, message, Progress, Badge, Button, Segmented, Empty } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
@@ -260,7 +260,7 @@ const Dashboard: React.FC = () => {
                     </ResponsiveContainer>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                      <Text type="secondary">Chưa có dữ liệu xu hướng 7 ngày</Text>
+                      <Empty description="Chưa có dữ liệu xu hướng 7 ngày" />
                     </div>
                   )
                 )}
@@ -282,7 +282,7 @@ const Dashboard: React.FC = () => {
                     </ResponsiveContainer>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                      <Text type="secondary">Chưa có dữ liệu theo khoa</Text>
+                      <Empty description="Chưa có dữ liệu theo khoa" />
                     </div>
                   )
                 )}
@@ -311,7 +311,7 @@ const Dashboard: React.FC = () => {
                     </ResponsiveContainer>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                      <Text type="secondary">Chưa có dữ liệu phân bố</Text>
+                      <Empty description="Chưa có dữ liệu phân bố" />
                     </div>
                   )
                 )}

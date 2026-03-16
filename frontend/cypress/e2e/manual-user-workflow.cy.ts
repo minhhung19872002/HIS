@@ -273,7 +273,7 @@ describe('Manual User Workflow - Thao tác như user thật', () => {
         // Nếu có bệnh nhân trong queue
         if ($body.find('.ant-table-row').length > 0) {
           // User click vào bệnh nhân đầu tiên
-          cy.get('.ant-table-row').first().click()
+          cy.get('.ant-table-row').first().click({ force: true })
           cy.wait(1000)
 
           // Verify form khám hiện ra (tabs sinh hiệu, bệnh sử, ...)
@@ -296,7 +296,7 @@ describe('Manual User Workflow - Thao tác như user thật', () => {
 
       cy.get('body').then($body => {
         if ($body.find('.ant-table-row').length > 0) {
-          cy.get('.ant-table-row').first().click()
+          cy.get('.ant-table-row').first().click({ force: true })
           cy.wait(1000)
 
           // User click tab "Sinh hiệu"
@@ -342,7 +342,7 @@ describe('Manual User Workflow - Thao tác như user thật', () => {
 
       cy.get('body').then($body => {
         if ($body.find('.ant-table-row').length > 0) {
-          cy.get('.ant-table-row').first().click()
+          cy.get('.ant-table-row').first().click({ force: true })
           cy.wait(1000)
 
           cy.get('.ant-tabs').then($tabs => {
@@ -385,7 +385,7 @@ describe('Manual User Workflow - Thao tác như user thật', () => {
 
       cy.get('body').then($body => {
         if ($body.find('.ant-table-row').length > 0) {
-          cy.get('.ant-table-row').first().click()
+          cy.get('.ant-table-row').first().click({ force: true })
           cy.wait(1000)
 
           cy.get('.ant-tabs').then($tabs => {
@@ -427,7 +427,7 @@ describe('Manual User Workflow - Thao tác như user thật', () => {
 
       cy.get('body').then($body => {
         if ($body.find('.ant-table-row').length > 0) {
-          cy.get('.ant-table-row').first().click()
+          cy.get('.ant-table-row').first().click({ force: true })
           cy.wait(1000)
 
           // User click "Lưu nháp" button

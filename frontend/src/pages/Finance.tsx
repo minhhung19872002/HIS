@@ -28,6 +28,7 @@ import {
   FileExcelOutlined,
   FilterOutlined,
   LoadingOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -187,7 +188,7 @@ const Finance: React.FC = () => {
       setExpenseRecords(expData);
       applyExpenseFilters(expData, expenseSearchText, expenseCategoryFilter);
     } catch (error) {
-      message.error('Lỗi khi tải dữ liệu tài chính');
+      message.warning('Lỗi khi tải dữ liệu tài chính');
       console.warn('Error loading finance data:', error);
     } finally {
       setLoading(false);
@@ -250,7 +251,7 @@ const Finance: React.FC = () => {
       window.URL.revokeObjectURL(url);
       message.success('Xuất Excel thành công');
     } catch (error) {
-      message.error('Lỗi khi xuất Excel');
+      message.warning('Lỗi khi xuất Excel');
       console.warn('Error exporting Excel:', error);
     } finally {
       setExportLoading(false);
@@ -261,7 +262,7 @@ const Finance: React.FC = () => {
   const handlePrintExpense = (record: ExpenseRecord) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
     printWindow.document.write(`
@@ -341,7 +342,7 @@ const Finance: React.FC = () => {
         message.success(`Đã tải dữ liệu ${reportName} (${((response as any)?.data || []).length || 1} bản ghi)`);
       }
     } catch (error) {
-      message.error(`Lỗi khi tải ${reportName}`);
+      message.warning(`Lỗi khi tải ${reportName}`);
       console.warn(`Error loading report ${reportType}:`, error);
     } finally {
       setReportLoading(null);
@@ -546,11 +547,14 @@ const Finance: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý Tài chính</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Tài chính</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} size="small">Làm mới</Button>
+      </div>
 
       {/* Summary Cards */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Tổng doanh thu"
@@ -558,13 +562,12 @@ const Finance: React.FC = () => {
               precision={0}
               styles={{ content: { color: '#3f8600' } }}
               prefix={<DollarOutlined />}
-              suffix="VNĐ"
+              suffix="đ"
               formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
             />
-            <Progress percent={100} showInfo={false} strokeColor="#52c41a" />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="BHYT chi trả"
@@ -572,7 +575,7 @@ const Finance: React.FC = () => {
               precision={0}
               styles={{ content: { color: '#1890ff' } }}
               prefix={<DollarOutlined />}
-              suffix="VNĐ"
+              suffix="đ"
               formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
             />
             <Progress
@@ -583,7 +586,7 @@ const Finance: React.FC = () => {
             <Text type="secondary">{safePercent(totalInsurance, totalRevenue)}% tổng DT</Text>
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Tổng chi phí"
@@ -591,7 +594,7 @@ const Finance: React.FC = () => {
               precision={0}
               styles={{ content: { color: '#cf1322' } }}
               prefix={<DollarOutlined />}
-              suffix="VNĐ"
+              suffix="đ"
               formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
             />
             <Progress
@@ -601,7 +604,7 @@ const Finance: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Lợi nhuận"
@@ -609,7 +612,7 @@ const Finance: React.FC = () => {
               precision={0}
               styles={{ content: { color: profit >= 0 ? '#3f8600' : '#cf1322' } }}
               prefix={profit >= 0 ? <RiseOutlined /> : <FallOutlined />}
-              suffix="VNĐ"
+              suffix="đ"
               formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
             />
             <Progress

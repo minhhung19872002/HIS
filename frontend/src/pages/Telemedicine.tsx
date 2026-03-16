@@ -450,7 +450,7 @@ const Telemedicine: React.FC = () => {
       width: 140,
       render: (_, record) => (
         <Space orientation="vertical" size={0}>
-          <Text>{record.fee?.toLocaleString('vi-VN')}d</Text>
+          <Text>{record.fee?.toLocaleString('vi-VN')} đ</Text>
           {getPaymentStatusTag(record.paymentStatus, record.paymentStatusName)}
         </Space>
       ),
@@ -527,7 +527,7 @@ const Telemedicine: React.FC = () => {
           <Descriptions.Item label="Khoa">{record.departmentName}</Descriptions.Item>
           <Descriptions.Item label="Lý do">{record.chiefComplaint || '-'}</Descriptions.Item>
           <Descriptions.Item label="Trạng thái">{record.statusName || `Status ${record.status}`}</Descriptions.Item>
-          <Descriptions.Item label="Phí">{record.fee?.toLocaleString('vi-VN')}đ</Descriptions.Item>
+          <Descriptions.Item label="Phí">{record.fee?.toLocaleString('vi-VN')} đ</Descriptions.Item>
           <Descriptions.Item label="Thanh toán">{record.paymentStatusName || '-'}</Descriptions.Item>
           {record.notes && <Descriptions.Item label="Ghi chú">{record.notes}</Descriptions.Item>}
         </Descriptions>

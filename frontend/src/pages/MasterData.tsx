@@ -38,6 +38,7 @@ import {
   TeamOutlined,
   IdcardOutlined,
   UploadOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
@@ -314,7 +315,7 @@ const MasterData: React.FC = () => {
       }
     } catch (error) {
       console.warn('Error fetching data:', error);
-      message.error('Không thể tải dữ liệu. Vui lòng thử lại.');
+      message.warning('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -350,7 +351,7 @@ const MasterData: React.FC = () => {
       fetchData();
     } catch (error) {
       console.warn('Lỗi nhập Excel:', error);
-      message.error('Nhập Excel thất bại. Vui lòng kiểm tra định dạng tệp và thử lại.');
+      message.warning('Nhập Excel thất bại. Vui lòng kiểm tra định dạng tệp và thử lại.');
     }
     return false; // Prevent default Upload behavior
   };
@@ -410,7 +411,7 @@ const MasterData: React.FC = () => {
           fetchData();
         } catch (error) {
           console.warn('Error deleting:', error);
-          message.error('Xóa thất bại. Vui lòng thử lại.');
+          message.warning('Xóa thất bại. Vui lòng thử lại.');
         }
       },
     });
@@ -557,7 +558,7 @@ const MasterData: React.FC = () => {
         return; // Form validation error
       }
       console.warn('Error saving:', error);
-      message.error('Lưu thất bại. Vui lòng thử lại.');
+      message.warning('Lưu thất bại. Vui lòng thử lại.');
     }
   };
 
@@ -749,7 +750,13 @@ const MasterData: React.FC = () => {
       dataIndex: 'type',
       key: 'type',
       width: 130,
-      render: (type) => <Tag color="blue">{type}</Tag>,
+      render: (type) => {
+        const typeMap: Record<string, string> = {
+          'Clinical': 'Lâm sàng', 'Paraclinical': 'Cận lâm sàng', 'Administrative': 'Hành chính',
+          'Pharmacy': 'Dược', 'Support': 'Hỗ trợ', 'Emergency': 'Cấp cứu',
+        };
+        return <Tag color="blue">{typeMap[type] || type}</Tag>;
+      },
     },
     {
       title: 'Trạng thái',
@@ -1948,7 +1955,10 @@ const MasterData: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý Danh mục dùng chung</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Danh mục dùng chung</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>
+      </div>
 
       <Row gutter={16}>
         <Col span={6}>

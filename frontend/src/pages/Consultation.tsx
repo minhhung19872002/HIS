@@ -98,7 +98,7 @@ const Consultation: React.FC = () => {
     } catch (error) {
       console.warn('Error fetching consultations:', error);
       setSessions([]);
-      message.error('Không thể tải danh sách hội chẩn');
+      message.warning('Không thể tải danh sách hội chẩn');
     } finally {
       setLoading(false);
     }
@@ -139,7 +139,7 @@ const Consultation: React.FC = () => {
       form.resetFields();
       fetchSessions();
     } catch (error) {
-      message.error('Có lỗi xảy ra khi tạo phiên hội chẩn');
+      message.warning('Có lỗi xảy ra khi tạo phiên hội chẩn');
     }
   };
 
@@ -150,7 +150,7 @@ const Consultation: React.FC = () => {
       message.success('Đã bắt đầu phiên hội chẩn');
       fetchSessions();
     } catch (error) {
-      message.error('Có lỗi xảy ra');
+      message.warning('Có lỗi xảy ra');
     }
   };
 
@@ -161,7 +161,7 @@ const Consultation: React.FC = () => {
       message.success('Đã kết thúc phiên hội chẩn');
       fetchSessions();
     } catch (error) {
-      message.error('Có lỗi xảy ra');
+      message.warning('Có lỗi xảy ra');
     }
   };
 
@@ -173,7 +173,7 @@ const Consultation: React.FC = () => {
       // Open video conference or consultation viewer
       window.open(`/consultation/room/${sessionId}`, '_blank');
     } catch (error) {
-      message.error('Có lỗi xảy ra');
+      message.warning('Có lỗi xảy ra');
     }
   };
 
@@ -215,7 +215,7 @@ const Consultation: React.FC = () => {
       const response = await risApi.getConsultationDiscussions(selectedSession.cases[0].id);
       setDiscussions(response.data || []);
     } catch (error) {
-      message.error('Có lỗi xảy ra khi gửi thảo luận');
+      message.warning('Có lỗi xảy ra khi gửi thảo luận');
     }
   };
 
@@ -233,7 +233,7 @@ const Consultation: React.FC = () => {
       message.success('Đã lưu biên bản hội chẩn');
       setIsMinutesModalOpen(false);
     } catch (error) {
-      message.error('Có lỗi xảy ra khi lưu biên bản');
+      message.warning('Có lỗi xảy ra khi lưu biên bản');
     }
   };
 
@@ -263,7 +263,7 @@ const Consultation: React.FC = () => {
         ),
       });
     } catch (error) {
-      message.error('Không thể tạo mã QR');
+      message.warning('Không thể tạo mã QR');
     }
   };
 

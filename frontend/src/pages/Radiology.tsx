@@ -170,7 +170,7 @@ const Radiology: React.FC = () => {
   const executePrintRadiologyReport = (report: RadiologyReport) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
 
@@ -308,7 +308,7 @@ const Radiology: React.FC = () => {
       if (values.signatureType === 'USBToken') {
         // Use PDF Generation & Signing API - creates a signed PDF document (PAdES compliant)
         if (!values.certificateThumbprint) {
-          message.error('Vui lòng chọn chứng thư số để ký');
+          message.warning('Vui lòng chọn chứng thư số để ký');
           setSignatureLoading(false);
           return;
         }
@@ -356,7 +356,7 @@ const Radiology: React.FC = () => {
                   document.body.removeChild(link);
                   window.URL.revokeObjectURL(url);
                 } catch (downloadError) {
-                  message.error('Không thể tải file PDF');
+                  message.warning('Không thể tải file PDF');
                 }
               },
             });
@@ -366,7 +366,7 @@ const Radiology: React.FC = () => {
           setSelectedReportToSign(null);
           fetchRadiologyData();
         } else {
-          message.error(result.data?.message || 'Ký số PDF thất bại');
+          message.warning(result.data?.message || 'Ký số PDF thất bại');
         }
       } else {
         // Other signature types (Cloud, etc.)
@@ -383,12 +383,12 @@ const Radiology: React.FC = () => {
           setSelectedReportToSign(null);
           fetchRadiologyData();
         } else {
-          message.error(result.data?.message || 'Ký số thất bại');
+          message.warning(result.data?.message || 'Ký số thất bại');
         }
       }
     } catch (error: any) {
       console.warn('Sign result error:', error);
-      message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi ký số');
+      message.warning(error?.response?.data?.message || 'Có lỗi xảy ra khi ký số');
     } finally {
       setSignatureLoading(false);
     }
@@ -440,7 +440,7 @@ const Radiology: React.FC = () => {
       }
     } catch (error) {
       console.warn('Error fetching radiology data:', error);
-      message.error('Không thể tải danh sách chẩn đoán hình ảnh');
+      message.warning('Không thể tải danh sách chẩn đoán hình ảnh');
     } finally {
       setLoading(false);
     }
@@ -588,7 +588,7 @@ const Radiology: React.FC = () => {
       fetchRadiologyData();
     } catch (error: any) {
       console.warn('Schedule submit error:', error);
-      message.error(error?.response?.data?.message || 'Không thể hẹn lịch');
+      message.warning(error?.response?.data?.message || 'Không thể hẹn lịch');
     }
   };
 
@@ -600,7 +600,7 @@ const Radiology: React.FC = () => {
       fetchRadiologyData();
     } catch (error: any) {
       console.warn('Start exam error:', error);
-      message.error(error?.response?.data?.message || 'Không thể bắt đầu thực hiện');
+      message.warning(error?.response?.data?.message || 'Không thể bắt đầu thực hiện');
     }
   };
 
@@ -633,7 +633,7 @@ const Radiology: React.FC = () => {
       fetchRadiologyData();
     } catch (error: any) {
       console.warn('Report submit error:', error);
-      message.error(error?.response?.data?.message || 'Không thể lưu báo cáo');
+      message.warning(error?.response?.data?.message || 'Không thể lưu báo cáo');
     }
   };
 
@@ -652,7 +652,7 @@ const Radiology: React.FC = () => {
           fetchRadiologyData();
         } catch (error: any) {
           console.warn('Approve report error:', error);
-          message.error(error?.response?.data?.message || 'Không thể duyệt báo cáo');
+          message.warning(error?.response?.data?.message || 'Không thể duyệt báo cáo');
         }
       },
     });
@@ -759,7 +759,7 @@ const Radiology: React.FC = () => {
       width: 200,
     },
     {
-      title: 'Modality',
+      title: 'Phương thức',
       dataIndex: 'modalityName',
       key: 'modalityName',
       width: 120,
@@ -831,7 +831,7 @@ const Radiology: React.FC = () => {
       width: 200,
     },
     {
-      title: 'Modality',
+      title: 'Phương thức',
       dataIndex: 'modalityName',
       key: 'modalityName',
       width: 120,
@@ -873,7 +873,7 @@ const Radiology: React.FC = () => {
               fetchRadiologyData();
             } catch (error: any) {
               console.warn('Complete exam error:', error);
-              message.error(error?.response?.data?.message || 'Không thể hoàn thành ca chụp');
+              message.warning(error?.response?.data?.message || 'Không thể hoàn thành ca chụp');
             }
           }}
         >
@@ -1086,11 +1086,11 @@ const Radiology: React.FC = () => {
                   ),
                 });
               } catch {
-                message.error('Không thể tạo QR Code');
+                message.warning('Không thể tạo QR Code');
               }
             }}
           >
-            QR
+            Mã QR
           </Button>
           <Button
             size="small"
@@ -1152,7 +1152,10 @@ const Radiology: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>Quản lý Chẩn đoán Hình ảnh (RIS/PACS)</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Chẩn đoán Hình ảnh (RIS/PACS)</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchRadiologyData()} size="small">Làm mới</Button>
+      </div>
 
       <Card>
         <Tabs
@@ -1449,7 +1452,7 @@ const Radiology: React.FC = () => {
                             }
                           } catch (error: any) {
                             console.warn('Statistics error:', error);
-                            message.error(error?.response?.data?.message || 'Không thể tải thống kê');
+                            message.warning(error?.response?.data?.message || 'Không thể tải thống kê');
                           } finally {
                             setStatsLoading(false);
                           }
@@ -1478,7 +1481,7 @@ const Radiology: React.FC = () => {
                             message.success('Đã xuất Excel thành công');
                           } catch (error: any) {
                             console.warn('Export Excel error:', error);
-                            message.error(error?.response?.data?.message || 'Không thể xuất Excel');
+                            message.warning(error?.response?.data?.message || 'Không thể xuất Excel');
                           }
                         }}
                       >
@@ -1550,7 +1553,7 @@ const Radiology: React.FC = () => {
                             }
                           } catch (error: any) {
                             console.warn('Search tags error:', error);
-                            message.error(error?.response?.data?.message || 'Không thể tìm tag');
+                            message.warning(error?.response?.data?.message || 'Không thể tìm tag');
                           } finally {
                             setTagsLoading(false);
                           }
@@ -1652,7 +1655,7 @@ const Radiology: React.FC = () => {
                             }
                           } catch (error: any) {
                             console.warn('Load duty schedules error:', error);
-                            message.error(error?.response?.data?.message || 'Không thể tải lịch trực');
+                            message.warning(error?.response?.data?.message || 'Không thể tải lịch trực');
                           } finally {
                             setDutyLoading(false);
                           }
@@ -1768,7 +1771,7 @@ const Radiology: React.FC = () => {
                             }
                           } catch (error: any) {
                             console.warn('Search integration logs error:', error);
-                            message.error(error?.response?.data?.message || 'Không thể tìm kiếm log');
+                            message.warning(error?.response?.data?.message || 'Không thể tìm kiếm log');
                           } finally {
                             setLogsLoading(false);
                           }
@@ -1886,7 +1889,7 @@ const Radiology: React.FC = () => {
                               ),
                             });
                           } catch (error: any) {
-                            message.error(error?.response?.data?.message || 'Không thể tải mẫu chẩn đoán');
+                            message.warning(error?.response?.data?.message || 'Không thể tải mẫu chẩn đoán');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -1918,7 +1921,7 @@ const Radiology: React.FC = () => {
                               ),
                             });
                           } catch (error: any) {
-                            message.error(error?.response?.data?.message || 'Không thể tải từ viết tắt');
+                            message.warning(error?.response?.data?.message || 'Không thể tải từ viết tắt');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -1951,7 +1954,7 @@ const Radiology: React.FC = () => {
                               ),
                             });
                           } catch (error: any) {
-                            message.error(error?.response?.data?.message || 'Không thể tải cấu hình nhãn in');
+                            message.warning(error?.response?.data?.message || 'Không thể tải cấu hình nhãn in');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -1984,7 +1987,7 @@ const Radiology: React.FC = () => {
                               ),
                             });
                           } catch (error: any) {
-                            message.error(error?.response?.data?.message || 'Không thể tải cấu hình ký số');
+                            message.warning(error?.response?.data?.message || 'Không thể tải cấu hình ký số');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2019,7 +2022,7 @@ const Radiology: React.FC = () => {
                               ),
                             });
                           } catch (error: any) {
-                            message.error(error?.response?.data?.message || 'Không thể tải danh sách modality');
+                            message.warning(error?.response?.data?.message || 'Không thể tải danh sách modality');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2054,7 +2057,7 @@ const Radiology: React.FC = () => {
                               ),
                             });
                           } catch (error: any) {
-                            message.error(error?.response?.data?.message || 'Không thể tải kết nối PACS');
+                            message.warning(error?.response?.data?.message || 'Không thể tải kết nối PACS');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2400,7 +2403,7 @@ const Radiology: React.FC = () => {
           } catch (error: any) {
             if (error?.errorFields) return; // validation error
             console.warn('Save tag error:', error);
-            message.error(error?.response?.data?.message || 'Không thể tạo tag');
+            message.warning(error?.response?.data?.message || 'Không thể tạo tag');
           }
         }}
         okText="Lưu"
