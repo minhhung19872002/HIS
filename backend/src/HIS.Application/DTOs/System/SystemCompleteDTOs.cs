@@ -796,6 +796,25 @@ namespace HIS.Application.DTOs.System
         public int TodayEmergencies { get; set; }
         public decimal TodayRevenue { get; set; }
         public List<DashboardTrendDto> Trends { get; set; }
+
+        // Service status breakdown
+        public int ServiceOpdDone { get; set; }
+        public int ServiceOpdPending { get; set; }
+        public int ServiceRadiologyDone { get; set; }
+        public int ServiceRadiologyPending { get; set; }
+        public int ServiceLabDone { get; set; }
+        public int ServiceLabPending { get; set; }
+        public int ServiceSurgeryDone { get; set; }
+        public int ServiceSurgeryPending { get; set; }
+        public int ServiceProcedureDone { get; set; }
+        public int ServiceProcedurePending { get; set; }
+        public int ServicePrescriptionDone { get; set; }
+        public int ServicePrescriptionPending { get; set; }
+
+        // Revenue breakdown by patient type
+        public decimal RevenueBHYT { get; set; }
+        public decimal RevenueSelfPay { get; set; }
+        public decimal RevenueOther { get; set; }
     }
 
     /// <summary>

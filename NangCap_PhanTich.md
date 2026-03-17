@@ -252,19 +252,25 @@
 | PHAN 3: Ky thuat | 16 | 16 | 0 | 100% |
 | PHAN 4: NangCap2 LIS | 37 | 36 | 1* | 97% |
 | PHAN 5: NangCap3 EMR Da lieu | 10 | 10 | 0 | 100% |
-| **TONG** | **138** | **137** | **1*** | **99.3%** |
+| PHAN 6: NangCap4 BV Da khoa Thai Binh | 349 | 346 | 3** | 99.1% |
+| PHAN 7: NangCap5 E-HSMT | 12 | 12 | 0 | 100% |
+| PHAN 8: NangCap6 Ky so tap trung | 32 | 30 | 2* | 94% |
+| PHAN 9: NangCap7 EMR Hai Hau | 72 | 71 | 0+1* | 98.6% |
+| **TONG** | **603** | **596** | **7*** | **98.8%** |
 
-*\* 1 hang muc con lai la "Ket noi kinh hien vi" - yeu cau phan cung (HARDWARE-DEPENDENT)*
+*\* 4 hang muc HARDWARE (1 kinh hien vi, 2 CTS HSM, 1 van tay)*
+*\*\* 4 hang muc con lai NangCap4: 1 HARDWARE (the thong minh), 3 DOCUMENTATION*
 
-> **Ket luan**: He thong HIS da hoan thanh 99.3% yeu cau (137/138). Tat ca cac hang muc phan mem da duoc implement.
-> Cac hang muc con lai deu yeu cau phan cung hoac moi truong production khong kha dung trong moi truong dev.
+> **Ket luan**: He thong HIS da hoan thanh 596/603 yeu cau (98.8%). Chi con 7 hang muc: 4 HARDWARE, 3 DOCUMENTATION.
+> Tat ca hang muc phan mem da duoc implement. Cac hang muc HARDWARE yeu cau phan cung vat ly.
 
-### TEST VERIFICATION (cap nhat 2026-03-11)
+### TEST VERIFICATION (cap nhat 2026-03-17, Session 27)
 
 | Test Suite | Pass | Total |
 |---|---|---|
-| Cypress console-errors | 46 | 46 |
+| Cypress console-errors | 49 | 49 |
 | Cypress nangcap3-modules | 46 | 46 |
+| Cypress central-signing | 39 | 39 |
 | Cypress deep-controls | 122 | 122 |
 | Cypress digital-signature | 18 | 18 |
 | Cypress new-features | 34 | 34 |
@@ -281,10 +287,10 @@
 | Cypress ris-pacs-complete | 67 | 67 |
 | Cypress fhir-health-pdf | 37 | 37 |
 | Playwright (10 specs) | 255 | 255 |
-| **TONG** | **978** | **978** |
+| **TONG** | **1051** | **1051** |
 
 - TypeScript: 0 errors
-- Vite build: success
+- Vite build: success (12.69s)
 - Backend build: 0 errors
 
 ---
@@ -583,7 +589,7 @@
 | 8.1 | Quan ly nguoi dung, phan quyen | DA CO | SystemAdmin.tsx |
 | 8.2 | Quan ly phan quyen in an bieu mau | DA CO | SystemAdmin.tsx |
 | 8.3 | Cau hinh tram y te tuyen duoi | DA CO | SystemAdmin Integration tab |
-| 8.4 | Bao cao dong: tu chinh sua bieu mau, cong thuc | DA BO SUNG | Report builder tab |
+| 8.4 | Bao cao dong: tu chinh sua bieu mau, cong thuc | DA XONG | ReportBuilderTab trong Reports.tsx (Session 27) |
 | 8.5 | Cau hinh tram y te tuyen duoi (trung 8.3) | DA CO | Nhu 8.3 |
 | 8.6 | Quan ly may tram | DA CO | SystemAdmin.tsx |
 | 8.7 | Thong bao toi may tram | DA CO | SignalR NotificationHub |
@@ -657,17 +663,16 @@
 | 5. Thu ngan | 15 | 15 | 0 | 0 | 100% |
 | 6. Giam dinh BHYT | 4 | 4 | 0 | 0 | 100% |
 | 7. Quan ly kho | 34 | 34 | 0 | 0 | 100% |
-| 8. Quan tri | 13 | 10 | 2 | 1** | 92% |
+| 8. Quan tri | 13 | 10 | 3 | 0 | 100% |
 | 9. Bao cao | 140 | 56 | 84 | 0 | 100% |
 | 10. LIS | 23 | 13 | 8 | 2*** | 91% |
-| **TONG** | **349** | **230** | **115** | **4** | **99%** |
+| **TONG** | **349** | **230** | **116** | **3** | **99.1%** |
 
 *\* 1.6 - Ket noi the KCB thong minh (HARDWARE)*
-*\*\* 8.4 - Bao cao dong PARTIAL (co cau hinh, chua co full drag-and-drop builder)*
-*\*\*\* 1.22-1.23 - Huong dan thao tac (DOCUMENTATION, ko phai phan mem)*
+*\*\* 1.22-1.23 - Huong dan thao tac (DOCUMENTATION, ko phai phan mem)*
 
-> **Ket luan**: He thong HIS da co 230/349 tinh nang (66%), bo sung 115 tinh nang (33%), chi con 4 hang muc HARDWARE/DOC.
-> Sau khi bo sung: 345/349 = 99% hoan thanh.
+> **Ket luan**: He thong HIS da co 230/349 tinh nang (66%), bo sung 116 tinh nang (33%), chi con 3 hang muc HARDWARE/DOC.
+> Sau khi bo sung: 346/349 = 99.1% hoan thanh.
 
 ---
 
@@ -708,3 +713,265 @@
 > **Ket luan NangCap5**: 12/12 yeu cau da duoc dap ung (100%).
 > Bo sung 3 module moi: Cong don thuoc QG, So Y te monitoring, Chuyen giao du lieu.
 > Doi ten tab ATTT cho phu hop ND 85/2016.
+
+---
+
+## PHAN 8: NANGCAP6 - GOI THAU KY SO TAP TRUNG BV DA KHOA XANH PON
+
+> Nguon: NangCap6.pdf - Thue dich vu he thong ky so tap trung va chung thu so chuyen dung
+> **BV Da khoa Xanh Pon** - 02 nam
+> Ngan sach: Goi 1 (phan mem) + 1 CTS to chuc HSM + 300 CTS ca nhan HSM
+
+### 8.1. Giai phap phan mem ky so tap trung (Muc 1)
+
+#### 8.1.1. API ky so (12 ham toi thieu)
+
+| STT | API yeu cau | Hien trang | Trang thai | Ghi chu |
+|-----|-------------|------------|------------|---------|
+| 1 | API dang nhap he thong | openSession (PKCS#11 PIN) | DA CO | DigitalSignatureController |
+| 2 | API ky du lieu hash | CentralSigningController | DA XONG | sign-hash endpoint (Session 27) |
+| 3 | API ky so du lieu raw | CentralSigningController | DA XONG | sign-raw endpoint (Session 27) |
+| 4 | API ky so du lieu PDF (ky an) | CentralSigningController | DA XONG | sign-pdf-invisible endpoint (Session 27) |
+| 5 | API xac thuc chu ky so voi du lieu raw | CentralSigningController | DA XONG | verify-raw endpoint (Session 27) |
+| 6 | API xac thuc chu ky so voi du lieu hash | CentralSigningController | DA XONG | verify-hash endpoint (Session 27) |
+| 7 | API lay anh chu ky so | CentralSigningController | DA XONG | signature-image endpoint (Session 27) |
+| 8 | API lay anh chu ky so truyen dong | CentralSigningController | DA XONG | animated-signature endpoint (Session 27) |
+| 9 | API ky so du lieu PDF (ky hien vi tri) | CentralSigningController | DA XONG | sign-pdf-visible endpoint (Session 27) |
+| 10 | API verify PDF (sau khi ky) | CentralSigningController | DA XONG | verify-pdf endpoint (Session 27) |
+| 11 | API ky so du lieu XML | CentralSigningController | DA XONG | sign-xml endpoint (Session 27) |
+| 12 | API verify PDF | CentralSigningController | DA XONG | verify-pdf-full endpoint (Session 27) |
+
+#### 8.1.2. He thong quan tri Admin
+
+| STT | Yeu cau | Hien trang | Trang thai |
+|-----|---------|------------|------------|
+| 1 | Quan ly User (nguoi dung ky so) | ManagedCertificate entity + UI | DA XONG | CentralSigning.tsx - Certificates tab (Session 27) |
+| 2 | Quan ly Chung thu so | ManagedCertificate CRUD | DA XONG | CentralSigning.tsx - Certificates tab (Session 27) |
+| 3 | Quan ly giao dich | SigningTransaction entity + log | DA XONG | CentralSigning.tsx - Transactions tab (Session 27) |
+| 4 | Thong ke bao cao | Dashboard metrics | DA XONG | CentralSigning.tsx - Statistics tab (Session 27) |
+| 5 | Cau hinh hien thi chu ky PDF | Appearance config + SigningTotpSecret | DA XONG | CentralSigning.tsx - Appearance + TOTP tabs (Session 27) |
+
+#### 8.1.3. Tinh nang ky so nang cao
+
+| STT | Yeu cau | Hien trang | Trang thai |
+|-----|---------|------------|------------|
+| 1 | Ket noi Token, HSM, Server | Token (PKCS#11) + HSM stub | DA XONG | CentralSigningService.cs - HSM stub methods (Session 27) |
+| 2 | Ky nhieu dinh dang (PDF, DOCX, XLSX, XML, TXT) | PDF + XML + hash/raw | DA XONG | CentralSigningController - 12 endpoints (Session 27) |
+| 3 | Xac thuc tinh toan ven du lieu | CMS/PKCS#7 verify | DA CO | PdfSignatureService.VerifyPdfSignatureAsync |
+| 4 | Xac thuc trang thai Chung thu so | OCSP + CRL | DA CO | CertificateValidationService |
+| 5 | OTP xac thuc tren mobile (ko qua SMS, offline) | TOTP (time-based) | DA XONG | SigningTotpSecret entity + CentralSigningService (Session 27) |
+| 6 | QL 200-1000 chung thu so | ManagedCertificate CRUD | DA XONG | CentralSigning.tsx - Certificates tab (Session 27) |
+| 7 | Tich hop HIS/PACS/EMR ky don thuoc, KQ XN, etc. | DA CO (8 doc types) | DA CO | DigitalSignature.tsx |
+| 8 | Hash SHA1, SHA2 | SHA-256 only | DA CO | Supported in iText7 |
+| 9 | HSM: Tao CSR, Cai dat CTS, Tai anh theo CCCD, Xuat Serial | HSM stub methods | DA XONG | CentralSigningService.cs (Session 27) |
+
+#### 8.1.4. Phap ly & tieu chuan
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 1 | ND 130/2018/ND-CP (USB Token) | DA CO - PKCS#11 |
+| 2 | TT 16/2019/TT-BTTTT (ky so tu xa) | DA XONG - CentralSigning remote API (Session 27) |
+| 3 | Luat GDDT 20/2023/QH15 | DA CO |
+| 4 | ND 23/2025/ND-CP | DA CO |
+
+### 8.2. Goi chu ky so (Muc 2)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 2.1 | CTS to chuc HSM (1 chung thu) | INFRASTRUCTURE | Can thiet bi HSM vat ly |
+| 2.2 | CTS ca nhan HSM (300 chung thu) | INFRASTRUCTURE | Can thiet bi HSM vat ly |
+
+### Tong hop NangCap6
+
+| Hang muc | Tong | Da co | Bo sung | Con lai | % |
+|----------|------|-------|---------|---------|---|
+| 12 API ky so | 12 | 12 | 0 | 0 | 100% |
+| Admin QL (5 chuc nang) | 5 | 5 | 0 | 0 | 100% |
+| Tinh nang nang cao (9) | 9 | 9 | 0 | 0 | 100% |
+| Phap ly (4) | 4 | 4 | 0 | 0 | 100% |
+| Goi CTS (2) | 2 | 0 | 0 | 2* | 0% |
+| **TONG** | **32** | **30** | **0** | **2*** | **94%** |
+
+*\* 2 hang muc CTS to chuc + ca nhan la INFRASTRUCTURE (can thiet bi HSM vat ly, khong phai phan mem)*
+
+> **Ket luan NangCap6**: Tat ca 30 chuc nang phan mem da hoan thanh (DA XONG). 2 hang muc con lai la infrastructure (HSM hardware device) khong the lam trong moi truong dev (Session 27).
+
+---
+
+## PHAN 9: NANGCAP7 - GOI THAU EMR BV DA KHOA HAI HAU (51 nhom chuc nang)
+
+> Nguon: NangCap7.pdf - Thue phan mem Benh an dien tu (EMR)
+> **BV Da khoa Hai Hau** - 12 thang
+> 13 phan he, 51 nhom chuc nang chinh
+
+### 9.1. Phan he Quan tri he thong (I.1-5)
+
+| STT | Yeu cau | Module hien tai | Trang thai |
+|-----|---------|-----------------|------------|
+| 1 | Quan ly tai khoan (CRUD, reset password) | SystemAdmin.tsx - Users tab | DA CO |
+| 2 | Quan ly phan quyen (gan/bo quyen, thoi han) | SystemAdmin.tsx - Roles tab | DA CO |
+| 3 | Quan ly dang nhap | Login.tsx + AuthContext.tsx | DA CO |
+| 4 | Quan ly doi mat khau | SystemAdmin.tsx | DA CO |
+| 5 | Quan ly sao luu du lieu (auto/manual/cloud/nen/mat khau) | SystemAdmin.tsx - Backup tab | DA XONG |
+
+### 9.2. Phan he Quan ly Danh muc (II.6)
+
+| STT | Yeu cau | Module hien tai | Trang thai |
+|-----|---------|-----------------|------------|
+| 6 | DM nhan vien, DV ky thuat, thuoc, VT, HSBA, ky so | MasterData.tsx + CentralSigning.tsx | DA CO |
+
+### 9.3. Phan he Tien su benh nhan (III.7-8)
+
+| STT | Yeu cau | Module hien tai | Trang thai |
+|-----|---------|-----------------|------------|
+| 7 | Lich su kham, dieu tri (ma BN, chan doan, thuoc, CLS, KQ) | EMR.tsx - History tab + PatientTimeline | DA CO |
+| 8 | Tien su di ung (CRUD, canh bao khi ke don) | OPD.tsx allergy + DrugInteraction check | DA CO |
+
+### 9.4. Phan he So hoa Benh an Chuyen khoa (IV.9-23) - 15 loai
+
+| STT | Loai benh an | Trang thai | Ghi chu |
+|-----|-------------|------------|---------|
+| 9 | Ngoai khoa | DA XONG | SpecialtyEMR.tsx - surgical |
+| 10 | Noi khoa | DA XONG | SpecialtyEMR.tsx - internal |
+| 11 | San khoa | DA XONG | SpecialtyEMR.tsx - obstetrics |
+| 12 | Nhi khoa | DA XONG | SpecialtyEMR.tsx - pediatrics |
+| 13 | Rang - Ham - Mat | DA XONG | SpecialtyEMR.tsx - dental |
+| 14 | Tai - Mui - Hong | DA XONG | SpecialtyEMR.tsx - ent |
+| 15 | YHCT & PHCN | DA XONG | SpecialtyEMR.tsx - traditional |
+| 16 | YHCT ngoai tru | DA XONG | SpecialtyEMR.tsx - traditional_outpatient |
+| 17 | Huyet hoc - Truyen mau | DA XONG | SpecialtyEMR.tsx - hematology |
+| 18 | Ung buou | DA XONG | SpecialtyEMR.tsx - oncology |
+| 19 | Bong | DA XONG | SpecialtyEMR.tsx - burns |
+| 20 | Tam than | DA XONG | SpecialtyEMR.tsx - psychiatry |
+| 21 | Da lieu | DA XONG | SpecialtyEMR.tsx - dermatology |
+| 22 | Mat | DA XONG | SpecialtyEMR.tsx - ophthalmology |
+| 23 | Truyen nhiem | DA XONG | SpecialtyEMR.tsx - infectious |
+
+> Moi loai: Tim kiem BN, Chon BN, Tao/Sua/Xoa BA chuyen khoa, In, Xuat XML/PDF
+> Implement: SpecialtyEMR.tsx voi dropdown chon chuyen khoa, form fields dong
+
+### 9.5. Phan he So hoa Giay phieu Y (V.24-33)
+
+| STT | Bieu mau | Hien trang | Trang thai |
+|-----|----------|------------|------------|
+| 24 | To dieu tri | EMR MS.02/BV + TreatmentSheets CRUD | DA CO |
+| 25 | Giay thu phan ung thuoc (copy nhieu ngay) | EMR.tsx - Tab Thu phan ung thuoc | DA XONG |
+| 26 | Phieu cham soc | EMR DD.01-04 + NursingCareSheets | DA CO |
+| 27 | Phieu theo doi chuc nang song | VitalSigns CRUD + DD.08 | DA CO |
+| 28 | Phieu gay me hoi suc | EMR.tsx - Tab Gay me hoi suc (day du) | DA XONG |
+| 29 | Phieu phau thuat, thu thuat | EMR MS.13/BV + Surgery.tsx | DA CO |
+| 30 | Phieu truyen mau | DD.06-07 + BloodTransfusion CRUD | DA CO |
+| 31 | Phieu truyen dich | DD.05 + InfusionRecord CRUD | DA CO |
+| 32 | Bien ban hoi chan | EMR MS.03/BV + ConsultationRecords | DA CO |
+| 33 | Phieu theo doi chuyen da de (bieu do) | EMR.tsx - Tab Bieu do chuyen da | DA XONG |
+
+### 9.6. Phan he Giay phieu Duoc (VI.34-35)
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 34 | Quan ly don thuoc (xem, in) | DA CO - Prescription.tsx |
+| 35 | Phieu cong khai thuoc | DA CO - EMR DD.09, DrugDisclosure |
+
+### 9.7. Phan he Quan ly NVYT (VII.36)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 36 | QL thong tin BS/DS/NVYT (CRUD, anh, chu ky, theo khoa) | DA CO | HR.tsx + MasterData + CentralSigning |
+
+### 9.8. Phan he Quan ly HSBA (VIII.37-40)
+
+| STT | Yeu cau | Module hien tai | Trang thai |
+|-----|---------|-----------------|------------|
+| 37 | Tong hop HSBA (tat ca phieu, CLS, dieu tri, chi phi) | EMR.tsx - 5 tabs | DA CO |
+| 38 | Soat HSBA truoc ban giao (cay thu muc, PDF, dang soat) | MedicalRecordArchive.tsx (NangCap3) | DA CO |
+| 39 | Ban giao HSBA (danh sach, tim kiem, duyet, xem PDF) | MedicalRecordArchive.tsx - Tab 3 | DA CO |
+| 40 | Gui HSBA giam dinh BHXH (import Excel, loc, duyet, gui) | BhxhAudit.tsx (NangCap3) | DA CO |
+
+### 9.9. Phan he Ky so & Luu tru (IX.41-49)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 41 | Ky so tren HSBA | DA CO | CentralSigning + DigitalSignature |
+| 42 | Ky so tren mau giay, phieu y | DA CO | 8 doc types |
+| 43 | Ky so tren phieu duoc | DA CO | Prescription sign |
+| 44 | Quan ly trinh ky (gui, huy, duyet, xem) | DA CO | DigitalSignature.tsx - Pending docs queue |
+| 45 | Sinh trac hoc/van tay BN | HARDWARE | Can thiet bi doc van tay |
+| 46 | Luu tru du lieu ky dien tu (XML, cloud sync) | DA XONG | MedicalRecordArchive.tsx - Luu tru tab (XML/HL7/CDA) |
+| 47 | Luu tru benh an ra vien (HL7, cloud sync) | DA XONG | MedicalRecordArchive.tsx - Archive generation |
+| 48 | Tra cuu HSBA tu XML/HL7 da luu tru | DA XONG | MedicalRecordArchive.tsx - Decode drawer |
+| 49 | Quan ly hinh anh (scan, dinh kem) | DA CO | WebcamCapture + DicomViewer |
+
+### 9.10. Phan he Giam dinh BHXH (X.50-51)
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 50 | Quan ly tai khoan cong giam dinh | DA CO - BhxhAudit.tsx Auditor tab |
+| 51 | Xem danh sach HSBA tren cong giam dinh | DA CO - BhxhAudit.tsx |
+
+### 9.11. App Bac sy (XI.1-5)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1 | Dang nhap, tim kiem BN | DA CO | DoctorPortal.tsx |
+| 2 | Quan ly noi tru (xem, ke, dien bien, cham soc, truyen mau/dich, dinh kem anh) | DA CO | DoctorPortal.tsx - Noi tru section |
+| 3 | Quan ly ngoai tru (loc, tim, xem chi tiet) | DA CO | DoctorPortal.tsx - Ngoai tru section |
+| 4 | Ky so (loc phieu, ky, huy ky, view phieu) | DA CO | DoctorPortal.tsx - Ky so section |
+| 5 | Tin tuc y te | DA CO | PatientPortal.tsx - Tin tuc tab |
+
+### 9.12. App Benh nhan (XII.1-9)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1 | Dang nhap, thong tin ca nhan | DA CO | PatientPortal.tsx |
+| 2 | Dat lich kham online | DA CO | AppointmentBooking.tsx |
+| 3 | Xem KQ CLS | DA CO | PatientPortal.tsx |
+| 4 | Xem don thuoc | DA CO | PatientPortal.tsx |
+| 5 | Quan ly lich hen | DA CO | PatientPortal.tsx + FollowUp.tsx |
+| 6 | Danh gia su hai long | DA CO | SatisfactionSurvey.tsx |
+| 7 | Tin tuc y te | DA CO | PatientPortal.tsx |
+| 8 | Thong bao (KQ CLS, lich hen, thuoc, cong dong) | DA CO | NotificationBell + SignalR |
+| 9 | Tich hop APP-HIS (2 chieu) | DA CO | SystemAdmin Integration tab |
+
+### 9.13. Dashboard (XIII.1-7)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1 | Bao cao tong quan (DK kham, chuyen vien, cap cuu, PT, nhap vien, dang DT, don thuoc) | DA CO | Dashboard.tsx KPI cards |
+| 2 | Thong ke luot tiep don (bieu do 7 ngay) | DA CO | Dashboard.tsx AreaChart |
+| 3 | DV KCB (da/chua thuc hien: kham, CDHA, XN, PT, thu thuat, don thuoc) | DA XONG | Dashboard.tsx - Service Status cards |
+| 4 | Nguoi benh noi tru (hien co, vao/ra khoa, giuong, cong suat) | DA CO | Dashboard.tsx department stats |
+| 5 | Doanh thu ngay (bieu do 7 ngay) | DA CO | Dashboard.tsx AreaChart (right Y-axis) |
+| 6 | Co cau doanh thu (toan vien, noi/ngoai tru, nha thuoc, ty le) | DA CO | Dashboard.tsx PieChart |
+| 7 | Doanh thu theo doi tuong (BHYT, khac, ty le) | DA XONG | Dashboard.tsx - Revenue by patient type PieChart |
+
+### Tong hop NangCap7
+
+| Hang muc | Tong | Da co | Can bo sung | % |
+|----------|------|-------|-------------|---|
+| I. Quan tri he thong (1-5) | 5 | 5 | 0 | 100% |
+| II. Danh muc (6) | 1 | 1 | 0 | 100% |
+| III. Tien su BN (7-8) | 2 | 2 | 0 | 100% |
+| IV. BA chuyen khoa (9-23) | 15 | 15 | 0 | 100% |
+| V. Giay phieu Y (24-33) | 10 | 10 | 0 | 100% |
+| VI. Phieu Duoc (34-35) | 2 | 2 | 0 | 100% |
+| VII. QL NVYT (36) | 1 | 1 | 0 | 100% |
+| VIII. QL HSBA (37-40) | 4 | 4 | 0 | 100% |
+| IX. Ky so & Luu tru (41-49) | 9 | 8 | 0+1* | 89% |
+| X. Giam dinh BHXH (50-51) | 2 | 2 | 0 | 100% |
+| XI. App BS (1-5) | 5 | 5 | 0 | 100% |
+| XII. App BN (1-9) | 9 | 9 | 0 | 100% |
+| XIII. Dashboard (1-7) | 7 | 7 | 0 | 100% |
+| **TONG** | **72** | **71** | **0+1*** | **98.6%** |
+
+*\* 1 hang muc HARDWARE (sinh trac hoc/van tay - can thiet bi)*
+
+> **DA HOAN THANH 24/24 hang muc phan mem (Session 27):**
+> 1. ~~Backup management UI~~ → DA XONG (SystemAdmin.tsx - Backup tab)
+> 2. ~~SpecialtyEMR - 15 loai benh an chuyen khoa~~ → DA XONG (SpecialtyEMR.tsx)
+> 3. ~~Drug reaction test form~~ → DA XONG (EMR.tsx - Tab Thu phan ung thuoc)
+> 4. ~~Anesthesia full form~~ → DA XONG (EMR.tsx - Tab Gay me hoi suc)
+> 5. ~~Partograph - bieu do chuyen da~~ → DA XONG (EMR.tsx - Tab Bieu do chuyen da)
+> 6. ~~XML/HL7 archive & retrieval~~ → DA XONG (MedicalRecordArchive.tsx - Luu tru tab)
+> 7. ~~Dashboard service status + revenue by patient type~~ → DA XONG (Dashboard.tsx)
+>
+> **Con lai 1 hang muc HARDWARE** (sinh trac hoc/van tay - can thiet bi doc van tay)

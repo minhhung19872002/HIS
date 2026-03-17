@@ -21,6 +21,13 @@ public interface IMedicalRecordArchiveService
 
     // Statistics
     Task<ArchiveStatsDto> GetArchiveStatsAsync();
+
+    // Storage & digital archive
+    Task<StorageStatusDto> GetStorageStatusAsync();
+    Task<PagedArchiveResult> GetArchivedRecordsAsync(string? keyword, string? format, DateTime? fromDate, DateTime? toDate, int pageIndex, int pageSize);
+    Task<ArchiveDto> GenerateArchiveAsync(GenerateArchiveDto dto, Guid userId);
+    Task<ArchivedRecordDataDto> DecodeArchiveAsync(Guid id);
+    Task<byte[]> DownloadArchiveAsync(Guid id);
 }
 
 // === DTOs ===
@@ -121,4 +128,44 @@ public class ArchiveStatsDto
     public int OverdueBorrows { get; set; }
     public int PendingBorrowRequests { get; set; }
     public int ThisYearArchived { get; set; }
+}
+
+// === Storage & Digital Archive DTOs ===
+
+public class StorageStatusDto
+{
+    public double LocalUsagePercent { get; set; }
+    public double CloudUsagePercent { get; set; }
+    public string SyncStatus { get; set; } = "idle"; // idle, syncing, error
+    public DateTime? LastSyncDate { get; set; }
+    public long TotalLocalBytes { get; set; }
+    public long UsedLocalBytes { get; set; }
+    public long TotalCloudBytes { get; set; }
+    public long UsedCloudBytes { get; set; }
+}
+
+public class GenerateArchiveDto
+{
+    public Guid ExaminationId { get; set; }
+    public string Format { get; set; } = "XML"; // XML, HL7, CDA
+}
+
+public class ArchivedRecordDataDto
+{
+    public Guid Id { get; set; }
+    public string ArchiveCode { get; set; } = string.Empty;
+    public string? PatientName { get; set; }
+    public string? PatientCode { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+    public string? Gender { get; set; }
+    public string? MedicalRecordCode { get; set; }
+    public string? Diagnosis { get; set; }
+    public string? TreatmentResult { get; set; }
+    public DateTime? AdmissionDate { get; set; }
+    public DateTime? DischargeDate { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? DoctorName { get; set; }
+    public string? Format { get; set; }
+    public DateTime? ArchivedDate { get; set; }
+    public string? RawContent { get; set; } // The XML/HL7/CDA content as string
 }

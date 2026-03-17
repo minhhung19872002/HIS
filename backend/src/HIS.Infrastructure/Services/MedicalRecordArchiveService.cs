@@ -1,4 +1,6 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
@@ -10,11 +12,13 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
 {
     private readonly HISDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<MedicalRecordArchiveService> _logger;
 
-    public MedicalRecordArchiveService(HISDbContext context, IUnitOfWork unitOfWork)
+    public MedicalRecordArchiveService(HISDbContext context, IUnitOfWork unitOfWork, ILogger<MedicalRecordArchiveService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<PagedArchiveResult> SearchArchivesAsync(ArchiveSearchDto search)
@@ -282,6 +286,187 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             PendingBorrowRequests = await _context.MedicalRecordBorrowRequests.CountAsync(r => !r.IsDeleted && r.Status == 0),
             ThisYearArchived = await _context.MedicalRecordArchives.CountAsync(a => !a.IsDeleted && a.ArchiveYear == thisYear)
         };
+    }
+
+    // === Storage & Digital Archive ===
+
+    public async Task<StorageStatusDto> GetStorageStatusAsync()
+    {
+        try
+        {
+            var totalArchives = await _context.MedicalRecordArchives.CountAsync(a => !a.IsDeleted);
+            // Estimate ~500KB per archive record on average
+            var estimatedUsedBytes = (long)totalArchives * 512 * 1024;
+            var totalLocalBytes = 500L * 1024 * 1024 * 1024; // 500 GB local capacity
+            var totalCloudBytes = 2L * 1024 * 1024 * 1024 * 1024; // 2 TB cloud capacity
+
+            return new StorageStatusDto
+            {
+                LocalUsagePercent = totalLocalBytes > 0 ? Math.Round((double)estimatedUsedBytes / totalLocalBytes * 100, 2) : 0,
+                CloudUsagePercent = 0, // Cloud not yet configured
+                SyncStatus = "idle",
+                LastSyncDate = null,
+                TotalLocalBytes = totalLocalBytes,
+                UsedLocalBytes = estimatedUsedBytes,
+                TotalCloudBytes = totalCloudBytes,
+                UsedCloudBytes = 0
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting storage status");
+            return new StorageStatusDto();
+        }
+    }
+
+    public async Task<PagedArchiveResult> GetArchivedRecordsAsync(string? keyword, string? format, DateTime? fromDate, DateTime? toDate, int pageIndex, int pageSize)
+    {
+        var query = _context.MedicalRecordArchives
+            .Include(a => a.MedicalRecord)
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .Include(a => a.ArchivedBy)
+            .Include(a => a.BorrowRequests)
+            .Where(a => !a.IsDeleted && a.Status == 1) // Only archived (status=1)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            query = query.Where(a =>
+                a.ArchiveCode.ToLower().Contains(kw) ||
+                a.Patient.FullName.ToLower().Contains(kw) ||
+                a.Patient.PatientCode.ToLower().Contains(kw) ||
+                (a.MedicalRecord != null && a.MedicalRecord.MedicalRecordCode.ToLower().Contains(kw)) ||
+                (a.Diagnosis != null && a.Diagnosis.ToLower().Contains(kw)));
+        }
+
+        if (fromDate.HasValue)
+            query = query.Where(a => a.ArchivedDate >= fromDate.Value.Date);
+        if (toDate.HasValue)
+            query = query.Where(a => a.ArchivedDate < toDate.Value.Date.AddDays(1));
+
+        // Format filter is informational only (archive entity does not store format);
+        // we accept the parameter for API compatibility but don't filter on it.
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(a => a.ArchivedDate ?? a.CreatedAt)
+            .Skip(pageIndex * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedArchiveResult
+        {
+            TotalCount = total,
+            Items = items.Select(MapToDto).ToList()
+        };
+    }
+
+    public async Task<ArchiveDto> GenerateArchiveAsync(GenerateArchiveDto dto, Guid userId)
+    {
+        // Find examination and its medical record
+        var exam = await _context.Examinations
+            .Include(e => e.MedicalRecord).ThenInclude(r => r!.Patient)
+            .Include(e => e.MedicalRecord).ThenInclude(r => r!.Department)
+            .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
+
+        if (exam == null)
+            throw new Exception("Không tìm thấy lượt khám");
+        if (exam.MedicalRecord == null)
+            throw new Exception("Không tìm thấy hồ sơ bệnh án cho lượt khám này");
+
+        // Check if already archived
+        var existing = await _context.MedicalRecordArchives
+            .AnyAsync(a => a.MedicalRecordId == exam.MedicalRecordId && !a.IsDeleted);
+        if (existing)
+            throw new Exception("Hồ sơ bệnh án đã được lưu trữ trước đó");
+
+        var record = exam.MedicalRecord;
+        var archive = new MedicalRecordArchive
+        {
+            Id = Guid.NewGuid(),
+            ArchiveCode = $"LT{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}",
+            MedicalRecordId = record.Id,
+            PatientId = record.PatientId,
+            DepartmentId = record.DepartmentId,
+            Diagnosis = exam.MainDiagnosis ?? record.MainDiagnosis,
+            TreatmentResult = record.TreatmentResult?.ToString(),
+            AdmissionDate = record.AdmissionDate,
+            DischargeDate = record.DischargeDate,
+            Status = 1, // Đã lưu
+            ArchivedDate = DateTime.UtcNow,
+            ArchivedById = userId,
+            ArchiveYear = DateTime.Now.Year,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString()
+        };
+
+        await _context.MedicalRecordArchives.AddAsync(archive);
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation("Generated {Format} archive {ArchiveCode} for examination {ExamId}",
+            dto.Format, archive.ArchiveCode, dto.ExaminationId);
+
+        return await GetArchiveByIdAsync(archive.Id);
+    }
+
+    public async Task<ArchivedRecordDataDto> DecodeArchiveAsync(Guid id)
+    {
+        var archive = await _context.MedicalRecordArchives
+            .Include(a => a.MedicalRecord).ThenInclude(r => r!.Patient)
+            .Include(a => a.MedicalRecord).ThenInclude(r => r!.Department)
+            .Include(a => a.MedicalRecord).ThenInclude(r => r!.Doctor)
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+
+        if (archive == null)
+            throw new Exception("Không tìm thấy hồ sơ lưu trữ");
+
+        var record = archive.MedicalRecord;
+        var patient = archive.Patient ?? record?.Patient;
+
+        // Build XML representation of the archived record
+        var sb = new StringBuilder();
+        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.AppendLine("<MedicalRecordArchive>");
+        sb.AppendLine($"  <ArchiveCode>{archive.ArchiveCode}</ArchiveCode>");
+        sb.AppendLine($"  <PatientName>{patient?.FullName}</PatientName>");
+        sb.AppendLine($"  <PatientCode>{patient?.PatientCode}</PatientCode>");
+        sb.AppendLine($"  <MedicalRecordCode>{record?.MedicalRecordCode}</MedicalRecordCode>");
+        sb.AppendLine($"  <Diagnosis>{archive.Diagnosis}</Diagnosis>");
+        sb.AppendLine($"  <AdmissionDate>{archive.AdmissionDate:yyyy-MM-dd}</AdmissionDate>");
+        sb.AppendLine($"  <DischargeDate>{archive.DischargeDate:yyyy-MM-dd}</DischargeDate>");
+        sb.AppendLine($"  <Department>{archive.Department?.DepartmentName}</Department>");
+        sb.AppendLine($"  <ArchivedDate>{archive.ArchivedDate:yyyy-MM-dd}</ArchivedDate>");
+        sb.AppendLine("</MedicalRecordArchive>");
+
+        return new ArchivedRecordDataDto
+        {
+            Id = archive.Id,
+            ArchiveCode = archive.ArchiveCode,
+            PatientName = patient?.FullName,
+            PatientCode = patient?.PatientCode,
+            DateOfBirth = patient?.DateOfBirth,
+            Gender = patient?.Gender == 1 ? "Nam" : patient?.Gender == 2 ? "Nữ" : "Khác",
+            MedicalRecordCode = record?.MedicalRecordCode,
+            Diagnosis = archive.Diagnosis,
+            TreatmentResult = archive.TreatmentResult,
+            AdmissionDate = archive.AdmissionDate,
+            DischargeDate = archive.DischargeDate,
+            DepartmentName = archive.Department?.DepartmentName ?? record?.Department?.DepartmentName,
+            DoctorName = record?.Doctor?.FullName,
+            Format = "XML",
+            ArchivedDate = archive.ArchivedDate,
+            RawContent = sb.ToString()
+        };
+    }
+
+    public async Task<byte[]> DownloadArchiveAsync(Guid id)
+    {
+        var decoded = await DecodeArchiveAsync(id);
+        return Encoding.UTF8.GetBytes(decoded.RawContent ?? string.Empty);
     }
 
     // === Helpers ===

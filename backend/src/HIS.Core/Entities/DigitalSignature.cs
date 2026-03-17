@@ -82,3 +82,70 @@ public class TokenUserMapping : BaseEntity
     public DateTime LastUsedAt { get; set; }
     public bool IsActive { get; set; } = true;
 }
+
+/// <summary>
+/// Managed certificate for centralized signing (NangCap6).
+/// Supports Token, HSM, Server storage types. 200-1000 certificates.
+/// </summary>
+public class ManagedCertificate : BaseEntity
+{
+    public string SerialNumber { get; set; } = string.Empty;
+    public string SubjectName { get; set; } = string.Empty;
+    public string IssuerName { get; set; } = string.Empty;
+    public string CaProvider { get; set; } = string.Empty;
+    public DateTime ValidFrom { get; set; }
+    public DateTime ValidTo { get; set; }
+    public bool IsActive { get; set; } = true;
+    /// <summary>Owner user ID (nullable for unassigned certs)</summary>
+    public Guid? OwnerUserId { get; set; }
+    public virtual User? OwnerUser { get; set; }
+    /// <summary>CCCD of certificate owner</summary>
+    public string? Cccd { get; set; }
+    /// <summary>Path to signature image file</summary>
+    public string? SignatureImagePath { get; set; }
+    /// <summary>Token, HSM, Server</summary>
+    public string StorageType { get; set; } = "Token";
+    /// <summary>Token serial or HSM slot ID</summary>
+    public string? StorageIdentifier { get; set; }
+    /// <summary>Base64 DER-encoded certificate</summary>
+    public string? CertificateData { get; set; }
+}
+
+/// <summary>
+/// Signing transaction log for audit (NangCap6).
+/// Records every signing/verification operation.
+/// </summary>
+public class SigningTransaction : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public virtual User? User { get; set; }
+    /// <summary>SignHash, SignRaw, SignPdf, SignPdfVisible, SignXml, VerifyRaw, VerifyHash, VerifyPdf</summary>
+    public string Action { get; set; } = string.Empty;
+    /// <summary>hash, raw, pdf, xml</summary>
+    public string DataType { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? CertificateSerial { get; set; }
+    public string? CaProvider { get; set; }
+    public string? HashAlgorithm { get; set; }
+    public long DataSizeBytes { get; set; }
+    public int DurationMs { get; set; }
+    public string? IpAddress { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// TOTP secret for signing authentication (NangCap6).
+/// Time-based OTP works offline on mobile device.
+/// </summary>
+public class SigningTotpSecret : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public virtual User? User { get; set; }
+    /// <summary>Base32-encoded TOTP secret key</summary>
+    public string SecretKey { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; }
+    public DateTime? LastVerifiedAt { get; set; }
+    public int FailedAttempts { get; set; }
+    public DateTime? LockedUntil { get; set; }
+}

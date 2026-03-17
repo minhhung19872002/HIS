@@ -4494,6 +4494,58 @@ public class SystemCompleteService : ISystemCompleteService
                 .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && r.Status == 1)
                 .SumAsync(r => (decimal?)r.Amount) ?? 0;
 
+            // Service status breakdown - OPD examinations
+            var serviceOpdDone = await _context.Examinations
+                .CountAsync(e => e.CreatedAt >= todayStart && e.CreatedAt < todayEnd && e.Status >= 3);
+            var serviceOpdPending = await _context.Examinations
+                .CountAsync(e => e.CreatedAt >= todayStart && e.CreatedAt < todayEnd && e.Status < 3);
+
+            // Service status breakdown - Lab (RequestType=1)
+            var serviceLabDone = await _context.ServiceRequestDetails
+                .CountAsync(d => d.ServiceRequest.RequestDate >= todayStart && d.ServiceRequest.RequestDate < todayEnd
+                    && d.ServiceRequest.RequestType == 1 && d.Status >= 2);
+            var serviceLabPending = await _context.ServiceRequestDetails
+                .CountAsync(d => d.ServiceRequest.RequestDate >= todayStart && d.ServiceRequest.RequestDate < todayEnd
+                    && d.ServiceRequest.RequestType == 1 && d.Status < 2);
+
+            // Service status breakdown - Radiology (RequestType=2)
+            var serviceRadiologyDone = await _context.ServiceRequestDetails
+                .CountAsync(d => d.ServiceRequest.RequestDate >= todayStart && d.ServiceRequest.RequestDate < todayEnd
+                    && d.ServiceRequest.RequestType == 2 && d.Status >= 2);
+            var serviceRadiologyPending = await _context.ServiceRequestDetails
+                .CountAsync(d => d.ServiceRequest.RequestDate >= todayStart && d.ServiceRequest.RequestDate < todayEnd
+                    && d.ServiceRequest.RequestType == 2 && d.Status < 2);
+
+            // Service status breakdown - Surgery (SurgeryRequest Status: 3=Hoàn thành)
+            var serviceSurgeryDone = await _context.SurgeryRequests
+                .CountAsync(s => s.RequestDate >= todayStart && s.RequestDate < todayEnd && s.Status >= 3);
+            var serviceSurgeryPending = await _context.SurgeryRequests
+                .CountAsync(s => s.RequestDate >= todayStart && s.RequestDate < todayEnd && s.Status < 3);
+
+            // Service status breakdown - Procedure (RequestType=3, TDCN)
+            var serviceProcedureDone = await _context.ServiceRequests
+                .CountAsync(sr => sr.RequestDate >= todayStart && sr.RequestDate < todayEnd
+                    && sr.RequestType == 3 && sr.Status >= 2);
+            var serviceProcedurePending = await _context.ServiceRequests
+                .CountAsync(sr => sr.RequestDate >= todayStart && sr.RequestDate < todayEnd
+                    && sr.RequestType == 3 && sr.Status < 2);
+
+            // Service status breakdown - Prescription
+            var servicePrescriptionDone = await _context.Prescriptions
+                .CountAsync(p => p.PrescriptionDate >= todayStart && p.PrescriptionDate < todayEnd && p.IsDispensed);
+            var servicePrescriptionPending = await _context.Prescriptions
+                .CountAsync(p => p.PrescriptionDate >= todayStart && p.PrescriptionDate < todayEnd && !p.IsDispensed);
+
+            // Revenue breakdown by patient type (via MedicalRecord.PatientType)
+            var revenueBHYT = await _context.Receipts
+                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && r.Status == 1
+                    && r.MedicalRecord != null && r.MedicalRecord.PatientType == 1)
+                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+            var revenueSelfPay = await _context.Receipts
+                .Where(r => r.CreatedAt >= todayStart && r.CreatedAt < todayEnd && r.Status == 1
+                    && (r.MedicalRecord == null || r.MedicalRecord.PatientType != 1))
+                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+
             // 7-day trends
             var trendStart = todayStart.AddDays(-6);
             var trends = new List<DashboardTrendDto>();
@@ -4520,7 +4572,26 @@ public class SystemCompleteService : ISystemCompleteService
                 TodaySurgeries = todaySurgeries,
                 TodayEmergencies = todayEmergencies,
                 TodayRevenue = todayRevenue,
-                Trends = trends
+                Trends = trends,
+
+                // Service status breakdown
+                ServiceOpdDone = serviceOpdDone,
+                ServiceOpdPending = serviceOpdPending,
+                ServiceLabDone = serviceLabDone,
+                ServiceLabPending = serviceLabPending,
+                ServiceRadiologyDone = serviceRadiologyDone,
+                ServiceRadiologyPending = serviceRadiologyPending,
+                ServiceSurgeryDone = serviceSurgeryDone,
+                ServiceSurgeryPending = serviceSurgeryPending,
+                ServiceProcedureDone = serviceProcedureDone,
+                ServiceProcedurePending = serviceProcedurePending,
+                ServicePrescriptionDone = servicePrescriptionDone,
+                ServicePrescriptionPending = servicePrescriptionPending,
+
+                // Revenue breakdown
+                RevenueBHYT = revenueBHYT,
+                RevenueSelfPay = revenueSelfPay,
+                RevenueOther = Math.Max(0, todayRevenue - revenueBHYT - revenueSelfPay)
             };
         }
         catch (Exception ex)

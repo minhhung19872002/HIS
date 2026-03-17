@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Input, Button, Table, Tabs, Tree, Space, Tag, Modal, message, Spin,
   Row, Col, DatePicker, Select, Descriptions, Drawer, Badge, Checkbox, Tooltip,
-  Result, Statistic, Progress
+  Result, Statistic, Progress, Typography
 } from 'antd';
 import {
   SearchOutlined, FileTextOutlined, FolderOutlined, PrinterOutlined,
   CheckCircleOutlined, ClockCircleOutlined, ExportOutlined, ReloadOutlined,
-  AuditOutlined, SwapOutlined, EyeOutlined, FileExcelOutlined, FilePdfOutlined
+  AuditOutlined, SwapOutlined, EyeOutlined, FileExcelOutlined, FilePdfOutlined,
+  CloudOutlined, CloudDownloadOutlined, DatabaseOutlined, CodeOutlined,
+  DownloadOutlined, SafetyOutlined, SyncOutlined
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
@@ -18,6 +20,7 @@ import client from '../api/client';
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
+const { Text } = Typography;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,6 +108,33 @@ interface HandoverSummary {
   totalApproved: number;
 }
 
+interface ArchivedRecord {
+  id: string;
+  patientCode: string;
+  patientName: string;
+  medicalRecordCode: string;
+  archiveDate: string;
+  archiveFormat: 'XML' | 'HL7' | 'CDA';
+  storageType: 'local' | 'cloud' | 'both';
+  fileSize: number; // KB
+  verified: boolean;
+  departmentName?: string;
+  dischargeDate?: string;
+}
+
+interface StorageStatus {
+  localUsed: number; // MB
+  localTotal: number; // MB
+  cloudUsed: number; // MB
+  cloudTotal: number; // MB
+  lastSyncDate?: string;
+  syncStatus: 'synced' | 'syncing' | 'error' | 'pending';
+  totalArchived: number;
+  localOnly: number;
+  cloudOnly: number;
+  bothStored: number;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -172,6 +202,26 @@ const MedicalRecordArchive: React.FC = () => {
   const [previewDrawerOpen, setPreviewDrawerOpen] = useState(false);
   const [previewRecord, setPreviewRecord] = useState<HandoverRecord | null>(null);
   const [previewTree, setPreviewTree] = useState<DataNode[]>([]);
+
+  // -- Tab 4: Archive & Retrieval
+  const [archiveKeyword, setArchiveKeyword] = useState('');
+  const [archiveDateRange, setArchiveDateRange] = useState<[Dayjs | null, Dayjs | null]>([
+    dayjs().subtract(90, 'day'), dayjs(),
+  ]);
+  const [archiveFormatFilter, setArchiveFormatFilter] = useState<string | undefined>(undefined);
+  const [archivedRecords, setArchivedRecords] = useState<ArchivedRecord[]>([]);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archivePage, setArchivePage] = useState(1);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [storageStatus, setStorageStatus] = useState<StorageStatus>({
+    localUsed: 0, localTotal: 0, cloudUsed: 0, cloudTotal: 0,
+    syncStatus: 'pending', totalArchived: 0, localOnly: 0, cloudOnly: 0, bothStored: 0,
+  });
+  const [generateArchiveLoading, setGenerateArchiveLoading] = useState(false);
+  const [decodeDrawerOpen, setDecodeDrawerOpen] = useState(false);
+  const [decodeRecord, setDecodeRecord] = useState<ArchivedRecord | null>(null);
+  const [decodeContent, setDecodeContent] = useState<Record<string, unknown> | null>(null);
+  const [decodeLoading, setDecodeLoading] = useState(false);
 
   // -------------------------------------------------------------------------
   // Helpers
@@ -689,6 +739,9 @@ const MedicalRecordArchive: React.FC = () => {
     } else if (activeTab === 'handover') {
       fetchHandoverList(1);
       fetchHandoverSummary();
+    } else if (activeTab === 'archive') {
+      fetchArchivedRecords(1);
+      fetchStorageStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -1482,6 +1535,438 @@ const MedicalRecordArchive: React.FC = () => {
   );
 
   // -------------------------------------------------------------------------
+  // Tab 4: Archive & Retrieval
+  // -------------------------------------------------------------------------
+
+  const fetchArchivedRecords = useCallback(async (page = 1) => {
+    setArchiveLoading(true);
+    try {
+      const params: Record<string, unknown> = { pageIndex: page - 1, pageSize: 20 };
+      if (archiveKeyword) params.keyword = archiveKeyword;
+      if (archiveFormatFilter) params.format = archiveFormatFilter;
+      if (archiveDateRange[0]) params.fromDate = archiveDateRange[0].format('YYYY-MM-DD');
+      if (archiveDateRange[1]) params.toDate = archiveDateRange[1].format('YYYY-MM-DD');
+
+      const res = await client.get('/archives/archived', { params });
+      const d = res.data as any;
+      setArchivedRecords(d?.items ?? d?.data ?? []);
+      setArchiveTotal(d?.totalCount ?? d?.total ?? 0);
+      setArchivePage(page);
+    } catch {
+      console.warn('Failed to fetch archived records');
+      // Show empty list when API not available
+      setArchivedRecords([]);
+      setArchiveTotal(0);
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, [archiveKeyword, archiveFormatFilter, archiveDateRange]);
+
+  const fetchStorageStatus = useCallback(async () => {
+    try {
+      const res = await client.get('/archives/storage-status');
+      const d = res.data as any;
+      if (d) {
+        setStorageStatus({
+          localUsed: d.localUsed ?? 0,
+          localTotal: d.localTotal ?? 1024,
+          cloudUsed: d.cloudUsed ?? 0,
+          cloudTotal: d.cloudTotal ?? 5120,
+          lastSyncDate: d.lastSyncDate,
+          syncStatus: d.syncStatus ?? 'pending',
+          totalArchived: d.totalArchived ?? 0,
+          localOnly: d.localOnly ?? 0,
+          cloudOnly: d.cloudOnly ?? 0,
+          bothStored: d.bothStored ?? 0,
+        });
+      }
+    } catch {
+      console.warn('Failed to fetch storage status');
+    }
+  }, []);
+
+  const handleGenerateArchive = async (examId: string, format: string) => {
+    setGenerateArchiveLoading(true);
+    try {
+      await client.post('/archives/generate', { examinationId: examId, format });
+      message.success(`Tạo lưu trữ ${format} thành công`);
+      fetchArchivedRecords(archivePage);
+    } catch {
+      console.warn('Failed to generate archive');
+      message.warning('Không thể tạo lưu trữ. Vui lòng thử lại sau.');
+    } finally {
+      setGenerateArchiveLoading(false);
+    }
+  };
+
+  const handleDecodeRecord = async (record: ArchivedRecord) => {
+    setDecodeRecord(record);
+    setDecodeDrawerOpen(true);
+    setDecodeLoading(true);
+    try {
+      const res = await client.get(`/archives/decode/${record.id}`);
+      setDecodeContent(res.data as Record<string, unknown>);
+    } catch {
+      console.warn('Failed to decode archived record');
+      setDecodeContent({ error: 'Không thể giải mã hồ sơ', format: record.archiveFormat, id: record.id });
+    } finally {
+      setDecodeLoading(false);
+    }
+  };
+
+  const handleDownloadArchive = async (record: ArchivedRecord) => {
+    try {
+      const res = await client.get(`/archives/download/${record.id}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${record.medicalRecordCode}_${record.archiveFormat}.${record.archiveFormat.toLowerCase()}`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      console.warn('Failed to download archive');
+      message.warning('Không thể tải xuống hồ sơ lưu trữ');
+    }
+  };
+
+  const archiveColumns: ColumnsType<ArchivedRecord> = [
+    {
+      title: 'Mã HSBA', dataIndex: 'medicalRecordCode', key: 'code', width: 120,
+      render: (v: string) => <Text strong>{v || '-'}</Text>,
+    },
+    { title: 'Mã BN', dataIndex: 'patientCode', key: 'patientCode', width: 100 },
+    { title: 'Họ tên', dataIndex: 'patientName', key: 'patientName', width: 160, ellipsis: true },
+    { title: 'Khoa', dataIndex: 'departmentName', key: 'dept', width: 130, ellipsis: true },
+    {
+      title: 'Ngày ra viện', dataIndex: 'dischargeDate', key: 'discharge', width: 110,
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
+    },
+    {
+      title: 'Ngày lưu trữ', dataIndex: 'archiveDate', key: 'archiveDate', width: 110,
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
+    },
+    {
+      title: 'Định dạng', dataIndex: 'archiveFormat', key: 'format', width: 80,
+      render: (v: string) => <Tag color={v === 'XML' ? 'blue' : v === 'HL7' ? 'green' : 'purple'}>{v}</Tag>,
+    },
+    {
+      title: 'Lưu trữ', dataIndex: 'storageType', key: 'storage', width: 90,
+      render: (v: string) => (
+        <Tag color={v === 'both' ? 'success' : v === 'cloud' ? 'processing' : 'default'}>
+          {v === 'both' ? 'Local + Cloud' : v === 'cloud' ? 'Cloud' : 'Local'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Kích thước', dataIndex: 'fileSize', key: 'size', width: 90,
+      render: (v: number) => v >= 1024 ? `${(v / 1024).toFixed(1)} MB` : `${v} KB`,
+    },
+    {
+      title: 'Xác thực', dataIndex: 'verified', key: 'verified', width: 80,
+      render: (v: boolean) => v
+        ? <Tag color="success" icon={<SafetyOutlined />}>OK</Tag>
+        : <Tag color="warning">Chưa</Tag>,
+    },
+    {
+      title: 'Thao tác', key: 'actions', width: 180, fixed: 'right',
+      render: (_: unknown, record: ArchivedRecord) => (
+        <Space size="small">
+          <Tooltip title="Giải mã xem">
+            <Button size="small" icon={<CodeOutlined />} onClick={() => handleDecodeRecord(record)} />
+          </Tooltip>
+          <Tooltip title="Tải xuống">
+            <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadArchive(record)} />
+          </Tooltip>
+          <Tooltip title="Xuất PDF">
+            <Button size="small" icon={<FilePdfOutlined />} onClick={() => handleExportPdf(record.id)} />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
+
+  const SYNC_STATUS_MAP: Record<string, { label: string; color: string }> = {
+    synced: { label: 'Đã đồng bộ', color: 'success' },
+    syncing: { label: 'Đang đồng bộ...', color: 'processing' },
+    error: { label: 'Lỗi đồng bộ', color: 'error' },
+    pending: { label: 'Chờ đồng bộ', color: 'warning' },
+  };
+
+  const renderArchiveTab = () => (
+    <div>
+      {/* Storage Status */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={12}>
+          <Card
+            size="small"
+            title={<><DatabaseOutlined /> Lưu trữ nội bộ (Local)</>}
+          >
+            <Progress
+              percent={storageStatus.localTotal > 0 ? Math.round((storageStatus.localUsed / storageStatus.localTotal) * 100) : 0}
+              format={() => `${storageStatus.localUsed} / ${storageStatus.localTotal} MB`}
+              status={storageStatus.localUsed / storageStatus.localTotal > 0.9 ? 'exception' : 'active'}
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {storageStatus.localOnly} hồ sơ chỉ lưu local
+            </Text>
+          </Card>
+        </Col>
+        <Col xs={24} md={12}>
+          <Card
+            size="small"
+            title={<><CloudOutlined /> Lưu trữ đám mây (Cloud)</>}
+          >
+            <Progress
+              percent={storageStatus.cloudTotal > 0 ? Math.round((storageStatus.cloudUsed / storageStatus.cloudTotal) * 100) : 0}
+              format={() => `${storageStatus.cloudUsed} / ${storageStatus.cloudTotal} MB`}
+              status={storageStatus.cloudUsed / storageStatus.cloudTotal > 0.9 ? 'exception' : 'active'}
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {storageStatus.cloudOnly} hồ sơ chỉ lưu cloud
+            </Text>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic
+              title="Tổng lưu trữ"
+              value={storageStatus.totalArchived}
+              prefix={<FolderOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic
+              title="Cả hai nơi"
+              value={storageStatus.bothStored}
+              prefix={<SafetyOutlined />}
+              styles={{ content: { color: '#52c41a' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <div style={{ marginBottom: 4 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Trạng thái đồng bộ</Text>
+            </div>
+            <Tag color={SYNC_STATUS_MAP[storageStatus.syncStatus]?.color || 'default'} icon={<SyncOutlined spin={storageStatus.syncStatus === 'syncing'} />}>
+              {SYNC_STATUS_MAP[storageStatus.syncStatus]?.label || 'Không rõ'}
+            </Tag>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <div style={{ marginBottom: 4 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Đồng bộ lần cuối</Text>
+            </div>
+            <Text>{storageStatus.lastSyncDate ? dayjs(storageStatus.lastSyncDate).format('DD/MM/YYYY HH:mm') : 'Chưa đồng bộ'}</Text>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Search & Filter */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Search
+            placeholder="Tìm theo mã BN, tên, mã HSBA..."
+            allowClear
+            value={archiveKeyword}
+            onChange={(e) => setArchiveKeyword(e.target.value)}
+            onSearch={() => fetchArchivedRecords(1)}
+          />
+        </Col>
+        <Col xs={12} sm={4}>
+          <Select
+            placeholder="Định dạng"
+            allowClear
+            style={{ width: '100%' }}
+            value={archiveFormatFilter}
+            onChange={(v) => setArchiveFormatFilter(v)}
+            options={[
+              { value: 'XML', label: 'XML' },
+              { value: 'HL7', label: 'HL7' },
+              { value: 'CDA', label: 'CDA R2' },
+            ]}
+          />
+        </Col>
+        <Col xs={12} sm={6}>
+          <RangePicker
+            value={archiveDateRange}
+            onChange={(dates) => setArchiveDateRange(dates ? [dates[0], dates[1]] : [null, null])}
+            format="DD/MM/YYYY"
+            style={{ width: '100%' }}
+          />
+        </Col>
+        <Col>
+          <Space>
+            <Button icon={<SearchOutlined />} type="primary" onClick={() => fetchArchivedRecords(1)}>
+              Tìm
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={() => {
+              setArchiveKeyword('');
+              setArchiveFormatFilter(undefined);
+              setArchiveDateRange([dayjs().subtract(90, 'day'), dayjs()]);
+              fetchArchivedRecords(1);
+              fetchStorageStatus();
+            }}>
+              Đặt lại
+            </Button>
+          </Space>
+        </Col>
+      </Row>
+
+      {/* Generate archive action */}
+      {selectedExam && (
+        <Card size="small" style={{ marginBottom: 16, borderColor: '#1890ff' }}>
+          <Row gutter={16} align="middle">
+            <Col flex="auto">
+              <Text strong>Tạo lưu trữ cho: </Text>
+              <Text>{selectedExam.patientName} - {selectedExam.patientCode}</Text>
+            </Col>
+            <Col>
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<ExportOutlined />}
+                  loading={generateArchiveLoading}
+                  onClick={() => handleGenerateArchive(selectedExam.id, 'XML')}
+                >
+                  Lưu trữ XML
+                </Button>
+                <Button
+                  icon={<ExportOutlined />}
+                  loading={generateArchiveLoading}
+                  onClick={() => handleGenerateArchive(selectedExam.id, 'HL7')}
+                >
+                  Lưu trữ HL7
+                </Button>
+                <Button
+                  icon={<ExportOutlined />}
+                  loading={generateArchiveLoading}
+                  onClick={() => handleGenerateArchive(selectedExam.id, 'CDA')}
+                >
+                  Lưu trữ CDA
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
+      )}
+
+      {/* Archived records table */}
+      <Table
+        dataSource={archivedRecords}
+        columns={archiveColumns}
+        rowKey="id"
+        loading={archiveLoading}
+        size="small"
+        pagination={{
+          current: archivePage,
+          pageSize: 20,
+          total: archiveTotal,
+          showTotal: (total) => `Tổng: ${total} hồ sơ lưu trữ`,
+          onChange: (page) => fetchArchivedRecords(page),
+        }}
+        scroll={{ x: 1400 }}
+        locale={{ emptyText: <Result icon={<CloudDownloadOutlined style={{ color: '#d9d9d9' }} />} title="Chưa có hồ sơ lưu trữ" subTitle="Chọn hồ sơ từ tab Tổng hợp rồi tạo lưu trữ XML/HL7/CDA" /> }}
+      />
+
+      {/* Decode drawer */}
+      <Drawer
+        title={decodeRecord ? `Giải mã: ${decodeRecord.medicalRecordCode} (${decodeRecord.archiveFormat})` : 'Giải mã hồ sơ'}
+        open={decodeDrawerOpen}
+        onClose={() => {
+          setDecodeDrawerOpen(false);
+          setDecodeRecord(null);
+          setDecodeContent(null);
+        }}
+        size="large"
+      >
+        <Spin spinning={decodeLoading}>
+          {decodeRecord && (
+            <Descriptions bordered column={2} size="small" style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="Mã HSBA">{decodeRecord.medicalRecordCode}</Descriptions.Item>
+              <Descriptions.Item label="Mã BN">{decodeRecord.patientCode}</Descriptions.Item>
+              <Descriptions.Item label="Họ tên">{decodeRecord.patientName}</Descriptions.Item>
+              <Descriptions.Item label="Định dạng">
+                <Tag color={decodeRecord.archiveFormat === 'XML' ? 'blue' : decodeRecord.archiveFormat === 'HL7' ? 'green' : 'purple'}>
+                  {decodeRecord.archiveFormat}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày lưu trữ">
+                {dayjs(decodeRecord.archiveDate).format('DD/MM/YYYY HH:mm')}
+              </Descriptions.Item>
+              <Descriptions.Item label="Xác thực">
+                {decodeRecord.verified
+                  ? <Tag color="success" icon={<SafetyOutlined />}>Toàn vẹn</Tag>
+                  : <Tag color="warning">Chưa xác thực</Tag>}
+              </Descriptions.Item>
+            </Descriptions>
+          )}
+          {decodeContent && (
+            <div>
+              {typeof decodeContent === 'object' && Object.entries(decodeContent).filter(([, v]) => typeof v !== 'object').length > 0 && (
+                <Descriptions bordered column={1} size="small" style={{ marginBottom: 16 }}>
+                  {Object.entries(decodeContent)
+                    .filter(([, v]) => typeof v !== 'object')
+                    .map(([key, value]) => (
+                      <Descriptions.Item key={key} label={key}>
+                        {String(value ?? '-')}
+                      </Descriptions.Item>
+                    ))}
+                </Descriptions>
+              )}
+              {Object.entries(decodeContent)
+                .filter(([, v]) => typeof v === 'object' && v !== null && !Array.isArray(v))
+                .map(([key, value]) => (
+                  <Card key={key} size="small" title={key} style={{ marginBottom: 8 }}>
+                    <Descriptions bordered column={1} size="small">
+                      {Object.entries(value as Record<string, unknown>)
+                        .filter(([, v2]) => typeof v2 !== 'object')
+                        .map(([k, v2]) => (
+                          <Descriptions.Item key={k} label={k}>
+                            {String(v2 ?? '-')}
+                          </Descriptions.Item>
+                        ))}
+                    </Descriptions>
+                  </Card>
+                ))}
+              {Object.entries(decodeContent)
+                .filter(([, v]) => Array.isArray(v))
+                .map(([key, value]) => {
+                  const arr = value as Record<string, unknown>[];
+                  if (arr.length === 0) return null;
+                  const cols = Object.keys(arr[0]).filter(k => typeof arr[0][k] !== 'object');
+                  return (
+                    <Card key={key} size="small" title={`${key} (${arr.length})`} style={{ marginBottom: 8 }}>
+                      <Table
+                        dataSource={arr.map((item, i) => ({ ...item, _key: i }))}
+                        rowKey="_key"
+                        size="small"
+                        pagination={false}
+                        columns={cols.map(c => ({
+                          title: c,
+                          dataIndex: c,
+                          key: c,
+                          render: (v: unknown) => String(v ?? '-'),
+                        }))}
+                        scroll={{ x: 'max-content' }}
+                      />
+                    </Card>
+                  );
+                })}
+            </div>
+          )}
+        </Spin>
+      </Drawer>
+    </div>
+  );
+
+  // -------------------------------------------------------------------------
   // Main render
   // -------------------------------------------------------------------------
 
@@ -1564,6 +2049,15 @@ const MedicalRecordArchive: React.FC = () => {
                   </span>
                 ),
                 children: renderHandoverTab(),
+              },
+              {
+                key: 'archive',
+                label: (
+                  <span>
+                    <CloudOutlined /> Lưu trữ & Tra cứu
+                  </span>
+                ),
+                children: renderArchiveTab(),
               },
             ]}
           />

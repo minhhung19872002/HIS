@@ -245,6 +245,9 @@ public class HISDbContext : DbContext
     // Ky so (Digital Signature)
     public DbSet<DocumentSignature> DocumentSignatures => Set<DocumentSignature>();
     public DbSet<TokenUserMapping> TokenUserMappings => Set<TokenUserMapping>();
+    public DbSet<ManagedCertificate> ManagedCertificates => Set<ManagedCertificate>();
+    public DbSet<SigningTransaction> SigningTransactions => Set<SigningTransaction>();
+    public DbSet<SigningTotpSecret> SigningTotpSecrets => Set<SigningTotpSecret>();
 
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -359,6 +362,16 @@ public class HISDbContext : DbContext
     public DbSet<MCIEvent> MCIEvents => Set<MCIEvent>();
     public DbSet<MCIVictim> MCIVictims => Set<MCIVictim>();
     public DbSet<MCISituationReport> MCISituationReports => Set<MCISituationReport>();
+
+    // Bệnh án chuyên khoa điện tử (Specialty EMR)
+    public DbSet<SpecialtyEmr> SpecialtyEmrs => Set<SpecialtyEmr>();
+
+    // Partograph + Anesthesia (Clinical Records)
+    public DbSet<PartographRecord> PartographRecords => Set<PartographRecord>();
+    public DbSet<AnesthesiaRecord> AnesthesiaRecords => Set<AnesthesiaRecord>();
+    public DbSet<AnesthesiaMonitor> AnesthesiaMonitors => Set<AnesthesiaMonitor>();
+    public DbSet<AnesthesiaDrug> AnesthesiaDrugs => Set<AnesthesiaDrug>();
+    public DbSet<AnesthesiaFluid> AnesthesiaFluids => Set<AnesthesiaFluid>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

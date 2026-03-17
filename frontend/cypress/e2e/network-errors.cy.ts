@@ -186,13 +186,12 @@ describe('Network & Console Error Detection - All Pages', () => {
           cy.task('log', `  [${page.name}] Clicking ${tabCount} tabs...`);
         }
       });
-      // Click tabs sequentially, re-querying DOM each time
+      // Click tabs sequentially using native DOM click to avoid detachment errors during React re-renders
       const clickTab = (idx: number, max: number) => {
         if (idx >= max) return;
-        cy.get('body').then(($body) => {
-          const $tabs = $body.find('[role="tab"]:visible');
+        cy.get('[role="tab"]:visible').then(($tabs) => {
           if (idx < $tabs.length) {
-            cy.wrap($tabs.eq(idx)).click({ force: true });
+            $tabs[idx].click(); // native click avoids Cypress detachment check
             cy.wait(1200);
           }
           clickTab(idx + 1, max);
@@ -205,32 +204,37 @@ describe('Network & Console Error Detection - All Pages', () => {
 
       // ============ PHASE 2: Click safe buttons ============
       const safeButtons = ['Làm mới', 'Tìm kiếm', 'Đồng bộ', 'Tải lại', 'Lọc', 'Xem', 'Reload', 'Refresh', 'Tải', 'Load'];
-      cy.get('body').then(($body) => {
-        safeButtons.forEach((btnText) => {
-          const $btns = $body.find(`button:contains("${btnText}"):visible, .ant-btn:contains("${btnText}"):visible`);
+      const clickSafeBtn = (idx: number) => {
+        if (idx >= safeButtons.length) return;
+        cy.get('body').then(($body) => {
+          const $btns = $body.find(`button:contains("${safeButtons[idx]}"):visible, .ant-btn:contains("${safeButtons[idx]}"):visible`);
           if ($btns.length > 0) {
-            cy.wrap($btns.first()).click({ force: true });
+            $btns[0].click(); // native click avoids detachment
             cy.wait(800);
           }
+          clickSafeBtn(idx + 1);
         });
-      });
+      };
+      clickSafeBtn(0);
 
       // ============ PHASE 3: Click multiple table rows (up to 3) ============
+      const closeAnyOverlay = () => {
+        cy.get('body').then(($b) => {
+          const $close = $b.find('.ant-modal-close:visible, .ant-drawer-close:visible');
+          if ($close.length > 0) {
+            ($close[0] as HTMLElement).click();
+            cy.wait(500);
+          }
+        });
+      };
       const clickRow = (idx: number, max: number) => {
         if (idx >= max) return;
         cy.get('body').then(($body) => {
           const $rows = $body.find('.ant-table-tbody tr.ant-table-row');
           if (idx < $rows.length) {
-            cy.wrap($rows.eq(idx)).click({ force: true });
+            ($rows[idx] as HTMLElement).click();
             cy.wait(1500);
-            // Close any modal/drawer that opened
-            cy.get('body').then(($b) => {
-              const $close = $b.find('.ant-modal-close:visible, .ant-drawer-close:visible');
-              if ($close.length > 0) {
-                cy.wrap($close.first()).click({ force: true });
-                cy.wait(500);
-              }
-            });
+            closeAnyOverlay();
           }
           clickRow(idx + 1, max);
         });
@@ -245,31 +249,19 @@ describe('Network & Console Error Detection - All Pages', () => {
 
       // ============ PHASE 4: Click action buttons in table rows ============
       cy.get('body').then(($body) => {
-        // Click eye/view icons in tables
         const $viewBtns = $body.find('.ant-table-tbody .anticon-eye:visible, .ant-table-tbody button:contains("Xem"):visible');
         if ($viewBtns.length > 0) {
-          cy.wrap($viewBtns.first()).click({ force: true });
+          ($viewBtns[0] as HTMLElement).click();
           cy.wait(1500);
-          cy.get('body').then(($b) => {
-            const $close = $b.find('.ant-modal-close:visible, .ant-drawer-close:visible');
-            if ($close.length > 0) {
-              cy.wrap($close.first()).click({ force: true });
-              cy.wait(500);
-            }
-          });
+          closeAnyOverlay();
         }
-        // Click edit icons in tables
+      });
+      cy.get('body').then(($body) => {
         const $editBtns = $body.find('.ant-table-tbody .anticon-edit:visible, .ant-table-tbody button:contains("Sửa"):visible');
         if ($editBtns.length > 0) {
-          cy.wrap($editBtns.first()).click({ force: true });
+          ($editBtns[0] as HTMLElement).click();
           cy.wait(1500);
-          cy.get('body').then(($b) => {
-            const $close = $b.find('.ant-modal-close:visible, .ant-drawer-close:visible');
-            if ($close.length > 0) {
-              cy.wrap($close.first()).click({ force: true });
-              cy.wait(500);
-            }
-          });
+          closeAnyOverlay();
         }
       });
 
@@ -297,24 +289,20 @@ describe('Network & Console Error Detection - All Pages', () => {
       });
 
       // ============ PHASE 7: Click Dropdown triggers / "Thêm mới" / "+" buttons ============
-      cy.get('body').then(($body) => {
-        const addButtons = ['Thêm mới', 'Thêm', 'Tạo mới', 'Đăng ký', '+ Thêm'];
-        addButtons.forEach((btnText) => {
-          const $btns = $body.find(`button:contains("${btnText}"):visible, .ant-btn:contains("${btnText}"):visible`);
+      const addButtons = ['Thêm mới', 'Thêm', 'Tạo mới', 'Đăng ký', '+ Thêm'];
+      const clickAddBtn = (idx: number) => {
+        if (idx >= addButtons.length) return;
+        cy.get('body').then(($body) => {
+          const $btns = $body.find(`button:contains("${addButtons[idx]}"):visible, .ant-btn:contains("${addButtons[idx]}"):visible`);
           if ($btns.length > 0) {
-            cy.wrap($btns.first()).click({ force: true });
+            ($btns[0] as HTMLElement).click();
             cy.wait(1500);
-            // Close modal/drawer that opened
-            cy.get('body').then(($b) => {
-              const $close = $b.find('.ant-modal-close:visible, .ant-drawer-close:visible');
-              if ($close.length > 0) {
-                cy.wrap($close.first()).click({ force: true });
-                cy.wait(500);
-              }
-            });
+            closeAnyOverlay();
           }
+          clickAddBtn(idx + 1);
         });
-      });
+      };
+      clickAddBtn(0);
 
       // ============ PHASE 8: Click Select dropdowns (open & close) ============
       cy.get('body').then(($body) => {
@@ -359,7 +347,7 @@ describe('Network & Console Error Detection - All Pages', () => {
         });
         if ($page2.length > 0) {
           cy.task('log', `  [${page.name}] Clicking pagination page 2...`);
-          cy.wrap($page2.first()).click({ force: true });
+          ($page2[0] as HTMLElement).click();
           cy.wait(1500);
         }
       });

@@ -57,11 +57,13 @@ const SampleTracking = lazy(() => import('./pages/SampleTracking'));
 const Pathology = lazy(() => import('./pages/Pathology'));
 const CultureCollection = lazy(() => import('./pages/CultureCollection'));
 const DigitalSignature = lazy(() => import('./pages/DigitalSignature'));
+const CentralSigning = lazy(() => import('./pages/CentralSigning'));
 const MedicalRecordArchive = lazy(() => import('./pages/MedicalRecordArchive'));
 const BhxhAudit = lazy(() => import('./pages/BhxhAudit'));
 const DoctorPortal = lazy(() => import('./pages/DoctorPortal'));
 const SatisfactionSurvey = lazy(() => import('./pages/SatisfactionSurvey'));
 const LISConfig = lazy(() => import('./pages/LISConfig'));
+const SpecialtyEMR = lazy(() => import('./pages/SpecialtyEMR'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -142,6 +144,7 @@ const AppRoutes: React.FC = () => {
           <Route path="reports" element={<Reports />} />
           <Route path="admin" element={<SystemAdmin />} />
           <Route path="digital-signature" element={<DigitalSignature />} />
+          <Route path="central-signing" element={<CentralSigning />} />
           <Route path="settings" element={<div>Cài đặt hệ thống</div>} />
           <Route path="telemedicine" element={<Telemedicine />} />
           <Route path="nutrition" element={<Nutrition />} />
@@ -162,6 +165,7 @@ const AppRoutes: React.FC = () => {
           <Route path="doctor-portal" element={<DoctorPortal />} />
           <Route path="satisfaction-survey" element={<SatisfactionSurvey />} />
           <Route path="lis-config" element={<LISConfig />} />
+          <Route path="specialty-emr" element={<SpecialtyEMR />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -276,3 +276,107 @@ public class DqgvnSubmission : BaseEntity
 
     public virtual Patient? Patient { get; set; }
 }
+
+/// <summary>
+/// Bệnh án chuyên khoa điện tử
+/// </summary>
+public class SpecialtyEmr : BaseEntity
+{
+    public Guid PatientId { get; set; }
+    public string PatientCode { get; set; } = string.Empty;
+    public string PatientName { get; set; } = string.Empty;
+    public string SpecialtyType { get; set; } = string.Empty; // surgical, internal, obstetrics, pediatrics, dental, ent, traditional, traditional_outpatient, hematology, oncology, burns, psychiatry, dermatology, ophthalmology, infectious
+    public DateTime RecordDate { get; set; }
+    public string? DoctorName { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? IcdCode { get; set; }
+    public string? IcdName { get; set; }
+    public string FieldData { get; set; } = "{}"; // JSON data for dynamic fields
+    public int Status { get; set; } // 0=Draft, 1=Completed, 2=Signed
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Bieu do chuyen da (Partograph)
+/// </summary>
+public class PartographRecord : BaseEntity
+{
+    public Guid AdmissionId { get; set; }
+    public Guid PatientId { get; set; }
+    public string PatientName { get; set; } = string.Empty;
+    public DateTime RecordTime { get; set; }
+    public decimal? CervicalDilation { get; set; } // cm
+    public int? ContractionFrequency { get; set; } // per 10 min
+    public int? ContractionDuration { get; set; } // seconds
+    public int? FetalHeartRate { get; set; } // bpm
+    public string? AmnioticFluid { get; set; } // Trong/Phan su/Mau
+    public string? MouldingDegree { get; set; } // 0/+/++/+++
+    public string? FetalPosition { get; set; } // LOA/LOP/ROA/ROP
+    public int? SystolicBP { get; set; }
+    public int? DiastolicBP { get; set; }
+    public int? MaternalPulse { get; set; }
+    public decimal? Temperature { get; set; }
+    public string? OxytocinDose { get; set; }
+    public string? DrugGiven { get; set; }
+    public string? AlertLine { get; set; } // Normal/Alert/Action
+    public string? Notes { get; set; }
+}
+
+/// <summary>
+/// Phieu gay me hoi suc (Anesthesia Record)
+/// </summary>
+public class AnesthesiaRecord : BaseEntity
+{
+    public Guid SurgeryId { get; set; }
+    public Guid PatientId { get; set; }
+    public string PatientName { get; set; } = string.Empty;
+    public int AsaClass { get; set; } // 1-5
+    public int MallampatiScore { get; set; } // 1-4
+    public string? Allergies { get; set; }
+    public string? NpoStatus { get; set; } // thoi gian nhin an
+    public string AnesthesiaType { get; set; } = string.Empty; // Gay me/Gay te/Te tai cho
+    public string? AirwayPlan { get; set; }
+    public string? PreOpAssessment { get; set; }
+    public string? RecoveryNotes { get; set; }
+    public int Status { get; set; } // 0=Draft, 1=InProgress, 2=Completed
+}
+
+/// <summary>
+/// Theo doi trong gay me (monitoring timeline)
+/// </summary>
+public class AnesthesiaMonitor : BaseEntity
+{
+    public Guid AnesthesiaRecordId { get; set; }
+    public DateTime MonitorTime { get; set; }
+    public int? SystolicBP { get; set; }
+    public int? DiastolicBP { get; set; }
+    public int? HeartRate { get; set; }
+    public int? SpO2 { get; set; }
+    public int? EtCO2 { get; set; }
+    public decimal? Temperature { get; set; }
+    public string? Notes { get; set; }
+}
+
+/// <summary>
+/// Thuoc dung trong gay me
+/// </summary>
+public class AnesthesiaDrug : BaseEntity
+{
+    public Guid AnesthesiaRecordId { get; set; }
+    public DateTime GivenTime { get; set; }
+    public string DrugName { get; set; } = string.Empty;
+    public string? Dose { get; set; }
+    public string? Route { get; set; } // IV/IM/SC/Inhalation
+}
+
+/// <summary>
+/// Dich truyen trong gay me
+/// </summary>
+public class AnesthesiaFluid : BaseEntity
+{
+    public Guid AnesthesiaRecordId { get; set; }
+    public string FluidType { get; set; } = string.Empty;
+    public int? Volume { get; set; } // mL
+    public DateTime? StartTime { get; set; }
+    public DateTime? EndTime { get; set; }
+}

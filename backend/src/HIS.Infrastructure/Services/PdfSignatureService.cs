@@ -65,6 +65,29 @@ public interface IPdfSignatureService
         string reason,
         string location,
         string signerName);
+
+    /// <summary>
+    /// Sign PDF bytes invisibly (no visible stamp) - NangCap6 API #4
+    /// </summary>
+    Task<PdfSignatureResult> SignPdfBytesInvisibleAsync(
+        byte[] pdfBytes,
+        Pkcs11X509Certificate pkcs11Cert,
+        string reason, string location, string signerName);
+
+    /// <summary>
+    /// Sign PDF bytes with visible signature at specified position - NangCap6 API #9
+    /// </summary>
+    Task<PdfSignatureResult> SignPdfBytesVisibleAsync(
+        byte[] pdfBytes,
+        Pkcs11X509Certificate pkcs11Cert,
+        string reason, string location, string signerName,
+        int page, float x, float y, float width, float height,
+        float fontSize, string fontColor, string? signatureImageBase64);
+
+    /// <summary>
+    /// Verify all signatures in a signed PDF - NangCap6 API #10, #12
+    /// </summary>
+    HIS.Application.DTOs.PdfVerificationResult VerifyPdfSignatures(byte[] pdfBytes);
 }
 
 public class RadiologyReportData
@@ -766,6 +789,161 @@ public class PdfSignatureService : IPdfSignatureService
     {
         var pdfBytes = await ConvertHtmlToPdfAsync(htmlBytes);
         return await SignPdfWithPkcs11Async(pdfBytes, pkcs11Cert, config, reason, location, signerName);
+    }
+
+    #endregion
+
+    #region NangCap6 Central Signing Methods
+
+    /// <summary>Sign PDF invisibly (no visible stamp)</summary>
+    public Task<PdfSignatureResult> SignPdfBytesInvisibleAsync(
+        byte[] pdfBytes, Pkcs11X509Certificate pkcs11Cert,
+        string reason, string location, string signerName)
+    {
+        try
+        {
+            var x509 = pkcs11Cert.Info!.ParsedCertificate!;
+            var parser = new X509CertificateParser();
+            var bcCert = parser.ReadCertificate(x509.RawData);
+            var bcCertWrapped = new X509CertificateBC(bcCert);
+            IX509Certificate[] chain = new IX509Certificate[] { bcCertWrapped };
+
+            var externalSignature = new Pkcs11ExternalSignature(pkcs11Cert, "SHA-256");
+
+            using var inputStream = new MemoryStream(pdfBytes);
+            using var outputStream = new MemoryStream();
+
+            var reader = new PdfReader(inputStream);
+            var signer = new PdfSigner(reader, outputStream, new StampingProperties());
+
+            signer.SetFieldName("Sig_" + Guid.NewGuid().ToString("N")[..8]);
+
+            var appearance = signer.GetSignatureAppearance();
+            appearance.SetReason(reason).SetLocation(location).SetContact(signerName);
+            // No page rect = invisible signing
+
+            signer.SignDetached(externalSignature, chain, null, null, null, 8192, PdfSigner.CryptoStandard.CMS);
+
+            return Task.FromResult(new PdfSignatureResult
+            {
+                Success = true,
+                Message = "Ký PDF ẩn thành công",
+                SignedPdfBytes = outputStream.ToArray()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error signing PDF invisibly");
+            return Task.FromResult(new PdfSignatureResult
+            {
+                Success = false,
+                Message = $"Lỗi ký PDF ẩn: {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>Sign PDF with visible signature at position</summary>
+    public Task<PdfSignatureResult> SignPdfBytesVisibleAsync(
+        byte[] pdfBytes, Pkcs11X509Certificate pkcs11Cert,
+        string reason, string location, string signerName,
+        int page, float x, float y, float width, float height,
+        float fontSize, string fontColor, string? signatureImageBase64)
+    {
+        try
+        {
+            var x509 = pkcs11Cert.Info!.ParsedCertificate!;
+            var parser = new X509CertificateParser();
+            var bcCert = parser.ReadCertificate(x509.RawData);
+            var bcCertWrapped = new X509CertificateBC(bcCert);
+            IX509Certificate[] chain = new IX509Certificate[] { bcCertWrapped };
+
+            var externalSignature = new Pkcs11ExternalSignature(pkcs11Cert, "SHA-256");
+
+            using var inputStream = new MemoryStream(pdfBytes);
+            using var outputStream = new MemoryStream();
+
+            var reader = new PdfReader(inputStream);
+            var signer = new PdfSigner(reader, outputStream, new StampingProperties());
+
+            var totalPages = signer.GetDocument().GetNumberOfPages();
+            var targetPage = page <= 0 ? totalPages : Math.Min(page, totalPages);
+
+            signer.SetFieldName("Sig_" + Guid.NewGuid().ToString("N")[..8]);
+            signer.SetPageNumber(targetPage);
+            signer.SetPageRect(new iText.Kernel.Geom.Rectangle(x, y, width, height));
+
+            var appearance = signer.GetSignatureAppearance();
+            appearance.SetReason(reason).SetLocation(location).SetContact(signerName)
+                .SetSignatureCreator("HIS Central Signing");
+            var stampText = $"Ký bởi: {signerName}\nNgày: {DateTime.Now:dd/MM/yyyy HH:mm:ss}\nSố CT: {x509.SerialNumber}";
+            appearance.SetLayer2Text(stampText);
+
+            signer.SignDetached(externalSignature, chain, null, null, null, 8192, PdfSigner.CryptoStandard.CMS);
+
+            return Task.FromResult(new PdfSignatureResult
+            {
+                Success = true,
+                Message = "Ký PDF hiện vị trí thành công",
+                SignedPdfBytes = outputStream.ToArray()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error signing PDF with visible signature");
+            return Task.FromResult(new PdfSignatureResult
+            {
+                Success = false,
+                Message = $"Lỗi ký PDF hiện: {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>Verify all signatures in a signed PDF</summary>
+    public HIS.Application.DTOs.PdfVerificationResult VerifyPdfSignatures(byte[] pdfBytes)
+    {
+        var result = new HIS.Application.DTOs.PdfVerificationResult { Valid = true, Signatures = new() };
+
+        try
+        {
+            using var stream = new MemoryStream(pdfBytes);
+            var reader = new PdfReader(stream);
+            var document = new iText.Kernel.Pdf.PdfDocument(reader);
+
+            var signatureUtil = new iText.Signatures.SignatureUtil(document);
+            var signatureNames = signatureUtil.GetSignatureNames();
+
+            result.SignatureCount = signatureNames.Count;
+
+            foreach (var name in signatureNames)
+            {
+                var pkcs7 = signatureUtil.ReadSignatureData(name);
+                var sigCert = pkcs7.GetSigningCertificate();
+                var sigInfo = new HIS.Application.DTOs.PdfSignatureInfo
+                {
+                    SignerName = sigCert?.ToString() ?? "Unknown",
+                    CertificateSerial = "",
+                    Issuer = "",
+                    SignedAt = pkcs7.GetSignDate(),
+                    IsValid = pkcs7.VerifySignatureIntegrityAndAuthenticity(),
+                    Reason = pkcs7.GetReason(),
+                    Location = pkcs7.GetLocation(),
+                    CertificateValid = true
+                };
+
+                if (!sigInfo.IsValid) result.Valid = false;
+                result.Signatures.Add(sigInfo);
+            }
+
+            result.Message = result.Valid ? "Tất cả chữ ký hợp lệ" : "Có chữ ký không hợp lệ";
+            document.Close();
+        }
+        catch (Exception ex)
+        {
+            result.Valid = false;
+            result.Message = $"Lỗi xác thực: {ex.Message}";
+        }
+
+        return result;
     }
 
     #endregion

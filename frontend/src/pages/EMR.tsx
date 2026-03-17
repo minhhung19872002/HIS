@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card, Tabs, Table, Input, Button, Space, Tag, Descriptions, Form,
   DatePicker, Select, Modal, message, Typography, Row, Col, Divider,
-  Drawer, Timeline, Spin, Empty, Badge, Tooltip, Dropdown
+  Drawer, Timeline, Spin, Empty, Badge, Tooltip, Dropdown, InputNumber, Alert,
+  TimePicker
 } from 'antd';
 import {
   FileTextOutlined, SearchOutlined, MedicineBoxOutlined, HeartOutlined,
@@ -10,7 +11,8 @@ import {
   PlusOutlined, UserOutlined, CalendarOutlined, ReloadOutlined,
   FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined,
   FilePdfOutlined, HistoryOutlined, CopyOutlined, FileExcelOutlined,
-  DownloadOutlined, DeleteOutlined,
+  DownloadOutlined, DeleteOutlined, WarningOutlined, AlertOutlined,
+  LineChartOutlined, MedicineBoxOutlined as MedicineIcon,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -114,6 +116,100 @@ const EMR: React.FC = () => {
   const [printType, setPrintType] = useState<string>('summary');
   const [selectedConsultation, setSelectedConsultation] = useState<ConsultationRecordDto | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Drug Reaction Test state
+  const [drugReactionTests, setDrugReactionTests] = useState<{ id: string; date: string; drugName: string; dose: string; route: string; testTime: string; result: string; reactionDescription: string; tester: string; notes: string }[]>([]);
+  const [drugReactionModalOpen, setDrugReactionModalOpen] = useState(false);
+  const [drugReactionForm] = Form.useForm();
+  const [drugReactionCopyRange, setDrugReactionCopyRange] = useState(false);
+
+  const handleSaveDrugReaction = async () => {
+    try {
+      const values = await drugReactionForm.validateFields();
+      if (drugReactionCopyRange && values.copyDateRange && values.copyDateRange.length === 2) {
+        const start = values.copyDateRange[0];
+        const end = values.copyDateRange[1];
+        const days = end.diff(start, 'day') + 1;
+        const newTests: typeof drugReactionTests = [];
+        for (let i = 0; i < days; i++) {
+          newTests.push({
+            id: `drt-${Date.now()}-${i}`,
+            date: start.add(i, 'day').format('YYYY-MM-DD'),
+            drugName: values.drugName,
+            dose: values.dose || '',
+            route: values.route || '',
+            testTime: values.testTime?.format('HH:mm') || '',
+            result: values.result,
+            reactionDescription: values.reactionDescription || '',
+            tester: values.tester || '',
+            notes: values.notes || '',
+          });
+        }
+        setDrugReactionTests(prev => [...prev, ...newTests]);
+        message.success(`Da them ${days} phieu thu phan ung thuoc`);
+      } else {
+        setDrugReactionTests(prev => [...prev, {
+          id: `drt-${Date.now()}`,
+          date: values.testDate?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
+          drugName: values.drugName,
+          dose: values.dose || '',
+          route: values.route || '',
+          testTime: values.testTime?.format('HH:mm') || '',
+          result: values.result,
+          reactionDescription: values.reactionDescription || '',
+          tester: values.tester || '',
+          notes: values.notes || '',
+        }]);
+        message.success('Da them phieu thu phan ung thuoc');
+      }
+      setDrugReactionModalOpen(false);
+      drugReactionForm.resetFields();
+      setDrugReactionCopyRange(false);
+    } catch { /* validation error */ }
+  };
+
+  // Partograph state
+  const [partographEntries, setPartographEntries] = useState<{ id: string; time: string; cervicalDilation: number; descent: string; contractionFreq: number; contractionDuration: number; fhr: number; maternalBP: string; maternalPulse: number; maternalTemp: number; notes: string }[]>([]);
+  const [partographModalOpen, setPartographModalOpen] = useState(false);
+  const [partographForm] = Form.useForm();
+
+  const handleSavePartograph = async () => {
+    try {
+      const values = await partographForm.validateFields();
+      setPartographEntries(prev => [...prev, {
+        id: `pg-${Date.now()}`,
+        time: values.entryTime?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),
+        cervicalDilation: values.cervicalDilation ?? 0,
+        descent: values.descent || '',
+        contractionFreq: values.contractionFreq ?? 0,
+        contractionDuration: values.contractionDuration ?? 0,
+        fhr: values.fhr ?? 0,
+        maternalBP: `${values.systolicBP ?? ''}/${values.diastolicBP ?? ''}`,
+        maternalPulse: values.maternalPulse ?? 0,
+        maternalTemp: values.maternalTemp ?? 0,
+        notes: values.notes || '',
+      }]);
+      message.success('Da them du lieu bieu do chuyen da');
+      setPartographModalOpen(false);
+      partographForm.resetFields();
+    } catch { /* validation error */ }
+  };
+
+  const partographAlertLine = 4; // cm - alert line threshold
+  const partographActionLine = partographAlertLine + 4; // action line = alert + 4h
+
+  // Anesthesia state
+  const [anesthesiaEntries, setAnesthesiaEntries] = useState<{ id: string; time: string; bp: string; hr: number; spo2: number; etco2: number; temp: number; notes: string }[]>([]);
+  const [anesthesiaDrugs, setAnesthesiaDrugs] = useState<{ id: string; time: string; drugName: string; dose: string; route: string; category: string }[]>([]);
+  const [anesthesiaFluids, setAnesthesiaFluids] = useState<{ id: string; type: string; volume: string; startTime: string }[]>([]);
+  const [anesthesiaModalOpen, setAnesthesiaModalOpen] = useState(false);
+  const [anesthesiaDrugModalOpen, setAnesthesiaDrugModalOpen] = useState(false);
+  const [anesthesiaFluidModalOpen, setAnesthesiaFluidModalOpen] = useState(false);
+  const [anesthesiaMonitorForm] = Form.useForm();
+  const [anesthesiaDrugForm] = Form.useForm();
+  const [anesthesiaFluidForm] = Form.useForm();
+  const [anesthesiaPreOp, setAnesthesiaPreOp] = useState({ asaClass: '', mallampati: '', allergies: '', npoTime: '', anesthesiaType: '', airway: '' });
+  const [anesthesiaRecovery, setAnesthesiaRecovery] = useState('');
 
   const handlePrintPreview = (type: string, consultation?: ConsultationRecordDto) => {
     setPrintType(type);
@@ -818,6 +914,205 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
         </>
       ),
     },
+    {
+      key: 'drug-reaction', label: <><AlertOutlined /> Thử phản ứng thuốc</>,
+      children: (
+        <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+            <Button type="primary" icon={<PlusOutlined />} size="small"
+              onClick={() => { drugReactionForm.resetFields(); drugReactionForm.setFieldsValue({ testDate: dayjs(), result: 'Negative' }); setDrugReactionCopyRange(false); setDrugReactionModalOpen(true); }}>
+              Thêm phiếu thử
+            </Button>
+            <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('drug-reaction')}>In</Button>
+          </div>
+          {drugReactionTests.length === 0 ? (
+            <Empty description="Chưa có phiếu thử phản ứng thuốc" />
+          ) : (
+            <Table size="small" dataSource={drugReactionTests} rowKey="id" pagination={false}
+              columns={[
+                { title: 'Ngày', dataIndex: 'date', key: 'date', width: 100, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+                { title: 'Thuốc', dataIndex: 'drugName', key: 'drug', width: 150 },
+                { title: 'Liều', dataIndex: 'dose', key: 'dose', width: 80 },
+                { title: 'Đường dùng', dataIndex: 'route', key: 'route', width: 100 },
+                { title: 'Giờ thử', dataIndex: 'testTime', key: 'time', width: 70 },
+                { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 110,
+                  render: (v: string) => <Tag color={v === 'Positive' ? 'red' : v === 'Negative' ? 'green' : 'orange'}>{v === 'Positive' ? 'Dương tính' : v === 'Negative' ? 'Âm tính' : 'Không xác định'}</Tag>
+                },
+                { title: 'Mô tả PƯ', dataIndex: 'reactionDescription', key: 'reaction', ellipsis: true },
+                { title: 'Người thử', dataIndex: 'tester', key: 'tester', width: 100 },
+                { title: '', key: 'actions', width: 50,
+                  render: (_: unknown, r: typeof drugReactionTests[0]) => (
+                    <Button type="link" size="small" danger icon={<DeleteOutlined />}
+                      onClick={() => setDrugReactionTests(prev => prev.filter(t => t.id !== r.id))} />
+                  ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'partograph', label: <><LineChartOutlined /> Biểu đồ chuyển dạ</>,
+      children: (
+        <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+            <Button type="primary" icon={<PlusOutlined />} size="small"
+              onClick={() => { partographForm.resetFields(); partographForm.setFieldsValue({ entryTime: dayjs() }); setPartographModalOpen(true); }}>
+              Thêm dữ liệu
+            </Button>
+            <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('partograph')}>In</Button>
+          </div>
+          {partographEntries.some(e => e.cervicalDilation >= partographActionLine) && (
+            <Alert title="CẢNH BÁO: Độ mở CTC đã vượt qua đường hành động (Action Line)! Cần can thiệp ngay." type="error" showIcon style={{ marginBottom: 8 }} />
+          )}
+          {partographEntries.some(e => e.cervicalDilation >= partographAlertLine && e.cervicalDilation < partographActionLine) && !partographEntries.some(e => e.cervicalDilation >= partographActionLine) && (
+            <Alert title="CHÚ Ý: Độ mở CTC đã đạt đường báo động (Alert Line). Theo dõi sát." type="warning" showIcon style={{ marginBottom: 8 }} />
+          )}
+          {partographEntries.length === 0 ? (
+            <Empty description="Chưa có dữ liệu biểu đồ chuyển dạ" />
+          ) : (
+            <Table size="small" dataSource={partographEntries} rowKey="id" pagination={false}
+              columns={[
+                { title: 'Thời gian', dataIndex: 'time', key: 'time', width: 140, render: (v: string) => dayjs(v).format('DD/MM HH:mm') },
+                { title: 'CTC (cm)', dataIndex: 'cervicalDilation', key: 'ctc', width: 80,
+                  render: (v: number) => (
+                    <Tag color={v >= partographActionLine ? 'red' : v >= partographAlertLine ? 'orange' : 'blue'}>{v}</Tag>
+                  ),
+                },
+                { title: 'Ngôi (station)', dataIndex: 'descent', key: 'descent', width: 100 },
+                { title: 'Cơn co (l/10p)', dataIndex: 'contractionFreq', key: 'freq', width: 100 },
+                { title: 'TG co (s)', dataIndex: 'contractionDuration', key: 'dur', width: 80 },
+                { title: 'Tim thai', dataIndex: 'fhr', key: 'fhr', width: 80,
+                  render: (v: number) => <span style={{ color: v < 110 || v > 160 ? '#ff4d4f' : '#52c41a' }}>{v}</span>
+                },
+                { title: 'HA mẹ', dataIndex: 'maternalBP', key: 'bp', width: 90 },
+                { title: 'Mạch mẹ', dataIndex: 'maternalPulse', key: 'pulse', width: 80 },
+                { title: 'Nhiệt độ', dataIndex: 'maternalTemp', key: 'temp', width: 70, render: (v: number) => v ? `${v}\u00B0C` : '-' },
+                { title: 'Ghi chú', dataIndex: 'notes', key: 'notes', ellipsis: true },
+                { title: '', key: 'del', width: 40,
+                  render: (_: unknown, r: typeof partographEntries[0]) => (
+                    <Button type="link" size="small" danger icon={<DeleteOutlined />}
+                      onClick={() => setPartographEntries(prev => prev.filter(e => e.id !== r.id))} />
+                  ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'anesthesia', label: <><MedicineIcon /> Gây mê hồi sức</>,
+      children: (
+        <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+          <Card size="small" title="Đánh giá trước mổ" style={{ marginBottom: 8 }}>
+            <Row gutter={8}>
+              <Col span={4}>
+                <div style={{ fontSize: 11, color: '#888' }}>ASA</div>
+                <Select size="small" style={{ width: '100%' }} value={anesthesiaPreOp.asaClass}
+                  onChange={v => setAnesthesiaPreOp(p => ({ ...p, asaClass: v }))}>
+                  {['I', 'II', 'III', 'IV', 'V', 'VI'].map(c => <Select.Option key={c} value={c}>ASA {c}</Select.Option>)}
+                </Select>
+              </Col>
+              <Col span={4}>
+                <div style={{ fontSize: 11, color: '#888' }}>Mallampati</div>
+                <Select size="small" style={{ width: '100%' }} value={anesthesiaPreOp.mallampati}
+                  onChange={v => setAnesthesiaPreOp(p => ({ ...p, mallampati: v }))}>
+                  {['I', 'II', 'III', 'IV'].map(c => <Select.Option key={c} value={c}>Class {c}</Select.Option>)}
+                </Select>
+              </Col>
+              <Col span={5}>
+                <div style={{ fontSize: 11, color: '#888' }}>Dị ứng</div>
+                <Input size="small" value={anesthesiaPreOp.allergies}
+                  onChange={e => setAnesthesiaPreOp(p => ({ ...p, allergies: e.target.value }))} placeholder="Dị ứng thuốc..." />
+              </Col>
+              <Col span={4}>
+                <div style={{ fontSize: 11, color: '#888' }}>NPO (giờ)</div>
+                <Input size="small" value={anesthesiaPreOp.npoTime}
+                  onChange={e => setAnesthesiaPreOp(p => ({ ...p, npoTime: e.target.value }))} placeholder="8h" />
+              </Col>
+              <Col span={4}>
+                <div style={{ fontSize: 11, color: '#888' }}>Loại gây mê</div>
+                <Select size="small" style={{ width: '100%' }} value={anesthesiaPreOp.anesthesiaType}
+                  onChange={v => setAnesthesiaPreOp(p => ({ ...p, anesthesiaType: v }))}>
+                  <Select.Option value="general">Toàn thân</Select.Option>
+                  <Select.Option value="regional">Vùng</Select.Option>
+                  <Select.Option value="local">Tại chỗ</Select.Option>
+                  <Select.Option value="sedation">An thần</Select.Option>
+                </Select>
+              </Col>
+              <Col span={3}>
+                <div style={{ fontSize: 11, color: '#888' }}>Đường thở</div>
+                <Input size="small" value={anesthesiaPreOp.airway}
+                  onChange={e => setAnesthesiaPreOp(p => ({ ...p, airway: e.target.value }))} placeholder="NKQ, LMA..." />
+              </Col>
+            </Row>
+          </Card>
+          <Card size="small" title="Theo dõi sinh hiệu" style={{ marginBottom: 8 }}
+            extra={<Button size="small" type="primary" icon={<PlusOutlined />}
+              onClick={() => { anesthesiaMonitorForm.resetFields(); anesthesiaMonitorForm.setFieldsValue({ time: dayjs() }); setAnesthesiaModalOpen(true); }}>Thêm</Button>}>
+            {anesthesiaEntries.length === 0 ? (
+              <Empty description="Chưa có dữ liệu theo dõi" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Table size="small" dataSource={anesthesiaEntries} rowKey="id" pagination={false}
+                columns={[
+                  { title: 'Thời gian', dataIndex: 'time', key: 'time', width: 120, render: (v: string) => dayjs(v).format('HH:mm') },
+                  { title: 'HA', dataIndex: 'bp', key: 'bp', width: 90 },
+                  { title: 'Mạch', dataIndex: 'hr', key: 'hr', width: 60 },
+                  { title: 'SpO2', dataIndex: 'spo2', key: 'spo2', width: 60 },
+                  { title: 'EtCO2', dataIndex: 'etco2', key: 'etco2', width: 60 },
+                  { title: 'Nhiệt độ', dataIndex: 'temp', key: 'temp', width: 70, render: (v: number) => v ? `${v}\u00B0C` : '-' },
+                  { title: 'Ghi chú', dataIndex: 'notes', key: 'notes', ellipsis: true },
+                ]}
+              />
+            )}
+          </Card>
+          <Row gutter={8}>
+            <Col span={12}>
+              <Card size="small" title="Thuốc sử dụng" style={{ marginBottom: 8 }}
+                extra={<Button size="small" icon={<PlusOutlined />}
+                  onClick={() => { anesthesiaDrugForm.resetFields(); anesthesiaDrugForm.setFieldsValue({ time: dayjs() }); setAnesthesiaDrugModalOpen(true); }}>Thêm</Button>}>
+                {anesthesiaDrugs.length === 0 ? (
+                  <Empty description="Chưa có" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                ) : (
+                  <Table size="small" dataSource={anesthesiaDrugs} rowKey="id" pagination={false}
+                    columns={[
+                      { title: 'Giờ', dataIndex: 'time', key: 'time', width: 70, render: (v: string) => dayjs(v).format('HH:mm') },
+                      { title: 'Thuốc', dataIndex: 'drugName', key: 'drug' },
+                      { title: 'Liều', dataIndex: 'dose', key: 'dose', width: 80 },
+                      { title: 'Loại', dataIndex: 'category', key: 'cat', width: 90, render: (v: string) => <Tag>{v}</Tag> },
+                    ]}
+                  />
+                )}
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card size="small" title="Dịch truyền" style={{ marginBottom: 8 }}
+                extra={<Button size="small" icon={<PlusOutlined />}
+                  onClick={() => { anesthesiaFluidForm.resetFields(); anesthesiaFluidForm.setFieldsValue({ startTime: dayjs() }); setAnesthesiaFluidModalOpen(true); }}>Thêm</Button>}>
+                {anesthesiaFluids.length === 0 ? (
+                  <Empty description="Chưa có" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                ) : (
+                  <Table size="small" dataSource={anesthesiaFluids} rowKey="id" pagination={false}
+                    columns={[
+                      { title: 'Loại', dataIndex: 'type', key: 'type' },
+                      { title: 'Thể tích', dataIndex: 'volume', key: 'volume', width: 80 },
+                      { title: 'Bắt đầu', dataIndex: 'startTime', key: 'time', width: 70, render: (v: string) => dayjs(v).format('HH:mm') },
+                    ]}
+                  />
+                )}
+              </Card>
+            </Col>
+          </Row>
+          <Card size="small" title="Ghi chú hồi tỉnh">
+            <Input.TextArea rows={2} value={anesthesiaRecovery}
+              onChange={e => setAnesthesiaRecovery(e.target.value)}
+              placeholder="Tình trạng bệnh nhân sau mổ, thời gian tỉnh, đau, buồn nôn, sinh hiệu ổn định..." />
+          </Card>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -1204,6 +1499,289 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
           {printType === 'dd21-vap' && <VAPMonitoringPrint ref={printRef} record={medicalRecord} />}
         </div>
       </Drawer>
+
+      {/* Drug Reaction Test Modal */}
+      <Modal
+        title="Thêm phiếu thử phản ứng thuốc"
+        open={drugReactionModalOpen}
+        onOk={handleSaveDrugReaction}
+        onCancel={() => setDrugReactionModalOpen(false)}
+        width={700}
+        destroyOnHidden
+      >
+        <Form form={drugReactionForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="drugName" label="Tên thuốc" rules={[{ required: true, message: 'Vui lòng nhập tên thuốc' }]}>
+                <Input placeholder="Tên thuốc thử" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="dose" label="Liều">
+                <Input placeholder="0.1ml" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="route" label="Đường dùng">
+                <Select placeholder="Chọn">
+                  <Select.Option value="Tiêm trong da">Tiêm trong da</Select.Option>
+                  <Select.Option value="Tiêm dưới da">Tiêm dưới da</Select.Option>
+                  <Select.Option value="Nhỏ mắt">Nhỏ mắt</Select.Option>
+                  <Select.Option value="Uống">Uống</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="testDate" label="Ngày thử">
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="testTime" label="Giờ thử">
+                <TimePicker format="HH:mm" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="result" label="Kết quả" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="Negative">Âm tính</Select.Option>
+                  <Select.Option value="Positive">Dương tính</Select.Option>
+                  <Select.Option value="Inconclusive">Không xác định</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="reactionDescription" label="Mô tả phản ứng">
+            <Input.TextArea rows={2} placeholder="Mô tả phản ứng nếu có (mẩn đỏ, sưng, ngứa...)" />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="tester" label="Người thử">
+                <Input placeholder="Tên ĐD/BS thực hiện" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="notes" label="Ghi chú">
+                <Input placeholder="Ghi chú thêm" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Divider style={{ margin: '8px 0' }} />
+          <Form.Item>
+            <Space>
+              <input type="checkbox" checked={drugReactionCopyRange} onChange={e => setDrugReactionCopyRange(e.target.checked)} />
+              <span>Sao chép nhiều ngày</span>
+            </Space>
+          </Form.Item>
+          {drugReactionCopyRange && (
+            <Form.Item name="copyDateRange" label="Khoảng ngày sao chép">
+              <DatePicker.RangePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+            </Form.Item>
+          )}
+        </Form>
+      </Modal>
+
+      {/* Partograph Modal */}
+      <Modal
+        title="Thêm dữ liệu biểu đồ chuyển dạ"
+        open={partographModalOpen}
+        onOk={handleSavePartograph}
+        onCancel={() => setPartographModalOpen(false)}
+        width={700}
+        destroyOnHidden
+      >
+        <Form form={partographForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="entryTime" label="Thời gian" rules={[{ required: true }]}>
+                <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="cervicalDilation" label="Độ mở CTC (cm)" rules={[{ required: true }]}>
+                <InputNumber min={0} max={10} step={0.5} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="descent" label="Ngôi (station)">
+                <Select placeholder="Chọn">
+                  {['-3', '-2', '-1', '0', '+1', '+2', '+3'].map(s => (
+                    <Select.Option key={s} value={s}>{s}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={6}>
+              <Form.Item name="contractionFreq" label="Cơn co (lần/10p)">
+                <InputNumber min={0} max={10} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="contractionDuration" label="TG co (giây)">
+                <InputNumber min={0} max={120} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="fhr" label="Tim thai (lần/p)" rules={[{ required: true }]}>
+                <InputNumber min={60} max={220} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="maternalTemp" label="Nhiệt độ mẹ">
+                <InputNumber min={35} max={42} step={0.1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="systolicBP" label="HA tâm thu">
+                <InputNumber min={60} max={250} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="diastolicBP" label="HA tâm trương">
+                <InputNumber min={30} max={150} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="maternalPulse" label="Mạch mẹ">
+                <InputNumber min={40} max={200} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="notes" label="Ghi chú">
+            <Input.TextArea rows={2} placeholder="Ghi chú thêm..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Anesthesia Monitor Modal */}
+      <Modal
+        title="Thêm sinh hiệu gây mê"
+        open={anesthesiaModalOpen}
+        onOk={async () => {
+          try {
+            const v = await anesthesiaMonitorForm.validateFields();
+            setAnesthesiaEntries(prev => [...prev, {
+              id: `am-${Date.now()}`,
+              time: v.time?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),
+              bp: `${v.systolicBP ?? ''}/${v.diastolicBP ?? ''}`,
+              hr: v.hr ?? 0,
+              spo2: v.spo2 ?? 0,
+              etco2: v.etco2 ?? 0,
+              temp: v.temp ?? 0,
+              notes: v.notes || '',
+            }]);
+            setAnesthesiaModalOpen(false);
+          } catch { /* validation */ }
+        }}
+        onCancel={() => setAnesthesiaModalOpen(false)}
+        destroyOnHidden
+      >
+        <Form form={anesthesiaMonitorForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="time" label="Thời gian" rules={[{ required: true }]}><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="systolicBP" label="HA tâm thu"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="diastolicBP" label="HA tâm trương"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={6}><Form.Item name="hr" label="Mạch"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="spo2" label="SpO2"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="etco2" label="EtCO2"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="temp" label="Nhiệt độ"><InputNumber step={0.1} style={{ width: '100%' }} /></Form.Item></Col>
+          </Row>
+          <Form.Item name="notes" label="Ghi chú"><Input placeholder="Ghi chú..." /></Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Anesthesia Drug Modal */}
+      <Modal
+        title="Thêm thuốc gây mê"
+        open={anesthesiaDrugModalOpen}
+        onOk={async () => {
+          try {
+            const v = await anesthesiaDrugForm.validateFields();
+            setAnesthesiaDrugs(prev => [...prev, {
+              id: `ad-${Date.now()}`,
+              time: v.time?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),
+              drugName: v.drugName,
+              dose: v.dose || '',
+              route: v.route || '',
+              category: v.category || '',
+            }]);
+            setAnesthesiaDrugModalOpen(false);
+          } catch { /* validation */ }
+        }}
+        onCancel={() => setAnesthesiaDrugModalOpen(false)}
+        destroyOnHidden
+      >
+        <Form form={anesthesiaDrugForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="time" label="Giờ"><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={16}><Form.Item name="drugName" label="Tên thuốc" rules={[{ required: true }]}><Input placeholder="Propofol, Fentanyl..." /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="dose" label="Liều"><Input placeholder="200mg" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="route" label="Đường dùng"><Input placeholder="IV, IM..." /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="category" label="Phân loại">
+                <Select placeholder="Chọn">
+                  <Select.Option value="Khởi mê">Khởi mê</Select.Option>
+                  <Select.Option value="Duy trì">Duy trì</Select.Option>
+                  <Select.Option value="Hỗ trợ">Hỗ trợ</Select.Option>
+                  <Select.Option value="Giảm đau">Giảm đau</Select.Option>
+                  <Select.Option value="Giãn cơ">Giãn cơ</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+
+      {/* Anesthesia Fluid Modal */}
+      <Modal
+        title="Thêm dịch truyền"
+        open={anesthesiaFluidModalOpen}
+        onOk={async () => {
+          try {
+            const v = await anesthesiaFluidForm.validateFields();
+            setAnesthesiaFluids(prev => [...prev, {
+              id: `af-${Date.now()}`,
+              type: v.fluidType,
+              volume: v.volume || '',
+              startTime: v.startTime?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),
+            }]);
+            setAnesthesiaFluidModalOpen(false);
+          } catch { /* validation */ }
+        }}
+        onCancel={() => setAnesthesiaFluidModalOpen(false)}
+        destroyOnHidden
+      >
+        <Form form={anesthesiaFluidForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={10}>
+              <Form.Item name="fluidType" label="Loại dịch" rules={[{ required: true }]}>
+                <Select placeholder="Chọn">
+                  <Select.Option value="NaCl 0.9%">NaCl 0.9%</Select.Option>
+                  <Select.Option value="Ringer Lactate">Ringer Lactate</Select.Option>
+                  <Select.Option value="Glucose 5%">Glucose 5%</Select.Option>
+                  <Select.Option value="Gelofusine">Gelofusine</Select.Option>
+                  <Select.Option value="Albumin">Albumin</Select.Option>
+                  <Select.Option value="HCL">Hồng cầu lắng</Select.Option>
+                  <Select.Option value="FFP">Huyết tương tươi</Select.Option>
+                  <Select.Option value="Tiểu cầu">Tiểu cầu</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={7}><Form.Item name="volume" label="Thể tích (ml)"><Input placeholder="500ml" /></Form.Item></Col>
+            <Col span={7}><Form.Item name="startTime" label="Bắt đầu"><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></Col>
+          </Row>
+        </Form>
+      </Modal>
 
       {/* Digital Signature Modals */}
       <PinEntryModal

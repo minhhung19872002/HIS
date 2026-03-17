@@ -130,4 +130,83 @@ public class MedicalRecordArchiveController : ControllerBase
         var result = await _archiveService.GetOverdueBorrowsAsync();
         return Ok(result);
     }
+
+    // === Storage & Digital Archive ===
+
+    /// <summary>
+    /// Trạng thái lưu trữ (local/cloud usage, sync status)
+    /// </summary>
+    [HttpGet("storage-status")]
+    public async Task<ActionResult<StorageStatusDto>> GetStorageStatus()
+    {
+        var result = await _archiveService.GetStorageStatusAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Danh sách hồ sơ đã lưu trữ (filter, paginate)
+    /// </summary>
+    [HttpGet("archived")]
+    public async Task<ActionResult<PagedArchiveResult>> GetArchivedRecords(
+        [FromQuery] string? keyword,
+        [FromQuery] string? format,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await _archiveService.GetArchivedRecordsAsync(keyword, format, fromDate, toDate, pageIndex, pageSize);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo hồ sơ lưu trữ từ lượt khám (XML/HL7/CDA)
+    /// </summary>
+    [HttpPost("generate")]
+    public async Task<ActionResult<ArchiveDto>> GenerateArchive([FromBody] GenerateArchiveDto dto)
+    {
+        try
+        {
+            var result = await _archiveService.GenerateArchiveAsync(dto, GetUserId());
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Giải mã hồ sơ lưu trữ thành JSON có cấu trúc
+    /// </summary>
+    [HttpGet("decode/{id}")]
+    public async Task<ActionResult<ArchivedRecordDataDto>> DecodeArchive(Guid id)
+    {
+        try
+        {
+            var result = await _archiveService.DecodeArchiveAsync(id);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Tải xuống hồ sơ lưu trữ (file bytes)
+    /// </summary>
+    [HttpGet("download/{id}")]
+    public async Task<IActionResult> DownloadArchive(Guid id)
+    {
+        try
+        {
+            var data = await _archiveService.DownloadArchiveAsync(id);
+            return File(data, "application/xml", $"archive-{id}.xml");
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 }

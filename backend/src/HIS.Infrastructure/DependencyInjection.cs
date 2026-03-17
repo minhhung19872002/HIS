@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IPdfSignatureService, PdfSignatureService>(); // PDF generation and signing
         services.AddSingleton<Pkcs11SessionManager>(); // PKCS#11 session caching (singleton)
         services.AddScoped<ITokenRegistryService, TokenRegistryService>(); // Token-user mapping
+        services.AddScoped<ICentralSigningService, CentralSigningService>(); // Centralized signing (NangCap6)
         services.Configure<Pkcs11Configuration>(configuration.GetSection("DigitalSignature"));
 
         // Phân hệ 7: Xét nghiệm LIS (Laboratory Information System)
@@ -205,6 +206,12 @@ public static class DependencyInjection
 
         // NangCap5: Chuyển giao dữ liệu
         services.AddScoped<IDataManagementService, DataManagementService>();
+
+        // Bệnh án chuyên khoa điện tử (Specialty EMR)
+        services.AddScoped<ISpecialtyEmrService, SpecialtyEmrService>();
+
+        // Clinical Records: Partograph + Anesthesia
+        services.AddScoped<IClinicalRecordService, ClinicalRecordService>();
 
         return services;
     }

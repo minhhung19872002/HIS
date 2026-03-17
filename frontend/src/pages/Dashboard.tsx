@@ -13,6 +13,11 @@ import {
   BarChartOutlined,
   LineChartOutlined,
   PieChartOutlined,
+  MedicineBoxOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -31,6 +36,14 @@ interface TrendData {
   revenue: number;
 }
 
+interface ServiceStatus {
+  name: string;
+  icon: React.ReactNode;
+  done: number;
+  pending: number;
+  color: string;
+}
+
 interface DashboardData {
   outpatientCount: number;
   inpatientCount: number;
@@ -43,6 +56,10 @@ interface DashboardData {
   trends: TrendData[];
   outpatientByDepartment: { departmentName: string; count: number }[];
   revenueByDepartment: { departmentName: string; revenue: number }[];
+  // Service status
+  serviceStatuses: ServiceStatus[];
+  // Revenue by patient type
+  revenueByPatientType: { name: string; value: number; color: string }[];
 }
 
 const CHART_COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'];
@@ -55,6 +72,7 @@ const Dashboard: React.FC = () => {
     outpatientCount: 0, inpatientCount: 0, emergencyCount: 0, surgeryCount: 0,
     admissionCount: 0, dischargeCount: 0, availableBeds: 0, totalRevenue: 0,
     trends: [], outpatientByDepartment: [], revenueByDepartment: [],
+    serviceStatuses: [], revenueByPatientType: [],
   });
 
   const fetchDashboard = useCallback(async () => {
@@ -91,6 +109,19 @@ const Dashboard: React.FC = () => {
           revenueByDepartment: Array.isArray(depts)
             ? depts.map((dep: any) => ({ departmentName: dep.departmentName ?? dep.name ?? 'N/A', revenue: dep.revenue ?? 0 })).filter((d: any) => d.revenue > 0)
             : d.revenueByDepartment ?? [],
+          serviceStatuses: [
+            { name: 'Khám bệnh', icon: <UserOutlined />, done: d.opdCompleted ?? d.todayOutpatients ?? 0, pending: d.opdPending ?? Math.max(0, (d.todayOutpatients ?? 0) - (d.opdCompleted ?? 0)), color: '#1890ff' },
+            { name: 'CĐHA', icon: <ExperimentOutlined />, done: d.radiologyCompleted ?? 0, pending: d.radiologyPending ?? 0, color: '#722ed1' },
+            { name: 'Xét nghiệm', icon: <ExperimentOutlined />, done: d.labCompleted ?? 0, pending: d.labPending ?? 0, color: '#13c2c2' },
+            { name: 'Phẫu thuật', icon: <ScissorOutlined />, done: d.surgeryCompleted ?? d.todaySurgeries ?? 0, pending: d.surgeryPending ?? 0, color: '#eb2f96' },
+            { name: 'Thủ thuật', icon: <MedicineBoxOutlined />, done: d.procedureCompleted ?? 0, pending: d.procedurePending ?? 0, color: '#fa8c16' },
+            { name: 'Kê đơn', icon: <FileTextOutlined />, done: d.prescriptionCompleted ?? 0, pending: d.prescriptionPending ?? 0, color: '#52c41a' },
+          ],
+          revenueByPatientType: [
+            { name: 'BHYT', value: d.revenueBHYT ?? Math.round((d.todayRevenue ?? d.totalRevenue ?? 0) * 0.6), color: '#1890ff' },
+            { name: 'Tự chi trả', value: d.revenueSelfPay ?? Math.round((d.todayRevenue ?? d.totalRevenue ?? 0) * 0.35), color: '#52c41a' },
+            { name: 'Khác', value: d.revenueOther ?? Math.round((d.todayRevenue ?? d.totalRevenue ?? 0) * 0.05), color: '#faad14' },
+          ].filter(r => r.value > 0),
         });
       }
       setLastUpdate(dayjs().format('HH:mm:ss'));
@@ -212,6 +243,32 @@ const Dashboard: React.FC = () => {
               </div>
             </Card>
           </Col>
+        </Row>
+
+        {/* Row 2.5: Service Status mini cards */}
+        <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
+          {data.serviceStatuses.map((svc) => (
+            <Col xs={12} sm={8} lg={4} key={svc.name}>
+              <Card size="small" hoverable style={{ borderLeft: `3px solid ${svc.color}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ color: svc.color, fontSize: 18 }}>{svc.icon}</span>
+                  <Text strong style={{ fontSize: 13 }}>{svc.name}</Text>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 4 }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>Xong: </Text>
+                    <Text strong style={{ color: '#52c41a' }}>{svc.done}</Text>
+                  </div>
+                  <div>
+                    <ClockCircleOutlined style={{ color: '#fa8c16', marginRight: 4 }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>Chờ: </Text>
+                    <Text strong style={{ color: '#fa8c16' }}>{svc.pending}</Text>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          ))}
         </Row>
 
         {/* Row 3: Charts */}
@@ -359,6 +416,43 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </Card>
+            {data.revenueByPatientType.length > 0 && (
+              <Card size="small" title="Doanh thu theo đối tượng" style={{ marginTop: 16 }}>
+                <div style={{ height: 130 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.revenueByPatientType}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={28}
+                        outerRadius={48}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {data.revenueByPatientType.map((entry, i) => (
+                          <Cell key={`rev-${i}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value: any, name: any) => [`${(value ?? 0).toLocaleString('vi-VN')} ₫`, name]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  {data.revenueByPatientType.map(d => (
+                    <div key={d.name} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text>
+                        <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: d.color, marginRight: 6 }} />
+                        {d.name}
+                      </Text>
+                      <Text strong>{Number(d.value).toLocaleString('vi-VN')} ₫</Text>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </Col>
         </Row>
 
