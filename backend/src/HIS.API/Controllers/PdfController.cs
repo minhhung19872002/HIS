@@ -1,13 +1,16 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
+using HIS.Infrastructure.Services;
 
 namespace HIS.API.Controllers;
 
 /// <summary>
-/// Controller sinh HTML cho in bieu mau EMR
-/// Tra ve HTML (Content-Type: text/html; charset=utf-8) de browser in native
+/// Controller sinh HTML/PDF cho in bieu mau EMR
+/// Accept header hoac query ?format=pdf de tra ve PDF thay vi HTML
+/// Neu user co phien ky so active, PDF se duoc ky so tu dong
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -15,10 +18,81 @@ namespace HIS.API.Controllers;
 public class PdfController : ControllerBase
 {
     private readonly IPdfGenerationService _pdfService;
+    private readonly IPdfSignatureService _signatureService;
+    private readonly Pkcs11SessionManager _sessionManager;
+    private readonly ILogger<PdfController> _logger;
 
-    public PdfController(IPdfGenerationService pdfService)
+    public PdfController(
+        IPdfGenerationService pdfService,
+        IPdfSignatureService signatureService,
+        Pkcs11SessionManager sessionManager,
+        ILogger<PdfController> logger)
     {
         _pdfService = pdfService;
+        _signatureService = signatureService;
+        _sessionManager = sessionManager;
+        _logger = logger;
+    }
+
+    private bool ShouldReturnPdf()
+    {
+        if (Request.Query.ContainsKey("format") && Request.Query["format"] == "pdf")
+            return true;
+        var accept = Request.Headers.Accept.ToString();
+        return accept.Contains("application/pdf");
+    }
+
+    private async Task<IActionResult> ReturnHtmlOrPdf(byte[] html, string pdfFileName)
+    {
+        if (ShouldReturnPdf())
+        {
+            var pdfBytes = await _signatureService.ConvertHtmlToPdfAsync(html);
+
+            // Auto-sign if user has active signing session
+            var userId = GetCurrentUserId();
+            if (userId != null)
+            {
+                var session = _sessionManager.GetActiveSession(userId.Value.ToString());
+                if (session != null)
+                {
+                    try
+                    {
+                        PdfSignatureResult signResult;
+                        if (session.IsWindowsStoreMode)
+                        {
+                            signResult = await _signatureService.SignPdfWithUSBTokenAsync(
+                                pdfBytes, session.CertificateThumbprint,
+                                "Ký xác nhận tài liệu", "Việt Nam");
+                        }
+                        else
+                        {
+                            // PKCS#11 mode - skip auto-sign (requires semaphore coordination)
+                            signResult = new PdfSignatureResult { Success = false };
+                        }
+                        if (signResult.Success && signResult.SignedPdfBytes != null)
+                        {
+                            pdfBytes = signResult.SignedPdfBytes;
+                            _logger.LogInformation("Auto-signed PDF export for user {UserId}", userId);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Auto-sign failed, returning unsigned PDF");
+                    }
+                }
+            }
+
+            return File(pdfBytes, "application/pdf", pdfFileName);
+        }
+        return File(html, "text/html; charset=utf-8");
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub") ?? User.FindFirst("id");
+        if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+            return userId;
+        return null;
     }
 
     /// <summary>
@@ -35,7 +109,7 @@ public class PdfController : ControllerBase
         try
         {
             var html = await _pdfService.GenerateEmrPdfAsync(examinationId, formType);
-            return File(html, "text/html; charset=utf-8");
+            return await ReturnHtmlOrPdf(html, $"EMR_{examinationId:N}_{formType}.pdf");
         }
         catch (Exception ex)
         {
@@ -53,7 +127,7 @@ public class PdfController : ControllerBase
         try
         {
             var html = await _pdfService.GenerateMedicalRecordSummaryAsync(medicalRecordId);
-            return File(html, "text/html; charset=utf-8");
+            return await ReturnHtmlOrPdf(html, $"MedicalRecord_{medicalRecordId:N}.pdf");
         }
         catch (Exception ex)
         {
@@ -71,7 +145,7 @@ public class PdfController : ControllerBase
         try
         {
             var html = await _pdfService.GenerateTreatmentSheetAsync(admissionId);
-            return File(html, "text/html; charset=utf-8");
+            return await ReturnHtmlOrPdf(html, $"TreatmentSheet_{admissionId:N}.pdf");
         }
         catch (Exception ex)
         {
@@ -89,7 +163,7 @@ public class PdfController : ControllerBase
         try
         {
             var html = await _pdfService.GenerateDischargeLetterAsync(admissionId);
-            return File(html, "text/html; charset=utf-8");
+            return await ReturnHtmlOrPdf(html, $"Discharge_{admissionId:N}.pdf");
         }
         catch (Exception ex)
         {
@@ -107,7 +181,7 @@ public class PdfController : ControllerBase
         try
         {
             var html = await _pdfService.GeneratePrescriptionAsync(prescriptionId);
-            return File(html, "text/html; charset=utf-8");
+            return await ReturnHtmlOrPdf(html, $"Prescription_{prescriptionId:N}.pdf");
         }
         catch (Exception ex)
         {
@@ -125,7 +199,7 @@ public class PdfController : ControllerBase
         try
         {
             var html = await _pdfService.GenerateLabResultAsync(requestId);
-            return File(html, "text/html; charset=utf-8");
+            return await ReturnHtmlOrPdf(html, $"LabResult_{requestId:N}.pdf");
         }
         catch (Exception ex)
         {

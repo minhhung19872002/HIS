@@ -32,7 +32,8 @@ interface SigningContextType {
   expiryWarningDays: number | null;
   batchProgress: BatchProgress | null;
   isSigningBatch: boolean;
-  openSession: (pin: string) => Promise<OpenSessionResponse>;
+  openSession: (pin: string, skipPkcs11?: boolean) => Promise<OpenSessionResponse>;
+  tryAutoOpenSession: () => Promise<OpenSessionResponse>;
   closeSession: () => Promise<void>;
   signDocument: (documentId: string, documentType: string, reason: string, pin?: string) => Promise<SignDocumentResponse>;
   startBatchSign: (documentIds: string[], documentType: string, reason: string, pin?: string) => Promise<BatchSignResponse>;
@@ -112,8 +113,21 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
     }
   }, [updateSessionState]);
 
-  const openSessionHandler = useCallback(async (pin: string): Promise<OpenSessionResponse> => {
-    const res = await apiOpenSession({ pin });
+  const openSessionHandler = useCallback(async (pin: string, skipPkcs11?: boolean): Promise<OpenSessionResponse> => {
+    const res = await apiOpenSession({ pin, skipPkcs11 });
+    if (res.data.success) {
+      setSessionActive(true);
+      setSessionExpiresAt(res.data.sessionExpiresAt || null);
+      setTokenSerial(res.data.tokenSerial || null);
+      setCaProvider(res.data.caProvider || null);
+      setCertificateSubject(res.data.certificateSubject || null);
+    }
+    return res.data;
+  }, []);
+
+  const tryAutoOpenSessionHandler = useCallback(async (): Promise<OpenSessionResponse> => {
+    // Try opening session with Windows Certificate Store (no PIN needed)
+    const res = await apiOpenSession({ pin: '', skipPkcs11: true });
     if (res.data.success) {
       setSessionActive(true);
       setSessionExpiresAt(res.data.sessionExpiresAt || null);
@@ -136,14 +150,23 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
   const signDocumentHandler = useCallback(async (
     documentId: string, documentType: string, reason: string, pin?: string
   ): Promise<SignDocumentResponse> => {
-    const res = await apiSignDocument({
-      documentId,
-      documentType,
-      pin,
-      reason,
-      location: 'Việt Nam',
-    });
-    return res.data;
+    try {
+      const res = await apiSignDocument({
+        documentId,
+        documentType,
+        pin,
+        reason,
+        location: 'Việt Nam',
+      });
+      return res.data;
+    } catch (err: unknown) {
+      // Extract error message from HTTP error responses (e.g. 409 Conflict)
+      const axiosErr = err as { response?: { data?: { success?: boolean; message?: string } } };
+      if (axiosErr.response?.data?.message) {
+        return { success: false, message: axiosErr.response.data.message };
+      }
+      return { success: false, message: 'Lỗi ký số' };
+    }
   }, []);
 
   const startBatchSignHandler = useCallback(async (
@@ -184,6 +207,7 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
         batchProgress,
         isSigningBatch,
         openSession: openSessionHandler,
+        tryAutoOpenSession: tryAutoOpenSessionHandler,
         closeSession: closeSessionHandler,
         signDocument: signDocumentHandler,
         startBatchSign: startBatchSignHandler,

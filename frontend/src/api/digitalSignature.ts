@@ -2,6 +2,7 @@ import { apiClient } from './client';
 
 export interface OpenSessionRequest {
   pin: string;
+  skipPkcs11?: boolean;
 }
 
 export interface OpenSessionResponse {
@@ -108,6 +109,29 @@ export const getSignatures = (documentId: string) =>
 
 export const revokeSignature = (signatureId: string, reason: string) =>
   apiClient.post(`/digital-signature/revoke-signature/${signatureId}`, { reason });
+
+// Download signed PDF
+export const downloadSignedPdf = async (signatureId: string) => {
+  const resp = await apiClient.get(`/digital-signature/download/${signatureId}`, {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
+  const link = document.createElement('a');
+  link.href = url;
+  const disposition = resp.headers['content-disposition'];
+  const fileName = disposition
+    ? disposition.split('filename=')[1]?.replace(/"/g, '') || `signed_${signatureId}.pdf`
+    : `signed_${signatureId}.pdf`;
+  link.setAttribute('download', fileName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+// Batch signature lookup
+export const getSignaturesBatch = (documentIds: string[]) =>
+  apiClient.post<Record<string, DocumentSignatureDto>>('/digital-signature/signatures/batch', documentIds);
 
 // Tokens
 export const getTokens = () =>

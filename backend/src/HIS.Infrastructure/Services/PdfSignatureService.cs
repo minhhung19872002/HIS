@@ -158,6 +158,19 @@ public class PdfSignatureResult
     public string? CertificateThumbprint { get; set; }
 }
 
+/// <summary>
+/// MemoryStream wrapper that ignores Close/Dispose calls.
+/// Required because iText PdfSigner.SignDetached() closes the output stream internally,
+/// then tries to read back from it for byte range computation.
+/// </summary>
+internal class UnclosableMemoryStream : MemoryStream
+{
+    public UnclosableMemoryStream() : base() { }
+    public override void Close() { /* Prevent iText from closing this stream */ }
+    protected override void Dispose(bool disposing) { /* Prevent disposal */ }
+    public void ForceDispose() => base.Dispose(true);
+}
+
 public class PdfSignatureService : IPdfSignatureService
 {
     private readonly string _fontPath;
@@ -507,11 +520,13 @@ public class PdfSignatureService : IPdfSignatureService
             var bouncyCastleCert = new X509CertificateParser().ReadCertificate(cert.RawData);
             var chain = new IX509Certificate[] { new X509CertificateBC(bouncyCastleCert) };
 
-            // Create output stream
-            using var outputStream = new MemoryStream();
+            // Use UnclosableMemoryStream because PdfSigner.SignDetached() closes the stream
+            // internally (via PdfWriter.Close()), then reads back for byte range computation.
+            // A regular MemoryStream would throw "Cannot access a closed Stream".
+            var outputStream = new UnclosableMemoryStream();
 
-            // Create reader and stamper
-            using var reader = new PdfReader(new MemoryStream(pdfBytes));
+            var inputStream = new MemoryStream(pdfBytes);
+            var reader = new PdfReader(inputStream);
 
             // Create signer using PdfSigner
             var signer = new PdfSigner(
@@ -519,19 +534,25 @@ public class PdfSignatureService : IPdfSignatureService
                 outputStream,
                 new StampingProperties());
 
-            // Configure signature appearance
+            // Configure signature appearance with Vietnamese font
             var appearance = signer.GetSignatureAppearance();
+            try
+            {
+                var vietFont = PdfFontFactory.CreateFont(_fontPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
+                appearance.SetLayer2Font(vietFont);
+            }
+            catch { /* fallback to default font */ }
             appearance
                 .SetReason(reason)
                 .SetLocation(location)
                 .SetContact(cert.Subject)
-                .SetSignatureCreator("HIS RIS/PACS Module")
+                .SetSignatureCreator("HIS Digital Signature")
                 .SetPageNumber(1)
                 .SetPageRect(new iText.Kernel.Geom.Rectangle(400, 50, 150, 50));
 
-            signer.SetFieldName("Signature_RIS");
+            signer.SetFieldName("Sig_" + Guid.NewGuid().ToString("N")[..8]);
 
-            // Create external signature using Windows CryptoAPI (triggers PIN dialog)
+            // Create external signature using Windows CryptoAPI
             var externalSignature = new X509Certificate2Signature(cert, "SHA-256");
 
             // Sign the document
@@ -541,10 +562,11 @@ public class PdfSignatureService : IPdfSignatureService
                 null, // No CRL
                 null, // No OCSP
                 null, // No TSA
-                0,
+                8192,
                 PdfSigner.CryptoStandard.CMS);
 
             var signedPdfBytes = outputStream.ToArray();
+            outputStream.ForceDispose();
 
             // Save signed PDF
             var fileName = $"RIS_SIGNED_{DateTime.Now:yyyyMMddHHmmss}.pdf";
@@ -708,6 +730,12 @@ public class PdfSignatureService : IPdfSignatureService
             signer.SetPageRect(rect);
 
             var signatureAppearance = signer.GetSignatureAppearance();
+            try
+            {
+                var vietFont = PdfFontFactory.CreateFont(_fontPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
+                signatureAppearance.SetLayer2Font(vietFont);
+            }
+            catch { /* fallback to default font */ }
             signatureAppearance
                 .SetReason(reason)
                 .SetLocation(location)
@@ -764,19 +792,26 @@ public class PdfSignatureService : IPdfSignatureService
 
         var converterProperties = new iText.Html2pdf.ConverterProperties();
 
-        // Set font provider with Vietnamese font support
+        // Set font provider with Vietnamese font support - load all Windows fonts
         var fontProvider = new iText.Layout.Font.FontProvider();
         fontProvider.AddStandardPdfFonts();
-        if (File.Exists(_fontPath))
+
+        // Add entire Windows Fonts directory for full Vietnamese support
+        var windowsFontsDir = @"C:\Windows\Fonts";
+        if (Directory.Exists(windowsFontsDir))
         {
-            fontProvider.AddFont(_fontPath);
+            fontProvider.AddDirectory(windowsFontsDir);
         }
+
         converterProperties.SetFontProvider(fontProvider);
 
         iText.Html2pdf.HtmlConverter.ConvertToPdf(htmlStream, outputStream, converterProperties);
 
-        _logger?.LogInformation("Converted HTML to PDF ({Size} bytes)", outputStream.Length);
-        return Task.FromResult(outputStream.ToArray());
+        // Note: HtmlConverter.ConvertToPdf closes the outputStream internally (via PdfWriter.Close).
+        // MemoryStream.ToArray() works on closed streams, but .Length does not.
+        var pdfBytes = outputStream.ToArray();
+        _logger?.LogInformation("Converted HTML to PDF ({Size} bytes)", pdfBytes.Length);
+        return Task.FromResult(pdfBytes);
     }
 
     public async Task<PdfSignatureResult> ConvertAndSignAsync(
@@ -819,6 +854,12 @@ public class PdfSignatureService : IPdfSignatureService
             signer.SetFieldName("Sig_" + Guid.NewGuid().ToString("N")[..8]);
 
             var appearance = signer.GetSignatureAppearance();
+            try
+            {
+                var vietFont = PdfFontFactory.CreateFont(_fontPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
+                appearance.SetLayer2Font(vietFont);
+            }
+            catch { /* fallback to default font */ }
             appearance.SetReason(reason).SetLocation(location).SetContact(signerName);
             // No page rect = invisible signing
 
@@ -873,6 +914,12 @@ public class PdfSignatureService : IPdfSignatureService
             signer.SetPageRect(new iText.Kernel.Geom.Rectangle(x, y, width, height));
 
             var appearance = signer.GetSignatureAppearance();
+            try
+            {
+                var vietFont = PdfFontFactory.CreateFont(_fontPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
+                appearance.SetLayer2Font(vietFont);
+            }
+            catch { /* fallback to default font */ }
             appearance.SetReason(reason).SetLocation(location).SetContact(signerName)
                 .SetSignatureCreator("HIS Central Signing");
             var stampText = $"Ký bởi: {signerName}\nNgày: {DateTime.Now:dd/MM/yyyy HH:mm:ss}\nSố CT: {x509.SerialNumber}";

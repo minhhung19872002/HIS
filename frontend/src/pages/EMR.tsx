@@ -10,7 +10,7 @@ import {
   ExperimentOutlined, PrinterOutlined, EditOutlined, EyeOutlined,
   PlusOutlined, UserOutlined, CalendarOutlined, ReloadOutlined,
   FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined,
-  FilePdfOutlined, HistoryOutlined, CopyOutlined, FileExcelOutlined,
+  FilePdfOutlined, HistoryOutlined, CopyOutlined,
   DownloadOutlined, DeleteOutlined, WarningOutlined, AlertOutlined,
   LineChartOutlined, MedicineBoxOutlined as MedicineIcon,
 } from '@ant-design/icons';
@@ -40,7 +40,7 @@ import client from '../api/client';
 import PatientTimeline from '../components/PatientTimeline';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
-import { getSignatures } from '../api/digitalSignature';
+import { getSignatures, getSignaturesBatch, downloadSignedPdf } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 import {
   NursingCarePlanPrint, ICUNursingCarePlanPrint, NursingAssessmentPrint,
@@ -102,7 +102,7 @@ const EMR: React.FC = () => {
   const searchInputRef = useRef<ReturnType<typeof Input.Search> | null>(null);
 
   // Digital signature
-  const { sessionActive, openSession, signDocument } = useSigningContext();
+  const { sessionActive, openSession, tryAutoOpenSession, signDocument } = useSigningContext();
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [verificationPanelOpen, setVerificationPanelOpen] = useState(false);
@@ -267,8 +267,28 @@ const EMR: React.FC = () => {
   };
 
   const handleSignExam = async () => {
-    if (!selectedExam) return;
+    if (!selectedExam) {
+      message.warning('Vui lòng chọn hồ sơ bệnh án');
+      return;
+    }
     if (!sessionActive) {
+      // Try auto-open with Windows Certificate Store first (no PIN needed)
+      try {
+        const autoRes = await tryAutoOpenSession();
+        if (autoRes.success) {
+          message.success(`Đã kết nối chứng thư số: ${autoRes.certificateSubject || autoRes.caProvider || 'Windows'}`);
+          // Proceed to sign directly - Windows will handle PIN dialog if needed
+          const signRes = await signDocument(selectedExam.id, 'EMR', 'Ký xác nhận hồ sơ bệnh án');
+          if (signRes.success) {
+            message.success('Ký số thành công');
+            loadSignatureForExam(selectedExam.id);
+          } else {
+            message.warning(signRes.message || 'Ký số thất bại');
+          }
+          return;
+        }
+      } catch { /* Auto-open failed, fall back to PIN entry */ }
+      // Fallback: show PIN modal for PKCS#11 mode
       setPinModalOpen(true);
       return;
     }
@@ -334,47 +354,32 @@ const EMR: React.FC = () => {
     }
   };
 
-  // Export medical record as XML (CDA R2)
+  // Export medical record as standalone HTML file (viewable in any browser)
   const handleExportXml = async () => {
     if (!selectedExam) return;
-    try {
-      const resp = await client.post(`/cda/generate/${selectedExam.id}`, {});
-      if (resp.data?.cdaDocumentId) {
-        const xmlResp = await client.get(`/cda/${resp.data.cdaDocumentId}/xml`, { responseType: 'blob' });
-        const url = window.URL.createObjectURL(new Blob([xmlResp.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `EMR_${selectedExam.patientCode}_${dayjs().format('YYYYMMDD')}.xml`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        message.success('Xuất file XML thành công');
-      }
-    } catch {
-      message.warning('Không thể xuất file XML. Hệ thống sẽ tạo file XML từ dữ liệu hiện tại.');
-      // Fallback: generate simple XML client-side
-      if (medicalRecord) {
-        const xml = generateLocalXml(medicalRecord, selectedExam);
-        const blob = new Blob([xml], { type: 'application/xml' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `EMR_${selectedExam.patientCode}_${dayjs().format('YYYYMMDD')}.xml`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        message.success('Đã tạo file XML cục bộ');
-      }
+    if (!medicalRecord) {
+      message.warning('Không có dữ liệu bệnh án để xuất');
+      return;
     }
+    const html = generateExportHtml(medicalRecord, selectedExam);
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const blob = new Blob([bom, html], { type: 'text/html; charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `HSBA_${selectedExam.patientCode}_${dayjs().format('YYYYMMDD')}.html`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    message.success('Xuất file thành công. Mở bằng trình duyệt web (Chrome, Edge, Firefox).');
   };
 
   // Export as PDF
   const handleExportPdf = async () => {
     if (!selectedExam) return;
     try {
-      const resp = await client.get(`/pdf/emr/${selectedExam.id}`, { responseType: 'blob' });
+      const resp = await client.get(`/pdf/emr/${selectedExam.id}?format=pdf`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
@@ -389,51 +394,148 @@ const EMR: React.FC = () => {
     }
   };
 
-  // Generate simple XML from local data
-  const generateLocalXml = (record: MedicalRecordFullDto, exam: ExaminationDto): string => {
+  // Escape HTML special characters
+  const esc = (s: string | number | null | undefined): string => {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  };
+
+  // Generate standalone HTML medical record file
+  const generateExportHtml = (record: MedicalRecordFullDto, exam: ExaminationDto): string => {
     const p = record.patient;
     const vs = record.vitalSigns;
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<ClinicalDocument xmlns="urn:hl7-org:v3">
-  <typeId root="2.16.840.1.113883.1.3" extension="POCD_HD000040"/>
-  <id root="${exam.id}"/>
-  <code code="34133-9" displayName="Summarization of Episode Note"/>
-  <title>Hồ sơ bệnh án điện tử - ${p?.fullName ?? ''}</title>
-  <effectiveTime value="${dayjs().format('YYYYMMDDHHmmss')}"/>
-  <recordTarget>
-    <patientRole>
-      <id extension="${p?.patientCode ?? ''}"/>
-      <patient>
-        <name>${p?.fullName ?? ''}</name>
-        <administrativeGenderCode code="${p?.gender === 1 ? 'M' : 'F'}"/>
-        <birthTime value="${p?.dateOfBirth ? dayjs(p.dateOfBirth).format('YYYYMMDD') : ''}"/>
-      </patient>
-    </patientRole>
-  </recordTarget>
-  <component>
-    <structuredBody>
-      <component>
-        <section>
-          <title>Sinh hiệu</title>
-          <text>
-            <paragraph>Cân nặng: ${vs?.weight ?? ''}kg, Chiều cao: ${vs?.height ?? ''}cm</paragraph>
-            <paragraph>Huyết áp: ${vs?.bloodPressureSystolic ?? ''}/${vs?.bloodPressureDiastolic ?? ''}mmHg</paragraph>
-            <paragraph>Mạch: ${vs?.pulse ?? ''} lần/phút, Nhiệt độ: ${vs?.temperature ?? ''}°C</paragraph>
-            <paragraph>SpO2: ${vs?.spO2 ?? ''}%, Nhịp thở: ${vs?.respiratoryRate ?? ''} lần/phút</paragraph>
-          </text>
-        </section>
-      </component>
-      <component>
-        <section>
-          <title>Chẩn đoán</title>
-          <text>
-${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.icdName}</paragraph>`).join('\n')}
-          </text>
-        </section>
-      </component>
-    </structuredBody>
-  </component>
-</ClinicalDocument>`;
+    const interview = record.interview;
+    const physExam = record.physicalExam;
+    const diagnoses = record.diagnoses ?? [];
+    const allergies = record.allergies ?? [];
+    const conclusion = record.conclusion;
+    const genderText = p?.gender === 1 ? 'Nam' : p?.gender === 2 ? 'Nữ' : '';
+    const dob = p?.dateOfBirth ? dayjs(p.dateOfBirth).format('DD/MM/YYYY') : '';
+    const examDate = dayjs(exam.examinationDate).format('DD/MM/YYYY HH:mm');
+
+    return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>HSBA - ${esc(p?.fullName)} - ${esc(exam.patientCode)}</title>
+<style>
+  @media print { body { margin: 0; } .no-print { display: none; } }
+  body { font-family: 'Times New Roman', serif; font-size: 14px; max-width: 800px; margin: 20px auto; padding: 0 20px; color: #333; }
+  .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+  .header h2 { margin: 5px 0; font-size: 18px; }
+  .header h1 { margin: 10px 0; font-size: 22px; color: #003366; }
+  .meta { font-size: 12px; color: #666; }
+  .section { margin: 15px 0; }
+  .section h3 { font-size: 16px; color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  table th, table td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  table th { background: #f0f5ff; font-weight: bold; width: 180px; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .row .col { flex: 1; min-width: 200px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; }
+  .badge-info { background: #e6f7ff; color: #0050b3; }
+  .badge-warn { background: #fff7e6; color: #ad6800; }
+  .badge-err { background: #fff1f0; color: #cf1322; }
+  .footer { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 12px; color: #999; text-align: center; }
+  .btn-print { position: fixed; top: 10px; right: 10px; padding: 8px 16px; background: #1890ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+  .btn-print:hover { background: #096dd9; }
+</style>
+</head>
+<body>
+<button class="btn-print no-print" onclick="window.print()">In</button>
+<div class="header">
+  <h2>BỘ Y TẾ</h2>
+  <h1>HỒ SƠ BỆNH ÁN ĐIỆN TỬ</h1>
+  <div class="meta">Mã hồ sơ: ${esc(exam.id)} | Ngày xuất: ${dayjs().format('DD/MM/YYYY HH:mm')}</div>
+</div>
+
+<div class="section">
+  <h3>I. THÔNG TIN BỆNH NHÂN</h3>
+  <table>
+    <tr><th>Họ và tên</th><td><b>${esc(p?.fullName)}</b></td></tr>
+    <tr><th>Mã bệnh nhân</th><td>${esc(p?.patientCode)}</td></tr>
+    <tr><th>Giới tính</th><td>${esc(genderText)}</td></tr>
+    <tr><th>Ngày sinh</th><td>${esc(dob)}${p?.age ? ` (${p.age} tuổi)` : ''}</td></tr>
+    <tr><th>Địa chỉ</th><td>${esc(p?.address)}</td></tr>
+    <tr><th>Số điện thoại</th><td>${esc(p?.phoneNumber)}</td></tr>
+    <tr><th>Nghề nghiệp</th><td>${esc(p?.occupation)}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>II. THÔNG TIN KHÁM BỆNH</h3>
+  <table>
+    <tr><th>Ngày khám</th><td>${esc(examDate)}</td></tr>
+    <tr><th>Phòng khám</th><td>${esc(exam.roomName)}</td></tr>
+    <tr><th>Bác sĩ</th><td>${esc(exam.doctorName)}</td></tr>
+    <tr><th>Trạng thái</th><td>${esc(exam.statusName)}</td></tr>
+  </table>
+</div>
+
+${vs ? `<div class="section">
+  <h3>III. SINH HIỆU</h3>
+  <table>
+    <tr><th>Cân nặng</th><td>${esc(vs.weight)} kg</td><th>Chiều cao</th><td>${esc(vs.height)} cm</td></tr>
+    <tr><th>Huyết áp</th><td>${esc(vs.bloodPressureSystolic)}/${esc(vs.bloodPressureDiastolic)} mmHg</td><th>Mạch</th><td>${esc(vs.pulse)} lần/phút</td></tr>
+    <tr><th>Nhiệt độ</th><td>${esc(vs.temperature)} °C</td><th>SpO2</th><td>${esc(vs.spO2)} %</td></tr>
+    <tr><th>Nhịp thở</th><td>${esc(vs.respiratoryRate)} lần/phút</td><th></th><td></td></tr>
+  </table>
+</div>` : ''}
+
+${interview ? `<div class="section">
+  <h3>IV. BỆNH SỬ</h3>
+  <table>
+    <tr><th>Lý do khám</th><td>${esc(interview.chiefComplaint)}</td></tr>
+    <tr><th>Bệnh sử hiện tại</th><td>${esc(interview.historyOfPresentIllness)}</td></tr>
+    <tr><th>Tiền sử bản thân</th><td>${esc(interview.pastMedicalHistory)}</td></tr>
+    <tr><th>Tiền sử gia đình</th><td>${esc(interview.familyHistory)}</td></tr>
+    <tr><th>Tiền sử dị ứng</th><td>${esc(interview.allergyHistory)}</td></tr>
+  </table>
+</div>` : ''}
+
+${physExam ? `<div class="section">
+  <h3>V. KHÁM LÂM SÀNG</h3>
+  <table>
+    <tr><th>Toàn thân</th><td>${esc(physExam.generalAppearance)}</td></tr>
+    <tr><th>Tim mạch</th><td>${esc(physExam.cardiovascular)}</td></tr>
+    <tr><th>Hô hấp</th><td>${esc(physExam.respiratory)}</td></tr>
+    <tr><th>Tiêu hóa</th><td>${esc(physExam.gastrointestinal)}</td></tr>
+    <tr><th>Thần kinh</th><td>${esc(physExam.neurological)}</td></tr>
+    <tr><th>Cơ xương khớp</th><td>${esc(physExam.musculoskeletal)}</td></tr>
+    <tr><th>Da</th><td>${esc(physExam.skin)}</td></tr>
+    <tr><th>Khác</th><td>${esc(physExam.otherFindings)}</td></tr>
+  </table>
+</div>` : ''}
+
+${diagnoses.length > 0 ? `<div class="section">
+  <h3>VI. CHẨN ĐOÁN</h3>
+  <table>
+    <tr><th>Mã ICD</th><th>Tên bệnh</th></tr>
+${diagnoses.map(d => `    <tr><td>${esc(d.icdCode)}</td><td>${esc(d.icdName)}</td></tr>`).join('\n')}
+  </table>
+</div>` : ''}
+
+${allergies.length > 0 ? `<div class="section">
+  <h3>VII. DỊ ỨNG</h3>
+  <table>
+    <tr><th>Chất gây dị ứng</th><th>Phản ứng</th><th>Mức độ</th></tr>
+${allergies.map(a => `    <tr><td>${esc(a.allergenName)}</td><td>${esc(a.reaction)}</td><td>${a.severity === 1 ? 'Nhẹ' : a.severity === 2 ? 'Trung bình' : a.severity === 3 ? 'Nặng' : ''}</td></tr>`).join('\n')}
+  </table>
+</div>` : ''}
+
+${conclusion ? `<div class="section">
+  <h3>VIII. KẾT LUẬN</h3>
+  <table>
+    <tr><th>Kết luận</th><td>${esc(conclusion.conclusionNotes)}</td></tr>
+  </table>
+</div>` : ''}
+
+<div class="footer">
+  <p>Tài liệu được xuất từ Hệ thống Thông tin Bệnh viện (HIS) ngày ${dayjs().format('DD/MM/YYYY HH:mm:ss')}</p>
+  <p>File này mở bằng trình duyệt web (Chrome, Edge, Firefox) hoặc bấm nút "In" để in ra giấy/PDF.</p>
+</div>
+</body>
+</html>`;
   };
 
   // Search examinations
@@ -463,6 +565,21 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
   useEffect(() => {
     handleSearch(1);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load signatures for all visible exams (batch)
+  useEffect(() => {
+    if (examinations.length === 0) return;
+    const ids = examinations.map(e => e.id);
+    getSignaturesBatch(ids).then(res => {
+      const map = new Map<string, DocumentSignatureDto>();
+      Object.entries(res.data).forEach(([docId, sig]) => map.set(docId, sig));
+      setSignatureMap(prev => {
+        const merged = new Map(prev);
+        map.forEach((v, k) => merged.set(k, v));
+        return merged;
+      });
+    }).catch(() => { /* ignore */ });
+  }, [examinations]);
 
   // Load detail when selecting an examination
   const loadDetail = useCallback(async (exam: ExaminationDto) => {
@@ -620,6 +737,22 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
     {
       title: 'TT', dataIndex: 'status', key: 'status', width: 100,
       render: (v: number) => <Tag color={statusColors[v] ?? 'default'}>{statusNames[v] ?? `${v}`}</Tag>,
+    },
+    {
+      title: 'Ký số', key: 'signed', width: 60, align: 'center' as const,
+      render: (_: unknown, r: ExaminationDto) => {
+        const sig = signatureMap.get(r.id);
+        return sig ? (
+          <SignatureStatusIcon
+            signed={true}
+            signatureInfo={sig}
+            onVerifyClick={() => {
+              setSelectedSignature(sig);
+              setVerificationPanelOpen(true);
+            }}
+          />
+        ) : null;
+      },
     },
   ];
 
@@ -1234,7 +1367,7 @@ ${(record.diagnoses ?? []).map(d => `            <paragraph>${d.icdCode} - ${d.i
                   <Button size="small" icon={<FilePdfOutlined />} type="primary" ghost>In PDF</Button>
                 </Dropdown>
                 <Tooltip title="Xuất XML (CDA R2)">
-                  <Button size="small" icon={<FileExcelOutlined />} onClick={handleExportXml}>XML</Button>
+                  <Button size="small" icon={<FileTextOutlined />} onClick={handleExportXml}>Xuất HSBA</Button>
                 </Tooltip>
                 <Tooltip title="Xuất PDF">
                   <Button size="small" icon={<DownloadOutlined />} onClick={handleExportPdf}>PDF</Button>

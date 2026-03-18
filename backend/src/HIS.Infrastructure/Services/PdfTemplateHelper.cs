@@ -10,8 +10,8 @@ namespace HIS.Infrastructure.Services;
 public static class PdfTemplateHelper
 {
     private const string HospitalName = "BENH VIEN DA KHOA ABC";
-    private const string HospitalNameVn = "B\u1EC6NH VI\u1EC6N \u0110A KHOA ABC";
-    private const string HospitalAddress = "123 \u0110\u01B0\u1EDDng ABC, Qu\u1EADn XYZ, TP. H\u1ED3 Ch\u00ED Minh";
+    private const string HospitalNameVn = "BỆNH VIỆN ĐA KHOA ABC";
+    private const string HospitalAddress = "123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh";
     private const string HospitalPhone = "(028) 1234 5678";
 
     /// <summary>
@@ -43,10 +43,10 @@ public static class PdfTemplateHelper
             background: #fff;
         }}
         .page {{
-            width: 210mm;
-            min-height: 297mm;
-            padding: 15mm 20mm 15mm 25mm;
-            margin: 0 auto;
+            width: 100%;
+            min-height: auto;
+            padding: 0;
+            margin: 0;
             background: #fff;
         }}
         .header {{
@@ -208,7 +208,7 @@ public static class PdfTemplateHelper
     </style>
 </head>
 <body>
-    <button class=""print-btn no-print"" onclick=""window.print()"">In bi\u1EC3u m\u1EABu</button>
+    <button class=""print-btn no-print"" onclick=""window.print()"">In biểu mẫu</button>
     <div class=""page"">
         {bodyContent}
     </div>
@@ -224,15 +224,15 @@ public static class PdfTemplateHelper
         return $@"
 <div class=""header"">
     <div class=""header-left"">
-        <div class=""header-ministry"">B\u1ED8 Y T\u1EBES</div>
+        <div class=""header-ministry"">BỘ Y TẾ</div>
         <div class=""header-hospital"">{EscapeHtml(HospitalNameVn)}</div>
         <div style=""font-size:11px"">{EscapeHtml(HospitalAddress)}</div>
         <div style=""font-size:11px"">Tel: {EscapeHtml(HospitalPhone)}</div>
     </div>
     <div class=""header-right"">
-        <div class=""header-country"">C\u1ED8NG H\u00D2A X\u00C3 H\u1ED8I CH\u1EE6 NGH\u0128A VI\u1EC6T NAM</div>
+        <div class=""header-country"">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
         <div class=""header-motto"" style=""text-decoration:underline"">
-            \u0110\u1ED9c l\u1EADp - T\u1EF1 do - H\u1EA1nh ph\u00FAc
+            Độc lập - Tự do - Hạnh phúc
         </div>
     </div>
 </div>";
@@ -246,34 +246,34 @@ public static class PdfTemplateHelper
         string? address, string? phone, string? insuranceNumber,
         string? medicalRecordCode = null, string? departmentName = null)
     {
-        var genderText = gender switch { 1 => "Nam", 2 => "N\u1EEF", _ => "Kh\u00E1c" };
+        var genderText = gender switch { 1 => "Nam", 2 => "Nữ", _ => "Khác" };
         var age = dateOfBirth.HasValue ? (DateTime.Now.Year - dateOfBirth.Value.Year).ToString() : "";
         var dobText = dateOfBirth?.ToString("dd/MM/yyyy") ?? "";
 
         return $@"
 <div class=""patient-info"">
     <div class=""field"">
-        <span class=""field-label"">H\u1ECD v\u00E0 t\u00EAn:</span>
+        <span class=""field-label"">Họ và tên:</span>
         <span class=""field-value text-bold"">{EscapeHtml(fullName)}</span>
-        <span style=""margin-left:20px""><b>Gi\u1EDBi:</b> {genderText}</span>
-        <span style=""margin-left:20px""><b>Tu\u1ED5i:</b> {age}</span>
+        <span style=""margin-left:20px""><b>Giới:</b> {genderText}</span>
+        <span style=""margin-left:20px""><b>Tuổi:</b> {age}</span>
     </div>
     <div class=""field"">
-        <span class=""field-label"">Ng\u00E0y sinh:</span>
+        <span class=""field-label"">Ngày sinh:</span>
         <span class=""field-value"">{dobText}</span>
     </div>
     <div class=""field"">
-        <span class=""field-label"">\u0110\u1ECBa ch\u1EC9:</span>
+        <span class=""field-label"">Địa chỉ:</span>
         <span class=""field-value"">{EscapeHtml(address)}</span>
     </div>
     <div class=""field"">
-        <span class=""field-label"">S\u0110T:</span>
+        <span class=""field-label"">SĐT:</span>
         <span class=""field-value"">{EscapeHtml(phone)}</span>
-        <span style=""margin-left:20px""><b>S\u1ED1 th\u1EBB BHYT:</b> {EscapeHtml(insuranceNumber)}</span>
+        <span style=""margin-left:20px""><b>Số thẻ BHYT:</b> {EscapeHtml(insuranceNumber)}</span>
     </div>
     {(medicalRecordCode != null ? $@"
     <div class=""field"">
-        <span class=""field-label"">S\u1ED1 h\u1ED3 s\u01A1:</span>
+        <span class=""field-label"">Số hồ sơ:</span>
         <span class=""field-value"">{EscapeHtml(medicalRecordCode)}</span>
         {(departmentName != null ? $@"<span style=""margin-left:20px""><b>Khoa:</b> {EscapeHtml(departmentName)}</span>" : "")}
     </div>" : "")}
@@ -287,7 +287,7 @@ public static class PdfTemplateHelper
         string? doctorName = null, string? departmentHeadName = null,
         string? date = null, bool includePatient = true)
     {
-        var dateText = date ?? DateTime.Now.ToString("'Ng\u00E0y' dd 'th\u00E1ng' MM 'n\u0103m' yyyy");
+        var dateText = date ?? DateTime.Now.ToString("'Ngày' dd 'tháng' MM 'năm' yyyy");
 
         var sb = new StringBuilder();
         sb.AppendLine($@"<div class=""text-right text-italic"" style=""margin-top:20px"">{dateText}</div>");
@@ -297,23 +297,23 @@ public static class PdfTemplateHelper
         {
             sb.AppendLine(@"
     <div class=""signature-item"">
-        <div class=""signature-title"">Ng\u01B0\u1EDDi b\u1EC7nh</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Người bệnh</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">&nbsp;</div>
     </div>");
         }
 
         sb.AppendLine($@"
     <div class=""signature-item"">
-        <div class=""signature-title"">B\u00E1c s\u0129 \u0111i\u1EC1u tr\u1ECB</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Bác sĩ điều trị</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">{EscapeHtml(doctorName)}</div>
     </div>");
 
         sb.AppendLine($@"
     <div class=""signature-item"">
-        <div class=""signature-title"">Tr\u01B0\u1EDFng khoa</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Trưởng khoa</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">{EscapeHtml(departmentHeadName)}</div>
     </div>");
 
@@ -339,33 +339,33 @@ public static class PdfTemplateHelper
     {
         var treatmentResultText = treatmentResult switch
         {
-            1 => "Kh\u1ECFi",
-            2 => "\u0110\u1EE1, gi\u1EA3m",
-            3 => "Kh\u00F4ng thay \u0111\u1ED5i",
-            4 => "N\u1EB7ng h\u01A1n",
-            5 => "T\u1EED vong",
+            1 => "Khỏi",
+            2 => "Đỡ, giảm",
+            3 => "Không thay đổi",
+            4 => "Nặng hơn",
+            5 => "Tử vong",
             _ => ""
         };
 
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
-        body.AppendLine(@"<div class=""form-title"">T\u00D3M T\u1EACT B\u1EC6NH \u00C1N</div>");
+        body.AppendLine(@"<div class=""form-title"">TÓM TẬT BỆNH ÁN</div>");
         body.AppendLine(@"<div class=""form-number"">MS. 01/BV</div>");
         body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth, address, phone, insuranceNumber, medicalRecordCode, departmentName));
 
         // Thoi gian dieu tri
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">V\u00E0o vi\u1EC7n:</span>
+    <span class=""field-label"">Vào viện:</span>
     <span class=""field-value"">{admissionDate?.ToString("dd/MM/yyyy HH:mm")}</span>
-    <span style=""margin-left:20px""><b>Ra vi\u1EC7n:</b> {dischargeDate?.ToString("dd/MM/yyyy HH:mm")}</span>
+    <span style=""margin-left:20px""><b>Ra viện:</b> {dischargeDate?.ToString("dd/MM/yyyy HH:mm")}</span>
 </div>");
 
         // Ly do kham
         if (!string.IsNullOrEmpty(chiefComplaint))
         {
             body.AppendLine($@"
-<div class=""section-title"">I. L\u00DD DO KH\u00C1M B\u1EC6NH</div>
+<div class=""section-title"">I. LÝ DO KHÁM BỆNH</div>
 <p>{EscapeHtml(chiefComplaint)}</p>");
         }
 
@@ -373,36 +373,36 @@ public static class PdfTemplateHelper
         if (!string.IsNullOrEmpty(presentIllness))
         {
             body.AppendLine($@"
-<div class=""section-title"">II. B\u1EC6NH S\u1EEC</div>
+<div class=""section-title"">II. BỆNH SỬ</div>
 <p>{EscapeHtml(presentIllness)}</p>");
         }
 
         // Tien su
-        body.AppendLine(@"<div class=""section-title"">III. TI\u1EC0N S\u1EEC</div>");
+        body.AppendLine(@"<div class=""section-title"">III. TIỀN SỬ</div>");
         if (!string.IsNullOrEmpty(pastMedicalHistory))
-            body.AppendLine($"<p><b>B\u1EA3n th\u00E2n:</b> {EscapeHtml(pastMedicalHistory)}</p>");
+            body.AppendLine($"<p><b>Bản thân:</b> {EscapeHtml(pastMedicalHistory)}</p>");
         if (!string.IsNullOrEmpty(familyHistory))
-            body.AppendLine($"<p><b>Gia \u0111\u00ECnh:</b> {EscapeHtml(familyHistory)}</p>");
+            body.AppendLine($"<p><b>Gia đình:</b> {EscapeHtml(familyHistory)}</p>");
 
         // Kham lam sang
-        body.AppendLine(@"<div class=""section-title"">IV. KH\u00C1M L\u00C2M S\u00C0NG</div>");
+        body.AppendLine(@"<div class=""section-title"">IV. KHÁM LÂM SÀNG</div>");
         if (!string.IsNullOrEmpty(physicalExamination))
-            body.AppendLine($"<p><b>To\u00E0n th\u00E2n:</b> {EscapeHtml(physicalExamination)}</p>");
+            body.AppendLine($"<p><b>Toàn thân:</b> {EscapeHtml(physicalExamination)}</p>");
         if (!string.IsNullOrEmpty(systemsReview))
-            body.AppendLine($"<p><b>B\u1ED9 ph\u1EADn:</b> {EscapeHtml(systemsReview)}</p>");
+            body.AppendLine($"<p><b>Bộ phận:</b> {EscapeHtml(systemsReview)}</p>");
 
         // Chan doan
-        body.AppendLine(@"<div class=""section-title"">V. CH\u1EA8N \u0110O\u00C1N</div>");
+        body.AppendLine(@"<div class=""section-title"">V. CHẨN ĐOÁN</div>");
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n ch\u00EDnh:</span>
+    <span class=""field-label"">Chẩn đoán chính:</span>
     <span class=""field-value"">{EscapeHtml(mainDiagnosis)} {(string.IsNullOrEmpty(mainIcdCode) ? "" : $"({EscapeHtml(mainIcdCode)})")}</span>
 </div>");
         if (!string.IsNullOrEmpty(subDiagnosis))
         {
             body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n ph\u1EE5:</span>
+    <span class=""field-label"">Chẩn đoán phụ:</span>
     <span class=""field-value"">{EscapeHtml(subDiagnosis)}</span>
 </div>");
         }
@@ -411,20 +411,20 @@ public static class PdfTemplateHelper
         if (!string.IsNullOrEmpty(treatmentPlan))
         {
             body.AppendLine($@"
-<div class=""section-title"">VI. PH\u01AF\u01A0NG PH\u00C1P \u0110I\u1EC0U TR\u1ECA</div>
+<div class=""section-title"">VI. PHƯƠNG PHÁP ĐIỀU TRỊ</div>
 <p>{EscapeHtml(treatmentPlan)}</p>");
         }
 
         // Ket qua dieu tri
         body.AppendLine($@"
-<div class=""section-title"">VII. K\u1EBET QU\u1EA2 \u0110I\u1EC0U TR\u1ECA</div>
+<div class=""section-title"">VII. KẾT QUẢ ĐIỀU TRỊ</div>
 <p>{treatmentResultText}</p>");
         if (!string.IsNullOrEmpty(conclusionNote))
             body.AppendLine($"<p>{EscapeHtml(conclusionNote)}</p>");
 
         body.AppendLine(GetSignatureBlock(doctorName, departmentHeadName));
 
-        return WrapHtmlPage("T\u00F3m t\u1EAFt b\u1EC7nh \u00E1n - MS.01/BV", body.ToString());
+        return WrapHtmlPage("Tóm tắt bệnh án - MS.01/BV", body.ToString());
     }
 
     /// <summary>
@@ -439,13 +439,13 @@ public static class PdfTemplateHelper
     {
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
-        body.AppendLine(@"<div class=""form-title"">T\u1ECC \u0110I\u1EC0U TR\u1ECA</div>");
+        body.AppendLine(@"<div class=""form-title"">TỌ ĐIỀU TRỊ</div>");
         body.AppendLine(@"<div class=""form-number"">MS. 02/BV</div>");
         body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth, address, phone, insuranceNumber, medicalRecordCode, departmentName));
 
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n:</span>
+    <span class=""field-label"">Chẩn đoán:</span>
     <span class=""field-value"">{EscapeHtml(mainDiagnosis)} {(string.IsNullOrEmpty(mainIcdCode) ? "" : $"({EscapeHtml(mainIcdCode)})")}</span>
 </div>");
 
@@ -454,11 +454,11 @@ public static class PdfTemplateHelper
 <table class=""bordered"">
     <thead>
         <tr>
-            <th style=""width:80px"">Ng\u00E0y</th>
-            <th style=""width:50px"">Ng\u00E0y th\u1EE9</th>
-            <th>Di\u1EC5n bi\u1EBFn b\u1EC7nh</th>
-            <th>Y l\u1EC7nh</th>
-            <th style=""width:100px"">B\u00E1c s\u0129</th>
+            <th style=""width:80px"">Ngày</th>
+            <th style=""width:50px"">Ngày thứ</th>
+            <th>Diễn biến bệnh</th>
+            <th>Y lệnh</th>
+            <th style=""width:100px"">Bác sĩ</th>
         </tr>
     </thead>
     <tbody>");
@@ -492,7 +492,7 @@ public static class PdfTemplateHelper
 
         body.AppendLine(GetSignatureBlock(doctorName, null, null, false));
 
-        return WrapHtmlPage("T\u1EDD \u0111i\u1EC1u tr\u1ECB - MS.02/BV", body.ToString());
+        return WrapHtmlPage("Tờ điều trị - MS.02/BV", body.ToString());
     }
 
     /// <summary>
@@ -508,48 +508,48 @@ public static class PdfTemplateHelper
     {
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
-        body.AppendLine(@"<div class=""form-title"">BI\u00CAN B\u1EA2N H\u1ED8I CH\u1EA8N</div>");
+        body.AppendLine(@"<div class=""form-title"">BIÊN BẢN HỘI CHẨN</div>");
         body.AppendLine(@"<div class=""form-number"">MS. 03/BV</div>");
         body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth, address, phone, insuranceNumber, medicalRecordCode, departmentName));
 
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Th\u1EDDi gian:</span>
-    <span class=""field-value"">{consultationDate?.ToString("HH:mm 'ng\u00E0y' dd/MM/yyyy")}</span>
+    <span class=""field-label"">Thời gian:</span>
+    <span class=""field-value"">{consultationDate?.ToString("HH:mm 'ngày' dd/MM/yyyy")}</span>
 </div>");
 
         if (!string.IsNullOrEmpty(reason))
         {
             body.AppendLine($@"
-<div class=""section-title"">1. L\u00FD DO H\u1ED8I CH\u1EA8N</div>
+<div class=""section-title"">1. Lý DO HỘI CHẨN</div>
 <p>{EscapeHtml(reason)}</p>");
         }
 
         if (!string.IsNullOrEmpty(summary))
         {
             body.AppendLine($@"
-<div class=""section-title"">2. T\u00D3M T\u1EACT B\u1EC6NH \u00C1N</div>
+<div class=""section-title"">2. TÓM TẬT BỆNH ÁN</div>
 <p>{EscapeHtml(summary)}</p>");
         }
 
         if (!string.IsNullOrEmpty(conclusion))
         {
             body.AppendLine($@"
-<div class=""section-title"">3. K\u1EBET LU\u1EACN H\u1ED8I CH\u1EA8N</div>
+<div class=""section-title"">3. KẾT LUẬN HỘI CHẨN</div>
 <p>{EscapeHtml(conclusion)}</p>");
         }
 
         if (!string.IsNullOrEmpty(treatmentPlan))
         {
             body.AppendLine($@"
-<div class=""section-title"">4. H\u01AF\u1EDANG X\u1EEC TR\u00CD</div>
+<div class=""section-title"">4. HƯỚNG XỬ TRÍ</div>
 <p>{EscapeHtml(treatmentPlan)}</p>");
         }
 
         if (!string.IsNullOrEmpty(participants))
         {
             body.AppendLine($@"
-<div class=""section-title"">5. TH\u00C0NH PH\u1EA6N THAM D\u1EF0</div>
+<div class=""section-title"">5. THÀNH PHẦN THAM DỰ</div>
 <p>{EscapeHtml(participants)}</p>");
         }
 
@@ -557,18 +557,18 @@ public static class PdfTemplateHelper
         body.AppendLine($@"
 <div class=""signature-block"">
     <div class=""signature-item"">
-        <div class=""signature-title"">Th\u01B0 k\u00FD</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Thư ký</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">{EscapeHtml(secretaryName)}</div>
     </div>
     <div class=""signature-item"">
-        <div class=""signature-title"">Ch\u1EE7 t\u1ECDa</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Chủ tọa</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">{EscapeHtml(chairmanName)}</div>
     </div>
 </div>");
 
-        return WrapHtmlPage("Bi\u00EAn b\u1EA3n h\u1ED9i ch\u1EA9n - MS.03/BV", body.ToString());
+        return WrapHtmlPage("Biên bản hội chẩn - MS.03/BV", body.ToString());
     }
 
     /// <summary>
@@ -586,11 +586,11 @@ public static class PdfTemplateHelper
     {
         var conditionText = dischargeCondition switch
         {
-            1 => "Kh\u1ECFi",
-            2 => "\u0110\u1EE1, gi\u1EA3m",
-            3 => "Kh\u00F4ng thay \u0111\u1ED5i",
-            4 => "N\u1EB7ng h\u01A1n",
-            5 => "T\u1EED vong",
+            1 => "Khỏi",
+            2 => "Đỡ, giảm",
+            3 => "Không thay đổi",
+            4 => "Nặng hơn",
+            5 => "Tử vong",
             _ => ""
         };
 
@@ -600,26 +600,26 @@ public static class PdfTemplateHelper
 
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
-        body.AppendLine(@"<div class=""form-title"">GI\u1EA4Y RA VI\u1EC6N</div>");
+        body.AppendLine(@"<div class=""form-title"">GIẤY RA VIỆN</div>");
         body.AppendLine(@"<div class=""form-number"">MS. 04/BV</div>");
         body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth, address, phone, insuranceNumber, medicalRecordCode, departmentName));
 
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">V\u00E0o vi\u1EC7n:</span>
-    <span class=""field-value"">{admissionDate?.ToString("HH:mm 'ng\u00E0y' dd/MM/yyyy")}</span>
+    <span class=""field-label"">Vào viện:</span>
+    <span class=""field-value"">{admissionDate?.ToString("HH:mm 'ngày' dd/MM/yyyy")}</span>
 </div>
 <div class=""field"">
-    <span class=""field-label"">Ra vi\u1EC7n:</span>
-    <span class=""field-value"">{dischargeDate?.ToString("HH:mm 'ng\u00E0y' dd/MM/yyyy")}</span>
-    <span style=""margin-left:20px""><b>S\u1ED1 ng\u00E0y \u0111i\u1EC1u tr\u1ECB:</b> {daysOfStay} ng\u00E0y</span>
+    <span class=""field-label"">Ra viện:</span>
+    <span class=""field-value"">{dischargeDate?.ToString("HH:mm 'ngày' dd/MM/yyyy")}</span>
+    <span style=""margin-left:20px""><b>Số ngày điều trị:</b> {daysOfStay} ngày</span>
 </div>");
 
         if (!string.IsNullOrEmpty(admissionDiagnosis))
         {
             body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n v\u00E0o vi\u1EC7n:</span>
+    <span class=""field-label"">Chẩn đoán vào viện:</span>
     <span class=""field-value"">{EscapeHtml(admissionDiagnosis)}</span>
 </div>");
         }
@@ -628,7 +628,7 @@ public static class PdfTemplateHelper
         {
             body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n ra vi\u1EC7n:</span>
+    <span class=""field-label"">Chẩn đoán ra viện:</span>
     <span class=""field-value"">{EscapeHtml(dischargeDiagnosis)}</span>
 </div>");
         }
@@ -636,20 +636,20 @@ public static class PdfTemplateHelper
         if (!string.IsNullOrEmpty(treatmentSummary))
         {
             body.AppendLine($@"
-<div class=""section-title"">\u0110I\u1EC0U TR\u1ECA</div>
+<div class=""section-title"">ĐIỀU TRỊ</div>
 <p>{EscapeHtml(treatmentSummary)}</p>");
         }
 
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">T\u00ECnh tr\u1EA1ng ra vi\u1EC7n:</span>
+    <span class=""field-label"">Tình trạng ra viện:</span>
     <span class=""field-value"">{conditionText}</span>
 </div>");
 
         if (!string.IsNullOrEmpty(instructions))
         {
             body.AppendLine($@"
-<div class=""section-title"">H\u01AF\u1EDANG \u0110I\u1EC0U TR\u1ECA TI\u1EAEP</div>
+<div class=""section-title"">HƯỚNG ĐIỀU TRỊ TIẮP</div>
 <p>{EscapeHtml(instructions)}</p>");
         }
 
@@ -657,14 +657,14 @@ public static class PdfTemplateHelper
         {
             body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">H\u1EB9n t\u00E1i kh\u00E1m:</span>
+    <span class=""field-label"">Hẹn tái khám:</span>
     <span class=""field-value"">{followUpDate.Value:dd/MM/yyyy}</span>
 </div>");
         }
 
         body.AppendLine(GetSignatureBlock(doctorName, departmentHeadName, null, true));
 
-        return WrapHtmlPage("Gi\u1EA5y ra vi\u1EC7n - MS.04/BV", body.ToString());
+        return WrapHtmlPage("Giấy ra viện - MS.04/BV", body.ToString());
     }
 
     /// <summary>
@@ -679,13 +679,13 @@ public static class PdfTemplateHelper
     {
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
-        body.AppendLine(@"<div class=""form-title"">PHI\u1EBEU CH\u0102M S\u00D3C \u0110I\u1EC0U D\u01AF\u1EE0NG</div>");
+        body.AppendLine(@"<div class=""form-title"">PHIẾU CHĂM SÓC ĐIỀU DƯỠNG</div>");
         body.AppendLine(@"<div class=""form-number"">MS. 05/BV</div>");
         body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth, address, phone, insuranceNumber, medicalRecordCode, departmentName));
 
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n:</span>
+    <span class=""field-label"">Chẩn đoán:</span>
     <span class=""field-value"">{EscapeHtml(mainDiagnosis)}</span>
 </div>");
 
@@ -693,13 +693,13 @@ public static class PdfTemplateHelper
 <table class=""bordered"">
     <thead>
         <tr>
-            <th style=""width:80px"">Ng\u00E0y</th>
+            <th style=""width:80px"">Ngày</th>
             <th style=""width:40px"">Ca</th>
-            <th>T\u00ECnh tr\u1EA1ng BN</th>
-            <th>Nh\u1EADn \u0111\u1ECBnh \u0110D</th>
-            <th>Can thi\u1EC7p</th>
-            <th>\u0110\u00E1p \u1EE9ng</th>
-            <th style=""width:80px"">\u0110i\u1EC1u d\u01B0\u1EE1ng</th>
+            <th>Tình trạng BN</th>
+            <th>Nhận định ĐD</th>
+            <th>Can thiệp</th>
+            <th>Đáp ứng</th>
+            <th style=""width:80px"">Điều dưỡng</th>
         </tr>
     </thead>
     <tbody>");
@@ -708,7 +708,7 @@ public static class PdfTemplateHelper
         {
             foreach (var row in rows)
             {
-                var shiftText = row.Shift switch { 1 => "S", 2 => "C", 3 => "\u0110", _ => "" };
+                var shiftText = row.Shift switch { 1 => "S", 2 => "C", 3 => "Đ", _ => "" };
                 body.AppendLine($@"
         <tr>
             <td class=""text-center"">{row.Date:dd/MM/yyyy}</td>
@@ -737,18 +737,18 @@ public static class PdfTemplateHelper
         body.AppendLine($@"
 <div class=""signature-block"">
     <div class=""signature-item"">
-        <div class=""signature-title"">\u0110i\u1EC1u d\u01B0\u1EE1ng tr\u01B0\u1EDFng</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Điều dưỡng trưởng</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">&nbsp;</div>
     </div>
     <div class=""signature-item"">
-        <div class=""signature-title"">Tr\u01B0\u1EDFng khoa</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Trưởng khoa</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">&nbsp;</div>
     </div>
 </div>");
 
-        return WrapHtmlPage("Phi\u1EBFu ch\u0103m s\u00F3c \u0111i\u1EC1u d\u01B0\u1EE1ng - MS.05/BV", body.ToString());
+        return WrapHtmlPage("Phiếu chăm sóc điều dưỡng - MS.05/BV", body.ToString());
     }
 
     /// <summary>
@@ -764,20 +764,20 @@ public static class PdfTemplateHelper
     {
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
-        body.AppendLine(@"<div class=""form-title"">\u0110\u01A0N THU\u1ED0C</div>");
-        body.AppendLine(@"<div class=""form-number"">(D\u00F9ng cho ng\u01B0\u1EDDi l\u1EDBn / tr\u1EBB em)</div>");
+        body.AppendLine(@"<div class=""form-title"">ĐƠN THUỐC</div>");
+        body.AppendLine(@"<div class=""form-number"">(Dùng cho người lớn / trẻ em)</div>");
         body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth, address, phone, insuranceNumber));
 
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n:</span>
+    <span class=""field-label"">Chẩn đoán:</span>
     <span class=""field-value"">{EscapeHtml(diagnosis)} {(string.IsNullOrEmpty(icdCode) ? "" : $"({EscapeHtml(icdCode)})")}</span>
 </div>
 <div class=""field"">
-    <span class=""field-label"">Khoa/Ph\u00F2ng:</span>
+    <span class=""field-label"">Khoa/Phòng:</span>
     <span class=""field-value"">{EscapeHtml(departmentName)}</span>
-    <span style=""margin-left:20px""><b>Ng\u00E0y:</b> {prescriptionDate:dd/MM/yyyy}</span>
-    <span style=""margin-left:20px""><b>S\u1ED1 ng\u00E0y:</b> {totalDays}</span>
+    <span style=""margin-left:20px""><b>Ngày:</b> {prescriptionDate:dd/MM/yyyy}</span>
+    <span style=""margin-left:20px""><b>Số ngày:</b> {totalDays}</span>
 </div>");
 
         body.AppendLine(@"
@@ -785,10 +785,10 @@ public static class PdfTemplateHelper
     <thead>
         <tr>
             <th style=""width:30px"">STT</th>
-            <th>T\u00EAn thu\u1ED1c</th>
-            <th style=""width:60px"">\u0110VT</th>
-            <th style=""width:60px"">S\u1ED1 l\u01B0\u1EE3ng</th>
-            <th>C\u00E1ch d\u00F9ng</th>
+            <th>Tên thuốc</th>
+            <th style=""width:60px"">ĐVT</th>
+            <th style=""width:60px"">Số lượng</th>
+            <th>Cách dùng</th>
         </tr>
     </thead>
     <tbody>");
@@ -820,13 +820,13 @@ public static class PdfTemplateHelper
         {
             body.AppendLine($@"
 <div class=""mt-10"">
-    <b>L\u1EDDi d\u1EB7n:</b> {EscapeHtml(note)}
+    <b>Lời dặn:</b> {EscapeHtml(note)}
 </div>");
         }
 
         body.AppendLine(GetSignatureBlock(doctorName, null, null, false));
 
-        return WrapHtmlPage("\u0110\u01A1n thu\u1ED1c", body.ToString());
+        return WrapHtmlPage("Đơn thuốc", body.ToString());
     }
 
     /// <summary>
@@ -841,23 +841,23 @@ public static class PdfTemplateHelper
     {
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
-        body.AppendLine(@"<div class=""form-title"">PHI\u1EBEU K\u1EBET QU\u1EA2 X\u00C9T NGHI\u1EC6M</div>");
+        body.AppendLine(@"<div class=""form-title"">PHIẾU KẾT QUẢ XÉT NGHIỆM</div>");
         body.AppendLine(GetPatientInfoBlock(patientCode, fullName, gender, dateOfBirth, address, phone, insuranceNumber));
 
         body.AppendLine($@"
 <div class=""field"">
-    <span class=""field-label"">Ch\u1EA9n \u0111o\u00E1n:</span>
+    <span class=""field-label"">Chẩn đoán:</span>
     <span class=""field-value"">{EscapeHtml(diagnosis)}</span>
 </div>
 <div class=""field"">
-    <span class=""field-label"">BS ch\u1EC9 \u0111\u1ECBnh:</span>
+    <span class=""field-label"">BS chỉ định:</span>
     <span class=""field-value"">{EscapeHtml(doctorName)}</span>
     <span style=""margin-left:20px""><b>Khoa:</b> {EscapeHtml(departmentName)}</span>
 </div>
 <div class=""field"">
-    <span class=""field-label"">Ng\u00E0y y\u00EAu c\u1EA7u:</span>
+    <span class=""field-label"">Ngày yêu cầu:</span>
     <span class=""field-value"">{requestDate:dd/MM/yyyy HH:mm}</span>
-    <span style=""margin-left:20px""><b>Ng\u00E0y tr\u1EA3 KQ:</b> {approvedDate?.ToString("dd/MM/yyyy HH:mm")}</span>
+    <span style=""margin-left:20px""><b>Ngày trả KQ:</b> {approvedDate?.ToString("dd/MM/yyyy HH:mm")}</span>
 </div>");
 
         body.AppendLine(@"
@@ -865,11 +865,11 @@ public static class PdfTemplateHelper
     <thead>
         <tr>
             <th style=""width:30px"">STT</th>
-            <th>T\u00EAn x\u00E9t nghi\u1EC7m</th>
-            <th style=""width:100px"">K\u1EBFt qu\u1EA3</th>
-            <th style=""width:60px"">\u0110VT</th>
-            <th style=""width:120px"">Tham chi\u1EBFu</th>
-            <th style=""width:50px"">C\u1EDD</th>
+            <th>Tên xét nghiệm</th>
+            <th style=""width:100px"">Kết quả</th>
+            <th style=""width:60px"">ĐVT</th>
+            <th style=""width:120px"">Tham chiếu</th>
+            <th style=""width:50px"">Cờ</th>
         </tr>
     </thead>
     <tbody>");
@@ -898,18 +898,18 @@ public static class PdfTemplateHelper
         body.AppendLine($@"
 <div class=""signature-block"">
     <div class=""signature-item"">
-        <div class=""signature-title"">K\u1EF9 thu\u1EADt vi\u00EAn</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Kỹ thuật viên</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">&nbsp;</div>
     </div>
     <div class=""signature-item"">
-        <div class=""signature-title"">Tr\u01B0\u1EDFng khoa X\u00E9t nghi\u1EC7m</div>
-        <div class=""signature-date"">(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)</div>
+        <div class=""signature-title"">Trưởng khoa Xét nghiệm</div>
+        <div class=""signature-date"">(Ký, ghi rõ họ tên)</div>
         <div class=""signature-name"">{EscapeHtml(approvedByName)}</div>
     </div>
 </div>");
 
-        return WrapHtmlPage("Phi\u1EBFu k\u1EBFt qu\u1EA3 x\u00E9t nghi\u1EC7m", body.ToString());
+        return WrapHtmlPage("Phiếu kết quả xét nghiệm", body.ToString());
     }
 
     /// <summary>

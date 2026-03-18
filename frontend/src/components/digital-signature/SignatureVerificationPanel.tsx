@@ -5,9 +5,10 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import type { DocumentSignatureDto } from '../../api/digitalSignature';
-import { revokeSignature } from '../../api/digitalSignature';
+import { revokeSignature, downloadSignedPdf } from '../../api/digitalSignature';
 
 interface SignatureVerificationPanelProps {
   open: boolean;
@@ -32,6 +33,15 @@ export default function SignatureVerificationPanel({
       onClose();
     } catch {
       message.warning('Không thể thu hồi chữ ký');
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      await downloadSignedPdf(signatureInfo.id);
+      message.success('Đã tải PDF đã ký');
+    } catch {
+      message.warning('Không thể tải PDF đã ký');
     }
   };
 
@@ -104,7 +114,10 @@ export default function SignatureVerificationPanel({
       </div>
 
       {isActive && (
-        <div style={{ marginTop: 24, textAlign: 'right' }}>
+        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
+          <Button icon={<DownloadOutlined />} onClick={handleDownload}>
+            Tải PDF đã ký
+          </Button>
           <Popconfirm
             title="Thu hồi chữ ký?"
             description="Tài liệu sẽ được mở khóa để chỉnh sửa và ký lại."

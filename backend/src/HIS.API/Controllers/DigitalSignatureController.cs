@@ -57,7 +57,7 @@ public class DigitalSignatureController : ControllerBase
         try
         {
             var userId = GetCurrentUserId();
-            var entry = await _sessionManager.OpenSessionAsync(userId.ToString(), request.Pin);
+            var entry = await _sessionManager.OpenSessionAsync(userId.ToString(), request.Pin, request.SkipPkcs11);
 
             // Auto-register token mapping
             await _tokenRegistry.RegisterTokenAsync(userId, entry.TokenSerial, entry.TokenLabel, entry.CaProvider);
@@ -162,18 +162,19 @@ public class DigitalSignatureController : ControllerBase
             });
         }
 
-        // Check if document already signed (lock check)
+        // Auto-revoke existing signature if document already signed
         var existingSignature = await _db.DocumentSignatures
             .FirstOrDefaultAsync(ds => ds.DocumentId == request.DocumentId
                                        && ds.DocumentType == request.DocumentType
                                        && ds.Status == 0);
         if (existingSignature != null)
         {
-            return Conflict(new SignDocumentResponse
-            {
-                Success = false,
-                Message = "Tài liệu đã được ký số. Cần thu hồi chữ ký trước khi ký lại."
-            });
+            existingSignature.Status = 1; // Revoked
+            existingSignature.RevokeReason = "Tự động thu hồi để ký lại";
+            existingSignature.RevokedAt = DateTime.UtcNow;
+            existingSignature.RevokedByUserId = userId;
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("Auto-revoked signature {SignatureId} for re-signing document {DocumentId}", existingSignature.Id, request.DocumentId);
         }
 
         try
@@ -463,9 +464,48 @@ public class DigitalSignatureController : ControllerBase
 
         // Convert HTML to PDF and sign
         var signerName = session.CertificateSubject;
-        var signResult = await _pdfService.ConvertAndSignAsync(
-            htmlBytes, session.Certificate, _config,
-            request.Reason, request.Location, signerName);
+        PdfSignatureResult signResult;
+
+        if (session.IsWindowsStoreMode)
+        {
+            // Windows Certificate Store mode: convert HTML to PDF first, then sign with Windows cert
+            _logger.LogInformation("Step 1: Converting HTML to PDF ({Size} bytes)", htmlBytes.Length);
+            byte[] pdfBytes;
+            try
+            {
+                pdfBytes = await _pdfService.ConvertHtmlToPdfAsync(htmlBytes);
+                _logger.LogInformation("Step 1 done: PDF generated ({Size} bytes)", pdfBytes.Length);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Step 1 FAILED: ConvertHtmlToPdfAsync");
+                signResult = new PdfSignatureResult { Success = false, Message = $"Lỗi tạo PDF: {ex.Message}" };
+                return new SignDocumentResponse { Success = false, Message = signResult.Message };
+            }
+
+            try
+            {
+                _logger.LogInformation("Step 2: Signing PDF with Windows cert store, thumbprint={Thumbprint}", session.CertificateThumbprint);
+                signResult = await _pdfService.SignPdfWithUSBTokenAsync(
+                    pdfBytes, session.CertificateThumbprint,
+                    request.Reason ?? "Ký xác nhận hồ sơ bệnh án",
+                    request.Location ?? "Việt Nam");
+                _logger.LogInformation("Step 2 done: signResult.Success={Success}, Message={Message}", signResult.Success, signResult.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Step 2 FAILED: SignPdfWithUSBTokenAsync (full stack trace)");
+                signResult = new PdfSignatureResult { Success = false, Message = $"Lỗi ký số PDF: {ex.Message}" };
+                return new SignDocumentResponse { Success = false, Message = signResult.Message };
+            }
+        }
+        else
+        {
+            // PKCS#11 mode: convert and sign in one step
+            signResult = await _pdfService.ConvertAndSignAsync(
+                htmlBytes, session.Certificate, _config,
+                request.Reason, request.Location, signerName);
+        }
 
         if (!signResult.Success)
             return new SignDocumentResponse { Success = false, Message = signResult.Message };
@@ -510,6 +550,81 @@ public class DigitalSignatureController : ControllerBase
             CaProvider = session.CaProvider,
             SignedDocumentUrl = $"/api/digital-signature/signed/{request.DocumentType}/{fileName}"
         };
+    }
+
+    /// <summary>
+    /// Download a signed PDF by signature ID
+    /// </summary>
+    [HttpGet("download/{signatureId}")]
+    public async Task<IActionResult> DownloadSignedPdf(Guid signatureId)
+    {
+        var signature = await _db.DocumentSignatures.FindAsync(signatureId);
+        if (signature == null)
+            return NotFound(new { message = "Không tìm thấy chữ ký" });
+
+        // Try reading from disk path
+        if (!string.IsNullOrEmpty(signature.SignedDocumentPath) && System.IO.File.Exists(signature.SignedDocumentPath))
+        {
+            var bytes = await System.IO.File.ReadAllBytesAsync(signature.SignedDocumentPath);
+            var fileName = Path.GetFileName(signature.SignedDocumentPath);
+            return File(bytes, "application/pdf", fileName);
+        }
+
+        // Fallback: decode SignatureValue (base64 of signed PDF)
+        if (!string.IsNullOrEmpty(signature.SignatureValue))
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(signature.SignatureValue);
+                var fileName = $"{signature.DocumentType}_{signature.DocumentId:N}_{signature.SignedAt:yyyyMMddHHmmss}.pdf";
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to decode SignatureValue for {SignatureId}", signatureId);
+            }
+        }
+
+        return NotFound(new { message = "File PDF đã ký không tồn tại" });
+    }
+
+    /// <summary>
+    /// Get signatures for multiple documents (batch lookup)
+    /// </summary>
+    [HttpPost("signatures/batch")]
+    public async Task<ActionResult<Dictionary<string, DocumentSignatureDto>>> GetSignaturesBatch([FromBody] List<Guid> documentIds)
+    {
+        if (documentIds == null || documentIds.Count == 0)
+            return Ok(new Dictionary<string, DocumentSignatureDto>());
+
+        // Limit batch size
+        var ids = documentIds.Take(100).ToList();
+
+        var signatures = await _db.DocumentSignatures
+            .Where(ds => ids.Contains(ds.DocumentId) && ds.Status == 0)
+            .Include(ds => ds.SignedByUser)
+            .GroupBy(ds => ds.DocumentId)
+            .Select(g => g.OrderByDescending(ds => ds.SignedAt).First())
+            .ToListAsync();
+
+        var result = signatures.ToDictionary(
+            ds => ds.DocumentId.ToString(),
+            ds => new DocumentSignatureDto
+            {
+                Id = ds.Id,
+                DocumentId = ds.DocumentId,
+                DocumentType = ds.DocumentType,
+                DocumentCode = ds.DocumentCode,
+                SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
+                SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
+                CertificateSerial = ds.CertificateSerial,
+                CaProvider = ds.CaProvider,
+                TsaTimestamp = ds.TsaTimestamp,
+                OcspStatus = ds.OcspStatus,
+                Status = ds.Status
+            });
+
+        return Ok(result);
     }
 
     /// <summary>
