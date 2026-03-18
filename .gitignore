@@ -127,3 +127,7 @@ App_Data/
 
 # XML exports
 backend/src/HIS.API/exports/
+
+# Signed PDF output files
+backend/src/HIS.API/Reports/Signed/
+backend/src/HIS.API/Reports/Radiology/RIS_SIGNED_*
