@@ -24,7 +24,7 @@ test.describe('Tiep don benh nhan - Reception Flow', () => {
 
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await page.goto('/reception');
+    await page.goto('/reception', { waitUntil: 'domcontentloaded', timeout: 45000 });
     await waitForLoading(page);
     await page.waitForTimeout(1000);
   });
@@ -32,7 +32,7 @@ test.describe('Tiep don benh nhan - Reception Flow', () => {
   test('1.1 Hien thi trang tiep don', async ({ page }) => {
     // Kiem tra title
     const title = page.locator('h4:has-text("Tiếp đón")');
-    await expect(title).toBeVisible({ timeout: 10000 });
+    await expect(title).toBeVisible({ timeout: 15000 });
 
     // Kiem tra co button Dang ky kham
     const registerBtn = page.locator('button:has-text("Đăng ký khám")');

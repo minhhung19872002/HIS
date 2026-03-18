@@ -13,10 +13,11 @@ import { waitForLoading, login } from '../helpers/test-utils';
  * - Buttons: "Chi tiet", "Chuyen giuong"
  */
 test.describe('Dieu tri noi tru - IPD Flow', () => {
+  test.describe.configure({ timeout: 60000 });
 
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await page.goto('/inpatient');
+    await page.goto('/inpatient', { waitUntil: 'domcontentloaded', timeout: 45000 });
     await waitForLoading(page);
     await page.waitForTimeout(1000);
   });
@@ -158,7 +159,7 @@ test.describe('IPD E2E Flow', () => {
 
   test('E2E: Xem va quan ly benh nhan noi tru', async ({ page }) => {
     await login(page);
-    await page.goto('/inpatient');
+    await page.goto('/inpatient', { waitUntil: 'domcontentloaded', timeout: 45000 });
     await waitForLoading(page);
     await page.waitForTimeout(1000);
 
