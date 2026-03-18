@@ -37,6 +37,19 @@ const SPECIALTY_TYPES: SpecialtyType[] = [
   { key: 'dermatology', label: 'Da lieu', code: 'DL' },
   { key: 'ophthalmology', label: 'Mat', code: 'M' },
   { key: 'infectious', label: 'Truyen nhiem', code: 'TN' },
+  // NangCap9: 10 loai bo sung
+  { key: 'neonatal', label: 'So sinh', code: 'SS' },
+  { key: 'gynecology', label: 'Phu khoa', code: 'PK' },
+  { key: 'outpatient', label: 'Ngoai tru', code: 'NT' },
+  { key: 'outpatient_dental', label: 'Ngoai tru RHM', code: 'NTRHM' },
+  { key: 'outpatient_ent', label: 'Ngoai tru TMH', code: 'NTTMH' },
+  { key: 'ophthalmology_retina', label: 'Day mat', code: 'DM' },
+  { key: 'ophthalmology_strabismus', label: 'Mat lac', code: 'ML' },
+  { key: 'ophthalmology_pediatric', label: 'Mat tre em', code: 'MTE' },
+  { key: 'ophthalmology_trauma', label: 'Chan thuong mat', code: 'CTM' },
+  { key: 'ophthalmology_anterior', label: 'Mat ban phan truoc', code: 'MBPT' },
+  { key: 'ophthalmology_glaucoma', label: 'Mat glocom', code: 'MG' },
+  { key: 'nursing_rehab', label: 'Dieu duong & PHCN', code: 'DDPHCN' },
 ];
 
 interface SpecialtyRecordDto {
@@ -235,6 +248,130 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
       { value: 'none', label: 'Khong' }, { value: 'groupA', label: 'Nhom A (Dac biet nguy hiem)' },
       { value: 'groupB', label: 'Nhom B (Nguy hiem)' }, { value: 'groupC', label: 'Nhom C (It nguy hiem)' }] },
     { name: 'antibioticRegimen', label: 'Phac do khang sinh', type: 'textarea', span: 24, rows: 2, placeholder: 'Ten thuoc, lieu, duong dung, thoi gian' },
+  ]},
+  // NangCap9: 10 loai BA chuyen khoa bo sung
+  neonatal: { title: 'So sinh', fields: [
+    { name: 'birthWeight', label: 'Can nang luc sinh (g)', type: 'number', span: 6, min: 200, max: 6000 },
+    { name: 'gestationalAge', label: 'Tuoi thai (tuan)', type: 'number', span: 6, min: 22, max: 45 },
+    { name: 'apgar1', label: 'Apgar 1 phut', type: 'number', span: 6, min: 0, max: 10 },
+    { name: 'apgar5', label: 'Apgar 5 phut', type: 'number', span: 6, min: 0, max: 10 },
+    { name: 'deliveryMethod', label: 'Phuong phap sinh', type: 'select', span: 12, options: [
+      { value: 'vaginal', label: 'Sinh thuong' }, { value: 'csection', label: 'Mo lay thai' },
+      { value: 'vacuum', label: 'Giac hut' }, { value: 'forceps', label: 'Forceps' }] },
+    { name: 'resuscitation', label: 'Hoi suc', type: 'select', span: 12, options: [
+      { value: 'none', label: 'Khong can' }, { value: 'stimulation', label: 'Kich thich' },
+      { value: 'ventilation', label: 'Thong khi' }, { value: 'intubation', label: 'Dat noi khi quan' }, { value: 'cpr', label: 'CPR' }] },
+    { name: 'neonatalScreening', label: 'Sang loc so sinh', type: 'textarea', span: 12, rows: 2, placeholder: 'Phe huy, suy giap, G6PD, tim bam sinh' },
+    { name: 'feedingMethod', label: 'Cach nuoi duong', type: 'select', span: 12, options: [
+      { value: 'breast', label: 'Bu me' }, { value: 'formula', label: 'Sua cong thuc' }, { value: 'mixed', label: 'Ket hop' }, { value: 'iv', label: 'Tinh mach' }] },
+  ]},
+  gynecology: { title: 'Phu khoa', fields: [
+    { name: 'menstrualHistory', label: 'Tien su kinh nguyet', type: 'textarea', span: 12, rows: 2, placeholder: 'Tuoi co kinh, chu ky, so ngay hanh kinh, kinh cuoi' },
+    { name: 'obstetricHistory', label: 'Tien su san khoa', type: 'textarea', span: 12, rows: 2, placeholder: 'PARA, sinh thuong/mo, bien chung' },
+    { name: 'gynecExam', label: 'Kham phu khoa', type: 'textarea', span: 24, rows: 3, placeholder: 'Am ho, am dao, co tu cung, tu cung, phan phu' },
+    { name: 'papSmear', label: 'Pap smear', type: 'select', span: 12, options: [
+      { value: 'normal', label: 'Binh thuong' }, { value: 'ascus', label: 'ASC-US' },
+      { value: 'lsil', label: 'LSIL' }, { value: 'hsil', label: 'HSIL' }, { value: 'cancer', label: 'Ung thu' }] },
+    { name: 'contraception', label: 'Bien phap tranh thai', type: 'select', span: 12, options: [
+      { value: 'none', label: 'Khong' }, { value: 'pill', label: 'Thuoc tranh thai' },
+      { value: 'iud', label: 'Vong tranh thai' }, { value: 'condom', label: 'Bao cao su' }, { value: 'other', label: 'Khac' }] },
+  ]},
+  outpatient: { title: 'Ngoai tru', fields: [
+    { name: 'chiefComplaint', label: 'Ly do kham', type: 'textarea', span: 24, rows: 2, placeholder: 'Ly do den kham' },
+    { name: 'historyOfPresentIllness', label: 'Benh su', type: 'textarea', span: 24, rows: 3, placeholder: 'Dien bien benh tu khi khoi phat' },
+    { name: 'physicalExam', label: 'Kham lam sang', type: 'textarea', span: 24, rows: 3, placeholder: 'Kham toan than va cac co quan' },
+    { name: 'treatmentPlan', label: 'Huong xu tri', type: 'textarea', span: 24, rows: 2, placeholder: 'Ke hoach dieu tri, don thuoc, hen tai kham' },
+  ]},
+  outpatient_dental: { title: 'Ngoai tru RHM', fields: [
+    { name: 'dentalChart', label: 'So do rang', type: 'textarea', span: 12, rows: 3, placeholder: 'Tinh trang tung rang' },
+    { name: 'chiefComplaint', label: 'Ly do kham', type: 'textarea', span: 12, rows: 2, placeholder: 'Dau rang, chay mau loi, lung lay' },
+    { name: 'oralExam', label: 'Kham mieng', type: 'textarea', span: 24, rows: 2, placeholder: 'Niem mac mieng, nuou, luoi, san mieng' },
+    { name: 'treatment', label: 'Xu tri', type: 'textarea', span: 24, rows: 2, placeholder: 'Han rang, nho rang, lay cao rang, phau thuat' },
+  ]},
+  outpatient_ent: { title: 'Ngoai tru TMH', fields: [
+    { name: 'chiefComplaint', label: 'Ly do kham', type: 'textarea', span: 12, rows: 2, placeholder: 'Dau tai, nghet mui, dau hong' },
+    { name: 'endoscopyFindings', label: 'Noi soi', type: 'textarea', span: 12, rows: 2, placeholder: 'Ket qua noi soi tai, mui, hong' },
+    { name: 'hearingTest', label: 'Do thinh luc', type: 'textarea', span: 12, rows: 2, placeholder: 'Tai trai: ...dB, Tai phai: ...dB' },
+    { name: 'treatment', label: 'Xu tri', type: 'textarea', span: 12, rows: 2, placeholder: 'Thuoc, thu thuat, hen tai kham' },
+  ]},
+  ophthalmology_retina: { title: 'Day mat', fields: [
+    { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
+    { name: 'vaLeft', label: 'Thi luc mat trai', type: 'text', span: 6, placeholder: '8/10' },
+    { name: 'iopRight', label: 'Nhan ap phai (mmHg)', type: 'number', span: 6, min: 0, max: 80 },
+    { name: 'iopLeft', label: 'Nhan ap trai (mmHg)', type: 'number', span: 6, min: 0, max: 80 },
+    { name: 'fundoscopyRight', label: 'Soi day mat phai', type: 'textarea', span: 12, rows: 3, placeholder: 'Dia thi, vong mac, mach mau, hoang diem' },
+    { name: 'fundoscopyLeft', label: 'Soi day mat trai', type: 'textarea', span: 12, rows: 3, placeholder: 'Dia thi, vong mac, mach mau, hoang diem' },
+    { name: 'octFindings', label: 'OCT', type: 'textarea', span: 12, rows: 2, placeholder: 'Do day vong mac, phu hoang diem, mang truoc vong mac' },
+    { name: 'ffaFindings', label: 'Chup huynh quang day mat (FFA)', type: 'textarea', span: 12, rows: 2, placeholder: 'Ro ri, thieu mau, tan mach' },
+  ]},
+  ophthalmology_strabismus: { title: 'Mat lac', fields: [
+    { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
+    { name: 'vaLeft', label: 'Thi luc mat trai', type: 'text', span: 6, placeholder: '8/10' },
+    { name: 'deviationType', label: 'Loai lac', type: 'select', span: 6, options: [
+      { value: 'esotropia', label: 'Lac trong' }, { value: 'exotropia', label: 'Lac ngoai' },
+      { value: 'hypertropia', label: 'Lac tren' }, { value: 'hypotropia', label: 'Lac duoi' }] },
+    { name: 'deviationAngle', label: 'Goc lac (PD)', type: 'number', span: 6, min: 0, max: 90 },
+    { name: 'coverTest', label: 'Nghiem phap che mat', type: 'textarea', span: 12, rows: 2, placeholder: 'Che mat trai, che mat phai, che mat luan phien' },
+    { name: 'binocularVision', label: 'Thi giac hai mat', type: 'textarea', span: 12, rows: 2, placeholder: 'Dong thi, hop thi, lap the' },
+  ]},
+  ophthalmology_pediatric: { title: 'Mat tre em', fields: [
+    { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
+    { name: 'vaLeft', label: 'Thi luc mat trai', type: 'text', span: 6, placeholder: '8/10' },
+    { name: 'fixationPattern', label: 'Kieu dinh thi', type: 'select', span: 6, options: [
+      { value: 'csm', label: 'CSM (Trung tam, on dinh)' }, { value: 'ucusm', label: 'UCUSM' }, { value: 'ff', label: 'Fix & Follow' }] },
+    { name: 'age', label: 'Tuoi (thang)', type: 'number', span: 6, min: 0, max: 216 },
+    { name: 'redReflex', label: 'Phan xa do', type: 'select', span: 12, options: [
+      { value: 'normal', label: 'Binh thuong' }, { value: 'absent', label: 'Mat' }, { value: 'abnormal', label: 'Bat thuong' }] },
+    { name: 'amblyopia', label: 'Nhuoc thi', type: 'select', span: 12, options: [
+      { value: 'none', label: 'Khong' }, { value: 'mild', label: 'Nhe' }, { value: 'moderate', label: 'Trung binh' }, { value: 'severe', label: 'Nang' }] },
+    { name: 'retinopathyOfPrematurity', label: 'Benh vong mac tre de non (ROP)', type: 'textarea', span: 24, rows: 2, placeholder: 'Giai doan, vung, plus disease' },
+  ]},
+  ophthalmology_trauma: { title: 'Chan thuong mat', fields: [
+    { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
+    { name: 'vaLeft', label: 'Thi luc mat trai', type: 'text', span: 6, placeholder: '8/10' },
+    { name: 'injuryMechanism', label: 'Co che chan thuong', type: 'select', span: 6, options: [
+      { value: 'blunt', label: 'Do' }, { value: 'penetrating', label: 'Xuyen' },
+      { value: 'chemical', label: 'Hoa chat' }, { value: 'thermal', label: 'Nhiet' }, { value: 'foreign_body', label: 'Di vat' }] },
+    { name: 'injuredEye', label: 'Mat bi chan thuong', type: 'select', span: 6, options: [
+      { value: 'right', label: 'Phai' }, { value: 'left', label: 'Trai' }, { value: 'both', label: 'Hai mat' }] },
+    { name: 'anteriorSegment', label: 'Ban phan truoc', type: 'textarea', span: 12, rows: 2, placeholder: 'Giac mac, tien phong, mong mat, the thuy tinh' },
+    { name: 'posteriorSegment', label: 'Ban phan sau', type: 'textarea', span: 12, rows: 2, placeholder: 'Dich kinh, vong mac, than kinh thi giac' },
+    { name: 'orbitalExam', label: 'Kham ho mat', type: 'textarea', span: 24, rows: 2, placeholder: 'Loi mat, han che van nhan, xuong ho mat' },
+  ]},
+  ophthalmology_anterior: { title: 'Mat - Ban phan truoc', fields: [
+    { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
+    { name: 'vaLeft', label: 'Thi luc mat trai', type: 'text', span: 6, placeholder: '8/10' },
+    { name: 'iopRight', label: 'Nhan ap phai (mmHg)', type: 'number', span: 6, min: 0, max: 80 },
+    { name: 'iopLeft', label: 'Nhan ap trai (mmHg)', type: 'number', span: 6, min: 0, max: 80 },
+    { name: 'cornea', label: 'Giac mac', type: 'textarea', span: 12, rows: 2, placeholder: 'Do trong, loet, seo, thoai hoa, loang du' },
+    { name: 'anteriorChamber', label: 'Tien phong', type: 'textarea', span: 12, rows: 2, placeholder: 'Do sau, Tyndall, mu, fibrin' },
+    { name: 'iris', label: 'Mong mat', type: 'textarea', span: 12, rows: 2, placeholder: 'Mau sac, dinh mat, tan mach' },
+    { name: 'lens', label: 'The thuy tinh', type: 'textarea', span: 12, rows: 2, placeholder: 'Trong, duc, do doc (LOCS), nhan tao (IOL)' },
+  ]},
+  ophthalmology_glaucoma: { title: 'Mat glocom', fields: [
+    { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
+    { name: 'vaLeft', label: 'Thi luc mat trai', type: 'text', span: 6, placeholder: '8/10' },
+    { name: 'iopRight', label: 'Nhan ap phai (mmHg)', type: 'number', span: 6, min: 0, max: 80 },
+    { name: 'iopLeft', label: 'Nhan ap trai (mmHg)', type: 'number', span: 6, min: 0, max: 80 },
+    { name: 'glaucomaType', label: 'Loai glocom', type: 'select', span: 12, options: [
+      { value: 'poag', label: 'Goc mo nguyen phat (POAG)' }, { value: 'pacg', label: 'Goc dong nguyen phat (PACG)' },
+      { value: 'secondary', label: 'Thu phat' }, { value: 'congenital', label: 'Bam sinh' }, { value: 'normal_tension', label: 'Nhan ap binh thuong' }] },
+    { name: 'cupDiscRatio', label: 'Ty le C/D', type: 'textarea', span: 12, rows: 1, placeholder: 'MP: 0.3, MT: 0.4' },
+    { name: 'visualField', label: 'Thi truong (Humphrey/Goldman)', type: 'textarea', span: 12, rows: 2, placeholder: 'MD, PSD, pattern, GHT' },
+    { name: 'gonioscopy', label: 'Soi goc tien phong', type: 'textarea', span: 12, rows: 2, placeholder: 'Phan loai Shaffer/Scheie, dinh mat, tan mach' },
+    { name: 'rnflThickness', label: 'Do day RNFL (OCT)', type: 'textarea', span: 24, rows: 1, placeholder: 'Trung binh, tren, duoi, mui, thai duong' },
+  ]},
+  nursing_rehab: { title: 'Dieu duong & PHCN', fields: [
+    { name: 'nursingAssessment', label: 'Nhan dinh dieu duong', type: 'textarea', span: 24, rows: 3, placeholder: 'Tinh trang chung, nhu cau, nguy co' },
+    { name: 'adlScore', label: 'Diem ADL (Barthel)', type: 'number', span: 8, min: 0, max: 100 },
+    { name: 'fallRiskScore', label: 'Diem nguy co te nga (Morse)', type: 'number', span: 8, min: 0, max: 125 },
+    { name: 'pressureUlcerRisk', label: 'Diem loet ep (Braden)', type: 'number', span: 8, min: 6, max: 23 },
+    { name: 'mobilityStatus', label: 'Tinh trang van dong', type: 'select', span: 12, options: [
+      { value: 'independent', label: 'Tu lap' }, { value: 'assisted', label: 'Can ho tro' },
+      { value: 'dependent', label: 'Phu thuoc' }, { value: 'bedbound', label: 'Nam tai giuong' }] },
+    { name: 'rehabGoals', label: 'Muc tieu PHCN', type: 'textarea', span: 12, rows: 2, placeholder: 'Muc tieu ngan han, dai han' },
+    { name: 'rehabPlan', label: 'Ke hoach PHCN', type: 'textarea', span: 12, rows: 2, placeholder: 'Vat ly tri lieu, hoat dong tri lieu, ngon ngu tri lieu' },
+    { name: 'carePlan', label: 'Ke hoach cham soc', type: 'textarea', span: 12, rows: 2, placeholder: 'Van de DD, muc tieu, can thiep, danh gia' },
   ]},
 };
 

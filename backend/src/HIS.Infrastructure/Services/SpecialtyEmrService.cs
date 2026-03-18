@@ -304,13 +304,26 @@ public class SpecialtyEmrService : ISpecialtyEmrService
         "ent" => "Tai Mũi Họng",
         "traditional" => "Y học cổ truyền (nội trú)",
         "traditional_outpatient" => "Y học cổ truyền (ngoại trú)",
-        "hematology" => "Huyết học",
+        "hematology" => "Huyết học và Truyền máu",
         "oncology" => "Ung bướu",
         "burns" => "Bỏng",
         "psychiatry" => "Tâm thần",
         "dermatology" => "Da liễu",
         "ophthalmology" => "Mắt",
         "infectious" => "Truyền nhiễm",
+        // NangCap9: 10 loại bổ sung
+        "neonatal" => "Sơ sinh",
+        "gynecology" => "Phụ khoa",
+        "outpatient" => "Ngoại trú",
+        "outpatient_dental" => "Ngoại trú Răng Hàm Mặt",
+        "outpatient_ent" => "Ngoại trú Tai Mũi Họng",
+        "ophthalmology_retina" => "Đáy mắt",
+        "ophthalmology_strabismus" => "Mắt lác",
+        "ophthalmology_pediatric" => "Mắt trẻ em",
+        "ophthalmology_trauma" => "Chấn thương mắt",
+        "ophthalmology_anterior" => "Mắt - Bán phần trước",
+        "ophthalmology_glaucoma" => "Mắt Glocom",
+        "nursing_rehab" => "Điều dưỡng và Phục hồi chức năng",
         _ => specialtyType
     };
 

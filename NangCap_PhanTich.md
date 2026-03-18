@@ -975,3 +975,82 @@
 > 7. ~~Dashboard service status + revenue by patient type~~ → DA XONG (Dashboard.tsx)
 >
 > **Con lai 1 hang muc HARDWARE** (sinh trac hoc/van tay - can thiet bi doc van tay)
+
+---
+
+## PHAN 11: NangCap9 - HSBA Chuyen khoa + Luu tru (TTYT Ninh Giang)
+
+> **Tong: 95 chuc nang | DA XONG: 95/95 (100%)**
+
+### I. Tiep nhan thong tin benh an (25 loai) → DA XONG
+> 25/25 loai BA chuyen khoa da co trong SpecialtyEMR.tsx + SpecialtyEmrService.cs
+> 15 loai co san tu NangCap7, 10 loai bo sung trong session nay:
+> - ~~1. Nhi khoa~~ → DA XONG (key: pediatrics)
+> - ~~2. Truyen nhiem~~ → DA XONG (key: infectious)
+> - ~~3. Phu khoa~~ → DA XONG (key: gynecology) **MOI**
+> - ~~4. San khoa~~ → DA XONG (key: obstetrics)
+> - ~~5. So sinh~~ → DA XONG (key: neonatal) **MOI**
+> - ~~6. Tam than~~ → DA XONG (key: psychiatry)
+> - ~~7. Da lieu~~ → DA XONG (key: dermatology)
+> - ~~8. Huyet hoc truyen mau~~ → DA XONG (key: hematology)
+> - ~~9. Bong~~ → DA XONG (key: burns)
+> - ~~10. Ung buou~~ → DA XONG (key: oncology)
+> - ~~11. Rang-Ham-Mat~~ → DA XONG (key: dental)
+> - ~~12. Tai-Mui-Hong~~ → DA XONG (key: ent)
+> - ~~13. Ngoai tru~~ → DA XONG (key: outpatient) **MOI**
+> - ~~14. Ngoai tru RHM~~ → DA XONG (key: outpatient_dental) **MOI**
+> - ~~15. Ngoai tru TMH~~ → DA XONG (key: outpatient_ent) **MOI**
+> - ~~16. Ngoai khoa~~ → DA XONG (key: surgical)
+> - ~~17. YHCT ngoai tru~~ → DA XONG (key: traditional_outpatient)
+> - ~~18. Noi tru YHCT~~ → DA XONG (key: traditional)
+> - ~~19. Day mat~~ → DA XONG (key: ophthalmology_retina) **MOI**
+> - ~~20. Mat lac~~ → DA XONG (key: ophthalmology_strabismus) **MOI**
+> - ~~21. Mat tre em~~ → DA XONG (key: ophthalmology_pediatric) **MOI**
+> - ~~22. Chan thuong mat~~ → DA XONG (key: ophthalmology_trauma) **MOI**
+> - ~~23. Mat ban phan truoc~~ → DA XONG (key: ophthalmology_anterior) **MOI**
+> - ~~24. Mat glocom~~ → DA XONG (key: ophthalmology_glaucoma) **MOI**
+> - ~~25. Dieu duong & PHCN~~ → DA XONG (key: nursing_rehab) **MOI**
+
+### II. Ky so file XML cac HSBA (25 loai) → DA XONG
+> Tat ca 25 loai BA deu co XML export qua `GET /api/specialty-emr/{id}/xml`
+> Ky so XML qua CentralSigning: `POST /api/central-signing/sign-xml`
+
+### III. Xem file XML dang report (25 loai) → DA XONG
+> XML export co structured format, view tren he thong qua SpecialtyEMR.tsx detail panel
+> CDA document validation qua CdaDocumentController
+
+### IV. Phan he quan tri (75-76) → DA XONG
+> - ~~75. Quan ly tai khoan~~ → DA XONG (SystemAdmin.tsx - tab Users/Roles)
+> - ~~76. Dang nhap~~ → DA XONG (Login.tsx, AuthController, 2FA OTP)
+
+### V. Quan ly HSBA (77-85) → DA XONG
+> - ~~77. HSBA mo~~ → DA XONG (MedicalRecordArchiveController - Create)
+> - ~~78. Dong BA chuyen luu tru~~ → DA XONG (auto-archive + manual close)
+> - ~~79. Tich hop ky so~~ → DA XONG (CentralSigningController - sign-pdf, sign-xml)
+> - ~~80. Tong hop danh sach luu tru~~ → DA XONG (GetArchivedRecords, storage-status)
+> - ~~81. Ban giao HSBA~~ → DA XONG (CreateBorrowRequest endpoint)
+> - ~~82. Duyet nhan HSBA~~ → DA XONG (ApproveBorrowRequest endpoint)
+> - ~~83. Ky duyet lanh dao~~ → DA XONG (Audit logging + approval tracking)
+> - ~~84. Quan ly luu tru~~ → DA XONG (UpdateLocation, storage-status)
+> - ~~85. Muon tra HSBA~~ → DA XONG (RecordBorrow, RecordReturn, overdue tracking)
+
+### VI. Khai thac du lieu HSBA (86-87) → DA XONG
+> - ~~86. Tra cuu HSBA~~ → DA XONG (SearchArchivesAsync, filters, pagination)
+> - ~~87. Xem HSBA theo mau BYT~~ → DA XONG (38 EMR print templates - 17 BS + 21 DD)
+
+### VII. Quan tri he thong (88-91) → DA XONG
+> - ~~88. Quan ly quyen truy cap HSBA~~ → DA XONG (SecurityController - access-matrix)
+> - ~~89. Cau hinh quyen truy cap~~ → DA XONG (SystemCompleteController - roles/permissions)
+> - ~~90. Cap quyen nguoi dung~~ → DA XONG (AuthController - user creation with roles)
+> - ~~91. Log truy cap HSBA~~ → DA XONG (AuditLogMiddleware + AuditController)
+
+### VIII. Quan ly danh muc (92-95) → DA XONG
+> - ~~92. Dan toc~~ → DA XONG (Ethnic entity, catalog API)
+> - ~~93. Nghe nghiep~~ → DA XONG (Occupation entity, MasterData.tsx)
+> - ~~94. Dia danh hanh chinh~~ → DA XONG (AdministrativeDivision - Tinh/Huyen/Xa)
+> - ~~95. Co so kham benh~~ → DA XONG (HealthcareFacility - TW/Tinh/Huyen/Xa)
+
+### Yeu cau khac → DA DAP UNG
+> - ~~Tuong thich Windows/Linux~~ → DA XONG (web-based React + ASP.NET Core)
+> - ~~API tich hop (hoa don, CKS, may sinh anh)~~ → DA XONG (CentralSigning, DICOM/non-DICOM)
+> - ~~Lien thong kho du lieu BYT/BHXH~~ → DA XONG (DQGVN API, BHXH integration)
