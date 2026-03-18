@@ -36,7 +36,7 @@ public class Pkcs11SessionManager : IDisposable
     /// Open a PKCS#11 session with PIN for the given user.
     /// Tries all configured CA provider DLLs until one works.
     /// </summary>
-    public async Task<Pkcs11SessionEntry> OpenSessionAsync(string userId, string pin)
+    public async Task<Pkcs11SessionEntry> OpenSessionAsync(string userId, string pin, bool skipPkcs11 = false)
     {
         // Check if user already has an active session
         if (_sessions.TryGetValue(userId, out var existing) && existing.ExpiresAt > DateTime.UtcNow)
@@ -44,6 +44,18 @@ public class Pkcs11SessionManager : IDisposable
             _logger.LogInformation("Reusing existing session for user {UserId}, expires at {ExpiresAt}", userId, existing.ExpiresAt);
             existing.ExpiresAt = DateTime.UtcNow.AddMinutes(_config.SessionTimeoutMinutes);
             return existing;
+        }
+
+        if (skipPkcs11)
+        {
+            // Skip PKCS#11, go directly to Windows Certificate Store
+            var winEntry = TryOpenFromWindowsCertStore(userId);
+            if (winEntry != null)
+            {
+                _logger.LogInformation("Opened session via Windows Certificate Store (skip PKCS#11) for user {UserId}", userId);
+                return winEntry;
+            }
+            throw new InvalidOperationException("Không tìm thấy chứng thư số trong Windows. Vui lòng thử nhập PIN USB Token.");
         }
 
         // Try each configured CA provider
@@ -70,7 +82,15 @@ public class Pkcs11SessionManager : IDisposable
             }
         }
 
-        throw new InvalidOperationException("Không tìm thấy USB Token. Vui lòng kiểm tra đã cắm USB Token và cài đặt driver.");
+        // Fallback: try Windows Certificate Store
+        var windowsEntry = TryOpenFromWindowsCertStore(userId);
+        if (windowsEntry != null)
+        {
+            _logger.LogInformation("Opened session via Windows Certificate Store fallback for user {UserId}", userId);
+            return windowsEntry;
+        }
+
+        throw new InvalidOperationException("Không tìm thấy USB Token hoặc chứng thư số. Vui lòng kiểm tra đã cắm USB Token và cài đặt driver.");
     }
 
     private Task<Pkcs11SessionEntry?> TryOpenSessionWithProvider(
@@ -137,6 +157,101 @@ public class Pkcs11SessionManager : IDisposable
         // No usable certificate found with this provider
         store.Dispose();
         return Task.FromResult<Pkcs11SessionEntry?>(null);
+    }
+
+    /// <summary>
+    /// Fallback: try to find a valid signing certificate in Windows Certificate Store.
+    /// Works with USB Token certs that have been registered in Windows via drivers.
+    /// When signing, accessing the private key will trigger Windows PIN dialog.
+    /// </summary>
+    private Pkcs11SessionEntry? TryOpenFromWindowsCertStore(string userId)
+    {
+        try
+        {
+            using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            store.Open(OpenFlags.ReadOnly);
+
+            foreach (var cert in store.Certificates)
+            {
+                // Skip expired or not-yet-valid certs
+                if (DateTime.Now < cert.NotBefore || DateTime.Now > cert.NotAfter)
+                    continue;
+
+                // Must have private key
+                if (!cert.HasPrivateKey)
+                    continue;
+
+                // Check for digital signature key usage
+                var hasSigningUsage = false;
+                foreach (var ext in cert.Extensions)
+                {
+                    if (ext is X509KeyUsageExtension keyUsage &&
+                        (keyUsage.KeyUsages & X509KeyUsageFlags.DigitalSignature) != 0)
+                    {
+                        hasSigningUsage = true;
+                        break;
+                    }
+                }
+                if (!hasSigningUsage) continue;
+
+                // Skip self-signed certs (typically not from a CA)
+                if (cert.Subject == cert.Issuer) continue;
+
+                // Check if this looks like a Vietnamese CA-issued cert
+                var issuerLower = cert.Issuer.ToLower();
+                var isVietnameseCA = issuerLower.Contains("vnpt") || issuerLower.Contains("viettel") ||
+                                     issuerLower.Contains("bkav") || issuerLower.Contains("fpt") ||
+                                     issuerLower.Contains("winca") || issuerLower.Contains("nacencomm") ||
+                                     issuerLower.Contains("vina") || issuerLower.Contains("newtel") ||
+                                     issuerLower.Contains("smartsign") || issuerLower.Contains("misa");
+
+                if (!isVietnameseCA) continue;
+
+                var entry = new Pkcs11SessionEntry
+                {
+                    UserId = userId,
+                    IsWindowsStoreMode = true,
+                    CertificateThumbprint = cert.Thumbprint,
+                    CaProvider = ExtractCaProvider(cert.Issuer),
+                    TokenSerial = cert.Thumbprint[..16],
+                    TokenLabel = "Windows Certificate Store",
+                    CertificateSubject = cert.Subject,
+                    CertificateIssuer = cert.Issuer,
+                    CertificateSerial = cert.SerialNumber,
+                    CertificateValidFrom = cert.NotBefore,
+                    CertificateValidTo = cert.NotAfter,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(_config.SessionTimeoutMinutes),
+                    SigningSemaphore = new SemaphoreSlim(1, 1)
+                };
+
+                _sessions[userId] = entry;
+
+                _logger.LogInformation(
+                    "Windows Certificate Store session opened for user {UserId}, cert {Subject}, thumbprint {Thumbprint}",
+                    userId, cert.Subject, cert.Thumbprint);
+
+                return entry;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error opening Windows Certificate Store for user {UserId}", userId);
+        }
+
+        return null;
+    }
+
+    private static string ExtractCaProvider(string issuer)
+    {
+        var lower = issuer.ToLower();
+        if (lower.Contains("vnpt")) return "VNPT-CA";
+        if (lower.Contains("viettel")) return "Viettel-CA";
+        if (lower.Contains("bkav")) return "BKAV-CA";
+        if (lower.Contains("fpt")) return "FPT-CA";
+        if (lower.Contains("winca")) return "WINCA";
+        if (lower.Contains("nacencomm")) return "NACENCOMM";
+        if (lower.Contains("smartsign")) return "SmartSign";
+        return "Unknown CA";
     }
 
     /// <summary>
@@ -268,6 +383,11 @@ public class Pkcs11SessionEntry
     public DateTime CertificateValidTo { get; set; }
     public DateTime ExpiresAt { get; set; }
     public SemaphoreSlim SigningSemaphore { get; set; } = new(1, 1);
+
+    /// <summary>True when using Windows Certificate Store fallback instead of PKCS#11</summary>
+    public bool IsWindowsStoreMode { get; set; } = false;
+    /// <summary>Certificate thumbprint for Windows Store signing</summary>
+    public string CertificateThumbprint { get; set; } = string.Empty;
 }
 
 /// <summary>

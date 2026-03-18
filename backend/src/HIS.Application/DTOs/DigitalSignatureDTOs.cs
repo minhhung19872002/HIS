@@ -7,6 +7,9 @@ public class OpenSessionRequest
 {
     /// <summary>USB Token PIN entered by the doctor in the browser</summary>
     public string Pin { get; set; } = string.Empty;
+
+    /// <summary>Skip PKCS#11 and use Windows Certificate Store directly (auto mode)</summary>
+    public bool SkipPkcs11 { get; set; } = false;
 }
 
 /// <summary>Response after opening a PKCS#11 session</summary>

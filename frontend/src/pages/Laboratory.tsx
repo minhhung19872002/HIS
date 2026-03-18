@@ -66,7 +66,7 @@ const Laboratory: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // Digital signature
-  const { sessionActive, openSession, signDocument } = useSigningContext();
+  const { sessionActive, openSession, tryAutoOpenSession, signDocument } = useSigningContext();
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
   const [pinError, setPinError] = useState('');
@@ -101,6 +101,21 @@ const Laboratory: React.FC = () => {
 
   const handleSignResult = async (resultId: string) => {
     if (!sessionActive) {
+      // Try auto-open with Windows Certificate Store first
+      try {
+        const autoRes = await tryAutoOpenSession();
+        if (autoRes.success) {
+          message.success(`Đã kết nối chứng thư số: ${autoRes.caProvider || 'Windows'}`);
+          const signRes = await signDocument(resultId, 'LabResult', 'Ký xác nhận kết quả xét nghiệm');
+          if (signRes.success) {
+            message.success('Ký kết quả xét nghiệm thành công');
+            loadResultSignature(resultId);
+          } else {
+            message.warning(signRes.message || 'Ký số thất bại');
+          }
+          return;
+        }
+      } catch { /* fallback to PIN */ }
       setPinModalOpen(true);
       return;
     }

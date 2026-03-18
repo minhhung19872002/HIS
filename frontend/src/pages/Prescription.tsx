@@ -351,7 +351,7 @@ const Prescription: React.FC = () => {
   const [rxContext, setRxContext] = useState<PrescriptionContextDto | null>(null);
 
   // Digital signature
-  const { sessionActive, openSession, signDocument } = useSigningContext();
+  const { sessionActive, openSession, tryAutoOpenSession, signDocument } = useSigningContext();
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
   const [pinError, setPinError] = useState('');
@@ -386,6 +386,21 @@ const Prescription: React.FC = () => {
 
   const handleSignPrescription = async (prescriptionId: string) => {
     if (!sessionActive) {
+      // Try auto-open with Windows Certificate Store first
+      try {
+        const autoRes = await tryAutoOpenSession();
+        if (autoRes.success) {
+          message.success(`Đã kết nối chứng thư số: ${autoRes.caProvider || 'Windows'}`);
+          const signRes = await signDocument(prescriptionId, 'Prescription', 'Ký xác nhận đơn thuốc');
+          if (signRes.success) {
+            message.success('Ký đơn thuốc thành công');
+            loadPrescriptionSignature(prescriptionId);
+          } else {
+            message.warning(signRes.message || 'Ký số thất bại');
+          }
+          return;
+        }
+      } catch { /* fallback to PIN */ }
       setPinModalOpen(true);
       return;
     }

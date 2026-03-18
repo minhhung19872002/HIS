@@ -83,7 +83,15 @@ const DigitalSignature: React.FC = () => {
       if (tokensRes.status === 'fulfilled') setTokens(Array.isArray(tokensRes.value?.data) ? tokensRes.value.data : []);
       if (certsRes.status === 'fulfilled') setCertificates(Array.isArray(certsRes.value?.data) ? certsRes.value.data : []);
       if (statusRes.status === 'fulfilled') setSessionStatus(statusRes.value?.data || null);
-      if (pendingRes.status === 'fulfilled') setPendingDocs(Array.isArray(pendingRes.value?.data) ? pendingRes.value.data : []);
+      if (pendingRes.status === 'fulfilled') {
+        const raw = Array.isArray(pendingRes.value?.data) ? pendingRes.value.data : [];
+        // Backend returns documentId, map to id for rowKey
+        setPendingDocs(raw.map((d: Record<string, unknown>) => ({
+          ...d,
+          id: d.id || d.documentId || `${d.documentType}-${d.patientCode}-${d.createdAt}`,
+          documentCode: d.documentCode || d.documentName || `${d.documentType}-${(d.patientCode as string)?.substring(0, 8)}`,
+        })) as PendingDocument[]);
+      }
     } catch {
       message.warning('Không thể tải thông tin chữ ký số');
     } finally {

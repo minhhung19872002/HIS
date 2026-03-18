@@ -14,7 +14,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/inpatient")]
-public class InpatientCompleteController : ControllerBase
+public partial class InpatientCompleteController : ControllerBase
 {
     private readonly IInpatientCompleteService _inpatientService;
     private readonly ILogger<InpatientCompleteController> _logger;
@@ -1122,7 +1122,6 @@ public class InpatientCompleteController : ControllerBase
     }
 
     #endregion
-}
 
 #region Request DTOs
 
@@ -1200,8 +1199,11 @@ public class CreateDrugReactionRequest
 }
 
 #endregion
+}
 
-#region Nurse Shift Handover
+public partial class InpatientCompleteController
+{
+    #region Nurse Shift Handover
 
     /// <summary>
     /// Tạo biên bản bàn giao ca trực
