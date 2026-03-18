@@ -274,6 +274,13 @@ public class HISDbContext : DbContext
     public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     public DbSet<SmsLog> SmsLogs => Set<SmsLog>();
 
+    // Satisfaction Survey
+    public DbSet<SatisfactionSurveyTemplate> SatisfactionSurveyTemplates => Set<SatisfactionSurveyTemplate>();
+    public DbSet<SatisfactionSurveyResult> SatisfactionSurveyResults => Set<SatisfactionSurveyResult>();
+
+    // Nurse Shift Handover
+    public DbSet<NurseShiftHandover> NurseShiftHandovers => Set<NurseShiftHandover>();
+
     // Ngân hàng máu (Blood Bank)
     public DbSet<BloodUnit> BloodUnits => Set<BloodUnit>();
     public DbSet<BloodDonor> BloodDonors => Set<BloodDonor>();

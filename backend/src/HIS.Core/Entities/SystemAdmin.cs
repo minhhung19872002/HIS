@@ -90,3 +90,58 @@ public class ScheduledTask : BaseEntity
     public int Status { get; set; } // 0: Enabled, 1: Disabled, 2: Running
     public string? Parameters { get; set; } // Tham số (JSON)
 }
+
+/// <summary>
+/// Mẫu khảo sát hài lòng - Satisfaction Survey Template
+/// </summary>
+public class SatisfactionSurveyTemplate : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Category { get; set; } // OPD, IPD, Emergency, Surgery
+    public string? Questions { get; set; } // JSON array of questions
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+}
+
+/// <summary>
+/// Kết quả khảo sát hài lòng - Satisfaction Survey Result
+/// </summary>
+public class SatisfactionSurveyResult : BaseEntity
+{
+    public Guid? TemplateId { get; set; }
+    public string? TemplateName { get; set; }
+    public Guid? PatientId { get; set; }
+    public string? PatientName { get; set; }
+    public string? PatientCode { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public double OverallScore { get; set; }
+    public string? Answers { get; set; } // JSON
+    public string? Comment { get; set; }
+}
+
+/// <summary>
+/// Biên bản bàn giao ca trực điều dưỡng - Nurse Shift Handover
+/// </summary>
+public class NurseShiftHandover : BaseEntity
+{
+    public Guid DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public string ShiftType { get; set; } = string.Empty; // Morning, Afternoon, Night
+    public DateTime ShiftDate { get; set; }
+    public Guid HandoverFromUserId { get; set; }
+    public string? HandoverFromName { get; set; }
+    public Guid? HandoverToUserId { get; set; }
+    public string? HandoverToName { get; set; }
+    public int TotalPatients { get; set; }
+    public int CriticalPatients { get; set; }
+    public int NewAdmissions { get; set; }
+    public int Discharges { get; set; }
+    public string? PendingOrders { get; set; } // JSON: pending medications, labs, etc.
+    public string? SpecialNotes { get; set; } // Free text notes
+    public string? IncidentNotes { get; set; } // Incidents during shift
+    public bool IsAcknowledged { get; set; }
+    public DateTime? AcknowledgedAt { get; set; }
+    public int Status { get; set; } // 0: Draft, 1: Submitted, 2: Acknowledged
+}

@@ -268,6 +268,16 @@ public interface IBillingCompleteService
     /// </summary>
     Task<List<UnpaidMedicineItemDto>> GetUnpaidMedicinesAsync(Guid patientId);
 
+    /// <summary>
+    /// Đảo bút toán (reversal) khi hủy dịch vụ đã thu tiền
+    /// </summary>
+    Task<BillingReversalDto> ReverseServiceChargeAsync(ReverseServiceChargeDto dto, Guid userId);
+
+    /// <summary>
+    /// Lấy lịch sử đảo bút toán
+    /// </summary>
+    Task<List<BillingReversalDto>> GetReversalHistoryAsync(Guid? medicalRecordId, DateTime? fromDate, DateTime? toDate);
+
     #endregion
 
     #region 10.2 In ấn, báo cáo
@@ -435,4 +445,44 @@ public class UseDepositForPaymentDto
     public Guid InvoiceId { get; set; }
     public Guid DepositId { get; set; }
     public decimal Amount { get; set; }
+}
+
+/// <summary>
+/// DTO đảo bút toán dịch vụ
+/// </summary>
+public class ReverseServiceChargeDto
+{
+    public Guid MedicalRecordId { get; set; }
+    public Guid ServiceRequestId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO kết quả đảo bút toán
+/// </summary>
+public class BillingReversalDto
+{
+    public Guid Id { get; set; }
+    public Guid MedicalRecordId { get; set; }
+    public Guid? ServiceRequestId { get; set; }
+    public string? ServiceName { get; set; }
+    public decimal OriginalAmount { get; set; }
+    public decimal ReversedAmount { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string? ReversedByName { get; set; }
+    public DateTime ReversedAt { get; set; }
+    public int Status { get; set; } // 1-Pending, 2-Approved, 3-Rejected
+    public string StatusName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO kết quả tạo billing sau phát thuốc
+/// </summary>
+public class PharmacyBillingResultDto
+{
+    public bool Success { get; set; }
+    public Guid? InvoiceId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public int ItemCount { get; set; }
+    public string? Message { get; set; }
 }

@@ -362,7 +362,56 @@ public class BookingManagementService : IBookingManagementService
         appointment.Status = 2;
         appointment.UpdatedAt = DateTime.UtcNow;
 
-        // Create queue ticket
+        // Check for existing active MedicalRecord
+        var existingRecord = await _context.MedicalRecords
+            .FirstOrDefaultAsync(m => m.PatientId == appointment.PatientId && m.Status < 3 && m.TreatmentType == 1 && !m.IsDeleted);
+        if (existingRecord != null)
+            return new BookingCheckinResultDto { Success = false, Message = $"Bệnh nhân đã có hồ sơ khám đang hoạt động (Mã: {existingRecord.MedicalRecordCode})" };
+
+        // Generate medical record code
+        var today = DateTime.Today;
+        var prefix = $"MR{today:yyyyMMdd}";
+        var maxCode = await _context.MedicalRecords
+            .Where(m => m.MedicalRecordCode.StartsWith(prefix))
+            .OrderByDescending(m => m.MedicalRecordCode)
+            .Select(m => m.MedicalRecordCode)
+            .FirstOrDefaultAsync();
+        int nextNum = 1;
+        if (!string.IsNullOrEmpty(maxCode) && maxCode.Length > prefix.Length)
+            if (int.TryParse(maxCode.Substring(prefix.Length), out int cur)) nextNum = cur + 1;
+
+        // Create MedicalRecord
+        var medicalRecord = new MedicalRecord
+        {
+            Id = Guid.NewGuid(),
+            MedicalRecordCode = $"{prefix}{nextNum:D4}",
+            PatientId = appointment.PatientId,
+            AdmissionDate = DateTime.Now,
+            PatientType = 2, // Viện phí
+            TreatmentType = 1, // Ngoại trú
+            RoomId = appointment.RoomId,
+            DoctorId = appointment.DoctorId,
+            DepartmentId = appointment.DepartmentId,
+            Status = 0, // Waiting
+            CreatedAt = DateTime.UtcNow
+        };
+        await _context.MedicalRecords.AddAsync(medicalRecord);
+
+        // Create Examination
+        var examination = new Examination
+        {
+            Id = Guid.NewGuid(),
+            MedicalRecordId = medicalRecord.Id,
+            ExaminationType = 1, // Primary
+            DepartmentId = appointment.DepartmentId ?? Guid.Empty,
+            RoomId = appointment.RoomId ?? Guid.Empty,
+            DoctorId = appointment.DoctorId,
+            Status = 0, // Waiting
+            CreatedAt = DateTime.UtcNow
+        };
+        await _context.Examinations.AddAsync(examination);
+
+        // Create queue ticket (QueueType=2: Khám bệnh)
         var maxQueue = await _context.QueueTickets
             .Where(q => !q.IsDeleted && q.IssueDate.Date == DateTime.Today)
             .MaxAsync(q => (int?)q.QueueNumber) ?? 0;
@@ -376,19 +425,20 @@ public class BookingManagementService : IBookingManagementService
             IssueDate = DateTime.Now,
             PatientId = appointment.PatientId,
             RoomId = appointment.RoomId,
-            QueueType = 1, // Tiếp đón
+            QueueType = 2, // Khám bệnh
             Priority = 0,
             Status = 0, // Chờ
             CreatedAt = DateTime.UtcNow
         };
 
+        examination.QueueNumber = queueNumber;
         await _context.QueueTickets.AddAsync(queueTicket);
         await _unitOfWork.SaveChangesAsync();
 
         return new BookingCheckinResultDto
         {
             Success = true,
-            Message = "Check-in thành công",
+            Message = "Check-in thành công - Đã tạo hồ sơ khám",
             PatientCode = appointment.Patient?.PatientCode,
             PatientName = appointment.Patient?.FullName,
             PhoneNumber = appointment.Patient?.PhoneNumber,
@@ -401,7 +451,9 @@ public class BookingManagementService : IBookingManagementService
             DoctorName = appointment.Doctor?.FullName,
             Reason = appointment.Reason,
             AppointmentType = appointment.AppointmentType,
-            QueueNumber = queueNumber
+            QueueNumber = queueNumber,
+            MedicalRecordId = medicalRecord.Id,
+            MedicalRecordCode = medicalRecord.MedicalRecordCode
         };
     }
 

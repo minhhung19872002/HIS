@@ -1689,6 +1689,1042 @@ RULE_MCI_003: Tài nguyên
 
 ---
 
+## 2.21 LUỒNG 21: CAM KẾT PHẪU THUẬT (Surgery Consent Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        LUỒNG CAM KẾT PHẪU THUẬT                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Yêu cầu PT đã tạo]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. TẠO      │────▶│ 2. ĐIỀN     │────▶│ 3. KÝ       │
+│ CAM KẾT     │     │ THÔNG TIN   │     │ CAM KẾT     │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. VALIDATE │────▶│ 5. CHO PHÉP │────▶│ 6. IN       │
+│ (kiểm tra)  │     │ PHẪU THUẬT  │     │ BIỂU MẪU    │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+### Bảng Chi tiết Dữ liệu
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Surgery | Surgery | SurgeryConsent (loại, chẩn đoán, phương pháp) | `POST /api/SurgeryComplete/consents` |
+| 2 | Surgery | Surgery | Nguy cơ, phương pháp thay thế, giải thích BS | Form fields |
+| 3 | Surgery | Surgery | Người ký, quan hệ (BN/thân nhân/BS) | `PUT /api/SurgeryComplete/consents/{id}/sign` |
+| 4 | Surgery | Surgery | isValid, missingConsents[] | `GET /api/SurgeryComplete/{id}/consents/validate` |
+| 5 | Surgery | Surgery | Cho phép chuyển trạng thái PT | Business rule |
+| 6 | Surgery | Print | ConsentForm PDF | `GET /api/SurgeryComplete/consents/{id}/print` |
+
+### Business Rules
+
+```
+RULE_CONSENT_001: Loại cam kết
+- Type 1: Cam kết phẫu thuật (BẮT BUỘC cho mọi ca PT)
+- Type 2: Cam kết gây mê (BẮT BUỘC nếu AnesthesiaType > 0)
+- Type 3: Cam kết truyền máu (theo yêu cầu)
+- Type 4: Cam kết thủ thuật (theo yêu cầu)
+
+RULE_CONSENT_002: Validate trước PT
+- Kiểm tra cam kết PT (Type 1) đã ký chưa
+- Kiểm tra cam kết gây mê (Type 2) nếu có gây mê
+- Trả về danh sách cam kết còn thiếu (missingConsents)
+- isValid = true chỉ khi tất cả cam kết bắt buộc đã ký
+
+RULE_CONSENT_003: Quyền ký
+- Bệnh nhân ký trực tiếp
+- Thân nhân ký nếu BN < 18 tuổi hoặc không đủ năng lực
+- Bác sĩ ký xác nhận đã giải thích
+```
+
+### Frontend Integration
+- **Surgery.tsx**: Nút "Cam kết" trong bảng yêu cầu PT
+- Modal quản lý cam kết: danh sách cam kết đã tạo + form thêm mới
+- Modal ký cam kết: tên người ký + quan hệ
+- Alert cảnh báo nếu thiếu cam kết bắt buộc
+
+### Cypress Test: `workflow-flows.cy.ts` Flow 1 + Flow 6
+
+---
+
+## 2.22 LUỒNG 22: HỦY ĐƠN THUỐC → TRẢ KHO (Rx Cancel → Inventory Return)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                     LUỒNG HỦY ĐƠN THUỐC → TRẢ KHO                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Đơn thuốc đã phát]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. YÊU CẦU │────▶│ 2. HỦY      │────▶│ 3. TẠO      │
+│ HỦY ĐƠN     │     │ PHIẾU XUẤT │     │ PHIẾU NHẬP  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐
+│ 4. PHỤC HỒI │────▶│ 5. CẬP NHẬT │
+│ TỒN KHO     │     │ TRẠNG THÁI   │
+└─────────────┘     └─────────────┘
+```
+
+### Bảng Chi tiết Dữ liệu
+
+| Bước | Module nguồn | Module đích | Dữ liệu | Entity |
+|------|-------------|-------------|----------|--------|
+| 1 | Pharmacy | Pharmacy | CancelRequest (prescriptionId, reason) | - |
+| 2 | Pharmacy | Warehouse | ExportReceipt.Status = 4 (Cancelled) | ExportReceipt |
+| 3 | Warehouse | Warehouse | ImportReceipt mới (ReceiptType = 5 DepartmentReturn) | ImportReceipt |
+| 4 | Warehouse | Warehouse | InventoryItem.Quantity += returned qty | InventoryItem |
+| 5 | Pharmacy | Pharmacy | Prescription.Status = 4 (Cancelled) | Prescription |
+
+### Business Rules
+
+```
+RULE_RX_CANCEL_001: Điều kiện hủy
+- Đơn thuốc phải có ExportReceipt (đã phát)
+- Lý do hủy bắt buộc
+- Chỉ hủy được đơn chưa bị hủy trước đó
+
+RULE_RX_CANCEL_002: Tạo phiếu nhập trả
+- Copy tất cả ExportReceiptDetails sang ImportReceipt mới
+- ReceiptType = 5 (DepartmentReturn)
+- Note ghi rõ: "Trả hàng do hủy đơn thuốc {prescriptionCode}"
+
+RULE_RX_CANCEL_003: Phục hồi tồn kho
+- Với mỗi item trong ExportReceipt:
+  + Tìm InventoryItem theo MedicineId + WarehouseId
+  + Cộng lại Quantity đã xuất
+- Đảm bảo atomic transaction (tất cả hoặc không)
+```
+
+### API
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/api/pharmacy/cancel-dispensed/{prescriptionId}` | Hủy đơn đã phát + trả kho |
+
+### Cypress Test: `workflow-flows.cy.ts` Flow 2
+
+---
+
+## 2.23 LUỒNG 23: HOÀN THU VIỆN PHÍ (Billing Reversal Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          LUỒNG HOÀN THU VIỆN PHÍ                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Dịch vụ đã thu tiền]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. YÊU CẦU │────▶│ 2. TẠO      │────▶│ 3. CẬP NHẬT │
+│ HOÀN THU    │     │ PHIẾU HOÀN  │     │ HÓA ĐƠN     │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐
+│ 4. HỦY      │────▶│ 5. GHI      │
+│ CHỈ ĐỊNH    │     │ LỊCH SỬ     │
+└─────────────┘     └─────────────┘
+```
+
+### Bảng Chi tiết Dữ liệu
+
+| Bước | Module nguồn | Module đích | Dữ liệu | Entity |
+|------|-------------|-------------|----------|--------|
+| 1 | Billing | Billing | ReverseChargeRequest (medicalRecordId, serviceRequestId, reason) | - |
+| 2 | Billing | Billing | BillingReversal (reversalCode, amount, reason, reversedBy) | BillingReversals |
+| 3 | Billing | Billing | InvoiceSummary.TotalServiceAmount -= amount | InvoiceSummary |
+| 4 | Billing | OPD/IPD | ServiceRequest.Status = 4 (Cancelled) | ServiceRequest |
+| 5 | Billing | Billing | ReversalHistory (audit trail) | BillingReversals |
+
+### Business Rules
+
+```
+RULE_REVERSAL_001: Tính số tiền hoàn
+- Tổng = SUM(ServiceRequestDetail.Quantity × UnitPrice)
+- Áp dụng cho tất cả detail items trong ServiceRequest
+
+RULE_REVERSAL_002: Cập nhật hóa đơn
+- Tìm InvoiceSummary theo MedicalRecordId
+- Trừ TotalServiceAmount = TotalServiceAmount - reversed amount
+- Nếu không tìm thấy InvoiceSummary → bỏ qua (chưa tạo hóa đơn)
+
+RULE_REVERSAL_003: Audit trail
+- Mã hoàn thu: REV-{yyyyMMddHHmmss}
+- Ghi nhận: người hoàn, thời gian, lý do, số tiền
+- Lịch sử hoàn thu truy vấn được theo thời gian
+```
+
+### API
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/api/BillingComplete/reverse-charge` | Tạo phiếu hoàn thu |
+| GET | `/api/BillingComplete/reversal-history` | Lịch sử hoàn thu |
+
+### Cypress Test: `workflow-flows.cy.ts` Flow 3
+
+---
+
+## 2.24 LUỒNG 24: TỰ ĐỘNG TẠO HÓA ĐƠN SAU PHÁT THUỐC (Auto-Billing After Dispensing)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                   LUỒNG TỰ ĐỘNG TẠO HÓA ĐƠN SAU PHÁT THUỐC                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Phát thuốc hoàn tất]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. LẤY      │────▶│ 2. TÍNH     │────▶│ 3. TẠO/     │
+│ PHIẾU XUẤT  │     │ TỔNG TIỀN   │     │ CẬP NHẬT HĐ │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+### Bảng Chi tiết Dữ liệu
+
+| Bước | Module nguồn | Module đích | Dữ liệu | Entity |
+|------|-------------|-------------|----------|--------|
+| 1 | Pharmacy | Billing | ExportReceipt + ExportReceiptDetails | ExportReceipt |
+| 2 | Billing | Billing | TotalMedicineAmount = SUM(Qty × UnitPrice) | Calculated |
+| 3 | Billing | Billing | InvoiceSummary (create hoặc update) | InvoiceSummary |
+
+### Business Rules
+
+```
+RULE_AUTOBILL_001: Tính tiền thuốc
+- Lấy ExportReceipt theo issueId (Include ExportReceiptDetails)
+- TotalMedicineAmount = SUM(detail.Quantity × detail.UnitPrice)
+
+RULE_AUTOBILL_002: Tạo hoặc cập nhật hóa đơn
+- Tìm InvoiceSummary theo MedicalRecordId
+- NẾU đã có → cập nhật TotalMedicineAmount
+- NẾU chưa có → tạo InvoiceSummary mới:
+  + InvoiceCode = "INV-{yyyyMMddHHmmss}"
+  + InvoiceDate = DateTime.Now
+  + TotalMedicineAmount = calculated amount
+  + TotalServiceAmount = 0 (sẽ được cập nhật bởi billing)
+
+RULE_AUTOBILL_003: Kết nối MedicalRecord
+- ExportReceipt phải có MedicalRecordId
+- MedicalRecordId liên kết đơn thuốc với hồ sơ bệnh án
+- Cho phép billing tổng hợp tất cả chi phí theo hồ sơ
+```
+
+### API
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/api/pharmacy/create-billing/{issueId}` | Tạo hóa đơn tự động sau phát thuốc |
+
+### Cypress Test: `workflow-flows.cy.ts` Flow 4
+
+---
+
+## 2.25 LUỒNG 25: ĐẶT LỊCH ONLINE → TIẾP ĐÓN (Online Booking → Reception Check-in)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG ĐẶT LỊCH ONLINE → TIẾP ĐÓN                            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Bệnh nhân đặt lịch online]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. ĐẶT LỊCH │────▶│ 2. XÁC NHẬN │────▶│ 3. NHẮC HẸN │
+│ (Public API) │     │ (Staff)     │     │ (SMS/Email) │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. CHECK-IN │────▶│ 5. TẠO HSBA │────▶│ 6. XẾP HÀNG │
+│ (Ngày khám) │     │ + Phiếu khám│     │ Phòng khám  │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Patient (Public) | Booking | BookingRequest (tên, SĐT, khoa, ngày, giờ) | `POST /api/booking/appointments` |
+| 2 | Booking Mgmt | Booking | Confirm/Reject (staff) | `PUT /api/booking-management/bookings/{code}/confirm` |
+| 3 | Booking | SMS/Email | Reminder notification | `SmsService` / `EmailService` |
+| 4 | Booking Mgmt | Reception | Check-in → tạo MedicalRecord | `POST /api/booking-management/bookings/{code}/reception-checkin` |
+| 5 | Reception | Reception | MedicalRecord + QueueTicket | Auto-created |
+| 6 | Reception | OPD Queue | QueueTicket assigned to room | Auto-assigned |
+
+```
+RULE_BOOKING_001: Trạng thái đặt lịch
+- Pending → Confirmed → CheckedIn → Completed
+- Pending → Cancelled (bởi BN hoặc staff)
+
+RULE_BOOKING_002: Check-in
+- Chỉ check-in được booking đã Confirmed
+- Check-in tạo MedicalRecord + QueueTicket tự động
+- BN xuất hiện trong hàng đợi phòng khám
+```
+
+---
+
+## 2.26 LUỒNG 26: SMS NOTIFICATION TRIGGER CHAIN
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                       LUỒNG SMS NOTIFICATION                                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Sự kiện lâm sàng]
+     │
+     ├── Kết quả XN ────────▶ SMS "KQ xét nghiệm đã có"
+     ├── Kết quả CĐHA ──────▶ SMS "KQ chẩn đoán hình ảnh đã có"
+     ├── Đặt lịch xác nhận ──▶ SMS "Xác nhận lịch hẹn ngày..."
+     ├── Nhắc lịch hẹn ─────▶ SMS "Nhắc nhở lịch khám ngày..."
+     ├── Giá trị bất thường ─▶ SMS "CẢNH BÁO: Kết quả bất thường"
+     ├── Gọi số ─────────────▶ SMS "Mời số [X] vào phòng [Y]"
+     ├── OTP xác thực ───────▶ SMS "Mã xác thực: XXXXXX"
+     └── Thông báo chung ────▶ SMS tùy nội dung
+```
+
+| Loại SMS | Module nguồn | Trigger | API |
+|----------|-------------|---------|-----|
+| OTP | Auth (2FA) | Login yêu cầu OTP | `POST /api/auth/verify-otp` |
+| Result | LIS/RIS | Duyệt kết quả | `ResultNotificationService` |
+| Booking | Booking | Xác nhận/nhắc lịch | `BookingManagementController` |
+| Reminder | FollowUp | Lịch tái khám sắp tới | `ExaminationCompleteController` |
+| Critical | LIS | Giá trị bất thường | `ResultNotificationService` (critical) |
+| Queue | Reception | Gọi số tiếp theo | `QueueDisplay` |
+| General | Admin | Thông báo chung | `POST /api/sms/send` |
+| Test | Admin | Test gửi SMS | `POST /api/sms/test` |
+
+```
+RULE_SMS_001: Gateway
+- Primary: eSMS.vn hoặc SpeedSMS.vn
+- Fallback: log SMS khi chưa cấu hình gateway
+
+RULE_SMS_002: 8 loại tin nhắn
+- Mỗi loại có template riêng
+- Admin quản lý qua SmsManagement.tsx
+```
+
+---
+
+## 2.27 LUỒNG 27: CHUYỂN KHOA NỘI TRÚ (IPD Department Transfer)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                       LUỒNG CHUYỂN KHOA NỘI TRÚ                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[BS ra y lệnh chuyển khoa]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. YÊU CẦU │────▶│ 2. TRẢ      │────▶│ 3. NHẬN     │
+│ CHUYỂN KHOA │     │ GIƯỜNG CŨ   │     │ GIƯỜNG MỚI  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. CẬP NHẬT │────▶│ 5. BÀN GIAO │────▶│ 6. CẬP NHẬT │
+│ HỒ SƠ BA    │     │ ĐIỀU DƯỠNG  │     │ BHYT/BILLING│
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Inpatient | Inpatient | TransferRequest (patientId, toDeptId, reason) | `POST /api/inpatient/transfer-department` |
+| 2 | Inpatient | Inpatient | ReleaseBed (bedId) | `POST /api/inpatient/release-bed` |
+| 3 | Inpatient | Inpatient | AssignBed (newBedId) | `POST /api/inpatient/assign-bed` |
+| 4 | Inpatient | Inpatient | Admission.DepartmentId updated | Internal |
+| 5 | Inpatient | Inpatient | NursingHandover record | Treatment sheet |
+| 6 | Billing/Insurance | Billing | Department-based fee adjustment | Auto-updated |
+
+```
+RULE_TRANSFER_001: Điều kiện chuyển
+- BN phải đang nằm viện (Active admission)
+- Khoa đích phải có giường trống
+- Lý do chuyển bắt buộc
+
+RULE_TRANSFER_002: Tác động
+- Giải phóng giường cũ (status = Available)
+- Gán giường mới (status = Occupied)
+- Y lệnh đang chờ theo khoa cũ vẫn giữ nguyên
+- Billing tính theo khoa mới từ thời điểm chuyển
+```
+
+---
+
+## 2.28 LUỒNG 28: XUẤT VIỆN → LƯU TRỮ → BHXH → DQGVN
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                  LUỒNG XUẤT VIỆN → LƯU TRỮ → BÁO CÁO                          │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Ra viện hoàn tất]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. TÓM TẮT │────▶│ 2. TẠO      │────▶│ 3. LƯU TRỮ  │
+│ BỆNH ÁN     │     │ CDA R2      │     │ HỒ SƠ BA    │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. XUẤT     │────▶│ 5. GỬI      │────▶│ 6. GỬI      │
+│ XML 130     │     │ BHXH        │     │ DQGVN       │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Inpatient | EMR | Discharge summary (chẩn đoán, điều trị, tình trạng) | `POST /api/inpatient/discharge` |
+| 2 | EMR | CDA | CDA R2 Discharge Summary XML | `POST /api/cda/generate/discharge-summary` |
+| 3 | EMR | Archive | Archived MedicalRecord (PDF + metadata) | `POST /api/archives/generate` |
+| 4 | Insurance | Insurance | XML 130 (format 4210) | `POST /api/insurance/xml/generate` |
+| 5 | Insurance | BHXH Gateway | Submit XML to BHXH | `POST /api/insurance/xml/submit` |
+| 6 | HealthExchange | DQGVN | Submit encounter to national DB | `POST /api/dqgvn/submit-encounter` |
+
+```
+RULE_DISCHARGE_ARCHIVE_001: Quy trình lưu trữ
+- Hồ sơ BA được archive sau khi xuất viện
+- Archive bao gồm: tóm tắt BA, tờ điều trị, XN, CĐHA, đơn thuốc
+- Mã lưu trữ: decode/download qua API
+
+RULE_DISCHARGE_ARCHIVE_002: Báo cáo bắt buộc
+- BHXH: XML 130 cho BN bảo hiểm (TT 56/2017)
+- DQGVN: Liên thông dữ liệu quốc gia (TT 54/2017, TT 32/2023)
+- CDA R2: Chuẩn HL7 cho trao đổi liên viện
+```
+
+---
+
+## 2.29 LUỒNG 29: HỖ TRỢ QUYẾT ĐỊNH LÂM SÀNG (CDS Alert → Clinical Action)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                   LUỒNG HỖ TRỢ QUYẾT ĐỊNH LÂM SÀNG                             │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Dữ liệu lâm sàng nhập vào]
+     │
+     ├── Triệu chứng ──────▶ Gợi ý ICD-10 (35 rules)
+     ├── Sinh hiệu ─────────▶ NEWS2 Score (0-20)
+     ├── Đơn thuốc ──────────▶ Tương tác thuốc-thuốc
+     ├── Tiền sử dị ứng ────▶ Cảnh báo dị ứng
+     └── Chống chỉ định ─────▶ Alert cho BS
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | OPD | CDS | Symptoms list | `POST /api/cds/suggest-diagnoses` |
+| 2 | OPD/IPD | CDS | Vital signs (6 params) | `POST /api/cds/early-warning-score` |
+| 3 | CDS | OPD | Clinical alerts list | `GET /api/cds/alerts/{patientId}` |
+| 4 | CDS | OPD | Full CDS package | `GET /api/cds/full/{patientId}` |
+| 5 | Prescription | CDS | Drug interaction check | `POST /api/examination/check-drug-interactions` |
+| 6 | Prescription | CDS | Drug allergy check | `POST /api/examination/patient/{id}/check-drug-allergies` |
+
+```
+RULE_CDS_001: NEWS2 Scoring
+- 0-4: Low risk (routine monitoring)
+- 5-6: Medium risk (urgent review)
+- 7+: High risk (emergency response)
+- 3 in any parameter: Urgent review
+
+RULE_CDS_002: Gợi ý chẩn đoán
+- 35 symptom→ICD rules tích hợp sẵn
+- Match triệu chứng → suggest ICD codes
+- BS chọn/bỏ gợi ý, không tự động áp dụng
+
+RULE_CDS_003: Tương tác thuốc
+- Severity 1: Thông tin (informational)
+- Severity 2: Thận trọng (minor)
+- Severity 3: Nghiêm trọng (moderate)
+- Severity 4: Chống chỉ định (major/contraindicated)
+```
+
+---
+
+## 2.30 LUỒNG 30: GIẢI PHẪU BỆNH (Pathology Specimen Lifecycle)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      LUỒNG GIẢI PHẪU BỆNH                                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Bệnh phẩm từ PT/Nội soi/Sinh thiết]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. TẠO      │────▶│ 2. TIẾP     │────▶│ 3. XỬ LÝ    │
+│ YÊU CẦU     │     │ NHẬN MẪU    │     │ MÔ BỆNH HỌC│
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. MÔ TẢ    │────▶│ 5. KẾT LUẬN │────▶│ 6. BILLING  │
+│ ĐẠI/VI THỂ  │     │ + DUYỆT     │     │ + TRẢ KQ    │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | OPD/IPD/Surgery | Pathology | PathologyRequest (patient, specimen type, clinical info) | `POST /api/pathology/requests` |
+| 2 | Pathology | Pathology | Receive specimen, assign code | `PUT /api/pathology/requests/{id}` (status update) |
+| 3 | Pathology | Pathology | Processing (fixation, embedding, cutting, staining) | Internal workflow |
+| 4 | Pathology | Pathology | Gross + microscopic description | `POST /api/pathology/results` |
+| 5 | Pathology | Pathology | Final diagnosis, staging, grading | `PUT /api/pathology/results/{id}` |
+| 6 | Pathology | Billing/EMR | Print report + bill service | `GET /api/pathology/requests/{id}/print` |
+
+```
+RULE_PATH_001: Loại mẫu bệnh phẩm
+- Sinh thiết (biopsy), Phẫu thuật (surgical), Tế bào học (cytology)
+- FNA (chọc hút kim nhỏ), Frozen section (cắt lạnh cấp cứu)
+
+RULE_PATH_002: Trạng thái
+- Pending → Processing → Completed
+- Urgent/Frozen: ưu tiên xử lý trong 30 phút
+
+RULE_PATH_003: Kết quả ác tính
+- Kết quả ác tính → thông báo BS điều trị
+- Staging (TNM) cho ung thư
+```
+
+---
+
+## 2.31 LUỒNG 31: VI SINH → LƯU CHỦNG → KIỂM SOÁT NHIỄM KHUẨN
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│              LUỒNG VI SINH → LƯU CHỦNG → KSNK                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Kết quả cấy dương tính]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. ĐỊNH DANH│────▶│ 2. KS ĐỒ    │────▶│ 3. LƯU      │
+│ VI KHUẨN    │     │ (AST S/I/R) │     │ CHỦNG       │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. PHÁT HIỆN│────▶│ 5. CÁCH LY  │────▶│ 6. BÁO CÁO  │
+│ MDRO        │     │ BN (KSNK)   │     │ DỊCH TỄ     │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Microbiology | Microbiology | Organism ID (name, gram stain, morphology) | Microbiology API |
+| 2 | Microbiology | Microbiology | AST results (S/I/R per antibiotic) | Microbiology API |
+| 3 | Microbiology | CultureStock | CultureStock entry (location, preservation, aliquots) | `POST /api/culture-stock` |
+| 4 | CultureStock | InfectionControl | MDRO detection (multi-drug resistant organism) | InfectionControl API |
+| 5 | InfectionControl | Inpatient | Isolation order (contact/droplet/airborne) | InfectionControl API |
+| 6 | InfectionControl | ProvincialHealth | Infectious disease report | `POST /api/provincial-health/infectious-diseases/submit/{id}` |
+
+```
+RULE_CULTURE_001: Lưu chủng
+- Mã tự động: VS-YYYY-NNNN
+- Bảo quản: glycerol stock / đông khô / đông lạnh sâu / sữa gầy
+- Kiểm tra viability mỗi 90 ngày
+
+RULE_CULTURE_002: MDRO Alert
+- Kháng ≥3 nhóm kháng sinh → MDRO
+- MRSA, VRE, ESBL, CRE → cảnh báo KSNK
+- Tự động tạo isolation order
+```
+
+---
+
+## 2.32 LUỒNG 32: HỒ SƠ GÂY MÊ (Anesthesia Record Lifecycle)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      LUỒNG HỒ SƠ GÂY MÊ                                        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Lịch PT đã duyệt]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. KHÁM     │────▶│ 2. ĐÁNH GIÁ │────▶│ 3. KẾ HOẠCH │
+│ TIỀN MÊ     │     │ ASA/Mallam  │     │ GÂY MÊ      │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 4. THEO DÕI │────▶│ 5. HỒI TỈNH │────▶│ 6. BÀN GIAO │
+│ TRONG MỔ    │     │ (Recovery)  │     │ VỀ KHOA     │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Surgery | ClinicalRecord | Pre-anesthesia assessment | `POST /api/clinical-records/anesthesia` |
+| 2 | ClinicalRecord | ClinicalRecord | ASA score, Mallampati, airway eval | Form fields |
+| 3 | ClinicalRecord | ClinicalRecord | Anesthesia plan (type, drugs, doses) | `PUT /api/clinical-records/anesthesia/{id}` |
+| 4 | ClinicalRecord | ClinicalRecord | Intra-op monitoring (vitals q5min) | `PUT /api/clinical-records/anesthesia/{id}` |
+| 5 | ClinicalRecord | ClinicalRecord | Recovery room (Aldrete score) | `PUT /api/clinical-records/anesthesia/{id}` |
+| 6 | ClinicalRecord | Inpatient | Handover to ward | Nursing handover |
+
+```
+RULE_ANESTH_001: ASA Classification
+- ASA I: Healthy patient
+- ASA II: Mild systemic disease
+- ASA III: Severe systemic disease
+- ASA IV: Life-threatening
+- ASA V: Moribund
+- ASA VI: Brain-dead organ donor
+
+RULE_ANESTH_002: Recovery criteria (Aldrete ≥ 9)
+- Activity, Respiration, Circulation, Consciousness, O2 Sat
+- Mỗi item 0-2 điểm, tổng ≥ 9 → xuất hồi tỉnh
+```
+
+---
+
+## 2.33 LUỒNG 33: THEO DÕI CHUYỂN DẠ - PARTOGRAPH (Obstetrics)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG THEO DÕI CHUYỂN DẠ (PARTOGRAPH)                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Sản phụ vào chuyển dạ]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. NHẬP     │────▶│ 2. THEO DÕI │────▶│ 3. ĐÁNH GIÁ │
+│ THÔNG TIN   │     │ ĐỊNH KỲ     │     │ TIẾN TRIỂN  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                         ┌─────────────────────┤
+                         ▼                     ▼
+                  ┌─────────────┐     ┌─────────────┐
+                  │ 4a. SINH    │     │ 4b. CẤP CỨU │
+                  │ THƯỜNG      │     │ MỔ LẤY THAI │
+                  └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | IPD (Sản) | ClinicalRecord | Partograph (cervical dilation, descent, contractions) | `POST /api/clinical-records/partograph` |
+| 2 | ClinicalRecord | ClinicalRecord | Periodic entries (q30min-1h) | `PUT /api/clinical-records/partograph/{id}` |
+| 3 | ClinicalRecord | ClinicalRecord | Progress vs alert/action lines | Auto-calculated |
+| 4a | ClinicalRecord | IPD | Normal delivery record | Delivery note |
+| 4b | ClinicalRecord | Surgery | Emergency C-section request | Surgery request |
+
+```
+RULE_PARTOGRAPH_001: Theo dõi
+- Cổ tử cung: mỗi 1-2h (mở 1cm/h bình thường)
+- Tim thai: mỗi 30 phút (bình thường 110-160 bpm)
+- Cơn co: mỗ 30 phút (tần số, cường độ, thời gian)
+
+RULE_PARTOGRAPH_002: Cảnh báo
+- Vượt đường báo động (alert line) → tăng cường theo dõi
+- Vượt đường hành động (action line) → can thiệp (mổ lấy thai)
+- Tim thai < 110 hoặc > 160 → cấp cứu
+```
+
+---
+
+## 2.34 LUỒNG 34: KÝ SỐ TÀI LIỆU Y TẾ (Digital Signature Lifecycle)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG KÝ SỐ TÀI LIỆU Y TẾ                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌──────────────────────┐
+                    │   TÀI LIỆU CẦN KÝ   │
+                    │ (EMR/Đơn thuốc/XN)   │
+                    └──────────┬───────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              ▼                                 ▼
+     ┌─────────────┐                   ┌─────────────┐
+     │ USB TOKEN   │                   │ KÝ TẬP TRUNG│
+     │ (PKCS#11)   │                   │ (HSM/Server)│
+     └──────┬──────┘                   └──────┬──────┘
+            │                                 │
+            ▼                                 ▼
+     ┌─────────────┐                   ┌─────────────┐
+     │ Ký tại máy  │                   │ Ký trên     │
+     │ trạm BS     │                   │ server      │
+     └──────┬──────┘                   └──────┬──────┘
+            │                                 │
+            └────────────────┬────────────────┘
+                             ▼
+                    ┌─────────────┐
+                    │ XÁC MINH   │
+                    │ + LƯU TRỮ  │
+                    └──────┬──────┘
+                           ▼
+                    ┌─────────────┐
+                    │ AUDIT LOG   │
+                    │ + DQGVN     │
+                    └─────────────┘
+```
+
+| Phương thức | Controller | Chức năng | API |
+|-------------|-----------|-----------|-----|
+| USB Token | DigitalSignatureController | Ký bằng USB Token tại máy trạm | `POST /api/digital-signature/sign` |
+| USB Token | DigitalSignatureController | Batch ký nhiều tài liệu | `POST /api/digital-signature/batch-sign` |
+| Central | CentralSigningController | Ký hash (server-side) | `POST /api/central-signing/sign-hash` |
+| Central | CentralSigningController | Ký PDF ẩn/hiện | `POST /api/central-signing/sign-pdf-invisible` |
+| Central | CentralSigningController | Ký XML | `POST /api/central-signing/sign-xml` |
+| Verify | Both | Xác minh chữ ký | `POST /api/central-signing/verify-pdf` |
+
+```
+RULE_SIGN_001: Tài liệu cần ký
+- Bệnh án (EMR): BS điều trị ký
+- Đơn thuốc: BS kê đơn ký
+- Kết quả XN: BS duyệt ký
+- Kết quả CĐHA: BS đọc ký
+- Phiếu xuất viện: BS điều trị + Trưởng khoa ký
+
+RULE_SIGN_002: USB Token vs Central Signing
+- USB Token: ký tại chỗ, cần cắm USB, mỗi BS 1 token
+- Central Signing: ký qua server, cần TOTP xác thực, batch ký được
+- Cả 2 đều tạo CMS/PKCS#7 signature, SHA-256
+
+RULE_SIGN_003: Audit
+- Mọi thao tác ký được log vào AuditLog
+- SigningTransaction lưu trữ trong DB (Central Signing)
+- File PDF ký lưu tại Reports/Signed/{DocumentType}/
+```
+
+---
+
+## 2.35 LUỒNG 35: LIÊN THÔNG ĐƠN THUỐC QUỐC GIA (National Prescription)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                 LUỒNG LIÊN THÔNG ĐƠN THUỐC QUỐC GIA                             │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Đơn thuốc đã kê]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. VALIDATE │────▶│ 2. SUBMIT   │────▶│ 3. NHẬN     │
+│ ĐƠN THUỐC  │     │ LÊN CQLKCB  │     │ PHẢN HỒI   │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                         ┌──────────── FAIL ───┤
+                         ▼                     ▼
+                  ┌─────────────┐     ┌─────────────┐
+                  │ 4. RETRY    │     │ 5. HOÀN     │
+                  │ GỬI LẠI    │     │ THÀNH       │
+                  └─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Prescription | NationalPrescription | Validate format, drug codes | Internal |
+| 2 | NationalPrescription | CQLKCB Gateway | Submit prescription data | `POST /api/national-prescription/submit/{prescriptionId}` |
+| 3 | CQLKCB | NationalPrescription | Response (success/fail/errors) | Callback |
+| 4 | NationalPrescription | CQLKCB | Retry failed submission | `POST /api/national-prescription/retry/{id}` |
+| 5 | NationalPrescription | NationalPrescription | Mark as submitted | Status update |
+
+```
+RULE_NATL_RX_001: Đơn thuốc phải gửi
+- Thuốc kiểm soát đặc biệt (controlled substances)
+- Thuốc BHYT (bảo hiểm chi trả)
+- Tùy cấu hình: tất cả đơn thuốc
+
+RULE_NATL_RX_002: Batch submit
+- POST /api/national-prescription/submit-batch
+- Gửi nhiều đơn cùng lúc
+- Cancel: POST /api/national-prescription/cancel/{id}
+```
+
+---
+
+## 2.36 LUỒNG 36: BÁO CÁO DỊCH TỄ TỈNH (Provincial Health Reporting)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                   LUỒNG BÁO CÁO DỊCH TỄ TỈNH                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Phát hiện bệnh truyền nhiễm]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. PHÁT HIỆN│────▶│ 2. TẠO      │────▶│ 3. GỬI      │
+│ CA BỆNH    │     │ BÁO CÁO    │     │ SỞ Y TẾ    │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐
+│ 4. THEO DÕI │────▶│ 5. TỔNG HỢP│
+│ DỊCH TỄ     │     │ BÁO CÁO    │
+└─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | OPD/IPD/LIS | InfectionControl | Case detection (ICD-10 notifiable disease) | InfectionControl API |
+| 2 | InfectionControl | ProvincialHealth | InfectiousDisease report | `GET /api/provincial-health/infectious-diseases` |
+| 3 | ProvincialHealth | Sở Y Tế | Submit report | `POST /api/provincial-health/infectious-diseases/submit/{id}` |
+| 4 | InfectionControl | InfectionControl | Outbreak surveillance | InfectionControl API |
+| 5 | ProvincialHealth | Reports | Aggregate statistics | ProvincialHealth API |
+
+```
+RULE_REPORT_001: Bệnh phải báo cáo (TT 16/2018)
+- Nhóm A: Dịch hạch, Ebola, SARS → báo ngay trong 24h
+- Nhóm B: Sốt xuất huyết, Tay chân miệng, HIV → 48h
+- Nhóm C: Cúm, Sởi, Rubella → tuần
+```
+
+---
+
+## 2.37 LUỒNG 37: GIÁM SÁT AN NINH HỆ THỐNG (Security Monitoring)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG GIÁM SÁT AN NINH HỆ THỐNG                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Mọi thao tác trên hệ thống]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. GHI LOG  │────▶│ 2. PHÂN     │────▶│ 3. PHÁT HIỆN│
+│ (Middleware)│     │ TÍCH        │     │ BẤT THƯỜNG  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐
+│ 4. CẢNH BÁO │────▶│ 5. XỬ LÝ    │
+│ ADMIN       │     │ SỰ CỐ       │
+└─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | All modules | AuditLog | POST/PUT/DELETE actions | `AuditLogMiddleware` (auto) |
+| 2 | AuditLog | Security | Access patterns analysis | `GET /api/security/compliance/access-matrix` |
+| 3 | Security | Security | Sensitive data access detection | `GET /api/security/compliance/sensitive-access` |
+| 4 | Security | Notification | Alert to admin | `NotificationHub` |
+| 5 | SystemAdmin | AuditLog | Review + resolve | `GET /api/audit/logs` |
+
+```
+RULE_SECURITY_001: Log tất cả
+- Mọi POST/PUT/DELETE được AuditLogMiddleware ghi log
+- Skip: GET, /health, /swagger
+- 30+ route→module mapping tự động
+
+RULE_SECURITY_002: Sensitive access
+- Truy cập hồ sơ BN ngoài phạm vi khoa
+- Download dữ liệu hàng loạt
+- Thay đổi quyền user
+- Xóa dữ liệu lâm sàng
+```
+
+---
+
+## 2.38 LUỒNG 38: KHẢO SÁT HÀI LÒNG → QUẢN LÝ CHẤT LƯỢNG
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                LUỒNG KHẢO SÁT HÀI LÒNG → CHẤT LƯỢNG                             │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[BN xuất viện / hoàn tất khám]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. MỜI KS   │────▶│ 2. BN TRẢ   │────▶│ 3. PHÂN     │
+│ (SMS/Portal)│     │ LỜI KS      │     │ TÍCH KQ     │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐
+│ 4. TẠO SỰ  │────▶│ 5. CẢI TIẾN │
+│ CỐ (nếu KQ │     │ CHẤT LƯỢNG  │
+│ tiêu cực)   │     │             │
+└─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Discharge/OPD | SatisfactionSurvey | Survey invitation (SMS/portal link) | SMS/Email |
+| 2 | Patient | SatisfactionSurvey | Survey responses (rating, comments) | SatisfactionSurvey page |
+| 3 | SatisfactionSurvey | Quality | Aggregate scores, trends | Quality API |
+| 4 | Quality | Quality | Incident report (negative feedback) | Quality incidents |
+| 5 | Quality | Quality | Corrective actions, indicators | Quality indicators |
+
+---
+
+## 2.39 LUỒNG 39: CỔNG BÁC SĨ TỔNG HỢP (Doctor Portal)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG CỔNG BÁC SĨ TỔNG HỢP                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[BS đăng nhập vào Doctor Portal]
+     │
+     ├──▶ Lịch khám hôm nay (OPD) ──────▶ Click → Khám bệnh
+     ├──▶ BN nội trú đang quản lý (IPD) ──▶ Click → Phiếu điều trị
+     ├──▶ Tài liệu chờ ký số ───────────▶ Click → Ký (USB/Central)
+     └──▶ Lịch trực (HR) ───────────────▶ Xem lịch tuần
+```
+
+| Dữ liệu | Module nguồn | API |
+|----------|-------------|-----|
+| Lịch khám OPD | Examination | `GET /api/examination/room/{roomId}/patients` |
+| BN nội trú | Inpatient | `GET /api/inpatient/patients` |
+| Tài liệu chờ ký | DigitalSignature | `GET /api/digital-signature/pending` |
+| Lịch trực | MedicalHR | `GET /api/medicalhr/duty-roster` |
+
+---
+
+## 2.40 LUỒNG 40: QUẢN LÝ DỮ LIỆU & BÀN GIAO (Data Management)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                  LUỒNG QUẢN LÝ DỮ LIỆU & BÀN GIAO                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Yêu cầu sao lưu / xuất dữ liệu / bàn giao]
+     │
+     ├──▶ Backup ──────▶ Tạo bản sao ──────▶ Lưu trữ
+     ├──▶ Export ──────▶ Chọn module ──────▶ Download
+     └──▶ Handover ────▶ Tạo gói ──────────▶ Xác nhận bàn giao
+```
+
+| Chức năng | API |
+|-----------|-----|
+| Tạo backup | `POST /api/data-management/backups` |
+| Danh sách backup | `GET /api/data-management/backups` |
+| Yêu cầu export | `POST /api/data-management/exports/request` |
+| Download export | `GET /api/data-management/exports/{id}/download` |
+| Tạo bàn giao | `POST /api/data-management/handovers` |
+| Xác nhận bàn giao | `PUT /api/data-management/handovers/{id}/confirm` |
+
+---
+
+## 2.41 LUỒNG 41: QUẢN LÝ GIƯỜNG LIÊN KHOA (Bed Management)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    LUỒNG QUẢN LÝ GIƯỜNG LIÊN KHOA                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Yêu cầu nhập viện]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. TRA CỨU  │────▶│ 2. CHỌN     │────▶│ 3. GÁN      │
+│ GIƯỜNG TRỐNG│     │ KHOA/PHÒNG  │     │ GIƯỜNG      │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐
+│ 4. CẬP NHẬT │────▶│ 5. DASHBOARD│
+│ TRẠNG THÁI  │     │ REAL-TIME   │
+└─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | Reception/IPD | Inpatient | Ward layout (all departments) | `GET /api/inpatient/ward-layout/{departmentId}` |
+| 2 | Inpatient | Inpatient | Room layout (beds per room) | `GET /api/inpatient/room-layouts/{departmentId}` |
+| 3 | Inpatient | Inpatient | Bed assignment | `POST /api/inpatient/assign-bed` |
+| 4 | Inpatient | Inpatient | Bed status (Available/Occupied/Maintenance) | `GET /api/inpatient/bed-status` |
+| 5 | Inpatient | Dashboard | Real-time bed count | `GET /api/reporting/dashboard` |
+
+```
+RULE_BED_001: Trạng thái giường
+- Available: sẵn sàng nhận BN
+- Occupied: đang có BN
+- Maintenance: đang bảo trì/vệ sinh
+- Reserved: đã đặt trước (pending admission)
+
+RULE_BED_002: Ưu tiên gán giường
+- Cấp cứu: ưu tiên giường gần trạm ĐD
+- Cách ly: phòng riêng
+- Nhi: khu vực nhi
+- VIP: phòng dịch vụ
+```
+
+---
+
+## 2.42 LUỒNG 42: BÀN GIAO CA TRỰC ĐIỀU DƯỠNG (Nurse Shift Handover)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                  LUỒNG BÀN GIAO CA TRỰC ĐIỀU DƯỠNG                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[Kết thúc ca trực]
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ 1. TẠO      │────▶│ 2. GHI NHẬN │────▶│ 3. KIỂM TRA │
+│ BIÊN BẢN    │     │ TÌNH TRẠNG  │     │ THUỐC/VTYT  │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+     ┌─────────────────────────────────────────┘
+     ▼
+┌─────────────┐     ┌─────────────┐
+│ 4. ĐD NHẬN │────▶│ 5. XÁC NHẬN │
+│ CA KÝ       │     │ BÀN GIAO    │
+└─────────────┘     └─────────────┘
+```
+
+| Bước | Module nguồn | Module đích | Dữ liệu | API |
+|------|-------------|-------------|----------|-----|
+| 1 | HR (Duty) | Inpatient | Shift handover record | Nursing care sheet |
+| 2 | Inpatient | Inpatient | Patient status per bed (vitals, orders, alerts) | `GET /api/inpatient/nursing-care-sheets` |
+| 3 | Inpatient | Pharmacy | Pending medications, IV drips | Prescription API |
+| 4 | Inpatient | Inpatient | Receiving nurse acknowledgment | Treatment sheet |
+| 5 | Inpatient | AuditLog | Handover confirmed + logged | AuditLogMiddleware |
+
+```
+RULE_HANDOVER_001: Nội dung bàn giao
+- Tổng số BN trong ca
+- BN nặng/cần theo dõi đặc biệt
+- Y lệnh đang thực hiện
+- Thuốc/dịch truyền đang chạy
+- Sự cố trong ca (nếu có)
+
+RULE_HANDOVER_002: Ca trực
+- Sáng: 07:00 - 13:00
+- Chiều: 13:00 - 19:00
+- Đêm: 19:00 - 07:00
+- Bàn giao tại đầu mỗi ca
+```
+
+---
+
 # PHẦN 3: MA TRẬN QUAN HỆ GIỮA CÁC PHÂN HỆ
 
 ## 3.1 Ma trận Tương tác (Interaction Matrix)

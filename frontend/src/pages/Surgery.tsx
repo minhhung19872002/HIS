@@ -37,7 +37,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, completeSurgery, searchIcdCodes, searchServices, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto, type CompleteSurgeryDto, type IcdCodeDto, type ServiceDto as SurgeryServiceDto } from '../api/surgery';
+import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, completeSurgery, searchIcdCodes, searchServices, getSurgeryConsents, saveSurgeryConsent, signConsent, validateConsents, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto, type CompleteSurgeryDto, type IcdCodeDto, type ServiceDto as SurgeryServiceDto, type SurgeryConsentDto, type ConsentValidationResult } from '../api/surgery';
 import { examinationApi } from '../api/examination';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
@@ -136,6 +136,15 @@ const Surgery: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isStartSurgeryModalOpen, setIsStartSurgeryModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Consent management
+  const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
+  const [consents, setConsents] = useState<SurgeryConsentDto[]>([]);
+  const [consentValidation, setConsentValidation] = useState<ConsentValidationResult | null>(null);
+  const [consentForm] = Form.useForm();
+  const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  const [signingConsentId, setSigningConsentId] = useState<string | null>(null);
+  const [signForm] = Form.useForm();
 
   // Fetch data from backend API
   const fetchSurgeries = async (searchDto?: SurgerySearchDto) => {
@@ -773,10 +782,17 @@ const Surgery: React.FC = () => {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 150,
+      width: 220,
       fixed: 'right',
       render: (_, record) => (
         <Space>
+          <Button
+            size="small"
+            icon={<FileTextOutlined />}
+            onClick={() => handleOpenConsentModal(record)}
+          >
+            Cam kết
+          </Button>
           {record.status === 0 && (
             <Button
               type="primary"
@@ -1026,6 +1042,58 @@ const Surgery: React.FC = () => {
   const pendingRequests = surgeryRequests.filter(r => r.status === 0);
   const scheduledSurgeries = filteredSchedules.filter(s => s.status < 3);
   const inProgressSurgeries = surgerySchedules.filter(s => s.status === 3);
+
+  // Consent management functions
+  const loadConsents = async (surgeryId: string) => {
+    try {
+      const data = await getSurgeryConsents(surgeryId);
+      setConsents(data);
+      const validation = await validateConsents(surgeryId);
+      setConsentValidation(validation);
+    } catch {
+      setConsents([]);
+      setConsentValidation(null);
+    }
+  };
+
+  const handleOpenConsentModal = (record: SurgeryRequest) => {
+    setSelectedRequest(record);
+    loadConsents(record.id);
+    setIsConsentModalOpen(true);
+  };
+
+  const handleSaveConsent = async (values: Record<string, unknown>) => {
+    if (!selectedRequest) return;
+    try {
+      await saveSurgeryConsent({
+        surgeryId: selectedRequest.id,
+        consentType: values.consentType as number,
+        diagnosis: values.diagnosis as string,
+        plannedProcedure: values.plannedProcedure as string,
+        risks: values.risks as string,
+        alternatives: values.alternatives as string,
+        doctorExplanation: values.doctorExplanation as string,
+      });
+      message.success('Đã lưu cam kết');
+      consentForm.resetFields();
+      loadConsents(selectedRequest.id);
+    } catch {
+      message.warning('Không thể lưu cam kết');
+    }
+  };
+
+  const handleSignConsent = async (values: Record<string, string>) => {
+    if (!signingConsentId || !selectedRequest) return;
+    try {
+      await signConsent(signingConsentId, values.signerName, values.relationship);
+      message.success('Đã ký cam kết');
+      setIsSignModalOpen(false);
+      signForm.resetFields();
+      loadConsents(selectedRequest.id);
+    } catch {
+      message.warning('Không thể ký cam kết');
+    }
+  };
 
   return (
     <div>
@@ -1859,6 +1927,112 @@ const Surgery: React.FC = () => {
           </Row>
           <Form.Item label="Ghi chú khác" name="notes">
             <TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Consent Management Modal */}
+      <Modal
+        title={`Cam kết phẫu thuật - ${selectedRequest?.patientName || ''}`}
+        open={isConsentModalOpen}
+        onCancel={() => setIsConsentModalOpen(false)}
+        footer={null}
+        width={800}
+      >
+        {consentValidation && (
+          <Alert
+            type={consentValidation.isValid ? 'success' : 'warning'}
+            title={consentValidation.isValid ? 'Đã đủ cam kết' : 'Thiếu cam kết'}
+            description={consentValidation.message}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {/* Existing consents */}
+        <Table
+          dataSource={consents}
+          rowKey="id"
+          size="small"
+          pagination={false}
+          style={{ marginBottom: 16 }}
+          columns={[
+            { title: 'Loại cam kết', dataIndex: 'consentTypeName', key: 'type' },
+            {
+              title: 'Trạng thái', key: 'status',
+              render: (_, record: SurgeryConsentDto) => record.isSigned
+                ? <Tag color="green">Đã ký - {record.signerName} ({record.signerRelationship})</Tag>
+                : <Tag color="orange">Chưa ký</Tag>
+            },
+            { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctor' },
+            {
+              title: 'Hành động', key: 'action',
+              render: (_, record: SurgeryConsentDto) => !record.isSigned ? (
+                <Button size="small" type="primary" onClick={() => {
+                  setSigningConsentId(record.id);
+                  setIsSignModalOpen(true);
+                }}>Ký cam kết</Button>
+              ) : null
+            },
+          ]}
+        />
+
+        <Divider>Thêm cam kết mới</Divider>
+        <Form form={consentForm} layout="vertical" onFinish={handleSaveConsent}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Loại cam kết" name="consentType" rules={[{ required: true, message: 'Chọn loại' }]}>
+                <Select options={[
+                  { value: 1, label: 'Cam kết phẫu thuật' },
+                  { value: 2, label: 'Cam kết gây mê' },
+                  { value: 3, label: 'Cam kết truyền máu' },
+                  { value: 4, label: 'Cam kết thủ thuật' },
+                ]} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Chẩn đoán" name="diagnosis">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="Phương pháp dự kiến" name="plannedProcedure">
+            <Input />
+          </Form.Item>
+          <Form.Item label="Nguy cơ, biến chứng" name="risks">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item label="Phương pháp thay thế" name="alternatives">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item label="BS giải thích" name="doctorExplanation">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Button type="primary" htmlType="submit">Lưu cam kết</Button>
+        </Form>
+      </Modal>
+
+      {/* Sign Consent Modal */}
+      <Modal
+        title="Ký cam kết"
+        open={isSignModalOpen}
+        onCancel={() => setIsSignModalOpen(false)}
+        onOk={() => signForm.submit()}
+        okText="Xác nhận ký"
+      >
+        <Form form={signForm} layout="vertical" onFinish={handleSignConsent}>
+          <Form.Item label="Họ tên người ký" name="signerName" rules={[{ required: true, message: 'Nhập họ tên' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Quan hệ với BN" name="relationship" rules={[{ required: true, message: 'Nhập quan hệ' }]}>
+            <Select options={[
+              { value: 'Bản thân', label: 'Bản thân bệnh nhân' },
+              { value: 'Bố/Mẹ', label: 'Bố/Mẹ' },
+              { value: 'Vợ/Chồng', label: 'Vợ/Chồng' },
+              { value: 'Con', label: 'Con' },
+              { value: 'Anh/Chị/Em', label: 'Anh/Chị/Em' },
+              { value: 'Người giám hộ', label: 'Người giám hộ' },
+            ]} />
           </Form.Item>
         </Form>
       </Modal>

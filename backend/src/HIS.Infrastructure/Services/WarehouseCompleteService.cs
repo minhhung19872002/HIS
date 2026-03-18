@@ -2359,4 +2359,147 @@ public class WarehouseCompleteService : IWarehouseCompleteService
     }
 
     #endregion
+
+    #region 5.7 Hủy đơn thuốc đã phát → hoàn trả tồn kho
+
+    public async Task<StockReceiptDto> CancelDispensedPrescriptionAsync(Guid prescriptionId, string reason, Guid userId)
+    {
+        // Tìm phiếu xuất theo đơn thuốc
+        var exportReceipt = await _context.ExportReceipts
+            .Include(e => e.Details)
+            .FirstOrDefaultAsync(e => e.PrescriptionId == prescriptionId && e.Status != 2);
+
+        if (exportReceipt == null)
+            throw new InvalidOperationException("Không tìm thấy phiếu xuất cho đơn thuốc này");
+
+        // Hủy phiếu xuất
+        exportReceipt.Status = 2; // Cancelled
+        exportReceipt.Note = (exportReceipt.Note ?? "") + $" [HỦY: {reason}]";
+        exportReceipt.UpdatedAt = DateTime.Now;
+        exportReceipt.UpdatedBy = userId.ToString();
+
+        // Tạo phiếu nhập hoàn trả
+        var importReceipt = new ImportReceipt
+        {
+            Id = Guid.NewGuid(),
+            ReceiptCode = $"HT-{DateTime.Now:yyyyMMddHHmmss}",
+            ImportType = 3, // Hoàn trả khoa
+            WarehouseId = exportReceipt.WarehouseId,
+            Note = $"Hoàn trả từ hủy đơn thuốc: {reason}",
+            Status = 1, // Auto-approved
+            ReceiptDate = DateTime.Now,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        // Hoàn trả từng item về tồn kho
+        foreach (var detail in exportReceipt.Details)
+        {
+            var itemId = detail.MedicineId ?? detail.SupplyId ?? detail.InventoryItemId;
+            if (itemId.HasValue)
+            {
+                var inventoryItem = await _context.Set<InventoryItem>()
+                    .FirstOrDefaultAsync(i => i.WarehouseId == exportReceipt.WarehouseId && i.MedicineId == detail.MedicineId);
+
+                if (inventoryItem != null)
+                {
+                    inventoryItem.Quantity += detail.Quantity;
+                    inventoryItem.UpdatedAt = DateTime.Now;
+                }
+            }
+        }
+
+        _context.ImportReceipts.Add(importReceipt);
+        await _context.SaveChangesAsync();
+
+        // Cập nhật trạng thái đơn thuốc
+        var prescription = await _context.Prescriptions.FindAsync(prescriptionId);
+        if (prescription != null)
+        {
+            prescription.IsDispensed = false;
+            prescription.Status = 4; // Cancelled
+            await _context.SaveChangesAsync();
+        }
+
+        return new StockReceiptDto
+        {
+            Id = importReceipt.Id,
+            ReceiptCode = importReceipt.ReceiptCode,
+            ReceiptType = importReceipt.ImportType,
+            Status = importReceipt.Status,
+            ReceiptDate = importReceipt.ReceiptDate,
+            CreatedAt = importReceipt.CreatedAt
+        };
+    }
+
+    public async Task<PharmacyBillingResultDto> CreateBillingAfterDispensingAsync(Guid issueId, Guid userId)
+    {
+        var exportReceipt = await _context.ExportReceipts
+            .Include(e => e.Details)
+            .FirstOrDefaultAsync(e => e.Id == issueId);
+
+        if (exportReceipt == null)
+            return new PharmacyBillingResultDto { Success = false, Message = "Không tìm thấy phiếu xuất" };
+
+        // Tìm MedicalRecord qua prescription
+        Guid? medicalRecordId = exportReceipt.MedicalRecordId;
+        if (!medicalRecordId.HasValue && exportReceipt.PrescriptionId.HasValue)
+        {
+            var prescription = await _context.Prescriptions
+                .FirstOrDefaultAsync(p => p.Id == exportReceipt.PrescriptionId.Value);
+            medicalRecordId = prescription?.MedicalRecordId;
+        }
+
+        if (!medicalRecordId.HasValue)
+            return new PharmacyBillingResultDto { Success = false, Message = "Không tìm thấy hồ sơ bệnh án" };
+
+        // Tính tổng tiền
+        decimal total = 0;
+        int itemCount = 0;
+        foreach (var detail in exportReceipt.Details)
+        {
+            total += detail.Quantity * detail.UnitPrice;
+            itemCount++;
+        }
+
+        // Tạo/cập nhật InvoiceSummary
+        var invoice = await _context.Set<InvoiceSummary>()
+            .FirstOrDefaultAsync(i => i.MedicalRecordId == medicalRecordId.Value);
+
+        if (invoice == null)
+        {
+            invoice = new InvoiceSummary
+            {
+                Id = Guid.NewGuid(),
+                InvoiceCode = $"INV-{DateTime.Now:yyyyMMddHHmmss}",
+                InvoiceDate = DateTime.Now,
+                MedicalRecordId = medicalRecordId.Value,
+                TotalMedicineAmount = total,
+                TotalAmount = total,
+                Status = 0,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString()
+            };
+            _context.Set<InvoiceSummary>().Add(invoice);
+        }
+        else
+        {
+            invoice.TotalMedicineAmount += total;
+            invoice.TotalAmount += total;
+            invoice.UpdatedAt = DateTime.Now;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return new PharmacyBillingResultDto
+        {
+            Success = true,
+            InvoiceId = invoice.Id,
+            TotalAmount = total,
+            ItemCount = itemCount,
+            Message = $"Đã tạo {itemCount} mục thanh toán, tổng {total:N0} VNĐ"
+        };
+    }
+
+    #endregion
 }

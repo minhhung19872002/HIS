@@ -860,6 +860,40 @@ public class BillingCompleteController : ControllerBase
     }
 
     #endregion
+
+    #region 10.5 Đảo bút toán dịch vụ
+
+    /// <summary>
+    /// Đảo bút toán khi hủy dịch vụ đã thu tiền
+    /// </summary>
+    [HttpPost("reverse-charge")]
+    public async Task<IActionResult> ReverseServiceCharge([FromBody] ReverseServiceChargeDto dto)
+    {
+        try
+        {
+            var result = await _billingService.ReverseServiceChargeAsync(dto, GetUserId());
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy lịch sử đảo bút toán
+    /// </summary>
+    [HttpGet("reversal-history")]
+    public async Task<IActionResult> GetReversalHistory(
+        [FromQuery] Guid? medicalRecordId,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate)
+    {
+        var result = await _billingService.GetReversalHistoryAsync(medicalRecordId, fromDate, toDate);
+        return Ok(result);
+    }
+
+    #endregion
 }
 
 #region Request DTOs

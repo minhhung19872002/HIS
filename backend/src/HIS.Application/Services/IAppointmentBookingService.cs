@@ -246,4 +246,6 @@ public class BookingCheckinResultDto
     public string? Reason { get; set; }
     public int? AppointmentType { get; set; }
     public int? QueueNumber { get; set; }
+    public Guid? MedicalRecordId { get; set; }
+    public string? MedicalRecordCode { get; set; }
 }

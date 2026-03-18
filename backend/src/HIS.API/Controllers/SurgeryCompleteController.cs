@@ -811,9 +811,71 @@ public class SurgeryCompleteController : ControllerBase
     }
 
     #endregion
+
+    #region 6.6 Quản lý cam kết phẫu thuật
+
+    /// <summary>
+    /// Lấy danh sách cam kết của ca mổ
+    /// </summary>
+    [HttpGet("{surgeryId}/consents")]
+    public async Task<IActionResult> GetConsents(Guid surgeryId)
+    {
+        var result = await _surgeryService.GetSurgeryConsentsAsync(surgeryId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo/cập nhật cam kết
+    /// </summary>
+    [HttpPost("consents")]
+    public async Task<IActionResult> SaveConsent([FromBody] SaveSurgeryConsentDto dto)
+    {
+        var result = await _surgeryService.SaveSurgeryConsentAsync(dto, GetUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Ký cam kết
+    /// </summary>
+    [HttpPut("consents/{consentId}/sign")]
+    public async Task<IActionResult> SignConsent(Guid consentId, [FromBody] SignConsentRequest request)
+    {
+        var result = await _surgeryService.SignConsentAsync(consentId, request.SignerName, request.Relationship, GetUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Kiểm tra cam kết trước khi mổ
+    /// </summary>
+    [HttpGet("{surgeryId}/consents/validate")]
+    public async Task<IActionResult> ValidateConsents(Guid surgeryId)
+    {
+        var result = await _surgeryService.ValidateConsentsBeforeSurgeryAsync(surgeryId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// In cam kết
+    /// </summary>
+    [HttpGet("consents/{consentId}/print")]
+    public async Task<IActionResult> PrintConsent(Guid consentId)
+    {
+        var result = await _surgeryService.PrintConsentFormAsync(consentId);
+        if (result.Length == 0)
+            return Ok(new { message = "Tính năng in cam kết đang phát triển" });
+        return File(result, "application/pdf", "consent.pdf");
+    }
+
+    #endregion
 }
 
 #region Request DTOs
+
+public class SignConsentRequest
+{
+    public string SignerName { get; set; } = string.Empty;
+    public string Relationship { get; set; } = string.Empty;
+}
 
 public class RejectRequest
 {

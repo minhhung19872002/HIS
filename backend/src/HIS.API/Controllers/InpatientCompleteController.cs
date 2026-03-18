@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Inpatient;
 using HIS.Application.Services;
@@ -1199,3 +1200,165 @@ public class CreateDrugReactionRequest
 }
 
 #endregion
+
+#region Nurse Shift Handover
+
+    /// <summary>
+    /// Tạo biên bản bàn giao ca trực
+    /// </summary>
+    [HttpPost("shift-handover")]
+    public async Task<IActionResult> CreateShiftHandover([FromBody] CreateShiftHandoverRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var db = HttpContext.RequestServices.GetRequiredService<HIS.Infrastructure.Data.HISDbContext>();
+
+            // Get user info
+            var user = await db.Users.FindAsync(userId);
+
+            // Get department info
+            var dept = await db.Departments.FindAsync(request.DepartmentId);
+
+            // Count current patients in department
+            var activeAdmissions = await db.Admissions
+                .Where(a => a.DepartmentId == request.DepartmentId && a.Status < 3 && !a.IsDeleted)
+                .CountAsync();
+
+            var criticalCount = await db.Admissions
+                .Where(a => a.DepartmentId == request.DepartmentId && a.Status < 3 && !a.IsDeleted)
+                .Join(db.ServiceRequests, a => a.MedicalRecordId, sr => sr.MedicalRecordId, (a, sr) => sr)
+                .Where(sr => sr.IsEmergency && sr.Status < 2)
+                .Select(sr => sr.MedicalRecordId)
+                .Distinct()
+                .CountAsync();
+
+            var handover = new HIS.Core.Entities.NurseShiftHandover
+            {
+                Id = Guid.NewGuid(),
+                DepartmentId = request.DepartmentId,
+                DepartmentName = dept?.DepartmentName,
+                ShiftType = request.ShiftType,
+                ShiftDate = request.ShiftDate,
+                HandoverFromUserId = userId,
+                HandoverFromName = user?.FullName,
+                HandoverToUserId = request.HandoverToUserId,
+                TotalPatients = activeAdmissions,
+                CriticalPatients = criticalCount,
+                NewAdmissions = request.NewAdmissions,
+                Discharges = request.Discharges,
+                PendingOrders = request.PendingOrders,
+                SpecialNotes = request.SpecialNotes,
+                IncidentNotes = request.IncidentNotes,
+                Status = 1, // Submitted
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Get receiving nurse name
+            if (request.HandoverToUserId.HasValue)
+            {
+                var toUser = await db.Users.FindAsync(request.HandoverToUserId.Value);
+                handover.HandoverToName = toUser?.FullName;
+            }
+
+            await db.NurseShiftHandovers.AddAsync(handover);
+            await db.SaveChangesAsync();
+
+            return Ok(new { handover.Id, message = "Tạo biên bản bàn giao thành công" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error creating shift handover");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách biên bản bàn giao theo khoa
+    /// </summary>
+    [HttpGet("shift-handover")]
+    public async Task<IActionResult> GetShiftHandovers([FromQuery] Guid? departmentId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+    {
+        try
+        {
+            var db = HttpContext.RequestServices.GetRequiredService<HIS.Infrastructure.Data.HISDbContext>();
+
+            var query = db.NurseShiftHandovers.Where(h => !h.IsDeleted);
+
+            if (departmentId.HasValue)
+                query = query.Where(h => h.DepartmentId == departmentId.Value);
+            if (fromDate.HasValue)
+                query = query.Where(h => h.ShiftDate >= fromDate.Value);
+            if (toDate.HasValue)
+                query = query.Where(h => h.ShiftDate <= toDate.Value);
+
+            var handovers = await query
+                .OrderByDescending(h => h.ShiftDate)
+                .ThenByDescending(h => h.CreatedAt)
+                .Take(100)
+                .Select(h => new
+                {
+                    h.Id, h.DepartmentName, h.ShiftType, h.ShiftDate,
+                    h.HandoverFromName, h.HandoverToName,
+                    h.TotalPatients, h.CriticalPatients, h.NewAdmissions, h.Discharges,
+                    h.PendingOrders, h.SpecialNotes, h.IncidentNotes,
+                    h.IsAcknowledged, h.AcknowledgedAt, h.Status, h.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(handovers);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting shift handovers");
+            return Ok(Array.Empty<object>());
+        }
+    }
+
+    /// <summary>
+    /// Xác nhận bàn giao (ĐD nhận ca ký)
+    /// </summary>
+    [HttpPut("shift-handover/{id}/acknowledge")]
+    public async Task<IActionResult> AcknowledgeShiftHandover(Guid id)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var db = HttpContext.RequestServices.GetRequiredService<HIS.Infrastructure.Data.HISDbContext>();
+
+            var handover = await db.NurseShiftHandovers.FindAsync(id);
+            if (handover == null) return NotFound();
+
+            var user = await db.Users.FindAsync(userId);
+            handover.HandoverToUserId = userId;
+            handover.HandoverToName = user?.FullName;
+            handover.IsAcknowledged = true;
+            handover.AcknowledgedAt = DateTime.UtcNow;
+            handover.Status = 2; // Acknowledged
+            handover.UpdatedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync();
+            return Ok(new { message = "Xác nhận bàn giao thành công" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error acknowledging shift handover");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+#endregion
+}
+
+public class CreateShiftHandoverRequest
+{
+    public Guid DepartmentId { get; set; }
+    public string ShiftType { get; set; } = "Morning"; // Morning, Afternoon, Night
+    public DateTime ShiftDate { get; set; }
+    public Guid? HandoverToUserId { get; set; }
+    public int NewAdmissions { get; set; }
+    public int Discharges { get; set; }
+    public string? PendingOrders { get; set; }
+    public string? SpecialNotes { get; set; }
+    public string? IncidentNotes { get; set; }
+}

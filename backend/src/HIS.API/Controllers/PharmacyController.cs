@@ -723,6 +723,48 @@ public class PharmacyController : ControllerBase
         }
     }
 
+    // ==================== 9. Hủy đơn đã phát → hoàn tồn kho ====================
+
+    [HttpPost("cancel-dispensed/{prescriptionId}")]
+    public async Task<IActionResult> CancelDispensedPrescription(Guid prescriptionId, [FromBody] CancelDispenseRequest request)
+    {
+        try
+        {
+            var warehouseService = HttpContext.RequestServices.GetRequiredService<HIS.Application.Services.IWarehouseCompleteService>();
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+            var result = await warehouseService.CancelDispensedPrescriptionAsync(prescriptionId, request.Reason ?? "Hủy đơn", userId);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling dispensed prescription {Id}", prescriptionId);
+            return StatusCode(500, new { message = "Lỗi khi hủy đơn thuốc" });
+        }
+    }
+
+    // ==================== 10. Tạo billing sau phát thuốc ====================
+
+    [HttpPost("create-billing/{issueId}")]
+    public async Task<IActionResult> CreateBillingAfterDispensing(Guid issueId)
+    {
+        try
+        {
+            var warehouseService = HttpContext.RequestServices.GetRequiredService<HIS.Application.Services.IWarehouseCompleteService>();
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+            var result = await warehouseService.CreateBillingAfterDispensingAsync(issueId, userId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating billing for issue {Id}", issueId);
+            return StatusCode(500, new { message = "Lỗi khi tạo thanh toán" });
+        }
+    }
+
     // ==================== Request DTOs ====================
 
     public class RejectRequest
@@ -741,5 +783,10 @@ public class PharmacyController : ControllerBase
         public string FromWarehouse { get; set; } = string.Empty;
         public string ToWarehouse { get; set; } = string.Empty;
         public string? Note { get; set; }
+    }
+
+    public class CancelDispenseRequest
+    {
+        public string? Reason { get; set; }
     }
 }

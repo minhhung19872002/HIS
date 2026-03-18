@@ -536,6 +536,85 @@ public interface ISurgeryCompleteService
     Task<decimal> GetBloodProductStockAsync(Guid bloodProductId, Guid bloodBankId);
 
     #endregion
+
+    #region 6.6 Quản lý cam kết phẫu thuật
+
+    /// <summary>
+    /// Lấy danh sách cam kết của ca mổ
+    /// </summary>
+    Task<List<SurgeryConsentDto>> GetSurgeryConsentsAsync(Guid surgeryId);
+
+    /// <summary>
+    /// Tạo/Cập nhật cam kết phẫu thuật
+    /// </summary>
+    Task<SurgeryConsentDto> SaveSurgeryConsentAsync(SaveSurgeryConsentDto dto, Guid userId);
+
+    /// <summary>
+    /// Ký cam kết (bệnh nhân/người nhà)
+    /// </summary>
+    Task<SurgeryConsentDto> SignConsentAsync(Guid consentId, string signerName, string relationship, Guid userId);
+
+    /// <summary>
+    /// Kiểm tra cam kết trước khi bắt đầu mổ (block nếu thiếu)
+    /// </summary>
+    Task<ConsentValidationResult> ValidateConsentsBeforeSurgeryAsync(Guid surgeryId);
+
+    /// <summary>
+    /// In phiếu cam kết
+    /// </summary>
+    Task<byte[]> PrintConsentFormAsync(Guid consentId);
+
+    #endregion
+}
+
+/// <summary>
+/// DTO cam kết phẫu thuật
+/// </summary>
+public class SurgeryConsentDto
+{
+    public Guid Id { get; set; }
+    public Guid SurgeryId { get; set; }
+    public int ConsentType { get; set; } // 1-PT, 2-Gay me, 3-Truyen mau, 4-Thu thuat
+    public string ConsentTypeName { get; set; } = string.Empty;
+    public string PatientName { get; set; } = string.Empty;
+    public string? PatientId { get; set; }
+    public string? Diagnosis { get; set; }
+    public string? PlannedProcedure { get; set; }
+    public string? Risks { get; set; }
+    public string? Alternatives { get; set; }
+    public string? DoctorExplanation { get; set; }
+    public string? SignerName { get; set; }
+    public string? SignerRelationship { get; set; }
+    public DateTime? SignedAt { get; set; }
+    public bool IsSigned { get; set; }
+    public string? DoctorName { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
+/// DTO tạo/cập nhật cam kết
+/// </summary>
+public class SaveSurgeryConsentDto
+{
+    public Guid? Id { get; set; }
+    public Guid SurgeryId { get; set; }
+    public int ConsentType { get; set; }
+    public string? Diagnosis { get; set; }
+    public string? PlannedProcedure { get; set; }
+    public string? Risks { get; set; }
+    public string? Alternatives { get; set; }
+    public string? DoctorExplanation { get; set; }
+}
+
+/// <summary>
+/// Kết quả kiểm tra cam kết
+/// </summary>
+public class ConsentValidationResult
+{
+    public bool IsValid { get; set; }
+    public List<string> MissingConsents { get; set; } = new();
+    public List<string> UnsignedConsents { get; set; } = new();
+    public string? Message { get; set; }
 }
 
 #region Additional DTOs

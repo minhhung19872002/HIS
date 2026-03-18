@@ -1081,3 +1081,113 @@ export default {
   getBloodBanks,
   searchBloodProducts,
 };
+
+// ==================== CONSENT MANAGEMENT ====================
+
+export interface SurgeryConsentDto {
+  id: string;
+  surgeryId: string;
+  consentType: number;
+  consentTypeName: string;
+  patientName: string;
+  patientId?: string;
+  diagnosis?: string;
+  plannedProcedure?: string;
+  risks?: string;
+  alternatives?: string;
+  doctorExplanation?: string;
+  signerName?: string;
+  signerRelationship?: string;
+  signedAt?: string;
+  isSigned: boolean;
+  doctorName?: string;
+  createdAt: string;
+}
+
+export interface SaveConsentDto {
+  id?: string;
+  surgeryId: string;
+  consentType: number;
+  diagnosis?: string;
+  plannedProcedure?: string;
+  risks?: string;
+  alternatives?: string;
+  doctorExplanation?: string;
+}
+
+export interface ConsentValidationResult {
+  isValid: boolean;
+  missingConsents: string[];
+  unsignedConsents: string[];
+  message?: string;
+}
+
+export const getSurgeryConsents = async (surgeryId: string): Promise<SurgeryConsentDto[]> => {
+  const response = await apiClient.get(`/SurgeryComplete/${surgeryId}/consents`);
+  return response.data;
+};
+
+export const saveSurgeryConsent = async (dto: SaveConsentDto): Promise<SurgeryConsentDto> => {
+  const response = await apiClient.post('/SurgeryComplete/consents', dto);
+  return response.data;
+};
+
+export const signConsent = async (consentId: string, signerName: string, relationship: string): Promise<SurgeryConsentDto> => {
+  const response = await apiClient.put(`/SurgeryComplete/consents/${consentId}/sign`, { signerName, relationship });
+  return response.data;
+};
+
+export const validateConsents = async (surgeryId: string): Promise<ConsentValidationResult> => {
+  const response = await apiClient.get(`/SurgeryComplete/${surgeryId}/consents/validate`);
+  return response.data;
+};
+
+// ==================== BILLING REVERSAL ====================
+
+export interface BillingReversalDto {
+  id: string;
+  medicalRecordId: string;
+  serviceRequestId?: string;
+  serviceName?: string;
+  originalAmount: number;
+  reversedAmount: number;
+  reason: string;
+  reversedByName?: string;
+  reversedAt: string;
+  status: number;
+  statusName: string;
+}
+
+export const reverseServiceCharge = async (medicalRecordId: string, serviceRequestId: string, reason: string): Promise<BillingReversalDto> => {
+  const response = await apiClient.post('/BillingComplete/reverse-charge', { medicalRecordId, serviceRequestId, reason });
+  return response.data;
+};
+
+export const getReversalHistory = async (medicalRecordId?: string, fromDate?: string, toDate?: string): Promise<BillingReversalDto[]> => {
+  const params: Record<string, string> = {};
+  if (medicalRecordId) params.medicalRecordId = medicalRecordId;
+  if (fromDate) params.fromDate = fromDate;
+  if (toDate) params.toDate = toDate;
+  const response = await apiClient.get('/BillingComplete/reversal-history', { params });
+  return response.data;
+};
+
+// ==================== PHARMACY BILLING ====================
+
+export interface PharmacyBillingResultDto {
+  success: boolean;
+  invoiceId?: string;
+  totalAmount: number;
+  itemCount: number;
+  message?: string;
+}
+
+export const cancelDispensedPrescription = async (prescriptionId: string, reason: string): Promise<unknown> => {
+  const response = await apiClient.post(`/pharmacy/cancel-dispensed/${prescriptionId}`, { reason });
+  return response.data;
+};
+
+export const createBillingAfterDispensing = async (issueId: string): Promise<PharmacyBillingResultDto> => {
+  const response = await apiClient.post(`/pharmacy/create-billing/${issueId}`);
+  return response.data;
+};

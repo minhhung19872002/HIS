@@ -512,6 +512,67 @@ public class DigitalSignatureController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Get documents pending signature for current user
+    /// </summary>
+    [HttpGet("pending")]
+    public async Task<IActionResult> GetPendingDocuments()
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+
+            // Find examinations completed but not signed by current doctor
+            var pendingExams = await _db.Examinations
+                .Where(e => e.DoctorId == userId && e.Status >= 2 && e.Status < 4 && !e.IsDeleted)
+                .Join(_db.MedicalRecords, e => e.MedicalRecordId, m => m.Id, (e, m) => new { e, m })
+                .Join(_db.Patients, em => em.m.PatientId, p => p.Id, (em, p) => new
+                {
+                    DocumentId = em.e.Id,
+                    DocumentType = "Examination",
+                    DocumentName = $"Phiếu khám - {p.FullName}",
+                    PatientName = p.FullName,
+                    PatientCode = p.PatientCode,
+                    CreatedAt = em.e.CreatedAt,
+                    Status = "Chờ ký"
+                })
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(50)
+                .ToListAsync();
+
+            // Find prescriptions not signed
+            var pendingRx = await _db.Prescriptions
+                .Where(p => p.DoctorId == userId && p.Status >= 1 && p.Status < 3 && !p.IsDeleted)
+                .Join(_db.Examinations, rx => rx.ExaminationId, e => e.Id, (rx, e) => new { rx, e })
+                .Join(_db.MedicalRecords, re => re.e.MedicalRecordId, m => m.Id, (re, m) => new { re.rx, m })
+                .Join(_db.Patients, rm => rm.m.PatientId, p => p.Id, (rm, p) => new
+                {
+                    DocumentId = rm.rx.Id,
+                    DocumentType = "Prescription",
+                    DocumentName = $"Đơn thuốc - {p.FullName}",
+                    PatientName = p.FullName,
+                    PatientCode = p.PatientCode,
+                    CreatedAt = rm.rx.CreatedAt,
+                    Status = "Chờ ký"
+                })
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(50)
+                .ToListAsync();
+
+            var allPending = pendingExams.Cast<object>().Concat(pendingRx.Cast<object>())
+                .OrderByDescending(x => ((dynamic)x).CreatedAt)
+                .Take(50)
+                .ToList();
+
+            return Ok(allPending);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting pending documents");
+            return Ok(Array.Empty<object>());
+        }
+    }
+
     private Guid GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub") ?? User.FindFirst("id");

@@ -269,6 +269,16 @@ public interface IWarehouseCompleteService
     Task<bool> CancelUnclaimedPrescriptionAsync(Guid prescriptionId, Guid userId);
 
     /// <summary>
+    /// Hủy đơn thuốc đã phát → hoàn trả tồn kho
+    /// </summary>
+    Task<StockReceiptDto> CancelDispensedPrescriptionAsync(Guid prescriptionId, string reason, Guid userId);
+
+    /// <summary>
+    /// Tạo billing item tự động sau khi phát thuốc
+    /// </summary>
+    Task<PharmacyBillingResultDto> CreateBillingAfterDispensingAsync(Guid issueId, Guid userId);
+
+    /// <summary>
     /// Tạo kỳ kiểm kê
     /// </summary>
     Task<StockTakeDto> CreateStockTakeAsync(Guid warehouseId, DateTime periodFrom, DateTime periodTo, Guid userId);

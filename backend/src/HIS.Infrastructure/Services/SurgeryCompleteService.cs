@@ -2278,4 +2278,185 @@ public class SurgeryCompleteService : ISurgeryCompleteService
     };
 
     #endregion
+
+    #region 6.6 Quản lý cam kết phẫu thuật
+
+    public async Task<List<SurgeryConsentDto>> GetSurgeryConsentsAsync(Guid surgeryId)
+    {
+        var surgery = await _context.Set<SurgeryRequest>()
+            .Include(s => s.Patient)
+            .FirstOrDefaultAsync(s => s.Id == surgeryId);
+
+        if (surgery == null) return new List<SurgeryConsentDto>();
+
+        try
+        {
+            var consents = await _context.Database.SqlQueryRaw<SurgeryConsentRaw>(
+                @"SELECT Id, SurgeryId, ConsentType, Diagnosis, PlannedProcedure, Risks, Alternatives,
+                         DoctorExplanation, SignerName, SignerRelationship, SignedAt, IsSigned, DoctorId, CreatedAt
+                  FROM SurgeryConsents WHERE SurgeryId = {0} AND IsDeleted = 0
+                  ORDER BY ConsentType", surgeryId).ToListAsync();
+
+            var doctorIds = consents.Where(c => c.DoctorId != null).Select(c => c.DoctorId!.Value).Distinct().ToList();
+            var doctors = doctorIds.Count > 0
+                ? await _context.Users.Where(u => doctorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName)
+                : new Dictionary<Guid, string>();
+
+            return consents.Select(c => new SurgeryConsentDto
+            {
+                Id = c.Id,
+                SurgeryId = c.SurgeryId,
+                ConsentType = c.ConsentType,
+                ConsentTypeName = GetConsentTypeName(c.ConsentType),
+                PatientName = surgery.Patient?.FullName ?? "",
+                PatientId = surgery.Patient?.PatientCode,
+                Diagnosis = c.Diagnosis,
+                PlannedProcedure = c.PlannedProcedure,
+                Risks = c.Risks,
+                Alternatives = c.Alternatives,
+                DoctorExplanation = c.DoctorExplanation,
+                SignerName = c.SignerName,
+                SignerRelationship = c.SignerRelationship,
+                SignedAt = c.SignedAt,
+                IsSigned = c.IsSigned,
+                DoctorName = c.DoctorId != null && doctors.ContainsKey(c.DoctorId.Value) ? doctors[c.DoctorId.Value] : null,
+                CreatedAt = c.CreatedAt
+            }).ToList();
+        }
+        catch
+        {
+            // Table may not exist yet
+            return new List<SurgeryConsentDto>();
+        }
+    }
+
+    public async Task<SurgeryConsentDto> SaveSurgeryConsentAsync(SaveSurgeryConsentDto dto, Guid userId)
+    {
+        var surgery = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId)
+            ?? throw new InvalidOperationException("Không tìm thấy ca phẫu thuật");
+
+        if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                @"UPDATE SurgeryConsents SET Diagnosis = {0}, PlannedProcedure = {1}, Risks = {2},
+                  Alternatives = {3}, DoctorExplanation = {4}, UpdatedAt = GETDATE(), UpdatedBy = {5}
+                  WHERE Id = {6}",
+                dto.Diagnosis ?? "", dto.PlannedProcedure ?? "", dto.Risks ?? "",
+                dto.Alternatives ?? "", dto.DoctorExplanation ?? "", userId.ToString(), dto.Id.Value);
+        }
+        else
+        {
+            var newId = Guid.NewGuid();
+            await _context.Database.ExecuteSqlRawAsync(
+                @"INSERT INTO SurgeryConsents (Id, SurgeryId, ConsentType, Diagnosis, PlannedProcedure,
+                  Risks, Alternatives, DoctorExplanation, DoctorId, IsSigned, IsDeleted, CreatedAt, CreatedBy)
+                  VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, 0, 0, GETDATE(), {9})",
+                newId, dto.SurgeryId, dto.ConsentType, dto.Diagnosis ?? "", dto.PlannedProcedure ?? "",
+                dto.Risks ?? "", dto.Alternatives ?? "", dto.DoctorExplanation ?? "", userId, userId.ToString());
+            dto.Id = newId;
+        }
+
+        var consents = await GetSurgeryConsentsAsync(dto.SurgeryId);
+        return consents.FirstOrDefault(c => c.Id == dto.Id) ?? new SurgeryConsentDto { Id = dto.Id ?? Guid.NewGuid(), SurgeryId = dto.SurgeryId };
+    }
+
+    public async Task<SurgeryConsentDto> SignConsentAsync(Guid consentId, string signerName, string relationship, Guid userId)
+    {
+        await _context.Database.ExecuteSqlRawAsync(
+            @"UPDATE SurgeryConsents SET SignerName = {0}, SignerRelationship = {1},
+              SignedAt = GETDATE(), IsSigned = 1, UpdatedAt = GETDATE(), UpdatedBy = {2}
+              WHERE Id = {3}",
+            signerName, relationship, userId.ToString(), consentId);
+
+        return new SurgeryConsentDto
+        {
+            Id = consentId, IsSigned = true, SignerName = signerName,
+            SignerRelationship = relationship, SignedAt = DateTime.Now
+        };
+    }
+
+    public async Task<ConsentValidationResult> ValidateConsentsBeforeSurgeryAsync(Guid surgeryId)
+    {
+        var consents = await GetSurgeryConsentsAsync(surgeryId);
+        var result = new ConsentValidationResult { IsValid = true };
+
+        // Cam kết PT bắt buộc
+        var ptConsent = consents.FirstOrDefault(c => c.ConsentType == 1);
+        if (ptConsent == null)
+        {
+            result.IsValid = false;
+            result.MissingConsents.Add(GetConsentTypeName(1));
+        }
+        else if (!ptConsent.IsSigned)
+        {
+            result.IsValid = false;
+            result.UnsignedConsents.Add(GetConsentTypeName(1));
+        }
+
+        // Nếu có gây mê → bắt buộc cam kết gây mê
+        var surgery = await _context.Set<SurgeryRequest>().FindAsync(surgeryId);
+        if (surgery != null && surgery.AnesthesiaType > 0)
+        {
+            var anes = consents.FirstOrDefault(c => c.ConsentType == 2);
+            if (anes == null)
+            {
+                result.IsValid = false;
+                result.MissingConsents.Add(GetConsentTypeName(2));
+            }
+            else if (!anes.IsSigned)
+            {
+                result.IsValid = false;
+                result.UnsignedConsents.Add(GetConsentTypeName(2));
+            }
+        }
+
+        if (!result.IsValid)
+        {
+            var msgs = new List<string>();
+            if (result.MissingConsents.Count > 0) msgs.Add($"Thiếu: {string.Join(", ", result.MissingConsents)}");
+            if (result.UnsignedConsents.Count > 0) msgs.Add($"Chưa ký: {string.Join(", ", result.UnsignedConsents)}");
+            result.Message = string.Join(". ", msgs);
+        }
+        else
+        {
+            result.Message = "Đã đủ cam kết phẫu thuật";
+        }
+
+        return result;
+    }
+
+    public async Task<byte[]> PrintConsentFormAsync(Guid consentId)
+    {
+        await Task.CompletedTask;
+        return Array.Empty<byte>();
+    }
+
+    private static string GetConsentTypeName(int type) => type switch
+    {
+        1 => "Cam kết phẫu thuật",
+        2 => "Cam kết gây mê",
+        3 => "Cam kết truyền máu",
+        4 => "Cam kết thủ thuật",
+        _ => "Cam kết khác"
+    };
+
+    #endregion
+}
+
+internal class SurgeryConsentRaw
+{
+    public Guid Id { get; set; }
+    public Guid SurgeryId { get; set; }
+    public int ConsentType { get; set; }
+    public string? Diagnosis { get; set; }
+    public string? PlannedProcedure { get; set; }
+    public string? Risks { get; set; }
+    public string? Alternatives { get; set; }
+    public string? DoctorExplanation { get; set; }
+    public string? SignerName { get; set; }
+    public string? SignerRelationship { get; set; }
+    public DateTime? SignedAt { get; set; }
+    public bool IsSigned { get; set; }
+    public Guid? DoctorId { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
