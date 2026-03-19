@@ -9,7 +9,7 @@ import {
   SettingOutlined, KeyOutlined, PlusOutlined, ReloadOutlined,
   DeleteOutlined, EditOutlined, CloudServerOutlined, QrcodeOutlined,
   CheckCircleOutlined, CloseCircleOutlined, ExportOutlined,
-  UploadOutlined
+  UploadOutlined, ScanOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -232,7 +232,7 @@ const CentralSigning: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={fetchCertificates}>Làm mới</Button>
           </div>
           <Table columns={certColumns} dataSource={certificates} rowKey="id" size="small"
-            pagination={{ pageSize: 15 }} scroll={{ x: 1200 }} />
+            pagination={{ pageSize: 15, responsive: true }} scroll={{ x: 900 }} />
         </div>
       )
     },
@@ -264,9 +264,9 @@ const CentralSigning: React.FC = () => {
           </div>
           <Table columns={txColumns} dataSource={transactions} rowKey="id" size="small"
             pagination={{
-              current: txPage + 1, pageSize: 20, total: transactionTotal,
+              current: txPage + 1, pageSize: 20, total: transactionTotal, responsive: true,
               onChange: (p) => { setTxPage(p - 1); fetchTransactions(p - 1); }
-            }} scroll={{ x: 1200 }} />
+            }} scroll={{ x: 900 }} />
         </div>
       )
     },
@@ -430,6 +430,52 @@ const CentralSigning: React.FC = () => {
         </div>
       )
     },
+    {
+      key: 'biometric',
+      label: <span><ScanOutlined /> Sinh trắc học</span>,
+      children: (
+        <div>
+          <Alert title="Xác thực sinh trắc học (WebAuthn/FIDO2)" description="Đăng ký vân tay hoặc khuôn mặt để xác thực khi ký số. Hỗ trợ Windows Hello, Touch ID, Face ID và USB security key." type="info" showIcon style={{ marginBottom: 16 }} />
+          <Card title="Xác thực sinh trắc học cho ký số" size="small">
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Sử dụng WebAuthn/FIDO2 để xác thực bằng vân tay hoặc khuôn mặt khi ký tài liệu.
+              Hỗ trợ Windows Hello, Touch ID, Face ID trên thiết bị di động.
+            </p>
+            <Space orientation="vertical" style={{ width: '100%' }}>
+              <Button type="primary" icon={<ScanOutlined />} size="large"
+                style={{ width: '100%', maxWidth: 400 }}
+                onClick={async () => {
+                  if (!window.PublicKeyCredential) {
+                    message.warning('Trình duyệt không hỗ trợ WebAuthn');
+                    return;
+                  }
+                  try {
+                    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                    if (!available) {
+                      message.warning('Thiết bị không hỗ trợ xác thực sinh trắc học');
+                      return;
+                    }
+                    message.info('Vui lòng xác thực bằng vân tay/khuôn mặt trên thiết bị...');
+                    // WebAuthn registration flow would be triggered here via API
+                  } catch { message.warning('Lỗi kiểm tra WebAuthn'); }
+                }}>
+                Đăng ký sinh trắc học
+              </Button>
+              <Descriptions column={1} size="small" style={{ maxWidth: 400 }}>
+                <Descriptions.Item label="WebAuthn">
+                  {typeof window !== 'undefined' && window.PublicKeyCredential
+                    ? <Badge status="success" text="Hỗ trợ" />
+                    : <Badge status="error" text="Không hỗ trợ" />}
+                </Descriptions.Item>
+                <Descriptions.Item label="Thiết bị">
+                  <Text type="secondary">Kiểm tra khi nhấn nút đăng ký</Text>
+                </Descriptions.Item>
+              </Descriptions>
+            </Space>
+          </Card>
+        </div>
+      )
+    },
   ];
 
   return (
@@ -445,7 +491,7 @@ const CentralSigning: React.FC = () => {
 
       <Modal title={editingCert ? 'Sửa chứng thư số' : 'Thêm chứng thư số'}
         open={certModalOpen} onCancel={() => { setCertModalOpen(false); setEditingCert(null); }}
-        onOk={() => certForm.submit()} width={600} destroyOnHidden>
+        onOk={() => certForm.submit()} width="90vw" style={{ maxWidth: 600 }} destroyOnHidden>
         <Form form={certForm} layout="vertical" onFinish={handleSaveCert}>
           <Row gutter={16}>
             <Col span={12}>

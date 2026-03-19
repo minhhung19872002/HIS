@@ -222,6 +222,9 @@ public static class DependencyInjection
         // Medical Record Planning (KHTH - Ke hoach Tong hop)
         services.AddScoped<IMedicalRecordPlanningService, MedicalRecordPlanningService>();
 
+        // NangCap12: Endpoint Security (An toan thong tin)
+        services.AddScoped<IEndpointSecurityService, EndpointSecurityService>();
+
         return services;
     }
 }

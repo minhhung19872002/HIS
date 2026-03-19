@@ -341,7 +341,63 @@ namespace HIS.API.Controllers
         [HttpGet("dashboard")]
         public async Task<ActionResult<RehabDashboardDto>> GetDashboard([FromQuery] DateTime? date)
             => Ok(await _service.GetDashboardAsync(date));
+
+        // NangCap12: Additional endpoints for BV PHCN Dong Thap
+
+        [HttpPost("referrals/{id}/reject")]
+        public async Task<ActionResult<bool>> RejectReferral(Guid id, [FromBody] RejectReferralRequest request)
+            => Ok(await _service.RejectReferralAsync(id, request.Reason));
+
+        [HttpGet("assessments/history/{referralId}")]
+        public async Task<ActionResult<List<FunctionalAssessmentDto>>> GetAssessmentHistory(Guid referralId)
+            => Ok(await _service.GetAssessmentHistoryAsync(referralId));
+
+        [HttpPut("treatment-plans/{id}")]
+        public async Task<ActionResult<RehabTreatmentPlanDto>> UpdateTreatmentPlan(Guid id, [FromBody] CreateTreatmentPlanDto dto)
+            => Ok(await _service.UpdateTreatmentPlanAsync(id, dto));
+
+        [HttpPut("treatment-plans/{planId}/goals/{goalNumber}")]
+        public async Task<ActionResult<bool>> UpdateGoalProgress(Guid planId, int goalNumber, [FromBody] GoalProgressRequest request)
+            => Ok(await _service.UpdateGoalProgressAsync(planId, goalNumber, request.ProgressPercent, request.Notes));
+
+        [HttpGet("sessions/patient/{referralId}")]
+        public async Task<ActionResult<List<RehabSessionDto>>> GetPatientSessions(Guid referralId)
+            => Ok(await _service.GetPatientSessionsAsync(referralId));
+
+        [HttpGet("sessions/{id}")]
+        public async Task<ActionResult<RehabSessionDto>> GetSession(Guid id)
+            => Ok(await _service.GetSessionAsync(id));
+
+        [HttpPost("sessions/schedule")]
+        public async Task<ActionResult<RehabSessionDto>> ScheduleSession([FromBody] ScheduleSessionRequest request)
+            => Ok(await _service.ScheduleSessionAsync(request.PlanId, request.Date, request.Time, request.Location));
+
+        [HttpPost("sessions/{id}/cancel")]
+        public async Task<ActionResult<bool>> CancelSession(Guid id, [FromBody] CancelSessionRequest request)
+            => Ok(await _service.CancelSessionAsync(id, request.Reason));
+
+        [HttpPost("sessions/{id}/no-show")]
+        public async Task<ActionResult<bool>> MarkNoShow(Guid id)
+            => Ok(await _service.MarkNoShowAsync(id));
+
+        [HttpGet("outcome/{planId}")]
+        public async Task<ActionResult<RehabOutcomeDto>> GetOutcome(Guid planId)
+            => Ok(await _service.GetOutcomeAsync(planId));
+
+        [HttpPost("discharge/{planId}")]
+        public async Task<ActionResult<RehabOutcomeDto>> DischargePatient(Guid planId, [FromBody] RehabOutcomeDto outcomeData)
+            => Ok(await _service.DischargePatientAsync(planId, outcomeData));
+
+        [HttpGet("statistics")]
+        public async Task<ActionResult<RehabDashboardDto>> GetStatistics([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+            => Ok(await _service.GetDashboardAsync(fromDate));
     }
+
+    // NangCap12 request DTOs for Rehabilitation
+    public class RejectReferralRequest { public string Reason { get; set; } = string.Empty; }
+    public class GoalProgressRequest { public decimal ProgressPercent { get; set; } public string Notes { get; set; } = string.Empty; }
+    public class ScheduleSessionRequest { public Guid PlanId { get; set; } public DateTime Date { get; set; } public TimeSpan Time { get; set; } public string Location { get; set; } = string.Empty; }
+    public class CancelSessionRequest { public string Reason { get; set; } = string.Empty; }
 
     #endregion
 

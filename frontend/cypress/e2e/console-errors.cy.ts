@@ -60,6 +60,7 @@ const pages = [
   { route: '/lis-config', name: 'LIS Config (Cau hinh LIS)' },
   { route: '/medical-record-planning', name: 'Medical Record Planning (Ke hoach TH)' },
   { route: '/signing-workflow', name: 'Signing Workflow (Trinh ky)' },
+  { route: '/endpoint-security', name: 'Endpoint Security (An toan thong tin)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

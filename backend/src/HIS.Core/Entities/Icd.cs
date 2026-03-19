@@ -530,3 +530,82 @@ public class SigningRequest : BaseEntity
     public string? PatientName { get; set; }
     public string? DepartmentName { get; set; }
 }
+
+/// <summary>
+/// WebAuthn/FIDO2 Credential - Xac thuc sinh trac hoc (NangCap12)
+/// </summary>
+public class WebAuthnCredential : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public string CredentialId { get; set; } = string.Empty; // Base64url-encoded credential ID
+    public string PublicKey { get; set; } = string.Empty; // Base64url-encoded public key
+    public string DeviceName { get; set; } = string.Empty; // e.g. "Windows Hello", "Touch ID"
+    public string CredentialType { get; set; } = "public-key";
+    public long SignCount { get; set; }
+    public string? AaGuid { get; set; } // Authenticator Attestation GUID
+    public bool IsActive { get; set; } = true;
+    public DateTime LastUsedAt { get; set; }
+    public virtual User? User { get; set; }
+}
+
+/// <summary>
+/// Endpoint Device - Thiet bi dau cuoi (NangCap12 ATTT)
+/// </summary>
+public class EndpointDevice : BaseEntity
+{
+    public string Hostname { get; set; } = string.Empty;
+    public string? IpAddress { get; set; }
+    public string? MacAddress { get; set; }
+    public string? OperatingSystem { get; set; }
+    public string? OsVersion { get; set; }
+    public string? AntivirusName { get; set; }
+    public string? AntivirusStatus { get; set; } // Active, Outdated, Disabled, NotInstalled
+    public DateTime? AntivirusLastUpdate { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? AssignedUser { get; set; }
+    public int Status { get; set; } // 0=Offline, 1=Online, 2=Warning, 3=Critical
+    public DateTime? LastSeenAt { get; set; }
+    public string? AgentVersion { get; set; }
+    public bool IsCompliant { get; set; } = true;
+    public string? ComplianceNotes { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Security Incident - Su co an toan thong tin (NangCap12 ATTT)
+/// </summary>
+public class SecurityIncident : BaseEntity
+{
+    public string IncidentCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int Severity { get; set; } // 1=Critical, 2=High, 3=Medium, 4=Low
+    public int Status { get; set; } // 0=Open, 1=Investigating, 2=Contained, 3=Resolved, 4=Closed
+    public string? Category { get; set; } // Malware, Phishing, Unauthorized, DataBreach, DDoS, Other
+    public Guid? DeviceId { get; set; }
+    public string? DeviceHostname { get; set; }
+    public string? AffectedSystem { get; set; }
+    public string? ReportedByName { get; set; }
+    public Guid? AssignedToId { get; set; }
+    public string? AssignedToName { get; set; }
+    public string? Resolution { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    public DateTime? ContainedAt { get; set; }
+    public string? RootCause { get; set; }
+    public string? CorrectiveAction { get; set; }
+}
+
+/// <summary>
+/// Installed Software - Phan mem cai dat tren thiet bi (NangCap12 ATTT)
+/// </summary>
+public class InstalledSoftware : BaseEntity
+{
+    public Guid DeviceId { get; set; }
+    public string SoftwareName { get; set; } = string.Empty;
+    public string? Version { get; set; }
+    public string? Publisher { get; set; }
+    public DateTime? InstallDate { get; set; }
+    public bool IsAuthorized { get; set; } = true;
+    public string? Category { get; set; } // System, Security, Office, Medical, Browser, Other
+    public string? Notes { get; set; }
+}

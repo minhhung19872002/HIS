@@ -204,6 +204,7 @@ const MainLayout: React.FC = () => {
         { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
         { key: '/doctor-portal', icon: <LaptopOutlined />, label: 'Cổng bác sĩ' },
         { key: '/satisfaction-survey', icon: <SmileOutlined />, label: 'Khảo sát hài lòng' },
+        { key: '/endpoint-security', icon: <SafetyOutlined />, label: 'An toàn thông tin' },
         { key: '/sms-management', icon: <MessageOutlined />, label: 'SMS Gateway' },
         { key: '/help', icon: <QuestionCircleOutlined />, label: 'Hướng dẫn' },
       ],

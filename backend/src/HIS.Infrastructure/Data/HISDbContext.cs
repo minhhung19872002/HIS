@@ -393,6 +393,12 @@ public class HISDbContext : DbContext
     public DbSet<AnesthesiaDrug> AnesthesiaDrugs => Set<AnesthesiaDrug>();
     public DbSet<AnesthesiaFluid> AnesthesiaFluids => Set<AnesthesiaFluid>();
 
+    // NangCap12: WebAuthn + Endpoint Security
+    public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
+    public DbSet<EndpointDevice> EndpointDevices => Set<EndpointDevice>();
+    public DbSet<SecurityIncident> SecurityIncidents => Set<SecurityIncident>();
+    public DbSet<InstalledSoftware> InstalledSoftwareItems => Set<InstalledSoftware>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -56,3 +56,59 @@ public class EnableTwoFactorDto
 {
     public string Password { get; set; } = string.Empty;
 }
+
+// WebAuthn DTOs (NangCap12)
+public class WebAuthnRegisterOptionsDto
+{
+    public string Challenge { get; set; } = string.Empty;
+    public string RpId { get; set; } = string.Empty;
+    public string RpName { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public string UserDisplayName { get; set; } = string.Empty;
+    public int Timeout { get; set; } = 60000;
+    public string Attestation { get; set; } = "none";
+    public List<string> ExcludeCredentials { get; set; } = new();
+}
+
+public class WebAuthnRegisterDto
+{
+    public string CredentialId { get; set; } = string.Empty;
+    public string PublicKey { get; set; } = string.Empty;
+    public string AttestationObject { get; set; } = string.Empty;
+    public string ClientDataJSON { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
+}
+
+public class WebAuthnAuthOptionsDto
+{
+    public string Challenge { get; set; } = string.Empty;
+    public string RpId { get; set; } = string.Empty;
+    public int Timeout { get; set; } = 60000;
+    public List<WebAuthnAllowCredentialDto> AllowCredentials { get; set; } = new();
+}
+
+public class WebAuthnAllowCredentialDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Type { get; set; } = "public-key";
+}
+
+public class WebAuthnAuthenticateDto
+{
+    public Guid UserId { get; set; }
+    public string CredentialId { get; set; } = string.Empty;
+    public string AuthenticatorData { get; set; } = string.Empty;
+    public string ClientDataJSON { get; set; } = string.Empty;
+    public string Signature { get; set; } = string.Empty;
+}
+
+public class WebAuthnCredentialDto
+{
+    public Guid Id { get; set; }
+    public string CredentialId { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastUsedAt { get; set; }
+    public bool IsActive { get; set; }
+}
