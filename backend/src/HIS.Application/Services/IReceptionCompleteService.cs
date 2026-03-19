@@ -44,6 +44,7 @@ public interface IReceptionCompleteService
     /// Lấy danh sách bệnh nhân đăng ký trong ngày theo phòng
     /// </summary>
     Task<List<AdmissionDto>> GetTodayAdmissionsAsync(Guid? roomId, DateTime date);
+    Task<List<AdmissionDto>> SearchPatientsAsync(string keyword);
 
     #endregion
 

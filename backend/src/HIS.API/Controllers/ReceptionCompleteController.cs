@@ -103,6 +103,16 @@ public class ReceptionCompleteController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Tìm kiếm bệnh nhân theo mã, tên, CCCD, SĐT, thẻ BHYT
+    /// </summary>
+    [HttpGet("patients/search")]
+    public async Task<ActionResult<List<AdmissionDto>>> SearchPatients([FromQuery] string keyword)
+    {
+        var result = await _receptionService.SearchPatientsAsync(keyword ?? "");
+        return Ok(result);
+    }
+
     #endregion
 
     #region 1.2 Hệ thống xếp hàng
