@@ -49,6 +49,7 @@ import {
   MicrobiologyReportPrint, AllergyFormPrint, PostOpNotePrint, ICUInfoSheetPrint,
 } from '../components/ClinicalFormPrintTemplates';
 import PatientTimeline from '../components/PatientTimeline';
+import VoiceDictation from '../components/VoiceDictation';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures, getSignaturesBatch, downloadSignedPdf } from '../api/digitalSignature';
@@ -1582,13 +1583,22 @@ ${conclusion ? `<div class="section">
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="dailyProgress" label="Diễn biến bệnh">
+          <Form.Item name="dailyProgress" label={<span>Diễn biến bệnh <VoiceDictation onTranscript={(text) => {
+            const prev = treatmentForm.getFieldValue('dailyProgress') || '';
+            treatmentForm.setFieldValue('dailyProgress', prev ? `${prev} ${text}` : text);
+          }} /></span>}>
             <TextArea rows={3} placeholder="Ghi nhận diễn biến bệnh trong ngày..." />
           </Form.Item>
-          <Form.Item name="treatmentOrders" label="Y lệnh điều trị">
+          <Form.Item name="treatmentOrders" label={<span>Y lệnh điều trị <VoiceDictation onTranscript={(text) => {
+            const prev = treatmentForm.getFieldValue('treatmentOrders') || '';
+            treatmentForm.setFieldValue('treatmentOrders', prev ? `${prev} ${text}` : text);
+          }} /></span>}>
             <TextArea rows={3} placeholder="Các y lệnh điều trị..." />
           </Form.Item>
-          <Form.Item name="doctorNotes" label="Ghi chú bác sĩ">
+          <Form.Item name="doctorNotes" label={<span>Ghi chú bác sĩ <VoiceDictation onTranscript={(text) => {
+            const prev = treatmentForm.getFieldValue('doctorNotes') || '';
+            treatmentForm.setFieldValue('doctorNotes', prev ? `${prev} ${text}` : text);
+          }} /></span>}>
             <TextArea rows={2} placeholder="Ghi chú thêm..." />
           </Form.Item>
         </Form>

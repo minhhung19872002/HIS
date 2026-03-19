@@ -47,6 +47,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { patientApi, type Patient } from '../api/patient';
 import ClinicalTermSelector from '../components/ClinicalTermSelector';
+import VoiceDictation from '../components/VoiceDictation';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   examinationApi,
@@ -2120,7 +2121,10 @@ const OPD: React.FC = () => {
                           </Col>
                           <Col span={24}>
                             <Form.Item
-                              label="Bệnh sử"
+                              label={<span>Bệnh sử <VoiceDictation onTranscript={(text) => {
+                                const prev = examForm.getFieldValue(['medicalHistory', 'historyOfPresentIllness']) || '';
+                                examForm.setFieldValue(['medicalHistory', 'historyOfPresentIllness'], prev ? `${prev} ${text}` : text);
+                              }} /></span>}
                               name={['medicalHistory', 'historyOfPresentIllness']}
                             >
                               <TextArea
@@ -2131,7 +2135,10 @@ const OPD: React.FC = () => {
                           </Col>
                           <Col span={24}>
                             <Form.Item
-                              label="Tiền sử bệnh"
+                              label={<span>Tiền sử bệnh <VoiceDictation onTranscript={(text) => {
+                                const prev = examForm.getFieldValue(['medicalHistory', 'pastMedicalHistory']) || '';
+                                examForm.setFieldValue(['medicalHistory', 'pastMedicalHistory'], prev ? `${prev} ${text}` : text);
+                              }} /></span>}
                               name={['medicalHistory', 'pastMedicalHistory']}
                             >
                               <TextArea
@@ -2142,7 +2149,10 @@ const OPD: React.FC = () => {
                           </Col>
                           <Col span={24}>
                             <Form.Item
-                              label="Tiền sử gia đình"
+                              label={<span>Tiền sử gia đình <VoiceDictation onTranscript={(text) => {
+                                const prev = examForm.getFieldValue(['medicalHistory', 'familyHistory']) || '';
+                                examForm.setFieldValue(['medicalHistory', 'familyHistory'], prev ? `${prev} ${text}` : text);
+                              }} /></span>}
                               name={['medicalHistory', 'familyHistory']}
                             >
                               <TextArea
@@ -2153,7 +2163,10 @@ const OPD: React.FC = () => {
                           </Col>
                           <Col span={24}>
                             <Form.Item
-                              label="Dị ứng"
+                              label={<span>Dị ứng <VoiceDictation onTranscript={(text) => {
+                                const prev = examForm.getFieldValue(['medicalHistory', 'allergies']) || '';
+                                examForm.setFieldValue(['medicalHistory', 'allergies'], prev ? `${prev} ${text}` : text);
+                              }} /></span>}
                               name={['medicalHistory', 'allergies']}
                             >
                               <TextArea
@@ -2257,7 +2270,10 @@ const OPD: React.FC = () => {
                           </Col>
                           <Col span={24}>
                             <Form.Item
-                              label="Cơ xương khớp"
+                              label={<span>Cơ xương khớp <VoiceDictation onTranscript={(text) => {
+                                const prev = examForm.getFieldValue(['physicalExamination', 'musculoskeletal']) || '';
+                                examForm.setFieldValue(['physicalExamination', 'musculoskeletal'], prev ? `${prev} ${text}` : text);
+                              }} /></span>}
                               name={['physicalExamination', 'musculoskeletal']}
                             >
                               <TextArea
@@ -2268,7 +2284,10 @@ const OPD: React.FC = () => {
                           </Col>
                           <Col span={24}>
                             <Form.Item
-                              label="Da"
+                              label={<span>Da <VoiceDictation onTranscript={(text) => {
+                                const prev = examForm.getFieldValue(['physicalExamination', 'skin']) || '';
+                                examForm.setFieldValue(['physicalExamination', 'skin'], prev ? `${prev} ${text}` : text);
+                              }} /></span>}
                               name={['physicalExamination', 'skin']}
                             >
                               <TextArea rows={2} placeholder="Khám da..." />
@@ -2276,7 +2295,10 @@ const OPD: React.FC = () => {
                           </Col>
                           <Col span={24}>
                             <Form.Item
-                              label="Khác"
+                              label={<span>Khác <VoiceDictation onTranscript={(text) => {
+                                const prev = examForm.getFieldValue(['physicalExamination', 'other']) || '';
+                                examForm.setFieldValue(['physicalExamination', 'other'], prev ? `${prev} ${text}` : text);
+                              }} /></span>}
                               name={['physicalExamination', 'other']}
                             >
                               <TextArea

@@ -1378,5 +1378,5 @@
 
 | STT | Noi dung | Trang thai |
 |-----|---------|------------|
-| 1 | Voice recognition for EMR | LOW - can speech API |
-| 2 | Workstation monitoring | LOW - can agent software |
+| 1 | Voice recognition for EMR | DA XONG - VoiceDictation component (Web Speech API vi-VN) |
+| 2 | Workstation monitoring | DA XONG - SystemAdmin tab "Phien lam viec" (auto-refresh, kick) |

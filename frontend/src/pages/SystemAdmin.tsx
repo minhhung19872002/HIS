@@ -58,10 +58,11 @@ import {
   CloudUploadOutlined,
   FolderOutlined,
   ToolOutlined,
+  LaptopOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { adminApi, catalogApi } from '../api/system';
+import { adminApi, catalogApi, type UserSessionDto } from '../api/system';
 import {
   getHealthDetails,
   getMetrics,
@@ -205,6 +206,11 @@ const SystemAdmin: React.FC = () => {
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthLastUpdated, setHealthLastUpdated] = useState<Date | null>(null);
   const healthIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Workstation Session Monitoring state
+  const [sessions, setSessions] = useState<UserSessionDto[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const sessionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Access Control Matrix & Compliance state
   const [matrixData, setMatrixData] = useState<AccessControlMatrixDto[]>([]);
@@ -536,6 +542,47 @@ const SystemAdmin: React.FC = () => {
       }
     };
   }, [activeTab, fetchHealthData]);
+
+  // Workstation Session Monitoring fetch
+  const fetchSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    try {
+      const res = await adminApi.getActiveSessions();
+      if (Array.isArray(res)) {
+        setSessions(res);
+      } else if (res && Array.isArray((res as { data?: UserSessionDto[] }).data)) {
+        setSessions((res as { data: UserSessionDto[] }).data);
+      }
+    } catch {
+      console.warn('Error fetching sessions');
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, []);
+
+  const handleTerminateSession = async (sessionId: string) => {
+    try {
+      await adminApi.terminateSession(sessionId);
+      message.success('Da ket thuc phien lam viec');
+      fetchSessions();
+    } catch {
+      message.warning('Khong the ket thuc phien');
+    }
+  };
+
+  // Auto-refresh sessions every 15s when sessions tab is active
+  useEffect(() => {
+    if (activeTab === 'sessions') {
+      fetchSessions();
+      sessionIntervalRef.current = setInterval(fetchSessions, 15000);
+    }
+    return () => {
+      if (sessionIntervalRef.current) {
+        clearInterval(sessionIntervalRef.current);
+        sessionIntervalRef.current = null;
+      }
+    };
+  }, [activeTab, fetchSessions]);
 
   // Fetch access control matrix
   const fetchMatrixData = useCallback(async () => {
@@ -2437,6 +2484,133 @@ const SystemAdmin: React.FC = () => {
                           const types = [...new Set(record.recentAccesses?.map((a) => a.entityType) || [])];
                           return types.map((t) => <Tag key={t}>{t}</Tag>);
                         },
+                      },
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
+            {
+              key: 'sessions',
+              label: (
+                <span>
+                  <LaptopOutlined /> Phien lam viec
+                </span>
+              ),
+              children: (
+                <Spin spinning={sessionsLoading}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <Typography.Title level={5} style={{ margin: 0 }}>
+                      Giam sat may tram ({sessions.filter((s) => s.isActive).length} dang hoat dong)
+                    </Typography.Title>
+                    <Button icon={<ReloadOutlined />} onClick={fetchSessions}>Lam moi</Button>
+                  </div>
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col xs={12} sm={6}>
+                      <Card size="small">
+                        <Statistic title="Tong phien" value={sessions.length} />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={6}>
+                      <Card size="small">
+                        <Statistic title="Dang hoat dong" value={sessions.filter((s) => s.isActive).length} styles={{ content: { color: '#3f8600' } }} />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={6}>
+                      <Card size="small">
+                        <Statistic title="Desktop" value={sessions.filter((s) => s.deviceType === 'Desktop').length} />
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={6}>
+                      <Card size="small">
+                        <Statistic title="Mobile" value={sessions.filter((s) => s.deviceType !== 'Desktop').length} />
+                      </Card>
+                    </Col>
+                  </Row>
+                  <Table
+                    dataSource={sessions}
+                    rowKey="id"
+                    size="small"
+                    pagination={{ pageSize: 15 }}
+                    columns={[
+                      {
+                        title: 'Nguoi dung',
+                        key: 'user',
+                        width: 160,
+                        render: (_: unknown, r: UserSessionDto) => (
+                          <div>
+                            <strong>{r.fullName || r.username}</strong>
+                            <br />
+                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.username}</Typography.Text>
+                          </div>
+                        ),
+                      },
+                      {
+                        title: 'Trang thai',
+                        key: 'status',
+                        width: 100,
+                        render: (_: unknown, r: UserSessionDto) => (
+                          <Tag color={r.isActive ? 'green' : 'default'}>{r.isActive ? 'Online' : 'Offline'}</Tag>
+                        ),
+                      },
+                      {
+                        title: 'IP',
+                        dataIndex: 'ipAddress',
+                        key: 'ip',
+                        width: 130,
+                      },
+                      {
+                        title: 'Thiet bi',
+                        dataIndex: 'deviceType',
+                        key: 'device',
+                        width: 100,
+                        render: (d: string) => <Tag>{d || 'Unknown'}</Tag>,
+                      },
+                      {
+                        title: 'Trinh duyet',
+                        dataIndex: 'userAgent',
+                        key: 'ua',
+                        ellipsis: true,
+                        width: 200,
+                        render: (ua: string) => {
+                          if (!ua) return '-';
+                          if (ua.includes('Chrome')) return 'Chrome';
+                          if (ua.includes('Firefox')) return 'Firefox';
+                          if (ua.includes('Safari')) return 'Safari';
+                          if (ua.includes('Edge')) return 'Edge';
+                          return ua.substring(0, 30);
+                        },
+                      },
+                      {
+                        title: 'Dang nhap',
+                        dataIndex: 'loginTime',
+                        key: 'login',
+                        width: 160,
+                        render: (t: string) => t ? new Date(t).toLocaleString('vi-VN') : '-',
+                      },
+                      {
+                        title: 'Hoat dong cuoi',
+                        dataIndex: 'lastActivityTime',
+                        key: 'lastActivity',
+                        width: 160,
+                        render: (t: string) => t ? new Date(t).toLocaleString('vi-VN') : '-',
+                      },
+                      {
+                        title: 'Thao tac',
+                        key: 'actions',
+                        width: 100,
+                        render: (_: unknown, r: UserSessionDto) => (
+                          r.isActive ? (
+                            <Popconfirm
+                              title="Ket thuc phien nay?"
+                              onConfirm={() => handleTerminateSession(r.id)}
+                              okText="Ket thuc"
+                              cancelText="Huy"
+                            >
+                              <Button size="small" danger>Kick</Button>
+                            </Popconfirm>
+                          ) : <Tag color="default">Da ket thuc</Tag>
+                        ),
                       },
                     ]}
                   />
