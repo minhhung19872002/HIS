@@ -172,6 +172,10 @@ const AppRoutes: React.FC = () => {
           <Route path="signing-workflow" element={<SigningWorkflow />} />
           <Route path="medical-record-planning" element={<MedicalRecordPlanning />} />
           <Route path="endpoint-security" element={<EndpointSecurity />} />
+          {/* Redirect aliases */}
+          <Route path="inpatient" element={<Navigate to="/ipd" replace />} />
+          <Route path="laboratory" element={<Navigate to="/lab" replace />} />
+          <Route path="system-admin" element={<Navigate to="/admin" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

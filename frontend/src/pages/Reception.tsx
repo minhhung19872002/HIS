@@ -278,11 +278,10 @@ const Reception: React.FC = () => {
   const columns: ColumnsType<ReceptionRecord> = [
     {
       title: 'STT',
-      dataIndex: 'queueNumber',
-      key: 'queueNumber',
+      key: 'stt',
       width: 60,
       align: 'center',
-      render: (num) => <strong>{num}</strong>,
+      render: (_: unknown, _record: ReceptionRecord, index: number) => <strong>{index + 1}</strong>,
     },
     {
       title: 'Mã BN',
@@ -515,18 +514,20 @@ const Reception: React.FC = () => {
         if (res.data && res.data.length > 0) {
           const patient = res.data[0];
           message.info(`Tìm thấy BN: ${patient.fullName || patient.patientName} - ${patient.patientCode}`);
-          // Pre-fill registration form
-          form.setFieldsValue({
-            patientCode: patient.patientCode,
-            patientName: patient.fullName || patient.patientName,
-            gender: patient.gender,
-            dateOfBirth: patient.dateOfBirth ? dayjs(patient.dateOfBirth) : undefined,
-            phoneNumber: patient.phoneNumber,
-            identityNumber: patient.identityNumber,
-            address: patient.address,
-            insuranceNumber: patient.insuranceNumber,
-          });
+          // Open modal first, then set fields after mount
           setIsModalOpen(true);
+          setTimeout(() => {
+            form.setFieldsValue({
+              patientCode: patient.patientCode,
+              patientName: patient.fullName || patient.patientName,
+              gender: patient.gender,
+              dateOfBirth: patient.dateOfBirth ? dayjs(patient.dateOfBirth) : undefined,
+              phoneNumber: patient.phoneNumber,
+              identityNumber: patient.identityNumber,
+              address: patient.address,
+              insuranceNumber: patient.insuranceNumber,
+            });
+          }, 0);
         }
       }).catch(() => {
         // Patient not found - just keep search text
@@ -1220,12 +1221,14 @@ const Reception: React.FC = () => {
               <Button
                 type="primary"
                 onClick={() => {
-                  form.setFieldsValue({
-                    insuranceNumber: insuranceVerification.insuranceNumber,
-                    patientType: 1,
-                  });
                   setIsVerifyModalOpen(false);
                   setIsModalOpen(true);
+                  setTimeout(() => {
+                    form.setFieldsValue({
+                      insuranceNumber: insuranceVerification.insuranceNumber,
+                      patientType: 1,
+                    });
+                  }, 0);
                 }}
               >
                 Sử dụng thông tin này

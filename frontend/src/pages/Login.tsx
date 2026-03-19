@@ -168,6 +168,7 @@ const Login: React.FC = () => {
           onFinish={onFinish}
           autoComplete="off"
           size="large"
+          initialValues={import.meta.env.DEV ? { username: 'admin', password: 'Admin@123' } : undefined}
         >
           <Form.Item
             name="username"
