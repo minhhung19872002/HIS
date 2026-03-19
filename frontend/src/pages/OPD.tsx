@@ -1019,7 +1019,7 @@ const OPD: React.FC = () => {
           temperature: values.vitalSigns.temperature,
           respiratoryRate: values.vitalSigns.respiratoryRate,
           spO2: values.vitalSigns.spo2,
-          measuredAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          measuredAt: dayjs().toISOString(),
         };
         await examinationApi.updateVitalSigns(examination.id, vitalSignsDto);
       }
@@ -1095,7 +1095,7 @@ const OPD: React.FC = () => {
           temperature: values.vitalSigns.temperature,
           respiratoryRate: values.vitalSigns.respiratoryRate,
           spO2: values.vitalSigns.spo2,
-          measuredAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          measuredAt: dayjs().toISOString(),
         };
         await examinationApi.updateVitalSigns(examination.id, vitalSignsDto);
       }

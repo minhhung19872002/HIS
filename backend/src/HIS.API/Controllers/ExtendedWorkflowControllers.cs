@@ -425,7 +425,7 @@ namespace HIS.API.Controllers
             [FromQuery] string status = null)
             => Ok(await _service.GetEquipmentListAsync(departmentId, category, status));
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:guid}")]
         public async Task<ActionResult<MedicalEquipmentDto>> GetEquipment(Guid id)
             => Ok(await _service.GetEquipmentAsync(id));
 
