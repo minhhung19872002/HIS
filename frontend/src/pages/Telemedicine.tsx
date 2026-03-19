@@ -119,7 +119,7 @@ const Telemedicine: React.FC = () => {
   // Statistics from dashboard or derived from appointments
   const todayTotal = dashboard?.totalAppointments ?? appointments.length;
   const waitingCount = dashboard
-    ? (dashboard.totalAppointments - dashboard.completedAppointments - dashboard.cancelledAppointments - dashboard.noShowAppointments)
+    ? ((dashboard.totalAppointments || 0) - (dashboard.completedAppointments || 0) - (dashboard.cancelledAppointments || 0) - (dashboard.noShowAppointments || 0))
     : appointments.filter((a) => a.status === 1 || a.status === 2).length; // 1=scheduled, 2=waiting
   const completedCount = dashboard?.completedAppointments ?? appointments.filter((a) => a.status === 4).length;
   const inProgressCount = appointments.filter((a) => a.status === 3).length; // 3=in_progress

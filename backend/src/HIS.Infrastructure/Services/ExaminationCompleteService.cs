@@ -3295,7 +3295,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
             query = query.Where(e => e.DoctorId == dto.DoctorId.Value);
 
         var total = await query.CountAsync();
-        var page = dto.PageIndex ?? 1;
+        var page = Math.Max(1, dto.PageIndex ?? 1);
         var pageSize = dto.PageSize ?? 20;
 
         var items = await query
