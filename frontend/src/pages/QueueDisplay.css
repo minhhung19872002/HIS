@@ -434,6 +434,357 @@
   background: rgba(250, 173, 20, 0.06) !important;
 }
 
+/* ====== KIOSK MODE ====== */
+
+.kiosk-mode .kiosk-body {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+
+/* Welcome */
+.kiosk-welcome {
+  text-align: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.kiosk-welcome-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0 0 40px;
+}
+
+.kiosk-menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.kiosk-menu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 24px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.kiosk-menu-btn:hover {
+  transform: scale(1.03);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.kiosk-menu-btn:active {
+  transform: scale(0.98);
+}
+
+.kiosk-btn-ticket { border-color: rgba(82, 196, 26, 0.4); }
+.kiosk-btn-ticket:hover { border-color: #52c41a; background: rgba(82, 196, 26, 0.1); }
+
+.kiosk-btn-checkin { border-color: rgba(24, 144, 255, 0.4); }
+.kiosk-btn-checkin:hover { border-color: #1890ff; background: rgba(24, 144, 255, 0.1); }
+
+.kiosk-btn-price { border-color: rgba(250, 173, 20, 0.4); }
+.kiosk-btn-price:hover { border-color: #faad14; background: rgba(250, 173, 20, 0.1); }
+
+.kiosk-btn-survey { border-color: rgba(233, 69, 96, 0.4); }
+.kiosk-btn-survey:hover { border-color: #e94560; background: rgba(233, 69, 96, 0.1); }
+
+.kiosk-btn-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.kiosk-btn-label {
+  font-size: 22px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* Form screens */
+.kiosk-form-screen {
+  width: 100%;
+  max-width: 700px;
+}
+
+.kiosk-screen-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #4fc3f7;
+  margin: 0 0 32px;
+}
+
+.kiosk-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.kiosk-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kiosk-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #a0aec0;
+}
+
+.kiosk-input,
+.kiosk-select,
+.kiosk-textarea {
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 20px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.kiosk-input:focus,
+.kiosk-select:focus,
+.kiosk-textarea:focus {
+  border-color: #4fc3f7;
+}
+
+.kiosk-input::placeholder,
+.kiosk-textarea::placeholder {
+  color: #4a5568;
+}
+
+.kiosk-select option {
+  background: #1a1a2e;
+  color: #e2e8f0;
+}
+
+.kiosk-priority-group {
+  display: flex;
+  gap: 12px;
+}
+
+.kiosk-priority-btn {
+  flex: 1;
+  padding: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: #a0aec0;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.kiosk-priority-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.kiosk-priority-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.kiosk-form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.kiosk-back-btn {
+  padding: 14px 28px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #a0aec0;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.kiosk-back-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+
+.kiosk-submit-btn {
+  padding: 14px 36px;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #52c41a, #389e0d);
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.kiosk-submit-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.kiosk-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Result screen */
+.kiosk-result-screen {
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+.kiosk-result-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #4fc3f7;
+  margin: 0 0 16px;
+}
+
+.kiosk-ticket-number {
+  font-size: 120px;
+  font-weight: 800;
+  color: #52c41a;
+  line-height: 1.1;
+  margin: 16px 0 24px;
+  text-shadow: 0 4px 20px rgba(82, 196, 26, 0.3);
+  animation: blink 1s ease-in-out 5;
+}
+
+.kiosk-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.kiosk-result-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: 22px;
+  color: #a0aec0;
+}
+
+.kiosk-result-row strong {
+  color: #e2e8f0;
+}
+
+.kiosk-result-note {
+  font-size: 16px;
+  color: #718096;
+  margin-top: 16px;
+}
+
+/* Price table */
+.kiosk-price-table-wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.kiosk-price-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kiosk-price-table thead th {
+  position: sticky;
+  top: 0;
+  background: #16213e;
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
+  color: #a0aec0;
+  border-bottom: 2px solid #0f3460;
+}
+
+.kiosk-price-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.kiosk-price-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.kiosk-price-table tbody td {
+  padding: 10px 14px;
+  font-size: 18px;
+  color: #e2e8f0;
+}
+
+/* Survey emojis */
+.kiosk-survey-emojis {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.kiosk-emoji-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 110px;
+}
+
+.kiosk-emoji-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.05);
+}
+
+.kiosk-emoji-btn.active {
+  border-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.12);
+  transform: scale(1.08);
+}
+
+.kiosk-emoji {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.kiosk-emoji-label {
+  font-size: 13px;
+  color: #a0aec0;
+  font-weight: 500;
+}
+
+.kiosk-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
 /* ====== RESPONSIVE ====== */
 
 @media (max-width: 1024px) {
@@ -490,5 +841,48 @@
 
   .lab-stat-value {
     font-size: 24px;
+  }
+
+  /* Kiosk responsive */
+  .kiosk-menu-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .kiosk-menu-btn {
+    padding: 24px 16px;
+  }
+
+  .kiosk-btn-icon {
+    font-size: 40px;
+  }
+
+  .kiosk-btn-label {
+    font-size: 18px;
+  }
+
+  .kiosk-welcome-title {
+    font-size: 24px;
+  }
+
+  .kiosk-ticket-number {
+    font-size: 80px;
+  }
+
+  .kiosk-survey-emojis {
+    gap: 10px;
+  }
+
+  .kiosk-emoji-btn {
+    padding: 14px 10px;
+    min-width: 80px;
+  }
+
+  .kiosk-emoji {
+    font-size: 36px;
+  }
+
+  .kiosk-priority-group {
+    flex-direction: column;
   }
 }

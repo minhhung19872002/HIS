@@ -609,3 +609,51 @@ public class InstalledSoftware : BaseEntity
     public string? Category { get; set; } // System, Security, Office, Medical, Browser, Other
     public string? Notes { get; set; }
 }
+
+/// <summary>
+/// Phac do dieu tri - TreatmentProtocol (NangCap8 - BV San Nhi Ninh Binh)
+/// CRUD versioned treatment protocols linked to ICD-10 codes
+/// </summary>
+public class TreatmentProtocol : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? IcdCode { get; set; }
+    public string? IcdName { get; set; }
+    public string? DiseaseGroup { get; set; }
+    public int Version { get; set; } = 1;
+    public int Status { get; set; } // 0=Draft, 1=Active, 2=Superseded, 3=Retired
+    public string? ApprovedBy { get; set; }
+    public DateTime? ApprovedDate { get; set; }
+    public DateTime? EffectiveDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public string? Department { get; set; }
+    public string? References { get; set; }
+    public string? Notes { get; set; }
+    public virtual ICollection<TreatmentProtocolStep> Steps { get; set; } = new List<TreatmentProtocolStep>();
+}
+
+/// <summary>
+/// Buoc trong phac do dieu tri - TreatmentProtocolStep
+/// </summary>
+public class TreatmentProtocolStep : BaseEntity
+{
+    public Guid ProtocolId { get; set; }
+    public virtual TreatmentProtocol Protocol { get; set; } = null!;
+    public int StepOrder { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? ActivityType { get; set; } // Medication, Lab, Imaging, Procedure, Monitoring, Other
+    public string? MedicationName { get; set; }
+    public string? MedicationDose { get; set; }
+    public string? MedicationRoute { get; set; }
+    public string? MedicationFrequency { get; set; }
+    public int? DurationDays { get; set; }
+    public string? ServiceCode { get; set; }
+    public string? ServiceName { get; set; }
+    public string? Conditions { get; set; }
+    public string? ExpectedOutcome { get; set; }
+    public string? Notes { get; set; }
+    public bool IsOptional { get; set; }
+}

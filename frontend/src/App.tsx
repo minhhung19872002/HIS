@@ -67,6 +67,7 @@ const SpecialtyEMR = lazy(() => import('./pages/SpecialtyEMR'));
 const SigningWorkflow = lazy(() => import('./pages/SigningWorkflow'));
 const MedicalRecordPlanning = lazy(() => import('./pages/MedicalRecordPlanning'));
 const EndpointSecurity = lazy(() => import('./pages/EndpointSecurity'));
+const TreatmentProtocol = lazy(() => import('./pages/TreatmentProtocol'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -172,6 +173,7 @@ const AppRoutes: React.FC = () => {
           <Route path="signing-workflow" element={<SigningWorkflow />} />
           <Route path="medical-record-planning" element={<MedicalRecordPlanning />} />
           <Route path="endpoint-security" element={<EndpointSecurity />} />
+          <Route path="treatment-protocols" element={<TreatmentProtocol />} />
           {/* Redirect aliases */}
           <Route path="inpatient" element={<Navigate to="/ipd" replace />} />
           <Route path="laboratory" element={<Navigate to="/lab" replace />} />

@@ -89,7 +89,7 @@ const MainLayout: React.FC = () => {
   const getOpenKeys = (): string[] => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
-      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management'],
+      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols'],
       paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/consultation', '/blood-bank', '/pathology', '/lis-config'],
       support: ['/pharmacy', '/medical-supply', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/finance', '/insurance', '/bhxh-audit'],
@@ -126,6 +126,7 @@ const MainLayout: React.FC = () => {
         { key: '/medical-record-planning', icon: <ScheduleOutlined />, label: 'Kế hoạch TH' },
         { key: '/follow-up', icon: <CalendarOutlined />, label: 'Tái khám' },
         { key: '/booking-management', icon: <ScheduleOutlined />, label: 'Quản lý đặt lịch' },
+        { key: '/treatment-protocols', icon: <ExperimentOutlined />, label: 'Phác đồ điều trị' },
       ],
     },
     {

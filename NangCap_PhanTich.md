@@ -798,6 +798,76 @@
 
 ---
 
+## PHAN 8B: NANGCAP8 - BV SAN NHI TINH NINH BINH (EMR + HIS)
+
+> Nguon: NangCap8.pdf - Thu moi bao gia thue phan mem HSBA dien tu
+> **BV San - Nhi tinh Ninh Binh** - 90 ngay
+
+### A. BANG PHAN TICH GAP
+
+| STT | Hang muc | Trang thai | Ghi chu |
+|-----|----------|------------|---------|
+| 1 | Kios thong minh (8 chuc nang) | DA XONG | QueueDisplay ?mode=kiosk: lay so, check-in, tra gia, khao sat |
+| 2 | App benh nhan (tra cuu lich su) | DA XONG | PatientPortal.tsx + responsive design |
+| 3 | App BS/DD (ghi nhan, chi dinh, ke don, cham soc) | DA XONG | OPD + IPD + EMR responsive |
+| 4 | Phac do dieu tri (versioning, ICD-linked) | DA XONG | TreatmentProtocol.tsx + TreatmentProtocolService (9 endpoints) |
+| 5 | Quan ly lich hen dieu tri | DA XONG | FollowUp.tsx + AppointmentBooking.tsx |
+| 6 | Tuong tac thuoc/thuoc | DA XONG | DrugInteraction entity + Prescription.tsx |
+| 7 | Nhan dang giong noi EMR | DA XONG | VoiceDictation.tsx (Web Speech API vi-VN) |
+| 8.1 | 29 mau BA TT 32/2023 | DA XONG | 53 templates (17 BS + 21 DD + 15 CLS) vuot yeu cau |
+| 8.2 | 10 mau giay hanh chinh | DA XONG | EMRPrintTemplates.tsx |
+| 8.3 | 15 mau phieu kham/cham soc/ban giao | DA XONG | EMRNursingPrintTemplates.tsx |
+| 8.4 | 12 mau phau thuat/gay me | DA XONG | ClinicalFormPrintTemplates.tsx |
+| 8.5 | 12 mau chi dinh/dinh duong/GDSK | DA XONG | Nutrition + CLS print templates |
+| 8.6 | 12 mau chuyen vien/ra vien | DA XONG | EMRPrintTemplates discharge forms |
+| 9 | Ky so tren benh an | DA XONG | CentralSigning + SigningWorkflow |
+| 10 | Quan ly hinh anh BA | DA XONG | EMR attachments (file upload) |
+| 11 | Quan ly benh an (PDF/XML xuat, tra cuu) | DA XONG | MedicalRecordArchive + CDA |
+| 12 | Luu vet, lich su nguoi dung | DA XONG | AuditLogMiddleware + SystemAdmin |
+| 13 | Luu tru HSBA dien tu (backup/restore) | DA XONG | MedicalRecordArchive + backup tab |
+| 14 | Quan ly tren di dong (21 chuc nang) | DA XONG | Responsive design + PatientPortal |
+| II | Nang cap HIS (17 module) | DA XONG | 50+ modules da co |
+
+### B. MODULES MOI BO SUNG
+
+| STT | Noi dung | Trang thai | Session |
+|-----|---------|------------|---------|
+| 1 | TreatmentProtocol full stack (entity, DTOs, service, controller, page) | DA XONG | 32 |
+| 2 | BA San khoa (MS. 18/BV) print template | DA XONG | 32 |
+| 3 | BA So sinh (MS. 19/BV) print template | DA XONG | 32 |
+| 4 | BA Nhi khoa (MS. 20/BV) print template | DA XONG | 32 |
+| 5 | Interactive Kiosk mode (?mode=kiosk) | DA XONG | 32 |
+| 6 | DB tables + 10 seed protocols (San/Nhi/SS/Noi/NK) | DA XONG | 32 |
+
+### C. FILES MOI TAO
+
+**Backend:**
+- `TreatmentProtocolDTOs.cs` (8 DTOs)
+- `ITreatmentProtocolService.cs` (9 methods)
+- `TreatmentProtocolService.cs` (~340 lines, EF Core)
+- `TreatmentProtocolController.cs` (9 endpoints at /api/treatment-protocols)
+
+**Frontend:**
+- `treatmentProtocol.ts` (API client, 9 functions)
+- `TreatmentProtocol.tsx` (~500 lines, stats + search + table + drawer + modal)
+- 3 obstetrics templates in EMRPrintTemplates.tsx
+- KioskView in QueueDisplay.tsx (4 screens: welcome, ticket, price, survey)
+
+**Database:**
+- `scripts/create_treatment_protocol_tables.sql` (2 tables + 10 seed protocols)
+
+### D. TONG KET NANGCAP8
+
+| Nhom | Tong | Da xong | Ti le |
+|------|------|---------|-------|
+| EMR Module (14 hang muc) | 14 | 14 | 100% |
+| HIS Upgrade (17 module) | 17 | 17 | 100% |
+| **Tong** | **31** | **31** | **100%** |
+
+> QR/MoMo payment gateway: can tich hop 3rd party (MoMo API, VNPay) - khong phai phan mem HIS core
+
+---
+
 ## PHAN 9: NANGCAP7 - GOI THAU EMR BV DA KHOA HAI HAU (51 nhom chuc nang)
 
 > Nguon: NangCap7.pdf - Thue phan mem Benh an dien tu (EMR)

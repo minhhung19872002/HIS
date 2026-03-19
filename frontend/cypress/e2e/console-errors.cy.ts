@@ -61,6 +61,7 @@ const pages = [
   { route: '/medical-record-planning', name: 'Medical Record Planning (Ke hoach TH)' },
   { route: '/signing-workflow', name: 'Signing Workflow (Trinh ky)' },
   { route: '/endpoint-security', name: 'Endpoint Security (An toan thong tin)' },
+  { route: '/treatment-protocols', name: 'Treatment Protocols (Phac do dieu tri)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

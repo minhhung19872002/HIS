@@ -399,6 +399,10 @@ public class HISDbContext : DbContext
     public DbSet<SecurityIncident> SecurityIncidents => Set<SecurityIncident>();
     public DbSet<InstalledSoftware> InstalledSoftwareItems => Set<InstalledSoftware>();
 
+    // NangCap8: Phac do dieu tri (Treatment Protocols)
+    public DbSet<TreatmentProtocol> TreatmentProtocols => Set<TreatmentProtocol>();
+    public DbSet<TreatmentProtocolStep> TreatmentProtocolSteps => Set<TreatmentProtocolStep>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

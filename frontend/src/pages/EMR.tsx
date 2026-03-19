@@ -34,6 +34,7 @@ import {
   CounselingFormPrint, DeathReviewPrint, MedicalRecordFinalSummaryPrint,
   NutritionExamPrint, SurgeryRecordPrint, SurgeryApprovalPrint,
   SurgerySummaryPrint, DepartmentTransferPrint, AdmissionExamPrint,
+  ObstetricsMedicalRecordPrint, NeonatalMedicalRecordPrint, PediatricMedicalRecordPrint,
 } from '../components/EMRPrintTemplates';
 import { printEmrForm } from '../api/pdf';
 import client from '../api/client';
@@ -1461,6 +1462,9 @@ ${conclusion ? `<div class="section">
                     { key: 'surgerysummary', label: 'MS.15 - Sơ kết phẫu thuật' },
                     { key: 'depttransfer', label: 'MS.16 - Bàn giao chuyển khoa' },
                     { key: 'admission', label: 'MS.17 - Khám vào viện' },
+                    { key: 'obstetrics', label: 'MS.18 - BA Sản khoa' },
+                    { key: 'neonatal', label: 'MS.19 - BA Sơ sinh' },
+                    { key: 'pediatric', label: 'MS.20 - BA Nhi khoa' },
                   ]},
                   { type: 'group', label: 'CĐHA (CDHA. 01-05)', children: [
                     { key: 'cdha-xray', label: 'CDHA.01 - X-Quang' },
@@ -1518,6 +1522,9 @@ ${conclusion ? `<div class="section">
                   { key: 'progress', label: 'MS.08 - Sơ kết 15 ngày' },
                   { key: 'finalsummary', label: 'MS.11 - Tổng kết HSBA' },
                   { key: 'admission', label: 'MS.17 - Khám vào viện' },
+                  { key: 'obstetrics', label: 'MS.18 - BA Sản khoa' },
+                  { key: 'neonatal', label: 'MS.19 - BA Sơ sinh' },
+                  { key: 'pediatric', label: 'MS.20 - BA Nhi khoa' },
                 ], onClick: ({ key }) => { if (selectedExam) printEmrForm(selectedExam.id, key); } }}>
                   <Button size="small" icon={<FilePdfOutlined />} type="primary" ghost>In PDF</Button>
                 </Dropdown>
@@ -1696,6 +1703,7 @@ ${conclusion ? `<div class="section">
           nutrition: 'Khám dinh dưỡng (MS.12)', surgeryrecord: 'Phiếu phẫu thuật (MS.13)',
           surgeryapproval: 'Duyệt phẫu thuật (MS.14)', surgerysummary: 'Sơ kết phẫu thuật (MS.15)',
           depttransfer: 'Bàn giao chuyển khoa (MS.16)', admission: 'Khám vào viện (MS.17)',
+          obstetrics: 'Bệnh án Sản khoa (MS.18)', neonatal: 'Bệnh án Sơ sinh (MS.19)', pediatric: 'Bệnh án Nhi khoa (MS.20)',
           'cdha-xray': 'Kết quả X-Quang (CDHA.01)', 'cdha-ct': 'Kết quả CT Scanner (CDHA.02)',
           'cdha-mri': 'Kết quả MRI (CDHA.03)', 'cdha-ultrasound': 'Kết quả Siêu âm (CDHA.04)',
           'cdha-ecg': 'Điện tâm đồ (CDHA.05)',
@@ -1781,6 +1789,9 @@ ${conclusion ? `<div class="section">
           {printType === 'surgerysummary' && <SurgerySummaryPrint ref={printRef} record={medicalRecord} />}
           {printType === 'depttransfer' && <DepartmentTransferPrint ref={printRef} record={medicalRecord} />}
           {printType === 'admission' && <AdmissionExamPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'obstetrics' && <ObstetricsMedicalRecordPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'neonatal' && <NeonatalMedicalRecordPrint ref={printRef} record={medicalRecord} />}
+          {printType === 'pediatric' && <PediatricMedicalRecordPrint ref={printRef} record={medicalRecord} />}
           {/* CDHA. 01-05 Radiology forms */}
           {printType === 'cdha-xray' && <XRayReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
           {printType === 'cdha-ct' && <CTScanReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}

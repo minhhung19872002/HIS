@@ -574,11 +574,457 @@ function RoomQueueView() {
   );
 }
 
+// ===================== KIOSK VIEW =====================
+type KioskScreen = 'welcome' | 'ticket' | 'ticket-result' | 'price' | 'survey' | 'survey-thanks';
+
+interface KioskRoom {
+  roomId: string;
+  roomName: string;
+  departmentName: string;
+}
+
+interface KioskServiceResult {
+  serviceName: string;
+  unit: string;
+  unitPrice: number;
+}
+
+function KioskView() {
+  const [screen, setScreen] = useState<KioskScreen>('welcome');
+  const [clock, setClock] = useState(formatTime(new Date()));
+
+  // Ticket flow state
+  const [patientInput, setPatientInput] = useState('');
+  const [rooms, setRooms] = useState<KioskRoom[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState('');
+  const [queuePriority, setQueuePriority] = useState(1); // 1=normal, 2=priority, 3=emergency
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketResult, setTicketResult] = useState<{
+    ticketCode: string;
+    queueNumber: number;
+    roomName: string;
+    estimatedWaitMinutes: number;
+  } | null>(null);
+
+  // Price lookup state
+  const [priceKeyword, setPriceKeyword] = useState('');
+  const [priceResults, setPriceResults] = useState<KioskServiceResult[]>([]);
+  const [priceLoading, setPriceLoading] = useState(false);
+
+  // Survey state
+  const [surveyRating, setSurveyRating] = useState<number | null>(null);
+  const [surveyComment, setSurveyComment] = useState('');
+  const [surveyLoading, setSurveyLoading] = useState(false);
+
+  // Auto-reset timers
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(formatTime(new Date())), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load rooms on mount
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const res = await publicClient.get<KioskRoom[]>('/reception/rooms/overview');
+        setRooms(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        // Retry silently - rooms may load later
+      }
+    };
+    fetchRooms();
+  }, []);
+
+  const clearResetTimer = () => {
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  };
+
+  const goToWelcome = useCallback(() => {
+    clearResetTimer();
+    setScreen('welcome');
+    setPatientInput('');
+    setSelectedRoom('');
+    setQueuePriority(1);
+    setTicketResult(null);
+    setPriceKeyword('');
+    setPriceResults([]);
+    setSurveyRating(null);
+    setSurveyComment('');
+  }, []);
+
+  const autoResetAfter = useCallback((seconds: number) => {
+    clearResetTimer();
+    resetTimerRef.current = setTimeout(goToWelcome, seconds * 1000);
+  }, [goToWelcome]);
+
+  useEffect(() => {
+    return () => clearResetTimer();
+  }, []);
+
+  // --- Ticket submission ---
+  const handleSubmitTicket = async () => {
+    if (!selectedRoom) return;
+    setTicketLoading(true);
+    try {
+      const dto: Record<string, unknown> = {
+        roomId: selectedRoom,
+        queueType: 2, // Exam
+        priority: queuePriority,
+      };
+      // Try to find patient by code or phone
+      if (patientInput.trim()) {
+        dto.patientName = patientInput.trim();
+      }
+      const res = await publicClient.post<QueueTicketDto>('/reception/queue/issue', dto);
+      const ticket = res.data;
+      const room = rooms.find(r => r.roomId === selectedRoom);
+      setTicketResult({
+        ticketCode: ticket.ticketCode,
+        queueNumber: ticket.queueNumber,
+        roomName: room?.roomName || '',
+        estimatedWaitMinutes: ticket.estimatedWaitMinutes || 0,
+      });
+      setScreen('ticket-result');
+      autoResetAfter(10);
+      // TTS announcement
+      announce(`Số của bạn là ${ticket.ticketCode}. Vui lòng chờ tại ${room?.roomName || 'phòng khám'}`);
+    } catch {
+      // Show error briefly then return
+      setTicketResult({ ticketCode: 'LOI', queueNumber: 0, roomName: '', estimatedWaitMinutes: 0 });
+      setScreen('ticket-result');
+      autoResetAfter(5);
+    }
+    setTicketLoading(false);
+  };
+
+  // --- Price lookup ---
+  const handlePriceSearch = async () => {
+    if (!priceKeyword.trim()) return;
+    setPriceLoading(true);
+    try {
+      const res = await publicClient.get<KioskServiceResult[]>('/examination/services/search', {
+        params: { keyword: priceKeyword.trim(), limit: 30 }
+      });
+      const data = Array.isArray(res.data) ? res.data : [];
+      setPriceResults(data.map((s: Record<string, unknown>) => ({
+        serviceName: (s.serviceName || s.name || '') as string,
+        unit: (s.unit || 'Lần') as string,
+        unitPrice: (s.unitPrice || s.price || 0) as number,
+      })));
+    } catch {
+      setPriceResults([]);
+    }
+    setPriceLoading(false);
+  };
+
+  // --- Survey submission ---
+  const handleSubmitSurvey = async () => {
+    if (surveyRating === null) return;
+    setSurveyLoading(true);
+    try {
+      await publicClient.post('/quality/surveys', {
+        rating: surveyRating,
+        comment: surveyComment,
+        source: 'kiosk',
+        surveyDate: new Date().toISOString(),
+      });
+    } catch {
+      // Best effort - still show thanks
+    }
+    setSurveyLoading(false);
+    setScreen('survey-thanks');
+    autoResetAfter(5);
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
+
+  const surveyEmojis = [
+    { rating: 5, emoji: '\u{1F60D}', label: 'R\u1EA5t h\u00E0i l\u00F2ng' },
+    { rating: 4, emoji: '\u{1F60A}', label: 'H\u00E0i l\u00F2ng' },
+    { rating: 3, emoji: '\u{1F610}', label: 'B\u00ECnh th\u01B0\u1EDDng' },
+    { rating: 2, emoji: '\u{1F61E}', label: 'Kh\u00F4ng h\u00E0i l\u00F2ng' },
+    { rating: 1, emoji: '\u{1F621}', label: 'R\u1EA5t kh\u00F4ng h\u00E0i l\u00F2ng' },
+  ];
+
+  return (
+    <div className="queue-display kiosk-mode">
+      <button className="queue-fullscreen-btn" onClick={toggleFullscreen} title="To\u00E0n m\u00E0n h\u00ECnh">{'\u26F6'}</button>
+
+      <div className="queue-header">
+        <div className="queue-header-left">
+          <h1>{HOSPITAL_NAME}</h1>
+          <p>Kiosk t\u1EF1 ph\u1EE5c v\u1EE5</p>
+        </div>
+        <div className="queue-clock">{clock}</div>
+      </div>
+
+      <div className="kiosk-body">
+        {/* WELCOME SCREEN */}
+        {screen === 'welcome' && (
+          <div className="kiosk-welcome">
+            <h2 className="kiosk-welcome-title">Xin ch\u00E0o! Vui l\u00F2ng ch\u1ECDn d\u1ECBch v\u1EE5</h2>
+            <div className="kiosk-menu-grid">
+              <button className="kiosk-menu-btn kiosk-btn-ticket" onClick={() => setScreen('ticket')}>
+                <span className="kiosk-btn-icon">{'\uD83C\uDFAB'}</span>
+                <span className="kiosk-btn-label">L\u1EA5y s\u1ED1 kh\u00E1m b\u1EC7nh</span>
+              </button>
+              <button className="kiosk-menu-btn kiosk-btn-checkin" onClick={() => setScreen('ticket')}>
+                <span className="kiosk-btn-icon">{'\u2705'}</span>
+                <span className="kiosk-btn-label">Check-in h\u1EB9n kh\u00E1m</span>
+              </button>
+              <button className="kiosk-menu-btn kiosk-btn-price" onClick={() => setScreen('price')}>
+                <span className="kiosk-btn-icon">{'\uD83D\uDCB0'}</span>
+                <span className="kiosk-btn-label">Tra c\u1EE9u gi\u00E1 d\u1ECBch v\u1EE5</span>
+              </button>
+              <button className="kiosk-menu-btn kiosk-btn-survey" onClick={() => setScreen('survey')}>
+                <span className="kiosk-btn-icon">{'\u2B50'}</span>
+                <span className="kiosk-btn-label">Kh\u1EA3o s\u00E1t h\u00E0i l\u00F2ng</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* GET TICKET SCREEN */}
+        {screen === 'ticket' && (
+          <div className="kiosk-form-screen">
+            <h2 className="kiosk-screen-title">L\u1EA5y s\u1ED1 kh\u00E1m b\u1EC7nh</h2>
+            <div className="kiosk-form">
+              <div className="kiosk-form-group">
+                <label className="kiosk-label">M\u00E3 b\u1EC7nh nh\u00E2n ho\u1EB7c S\u0110T</label>
+                <input
+                  className="kiosk-input"
+                  type="text"
+                  placeholder="Nh\u1EADp m\u00E3 BN ho\u1EB7c s\u1ED1 \u0111i\u1EC7n tho\u1EA1i..."
+                  value={patientInput}
+                  onChange={(e) => setPatientInput(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="kiosk-form-group">
+                <label className="kiosk-label">Ch\u1ECDn ph\u00F2ng kh\u00E1m</label>
+                <select
+                  className="kiosk-select"
+                  value={selectedRoom}
+                  onChange={(e) => setSelectedRoom(e.target.value)}
+                >
+                  <option value="">-- Ch\u1ECDn ph\u00F2ng --</option>
+                  {rooms.map(r => (
+                    <option key={r.roomId} value={r.roomId}>
+                      {r.roomName} - {r.departmentName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="kiosk-form-group">
+                <label className="kiosk-label">Lo\u1EA1i \u01B0u ti\u00EAn</label>
+                <div className="kiosk-priority-group">
+                  <button
+                    className={`kiosk-priority-btn ${queuePriority === 1 ? 'active' : ''}`}
+                    style={{ borderColor: '#52c41a' }}
+                    onClick={() => setQueuePriority(1)}
+                  >
+                    Th\u01B0\u1EDDng
+                  </button>
+                  <button
+                    className={`kiosk-priority-btn ${queuePriority === 2 ? 'active' : ''}`}
+                    style={{ borderColor: '#faad14' }}
+                    onClick={() => setQueuePriority(2)}
+                  >
+                    \u01AFu ti\u00EAn
+                  </button>
+                  <button
+                    className={`kiosk-priority-btn ${queuePriority === 3 ? 'active' : ''}`}
+                    style={{ borderColor: '#ff4d4f' }}
+                    onClick={() => setQueuePriority(3)}
+                  >
+                    C\u1EA5p c\u1EE9u
+                  </button>
+                </div>
+              </div>
+              <div className="kiosk-form-actions">
+                <button className="kiosk-back-btn" onClick={goToWelcome}>{'\u2190'} Quay l\u1EA1i</button>
+                <button
+                  className="kiosk-submit-btn"
+                  onClick={handleSubmitTicket}
+                  disabled={!selectedRoom || ticketLoading}
+                >
+                  {ticketLoading ? '\u0110ang x\u1EED l\u00FD...' : 'L\u1EA5y s\u1ED1'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TICKET RESULT SCREEN */}
+        {screen === 'ticket-result' && ticketResult && (
+          <div className="kiosk-result-screen">
+            {ticketResult.ticketCode !== 'LOI' ? (
+              <>
+                <h2 className="kiosk-result-title">S\u1ED1 c\u1EE7a b\u1EA1n</h2>
+                <div className="kiosk-ticket-number">{ticketResult.ticketCode}</div>
+                <div className="kiosk-result-info">
+                  <div className="kiosk-result-row">
+                    <span>Ph\u00F2ng kh\u00E1m:</span>
+                    <strong>{ticketResult.roomName}</strong>
+                  </div>
+                  <div className="kiosk-result-row">
+                    <span>Th\u1EDDi gian ch\u1EDD \u01B0\u1EDBc t\u00EDnh:</span>
+                    <strong>{ticketResult.estimatedWaitMinutes} ph\u00FAt</strong>
+                  </div>
+                </div>
+                <p className="kiosk-result-note">Vui l\u00F2ng \u0111\u1EE3i t\u1EA1i khu v\u1EF1c ch\u1EDD. T\u1EF1 \u0111\u1ED9ng tr\u1EDF v\u1EC1 sau 10 gi\u00E2y.</p>
+              </>
+            ) : (
+              <>
+                <h2 className="kiosk-result-title" style={{ color: '#ff4d4f' }}>Kh\u00F4ng th\u1EC3 l\u1EA5y s\u1ED1</h2>
+                <p className="kiosk-result-note">Vui l\u00F2ng li\u00EAn h\u1EC7 qu\u1EA7y ti\u1EBFp \u0111\u00F3n \u0111\u1EC3 \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3.</p>
+              </>
+            )}
+            <button className="kiosk-back-btn" onClick={goToWelcome} style={{ marginTop: 24 }}>{'\u2190'} Trang ch\u1EE7</button>
+          </div>
+        )}
+
+        {/* PRICE LOOKUP SCREEN */}
+        {screen === 'price' && (
+          <div className="kiosk-form-screen">
+            <h2 className="kiosk-screen-title">Tra c\u1EE9u gi\u00E1 d\u1ECBch v\u1EE5</h2>
+            <div className="kiosk-form">
+              <div className="kiosk-form-group">
+                <label className="kiosk-label">T\u00EAn d\u1ECBch v\u1EE5</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <input
+                    className="kiosk-input"
+                    type="text"
+                    placeholder="Nh\u1EADp t\u00EAn d\u1ECBch v\u1EE5 c\u1EA7n tra..."
+                    value={priceKeyword}
+                    onChange={(e) => setPriceKeyword(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePriceSearch(); }}
+                    autoFocus
+                    style={{ flex: 1 }}
+                  />
+                  <button className="kiosk-submit-btn" onClick={handlePriceSearch} disabled={priceLoading} style={{ minWidth: 120 }}>
+                    {priceLoading ? '...' : 'T\u00ECm ki\u1EBFm'}
+                  </button>
+                </div>
+              </div>
+
+              {priceResults.length > 0 && (
+                <div className="kiosk-price-table-wrapper">
+                  <table className="kiosk-price-table">
+                    <thead>
+                      <tr>
+                        <th>STT</th>
+                        <th>T\u00EAn d\u1ECBch v\u1EE5</th>
+                        <th>\u0110\u01A1n v\u1ECB</th>
+                        <th>Gi\u00E1 (VN\u0110)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {priceResults.map((s, i) => (
+                        <tr key={`${s.serviceName}-${i}`}>
+                          <td>{i + 1}</td>
+                          <td>{s.serviceName}</td>
+                          <td>{s.unit}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                            {s.unitPrice.toLocaleString('vi-VN')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {priceResults.length === 0 && priceKeyword.trim() && !priceLoading && (
+                <p style={{ textAlign: 'center', color: '#718096', fontSize: 18, marginTop: 24 }}>
+                  Kh\u00F4ng t\u00ECm th\u1EA5y d\u1ECBch v\u1EE5 ph\u00F9 h\u1EE3p.
+                </p>
+              )}
+
+              <div className="kiosk-form-actions">
+                <button className="kiosk-back-btn" onClick={goToWelcome}>{'\u2190'} Quay l\u1EA1i</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SATISFACTION SURVEY SCREEN */}
+        {screen === 'survey' && (
+          <div className="kiosk-form-screen">
+            <h2 className="kiosk-screen-title">Kh\u1EA3o s\u00E1t h\u00E0i l\u00F2ng</h2>
+            <p style={{ textAlign: 'center', fontSize: 20, color: '#a0aec0', margin: '0 0 24px' }}>
+              B\u1EA1n \u0111\u00E1nh gi\u00E1 ch\u1EA5t l\u01B0\u1EE3ng d\u1ECBch v\u1EE5 nh\u01B0 th\u1EBF n\u00E0o?
+            </p>
+            <div className="kiosk-survey-emojis">
+              {surveyEmojis.map(item => (
+                <button
+                  key={item.rating}
+                  className={`kiosk-emoji-btn ${surveyRating === item.rating ? 'active' : ''}`}
+                  onClick={() => setSurveyRating(item.rating)}
+                >
+                  <span className="kiosk-emoji">{item.emoji}</span>
+                  <span className="kiosk-emoji-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="kiosk-form" style={{ maxWidth: 600, margin: '24px auto 0' }}>
+              <div className="kiosk-form-group">
+                <label className="kiosk-label">G\u00F3p \u00FD th\u00EAm (kh\u00F4ng b\u1EAFt bu\u1ED9c)</label>
+                <textarea
+                  className="kiosk-textarea"
+                  placeholder="Nh\u1EADp g\u00F3p \u00FD c\u1EE7a b\u1EA1n..."
+                  value={surveyComment}
+                  onChange={(e) => setSurveyComment(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="kiosk-form-actions">
+                <button className="kiosk-back-btn" onClick={goToWelcome}>{'\u2190'} Quay l\u1EA1i</button>
+                <button
+                  className="kiosk-submit-btn"
+                  onClick={handleSubmitSurvey}
+                  disabled={surveyRating === null || surveyLoading}
+                >
+                  {surveyLoading ? '\u0110ang g\u1EEDi...' : 'G\u1EEDi \u0111\u00E1nh gi\u00E1'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SURVEY THANKS SCREEN */}
+        {screen === 'survey-thanks' && (
+          <div className="kiosk-result-screen">
+            <div style={{ fontSize: 80, marginBottom: 16 }}>{'\u2764\uFE0F'}</div>
+            <h2 className="kiosk-result-title" style={{ color: '#52c41a' }}>C\u1EA3m \u01A1n b\u1EA1n!</h2>
+            <p className="kiosk-result-note">
+              \u0110\u00E1nh gi\u00E1 c\u1EE7a b\u1EA1n gi\u00FAp ch\u00FAng t\u00F4i c\u1EA3i thi\u1EC7n d\u1ECBch v\u1EE5 t\u1ED1t h\u01A1n.
+            </p>
+            <p style={{ color: '#718096', fontSize: 16, marginTop: 8 }}>T\u1EF1 \u0111\u1ED9ng tr\u1EDF v\u1EC1 sau 5 gi\u00E2y.</p>
+            <button className="kiosk-back-btn" onClick={goToWelcome} style={{ marginTop: 24 }}>{'\u2190'} Trang ch\u1EE7</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ===================== MAIN EXPORT =====================
 export default function QueueDisplay() {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
 
+  if (mode === 'kiosk') return <KioskView />;
   if (mode === 'lab') return <LabQueueView />;
   return <RoomQueueView />;
 }

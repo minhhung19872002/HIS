@@ -225,6 +225,9 @@ public static class DependencyInjection
         // NangCap12: Endpoint Security (An toan thong tin)
         services.AddScoped<IEndpointSecurityService, EndpointSecurityService>();
 
+        // NangCap8: Phac do dieu tri (Treatment Protocols - BV San Nhi Ninh Binh)
+        services.AddScoped<ITreatmentProtocolService, TreatmentProtocolService>();
+
         return services;
     }
 }
