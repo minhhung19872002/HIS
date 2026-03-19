@@ -89,13 +89,13 @@ const MainLayout: React.FC = () => {
   const getOpenKeys = (): string[] => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
-      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/follow-up', '/booking-management'],
+      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management'],
       paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/consultation', '/blood-bank', '/pathology', '/lis-config'],
       support: ['/pharmacy', '/medical-supply', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/quality'],
       integration: ['/health-exchange', '/emergency-disaster'],
-      system: ['/master-data', '/reports', '/admin', '/digital-signature', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
+      system: ['/master-data', '/reports', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
     };
     for (const [group, routes] of Object.entries(groupMap)) {
       if (routes.includes(path)) return [group];
@@ -123,6 +123,7 @@ const MainLayout: React.FC = () => {
         { key: '/emr', icon: <FolderOpenOutlined />, label: 'Hồ sơ BA (EMR)' },
         { key: '/specialty-emr', icon: <FolderOpenOutlined />, label: 'BA Chuyên khoa' },
         { key: '/medical-record-archive', icon: <ContainerOutlined />, label: 'Lưu trữ HSBA' },
+        { key: '/medical-record-planning', icon: <ScheduleOutlined />, label: 'Kế hoạch TH' },
         { key: '/follow-up', icon: <CalendarOutlined />, label: 'Tái khám' },
         { key: '/booking-management', icon: <ScheduleOutlined />, label: 'Quản lý đặt lịch' },
       ],
@@ -199,6 +200,7 @@ const MainLayout: React.FC = () => {
         { key: '/admin', icon: <SettingOutlined />, label: 'Quản trị' },
         { key: '/digital-signature', icon: <SafetyCertificateOutlined />, label: 'Chữ ký số' },
         { key: '/central-signing', icon: <SafetyCertificateOutlined />, label: 'Ký số tập trung' },
+        { key: '/signing-workflow', icon: <AuditOutlined />, label: 'Trình ký' },
         { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
         { key: '/doctor-portal', icon: <LaptopOutlined />, label: 'Cổng bác sĩ' },
         { key: '/satisfaction-survey', icon: <SmileOutlined />, label: 'Khảo sát hài lòng' },

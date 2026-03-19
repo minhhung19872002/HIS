@@ -1835,5 +1835,65 @@ namespace HIS.API.Controllers
         }
 
         #endregion
+
+        #region 17.12 Yêu cầu CNTT (IT Tickets)
+
+        /// <summary>
+        /// Danh sách yêu cầu CNTT
+        /// </summary>
+        [HttpGet("api/system/it-tickets")]
+        public async Task<ActionResult<List<ItTicketDto>>> GetItTickets([FromQuery] ItTicketSearchDto search)
+        {
+            var result = await _service.GetItTicketsAsync(search);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Tạo yêu cầu CNTT mới
+        /// </summary>
+        [HttpPost("api/system/it-tickets")]
+        public async Task<ActionResult<ItTicketDto>> CreateItTicket([FromBody] CreateItTicketDto dto)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+            var userName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? User.Identity?.Name ?? "";
+            var departmentName = User.FindFirst("DepartmentName")?.Value ?? "";
+            var result = await _service.CreateItTicketAsync(dto, userId, userName, departmentName);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// IT phản hồi yêu cầu
+        /// </summary>
+        [HttpPut("api/system/it-tickets/{id}/respond")]
+        [Authorize(Roles = "Admin,IT")]
+        public async Task<ActionResult<ItTicketDto>> RespondToItTicket(Guid id, [FromBody] RespondItTicketDto dto)
+        {
+            var userName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? User.Identity?.Name ?? "";
+            var result = await _service.RespondToItTicketAsync(id, dto, userName);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Đóng yêu cầu CNTT
+        /// </summary>
+        [HttpPut("api/system/it-tickets/{id}/close")]
+        [Authorize(Roles = "Admin,IT")]
+        public async Task<ActionResult<bool>> CloseItTicket(Guid id)
+        {
+            var result = await _service.CloseItTicketAsync(id);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Thống kê yêu cầu CNTT
+        /// </summary>
+        [HttpGet("api/system/it-tickets/stats")]
+        public async Task<ActionResult<ItTicketStatsDto>> GetItTicketStats()
+        {
+            var result = await _service.GetItTicketStatsAsync();
+            return Ok(result);
+        }
+
+        #endregion
     }
 }

@@ -527,6 +527,13 @@ namespace HIS.Application.Services
         Task<LockedServiceDto> LockServiceAsync(LockServiceRequestDto dto, string userId, string userName);
         Task<bool> UnlockServiceAsync(UnlockServiceRequestDto dto);
 
+        // 17.12 Yêu cầu CNTT (IT Tickets)
+        Task<List<ItTicketDto>> GetItTicketsAsync(ItTicketSearchDto search);
+        Task<ItTicketDto> CreateItTicketAsync(CreateItTicketDto dto, string userId, string userName, string departmentName);
+        Task<ItTicketDto> RespondToItTicketAsync(Guid ticketId, RespondItTicketDto dto, string respondedByName);
+        Task<bool> CloseItTicketAsync(Guid ticketId);
+        Task<ItTicketStatsDto> GetItTicketStatsAsync();
+
         #endregion
     }
 

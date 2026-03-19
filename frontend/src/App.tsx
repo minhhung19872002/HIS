@@ -64,6 +64,8 @@ const DoctorPortal = lazy(() => import('./pages/DoctorPortal'));
 const SatisfactionSurvey = lazy(() => import('./pages/SatisfactionSurvey'));
 const LISConfig = lazy(() => import('./pages/LISConfig'));
 const SpecialtyEMR = lazy(() => import('./pages/SpecialtyEMR'));
+const SigningWorkflow = lazy(() => import('./pages/SigningWorkflow'));
+const MedicalRecordPlanning = lazy(() => import('./pages/MedicalRecordPlanning'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -166,6 +168,8 @@ const AppRoutes: React.FC = () => {
           <Route path="satisfaction-survey" element={<SatisfactionSurvey />} />
           <Route path="lis-config" element={<LISConfig />} />
           <Route path="specialty-emr" element={<SpecialtyEMR />} />
+          <Route path="signing-workflow" element={<SigningWorkflow />} />
+          <Route path="medical-record-planning" element={<MedicalRecordPlanning />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

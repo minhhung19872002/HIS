@@ -20,6 +20,9 @@ import {
   Alert,
   Badge,
   Tooltip,
+  Drawer,
+  Empty,
+  Form,
 } from 'antd';
 import {
   PrinterOutlined,
@@ -56,6 +59,9 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   PlayCircleOutlined,
+  ContainerOutlined,
+  SolutionOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -66,6 +72,7 @@ import type {
   StatisticsReportRequest,
 } from '../api/system';
 import { reconciliationApi } from '../api/reconciliation';
+import { getBhytReport, getAdminReport, getPharmacyReport } from '../api/bhytReports';
 import { hospitalReportApi, type HospitalReportResult } from '../api/hospitalReport';
 import type {
   SupplierProcurementItemDto,
@@ -2065,6 +2072,388 @@ const ReportBuilderTab: React.FC = () => {
 };
 
 // ============================================================================
+// NangCap10 Report Definitions (Items 376-415)
+// ============================================================================
+
+interface Nc10ReportDef {
+  id: string;
+  name: string;
+  description: string;
+}
+
+// Tab 1 - BC Chi phi KCB (BHYT Cost Reports) - 10 reports (items 376-385)
+const bhytCostReports: Nc10ReportDef[] = [
+  { id: 'bhyt-16', name: '16/BHYT - DM thuoc che pham YHCT thanh toan BHYT', description: 'Danh muc thuoc che pham y hoc co truyen duoc BHYT thanh toan' },
+  { id: 'bhyt-17', name: '17/BHYT - DM vi thuoc YHCT thanh toan BHYT', description: 'Danh muc vi thuoc y hoc co truyen duoc BHYT thanh toan' },
+  { id: 'bhyt-18', name: '18/BHYT - Thong ke DV KT su dung thuoc phong xa', description: 'Thong ke dich vu ky thuat su dung thuoc phong xa va hop chat danh dau' },
+  { id: 'bhyt-19', name: '19/BHYT - Thong ke tong hop VTYT duoc BHYT thanh toan', description: 'Thong ke tong hop vat tu y te duoc BHYT thanh toan theo ky' },
+  { id: 'bhyt-20', name: '20/BHYT - Thong ke tong hop thuoc su dung cho BN BHYT', description: 'Thong ke tong hop thuoc su dung cho benh nhan BHYT theo ky bao cao' },
+  { id: 'bhyt-21', name: '21/BHYT - Thong ke tong hop DVKT su dung cho BN BHYT', description: 'Thong ke tong hop dich vu ky thuat su dung cho benh nhan BHYT' },
+  { id: 'bhyt-c79a', name: 'C79a-HD - DS BN BHYT KCB ngoai tru de nghi thanh toan', description: 'Danh sach benh nhan BHYT kham chua benh ngoai tru de nghi co quan BHXH thanh toan' },
+  { id: 'bhyt-c80a', name: 'C80a-HD - DS BN BHYT KCB noi tru de nghi thanh toan', description: 'Danh sach benh nhan BHYT kham chua benh noi tru de nghi co quan BHXH thanh toan' },
+  { id: 'bhyt-c79b-c80b', name: 'C79B-HD va C80B-HD', description: 'Bieu mau C79B va C80B tong hop chi phi KCB BHYT ngoai tru va noi tru' },
+  { id: 'bhyt-21-cv285', name: '21/BHYT theo CV 285 BHXH', description: 'Thong ke tong hop DVKT theo cong van 285/BHXH-CSYT' },
+];
+
+// Tab 2 - BC Hanh chinh & CLS (Administrative & CLS Reports) - 18 reports (items 386-403)
+const adminClsReports: Nc10ReportDef[] = [
+  { id: 'admin-so-kham', name: 'So kham benh (chung, chuyen khoa, ngoai tru)', description: 'So kham benh tong hop: kham chung, kham chuyen khoa va kham ngoai tru' },
+  { id: 'admin-so-vao-ra', name: 'So vao vien, ra vien, chuyen vien', description: 'So theo doi benh nhan vao vien, ra vien va chuyen vien' },
+  { id: 'admin-so-pt', name: 'So phau thuat', description: 'So theo doi cac ca phau thuat da thuc hien' },
+  { id: 'admin-so-tt', name: 'So thu thuat', description: 'So theo doi cac thu thuat da thuc hien' },
+  { id: 'admin-so-xn', name: 'So xet nghiem', description: 'So xet nghiem tong hop tat ca cac loai' },
+  { id: 'admin-so-xn-tb', name: 'So xet nghiem te bao mau ngoai vi', description: 'So xet nghiem te bao mau ngoai vi (huyet do)' },
+  { id: 'admin-so-cdha', name: 'So chan doan hinh anh', description: 'So theo doi chan doan hinh anh (X-quang, CT, MRI, sieu am)' },
+  { id: 'admin-so-ns', name: 'So noi soi', description: 'So theo doi cac thu thuat noi soi' },
+  { id: 'admin-so-vs', name: 'So xet nghiem vi sinh', description: 'So xet nghiem vi sinh (cay, KSĐ, nhuan sac)' },
+  { id: 'admin-luu-hsba', name: 'So luu tru ho so benh an', description: 'So luu tru ho so benh an da hoan thanh dieu tri' },
+  { id: 'admin-luu-hsba-tv', name: 'So luu tru ho so benh an tu vong', description: 'So luu tru ho so benh an cac ca tu vong' },
+  { id: 'admin-th-thuoc', name: 'So tong hop thuoc hang ngay', description: 'So tong hop thuoc su dung hang ngay toan vien' },
+  { id: 'admin-bc-icd10', name: 'BC tinh hinh benh tat tu vong theo ICD10', description: 'Bao cao tinh hinh benh tat va tu vong phan loai theo ma ICD-10' },
+  { id: 'admin-bc-kham', name: 'BC hoat dong kham benh', description: 'Bao cao tong hop hoat dong kham benh theo ky' },
+  { id: 'admin-bc-dt', name: 'BC hoat dong dieu tri', description: 'Bao cao tong hop hoat dong dieu tri noi tru' },
+  { id: 'admin-bc-pttt', name: 'BC hoat dong phau thuat, thu thuat', description: 'Bao cao tong hop hoat dong phau thuat va thu thuat' },
+  { id: 'admin-bc-cls', name: 'BC hoat dong Can Lam Sang', description: 'Bao cao hoat dong can lam sang (xet nghiem, CDHA, TDCN)' },
+  { id: 'admin-bc-tntt', name: 'BC tai nan thuong tich', description: 'Bao cao thong ke tai nan thuong tich theo nguyen nhan va muc do' },
+];
+
+// Tab 3 - BC Duoc (Pharmacy Reports) - 12 reports (items 404-415)
+const pharmacyExtReports: Nc10ReportDef[] = [
+  { id: 'pharma-the-kho', name: 'The kho', description: 'The kho theo doi xuat nhap ton tung mat hang theo lo/han' },
+  { id: 'pharma-bc-cong-tac', name: 'BC cong tac duoc benh vien', description: 'Bao cao tong hop cong tac duoc benh vien theo ky' },
+  { id: 'pharma-bc-sd-thuoc', name: 'BC su dung thuoc', description: 'Bao cao tinh hinh su dung thuoc toan vien' },
+  { id: 'pharma-bc-ks', name: 'BC su dung khang sinh', description: 'Bao cao tinh hinh su dung khang sinh (theo DDD, theo khoa)' },
+  { id: 'pharma-bc-hc', name: 'BC su dung hoa chat', description: 'Bao cao tinh hinh su dung hoa chat xet nghiem' },
+  { id: 'pharma-bc-vtyt', name: 'BC su dung vat tu y te tieu hao', description: 'Bao cao tinh hinh su dung vat tu y te tieu hao theo khoa' },
+  { id: 'pharma-kk-thuoc', name: 'Bien ban kiem ke thuoc', description: 'Bien ban kiem ke thuoc dinh ky tai kho/tu truc' },
+  { id: 'pharma-kk-hc', name: 'Bien ban kiem ke hoa chat', description: 'Bien ban kiem ke hoa chat xet nghiem' },
+  { id: 'pharma-kk-vtyt', name: 'Bien ban kiem ke vat tu y te tieu hao', description: 'Bien ban kiem ke vat tu y te tieu hao' },
+  { id: 'pharma-mat-hong', name: 'BB xac nhan thuoc/hoa chat/VTYT mat/hong/vo', description: 'Bien ban xac nhan thuoc, hoa chat, VTYT bi mat, hong hoac vo' },
+  { id: 'pharma-thanh-ly', name: 'BB thanh ly thuoc', description: 'Bien ban thanh ly thuoc het han su dung hoac khong dat chat luong' },
+  { id: 'pharma-kiem-nhap', name: 'So kiem nhap thuoc/hoa chat/VTYT tieu hao', description: 'So kiem nhap thuoc, hoa chat, VTYT tieu hao khi nhap kho' },
+];
+
+// ============================================================================
+// Shared NangCap10 Report Tab Component
+// ============================================================================
+
+interface Nc10ReportTabProps {
+  reports: Nc10ReportDef[];
+  tabColor: string;
+  tabIcon: React.ReactNode;
+  tabTitle: string;
+  tabDescription: string;
+  apiFn: (reportId: string, params?: Record<string, unknown>) => Promise<unknown>;
+}
+
+const Nc10ReportTab: React.FC<Nc10ReportTabProps> = ({
+  reports,
+  tabColor,
+  tabIcon,
+  tabTitle,
+  tabDescription,
+  apiFn,
+}) => {
+  const [selectedReport, setSelectedReport] = useState<Nc10ReportDef | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().startOf('month'),
+    dayjs(),
+  ]);
+  const [departmentFilter, setDepartmentFilter] = useState<string | undefined>(undefined);
+  const [patientTypeFilter, setPatientTypeFilter] = useState<string | undefined>(undefined);
+  const [reportData, setReportData] = useState<Record<string, unknown>[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [reportColumns, setReportColumns] = useState<ColumnsType<any>>([]);
+
+  const handleOpenReport = useCallback((report: Nc10ReportDef) => {
+    setSelectedReport(report);
+    setReportData([]);
+    setReportColumns([]);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleGenerateReport = useCallback(async () => {
+    if (!selectedReport) return;
+    setLoading(true);
+    try {
+      const params: Record<string, unknown> = {
+        fromDate: dateRange[0].format('YYYY-MM-DD'),
+        toDate: dateRange[1].format('YYYY-MM-DD'),
+      };
+      if (departmentFilter) params.departmentId = departmentFilter;
+      if (patientTypeFilter) params.patientType = patientTypeFilter;
+
+      const response = await apiFn(selectedReport.id, params);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = (response as any)?.data;
+      if (data && Array.isArray(data.items)) {
+        setReportData(data.items);
+        if (data.items.length > 0) {
+          const cols = Object.keys(data.items[0]).map((key) => ({
+            title: key,
+            dataIndex: key,
+            key,
+            width: 150,
+            render: (v: unknown) =>
+              typeof v === 'number' ? v.toLocaleString('vi-VN') : String(v ?? ''),
+          }));
+          setReportColumns(cols);
+        }
+        message.success(`Da tai bao cao: ${selectedReport.name}`);
+      } else if (data && Array.isArray(data)) {
+        setReportData(data);
+        if (data.length > 0) {
+          const cols = Object.keys(data[0]).map((key) => ({
+            title: key,
+            dataIndex: key,
+            key,
+            width: 150,
+            render: (v: unknown) =>
+              typeof v === 'number' ? v.toLocaleString('vi-VN') : String(v ?? ''),
+          }));
+          setReportColumns(cols);
+        }
+        message.success(`Da tai bao cao: ${selectedReport.name}`);
+      } else {
+        setReportData([]);
+        setReportColumns([]);
+        message.warning('Khong co du lieu cho ky bao cao nay');
+      }
+    } catch {
+      console.warn(`Error loading report ${selectedReport.id}`);
+      setReportData([]);
+      setReportColumns([]);
+      message.warning('Bao cao chua co du lieu. He thong se cap nhat sau.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedReport, dateRange, departmentFilter, patientTypeFilter, apiFn]);
+
+  const handleExportExcel = useCallback(() => {
+    message.info('Chuc nang xuat Excel dang duoc phat trien. Vui long thu lai sau.');
+  }, []);
+
+  return (
+    <div>
+      <Alert
+        title={tabTitle}
+        description={tabDescription}
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
+
+      <Row gutter={[16, 16]}>
+        {reports.map((report) => (
+          <Col key={report.id} xs={24} sm={12} md={8}>
+            <Card
+              hoverable
+              size="small"
+              style={{ height: '100%', borderLeft: `3px solid ${tabColor}` }}
+              onClick={() => handleOpenReport(report)}
+            >
+              <Space orientation="vertical" style={{ width: '100%' }}>
+                <Space>
+                  {tabIcon}
+                  <Text strong style={{ fontSize: 13 }}>{report.name}</Text>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {report.description}
+                </Text>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenReport(report);
+                  }}
+                  style={{ marginTop: 4 }}
+                >
+                  Xem bao cao
+                </Button>
+              </Space>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      <Drawer
+        title={
+          <Space>
+            {tabIcon}
+            <span>{selectedReport?.name || 'Bao cao'}</span>
+          </Space>
+        }
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        width={900}
+        destroyOnHidden
+      >
+        {selectedReport && (
+          <div>
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Text type="secondary">{selectedReport.description}</Text>
+            </Card>
+
+            {/* Filters */}
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={8}>
+                <Text strong>Thoi gian:</Text>
+                <br />
+                <RangePicker
+                  format="DD/MM/YYYY"
+                  style={{ width: '100%', marginTop: 8 }}
+                  value={dateRange}
+                  onChange={(dates) => {
+                    if (dates) setDateRange([dates[0]!, dates[1]!]);
+                  }}
+                />
+              </Col>
+              <Col span={6}>
+                <Text strong>Khoa/Phong:</Text>
+                <br />
+                <Select
+                  style={{ width: '100%', marginTop: 8 }}
+                  value={departmentFilter}
+                  onChange={setDepartmentFilter}
+                  allowClear
+                  placeholder="Tat ca khoa/phong"
+                >
+                  <Select.Option value="noi">Khoa Noi</Select.Option>
+                  <Select.Option value="ngoai">Khoa Ngoai</Select.Option>
+                  <Select.Option value="san">Khoa San</Select.Option>
+                  <Select.Option value="nhi">Khoa Nhi</Select.Option>
+                  <Select.Option value="xn">Khoa Xet nghiem</Select.Option>
+                  <Select.Option value="cdha">Khoa CDHA</Select.Option>
+                  <Select.Option value="duoc">Khoa Duoc</Select.Option>
+                  <Select.Option value="cap_cuu">Khoa Cap cuu</Select.Option>
+                </Select>
+              </Col>
+              <Col span={5}>
+                <Text strong>Doi tuong:</Text>
+                <br />
+                <Select
+                  style={{ width: '100%', marginTop: 8 }}
+                  value={patientTypeFilter}
+                  onChange={setPatientTypeFilter}
+                  allowClear
+                  placeholder="Tat ca"
+                >
+                  <Select.Option value="bhyt">BHYT</Select.Option>
+                  <Select.Option value="vp">Vien phi</Select.Option>
+                  <Select.Option value="yc">Dich vu</Select.Option>
+                </Select>
+              </Col>
+              <Col span={5}>
+                <Text strong>&nbsp;</Text>
+                <br />
+                <Space style={{ marginTop: 8 }}>
+                  <Button
+                    type="primary"
+                    icon={<SearchOutlined />}
+                    onClick={handleGenerateReport}
+                    loading={loading}
+                  >
+                    Tao bao cao
+                  </Button>
+                  <Tooltip title="Xuat Excel">
+                    <Button
+                      icon={<FileExcelOutlined />}
+                      onClick={handleExportExcel}
+                      style={{ backgroundColor: '#52c41a', color: 'white' }}
+                    >
+                      Excel
+                    </Button>
+                  </Tooltip>
+                </Space>
+              </Col>
+            </Row>
+
+            <Divider style={{ margin: '12px 0' }} />
+
+            {/* Report Data Table */}
+            <Spin spinning={loading} tip="Dang tai du lieu...">
+              {reportData.length > 0 ? (
+                <Table
+                  columns={reportColumns}
+                  dataSource={reportData}
+                  rowKey={(_record, index) => `row-${index}`}
+                  size="small"
+                  scroll={{ x: 'max-content' }}
+                  pagination={{
+                    pageSize: 20,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tong: ${total} dong`,
+                  }}
+                  bordered
+                />
+              ) : (
+                <Empty
+                  description={
+                    <Text type="secondary">
+                      Chon thoi gian va nhan &quot;Tao bao cao&quot; de xem du lieu
+                    </Text>
+                  }
+                  style={{ padding: '40px 0' }}
+                />
+              )}
+            </Spin>
+          </div>
+        )}
+      </Drawer>
+    </div>
+  );
+};
+
+// ============================================================================
+// BHYT Cost Reports Tab (Items 376-385)
+// ============================================================================
+
+const BhytCostReportsTab: React.FC = () => (
+  <Nc10ReportTab
+    reports={bhytCostReports}
+    tabColor="#13c2c2"
+    tabIcon={<SafetyCertificateOutlined style={{ color: '#13c2c2' }} />}
+    tabTitle="Bao cao Chi phi KCB BHYT (10 bao cao)"
+    tabDescription="Cac bieu mau bao cao chi phi kham chua benh BHYT theo quy dinh: mau 16-21/BHYT, C79a-HD, C80a-HD, C79B/C80B-HD, va mau 21/BHYT theo CV 285 BHXH."
+    apiFn={getBhytReport}
+  />
+);
+
+// ============================================================================
+// Administrative & CLS Reports Tab (Items 386-403)
+// ============================================================================
+
+const AdminClsReportsTab: React.FC = () => (
+  <Nc10ReportTab
+    reports={adminClsReports}
+    tabColor="#722ed1"
+    tabIcon={<SolutionOutlined style={{ color: '#722ed1' }} />}
+    tabTitle="Bao cao Hanh chinh & Can lam sang (18 bao cao)"
+    tabDescription="So kham benh, so vao/ra vien, so phau thuat/thu thuat, so xet nghiem/CDHA/noi soi/vi sinh, so luu tru HSBA, bao cao hoat dong kham benh/dieu tri/PTTT/CLS va tai nan thuong tich."
+    apiFn={getAdminReport}
+  />
+);
+
+// ============================================================================
+// Pharmacy Reports Tab (Items 404-415)
+// ============================================================================
+
+const PharmacyExtReportsTab: React.FC = () => (
+  <Nc10ReportTab
+    reports={pharmacyExtReports}
+    tabColor="#52c41a"
+    tabIcon={<ContainerOutlined style={{ color: '#52c41a' }} />}
+    tabTitle="Bao cao Duoc (12 bao cao)"
+    tabDescription="The kho, bao cao cong tac duoc/su dung thuoc/khang sinh/hoa chat/VTYT, bien ban kiem ke thuoc/hoa chat/VTYT, bien ban xac nhan mat-hong, thanh ly thuoc va so kiem nhap."
+    apiFn={getPharmacyReport}
+  />
+);
+
+// ============================================================================
 // Main Reports Component with Tabs
 // ============================================================================
 
@@ -2109,6 +2498,39 @@ const Reports: React.FC = () => {
               </Space>
             ),
             children: <ReportBuilderTab />,
+          },
+          {
+            key: 'bhyt-cost',
+            label: (
+              <Space>
+                <SafetyCertificateOutlined />
+                <span>BC Chi phí KCB</span>
+                <Badge count={10} style={{ backgroundColor: '#13c2c2' }} size="small" />
+              </Space>
+            ),
+            children: <BhytCostReportsTab />,
+          },
+          {
+            key: 'admin-cls',
+            label: (
+              <Space>
+                <SolutionOutlined />
+                <span>BC Hành chính &amp; CLS</span>
+                <Badge count={18} style={{ backgroundColor: '#722ed1' }} size="small" />
+              </Space>
+            ),
+            children: <AdminClsReportsTab />,
+          },
+          {
+            key: 'pharmacy-ext',
+            label: (
+              <Space>
+                <ContainerOutlined />
+                <span>BC Dược</span>
+                <Badge count={12} style={{ backgroundColor: '#52c41a' }} size="small" />
+              </Space>
+            ),
+            children: <PharmacyExtReportsTab />,
           },
         ]}
       />

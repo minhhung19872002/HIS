@@ -1661,4 +1661,68 @@ namespace HIS.Application.DTOs.System
     }
 
     #endregion
+
+    #region IT Ticket DTOs
+
+    /// <summary>
+    /// IT Ticket DTO
+    /// </summary>
+    public class ItTicketDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string DepartmentName { get; set; } = string.Empty;
+        public string RequestedByName { get; set; } = string.Empty;
+        public int Priority { get; set; } // 1=Low, 2=Medium, 3=High, 4=Urgent
+        public int Status { get; set; } // 0=New, 1=InProgress, 2=Resolved, 3=Closed
+        public string? Response { get; set; }
+        public string? AssignedToName { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ResolvedAt { get; set; }
+    }
+
+    /// <summary>
+    /// IT Ticket search parameters
+    /// </summary>
+    public class ItTicketSearchDto
+    {
+        public int? Status { get; set; }
+        public int? Priority { get; set; }
+        public string? Keyword { get; set; }
+        public int PageIndex { get; set; } = 0;
+        public int PageSize { get; set; } = 20;
+    }
+
+    /// <summary>
+    /// Create IT Ticket request
+    /// </summary>
+    public class CreateItTicketDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int Priority { get; set; } = 2;
+    }
+
+    /// <summary>
+    /// Respond to IT Ticket
+    /// </summary>
+    public class RespondItTicketDto
+    {
+        public string Response { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// IT Ticket statistics
+    /// </summary>
+    public class ItTicketStatsDto
+    {
+        public int NewCount { get; set; }
+        public int InProgressCount { get; set; }
+        public int ResolvedCount { get; set; }
+        public int ClosedCount { get; set; }
+        public int TotalCount { get; set; }
+    }
+
+    #endregion
 }

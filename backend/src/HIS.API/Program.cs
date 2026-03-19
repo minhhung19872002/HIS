@@ -17,6 +17,7 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 // Add services
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 

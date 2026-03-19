@@ -213,6 +213,15 @@ public static class DependencyInjection
         // Clinical Records: Partograph + Anesthesia
         services.AddScoped<IClinicalRecordService, ClinicalRecordService>();
 
+        // Signing Workflow (Trinh ky - NangCap10 EMR #44)
+        services.AddScoped<ISigningWorkflowService, SigningWorkflowService>();
+
+        // NangCap11: EMR Admin (cover types, signers, signing roles, document types, completeness, etc.)
+        services.AddScoped<IEmrAdminService, EmrAdminService>();
+
+        // Medical Record Planning (KHTH - Ke hoach Tong hop)
+        services.AddScoped<IMedicalRecordPlanningService, MedicalRecordPlanningService>();
+
         return services;
     }
 }

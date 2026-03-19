@@ -373,6 +373,19 @@ public class HISDbContext : DbContext
     // Bệnh án chuyên khoa điện tử (Specialty EMR)
     public DbSet<SpecialtyEmr> SpecialtyEmrs => Set<SpecialtyEmr>();
 
+    // Trình ký (Signing Workflow)
+    public DbSet<SigningRequest> SigningRequests => Set<SigningRequest>();
+
+    // NangCap11: EMR Admin Catalogs
+    public DbSet<EmrCoverType> EmrCoverTypes => Set<EmrCoverType>();
+    public DbSet<EmrDocumentAttachment> EmrDocumentAttachments => Set<EmrDocumentAttachment>();
+    public DbSet<EmrPrintLog> EmrPrintLogs => Set<EmrPrintLog>();
+    public DbSet<EmrSignerCatalog> EmrSignerCatalogs => Set<EmrSignerCatalog>();
+    public DbSet<EmrSigningRole> EmrSigningRoles => Set<EmrSigningRole>();
+    public DbSet<EmrSigningOperation> EmrSigningOperations => Set<EmrSigningOperation>();
+    public DbSet<EmrDocumentGroup> EmrDocumentGroups => Set<EmrDocumentGroup>();
+    public DbSet<EmrDocumentType> EmrDocumentTypes => Set<EmrDocumentType>();
+
     // Partograph + Anesthesia (Clinical Records)
     public DbSet<PartographRecord> PartographRecords => Set<PartographRecord>();
     public DbSet<AnesthesiaRecord> AnesthesiaRecords => Set<AnesthesiaRecord>();

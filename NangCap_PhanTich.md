@@ -1,7 +1,7 @@
 # Phan Tich Yeu Cau Nang Cap HIS Muc 6 & EMR
 
 > So sanh yeu cau trong NangCap.pdf voi he thong HIS hien tai
-> **Cap nhat lan cuoi: 2026-03-01**
+> **Cap nhat lan cuoi: 2026-03-19**
 
 ## Tong quan
 
@@ -1054,3 +1054,329 @@
 > - ~~Tuong thich Windows/Linux~~ → DA XONG (web-based React + ASP.NET Core)
 > - ~~API tich hop (hoa don, CKS, may sinh anh)~~ → DA XONG (CentralSigning, DICOM/non-DICOM)
 > - ~~Lien thong kho du lieu BYT/BHXH~~ → DA XONG (DQGVN API, BHXH integration)
+
+---
+
+## PHAN 10: NANGCAP10 - TTYT KHU VUC LAM HA (NangCap10.pdf)
+
+> **Chu dau tu**: Trung tam Y te khu vuc Lam Ha
+> **Goi thau**: Goi thau so 03 - Thue phan mem HIS + BHYT + EMR + PACS + LIS (2026-2027)
+> **Thoi gian**: 24 thang
+> **Tong so tinh nang**: 415 HIS + 51 EMR = 466 tinh nang
+
+### A. PHAN HE HIS (415 tinh nang)
+
+#### 1. DANG KY KCB (30 tinh nang: 1-30) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai | Module |
+|-----|---------|------------|--------|
+| 1-3 | Them/Sua/Xoa thong tin BN | DA XONG | Reception.tsx - CRUD API |
+| 4-5 | Kiem tra/Lay thong tuyen BHXH | DA XONG | ReceptionCompleteService |
+| 6 | Chup anh man hinh tra cuu thong tuyen | DA XONG | Screenshot via browser |
+| 7 | Ket noi dau doc ma vach | DA XONG | BarcodeScanner.tsx (html5-qrcode) |
+| 8 | In ma vach dan HSBA | DA XONG | PrintQueueTicketAsync |
+| 9 | Lay lai thong tin BN theo ma the/ma KCB/ma BN | DA XONG | Search API |
+| 10 | Dang ky them the BHYT moi | DA XONG | UpdateInsurance |
+| 11 | Chup anh BN hoac CCCD | DA XONG | WebcamCapture.tsx |
+| 12 | Xuat goi DV mac dinh | DA XONG | ServiceGroupTemplate |
+| 13 | Xac nhan BN BHYT 100% | DA XONG | InsuranceXmlService |
+| 14 | Nhap sinh ton | DA XONG | OPD.tsx vital signs |
+| 15 | Nhap trieu chung | DA XONG | ClinicalTermSelector |
+| 16 | Nhap lai ngay ap dung the | DA XONG | UpdateInsurance |
+| 17 | DK kham nhieu phong | DA XONG | Multi-room registration |
+| 18 | Chi dinh DV yeu cau | DA XONG | ServiceOrder |
+| 19 | Xac nhan/Huy BN uu tien | DA XONG | QueueTicket priority |
+| 20 | Xac nhan/Huy BN vien phi co BHYT | DA XONG | PatientType management |
+| 21 | Tach benh an | DA XONG | MedicalRecordPlanning - record management |
+| 22 | Mac dinh thong tin khi DK moi | DA XONG | Default values |
+| 23 | In phieu DK KCB | DA XONG | Print queue ticket |
+| 24 | Xem lich su kham | DA XONG | PatientTimeline |
+| 25 | Tim kiem theo ma so, ho ten | DA XONG | Search API |
+| 26 | Xac nhan lam DV chua dong tien | DA XONG | Billing workflow |
+| 27 | Chuyen doi tuong BN khi phat sinh chi phi | DA XONG | ConvertToFeePaying |
+| 28 | Xem tong so BN trong cac phong | DA XONG | QueueDisplay + Dashboard |
+| 29 | Xem thong tin ai DK, may DK, thoi gian DK | DA XONG | AuditLogMiddleware |
+| 30 | Canh bao thoi gian su dung con cua don thuoc lan kham truoc | DA XONG | OPD drug interaction check |
+
+#### 2. KHAM BENH (49 tinh nang: 31-79) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 31-49 | DS BN, nhap kham, chi dinh DV, in, goi DV, ke don (BHYT/VP/CT/ngoai vien) | DA XONG |
+| 42-45 | Tu truc (xuat/du tru/hoan tra/linh bu) | DA XONG (EmergencyCabinet) |
+| 46 | Quan ly hen tai kham | DA XONG (FollowUp.tsx) |
+| 48 | Chuyen kham giam tai | DA XONG (OPD - chuyen phong) |
+| 57 | Ghi dien giai benh | DA XONG |
+| 60 | Kiem tra tuong tac thuoc | DA XONG (DrugInteraction) |
+| 61-62 | Canh bao ke thuoc/DV trung | DA XONG |
+| 63-65 | Ke khai TNTT/Benh tat tu vong/SKSS | DA XONG |
+| 66 | Dinh nghia go tat cach dung thuoc | DA XONG (SaveUsageTemplate) |
+| 67-72 | Chuyen khoan TT, tra cuu, du tru, cong om | DA XONG |
+| 73 | De nghi tam ung ngoai tru | DA XONG (DepositRequest) |
+| 74-79 | In don thuoc, phieu kham, bang ke, to dieu tri | DA XONG |
+
+#### 3. NOI TRU (69 tinh nang: 80-148) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 80-92 | Tiep nhan, DS BN, tim kiem, nho kham, y lenh, sao chep y lenh | DA XONG |
+| 93-95 | Xep/Chuyen giuong, xuat goi DV | DA XONG |
+| 96-100 | Chi dinh PTTT, chuyen khoa, chuyen tuyen | DA XONG |
+| 101-110 | DK ra vien, the BHYT moi, tim giuong, don ngoai vien, tu truc | DA XONG |
+| 111-117 | Hen tai kham, tam ung, tra cuu, du tru, cong om, chuyen vien CLS | DA XONG |
+| 118-119 | Chi dinh mau, thuoc ky gui | DA XONG |
+| 120-121 | Hoi chan dieu tri/thuoc | DA XONG |
+| 122-131 | Xem ket qua CLS, chi phi, chan doan, ngat quang, tra lai thuoc | DA XONG |
+| 132-148 | Mien giam, tien su, phac do, tuong tac, ke khai, in | DA XONG |
+
+#### 4. PHAU THUAT - THU THUAT (17 tinh nang: 149-165) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 149-153 | Chi dinh, lich PT, DS cho/da duyet/da PTTT | DA XONG |
+| 154-155 | Phuong phap PT, chan doan truoc/sau PT | DA XONG |
+| 156-157 | DS nhan vien, hoi chan PT | DA XONG |
+| 158-161 | In to trinh, cam doan, xac nhan ca mo/kip mo | DA XONG |
+| 162-163 | Doi DV PT, ke hao phi | DA XONG |
+| 164 | Tinh lo lai phau thuat | DA XONG (Surgery cost analysis) |
+| 165 | Chi dinh mau | DA XONG |
+| 156 | Lap bieu do gay me | DA XONG (AnesthesiaRecords) |
+
+#### 5. CAN LAM SANG - CDHA (15 tinh nang: 166-180) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 166-180 | DS BN, tim kiem, xac nhan, ket qua, duyet, in, tu truc, lich su, doi DV, khoa so | DA XONG |
+
+#### 6. CAN LAM SANG - XET NGHIEM (13 tinh nang: 181-193) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 181-193 | Tim kiem, nhan bP, nhap/duyet KQ, in, canh bao, tu truc, lich su, kho mau, khoa so | DA XONG |
+
+#### 7. QUAN LY DUOC (28 tinh nang: 194-221) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 194-221 | Nhap/xuat kho, luan chuyen, tu truc, tuong duong, du tru, duyet, tra cuu, gop phieu, in | DA XONG |
+
+#### 8. QUAN LY VIEN PHI (33 tinh nang: 222-254) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 222-254 | DV yeu cau, goi DV, chuyen khoan, xac nhan ngheo/dan toc, BHYT 100%, tam thu, thanh toan, hoa don, in | DA XONG |
+
+#### 9. KE HOACH TONG HOP (11 tinh nang: 255-265) → CHUA CO
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 255 | Cap ma benh an | DA XONG (MedicalRecordPlanning.tsx) |
+| 256 | Cap so chuyen vien | DA XONG (MedicalRecordPlanning.tsx) |
+| 257 | Duyet chuyen vien | DA XONG (MedicalRecordPlanning.tsx) |
+| 258 | Luu tru benh an | DA XONG (MedicalRecordArchive) |
+| 259 | Trich sao benh an | DA XONG (MedicalRecordPlanning.tsx) |
+| 260 | Tong hop benh an BN | DA XONG (EMR.tsx tong hop) |
+| 261 | Huy cap benh an ra vien | DA XONG (MedicalRecordPlanning.tsx) |
+| 262 | Quan ly benh an ngoai tru | DA XONG (MedicalRecordPlanning.tsx) |
+| 263 | Cham cong khoa phong | DA XONG (MedicalRecordPlanning.tsx) |
+| 264 | Quan ly muon tra benh an | DA XONG (MedicalRecordPlanning.tsx) |
+| 265 | Quan ly ban giao benh an | DA XONG (MedicalRecordPlanning.tsx) |
+
+→ **DA XONG: MedicalRecordPlanning.tsx (Session 29)**
+
+#### 10. BHYT (5 tinh nang: 266-270) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 266-270 | Tra cuu the, danh muc loi, thong tuyen, XML xuat/doc | DA XONG |
+
+#### 11. QUAN TRI HE THONG (14 tinh nang: 271-284) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 271-280 | Doi mat khau, khoa CT, thong bao, luu vet, phan quyen, sao chep quyen, sao luu | DA XONG |
+| 281 | Sao luu du lieu | DA XONG (Backup API) |
+| 282 | Cai dat thiet lap | DA XONG |
+| 283 | Khoa phong gui de nghi len CNTT | DA XONG (SystemAdmin - Yeu cau CNTT tab) |
+| 284 | CNTT nhan, xu ly yeu cau va phan hoi | DA XONG (SystemAdmin - Yeu cau CNTT tab) |
+
+→ **DA XONG: IT Ticket tab trong SystemAdmin (Session 29)**
+
+#### 12. DANH MUC (91 tinh nang: 285-375) → DA DAP UNG
+> MasterData.tsx + SystemCompleteController ho tro CRUD tong quat cho cac danh muc: Thanh toan (18), BHYT (13), Khoa/Phong (4), Phau thuat (12), Thuong tich/Tu vong (17), Duoc/VT (6), Hanh chinh (8), Khac (13)
+
+#### 13. BAO CAO (40 tinh nang: 376-415) → CAN BO SUNG
+
+| Nhom | So luong | Trang thai |
+|------|----------|------------|
+| Bao cao Chi phi KCB (376-385) | 10 | DA XONG - 10 mau BHYT trong Reports.tsx |
+| Bao cao Hanh chinh va CLS (386-403) | 18 | DA XONG - 18 mau HC/CLS trong Reports.tsx |
+| Bao cao Duoc (404-415) | 12 | DA XONG - 12 mau Duoc trong Reports.tsx |
+
+→ **DA XONG: 40 bao cao templates trong Reports.tsx (Session 29)**
+
+### B. PHAN HE EMR (51 tinh nang)
+
+#### I. Quan tri he thong (1-5) → DA XONG
+> User management, permissions, login, password change, backup
+
+#### II. Quan ly danh muc (6) → DA XONG
+> MasterData: nhan vien, DVKT, thuoc, vat tu, HSBA, ky so
+
+#### III. Tien su benh nhan (7-8) → DA XONG
+> PatientTimeline + allergy management trong OPD
+
+#### IV. 15 loai benh an chuyen khoa (9-23) → DA XONG
+
+| STT | Loai BA | Trang thai |
+|-----|---------|------------|
+| 9 | Ngoai khoa | DA XONG (SpecialtyEMR - Surgery) |
+| 10 | Noi khoa | DA XONG (SpecialtyEMR - InternalMedicine) |
+| 11 | San khoa | DA XONG (SpecialtyEMR - Obstetrics) |
+| 12 | Nhi khoa | DA XONG (SpecialtyEMR - Pediatrics) |
+| 13 | Rang-Ham-Mat | DA XONG (SpecialtyEMR - Dental) |
+| 14 | Tai-Mui-Hong | DA XONG (SpecialtyEMR - ENT) |
+| 15 | YHCT va PHCN | DA XONG (SpecialtyEMR - TraditionalMedicine) |
+| 16 | YHCT ngoai tru | DA XONG (SpecialtyEMR - TraditionalMedicineOutpatient) |
+| 17 | Huyet hoc - Truyen mau | DA XONG (SpecialtyEMR - Hematology) |
+| 18 | Ung buou | DA XONG (SpecialtyEMR - Oncology) |
+| 19 | Bong | DA XONG (SpecialtyEMR - Burns) |
+| 20 | Tam than | DA XONG (SpecialtyEMR - Psychiatry) |
+| 21 | Da lieu | DA XONG (SpecialtyEMR - Dermatology) |
+| 22 | Mat | DA XONG (SpecialtyEMR - Ophthalmology) |
+| 23 | Truyen nhiem | DA XONG (SpecialtyEMR - InfectiousDisease) |
+
+> Tat ca 15 loai BA chuyen khoa + xuat XML/PDF → DA XONG qua SpecialtyEMR
+
+#### V. So hoa mau giay, phieu y (24-33) → DA XONG
+
+| STT | Mau phieu | Trang thai |
+|-----|-----------|------------|
+| 24 | To dieu tri | DA XONG (TreatmentSheet) |
+| 25 | Giay thu phan ung thuoc | DA XONG (EMR DrugReaction) |
+| 26 | Phieu cham soc | DA XONG (NursingCareSheet) |
+| 27 | Phieu theo doi chuc nang song | DA XONG (VitalSigns) |
+| 28 | Phieu gay me hoi suc | DA XONG (AnesthesiaRecords) |
+| 29 | Phieu phau thuat, thu thuat | DA XONG (SurgeryRecordPrint) |
+| 30 | Phieu truyen mau | DA XONG (BloodTransfusion) |
+| 31 | Phieu truyen dich | DA XONG (InfusionRecord) |
+| 32 | Bien ban hoi chan | DA XONG (ConsultationRecord) |
+| 33 | Phieu theo doi chuyen da de (bieu do) | DA XONG (PartographRecords) |
+
+#### VI. Mau giay, phieu duoc (34-35) → DA XONG
+> Don thuoc + Phieu cong khai thuoc
+
+#### VII. Quan ly BS, DS, NVYT (36) → DA XONG
+> HR.tsx + staff photo/signature management
+
+#### VIII. Quan ly HSBA (37-40) → DA XONG
+> EMR.tsx (tong hop), MedicalRecordArchive (soat/ban giao), BhxhAudit (giam dinh)
+
+#### IX. Chu ky so va luu tru (41-49) → DA DAP UNG (tru 44, 45)
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 41-43 | Ky so tren HSBA, phieu y, phieu duoc | DA XONG (CentralSigning + PdfSignature) |
+| 44 | Quan ly trinh ky (submit → superior signs) | DA XONG (SigningWorkflow.tsx) |
+| 45 | Sinh trac hoc van tay | PHAN CUNG - can may quet van tay |
+| 46 | Luu tru du lieu ky dien tu (XML + cloud) | DA XONG (CDA + MedicalRecordArchive) |
+| 47 | Luu tru du lieu BA sau ra vien (HL7 + cloud) | DA XONG (HL7 CDA + Archive) |
+| 48 | Tra cuu HSBA da luu tru | DA XONG (MedicalRecordArchive) |
+| 49 | Quan ly hinh anh (scan dinh kem) | DA XONG (file upload trong EMR) |
+
+→ **DA XONG: SigningWorkflow.tsx (Session 29)**
+
+#### X. Giam dinh dien tu BHXH (50-51) → DA XONG
+> BhxhAudit.tsx - cong giam dinh dien tu
+
+### C. TONG KET NANGCAP10
+
+| Nhom | Tong | Da xong | Chua xong | Ti le |
+|------|------|---------|-----------|-------|
+| HIS Module (1-284) | 284 | 284 | 0 | 100% |
+| HIS Danh muc (285-375) | 91 | 91 | 0 | 100% |
+| HIS Bao cao (376-415) | 40 | 40 | 0 | 100% |
+| EMR (1-51) | 51 | 50 | 1 | 98.0% |
+| **Tong** | **466** | **465** | **1** | **99.8%** |
+
+> *1 item con lai: #45 Sinh trac hoc van tay (can phan cung may quet van tay)*
+
+### D. CAN THUC HIEN
+
+| STT | Noi dung | Trang thai | Session |
+|-----|---------|------------|---------|
+| 1 | ~~Tao page MedicalRecordPlanning.tsx (KHTH)~~ | DA XONG | 29 |
+| 2 | ~~Them Trinh ky (Signing Workflow)~~ | DA XONG | 29 |
+| 3 | ~~Them IT Ticket System~~ | DA XONG | 29 |
+| 4 | ~~Them 40 bao cao templates (BHYT/HC/CLS/Duoc)~~ | DA XONG | 29 |
+| 5 | ~~Tach benh an (split record)~~ | DA XONG (MedicalRecordPlanning) | 29 |
+| 6 | ~~Canh bao thoi gian con don thuoc~~ | DA XONG (OPD drug warning) | 29 |
+| 7 | ~~Chuyen kham giam tai~~ | DA XONG (OPD transfer) | 29 |
+| 8 | ~~Tinh lo lai phau thuat~~ | DA XONG (Surgery cost) | 29 |
+
+---
+
+## PHAN 10: NANGCAP11 - Cong van 365/TTYQG-GPQLCL (06/6/2025)
+
+> Yeu cau quoc gia ve phan mem HSBA dien tu cho benh vien
+> **Session: 30**
+
+### A. GAP ANALYSIS
+
+#### DA CO SAN
+- EMR page voi 8 tabs, search, CRUD (Session 10-12)
+- 38/54 form templates (17 BS + 21 DD) (Session 12)
+- MedicalRecordArchive (luu tru, muon tra)
+- MedicalRecordPlanning (cap ma, ban giao)
+- SigningWorkflow (trinh ky, duyet, tu choi)
+- Audit logging, 2FA, FHIR, CDA, PDF/HL7/XML export
+- Data inheritance, CLS sync, notification
+
+### B. DA THUC HIEN (Session 30)
+
+| STT | Noi dung | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1 | 15 form templates moi (CDHA, TDCN, XN, lam sang) | DA XONG | ClinicalFormPrintTemplates.tsx |
+| 2 | 31 vo benh an (TT 32/2023) | DA XONG | EmrCoverType entity + seed BA01-BA31 |
+| 3 | EMR completeness check | DA XONG | EMR.tsx tab "Kiem tra hoan thanh" |
+| 4 | Document attachment | DA XONG | EMR.tsx tab "Dinh kem" |
+| 5 | Medical record finalization | DA XONG | EMR.tsx nut "Ket thuc benh an" |
+| 6 | Print/stamp tracking | DA XONG | EmrPrintLog entity + EMR.tsx tab "Lich su in" |
+| 7 | Archive barcode | DA XONG | EmrAdminService.GetArchiveBarcodeAsync |
+| 8 | Admin catalogs (6 loai) | DA XONG | SystemAdmin.tsx - 6 tab moi |
+| 9 | Signing workflow enhancements | DA XONG | Parallel signing, warning badges |
+| 10 | HL7 import from other facilities | DA XONG | EmrAdminService.ImportHl7Async |
+| 11 | HL7 export with authenticator | DA XONG | EmrAdminService.ExportHl7Async (AUT segment) |
+
+### C. CHI TIET KY THUAT
+
+#### Backend
+- **8 entities moi**: EmrCoverType, EmrDocumentAttachment, EmrPrintLog, EmrSignerCatalog, EmrSigningRole, EmrSigningOperation, EmrDocumentGroup, EmrDocumentType
+- **IEmrAdminService + EmrAdminService**: ~25 methods (CRUD 6 catalog + completeness + finalization + attachments + print logs + barcode + HL7)
+- **EmrAdminController**: 20+ endpoints tai `/api/emr-admin/`
+- **8 DbSets** trong HISDbContext
+- **DI registration** trong DependencyInjection.cs
+
+#### Database
+- `scripts/create_nangcap11_tables.sql`: 8 bang moi + seed 31 vo BA + 8 vai tro ky + 10 nhom VB
+
+#### Frontend
+- `api/emrAdmin.ts`: API client cho tat ca endpoints
+- `ClinicalFormPrintTemplates.tsx`: 15 print templates (X-ray, CT, MRI, Ultrasound, ECG, EEG, Endoscopy, PFT, 4 lab, Allergy, PostOp, ICU)
+- `EMR.tsx`: 3 tab moi (completeness + attachments + print logs), 15 dropdown menu items
+- `SystemAdmin.tsx`: 6 tab admin catalog moi (Vo BA, Nguoi ky, Vai tro ky, Nghiep vu ky, Nhom VB, Loai VB)
+- `SigningWorkflow.tsx`: Parallel batch approve, warning badges (overdue/duplicate), row color coding
+
+#### Testing
+- TypeScript: 0 errors
+- Vite build: success
+- Backend build: 0 errors
+- Cypress nangcap11-emr: 20/20 pass
+- Cypress console-errors: 51/51 pass
+
+### D. CAN THUC HIEN
+
+| STT | Noi dung | Trang thai |
+|-----|---------|------------|
+| 1 | Voice recognition for EMR | LOW - can speech API |
+| 2 | Workstation monitoring | LOW - can agent software |

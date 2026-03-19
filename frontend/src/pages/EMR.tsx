@@ -3,7 +3,7 @@ import {
   Card, Tabs, Table, Input, Button, Space, Tag, Descriptions, Form,
   DatePicker, Select, Modal, message, Typography, Row, Col, Divider,
   Drawer, Timeline, Spin, Empty, Badge, Tooltip, Dropdown, InputNumber, Alert,
-  TimePicker
+  TimePicker, Statistic, Popconfirm
 } from 'antd';
 import {
   FileTextOutlined, SearchOutlined, MedicineBoxOutlined, HeartOutlined,
@@ -37,6 +37,17 @@ import {
 } from '../components/EMRPrintTemplates';
 import { printEmrForm } from '../api/pdf';
 import client from '../api/client';
+import {
+  getCompletenessCheck, getAttachments, saveAttachment, deleteAttachment,
+  getPrintLogs, logPrint, stampPrintLog, finalizeRecord,
+  type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto,
+} from '../api/emrAdmin';
+import {
+  XRayReportPrint, CTScanReportPrint, MRIReportPrint, UltrasoundReportPrint,
+  ECGReportPrint, EEGReportPrint, EndoscopyReportPrint, PFTReportPrint,
+  GeneralLabReportPrint, HematologyReportPrint, BiochemistryReportPrint,
+  MicrobiologyReportPrint, AllergyFormPrint, PostOpNotePrint, ICUInfoSheetPrint,
+} from '../components/ClinicalFormPrintTemplates';
 import PatientTimeline from '../components/PatientTimeline';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
@@ -98,6 +109,13 @@ const EMR: React.FC = () => {
   const [treatmentForm] = Form.useForm();
   const [consultationForm] = Form.useForm();
   const [nursingForm] = Form.useForm();
+
+  // NangCap11: Completeness, attachments, print logs
+  const [completeness, setCompleteness] = useState<EmrCompletenessDto | null>(null);
+  const [attachments, setAttachments] = useState<EmrDocumentAttachmentDto[]>([]);
+  const [printLogs, setPrintLogs] = useState<EmrPrintLogDto[]>([]);
+  const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
+  const [attachmentForm] = Form.useForm();
 
   const searchInputRef = useRef<ReturnType<typeof Input.Search> | null>(null);
 
@@ -586,18 +604,24 @@ ${conclusion ? `<div class="section">
     setSelectedExam(exam);
     setDetailLoading(true);
     try {
-      const [recordRes, historyRes, treatmentRes, consultRes, nursingRes] = await Promise.allSettled([
+      const [recordRes, historyRes, treatmentRes, consultRes, nursingRes, completenessRes, attachRes, printLogRes] = await Promise.allSettled([
         getMedicalRecordFull(exam.id),
         getPatientMedicalHistory(exam.patientId),
         getTreatmentSheets(exam.id),
         getConsultationRecords(exam.id),
         getNursingCareSheets(exam.id),
+        getCompletenessCheck(exam.medicalRecordId || exam.id),
+        getAttachments(exam.medicalRecordId || exam.id),
+        getPrintLogs(exam.medicalRecordId || exam.id),
       ]);
       setMedicalRecord(recordRes.status === 'fulfilled' ? recordRes.value.data as unknown as MedicalRecordFullDto : null);
       setPatientHistory(historyRes.status === 'fulfilled' ? (historyRes.value.data as unknown as MedicalHistoryDto[]) ?? [] : []);
       setTreatmentSheets(treatmentRes.status === 'fulfilled' ? (treatmentRes.value.data as unknown as TreatmentSheetDto[]) ?? [] : []);
       setConsultations(consultRes.status === 'fulfilled' ? (consultRes.value.data as unknown as ConsultationRecordDto[]) ?? [] : []);
       setNursingCareSheets(nursingRes.status === 'fulfilled' ? (nursingRes.value.data as unknown as NursingCareSheetDto[]) ?? [] : []);
+      setCompleteness(completenessRes.status === 'fulfilled' ? completenessRes.value as EmrCompletenessDto : null);
+      setAttachments(attachRes.status === 'fulfilled' ? (attachRes.value as EmrDocumentAttachmentDto[]) ?? [] : []);
+      setPrintLogs(printLogRes.status === 'fulfilled' ? (printLogRes.value as EmrPrintLogDto[]) ?? [] : []);
     } catch {
       message.warning('Không thể tải chi tiết hồ sơ');
     } finally {
@@ -1246,6 +1270,117 @@ ${conclusion ? `<div class="section">
         </div>
       ),
     },
+    {
+      key: 'completeness', label: <Badge count={completeness?.missingRequiredDocuments ?? 0} size="small" offset={[8, 0]}><SafetyOutlined /> Kiểm tra BA</Badge>,
+      children: (
+        <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+          {completeness ? (
+            <>
+              <Row gutter={16} style={{ marginBottom: 12 }}>
+                <Col span={6}><Card size="small"><Statistic title="Tổng tài liệu" value={completeness.totalDocuments} /></Card></Col>
+                <Col span={6}><Card size="small"><Statistic title="Đã ký" value={completeness.signedDocuments} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
+                <Col span={6}><Card size="small"><Statistic title="Chưa ký" value={completeness.unsignedDocuments} styles={{ content: { color: '#fa8c16' } }} /></Card></Col>
+                <Col span={6}><Card size="small"><Statistic title="Thiếu" value={completeness.missingRequiredDocuments} styles={{ content: { color: '#ff4d4f' } }} /></Card></Col>
+              </Row>
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ fontWeight: 'bold', marginRight: 8 }}>Hoàn thiện:</span>
+                <Tag color={completeness.isComplete ? 'green' : 'orange'}>{completeness.completenessPercent}%</Tag>
+                {completeness.isFinalized && <Tag color="blue">Đã kết thúc BA</Tag>}
+              </div>
+              {completeness.missingDocumentNames.length > 0 && (
+                <Alert type="warning" showIcon title={`Thiếu ${completeness.missingDocumentNames.length} tài liệu bắt buộc: ${completeness.missingDocumentNames.join(', ')}`} style={{ marginBottom: 12 }} />
+              )}
+              <Table size="small" dataSource={completeness.items} rowKey="documentType" pagination={false}
+                columns={[
+                  { title: 'Loại tài liệu', dataIndex: 'documentName', key: 'name' },
+                  { title: 'Bắt buộc', dataIndex: 'isRequired', key: 'req', width: 80, render: (v: boolean) => v ? <Tag color="red">Có</Tag> : <Tag>Không</Tag> },
+                  { title: 'Tồn tại', dataIndex: 'exists', key: 'exists', width: 80, render: (v: boolean) => v ? <Tag color="green">Có</Tag> : <Tag color="red">Không</Tag> },
+                  { title: 'Đã ký', dataIndex: 'isSigned', key: 'signed', width: 80, render: (v: boolean) => v ? <Tag color="green">Đã ký</Tag> : <Tag>Chưa</Tag> },
+                  { title: 'Người ký', dataIndex: 'signedByName', key: 'signer', width: 120 },
+                ]}
+              />
+              {!completeness.isFinalized && (
+                <div style={{ marginTop: 12 }}>
+                  <Popconfirm title="Kết thúc hồ sơ bệnh án?" description="Sau khi kết thúc, hồ sơ sẽ bị khóa không cho chỉnh sửa."
+                    onConfirm={async () => {
+                      if (!selectedExam?.medicalRecordId) return;
+                      const res = await finalizeRecord(selectedExam.medicalRecordId);
+                      if (res?.success) { message.success(res.message || 'Đã kết thúc BA'); } else { message.warning(res?.message || 'Không thể kết thúc'); }
+                    }}>
+                    <Button type="primary" danger icon={<SafetyOutlined />}>Kết thúc bệnh án</Button>
+                  </Popconfirm>
+                </div>
+              )}
+            </>
+          ) : (
+            <Empty description="Chọn hồ sơ để kiểm tra tính hoàn thiện" />
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'attachments', label: <Badge count={attachments.length} showZero={false} size="small" offset={[8, 0]}><FolderOpenOutlined /> Đính kèm</Badge>,
+      children: (
+        <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+          <div style={{ marginBottom: 8 }}>
+            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => { attachmentForm.resetFields(); setAttachmentModalOpen(true); }}>
+              Thêm đính kèm
+            </Button>
+          </div>
+          {attachments.length === 0 ? (
+            <Empty description="Chưa có tài liệu đính kèm" />
+          ) : (
+            <Table size="small" dataSource={attachments} rowKey="id" pagination={false}
+              columns={[
+                { title: 'Tên file', dataIndex: 'fileName', key: 'name', ellipsis: true },
+                { title: 'Loại', dataIndex: 'documentCategory', key: 'cat', width: 100, render: (v: string) => <Tag>{v || 'Khác'}</Tag> },
+                { title: 'Kích thước', dataIndex: 'fileSize', key: 'size', width: 100, render: (v: number) => v > 1048576 ? `${(v / 1048576).toFixed(1)} MB` : `${(v / 1024).toFixed(0)} KB` },
+                { title: 'Người tải', dataIndex: 'uploadedByName', key: 'uploader', width: 120 },
+                { title: 'Ngày', dataIndex: 'uploadedAt', key: 'date', width: 140, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-' },
+                { title: '', key: 'del', width: 40,
+                  render: (_: unknown, r: EmrDocumentAttachmentDto) => (
+                    <Popconfirm title="Xóa đính kèm?" onConfirm={async () => {
+                      const ok = await deleteAttachment(r.id);
+                      if (ok) { setAttachments(prev => prev.filter(a => a.id !== r.id)); message.success('Đã xóa'); }
+                    }}>
+                      <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'printlogs', label: <><PrinterOutlined /> Nhật ký in</>,
+      children: (
+        <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+          {printLogs.length === 0 ? (
+            <Empty description="Chưa có nhật ký in ấn" />
+          ) : (
+            <Table size="small" dataSource={printLogs} rowKey="id" pagination={false}
+              columns={[
+                { title: 'Loại tài liệu', dataIndex: 'documentType', key: 'type', width: 120 },
+                { title: 'Tiêu đề', dataIndex: 'documentTitle', key: 'title', ellipsis: true },
+                { title: 'Người in', dataIndex: 'printedByName', key: 'printer', width: 120 },
+                { title: 'Lần in', dataIndex: 'printCount', key: 'count', width: 60, render: (v: number) => <Badge count={v} showZero style={{ backgroundColor: v > 1 ? '#fa8c16' : '#52c41a' }} /> },
+                { title: 'Ngày in', dataIndex: 'printedAt', key: 'date', width: 140, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-' },
+                { title: 'Đóng dấu', dataIndex: 'isStamped', key: 'stamp', width: 100,
+                  render: (v: boolean, r: EmrPrintLogDto) => v
+                    ? <Tag color="green">Đã đóng dấu</Tag>
+                    : <Button size="small" onClick={async () => {
+                        const ok = await stampPrintLog(r.id);
+                        if (ok) { setPrintLogs(prev => prev.map(p => p.id === r.id ? { ...p, isStamped: true, stampedAt: new Date().toISOString() } : p)); message.success('Đã đóng dấu'); }
+                      }}>Đóng dấu</Button>
+                },
+              ]}
+            />
+          )}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -1325,6 +1460,25 @@ ${conclusion ? `<div class="section">
                     { key: 'surgerysummary', label: 'MS.15 - Sơ kết phẫu thuật' },
                     { key: 'depttransfer', label: 'MS.16 - Bàn giao chuyển khoa' },
                     { key: 'admission', label: 'MS.17 - Khám vào viện' },
+                  ]},
+                  { type: 'group', label: 'CĐHA (CDHA. 01-05)', children: [
+                    { key: 'cdha-xray', label: 'CDHA.01 - X-Quang' },
+                    { key: 'cdha-ct', label: 'CDHA.02 - CT Scanner' },
+                    { key: 'cdha-mri', label: 'CDHA.03 - MRI' },
+                    { key: 'cdha-ultrasound', label: 'CDHA.04 - Siêu âm' },
+                    { key: 'cdha-ecg', label: 'CDHA.05 - Điện tâm đồ' },
+                  ]},
+                  { type: 'group', label: 'TDCN/XN/LS', children: [
+                    { key: 'tdcn-eeg', label: 'TDCN.01 - Điện não đồ' },
+                    { key: 'tdcn-endoscopy', label: 'TDCN.02 - Nội soi' },
+                    { key: 'tdcn-pft', label: 'TDCN.03 - Chức năng hô hấp' },
+                    { key: 'xn-general', label: 'XN.01 - Phiếu XN tổng quát' },
+                    { key: 'xn-hematology', label: 'XN.02 - Huyết học' },
+                    { key: 'xn-biochemistry', label: 'XN.03 - Sinh hóa' },
+                    { key: 'xn-microbiology', label: 'XN.04 - Vi sinh' },
+                    { key: 'ls-allergy', label: 'LS.01 - Ghi nhận dị ứng' },
+                    { key: 'ls-postop', label: 'LS.02 - Theo dõi sau PT' },
+                    { key: 'ls-icuinfo', label: 'LS.03 - Thông tin ICU' },
                   ]},
                   { type: 'group', label: 'Điều dưỡng (DD. 01-21)', children: [
                     { key: 'dd01-careplan', label: 'DD.01 - KH chăm sóc' },
@@ -1532,6 +1686,15 @@ ${conclusion ? `<div class="section">
           nutrition: 'Khám dinh dưỡng (MS.12)', surgeryrecord: 'Phiếu phẫu thuật (MS.13)',
           surgeryapproval: 'Duyệt phẫu thuật (MS.14)', surgerysummary: 'Sơ kết phẫu thuật (MS.15)',
           depttransfer: 'Bàn giao chuyển khoa (MS.16)', admission: 'Khám vào viện (MS.17)',
+          'cdha-xray': 'Kết quả X-Quang (CDHA.01)', 'cdha-ct': 'Kết quả CT Scanner (CDHA.02)',
+          'cdha-mri': 'Kết quả MRI (CDHA.03)', 'cdha-ultrasound': 'Kết quả Siêu âm (CDHA.04)',
+          'cdha-ecg': 'Điện tâm đồ (CDHA.05)',
+          'tdcn-eeg': 'Điện não đồ (TDCN.01)', 'tdcn-endoscopy': 'Nội soi (TDCN.02)',
+          'tdcn-pft': 'Chức năng hô hấp (TDCN.03)',
+          'xn-general': 'Phiếu XN tổng quát (XN.01)', 'xn-hematology': 'Huyết học (XN.02)',
+          'xn-biochemistry': 'Sinh hóa (XN.03)', 'xn-microbiology': 'Vi sinh (XN.04)',
+          'ls-allergy': 'Ghi nhận dị ứng (LS.01)', 'ls-postop': 'Theo dõi sau PT (LS.02)',
+          'ls-icuinfo': 'Thông tin ICU (LS.03)',
           'dd01-careplan': 'KH chăm sóc (DD.01)', 'dd02-icucare': 'KH chăm sóc HSCC (DD.02)',
           'dd03-assessment': 'Nhận định ĐD (DD.03)', 'dd04-dailycare': 'Theo dõi CS (DD.04)',
           'dd05-infusion': 'Truyền dịch (DD.05)', 'dd06-bloodlab': 'Truyền máu XN (DD.06)',
@@ -1608,6 +1771,23 @@ ${conclusion ? `<div class="section">
           {printType === 'surgerysummary' && <SurgerySummaryPrint ref={printRef} record={medicalRecord} />}
           {printType === 'depttransfer' && <DepartmentTransferPrint ref={printRef} record={medicalRecord} />}
           {printType === 'admission' && <AdmissionExamPrint ref={printRef} record={medicalRecord} />}
+          {/* CDHA. 01-05 Radiology forms */}
+          {printType === 'cdha-xray' && <XRayReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-ct' && <CTScanReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-mri' && <MRIReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-ultrasound' && <UltrasoundReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-ecg' && <ECGReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {/* TDCN/XN/LS forms */}
+          {printType === 'tdcn-eeg' && <EEGReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'tdcn-endoscopy' && <EndoscopyReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'tdcn-pft' && <PFTReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'xn-general' && <GeneralLabReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'xn-hematology' && <HematologyReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'xn-biochemistry' && <BiochemistryReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'xn-microbiology' && <MicrobiologyReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'ls-allergy' && <AllergyFormPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'ls-postop' && <PostOpNotePrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'ls-icuinfo' && <ICUInfoSheetPrint record={medicalRecord as Record<string, unknown> | undefined} />}
           {/* DD. 01-21 Nursing forms */}
           {printType === 'dd01-careplan' && <NursingCarePlanPrint ref={printRef} record={medicalRecord} />}
           {printType === 'dd02-icucare' && <ICUNursingCarePlanPrint ref={printRef} record={medicalRecord} />}
@@ -1632,6 +1812,48 @@ ${conclusion ? `<div class="section">
           {printType === 'dd21-vap' && <VAPMonitoringPrint ref={printRef} record={medicalRecord} />}
         </div>
       </Drawer>
+
+      {/* Attachment Modal */}
+      <Modal
+        title="Thêm đính kèm"
+        open={attachmentModalOpen}
+        onOk={async () => {
+          try {
+            const values = await attachmentForm.validateFields();
+            if (!selectedExam?.medicalRecordId) { message.warning('Chưa có hồ sơ bệnh án'); return; }
+            const res = await saveAttachment({
+              medicalRecordId: selectedExam.medicalRecordId,
+              fileName: values.fileName, fileType: values.fileType || 'application/octet-stream',
+              fileSize: values.fileSize || 0, filePath: values.filePath || `/uploads/${values.fileName}`,
+              documentCategory: values.documentCategory, description: values.description,
+            });
+            if (res) { setAttachments(prev => [res, ...prev]); setAttachmentModalOpen(false); message.success('Đã lưu đính kèm'); }
+          } catch { /* validation */ }
+        }}
+        onCancel={() => setAttachmentModalOpen(false)}
+        width={500}
+      >
+        <Form form={attachmentForm} layout="vertical">
+          <Form.Item name="fileName" label="Tên file" rules={[{ required: true, message: 'Nhập tên file' }]}>
+            <Input placeholder="vd: ket-qua-xn-01.pdf" />
+          </Form.Item>
+          <Form.Item name="documentCategory" label="Phân loại">
+            <Select placeholder="Chọn loại" allowClear>
+              <Select.Option value="XN">Xét nghiệm</Select.Option>
+              <Select.Option value="CDHA">Chẩn đoán hình ảnh</Select.Option>
+              <Select.Option value="BenhAn">Bệnh án</Select.Option>
+              <Select.Option value="GiayTo">Giấy tờ</Select.Option>
+              <Select.Option value="Khac">Khác</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={2} placeholder="Mô tả tài liệu đính kèm..." />
+          </Form.Item>
+          <Form.Item name="filePath" label="Đường dẫn file">
+            <Input placeholder="/uploads/..." />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Drug Reaction Test Modal */}
       <Modal

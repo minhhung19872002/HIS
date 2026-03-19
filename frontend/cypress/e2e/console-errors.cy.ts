@@ -58,6 +58,8 @@ const pages = [
   { route: '/doctor-portal', name: 'Doctor Portal (Cong bac si)' },
   { route: '/satisfaction-survey', name: 'Satisfaction Survey (Khao sat hai long)' },
   { route: '/lis-config', name: 'LIS Config (Cau hinh LIS)' },
+  { route: '/medical-record-planning', name: 'Medical Record Planning (Ke hoach TH)' },
+  { route: '/signing-workflow', name: 'Signing Workflow (Trinh ky)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

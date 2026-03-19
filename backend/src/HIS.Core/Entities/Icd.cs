@@ -380,3 +380,153 @@ public class AnesthesiaFluid : BaseEntity
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
 }
+
+/// <summary>
+/// Vỏ bệnh án - EmrCoverType (NangCap11 - TT 32/2023)
+/// 31 loại vỏ bệnh án theo Thông tư 32/2023/TT-BYT
+/// </summary>
+public class EmrCoverType : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty; // NoiTru, NgoaiTru, ChuyenKhoa
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Đính kèm tài liệu bệnh án - EmrDocumentAttachment (NangCap11)
+/// Lưu trữ file đính kèm (ảnh, PDF, scan) trong hồ sơ bệnh án
+/// </summary>
+public class EmrDocumentAttachment : BaseEntity
+{
+    public Guid MedicalRecordId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string FileType { get; set; } = string.Empty; // image/jpeg, application/pdf, etc.
+    public long FileSize { get; set; }
+    public string FilePath { get; set; } = string.Empty;
+    public string? DocumentCategory { get; set; } // XN, CDHA, BenhAn, GiayTo, Khac
+    public string? Description { get; set; }
+    public Guid? UploadedById { get; set; }
+    public string? UploadedByName { get; set; }
+    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Nhật ký in ấn - EmrPrintLog (NangCap11)
+/// Theo dõi việc in và đóng dấu tài liệu y tế
+/// </summary>
+public class EmrPrintLog : BaseEntity
+{
+    public Guid MedicalRecordId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string DocumentTitle { get; set; } = string.Empty;
+    public Guid? PrintedById { get; set; }
+    public string? PrintedByName { get; set; }
+    public DateTime PrintedAt { get; set; } = DateTime.UtcNow;
+    public bool IsStamped { get; set; }
+    public DateTime? StampedAt { get; set; }
+    public string? StampedByName { get; set; }
+    public int PrintCount { get; set; } = 1;
+}
+
+/// <summary>
+/// Danh mục người ký - EmrSignerCatalog (NangCap11)
+/// Quản lý danh sách người có quyền ký tài liệu y tế
+/// </summary>
+public class EmrSignerCatalog : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string? Title { get; set; } // BS, BSCKI, BSCKII, ThS, TS, PGS, GS
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? CertificateInfo { get; set; }
+    public string? SignatureImagePath { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Vai trò ký - EmrSigningRole (NangCap11)
+/// Phân loại vai trò trong quy trình ký (Bác sĩ điều trị, Trưởng khoa, Giám đốc, etc.)
+/// </summary>
+public class EmrSigningRole : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Nghiệp vụ ký - EmrSigningOperation (NangCap11)
+/// Định nghĩa nghiệp vụ ký cho từng loại tài liệu (ai ký, bắt buộc không)
+/// </summary>
+public class EmrSigningOperation : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public Guid? RoleId { get; set; }
+    public string? RoleName { get; set; }
+    public string? DocumentType { get; set; }
+    public bool IsRequired { get; set; } = true;
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Nhóm văn bản - EmrDocumentGroup (NangCap11)
+/// Phân nhóm các loại văn bản y tế (Hồ sơ BA, Phiếu điều trị, Phiếu chăm sóc, etc.)
+/// </summary>
+public class EmrDocumentGroup : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Category { get; set; } // BenhAn, DieuTri, ChamSoc, XetNghiem, ChanDoan, Khac
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Loại văn bản - EmrDocumentType (NangCap11)
+/// Danh mục các loại văn bản cụ thể (Tờ điều trị, Phiếu CSNB, Biên bản hội chẩn, etc.)
+/// </summary>
+public class EmrDocumentType : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public Guid? GroupId { get; set; }
+    public string? GroupName { get; set; }
+    public string? FormTemplateKey { get; set; }
+    public bool IsRequired { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Trình ký - Signing Workflow Request (NangCap10 EMR #44)
+/// Luồng trình ký tài liệu y tế: phiếu điều trị, chăm sóc, đơn thuốc, v.v.
+/// </summary>
+public class SigningRequest : BaseEntity
+{
+    public string DocumentType { get; set; } = string.Empty; // TreatmentSheet, NursingCare, Prescription, etc.
+    public Guid DocumentId { get; set; }
+    public string DocumentTitle { get; set; } = string.Empty;
+    public string DocumentContent { get; set; } = string.Empty; // HTML content or summary
+    public Guid SubmittedById { get; set; }
+    public string SubmittedByName { get; set; } = string.Empty;
+    public Guid AssignedToId { get; set; }
+    public string AssignedToName { get; set; } = string.Empty;
+    public int Status { get; set; } // 0=Pending, 1=Approved, 2=Rejected, 3=Cancelled
+    public string? RejectReason { get; set; }
+    public DateTime? SignedAt { get; set; }
+    public string? SignatureData { get; set; } // signature certificate info
+    public Guid? PatientId { get; set; }
+    public string? PatientName { get; set; }
+    public string? DepartmentName { get; set; }
+}

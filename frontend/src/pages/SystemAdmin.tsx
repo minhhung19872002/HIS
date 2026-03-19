@@ -57,6 +57,7 @@ import {
   SaveOutlined,
   CloudUploadOutlined,
   FolderOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -75,6 +76,16 @@ import {
   type AuditLogPagedResult,
 } from '../api/audit';
 import {
+  getCoverTypes, saveCoverType, deleteCoverType,
+  getSigners, saveSigner, deleteSigner,
+  getSigningRoles, saveSigningRole, deleteSigningRole,
+  getSigningOperations, saveSigningOperation, deleteSigningOperation,
+  getDocumentGroups, saveDocumentGroup, deleteDocumentGroup,
+  getDocumentTypes, saveDocumentType, deleteDocumentType,
+  type EmrCoverTypeDto, type EmrSignerCatalogDto, type EmrSigningRoleDto,
+  type EmrSigningOperationDto, type EmrDocumentGroupDto, type EmrDocumentTypeDto,
+} from '../api/emrAdmin';
+import {
   getAccessControlMatrix,
   getSensitiveAccessReport,
   getComplianceSummary,
@@ -83,6 +94,7 @@ import {
   type ComplianceSummaryDto,
 } from '../api/security';
 import * as dataExportApi from '../api/dataExport';
+import * as itTicketApi from '../api/itTicket';
 import type { DataStatsDto, ModuleDataCountDto, BackupInfoDto, DataExportResultDto, DataHandoverDto } from '../api/dataExport';
 
 const { Title } = Typography;
@@ -213,6 +225,73 @@ const SystemAdmin: React.FC = () => {
   const [handovers, setHandovers] = useState<DataHandoverDto[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
+  // NangCap11: EMR Admin Catalog state
+  const [emrCoverTypes, setEmrCoverTypes] = useState<EmrCoverTypeDto[]>([]);
+  const [emrSigners, setEmrSigners] = useState<EmrSignerCatalogDto[]>([]);
+  const [emrSigningRoles, setEmrSigningRoles] = useState<EmrSigningRoleDto[]>([]);
+  const [emrSigningOps, setEmrSigningOps] = useState<EmrSigningOperationDto[]>([]);
+  const [emrDocGroups, setEmrDocGroups] = useState<EmrDocumentGroupDto[]>([]);
+  const [emrDocTypes, setEmrDocTypes] = useState<EmrDocumentTypeDto[]>([]);
+  const [emrAdminLoading, setEmrAdminLoading] = useState(false);
+  const [emrModalOpen, setEmrModalOpen] = useState(false);
+  const [emrModalType, setEmrModalType] = useState<string>('');
+  const [emrEditingItem, setEmrEditingItem] = useState<Record<string, unknown> | null>(null);
+  const [emrForm] = Form.useForm();
+
+  const fetchEmrAdminData = useCallback(async () => {
+    setEmrAdminLoading(true);
+    try {
+      const [ct, sg, sr, so, dg, dt] = await Promise.allSettled([
+        getCoverTypes(), getSigners(), getSigningRoles(),
+        getSigningOperations(), getDocumentGroups(), getDocumentTypes(),
+      ]);
+      if (ct.status === 'fulfilled') setEmrCoverTypes(ct.value);
+      if (sg.status === 'fulfilled') setEmrSigners(sg.value);
+      if (sr.status === 'fulfilled') setEmrSigningRoles(sr.value);
+      if (so.status === 'fulfilled') setEmrSigningOps(so.value);
+      if (dg.status === 'fulfilled') setEmrDocGroups(dg.value);
+      if (dt.status === 'fulfilled') setEmrDocTypes(dt.value);
+    } catch { /* */ } finally { setEmrAdminLoading(false); }
+  }, []);
+
+  const handleEmrAdminSave = async () => {
+    try {
+      const values = await emrForm.validateFields();
+      const data = { ...emrEditingItem, ...values };
+      let ok = false;
+      switch (emrModalType) {
+        case 'cover': ok = !!(await saveCoverType(data)); break;
+        case 'signer': ok = !!(await saveSigner(data)); break;
+        case 'role': ok = !!(await saveSigningRole(data)); break;
+        case 'operation': ok = !!(await saveSigningOperation(data)); break;
+        case 'group': ok = !!(await saveDocumentGroup(data)); break;
+        case 'doctype': ok = !!(await saveDocumentType(data)); break;
+      }
+      if (ok) { message.success('Da luu'); setEmrModalOpen(false); fetchEmrAdminData(); }
+    } catch { /* validation */ }
+  };
+
+  const handleEmrAdminDelete = async (type: string, id: string) => {
+    let ok = false;
+    switch (type) {
+      case 'cover': ok = await deleteCoverType(id); break;
+      case 'signer': ok = await deleteSigner(id); break;
+      case 'role': ok = await deleteSigningRole(id); break;
+      case 'operation': ok = await deleteSigningOperation(id); break;
+      case 'group': ok = await deleteDocumentGroup(id); break;
+      case 'doctype': ok = await deleteDocumentType(id); break;
+    }
+    if (ok) { message.success('Da xoa'); fetchEmrAdminData(); }
+  };
+
+  const openEmrModal = (type: string, item?: Record<string, unknown>) => {
+    setEmrModalType(type);
+    setEmrEditingItem(item || null);
+    emrForm.resetFields();
+    if (item) emrForm.setFieldsValue(item);
+    setEmrModalOpen(true);
+  };
+
   // Backup Management state
   interface BackupConfig {
     autoBackupTime: string;
@@ -313,6 +392,7 @@ const SystemAdmin: React.FC = () => {
   // Fetch data on mount
   useEffect(() => {
     fetchData();
+    fetchEmrAdminData();
   }, []);
 
   const fetchData = async () => {
@@ -561,6 +641,92 @@ const SystemAdmin: React.FC = () => {
   const [configForm] = Form.useForm();
   const [notificationForm] = Form.useForm();
   const [lockServiceForm] = Form.useForm();
+  const [itTicketForm] = Form.useForm();
+  const [itRespondForm] = Form.useForm();
+
+  // IT Ticket state
+  const [itTickets, setItTickets] = useState<any[]>([]);
+  const [itTicketStats, setItTicketStats] = useState<{ newCount: number; inProgressCount: number; resolvedCount: number; closedCount: number; totalCount: number }>({ newCount: 0, inProgressCount: 0, resolvedCount: 0, closedCount: 0, totalCount: 0 });
+  const [itTicketLoading, setItTicketLoading] = useState(false);
+  const [isItTicketModalOpen, setIsItTicketModalOpen] = useState(false);
+  const [isItRespondModalOpen, setIsItRespondModalOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [itTicketFilterStatus, setItTicketFilterStatus] = useState<number | undefined>();
+  const [itTicketFilterPriority, setItTicketFilterPriority] = useState<number | undefined>();
+  const [itTicketKeyword, setItTicketKeyword] = useState('');
+
+  const fetchItTickets = useCallback(async () => {
+    setItTicketLoading(true);
+    try {
+      const params: any = {};
+      if (itTicketFilterStatus !== undefined) params.status = itTicketFilterStatus;
+      if (itTicketFilterPriority !== undefined) params.priority = itTicketFilterPriority;
+      if (itTicketKeyword) params.keyword = itTicketKeyword;
+      const [ticketsRes, statsRes] = await Promise.allSettled([
+        itTicketApi.getItTickets(params),
+        itTicketApi.getItTicketStats(),
+      ]);
+      if (ticketsRes.status === 'fulfilled') {
+        const d = ticketsRes.value.data;
+        setItTickets(Array.isArray(d) ? d : d?.data || d?.items || []);
+      }
+      if (statsRes.status === 'fulfilled') {
+        const d = statsRes.value.data;
+        setItTicketStats(d?.data || d || { newCount: 0, inProgressCount: 0, resolvedCount: 0, closedCount: 0, totalCount: 0 });
+      }
+    } catch {
+      console.warn('Error fetching IT tickets');
+    } finally {
+      setItTicketLoading(false);
+    }
+  }, [itTicketFilterStatus, itTicketFilterPriority, itTicketKeyword]);
+
+  useEffect(() => {
+    if (activeTab === 'it-tickets') fetchItTickets();
+  }, [activeTab, fetchItTickets]);
+
+  const handleCreateItTicket = async () => {
+    try {
+      const values = await itTicketForm.validateFields();
+      await itTicketApi.createItTicket(values);
+      message.success('Tao yeu cau CNTT thanh cong');
+      setIsItTicketModalOpen(false);
+      itTicketForm.resetFields();
+      fetchItTickets();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.warn('Error creating IT ticket:', error);
+      message.warning('Khong the tao yeu cau CNTT');
+    }
+  };
+
+  const handleRespondItTicket = async () => {
+    try {
+      const values = await itRespondForm.validateFields();
+      if (!selectedTicketId) return;
+      await itTicketApi.respondToTicket(selectedTicketId, values);
+      message.success('Da phan hoi yeu cau');
+      setIsItRespondModalOpen(false);
+      itRespondForm.resetFields();
+      setSelectedTicketId(null);
+      fetchItTickets();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.warn('Error responding to IT ticket:', error);
+      message.warning('Khong the phan hoi yeu cau');
+    }
+  };
+
+  const handleCloseItTicket = async (id: string) => {
+    try {
+      await itTicketApi.closeTicket(id);
+      message.success('Da dong yeu cau');
+      fetchItTickets();
+    } catch (error) {
+      console.warn('Error closing IT ticket:', error);
+      message.warning('Khong the dong yeu cau');
+    }
+  };
 
   // Locked services state
   const [lockedServices, setLockedServices] = useState<any[]>([]);
@@ -2844,9 +3010,452 @@ const SystemAdmin: React.FC = () => {
                 </div>
               ),
             },
+            {
+              key: 'it-tickets',
+              label: (
+                <span>
+                  <ToolOutlined /> Yeu cau CNTT
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic title="Moi" value={itTicketStats.newCount} styles={{ content: { color: '#1890ff' } }} prefix={<ClockCircleOutlined />} />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic title="Dang xu ly" value={itTicketStats.inProgressCount} styles={{ content: { color: '#fa8c16' } }} prefix={<ThunderboltOutlined />} />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic title="Da giai quyet" value={itTicketStats.resolvedCount} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic title="Da dong" value={itTicketStats.closedCount} styles={{ content: { color: '#8c8c8c' } }} prefix={<CloseCircleOutlined />} />
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
+                    <Col>
+                      <Select
+                        placeholder="Muc do"
+                        style={{ width: 140 }}
+                        allowClear
+                        value={itTicketFilterPriority}
+                        onChange={(v) => setItTicketFilterPriority(v)}
+                      >
+                        <Option value={1}>Thap</Option>
+                        <Option value={2}>Trung binh</Option>
+                        <Option value={3}>Cao</Option>
+                        <Option value={4}>Khan cap</Option>
+                      </Select>
+                    </Col>
+                    <Col>
+                      <Select
+                        placeholder="Trang thai"
+                        style={{ width: 140 }}
+                        allowClear
+                        value={itTicketFilterStatus}
+                        onChange={(v) => setItTicketFilterStatus(v)}
+                      >
+                        <Option value={0}>Moi</Option>
+                        <Option value={1}>Dang xu ly</Option>
+                        <Option value={2}>Da giai quyet</Option>
+                        <Option value={3}>Da dong</Option>
+                      </Select>
+                    </Col>
+                    <Col flex="auto">
+                      <Search
+                        placeholder="Tim kiem yeu cau..."
+                        allowClear
+                        enterButton={<SearchOutlined />}
+                        style={{ maxWidth: 300 }}
+                        onSearch={(v) => setItTicketKeyword(v)}
+                        onChange={(e) => { if (!e.target.value) setItTicketKeyword(''); }}
+                      />
+                    </Col>
+                    <Col>
+                      <Button icon={<ReloadOutlined />} onClick={() => fetchItTickets()} />
+                    </Col>
+                    <Col>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsItTicketModalOpen(true)}>
+                        Tao yeu cau
+                      </Button>
+                    </Col>
+                  </Row>
+
+                  <Table
+                    dataSource={itTickets}
+                    rowKey="id"
+                    size="small"
+                    loading={itTicketLoading}
+                    pagination={{
+                      showSizeChanger: true,
+                      showTotal: (total) => `Tong: ${total} yeu cau`,
+                    }}
+                    columns={[
+                      {
+                        title: 'Tieu de',
+                        dataIndex: 'title',
+                        key: 'title',
+                        width: 200,
+                        ellipsis: true,
+                      },
+                      {
+                        title: 'Khoa/Phong',
+                        dataIndex: 'departmentName',
+                        key: 'departmentName',
+                        width: 140,
+                      },
+                      {
+                        title: 'Nguoi yeu cau',
+                        dataIndex: 'requestedByName',
+                        key: 'requestedByName',
+                        width: 140,
+                      },
+                      {
+                        title: 'Muc do',
+                        dataIndex: 'priority',
+                        key: 'priority',
+                        width: 100,
+                        render: (v: number) => {
+                          const map: Record<number, { color: string; text: string }> = {
+                            1: { color: 'default', text: 'Thap' },
+                            2: { color: 'blue', text: 'Trung binh' },
+                            3: { color: 'orange', text: 'Cao' },
+                            4: { color: 'red', text: 'Khan cap' },
+                          };
+                          const item = map[v] || { color: 'default', text: `${v}` };
+                          return <Tag color={item.color}>{item.text}</Tag>;
+                        },
+                      },
+                      {
+                        title: 'Trang thai',
+                        dataIndex: 'status',
+                        key: 'status',
+                        width: 110,
+                        render: (v: number) => {
+                          const map: Record<number, { color: string; text: string }> = {
+                            0: { color: 'blue', text: 'Moi' },
+                            1: { color: 'orange', text: 'Dang xu ly' },
+                            2: { color: 'green', text: 'Da giai quyet' },
+                            3: { color: 'default', text: 'Da dong' },
+                          };
+                          const item = map[v] || { color: 'default', text: `${v}` };
+                          return <Tag color={item.color}>{item.text}</Tag>;
+                        },
+                      },
+                      {
+                        title: 'Ngay tao',
+                        dataIndex: 'createdAt',
+                        key: 'createdAt',
+                        width: 140,
+                        render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-',
+                      },
+                      {
+                        title: 'Phan hoi',
+                        dataIndex: 'response',
+                        key: 'response',
+                        width: 200,
+                        ellipsis: true,
+                        render: (v: string) => v || '-',
+                      },
+                      {
+                        title: 'Thao tac',
+                        key: 'actions',
+                        width: 160,
+                        fixed: 'right',
+                        render: (_: any, record: any) => (
+                          <Space>
+                            {record.status < 2 && (
+                              <Button
+                                size="small"
+                                type="link"
+                                onClick={() => {
+                                  setSelectedTicketId(record.id);
+                                  setIsItRespondModalOpen(true);
+                                }}
+                              >
+                                Phan hoi
+                              </Button>
+                            )}
+                            {record.status < 3 && (
+                              <Popconfirm
+                                title="Dong yeu cau nay?"
+                                onConfirm={() => handleCloseItTicket(record.id)}
+                                okText="Dong"
+                                cancelText="Huy"
+                              >
+                                <Button size="small" type="link" danger>
+                                  Dong
+                                </Button>
+                              </Popconfirm>
+                            )}
+                          </Space>
+                        ),
+                      },
+                    ]}
+                    scroll={{ x: 1200 }}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiet yeu cau - ${record.title}`,
+                          width: 600,
+                          content: (
+                            <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Tieu de">{record.title}</Descriptions.Item>
+                              <Descriptions.Item label="Mo ta">{record.description || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Khoa/Phong">{record.departmentName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Nguoi yeu cau">{record.requestedByName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Muc do">
+                                <Tag color={[,'default','blue','orange','red'][record.priority] || 'default'}>
+                                  {['','Thap','Trung binh','Cao','Khan cap'][record.priority] || record.priority}
+                                </Tag>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Trang thai">
+                                <Tag color={['blue','orange','green','default'][record.status] || 'default'}>
+                                  {['Moi','Dang xu ly','Da giai quyet','Da dong'][record.status] || record.status}
+                                </Tag>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Phan hoi">{record.response || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Nguoi xu ly">{record.assignedToName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngay tao">{record.createdAt ? dayjs(record.createdAt).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngay xu ly">{record.resolvedAt ? dayjs(record.resolvedAt).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'emr-covers',
+              label: (<span><FileTextOutlined /> Vo benh an</span>),
+              children: (
+                <Spin spinning={emrAdminLoading}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openEmrModal('cover')}>Them vo BA</Button>
+                    <Button icon={<ReloadOutlined />} onClick={fetchEmrAdminData} style={{ marginLeft: 8 }} />
+                  </div>
+                  <Table size="small" dataSource={emrCoverTypes} rowKey="id" pagination={{ pageSize: 15 }}
+                    columns={[
+                      { title: 'Ma', dataIndex: 'code', key: 'code', width: 80 },
+                      { title: 'Ten', dataIndex: 'name', key: 'name' },
+                      { title: 'Phan loai', dataIndex: 'category', key: 'cat', width: 120, render: (v: string) => <Tag color={v === 'NoiTru' ? 'blue' : v === 'NgoaiTru' ? 'green' : 'purple'}>{v}</Tag> },
+                      { title: 'Thu tu', dataIndex: 'sortOrder', key: 'sort', width: 70 },
+                      { title: 'Trang thai', dataIndex: 'isActive', key: 'active', width: 90, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Hoat dong' : 'Khoa'}</Tag> },
+                      { title: 'Thao tac', key: 'actions', width: 120, render: (_: unknown, r: EmrCoverTypeDto) => (
+                        <Space>
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('cover', r as unknown as Record<string, unknown>)} />
+                          <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('cover', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
+                        </Space>
+                      )},
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
+            {
+              key: 'emr-signers',
+              label: (<span><UserOutlined /> Nguoi ky</span>),
+              children: (
+                <Spin spinning={emrAdminLoading}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openEmrModal('signer')}>Them nguoi ky</Button>
+                  </div>
+                  <Table size="small" dataSource={emrSigners} rowKey="id" pagination={{ pageSize: 15 }}
+                    columns={[
+                      { title: 'Ho ten', dataIndex: 'fullName', key: 'name' },
+                      { title: 'Chuc danh', dataIndex: 'title', key: 'title', width: 80 },
+                      { title: 'Username', dataIndex: 'userName', key: 'user', width: 120 },
+                      { title: 'Khoa', dataIndex: 'departmentName', key: 'dept', width: 150 },
+                      { title: 'Chung thu', dataIndex: 'certificateInfo', key: 'cert', width: 150, ellipsis: true },
+                      { title: 'Trang thai', dataIndex: 'isActive', key: 'active', width: 90, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Hoat dong' : 'Khoa'}</Tag> },
+                      { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrSignerCatalogDto) => (
+                        <Space>
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('signer', r as unknown as Record<string, unknown>)} />
+                          <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('signer', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
+                        </Space>
+                      )},
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
+            {
+              key: 'emr-signing-roles',
+              label: (<span><SafetyOutlined /> Vai tro ky</span>),
+              children: (
+                <Spin spinning={emrAdminLoading}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openEmrModal('role')}>Them vai tro</Button>
+                  </div>
+                  <Table size="small" dataSource={emrSigningRoles} rowKey="id" pagination={false}
+                    columns={[
+                      { title: 'Ma', dataIndex: 'code', key: 'code', width: 80 },
+                      { title: 'Ten', dataIndex: 'name', key: 'name' },
+                      { title: 'Mo ta', dataIndex: 'description', key: 'desc', ellipsis: true },
+                      { title: 'Thu tu', dataIndex: 'sortOrder', key: 'sort', width: 70 },
+                      { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrSigningRoleDto) => (
+                        <Space>
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('role', r as unknown as Record<string, unknown>)} />
+                          <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('role', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
+                        </Space>
+                      )},
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
+            {
+              key: 'emr-signing-ops',
+              label: (<span><AuditOutlined /> Nghiep vu ky</span>),
+              children: (
+                <Spin spinning={emrAdminLoading}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openEmrModal('operation')}>Them nghiep vu</Button>
+                  </div>
+                  <Table size="small" dataSource={emrSigningOps} rowKey="id" pagination={false}
+                    columns={[
+                      { title: 'Ma', dataIndex: 'code', key: 'code', width: 100 },
+                      { title: 'Ten', dataIndex: 'name', key: 'name' },
+                      { title: 'Vai tro', dataIndex: 'roleName', key: 'role', width: 120 },
+                      { title: 'Loai VB', dataIndex: 'documentType', key: 'doc', width: 120 },
+                      { title: 'Bat buoc', dataIndex: 'isRequired', key: 'req', width: 80, render: (v: boolean) => <Tag color={v ? 'red' : 'default'}>{v ? 'Co' : 'Khong'}</Tag> },
+                      { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrSigningOperationDto) => (
+                        <Space>
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('operation', r as unknown as Record<string, unknown>)} />
+                          <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('operation', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
+                        </Space>
+                      )},
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
+            {
+              key: 'emr-doc-groups',
+              label: (<span><FolderOutlined /> Nhom VB</span>),
+              children: (
+                <Spin spinning={emrAdminLoading}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openEmrModal('group')}>Them nhom</Button>
+                  </div>
+                  <Table size="small" dataSource={emrDocGroups} rowKey="id" pagination={false}
+                    columns={[
+                      { title: 'Ma', dataIndex: 'code', key: 'code', width: 80 },
+                      { title: 'Ten', dataIndex: 'name', key: 'name' },
+                      { title: 'Phan loai', dataIndex: 'category', key: 'cat', width: 120 },
+                      { title: 'Thu tu', dataIndex: 'sortOrder', key: 'sort', width: 70 },
+                      { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrDocumentGroupDto) => (
+                        <Space>
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('group', r as unknown as Record<string, unknown>)} />
+                          <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('group', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
+                        </Space>
+                      )},
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
+            {
+              key: 'emr-doc-types',
+              label: (<span><FileTextOutlined /> Loai VB</span>),
+              children: (
+                <Spin spinning={emrAdminLoading}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openEmrModal('doctype')}>Them loai VB</Button>
+                  </div>
+                  <Table size="small" dataSource={emrDocTypes} rowKey="id" pagination={{ pageSize: 15 }}
+                    columns={[
+                      { title: 'Ma', dataIndex: 'code', key: 'code', width: 80 },
+                      { title: 'Ten', dataIndex: 'name', key: 'name' },
+                      { title: 'Nhom', dataIndex: 'groupName', key: 'group', width: 120 },
+                      { title: 'Template', dataIndex: 'formTemplateKey', key: 'tmpl', width: 120 },
+                      { title: 'Bat buoc', dataIndex: 'isRequired', key: 'req', width: 80, render: (v: boolean) => <Tag color={v ? 'red' : 'default'}>{v ? 'Co' : 'Khong'}</Tag> },
+                      { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrDocumentTypeDto) => (
+                        <Space>
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('doctype', r as unknown as Record<string, unknown>)} />
+                          <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('doctype', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
+                        </Space>
+                      )},
+                    ]}
+                  />
+                </Spin>
+              ),
+            },
           ]}
         />
       </Card>
+
+      {/* IT Ticket Create Modal */}
+      <Modal
+        title="Tao yeu cau CNTT"
+        open={isItTicketModalOpen}
+        onOk={handleCreateItTicket}
+        onCancel={() => setIsItTicketModalOpen(false)}
+        okText="Gui"
+        cancelText="Huy"
+        width={500}
+        destroyOnHidden
+      >
+        <Form form={itTicketForm} layout="vertical">
+          <Form.Item
+            name="title"
+            label="Tieu de"
+            rules={[{ required: true, message: 'Vui long nhap tieu de' }]}
+          >
+            <Input placeholder="VD: May in phong kham 3 bi ket giay" />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="Mo ta chi tiet"
+            rules={[{ required: true, message: 'Vui long nhap mo ta' }]}
+          >
+            <TextArea rows={4} placeholder="Mo ta chi tiet van de gap phai..." />
+          </Form.Item>
+          <Form.Item name="priority" label="Muc do uu tien" initialValue={2}>
+            <Select>
+              <Option value={1}>Thap - Khong gap</Option>
+              <Option value={2}>Trung binh - Can xu ly</Option>
+              <Option value={3}>Cao - Anh huong cong viec</Option>
+              <Option value={4}>Khan cap - Ngung hoat dong</Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* IT Ticket Respond Modal */}
+      <Modal
+        title="Phan hoi yeu cau CNTT"
+        open={isItRespondModalOpen}
+        onOk={handleRespondItTicket}
+        onCancel={() => { setIsItRespondModalOpen(false); setSelectedTicketId(null); }}
+        okText="Gui phan hoi"
+        cancelText="Huy"
+        width={500}
+        destroyOnHidden
+      >
+        <Form form={itRespondForm} layout="vertical">
+          <Form.Item
+            name="response"
+            label="Noi dung phan hoi"
+            rules={[{ required: true, message: 'Vui long nhap noi dung phan hoi' }]}
+          >
+            <TextArea rows={4} placeholder="Mo ta cach xu ly, huong dan, hoac ghi chu..." />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Lock Service Modal */}
       <Modal
@@ -3149,6 +3758,102 @@ const SystemAdmin: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+        </Form>
+      </Modal>
+
+      {/* NangCap11: EMR Admin Modal */}
+      <Modal
+        title={
+          { cover: 'Vo benh an', signer: 'Nguoi ky', role: 'Vai tro ky',
+            operation: 'Nghiep vu ky', group: 'Nhom van ban', doctype: 'Loai van ban',
+          }[emrModalType] || 'EMR Admin'
+        }
+        open={emrModalOpen}
+        onOk={handleEmrAdminSave}
+        onCancel={() => setEmrModalOpen(false)}
+        width={500}
+      >
+        <Form form={emrForm} layout="vertical">
+          <Form.Item name="code" label="Ma" rules={[{ required: true, message: 'Nhap ma' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="name" label="Ten" rules={[{ required: true, message: 'Nhap ten' }]}>
+            <Input />
+          </Form.Item>
+          {emrModalType === 'cover' && (
+            <Form.Item name="category" label="Phan loai" rules={[{ required: true }]}>
+              <Select>
+                <Select.Option value="NoiTru">Noi tru</Select.Option>
+                <Select.Option value="NgoaiTru">Ngoai tru</Select.Option>
+                <Select.Option value="ChuyenKhoa">Chuyen khoa</Select.Option>
+              </Select>
+            </Form.Item>
+          )}
+          {emrModalType === 'signer' && (
+            <>
+              <Form.Item name="fullName" label="Ho ten" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="title" label="Chuc danh">
+                <Select allowClear>
+                  <Select.Option value="BS">BS</Select.Option>
+                  <Select.Option value="BSCKI">BSCKI</Select.Option>
+                  <Select.Option value="BSCKII">BSCKII</Select.Option>
+                  <Select.Option value="ThS">ThS</Select.Option>
+                  <Select.Option value="TS">TS</Select.Option>
+                  <Select.Option value="PGS">PGS</Select.Option>
+                  <Select.Option value="GS">GS</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item name="departmentName" label="Khoa">
+                <Input />
+              </Form.Item>
+            </>
+          )}
+          {emrModalType === 'operation' && (
+            <>
+              <Form.Item name="roleName" label="Vai tro">
+                <Input />
+              </Form.Item>
+              <Form.Item name="documentType" label="Loai tai lieu">
+                <Input />
+              </Form.Item>
+              <Form.Item name="isRequired" label="Bat buoc" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </>
+          )}
+          {emrModalType === 'group' && (
+            <Form.Item name="category" label="Phan loai">
+              <Select allowClear>
+                <Select.Option value="BenhAn">Benh an</Select.Option>
+                <Select.Option value="DieuTri">Dieu tri</Select.Option>
+                <Select.Option value="ChamSoc">Cham soc</Select.Option>
+                <Select.Option value="XetNghiem">Xet nghiem</Select.Option>
+                <Select.Option value="ChanDoan">Chan doan</Select.Option>
+                <Select.Option value="Khac">Khac</Select.Option>
+              </Select>
+            </Form.Item>
+          )}
+          {emrModalType === 'doctype' && (
+            <>
+              <Form.Item name="groupName" label="Nhom">
+                <Input />
+              </Form.Item>
+              <Form.Item name="formTemplateKey" label="Template key">
+                <Input />
+              </Form.Item>
+              <Form.Item name="isRequired" label="Bat buoc" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </>
+          )}
+          <Form.Item name="sortOrder" label="Thu tu">
+            <InputNumber min={0} />
+          </Form.Item>
+          <Form.Item name="description" label="Mo ta">
+            <Input.TextArea rows={2} />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

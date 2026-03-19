@@ -791,6 +791,7 @@ export interface ExaminationDto {
   examinationDate: string;
   diagnosisCode?: string;
   diagnosisName?: string;
+  medicalRecordId?: string;
 }
 
 export interface ExaminationSearchDto {
