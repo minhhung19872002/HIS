@@ -781,22 +781,23 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime? fromDate = null,
             [FromQuery] DateTime? toDate = null)
         {
-            // Gelcard results are stored as cross-match results on blood order items
+            // Gelcard results are stored as cross-match results on assigned blood bags
             var from = fromDate ?? DateTime.Today.AddDays(-30);
             var to = toDate ?? DateTime.Today.AddDays(1).AddTicks(-1);
             var orders = await _bloodBankService.GetBloodOrdersAsync(from, to, null, null, null);
             var gelcardResults = orders
                 .SelectMany(o => o.Items ?? new List<BloodOrderItemDto>())
-                .Where(i => !string.IsNullOrEmpty(i.CrossMatchResult))
-                .Select(i => new
+                .SelectMany(i => (i.AssignedBags ?? new List<BloodBagAssignmentDto>()))
+                .Where(b => !string.IsNullOrEmpty(b.CrossMatchResult))
+                .Select(b => new
                 {
-                    i.Id,
-                    i.BloodBagId,
-                    i.BloodType,
-                    i.RhFactor,
-                    i.CrossMatchResult,
-                    i.CrossMatchNote,
-                    i.Status
+                    b.BloodBagId,
+                    b.BagCode,
+                    b.BloodType,
+                    b.RhFactor,
+                    b.CrossMatchResult,
+                    b.CrossMatchDate,
+                    b.TransfusionStatus
                 })
                 .ToList();
             return Ok(gelcardResults);
