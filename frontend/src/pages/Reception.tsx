@@ -991,14 +991,11 @@ const Reception: React.FC = () => {
                               applyFilters(allData, searchText, filterStatus);
                             }
                           }}
-                        >
-                          <Select.Option value="">Tất cả phòng</Select.Option>
-                          {rooms.map(room => (
-                            <Select.Option key={room.roomId} value={room.roomId}>
-                              {room.roomName}
-                            </Select.Option>
-                          ))}
-                        </Select>
+                          options={[
+                            { value: '', label: 'Tất cả phòng' },
+                            ...rooms.map(room => ({ value: room.roomId, label: room.roomName })),
+                          ]}
+                        />
                         <Select
                           defaultValue=""
                           style={{ width: 120 }}
@@ -1007,13 +1004,14 @@ const Reception: React.FC = () => {
                             setFilterStatus(value);
                             applyFilters(allData, searchText, value);
                           }}
-                        >
-                          <Select.Option value="">Tất cả</Select.Option>
-                          <Select.Option value="0">Chờ khám</Select.Option>
-                          <Select.Option value="1">Đang khám</Select.Option>
-                          <Select.Option value="2">Chờ kết luận</Select.Option>
-                          <Select.Option value="3">Hoàn thành</Select.Option>
-                        </Select>
+                          options={[
+                            { value: '', label: 'Tất cả' },
+                            { value: '0', label: 'Chờ khám' },
+                            { value: '1', label: 'Đang khám' },
+                            { value: '2', label: 'Chờ kết luận' },
+                            { value: '3', label: 'Hoàn thành' },
+                          ]}
+                        />
                         <DatePicker
                           defaultValue={dayjs()}
                           format="DD/MM/YYYY"
@@ -1133,7 +1131,7 @@ const Reception: React.FC = () => {
         }}
         footer={null}
         width={600}
-        forceRender
+        destroyOnHidden={false}
       >
         <Form form={verifyForm} layout="vertical">
           <Row gutter={16}>
@@ -1388,7 +1386,7 @@ const Reception: React.FC = () => {
         okText="Đăng ký"
         cancelText="Hủy"
         confirmLoading={submitting}
-        forceRender
+        destroyOnHidden={false}
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
@@ -1409,10 +1407,10 @@ const Reception: React.FC = () => {
                     label="Giới tính"
                     rules={[{ required: true }]}
                   >
-                    <Select placeholder="Chọn">
-                      <Select.Option value={1}>Nam</Select.Option>
-                      <Select.Option value={2}>Nữ</Select.Option>
-                    </Select>
+                    <Select placeholder="Chọn" options={[
+                      { value: 1, label: 'Nam' },
+                      { value: 2, label: 'Nữ' },
+                    ]} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -1461,11 +1459,11 @@ const Reception: React.FC = () => {
                 label="Đối tượng"
                 rules={[{ required: true }]}
               >
-                <Select placeholder="Chọn đối tượng">
-                  <Select.Option value={1}>BHYT</Select.Option>
-                  <Select.Option value={2}>Viện phí</Select.Option>
-                  <Select.Option value={3}>Dịch vụ</Select.Option>
-                </Select>
+                <Select placeholder="Chọn đối tượng" options={[
+                  { value: 1, label: 'BHYT' },
+                  { value: 2, label: 'Viện phí' },
+                  { value: 3, label: 'Dịch vụ' },
+                ]} />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -1506,13 +1504,8 @@ const Reception: React.FC = () => {
                   placeholder="Chọn phòng khám"
                   loading={loadingRooms}
                   notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
-                >
-                  {rooms.map(room => (
-                    <Select.Option key={room.roomId} value={room.roomId}>
-                      {room.roomName} - {room.departmentName}
-                    </Select.Option>
-                  ))}
-                </Select>
+                  options={rooms.map(room => ({ value: room.roomId, label: `${room.roomName} - ${room.departmentName}` }))}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -1622,7 +1615,7 @@ const Reception: React.FC = () => {
           </Space>
         }
         open={isTransferModalOpen}
-        forceRender
+        destroyOnHidden={false}
         onOk={handleTransferSubmit}
         onCancel={() => {
           setIsTransferModalOpen(false);
@@ -1644,15 +1637,10 @@ const Reception: React.FC = () => {
               placeholder="Chọn phòng khám mới"
               loading={loadingRooms}
               notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
-            >
-              {rooms
+              options={rooms
                 .filter(room => room.roomId !== selectedRecord?.roomId)
-                .map(room => (
-                  <Select.Option key={room.roomId} value={room.roomId}>
-                    {room.roomName} - {room.departmentName} (Chờ: {room.waitingCount})
-                  </Select.Option>
-                ))}
-            </Select>
+                .map(room => ({ value: room.roomId, label: `${room.roomName} - ${room.departmentName} (Chờ: ${room.waitingCount})` }))}
+            />
           </Form.Item>
           <Form.Item name="reason" label="Lý do chuyển">
             <Input.TextArea rows={2} placeholder="Nhập lý do chuyển phòng (không bắt buộc)" />
@@ -1669,7 +1657,7 @@ const Reception: React.FC = () => {
           printRequestForm.resetFields();
         }}
         width={800}
-        forceRender
+        destroyOnHidden={false}
         footer={[
           <Button key="cancel" onClick={() => setIsPrintRequestModalOpen(false)}>
             Hủy
@@ -1782,12 +1770,12 @@ const Reception: React.FC = () => {
               </Col>
             </Row>
             <Form.Item name="roomType" label="Loại buồng bệnh (nếu nằm viện)">
-              <Select placeholder="Chọn loại buồng">
-                <Select.Option value="VIP">VIP - Phòng riêng</Select.Option>
-                <Select.Option value="A">Loại A - 2 giường</Select.Option>
-                <Select.Option value="B">Loại B - 4 giường</Select.Option>
-                <Select.Option value="">Không yêu cầu</Select.Option>
-              </Select>
+              <Select placeholder="Chọn loại buồng" options={[
+                { value: 'VIP', label: 'VIP - Phòng riêng' },
+                { value: 'A', label: 'Loại A - 2 giường' },
+                { value: 'B', label: 'Loại B - 4 giường' },
+                { value: '', label: 'Không yêu cầu' },
+              ]} />
             </Form.Item>
 
             <Divider>Thanh toán</Divider>

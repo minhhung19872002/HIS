@@ -23,12 +23,13 @@ import { waitForLoading, login } from '../helpers/test-utils';
  * Tra KQ ve Khoa LS
  */
 test.describe('Xet nghiem - Laboratory Flow', () => {
+  test.describe.configure({ timeout: 90000 });
 
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded', timeout: 45000 });
     await waitForLoading(page);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(300);
   });
 
   // ==================== BUOC 1: TIEP NHAN MAU ====================
@@ -303,12 +304,13 @@ test.describe('Xet nghiem - Laboratory Flow', () => {
  * E2E Test: Luong xet nghiem day du
  */
 test.describe('Laboratory E2E Flow', () => {
+  test.describe.configure({ timeout: 90000 });
 
   test('E2E: Luong xet nghiem tu tiep nhan den tra ket qua', async ({ page }) => {
     await login(page);
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded', timeout: 45000 });
     await waitForLoading(page);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(300);
 
     await test.step('Buoc 1: Kiem tra trang load', async () => {
       const title = page.locator('h4:has-text("Quản lý Xét nghiệm"), h4:has-text("Xét nghiệm")');

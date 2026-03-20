@@ -61,8 +61,9 @@ test.describe('Dieu tri noi tru - IPD Flow', () => {
       await bedTab.click();
       await page.waitForTimeout(500);
 
-      // Kiem tra hien thi so do hoac table giuong
-      const bedLayout = page.locator('.ant-table, .bed-layout, .ward-layout');
+      // Chi assert noi dung cua tab dang active de tranh bat nham bang an o tab khac
+      const activeTabPanel = page.locator('.ant-tabs-tabpane-active');
+      const bedLayout = activeTabPanel.locator('.ant-table, .bed-layout, .ward-layout');
       await expect(bedLayout.first()).toBeVisible({ timeout: 10000 });
 
       console.log('[TEST] Bed layout displayed');
