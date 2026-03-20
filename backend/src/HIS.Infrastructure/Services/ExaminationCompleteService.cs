@@ -2994,11 +2994,13 @@ public class ExaminationCompleteService : IExaminationCompleteService
         }
 
         var total = await query.CountAsync();
+        var page = Math.Max(1, search.Page);
+        var pageSize = Math.Clamp(search.PageSize, 1, 200);
         var items = await query
             .OrderByDescending(a => a.AppointmentDate)
             .ThenBy(a => a.AppointmentTime)
-            .Skip((search.Page - 1) * search.PageSize)
-            .Take(search.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         var today = DateTime.Today;
@@ -3296,7 +3298,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
         var total = await query.CountAsync();
         var page = Math.Max(1, dto.PageIndex ?? 1);
-        var pageSize = dto.PageSize ?? 20;
+        var pageSize = Math.Clamp(dto.PageSize ?? 20, 1, 200);
 
         var items = await query
             .OrderByDescending(e => e.MedicalRecord.AdmissionDate)

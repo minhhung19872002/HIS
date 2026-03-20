@@ -323,6 +323,7 @@ public class BillingCompleteController : ControllerBase
     /// Tìm kiếm phiếu hoàn ứng
     /// </summary>
     [HttpGet("refunds/search")]
+    [HttpGet("refunds")]
     public async Task<ActionResult<PagedResultDto<RefundDto>>> SearchRefunds([FromQuery] RefundSearchDto dto)
     {
         var result = await _billingService.SearchRefundsAsync(dto);

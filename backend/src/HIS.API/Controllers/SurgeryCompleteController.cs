@@ -32,6 +32,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Tạo yêu cầu PTTT
     /// </summary>
     [HttpPost]
+    [HttpPost("requests")]
     public async Task<ActionResult<SurgeryDto>> CreateSurgeryRequest([FromBody] CreateSurgeryRequestDto dto)
     {
         var result = await _surgeryService.CreateSurgeryRequestAsync(dto, GetUserId());

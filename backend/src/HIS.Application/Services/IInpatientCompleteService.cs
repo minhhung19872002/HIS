@@ -51,6 +51,11 @@ public interface IInpatientCompleteService
     Task<PagedResultDto<InpatientListDto>> GetInpatientListAsync(InpatientSearchDto searchDto);
 
     /// <summary>
+    /// Lấy chi tiết một bệnh nhân nội trú theo admissionId
+    /// </summary>
+    Task<AdmissionDto?> GetAdmissionDetailAsync(Guid admissionId);
+
+    /// <summary>
     /// Tiếp nhận bệnh nhân từ phòng khám
     /// </summary>
     Task<AdmissionDto> AdmitFromOpdAsync(AdmitFromOpdDto dto, Guid userId);

@@ -111,6 +111,18 @@ public partial class InpatientCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy chi tiết một bệnh nhân nội trú
+    /// </summary>
+    [HttpGet("{admissionId}/detail")]
+    public async Task<ActionResult<AdmissionDto>> GetAdmissionDetail(Guid admissionId)
+    {
+        var result = await _inpatientService.GetAdmissionDetailAsync(admissionId);
+        if (result == null)
+            return NotFound();
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Tiếp nhận bệnh nhân từ phòng khám
     /// </summary>
     [HttpPost("admit-from-opd")]

@@ -345,6 +345,48 @@ public class InpatientCompleteService : IInpatientCompleteService
         };
     }
 
+    public async Task<AdmissionDto?> GetAdmissionDetailAsync(Guid admissionId)
+    {
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null)
+            return null;
+
+        var dept = await _context.Departments.FindAsync(admission.DepartmentId);
+        var room = admission.RoomId != Guid.Empty ? await _context.Rooms.FindAsync(admission.RoomId) : null;
+        var bed = admission.BedId.HasValue ? await _context.Beds.FindAsync(admission.BedId.Value) : null;
+        var doctor = admission.AdmittingDoctorId != Guid.Empty ? await _context.Users.FindAsync(admission.AdmittingDoctorId) : null;
+
+        return new AdmissionDto
+        {
+            Id = admission.Id,
+            PatientId = admission.PatientId,
+            PatientCode = admission.Patient.PatientCode,
+            PatientName = admission.Patient.FullName,
+            DateOfBirth = admission.Patient.DateOfBirth,
+            Gender = admission.Patient.Gender == 1 ? "Nam" : "Nữ",
+            Address = admission.Patient.Address,
+            PhoneNumber = admission.Patient.PhoneNumber,
+            IdentityNumber = admission.Patient.IdentityNumber,
+            InsuranceNumber = admission.Patient.InsuranceNumber,
+            AdmissionDate = admission.AdmissionDate,
+            AdmissionType = GetAdmissionTypeName(admission.AdmissionType),
+            DepartmentId = admission.DepartmentId,
+            DepartmentName = dept?.DepartmentName ?? "",
+            RoomId = admission.RoomId,
+            RoomName = room?.RoomName ?? "",
+            BedId = admission.BedId,
+            BedName = bed?.BedName ?? "",
+            InitialDiagnosis = admission.DiagnosisOnAdmission,
+            ChiefComplaint = admission.ReasonForAdmission,
+            AttendingDoctorId = admission.AdmittingDoctorId,
+            AttendingDoctorName = doctor?.FullName ?? "",
+            Status = GetAdmissionStatusName(admission.Status),
+            CreatedDate = admission.CreatedAt
+        };
+    }
+
     /// <summary>
     /// Get bed status with occupancy information
     /// </summary>

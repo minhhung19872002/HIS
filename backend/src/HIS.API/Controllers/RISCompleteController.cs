@@ -97,6 +97,26 @@ namespace HIS.API.Controllers
             _configuration = configuration;
         }
 
+        /// <summary>
+        /// Tạo yêu cầu CĐHA (alias for POST /orders)
+        /// </summary>
+        [HttpPost("requests")]
+        public async Task<ActionResult> CreateRadiologyRequest([FromBody] CreateRadiologyPrescriptionDto dto)
+        {
+            var result = await _risService.CreateRadiologyPrescriptionAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Duyệt kết quả CĐHA (alias for final-approve)
+        /// </summary>
+        [HttpPost("results/approve")]
+        public async Task<ActionResult> ApproveResult([FromBody] ApproveRadiologyResultDto dto)
+        {
+            await _risService.FinalApproveResultAsync(dto);
+            return Ok(new { success = true });
+        }
+
         #region 8.1 Màn hình chờ thực hiện
 
         /// <summary>

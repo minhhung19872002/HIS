@@ -433,6 +433,7 @@ public class PharmacyController : ControllerBase
     }
 
     [HttpPost("prescriptions/{prescriptionId}/complete")]
+    [HttpPost("prescriptions/{prescriptionId}/dispense")]
     public async Task<IActionResult> CompleteDispensing(Guid prescriptionId)
     {
         try

@@ -200,6 +200,7 @@ namespace HIS.API.Controllers
             => Ok(await _service.GetHAICaseAsync(id));
 
         [HttpPost("hai")]
+        [HttpPost("hai-reports")]
         public async Task<ActionResult<HAIDto>> ReportHAI([FromBody] ReportHAIDto dto)
             => Ok(await _service.ReportHAIAsync(dto));
 
@@ -302,6 +303,10 @@ namespace HIS.API.Controllers
         [HttpPost("assessments")]
         public async Task<ActionResult<FunctionalAssessmentDto>> SaveAssessment([FromBody] SaveFunctionalAssessmentDto dto)
             => Ok(await _service.SaveAssessmentAsync(dto));
+
+        [HttpGet("plans")]
+        public async Task<ActionResult<List<RehabReferralDto>>> GetTreatmentPlansList()
+            => Ok(await _service.GetPendingReferralsAsync());
 
         [HttpGet("treatment-plans/{id}")]
         public async Task<ActionResult<RehabTreatmentPlanDto>> GetTreatmentPlan(Guid id)
@@ -628,6 +633,15 @@ namespace HIS.API.Controllers
         [HttpGet("capas")]
         public async Task<ActionResult<List<CAPADto>>> GetCAPAsAlias([FromQuery] string status = null, [FromQuery] string source = null)
             => Ok(await _service.GetCAPAsAsync(status, source));
+
+        [HttpGet("surveys")]
+        public async Task<ActionResult<SatisfactionReportDto>> GetSurveys(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+            => Ok(await _service.GetSatisfactionReportAsync(
+                fromDate ?? DateTime.Today.AddMonths(-1),
+                toDate ?? DateTime.Today.AddDays(1),
+                null, null));
 
         [HttpGet("surveys/statistics")]
         public async Task<ActionResult<SatisfactionReportDto>> GetSurveyStatistics(

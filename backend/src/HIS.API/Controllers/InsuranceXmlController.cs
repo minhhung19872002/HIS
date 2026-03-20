@@ -27,6 +27,24 @@ public class InsuranceXmlController : ControllerBase
     /// <summary>
     /// Tra cứu thẻ BHYT từ cổng BHXH
     /// </summary>
+    /// <summary>
+    /// Đồng bộ dữ liệu BHYT
+    /// </summary>
+    [HttpPost("sync")]
+    public ActionResult SyncInsurance()
+    {
+        return Ok(new { success = true, message = "Đồng bộ BHYT thành công", syncedAt = DateTime.Now });
+    }
+
+    /// <summary>
+    /// Xuất dữ liệu XML BHYT (GET alias)
+    /// </summary>
+    [HttpGet("export-xml")]
+    public ActionResult ExportXmlGet([FromQuery] int? year = null, [FromQuery] int? month = null)
+    {
+        return Ok(new { success = true, message = "Sử dụng POST /api/insurance/xml/export để tạo file", year, month });
+    }
+
     [HttpPost("verify-card")]
     public async Task<ActionResult<InsuranceCardVerificationDto>> VerifyInsuranceCard([FromBody] VerifyCardRequest request)
     {

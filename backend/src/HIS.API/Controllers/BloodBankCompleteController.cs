@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -264,6 +265,30 @@ namespace HIS.API.Controllers
         }
 
         /// <summary>
+        /// Tồn kho theo nhóm máu (alias)
+        /// </summary>
+        [HttpGet("by-blood-group")]
+        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        public async Task<ActionResult<List<BloodStockDto>>> GetByBloodGroup(
+            [FromQuery] string bloodType = null,
+            [FromQuery] string rhFactor = null)
+        {
+            var result = await _bloodBankService.GetBloodStockAsync(bloodType, rhFactor, null);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Túi máu sắp hết hạn (alias)
+        /// </summary>
+        [HttpGet("expiring")]
+        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        public async Task<ActionResult<List<BloodStockDetailDto>>> GetExpiringAlias([FromQuery] int daysUntilExpiry = 7)
+        {
+            var result = await _bloodBankService.GetExpiringBloodBagsAsync(daysUntilExpiry);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Túi máu sắp hết hạn
         /// </summary>
         [HttpGet("stock/expiring")]
@@ -495,6 +520,17 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<BloodOrderDto>> GetBloodOrder(Guid orderId)
         {
             var result = await _bloodBankService.GetBloodOrderAsync(orderId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Tạo yêu cầu máu (alias)
+        /// </summary>
+        [HttpPost("requests")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<ActionResult<BloodOrderDto>> CreateBloodRequest([FromBody] CreateBloodOrderDto dto)
+        {
+            var result = await _bloodBankService.CreateBloodOrderAsync(dto);
             return Ok(result);
         }
 
@@ -734,6 +770,36 @@ namespace HIS.API.Controllers
         {
             var result = await _bloodBankService.SaveSupplierAsync(dto);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Danh sách kết quả Gelcard test
+        /// </summary>
+        [HttpGet("gelcard-tests")]
+        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        public async Task<ActionResult> GetGelcardTests(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            // Gelcard results are stored as cross-match results on blood order items
+            var from = fromDate ?? DateTime.Today.AddDays(-30);
+            var to = toDate ?? DateTime.Today.AddDays(1).AddTicks(-1);
+            var orders = await _bloodBankService.GetBloodOrdersAsync(from, to, null, null, null);
+            var gelcardResults = orders
+                .SelectMany(o => o.Items ?? new List<BloodOrderItemDto>())
+                .Where(i => !string.IsNullOrEmpty(i.CrossMatchResult))
+                .Select(i => new
+                {
+                    i.Id,
+                    i.BloodBagId,
+                    i.BloodType,
+                    i.RhFactor,
+                    i.CrossMatchResult,
+                    i.CrossMatchNote,
+                    i.Status
+                })
+                .ToList();
+            return Ok(gelcardResults);
         }
 
         #endregion

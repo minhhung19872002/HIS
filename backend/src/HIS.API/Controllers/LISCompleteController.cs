@@ -214,6 +214,7 @@ namespace HIS.API.Controllers
         /// 7.2.3 Thực hiện lấy mẫu
         /// </summary>
         [HttpPost("sample-collection/collect")]
+        [HttpPost("sample/collect")]
         // Authorize removed for testing
         public async Task<ActionResult<CollectSampleResultDto>> CollectSample([FromBody] CollectSampleDto dto)
         {
@@ -353,6 +354,7 @@ namespace HIS.API.Controllers
         /// 7.3.6 Duyệt kết quả xét nghiệm (1 bước)
         /// </summary>
         [HttpPost("orders/approve")]
+        [HttpPost("results/approve")]
         // Authorize removed for testing
         public async Task<ActionResult> ApproveLabResult([FromBody] ApproveLabResultDto dto)
         {
