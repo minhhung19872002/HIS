@@ -711,10 +711,10 @@ function KioskView() {
         params: { keyword: priceKeyword.trim(), limit: 30 }
       });
       const data = Array.isArray(res.data) ? res.data : [];
-      setPriceResults(data.map((s: Record<string, unknown>) => ({
-        serviceName: (s.serviceName || s.name || '') as string,
-        unit: (s.unit || 'Lần') as string,
-        unitPrice: (s.unitPrice || s.price || 0) as number,
+      setPriceResults(data.map((s) => ({
+        serviceName: s.serviceName || '',
+        unit: s.unit || 'Lần',
+        unitPrice: s.unitPrice || 0,
       })));
     } catch {
       setPriceResults([]);

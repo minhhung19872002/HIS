@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Row, Col, Card, Statistic, Typography, Spin, Tag, message, Progress, Badge, Button, Segmented, Empty } from 'antd';
 import {
   UserOutlined,
@@ -22,7 +22,7 @@ import {
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, Legend,
+  Legend,
 } from 'recharts';
 import { statisticsApi } from '../api/system';
 import dayjs from 'dayjs';
@@ -68,6 +68,13 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [chartView, setChartView] = useState<string | number>('trend');
+  const [chartsReady, setChartsReady] = useState(false);
+  const mainChartRef = useRef<HTMLDivElement | null>(null);
+  const patientPieRef = useRef<HTMLDivElement | null>(null);
+  const revenuePieRef = useRef<HTMLDivElement | null>(null);
+  const [mainChartWidth, setMainChartWidth] = useState(0);
+  const [patientPieWidth, setPatientPieWidth] = useState(0);
+  const [revenuePieWidth, setRevenuePieWidth] = useState(0);
   const [data, setData] = useState<DashboardData>({
     outpatientCount: 0, inpatientCount: 0, emergencyCount: 0, surgeryCount: 0,
     admissionCount: 0, dischargeCount: 0, availableBeds: 0, totalRevenue: 0,
@@ -138,6 +145,32 @@ const Dashboard: React.FC = () => {
     const interval = setInterval(fetchDashboard, 60000);
     return () => clearInterval(interval);
   }, [fetchDashboard]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setChartsReady(true), 50);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const updateWidths = () => {
+      setMainChartWidth(mainChartRef.current?.clientWidth ?? 0);
+      setPatientPieWidth(patientPieRef.current?.clientWidth ?? 0);
+      setRevenuePieWidth(revenuePieRef.current?.clientWidth ?? 0);
+    };
+
+    updateWidths();
+
+    const observer = new ResizeObserver(updateWidths);
+    if (mainChartRef.current) observer.observe(mainChartRef.current);
+    if (patientPieRef.current) observer.observe(patientPieRef.current);
+    if (revenuePieRef.current) observer.observe(revenuePieRef.current);
+    window.addEventListener('resize', updateWidths);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidths);
+    };
+  }, []);
 
   const maxDeptCount = Math.max(...data.outpatientByDepartment.map(d => d.count), 1);
   const maxDeptRevenue = Math.max(...data.revenueByDepartment.map(d => d.revenue), 1);
@@ -290,11 +323,14 @@ const Dashboard: React.FC = () => {
                 />
               }
             >
-              <div style={{ height: 300 }}>
-                {chartView === 'trend' && (
+              <div ref={mainChartRef} style={{ height: 300 }}>
+                {!chartsReady ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <Spin size="small" />
+                  </div>
+                ) : mainChartWidth <= 0 ? null : chartView === 'trend' ? (
                   data.trends.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={data.trends} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <AreaChart width={mainChartWidth} height={300} data={data.trends} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" fontSize={12} />
                         <YAxis yAxisId="left" fontSize={12} />
@@ -313,19 +349,15 @@ const Dashboard: React.FC = () => {
                           stroke="#faad14" fill="#faad14" fillOpacity={0.15} />
                         <Area yAxisId="right" type="monotone" dataKey="revenue" name="Doanh thu"
                           stroke="#52c41a" fill="#52c41a" fillOpacity={0.1} />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    </AreaChart>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                       <Empty description="Chưa có dữ liệu xu hướng 7 ngày" />
                     </div>
                   )
-                )}
-
-                {chartView === 'dept' && (
+                ) : chartView === 'dept' ? (
                   deptBarData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={deptBarData} margin={{ top: 5, right: 20, left: 0, bottom: 30 }}>
+                    <BarChart width={mainChartWidth} height={300} data={deptBarData} margin={{ top: 5, right: 20, left: 0, bottom: 30 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" fontSize={11} angle={-25} textAnchor="end" />
                         <YAxis fontSize={12} />
@@ -335,19 +367,15 @@ const Dashboard: React.FC = () => {
                             <Cell key={`cell-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                           ))}
                         </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    </BarChart>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                       <Empty description="Chưa có dữ liệu theo khoa" />
                     </div>
                   )
-                )}
-
-                {chartView === 'pie' && (
+                ) : chartView === 'pie' ? (
                   pieData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
+                    <PieChart width={mainChartWidth} height={300}>
                         <Pie
                           data={pieData}
                           cx="50%"
@@ -364,14 +392,13 @@ const Dashboard: React.FC = () => {
                         </Pie>
                         <RechartsTooltip />
                         <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    </PieChart>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                       <Empty description="Chưa có dữ liệu phân bố" />
                     </div>
                   )
-                )}
+                ) : null}
               </div>
             </Card>
           </Col>
@@ -379,16 +406,16 @@ const Dashboard: React.FC = () => {
           {/* Right sidebar: Quick stats pie */}
           <Col xs={24} lg={8}>
             <Card size="small" title="Phân bố bệnh nhân" style={{ marginBottom: 16 }}>
-              {pieData.length > 0 ? (
-                <div style={{ height: 120 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+              {chartsReady && pieData.length > 0 ? (
+                <div ref={patientPieRef} style={{ height: 120 }}>
+                  {patientPieWidth > 0 ? (
+                    <PieChart width={patientPieWidth} height={120}>
                       <Pie data={pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value">
                         {pieData.map((entry, i) => <Cell key={`mini-${i}`} fill={entry.color} />)}
                       </Pie>
                       <RechartsTooltip />
                     </PieChart>
-                  </ResponsiveContainer>
+                  ) : null}
                 </div>
               ) : <Text type="secondary">Chưa có dữ liệu</Text>}
               <div style={{ marginTop: 8 }}>
@@ -416,11 +443,11 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </Card>
-            {data.revenueByPatientType.length > 0 && (
+            {chartsReady && data.revenueByPatientType.length > 0 && (
               <Card size="small" title="Doanh thu theo đối tượng" style={{ marginTop: 16 }}>
-                <div style={{ height: 130 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                <div ref={revenuePieRef} style={{ height: 130 }}>
+                  {revenuePieWidth > 0 ? (
+                    <PieChart width={revenuePieWidth} height={130}>
                       <Pie
                         data={data.revenueByPatientType}
                         cx="50%"
@@ -438,7 +465,7 @@ const Dashboard: React.FC = () => {
                         formatter={(value: any, name: any) => [`${(value ?? 0).toLocaleString('vi-VN')} ₫`, name]}
                       />
                     </PieChart>
-                  </ResponsiveContainer>
+                  ) : null}
                 </div>
                 <div style={{ marginTop: 8 }}>
                   {data.revenueByPatientType.map(d => (

@@ -61,14 +61,17 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
 
   // Setup SignalR connection for batch signing progress
   useEffect(() => {
+    let cancelled = false;
     const token = localStorage.getItem('token');
     if (!token) return;
+    const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api').replace(/\/api$/, '');
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/notifications', {
+      .withUrl(`${apiBase}/hubs/notifications`, {
         accessTokenFactory: () => token,
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000])
+      .configureLogging(signalR.LogLevel.None)
       .build();
 
     connection.on('SigningProgress', (data: BatchProgress) => {
@@ -84,13 +87,20 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    connection.start().catch(() => {
-      // SignalR connection errors are handled by NotificationContext
-    });
+    connection.start()
+      .then(() => {
+        if (cancelled) {
+          return connection.stop();
+        }
+      })
+      .catch(() => {
+        // SignalR connection errors are handled by NotificationContext
+      });
 
     connectionRef.current = connection;
 
     return () => {
+      cancelled = true;
       connection.stop();
     };
   }, []);

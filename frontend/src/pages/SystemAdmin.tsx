@@ -62,6 +62,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { apiClient as client } from '../api/client';
 import { adminApi, catalogApi, type UserSessionDto } from '../api/system';
 import {
   getHealthDetails,

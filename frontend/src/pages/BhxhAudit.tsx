@@ -48,6 +48,7 @@ import type { UploadFile } from 'antd/es/upload';
 import dayjs from 'dayjs';
 import client from '../api/client';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import { isApiAvailable } from '../utils/apiAvailability';
 
 const { RangePicker } = DatePicker;
 const { Search } = Input;
@@ -135,6 +136,9 @@ interface Department {
 // ---------------------------------------------------------------------------
 
 const BhxhAudit: React.FC = () => {
+  const [moduleAvailable, setModuleAvailable] = useState(true);
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+
   // Tab state
   const [activeTab, setActiveTab] = useState('records');
 
@@ -313,16 +317,26 @@ const BhxhAudit: React.FC = () => {
   }, [portalSearch]);
 
   useEffect(() => {
-    fetchRecords();
-    fetchDepartments();
+    const checkAvailability = async () => {
+      setAvailabilityLoading(true);
+      const available = await isApiAvailable('/insurance-xml/bhxh-audit/records');
+      setModuleAvailable(available);
+      if (available) {
+        fetchRecords();
+        fetchDepartments();
+      }
+      setAvailabilityLoading(false);
+    };
+
+    checkAvailability();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (activeTab === 'portal') {
+    if (moduleAvailable && activeTab === 'portal') {
       fetchAuditorAccounts();
       fetchPortalRecords();
     }
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, moduleAvailable]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -1190,6 +1204,23 @@ const BhxhAudit: React.FC = () => {
   // Render
   // ---------------------------------------------------------------------------
 
+  if (availabilityLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spin /></div>;
+  }
+
+  if (!moduleAvailable) {
+    return (
+      <Card>
+        <Space orientation="vertical" size="small">
+          <strong>Màn hình giám định BHXH chưa khả dụng.</strong>
+          <span style={{ color: 'rgba(0,0,0,0.45)' }}>
+            Backend hiện chưa cung cấp các endpoint `/api/insurance-xml/bhxh-audit/*`, nên frontend tạm thời không gọi các API này để tránh lỗi `404`.
+          </span>
+        </Space>
+      </Card>
+    );
+  }
+
   return (
     <Spin spinning={false}>
       <Card
@@ -1243,7 +1274,6 @@ const BhxhAudit: React.FC = () => {
           setImportPreview(null);
           setFileList([]);
         }}
-        size="large"
         footer={
           importPreview ? (
             <Space>
@@ -1326,7 +1356,6 @@ const BhxhAudit: React.FC = () => {
         title="Chi tiết hồ sơ giám định"
         open={detailDrawerOpen}
         onClose={() => setDetailDrawerOpen(false)}
-        size="default"
       >
         {selectedRecord && (
           <div>
@@ -1341,14 +1370,14 @@ const BhxhAudit: React.FC = () => {
               <Descriptions.Item label="Chẩn đoán" span={2}>{selectedRecord.diagnosisCode} - {selectedRecord.diagnosisName}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Chi phí</Divider>
+            <Divider>Chi phí</Divider>
             <Descriptions column={2} size="small" bordered>
               <Descriptions.Item label="Tổng chi phí">{formatVND(selectedRecord.totalAmount)}</Descriptions.Item>
               <Descriptions.Item label="BHYT chi trả">{formatVND(selectedRecord.insuranceAmount)}</Descriptions.Item>
               <Descriptions.Item label="BN tự trả" span={2}>{formatVND(selectedRecord.patientAmount)}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Trạng thái</Divider>
+            <Divider>Trạng thái</Divider>
             <Descriptions column={2} size="small" bordered>
               <Descriptions.Item label="Giám định">{getAuditStatusTag(selectedRecord.auditStatus)}</Descriptions.Item>
               <Descriptions.Item label="Thanh toán">{getPaymentStatusTag(selectedRecord.paymentStatus)}</Descriptions.Item>
@@ -1366,7 +1395,7 @@ const BhxhAudit: React.FC = () => {
 
             {selectedRecord.rejectReason && (
               <>
-                <Divider orientation="left">Lý do từ chối</Divider>
+                <Divider>Lý do từ chối</Divider>
                 <div style={{ padding: '8px 12px', background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 4 }}>
                   {selectedRecord.rejectReason}
                 </div>
@@ -1375,7 +1404,7 @@ const BhxhAudit: React.FC = () => {
 
             {selectedRecord.auditorNote && (
               <>
-                <Divider orientation="left">Ghi chú giám định viên</Divider>
+                <Divider>Ghi chú giám định viên</Divider>
                 <div style={{ padding: '8px 12px', background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: 4 }}>
                   {selectedRecord.auditorNote}
                 </div>
@@ -1397,7 +1426,6 @@ const BhxhAudit: React.FC = () => {
         }}
         okText={editingAccount ? 'Cập nhật' : 'Tạo'}
         cancelText="Hủy"
-        size="default"
       >
         <Form form={accountForm} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
@@ -1496,7 +1524,6 @@ const BhxhAudit: React.FC = () => {
         }
         open={pdfDrawerOpen}
         onClose={() => setPdfDrawerOpen(false)}
-        size="large"
       >
         {selectedPortalRecord && (
           <div>

@@ -639,7 +639,6 @@ const TreatmentProtocol: React.FC = () => {
         title={selectedProtocol ? `${selectedProtocol.code} - ${selectedProtocol.name}` : 'Chi tiet phac do'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        size="large"
         extra={
           selectedProtocol && (
             <Space>
@@ -699,19 +698,19 @@ const TreatmentProtocol: React.FC = () => {
 
             {selectedProtocol.description && (
               <>
-                <Divider orientation="left">Mo ta</Divider>
+                <Divider>Mo ta</Divider>
                 <Text>{selectedProtocol.description}</Text>
               </>
             )}
 
             {selectedProtocol.references && (
               <>
-                <Divider orientation="left">Tai lieu tham khao</Divider>
+                <Divider>Tai lieu tham khao</Divider>
                 <Text>{selectedProtocol.references}</Text>
               </>
             )}
 
-            <Divider orientation="left">Cac buoc dieu tri ({selectedProtocol.steps?.length || 0})</Divider>
+            <Divider>Cac buoc dieu tri ({selectedProtocol.steps?.length || 0})</Divider>
             <Table
               dataSource={selectedProtocol.steps || []}
               columns={stepColumns}
@@ -723,7 +722,7 @@ const TreatmentProtocol: React.FC = () => {
 
             {selectedProtocol.notes && (
               <>
-                <Divider orientation="left">Ghi chu</Divider>
+                <Divider>Ghi chu</Divider>
                 <Text>{selectedProtocol.notes}</Text>
               </>
             )}
@@ -796,7 +795,7 @@ const TreatmentProtocol: React.FC = () => {
           </Form.Item>
 
           {/* Steps section */}
-          <Divider orientation="left">Cac buoc dieu tri</Divider>
+          <Divider>Cac buoc dieu tri</Divider>
 
           {steps.map((step, idx) => (
             <Card

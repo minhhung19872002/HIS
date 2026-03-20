@@ -49,6 +49,7 @@ interface AppearanceConfig {
 
 const CentralSigning: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('certs');
   const [certificates, setCertificates] = useState<ManagedCertificate[]>([]);
   const [transactions, setTransactions] = useState<SigningTransaction[]>([]);
   const [transactionTotal, setTransactionTotal] = useState(0);
@@ -89,15 +90,20 @@ const CentralSigning: React.FC = () => {
     try {
       const res = await centralSigningApi.getAppearanceConfig();
       setAppearance(res.data);
-      appearanceForm.setFieldsValue(res.data);
     } catch { /* ignore */ }
-  }, [appearanceForm]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     Promise.allSettled([fetchCertificates(), fetchTransactions(), fetchStats(), fetchAppearance()])
       .finally(() => setLoading(false));
   }, [fetchCertificates, fetchTransactions, fetchStats, fetchAppearance]);
+
+  useEffect(() => {
+    if (activeTab === 'appearance' && appearance) {
+      appearanceForm.setFieldsValue(appearance);
+    }
+  }, [activeTab, appearance, appearanceForm]);
 
   const handleSaveCert = async (values: Record<string, unknown>) => {
     try {
@@ -132,7 +138,7 @@ const CentralSigning: React.FC = () => {
 
   const handleSaveAppearance = async (values: Record<string, unknown>) => {
     try {
-      await centralSigningApi.saveAppearanceConfig(values as AppearanceConfig);
+      await centralSigningApi.saveAppearanceConfig(values as unknown as AppearanceConfig);
       message.success('Đã lưu cấu hình hiển thị');
       fetchAppearance();
     } catch { message.warning('Không thể lưu cấu hình'); }
@@ -486,7 +492,7 @@ const CentralSigning: React.FC = () => {
           fetchCertificates(); fetchTransactions(txPage); fetchStats();
         }}>Làm mới</Button>}
       >
-        <Tabs items={tabItems} />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </Card>
 
       <Modal title={editingCert ? 'Sửa chứng thư số' : 'Thêm chứng thư số'}

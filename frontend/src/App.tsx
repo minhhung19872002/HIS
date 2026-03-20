@@ -187,7 +187,17 @@ const AppRoutes: React.FC = () => {
 
 function App() {
   return (
-    <ConfigProvider locale={viVN}>
+    <ConfigProvider
+      locale={viVN}
+      theme={{
+        token: {
+          colorPrimary: '#0066CC',
+          borderRadius: 6,
+          colorBgContainer: '#ffffff',
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
+        },
+      }}
+    >
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>

@@ -692,7 +692,7 @@ const Prescription: React.FC = () => {
     form.setFieldsValue({ diagnosis: template.diagnosis });
     // Load template items into prescription
     if (template.items && template.items.length > 0) {
-      const templateItems: PrescriptionItem[] = template.items.map((item) => ({
+      const templateItems: PrescriptionItem[] = template.items.map((item, index) => ({
         id: `tpl-${Date.now()}-${index}`,
         medicine: item.medicine,
         dosageForm: item.dosageForm,

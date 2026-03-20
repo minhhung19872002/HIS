@@ -417,7 +417,7 @@ const renderSpecialtySection = (specialtyKey: string): React.ReactNode => {
   if (!config) return <Alert title="Vui long chon chuyen khoa" type="info" showIcon />;
   return (
     <>
-      <Divider orientation="left">{config.title}</Divider>
+      <Divider>{config.title}</Divider>
       <Row gutter={16}>
         {config.fields.map(field => (
           <Col span={field.span || 24} key={field.name}>{renderField(field)}</Col>
@@ -583,7 +583,7 @@ const SpecialtyEMR: React.FC = () => {
           <Button key="save" type="primary" icon={<SaveOutlined />} loading={formLoading} onClick={handleSave}>Luu</Button>,
         ]}>
         <Form form={form} layout="vertical" size="small">
-          <Divider orientation="left">Thong tin chung</Divider>
+          <Divider>Thong tin chung</Divider>
           <Row gutter={16}>
             <Col span={8}><Form.Item name="patientCode" label="Ma benh nhan" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ma BN" /></Form.Item></Col>
             <Col span={8}><Form.Item name="patientName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ho ten BN" /></Form.Item></Col>

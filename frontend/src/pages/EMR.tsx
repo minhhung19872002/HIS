@@ -496,7 +496,7 @@ ${vs ? `<div class="section">
   <h3>III. SINH HIỆU</h3>
   <table>
     <tr><th>Cân nặng</th><td>${esc(vs.weight)} kg</td><th>Chiều cao</th><td>${esc(vs.height)} cm</td></tr>
-    <tr><th>Huyết áp</th><td>${esc(vs.bloodPressureSystolic)}/${esc(vs.bloodPressureDiastolic)} mmHg</td><th>Mạch</th><td>${esc(vs.pulse)} lần/phút</td></tr>
+    <tr><th>Huyết áp</th><td>${esc(vs.systolicBP)}/${esc(vs.diastolicBP)} mmHg</td><th>Mạch</th><td>${esc(vs.pulse)} lần/phút</td></tr>
     <tr><th>Nhiệt độ</th><td>${esc(vs.temperature)} °C</td><th>SpO2</th><td>${esc(vs.spO2)} %</td></tr>
     <tr><th>Nhịp thở</th><td>${esc(vs.respiratoryRate)} lần/phút</td><th></th><td></td></tr>
   </table>
@@ -1793,22 +1793,22 @@ ${conclusion ? `<div class="section">
           {printType === 'neonatal' && <NeonatalMedicalRecordPrint ref={printRef} record={medicalRecord} />}
           {printType === 'pediatric' && <PediatricMedicalRecordPrint ref={printRef} record={medicalRecord} />}
           {/* CDHA. 01-05 Radiology forms */}
-          {printType === 'cdha-xray' && <XRayReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-ct' && <CTScanReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-mri' && <MRIReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-ultrasound' && <UltrasoundReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-ecg' && <ECGReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-xray' && <XRayReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-ct' && <CTScanReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-mri' && <MRIReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-ultrasound' && <UltrasoundReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'cdha-ecg' && <ECGReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
           {/* TDCN/XN/LS forms */}
-          {printType === 'tdcn-eeg' && <EEGReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'tdcn-endoscopy' && <EndoscopyReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'tdcn-pft' && <PFTReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'xn-general' && <GeneralLabReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'xn-hematology' && <HematologyReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'xn-biochemistry' && <BiochemistryReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'xn-microbiology' && <MicrobiologyReportPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'ls-allergy' && <AllergyFormPrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'ls-postop' && <PostOpNotePrint record={medicalRecord as Record<string, unknown> | undefined} />}
-          {printType === 'ls-icuinfo' && <ICUInfoSheetPrint record={medicalRecord as Record<string, unknown> | undefined} />}
+          {printType === 'tdcn-eeg' && <EEGReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'tdcn-endoscopy' && <EndoscopyReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'tdcn-pft' && <PFTReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'xn-general' && <GeneralLabReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'xn-hematology' && <HematologyReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'xn-biochemistry' && <BiochemistryReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'xn-microbiology' && <MicrobiologyReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'ls-allergy' && <AllergyFormPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'ls-postop' && <PostOpNotePrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
+          {printType === 'ls-icuinfo' && <ICUInfoSheetPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
           {/* DD. 01-21 Nursing forms */}
           {printType === 'dd01-careplan' && <NursingCarePlanPrint ref={printRef} record={medicalRecord} />}
           {printType === 'dd02-icucare' && <ICUNursingCarePlanPrint ref={printRef} record={medicalRecord} />}

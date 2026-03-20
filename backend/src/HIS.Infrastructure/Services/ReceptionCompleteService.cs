@@ -239,6 +239,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
         if (string.IsNullOrWhiteSpace(keyword)) return new List<AdmissionDto>();
 
         var kw = keyword.Trim().ToLower();
+        var pattern = $"%{kw}%";
         var today = DateTime.Today;
 
         var records = await _context.MedicalRecords
@@ -246,43 +247,55 @@ public class ReceptionCompleteService : IReceptionCompleteService
             .Include(m => m.Room)
             .ThenInclude(r => r!.Department)
             .Where(m => m.CreatedAt.Date == today &&
-                (m.MedicalRecordCode.ToLower().Contains(kw) ||
-                 m.Patient!.PatientCode.ToLower().Contains(kw) ||
-                 m.Patient.FullName.ToLower().Contains(kw) ||
-                 (m.Patient.IdentityNumber != null && m.Patient.IdentityNumber.ToLower().Contains(kw)) ||
-                 (m.Patient.InsuranceNumber != null && m.Patient.InsuranceNumber.ToLower().Contains(kw)) ||
-                 (m.Patient.PhoneNumber != null && m.Patient.PhoneNumber.Contains(kw))))
+                (EF.Functions.Like(m.MedicalRecordCode, pattern) ||
+                 EF.Functions.Like(m.Patient!.PatientCode, pattern) ||
+                 EF.Functions.Like(m.Patient.FullName, pattern) ||
+                 (m.Patient.IdentityNumber != null && EF.Functions.Like(m.Patient.IdentityNumber, pattern)) ||
+                 (m.Patient.InsuranceNumber != null && EF.Functions.Like(m.Patient.InsuranceNumber, pattern)) ||
+                 (m.Patient.PhoneNumber != null && EF.Functions.Like(m.Patient.PhoneNumber, pattern))))
             .OrderByDescending(m => m.CreatedAt)
             .Take(50)
             .ToListAsync();
 
-        return records.Select(m => new AdmissionDto
-        {
-            Id = m.Id,
-            AdmissionCode = m.MedicalRecordCode,
-            PatientId = m.PatientId,
-            PatientCode = m.Patient?.PatientCode ?? "",
-            PatientName = m.Patient?.FullName ?? "",
-            DateOfBirth = m.Patient?.DateOfBirth,
-            YearOfBirth = m.Patient?.YearOfBirth,
-            Gender = m.Patient?.Gender == 1 ? "Nam" : m.Patient?.Gender == 2 ? "Nữ" : "Khác",
-            Address = m.Patient?.Address,
-            PhoneNumber = m.Patient?.PhoneNumber,
-            IdentityNumber = m.Patient?.IdentityNumber,
-            InsuranceNumber = m.Patient?.InsuranceNumber,
-            InsuranceFacilityName = m.Patient?.InsuranceFacilityName,
-            AdmissionDate = m.CreatedAt,
-            DepartmentId = m.DepartmentId ?? m.Room?.DepartmentId ?? Guid.Empty,
-            DepartmentName = m.Room?.Department?.DepartmentName,
-            RoomId = m.RoomId,
-            RoomName = m.Room?.RoomName,
-            Status = m.Status == 0 ? "Waiting" : m.Status == 1 ? "InProgress" : m.Status == 2 ? "WaitingResult" : "Completed",
-            IsEmergency = m.TreatmentType == 3,
-            IsPriority = m.TreatmentType == 3,
-            QueueNumber = 0,
-            QueueCode = "",
-            Priority = m.TreatmentType == 3 ? 1 : 0,
-            Notes = m.DischargeNote ?? ""
+        // BUG-017: Load queue tickets to map actual queue numbers (same as GetTodayAdmissionsAsync)
+        var patientIds = records.Where(r => r.PatientId != Guid.Empty).Select(r => r.PatientId).Distinct().ToList();
+        var todayTickets = await _context.QueueTickets
+            .Where(t => t.IssueDate.Date == today && t.PatientId.HasValue && patientIds.Contains(t.PatientId.Value))
+            .ToListAsync();
+        var ticketLookup = todayTickets
+            .GroupBy(t => new { t.PatientId, t.RoomId })
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.IssueDate).First());
+
+        return records.Select(m => {
+            var ticket = ticketLookup.GetValueOrDefault(new { PatientId = (Guid?)m.PatientId, RoomId = m.RoomId });
+            return new AdmissionDto
+            {
+                Id = m.Id,
+                AdmissionCode = m.MedicalRecordCode,
+                PatientId = m.PatientId,
+                PatientCode = m.Patient?.PatientCode ?? "",
+                PatientName = m.Patient?.FullName ?? "",
+                DateOfBirth = m.Patient?.DateOfBirth,
+                YearOfBirth = m.Patient?.YearOfBirth,
+                Gender = m.Patient?.Gender == 1 ? "Nam" : m.Patient?.Gender == 2 ? "Nữ" : "Khác",
+                Address = m.Patient?.Address,
+                PhoneNumber = m.Patient?.PhoneNumber,
+                IdentityNumber = m.Patient?.IdentityNumber,
+                InsuranceNumber = m.Patient?.InsuranceNumber,
+                InsuranceFacilityName = m.Patient?.InsuranceFacilityName,
+                AdmissionDate = m.CreatedAt,
+                DepartmentId = m.DepartmentId ?? m.Room?.DepartmentId ?? Guid.Empty,
+                DepartmentName = m.Room?.Department?.DepartmentName,
+                RoomId = m.RoomId,
+                RoomName = m.Room?.RoomName,
+                Status = m.Status == 0 ? "Waiting" : m.Status == 1 ? "InProgress" : m.Status == 2 ? "WaitingResult" : "Completed",
+                IsEmergency = m.TreatmentType == 3,
+                IsPriority = m.TreatmentType == 3,
+                QueueNumber = ticket?.QueueNumber ?? 0,
+                QueueCode = ticket?.TicketNumber ?? "",
+                Priority = m.TreatmentType == 3 ? 1 : 0,
+                Notes = m.DischargeNote ?? ""
+            };
         }).ToList();
     }
 

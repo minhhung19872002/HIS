@@ -30,12 +30,12 @@ body {
 
 a {
   font-weight: 500;
-  color: #1890ff;
+  color: #0066CC;
   text-decoration: none;
 }
 
 a:hover {
-  color: #40a9ff;
+  color: #3399DD;
 }
 
 /* Ant Design overrides for Vietnamese */

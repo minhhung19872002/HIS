@@ -173,6 +173,7 @@ const Reception: React.FC = () => {
   const [form] = Form.useForm();
   const [verifyForm] = Form.useForm();
   const [printRequestForm] = Form.useForm();
+  const watchedIdentityNumber = Form.useWatch('identityNumber', form);
 
   // Fetch data on mount
   useEffect(() => {
@@ -1132,6 +1133,7 @@ const Reception: React.FC = () => {
         }}
         footer={null}
         width={600}
+        forceRender
       >
         <Form form={verifyForm} layout="vertical">
           <Row gutter={16}>
@@ -1386,6 +1388,7 @@ const Reception: React.FC = () => {
         okText="Đăng ký"
         cancelText="Hủy"
         confirmLoading={submitting}
+        forceRender
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
@@ -1443,9 +1446,8 @@ const Reception: React.FC = () => {
                   return Promise.resolve();
                 }
               }]} help={(() => {
-                const val = form.getFieldValue('identityNumber');
-                if (val && val.length === 12) {
-                  const r = validateCccd(val);
+                if (watchedIdentityNumber && watchedIdentityNumber.length === 12) {
+                  const r = validateCccd(watchedIdentityNumber);
                   if (r.valid && r.province) return `Nơi cấp: ${r.province}`;
                 }
                 return undefined;
@@ -1620,6 +1622,7 @@ const Reception: React.FC = () => {
           </Space>
         }
         open={isTransferModalOpen}
+        forceRender
         onOk={handleTransferSubmit}
         onCancel={() => {
           setIsTransferModalOpen(false);
@@ -1666,6 +1669,7 @@ const Reception: React.FC = () => {
           printRequestForm.resetFields();
         }}
         width={800}
+        forceRender
         footer={[
           <Button key="cancel" onClick={() => setIsPrintRequestModalOpen(false)}>
             Hủy

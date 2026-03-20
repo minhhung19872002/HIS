@@ -69,6 +69,7 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_TreatmentProtocolSteps
     CREATE INDEX IX_TreatmentProtocolSteps_ProtocolId ON TreatmentProtocolSteps(ProtocolId);
 
 -- Seed sample protocols for OB/GYN hospital (BV San Nhi Ninh Binh)
+IF NOT EXISTS (SELECT 1 FROM TreatmentProtocols WHERE IsDeleted = 0)
 INSERT INTO TreatmentProtocols (Id, Code, Name, IcdCode, IcdName, DiseaseGroup, Version, Status, Department, EffectiveDate, CreatedAt)
 VALUES
 (NEWID(), 'PD-SAN-001', N'Phac do xu tri de thuong', 'O80', N'De thuong', N'San khoa', 1, 1, N'Khoa San', GETDATE(), GETDATE()),

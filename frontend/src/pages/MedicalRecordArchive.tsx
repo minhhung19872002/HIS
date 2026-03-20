@@ -16,6 +16,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import client from '../api/client';
+import { isApiAvailable } from '../utils/apiAvailability';
 
 const { Search } = Input;
 const { RangePicker } = DatePicker;
@@ -153,6 +154,9 @@ const GENDER_MAP: Record<number, string> = { 0: 'Nam', 1: 'Nữ', 2: 'Khác' };
 // ---------------------------------------------------------------------------
 
 const MedicalRecordArchive: React.FC = () => {
+  const [moduleAvailable, setModuleAvailable] = useState(true);
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+
   // -- shared
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<ArchiveStats>({
@@ -730,10 +734,24 @@ const MedicalRecordArchive: React.FC = () => {
   // -------------------------------------------------------------------------
 
   useEffect(() => {
-    fetchStats();
+    const checkAvailability = async () => {
+      setAvailabilityLoading(true);
+      const available = await isApiAvailable('/inpatient/medical-record-archive/summary');
+      setModuleAvailable(available);
+      if (available) {
+        fetchStats();
+      }
+      setAvailabilityLoading(false);
+    };
+
+    checkAvailability();
   }, [fetchStats]);
 
   useEffect(() => {
+    if (!moduleAvailable) {
+      return;
+    }
+
     if (activeTab === 'summary') {
       searchSummaryExams(1, summaryPageSize);
     } else if (activeTab === 'handover') {
@@ -744,7 +762,7 @@ const MedicalRecordArchive: React.FC = () => {
       fetchStorageStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, moduleAvailable]);
 
   // -------------------------------------------------------------------------
   // Columns
@@ -1969,6 +1987,20 @@ const MedicalRecordArchive: React.FC = () => {
   // -------------------------------------------------------------------------
   // Main render
   // -------------------------------------------------------------------------
+
+  if (availabilityLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spin /></div>;
+  }
+
+  if (!moduleAvailable) {
+    return (
+      <Result
+        status="warning"
+        title="Lưu trữ hồ sơ bệnh án chưa khả dụng"
+        subTitle="Backend hiện chưa cung cấp các endpoint /api/inpatient/medical-record-archive/*, nên frontend tạm thời dừng gọi API để tránh lỗi 404."
+      />
+    );
+  }
 
   return (
     <Spin spinning={loading}>

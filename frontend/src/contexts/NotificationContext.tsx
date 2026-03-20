@@ -77,6 +77,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Connect to SignalR
   useEffect(() => {
+    let cancelled = false;
+
     if (!isAuthenticated) {
       // Disconnect if logged out
       if (connectionRef.current) {
@@ -100,7 +102,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const connection = new HubConnectionBuilder()
       .withUrl(`${apiBase}/hubs/notifications`, { accessTokenFactory: () => token })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-      .configureLogging(LogLevel.Warning)
+      .configureLogging(LogLevel.None)
       .build();
 
     connection.on('ReceiveNotification', (notification: NotificationDto) => {
@@ -115,15 +117,31 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
 
     connection.onreconnected(() => {
+      if (cancelled) {
+        return;
+      }
       setConnected(true);
       fetchNotifications();
     });
 
-    connection.onclose(() => setConnected(false));
+    connection.onclose(() => {
+      if (!cancelled) {
+        setConnected(false);
+      }
+    });
 
     connection.start()
-      .then(() => setConnected(true))
-      .catch(() => setConnected(false));
+      .then(() => {
+        if (cancelled) {
+          return connection.stop();
+        }
+        setConnected(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setConnected(false);
+        }
+      });
 
     connectionRef.current = connection;
 
@@ -135,6 +153,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }, 60000);
 
     return () => {
+      cancelled = true;
       clearInterval(pollInterval);
       connection.stop();
       connectionRef.current = null;

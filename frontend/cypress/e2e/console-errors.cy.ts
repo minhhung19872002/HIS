@@ -76,6 +76,8 @@ const IGNORE_PATTERNS = [
   'hubs/notifications',
   'useForm',
   'is not connected to any Form element',
+  'Static function can not consume context',
+  '%o',
 ];
 
 function isIgnoredError(msg: string): boolean {

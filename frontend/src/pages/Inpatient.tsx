@@ -50,6 +50,10 @@ import {
   dischargePatient,
   assignBed,
   transferBed,
+  getServiceOrders,
+  getPrescriptions,
+  getTreatmentSheets,
+  getNursingCareSheets,
   type InpatientListDto,
   type BedStatusDto,
   type InpatientSearchDto,
@@ -166,6 +170,10 @@ const Inpatient: React.FC = () => {
   // NangCap4: Deposit insufficient warning
   const [depositWarning, setDepositWarning] = useState<{ patientName: string; depositBalance: number; pendingCharges: number } | null>(null);
 
+  // BUG-015: Detail modal sub-data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [detailSubData, setDetailSubData] = useState<{ treatmentSheets: any[]; prescriptions: any[]; serviceOrders: any[]; nursingCare: any[]; loading: boolean }>({ treatmentSheets: [], prescriptions: [], serviceOrders: [], nursingCare: [], loading: false });
+
   // NangCap4: Save supply order as template
   const handleSaveSupplyTemplate = () => {
     if (!supplyTemplateName.trim()) {
@@ -215,7 +223,7 @@ const Inpatient: React.FC = () => {
       const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
       const token = localStorage.getItem('token');
       const resp = await fetch(
-        `${apiUrl}/inpatient/supply-orders/previous?patientId=${admission.patientId || ''}&excludeAdmissionId=${admission.admissionId || ''}`,
+        `${apiUrl}/inpatient/supply-orders/previous?patientId=${admission.patientCode || ''}&excludeAdmissionId=${admission.admissionId || ''}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (resp.ok) {
@@ -269,7 +277,7 @@ const Inpatient: React.FC = () => {
       const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
       const token = localStorage.getItem('token');
       const resp = await fetch(
-        `${apiUrl}/billing/deposit-balance?patientId=${admission.patientId || ''}&admissionId=${admission.admissionId || ''}`,
+        `${apiUrl}/billing/deposit-balance?patientId=${admission.patientCode || ''}&admissionId=${admission.admissionId || ''}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (resp.ok) {
@@ -290,6 +298,28 @@ const Inpatient: React.FC = () => {
       }
     } catch {
       setDepositWarning(null);
+    }
+  };
+
+  // BUG-015: Load sub-data when detail modal opens
+  const loadDetailSubData = async (admissionId: string) => {
+    setDetailSubData(prev => ({ ...prev, loading: true }));
+    try {
+      const [tsRes, rxRes, soRes, ncRes] = await Promise.allSettled([
+        getTreatmentSheets({ admissionId, page: 0, pageSize: 50 }),
+        getPrescriptions(admissionId),
+        getServiceOrders(admissionId),
+        getNursingCareSheets(admissionId),
+      ]);
+      setDetailSubData({
+        treatmentSheets: tsRes.status === 'fulfilled' ? (Array.isArray(tsRes.value?.data) ? tsRes.value.data : []) : [],
+        prescriptions: rxRes.status === 'fulfilled' ? (Array.isArray(rxRes.value?.data) ? rxRes.value.data : []) : [],
+        serviceOrders: soRes.status === 'fulfilled' ? (Array.isArray(soRes.value?.data) ? soRes.value.data : []) : [],
+        nursingCare: ncRes.status === 'fulfilled' ? (Array.isArray(ncRes.value?.data) ? ncRes.value.data : []) : [],
+        loading: false,
+      });
+    } catch {
+      setDetailSubData({ treatmentSheets: [], prescriptions: [], serviceOrders: [], nursingCare: [], loading: false });
     }
   };
 
@@ -473,6 +503,8 @@ const Inpatient: React.FC = () => {
             onClick={() => {
               setSelectedAdmission(record);
               setIsDetailModalOpen(true);
+              // BUG-015: Load sub-data for detail tabs
+              if (record.admissionId) loadDetailSubData(record.admissionId);
               // NangCap4: check deposit and medication warnings when opening detail
               setDepositWarning(null);
               setActiveMedWarning(null);
@@ -2313,6 +2345,87 @@ const Inpatient: React.FC = () => {
                 </Card>
               </Col>
 
+              {/* BUG-015: Detail sub-data tabs */}
+              <Col span={24}>
+                <Spin spinning={detailSubData.loading}>
+                  <Tabs
+                    items={[
+                      {
+                        key: 'treatment',
+                        label: <span><FileTextOutlined /> Tờ điều trị ({detailSubData.treatmentSheets.length})</span>,
+                        children: detailSubData.treatmentSheets.length > 0 ? (
+                          <Table
+                            size="small"
+                            dataSource={detailSubData.treatmentSheets}
+                            rowKey={(r) => r.id || Math.random()}
+                            pagination={false}
+                            columns={[
+                              { title: 'Ngày', dataIndex: 'date', render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
+                              { title: 'Ngày thứ', dataIndex: 'dayNumber', width: 80 },
+                              { title: 'Diễn biến', dataIndex: 'progress', ellipsis: true },
+                              { title: 'Y lệnh', dataIndex: 'orders', ellipsis: true },
+                            ]}
+                          />
+                        ) : <Text type="secondary">Chưa có tờ điều trị</Text>,
+                      },
+                      {
+                        key: 'prescriptions',
+                        label: <span><FileProtectOutlined /> Thuốc ({detailSubData.prescriptions.length})</span>,
+                        children: detailSubData.prescriptions.length > 0 ? (
+                          <Table
+                            size="small"
+                            dataSource={detailSubData.prescriptions}
+                            rowKey={(r) => r.id || Math.random()}
+                            pagination={false}
+                            columns={[
+                              { title: 'Ngày kê', dataIndex: 'prescriptionDate', render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
+                              { title: 'BS kê đơn', dataIndex: 'doctorName', ellipsis: true },
+                              { title: 'Trạng thái', dataIndex: 'statusName', render: (v: string) => <Tag>{v || 'N/A'}</Tag> },
+                              { title: 'Cấp phát', dataIndex: 'isDispensed', render: (v: boolean) => v ? <Tag color="green">Đã cấp</Tag> : <Tag color="orange">Chờ cấp</Tag> },
+                            ]}
+                          />
+                        ) : <Text type="secondary">Chưa có đơn thuốc</Text>,
+                      },
+                      {
+                        key: 'services',
+                        label: <span><EyeOutlined /> Chỉ định DV ({detailSubData.serviceOrders.length})</span>,
+                        children: detailSubData.serviceOrders.length > 0 ? (
+                          <Table
+                            size="small"
+                            dataSource={detailSubData.serviceOrders}
+                            rowKey={(r) => r.id || Math.random()}
+                            pagination={false}
+                            columns={[
+                              { title: 'Ngày chỉ định', dataIndex: 'orderDate', render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
+                              { title: 'Dịch vụ', dataIndex: 'serviceName', ellipsis: true },
+                              { title: 'Trạng thái', dataIndex: 'statusName', render: (v: string) => <Tag>{v || 'N/A'}</Tag> },
+                            ]}
+                          />
+                        ) : <Text type="secondary">Chưa có chỉ định dịch vụ</Text>,
+                      },
+                      {
+                        key: 'nursing',
+                        label: <span><SaveOutlined /> Chăm sóc ĐD ({detailSubData.nursingCare.length})</span>,
+                        children: detailSubData.nursingCare.length > 0 ? (
+                          <Table
+                            size="small"
+                            dataSource={detailSubData.nursingCare}
+                            rowKey={(r) => r.id || Math.random()}
+                            pagination={false}
+                            columns={[
+                              { title: 'Ngày', dataIndex: 'date', render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
+                              { title: 'Ca', dataIndex: 'shift', width: 60 },
+                              { title: 'Tình trạng BN', dataIndex: 'patientCondition', ellipsis: true },
+                              { title: 'Can thiệp ĐD', dataIndex: 'interventions', ellipsis: true },
+                            ]}
+                          />
+                        ) : <Text type="secondary">Chưa có phiếu chăm sóc</Text>,
+                      },
+                    ]}
+                  />
+                </Spin>
+              </Col>
+
               {/* NangCap4: Deposit insufficient warning */}
               {depositWarning && (
                 <Col span={24}>
@@ -2411,7 +2524,8 @@ const Inpatient: React.FC = () => {
                         placeholder="Dùng mẫu VT..."
                         style={{ width: 200 }}
                         value={undefined}
-                        onSelect={(value: string) => {
+                        onSelect={(value?: string) => {
+                          if (!value) return;
                           const tpl = supplyTemplates.find(t => t.name === value);
                           if (tpl) handleLoadSupplyTemplate(tpl);
                         }}

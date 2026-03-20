@@ -11,11 +11,23 @@ body {
 
 /* Ant Design overrides */
 .ant-layout-sider {
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  border-right: 1px solid #e8ecf0;
 }
 
-.ant-menu-dark .ant-menu-item-selected {
-  background-color: #1890ff;
+/* Light sidebar menu styles */
+.ant-menu-light .ant-menu-item-selected {
+  background-color: #e6f0fa;
+  color: #0066CC;
+  font-weight: 500;
+}
+
+.ant-menu-light .ant-menu-item:hover {
+  background-color: #f0f5ff;
+  color: #0066CC;
+}
+
+.ant-menu-light .ant-menu-submenu-title:hover {
+  color: #0066CC;
 }
 
 /* Custom scrollbar */

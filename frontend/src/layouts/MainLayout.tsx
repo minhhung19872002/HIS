@@ -246,14 +246,15 @@ const MainLayout: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottom: '1px solid rgba(255,255,255,0.1)'
+        borderBottom: '1px solid #e8ecf0',
+        background: '#fff',
       }}>
-        <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>
+        <Typography.Title level={4} style={{ color: '#0066CC', margin: 0, fontWeight: 700 }}>
           {collapsed && !isMobile ? 'HIS' : 'HIS System'}
         </Typography.Title>
       </div>
       <Menu
-        theme="dark"
+        theme="light"
         mode="inline"
         selectedKeys={[location.pathname]}
         defaultOpenKeys={getOpenKeys()}
@@ -275,10 +276,18 @@ const MainLayout: React.FC = () => {
           collapsible
           collapsed={collapsed}
           width={240}
-          theme="dark"
+          theme="light"
           breakpoint="lg"
           collapsedWidth={isTablet ? 0 : 80}
-          style={{ overflow: 'auto', height: '100vh', position: 'sticky', top: 0, left: 0 }}
+          style={{
+            overflow: 'auto',
+            height: '100vh',
+            position: 'sticky',
+            top: 0,
+            left: 0,
+            background: '#fff',
+            borderRight: '1px solid #e8ecf0',
+          }}
         >
           {sidebarMenu}
         </Sider>
@@ -290,7 +299,7 @@ const MainLayout: React.FC = () => {
           placement="left"
           onClose={() => setMobileDrawerOpen(false)}
           open={mobileDrawerOpen}
-          styles={{ body: { padding: 0, background: '#001529' } }}
+          styles={{ body: { padding: 0, background: '#fff' } }}
           size={250}
           closable={false}
         >
@@ -298,14 +307,14 @@ const MainLayout: React.FC = () => {
         </Drawer>
       )}
 
-      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+      <Layout style={{ height: '100vh', overflow: 'hidden', background: '#f0f2f5' }}>
         <Header style={{
           padding: isMobile ? '0 12px' : '0 24px',
           background: '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 1px 4px rgba(0,21,41,.08)',
+          borderBottom: '1px solid #f0f0f0',
           zIndex: 10,
           flex: '0 0 64px',
         }}>
@@ -322,7 +331,7 @@ const MainLayout: React.FC = () => {
             <NotificationBell />
             <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
-                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} size={isMobile ? 'small' : 'default'} />
+                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#0066CC' }} size={isMobile ? 'small' : 'default'} />
                 {!isMobile && <span>{user?.fullName}</span>}
               </Space>
             </Dropdown>
@@ -335,6 +344,7 @@ const MainLayout: React.FC = () => {
           borderRadius: 8,
           overflow: 'auto',
           flex: 1,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
         }}>
           <ErrorBoundary>
             <Outlet />
