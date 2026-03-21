@@ -13,6 +13,7 @@ public static class DatabaseSeeder
 
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
+        await DatabaseSchemaCompatibility.EnsureLegacySchemaAsync(context);
 
         // Seed roles
         if (!await context.Roles.AnyAsync())

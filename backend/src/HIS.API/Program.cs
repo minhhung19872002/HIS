@@ -96,6 +96,7 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "Hospital Information System API"
     });
+    c.CustomSchemaIds(type => type.FullName?.Replace('+', '.') ?? type.Name);
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
