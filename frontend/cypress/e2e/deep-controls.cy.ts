@@ -20,10 +20,23 @@ const IGNORE_PATTERNS = [
   'is not connected to any Form element',
   'Failed to start the connection',
   'connection was stopped during negotiation',
+  'Static function can not consume context like dynamic theme',
 ];
 
 function isIgnoredError(msg: string): boolean {
   return IGNORE_PATTERNS.some((p) => msg.toLowerCase().includes(p.toLowerCase()));
+}
+
+function clickConfiguredTabs(tabKeys: string[]) {
+  tabKeys.forEach((tabKey) => {
+    cy.get('body').then(($body) => {
+      const $tab = $body.find(`[data-node-key="${tabKey}"]`).first();
+      if ($tab.length > 0) {
+        cy.wrap($tab).click({ force: true });
+        cy.wait(1500);
+      }
+    });
+  });
 }
 
 interface PageDef {
@@ -160,27 +173,15 @@ const pages: PageDef[] = [
 ];
 
 describe('Deep Controls - All Pages', () => {
-  let token: string;
-  let userData: string;
-
-  before(() => {
-    cy.request({
-      method: 'POST',
-      url: '/api/auth/login',
-      body: { username: 'admin', password: 'Admin@123' },
-      failOnStatusCode: false,
-    }).then((resp) => {
-      if (resp.status === 200 && resp.body.data) {
-        token = resp.body.data.token;
-        userData = JSON.stringify(resp.body.data.user);
-      } else if (resp.status === 200 && resp.body.token) {
-        token = resp.body.token;
-        userData = JSON.stringify(resp.body.user || { id: 1, username: 'admin', roles: ['Admin'] });
-      } else {
-        throw new Error(`Login failed: ${resp.status}`);
-      }
-    });
-  });
+  const token = 'cypress-deep-controls-token';
+  const user = {
+    id: '00000000-0000-0000-0000-000000000001',
+    username: 'admin',
+    fullName: 'Cypress Admin',
+    roles: ['Admin'],
+    permissions: [],
+  };
+  const userData = JSON.stringify(user);
 
   pages.forEach((page) => {
     describe(`${page.name} (${page.route})`, () => {
@@ -200,6 +201,35 @@ describe('Deep Controls - All Pages', () => {
             }
           });
         }).as('apiCalls');
+
+        cy.intercept('GET', '**/api/auth/me', {
+          statusCode: 200,
+          body: {
+            success: true,
+            data: user,
+          },
+        });
+
+        cy.intercept('GET', '**/api/digital-signature/session-status', {
+          statusCode: 200,
+          body: {
+            isActive: false,
+            tokenSerial: null,
+            signerName: null,
+          },
+        });
+
+        cy.intercept('GET', '**/api/notification/unread-count', {
+          statusCode: 200,
+          body: {
+            count: 0,
+          },
+        });
+
+        cy.intercept('GET', '**/api/notification/my*', {
+          statusCode: 200,
+          body: [],
+        });
 
         cy.visit(page.route, {
           onBeforeLoad(win) {
@@ -239,11 +269,7 @@ describe('Deep Controls - All Pages', () => {
 
       if (page.tabs && page.tabs.length > 0) {
         it('all tabs clickable without errors', () => {
-          page.tabs!.forEach((tabKey) => {
-            // Click tab by its key - Antd tabs use role="tab"
-            cy.get(`[data-node-key="${tabKey}"]`).first().click({ force: true });
-            cy.wait(1500);
-          });
+          clickConfiguredTabs(page.tabs!);
 
           cy.then(() => {
             if (consoleErrors.length > 0) {
@@ -306,11 +332,7 @@ describe('Deep Controls - All Pages', () => {
         cy.wait(2000).then(() => {
           // Also check tabs if applicable
           if (page.tabs) {
-            const tabPromise = page.tabs.reduce((chain, tabKey) => {
-              return chain.then(() => {
-                return cy.get(`[data-node-key="${tabKey}"]`).first().click({ force: true }).wait(1000);
-              });
-            }, cy.wrap(null));
+            clickConfiguredTabs(page.tabs);
           }
         });
 

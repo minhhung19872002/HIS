@@ -58,6 +58,7 @@ import type {
   TeleconsultationDto,
 } from '../api/telemedicine';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
+import * as examApi from '../api/examination';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -74,6 +75,11 @@ const Telemedicine: React.FC = () => {
   const [activeConsultation, setActiveConsultation] = useState<TeleconsultationDto | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [consultEnding, setConsultEnding] = useState(false);
+  const [medicineSearchLoading, setMedicineSearchLoading] = useState(false);
+  const [medicineOptions, setMedicineOptions] = useState<examApi.MedicineDto[]>([]);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [micEnabled, setMicEnabled] = useState(true);
   const [form] = Form.useForm();
   const [prescriptionForm] = Form.useForm();
 
@@ -116,6 +122,27 @@ const Telemedicine: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
+  const handleMedicineSearch = async (keyword: string) => {
+    if (!keyword.trim()) {
+      setMedicineOptions([]);
+      return;
+    }
+
+    setMedicineSearchLoading(true);
+    try {
+      const res = await examApi.searchMedicines(keyword.trim());
+      setMedicineOptions(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setMedicineOptions([]);
+    } finally {
+      setMedicineSearchLoading(false);
+    }
+  };
+
+  const handleConsultModalClose = () => {
+    setIsConsultModalOpen(false);
+  };
+
   // Statistics from dashboard or derived from appointments
   const todayTotal = dashboard?.totalAppointments ?? appointments.length;
   const waitingCount = dashboard
@@ -152,6 +179,8 @@ const Telemedicine: React.FC = () => {
   const handleStartConsultation = async (appointment: TelemedicineAppointmentDto) => {
     setSelectedAppointment(appointment);
     setSessionLoading(true);
+    setCameraEnabled(true);
+    setMicEnabled(true);
     try {
       // Create video session
       const sessionRes = await createVideoSession({ appointmentId: appointment.id });
@@ -181,6 +210,7 @@ const Telemedicine: React.FC = () => {
   };
 
   const handleEndConsultation = async () => {
+    setConsultEnding(true);
     try {
       if (activeSession?.id) {
         await endSession(activeSession.id, 'Kết thúc khám');
@@ -201,6 +231,8 @@ const Telemedicine: React.FC = () => {
       fetchData();
     } catch {
       message.warning('Lỗi khi kết thúc phiên khám');
+    } finally {
+      setConsultEnding(false);
     }
   };
 
@@ -250,7 +282,7 @@ const Telemedicine: React.FC = () => {
 
   const handleSavePrescription = async () => {
     try {
-      const values = prescriptionForm.getFieldsValue();
+      const values = await prescriptionForm.validateFields();
       if (!activeConsultation?.id) {
         message.warning('Không có phiên khám để kê đơn');
         return;
@@ -258,18 +290,20 @@ const Telemedicine: React.FC = () => {
       await createEPrescription({
         consultationId: activeConsultation.id,
         items: (values.medicines || []).map((m: any) => ({
-          drugId: m.drugId || '',
+          drugId: m.drugId,
           quantity: Number(m.quantity) || 1,
-          dosage: m.dosage || '',
-          frequency: m.frequency || '',
+          dosage: m.dosage.trim(),
+          frequency: m.frequency.trim(),
           route: m.route || 'Oral',
-          durationDays: Number(m.durationDays) || 7,
-          instructions: m.instruction,
+          durationDays: Number(m.durationDays),
+          instructions: m.instruction?.trim(),
         })),
-        instructions: values.advice,
+        instructions: values.advice?.trim(),
       });
       message.success('Đã lưu đơn thuốc');
       setIsPrescriptionModalOpen(false);
+      prescriptionForm.resetFields();
+      fetchData();
     } catch {
       message.warning('Không thể lưu đơn thuốc');
     }
@@ -337,7 +371,7 @@ const Telemedicine: React.FC = () => {
             ${(values.medicines || []).map((m: any, i: number) => `
               <tr>
                 <td>${i + 1}</td>
-                <td>${m.name || ''}</td>
+                <td>${m.drugName || m.name || ''}</td>
                 <td>${m.dosage || ''}</td>
                 <td>${m.quantity || ''}</td>
                 <td>${m.instruction || ''}</td>
@@ -788,10 +822,10 @@ const Telemedicine: React.FC = () => {
             </Space>
           }
           open={isConsultModalOpen}
-          onCancel={() => {}}
+          onCancel={handleConsultModalClose}
           footer={null}
           width={900}
-          closable={false}
+          closable
         >
           {selectedAppointment && (
             <Row gutter={16}>
@@ -822,13 +856,18 @@ const Telemedicine: React.FC = () => {
                   </Space>
                 </Card>
                 <Space style={{ marginTop: 16, justifyContent: 'center', width: '100%' }}>
-                  <Button icon={<VideoCameraOutlined />} type="primary">
-                    Camera
+                  <Button icon={<VideoCameraOutlined />} type={cameraEnabled ? 'primary' : 'default'}
+                    onClick={() => setCameraEnabled((prev) => !prev)}>
+                    {cameraEnabled ? 'Tắt camera' : 'Bật camera'}
                   </Button>
-                  <Button icon={<PhoneOutlined />}>Mic</Button>
+                  <Button icon={<PhoneOutlined />} type={micEnabled ? 'primary' : 'default'}
+                    onClick={() => setMicEnabled((prev) => !prev)}>
+                    {micEnabled ? 'Tắt mic' : 'Bật mic'}
+                  </Button>
                   <Button
                     danger
                     icon={<CloseCircleOutlined />}
+                    loading={consultEnding}
                     onClick={handleEndConsultation}
                   >
                     Kết thúc
@@ -920,26 +959,67 @@ const Telemedicine: React.FC = () => {
                 <>
                   {fields.map(({ key, name, ...restField }) => (
                     <Row gutter={8} key={key}>
-                      <Col span={6}>
+                      <Col span={7}>
                         <Form.Item
                           {...restField}
-                          name={[name, 'name']}
-                          rules={[{ required: true }]}
+                          name={[name, 'drugName']}
+                          rules={[{ required: true, message: 'Chọn thuốc' }]}
                         >
-                          <Input placeholder="Tên thuốc" />
+                          <Select
+                            showSearch
+                            placeholder="Chọn thuốc"
+                            filterOption={false}
+                            onSearch={handleMedicineSearch}
+                            loading={medicineSearchLoading}
+                            options={medicineOptions.map((medicine) => ({
+                              value: medicine.name,
+                              label: `${medicine.name}${medicine.unit ? ` (${medicine.unit})` : ''}`,
+                              medicineId: medicine.id,
+                            }))}
+                            onChange={(_, option) => {
+                              prescriptionForm.setFieldValue(
+                                ['medicines', name, 'drugId'],
+                                (option as { medicineId?: string })?.medicineId || '',
+                              );
+                            }}
+                          />
+                        </Form.Item>
+                        <Form.Item {...restField} name={[name, 'drugId']} hidden rules={[{ required: true }]}>
+                          <Input />
                         </Form.Item>
                       </Col>
                       <Col span={4}>
-                        <Form.Item {...restField} name={[name, 'dosage']}>
+                        <Form.Item {...restField} name={[name, 'dosage']} rules={[{ required: true, message: 'Nhập liều dùng' }]}>
                           <Input placeholder="Liều dùng" />
                         </Form.Item>
                       </Col>
                       <Col span={3}>
-                        <Form.Item {...restField} name={[name, 'quantity']}>
-                          <Input placeholder="SL" />
+                        <Form.Item {...restField} name={[name, 'quantity']} rules={[{ required: true, message: 'SL' }]}>
+                          <Input type="number" min={1} placeholder="SL" />
                         </Form.Item>
                       </Col>
-                      <Col span={9}>
+                      <Col span={4}>
+                        <Form.Item {...restField} name={[name, 'frequency']} rules={[{ required: true, message: 'Tần suất' }]}>
+                          <Input placeholder="Tần suất" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={3}>
+                        <Form.Item {...restField} name={[name, 'durationDays']} rules={[{ required: true, message: 'Số ngày' }]}>
+                          <Input type="number" min={1} placeholder="Ngày" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={3}>
+                        <Form.Item {...restField} name={[name, 'route']} initialValue="Oral">
+                          <Select
+                            options={[
+                              { value: 'Oral', label: 'Uống' },
+                              { value: 'Topical', label: 'Bôi' },
+                              { value: 'Injection', label: 'Tiêm' },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
                         <Form.Item {...restField} name={[name, 'instruction']}>
                           <Input placeholder="Cách dùng" />
                         </Form.Item>
@@ -951,7 +1031,11 @@ const Telemedicine: React.FC = () => {
                       </Col>
                     </Row>
                   ))}
-                  <Button type="dashed" onClick={() => add()} block>
+                  <Button
+                    type="dashed"
+                    onClick={() => add({ route: 'Oral', quantity: 1, durationDays: 7 })}
+                    block
+                  >
                     Thêm thuốc
                   </Button>
                 </>

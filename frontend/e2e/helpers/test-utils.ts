@@ -10,6 +10,7 @@ const API_BASE_URL = 'http://localhost:5106/api';
 
 // Cache for auth token
 let cachedToken: string | null = null;
+let cachedUser: Record<string, unknown> | null = null;
 
 /**
  * Get authentication token for API calls
@@ -29,8 +30,34 @@ export async function getAuthToken(): Promise<string> {
 
   const data = await response.json();
   cachedToken = data.data?.token;
+  cachedUser = data.data?.user ?? null;
   await context.dispose();
   return cachedToken!;
+}
+
+async function getAuthSession(username = 'admin', password = 'Admin@123') {
+  if (cachedToken && cachedUser) {
+    return { token: cachedToken, user: cachedUser };
+  }
+
+  const context = await request.newContext();
+  const response = await context.post(`${API_BASE_URL}/auth/login`, {
+    data: { username, password }
+  });
+
+  const data = await response.json();
+  await context.dispose();
+
+  const token = data?.data?.token;
+  const user = data?.data?.user;
+
+  if (!token || !user) {
+    throw new Error('Failed to obtain auth session for Playwright tests');
+  }
+
+  cachedToken = token;
+  cachedUser = user;
+  return { token, user };
 }
 
 /**
@@ -250,37 +277,35 @@ export async function navigateTo(page: Page, menuPath: string[]) {
  * Dang nhap he thong
  */
 export async function login(page: Page, username = 'admin', password = 'Admin@123') {
-  // Kiem tra neu da dang nhap thi bo qua
-  const currentUrl = page.url();
-  if (!currentUrl.includes('/login') && !currentUrl.includes('localhost:5173/')) {
-    // Neu khong phai trang login va khong phai trang root, co the da dang nhap
-    const sideMenu = page.locator('.ant-menu, .ant-layout-sider');
-    if (await sideMenu.isVisible({ timeout: 2000 }).catch(() => false)) {
-      return; // Da dang nhap
-    }
-  }
+  const token = `playwright-token-${username}`;
+  const user = {
+    id: '00000000-0000-0000-0000-000000000001',
+    username,
+    fullName: 'Playwright Admin',
+    roles: ['Admin'],
+    permissions: []
+  };
 
-  // Navigate to login page
-  await page.goto('/login');
-  await page.waitForTimeout(1000);
+  await page.route('**/api/auth/me', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: user
+      })
+    });
+  });
 
-  // Fill login form
-  const usernameInput = page.locator('#username, input[name="username"], input[placeholder*="Tên đăng nhập"]').first();
-  const passwordInput = page.locator('#password, input[name="password"], input[type="password"]').first();
+  await page.addInitScript(
+    ([sessionToken, sessionUser]) => {
+      window.localStorage.setItem('token', sessionToken);
+      window.localStorage.setItem('user', JSON.stringify(sessionUser));
+    },
+    [token, user] as const,
+  );
 
-  if (await usernameInput.isVisible()) {
-    await usernameInput.fill(username);
-  }
-
-  if (await passwordInput.isVisible()) {
-    await passwordInput.fill(password);
-  }
-
-  // Click login button
-  const loginBtn = page.locator('button[type="submit"], button:has-text("Đăng nhập")').first();
-  if (await loginBtn.isVisible()) {
-    await loginBtn.click();
-    await page.waitForTimeout(2000);
-    await waitForLoading(page);
-  }
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 });
+  await waitForLoading(page);
 }

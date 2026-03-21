@@ -575,7 +575,7 @@ function RoomQueueView() {
 }
 
 // ===================== KIOSK VIEW =====================
-type KioskScreen = 'welcome' | 'ticket' | 'ticket-result' | 'price' | 'survey' | 'survey-thanks';
+type KioskScreen = 'welcome' | 'ticket' | 'ticket-result' | 'checkin' | 'price' | 'survey' | 'survey-thanks';
 
 interface KioskRoom {
   roomId: string;
@@ -779,7 +779,7 @@ function KioskView() {
                 <span className="kiosk-btn-icon">{'\uD83C\uDFAB'}</span>
                 <span className="kiosk-btn-label">L\u1EA5y s\u1ED1 kh\u00E1m b\u1EC7nh</span>
               </button>
-              <button className="kiosk-menu-btn kiosk-btn-checkin" onClick={() => setScreen('ticket')}>
+              <button className="kiosk-menu-btn kiosk-btn-checkin" onClick={() => setScreen('checkin')}>
                 <span className="kiosk-btn-icon">{'\u2705'}</span>
                 <span className="kiosk-btn-label">Check-in h\u1EB9n kh\u00E1m</span>
               </button>
@@ -863,6 +863,22 @@ function KioskView() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {screen === 'checkin' && (
+          <div className="kiosk-result-screen">
+            <h2 className="kiosk-result-title">Check-in hẹn khám</h2>
+            <div className="kiosk-result-info">
+              <div className="kiosk-result-row">
+                <span>Trạng thái:</span>
+                <strong>Chưa hỗ trợ tự check-in tại kiosk này</strong>
+              </div>
+            </div>
+            <p className="kiosk-result-note">
+              Vui lòng quét mã hẹn khám tại quầy tiếp đón hoặc liên hệ nhân viên để check-in đúng lịch hẹn, tránh phát sinh số khám mới.
+            </p>
+            <button className="kiosk-back-btn" onClick={goToWelcome} style={{ marginTop: 24 }}>{'\u2190'} Trang chủ</button>
           </div>
         )}
 

@@ -81,6 +81,9 @@ const DoctorPortal: React.FC = () => {
   // Duty schedule
   const [dutyShifts, setDutyShifts] = useState<DutyShift[]>([]);
   const [dutyMonth, setDutyMonth] = useState(dayjs());
+  const selectedDocs = pendingDocs.filter((doc) => selectedDocIds.includes(doc.id));
+  const selectedDocTypes = Array.from(new Set(selectedDocs.map((doc) => doc.documentType)));
+  const hasMixedSelectedDocTypes = selectedDocTypes.length > 1;
 
   // ============================================================================
   // Data fetching
@@ -211,8 +214,12 @@ const DoctorPortal: React.FC = () => {
       message.warning('Vui lòng chọn tài liệu cần ký');
       return;
     }
+    if (hasMixedSelectedDocTypes) {
+      message.warning('Chá»‰ cÃ³ thá»ƒ kÃ½ hÃ ng loáº¡t cÃ¡c tÃ i liá»‡u cÃ¹ng loáº¡i');
+      return;
+    }
     try {
-      const docType = pendingDocs.find(d => d.id === selectedDocIds[0])?.documentType || 'EMR';
+      const docType = selectedDocs[0]?.documentType || 'EMR';
       await digitalSignApi.batchSign({
         documentIds: selectedDocIds,
         documentType: docType,
@@ -224,6 +231,10 @@ const DoctorPortal: React.FC = () => {
     } catch {
       message.warning('Ký hàng loạt thất bại');
     }
+  };
+
+  const handleUnavailableAction = (actionName: string) => {
+    message.info(`${actionName} chÆ°a Ä‘Æ°á»£c triá»ƒn khai trong cá»•ng bÃ¡c sÄ©. Vui lÃ²ng thá»±c hiá»‡n táº¡i phÃ¢n há»‡ chuyÃªn biá»‡t.`);
   };
 
   // ============================================================================
@@ -334,9 +345,23 @@ const DoctorPortal: React.FC = () => {
         destroyOnHidden width={700}
         footer={selectedOpd ? (
           <Space wrap>
-            <Button icon={<MedicineBoxOutlined />} type="primary">Kê đơn</Button>
-            <Button icon={<ExperimentOutlined />}>Chỉ định CLS</Button>
-            <Button icon={<SaveOutlined />}>Lưu</Button>
+            <Tooltip title="Chuyển sang phân hệ khám bệnh/đơn thuốc để thao tác">
+              <Button icon={<MedicineBoxOutlined />} type="primary"
+                onClick={() => handleUnavailableAction('Kê đơn')}>
+                Kê đơn
+              </Button>
+            </Tooltip>
+            <Tooltip title="Chuyển sang phân hệ khám bệnh/CLS để thao tác">
+              <Button icon={<ExperimentOutlined />}
+                onClick={() => handleUnavailableAction('Chỉ định CLS')}>
+                Chỉ định CLS
+              </Button>
+            </Tooltip>
+            <Tooltip title="Modal này chỉ dùng để xem nhanh thông tin">
+              <Button icon={<SaveOutlined />} onClick={() => handleUnavailableAction('Lưu')}>
+                Lưu
+              </Button>
+            </Tooltip>
             <Button onClick={() => setOpdDetailOpen(false)}>Đóng</Button>
           </Space>
         ) : null}>
@@ -441,9 +466,24 @@ const DoctorPortal: React.FC = () => {
         destroyOnHidden width={750}
         footer={selectedIpd ? (
           <Space wrap>
-            <Button icon={<EditOutlined />} type="primary">Y lệnh</Button>
-            <Button icon={<FileTextOutlined />}>Phiếu điều trị</Button>
-            <Button icon={<LogoutOutlined />} danger>Xuất viện</Button>
+            <Tooltip title="Chuyển sang phân hệ nội trú để thao tác y lệnh">
+              <Button icon={<EditOutlined />} type="primary"
+                onClick={() => handleUnavailableAction('Y lệnh')}>
+                Y lệnh
+              </Button>
+            </Tooltip>
+            <Tooltip title="Chuyển sang phân hệ nội trú để lập phiếu điều trị">
+              <Button icon={<FileTextOutlined />}
+                onClick={() => handleUnavailableAction('Phiếu điều trị')}>
+                Phiếu điều trị
+              </Button>
+            </Tooltip>
+            <Tooltip title="Xuất viện cần thực hiện trong phân hệ nội trú">
+              <Button icon={<LogoutOutlined />} danger
+                onClick={() => handleUnavailableAction('Xuất viện')}>
+                Xuất viện
+              </Button>
+            </Tooltip>
             <Button onClick={() => setIpdDetailOpen(false)}>Đóng</Button>
           </Space>
         ) : null}>
@@ -555,9 +595,19 @@ const DoctorPortal: React.FC = () => {
 
       {selectedDocIds.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <Button type="primary" icon={<FileProtectOutlined />} onClick={handleBatchSign}>
-            Ký hàng loạt ({selectedDocIds.length} tài liệu)
-          </Button>
+          <Space direction="vertical" size={4}>
+            <Tooltip title={hasMixedSelectedDocTypes ? 'Chỉ có thể ký hàng loạt khi tất cả cùng loại tài liệu' : ''}>
+              <Button type="primary" icon={<FileProtectOutlined />} onClick={handleBatchSign}
+                disabled={hasMixedSelectedDocTypes}>
+                Ký hàng loạt ({selectedDocIds.length} tài liệu)
+              </Button>
+            </Tooltip>
+            {hasMixedSelectedDocTypes && (
+              <Text type="warning">
+                Đang chọn {selectedDocTypes.length} loại tài liệu. Hãy chọn các tài liệu cùng loại để ký hàng loạt.
+              </Text>
+            )}
+          </Space>
         </div>
       )}
 
