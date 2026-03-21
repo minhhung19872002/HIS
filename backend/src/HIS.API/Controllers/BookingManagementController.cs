@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
+using System.Globalization;
 
 namespace HIS.API.Controllers;
 
@@ -87,9 +88,20 @@ public class BookingManagementController : ControllerBase
     }
 
     [HttpGet("stats")]
-    public async Task<IActionResult> GetBookingStats([FromQuery] DateTime? date)
+    public async Task<IActionResult> GetBookingStats([FromQuery] string? date)
     {
-        var result = await _service.GetBookingStatsAsync(date);
+        DateTime? parsedDate = null;
+        if (!string.IsNullOrWhiteSpace(date))
+        {
+            if (DateTimeOffset.TryParse(date, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dateTimeOffset))
+                parsedDate = dateTimeOffset.Date;
+            else if (DateTime.TryParse(date, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dateTime))
+                parsedDate = dateTime.Date;
+            else
+                return BadRequest(new { message = "Invalid date format" });
+        }
+
+        var result = await _service.GetBookingStatsAsync(parsedDate);
         return Ok(result);
     }
 

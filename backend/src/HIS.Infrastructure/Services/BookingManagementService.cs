@@ -358,6 +358,15 @@ public class BookingManagementService : IBookingManagementService
         if (appointment.Status >= 2)
             return new BookingCheckinResultDto { Success = false, Message = "Lịch hẹn đã được xử lý" };
 
+        if (!appointment.DepartmentId.HasValue)
+            return new BookingCheckinResultDto { Success = false, Message = "Lich hen chua duoc gan khoa kham" };
+
+        if (!appointment.RoomId.HasValue)
+            return new BookingCheckinResultDto { Success = false, Message = "Lich hen chua duoc gan phong kham" };
+
+        if (!appointment.DoctorId.HasValue)
+            return new BookingCheckinResultDto { Success = false, Message = "Lich hen chua duoc phan bac si" };
+
         // Update status to attended
         appointment.Status = 2;
         appointment.UpdatedAt = DateTime.UtcNow;
@@ -403,8 +412,8 @@ public class BookingManagementService : IBookingManagementService
             Id = Guid.NewGuid(),
             MedicalRecordId = medicalRecord.Id,
             ExaminationType = 1, // Primary
-            DepartmentId = appointment.DepartmentId ?? Guid.Empty,
-            RoomId = appointment.RoomId ?? Guid.Empty,
+            DepartmentId = appointment.DepartmentId.Value,
+            RoomId = appointment.RoomId.Value,
             DoctorId = appointment.DoctorId,
             Status = 0, // Waiting
             CreatedAt = DateTime.UtcNow
