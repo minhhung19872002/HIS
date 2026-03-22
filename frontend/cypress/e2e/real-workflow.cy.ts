@@ -25,6 +25,7 @@ const IGNORE_PATTERNS = [
   'is not connected to any Form element',
   'Failed to start the connection',
   'connection was stopped during negotiation',
+  'Static function can not consume context like dynamic theme',
 ];
 
 function isIgnored(msg: string): boolean {

@@ -1,25 +1,11 @@
 /// <reference types="cypress" />
 
-const token = 'cypress-deep-workflows-token';
-const user = {
-  id: '00000000-0000-0000-0000-000000000001',
-  username: 'admin',
-  fullName: 'Cypress Admin',
-  roles: ['Admin'],
-  permissions: [],
-};
-const userData = JSON.stringify(user);
+let realToken = '';
+let realUserJson = '';
+const todayISO = new Date().toISOString().substring(0, 10); // e.g. '2026-03-22'
 
 function stubCommonAuth() {
   cy.on('uncaught:exception', () => false);
-
-  cy.intercept('GET', '**/api/auth/me', {
-    statusCode: 200,
-    body: {
-      success: true,
-      data: user,
-    },
-  });
 
   cy.intercept('GET', '**/api/notification/unread-count', {
     statusCode: 200,
@@ -32,14 +18,31 @@ function stubCommonAuth() {
   });
 }
 
-function visitProtected(route: string) {
-  cy.visit(route, {
-    onBeforeLoad(win) {
-      win.localStorage.setItem('token', token);
-      win.localStorage.setItem('user', userData);
-    },
+function ensureRealToken(): Cypress.Chainable {
+  if (realToken) {
+    return cy.wrap(null);
+  }
+  return cy.request({
+    method: 'POST',
+    url: '/api/auth/login',
+    body: { username: 'admin', password: 'Admin@123' },
+  }).then((resp) => {
+    const loginData = resp.body?.data ?? resp.body;
+    realToken = loginData.token;
+    realUserJson = JSON.stringify(loginData.user);
   });
-  cy.get('body', { timeout: 15000 }).should('be.visible');
+}
+
+function visitProtected(route: string) {
+  ensureRealToken().then(() => {
+    cy.visit(route, {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('token', realToken);
+        win.localStorage.setItem('user', realUserJson);
+      },
+    });
+    cy.get('body', { timeout: 15000 }).should('be.visible');
+  });
 }
 
 describe('Deep Workflows', () => {
@@ -439,6 +442,42 @@ describe('Deep Workflows', () => {
         expect(String(rosterQueries[1].month)).to.equal('4');
       });
     });
+
+    it('refreshes the currently active signature tab data', () => {
+      let pendingFetchCount = 0;
+
+      cy.intercept('GET', '**/api/digital-signature/pending', (req) => {
+        pendingFetchCount += 1;
+        req.reply({
+          statusCode: 200,
+          body: [
+            {
+              id: 'doc-refresh-1',
+              documentId: 'doc-refresh-1',
+              documentType: 'EMR',
+              documentCode: 'EMR-R-001',
+              patientName: 'Nguyen Refresh',
+              title: 'Benh an refresh',
+              createdAt: '2026-03-21T08:00:00Z',
+              status: 'Pending',
+            },
+          ],
+        });
+      }).as('doctorPortalRefreshPending');
+
+      visitProtected('/doctor-portal');
+
+      cy.contains('.ant-segmented-item-label', 'Chữ ký số').click();
+      cy.wait('@doctorPortalRefreshPending');
+      cy.contains('EMR-R-001').should('be.visible');
+      // Click the reload button (wrapped in Tooltip "Làm mới")
+      cy.get('.anticon-reload').closest('button').click();
+      cy.wait('@doctorPortalRefreshPending');
+
+      cy.then(() => {
+        expect(pendingFetchCount).to.be.greaterThan(1);
+      });
+    });
   });
 
   describe('Telemedicine', () => {
@@ -546,7 +585,7 @@ describe('Deep Workflows', () => {
               departmentName: 'Noi tong hop',
               appointmentType: 2,
               appointmentTypeName: 'Tai kham',
-              scheduledDate: '2026-03-21T00:00:00Z',
+              scheduledDate: `${todayISO}T00:00:00Z`,
               scheduledTime: '09:00',
               durationMinutes: 30,
               chiefComplaint: 'Dau hong',
@@ -695,7 +734,7 @@ describe('Deep Workflows', () => {
               departmentName: 'Tim mach',
               appointmentType: 2,
               appointmentTypeName: 'Tai kham',
-              scheduledDate: '2026-03-21T00:00:00Z',
+              scheduledDate: `${todayISO}T00:00:00Z`,
               scheduledTime: '10:30',
               durationMinutes: 30,
               chiefComplaint: 'Tai kham huyet ap',
@@ -776,7 +815,7 @@ describe('Deep Workflows', () => {
               departmentName: 'Ho hap',
               appointmentType: 2,
               appointmentTypeName: 'Tai kham',
-              scheduledDate: '2026-03-21T00:00:00Z',
+              scheduledDate: `${todayISO}T00:00:00Z`,
               scheduledTime: '11:00',
               durationMinutes: 30,
               chiefComplaint: 'Ho keo dai',
@@ -895,7 +934,7 @@ describe('Deep Workflows', () => {
               departmentName: 'Nhi',
               appointmentType: 2,
               appointmentTypeName: 'Tai kham',
-              scheduledDate: '2026-03-21T00:00:00Z',
+              scheduledDate: `${todayISO}T00:00:00Z`,
               scheduledTime: '14:00',
               durationMinutes: 30,
               chiefComplaint: 'Theo doi sot',
@@ -961,7 +1000,7 @@ describe('Deep Workflows', () => {
               departmentName: 'Than kinh',
               appointmentType: 2,
               appointmentTypeName: 'Tai kham',
-              scheduledDate: '2026-03-20T00:00:00Z',
+              scheduledDate: `${todayISO}T00:00:00Z`,
               scheduledTime: '15:30',
               durationMinutes: 30,
               chiefComplaint: 'Mat ngu',
@@ -1001,11 +1040,82 @@ describe('Deep Workflows', () => {
       visitProtected('/telemedicine');
 
       cy.contains('[role="tab"]', 'Lịch sử').click();
-      cy.contains('.ant-table-row', 'Vo Thi E').dblclick();
+      cy.contains('.ant-table-row', 'Vo Thi E').dblclick({ force: true });
       cy.get('.ant-modal').should('contain.text', 'Chi tiết lịch khám từ xa');
       cy.get('.ant-modal').should('contain.text', 'TM-005');
       cy.get('.ant-modal').should('contain.text', 'Vo Thi E');
       cy.get('.ant-modal').should('contain.text', 'Mat ngu');
+    });
+
+    it('shows the cancel confirmation content before cancelling', () => {
+      cy.intercept('GET', '**/api/telemedicine/appointments**', {
+        statusCode: 200,
+        body: {
+          items: [
+            {
+              id: 'appt-6',
+              appointmentCode: 'TM-006',
+              patientId: 'patient-6',
+              patientCode: 'BN006',
+              patientName: 'Tran Thi F',
+              phone: '0901000006',
+              doctorId: 'doctor-6',
+              doctorCode: 'DOC006',
+              doctorName: 'BS Tran G',
+              doctorSpecialty: 'Noi tiet',
+              departmentId: 'dep-6',
+              departmentName: 'Noi tiet',
+              appointmentType: 2,
+              appointmentTypeName: 'Tai kham',
+              scheduledDate: `${todayISO}T00:00:00Z`,
+              scheduledTime: '16:00',
+              durationMinutes: 30,
+              chiefComplaint: 'Tai kham duong huyet',
+              status: 2,
+              statusName: 'Cho kham',
+              fee: 250000,
+              paymentStatus: 1,
+              paymentStatusName: 'Da thanh toan',
+              createdAt: '2026-03-21T13:00:00Z',
+            },
+          ],
+          totalCount: 1,
+          pageNumber: 1,
+          pageSize: 200,
+          totalPages: 1,
+        },
+      });
+
+      cy.intercept('GET', '**/api/telemedicine/dashboard**', {
+        statusCode: 200,
+        body: {
+          date: '2026-03-21',
+          totalAppointments: 1,
+          completedAppointments: 0,
+          cancelledAppointments: 0,
+          noShowAppointments: 0,
+          averageWaitTimeMinutes: 0,
+          averageConsultationDurationMinutes: 0,
+          totalRevenue: 250000,
+          prescriptionsSent: 0,
+          upcomingAppointments: [],
+          byDoctor: [],
+          byDepartment: [],
+        },
+      });
+
+      cy.intercept('POST', '**/api/telemedicine/appointments/appt-6/cancel', {
+        statusCode: 200,
+        body: true,
+      }).as('cancelAppointmentConfirm');
+
+      visitProtected('/telemedicine');
+
+      cy.contains('button', 'Hủy').click();
+      cy.get('.ant-modal-confirm').should('contain.text', 'Xác nhận hủy lịch hẹn');
+      cy.get('.ant-modal-confirm').should('contain.text', 'Tran Thi F');
+      cy.contains('.ant-modal-confirm button', 'Hủy lịch').click();
+      cy.wait('@cancelAppointmentConfirm');
     });
   });
 
@@ -1375,6 +1485,33 @@ describe('Deep Workflows', () => {
       });
 
       cy.get('.ant-message').should('contain.text', 'Đăng ký token thành công');
+    });
+
+    it('renders certificate and history tabs with backend data', () => {
+      cy.intercept('GET', '**/api/digital-signature/session-status', {
+        statusCode: 200,
+        body: { active: false },
+      });
+
+      cy.intercept('GET', '**/api/digital-signature/pending', {
+        statusCode: 200,
+        body: [],
+      });
+
+      cy.intercept('GET', '**/api/digital-signature/signatures/*', {
+        statusCode: 200,
+        body: [],
+      });
+
+      visitProtected('/digital-signature');
+
+      cy.contains('[role="tab"]', 'Chứng thư số').click();
+      cy.contains('Admin').should('be.visible');
+      cy.contains('VNPT').should('be.visible');
+      cy.contains('SERIAL-1').should('be.visible');
+
+      cy.contains('[role="tab"]', 'Lịch sử ký').click();
+      cy.contains('Chưa có lịch sử ký số').should('be.visible');
     });
   });
 });

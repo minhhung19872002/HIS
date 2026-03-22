@@ -558,6 +558,141 @@ namespace HIS.API.Controllers
         [HttpGet("dashboard")]
         public async Task<ActionResult<MedicalHRDashboardDto>> GetDashboard()
             => Ok(await _service.GetDashboardAsync());
+
+        // ========== HR Catalogs ==========
+
+        [HttpGet("catalogs")]
+        public async Task<ActionResult<List<HRCatalogDto>>> GetCatalogs([FromQuery] string? catalogType = null)
+            => Ok(await _service.GetCatalogsAsync(catalogType));
+
+        [HttpPost("catalogs")]
+        public async Task<ActionResult<HRCatalogDto>> SaveCatalog([FromBody] SaveHRCatalogDto dto)
+            => Ok(await _service.SaveCatalogAsync(dto));
+
+        [HttpDelete("catalogs/{id}")]
+        public async Task<ActionResult<bool>> DeleteCatalog(Guid id)
+            => Ok(await _service.DeleteCatalogAsync(id));
+
+        // ========== Staff Contracts ==========
+
+        [HttpGet("contracts")]
+        public async Task<ActionResult<List<StaffContractDto>>> GetContracts(
+            [FromQuery] Guid? staffId = null, [FromQuery] string? contractType = null)
+            => Ok(await _service.GetStaffContractsAsync(staffId, contractType));
+
+        [HttpPost("contracts")]
+        public async Task<ActionResult<StaffContractDto>> SaveContract([FromBody] SaveStaffContractDto dto)
+            => Ok(await _service.SaveContractAsync(dto));
+
+        [HttpGet("contracts/expiring")]
+        public async Task<ActionResult<List<StaffContractDto>>> GetExpiringContracts([FromQuery] int daysAhead = 90)
+            => Ok(await _service.GetExpiringContractsAsync(daysAhead));
+
+        // ========== Salary History ==========
+
+        [HttpGet("salary-history/{staffId}")]
+        public async Task<ActionResult<List<SalaryRecordDto>>> GetSalaryHistory(Guid staffId)
+            => Ok(await _service.GetSalaryHistoryAsync(staffId));
+
+        [HttpPost("salary-history")]
+        public async Task<ActionResult<SalaryRecordDto>> SaveSalaryRecord([FromBody] SaveSalaryRecordDto dto)
+            => Ok(await _service.SaveSalaryRecordAsync(dto));
+
+        // ========== Leave Management ==========
+
+        [HttpGet("leave-requests")]
+        public async Task<ActionResult<List<LeaveRequestDto>>> GetLeaveRequests(
+            [FromQuery] Guid? staffId = null, [FromQuery] int? status = null,
+            [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
+            => Ok(await _service.GetLeaveRequestsAsync(staffId, status, fromDate, toDate));
+
+        [HttpPost("leave-requests")]
+        public async Task<ActionResult<LeaveRequestDto>> CreateLeaveRequest([FromBody] CreateLeaveRequestDto dto)
+            => Ok(await _service.CreateLeaveRequestAsync(dto));
+
+        [HttpPut("leave-requests/{id}/approve")]
+        public async Task<ActionResult<LeaveRequestDto>> ApproveLeave(Guid id, [FromBody] LeaveApprovalDto dto)
+            => Ok(await _service.ApproveLeaveAsync(id, dto));
+
+        [HttpGet("leave-balance/{staffId}")]
+        public async Task<ActionResult<LeaveBalanceDto>> GetLeaveBalance(Guid staffId, [FromQuery] int? year = null)
+            => Ok(await _service.GetLeaveBalanceAsync(staffId, year ?? DateTime.Now.Year));
+
+        // ========== Attendance ==========
+
+        [HttpGet("attendance")]
+        public async Task<ActionResult<List<AttendanceRecordDto>>> GetAttendance(
+            [FromQuery] Guid? staffId = null, [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
+            => Ok(await _service.GetAttendanceAsync(staffId, fromDate, toDate));
+
+        [HttpPost("attendance")]
+        public async Task<ActionResult<AttendanceRecordDto>> RecordAttendance([FromBody] SaveAttendanceDto dto)
+            => Ok(await _service.RecordAttendanceAsync(dto));
+
+        [HttpGet("attendance/summary")]
+        public async Task<ActionResult<List<HIS.Application.DTOs.MedicalHR.AttendanceSummaryDto>>> GetAttendanceSummary(
+            [FromQuery] int year, [FromQuery] int month, [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetAttendanceSummaryAsync(year, month, departmentId));
+
+        // ========== Overtime ==========
+
+        [HttpGet("overtime")]
+        public async Task<ActionResult<List<OvertimeRecordDto>>> GetOvertime(
+            [FromQuery] Guid? staffId = null, [FromQuery] int? status = null,
+            [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
+            => Ok(await _service.GetOvertimeRequestsAsync(staffId, status, fromDate, toDate));
+
+        [HttpPost("overtime")]
+        public async Task<ActionResult<OvertimeRecordDto>> CreateOvertime([FromBody] CreateOvertimeDto dto)
+            => Ok(await _service.CreateOvertimeAsync(dto));
+
+        [HttpPut("overtime/{id}/approve")]
+        public async Task<ActionResult<OvertimeRecordDto>> ApproveOvertime(Guid id, [FromBody] OvertimeApprovalDto dto)
+            => Ok(await _service.ApproveOvertimeAsync(id, dto));
+
+        // ========== Awards & Discipline ==========
+
+        [HttpGet("awards")]
+        public async Task<ActionResult<List<StaffAwardDto>>> GetAwards([FromQuery] Guid? staffId = null)
+            => Ok(await _service.GetStaffAwardsAsync(staffId));
+
+        [HttpPost("awards")]
+        public async Task<ActionResult<StaffAwardDto>> SaveAward([FromBody] SaveStaffAwardDto dto)
+            => Ok(await _service.SaveAwardAsync(dto));
+
+        [HttpGet("disciplines")]
+        public async Task<ActionResult<List<StaffDisciplineDto>>> GetDisciplines([FromQuery] Guid? staffId = null)
+            => Ok(await _service.GetStaffDisciplinesAsync(staffId));
+
+        [HttpPost("disciplines")]
+        public async Task<ActionResult<StaffDisciplineDto>> SaveDiscipline([FromBody] SaveStaffDisciplineDto dto)
+            => Ok(await _service.SaveDisciplineAsync(dto));
+
+        // ========== Reports ==========
+
+        [HttpGet("reports/by-department")]
+        public async Task<ActionResult<List<StaffByDepartmentReportDto>>> GetStaffByDepartmentReport([FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetStaffByDepartmentReportAsync(departmentId));
+
+        [HttpGet("reports/attendance")]
+        public async Task<ActionResult<AttendanceReportDto>> GetAttendanceReport(
+            [FromQuery] int year, [FromQuery] int month, [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetAttendanceReportAsync(year, month, departmentId));
+
+        [HttpGet("reports/leave")]
+        public async Task<ActionResult<LeaveReportDto>> GetLeaveReport(
+            [FromQuery] int year, [FromQuery] int month, [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetLeaveReportAsync(year, month, departmentId));
+
+        [HttpGet("reports/overtime")]
+        public async Task<ActionResult<OvertimeReportDto>> GetOvertimeReport(
+            [FromQuery] int year, [FromQuery] int month, [FromQuery] Guid? departmentId = null)
+            => Ok(await _service.GetOvertimeReportAsync(year, month, departmentId));
+
+        [HttpGet("reports/movement")]
+        public async Task<ActionResult<StaffMovementReportDto>> GetMovementReport(
+            [FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
+            => Ok(await _service.GetStaffMovementReportAsync(fromDate, toDate));
     }
 
     #endregion

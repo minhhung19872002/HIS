@@ -33,6 +33,12 @@ import {
   WalletOutlined,
   RollbackOutlined,
   ReloadOutlined,
+  SendOutlined,
+  StopOutlined,
+  EyeOutlined,
+  ThunderboltOutlined,
+  MailOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
@@ -47,6 +53,14 @@ import {
   approveRefund,
   cancelRefund,
   getDebtStatistics,
+  searchElectronicInvoices,
+  issueElectronicInvoice,
+  cancelElectronicInvoice,
+  sendElectronicInvoice,
+  exportElectronicInvoice,
+  getElectronicInvoiceStats,
+  printRepresentativeInvoice,
+  searchInvoices,
   type PatientBillingStatusDto,
   type UnpaidServiceItemDto,
   type DepositDto,
@@ -58,9 +72,13 @@ import {
   type RevenueReportRequestDto,
   type OutpatientRevenueReportDto,
   type DebtStatisticsDto,
+  type ElectronicInvoiceDto,
+  type ElectronicInvoiceStatsDto,
+  type InvoiceDto,
   getOutpatientRevenueReport,
 } from '../api/billing';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -147,6 +165,26 @@ const Billing: React.FC = () => {
   const [loadingReport, setLoadingReport] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // E-Invoice state
+  const [eInvoices, setEInvoices] = useState<ElectronicInvoiceDto[]>([]);
+  const [eInvoiceStats, setEInvoiceStats] = useState<ElectronicInvoiceStatsDto | null>(null);
+  const [eInvoiceLoading, setEInvoiceLoading] = useState(false);
+  const [eInvoiceSearchText, setEInvoiceSearchText] = useState('');
+  const [eInvoiceStatusFilter, setEInvoiceStatusFilter] = useState<number | undefined>(undefined);
+  const [eInvoiceDateRange, setEInvoiceDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [eInvoicePagination, setEInvoicePagination] = useState({ current: 1, pageSize: 20, total: 0 });
+  const [createEInvoiceModalVisible, setCreateEInvoiceModalVisible] = useState(false);
+  const [cancelEInvoiceModalVisible, setCancelEInvoiceModalVisible] = useState(false);
+  const [sendEInvoiceModalVisible, setSendEInvoiceModalVisible] = useState(false);
+  const [eInvoiceDetailVisible, setEInvoiceDetailVisible] = useState(false);
+  const [selectedEInvoice, setSelectedEInvoice] = useState<ElectronicInvoiceDto | null>(null);
+  const [invoiceSummaries, setInvoiceSummaries] = useState<InvoiceDto[]>([]);
+
+  const [eInvoiceForm] = Form.useForm();
+  const [cancelEInvoiceForm] = Form.useForm();
+  const [sendEInvoiceForm] = Form.useForm();
+
   const [depositDetailVisible, setDepositDetailVisible] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<Deposit | null>(null);
   const [refundDetailVisible, setRefundDetailVisible] = useState(false);
@@ -468,6 +506,137 @@ const Billing: React.FC = () => {
     return words.trim() + ' đồng';
   };
 
+  // ============= E-INVOICE FUNCTIONS =============
+
+  const fetchEInvoices = async () => {
+    setEInvoiceLoading(true);
+    try {
+      const params: Record<string, unknown> = {
+        keyword: eInvoiceSearchText || undefined,
+        status: eInvoiceStatusFilter,
+        fromDate: eInvoiceDateRange?.[0]?.format('YYYY-MM-DD'),
+        toDate: eInvoiceDateRange?.[1]?.format('YYYY-MM-DD'),
+        pageIndex: (eInvoicePagination.current - 1),
+        pageSize: eInvoicePagination.pageSize,
+      };
+      const res = await searchElectronicInvoices(params as never);
+      const data = res.data;
+      setEInvoices(data.items || []);
+      setEInvoicePagination(prev => ({ ...prev, total: data.totalCount || 0 }));
+    } catch {
+      // If search endpoint not available, fallback to empty
+      setEInvoices([]);
+    }
+    setEInvoiceLoading(false);
+  };
+
+  const fetchEInvoiceStats = async () => {
+    try {
+      const fromDate = eInvoiceDateRange?.[0]?.format('YYYY-MM-DD');
+      const toDate = eInvoiceDateRange?.[1]?.format('YYYY-MM-DD');
+      const res = await getElectronicInvoiceStats(fromDate, toDate);
+      setEInvoiceStats(res.data);
+    } catch {
+      setEInvoiceStats(null);
+    }
+  };
+
+  const handleCreateEInvoice = async (values: Record<string, unknown>) => {
+    try {
+      setSubmitting(true);
+      await issueElectronicInvoice({
+        invoiceId: values.invoiceId as string,
+        buyerName: values.buyerName as string | undefined,
+        buyerTaxCode: values.buyerTaxCode as string | undefined,
+        buyerAddress: values.buyerAddress as string | undefined,
+        buyerEmail: values.buyerEmail as string | undefined,
+        paymentMethod: values.paymentMethod as string | undefined,
+        sendEmail: !!values.sendEmail,
+      });
+      message.success('Tạo hóa đơn điện tử thành công');
+      setCreateEInvoiceModalVisible(false);
+      eInvoiceForm.resetFields();
+      fetchEInvoices();
+      fetchEInvoiceStats();
+    } catch {
+      message.warning('Không thể tạo hóa đơn điện tử');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelEInvoice = async (values: Record<string, unknown>) => {
+    if (!selectedEInvoice) return;
+    try {
+      setSubmitting(true);
+      await cancelElectronicInvoice(selectedEInvoice.id, values.reason as string);
+      message.success('Hủy hóa đơn điện tử thành công');
+      setCancelEInvoiceModalVisible(false);
+      cancelEInvoiceForm.resetFields();
+      setSelectedEInvoice(null);
+      fetchEInvoices();
+      fetchEInvoiceStats();
+    } catch {
+      message.warning('Không thể hủy hóa đơn điện tử');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSendEInvoice = async (values: Record<string, unknown>) => {
+    if (!selectedEInvoice) return;
+    try {
+      setSubmitting(true);
+      await sendElectronicInvoice(selectedEInvoice.id, values.email as string);
+      message.success('Gửi hóa đơn điện tử thành công');
+      setSendEInvoiceModalVisible(false);
+      sendEInvoiceForm.resetFields();
+      setSelectedEInvoice(null);
+      fetchEInvoices();
+    } catch {
+      message.warning('Không thể gửi hóa đơn điện tử');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleExportEInvoice = async (record: ElectronicInvoiceDto) => {
+    try {
+      await exportElectronicInvoice(record.id);
+      message.success('Xuất hóa đơn lên nhà cung cấp thành công');
+      fetchEInvoices();
+    } catch {
+      message.warning('Không thể xuất hóa đơn');
+    }
+  };
+
+  const handlePrintRepresentative = async (record: ElectronicInvoiceDto) => {
+    try {
+      const res = await printRepresentativeInvoice(record.id);
+      const blob = new Blob([res.data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      } else {
+        message.warning('Vui lòng cho phép popup để in hóa đơn');
+      }
+    } catch {
+      message.warning('Không thể in hóa đơn đại diện');
+    }
+  };
+
+  const fetchInvoiceSummariesForEInvoice = async () => {
+    try {
+      const res = await searchInvoices({ paymentStatus: 2, pageSize: 100 });
+      setInvoiceSummaries(res.data?.items || []);
+    } catch {
+      setInvoiceSummaries([]);
+    }
+  };
+
   // ============= FETCH DATA ON TAB CHANGE =============
 
   useEffect(() => {
@@ -475,8 +644,18 @@ const Billing: React.FC = () => {
       fetchDeposits();
     } else if (activeTab === 'refunds') {
       fetchRefunds();
+    } else if (activeTab === 'einvoice') {
+      fetchEInvoices();
+      fetchEInvoiceStats();
     }
   }, [activeTab]);
+
+  // Re-fetch e-invoices when pagination changes
+  useEffect(() => {
+    if (activeTab === 'einvoice') {
+      fetchEInvoices();
+    }
+  }, [eInvoicePagination.current, eInvoicePagination.pageSize]);
 
   const [depositSearchText, setDepositSearchText] = useState('');
 
@@ -747,6 +926,11 @@ const Billing: React.FC = () => {
 
       {selectedPatient && (
         <>
+          <BusinessAlertPanel
+            patientId={selectedPatient.id}
+            module="Billing"
+            compact={false}
+          />
           <Card size="small" style={{ marginBottom: 16 }}>
             <Descriptions column={{ xs: 2, sm: 2, md: 4 }} size="small">
               <Descriptions.Item label="Mã BN">
@@ -2008,6 +2192,257 @@ const Billing: React.FC = () => {
     </div>
   );
 
+  // ============= E-INVOICE COLUMNS =============
+
+  const eInvoiceStatusColor = (status: number) => {
+    switch (status) {
+      case 0: return 'default';
+      case 1: return 'blue';
+      case 2: return 'green';
+      case 3: return 'red';
+      case 4: return 'orange';
+      default: return 'default';
+    }
+  };
+
+  const eInvoiceColumns: ColumnsType<ElectronicInvoiceDto> = [
+    {
+      title: 'Số HĐ',
+      dataIndex: 'eInvoiceNumber',
+      key: 'eInvoiceNumber',
+      width: 180,
+      render: (text: string) => <Text strong>{text}</Text>,
+    },
+    {
+      title: 'Ký hiệu',
+      dataIndex: 'eInvoiceSeries',
+      key: 'eInvoiceSeries',
+      width: 100,
+    },
+    {
+      title: 'Ngày',
+      dataIndex: 'eInvoiceDate',
+      key: 'eInvoiceDate',
+      width: 100,
+      render: (date: string) => dayjs(date).format('DD/MM/YYYY'),
+    },
+    {
+      title: 'Bệnh nhân / Người mua',
+      key: 'buyer',
+      width: 200,
+      render: (_: unknown, record: ElectronicInvoiceDto) => (
+        <div>
+          <div>{record.buyerName || record.patientName || '-'}</div>
+          {record.buyerTaxCode && <Text type="secondary" style={{ fontSize: 11 }}>MST: {record.buyerTaxCode}</Text>}
+        </div>
+      ),
+    },
+    {
+      title: 'Tổng tiền',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      width: 130,
+      align: 'right' as const,
+      render: (v: number) => <Text strong>{(v || 0).toLocaleString('vi-VN')} đ</Text>,
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (_: unknown, record: ElectronicInvoiceDto) => (
+        <Tag color={eInvoiceStatusColor(record.status)}>{record.statusName}</Tag>
+      ),
+    },
+    {
+      title: 'Mã tra cứu',
+      dataIndex: 'lookupCode',
+      key: 'lookupCode',
+      width: 130,
+      render: (code: string, record: ElectronicInvoiceDto) => (
+        record.lookupUrl ? <a href={record.lookupUrl} target="_blank" rel="noopener noreferrer">{code}</a> : (code || '-')
+      ),
+    },
+    {
+      title: 'Hành động',
+      key: 'actions',
+      width: 220,
+      render: (_: unknown, record: ElectronicInvoiceDto) => (
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => { setSelectedEInvoice(record); setEInvoiceDetailVisible(true); }}
+          >
+            Xem
+          </Button>
+          {record.status === 1 && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<MailOutlined />}
+              onClick={() => {
+                setSelectedEInvoice(record);
+                sendEInvoiceForm.setFieldsValue({ email: record.buyerEmail || record.sentTo || '' });
+                setSendEInvoiceModalVisible(true);
+              }}
+            >
+              Gửi
+            </Button>
+          )}
+          {(record.status === 0 || record.status === 1) && (
+            <Button
+              size="small"
+              icon={<ExportOutlined />}
+              onClick={() => handleExportEInvoice(record)}
+            >
+              Xuất
+            </Button>
+          )}
+          <Button
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrintRepresentative(record)}
+          >
+            In
+          </Button>
+          {(record.status === 1 || record.status === 2) && (
+            <Button
+              size="small"
+              danger
+              icon={<StopOutlined />}
+              onClick={() => {
+                setSelectedEInvoice(record);
+                setCancelEInvoiceModalVisible(true);
+              }}
+            >
+              Hủy
+            </Button>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
+  // ============= E-INVOICE TAB =============
+
+  const EInvoiceTab = (
+    <div>
+      {/* Stats cards */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Tổng HĐ" value={eInvoiceStats?.totalInvoices || 0} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Đã phát hành" value={eInvoiceStats?.issuedCount || 0} valueStyle={{ color: '#1890ff' }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Đã gửi" value={eInvoiceStats?.sentCount || 0} valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Đã hủy" value={eInvoiceStats?.cancelledCount || 0} valueStyle={{ color: '#f5222d' }} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic
+              title="Tổng tiền (chưa hủy)"
+              value={eInvoiceStats?.totalWithVat || 0}
+              precision={0}
+              suffix="đ"
+              valueStyle={{ color: '#722ed1' }}
+              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Search & filter */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Input.Search
+            placeholder="Tìm số HĐ, tên BN, MST..."
+            value={eInvoiceSearchText}
+            onChange={e => setEInvoiceSearchText(e.target.value)}
+            onSearch={() => fetchEInvoices()}
+            allowClear
+          />
+        </Col>
+        <Col span={4}>
+          <Select
+            placeholder="Trạng thái"
+            style={{ width: '100%' }}
+            allowClear
+            value={eInvoiceStatusFilter}
+            onChange={v => { setEInvoiceStatusFilter(v); }}
+            options={[
+              { value: 0, label: 'Nháp' },
+              { value: 1, label: 'Đã phát hành' },
+              { value: 2, label: 'Đã gửi' },
+              { value: 3, label: 'Đã hủy' },
+              { value: 4, label: 'Đã thay thế' },
+            ]}
+          />
+        </Col>
+        <Col span={6}>
+          <RangePicker
+            value={eInvoiceDateRange}
+            onChange={(dates) => setEInvoiceDateRange(dates as [Dayjs, Dayjs] | null)}
+            format="DD/MM/YYYY"
+            style={{ width: '100%' }}
+          />
+        </Col>
+        <Col>
+          <Button type="primary" icon={<SearchOutlined />} onClick={() => { fetchEInvoices(); fetchEInvoiceStats(); }}>
+            Tìm kiếm
+          </Button>
+        </Col>
+        <Col>
+          <Button
+            type="primary"
+            icon={<ThunderboltOutlined />}
+            style={{ background: '#722ed1', borderColor: '#722ed1' }}
+            onClick={() => {
+              fetchInvoiceSummariesForEInvoice();
+              eInvoiceForm.resetFields();
+              setCreateEInvoiceModalVisible(true);
+            }}
+          >
+            Tạo HĐĐT
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Table */}
+      <Table
+        columns={eInvoiceColumns}
+        dataSource={eInvoices}
+        rowKey="id"
+        loading={eInvoiceLoading}
+        size="small"
+        scroll={{ x: 1200 }}
+        pagination={{
+          current: eInvoicePagination.current,
+          pageSize: eInvoicePagination.pageSize,
+          total: eInvoicePagination.total,
+          showSizeChanger: true,
+          showTotal: (total) => `Tổng: ${total} hóa đơn`,
+          onChange: (page, pageSize) => {
+            setEInvoicePagination(prev => ({ ...prev, current: page, pageSize }));
+          },
+        }}
+        locale={{ emptyText: 'Chưa có hóa đơn điện tử' }}
+      />
+    </div>
+  );
+
   // ============= MAIN RENDER =============
 
   return (
@@ -2062,6 +2497,16 @@ const Billing: React.FC = () => {
               ),
               children: ReportsTab,
             },
+            {
+              key: 'einvoice',
+              label: (
+                <span>
+                  <ThunderboltOutlined />
+                  Hóa đơn điện tử
+                </span>
+              ),
+              children: EInvoiceTab,
+            },
           ]}
         />
       </Card>
@@ -2070,6 +2515,215 @@ const Billing: React.FC = () => {
       {DepositModal}
       {RefundModal}
       {ReceiptDrawer}
+
+      {/* Create E-Invoice Modal */}
+      <Modal
+        title="Tạo hóa đơn điện tử"
+        open={createEInvoiceModalVisible}
+        onCancel={() => setCreateEInvoiceModalVisible(false)}
+        onOk={() => eInvoiceForm.submit()}
+        okText="Tạo hóa đơn"
+        cancelText="Hủy"
+        confirmLoading={submitting}
+        width={600}
+      >
+        <Form form={eInvoiceForm} layout="vertical" onFinish={handleCreateEInvoice}>
+          <Form.Item
+            name="invoiceId"
+            label="Bảng kê viện phí"
+            rules={[{ required: true, message: 'Vui lòng chọn bảng kê' }]}
+          >
+            <Select
+              placeholder="Chọn bảng kê đã thanh toán"
+              showSearch
+              optionFilterProp="label"
+              options={invoiceSummaries.map(inv => ({
+                value: inv.id,
+                label: `${inv.invoiceCode} - ${inv.patientName} - ${(inv.totalAmount || 0).toLocaleString('vi-VN')} đ`,
+              }))}
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="buyerName" label="Tên người mua">
+                <Input placeholder="Họ tên người mua" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="buyerTaxCode" label="Mã số thuế">
+                <Input placeholder="MST (nếu có)" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="buyerAddress" label="Địa chỉ người mua">
+            <Input placeholder="Địa chỉ" />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="buyerEmail" label="Email">
+                <Input placeholder="Email nhận hóa đơn" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="paymentMethod" label="Hình thức thanh toán" initialValue="TM">
+                <Select
+                  options={[
+                    { value: 'TM', label: 'Tiền mặt (TM)' },
+                    { value: 'CK', label: 'Chuyển khoản (CK)' },
+                    { value: 'TM/CK', label: 'TM/CK' },
+                    { value: 'THE', label: 'Thẻ' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="sendEmail" valuePropName="checked" initialValue={false}>
+            <Radio.Group>
+              <Radio value={true}>Gửi email ngay sau khi tạo</Radio>
+              <Radio value={false}>Chỉ tạo hóa đơn</Radio>
+            </Radio.Group>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Cancel E-Invoice Modal */}
+      <Modal
+        title="Hủy hóa đơn điện tử"
+        open={cancelEInvoiceModalVisible}
+        onCancel={() => { setCancelEInvoiceModalVisible(false); setSelectedEInvoice(null); }}
+        onOk={() => cancelEInvoiceForm.submit()}
+        okText="Xác nhận hủy"
+        okButtonProps={{ danger: true }}
+        cancelText="Đóng"
+        confirmLoading={submitting}
+      >
+        {selectedEInvoice && (
+          <div style={{ marginBottom: 16 }}>
+            <Text>Hóa đơn: <Text strong>{selectedEInvoice.eInvoiceNumber}</Text></Text>
+            <br />
+            <Text>Số tiền: <Text strong>{(selectedEInvoice.totalAmount || 0).toLocaleString('vi-VN')} đ</Text></Text>
+          </div>
+        )}
+        <Form form={cancelEInvoiceForm} layout="vertical" onFinish={handleCancelEInvoice}>
+          <Form.Item
+            name="reason"
+            label="Lý do hủy"
+            rules={[{ required: true, message: 'Vui lòng nhập lý do hủy' }]}
+          >
+            <Input.TextArea rows={3} placeholder="Nhập lý do hủy hóa đơn" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Send E-Invoice Modal */}
+      <Modal
+        title="Gửi hóa đơn điện tử"
+        open={sendEInvoiceModalVisible}
+        onCancel={() => { setSendEInvoiceModalVisible(false); setSelectedEInvoice(null); }}
+        onOk={() => sendEInvoiceForm.submit()}
+        okText="Gửi hóa đơn"
+        cancelText="Đóng"
+        confirmLoading={submitting}
+      >
+        {selectedEInvoice && (
+          <div style={{ marginBottom: 16 }}>
+            <Text>Hóa đơn: <Text strong>{selectedEInvoice.eInvoiceNumber}</Text></Text>
+            <br />
+            <Text>Người mua: <Text strong>{selectedEInvoice.buyerName || selectedEInvoice.patientName}</Text></Text>
+          </div>
+        )}
+        <Form form={sendEInvoiceForm} layout="vertical" onFinish={handleSendEInvoice}>
+          <Form.Item
+            name="email"
+            label="Email nhận hóa đơn"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' },
+            ]}
+          >
+            <Input placeholder="example@email.com" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* E-Invoice Detail Modal */}
+      <Modal
+        title="Chi tiết hóa đơn điện tử"
+        open={eInvoiceDetailVisible}
+        onCancel={() => { setEInvoiceDetailVisible(false); setSelectedEInvoice(null); }}
+        footer={[
+          <Button key="print" icon={<PrinterOutlined />} onClick={() => selectedEInvoice && handlePrintRepresentative(selectedEInvoice)}>In đại diện</Button>,
+          <Button key="close" onClick={() => { setEInvoiceDetailVisible(false); setSelectedEInvoice(null); }}>Đóng</Button>,
+        ]}
+        width={700}
+      >
+        {selectedEInvoice && (
+          <div>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Số hóa đơn">{selectedEInvoice.eInvoiceNumber}</Descriptions.Item>
+              <Descriptions.Item label="Ký hiệu">{selectedEInvoice.eInvoiceSeries}</Descriptions.Item>
+              <Descriptions.Item label="Ngày phát hành">{dayjs(selectedEInvoice.eInvoiceDate).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                <Tag color={eInvoiceStatusColor(selectedEInvoice.status)}>{selectedEInvoice.statusName}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Nhà cung cấp">{selectedEInvoice.provider}</Descriptions.Item>
+              <Descriptions.Item label="Mã NCC">{selectedEInvoice.providerInvoiceId || '-'}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider titlePlacement="start" style={{ fontSize: 13 }}>Thông tin người mua</Divider>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Tên BN/Người mua">{selectedEInvoice.buyerName || selectedEInvoice.patientName || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Mã số thuế">{selectedEInvoice.buyerTaxCode || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Địa chỉ" span={2}>{selectedEInvoice.buyerAddress || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Hình thức TT">{selectedEInvoice.paymentMethod || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Email">{selectedEInvoice.sentTo || selectedEInvoice.buyerEmail || '-'}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider titlePlacement="start" style={{ fontSize: 13 }}>Số tiền</Divider>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Tiền trước thuế">{(selectedEInvoice.subTotal || selectedEInvoice.amount || 0).toLocaleString('vi-VN')} đ</Descriptions.Item>
+              <Descriptions.Item label="Thuế suất VAT">{selectedEInvoice.vatRate || 8}%</Descriptions.Item>
+              <Descriptions.Item label="Tiền thuế GTGT">{(selectedEInvoice.vatAmount || 0).toLocaleString('vi-VN')} đ</Descriptions.Item>
+              <Descriptions.Item label="Giảm giá">{(selectedEInvoice.discountAmount || 0).toLocaleString('vi-VN')} đ</Descriptions.Item>
+              <Descriptions.Item label="Tổng thanh toán" span={2}>
+                <Text strong style={{ fontSize: 16, color: '#722ed1' }}>
+                  {(selectedEInvoice.totalAmount || 0).toLocaleString('vi-VN')} đ
+                </Text>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider titlePlacement="start" style={{ fontSize: 13 }}>Tra cứu</Divider>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Mã tra cứu">{selectedEInvoice.lookupCode || '-'}</Descriptions.Item>
+              <Descriptions.Item label="URL tra cứu">
+                {selectedEInvoice.lookupUrl ? (
+                  <a href={selectedEInvoice.lookupUrl} target="_blank" rel="noopener noreferrer">{selectedEInvoice.lookupUrl}</a>
+                ) : '-'}
+              </Descriptions.Item>
+            </Descriptions>
+
+            {selectedEInvoice.status === 3 && (
+              <>
+                <Divider titlePlacement="start" style={{ fontSize: 13, color: '#f5222d' }}>Thông tin hủy</Divider>
+                <Descriptions bordered size="small" column={2}>
+                  <Descriptions.Item label="Lý do hủy" span={2}>{selectedEInvoice.cancelReason || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Ngày hủy">{selectedEInvoice.cancelledAt ? dayjs(selectedEInvoice.cancelledAt).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
+                </Descriptions>
+              </>
+            )}
+
+            {selectedEInvoice.sentAt && (
+              <>
+                <Divider titlePlacement="start" style={{ fontSize: 13, color: '#52c41a' }}>Thông tin gửi</Divider>
+                <Descriptions bordered size="small" column={2}>
+                  <Descriptions.Item label="Đã gửi tới">{selectedEInvoice.sentTo || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Ngày gửi">{dayjs(selectedEInvoice.sentAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+                </Descriptions>
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Service Detail Modal */}
       <Modal

@@ -1033,6 +1033,148 @@ public class CMERecord : BaseEntity
     public virtual MedicalStaff? Staff { get; set; }
 }
 
+/// <summary>
+/// Danh mục nhân sự (đa năng: chức vụ, chức danh, ngạch, bậc lương, loại HĐ, v.v.)
+/// </summary>
+public class HRCatalog : BaseEntity
+{
+    public string CatalogType { get; set; } = string.Empty; // Position, JobTitle, CivilServantRank, SalaryGrade, ContractType, InsuranceType, EducationLevel, AwardType, DisciplineType, LeaveType, ShiftType, CertificateType, Ethnicity, Religion, Nationality
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Hợp đồng lao động
+/// </summary>
+public class StaffContract : BaseEntity
+{
+    public Guid StaffId { get; set; }
+    public string ContractType { get; set; } = string.Empty; // Probation, FixedTerm, Indefinite, Seasonal, Collaboration
+    public string ContractNumber { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? Terms { get; set; }
+    public int Status { get; set; } // 0=Active, 1=Expired, 2=Terminated, 3=Renewed
+    public string? Notes { get; set; }
+
+    // Navigation
+    public virtual MedicalStaff? Staff { get; set; }
+}
+
+/// <summary>
+/// Lịch sử lương
+/// </summary>
+public class SalaryRecord : BaseEntity
+{
+    public Guid StaffId { get; set; }
+    public string SalaryGrade { get; set; } = string.Empty;
+    public string SalaryCoefficient { get; set; } = string.Empty;
+    public decimal BaseSalary { get; set; }
+    public decimal Allowance { get; set; }
+    public DateTime EffectiveDate { get; set; }
+    public string? DecisionNumber { get; set; }
+    public string? Notes { get; set; }
+
+    // Navigation
+    public virtual MedicalStaff? Staff { get; set; }
+}
+
+/// <summary>
+/// Yêu cầu nghỉ phép
+/// </summary>
+public class LeaveRequest : BaseEntity
+{
+    public Guid StaffId { get; set; }
+    public string LeaveType { get; set; } = string.Empty; // Annual, Sick, Maternity, Unpaid, Compassionate, Study, Other
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public decimal TotalDays { get; set; }
+    public string? Reason { get; set; }
+    public int Status { get; set; } // 0=Pending, 1=Approved, 2=Rejected, 3=Cancelled
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ApproverNote { get; set; }
+
+    // Navigation
+    public virtual MedicalStaff? Staff { get; set; }
+}
+
+/// <summary>
+/// Chấm công
+/// </summary>
+public class AttendanceRecord : BaseEntity
+{
+    public Guid StaffId { get; set; }
+    public DateTime WorkDate { get; set; }
+    public DateTime? CheckInTime { get; set; }
+    public DateTime? CheckOutTime { get; set; }
+    public string ShiftType { get; set; } = string.Empty; // Morning, Afternoon, Night, AllDay
+    public decimal WorkHours { get; set; }
+    public decimal OvertimeHours { get; set; }
+    public string Status { get; set; } = string.Empty; // Present, Absent, Leave, Holiday, HalfDay
+    public string? Notes { get; set; }
+
+    // Navigation
+    public virtual MedicalStaff? Staff { get; set; }
+}
+
+/// <summary>
+/// Làm thêm giờ
+/// </summary>
+public class OvertimeRecord : BaseEntity
+{
+    public Guid StaffId { get; set; }
+    public DateTime OvertimeDate { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public decimal Hours { get; set; }
+    public string? Reason { get; set; }
+    public int Status { get; set; } // 0=Pending, 1=Approved, 2=Rejected
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ApproverNote { get; set; }
+
+    // Navigation
+    public virtual MedicalStaff? Staff { get; set; }
+}
+
+/// <summary>
+/// Khen thưởng
+/// </summary>
+public class StaffAward : BaseEntity
+{
+    public Guid StaffId { get; set; }
+    public string AwardType { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public DateTime AwardDate { get; set; }
+    public string? DecisionNumber { get; set; }
+    public string? Description { get; set; }
+    public string? IssuedBy { get; set; }
+
+    // Navigation
+    public virtual MedicalStaff? Staff { get; set; }
+}
+
+/// <summary>
+/// Kỷ luật
+/// </summary>
+public class StaffDiscipline : BaseEntity
+{
+    public Guid StaffId { get; set; }
+    public string DisciplineType { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public DateTime DisciplineDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public string? DecisionNumber { get; set; }
+    public string? Description { get; set; }
+
+    // Navigation
+    public virtual MedicalStaff? Staff { get; set; }
+}
+
 #endregion
 
 #region Luồng 17: Quality Management Entities

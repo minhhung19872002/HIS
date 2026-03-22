@@ -49,6 +49,7 @@ import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signat
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -1195,6 +1196,11 @@ const Prescription: React.FC = () => {
 
           {patient && (
             <>
+              <BusinessAlertPanel
+                patientId={patient.id}
+                module="Prescription"
+                compact={false}
+              />
               {/* Data Inheritance: OPD examination context (diagnosis, vitals) */}
               {rxContext && (
                 <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '8px 12px' } }}>

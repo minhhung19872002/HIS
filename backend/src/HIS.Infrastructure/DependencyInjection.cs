@@ -228,6 +228,9 @@ public static class DependencyInjection
         // NangCap8: Phac do dieu tri (Treatment Protocols - BV San Nhi Ninh Binh)
         services.AddScoped<ITreatmentProtocolService, TreatmentProtocolService>();
 
+        // NangCap13: Canh bao nghiep vu (Business Alerts - 34 rules)
+        services.AddScoped<IBusinessAlertService, BusinessAlertService>();
+
         return services;
     }
 }

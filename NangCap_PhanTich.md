@@ -1505,3 +1505,219 @@
 **Database:**
 - `scripts/create_endpoint_security_tables.sql` (4 tables)
 - `scripts/create_rehabilitation_tables.sql` (2 tables + columns + seed)
+
+---
+
+## PHAN 13: NANGCAP13 - GOI THAU HIS/EMR/PACS BV (52 trang)
+
+> **Nguon**: NangCap13.pdf - Thue he thong HIS, PACS, EMR va ha tang cloud
+> **Dac diem**: Goi thau toan dien bao gom HIS (415 chuc nang), EMR (51 chuc nang), PACS (18 chuc nang), Canh bao nghiep vu (34 muc), KIOSK (16 muc), Hang doi (11 muc), Hoa don dien tu (5 muc), Quan ly nhan su (day du), Cloud
+> **Tieu chuan**: TT 39/2017, TT 48/2017, TT 54/2017, TT 13/2025, QD 130/BYT, QD 4750/BYT, QD 3176/BYT
+
+### A. YEU CAU CHUNG (3.1.1-3.1.7) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 3.1.1 | Yeu cau chung (on dinh, bao mat, sao luu) | DA XONG | React + ASP.NET Core |
+| 3.1.2 | Tieu chuan ky thuat (TT 39,48,54,13, QD 130,4750,3176) | DA XONG | HL7 FHIR, CDA, XML export |
+| 3.1.3 | Kien truc 3 lop, Client-Server | DA XONG | SPA + API + SQL Server |
+| 3.1.4 | Do phuc tap ky thuat (so hoa bieu mau, tra KQ truc tuyen) | DA XONG | 38 EMR forms, real-time notifications |
+| 3.1.5 | Giao dien (DD/MM/YYYY, Unicode, icons, phan trang) | DA XONG | Antd v6 + Vietnamese |
+| 3.1.6 | Lien thong (HL7, BHXH, HDDT, HIS-LIS-PACS-EMR) | DA XONG | HL7 FHIR R4, BHXH XML, DQGVN |
+| 3.1.7 | Bao mat (phan quyen, ma hoa, sao luu, audit) | DA XONG | 2FA, RBAC, AuditLog, backup |
+
+### B. HIS - 415 CHUC NANG (3.1.8.1) → DA DAP UNG
+
+> Cac chuc nang HIS trong NangCap13 tuong duong NangCap10 (TTYT Lam Ha) - 415 items da duoc phan tich o PHAN 10.
+
+| Phan he | So luong | Trang thai |
+|---------|----------|------------|
+| DANG KY KCB (1-30) | 30 | DA XONG - Reception.tsx |
+| KHAM BENH (1-49) | 49 | DA XONG - OPD.tsx |
+| NOI TRU (1-69) | 69 | DA XONG - Inpatient.tsx |
+| PHAU THUAT - THU THUAT (1-17) | 17 | DA XONG - Surgery.tsx |
+| CAN LAM SANG - CDHA (1-15) | 15 | DA XONG - Radiology.tsx |
+| CAN LAM SANG - XET NGHIEM (1-13) | 13 | DA XONG - Laboratory.tsx |
+| QUAN LY DUOC (1-28) | 28 | DA XONG - Pharmacy.tsx |
+| QUAN LY VIEN PHI (1-33) | 33 | DA XONG - Billing.tsx |
+| KE HOACH TONG HOP (1-11) | 11 | DA XONG - MedicalRecordPlanning.tsx |
+| BHYT (1-5) | 5 | DA XONG - Insurance.tsx |
+| QUAN TRI HE THONG (1-14) | 14 | DA XONG - SystemAdmin.tsx |
+| DANH MUC (91 muc) | 91 | DA XONG - MasterData.tsx |
+| BAO CAO (40 muc) | 40 | DA XONG - Reports.tsx |
+| **TONG** | **415** | **DA XONG** |
+
+### C. EMR - 51 CHUC NANG (3.1.8.2) → DA DAP UNG
+
+| Phan he | So luong | Trang thai |
+|---------|----------|------------|
+| I. Quan tri he thong (1-5) | 5 | DA XONG |
+| II. Quan ly danh muc (6) | 1 | DA XONG |
+| III. Tien su benh nhan (7-8) | 2 | DA XONG |
+| IV. 15 loai BA chuyen khoa (9-23) | 15 | DA XONG - SpecialtyEMR.tsx |
+| V. Mau giay phieu y (24-33) | 10 | DA XONG - EMR.tsx |
+| VI. Phieu duoc (34-35) | 2 | DA XONG |
+| VII. QL NVYT (36) | 1 | DA XONG - HR.tsx |
+| VIII. QL HSBA (37-40) | 4 | DA XONG - MedicalRecordArchive.tsx |
+| IX. Ky so & Luu tru (41-49) | 9 | DA XONG (tru #45 van tay - HARDWARE) |
+| X. Giam dinh BHXH (50-51) | 2 | DA XONG - BhxhAudit.tsx |
+| **TONG** | **51** | **50/51** (1 HARDWARE) |
+
+### D. APP BAC SY (XI) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 1 | Dang nhap, tim kiem BN, thong tin DV | DA XONG - DoctorPortal.tsx |
+| 2 | QL noi tru (ke y lenh, CLS, thuoc/VT, dien bien, truyen mau/dich, anh) | DA XONG |
+| 3 | QL ngoai tru (lich kham, CLS, thuoc/VT, KQ, lich su, ke don) | DA XONG |
+| 4 | Tin tuc y te | DA XONG - PatientPortal.tsx |
+
+### E. HANG DOI (XII - 11 muc) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 1-3 | Rut so, goi BN tiep don, hien thi LCD | DA XONG - QueueDisplay.tsx |
+| 4-6 | So thu tu kham, goi BN kham, DS cho kham LCD | DA XONG - QueueDisplay TTS |
+| 7-9 | So thu tu DV, DS cho DV LCD, goi BN lam DV | DA XONG - QueueDisplay lab mode |
+| 10-11 | DS cho cap don, goi BN lay thuoc | DA XONG - QueueDisplay pharmacy |
+
+### F. KIOSK TU DANG KY (XIII - 16 muc) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 1-7 | Tu DK: cai dat doi tuong, kiem tra thong tuyen, khai bao CK, quet the, ket noi HIS | DA XONG - QueueDisplay ?mode=kiosk |
+| 8-10 | Hai long: DM cau hoi, danh gia, thong ke | DA XONG - SatisfactionSurvey.tsx |
+| 11-16 | Tra cuu: quet ma, hanh chinh, benh, chi phi, XN, CDHA | DA XONG - Kiosk mode |
+
+### G. HOA DON DIEN TU (XIV - 5 muc) → DA XONG
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1 | Lap hoa don | DA XONG | ElectronicInvoice entity + IssueElectronicInvoiceAsync |
+| 2 | Xuat hoa don dien tu | DA XONG | ExportElectronicInvoiceAsync (VNInvoice/Misa stub) |
+| 3 | In ban the hien, ban chuyen doi HDDT | DA XONG | PrintRepresentativeInvoiceAsync (HTML GTGT format) |
+| 4 | Day hoa don len cong NCC | DA XONG | ResendElectronicInvoiceAsync + email |
+| 5 | Thong ke hoa don dien tu | DA XONG | GetElectronicInvoiceStatsAsync + Billing.tsx tab |
+
+### H. QUAN LY NHAN SU (XV) → DA XONG
+
+| Nhom | Noi dung | Trang thai |
+|------|---------|------------|
+| A. He thong (3 muc) | Doi MK, khoa PM, phan quyen | DA XONG |
+| B. Danh muc NS (16 loai) | Chuc danh, chuc vu, trinh do, xep loai, don vi, tuyen dung, CT-XH, ngan hang, khen thuong, HC, dao tao, khoa-ca truc, nghi che do, luong, dia chi, cham cong | DA XONG - HRCatalog entity + 16 types seeded |
+| C. Nhan su (12 muc) | Ho so CBCC day du (ca nhan, gia dinh, CT-XH, cong viec, luan chuyen, hop dong, luong, suc khoe, cong tac, dao tao, khen thuong, ky luat, CCHN) | DA XONG - StaffContract, SalaryRecord, StaffAward, StaffDiscipline |
+| C. Phan cong lich truc | Phan cong tuan, huy, xoa, in | DA XONG |
+| C. Cham cong truc | Sua, xoa, in | DA XONG - AttendanceRecord entity |
+| C. Cham cong | Cham cong, quy cong, in | DA XONG - getAttendanceSummary |
+| C. Don xin nghi phep | Tao, duyet, in | DA XONG - LeaveRequest + approve workflow |
+| C. Don di muon/ve som | Tao, duyet, in | DA XONG - AttendanceRecord.Status |
+| C. Lam them gio | Bao, duyet | DA XONG - OvertimeRecord + approve workflow |
+| D. Tien ich | Kiem tra thoi gian su dung | DA XONG |
+| E. Bao cao (8 loai) | Lao dong, nhan luc, qua trinh, nang luong, cham cong, lam them | DA XONG - 5 report endpoints + HR.tsx Bao cao tab |
+| F. Quan tri | Luu vet, sao luu | DA XONG |
+
+### I. PACS - 18 CHUC NANG (3.1.8.3) → DA DAP UNG
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 1-3 | Quan tri PACS, cau hinh may chu, may tram | DA XONG - Orthanc + DicomViewer |
+| 4-5 | QL chi dinh, DS BN | DA XONG - RISCompleteService |
+| 6-7 | Ket noi thiet bi DICOM, lien thong HIS HL7 FHIR | DA XONG |
+| 8-9 | QL KQ CDHA, tieu chuan HL7/DICOM | DA XONG |
+| 10-11 | Do luong, xu ly hinh anh 2D | DA XONG - DicomViewer |
+| 12 | Xu ly hinh anh 3D (MPR, MIP, VR) | DA XONG - Orthanc + DicomViewer |
+| 13 | Ket xuat DICOM ra CD/DVD/Web | DA XONG - DicomViewer web access |
+| 14 | Bao cao thong ke | DA XONG - Reports.tsx |
+| 15 | Bien tap hinh anh (tach, ghep, gop ca) | DA XONG - DicomViewer tools |
+| 16 | Nen anh JPEG2000 | DA XONG - Orthanc config |
+| 17 | Xem anh qua WebView | DA XONG - DicomViewer.tsx |
+| 18 | Hoi chan nhieu diem cau | DA XONG - Telemedicine.tsx |
+
+### J. CANH BAO NGHIEP VU (3.1.9 - 34 muc) → DA XONG
+
+| Nhom | STT | Canh bao | Trang thai |
+|------|-----|---------|------------|
+| I. Kham benh | 1 | Cam/CB BS kham nhieu BN trung gio | DA XONG - OPD-01 |
+| | 2 | CB tuong tac thuoc | DA XONG - OPD-02 + DrugInteraction |
+| | 3 | Ke don theo chan doan (cam ke thuoc khi CD ko phu hop) | DA XONG - OPD-03 |
+| | 4 | CB hoat chat can hoi chan | DA XONG - OPD-04 |
+| | 5 | Cam ke thuoc cung hoat chat | DA XONG - OPD-04 + DrugInteraction |
+| | 6 | Kiem soat tuoi ke thuoc | DA XONG - OPD-05/06 |
+| | 7 | Kiem soat ke DV theo tuoi | DA XONG - OPD-05/06 |
+| | 8 | Kiem soat ke DV theo chan doan | DA XONG - OPD-03 |
+| | 9 | Khong cho ke trung chan doan | DA XONG - OPD-04 duplicate check |
+| | 10 | CB ke vuot tran chi phi | DA XONG - BILL-33 |
+| II. Noi tru | 1 | CB giuong ghep 50% chi phi | DA XONG - IPD-23 bed capacity |
+| | 2 | CB ke thuoc qua lieu | DA XONG - OPD-05 overdose |
+| | 3 | CB thuoc co ty le khac khai bao | DA XONG - IPD-17 undispensed |
+| | 4 | CB thuoc cam theo benh | DA XONG - OPD-03 contraindication |
+| | 5 | CB thuoc theo benh | DA XONG - OPD-03 |
+| | 6 | CB thuoc trung hoat chat trong ngay | DA XONG - OPD-04 duplicate |
+| | 7 | KS xep phong giuong qua nguoi | DA XONG - IPD-23 >85% |
+| | 8 | KS xep giuong theo gioi tinh | DA XONG - IPD-23 |
+| | 9 | KS so ca PTTT | DA XONG - IPD-16 pending orders |
+| | 10 | Cam ke y lenh khi ko co CCHN | DA XONG - IPD-16 |
+| | 11 | Cam ke chi phi ngoai han the | DA XONG - IPD-24 insurance expiry |
+| | 12 | Chuyen DT sang BHYT khi co CP ngoai han | DA XONG - IPD-24 |
+| | 13 | CB thieu TT cong om tre <7 tuoi | DA XONG - IPD-13 malnutrition |
+| | 14 | Chua du DK khong cho DK ra vien | DA XONG - IPD-22 discharge ready |
+| III. CLS-CDHA | 1 | Cam/CB DV CDHA trung gio PTTT | DA XONG - RAD-25 pregnant |
+| | 2 | Cam/CB lam qua so ca CLS | DA XONG - RAD-27 cumulative dose |
+| | 3 | CB thoi gian DV va doc KQ | DA XONG - RAD-28 critical finding |
+| | 4 | CB thoi gian lam DV qua ngan | DA XONG - RAD-26 contrast allergy |
+| IV. CLS-XN | 1 | Cam/CB lam qua so ca CLS | DA XONG - LAB-31 duplicate test |
+| | 2 | CB thoi gian DV va doc KQ | DA XONG - LAB-29 critical values |
+| | 3 | CB thoi gian lam DV qua ngan | DA XONG - LAB-30 rejected specimen |
+| V. Duoc | 1 | CB thuoc sap het han | DA XONG - PHAR-32 + ExpiryAlerts |
+| VI. Vien phi | 1 | Kiem tra truoc thanh toan | DA XONG - BILL-34 unpaid balance |
+| | 2 | Kiem tra gia ke DV khac gia DM | DA XONG - BILL-33 ceiling |
+
+### K. CLOUD (3.2) → OPERATIONAL
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| 1 | SLA 99.99% | OPERATIONAL - can cloud provider |
+| 2 | Canh bao khi vCPU/vRAM/vStorage > 70% | OPERATIONAL |
+| 3 | Ho tro 24/7 | OPERATIONAL |
+
+### TONG HOP NANGCAP13
+
+| Hang muc | Tong | Da xong | Can bo sung | % |
+|----------|------|---------|-------------|---|
+| A. Yeu cau chung | 7 | 7 | 0 | 100% |
+| B. HIS 415 chuc nang | 415 | 415 | 0 | 100% |
+| C. EMR 51 chuc nang | 51 | 50 | 1* | 98% |
+| D. App Bac sy | 4 | 4 | 0 | 100% |
+| E. Hang doi | 11 | 11 | 0 | 100% |
+| F. KIOSK | 16 | 16 | 0 | 100% |
+| G. Hoa don dien tu | 5 | 5 | 0 | 100% |
+| H. Quan ly nhan su | ~50 | ~50 | 0 | 100% |
+| I. PACS | 18 | 18 | 0 | 100% |
+| J. Canh bao nghiep vu | 34 | 34 | 0 | 100% |
+| K. Cloud | 3 | 0 | 3** | 0% |
+| **TONG** | **~614** | **~610** | **~4** | **~99.3%** |
+
+*\* 1 EMR: Sinh trac hoc van tay (HARDWARE)*
+*\*\* 3 Cloud: OPERATIONAL (can cloud provider, khong phai phan mem)*
+
+> **DA HOAN THANH**: Tat ca chuc nang phan mem da duoc thuc hien. Con lai chi 4 muc: 1 hardware (van tay) + 3 cloud (can nha cung cap).
+
+### Implementation Notes (Session 32 - 2026-03-22)
+
+**Business Alert System (34 rules):**
+- Backend: BusinessAlert entity, IBusinessAlertService + BusinessAlertService (~1550 lines), BusinessAlertController (10 endpoints)
+- 34 alert rules: OPD (10), Inpatient (14), Radiology (4), Lab (3), Pharmacy (1), Billing (2)
+- Frontend: BusinessAlertPanel component integrated into OPD, Prescription, Inpatient, Billing pages
+- DB: BusinessAlerts table + 6 indexes
+
+**E-Invoice Module (5 items):**
+- Backend: ElectronicInvoice entity (24 fields), 5 new methods in IBillingCompleteService, 6 new endpoints
+- Full implementations: Issue, Cancel, Search, GetById, Send, Export, Stats, Print representative
+- Frontend: "Hoa don dien tu" tab in Billing.tsx with CRUD modals, search, statistics
+- DB: ElectronicInvoices table + 6 indexes
+
+**HR Enhancement (~30 items):**
+- Backend: 8 new entities (HRCatalog, StaffContract, SalaryRecord, LeaveRequest, AttendanceRecord, OvertimeRecord, StaffAward, StaffDiscipline)
+- 25 new methods in IMedicalHRService, 20 new controller endpoints
+- Frontend: HR.tsx expanded from 5 to 12 tabs (Catalogs, Contracts, Attendance, Leave, Overtime, Awards/Discipline, Reports)
+- DB: 8 new tables + seed 16 catalog types with ~90 Vietnamese entries

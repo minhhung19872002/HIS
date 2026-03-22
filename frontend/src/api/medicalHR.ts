@@ -708,6 +708,407 @@ export const printCompetencyReport = (id: string) =>
 
 // #endregion
 
+// #region HR Catalogs
+
+export interface HRCatalogDto {
+  id: string;
+  catalogType: string;
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SaveHRCatalogDto {
+  id?: string;
+  catalogType: string;
+  code: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export const getCatalogs = (catalogType?: string) =>
+  apiClient.get<HRCatalogDto[]>(`${BASE_URL}/catalogs`, { params: { catalogType } });
+
+export const saveCatalog = (dto: SaveHRCatalogDto) =>
+  apiClient.post<HRCatalogDto>(`${BASE_URL}/catalogs`, dto);
+
+export const deleteCatalog = (id: string) =>
+  apiClient.delete(`${BASE_URL}/catalogs/${id}`);
+
+// #endregion
+
+// #region Staff Contracts
+
+export interface StaffContractDto {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  contractType: string;
+  contractNumber: string;
+  startDate: string;
+  endDate?: string;
+  terms?: string;
+  status: number;
+  statusName: string;
+  notes?: string;
+  daysUntilExpiry?: number;
+}
+
+export interface SaveStaffContractDto {
+  id?: string;
+  staffId: string;
+  contractType: string;
+  contractNumber: string;
+  startDate: string;
+  endDate?: string;
+  terms?: string;
+  notes?: string;
+}
+
+export const getStaffContracts = (staffId?: string, contractType?: string) =>
+  apiClient.get<StaffContractDto[]>(`${BASE_URL}/contracts`, { params: { staffId, contractType } });
+
+export const saveContract = (dto: SaveStaffContractDto) =>
+  apiClient.post<StaffContractDto>(`${BASE_URL}/contracts`, dto);
+
+export const getExpiringContracts = (daysAhead?: number) =>
+  apiClient.get<StaffContractDto[]>(`${BASE_URL}/contracts/expiring`, { params: { daysAhead } });
+
+// #endregion
+
+// #region Salary History
+
+export interface SalaryRecordDto {
+  id: string;
+  staffId: string;
+  staffName: string;
+  salaryGrade: string;
+  salaryCoefficient: string;
+  baseSalary: number;
+  allowance: number;
+  totalSalary: number;
+  effectiveDate: string;
+  decisionNumber?: string;
+  notes?: string;
+}
+
+export interface SaveSalaryRecordDto {
+  id?: string;
+  staffId: string;
+  salaryGrade: string;
+  salaryCoefficient: string;
+  baseSalary: number;
+  allowance: number;
+  effectiveDate: string;
+  decisionNumber?: string;
+  notes?: string;
+}
+
+export const getSalaryHistory = (staffId: string) =>
+  apiClient.get<SalaryRecordDto[]>(`${BASE_URL}/salary-history/${staffId}`);
+
+export const saveSalaryRecord = (dto: SaveSalaryRecordDto) =>
+  apiClient.post<SalaryRecordDto>(`${BASE_URL}/salary-history`, dto);
+
+// #endregion
+
+// #region Leave Management
+
+export interface LeaveRequestDto {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  departmentName: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  reason?: string;
+  status: number;
+  statusName: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  approverNote?: string;
+  createdAt: string;
+}
+
+export interface CreateLeaveRequestDto {
+  staffId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  reason?: string;
+}
+
+export interface LeaveBalanceDto {
+  staffId: string;
+  staffName: string;
+  year: number;
+  annualEntitlement: number;
+  usedDays: number;
+  remainingDays: number;
+  sickDaysUsed: number;
+  pendingRequests: number;
+}
+
+export const getLeaveRequests = (staffId?: string, status?: number, fromDate?: string, toDate?: string) =>
+  apiClient.get<LeaveRequestDto[]>(`${BASE_URL}/leave-requests`, { params: { staffId, status, fromDate, toDate } });
+
+export const createLeaveRequest = (dto: CreateLeaveRequestDto) =>
+  apiClient.post<LeaveRequestDto>(`${BASE_URL}/leave-requests`, dto);
+
+export const approveLeave = (id: string, approved: boolean, note?: string) =>
+  apiClient.put<LeaveRequestDto>(`${BASE_URL}/leave-requests/${id}/approve`, { approved, note });
+
+export const getLeaveBalance = (staffId: string, year?: number) =>
+  apiClient.get<LeaveBalanceDto>(`${BASE_URL}/leave-balance/${staffId}`, { params: { year } });
+
+// #endregion
+
+// #region Attendance
+
+export interface AttendanceRecordDto {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  departmentName: string;
+  workDate: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  shiftType: string;
+  workHours: number;
+  overtimeHours: number;
+  status: string;
+  notes?: string;
+}
+
+export interface SaveAttendanceDto {
+  id?: string;
+  staffId: string;
+  workDate: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  shiftType: string;
+  workHours: number;
+  overtimeHours: number;
+  status: string;
+  notes?: string;
+}
+
+export interface AttendanceSummaryDto {
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  departmentName: string;
+  year: number;
+  month: number;
+  workDays: number;
+  presentDays: number;
+  absentDays: number;
+  leaveDays: number;
+  holidayDays: number;
+  totalWorkHours: number;
+  totalOvertimeHours: number;
+  lateDays: number;
+  earlyLeaveDays: number;
+}
+
+export const getAttendance = (staffId?: string, fromDate?: string, toDate?: string) =>
+  apiClient.get<AttendanceRecordDto[]>(`${BASE_URL}/attendance`, { params: { staffId, fromDate, toDate } });
+
+export const recordAttendance = (dto: SaveAttendanceDto) =>
+  apiClient.post<AttendanceRecordDto>(`${BASE_URL}/attendance`, dto);
+
+export const getAttendanceSummary = (year: number, month: number, departmentId?: string) =>
+  apiClient.get<AttendanceSummaryDto[]>(`${BASE_URL}/attendance/summary`, { params: { year, month, departmentId } });
+
+// #endregion
+
+// #region Overtime
+
+export interface OvertimeRecordDto {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  departmentName: string;
+  overtimeDate: string;
+  startTime: string;
+  endTime: string;
+  hours: number;
+  reason?: string;
+  status: number;
+  statusName: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  approverNote?: string;
+}
+
+export interface CreateOvertimeDto {
+  staffId: string;
+  overtimeDate: string;
+  startTime: string;
+  endTime: string;
+  hours: number;
+  reason?: string;
+}
+
+export const getOvertimeRequests = (staffId?: string, status?: number, fromDate?: string, toDate?: string) =>
+  apiClient.get<OvertimeRecordDto[]>(`${BASE_URL}/overtime`, { params: { staffId, status, fromDate, toDate } });
+
+export const createOvertime = (dto: CreateOvertimeDto) =>
+  apiClient.post<OvertimeRecordDto>(`${BASE_URL}/overtime`, dto);
+
+export const approveOvertime = (id: string, approved: boolean, note?: string) =>
+  apiClient.put<OvertimeRecordDto>(`${BASE_URL}/overtime/${id}/approve`, { approved, note });
+
+// #endregion
+
+// #region Awards & Discipline
+
+export interface StaffAwardDto {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  awardType: string;
+  title: string;
+  awardDate: string;
+  decisionNumber?: string;
+  description?: string;
+  issuedBy?: string;
+}
+
+export interface SaveStaffAwardDto {
+  id?: string;
+  staffId: string;
+  awardType: string;
+  title: string;
+  awardDate: string;
+  decisionNumber?: string;
+  description?: string;
+  issuedBy?: string;
+}
+
+export interface StaffDisciplineDto {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  disciplineType: string;
+  title: string;
+  disciplineDate: string;
+  expiryDate?: string;
+  decisionNumber?: string;
+  description?: string;
+  isExpired: boolean;
+}
+
+export interface SaveStaffDisciplineDto {
+  id?: string;
+  staffId: string;
+  disciplineType: string;
+  title: string;
+  disciplineDate: string;
+  expiryDate?: string;
+  decisionNumber?: string;
+  description?: string;
+}
+
+export const getStaffAwards = (staffId?: string) =>
+  apiClient.get<StaffAwardDto[]>(`${BASE_URL}/awards`, { params: { staffId } });
+
+export const saveAward = (dto: SaveStaffAwardDto) =>
+  apiClient.post<StaffAwardDto>(`${BASE_URL}/awards`, dto);
+
+export const getStaffDisciplines = (staffId?: string) =>
+  apiClient.get<StaffDisciplineDto[]>(`${BASE_URL}/disciplines`, { params: { staffId } });
+
+export const saveDiscipline = (dto: SaveStaffDisciplineDto) =>
+  apiClient.post<StaffDisciplineDto>(`${BASE_URL}/disciplines`, dto);
+
+// #endregion
+
+// #region HR Reports
+
+export interface StaffByDepartmentReportDto {
+  departmentName: string;
+  totalStaff: number;
+  doctors: number;
+  nurses: number;
+  technicians: number;
+  others: number;
+}
+
+export interface AttendanceReportDto {
+  year: number;
+  month: number;
+  departmentName: string;
+  totalStaff: number;
+  avgWorkDays: number;
+  avgOvertimeHours: number;
+  totalAbsentDays: number;
+  details: AttendanceSummaryDto[];
+}
+
+export interface LeaveReportDto {
+  year: number;
+  month: number;
+  departmentName: string;
+  totalRequests: number;
+  approvedRequests: number;
+  rejectedRequests: number;
+  pendingRequests: number;
+  totalLeaveDays: number;
+  details: LeaveRequestDto[];
+}
+
+export interface OvertimeReportDto {
+  year: number;
+  month: number;
+  departmentName: string;
+  totalRequests: number;
+  totalHours: number;
+  approvedHours: number;
+  details: OvertimeRecordDto[];
+}
+
+export interface StaffMovementReportDto {
+  fromDate: string;
+  toDate: string;
+  newHires: number;
+  resignations: number;
+  transfers: number;
+  promotions: number;
+  contractsExpired: number;
+  contractsRenewed: number;
+}
+
+export const getReportByDepartment = (departmentId?: string) =>
+  apiClient.get<StaffByDepartmentReportDto[]>(`${BASE_URL}/reports/by-department`, { params: { departmentId } });
+
+export const getAttendanceReport = (year: number, month: number, departmentId?: string) =>
+  apiClient.get<AttendanceReportDto>(`${BASE_URL}/reports/attendance`, { params: { year, month, departmentId } });
+
+export const getLeaveReport = (year: number, month: number, departmentId?: string) =>
+  apiClient.get<LeaveReportDto>(`${BASE_URL}/reports/leave`, { params: { year, month, departmentId } });
+
+export const getOvertimeReport = (year: number, month: number, departmentId?: string) =>
+  apiClient.get<OvertimeReportDto>(`${BASE_URL}/reports/overtime`, { params: { year, month, departmentId } });
+
+export const getMovementReport = (fromDate: string, toDate: string) =>
+  apiClient.get<StaffMovementReportDto>(`${BASE_URL}/reports/movement`, { params: { fromDate, toDate } });
+
+// #endregion
+
 // #region Dashboard & Reports
 
 export const getDashboard = (date: string, departmentId?: string) =>
@@ -795,4 +1196,39 @@ export default {
   runCredentialCheck,
   getHRStatistics,
   exportHRReport,
+  // HR Catalogs
+  getCatalogs,
+  saveCatalog,
+  deleteCatalog,
+  // Contracts
+  getStaffContracts,
+  saveContract,
+  getExpiringContracts,
+  // Salary
+  getSalaryHistory,
+  saveSalaryRecord,
+  // Leave
+  getLeaveRequests,
+  createLeaveRequest,
+  approveLeave,
+  getLeaveBalance,
+  // Attendance
+  getAttendance,
+  recordAttendance,
+  getAttendanceSummary,
+  // Overtime
+  getOvertimeRequests,
+  createOvertime,
+  approveOvertime,
+  // Awards & Discipline
+  getStaffAwards,
+  saveAward,
+  getStaffDisciplines,
+  saveDiscipline,
+  // Reports
+  getReportByDepartment,
+  getAttendanceReport,
+  getLeaveReport,
+  getOvertimeReport,
+  getMovementReport,
 };

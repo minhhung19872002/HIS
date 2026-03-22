@@ -589,17 +589,28 @@ export interface ElectronicInvoiceDto {
   eInvoiceDate: string;
   provider: string;
   providerInvoiceId?: string;
+  patientName?: string;
   buyerName?: string;
   buyerTaxCode?: string;
   buyerAddress?: string;
   buyerEmail?: string;
+  paymentMethod?: string;
+  subTotal: number;
   amount: number;
+  vatRate: number;
   vatAmount: number;
+  discountAmount: number;
   totalAmount: number;
+  itemsJson?: string;
   status: number;
   statusName: string;
   lookupUrl?: string;
   lookupCode?: string;
+  cancelReason?: string;
+  cancelledAt?: string;
+  sentAt?: string;
+  sentTo?: string;
+  signedBy?: string;
   createdAt: string;
   createdBy?: string;
 }
@@ -610,7 +621,39 @@ export interface IssueEInvoiceDto {
   buyerTaxCode?: string;
   buyerAddress?: string;
   buyerEmail?: string;
+  paymentMethod?: string;
   sendEmail: boolean;
+}
+
+export interface ElectronicInvoiceSearchDto {
+  keyword?: string;
+  status?: number;
+  fromDate?: string;
+  toDate?: string;
+  patientId?: string;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface ElectronicInvoiceStatsDto {
+  totalInvoices: number;
+  draftCount: number;
+  issuedCount: number;
+  sentCount: number;
+  cancelledCount: number;
+  replacedCount: number;
+  totalAmount: number;
+  totalVatAmount: number;
+  totalWithVat: number;
+  fromDate?: string;
+  toDate?: string;
+  dailyStats: ElectronicInvoiceDailyStatDto[];
+}
+
+export interface ElectronicInvoiceDailyStatDto {
+  date: string;
+  count: number;
+  amount: number;
 }
 
 // #endregion
@@ -1284,11 +1327,29 @@ export const issueElectronicInvoice = (dto: IssueEInvoiceDto) =>
 export const cancelElectronicInvoice = (id: string, reason: string) =>
   apiClient.post<boolean>(`${BASE_URL}/e-invoices/${id}/cancel`, { reason });
 
+export const searchElectronicInvoices = (dto: ElectronicInvoiceSearchDto) =>
+  apiClient.get<PagedResultDto<ElectronicInvoiceDto>>(`${BASE_URL}/e-invoices/search`, { params: dto });
+
 export const getElectronicInvoices = (invoiceId?: string, fromDate?: string, toDate?: string) =>
   apiClient.get<ElectronicInvoiceDto[]>(`${BASE_URL}/e-invoices`, { params: { invoiceId, fromDate, toDate } });
 
+export const getElectronicInvoiceById = (id: string) =>
+  apiClient.get<ElectronicInvoiceDto>(`${BASE_URL}/e-invoices/${id}`);
+
+export const sendElectronicInvoice = (id: string, email: string) =>
+  apiClient.post<boolean>(`${BASE_URL}/e-invoices/${id}/send`, { email });
+
 export const resendElectronicInvoice = (id: string, email: string) =>
   apiClient.post<boolean>(`${BASE_URL}/e-invoices/${id}/resend`, { email });
+
+export const exportElectronicInvoice = (id: string) =>
+  apiClient.put<ElectronicInvoiceDto>(`${BASE_URL}/e-invoices/${id}/export`);
+
+export const getElectronicInvoiceStats = (fromDate?: string, toDate?: string) =>
+  apiClient.get<ElectronicInvoiceStatsDto>(`${BASE_URL}/e-invoices/stats`, { params: { fromDate, toDate } });
+
+export const printRepresentativeInvoice = (id: string) =>
+  apiClient.get(`${BASE_URL}/e-invoices/${id}/print`, { responseType: 'blob' });
 
 // #endregion
 
@@ -1415,8 +1476,14 @@ export default {
   // Electronic Invoice
   issueElectronicInvoice,
   cancelElectronicInvoice,
+  searchElectronicInvoices,
   getElectronicInvoices,
+  getElectronicInvoiceById,
+  sendElectronicInvoice,
   resendElectronicInvoice,
+  exportElectronicInvoice,
+  getElectronicInvoiceStats,
+  printRepresentativeInvoice,
   // Reports
   getCashierReport,
   closeCashBook,

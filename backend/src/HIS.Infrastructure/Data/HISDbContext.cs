@@ -68,6 +68,7 @@ public class HISDbContext : DbContext
     public DbSet<ReceiptDetail> ReceiptDetails => Set<ReceiptDetail>();
     public DbSet<InvoiceSummary> InvoiceSummaries => Set<InvoiceSummary>();
     public DbSet<CashBook> CashBooks => Set<CashBook>();
+    public DbSet<ElectronicInvoice> ElectronicInvoices => Set<ElectronicInvoice>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();
@@ -345,6 +346,14 @@ public class HISDbContext : DbContext
     public DbSet<DutyShift> DutyShifts => Set<DutyShift>();
     public DbSet<ClinicAssignment> ClinicAssignments => Set<ClinicAssignment>();
     public DbSet<CMERecord> CMERecords => Set<CMERecord>();
+    public DbSet<HRCatalog> HRCatalogs => Set<HRCatalog>();
+    public DbSet<StaffContract> StaffContracts => Set<StaffContract>();
+    public DbSet<SalaryRecord> SalaryRecords => Set<SalaryRecord>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+    public DbSet<OvertimeRecord> OvertimeRecords => Set<OvertimeRecord>();
+    public DbSet<StaffAward> StaffAwards => Set<StaffAward>();
+    public DbSet<StaffDiscipline> StaffDisciplines => Set<StaffDiscipline>();
 
     // Luồng 17: Quality Management
     public DbSet<QualityIndicator> QualityIndicators => Set<QualityIndicator>();
@@ -402,6 +411,9 @@ public class HISDbContext : DbContext
     // NangCap8: Phac do dieu tri (Treatment Protocols)
     public DbSet<TreatmentProtocol> TreatmentProtocols => Set<TreatmentProtocol>();
     public DbSet<TreatmentProtocolStep> TreatmentProtocolSteps => Set<TreatmentProtocolStep>();
+
+    // NangCap13: Canh bao nghiep vu (Business Alerts - 34 rules)
+    public DbSet<BusinessAlert> BusinessAlerts => Set<BusinessAlert>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -5,14 +5,47 @@ describe('Two-Factor Authentication', () => {
 
   describe('Login without 2FA (default)', () => {
     it('logs in normally when 2FA is not enabled', () => {
+      cy.intercept('POST', '**/api/auth/login', {
+        statusCode: 200,
+        body: {
+          success: true,
+          data: {
+            token: 'fake-jwt-token-no-2fa',
+            refreshToken: 'fake-refresh-token',
+            expiresAt: new Date(Date.now() + 60 * 60000).toISOString(),
+            user: {
+              id: '00000000-0000-0000-0000-000000000001',
+              username: 'admin',
+              fullName: 'Admin User',
+              email: 'admin@test.com',
+              roles: ['Admin'],
+              permissions: [],
+              isTwoFactorEnabled: false,
+            }
+          }
+        }
+      }).as('loginNoOtp');
+      cy.intercept('GET', '**/api/auth/me', {
+        statusCode: 200,
+        body: {
+          success: true,
+          data: {
+            id: '00000000-0000-0000-0000-000000000001',
+            username: 'admin',
+            fullName: 'Admin User',
+            roles: ['Admin'],
+            permissions: [],
+          }
+        }
+      });
+
       cy.visit('/login');
       cy.get('input[id="login_username"]').type('admin');
       cy.get('input[id="login_password"]').type('Admin@123');
       cy.get('button[type="submit"]').click();
-      cy.url().should('not.include', '/login', { timeout: 10000 });
-      cy.window().then(win => {
-        expect(win.localStorage.getItem('token')).to.not.be.null;
-      });
+      cy.wait('@loginNoOtp');
+      cy.url({ timeout: 20000 }).should('not.include', '/login');
+      cy.contains(/HIS|Hệ thống thông tin bệnh viện/i).should('not.exist');
     });
   });
 

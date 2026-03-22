@@ -627,10 +627,10 @@ public class BillingCompleteController : ControllerBase
     #region 10.2.1 Hóa đơn điện tử
 
     /// <summary>
-    /// Phát hành hóa đơn điện tử
+    /// Tạo/Phát hành hóa đơn điện tử
     /// </summary>
     [HttpPost("e-invoices")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = "Admin,Accountant,Cashier")]
     public async Task<ActionResult<ElectronicInvoiceDto>> IssueElectronicInvoice([FromBody] IssueEInvoiceDto dto)
     {
         var result = await _billingService.IssueElectronicInvoiceAsync(dto, GetUserId());
@@ -649,7 +649,17 @@ public class BillingCompleteController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách hóa đơn điện tử
+    /// Tìm kiếm hóa đơn điện tử (phân trang)
+    /// </summary>
+    [HttpGet("e-invoices/search")]
+    public async Task<ActionResult<PagedResultDto<ElectronicInvoiceDto>>> SearchElectronicInvoices([FromQuery] ElectronicInvoiceSearchDto dto)
+    {
+        var result = await _billingService.SearchElectronicInvoicesAsync(dto);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách hóa đơn điện tử (legacy)
     /// </summary>
     [HttpGet("e-invoices")]
     public async Task<ActionResult<List<ElectronicInvoiceDto>>> GetElectronicInvoices(
@@ -662,13 +672,68 @@ public class BillingCompleteController : ControllerBase
     }
 
     /// <summary>
-    /// Gửi lại hóa đơn điện tử qua email
+    /// Lấy hóa đơn điện tử theo ID
+    /// </summary>
+    [HttpGet("e-invoices/{id}")]
+    public async Task<ActionResult<ElectronicInvoiceDto>> GetElectronicInvoiceById(Guid id)
+    {
+        var result = await _billingService.GetElectronicInvoiceByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gửi hóa đơn điện tử qua email
+    /// </summary>
+    [HttpPost("e-invoices/{id}/send")]
+    public async Task<ActionResult<bool>> SendElectronicInvoice(Guid id, [FromBody] ResendEmailRequest request)
+    {
+        var result = await _billingService.ResendElectronicInvoiceAsync(id, request.Email);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gửi lại hóa đơn điện tử qua email (legacy)
     /// </summary>
     [HttpPost("e-invoices/{id}/resend")]
     public async Task<ActionResult<bool>> ResendElectronicInvoice(Guid id, [FromBody] ResendEmailRequest request)
     {
         var result = await _billingService.ResendElectronicInvoiceAsync(id, request.Email);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Xuất hóa đơn lên nhà cung cấp (VNInvoice/Misa)
+    /// </summary>
+    [HttpPut("e-invoices/{id}/export")]
+    [Authorize(Roles = "Admin,Accountant")]
+    public async Task<ActionResult<ElectronicInvoiceDto>> ExportElectronicInvoice(Guid id)
+    {
+        var result = await _billingService.ExportElectronicInvoiceAsync(id, GetUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Thống kê hóa đơn điện tử
+    /// </summary>
+    [HttpGet("e-invoices/stats")]
+    public async Task<ActionResult<ElectronicInvoiceStatsDto>> GetElectronicInvoiceStats(
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate)
+    {
+        var result = await _billingService.GetElectronicInvoiceStatsAsync(fromDate, toDate);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// In hóa đơn đại diện
+    /// </summary>
+    [HttpGet("e-invoices/{id}/print")]
+    public async Task<ActionResult> PrintRepresentativeInvoice(Guid id)
+    {
+        var result = await _billingService.PrintRepresentativeInvoiceAsync(id);
+        if (result.Length == 0) return NotFound();
+        return File(result, "text/html", "hoadon_daidien.html");
     }
 
     #endregion

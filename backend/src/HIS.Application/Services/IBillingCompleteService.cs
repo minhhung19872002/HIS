@@ -327,7 +327,7 @@ public interface IBillingCompleteService
     #region 10.2.1 Hóa đơn điện tử
 
     /// <summary>
-    /// Phát hành hóa đơn điện tử
+    /// Tạo/Phát hành hóa đơn điện tử
     /// </summary>
     Task<ElectronicInvoiceDto> IssueElectronicInvoiceAsync(IssueEInvoiceDto dto, Guid userId);
 
@@ -337,14 +337,39 @@ public interface IBillingCompleteService
     Task<bool> CancelElectronicInvoiceAsync(Guid eInvoiceId, string reason, Guid userId);
 
     /// <summary>
-    /// Lấy danh sách hóa đơn điện tử
+    /// Tìm kiếm hóa đơn điện tử (phân trang)
+    /// </summary>
+    Task<PagedResultDto<ElectronicInvoiceDto>> SearchElectronicInvoicesAsync(ElectronicInvoiceSearchDto dto);
+
+    /// <summary>
+    /// Lấy danh sách hóa đơn điện tử (legacy)
     /// </summary>
     Task<List<ElectronicInvoiceDto>> GetElectronicInvoicesAsync(Guid? invoiceId, DateTime? fromDate, DateTime? toDate);
 
     /// <summary>
-    /// Gửi lại hóa đơn điện tử qua email
+    /// Lấy hóa đơn điện tử theo ID
+    /// </summary>
+    Task<ElectronicInvoiceDto?> GetElectronicInvoiceByIdAsync(Guid id);
+
+    /// <summary>
+    /// Gửi hóa đơn điện tử qua email
     /// </summary>
     Task<bool> ResendElectronicInvoiceAsync(Guid eInvoiceId, string email);
+
+    /// <summary>
+    /// Xuất hóa đơn lên nhà cung cấp (VNInvoice/Misa)
+    /// </summary>
+    Task<ElectronicInvoiceDto> ExportElectronicInvoiceAsync(Guid eInvoiceId, Guid userId);
+
+    /// <summary>
+    /// Thống kê hóa đơn điện tử
+    /// </summary>
+    Task<ElectronicInvoiceStatsDto> GetElectronicInvoiceStatsAsync(DateTime? fromDate, DateTime? toDate);
+
+    /// <summary>
+    /// In hóa đơn đại diện (representative invoice)
+    /// </summary>
+    Task<byte[]> PrintRepresentativeInvoiceAsync(Guid eInvoiceId);
 
     #endregion
 

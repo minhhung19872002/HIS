@@ -61,6 +61,7 @@ import BarcodeScanner from '../components/BarcodeScanner';
 import { useKeyboardShortcuts, formatShortcut } from '../hooks/useKeyboardShortcuts';
 import cdsApi from '../api/clinicalDecisionSupport';
 import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
 import { getDepositBalance } from '../api/billing';
 
@@ -2399,6 +2400,12 @@ const OPD: React.FC = () => {
                                 ))}
                               </div>
                             )}
+                            <BusinessAlertPanel
+                              patientId={examination?.patientId}
+                              examinationId={examination?.id}
+                              module="OPD"
+                              compact={false}
+                            />
                           </div>
 
                           <Table

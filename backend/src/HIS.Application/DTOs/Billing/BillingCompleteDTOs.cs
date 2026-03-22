@@ -792,23 +792,42 @@ public class ElectronicInvoiceDto
     public string? ProviderInvoiceId { get; set; }
 
     // Thông tin người mua
+    public string? PatientName { get; set; }
     public string? BuyerName { get; set; }
     public string? BuyerTaxCode { get; set; }
     public string? BuyerAddress { get; set; }
     public string? BuyerEmail { get; set; }
+    public string? PaymentMethod { get; set; }
 
     // Số tiền
+    public decimal SubTotal { get; set; }
     public decimal Amount { get; set; }
+    public decimal VatRate { get; set; }
     public decimal VatAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal TotalAmount { get; set; }
 
-    // Trạng thái: 1-Đã phát hành, 2-Đã ký, 3-Đã gửi CQT, 4-Đã hủy
+    // Chi tiết dòng hóa đơn
+    public string? ItemsJson { get; set; }
+
+    // Trạng thái: 0-Nháp, 1-Đã phát hành, 2-Đã gửi, 3-Đã hủy, 4-Đã thay thế
     public int Status { get; set; }
     public string StatusName { get; set; } = string.Empty;
 
     // Link tra cứu
     public string? LookupUrl { get; set; }
     public string? LookupCode { get; set; }
+
+    // Hủy
+    public string? CancelReason { get; set; }
+    public DateTime? CancelledAt { get; set; }
+
+    // Gửi
+    public DateTime? SentAt { get; set; }
+    public string? SentTo { get; set; }
+
+    // Ký
+    public string? SignedBy { get; set; }
 
     // Audit
     public DateTime CreatedAt { get; set; }
@@ -825,7 +844,51 @@ public class IssueEInvoiceDto
     public string? BuyerTaxCode { get; set; }
     public string? BuyerAddress { get; set; }
     public string? BuyerEmail { get; set; }
+    public string? PaymentMethod { get; set; }
     public bool SendEmail { get; set; }
+}
+
+/// <summary>
+/// DTO tìm kiếm HĐĐT
+/// </summary>
+public class ElectronicInvoiceSearchDto
+{
+    public string? Keyword { get; set; }
+    public int? Status { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+    public Guid? PatientId { get; set; }
+    public int PageIndex { get; set; } = 0;
+    public int PageSize { get; set; } = 20;
+}
+
+/// <summary>
+/// DTO thống kê HĐĐT
+/// </summary>
+public class ElectronicInvoiceStatsDto
+{
+    public int TotalInvoices { get; set; }
+    public int DraftCount { get; set; }
+    public int IssuedCount { get; set; }
+    public int SentCount { get; set; }
+    public int CancelledCount { get; set; }
+    public int ReplacedCount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal TotalVatAmount { get; set; }
+    public decimal TotalWithVat { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+    public List<ElectronicInvoiceDailyStatDto> DailyStats { get; set; } = new();
+}
+
+/// <summary>
+/// DTO thống kê HĐĐT theo ngày
+/// </summary>
+public class ElectronicInvoiceDailyStatDto
+{
+    public DateTime Date { get; set; }
+    public int Count { get; set; }
+    public decimal Amount { get; set; }
 }
 
 #endregion

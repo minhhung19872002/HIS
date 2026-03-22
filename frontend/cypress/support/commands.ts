@@ -2,15 +2,42 @@
 
 // Custom commands for HIS application
 
-// Login command - Ant Design form uses #formName_fieldName pattern
+const extractLoginData = (responseBody: any) => {
+  const loginData = responseBody?.data ?? responseBody
+  const token = loginData?.token
+  const user = loginData?.user
+
+  expect(token, 'login token').to.be.a('string').and.not.be.empty
+  expect(user, 'login user').to.exist
+
+  return { token, user }
+}
+
+// Login command - use API login for stability, then bootstrap localStorage before app loads
 Cypress.Commands.add('login', (username: string, password: string) => {
-  cy.visit('/login')
-  // Ant Design Form with name="login" creates inputs with id="login_username" and "login_password"
-  cy.get('#login_username, input[placeholder*="Tên đăng nhập"]', { timeout: 15000 }).should('be.visible').type(username)
-  cy.get('#login_password, input[placeholder*="Mật khẩu"]').type(password)
-  cy.get('button[type="submit"]').click()
-  // Wait for login to complete - either redirect or check localStorage
-  cy.url().should('not.include', '/login', { timeout: 15000 })
+  cy.request({
+    method: 'POST',
+    url: '/api/auth/login',
+    body: { username, password },
+    failOnStatusCode: false
+  }).then((response) => {
+    expect(response.status, 'login status').to.eq(200)
+    const { token, user } = extractLoginData(response.body)
+
+    cy.visit('/', {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('token', token)
+        win.localStorage.setItem('user', JSON.stringify(user))
+      }
+    })
+
+    cy.window().then((win) => {
+      win.localStorage.setItem('token', token)
+      win.localStorage.setItem('user', JSON.stringify(user))
+    })
+
+    cy.url({ timeout: 20000 }).should('not.include', '/login')
+  })
 })
 
 // Programmatic login - bypasses UI for faster tests
@@ -21,10 +48,13 @@ Cypress.Commands.add('loginByApi', (username: string, password: string) => {
     body: { username, password },
     failOnStatusCode: false
   }).then((response) => {
-    if (response.status === 200 && response.body.token) {
-      window.localStorage.setItem('token', response.body.token)
-      window.localStorage.setItem('user', JSON.stringify(response.body.user))
-    }
+    expect(response.status, 'login status').to.eq(200)
+    const { token, user } = extractLoginData(response.body)
+
+    cy.window().then((win) => {
+      win.localStorage.setItem('token', token)
+      win.localStorage.setItem('user', JSON.stringify(user))
+    })
   })
 })
 

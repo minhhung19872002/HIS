@@ -67,6 +67,7 @@ import {
 import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheritance';
 import { patientApi, type Patient } from '../api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -2225,6 +2226,12 @@ const Inpatient: React.FC = () => {
       >
         {selectedAdmission && (
           <div>
+            <BusinessAlertPanel
+              patientId={selectedAdmission.patientCode}
+              admissionId={selectedAdmission.admissionId}
+              module="Inpatient"
+              compact={false}
+            />
             <Row gutter={[16, 16]}>
               <Col span={24}>
                 <Card size="small" title="Thông tin bệnh nhân">

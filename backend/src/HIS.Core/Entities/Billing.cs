@@ -126,3 +126,51 @@ public class CashBook : BaseEntity
     // Navigation
     public virtual ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
 }
+
+/// <summary>
+/// Hóa đơn điện tử - ElectronicInvoice
+/// </summary>
+public class ElectronicInvoice : BaseEntity
+{
+    public string InvoiceNumber { get; set; } = string.Empty; // So hoa don
+    public string InvoiceSeries { get; set; } = string.Empty; // Ky hieu hoa don (e.g., "1C24TAA")
+    public DateTime InvoiceDate { get; set; }
+
+    public Guid? InvoiceSummaryId { get; set; } // FK to InvoiceSummaries
+    public virtual InvoiceSummary? InvoiceSummary { get; set; }
+
+    public Guid? PatientId { get; set; }
+    public virtual Patient? Patient { get; set; }
+
+    public Guid? MedicalRecordId { get; set; }
+    public virtual MedicalRecord? MedicalRecord { get; set; }
+
+    public string PatientName { get; set; } = string.Empty;
+    public string? PatientAddress { get; set; }
+    public string? TaxCode { get; set; } // MST
+    public string? BuyerName { get; set; } // Ten nguoi mua
+    public string? PaymentMethod { get; set; } // TM/CK/TM-CK
+
+    public decimal SubTotal { get; set; } // Tien truoc thue
+    public decimal VatRate { get; set; } = 8; // % VAT (medical = 8%)
+    public decimal VatAmount { get; set; }
+    public decimal TotalAmount { get; set; } // Tong tien
+    public decimal DiscountAmount { get; set; }
+
+    public string? ItemsJson { get; set; } // JSON: [{name, unit, qty, price, amount}]
+
+    // 0=Draft, 1=Issued, 2=Sent, 3=Cancelled, 4=Replaced
+    public int Status { get; set; }
+
+    public string? ProviderName { get; set; } // VNInvoice, Misa, etc.
+    public string? ProviderInvoiceId { get; set; } // ID tu nha cung cap
+    public string? LookupCode { get; set; } // Ma tra cuu
+    public string? LookupUrl { get; set; } // URL tra cuu
+
+    public string? CancelReason { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public DateTime? SentAt { get; set; }
+    public string? SentTo { get; set; } // Email/phone sent to
+    public string? SignedBy { get; set; }
+    public string? SignatureData { get; set; }
+}

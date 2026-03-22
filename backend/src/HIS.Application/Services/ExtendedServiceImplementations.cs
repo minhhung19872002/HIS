@@ -1317,6 +1317,49 @@ namespace HIS.Application.Services
                 CMENonCompliant = 12
             };
         }
+
+        // HR Catalogs
+        public Task<List<HRCatalogDto>> GetCatalogsAsync(string? catalogType = null) => Task.FromResult(new List<HRCatalogDto>());
+        public Task<HRCatalogDto> SaveCatalogAsync(SaveHRCatalogDto dto) => Task.FromResult(new HRCatalogDto { Id = dto.Id ?? Guid.NewGuid(), CatalogType = dto.CatalogType, Code = dto.Code, Name = dto.Name });
+        public Task<bool> DeleteCatalogAsync(Guid id) => Task.FromResult(true);
+
+        // Staff Contracts
+        public Task<List<StaffContractDto>> GetStaffContractsAsync(Guid? staffId = null, string? contractType = null) => Task.FromResult(new List<StaffContractDto>());
+        public Task<StaffContractDto> SaveContractAsync(SaveStaffContractDto dto) => Task.FromResult(new StaffContractDto { Id = dto.Id ?? Guid.NewGuid(), StaffId = dto.StaffId });
+        public Task<List<StaffContractDto>> GetExpiringContractsAsync(int daysAhead = 90) => Task.FromResult(new List<StaffContractDto>());
+
+        // Salary History
+        public Task<List<SalaryRecordDto>> GetSalaryHistoryAsync(Guid staffId) => Task.FromResult(new List<SalaryRecordDto>());
+        public Task<SalaryRecordDto> SaveSalaryRecordAsync(SaveSalaryRecordDto dto) => Task.FromResult(new SalaryRecordDto { Id = dto.Id ?? Guid.NewGuid(), StaffId = dto.StaffId });
+
+        // Leave Management
+        public Task<List<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? staffId = null, int? status = null, DateTime? fromDate = null, DateTime? toDate = null) => Task.FromResult(new List<LeaveRequestDto>());
+        public Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequestDto dto) => Task.FromResult(new LeaveRequestDto { Id = Guid.NewGuid(), StaffId = dto.StaffId });
+        public Task<LeaveRequestDto> ApproveLeaveAsync(Guid id, LeaveApprovalDto dto) => Task.FromResult(new LeaveRequestDto { Id = id });
+        public Task<LeaveBalanceDto> GetLeaveBalanceAsync(Guid staffId, int year) => Task.FromResult(new LeaveBalanceDto { StaffId = staffId, Year = year, AnnualEntitlement = 12, RemainingDays = 12 });
+
+        // Attendance
+        public Task<List<AttendanceRecordDto>> GetAttendanceAsync(Guid? staffId = null, DateTime? fromDate = null, DateTime? toDate = null) => Task.FromResult(new List<AttendanceRecordDto>());
+        public Task<AttendanceRecordDto> RecordAttendanceAsync(SaveAttendanceDto dto) => Task.FromResult(new AttendanceRecordDto { Id = dto.Id ?? Guid.NewGuid(), StaffId = dto.StaffId });
+        public Task<List<HIS.Application.DTOs.MedicalHR.AttendanceSummaryDto>> GetAttendanceSummaryAsync(int year, int month, Guid? departmentId = null) => Task.FromResult(new List<HIS.Application.DTOs.MedicalHR.AttendanceSummaryDto>());
+
+        // Overtime
+        public Task<List<OvertimeRecordDto>> GetOvertimeRequestsAsync(Guid? staffId = null, int? status = null, DateTime? fromDate = null, DateTime? toDate = null) => Task.FromResult(new List<OvertimeRecordDto>());
+        public Task<OvertimeRecordDto> CreateOvertimeAsync(CreateOvertimeDto dto) => Task.FromResult(new OvertimeRecordDto { Id = Guid.NewGuid(), StaffId = dto.StaffId });
+        public Task<OvertimeRecordDto> ApproveOvertimeAsync(Guid id, OvertimeApprovalDto dto) => Task.FromResult(new OvertimeRecordDto { Id = id });
+
+        // Awards & Discipline
+        public Task<List<StaffAwardDto>> GetStaffAwardsAsync(Guid? staffId = null) => Task.FromResult(new List<StaffAwardDto>());
+        public Task<StaffAwardDto> SaveAwardAsync(SaveStaffAwardDto dto) => Task.FromResult(new StaffAwardDto { Id = dto.Id ?? Guid.NewGuid(), StaffId = dto.StaffId });
+        public Task<List<StaffDisciplineDto>> GetStaffDisciplinesAsync(Guid? staffId = null) => Task.FromResult(new List<StaffDisciplineDto>());
+        public Task<StaffDisciplineDto> SaveDisciplineAsync(SaveStaffDisciplineDto dto) => Task.FromResult(new StaffDisciplineDto { Id = dto.Id ?? Guid.NewGuid(), StaffId = dto.StaffId });
+
+        // Reports
+        public Task<List<StaffByDepartmentReportDto>> GetStaffByDepartmentReportAsync(Guid? departmentId = null) => Task.FromResult(new List<StaffByDepartmentReportDto>());
+        public Task<AttendanceReportDto> GetAttendanceReportAsync(int year, int month, Guid? departmentId = null) => Task.FromResult(new AttendanceReportDto { Year = year, Month = month, Details = new List<HIS.Application.DTOs.MedicalHR.AttendanceSummaryDto>() });
+        public Task<LeaveReportDto> GetLeaveReportAsync(int year, int month, Guid? departmentId = null) => Task.FromResult(new LeaveReportDto { Year = year, Month = month, Details = new List<LeaveRequestDto>() });
+        public Task<OvertimeReportDto> GetOvertimeReportAsync(int year, int month, Guid? departmentId = null) => Task.FromResult(new OvertimeReportDto { Year = year, Month = month, Details = new List<OvertimeRecordDto>() });
+        public Task<StaffMovementReportDto> GetStaffMovementReportAsync(DateTime fromDate, DateTime toDate) => Task.FromResult(new StaffMovementReportDto { FromDate = fromDate, ToDate = toDate, Items = new List<StaffMovementItemDto>() });
     }
 
     #endregion

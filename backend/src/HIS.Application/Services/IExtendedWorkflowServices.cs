@@ -293,6 +293,49 @@ namespace HIS.Application.Services
 
         // Dashboard
         Task<MedicalHRDashboardDto> GetDashboardAsync();
+
+        // HR Catalogs
+        Task<List<HRCatalogDto>> GetCatalogsAsync(string? catalogType = null);
+        Task<HRCatalogDto> SaveCatalogAsync(SaveHRCatalogDto dto);
+        Task<bool> DeleteCatalogAsync(Guid id);
+
+        // Staff Contracts
+        Task<List<StaffContractDto>> GetStaffContractsAsync(Guid? staffId = null, string? contractType = null);
+        Task<StaffContractDto> SaveContractAsync(SaveStaffContractDto dto);
+        Task<List<StaffContractDto>> GetExpiringContractsAsync(int daysAhead = 90);
+
+        // Salary History
+        Task<List<SalaryRecordDto>> GetSalaryHistoryAsync(Guid staffId);
+        Task<SalaryRecordDto> SaveSalaryRecordAsync(SaveSalaryRecordDto dto);
+
+        // Leave Management
+        Task<List<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? staffId = null, int? status = null, DateTime? fromDate = null, DateTime? toDate = null);
+        Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequestDto dto);
+        Task<LeaveRequestDto> ApproveLeaveAsync(Guid id, LeaveApprovalDto dto);
+        Task<LeaveBalanceDto> GetLeaveBalanceAsync(Guid staffId, int year);
+
+        // Attendance
+        Task<List<AttendanceRecordDto>> GetAttendanceAsync(Guid? staffId = null, DateTime? fromDate = null, DateTime? toDate = null);
+        Task<AttendanceRecordDto> RecordAttendanceAsync(SaveAttendanceDto dto);
+        Task<List<HIS.Application.DTOs.MedicalHR.AttendanceSummaryDto>> GetAttendanceSummaryAsync(int year, int month, Guid? departmentId = null);
+
+        // Overtime
+        Task<List<OvertimeRecordDto>> GetOvertimeRequestsAsync(Guid? staffId = null, int? status = null, DateTime? fromDate = null, DateTime? toDate = null);
+        Task<OvertimeRecordDto> CreateOvertimeAsync(CreateOvertimeDto dto);
+        Task<OvertimeRecordDto> ApproveOvertimeAsync(Guid id, OvertimeApprovalDto dto);
+
+        // Awards & Discipline
+        Task<List<StaffAwardDto>> GetStaffAwardsAsync(Guid? staffId = null);
+        Task<StaffAwardDto> SaveAwardAsync(SaveStaffAwardDto dto);
+        Task<List<StaffDisciplineDto>> GetStaffDisciplinesAsync(Guid? staffId = null);
+        Task<StaffDisciplineDto> SaveDisciplineAsync(SaveStaffDisciplineDto dto);
+
+        // Reports
+        Task<List<StaffByDepartmentReportDto>> GetStaffByDepartmentReportAsync(Guid? departmentId = null);
+        Task<AttendanceReportDto> GetAttendanceReportAsync(int year, int month, Guid? departmentId = null);
+        Task<LeaveReportDto> GetLeaveReportAsync(int year, int month, Guid? departmentId = null);
+        Task<OvertimeReportDto> GetOvertimeReportAsync(int year, int month, Guid? departmentId = null);
+        Task<StaffMovementReportDto> GetStaffMovementReportAsync(DateTime fromDate, DateTime toDate);
     }
 
     #endregion

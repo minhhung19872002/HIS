@@ -657,3 +657,30 @@ public class TreatmentProtocolStep : BaseEntity
     public string? Notes { get; set; }
     public bool IsOptional { get; set; }
 }
+
+/// <summary>
+/// Canh bao nghiep vu - BusinessAlert (NangCap13 Section 3.1.9)
+/// 34 luat canh bao: OPD (10), Noi tru (14), CDHA (4), XN (3), Duoc (1), Vien phi (2)
+/// </summary>
+public class BusinessAlert : BaseEntity
+{
+    public string AlertCode { get; set; } = string.Empty; // e.g., "OPD-01", "IPD-11"
+    public string Category { get; set; } = string.Empty; // OPD, Inpatient, Radiology, Lab, Pharmacy, Billing
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public int Severity { get; set; } // 1=Critical, 2=Warning, 3=Info
+    public string Module { get; set; } = string.Empty;
+    public Guid? PatientId { get; set; }
+    public Guid? ExaminationId { get; set; }
+    public Guid? AdmissionId { get; set; }
+    public string? EntityType { get; set; }
+    public Guid? EntityId { get; set; }
+    public int Status { get; set; } // 0=New, 1=Acknowledged, 2=Resolved, 3=Ignored
+    public DateTime? AcknowledgedAt { get; set; }
+    public string? AcknowledgedBy { get; set; }
+    public string? ActionTaken { get; set; }
+    public string? Details { get; set; } // JSON extra data
+
+    // Navigation
+    public virtual Patient? Patient { get; set; }
+}
