@@ -194,10 +194,19 @@ describe('Deep Controls - All Pages', () => {
 
         cy.on('uncaught:exception', () => false);
 
-        cy.intercept('**/api/**', (req) => {
+        cy.intercept({ url: '**/api/**', middleware: true }, (req) => {
+          // Only intercept HTTP requests (not WebSocket upgrades)
+          if (req.headers['upgrade'] === 'websocket') {
+            req.continue();
+            return;
+          }
           req.continue((res) => {
-            if (res.statusCode >= 500) {
-              serverErrors.push(`${req.method} ${req.url} => ${res.statusCode}`);
+            try {
+              if (res && res.statusCode && res.statusCode >= 500) {
+                serverErrors.push(`${req.method} ${req.url} => ${res.statusCode}`);
+              }
+            } catch {
+              // ignore socket errors during response capture
             }
           });
         }).as('apiCalls');

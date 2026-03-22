@@ -25,11 +25,22 @@ describe('NangCap11 - EMR Admin & Signing Workflow Enhancements', () => {
 
   beforeEach(() => {
     cy.on('uncaught:exception', () => false);
-    cy.window().then((win) => {
-      win.localStorage.setItem('token', token);
-      win.localStorage.setItem('user', userData);
+    // Intercept auth/me so fake/expired tokens don't cause redirect
+    cy.intercept('GET', '**/api/auth/me', (req) => {
+      req.reply({ statusCode: 200, body: { success: true, data: { id: 1, username: 'admin', roles: ['Admin'] } } });
     });
+    cy.intercept('GET', '**/api/notification/unread-count', { statusCode: 200, body: { count: 0 } });
+    cy.intercept('GET', '**/api/notification/my*', { statusCode: 200, body: [] });
   });
+
+  function visitWithAuth(path: string) {
+    cy.visit(path, {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('token', token || 'cypress-test-token');
+        win.localStorage.setItem('user', userData || JSON.stringify({ id: 1, username: 'admin', roles: ['Admin'] }));
+      },
+    });
+  }
 
   describe('EMR Admin API Endpoints', () => {
     it('should call cover types API', () => {
@@ -91,7 +102,7 @@ describe('NangCap11 - EMR Admin & Signing Workflow Enhancements', () => {
 
   describe('SystemAdmin - EMR Admin Tabs', () => {
     beforeEach(() => {
-      cy.visit('/admin');
+      visitWithAuth('/admin');
       cy.get('body', { timeout: 10000 }).should('be.visible');
       cy.wait(1000);
     });
@@ -108,36 +119,61 @@ describe('NangCap11 - EMR Admin & Signing Workflow Enhancements', () => {
 
     it('should have Nguoi ky tab', () => {
       cy.get('body').then(($body) => {
-        const hasTab = $body.text().includes('Nguoi ky');
-        expect(hasTab).to.be.true;
+        if ($body.find('.ant-tabs-nav-more').length > 0) {
+          cy.get('.ant-tabs-nav-more').click({ force: true });
+          cy.wait(500);
+        }
+      });
+      cy.get('body').should(($b) => {
+        expect($b.text()).to.include('Nguoi ky');
       });
     });
 
     it('should have Vai tro ky tab', () => {
       cy.get('body').then(($body) => {
-        const hasTab = $body.text().includes('Vai tro ky');
-        expect(hasTab).to.be.true;
+        if ($body.find('.ant-tabs-nav-more').length > 0) {
+          cy.get('.ant-tabs-nav-more').click({ force: true });
+          cy.wait(500);
+        }
+      });
+      cy.get('body').should(($b) => {
+        expect($b.text()).to.include('Vai tro ky');
       });
     });
 
     it('should have Nghiep vu ky tab', () => {
       cy.get('body').then(($body) => {
-        const hasTab = $body.text().includes('Nghiep vu ky');
-        expect(hasTab).to.be.true;
+        if ($body.find('.ant-tabs-nav-more').length > 0) {
+          cy.get('.ant-tabs-nav-more').click({ force: true });
+          cy.wait(500);
+        }
+      });
+      cy.get('body').should(($b) => {
+        expect($b.text()).to.include('Nghiep vu ky');
       });
     });
 
     it('should have Nhom VB tab', () => {
       cy.get('body').then(($body) => {
-        const hasTab = $body.text().includes('Nhom VB');
-        expect(hasTab).to.be.true;
+        if ($body.find('.ant-tabs-nav-more').length > 0) {
+          cy.get('.ant-tabs-nav-more').click({ force: true });
+          cy.wait(500);
+        }
+      });
+      cy.get('body').should(($b) => {
+        expect($b.text()).to.include('Nhom VB');
       });
     });
 
     it('should have Loai VB tab', () => {
       cy.get('body').then(($body) => {
-        const hasTab = $body.text().includes('Loai VB');
-        expect(hasTab).to.be.true;
+        if ($body.find('.ant-tabs-nav-more').length > 0) {
+          cy.get('.ant-tabs-nav-more').click({ force: true });
+          cy.wait(500);
+        }
+      });
+      cy.get('body').should(($b) => {
+        expect($b.text()).to.include('Loai VB');
       });
     });
 
@@ -156,7 +192,7 @@ describe('NangCap11 - EMR Admin & Signing Workflow Enhancements', () => {
 
   describe('EMR Page', () => {
     beforeEach(() => {
-      cy.visit('/emr');
+      visitWithAuth('/emr');
       cy.get('body', { timeout: 10000 }).should('be.visible');
     });
 
@@ -171,7 +207,7 @@ describe('NangCap11 - EMR Admin & Signing Workflow Enhancements', () => {
 
   describe('Signing Workflow - Enhanced UI', () => {
     beforeEach(() => {
-      cy.visit('/signing-workflow');
+      visitWithAuth('/signing-workflow');
       cy.get('body', { timeout: 10000 }).should('be.visible');
       cy.wait(1000);
     });

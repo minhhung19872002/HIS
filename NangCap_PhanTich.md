@@ -1275,7 +1275,7 @@
 #### 12. DANH MUC (91 tinh nang: 285-375) → DA DAP UNG
 > MasterData.tsx + SystemCompleteController ho tro CRUD tong quat cho cac danh muc: Thanh toan (18), BHYT (13), Khoa/Phong (4), Phau thuat (12), Thuong tich/Tu vong (17), Duoc/VT (6), Hanh chinh (8), Khac (13)
 
-#### 13. BAO CAO (40 tinh nang: 376-415) → CAN BO SUNG
+#### 13. BAO CAO (40 tinh nang: 376-415) → DA DAP UNG
 
 | Nhom | So luong | Trang thai |
 |------|----------|------------|
