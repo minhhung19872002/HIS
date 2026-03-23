@@ -167,7 +167,13 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ patientId, onExaminat
     return <Tag color={color} style={{ fontSize: 11 }}>{event.status}</Tag>;
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><Spin tip="Đang tải timeline..." /></div>;
+  if (loading) {
+    return (
+      <Spin spinning tip="Đang tải timeline...">
+        <div style={{ minHeight: 120 }} />
+      </Spin>
+    );
+  }
   if (!events.length && !loading) return <Empty description="Chưa có dữ liệu timeline" />;
 
   // Group by month for better readability
@@ -221,7 +227,7 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ patientId, onExaminat
               items={groupEvents.map(event => ({
                 key: event.id,
                 color: getEventColor(event),
-                dot: moduleConfig[event.module]?.icon,
+                icon: moduleConfig[event.module]?.icon,
                 content: (
                   <div
                     style={{ cursor: event.module === 'OPD' || event.module === 'IPD' ? 'pointer' : 'default' }}

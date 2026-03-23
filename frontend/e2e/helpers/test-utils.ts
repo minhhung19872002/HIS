@@ -277,25 +277,7 @@ export async function navigateTo(page: Page, menuPath: string[]) {
  * Dang nhap he thong
  */
 export async function login(page: Page, username = 'admin', password = 'Admin@123') {
-  const token = `playwright-token-${username}`;
-  const user = {
-    id: '00000000-0000-0000-0000-000000000001',
-    username,
-    fullName: 'Playwright Admin',
-    roles: ['Admin'],
-    permissions: []
-  };
-
-  await page.route('**/api/auth/me', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: user
-      })
-    });
-  });
+  const { token, user } = await getAuthSession(username, password);
 
   await page.addInitScript(
     ([sessionToken, sessionUser]) => {

@@ -45,6 +45,10 @@ async function api(method, path, body = null) {
   return { status: res.status, data, ok: res.ok };
 }
 
+function unwrapData(payload) {
+  return payload?.data ?? payload;
+}
+
 function check(name, condition, details = '') {
   if (condition) {
     RESULTS.pass++;
@@ -267,8 +271,9 @@ async function continueOPDFlow(patientId, medicalRecordId, admissionId) {
   check('T???o h??a ????n', invoiceRes.status === 200 || invoiceRes.status === 201,
     `status=${invoiceRes.status} ${JSON.stringify(invoiceRes.data).substring(0,150)}`);
 
-  const invoiceData = invoiceRes.data?.data || invoiceRes.data;
+  const invoiceData = unwrapData(invoiceRes.data);
   const invoiceId = invoiceData?.id;
+  const paymentAmount = invoiceData?.remainingAmount || invoiceData?.totalAmount || 0;
   console.log(`    invoiceId=${invoiceId}`);
 
   // Step 9: Billing - Create payment
@@ -276,11 +281,11 @@ async function continueOPDFlow(patientId, medicalRecordId, admissionId) {
   const payRes = await api('POST', '/billingcomplete/payments', {
     patientId: patientId,
     invoiceId: invoiceId,
-    amount: 250000,
+    amount: paymentAmount,
     paymentMethod: '1', // Ti???n m???t
     note: 'Thu vi???n ph?? ngo???i tr??'
   });
-  check('Thu ti???n', payRes.status === 200 || payRes.status === 201,
+  check('Thu ti???n', paymentAmount > 0 && (payRes.status === 200 || payRes.status === 201),
     `status=${payRes.status} ${JSON.stringify(payRes.data).substring(0,150)}`);
 
 // Step 10: Pharmacy - Dispense prescription
@@ -459,6 +464,7 @@ async function testIPDFlow() {
   });
   check('Kê đơn nội trú', rxRes.status === 200 || rxRes.status === 201,
     `status=${rxRes.status} ${JSON.stringify(rxRes.data).substring(0,200)}`);
+  const inpatientPrescriptionId = unwrapData(rxRes.data)?.id;
 
   // Step 6: Get prescriptions
   console.log('\n--- Bước 6: Xem danh sách đơn thuốc ---');
@@ -496,6 +502,17 @@ async function testIPDFlow() {
   const svcListRes = await api('GET', `/inpatient/service-orders/${admissionIdIPD}`);
   check('Xem phiếu CLS', svcListRes.status === 200,
     `status=${svcListRes.status} ${JSON.stringify(svcListRes.data).substring(0,150)}`);
+
+  if (inpatientPrescriptionId) {
+    console.log('\n--- BÆ°á»›c 8.1: Cáº¥p phÃ¡t thuá»‘c ná»™i trÃº ---');
+    const acceptRxRes = await api('POST', `/pharmacy/prescriptions/${inpatientPrescriptionId}/accept`);
+    check('Nháº­n Ä‘Æ¡n ná»™i trÃº', acceptRxRes.status === 200 || acceptRxRes.status === 201,
+      `status=${acceptRxRes.status} ${JSON.stringify(acceptRxRes.data).substring(0,150)}`);
+
+    const completeRxRes = await api('POST', `/pharmacy/prescriptions/${inpatientPrescriptionId}/complete`);
+    check('HoÃ n thÃ nh cáº¥p phÃ¡t ná»™i trÃº', completeRxRes.status === 200 || completeRxRes.status === 201,
+      `status=${completeRxRes.status} ${JSON.stringify(completeRxRes.data).substring(0,150)}`);
+  }
 
   // Step 9: Pre-discharge check
   console.log('\n--- Bước 9: Kiểm tra trước xuất viện ---');
@@ -708,7 +725,7 @@ async function testBillingFlow() {
     check('Thu t???m ???ng', depositRes.status === 200 || depositRes.status === 201,
       `status=${depositRes.status} ${JSON.stringify(depositRes.data).substring(0,200)}`);
 
-    const depositData = depositRes.data?.data || depositRes.data;
+    const depositData = unwrapData(depositRes.data);
     const depositId = depositData?.id || depositData?.depositId;
 
     // Step 3: Check deposit balance
@@ -725,7 +742,7 @@ async function testBillingFlow() {
     check('T???o h??a ????n', invRes.status === 200 || invRes.status === 201,
       `status=${invRes.status} ${JSON.stringify(invRes.data).substring(0,150)}`);
 
-    const invData = invRes.data?.data || invRes.data;
+    const invData = unwrapData(invRes.data);
     const invoiceId = invData?.id;
 
     // Step 5: Apply discount
@@ -755,15 +772,16 @@ async function testBillingFlow() {
     console.log('\n--- Bước 7: Hoàn tiền dư ---');
     const refundRes = await api('POST', '/billingcomplete/refunds', {
       patientId: patient.patientId,
-      medicalRecordId: patient.id,
-      amount: 100000,
+      refundType: 1,
+      originalDepositId: depositId,
+      refundAmount: 100000,
       reason: 'Hoàn tiền tạm ứng dư',
       refundMethod: 1
     });
     check('Tạo phiếu hoàn', refundRes.status === 200 || refundRes.status === 201,
       `status=${refundRes.status} ${JSON.stringify(refundRes.data).substring(0,150)}`);
 
-    const refundData = refundRes.data?.data || refundRes.data;
+    const refundData = unwrapData(refundRes.data);
     const refundId = refundData?.id;
 
     // Step 8: Approve refund
@@ -771,7 +789,7 @@ async function testBillingFlow() {
       console.log('\n--- Bước 8: Duyệt hoàn tiền ---');
       const approveRefRes = await api('POST', '/billingcomplete/refunds/approve', {
         refundId: refundId,
-        approvedBy: ADMIN_ID
+        isApproved: true
       });
       check('Duyệt hoàn tiền', approveRefRes.status === 200 || approveRefRes.status === 201,
         `status=${approveRefRes.status} ${JSON.stringify(approveRefRes.data).substring(0,150)}`);

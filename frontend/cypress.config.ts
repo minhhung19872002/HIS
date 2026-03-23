@@ -3,6 +3,7 @@ import { defineConfig } from 'cypress'
 export default defineConfig({
   e2e: {
     baseUrl: 'http://localhost:3001',
+    allowCypressEnv: false,
     viewportWidth: 1280,
     viewportHeight: 720,
     video: false,
@@ -12,15 +13,20 @@ export default defineConfig({
       runMode: 1,
       openMode: 0,
     },
-    setupNodeEvents(on, config) {
+    async setupNodeEvents(on) {
       // Log browser console output
       try {
-        const logToOutput = require('cypress-log-to-output');
-        logToOutput.install(on, (type: string, event: any) => {
+        const logToOutput = await import('cypress-log-to-output');
+        const install =
+          'install' in logToOutput
+            ? logToOutput.install
+            : logToOutput.default?.install;
+
+        install?.(on, (type: string, event: { level?: string }) => {
           // Only capture errors and warnings
           return type === 'console' && (event.level === 'error' || event.level === 'warning');
         });
-      } catch (e) {
+      } catch {
         // Plugin not available, skip
       }
 

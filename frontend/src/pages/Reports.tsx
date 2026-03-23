@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   Card,
   Button,
@@ -30,7 +30,6 @@ import {
   FilePdfOutlined,
   BarChartOutlined,
   MedicineBoxOutlined,
-  UserOutlined,
   DollarOutlined,
   ExperimentOutlined,
   FileTextOutlined,
@@ -61,7 +60,6 @@ import {
   PlayCircleOutlined,
   ContainerOutlined,
   SolutionOutlined,
-  DatabaseOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -1251,7 +1249,7 @@ const FullReportsContent: React.FC = () => {
   }, [dateRange, department, warehouseId]);
 
   // View data via unified HospitalReportController
-  const handleViewData = useCallback(async (reportId: string, reportName: string) => {
+  const handleViewData = useCallback(async (reportId: string) => {
     const mapping = reportApiMapping[reportId];
     if (!mapping) return;
     setExporting(true);
@@ -1547,7 +1545,7 @@ const FullReportsContent: React.FC = () => {
                                 loading={exporting}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleViewData(item.id, item.name);
+                                  handleViewData(item.id);
                                 }}
                               >
                                 Dữ liệu
@@ -1796,6 +1794,12 @@ const ReportBuilderTab: React.FC = () => {
     const src = DATA_SOURCES.find(s => s.value === selectedSource);
     return src?.fields || [];
   }, [selectedSource]);
+  const clientIdRef = useRef(0);
+
+  const nextClientId = () => {
+    clientIdRef.current += 1;
+    return `report-${clientIdRef.current}`;
+  };
 
   const handleNewReport = () => {
     setEditing(null);
@@ -1817,7 +1821,7 @@ const ReportBuilderTab: React.FC = () => {
 
   const handleDuplicateReport = (r: CustomReportDef) => {
     const copy: CustomReportDef = {
-      ...r, id: Date.now().toString(), name: `${r.name} (bản sao)`, createdAt: new Date().toISOString()
+      ...r, id: nextClientId(), name: `${r.name} (bản sao)`, createdAt: new Date().toISOString()
     };
     saveReports([...reports, copy]);
     message.success('Đã sao chép báo cáo');
@@ -1832,7 +1836,7 @@ const ReportBuilderTab: React.FC = () => {
     form.validateFields().then(values => {
       if (fields.length === 0) { message.warning('Vui lòng thêm ít nhất 1 cột'); return; }
       const report: CustomReportDef = {
-        id: editing?.id || Date.now().toString(),
+        id: editing?.id || nextClientId(),
         name: values.name, description: values.description || '',
         dataSource: values.dataSource, fields, filters,
         groupBy: values.groupBy, sortBy: values.sortBy, sortDir: values.sortDir || 'asc',
@@ -1850,7 +1854,7 @@ const ReportBuilderTab: React.FC = () => {
 
   const addField = (fieldName: string) => {
     if (fields.find(f => f.source === fieldName)) return;
-    setFields([...fields, { id: Date.now().toString(), name: fieldName, source: fieldName, format: 'text', width: 150 }]);
+    setFields([...fields, { id: nextClientId(), name: fieldName, source: fieldName, format: 'text', width: 150 }]);
   };
 
   const removeField = (id: string) => setFields(fields.filter(f => f.id !== id));

@@ -72,7 +72,10 @@ builder.Services.AddAuthentication(options =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            var isHubRequest = path.StartsWithSegments("/hubs");
+            var isPrintRequest = path.StartsWithSegments("/api/pdf") || path.StartsWithSegments("/api/reception/print");
+
+            if (!string.IsNullOrEmpty(accessToken) && (isHubRequest || isPrintRequest))
             {
                 context.Token = accessToken;
             }

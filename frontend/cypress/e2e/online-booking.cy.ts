@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
 describe('Online Booking System', () => {
-  const API = Cypress.env('API_URL') || 'http://localhost:5106/api';
+  const API = 'http://localhost:5106/api';
 
   // Public booking page (no login required)
   describe('Public Booking Page (/dat-lich)', () => {

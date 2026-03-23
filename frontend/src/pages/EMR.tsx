@@ -76,6 +76,46 @@ const statusNames: Record<number, string> = {
   0: 'Chờ khám', 1: 'Đang khám', 2: 'Chờ CLS', 3: 'Chờ kết luận', 4: 'Hoàn thành',
 };
 
+function buildPrintDocument(printMarkup: string): string {
+  const styleMarkup = Array.from(
+    document.querySelectorAll('style, link[rel="stylesheet"]')
+  )
+    .map((node) => node.outerHTML)
+    .join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="${document.documentElement.lang || 'vi'}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>In biểu mẫu</title>
+  <base href="${window.location.origin}" />
+  ${styleMarkup}
+  <style>
+    html, body {
+      background: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .no-print {
+      display: none !important;
+    }
+    @page {
+      size: auto;
+      margin: 12mm;
+    }
+  </style>
+</head>
+<body>
+  ${printMarkup}
+</body>
+</html>`;
+}
+
 const EMR: React.FC = () => {
   // Search state
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -241,11 +281,23 @@ const EMR: React.FC = () => {
     if (!printRef.current) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) { message.warning('Không thể mở cửa sổ in. Vui lòng tắt popup blocker.'); return; }
-    printWindow.document.write('<html><head><title>In biểu mẫu</title></head><body>');
-    printWindow.document.write(printRef.current.innerHTML);
-    printWindow.document.write('</body></html>');
+    printWindow.document.open();
+    printWindow.document.write(buildPrintDocument(printRef.current.innerHTML));
     printWindow.document.close();
-    printWindow.print();
+    
+    const triggerPrint = () => {
+      printWindow.focus();
+      window.setTimeout(() => {
+        printWindow.print();
+      }, 300);
+    };
+
+    printWindow.addEventListener('load', triggerPrint, { once: true });
+    printWindow.addEventListener('afterprint', () => printWindow.close(), { once: true });
+
+    if (printWindow.document.readyState === 'complete') {
+      triggerPrint();
+    }
   };
 
   // Digital signature handlers
