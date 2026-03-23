@@ -131,3 +131,19 @@ backend/src/HIS.API/exports/
 # Signed PDF output files
 backend/src/HIS.API/Reports/Signed/
 backend/src/HIS.API/Reports/Radiology/RIS_SIGNED_*
+
+# Temp PDF files
+tmp_emr_*.pdf
+
+# Build artifacts directory
+backend/artifacts/
+
+# Test projects
+backend/TestStamp/
+
+# Cypress batch results
+frontend/cypress-batch-results.json
+
+# Test scripts (local)
+test-ipd-flow.ps1
+test-reception-full.ps1
