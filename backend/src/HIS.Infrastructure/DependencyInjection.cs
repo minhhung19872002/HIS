@@ -231,11 +231,31 @@ public static class DependencyInjection
         // NangCap13: Canh bao nghiep vu (Business Alerts - 34 rules)
         services.AddScoped<IBusinessAlertService, BusinessAlertService>();
 
+        // Y tế công cộng (Public Health - 6 modules)
+        services.AddScoped<IPublicHealthService, PublicHealthService>();
+
         // NangCap14: BV Phoi Hai Duong - 4 new modules
         services.AddScoped<IChronicDiseaseService, ChronicDiseaseService>();
         services.AddScoped<IHospitalPharmacyService, HospitalPharmacyService>();
         services.AddScoped<IClinicalGuidanceService, ClinicalGuidanceService>();
         services.AddScoped<ITbHivManagementService, TbHivManagementService>();
+
+        // Public Health Modules (3 new)
+        services.AddScoped<IFoodSafetyService, FoodSafetyService>();
+        services.AddScoped<ICommunityHealthService, CommunityHealthService>();
+        services.AddScoped<IHivManagementService, HivManagementService>();
+
+        // Medinet Healthcare Modules (10 modules)
+        services.AddScoped<IForensicService, ForensicService>(); // Giám định Y khoa
+        services.AddScoped<ITraditionalMedicineService, TraditionalMedicineService>(); // Y học cổ truyền
+        services.AddScoped<IReproductiveHealthService, ReproductiveHealthService>(); // Sức khỏe sinh sản
+        services.AddScoped<IMentalHealthService, MentalHealthService>(); // Sức khỏe tâm thần
+        services.AddScoped<IEnvironmentalHealthService, EnvironmentalHealthService>(); // Quản lý môi trường y tế
+        services.AddScoped<ITraumaRegistryService, TraumaRegistryService>(); // Sổ chấn thương
+        services.AddScoped<IPopulationHealthService, PopulationHealthServiceImpl>(); // Dân số - KHHGĐ
+        services.AddScoped<IHealthEducationService, HealthEducationService>(); // Truyền thông GDSK
+        services.AddScoped<IPracticeLicenseService, PracticeLicenseService>(); // Quản lý hành nghề
+        services.AddScoped<IInterHospitalService, InterHospitalService>(); // Chia sẻ dữ liệu liên viện
 
         return services;
     }

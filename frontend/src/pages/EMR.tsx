@@ -7,11 +7,11 @@ import {
 } from 'antd';
 import {
   FileTextOutlined, SearchOutlined, MedicineBoxOutlined, HeartOutlined,
-  ExperimentOutlined, PrinterOutlined, EditOutlined, EyeOutlined,
+  ExperimentOutlined, PrinterOutlined, EditOutlined,
   PlusOutlined, UserOutlined, CalendarOutlined, ReloadOutlined,
   FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined,
-  FilePdfOutlined, HistoryOutlined, CopyOutlined,
-  DownloadOutlined, DeleteOutlined, WarningOutlined, AlertOutlined,
+  FilePdfOutlined, HistoryOutlined, CopyOutlined, CheckCircleOutlined,
+  DownloadOutlined, DeleteOutlined, AlertOutlined,
   LineChartOutlined, MedicineBoxOutlined as MedicineIcon,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -40,7 +40,7 @@ import { printEmrForm } from '../api/pdf';
 import client from '../api/client';
 import {
   getCompletenessCheck, getAttachments, saveAttachment, deleteAttachment,
-  getPrintLogs, logPrint, stampPrintLog, finalizeRecord,
+  getPrintLogs, stampPrintLog, finalizeRecord,
   type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto,
 } from '../api/emrAdmin';
 import {
@@ -53,7 +53,7 @@ import PatientTimeline from '../components/PatientTimeline';
 import VoiceDictation from '../components/VoiceDictation';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
-import { getSignatures, getSignaturesBatch, downloadSignedPdf } from '../api/digitalSignature';
+import { getSignatures, getSignaturesBatch } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 import {
   NursingCarePlanPrint, ICUNursingCarePlanPrint, NursingAssessmentPrint,
@@ -64,8 +64,20 @@ import {
   SurgicalSafetyChecklistPrint, GlucoseMonitoringPrint, PregnancyRiskPrint,
   SwallowingAssessmentPrint, DocumentScanPrint, VAPMonitoringPrint,
 } from '../components/EMRNursingPrintTemplates';
+import {
+  InternalMedicineMRPrint, InfectiousDiseaseMRPrint, GynecologyMRPrint,
+  PsychiatryMRPrint, DermatologyMRPrint, HematologyMRPrint,
+  SurgicalMRPrint, BurnsMRPrint, OncologyMRPrint,
+  DentalMRPrint, ENTMRPrint, OutpatientGeneralMRPrint,
+  OutpatientDentalMRPrint, CommuneHealthMRPrint,
+  TraditionalMedInpatientMRPrint, TraditionalMedOutpatientMRPrint, PediatricTCMMRPrint,
+  EyeTraumaMRPrint, EyeAnteriorMRPrint, EyePosteriorMRPrint,
+  EyeGlaucomaMRPrint, EyeStrabismusMRPrint, PediatricEyeMRPrint,
+  RehabilitationMRPrint, PediatricRehabMRPrint, OutpatientRehabMRPrint,
+  OnDemandExamPrint, SpecialtyExamPrint, NursingCareLevel1Print, NursingCareLevel2Print,
+} from '../components/SpecialtyMedicalRecordPrintTemplates';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
@@ -126,7 +138,7 @@ const EMR: React.FC = () => {
   const [examinations, setExaminations] = useState<ExaminationDto[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize] = useState(20);
   const [loading, setLoading] = useState(false);
 
   // Selected record
@@ -159,8 +171,6 @@ const EMR: React.FC = () => {
   const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
   const [attachmentForm] = Form.useForm();
 
-  const searchInputRef = useRef<ReturnType<typeof Input.Search> | null>(null);
-
   // Digital signature
   const { sessionActive, openSession, tryAutoOpenSession, signDocument } = useSigningContext();
   const [pinModalOpen, setPinModalOpen] = useState(false);
@@ -182,6 +192,12 @@ const EMR: React.FC = () => {
   const [drugReactionModalOpen, setDrugReactionModalOpen] = useState(false);
   const [drugReactionForm] = Form.useForm();
   const [drugReactionCopyRange, setDrugReactionCopyRange] = useState(false);
+  const emrClientIdRef = useRef(0);
+
+  const nextClientId = (prefix: string) => {
+    emrClientIdRef.current += 1;
+    return `${prefix}-${emrClientIdRef.current}`;
+  };
 
   const handleSaveDrugReaction = async () => {
     try {
@@ -193,7 +209,7 @@ const EMR: React.FC = () => {
         const newTests: typeof drugReactionTests = [];
         for (let i = 0; i < days; i++) {
           newTests.push({
-            id: `drt-${Date.now()}-${i}`,
+            id: nextClientId('drt'),
             date: start.add(i, 'day').format('YYYY-MM-DD'),
             drugName: values.drugName,
             dose: values.dose || '',
@@ -209,7 +225,7 @@ const EMR: React.FC = () => {
         message.success(`Da them ${days} phieu thu phan ung thuoc`);
       } else {
         setDrugReactionTests(prev => [...prev, {
-          id: `drt-${Date.now()}`,
+          id: nextClientId('drt'),
           date: values.testDate?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
           drugName: values.drugName,
           dose: values.dose || '',
@@ -237,7 +253,7 @@ const EMR: React.FC = () => {
     try {
       const values = await partographForm.validateFields();
       setPartographEntries(prev => [...prev, {
-        id: `pg-${Date.now()}`,
+        id: nextClientId('pg'),
         time: values.entryTime?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),
         cervicalDilation: values.cervicalDilation ?? 0,
         descent: values.descent || '',
@@ -792,6 +808,7 @@ ${conclusion ? `<div class="section">
       message.warning('Không thể in');
     }
   };
+  void handlePrint;
 
   // Columns for examination list
   const examColumns = [
@@ -1560,6 +1577,45 @@ ${conclusion ? `<div class="section">
                     { key: 'dd20-docscan', label: 'DD.20 - Scan tài liệu' },
                     { key: 'dd21-vap', label: 'DD.21 - VP thở máy' },
                   ]},
+                  { type: 'divider' as const },
+                  { key: 'specialty-grp', label: 'BA Chuyên khoa (TT32)', type: 'group' as const, children: [
+                    { key: 'sp-noikhoa', label: 'MS.01 - Nội khoa' },
+                    { key: 'sp-truyennhiem', label: 'MS.03 - Truyền nhiễm' },
+                    { key: 'sp-phukhoa', label: 'MS.04 - Phụ khoa' },
+                    { key: 'sp-tamthan', label: 'MS.07 - Tâm thần' },
+                    { key: 'sp-dalieu', label: 'MS.08 - Da liễu' },
+                    { key: 'sp-huyethoc', label: 'MS.09 - Huyết học' },
+                    { key: 'sp-ngoaikhoa', label: 'MS.10 - Ngoại khoa' },
+                    { key: 'sp-bong', label: 'MS.11 - Bỏng' },
+                    { key: 'sp-ungbuou', label: 'MS.12 - Ung bướu' },
+                    { key: 'sp-rhm', label: 'MS.13 - Răng Hàm Mặt' },
+                    { key: 'sp-tmh', label: 'MS.14 - Tai Mũi Họng' },
+                    { key: 'sp-ngoaitru', label: 'MS.15 - Ngoại trú chung' },
+                    { key: 'sp-ngoaitrurhm', label: 'MS.16 - Ngoại trú RHM' },
+                    { key: 'sp-tuyenxa', label: 'MS.17 - Tuyến xã/phường' },
+                    { key: 'sp-yhctnoidru', label: 'MS.18 - YHCT nội trú' },
+                    { key: 'sp-yhctngoaitru', label: 'MS.19 - YHCT ngoại trú' },
+                    { key: 'sp-nhiyhct', label: 'MS.20 - Nhi YHCT' },
+                  ]},
+                  { key: 'eye-grp', label: 'BA Mắt', type: 'group' as const, children: [
+                    { key: 'sp-matchanthuong', label: 'MS.21 - Mắt chấn thương' },
+                    { key: 'sp-matbantruoc', label: 'MS.22 - Mắt bán phần trước' },
+                    { key: 'sp-matdaymat', label: 'MS.23 - Mắt đáy mắt' },
+                    { key: 'sp-matglocom', label: 'MS.24 - Mắt Glocom' },
+                    { key: 'sp-matlac', label: 'MS.25 - Mắt Lác' },
+                    { key: 'sp-mattreem', label: 'MS.26 - Mắt trẻ em' },
+                  ]},
+                  { key: 'rehab-grp', label: 'BA PHCN', type: 'group' as const, children: [
+                    { key: 'sp-phcn', label: 'MS.27 - PHCN' },
+                    { key: 'sp-phcnnhi', label: 'MS.28 - PHCN Nhi' },
+                    { key: 'sp-phcnngoaitru', label: 'MS.29 - PHCN ngoại trú' },
+                  ]},
+                  { key: 'cert-grp', label: 'Giấy CN / Phiếu', type: 'group' as const, children: [
+                    { key: 'sp-giaykhamsuckhoe', label: 'MS.03 - Khám theo yêu cầu' },
+                    { key: 'sp-phieuchuyenkhoa', label: 'MS.04 - Khám chuyên khoa' },
+                    { key: 'sp-chamsoccap1', label: 'MS.37 - Chăm sóc cấp 1' },
+                    { key: 'sp-chamsoccap2', label: 'MS.38 - Chăm sóc cấp 2' },
+                  ]},
                 ], onClick: ({ key }) => handlePrintPreview(key) }}>
                   <Button size="small" icon={<PrinterOutlined />}>Biểu mẫu khác</Button>
                 </Dropdown>
@@ -1614,7 +1670,43 @@ ${conclusion ? `<div class="section">
             ) : detailLoading ? (
               <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
             ) : (
-              <Tabs activeKey={detailTab} onChange={setDetailTab} items={detailTabs} size="small" />
+              <>
+                {/* Digital signature stamp - hiển thị khi hồ sơ đã ký */}
+                {selectedExam && signatureMap.has(selectedExam.id) && (() => {
+                  const sig = signatureMap.get(selectedExam.id);
+                  if (!sig) return null;
+                  const orgName = sig.organizationName || sig.signerName;
+                  return (
+                    <div
+                      onClick={() => { setSelectedSignature(sig); setVerificationPanelOpen(true); }}
+                      style={{
+                        border: '2px solid #4caf50',
+                        borderRadius: 6,
+                        padding: '10px 16px',
+                        marginBottom: 12,
+                        background: '#f6ffed',
+                        fontFamily: "'Times New Roman', serif",
+                        position: 'relative',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute', top: -10, right: -6,
+                      }}>
+                        <CheckCircleOutlined style={{ fontSize: 28, color: '#4caf50', background: '#fff', borderRadius: '50%' }} />
+                      </div>
+                      <div style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#333', marginBottom: 4, fontSize: 13 }}>Signature Valid</div>
+                      {orgName && (
+                        <div style={{ paddingLeft: 12, fontSize: 13, color: '#cf1322' }}>
+                          Ký bởi: {orgName}
+                        </div>
+                      )}
+                      <div style={{ paddingLeft: 12, fontSize: 13, color: '#cf1322' }}>Ký ngày: {sig.signedAt}</div>
+                    </div>
+                  );
+                })()}
+                <Tabs activeKey={detailTab} onChange={setDetailTab} items={detailTabs} size="small" />
+              </>
             )}
           </Card>
         </Col>
@@ -1776,6 +1868,22 @@ ${conclusion ? `<div class="section">
           'dd17-glucose': 'Đường huyết (DD.17)', 'dd18-pregnancyrisk': 'Thai kỳ nguy cơ (DD.18)',
           'dd19-swallowing': 'Test nuốt (DD.19)', 'dd20-docscan': 'Scan tài liệu (DD.20)',
           'dd21-vap': 'VP thở máy (DD.21)',
+          'sp-noikhoa': 'BA Nội khoa (MS.01)', 'sp-truyennhiem': 'BA Truyền nhiễm (MS.03)',
+          'sp-phukhoa': 'BA Phụ khoa (MS.04)', 'sp-tamthan': 'BA Tâm thần (MS.07)',
+          'sp-dalieu': 'BA Da liễu (MS.08)', 'sp-huyethoc': 'BA Huyết học (MS.09)',
+          'sp-ngoaikhoa': 'BA Ngoại khoa (MS.10)', 'sp-bong': 'BA Bỏng (MS.11)',
+          'sp-ungbuou': 'BA Ung bướu (MS.12)', 'sp-rhm': 'BA RHM (MS.13)',
+          'sp-tmh': 'BA TMH (MS.14)', 'sp-ngoaitru': 'BA Ngoại trú (MS.15)',
+          'sp-ngoaitrurhm': 'BA Ngoại trú RHM (MS.16)', 'sp-tuyenxa': 'BA Tuyến xã (MS.17)',
+          'sp-yhctnoidru': 'BA YHCT nội trú (MS.18)', 'sp-yhctngoaitru': 'BA YHCT ngoại trú (MS.19)',
+          'sp-nhiyhct': 'BA Nhi YHCT (MS.20)',
+          'sp-matchanthuong': 'BA Mắt chấn thương (MS.21)', 'sp-matbantruoc': 'BA Mắt bán phần trước (MS.22)',
+          'sp-matdaymat': 'BA Mắt đáy mắt (MS.23)', 'sp-matglocom': 'BA Mắt Glocom (MS.24)',
+          'sp-matlac': 'BA Mắt Lác (MS.25)', 'sp-mattreem': 'BA Mắt trẻ em (MS.26)',
+          'sp-phcn': 'BA PHCN (MS.27)', 'sp-phcnnhi': 'BA PHCN Nhi (MS.28)',
+          'sp-phcnngoaitru': 'BA PHCN ngoại trú (MS.29)',
+          'sp-giaykhamsuckhoe': 'Khám theo yêu cầu (MS.03)', 'sp-phieuchuyenkhoa': 'Khám chuyên khoa (MS.04)',
+          'sp-chamsoccap1': 'Chăm sóc cấp 1 (MS.37)', 'sp-chamsoccap2': 'Chăm sóc cấp 2 (MS.38)',
         }[printType] ?? 'Biểu mẫu'}
         open={printDrawerOpen}
         onClose={() => setPrintDrawerOpen(false)}
@@ -1883,6 +1991,37 @@ ${conclusion ? `<div class="section">
           {printType === 'dd19-swallowing' && <SwallowingAssessmentPrint ref={printRef} record={medicalRecord} />}
           {printType === 'dd20-docscan' && <DocumentScanPrint ref={printRef} record={medicalRecord} />}
           {printType === 'dd21-vap' && <VAPMonitoringPrint ref={printRef} record={medicalRecord} />}
+          {/* Specialty Medical Record forms (TT32/2023) */}
+          {printType === 'sp-noikhoa' && <InternalMedicineMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-truyennhiem' && <InfectiousDiseaseMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-phukhoa' && <GynecologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-tamthan' && <PsychiatryMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-dalieu' && <DermatologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-huyethoc' && <HematologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-ngoaikhoa' && <SurgicalMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-bong' && <BurnsMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-ungbuou' && <OncologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-rhm' && <DentalMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-tmh' && <ENTMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-ngoaitru' && <OutpatientGeneralMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-ngoaitrurhm' && <OutpatientDentalMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-tuyenxa' && <CommuneHealthMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-yhctnoidru' && <TraditionalMedInpatientMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-yhctngoaitru' && <TraditionalMedOutpatientMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-nhiyhct' && <PediatricTCMMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-matchanthuong' && <EyeTraumaMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-matbantruoc' && <EyeAnteriorMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-matdaymat' && <EyePosteriorMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-matglocom' && <EyeGlaucomaMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-matlac' && <EyeStrabismusMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-mattreem' && <PediatricEyeMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-phcn' && <RehabilitationMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-phcnnhi' && <PediatricRehabMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-phcnngoaitru' && <OutpatientRehabMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-giaykhamsuckhoe' && <OnDemandExamPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-phieuchuyenkhoa' && <SpecialtyExamPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-chamsoccap1' && <NursingCareLevel1Print ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {printType === 'sp-chamsoccap2' && <NursingCareLevel2Print ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
         </div>
       </Drawer>
 
@@ -2095,7 +2234,7 @@ ${conclusion ? `<div class="section">
           try {
             const v = await anesthesiaMonitorForm.validateFields();
             setAnesthesiaEntries(prev => [...prev, {
-              id: `am-${Date.now()}`,
+              id: nextClientId('am'),
               time: v.time?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),
               bp: `${v.systolicBP ?? ''}/${v.diastolicBP ?? ''}`,
               hr: v.hr ?? 0,
@@ -2134,7 +2273,7 @@ ${conclusion ? `<div class="section">
           try {
             const v = await anesthesiaDrugForm.validateFields();
             setAnesthesiaDrugs(prev => [...prev, {
-              id: `ad-${Date.now()}`,
+              id: nextClientId('ad'),
               time: v.time?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),
               drugName: v.drugName,
               dose: v.dose || '',
@@ -2178,7 +2317,7 @@ ${conclusion ? `<div class="section">
           try {
             const v = await anesthesiaFluidForm.validateFields();
             setAnesthesiaFluids(prev => [...prev, {
-              id: `af-${Date.now()}`,
+              id: nextClientId('af'),
               type: v.fluidType,
               volume: v.volume || '',
               startTime: v.startTime?.format('YYYY-MM-DD HH:mm') || dayjs().format('YYYY-MM-DD HH:mm'),

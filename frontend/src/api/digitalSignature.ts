@@ -75,6 +75,9 @@ export interface DocumentSignatureDto {
   tsaTimestamp?: string;
   ocspStatus?: string;
   status: number;
+  organizationName?: string;
+  taxCode?: string;
+  certificateSubject?: string;
 }
 
 export interface TokenInfoDto {

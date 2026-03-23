@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -33,7 +33,6 @@ import {
   WalletOutlined,
   RollbackOutlined,
   ReloadOutlined,
-  SendOutlined,
   StopOutlined,
   EyeOutlined,
   ThunderboltOutlined,
@@ -144,6 +143,62 @@ interface RefundRecord {
 }
 
 // DailyReport interface - reserved for future use
+
+type PatientSearchItem = PatientBillingStatusDto & {
+  gender?: number;
+  dateOfBirth?: string;
+  phoneNumber?: string;
+  insuranceNumber?: string;
+  patientType?: number;
+};
+
+const parseCurrencyInput = (value: string | number | undefined) => {
+  const normalized = String(value ?? '').replace(/\$\s?|(,*)/g, '');
+  return Number(normalized || 0);
+};
+
+const mapDepositDto = (d: DepositDto): Deposit => ({
+  id: d.id,
+  patientId: d.patientId,
+  patientName: d.patientName,
+  patientCode: d.patientCode,
+  amount: d.amount,
+  remainingAmount: d.remainingAmount,
+  depositDate: d.createdAt,
+  cashier: d.cashierName,
+  status: d.status,
+  note: d.notes,
+});
+
+const mapRefundDto = (r: RefundDto): RefundRecord => ({
+  id: r.id,
+  patientId: r.patientId,
+  patientName: r.patientName,
+  patientCode: r.patientCode,
+  amount: r.refundAmount,
+  reason: r.reason,
+  refundDate: r.createdAt,
+  requestedBy: r.cashierName,
+  approvedBy: r.approvedByName,
+  status: r.status,
+  paymentMethod: r.refundMethodName,
+});
+
+const mapUnpaidServiceDto = (s: UnpaidServiceItemDto): UnpaidService => ({
+  id: s.id,
+  serviceCode: s.serviceCode,
+  serviceName: s.serviceName,
+  quantity: s.quantity,
+  unitPrice: s.unitPrice,
+  totalPrice: s.amount,
+  insuranceCoverage: s.insuranceRate,
+  insuranceAmount: s.insuranceAmount,
+  patientAmount: s.patientAmount,
+  serviceDate: s.orderedAt,
+  departmentName: s.executeDepartmentName || s.orderDepartmentName || '',
+  doctorName: '',
+  serviceType: s.serviceGroup,
+});
 
 // ============= MAIN COMPONENT =============
 
@@ -508,7 +563,7 @@ const Billing: React.FC = () => {
 
   // ============= E-INVOICE FUNCTIONS =============
 
-  const fetchEInvoices = async () => {
+  const fetchEInvoices = useCallback(async () => {
     setEInvoiceLoading(true);
     try {
       const params: Record<string, unknown> = {
@@ -528,9 +583,9 @@ const Billing: React.FC = () => {
       setEInvoices([]);
     }
     setEInvoiceLoading(false);
-  };
+  }, [eInvoiceDateRange, eInvoicePagination, eInvoiceSearchText, eInvoiceStatusFilter]);
 
-  const fetchEInvoiceStats = async () => {
+  const fetchEInvoiceStats = useCallback(async () => {
     try {
       const fromDate = eInvoiceDateRange?.[0]?.format('YYYY-MM-DD');
       const toDate = eInvoiceDateRange?.[1]?.format('YYYY-MM-DD');
@@ -539,7 +594,7 @@ const Billing: React.FC = () => {
     } catch {
       setEInvoiceStats(null);
     }
-  };
+  }, [eInvoiceDateRange]);
 
   const handleCreateEInvoice = async (values: Record<string, unknown>) => {
     try {
@@ -637,48 +692,16 @@ const Billing: React.FC = () => {
     }
   };
 
-  // ============= FETCH DATA ON TAB CHANGE =============
-
-  useEffect(() => {
-    if (activeTab === 'deposits') {
-      fetchDeposits();
-    } else if (activeTab === 'refunds') {
-      fetchRefunds();
-    } else if (activeTab === 'einvoice') {
-      fetchEInvoices();
-      fetchEInvoiceStats();
-    }
-  }, [activeTab]);
-
-  // Re-fetch e-invoices when pagination changes
-  useEffect(() => {
-    if (activeTab === 'einvoice') {
-      fetchEInvoices();
-    }
-  }, [eInvoicePagination.current, eInvoicePagination.pageSize]);
-
   const [depositSearchText, setDepositSearchText] = useState('');
 
-  const fetchDeposits = async (keyword?: string) => {
+  const fetchDeposits = useCallback(async (keyword?: string) => {
     try {
       setLoading(true);
       if (!keyword) {
         // Load deposits for selected patient if any, otherwise show empty
         if (selectedPatient) {
           const patientDeposits = await getPatientDeposits(selectedPatient.id);
-          const mappedDeposits = ((patientDeposits as any).data || []).map((d: DepositDto) => ({
-            id: d.id,
-            patientId: d.patientId,
-            patientName: d.patientName,
-            patientCode: d.patientCode,
-            amount: d.amount,
-            remainingAmount: d.remainingAmount,
-            depositDate: d.createdAt,
-            cashier: d.cashierName,
-            status: d.status,
-            note: d.notes,
-          }));
-          setDeposits(mappedDeposits);
+          setDeposits((patientDeposits.data || []).map(mapDepositDto));
         } else {
           setDeposits([]);
         }
@@ -687,7 +710,7 @@ const Billing: React.FC = () => {
 
       // Search for patient first, then get their deposits
       const response = await searchPatients({ keyword, pageSize: 10 });
-      const patients = (response as any).data?.items || [];
+      const patients = (response.data?.items || []) as PatientSearchItem[];
       if (patients.length === 0) {
         message.warning('Không tìm thấy bệnh nhân');
         setDeposits([]);
@@ -698,19 +721,7 @@ const Billing: React.FC = () => {
       for (const patient of patients) {
         try {
           const patientDeposits = await getPatientDeposits(patient.patientId);
-          const mappedDeposits = ((patientDeposits as any).data || []).map((d: DepositDto) => ({
-            id: d.id,
-            patientId: d.patientId,
-            patientName: d.patientName,
-            patientCode: d.patientCode,
-            amount: d.amount,
-            remainingAmount: d.remainingAmount,
-            depositDate: d.createdAt,
-            cashier: d.cashierName,
-            status: d.status,
-            note: d.notes,
-          }));
-          allDeposits.push(...mappedDeposits);
+          allDeposits.push(...(patientDeposits.data || []).map(mapDepositDto));
         } catch {
           // Skip patients with no deposits
         }
@@ -726,33 +737,40 @@ const Billing: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPatient]);
 
-  const fetchRefunds = async () => {
+  const fetchRefunds = useCallback(async () => {
     try {
       setLoading(true);
       const response = await searchRefunds({ pageSize: 1000 });
-      const mappedRefunds = ((response as any).data?.items || []).map((r: RefundDto) => ({
-        id: r.id,
-        patientId: r.patientId,
-        patientName: r.patientName,
-        patientCode: r.patientCode,
-        amount: r.refundAmount,
-        reason: r.reason,
-        refundDate: r.createdAt,
-        requestedBy: r.cashierName,
-        approvedBy: r.approvedByName,
-        status: r.status,
-        paymentMethod: r.refundMethodName,
-      }));
-      setRefunds(mappedRefunds);
+      setRefunds((response.data?.items || []).map(mapRefundDto));
     } catch (error) {
       message.warning('Không thể tải dữ liệu hoàn tiền');
       console.warn('Error fetching refunds:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // ============= FETCH DATA ON TAB CHANGE =============
+
+  useEffect(() => {
+    if (activeTab === 'deposits') {
+      void fetchDeposits();
+    } else if (activeTab === 'refunds') {
+      void fetchRefunds();
+    } else if (activeTab === 'einvoice') {
+      void fetchEInvoices();
+      void fetchEInvoiceStats();
+    }
+  }, [activeTab, fetchDeposits, fetchRefunds, fetchEInvoices, fetchEInvoiceStats]);
+
+  // Re-fetch e-invoices when pagination changes
+  useEffect(() => {
+    if (activeTab === 'einvoice') {
+      void fetchEInvoices();
+    }
+  }, [activeTab, fetchEInvoices]);
 
   // ============= UNPAID SERVICES TAB =============
 
@@ -767,14 +785,15 @@ const Billing: React.FC = () => {
       setLoading(true);
       const response = await searchPatients({ keyword: value, pageSize: 10 });
 
-      if (((response as any).data?.items || []).length === 0) {
+      const patients = (response.data?.items || []) as PatientSearchItem[];
+      if (patients.length === 0) {
         message.warning('Không tìm thấy bệnh nhân');
         setSelectedPatient(null);
         setUnpaidServices([]);
         return;
       }
 
-      const patientData = ((response as any).data?.items || [])[0];
+      const patientData = patients[0];
 
       // Map API patient data to local interface
       const patient: Patient = {
@@ -784,8 +803,8 @@ const Billing: React.FC = () => {
         gender: patientData.gender ?? 0, // 0 = unknown
         dateOfBirth: patientData.dateOfBirth || '',
         phoneNumber: patientData.phoneNumber || '',
-        insuranceNumber: '',
-        patientType: 1, // Default
+        insuranceNumber: patientData.insuranceNumber,
+        patientType: patientData.patientType ?? 1,
       };
 
       setSelectedPatient(patient);
@@ -793,23 +812,7 @@ const Billing: React.FC = () => {
       // Fetch unpaid services for the patient
       const unpaidServicesData = await getUnpaidServices(patientData.patientId);
 
-      const mappedServices: UnpaidService[] = ((unpaidServicesData as any).data || []).map((s: UnpaidServiceItemDto) => ({
-        id: s.id,
-        serviceCode: s.serviceCode,
-        serviceName: s.serviceName,
-        quantity: s.quantity,
-        unitPrice: s.unitPrice,
-        totalPrice: s.amount,
-        insuranceCoverage: s.insuranceRate,
-        insuranceAmount: s.insuranceAmount,
-        patientAmount: s.patientAmount,
-        serviceDate: s.orderedAt,
-        departmentName: s.executeDepartmentName || s.orderDepartmentName || '',
-        doctorName: '',
-        serviceType: s.serviceGroup,
-      }));
-
-      setUnpaidServices(mappedServices);
+      setUnpaidServices((unpaidServicesData.data || []).map(mapUnpaidServiceDto));
       message.success(`Tìm thấy bệnh nhân: ${patient.name}`);
     } catch (error) {
       message.warning('Lỗi khi tìm kiếm bệnh nhân');
@@ -1078,22 +1081,7 @@ const Billing: React.FC = () => {
       // Refresh unpaid services
       if (selectedPatient) {
         const unpaidServicesData = await getUnpaidServices(selectedPatient.id);
-        const mappedServices = ((unpaidServicesData as any).data || []).map((s: UnpaidServiceItemDto) => ({
-          id: s.id,
-          serviceCode: s.serviceCode,
-          serviceName: s.serviceName,
-          quantity: s.quantity,
-          unitPrice: s.unitPrice,
-          totalPrice: s.amount,
-          insuranceCoverage: s.insuranceRate,
-          insuranceAmount: s.insuranceAmount,
-          patientAmount: s.patientAmount,
-          serviceDate: s.orderedAt,
-          departmentName: s.executeDepartmentName || s.orderDepartmentName || '',
-          doctorName: '',
-          serviceType: s.serviceGroup,
-        }));
-        setUnpaidServices(mappedServices);
+        setUnpaidServices((unpaidServicesData.data || []).map(mapUnpaidServiceDto));
       }
 
       setSelectedServices([]);
@@ -1179,7 +1167,7 @@ const Billing: React.FC = () => {
                     <InputNumber
                       style={{ width: '100%' }}
                       formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
+                      parser={(value) => parseCurrencyInput(value) as never}
                       min={0}
                       suffix="đ"
                       size="large"
@@ -1586,7 +1574,7 @@ const Billing: React.FC = () => {
               if (!value) return;
               try {
                 const response = await searchPatients({ keyword: value, pageSize: 1 });
-                const items = (response as any).data?.items || [];
+                const items = (response.data?.items || []) as PatientSearchItem[];
                 if (items.length > 0) {
                   const p = items[0];
                   depositForm.setFieldsValue({
@@ -1597,7 +1585,7 @@ const Billing: React.FC = () => {
                 } else {
                   message.warning('Không tìm thấy bệnh nhân');
                 }
-              } catch (error) {
+              } catch {
                 message.warning('Lỗi khi tìm kiếm bệnh nhân');
               }
             }}
@@ -1616,7 +1604,7 @@ const Billing: React.FC = () => {
           <InputNumber
             style={{ width: '100%' }}
             formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
+            parser={(value) => parseCurrencyInput(value) as never}
             min={0}
             suffix="đ"
             size="large"
@@ -1882,7 +1870,7 @@ const Billing: React.FC = () => {
               if (!value) return;
               try {
                 const response = await searchPatients({ keyword: value, pageSize: 1 });
-                const items = (response as any).data?.items || [];
+                const items = (response.data?.items || []) as PatientSearchItem[];
                 if (items.length > 0) {
                   const p = items[0];
                   refundForm.setFieldsValue({
@@ -1893,7 +1881,7 @@ const Billing: React.FC = () => {
                 } else {
                   message.warning('Không tìm thấy bệnh nhân');
                 }
-              } catch (error) {
+              } catch {
                 message.warning('Lỗi khi tìm kiếm bệnh nhân');
               }
             }}
@@ -1925,7 +1913,7 @@ const Billing: React.FC = () => {
           <InputNumber
             style={{ width: '100%' }}
             formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
+            parser={(value) => parseCurrencyInput(value) as never}
             min={0}
             suffix="đ"
             size="large"
@@ -1968,7 +1956,7 @@ const Billing: React.FC = () => {
         getOutpatientRevenueReport(requestDto),
         getDebtStatistics().catch(() => null),
       ]);
-      const data = (revenueResponse as any).data;
+      const data = revenueResponse.data;
       if (data) {
         setReportData(data);
         message.success('Đã tải báo cáo doanh thu');
@@ -1976,7 +1964,7 @@ const Billing: React.FC = () => {
         message.warning('Không có dữ liệu báo cáo cho khoảng thời gian này');
       }
       if (debtResponse) {
-        setDebtData((debtResponse as any).data || null);
+        setDebtData(debtResponse.data || null);
       }
     } catch (error) {
       console.warn('View report error:', error);
@@ -1994,7 +1982,7 @@ const Billing: React.FC = () => {
         toDate: reportDateRange[1].format('YYYY-MM-DD'),
       };
       const response = await getOutpatientRevenueReport(requestDto);
-      const data = (response as any).data as OutpatientRevenueReportDto | undefined;
+      const data = response.data;
       if (!data) {
         message.warning('Không có dữ liệu để xuất');
         return;

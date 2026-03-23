@@ -26,6 +26,7 @@ import {
   SettingOutlined,
   LinkOutlined,
   ExclamationCircleOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import risApi from '../api/ris';
 import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
@@ -162,6 +163,38 @@ const DicomViewer: React.FC = () => {
     }
   };
 
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleExportDicom = async () => {
+    if (!studyInfo?.orthancStudyId) {
+      message.info('Khong tim thay study de xuat');
+      return;
+    }
+    setExportLoading(true);
+    try {
+      const archiveUrl = `${ORTHANC_BASE}/studies/${studyInfo.orthancStudyId}/archive`;
+      const response = await fetch(archiveUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DICOM_${studyInfo.patientId || 'unknown'}_${studyInstanceUID.slice(-8)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success('Da xuat DICOM thanh cong');
+    } catch (err) {
+      console.warn('DICOM export error:', err);
+      message.warning('Khong the xuat DICOM. Vui long kiem tra ket noi PACS.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
@@ -199,6 +232,14 @@ const DicomViewer: React.FC = () => {
                 </Button>
                 <Button icon={<DownloadOutlined />} onClick={handleDownloadStudy}>
                   Tải về
+                </Button>
+                <Button
+                  icon={<ExportOutlined />}
+                  onClick={handleExportDicom}
+                  loading={exportLoading}
+                  data-testid="dicom-export-btn"
+                >
+                  Xuất DICOM
                 </Button>
               </>
             )}

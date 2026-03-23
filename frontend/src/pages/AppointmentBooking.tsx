@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Form, Input, Select, DatePicker, Button, Steps, Result, Tag, message, Spin, Divider, Typography, Space as AntSpace } from 'antd';
+import { Card, Row, Col, Form, Input, Select, DatePicker, Button, Steps, Result, Tag, message, Spin, Divider, Typography } from 'antd';
 import { CalendarOutlined, UserOutlined, PhoneOutlined, SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, MedicineBoxOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {

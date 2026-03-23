@@ -4,6 +4,15 @@ import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/ho
 import type {
   MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto, NursingCareSheetDto,
 } from '../api/examination';
+import type { DocumentSignatureDto } from '../api/digitalSignature';
+
+/** Digital signature stamp matching Vietnamese USB Token format */
+export interface SignatureStampInfo {
+  organizationName?: string;
+  taxCode?: string;
+  signedAt?: string;
+  signerName?: string;
+}
 
 // Shared print styles
 const printStyles = `
@@ -41,6 +50,11 @@ const printStyles = `
 .emr-print-container .signature-row .sig-title { font-weight: bold; font-size: 13px; }
 .emr-print-container .signature-row .sig-date { font-style: italic; font-size: 12px; margin-bottom: 40px; }
 .emr-print-container .form-number { text-align: right; font-size: 11px; font-style: italic; }
+.emr-print-container .digital-sig-stamp { border: 2px solid #52c41a; border-radius: 4px; padding: 8px 12px; display: inline-block; text-align: left; font-size: 11px; line-height: 1.5; margin-top: 4px; position: relative; background: #fff; }
+.emr-print-container .digital-sig-stamp .sig-stamp-header { font-weight: bold; font-style: italic; color: #333; margin-bottom: 4px; }
+.emr-print-container .digital-sig-stamp .sig-stamp-field { padding-left: 8px; color: #cf1322; }
+.emr-print-container .digital-sig-stamp .sig-stamp-check { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; color: #4caf50; }
+.emr-print-container .digital-sig-stamp .sig-stamp-check svg { width: 28px; height: 28px; }
 `;
 
 // Print Header
@@ -53,19 +67,83 @@ const PrintHeader: React.FC<{ formNumber?: string }> = ({ formNumber }) => (
   </div>
 );
 
+/** Green checkmark SVG icon for digital signature stamp */
+const CheckMarkSvg = () => (
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="11" fill="#4caf50" opacity="0.15" />
+    <path d="M6 12.5L10 16.5L18 8.5" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/** Reusable digital signature stamp - matches Vietnamese USB Token CKS format */
+export const DigitalSignatureStamp: React.FC<{ stamp?: SignatureStampInfo }> = ({ stamp }) => {
+  if (!stamp) return null;
+  return (
+    <div className="digital-sig-stamp" style={{ border: '2px solid #52c41a' }}>
+      <div className="sig-stamp-check"><CheckMarkSvg /></div>
+      <div className="sig-stamp-header" style={{ fontWeight: 'bold', fontStyle: 'italic' }}>Signature Valid</div>
+      {stamp.organizationName && (
+        <div className="sig-stamp-field" style={{ color: '#cf1322' }}>Ký bởi: {stamp.organizationName}</div>
+      )}
+      {stamp.signerName && !stamp.organizationName && (
+        <div className="sig-stamp-field" style={{ color: '#cf1322' }}>Ký bởi: {stamp.signerName}</div>
+      )}
+      {stamp.signedAt && (
+        <div className="sig-stamp-field" style={{ color: '#cf1322' }}>Ký ngày: {dayjs(stamp.signedAt).format('DD- MM- YYYY')}</div>
+      )}
+    </div>
+  );
+};
+
+/** Parse DocumentSignatureDto to SignatureStampInfo */
+export function toSignatureStamp(sig?: DocumentSignatureDto | null): SignatureStampInfo | undefined {
+  if (!sig) return undefined;
+  // Parse organizationName from certificateSubject (CN=..., O=..., OID.x.x=MST:...)
+  let orgName = sig.organizationName;
+  let taxCode = sig.taxCode;
+  if (!orgName && sig.certificateSubject) {
+    const oMatch = sig.certificateSubject.match(/O\s*=\s*([^,]+)/i);
+    if (oMatch) orgName = oMatch[1].trim();
+  }
+  if (!taxCode && sig.certificateSubject) {
+    const taxMatch = sig.certificateSubject.match(/(?:OID\.\d[\d.]*|SERIALNUMBER)\s*=\s*(?:MST:?)?\s*(\d+)/i);
+    if (taxMatch) taxCode = taxMatch[1].trim();
+  }
+  return {
+    organizationName: orgName,
+    taxCode: taxCode,
+    signedAt: sig.signedAt,
+    signerName: sig.signerName,
+  };
+}
+
 // Signature Block
-const SignatureBlock: React.FC<{ leftTitle: string; rightTitle: string; date?: Date }> = ({ leftTitle, rightTitle, date }) => (
+const SignatureBlock: React.FC<{
+  leftTitle: string;
+  rightTitle: string;
+  date?: Date;
+  leftStamp?: SignatureStampInfo;
+  rightStamp?: SignatureStampInfo;
+}> = ({ leftTitle, rightTitle, date, leftStamp, rightStamp }) => (
   <div className="signature-row">
     <div className="sig">
       <div className="sig-title">{leftTitle}</div>
-      <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      {leftStamp ? (
+        <DigitalSignatureStamp stamp={leftStamp} />
+      ) : (
+        <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      )}
     </div>
     <div className="sig">
       <div className="sig-date">
         {date ? `Ngày ${dayjs(date).format('DD')} tháng ${dayjs(date).format('MM')} năm ${dayjs(date).format('YYYY')}` : ''}
       </div>
       <div className="sig-title">{rightTitle}</div>
-      <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      {rightStamp ? (
+        <DigitalSignatureStamp stamp={rightStamp} />
+      ) : (
+        <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      )}
     </div>
   </div>
 );

@@ -425,6 +425,69 @@ public class HISDbContext : DbContext
     public DbSet<TbHivRecord> TbHivRecords => Set<TbHivRecord>();
     public DbSet<TbHivFollowUp> TbHivFollowUps => Set<TbHivFollowUp>();
 
+    // Y tế công cộng (Public Health)
+    public DbSet<HealthCheckup> HealthCheckups => Set<HealthCheckup>();
+    public DbSet<VaccinationRecord> VaccinationRecords => Set<VaccinationRecord>();
+    public DbSet<VaccinationCampaign> VaccinationCampaigns => Set<VaccinationCampaign>();
+    public DbSet<DiseaseReport> DiseaseReports => Set<DiseaseReport>();
+    public DbSet<OutbreakEvent> OutbreakEvents => Set<OutbreakEvent>();
+    public DbSet<SchoolHealthExam> SchoolHealthExams => Set<SchoolHealthExam>();
+    public DbSet<OccupationalHealthExam> OccupationalHealthExams => Set<OccupationalHealthExam>();
+    public DbSet<MethadonePatient> MethadonePatients => Set<MethadonePatient>();
+    public DbSet<MethadoneDosingRecord> MethadoneDosingRecords => Set<MethadoneDosingRecord>();
+    public DbSet<MethadoneUrineTest> MethadoneUrineTests => Set<MethadoneUrineTest>();
+
+    // An toàn vệ sinh thực phẩm (Food Safety)
+    public DbSet<FoodPoisoningIncident> FoodPoisoningIncidents => Set<FoodPoisoningIncident>();
+    public DbSet<FoodSafetySample> FoodSafetySamples => Set<FoodSafetySample>();
+    public DbSet<FoodEstablishmentInspection> FoodEstablishmentInspections => Set<FoodEstablishmentInspection>();
+
+    // Sức khỏe cộng đồng (Community Health / WHO PEN NCD)
+    public DbSet<HouseholdHealthRecord> HouseholdHealthRecords => Set<HouseholdHealthRecord>();
+    public DbSet<NcdScreening> NcdScreenings => Set<NcdScreening>();
+    public DbSet<CommunityHealthTeam> CommunityHealthTeams => Set<CommunityHealthTeam>();
+
+    // Quản lý HIV/AIDS
+    public DbSet<HivPatient> HivPatients => Set<HivPatient>();
+    public DbSet<HivLabResult> HivLabResults => Set<HivLabResult>();
+    public DbSet<PmtctRecord> PmtctRecords => Set<PmtctRecord>();
+
+    // Medinet: Giám định Y khoa (Medical Forensics)
+    public DbSet<ForensicCase> ForensicCases => Set<ForensicCase>();
+    public DbSet<ForensicExamination> ForensicExaminations => Set<ForensicExamination>();
+
+    // Medinet: Y học cổ truyền (Traditional Medicine)
+    public DbSet<TraditionalMedicineTreatment> TraditionalMedicineTreatments => Set<TraditionalMedicineTreatment>();
+    public DbSet<HerbalPrescription> HerbalPrescriptions => Set<HerbalPrescription>();
+
+    // Medinet: Sức khỏe sinh sản (Reproductive Health)
+    public DbSet<PrenatalRecord> PrenatalRecords => Set<PrenatalRecord>();
+    public DbSet<FamilyPlanningRecord> FamilyPlanningRecords => Set<FamilyPlanningRecord>();
+
+    // Medinet: Sức khỏe tâm thần (Mental Health)
+    public DbSet<MentalHealthCase> MentalHealthCases => Set<MentalHealthCase>();
+    public DbSet<PsychiatricAssessment> PsychiatricAssessments => Set<PsychiatricAssessment>();
+
+    // Medinet: Quản lý môi trường y tế (Environmental Health)
+    public DbSet<WasteRecord> WasteRecords => Set<WasteRecord>();
+    public DbSet<EnvironmentalMonitoring> EnvironmentalMonitorings => Set<EnvironmentalMonitoring>();
+
+    // Medinet: Sổ chấn thương (Trauma Registry)
+    public DbSet<TraumaCase> TraumaCases => Set<TraumaCase>();
+
+    // Medinet: Dân số - KHHGĐ (Population Health)
+    public DbSet<PopulationRecord> PopulationRecords => Set<PopulationRecord>();
+
+    // Medinet: Truyền thông GDSK (Health Education)
+    public DbSet<HealthCampaign> HealthCampaigns => Set<HealthCampaign>();
+    public DbSet<HealthEducationMaterial> HealthEducationMaterials => Set<HealthEducationMaterial>();
+
+    // Medinet: Quản lý hành nghề (Practice License Management)
+    public DbSet<PracticeLicense> PracticeLicenses => Set<PracticeLicense>();
+
+    // Medinet: Chia sẻ dữ liệu liên viện (Inter-Hospital Sharing)
+    public DbSet<InterHospitalRequest> InterHospitalRequests => Set<InterHospitalRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

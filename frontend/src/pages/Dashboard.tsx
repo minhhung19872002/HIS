@@ -25,6 +25,7 @@ import {
   Legend,
 } from 'recharts';
 import { statisticsApi } from '../api/system';
+import type { HospitalDashboardDto, DepartmentStatisticsDto } from '../api/system';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -62,6 +63,40 @@ interface DashboardData {
   revenueByPatientType: { name: string; value: number; color: string }[];
 }
 
+type TrendPoint = {
+  date?: string;
+  outpatients?: number;
+  admissions?: number;
+  revenue?: number;
+};
+
+type DashboardApiExtras = {
+  trends?: TrendPoint[];
+  todayOutpatients?: number;
+  currentInpatients?: number;
+  todayEmergencies?: number;
+  todaySurgeries?: number;
+  todayAdmissions?: number;
+  todayDischarges?: number;
+  availableBeds?: number;
+  todayRevenue?: number;
+  opdCompleted?: number;
+  opdPending?: number;
+  radiologyCompleted?: number;
+  radiologyPending?: number;
+  labCompleted?: number;
+  labPending?: number;
+  surgeryCompleted?: number;
+  surgeryPending?: number;
+  procedureCompleted?: number;
+  procedurePending?: number;
+  prescriptionCompleted?: number;
+  prescriptionPending?: number;
+  revenueBHYT?: number;
+  revenueSelfPay?: number;
+  revenueOther?: number;
+};
+
 const CHART_COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'];
 
 const Dashboard: React.FC = () => {
@@ -90,8 +125,8 @@ const Dashboard: React.FC = () => {
         statisticsApi.getDepartmentStatistics(dayjs().format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')),
       ]);
 
-      const d = dashRes.status === 'fulfilled' ? (dashRes.value.data as any) : null;
-      const depts = deptRes.status === 'fulfilled' ? ((deptRes.value.data as any) ?? []) : [];
+      const d = dashRes.status === 'fulfilled' ? (dashRes.value.data as HospitalDashboardDto & DashboardApiExtras) : null;
+      const depts = deptRes.status === 'fulfilled' ? ((deptRes.value.data as DepartmentStatisticsDto[]) ?? []) : [];
 
       if (d) {
         const rawTrends = Array.isArray(d.trends) ? d.trends : [];
@@ -104,17 +139,17 @@ const Dashboard: React.FC = () => {
           dischargeCount: d.todayDischarges ?? d.dischargeCount ?? 0,
           availableBeds: d.availableBeds ?? 0,
           totalRevenue: d.todayRevenue ?? d.totalRevenue ?? 0,
-          trends: rawTrends.map((t: any) => ({
+          trends: rawTrends.map((t: TrendPoint) => ({
             date: dayjs(t.date).format('DD/MM'),
             outpatients: t.outpatients ?? 0,
             admissions: t.admissions ?? 0,
             revenue: t.revenue ?? 0,
           })),
           outpatientByDepartment: Array.isArray(depts)
-            ? depts.map((dep: any) => ({ departmentName: dep.departmentName ?? dep.name ?? 'N/A', count: dep.outpatientCount ?? dep.count ?? 0 })).filter((d: any) => d.count > 0)
+            ? depts.map((dep) => ({ departmentName: dep.departmentName ?? 'N/A', count: dep.outpatientCount ?? 0 })).filter((dept) => dept.count > 0)
             : d.outpatientByDepartment ?? [],
           revenueByDepartment: Array.isArray(depts)
-            ? depts.map((dep: any) => ({ departmentName: dep.departmentName ?? dep.name ?? 'N/A', revenue: dep.revenue ?? 0 })).filter((d: any) => d.revenue > 0)
+            ? depts.map((dep) => ({ departmentName: dep.departmentName ?? 'N/A', revenue: dep.totalRevenue ?? 0 })).filter((dept) => dept.revenue > 0)
             : d.revenueByDepartment ?? [],
           serviceStatuses: [
             { name: 'Khám bệnh', icon: <UserOutlined />, done: d.opdCompleted ?? d.todayOutpatients ?? 0, pending: d.opdPending ?? Math.max(0, (d.todayOutpatients ?? 0) - (d.opdCompleted ?? 0)), color: '#1890ff' },
@@ -337,9 +372,9 @@ const Dashboard: React.FC = () => {
                         <YAxis yAxisId="right" orientation="right" fontSize={12}
                           tickFormatter={(v) => `${(v / 1000000).toFixed(0)}tr`} />
                         <RechartsTooltip
-                          formatter={(value: any, name: any) => {
+                          formatter={(value: number | undefined, name?: string) => {
                             if (name === 'Doanh thu') return [`${(value ?? 0).toLocaleString('vi-VN')} ₫`, 'Doanh thu'];
-                            return [value ?? 0, name];
+                            return [value ?? 0, name ?? ''];
                           }}
                         />
                         <Legend />
@@ -384,7 +419,7 @@ const Dashboard: React.FC = () => {
                           outerRadius={100}
                           paddingAngle={3}
                           dataKey="value"
-                          label={({ name, percent }: any) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                          label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
                         >
                           {pieData.map((entry, i) => (
                             <Cell key={`cell-${i}`} fill={entry.color} />
@@ -462,7 +497,7 @@ const Dashboard: React.FC = () => {
                         ))}
                       </Pie>
                       <RechartsTooltip
-                        formatter={(value: any, name: any) => [`${(value ?? 0).toLocaleString('vi-VN')} ₫`, name]}
+                        formatter={(value: number | undefined, name?: string) => [`${(value ?? 0).toLocaleString('vi-VN')} ?`, name ?? '']}
                       />
                     </PieChart>
                   ) : null}
@@ -544,3 +579,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+

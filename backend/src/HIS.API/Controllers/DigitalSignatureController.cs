@@ -359,9 +359,17 @@ public class DigitalSignatureController : ControllerBase
                 CaProvider = ds.CaProvider,
                 TsaTimestamp = ds.TsaTimestamp,
                 OcspStatus = ds.OcspStatus,
-                Status = ds.Status
+                Status = ds.Status,
+                CertificateSubject = ds.CertificateSubject,
             })
             .ToListAsync();
+
+        // Post-process to parse org name and tax code from CertificateSubject
+        foreach (var sig in signatures)
+        {
+            sig.OrganizationName = ParseOrganizationName(sig.CertificateSubject);
+            sig.TaxCode = ParseTaxCode(sig.CertificateSubject);
+        }
 
         return Ok(signatures);
     }
@@ -609,19 +617,26 @@ public class DigitalSignatureController : ControllerBase
 
         var result = signatures.ToDictionary(
             ds => ds.DocumentId.ToString(),
-            ds => new DocumentSignatureDto
+            ds =>
             {
-                Id = ds.Id,
-                DocumentId = ds.DocumentId,
-                DocumentType = ds.DocumentType,
-                DocumentCode = ds.DocumentCode,
-                SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
-                SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
-                CertificateSerial = ds.CertificateSerial,
-                CaProvider = ds.CaProvider,
-                TsaTimestamp = ds.TsaTimestamp,
-                OcspStatus = ds.OcspStatus,
-                Status = ds.Status
+                var dto = new DocumentSignatureDto
+                {
+                    Id = ds.Id,
+                    DocumentId = ds.DocumentId,
+                    DocumentType = ds.DocumentType,
+                    DocumentCode = ds.DocumentCode,
+                    SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
+                    SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
+                    CertificateSerial = ds.CertificateSerial,
+                    CaProvider = ds.CaProvider,
+                    TsaTimestamp = ds.TsaTimestamp,
+                    OcspStatus = ds.OcspStatus,
+                    Status = ds.Status,
+                    CertificateSubject = ds.CertificateSubject,
+                };
+                dto.OrganizationName = ParseOrganizationName(ds.CertificateSubject);
+                dto.TaxCode = ParseTaxCode(ds.CertificateSubject);
+                return dto;
             });
 
         return Ok(result);
@@ -694,6 +709,26 @@ public class DigitalSignatureController : ControllerBase
         if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
             return userId;
         throw new UnauthorizedAccessException("User ID not found in token");
+    }
+
+    /// <summary>Extract organization name (O= field) from X.509 CertificateSubject</summary>
+    private static string? ParseOrganizationName(string? subject)
+    {
+        if (string.IsNullOrEmpty(subject)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(subject, @"O=([^,]+)");
+        return match.Success ? match.Groups[1].Value.Trim() : null;
+    }
+
+    /// <summary>Extract tax code (OID 2.5.4.97 or MST: pattern) from X.509 CertificateSubject</summary>
+    private static string? ParseTaxCode(string? subject)
+    {
+        if (string.IsNullOrEmpty(subject)) return null;
+        // Try OID 2.5.4.97 (organizationIdentifier) first
+        var match = System.Text.RegularExpressions.Regex.Match(subject, @"(?:2\.5\.4\.97|OID\.2\.5\.4\.97|VATIT-|MST:?\s*)(\d{10,13})");
+        if (match.Success) return match.Groups[1].Value.Trim();
+        // Try OU= field which sometimes contains tax code
+        match = System.Text.RegularExpressions.Regex.Match(subject, @"OU=(?:MST:?\s*)?(\d{10,13})");
+        return match.Success ? match.Groups[1].Value.Trim() : null;
     }
 
     #endregion

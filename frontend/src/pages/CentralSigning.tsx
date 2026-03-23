@@ -2,20 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Tabs, Table, Button, Space, Tag, Modal, Form, Input, Select,
   DatePicker, Statistic, Row, Col, message, Spin, InputNumber, Switch,
-  Slider, ColorPicker, Descriptions, Badge, Typography, Popconfirm, Alert
+  Slider, Descriptions, Badge, Typography, Popconfirm, Alert
 } from 'antd';
 import {
   SafetyCertificateOutlined, FileProtectOutlined, BarChartOutlined,
   SettingOutlined, KeyOutlined, PlusOutlined, ReloadOutlined,
   DeleteOutlined, EditOutlined, CloudServerOutlined, QrcodeOutlined,
   CheckCircleOutlined, CloseCircleOutlined, ExportOutlined,
-  UploadOutlined, ScanOutlined
+  ScanOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as centralSigningApi from '../api/centralSigning';
 
-const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 interface ManagedCertificate {
@@ -48,7 +47,7 @@ interface AppearanceConfig {
 }
 
 const CentralSigning: React.FC = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('certs');
   const [certificates, setCertificates] = useState<ManagedCertificate[]>([]);
   const [transactions, setTransactions] = useState<SigningTransaction[]>([]);
@@ -94,9 +93,10 @@ const CentralSigning: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.allSettled([fetchCertificates(), fetchTransactions(), fetchStats(), fetchAppearance()])
-      .finally(() => setLoading(false));
+    queueMicrotask(() => {
+      Promise.allSettled([fetchCertificates(), fetchTransactions(), fetchStats(), fetchAppearance()])
+        .finally(() => setLoading(false));
+    });
   }, [fetchCertificates, fetchTransactions, fetchStats, fetchAppearance]);
 
   useEffect(() => {

@@ -32,7 +32,14 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { financeApi } from '../api/system';
+import {
+  financeApi,
+  type RevenueByExecutingDeptDto,
+  type RevenueByServiceDto,
+  type CostByDepartmentDto,
+  type InsuranceReconciliationDto,
+  type FinancialSummaryReportDto,
+} from '../api/system';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -71,6 +78,8 @@ interface DepartmentRevenue {
   growth: number;
 }
 
+type FinanceDetailRecord = RevenueRecord | ExpenseRecord | DepartmentRevenue;
+
 const Finance: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [revenueRecords, setRevenueRecords] = useState<RevenueRecord[]>([]);
@@ -90,7 +99,7 @@ const Finance: React.FC = () => {
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('all');
   const [reportLoading, setReportLoading] = useState<string | null>(null);
   const [financeDetailVisible, setFinanceDetailVisible] = useState(false);
-  const [selectedFinanceRecord, setSelectedFinanceRecord] = useState<any>(null);
+  const [selectedFinanceRecord, setSelectedFinanceRecord] = useState<FinanceDetailRecord | null>(null);
   const [financeDetailType, setFinanceDetailType] = useState<'revenue' | 'expense' | 'department'>('revenue');
 
   // Apply revenue filters
@@ -148,7 +157,8 @@ const Finance: React.FC = () => {
       ]);
 
       // Map department revenue
-      const deptData: DepartmentRevenue[] = ((revenueByDeptRes as any).data || []).map((d: any, idx: number) => ({
+      const deptRows = revenueByDeptRes.data ?? [];
+      const deptData: DepartmentRevenue[] = deptRows.map((d: RevenueByExecutingDeptDto, idx: number) => ({
         key: d.departmentId || `dept-${idx}`,
         department: d.departmentName || d.departmentCode,
         totalRevenue: d.totalRevenue || 0,
@@ -161,7 +171,8 @@ const Finance: React.FC = () => {
       setDepartmentRevenue(deptData);
 
       // Map revenue records from service data
-      const revData: RevenueRecord[] = ((revenueByServiceRes as any).data || []).map((s: any, idx: number) => ({
+      const serviceRows = revenueByServiceRes.data ?? [];
+      const revData: RevenueRecord[] = serviceRows.map((s: RevenueByServiceDto, idx: number) => ({
         id: s.serviceId || `rev-${idx}`,
         date: fromDate,
         department: s.serviceGroupName || '',
@@ -175,7 +186,8 @@ const Finance: React.FC = () => {
       applyRevenueFilters(revData, revenueSearchText, revenueDeptFilter);
 
       // Map expense records from cost data
-      const expData: ExpenseRecord[] = ((costByDeptRes as any).data || []).map((c: any, idx: number) => ({
+      const costRows = costByDeptRes.data ?? [];
+      const expData: ExpenseRecord[] = costRows.map((c: CostByDepartmentDto, idx: number) => ({
         id: c.departmentId || `exp-${idx}`,
         date: fromDate,
         category: c.departmentName || '',
@@ -240,7 +252,7 @@ const Finance: React.FC = () => {
         toDate,
         outputFormat: 'excel',
       });
-      const blob = new Blob([(response as any).data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -294,29 +306,29 @@ const Finance: React.FC = () => {
     try {
       const fromDate = dateRange[0].format('YYYY-MM-DD');
       const toDate = dateRange[1].format('YYYY-MM-DD');
-      let response: any;
+      let loadedRecordCount = 1;
 
       switch (reportType) {
         case 'revenue_dept':
-          response = await financeApi.getRevenueByOrderingDept(fromDate, toDate);
+          loadedRecordCount = (await financeApi.getRevenueByOrderingDept(fromDate, toDate)).data.length;
           break;
         case 'revenue_service':
-          response = await financeApi.getRevenueByService(fromDate, toDate);
+          loadedRecordCount = (await financeApi.getRevenueByService(fromDate, toDate)).data.length;
           break;
         case 'expense':
-          response = await financeApi.getCostByDepartment(fromDate, toDate);
+          loadedRecordCount = (await financeApi.getCostByDepartment(fromDate, toDate)).data.length;
           break;
         case 'insurance':
-          response = await financeApi.getInsuranceReconciliation(fromDate, toDate);
+          loadedRecordCount = ((await financeApi.getInsuranceReconciliation(fromDate, toDate)).data as InsuranceReconciliationDto | null) ? 1 : 0;
           break;
         case 'surgery_profit':
-          response = await financeApi.getSurgeryProfitReport(fromDate, toDate);
+          loadedRecordCount = (await financeApi.getSurgeryProfitReport(fromDate, toDate)).data.length;
           break;
         case 'summary':
-          response = await financeApi.getFinancialSummary(fromDate, toDate);
+          loadedRecordCount = ((await financeApi.getFinancialSummary(fromDate, toDate)).data as FinancialSummaryReportDto | null) ? 1 : 0;
           break;
         default:
-          response = await financeApi.getFinancialSummary(fromDate, toDate);
+          loadedRecordCount = ((await financeApi.getFinancialSummary(fromDate, toDate)).data as FinancialSummaryReportDto | null) ? 1 : 0;
       }
 
       // Try to export as file
@@ -327,7 +339,7 @@ const Finance: React.FC = () => {
           toDate,
           outputFormat: 'excel',
         });
-        const blob = new Blob([(exportRes as any).data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const blob = new Blob([exportRes.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -339,7 +351,7 @@ const Finance: React.FC = () => {
         message.success(`Đã xuất ${reportName}`);
       } catch {
         // If export fails, just show data was loaded
-        message.success(`Đã tải dữ liệu ${reportName} (${((response as any)?.data || []).length || 1} bản ghi)`);
+        message.success(`Đã tải dữ liệu ${reportName} (${loadedRecordCount || 1} bản ghi)`);
       }
     } catch (error) {
       message.warning(`Lỗi khi tải ${reportName}`);
@@ -356,6 +368,9 @@ const Finance: React.FC = () => {
   const totalService = departmentRevenue.reduce((sum, d) => sum + d.serviceRevenue, 0);
   const totalExpense = expenseRecords.reduce((sum, e) => sum + e.amount, 0);
   const profit = totalRevenue - totalExpense;
+  const revenueDetail = financeDetailType === 'revenue' ? selectedFinanceRecord as RevenueRecord | null : null;
+  const expenseDetail = financeDetailType === 'expense' ? selectedFinanceRecord as ExpenseRecord | null : null;
+  const departmentDetail = financeDetailType === 'department' ? selectedFinanceRecord as DepartmentRevenue | null : null;
 
   // Safe percentage calculation to avoid NaN from division by zero
   const safePercent = (part: number, whole: number) => whole > 0 ? Math.round((part / whole) * 100) : 0;
@@ -1013,47 +1028,47 @@ const Finance: React.FC = () => {
         ]}
         width={600}
       >
-        {selectedFinanceRecord && financeDetailType === 'revenue' && (
+        {revenueDetail && (
           <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="Ngày">{dayjs(selectedFinanceRecord.date).format('DD/MM/YYYY')}</Descriptions.Item>
-            <Descriptions.Item label="Khoa/Phòng">{selectedFinanceRecord.department}</Descriptions.Item>
-            <Descriptions.Item label="Loại dịch vụ">{selectedFinanceRecord.serviceType}</Descriptions.Item>
-            <Descriptions.Item label="Số giao dịch">{selectedFinanceRecord.transactionCount}</Descriptions.Item>
-            <Descriptions.Item label="BHYT">{formatCurrency(selectedFinanceRecord.insuranceAmount)}</Descriptions.Item>
-            <Descriptions.Item label="BN chi trả">{formatCurrency(selectedFinanceRecord.patientAmount)}</Descriptions.Item>
+            <Descriptions.Item label="Ngày">{dayjs(revenueDetail.date).format('DD/MM/YYYY')}</Descriptions.Item>
+            <Descriptions.Item label="Khoa/Phòng">{revenueDetail.department}</Descriptions.Item>
+            <Descriptions.Item label="Loại dịch vụ">{revenueDetail.serviceType}</Descriptions.Item>
+            <Descriptions.Item label="Số giao dịch">{revenueDetail.transactionCount}</Descriptions.Item>
+            <Descriptions.Item label="BHYT">{formatCurrency(revenueDetail.insuranceAmount)}</Descriptions.Item>
+            <Descriptions.Item label="BN chi trả">{formatCurrency(revenueDetail.patientAmount)}</Descriptions.Item>
             <Descriptions.Item label="Tổng doanh thu" span={2}>
-              <Text strong>{formatCurrency(selectedFinanceRecord.totalAmount)}</Text>
+              <Text strong>{formatCurrency(revenueDetail.totalAmount)}</Text>
             </Descriptions.Item>
           </Descriptions>
         )}
-        {selectedFinanceRecord && financeDetailType === 'expense' && (
+        {expenseDetail && (
           <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="Ngày">{dayjs(selectedFinanceRecord.date).format('DD/MM/YYYY')}</Descriptions.Item>
-            <Descriptions.Item label="Danh mục">{selectedFinanceRecord.category}</Descriptions.Item>
-            <Descriptions.Item label="Mô tả" span={2}>{selectedFinanceRecord.description}</Descriptions.Item>
-            <Descriptions.Item label="Số tiền">{formatCurrency(selectedFinanceRecord.amount)}</Descriptions.Item>
+            <Descriptions.Item label="Ngày">{dayjs(expenseDetail.date).format('DD/MM/YYYY')}</Descriptions.Item>
+            <Descriptions.Item label="Danh mục">{expenseDetail.category}</Descriptions.Item>
+            <Descriptions.Item label="Mô tả" span={2}>{expenseDetail.description}</Descriptions.Item>
+            <Descriptions.Item label="Số tiền">{formatCurrency(expenseDetail.amount)}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
-              <Tag color={selectedFinanceRecord.status === 2 ? 'green' : selectedFinanceRecord.status === 1 ? 'blue' : 'orange'}>
-                {selectedFinanceRecord.status === 2 ? 'Đã thanh toán' : selectedFinanceRecord.status === 1 ? 'Đã duyệt' : 'Chờ duyệt'}
+              <Tag color={expenseDetail.status === 2 ? 'green' : expenseDetail.status === 1 ? 'blue' : 'orange'}>
+                {expenseDetail.status === 2 ? 'Đã thanh toán' : expenseDetail.status === 1 ? 'Đã duyệt' : 'Chờ duyệt'}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Nhà cung cấp">{selectedFinanceRecord.supplier || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Số hóa đơn">{selectedFinanceRecord.invoiceNumber || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Nhà cung cấp">{expenseDetail.supplier || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Số hóa đơn">{expenseDetail.invoiceNumber || '-'}</Descriptions.Item>
           </Descriptions>
         )}
-        {selectedFinanceRecord && financeDetailType === 'department' && (
+        {departmentDetail && (
           <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="Khoa/Phòng" span={2}>{selectedFinanceRecord.department}</Descriptions.Item>
-            <Descriptions.Item label="Tổng doanh thu">{formatCurrency(selectedFinanceRecord.totalRevenue)}</Descriptions.Item>
+            <Descriptions.Item label="Khoa/Phòng" span={2}>{departmentDetail.department}</Descriptions.Item>
+            <Descriptions.Item label="Tổng doanh thu">{formatCurrency(departmentDetail.totalRevenue)}</Descriptions.Item>
             <Descriptions.Item label="Tăng trưởng">
-              <Text style={{ color: selectedFinanceRecord.growth >= 0 ? '#52c41a' : '#f5222d' }}>
-                {selectedFinanceRecord.growth >= 0 ? '+' : ''}{selectedFinanceRecord.growth}%
+              <Text style={{ color: departmentDetail.growth >= 0 ? '#52c41a' : '#f5222d' }}>
+                {departmentDetail.growth >= 0 ? '+' : ''}{departmentDetail.growth}%
               </Text>
             </Descriptions.Item>
-            <Descriptions.Item label="BHYT">{formatCurrency(selectedFinanceRecord.insuranceRevenue)}</Descriptions.Item>
-            <Descriptions.Item label="Viện phí">{formatCurrency(selectedFinanceRecord.selfPayRevenue)}</Descriptions.Item>
-            <Descriptions.Item label="Dịch vụ">{formatCurrency(selectedFinanceRecord.serviceRevenue)}</Descriptions.Item>
-            <Descriptions.Item label="Số BN">{selectedFinanceRecord.patientCount}</Descriptions.Item>
+            <Descriptions.Item label="BHYT">{formatCurrency(departmentDetail.insuranceRevenue)}</Descriptions.Item>
+            <Descriptions.Item label="Viện phí">{formatCurrency(departmentDetail.selfPayRevenue)}</Descriptions.Item>
+            <Descriptions.Item label="Dịch vụ">{formatCurrency(departmentDetail.serviceRevenue)}</Descriptions.Item>
+            <Descriptions.Item label="Số BN">{departmentDetail.patientCount}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

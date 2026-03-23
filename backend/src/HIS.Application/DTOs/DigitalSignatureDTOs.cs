@@ -139,4 +139,11 @@ public class DocumentSignatureDto
     public string? TsaTimestamp { get; set; }
     public string? OcspStatus { get; set; }
     public int Status { get; set; }
+
+    /// <summary>Organization name extracted from CertificateSubject (O= field)</summary>
+    public string? OrganizationName { get; set; }
+    /// <summary>Tax code (MST) extracted from CertificateSubject</summary>
+    public string? TaxCode { get; set; }
+    /// <summary>Full certificate subject string</summary>
+    public string? CertificateSubject { get; set; }
 }

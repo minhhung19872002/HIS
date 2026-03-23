@@ -118,6 +118,44 @@ interface TransferRequest {
   note?: string;
 }
 
+type TransferDrugItem = {
+  _key: string;
+  medicationCode: string;
+  medicationName: string;
+  quantity: number;
+  unit: string;
+};
+
+interface ClinicalReview {
+  id: string;
+  prescriptionCode: string;
+  patientName: string;
+  patientCode: string;
+  doctorName: string;
+  reviewType: 'routine' | 'interaction' | 'dose' | 'allergy' | 'duplicate' | 'renal' | 'adr';
+  status: 'pending' | 'approved' | 'flagged' | 'rejected';
+  severity: 'high' | 'medium' | 'low';
+  findings: string;
+  recommendation: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  createdAt: string;
+}
+
+interface AdrReport {
+  id: string;
+  patientName: string;
+  patientCode: string;
+  medicationName: string;
+  reactionType: string;
+  severity: 'mild' | 'moderate' | 'severe' | 'fatal';
+  onsetDate: string;
+  reportedBy: string;
+  description: string;
+  outcome: string;
+  status: 'reported' | 'investigating' | 'confirmed' | 'closed';
+}
+
 interface AlertItem {
   id: string;
   type: 'low_stock' | 'expiry' | 'interaction' | 'out_of_stock';
@@ -162,9 +200,16 @@ const Pharmacy: React.FC = () => {
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
   const [transferSearch, setTransferSearch] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [transferDrugItems, setTransferDrugItems] = useState<{ _key: string; medicationCode: string; medicationName: string; quantity: number; unit: string }[]>([]);
+  const [transferDrugItems, setTransferDrugItems] = useState<TransferDrugItem[]>([]);
   const [inventoryHistory, setInventoryHistory] = useState<{ id: string; transactionType: string; quantity: number; batchNumber?: string; referenceCode?: string; note?: string; createdDate: string; createdBy: string }[]>([]);
   const [inventoryHistoryLoading, setInventoryHistoryLoading] = useState(false);
+
+  // Clinical Pharmacy states
+  const [clinicalReviews, setClinicalReviews] = useState<ClinicalReview[]>([]);
+  const [adrReports, setAdrReports] = useState<AdrReport[]>([]);
+  const [clinicalSubTab, setClinicalSubTab] = useState('reviews');
+  const [adrModalVisible, setAdrModalVisible] = useState(false);
+  const [adrForm] = Form.useForm();
 
   // Fetch data on component mount
   useEffect(() => {
@@ -189,6 +234,16 @@ const Pharmacy: React.FC = () => {
       setTransfers(transferList.data);
       setFilteredTransfers(transferList.data);
       setAlerts(alertList.data);
+
+      // Load clinical pharmacy reviews (optional API)
+      try {
+        const reviewsRes = await pharmacyApi.getClinicalReviews?.();
+        if (reviewsRes?.data) setClinicalReviews(reviewsRes.data);
+      } catch { /* Clinical reviews API optional */ }
+      try {
+        const adrRes = await pharmacyApi.getAdrReports?.();
+        if (adrRes?.data) setAdrReports(adrRes.data);
+      } catch { /* ADR reports API optional */ }
     } catch (error) {
       message.warning('Không thể tải dữ liệu. Vui lòng thử lại.');
       console.warn('Error fetching pharmacy data:', error);
@@ -332,7 +387,7 @@ const Pharmacy: React.FC = () => {
   };
 
   // Handle update transfer drug item
-  const handleUpdateTransferDrug = (index: number, field: string, value: any) => {
+  const handleUpdateTransferDrug = <K extends keyof TransferDrugItem>(index: number, field: K, value: TransferDrugItem[K]) => {
     setTransferDrugItems(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -435,7 +490,7 @@ const Pharmacy: React.FC = () => {
       key: 'priority',
       width: 120,
       render: (priority) => getPriorityTag(priority),
-      sorter: (a, _b) => (a.priority === 'urgent' ? -1 : 1),
+      sorter: (a) => (a.priority === 'urgent' ? -1 : 1),
     },
     {
       title: 'Mã đơn thuốc',
@@ -587,8 +642,6 @@ const Pharmacy: React.FC = () => {
       message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
-
-    const totalAmount = selectedPrescription.totalAmount;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -1698,6 +1751,221 @@ const Pharmacy: React.FC = () => {
     </div>
   );
 
+  // ==================== CLINICAL PHARMACY TAB ====================
+
+  const reviewTypeLabels: Record<string, { text: string; color: string }> = {
+    routine: { text: 'Thường quy', color: 'blue' },
+    interaction: { text: 'Tương tác', color: 'red' },
+    dose: { text: 'Liều lượng', color: 'orange' },
+    allergy: { text: 'Dị ứng', color: 'volcano' },
+    duplicate: { text: 'Trùng lặp', color: 'gold' },
+    renal: { text: 'Chức năng thận', color: 'purple' },
+    adr: { text: 'ADR', color: 'magenta' },
+  };
+
+  const reviewColumns: ColumnsType<ClinicalReview> = [
+    { title: 'Mã đơn', dataIndex: 'prescriptionCode', key: 'prescriptionCode', width: 120 },
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 150 },
+    {
+      title: 'Loại', key: 'reviewType', width: 120,
+      render: (_, r) => <Tag color={reviewTypeLabels[r.reviewType]?.color}>{reviewTypeLabels[r.reviewType]?.text || r.reviewType}</Tag>,
+    },
+    {
+      title: 'Mức độ', key: 'severity', width: 100,
+      render: (_, r) => <Tag color={r.severity === 'high' ? 'red' : r.severity === 'medium' ? 'orange' : 'green'}>{r.severity === 'high' ? 'Cao' : r.severity === 'medium' ? 'TB' : 'Thấp'}</Tag>,
+    },
+    { title: 'Phát hiện', dataIndex: 'findings', key: 'findings', ellipsis: true },
+    { title: 'Khuyến cáo', dataIndex: 'recommendation', key: 'recommendation', ellipsis: true },
+    {
+      title: 'Trạng thái', key: 'status', width: 110,
+      render: (_, r) => {
+        const m: Record<string, { text: string; color: string }> = { pending: { text: 'Chờ duyệt', color: 'gold' }, approved: { text: 'Đã duyệt', color: 'green' }, flagged: { text: 'Cảnh báo', color: 'red' }, rejected: { text: 'Từ chối', color: 'default' } };
+        return <Tag color={m[r.status]?.color}>{m[r.status]?.text || r.status}</Tag>;
+      },
+    },
+    { title: 'Ngày', dataIndex: 'createdAt', key: 'createdAt', width: 100, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+  ];
+
+  const adrColumns: ColumnsType<AdrReport> = [
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 140 },
+    { title: 'Thuốc gây ADR', dataIndex: 'medicationName', key: 'medicationName', width: 150 },
+    { title: 'Phản ứng', dataIndex: 'reactionType', key: 'reactionType', width: 130 },
+    {
+      title: 'Mức độ', key: 'severity', width: 100,
+      render: (_, r) => {
+        const c: Record<string, string> = { mild: 'green', moderate: 'gold', severe: 'orange', fatal: 'red' };
+        const t: Record<string, string> = { mild: 'Nhẹ', moderate: 'TB', severe: 'Nặng', fatal: 'Tử vong' };
+        return <Tag color={c[r.severity]}>{t[r.severity]}</Tag>;
+      },
+    },
+    { title: 'Ngày khởi phát', dataIndex: 'onsetDate', key: 'onsetDate', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Người báo cáo', dataIndex: 'reportedBy', key: 'reportedBy', width: 130 },
+    {
+      title: 'Trạng thái', key: 'status', width: 110,
+      render: (_, r) => {
+        const m: Record<string, { text: string; color: string }> = { reported: { text: 'Đã báo', color: 'blue' }, investigating: { text: 'Đang ĐT', color: 'gold' }, confirmed: { text: 'Xác nhận', color: 'red' }, closed: { text: 'Đóng', color: 'default' } };
+        return <Tag color={m[r.status]?.color}>{m[r.status]?.text}</Tag>;
+      },
+    },
+    { title: 'Kết quả', dataIndex: 'outcome', key: 'outcome', ellipsis: true },
+  ];
+
+  const handleSubmitAdr = async () => {
+    try {
+      const values = await adrForm.validateFields();
+      try {
+        await pharmacyApi.submitAdrReport?.(values);
+        message.success('Báo cáo ADR đã được gửi');
+      } catch {
+        message.warning('Chưa kết nối API báo cáo ADR');
+      }
+      setAdrModalVisible(false);
+      adrForm.resetFields();
+    } catch { /* validation */ }
+  };
+
+  const renderClinicalPharmacyTab = () => (
+    <div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic title="Tổng review" value={clinicalReviews.length} styles={{ content: { color: '#1677ff' } }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="Cần xử lý" value={clinicalReviews.filter(r => r.status === 'pending' || r.status === 'flagged').length} styles={{ content: { color: '#ff4d4f' } }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="Báo cáo ADR" value={adrReports.length} styles={{ content: { color: '#fa8c16' } }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="ADR nghiêm trọng" value={adrReports.filter(r => r.severity === 'severe' || r.severity === 'fatal').length} styles={{ content: { color: '#cf1322' } }} />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card>
+        <Tabs activeKey={clinicalSubTab} onChange={setClinicalSubTab} items={[
+          {
+            key: 'reviews',
+            label: <span><FileTextOutlined /> Duyệt đơn thuốc ({clinicalReviews.filter(r => r.status === 'pending').length} chờ)</span>,
+            children: (
+              <div>
+                <Space style={{ marginBottom: 16 }}>
+                  <Select defaultValue="all" style={{ width: 160 }} options={[
+                    { value: 'all', label: 'Tất cả loại' },
+                    { value: 'interaction', label: 'Tương tác thuốc' },
+                    { value: 'dose', label: 'Liều lượng' },
+                    { value: 'allergy', label: 'Dị ứng' },
+                    { value: 'duplicate', label: 'Trùng lặp' },
+                    { value: 'renal', label: 'Chức năng thận' },
+                    { value: 'adr', label: 'ADR' },
+                  ]} />
+                  <Select defaultValue="all" style={{ width: 140 }} options={[
+                    { value: 'all', label: 'Tất cả TT' },
+                    { value: 'pending', label: 'Chờ duyệt' },
+                    { value: 'flagged', label: 'Cảnh báo' },
+                    { value: 'approved', label: 'Đã duyệt' },
+                  ]} />
+                </Space>
+                <Table<ClinicalReview>
+                  dataSource={clinicalReviews}
+                  columns={reviewColumns}
+                  rowKey="id"
+                  size="small"
+                  pagination={{ pageSize: 10 }}
+                  rowClassName={(r) => r.severity === 'high' && r.status !== 'approved' ? 'ant-table-row-danger' : ''}
+                />
+              </div>
+            ),
+          },
+          {
+            key: 'adr',
+            label: <span><WarningOutlined /> Báo cáo ADR ({adrReports.filter(r => r.status !== 'closed').length} đang xử lý)</span>,
+            children: (
+              <div>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                  <Space>
+                    <Select defaultValue="all" style={{ width: 140 }} options={[
+                      { value: 'all', label: 'Tất cả mức độ' },
+                      { value: 'mild', label: 'Nhẹ' },
+                      { value: 'moderate', label: 'Trung bình' },
+                      { value: 'severe', label: 'Nặng' },
+                      { value: 'fatal', label: 'Tử vong' },
+                    ]} />
+                  </Space>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdrModalVisible(true)}>Báo cáo ADR mới</Button>
+                </div>
+                <Table<AdrReport>
+                  dataSource={adrReports}
+                  columns={adrColumns}
+                  rowKey="id"
+                  size="small"
+                  pagination={{ pageSize: 10 }}
+                />
+              </div>
+            ),
+          },
+          {
+            key: 'reconciliation',
+            label: <span><SyncOutlined /> Đối chiếu thuốc</span>,
+            children: (
+              <div>
+                <Alert title="Đối chiếu thuốc (Medication Reconciliation)" description="Quy trình đối chiếu danh sách thuốc bệnh nhân đang sử dụng khi nhập viện, chuyển khoa và xuất viện. Phát hiện sai khác, bỏ sót hoặc trùng lặp thuốc giữa các giai đoạn điều trị." type="info" showIcon style={{ marginBottom: 16 }} />
+                <Card>
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+                    <MedicineBoxOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                    <div>Chọn bệnh nhân để bắt đầu đối chiếu thuốc</div>
+                    <Button type="primary" style={{ marginTop: 16 }} icon={<SearchOutlined />}>Tìm bệnh nhân</Button>
+                  </div>
+                </Card>
+              </div>
+            ),
+          },
+        ]} />
+      </Card>
+
+      <Modal title="Báo cáo phản ứng có hại (ADR)" open={adrModalVisible} onCancel={() => setAdrModalVisible(false)} onOk={handleSubmitAdr} okText="Gửi báo cáo" width={600} destroyOnHidden>
+        <Form form={adrForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="patientCode" label="Mã bệnh nhân" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="patientName" label="Họ tên" rules={[{ required: true }]}><Input /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="medicationName" label="Thuốc nghi ngờ" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="reactionType" label="Loại phản ứng" rules={[{ required: true }]}><Select options={[
+              { value: 'skin', label: 'Da (phát ban, mề đay)' },
+              { value: 'gi', label: 'Tiêu hóa (buồn nôn, tiêu chảy)' },
+              { value: 'liver', label: 'Gan (tăng men gan)' },
+              { value: 'kidney', label: 'Thận (suy thận)' },
+              { value: 'blood', label: 'Huyết học (giảm BC, TC)' },
+              { value: 'neuro', label: 'Thần kinh (chóng mặt)' },
+              { value: 'cardiac', label: 'Tim mạch (loạn nhịp)' },
+              { value: 'anaphylaxis', label: 'Sốc phản vệ' },
+              { value: 'other', label: 'Khác' },
+            ]} /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="severity" label="Mức độ" rules={[{ required: true }]}><Select options={[
+              { value: 'mild', label: 'Nhẹ' },
+              { value: 'moderate', label: 'Trung bình' },
+              { value: 'severe', label: 'Nặng' },
+              { value: 'fatal', label: 'Tử vong' },
+            ]} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="onsetDate" label="Ngày khởi phát"><Input type="date" /></Form.Item></Col>
+          </Row>
+          <Form.Item name="description" label="Mô tả chi tiết"><Input.TextArea rows={3} /></Form.Item>
+          <Form.Item name="outcome" label="Kết quả xử trí"><Input.TextArea rows={2} /></Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -1762,6 +2030,17 @@ const Pharmacy: React.FC = () => {
                 </span>
               ),
               children: renderAlertsTab(),
+            },
+            {
+              key: 'clinical',
+              label: (
+                <span>
+                  <ExclamationCircleOutlined />
+                  Dược lâm sàng
+                  <Badge count={clinicalReviews.filter(r => r.status === 'pending' || r.status === 'flagged').length} offset={[10, 0]} />
+                </span>
+              ),
+              children: renderClinicalPharmacyTab(),
             },
           ]}
         />

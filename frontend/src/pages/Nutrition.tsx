@@ -71,6 +71,33 @@ const DIET_TYPES_FALLBACK = [
   { value: 'tpn', label: 'Dinh dưỡng tĩnh mạch (TPN)' },
 ];
 
+type ScreeningFormValues = {
+  bmiScore?: number;
+  weightLossScore?: number;
+  intakeScore?: number;
+  diseaseScore?: number;
+  notes?: string;
+};
+
+type PlanFormValues = {
+  dietType?: string;
+  texture?: string;
+  calorieTarget?: number;
+  proteinTarget?: number;
+  fluidMl?: number;
+  sodiumMg?: number;
+  potassiumMg?: number;
+  phosphorusMg?: number;
+  restrictions?: string;
+  feedingRoute?: string;
+  mealFrequency?: number;
+  snacksIncluded?: boolean;
+  notes?: string;
+  startDate?: string;
+  endDate?: string;
+  instructions?: string;
+};
+
 const Nutrition: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [pendingScreeningList, setPendingScreeningList] = useState<NutritionScreeningDto[]>([]);
@@ -150,7 +177,9 @@ const Nutrition: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => {
+      void fetchData();
+    });
   }, [fetchData]);
 
   // Statistics from dashboard or local data
@@ -175,7 +204,7 @@ const Nutrition: React.FC = () => {
     );
   };
 
-  const handleScreening = async (values: any) => {
+  const handleScreening = async (values: ScreeningFormValues) => {
     if (!selectedScreening) return;
 
     const totalScore =
@@ -215,13 +244,13 @@ const Nutrition: React.FC = () => {
     }
   };
 
-  const handleCreatePlan = async (values: any) => {
+  const handleCreatePlan = async (values: PlanFormValues) => {
     if (!selectedScreening) return;
 
     try {
       await createDietOrder({
         admissionId: selectedScreening.admissionId,
-        dietType: values.dietType,
+        dietType: values.dietType || 'normal',
         texture: values.texture || 'Regular',
         energyKcal: values.calorieTarget || 2000,
         proteinGrams: values.proteinTarget || 60,
@@ -229,7 +258,7 @@ const Nutrition: React.FC = () => {
         sodiumMg: values.sodiumMg,
         potassiumMg: values.potassiumMg,
         phosphorusMg: values.phosphorusMg,
-        restrictions: values.restrictions,
+        restrictions: values.restrictions ? [values.restrictions] : undefined,
         feedingRoute: values.feedingRoute || 'oral',
         mealFrequency: values.mealFrequency || 3,
         snacksIncluded: values.snacksIncluded || false,

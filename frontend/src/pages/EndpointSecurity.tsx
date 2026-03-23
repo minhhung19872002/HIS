@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import type {
   EndpointDeviceDto, SecurityIncidentDto, InstalledSoftwareDto,
-  EndpointSecurityDashboardDto,
+  EndpointSecurityDashboardDto, RegisterDeviceDto, CreateIncidentDto,
 } from '../api/endpointSecurity';
 import {
   getDevices, getIncidents, getSoftwareInventory, getSecurityDashboard,
@@ -27,6 +27,13 @@ const deviceStatusIcons: Record<number, React.ReactNode> = {
   1: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
   2: <WarningOutlined style={{ color: '#faad14' }} />,
   3: <ExclamationCircleOutlined style={{ color: '#f5222d' }} />,
+};
+
+type IncidentFormValues = CreateIncidentDto;
+type DeviceFormValues = RegisterDeviceDto;
+type ResolveFormValues = {
+  resolution: string;
+  rootCause?: string;
 };
 
 const EndpointSecurity: React.FC = () => {
@@ -63,9 +70,9 @@ const EndpointSecurity: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleRegisterDevice = async (values: Record<string, string>) => {
+  const handleRegisterDevice = async (values: DeviceFormValues) => {
     try {
-      await registerDevice(values as any);
+      await registerDevice(values);
       message.success('Đã đăng ký thiết bị');
       setDeviceModalVisible(false);
       deviceForm.resetFields();
@@ -75,9 +82,9 @@ const EndpointSecurity: React.FC = () => {
     }
   };
 
-  const handleCreateIncident = async (values: Record<string, any>) => {
+  const handleCreateIncident = async (values: IncidentFormValues) => {
     try {
-      await createIncident(values as any);
+      await createIncident(values);
       message.success('Đã tạo sự cố');
       setIncidentModalVisible(false);
       incidentForm.resetFields();
@@ -87,7 +94,7 @@ const EndpointSecurity: React.FC = () => {
     }
   };
 
-  const handleResolveIncident = async (values: Record<string, string>) => {
+  const handleResolveIncident = async (values: ResolveFormValues) => {
     if (!selectedIncident) return;
     try {
       await resolveIncident(selectedIncident.id, values.resolution, values.rootCause);
@@ -105,8 +112,8 @@ const EndpointSecurity: React.FC = () => {
     { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 80, render: (s: number) => deviceStatusIcons[s] || deviceStatusIcons[0] },
     { title: 'Tên máy', dataIndex: 'hostname', key: 'hostname', ellipsis: true },
     { title: 'IP', dataIndex: 'ipAddress', key: 'ip', width: 130 },
-    { title: 'Hệ điều hành', key: 'os', width: 150, render: (_: any, r: EndpointDeviceDto) => `${r.operatingSystem || ''} ${r.osVersion || ''}`.trim() || '-' },
-    { title: 'Antivirus', key: 'av', width: 150, render: (_: any, r: EndpointDeviceDto) => (
+    { title: 'Hệ điều hành', key: 'os', width: 150, render: (_: unknown, r: EndpointDeviceDto) => `${r.operatingSystem || ''} ${r.osVersion || ''}`.trim() || '-' },
+    { title: 'Antivirus', key: 'av', width: 150, render: (_: unknown, r: EndpointDeviceDto) => (
       <Space orientation="horizontal" size={4}>
         <span>{r.antivirusName || '-'}</span>
         {r.antivirusStatus && <Tag color={r.antivirusStatus === 'Active' ? 'green' : 'red'}>{r.antivirusStatus}</Tag>}
@@ -122,14 +129,14 @@ const EndpointSecurity: React.FC = () => {
     { title: 'Mã', dataIndex: 'incidentCode', key: 'code', width: 160 },
     { title: 'Tiêu đề', dataIndex: 'title', key: 'title', ellipsis: true },
     { title: 'Mức độ', dataIndex: 'severity', key: 'severity', width: 100, render: (v: number) => <Tag color={severityColors[v]}>{severityLabels[v]}</Tag> },
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 120, render: (v: number) => <Badge status={statusColors[v] as any} text={statusLabels[v]} /> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 120, render: (v: number) => <Badge status={statusColors[v] as 'default' | 'processing' | 'success' | 'warning' | 'error'} text={statusLabels[v]} /> },
     { title: 'Phân loại', dataIndex: 'category', key: 'category', width: 120 },
     { title: 'Thiết bị', dataIndex: 'deviceHostname', key: 'device', width: 130, ellipsis: true },
     { title: 'Báo cáo bởi', dataIndex: 'reportedByName', key: 'reporter', width: 120 },
     { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'created', width: 130, render: (v: string) => new Date(v).toLocaleString('vi-VN') },
     {
       title: '', key: 'actions', width: 100,
-      render: (_: any, r: SecurityIncidentDto) => (
+      render: (_: unknown, r: SecurityIncidentDto) => (
         <Space orientation="horizontal" size={4}>
           <Tooltip title="Chi tiết"><Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setSelectedIncident(r); }} /></Tooltip>
           {r.status < 3 && <Tooltip title="Xử lý"><Button type="link" size="small" icon={<CheckCircleOutlined />} onClick={() => { setSelectedIncident(r); setResolveModalVisible(true); }} /></Tooltip>}
@@ -146,7 +153,7 @@ const EndpointSecurity: React.FC = () => {
     { title: 'Trạng thái', dataIndex: 'isAuthorized', key: 'authorized', width: 120, render: (v: boolean) => v ? <Tag color="green">Được phép</Tag> : <Tag color="red">Không phép</Tag> },
     {
       title: '', key: 'actions', width: 80,
-      render: (_: any, r: InstalledSoftwareDto) => r.isAuthorized ? (
+      render: (_: unknown, r: InstalledSoftwareDto) => r.isAuthorized ? (
         <Button type="link" size="small" danger onClick={async () => { await flagUnauthorized(r.id); fetchData(); }}>Cấm</Button>
       ) : null,
     },

@@ -80,6 +80,36 @@ interface BloodRequest {
   reason: string;
 }
 
+type BloodStockDetailDto = {
+  bloodBagId: string;
+  bagCode: string;
+  bloodType: string;
+  rhFactor: string;
+  productTypeName: string;
+  volume: number;
+  expiryDate: string;
+  collectionDate: string;
+  status: string;
+  storageLocation?: string;
+};
+
+type BloodIssueRequestDto = {
+  id: string;
+  requestCode: string;
+  patientCode?: string;
+  patientName?: string;
+  bloodType: string;
+  rhFactor: string;
+  productTypeName: string;
+  requestedQuantity: number;
+  urgency: string;
+  requestDate: string;
+  requestedByName: string;
+  departmentName: string;
+  status: string;
+  clinicalIndication?: string;
+};
+
 const BloodBank: React.FC = () => {
   const [activeTab, setActiveTab] = useState('inventory');
   const [inventory, setInventory] = useState<BloodUnit[]>([]);
@@ -272,7 +302,7 @@ const BloodBank: React.FC = () => {
       const response = await bloodBankApi.getBloodStockDetail();
       if (response && response.data) {
         // Map API data to local BloodUnit format
-        const units: BloodUnit[] = response.data.map((item: any) => ({
+        const units: BloodUnit[] = response.data.map((item: BloodStockDetailDto) => ({
           id: item.bloodBagId,
           unitCode: item.bagCode,
           bloodType: item.bloodType + item.rhFactor,
@@ -302,7 +332,7 @@ const BloodBank: React.FC = () => {
       const response = await bloodBankApi.getIssueRequests(monthAgo, today);
       if (response && response.data) {
         // Map API data to local BloodRequest format
-        const reqs: BloodRequest[] = response.data.map((item: any) => ({
+        const reqs: BloodRequest[] = response.data.map((item: BloodIssueRequestDto) => ({
           id: item.id,
           requestCode: item.requestCode,
           patientCode: item.patientCode || '',

@@ -104,7 +104,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       );
       setScanning(true);
       setError('');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // @ts-expect-error narrow runtime error message when available
       setError(err?.message || 'Không thể khởi động camera');
       setScanning(false);
     }

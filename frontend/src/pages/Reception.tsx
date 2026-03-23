@@ -99,6 +99,39 @@ interface InsuranceVerification {
   validationMessage?: string;
 }
 
+type ApiLikeError = {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+    };
+  };
+};
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error !== null) {
+    const apiError = error as ApiLikeError;
+    const message = apiError.response?.data?.message;
+    if (message) return message;
+  }
+  return fallback;
+}
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (typeof error === 'object' && error !== null) {
+    return (error as ApiLikeError).response?.status;
+  }
+  return undefined;
+}
+
+function unwrapResponseData<T>(result: T | { data?: T }): T {
+  if (typeof result === 'object' && result !== null && 'data' in result) {
+    const data = (result as { data?: T }).data;
+    if (data !== undefined) return data;
+  }
+  return result as T;
+}
+
 // Vietnamese CCCD province codes
 const CCCD_PROVINCES: Record<string, string> = {
   '001': 'Hà Nội', '002': 'Hà Giang', '004': 'Cao Bằng', '006': 'Bắc Kạn',
@@ -200,10 +233,10 @@ const Reception: React.FC = () => {
         }));
         setRoomStats(stats);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.warn('Failed to fetch rooms:', error);
       // If unauthorized, redirect to login
-      if (error?.response?.status === 401) {
+      if (getErrorStatus(error) === 401) {
         message.warning('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
       } else {
         message.warning('Không thể tải danh sách phòng khám');
@@ -417,9 +450,9 @@ const Reception: React.FC = () => {
       // Refresh data
       fetchRooms();
       fetchAdmissions();
-    } catch (error: any) {
+    } catch (error) {
       console.warn('Registration error:', error);
-      message.warning(error?.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+      message.warning(getErrorMessage(error, 'Đăng ký thất bại. Vui lòng thử lại!'));
     } finally {
       setSubmitting(false);
     }
@@ -443,7 +476,7 @@ const Reception: React.FC = () => {
         patientName,
         dateOfBirth: dob ? dob.format('YYYY-MM-DD') : '',
       });
-      const data = (result as any).data || result;
+      const data = unwrapResponseData(result);
       setInlineCardVerification(data);
       if (data.duDkKcb) {
         setInlineVerifyStatus('valid');
@@ -469,7 +502,7 @@ const Reception: React.FC = () => {
     setIsInsuranceHistoryModalOpen(true);
     try {
       const result = await insuranceApi.getInsuranceHistory(insuranceNumber);
-      const data = (result as any).data || result;
+      const data = unwrapResponseData(result);
       setBhxhHistory(data);
     } catch (error) {
       console.warn('Error fetching BHXH history:', error);
@@ -606,8 +639,8 @@ const Reception: React.FC = () => {
       transferForm.resetFields();
       fetchAdmissions();
       fetchRooms();
-    } catch (error: any) {
-      message.warning(error?.response?.data?.message || 'Chuyển phòng thất bại');
+    } catch (error) {
+      message.warning(getErrorMessage(error, 'Chuyển phòng thất bại'));
     }
   };
 
@@ -694,6 +727,7 @@ const Reception: React.FC = () => {
         }, 500);
       }
     } catch (error) {
+      void error;
       message.warning('Không thể in phiếu khám');
     }
   };
@@ -876,9 +910,9 @@ const Reception: React.FC = () => {
           message.warning(result.errorMessage || 'Thẻ BHYT không hợp lệ');
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.warn('Insurance verification error:', error);
-      message.warning(error?.response?.data?.message || 'Không thể xác minh thẻ BHYT');
+      message.warning(getErrorMessage(error, 'Không thể xác minh thẻ BHYT'));
     } finally {
       setVerifyingInsurance(false);
     }
@@ -1013,7 +1047,7 @@ const Reception: React.FC = () => {
                           ]}
                         />
                         <DatePicker
-                          defaultValue={dayjs()}
+                          value={filterDate}
                           format="DD/MM/YYYY"
                           onChange={(date) => {
                             setFilterDate(date);

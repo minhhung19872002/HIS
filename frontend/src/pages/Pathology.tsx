@@ -35,7 +35,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as pathologyApi from '../api/pathology';
-import type { PathologyRequest, PathologyResult, PathologyStats } from '../api/pathology';
+import type { PathologyRequest, PathologyStats } from '../api/pathology';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -126,7 +126,7 @@ const Pathology: React.FC = () => {
       };
 
       const results = await Promise.allSettled([
-        pathologyApi.getPathologyRequests(params as any),
+        pathologyApi.getPathologyRequests(params),
         pathologyApi.getPathologyStatistics(),
       ]);
 
@@ -169,8 +169,8 @@ const Pathology: React.FC = () => {
       message.success('Đã lưu kết quả giải phẫu bệnh');
       setIsResultFormOpen(false);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return; // validation error
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'errorFields' in err) return; // validation error
       message.warning('Không thể lưu kết quả');
     } finally {
       setSaving(false);

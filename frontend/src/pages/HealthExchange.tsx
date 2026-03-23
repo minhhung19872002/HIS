@@ -16,20 +16,13 @@ import {
   Tabs,
   Statistic,
   Descriptions,
-  Divider,
   message,
-  Badge,
-  Progress,
-  Switch,
   Alert,
-  Steps,
-  Upload,
   Spin,
   Drawer,
 } from 'antd';
 import {
   CloudUploadOutlined,
-  CloudDownloadOutlined,
   ApiOutlined,
   SafetyOutlined,
   FileTextOutlined,
@@ -74,6 +67,9 @@ import type {
   ElectronicReferralDto,
   TeleconsultationRequestDto,
   HIEDashboardDto,
+  CreateReferralDto,
+  CreateTeleconsultRequestDto,
+  GenerateXMLDto,
 } from '../api/healthExchange';
 import {
   getMetadata,
@@ -90,6 +86,44 @@ import type { ProvincialReportDto, ProvincialStatsDto } from '../api/provincialH
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+type ReferralFormValues = {
+  patientId: string;
+  destinationFacilityCode: string;
+  destinationDepartment?: string;
+  diagnosis: string;
+  diagnosisIcd?: string;
+  reason: string;
+  clinicalSummary?: string;
+  treatmentHistory?: string;
+  currentMedications?: string;
+  allergies?: string;
+  specialInstructions?: string;
+  urgency: number;
+};
+
+type ConsultationFormValues = {
+  requestType?: string;
+  patientId: string;
+  consultingFacilityCode: string;
+  specialty: string;
+  chiefComplaint?: string;
+  clinicalQuestion?: string;
+  reason?: string;
+  relevantHistory?: string;
+  currentFindings?: string;
+  urgency?: number;
+  preferredDate?: dayjs.Dayjs;
+  preferredTime?: string;
+};
+
+type XMLFormValues = {
+  xmlType: string;
+  periodFrom?: dayjs.Dayjs;
+  periodTo?: dayjs.Dayjs;
+  departmentId?: string;
+  patientId?: string;
+};
 
 const HealthExchange: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -788,9 +822,9 @@ const HealthExchange: React.FC = () => {
     },
   ];
 
-  const handleCreateReferral = async (values: any) => {
+  const handleCreateReferral = async (values: ReferralFormValues) => {
     try {
-      await createReferral({
+      const dto: CreateReferralDto = {
         patientId: values.patientId,
         destinationFacilityCode: values.destinationFacilityCode,
         destinationDepartment: values.destinationDepartment,
@@ -803,7 +837,8 @@ const HealthExchange: React.FC = () => {
         allergies: values.allergies,
         specialInstructions: values.specialInstructions,
         urgency: values.urgency,
-      });
+      };
+      await createReferral(dto);
       setReferralModalVisible(false);
       referralForm.resetFields();
       message.success('Tạo phiếu chuyển viện thành công!');
@@ -814,9 +849,9 @@ const HealthExchange: React.FC = () => {
     }
   };
 
-  const handleCreateConsultation = async (values: any) => {
+  const handleCreateConsultation = async (values: ConsultationFormValues) => {
     try {
-      await createTeleconsultRequest({
+      const dto: CreateTeleconsultRequestDto = {
         requestType: values.requestType || 'Consultation',
         patientId: values.patientId,
         consultingFacilityCode: values.consultingFacilityCode,
@@ -828,7 +863,8 @@ const HealthExchange: React.FC = () => {
         urgency: values.urgency || 1,
         preferredDate: values.preferredDate?.format?.('YYYY-MM-DD'),
         preferredTime: values.preferredTime,
-      });
+      };
+      await createTeleconsultRequest(dto);
       setConsultationModalVisible(false);
       consultationForm.resetFields();
       message.success('Gửi yêu cầu hội chẩn thành công!');
@@ -839,15 +875,16 @@ const HealthExchange: React.FC = () => {
     }
   };
 
-  const handleSubmitXML = async (values: any) => {
+  const handleSubmitXML = async (values: XMLFormValues) => {
     try {
-      const result = await generateXML({
+      const dto: GenerateXMLDto = {
         xmlType: values.xmlType,
         periodFrom: values.periodFrom?.format?.('YYYY-MM-DD') || dayjs().startOf('month').format('YYYY-MM-DD'),
         periodTo: values.periodTo?.format?.('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
         departmentId: values.departmentId,
         patientIds: values.patientId ? [values.patientId] : undefined,
-      });
+      };
+      const result = await generateXML(dto);
       if (result.data?.success) {
         message.success(`Tạo XML thành công! ${result.data.totalRecords} bản ghi, ${result.data.validRecords} hợp lệ`);
         if (result.data.invalidRecords > 0) {

@@ -1,5 +1,7 @@
 import React from 'react';
+import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../constants/hospital';
+import type { SignatureStampInfo } from './EMRPrintTemplates';
 
 // Shared print header
 const PrintHeader: React.FC<{ formCode?: string; formTitle: string }> = ({ formCode, formTitle }) => (
@@ -19,13 +21,40 @@ const Field: React.FC<{ label: string; value?: string | number | null; inline?: 
   </div>
 );
 
-const SignatureBlock: React.FC<{ titles: string[] }> = ({ titles }) => (
+/** Green checkmark SVG for digital signature stamp */
+const CheckMarkSvg = () => (
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: 28, height: 28 }}>
+    <circle cx="12" cy="12" r="11" fill="#4caf50" opacity="0.15" />
+    <path d="M6 12.5L10 16.5L18 8.5" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const DigitalStamp: React.FC<{ stamp?: SignatureStampInfo }> = ({ stamp }) => {
+  if (!stamp) return null;
+  return (
+    <div style={{ border: '2px solid #52c41a', borderRadius: 4, padding: '8px 12px', display: 'inline-block', textAlign: 'left', fontSize: 11, lineHeight: 1.5, marginTop: 4, position: 'relative', background: '#fff' }}>
+      <div style={{ position: 'absolute', top: -8, right: -8 }}><CheckMarkSvg /></div>
+      <div style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#333', marginBottom: 4 }}>Signature Valid</div>
+      {stamp.organizationName && <div style={{ paddingLeft: 8, color: '#cf1322' }}>Ký bởi: {stamp.organizationName}</div>}
+      {stamp.signerName && !stamp.organizationName && <div style={{ paddingLeft: 8, color: '#cf1322' }}>Ký bởi: {stamp.signerName}</div>}
+      {stamp.signedAt && <div style={{ paddingLeft: 8, color: '#cf1322' }}>Ký ngày: {dayjs(stamp.signedAt).format('DD- MM- YYYY')}</div>}
+    </div>
+  );
+};
+
+const SignatureBlock: React.FC<{ titles: string[]; stamps?: (SignatureStampInfo | undefined)[] }> = ({ titles, stamps }) => (
   <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 32 }}>
     {titles.map((t, i) => (
       <div key={i} style={{ textAlign: 'center', minWidth: 150 }}>
         <div style={{ fontWeight: 'bold' }}>{t}</div>
-        <div style={{ fontStyle: 'italic', fontSize: 10 }}>(Ky, ghi ro ho ten)</div>
-        <div style={{ height: 60 }} />
+        {stamps?.[i] ? (
+          <DigitalStamp stamp={stamps[i]} />
+        ) : (
+          <>
+            <div style={{ fontStyle: 'italic', fontSize: 10 }}>(Ky, ghi ro ho ten)</div>
+            <div style={{ height: 60 }} />
+          </>
+        )}
       </div>
     ))}
   </div>

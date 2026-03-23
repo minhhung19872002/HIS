@@ -60,6 +60,36 @@ import type {
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import * as examApi from '../api/examination';
 
+type BookingFormValues = {
+  patientId?: string;
+  doctorId?: string;
+  departmentId?: string;
+  appointmentType?: number;
+  appointmentDate?: dayjs.Dayjs;
+  appointmentTime?: dayjs.Dayjs;
+  reason?: string;
+  notes?: string;
+};
+
+type PrescriptionMedicineValue = {
+  drugId: string;
+  quantity?: number;
+  dosage: string;
+  frequency: string;
+  route?: string;
+  durationDays?: number;
+  instruction?: string;
+  drugName?: string;
+  name?: string;
+};
+
+type PrescriptionFormValues = {
+  medicines?: PrescriptionMedicineValue[];
+  advice?: string;
+  diagnosis?: string;
+  followUp?: string;
+};
+
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
@@ -236,7 +266,7 @@ const Telemedicine: React.FC = () => {
     }
   };
 
-  const handleBookAppointment = async (values: any) => {
+  const handleBookAppointment = async (values: BookingFormValues) => {
     setBookingLoading(true);
     try {
       await createAppointment({
@@ -282,14 +312,14 @@ const Telemedicine: React.FC = () => {
 
   const handleSavePrescription = async () => {
     try {
-      const values = await prescriptionForm.validateFields();
+      const values = await prescriptionForm.validateFields() as PrescriptionFormValues;
       if (!activeConsultation?.id) {
         message.warning('Không có phiên khám để kê đơn');
         return;
       }
       await createEPrescription({
         consultationId: activeConsultation.id,
-        items: (values.medicines || []).map((m: any) => ({
+        items: (values.medicines || []).map((m) => ({
           drugId: m.drugId,
           quantity: Number(m.quantity) || 1,
           dosage: m.dosage.trim(),
@@ -368,7 +398,7 @@ const Telemedicine: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            ${(values.medicines || []).map((m: any, i: number) => `
+            ${(values.medicines || []).map((m: PrescriptionMedicineValue, i: number) => `
               <tr>
                 <td>${i + 1}</td>
                 <td>${m.drugName || m.name || ''}</td>

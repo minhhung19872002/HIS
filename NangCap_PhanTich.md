@@ -1818,3 +1818,69 @@
 - DI: 4 new service registrations in DependencyInjection.cs
 - Routes: /chronic-disease, /hospital-pharmacy, /clinical-guidance, /tb-hiv
 - Console-errors: 57/57 pass (was 53, +4 new pages)
+
+---
+
+## PHAN 15: DICH VU RIS/PACS (NangCap15.pdf - BV Đa khoa tỉnh Lai Châu)
+
+### Yeu cau chung
+- Web Base, DICOM, HL7 v2.7+
+- ISO 9001:2015, ISO 13485:2016, CE, ISO 27001:2022
+
+### I. HE THONG PMR RIS
+
+| STT | Chuc nang | Trang thai | Ghi chu |
+|-----|-----------|------------|---------|
+| 1.1 | Quan ly benh nhan (danh sach, tim kiem, chinh sua, huy) | **DA XONG** | getWaitingList, search, cancel |
+| 1.2 | Ket noi PACS (DICOM, Worklist) | **DA XONG** | GetPACSConnectionsAsync, SendWorklistToModalityAsync |
+| 1.3 | Ket noi HIS (HL7 nhan/gui) | **DA XONG** | ReceiveHL7OrderAsync, SendHL7ResultAsync, CDA |
+| 1.4 | Lich hen chup | **DA XONG** | SaveScheduleAsync, BatchCreateDutySchedulesAsync |
+| 1.5 | Quan ly ket qua CDHA (mau, doc, duyet, in, QR) | **DA XONG** | Result templates, approval, QR share |
+| 1.6 | Phan cong ca chup cho BS | **DA XONG** | AssignRoomAsync, DutySchedule |
+| 1.7 | Chat noi bo theo ca chup | CHUA LAM | Can tich hop SignalR vao RIS |
+| 1.8 | Non-DICOM (camera, upload) | **DA XONG** | CaptureDeviceAsync, UploadCapturedMediaAsync |
+| 1.9 | CDHA tu xa (teleradiology) | **DA XONG** | ConsultationSession, InviteQR, share |
+| 1.10 | Thong ke (may, BS, chi dinh) | **DA XONG** | Revenue, register, statistics |
+| 1.11 | Log lich su ca chup | **DA XONG** | AuditLogMiddleware, IntegrationLog |
+| 1.12 | Quan ly Message RIS-HIS | **DA XONG** | GetHL7MessagesAsync, RetryHL7MessageAsync |
+| 1.13 | Tuy bien giao dien (dark/light, ngon ngu, dual monitor) | CHUA LAM | Can UI theme toggle |
+| 1.14 | Quan ly user (tao, sua, phan quyen, khoa, map HIS) | **DA XONG** | SystemAdmin user CRUD |
+| 1.15 | Quan ly phan quyen (nhom, vai tro, phong ban) | **DA XONG** | Role-based auth, SystemAdmin |
+| 1.16 | Quan ly mau in/mau ket qua | **DA XONG** | SaveResultTemplateAsync |
+| 1.17 | Quan ly danh muc chi dinh (dong bo HIS) | **DA XONG** | Service catalog |
+| 1.18 | Quan ly bo loc ca chup (preset, tuy chon) | CHUA LAM | Can saved filter presets UI |
+| 1.19 | Quan ly DICOM Worklist may chup | **DA XONG** | SendWorklistToModalityAsync, MPPS |
+| 1.20 | Cau hinh ket qua CDHA (gioi han, tu dong luu, in gop) | CHUA LAM | Can config UI |
+| 1.21 | Quan ly chi nhanh (multi-branch, phan quyen) | CHUA LAM | Can branch management |
+
+### II. HE THONG PMR PACS
+
+| STT | Chuc nang | Trang thai | Ghi chu |
+|-----|-----------|------------|---------|
+| 1 | Xem anh co ban (X-Ray, CT, MRI, Mammo, DSA, US) | **DA XONG** | OHIF Viewer + DicomViewer.tsx |
+| 2 | Xu ly anh nang cao 2D/3D (MPR, MIP, 3D) | **DA XONG** | OHIF supports native |
+| 3 | Xuat file/ghi dia | CHUA LAM | Can export ZIP/DICOM |
+| 4 | Gui DICOM sang server khac | CHUA LAM | Can DICOM send UI |
+| 5 | App mobile (Android/iOS) | CHUA LAM | Can mobile app (hardware) |
+
+### Tong ket NangCap15
+
+| Hang muc | Tong | DA XONG | CHUA LAM |
+|----------|------|---------|----------|
+| RIS (I.1-I.21) | 21 | **16** | 5 |
+| PACS (II.1-II.5) | 5 | **2** | 3 |
+| **Tong** | **26** | **18** | **8** |
+
+> 5 CHUA LAM RIS: Chat noi bo (1.7), Dark/Light theme (1.13), Bo loc preset (1.18), Config ket qua (1.20), Chi nhanh (1.21)
+> 3 CHUA LAM PACS: Xuat file (3), Gui DICOM (4), Mobile app (5 - hardware)
+
+### Bieu mau TT 32/2023/TT-BYT (Medinet)
+
+| Hang muc | Tong | DA CO | THIEU |
+|----------|------|-------|-------|
+| BA chuyen khoa (MS:XX/BV1) | 29 | 3 | **26** |
+| Phieu y te (MS:XX/BV2) | 9 | 5 | **4** |
+| **Tong** | **38** | **8** | **30** |
+
+> 26 BA chuyen khoa thieu: Noi khoa, Truyen nhiem, Phu khoa, Tam than, Da lieu, Huyet hoc, Ngoai khoa, Bong, Ung buou, RHM, TMH, Ngoai tru chung, Ngoai tru RHM, Tuyen xa, YHCT noi/ngoai tru, Nhi YHCT, 6 Mat, PHCN, PHCN Nhi, Ngoai tru PHCN
+> 4 Phieu thieu: Kham theo YC, Kham CK, CS cap 1, CS cap 2

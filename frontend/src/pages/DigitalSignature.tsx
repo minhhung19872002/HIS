@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Space, Modal, Form, Input, Tag, Tabs, message, Spin,
-  Statistic, Row, Col, Badge, Tooltip, Alert, Progress, Descriptions, Result
+  Statistic, Row, Col, Badge, Tooltip, Alert, Progress, Descriptions
 } from 'antd';
 import {
   SafetyCertificateOutlined, UsbOutlined, KeyOutlined, ReloadOutlined,
   CheckCircleOutlined, CloseCircleOutlined, LockOutlined, UnlockOutlined,
-  FileProtectOutlined, HistoryOutlined, WarningOutlined, DisconnectOutlined,
+  FileProtectOutlined, HistoryOutlined, DisconnectOutlined,
   LinkOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -62,7 +62,7 @@ const DigitalSignature: React.FC = () => {
   const [tokens, setTokens] = useState<TokenInfoDto[]>([]);
   const [certificates, setCertificates] = useState<CertificateInfo[]>([]);
   const [sessionStatus, setSessionStatus] = useState<SessionStatusResponse | null>(null);
-  const [signatures, setSignatures] = useState<DocumentSignatureDto[]>([]);
+  const [signatures] = useState<DocumentSignatureDto[]>([]);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [batchResult, setBatchResult] = useState<BatchSignResponse | null>(null);
   const [loginForm] = Form.useForm();

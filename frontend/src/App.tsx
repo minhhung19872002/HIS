@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, theme as antdTheme } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy } from 'react';
@@ -7,6 +7,7 @@ import { Spin } from 'antd';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SigningProvider } from './contexts/SigningContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import './App.css';
@@ -72,6 +73,25 @@ const ChronicDisease = lazy(() => import('./pages/ChronicDisease'));
 const HospitalPharmacy = lazy(() => import('./pages/HospitalPharmacy'));
 const ClinicalGuidance = lazy(() => import('./pages/ClinicalGuidance'));
 const TbHivManagement = lazy(() => import('./pages/TbHivManagement'));
+const HealthCheckup = lazy(() => import('./pages/HealthCheckup'));
+const Immunization = lazy(() => import('./pages/Immunization'));
+const Epidemiology = lazy(() => import('./pages/Epidemiology'));
+const SchoolHealth = lazy(() => import('./pages/SchoolHealth'));
+const OccupationalHealth = lazy(() => import('./pages/OccupationalHealth'));
+const MethadoneTreatment = lazy(() => import('./pages/MethadoneTreatment'));
+const FoodSafety = lazy(() => import('./pages/FoodSafety'));
+const CommunityHealth = lazy(() => import('./pages/CommunityHealth'));
+const HivManagement = lazy(() => import('./pages/HivManagement'));
+const MedicalForensics = lazy(() => import('./pages/MedicalForensics'));
+const TraditionalMedicine = lazy(() => import('./pages/TraditionalMedicine'));
+const ReproductiveHealth = lazy(() => import('./pages/ReproductiveHealth'));
+const MentalHealth = lazy(() => import('./pages/MentalHealth'));
+const EnvironmentalHealth = lazy(() => import('./pages/EnvironmentalHealth'));
+const TraumaRegistry = lazy(() => import('./pages/TraumaRegistry'));
+const PopulationHealth = lazy(() => import('./pages/PopulationHealth'));
+const HealthEducation = lazy(() => import('./pages/HealthEducation'));
+const PracticeLicense = lazy(() => import('./pages/PracticeLicense'));
+const InterHospitalSharing = lazy(() => import('./pages/InterHospitalSharing'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -182,6 +202,25 @@ const AppRoutes: React.FC = () => {
           <Route path="hospital-pharmacy" element={<HospitalPharmacy />} />
           <Route path="clinical-guidance" element={<ClinicalGuidance />} />
           <Route path="tb-hiv" element={<TbHivManagement />} />
+          <Route path="health-checkup" element={<HealthCheckup />} />
+          <Route path="immunization" element={<Immunization />} />
+          <Route path="epidemiology" element={<Epidemiology />} />
+          <Route path="school-health" element={<SchoolHealth />} />
+          <Route path="occupational-health" element={<OccupationalHealth />} />
+          <Route path="methadone-treatment" element={<MethadoneTreatment />} />
+          <Route path="food-safety" element={<FoodSafety />} />
+          <Route path="community-health" element={<CommunityHealth />} />
+          <Route path="hiv-management" element={<HivManagement />} />
+          <Route path="medical-forensics" element={<MedicalForensics />} />
+          <Route path="traditional-medicine" element={<TraditionalMedicine />} />
+          <Route path="reproductive-health" element={<ReproductiveHealth />} />
+          <Route path="mental-health" element={<MentalHealth />} />
+          <Route path="environmental-health" element={<EnvironmentalHealth />} />
+          <Route path="trauma-registry" element={<TraumaRegistry />} />
+          <Route path="population-health" element={<PopulationHealth />} />
+          <Route path="health-education" element={<HealthEducation />} />
+          <Route path="practice-license" element={<PracticeLicense />} />
+          <Route path="inter-hospital" element={<InterHospitalSharing />} />
           {/* Redirect aliases */}
           <Route path="inpatient" element={<Navigate to="/ipd" replace />} />
           <Route path="laboratory" element={<Navigate to="/lab" replace />} />
@@ -193,15 +232,20 @@ const AppRoutes: React.FC = () => {
   );
 };
 
-function App() {
+const ThemedApp: React.FC = () => {
+  const { isDark } = useTheme();
+
   return (
     <ConfigProvider
       locale={viVN}
       theme={{
+        algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
           colorPrimary: '#0066CC',
           borderRadius: 6,
-          colorBgContainer: '#ffffff',
+          ...(isDark
+            ? { colorBgContainer: '#1f1f1f' }
+            : { colorBgContainer: '#ffffff' }),
           fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
         },
       }}
@@ -218,6 +262,14 @@ function App() {
         </BrowserRouter>
       </QueryClientProvider>
     </ConfigProvider>
+  );
+};
+
+function App() {
+  return (
+    <ThemeProvider>
+      <ThemedApp />
+    </ThemeProvider>
   );
 }
 

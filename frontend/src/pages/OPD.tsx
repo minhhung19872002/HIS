@@ -58,7 +58,7 @@ import {
 } from '../api/examination';
 import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
 import BarcodeScanner from '../components/BarcodeScanner';
-import { useKeyboardShortcuts, formatShortcut } from '../hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import cdsApi from '../api/clinicalDecisionSupport';
 import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
@@ -108,6 +108,29 @@ interface ServiceOption {
   label: string;
   data: Service;
 }
+
+type QueueListDetails = {
+  dateOfBirth?: string;
+  visitReason?: string;
+};
+
+type SupplyOrderResponseItem = {
+  serviceId?: string;
+  itemId?: string;
+  serviceCode?: string;
+  itemCode?: string;
+  serviceName?: string;
+  itemName?: string;
+  unit?: string;
+  quantity?: number;
+  stockQuantity?: number;
+};
+
+type SupplyAutoCompleteOption = {
+  value: string;
+  label: string;
+  data?: StockDto;
+};
 
 // Danh sách các loại bệnh án ngoại trú theo Bộ Y tế
 const OPD_RECORD_TYPES = [
@@ -235,7 +258,7 @@ const OPD: React.FC = () => {
           setSelectedRoomId(data[0].id);
         }
       }
-    } catch (error) {
+    } catch {
       message.warning('Không thể tải danh sách phòng khám');
     } finally {
       setLoadingRooms(false);
@@ -253,7 +276,7 @@ const OPD: React.FC = () => {
       } else {
         setQueueList([]);
       }
-    } catch (error) {
+    } catch {
       message.warning('Không thể tải danh sách chờ khám');
       setQueueList([]);
     } finally {
@@ -296,7 +319,7 @@ const OPD: React.FC = () => {
         // NangCap4: fetch deposit balance and debt warnings
         checkPatientFinancials(queuePatient.patientId, queuePatient.examinationId);
       }
-    } catch (error) {
+    } catch {
       message.warning('Không thể tải thông tin bệnh nhân');
     }
   };
@@ -346,7 +369,7 @@ const OPD: React.FC = () => {
       const rxRes = await examinationApi.getPrescriptions(examinationId);
       if (rxRes.data && Array.isArray(rxRes.data)) {
         const hasActive = rxRes.data.some(
-          (rx: any) => rx.isDispensed === false && (rx.status === 0 || rx.status === 1)
+          (rx: { isDispensed?: boolean; status?: number }) => rx.isDispensed === false && (rx.status === 0 || rx.status === 1)
         );
         setHasActiveMedications(hasActive);
       }
@@ -385,12 +408,12 @@ const OPD: React.FC = () => {
       } else {
         message.warning('Không tìm thấy bệnh nhân');
       }
-    } catch (error) {
+    } catch {
       message.warning('Lỗi khi tìm kiếm bệnh nhân');
     }
   };
 
-  const handleBarcodeScan = useCallback((decodedText: string) => {
+  const handleBarcodeScan = (decodedText: string) => {
     message.success(`Đã quét: ${decodedText}`);
     setSearchKeyword(decodedText);
     // Trigger search with scanned code
@@ -421,9 +444,9 @@ const OPD: React.FC = () => {
       }
     };
     doSearch();
-  }, []);
+  };
 
-  const initializeNewExamination = (patient: Patient, queue?: { id?: string; patientId?: string; patientCode?: string; patientName?: string; queueNumber?: number; departmentId?: string; departmentName?: string; roomId?: string; roomName?: string; status?: number }) => {
+  const initializeNewExamination = useCallback((patient: Patient, queue?: { id?: string; patientId?: string; patientCode?: string; patientName?: string; queueNumber?: number; departmentId?: string; departmentName?: string; roomId?: string; roomName?: string; status?: number }) => {
     const newExam: Examination = {
       id: queue?.id || `temp-${Date.now()}`,
       examinationDate: dayjs().format('YYYY-MM-DD HH:mm:ss'),
@@ -445,7 +468,7 @@ const OPD: React.FC = () => {
     setOrders([]);
     setOpdContext(null);
     examForm.resetFields();
-  };
+  }, [examForm, rooms, selectedRoomId]);
 
   const calculateAge = (dateOfBirth?: string, yearOfBirth?: number): string => {
     if (dateOfBirth) {
@@ -606,7 +629,8 @@ const OPD: React.FC = () => {
     }
   };
 
-  const handleAddOrder = async (serviceId: string, orderType: number) => {
+  const handleAddOrder = async (serviceId: string, orderType?: number) => {
+    void orderType;
     const selectedService = serviceOptions.find((opt) => opt.value === serviceId);
     if (!selectedService) return;
 
@@ -729,8 +753,8 @@ const OPD: React.FC = () => {
       }
       setIsSickLeaveModalOpen(false);
       sickLeaveForm.resetFields();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'errorFields' in error) return;
       console.warn('Error creating sick leave:', error);
       message.warning('Không thể tạo giấy nghỉ BHXH');
     } finally {
@@ -747,8 +771,8 @@ const OPD: React.FC = () => {
     try {
       setSearchingSupplies(true);
       const response = await getWarehouseStock({ keyword, itemType: 2, page: 0, pageSize: 20 });
-      const data = response?.data;
-      const items = (data as any)?.items || (data as any)?.data || [];
+      const data = response?.data as { items?: StockDto[]; data?: StockDto[] } | undefined;
+      const items = data?.items || data?.data || [];
       setSupplySearchResults(Array.isArray(items) ? items : []);
     } catch {
       setSupplySearchResults([]);
@@ -869,7 +893,7 @@ const OPD: React.FC = () => {
       }
       // Find a previous examination that is not the current one
       const prevExam = history.find(
-        (h: any) => h.examinationId && h.examinationId !== examination?.id
+        (h: { examinationId?: string }) => h.examinationId && h.examinationId !== examination?.id
       );
       if (!prevExam) {
         message.info('Không tìm thấy lần khám trước để sao chép');
@@ -885,14 +909,14 @@ const OPD: React.FC = () => {
         }
       );
       if (ordersRes.ok) {
-        const prevOrders: any[] = await ordersRes.json();
+        const prevOrders = await ordersRes.json() as SupplyOrderResponseItem[];
         if (!Array.isArray(prevOrders) || prevOrders.length === 0) {
           message.info('Lần khám trước không có đơn vật tư');
           return;
         }
         const newItems = prevOrders
-          .filter((o: any) => !supplyOrders.find(s => s.itemId === (o.serviceId || o.itemId)))
-          .map((o: any) => ({
+          .filter((o) => !supplyOrders.find(s => s.itemId === (o.serviceId || o.itemId)))
+          .map((o) => ({
             id: `supply-${Date.now()}-${Math.random()}`,
             itemId: o.serviceId || o.itemId || '',
             itemCode: o.serviceCode || o.itemCode || '',
@@ -1446,9 +1470,9 @@ const OPD: React.FC = () => {
       const response = await examinationApi.getPatientMedicalHistory(selectedPatient.id, 20);
       const data = response.data;
       if (data && Array.isArray(data)) {
-        const historyItems: Examination[] = data.map((item: any) => ({
+        const historyItems: Examination[] = data.map((item: { examinationId: string; examinationDate?: string; roomName?: string; doctorName?: string; conclusionType?: number; conclusionTypeName?: string; diagnosisCode?: string; diagnosisName?: string }) => ({
           id: item.examinationId,
-          examinationDate: item.examinationDate,
+          examinationDate: item.examinationDate || dayjs().format('YYYY-MM-DD HH:mm:ss'),
           patientId: selectedPatient.id,
           patientCode: selectedPatient.patientCode,
           patientName: selectedPatient.fullName,
@@ -1836,9 +1860,9 @@ const OPD: React.FC = () => {
                           <Descriptions.Item label="Số thứ tự">{record.queueNumber}</Descriptions.Item>
                           <Descriptions.Item label="Họ tên">{record.patientName}</Descriptions.Item>
                           <Descriptions.Item label="Giới tính">{record.gender === 1 ? 'Nam' : 'Nữ'}</Descriptions.Item>
-                          <Descriptions.Item label="Ngày sinh">{(record as any).dateOfBirth || '-'}</Descriptions.Item>
+                          <Descriptions.Item label="Ngày sinh">{(record as QueueListDetails).dateOfBirth || '-'}</Descriptions.Item>
                           <Descriptions.Item label="Tuổi">{record.age}</Descriptions.Item>
-                          <Descriptions.Item label="Lý do khám" span={2}>{(record as any).visitReason || '-'}</Descriptions.Item>
+                          <Descriptions.Item label="Lý do khám" span={2}>{(record as QueueListDetails).visitReason || '-'}</Descriptions.Item>
                           <Descriptions.Item label="Trạng thái" span={2}>
                             <Tag color={record.status === 0 ? 'orange' : record.status === 1 ? 'blue' : 'green'}>
                               {record.status === 0 ? 'Chờ khám' : record.status === 1 ? 'Đang khám' : 'Đã khám'}
@@ -2559,7 +2583,7 @@ const OPD: React.FC = () => {
                                 data: s,
                               }))}
                               onSearch={handleSearchSupplies}
-                              onSelect={(_: string, option: any) => {
+                              onSelect={(_: string, option: SupplyAutoCompleteOption) => {
                                 if (option.data) handleAddSupplyOrder(option.data);
                               }}
                               placeholder="Tìm vật tư y tế..."
@@ -2649,7 +2673,7 @@ const OPD: React.FC = () => {
                                 title: 'Số lượng',
                                 dataIndex: 'quantity',
                                 width: 100,
-                                render: (qty: number, _: any, index: number) => (
+                                render: (qty: number, _: unknown, index: number) => (
                                   <InputNumber
                                     min={1}
                                     value={qty}
@@ -2662,7 +2686,7 @@ const OPD: React.FC = () => {
                                 title: 'Thao tác',
                                 key: 'action',
                                 width: 80,
-                                render: (_: unknown, __: any, index: number) => (
+                                render: (_: unknown, __: unknown, index: number) => (
                                   <Button
                                     type="link"
                                     danger

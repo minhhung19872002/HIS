@@ -28,7 +28,6 @@ import {
   CalendarOutlined,
   PrinterOutlined,
   PlusOutlined,
-  ClockCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -44,10 +43,24 @@ import {
   type MaintenanceScheduleDto,
   type RepairRequestDto,
   type EquipmentDashboardDto,
+  type PagedResultDto,
 } from '../api/equipment';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+type RepairFormValues = {
+  priority: number;
+  issueDescription: string;
+  reportedBy?: string;
+};
+
+type MaintenanceFormValues = {
+  equipmentId: string;
+  maintenanceType: string;
+  scheduledDate?: dayjs.Dayjs;
+  technician?: string;
+};
 
 const Equipment: React.FC = () => {
   const [equipmentList, setEquipmentList] = useState<EquipmentDto[]>([]);
@@ -73,7 +86,7 @@ const Equipment: React.FC = () => {
       ]);
       if (eqRes.status === 'fulfilled') {
         const data = eqRes.value.data;
-        setEquipmentList(Array.isArray(data) ? data : (data as any)?.items || []);
+        setEquipmentList(Array.isArray(data) ? data : ((data as PagedResultDto<EquipmentDto> | undefined)?.items ?? []));
       }
       if (maintRes.status === 'fulfilled') setMaintenanceRecords(eqRes.status === 'fulfilled' ? maintRes.value.data || [] : []);
       if (repairRes.status === 'fulfilled') setRepairList(repairRes.value.data || []);
@@ -119,7 +132,7 @@ const Equipment: React.FC = () => {
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
-  const handleSubmitRepair = async (values: any) => {
+  const handleSubmitRepair = async (values: RepairFormValues) => {
     if (!selectedEquipment) return;
     try {
       await createRepairRequest({
@@ -127,7 +140,7 @@ const Equipment: React.FC = () => {
         priority: values.priority,
         problemDescription: values.issueDescription,
         equipmentLocation: selectedEquipment.locationName || selectedEquipment.departmentName,
-        contactPerson: values.reportedBy,
+        contactPerson: values.reportedBy ?? '',
       });
       message.success('Đã gửi yêu cầu sửa chữa');
       setIsRepairModalOpen(false);
@@ -138,7 +151,7 @@ const Equipment: React.FC = () => {
     }
   };
 
-  const handleScheduleMaintenance = async (values: any) => {
+  const handleScheduleMaintenance = async (values: MaintenanceFormValues) => {
     try {
       await createMaintenanceRecord({
         equipmentId: values.equipmentId,

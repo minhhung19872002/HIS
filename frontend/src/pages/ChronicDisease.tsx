@@ -8,7 +8,6 @@ import {
   Tag,
   Row,
   Col,
-  Select,
   DatePicker,
   Typography,
   message,
@@ -194,8 +193,8 @@ const ChronicDisease: React.FC = () => {
       }
       setIsCreateModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'errorFields' in err) return;
       message.warning('Khong the luu ho so');
     } finally {
       setSaving(false);

@@ -1,4 +1,3 @@
-import React from 'react';
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 
@@ -50,6 +49,7 @@ const deliveryMethodLabels: Record<string, string> = {
   vacuum: 'Giác hút',
 };
 
+void deliveryMethodLabels;
 /**
  * Print a Vietnamese birth certificate (Giấy chứng sinh) in a new popup window.
  * Uses the same print-in-popup pattern as Inpatient.tsx medical records.

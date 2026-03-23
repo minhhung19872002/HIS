@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Space, Drawer } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Typography, Space, Drawer, Tooltip } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -47,9 +47,16 @@ import {
   MessageOutlined,
   HomeOutlined,
   ShopOutlined,
+  FileProtectOutlined,
+  ReadOutlined,
+  CloudOutlined,
+  SwapOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import NotificationBell from '../components/NotificationBell';
 
@@ -66,6 +73,7 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
     const checkSize = () => {
@@ -96,6 +104,8 @@ const MainLayout: React.FC = () => {
       finance: ['/billing', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/quality'],
       integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance'],
+      publicHealth: ['/health-checkup', '/immunization', '/epidemiology', '/school-health', '/occupational-health', '/methadone-treatment', '/food-safety', '/community-health', '/hiv-management'],
+      medinetYtcc: ['/medical-forensics', '/traditional-medicine', '/reproductive-health', '/mental-health', '/environmental-health', '/trauma-registry', '/population-health', '/health-education', '/practice-license', '/inter-hospital'],
       system: ['/master-data', '/reports', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
     };
     for (const [group, routes] of Object.entries(groupMap)) {
@@ -197,6 +207,39 @@ const MainLayout: React.FC = () => {
       ],
     },
     {
+      key: 'publicHealth',
+      icon: <FileProtectOutlined />,
+      label: 'Y tế công cộng',
+      children: [
+        { key: '/health-checkup', icon: <FileProtectOutlined />, label: 'Khám sức khỏe' },
+        { key: '/immunization', icon: <ExperimentOutlined />, label: 'Tiêm chủng' },
+        { key: '/epidemiology', icon: <AlertOutlined />, label: 'Giám sát dịch tễ' },
+        { key: '/school-health', icon: <ReadOutlined />, label: 'Y tế trường học' },
+        { key: '/occupational-health', icon: <SafetyCertificateOutlined />, label: 'SK nghề nghiệp' },
+        { key: '/methadone-treatment', icon: <MedicineBoxOutlined />, label: 'Methadone' },
+        { key: '/food-safety', icon: <AlertOutlined />, label: 'ATVSTP' },
+        { key: '/community-health', icon: <HomeOutlined />, label: 'SK cộng đồng' },
+        { key: '/hiv-management', icon: <MedicineBoxOutlined />, label: 'Quản lý HIV' },
+      ],
+    },
+    {
+      key: 'medinetYtcc',
+      icon: <CloudOutlined />,
+      label: 'Medinet YTCC',
+      children: [
+        { key: '/medical-forensics', icon: <AuditOutlined />, label: 'Giám định Y khoa' },
+        { key: '/traditional-medicine', icon: <ExperimentOutlined />, label: 'Y học cổ truyền' },
+        { key: '/reproductive-health', icon: <HeartOutlined />, label: 'SK sinh sản' },
+        { key: '/mental-health', icon: <SmileOutlined />, label: 'SK tâm thần' },
+        { key: '/environmental-health', icon: <CloudOutlined />, label: 'Môi trường y tế' },
+        { key: '/trauma-registry', icon: <ThunderboltOutlined />, label: 'Sổ chấn thương' },
+        { key: '/population-health', icon: <TeamOutlined />, label: 'Dân số KHHGĐ' },
+        { key: '/health-education', icon: <ReadOutlined />, label: 'Truyền thông GDSK' },
+        { key: '/practice-license', icon: <SafetyCertificateOutlined />, label: 'Hành nghề' },
+        { key: '/inter-hospital', icon: <SwapOutlined />, label: 'Liên viện' },
+      ],
+    },
+    {
       key: 'system',
       icon: <SettingOutlined />,
       label: 'Hệ thống',
@@ -251,15 +294,15 @@ const MainLayout: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottom: '1px solid #e8ecf0',
-        background: '#fff',
+        borderBottom: isDark ? '1px solid #303030' : '1px solid #e8ecf0',
+        background: isDark ? '#141414' : '#fff',
       }}>
         <Typography.Title level={4} style={{ color: '#0066CC', margin: 0, fontWeight: 700 }}>
           {collapsed && !isMobile ? 'HIS' : 'HIS System'}
         </Typography.Title>
       </div>
       <Menu
-        theme="light"
+        theme={isDark ? 'dark' : 'light'}
         mode="inline"
         selectedKeys={[location.pathname]}
         defaultOpenKeys={getOpenKeys()}
@@ -290,8 +333,8 @@ const MainLayout: React.FC = () => {
             position: 'sticky',
             top: 0,
             left: 0,
-            background: '#fff',
-            borderRight: '1px solid #e8ecf0',
+            background: isDark ? '#141414' : '#fff',
+            borderRight: isDark ? '1px solid #303030' : '1px solid #e8ecf0',
           }}
         >
           {sidebarMenu}
@@ -304,7 +347,7 @@ const MainLayout: React.FC = () => {
           placement="left"
           onClose={() => setMobileDrawerOpen(false)}
           open={mobileDrawerOpen}
-          styles={{ body: { padding: 0, background: '#fff' } }}
+          styles={{ body: { padding: 0, background: isDark ? '#141414' : '#fff' } }}
           size={250}
           closable={false}
         >
@@ -312,14 +355,14 @@ const MainLayout: React.FC = () => {
         </Drawer>
       )}
 
-      <Layout style={{ height: '100vh', overflow: 'hidden', background: '#f0f2f5' }}>
+      <Layout style={{ height: '100vh', overflow: 'hidden', background: isDark ? '#000000' : '#f0f2f5' }}>
         <Header style={{
           padding: isMobile ? '0 12px' : '0 24px',
-          background: '#fff',
+          background: isDark ? '#141414' : '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid #f0f0f0',
+          borderBottom: isDark ? '1px solid #303030' : '1px solid #f0f0f0',
           zIndex: 10,
           flex: '0 0 64px',
         }}>
@@ -333,6 +376,15 @@ const MainLayout: React.FC = () => {
           )}
 
           <Space size={isMobile ? 12 : 20}>
+            <Tooltip title={isDark ? 'Chuyển sang sáng' : 'Chuyển sang tối'}>
+              <span
+                onClick={toggleTheme}
+                style={{ fontSize: 18, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                data-testid="theme-toggle"
+              >
+                {isDark ? <SunOutlined /> : <MoonOutlined />}
+              </span>
+            </Tooltip>
             <NotificationBell />
             <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
@@ -345,11 +397,11 @@ const MainLayout: React.FC = () => {
         <Content style={{
           margin: contentMargin,
           padding: contentPadding,
-          background: '#fff',
+          background: isDark ? '#1f1f1f' : '#fff',
           borderRadius: 8,
           overflow: 'auto',
           flex: 1,
-          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+          boxShadow: isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03)',
         }}>
           <ErrorBoundary>
             <Outlet />

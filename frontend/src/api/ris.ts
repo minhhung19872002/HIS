@@ -2419,6 +2419,90 @@ export const saveTroubleshooting = (data: SaveTroubleshootingDto) =>
 
 // #endregion
 
+// #region NangCap15 Features
+
+// Chat interfaces
+export interface RisChatMessageDto {
+  id: string;
+  caseId: string;
+  senderUserId: string;
+  senderName: string;
+  message: string;
+  timestamp: string;
+  studyRef?: string;
+}
+
+export interface SendRisChatMessageDto {
+  caseId: string;
+  message: string;
+  studyRef?: string;
+}
+
+// Filter Preset interfaces
+export interface RisFilterPresetDto {
+  id: string;
+  name: string;
+  searchText?: string;
+  modalityFilter?: string;
+  dateRange?: [string, string] | null;
+  status?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+export interface SaveRisFilterPresetDto {
+  id?: string;
+  name: string;
+  searchText?: string;
+  modalityFilter?: string;
+  dateRange?: [string, string] | null;
+  status?: string;
+}
+
+// DICOM Export interfaces
+export interface DicomExportRequestDto {
+  studyInstanceUID: string;
+  includeAllSeries: boolean;
+  anonymize?: boolean;
+}
+
+export interface DicomExportResultDto {
+  success: boolean;
+  fileName: string;
+  fileSize: number;
+  downloadUrl: string;
+  message?: string;
+}
+
+// Chat APIs
+export const getCaseMessages = (caseId: string) =>
+  apiClient.get<RisChatMessageDto[]>(`/RISComplete/chat/${caseId}/messages`);
+
+export const sendCaseMessage = (data: SendRisChatMessageDto) =>
+  apiClient.post<RisChatMessageDto>('/RISComplete/chat/messages', data);
+
+// Filter Preset APIs (server-side persistence)
+export const getFilterPresets = () =>
+  apiClient.get<RisFilterPresetDto[]>('/RISComplete/filter-presets');
+
+export const saveFilterPreset = (data: SaveRisFilterPresetDto) =>
+  apiClient.post<RisFilterPresetDto>('/RISComplete/filter-presets', data);
+
+export const deleteFilterPreset = (presetId: string) =>
+  apiClient.delete(`/RISComplete/filter-presets/${presetId}`);
+
+// DICOM Export APIs
+export const exportDicomStudy = (data: DicomExportRequestDto) =>
+  apiClient.post('/RISComplete/dicom/export', data, {
+    responseType: 'blob',
+    timeout: 120000,
+  });
+
+export const getDicomExportStatus = (studyInstanceUID: string) =>
+  apiClient.get<DicomExportResultDto>(`/RISComplete/dicom/export-status/${studyInstanceUID}`);
+
+// #endregion
+
 // #region VII. CLS Screen APIs
 
 export const getCLSScreenConfig = () =>
@@ -2648,5 +2732,14 @@ export default {
   saveCLSScreenConfig,
   getServiceDescriptionTemplates,
   saveServiceDescriptionTemplate,
-  getDiagnosisHistory
+  getDiagnosisHistory,
+
+  // NangCap15 Features
+  getCaseMessages,
+  sendCaseMessage,
+  getFilterPresets,
+  saveFilterPreset: saveFilterPreset as (data: SaveRisFilterPresetDto) => ReturnType<typeof saveFilterPreset>,
+  deleteFilterPreset: deleteFilterPreset as (presetId: string) => ReturnType<typeof deleteFilterPreset>,
+  exportDicomStudy,
+  getDicomExportStatus,
 };

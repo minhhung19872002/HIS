@@ -23,7 +23,6 @@ import {
   Alert,
   Steps,
   Avatar,
-  Tooltip,
   Spin,
 } from 'antd';
 import {
@@ -34,9 +33,6 @@ import {
   PrinterOutlined,
   PlusOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  WarningOutlined,
   BellOutlined,
   MedicineBoxOutlined,
   EnvironmentOutlined,
@@ -65,12 +61,29 @@ import {
   type ActivityLogDto,
   type CommandCenterDto,
   type ActivateMCIDto,
-  type StaffResourceDto,
+  type RegisterVictimDto,
   type DepartmentStaffDto,
 } from '../api/massCasualty';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+type ActivateFormValues = {
+  description: string;
+  eventType?: string;
+  alertLevel: number;
+  location: string;
+  estimatedCasualties?: number | string;
+};
+
+type VictimFormValues = {
+  name?: string;
+  estimatedAge?: number | string;
+  gender?: string;
+  currentLocation?: string;
+  injuries?: string;
+  triageCategory?: string;
+};
 
 const EmergencyDisaster: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -371,7 +384,7 @@ const EmergencyDisaster: React.FC = () => {
     },
   ];
 
-  const handleActivateMCI = async (values: any) => {
+  const handleActivateMCI = async (values: ActivateFormValues) => {
     try {
       const dto: ActivateMCIDto = {
         eventName: values.description,
@@ -396,16 +409,10 @@ const EmergencyDisaster: React.FC = () => {
     }
   };
 
-  const handleAddVictim = async (values: any) => {
+  const handleAddVictim = async (values: VictimFormValues) => {
     if (!mciEvent) return;
     try {
-      const triageCategoryMap: Record<string, string> = {
-        red: 'Immediate',
-        yellow: 'Delayed',
-        green: 'Minor',
-        black: 'Expectant',
-      };
-      await registerVictim({
+      const dto: RegisterVictimDto = {
         eventId: mciEvent.id,
         fullName: values.name || undefined,
         estimatedAge: values.estimatedAge ? Number(values.estimatedAge) : undefined,
@@ -413,7 +420,8 @@ const EmergencyDisaster: React.FC = () => {
         chiefComplaint: values.currentLocation || undefined,
         injuries: values.injuries ? [values.injuries] : undefined,
         ambulatory: values.triageCategory === 'green',
-      });
+      };
+      await registerVictim(dto);
       message.success('Đã thêm nạn nhân mới!');
       setAddVictimModalVisible(false);
       victimForm.resetFields();

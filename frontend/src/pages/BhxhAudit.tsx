@@ -26,7 +26,6 @@ import {
   Divider,
 } from 'antd';
 import {
-  SearchOutlined,
   UploadOutlined,
   FileExcelOutlined,
   PrinterOutlined,
@@ -52,6 +51,79 @@ import { isApiAvailable } from '../utils/apiAvailability';
 
 const { RangePicker } = DatePicker;
 const { Search } = Input;
+
+type ClaimSearchItem = {
+  id: string;
+  maLk?: string;
+  claimCode?: string;
+  patientCode?: string;
+  maBn?: string;
+  patientName?: string;
+  hoTen?: string;
+  insuranceNumber?: string;
+  maThe?: string;
+  admissionDate?: string;
+  ngayVao?: string;
+  dischargeDate?: string;
+  ngayRa?: string;
+  departmentName?: string;
+  tenKhoa?: string;
+  departmentId?: string;
+  diagnosisCode?: string;
+  maBenhChinh?: string;
+  diagnosisName?: string;
+  totalAmount?: number;
+  insuranceAmount?: number;
+  tienBhyt?: number;
+  patientAmount?: number;
+  tienNguoibenh?: number;
+  auditStatus?: number;
+  paymentStatus?: number;
+  sentToPortal?: boolean;
+  status?: number;
+  sentDate?: string;
+  submitDate?: string;
+  approvedDate?: string;
+  rejectReason?: string;
+  auditorNote?: string;
+};
+
+type DepartmentItem = {
+  id: string;
+  name?: string;
+  tenKhoa?: string;
+};
+
+type AuditorAccountItem = {
+  id?: string;
+  username?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  organization?: string;
+  role?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  lastLoginAt?: string;
+};
+
+type PortalRecordItem = {
+  id?: string;
+  maLk?: string;
+  claimCode?: string;
+  patientName?: string;
+  insuranceNumber?: string;
+  admissionDate?: string;
+  dischargeDate?: string;
+  diagnosisCode?: string;
+  diagnosisName?: string;
+  totalAmount?: number;
+  insuranceAmount?: number;
+  status?: string;
+  sentDate?: string;
+  hospitalName?: string;
+  hospitalCode?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -198,7 +270,7 @@ const BhxhAudit: React.FC = () => {
 
       const res = await client.get('/insurance-xml/claims/search', { params });
       const items = res.data?.items || res.data?.data?.items || res.data || [];
-      const mapped: AuditRecord[] = (Array.isArray(items) ? items : []).map((item: any) => ({
+      const mapped: AuditRecord[] = (Array.isArray(items) ? items : []).map((item: ClaimSearchItem) => ({
         id: item.id,
         maLk: item.maLk || item.claimCode || '',
         patientCode: item.patientCode || item.maBn || '',
@@ -213,9 +285,9 @@ const BhxhAudit: React.FC = () => {
         totalAmount: item.totalAmount ?? 0,
         insuranceAmount: item.insuranceAmount ?? item.tienBhyt ?? 0,
         patientAmount: item.patientAmount ?? item.tienNguoibenh ?? 0,
-        auditStatus: item.auditStatus ?? (item.status >= 3 ? 1 : item.status === 4 ? 2 : 0),
+        auditStatus: item.auditStatus ?? ((item.status ?? 0) >= 3 ? 1 : (item.status ?? 0) === 4 ? 2 : 0),
         paymentStatus: item.paymentStatus ?? 0,
-        sentToPortal: item.sentToPortal ?? (item.status >= 2),
+        sentToPortal: item.sentToPortal ?? ((item.status ?? 0) >= 2),
         sentDate: item.sentDate || item.submitDate,
         approvedDate: item.approvedDate,
         rejectReason: item.rejectReason,
@@ -246,7 +318,7 @@ const BhxhAudit: React.FC = () => {
       const res = await client.get('/catalog/departments');
       const depts = res.data?.data || res.data || [];
       setDepartments(
-        (Array.isArray(depts) ? depts : []).map((d: any) => ({
+        (Array.isArray(depts) ? depts : []).map((d: DepartmentItem) => ({
           id: d.id,
           name: d.name || d.tenKhoa || '',
         }))
@@ -262,7 +334,7 @@ const BhxhAudit: React.FC = () => {
       const res = await client.get('/insurance-xml/bhxh-audit/auditor-accounts');
       const accounts = res.data?.data || res.data || [];
       setAuditorAccounts(
-        (Array.isArray(accounts) ? accounts : []).map((a: any) => ({
+        (Array.isArray(accounts) ? accounts : []).map((a: AuditorAccountItem) => ({
           id: a.id || '',
           username: a.username || '',
           fullName: a.fullName || '',
@@ -291,7 +363,7 @@ const BhxhAudit: React.FC = () => {
       const res = await client.get('/insurance-xml/bhxh-audit/records', { params });
       const items = res.data?.items || res.data?.data?.items || res.data?.data || res.data || [];
       setPortalRecords(
-        (Array.isArray(items) ? items : []).map((r: any) => ({
+        (Array.isArray(items) ? items : []).map((r: PortalRecordItem) => ({
           id: r.id || '',
           maLk: r.maLk || r.claimCode || '',
           patientName: r.patientName || '',
@@ -986,7 +1058,7 @@ const BhxhAudit: React.FC = () => {
             <Search
               placeholder="Tìm kiếm: mã LK, tên BN, số thẻ..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
               onSearch={handleSearch}
               allowClear
             />
@@ -1168,7 +1240,7 @@ const BhxhAudit: React.FC = () => {
             <Search
               placeholder="Tìm kiếm: mã LK, tên BN, số thẻ..."
               value={portalSearch}
-              onChange={(e) => setPortalSearch(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPortalSearch(e.target.value)}
               onSearch={handlePortalSearch}
               allowClear
               style={{ width: 300 }}

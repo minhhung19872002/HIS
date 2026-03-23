@@ -20,12 +20,12 @@ export default function SignatureStatusIcon({ signed, signatureInfo, onVerifyCli
     );
   }
 
+  const orgName = signatureInfo?.organizationName || signatureInfo?.signerName;
   const tooltipContent = signatureInfo ? (
-    <div>
-      <div>Ký bởi: {signatureInfo.signerName}</div>
-      <div>Ngày: {signatureInfo.signedAt}</div>
-      <div>CA: {signatureInfo.caProvider}</div>
-      {signatureInfo.tsaTimestamp && <div>TSA: {signatureInfo.tsaTimestamp}</div>}
+    <div style={{ border: '2px solid #52c41a', borderRadius: 4, padding: '8px 10px', minWidth: 240 }}>
+      <div style={{ fontWeight: 'bold', fontStyle: 'italic', marginBottom: 4 }}>Signature Valid</div>
+      {orgName && <div>Ký bởi: {orgName}</div>}
+      <div>Ký ngày: {signatureInfo.signedAt}</div>
       <div style={{ marginTop: 4, fontSize: 12, color: '#91d5ff' }}>Click để xem chi tiết</div>
     </div>
   ) : 'Đã ký số';

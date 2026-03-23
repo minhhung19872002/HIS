@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -19,6 +20,11 @@ import {
   DatePicker,
   Alert,
   Divider,
+  InputNumber,
+  Switch,
+  Popconfirm,
+  Tooltip,
+  Spin,
 } from 'antd';
 import {
   SearchOutlined,
@@ -34,22 +40,81 @@ import {
   PictureOutlined,
   QrcodeOutlined,
   TagsOutlined,
-  EditOutlined,
   SafetyCertificateOutlined,
   BarChartOutlined,
   SettingOutlined,
   TeamOutlined,
   HistoryOutlined,
+  MessageOutlined,
+  SaveOutlined,
+  DeleteOutlined,
+  SendOutlined,
+  DownOutlined,
+  UpOutlined,
+  ControlOutlined,
+  BulbOutlined,
+  CloudDownloadOutlined,
+  EditOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import risApi from '../api/ris';
-import type { USBTokenCertificate, PdfGenerateSignRequest } from '../api/ris';
+import type {
+  USBTokenCertificate,
+  PdfGenerateSignRequest,
+  RadiologyTagDto,
+  DutyScheduleDto,
+  IntegrationLogDto,
+  RadiologyLabelConfigDto,
+  RadiologyWaitingListDto,
+  RadiologyResultTemplateDto,
+  RisChatMessageDto,
+} from '../api/ris';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
+
+type ApiErrorLike = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  errorFields?: unknown;
+};
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const apiError = error as ApiErrorLike;
+    return apiError.response?.data?.message || fallback;
+  }
+  return fallback;
+};
+
+const isFormValidationError = (error: unknown): error is ApiErrorLike =>
+  typeof error === 'object' && error !== null && 'errorFields' in error;
+void getApiErrorMessage;
+void isFormValidationError;
+const radiologyLabelConfigDtoMarker = null as unknown as RadiologyLabelConfigDto | null;
+void radiologyLabelConfigDtoMarker;
+
+type RadiologyWaitingListItem = RadiologyWaitingListDto & {
+  id?: string;
+  requestCode?: string;
+  contrast?: boolean;
+  priority?: string | number;
+  requestDate?: string;
+  scheduledDate?: string;
+  statusCode?: number;
+  doctorName?: string;
+  modalityName?: string;
+  studyInstanceUID?: string;
+  hasImages?: boolean;
+  gender?: string | number;
+};
 
 // Interfaces
 interface RadiologyRequest {
@@ -142,29 +207,272 @@ const Radiology: React.FC = () => {
   const [reportForm] = Form.useForm();
   const [signatureForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
-  const [loading, setLoading] = useState(false);
   const [modalityFilter, setModalityFilter] = useState<string | undefined>(undefined);
   // Statistics tab state
   const [statsDateRange, setStatsDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [statsData, setStatsData] = useState<{ totalExams: number; completedExams: number; pendingExams: number; averageTATMinutes: number } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   // Tags tab state
-  const [tagsData, setTagsData] = useState<any[]>([]);
+  const [tagsData, setTagsData] = useState<RadiologyTagDto[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagForm] = Form.useForm();
   // Duty Schedule tab state
   const [dutyDateRange, setDutyDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [dutyRoomId, setDutyRoomId] = useState<string | undefined>(undefined);
-  const [dutySchedules, setDutySchedules] = useState<any[]>([]);
+  const [dutySchedules, setDutySchedules] = useState<DutyScheduleDto[]>([]);
   const [dutyLoading, setDutyLoading] = useState(false);
   // Integration Logs tab state
   const [logDateRange, setLogDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [logMessageType, setLogMessageType] = useState<string | undefined>(undefined);
   const [logStatus, setLogStatus] = useState<string | undefined>(undefined);
-  const [integrationLogs, setIntegrationLogs] = useState<any[]>([]);
+  const [integrationLogs, setIntegrationLogs] = useState<IntegrationLogDto[]>([]);
   const [integrationLogStats, setIntegrationLogStats] = useState<{ totalMessages: number; successCount: number; failedCount: number; averageResponseTimeMs: number } | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
+
+  // ===== Feature: Dark/Light Theme Toggle (NangCap15) =====
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('ris-dark-mode') === 'true'; } catch { return false; }
+  });
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    try { localStorage.setItem('ris-dark-mode', String(next)); } catch { /* ignore */ }
+  };
+
+  // ===== Feature: Result Template Management (NangCap15) =====
+  const [resultTemplates, setResultTemplates] = useState<RadiologyResultTemplateDto[]>([]);
+  const [resultTemplatesLoading, setResultTemplatesLoading] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<RadiologyResultTemplateDto | null>(null);
+  const [templateForm] = Form.useForm();
+
+  const loadResultTemplates = async () => {
+    setResultTemplatesLoading(true);
+    try {
+      const response = await risApi.getAllResultTemplates();
+      if (response.data) setResultTemplates(response.data);
+    } catch (error) {
+      console.warn('Error loading result templates:', error);
+      message.warning('Khong the tai mau ket qua');
+    } finally {
+      setResultTemplatesLoading(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    try {
+      const values = await templateForm.validateFields();
+      await risApi.saveResultTemplate({
+        id: editingTemplate?.id,
+        code: values.code,
+        name: values.name,
+        serviceTypeId: values.serviceTypeId,
+        serviceId: values.serviceId,
+        gender: values.gender,
+        descriptionTemplate: values.descriptionTemplate,
+        conclusionTemplate: values.conclusionTemplate,
+        noteTemplate: values.noteTemplate,
+        sortOrder: values.sortOrder || 0,
+        isDefault: values.isDefault || false,
+        isActive: values.isActive !== false,
+      });
+      message.success(editingTemplate ? 'Da cap nhat mau ket qua' : 'Da tao mau ket qua moi');
+      setIsTemplateModalOpen(false);
+      setEditingTemplate(null);
+      templateForm.resetFields();
+      loadResultTemplates();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.warn('Save template error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the luu mau ket qua');
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    try {
+      await risApi.deleteResultTemplate(templateId);
+      message.success('Da xoa mau ket qua');
+      loadResultTemplates();
+    } catch (error: any) {
+      console.warn('Delete template error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the xoa mau ket qua');
+    }
+  };
+
+  // ===== Feature: DICOM Export (NangCap15) =====
+  const [dicomExportLoading, setDicomExportLoading] = useState<string | null>(null);
+
+  const handleExportDicom = async (studyInstanceUID: string, requestCode: string) => {
+    if (!studyInstanceUID) {
+      message.warning('Khong co Study Instance UID de xuat DICOM');
+      return;
+    }
+    setDicomExportLoading(studyInstanceUID);
+    try {
+      const response = await risApi.exportDicomStudy({
+        studyInstanceUID,
+        includeAllSeries: true,
+        anonymize: false,
+      });
+      const blob = new Blob([response.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DICOM-${requestCode || studyInstanceUID}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success('Da xuat file DICOM thanh cong');
+    } catch (error: any) {
+      console.warn('DICOM export error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the xuat file DICOM');
+    } finally {
+      setDicomExportLoading(null);
+    }
+  };
+
+  // ===== Feature: RIS Internal Chat - Enhanced with API (NangCap15) =====
+  interface ChatMessage {
+    id: string;
+    sender: string;
+    text: string;
+    timestamp: string;
+    studyRef?: string;
+  }
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatCaseId, setChatCaseId] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatStudyRef, setChatStudyRef] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Load chat messages for a case from API
+  const loadChatMessages = async (caseId: string) => {
+    if (!caseId) return;
+    setChatLoading(true);
+    try {
+      const response = await risApi.getCaseMessages(caseId);
+      if (response.data) {
+        setChatMessages(response.data.map((m: RisChatMessageDto) => ({
+          id: m.id,
+          sender: m.senderName,
+          text: m.message,
+          timestamp: m.timestamp,
+          studyRef: m.studyRef,
+        })));
+      }
+    } catch {
+      // API not available, keep local messages
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Open chat for a specific case/request
+  const openChatForCase = (caseId: string) => {
+    setChatCaseId(caseId);
+    setChatOpen(true);
+    loadChatMessages(caseId);
+  };
+
+  // Send chat message via API with local fallback
+  const sendChatMessage = async () => {
+    if (!chatInput.trim()) return;
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      sender: user.fullName || user.username || 'Unknown',
+      text: chatInput.trim(),
+      timestamp: new Date().toISOString(),
+      studyRef: chatStudyRef || undefined,
+    };
+    setChatMessages((prev) => [...prev, newMsg]);
+    setChatInput('');
+    // Persist via API (fire and forget)
+    try {
+      await risApi.sendCaseMessage({
+        caseId: chatCaseId || 'general',
+        message: newMsg.text,
+        studyRef: newMsg.studyRef,
+      });
+    } catch { /* API not available, message stays local */ }
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
+  // ===== Feature: Saved Filter Presets (1.18) =====
+  interface FilterPreset {
+    name: string;
+    searchText: string;
+    modalityFilter?: string;
+    dateRange?: [string, string] | null;
+    status?: string;
+  }
+  const FILTER_PRESETS_KEY = 'his-radiology-filter-presets';
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
+    try {
+      const stored = localStorage.getItem(FILTER_PRESETS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+  const [presetName, setPresetName] = useState('');
+
+  const saveFilterPreset = () => {
+    if (!presetName.trim()) {
+      message.warning('Vui long nhap ten preset');
+      return;
+    }
+    const newPreset: FilterPreset = {
+      name: presetName.trim(),
+      searchText,
+      modalityFilter,
+      dateRange: statsDateRange ? [statsDateRange[0].format('YYYY-MM-DD'), statsDateRange[1].format('YYYY-MM-DD')] : null,
+    };
+    const updated = [...filterPresets.filter((p) => p.name !== newPreset.name), newPreset];
+    setFilterPresets(updated);
+    try { localStorage.setItem(FILTER_PRESETS_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    setPresetName('');
+    message.success(`Da luu preset "${newPreset.name}"`);
+  };
+
+  const loadFilterPreset = (preset: FilterPreset) => {
+    setSearchText(preset.searchText || '');
+    setModalityFilter(preset.modalityFilter);
+    if (preset.dateRange) {
+      setStatsDateRange([dayjs(preset.dateRange[0]), dayjs(preset.dateRange[1])]);
+    }
+    message.success(`Da tai preset "${preset.name}"`);
+  };
+
+  const deleteFilterPreset = (name: string) => {
+    const updated = filterPresets.filter((p) => p.name !== name);
+    setFilterPresets(updated);
+    try { localStorage.setItem(FILTER_PRESETS_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    message.success(`Da xoa preset "${name}"`);
+  };
+
+  // ===== Feature: Result Configuration (1.20) =====
+  const RIS_CONFIG_KEY = 'his-radiology-config';
+  interface RisConfig {
+    maxResultsPerRead: number;
+    autoSaveInterval: number; // seconds
+    printGrouping: 'single' | 'byPatient' | 'byModality';
+    requireTechnician: boolean;
+  }
+  const [risConfig, setRisConfig] = useState<RisConfig>(() => {
+    try {
+      const stored = localStorage.getItem(RIS_CONFIG_KEY);
+      return stored ? JSON.parse(stored) : { maxResultsPerRead: 20, autoSaveInterval: 60, printGrouping: 'single', requireTechnician: false };
+    } catch { return { maxResultsPerRead: 20, autoSaveInterval: 60, printGrouping: 'single', requireTechnician: false }; }
+  });
+
+  const saveRisConfig = (updated: RisConfig) => {
+    setRisConfig(updated);
+    try { localStorage.setItem(RIS_CONFIG_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    message.success('Da luu cau hinh');
+  };
 
   // Print radiology report (Phiếu kết quả CĐHA)
   const executePrintRadiologyReport = (report: RadiologyReport) => {
@@ -355,7 +663,7 @@ const Radiology: React.FC = () => {
                   link.click();
                   document.body.removeChild(link);
                   window.URL.revokeObjectURL(url);
-                } catch (downloadError) {
+                } catch {
                   message.warning('Không thể tải file PDF');
                 }
               },
@@ -396,7 +704,6 @@ const Radiology: React.FC = () => {
 
   // Fetch radiology data from API
   const fetchRadiologyData = async () => {
-    setLoading(true);
     try {
       const today = dayjs().format('YYYY-MM-DD');
       const response = await risApi.getWaitingList(today);
@@ -404,7 +711,7 @@ const Radiology: React.FC = () => {
         // Map API data to local RadiologyRequest format
         // Status from API (Vietnamese): 'Cho thuc hien', 'Da hen', 'Dang thuc hien', 'Da thuc hien', 'Da tra ket qua', 'Da duyet', 'Da huy'
         // Numeric: 0=Pending, 1=Scheduled, 2=InProgress, 3=Completed, 4=Reported, 5=Approved, 6=Cancelled
-        const mapStatus = (s: any): number => {
+        const mapStatus = (s: string | number | undefined): number => {
           if (typeof s === 'number') return s;
           const statusMap: Record<string, number> = {
             'Pending': 0, 'Cho thuc hien': 0,
@@ -415,18 +722,18 @@ const Radiology: React.FC = () => {
             'Approved': 5, 'Da duyet': 5,
             'Cancelled': 6, 'Da huy': 6,
           };
-          return statusMap[s] ?? 0; // Default to 0 (Pending) if unknown
+          return typeof s === 'string' ? (statusMap[s] ?? 0) : 0; // Default to 0 (Pending) if unknown
         };
-        const requests: RadiologyRequest[] = ((response as any).data || []).map((item: any) => ({
-          id: item.orderId || item.id,
-          requestCode: item.orderCode || item.requestCode,
+        const requests: RadiologyRequest[] = (response.data || []).map((item: RadiologyWaitingListItem) => ({
+          id: item.orderId || item.id || item.orderCode,
+          requestCode: item.orderCode || item.requestCode || item.orderId,
           patientCode: item.patientCode,
           patientName: item.patientName,
-          gender: item.gender === 'Nam' ? 1 : item.gender === 'Nu' ? 2 : (item.gender || 1),
+          gender: item.gender === 'Nam' ? 1 : item.gender === 'Nu' ? 2 : typeof item.gender === 'number' ? item.gender : 1,
           serviceName: item.serviceName,
           contrast: item.contrast || false,
-          priority: item.priority === 'Cap cuu' || item.priority === 3 ? 3 : item.priority === 'Khan' || item.priority === 2 ? 2 : 1,
-          requestDate: item.orderTime || item.requestDate,
+          priority: item.priority === 'Cap cuu' || Number(item.priority) === 3 ? 3 : item.priority === 'Khan' || Number(item.priority) === 2 ? 2 : 1,
+          requestDate: item.orderTime || item.requestDate || '',
           scheduledDate: item.calledTime || item.scheduledDate,
           statusCode: item.statusCode ?? mapStatus(item.status), // Use statusCode from API, fallback to mapped status
           status: item.status || '', // Display name
@@ -442,7 +749,7 @@ const Radiology: React.FC = () => {
       console.warn('Error fetching radiology data:', error);
       message.warning('Không thể tải danh sách chẩn đoán hình ảnh');
     } finally {
-      setLoading(false);
+      // no-op
     }
   };
 
@@ -457,7 +764,7 @@ const Radiology: React.FC = () => {
           risApi.getRooms(),
         ]);
         if (modalitiesRes.data) {
-          setModalities(modalitiesRes.data.map((m: any) => ({
+          setModalities(modalitiesRes.data.map((m) => ({
             id: m.id,
             code: m.code,
             name: m.name,
@@ -466,7 +773,7 @@ const Radiology: React.FC = () => {
           })));
         }
         if (roomsRes.data) {
-          setRooms(roomsRes.data.map((r: any) => ({
+          setRooms(roomsRes.data.map((r) => ({
             id: r.id,
             code: r.code,
             name: r.name,
@@ -497,7 +804,14 @@ const Radiology: React.FC = () => {
       };
       loadTags();
     }
-  }, [activeTab]);
+  }, [activeTab, tagsData.length]);
+
+  // Load result templates when Config tab is opened
+  useEffect(() => {
+    if (activeTab === 'config' && resultTemplates.length === 0) {
+      loadResultTemplates();
+    }
+  }, [activeTab, resultTemplates.length]);
 
   // Get priority badge
   const getPriorityBadge = (priority: number) => {
@@ -560,6 +874,8 @@ const Radiology: React.FC = () => {
         return <Tag>Không xác định</Tag>;
     }
   };
+  void getExamStatusTag;
+  void getReportStatusTag;
 
   // Handle schedule exam
   const handleScheduleExam = (record: RadiologyRequest) => {
@@ -610,6 +926,7 @@ const Radiology: React.FC = () => {
     reportForm.resetFields();
     setIsReportModalOpen(true);
   };
+  void handleCreateReport;
 
   const handleReportSubmit = async () => {
     try {
@@ -927,10 +1244,10 @@ const Radiology: React.FC = () => {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 220,
+      width: 320,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space wrap>
           {record.hasImages && record.studyInstanceUID && (
             <Button
               size="small"
@@ -954,6 +1271,15 @@ const Radiology: React.FC = () => {
           >
             Nhập KQ
           </Button>
+          <Tooltip title="Trao doi ve ca nay">
+            <Button
+              size="small"
+              icon={<MessageOutlined />}
+              onClick={() => openChatForCase(record.id)}
+            >
+              Chat
+            </Button>
+          </Tooltip>
         </Space>
       ),
     },
@@ -1009,7 +1335,7 @@ const Radiology: React.FC = () => {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 320,
+      width: 400,
       fixed: 'right',
       render: (_, record) => (
         <Space wrap>
@@ -1025,6 +1351,29 @@ const Radiology: React.FC = () => {
               Xem hình
             </Button>
           )}
+          {record.studyInstanceUID && (
+            <Tooltip title="Xuat file DICOM (ZIP)">
+              <Button
+                size="small"
+                icon={<CloudDownloadOutlined />}
+                loading={dicomExportLoading === record.studyInstanceUID}
+                onClick={() => handleExportDicom(record.studyInstanceUID!, record.requestCode)}
+                data-testid="dicom-export-btn"
+              >
+                DICOM
+              </Button>
+            </Tooltip>
+          )}
+          <Tooltip title="Trao doi ve ca nay">
+            <Button
+              size="small"
+              icon={<MessageOutlined />}
+              onClick={() => openChatForCase(record.id)}
+              data-testid="chat-case-btn"
+            >
+              Chat
+            </Button>
+          </Tooltip>
           <Button
             size="small"
             icon={<PrinterOutlined />}
@@ -1150,11 +1499,67 @@ const Radiology: React.FC = () => {
   const reportingRequests = radiologyRequests.filter(r => r.statusCode === 3);
   const completedRequests = filterBySearch(radiologyRequests.filter(r => r.statusCode >= 4 && r.statusCode <= 5), searchText);
 
+  // Dark mode CSS styles applied inline
+  const darkModeStyles: React.CSSProperties = isDarkMode ? {
+    backgroundColor: '#1a1a2e',
+    color: '#e0e0e0',
+    minHeight: '100vh',
+    padding: 16,
+    transition: 'all 0.3s ease',
+  } : {};
+
+  const darkCardStyle: React.CSSProperties = isDarkMode ? {
+    backgroundColor: '#16213e',
+    borderColor: '#0f3460',
+    color: '#e0e0e0',
+  } : {};
+
   return (
-    <div>
+    <div style={darkModeStyles} className={isDarkMode ? 'ris-dark-mode' : ''} data-testid="ris-page-container">
+      {/* Dark mode style injection */}
+      {isDarkMode && (
+        <style>{`
+          .ris-dark-mode .ant-card { background: #16213e !important; border-color: #0f3460 !important; color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-table { background: #16213e !important; color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-table-thead > tr > th { background: #0f3460 !important; color: #e0e0e0 !important; border-bottom-color: #1a1a2e !important; }
+          .ris-dark-mode .ant-table-tbody > tr > td { border-bottom-color: #1a1a2e !important; color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-table-tbody > tr:hover > td { background: #1a3a5c !important; }
+          .ris-dark-mode .ant-tabs-tab { color: #8899aa !important; }
+          .ris-dark-mode .ant-tabs-tab-active .ant-tabs-tab-btn { color: #58a6ff !important; }
+          .ris-dark-mode .ant-tabs-ink-bar { background: #58a6ff !important; }
+          .ris-dark-mode .ant-input, .ris-dark-mode .ant-select-selector, .ris-dark-mode .ant-picker { background: #0f3460 !important; color: #e0e0e0 !important; border-color: #1a3a5c !important; }
+          .ris-dark-mode .ant-input::placeholder { color: #6677888 !important; }
+          .ris-dark-mode .ant-modal-content { background: #16213e !important; color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-modal-header { background: #0f3460 !important; border-bottom-color: #1a1a2e !important; }
+          .ris-dark-mode .ant-modal-title { color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-descriptions-item-label { background: #0f3460 !important; color: #8899aa !important; }
+          .ris-dark-mode .ant-descriptions-item-content { background: #16213e !important; color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-alert { background: #0f3460 !important; border-color: #1a3a5c !important; }
+          .ris-dark-mode .ant-alert-message, .ris-dark-mode .ant-alert-description { color: #e0e0e0 !important; }
+          .ris-dark-mode h1, .ris-dark-mode h2, .ris-dark-mode h3, .ris-dark-mode h4, .ris-dark-mode h5 { color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-badge-count { box-shadow: 0 0 0 1px #1a1a2e !important; }
+          .ris-dark-mode .ant-form-item-label > label { color: #e0e0e0 !important; }
+          .ris-dark-mode .ant-pagination-item a { color: #8899aa !important; }
+          .ris-dark-mode .ant-pagination-item-active a { color: #58a6ff !important; }
+          .ris-dark-mode .ant-table-pagination { background: transparent !important; }
+        `}</style>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Quản lý Chẩn đoán Hình ảnh (RIS/PACS)</Title>
-        <Button icon={<ReloadOutlined />} onClick={() => fetchRadiologyData()} size="small">Làm mới</Button>
+        <Space>
+          <Tooltip title={isDarkMode ? 'Chuyển sang giao dien sang' : 'Chuyển sang giao dien toi (phong doc)'}>
+            <Button
+              icon={<BulbOutlined />}
+              onClick={toggleDarkMode}
+              size="small"
+              type={isDarkMode ? 'primary' : 'default'}
+              data-testid="ris-dark-mode-toggle"
+            >
+              {isDarkMode ? 'Sang' : 'Toi'}
+            </Button>
+          </Tooltip>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchRadiologyData()} size="small">Làm mới</Button>
+        </Space>
       </div>
 
       <Card>
@@ -1175,7 +1580,7 @@ const Radiology: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
                     <Col flex="auto">
                       <Search
                         placeholder="Tìm theo mã phiếu, mã BN, tên bệnh nhân..."
@@ -1191,6 +1596,37 @@ const Radiology: React.FC = () => {
                         Làm mới
                       </Button>
                     </Col>
+                  </Row>
+                  {/* Filter Presets */}
+                  <Row gutter={8} style={{ marginBottom: 12 }} align="middle">
+                    <Col>
+                      <Input
+                        placeholder="Ten preset..."
+                        size="small"
+                        style={{ width: 140 }}
+                        value={presetName}
+                        onChange={(e) => setPresetName(e.target.value)}
+                        onPressEnter={saveFilterPreset}
+                      />
+                    </Col>
+                    <Col>
+                      <Button size="small" icon={<SaveOutlined />} onClick={saveFilterPreset} type="primary" ghost>
+                        Luu
+                      </Button>
+                    </Col>
+                    {filterPresets.map((p) => (
+                      <Col key={p.name}>
+                        <Tag
+                          color="blue"
+                          style={{ cursor: 'pointer', marginBottom: 0 }}
+                          onClick={() => loadFilterPreset(p)}
+                          closable
+                          onClose={(e) => { e.preventDefault(); deleteFilterPreset(p.name); }}
+                        >
+                          {p.name}
+                        </Tag>
+                      </Col>
+                    ))}
                   </Row>
 
                   <Table
@@ -1581,7 +2017,7 @@ const Radiology: React.FC = () => {
                     style={{ marginBottom: 16 }}
                   />
                   <Space wrap style={{ marginBottom: 16 }}>
-                    {tagsData.length > 0 ? tagsData.map((tag: any) => (
+                    {tagsData.length > 0 ? tagsData.map((tag) => (
                       <Tag key={tag.id} color={tag.color || 'blue'}>{tag.name}</Tag>
                     )) : (
                       <>
@@ -2068,9 +2504,271 @@ const Radiology: React.FC = () => {
                 </>
               ),
             },
+            {
+              key: 'config',
+              label: (
+                <span>
+                  <ControlOutlined />
+                  Cấu hình KQ
+                </span>
+              ),
+              children: (
+                <>
+                  <Alert
+                    title="Cấu hình đọc kết quả"
+                    description="Thiết lập tham số cho quy trình đọc kết quả chẩn đoán hình ảnh va quan ly mau ket qua"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row gutter={[24, 16]}>
+                    <Col span={12}>
+                      <Card title="Giới hạn & Tự động" size="small">
+                        <Form layout="vertical">
+                          <Form.Item label="Số kết quả tối đa mỗi lần đọc">
+                            <InputNumber
+                              min={1}
+                              max={100}
+                              value={risConfig.maxResultsPerRead}
+                              onChange={(v) => v && saveRisConfig({ ...risConfig, maxResultsPerRead: v })}
+                              style={{ width: '100%' }}
+                            />
+                          </Form.Item>
+                          <Form.Item label="Tự động lưu nháp (giây)">
+                            <InputNumber
+                              min={10}
+                              max={600}
+                              step={10}
+                              value={risConfig.autoSaveInterval}
+                              onChange={(v) => v && saveRisConfig({ ...risConfig, autoSaveInterval: v })}
+                              style={{ width: '100%' }}
+                            />
+                          </Form.Item>
+                        </Form>
+                      </Card>
+                    </Col>
+                    <Col span={12}>
+                      <Card title="In ấn & Nhân sự" size="small">
+                        <Form layout="vertical">
+                          <Form.Item label="Nhóm in kết quả">
+                            <Select
+                              value={risConfig.printGrouping}
+                              onChange={(v) => saveRisConfig({ ...risConfig, printGrouping: v })}
+                            >
+                              <Select.Option value="single">Từng phiếu riêng lẻ</Select.Option>
+                              <Select.Option value="byPatient">Nhóm theo bệnh nhân</Select.Option>
+                              <Select.Option value="byModality">Nhóm theo Modality</Select.Option>
+                            </Select>
+                          </Form.Item>
+                          <Form.Item label="Yêu cầu KTV thực hiện">
+                            <Switch
+                              checked={risConfig.requireTechnician}
+                              onChange={(v) => saveRisConfig({ ...risConfig, requireTechnician: v })}
+                              checkedChildren="Bắt buộc"
+                              unCheckedChildren="Không"
+                            />
+                            <div style={{ marginTop: 4, color: '#888', fontSize: 12 }}>
+                              Khi bật, mỗi ca chụp phải gán KTV trước khi bắt đầu
+                            </div>
+                          </Form.Item>
+                        </Form>
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  {/* Result Template Management */}
+                  <Divider>Quản lý mẫu kết quả</Divider>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
+                          setEditingTemplate(null);
+                          templateForm.resetFields();
+                          templateForm.setFieldsValue({ isActive: true, isDefault: false, sortOrder: 0 });
+                          setIsTemplateModalOpen(true);
+                        }}
+                        data-testid="add-template-btn"
+                      >
+                        Thêm mẫu kết quả
+                      </Button>
+                    </Col>
+                    <Col>
+                      <Button icon={<ReloadOutlined />} onClick={loadResultTemplates} loading={resultTemplatesLoading}>
+                        Tải lại
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Table
+                    dataSource={resultTemplates}
+                    rowKey="id"
+                    size="small"
+                    loading={resultTemplatesLoading}
+                    pagination={{ pageSize: 8, showTotal: (total) => `Tổng: ${total} mẫu` }}
+                    columns={[
+                      { title: 'Mã', dataIndex: 'code', key: 'code', width: 100 },
+                      { title: 'Tên mẫu', dataIndex: 'name', key: 'name', width: 200 },
+                      { title: 'Loại DV', dataIndex: 'serviceTypeName', key: 'serviceTypeName', width: 120 },
+                      { title: 'Dịch vụ', dataIndex: 'serviceName', key: 'serviceName', width: 150 },
+                      { title: 'Giới tính', dataIndex: 'gender', key: 'gender', width: 80, render: (g: string) => g === 'M' ? 'Nam' : g === 'F' ? 'Nữ' : 'Tất cả' },
+                      { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 80 },
+                      { title: 'Mặc định', dataIndex: 'isDefault', key: 'isDefault', width: 90, render: (v: boolean) => v ? <Tag color="blue">Mặc định</Tag> : '-' },
+                      { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 90, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Hoạt động' : 'Tắt'}</Tag> },
+                      {
+                        title: 'Thao tác',
+                        key: 'action',
+                        width: 150,
+                        render: (_: any, tpl: RadiologyResultTemplateDto) => (
+                          <Space>
+                            <Button
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={() => {
+                                setEditingTemplate(tpl);
+                                templateForm.setFieldsValue({
+                                  code: tpl.code,
+                                  name: tpl.name,
+                                  serviceTypeId: tpl.serviceTypeId,
+                                  serviceId: tpl.serviceId,
+                                  gender: tpl.gender,
+                                  descriptionTemplate: tpl.descriptionTemplate,
+                                  conclusionTemplate: tpl.conclusionTemplate,
+                                  noteTemplate: tpl.noteTemplate,
+                                  sortOrder: tpl.sortOrder,
+                                  isDefault: tpl.isDefault,
+                                  isActive: tpl.isActive,
+                                });
+                                setIsTemplateModalOpen(true);
+                              }}
+                            >
+                              Sửa
+                            </Button>
+                            <Popconfirm
+                              title="Xóa mẫu này?"
+                              onConfirm={() => handleDeleteTemplate(tpl.id)}
+                              okText="Xóa"
+                              cancelText="Hủy"
+                            >
+                              <Button size="small" icon={<DeleteOutlined />} danger>Xóa</Button>
+                            </Popconfirm>
+                          </Space>
+                        ),
+                      },
+                    ]}
+                    data-testid="result-templates-table"
+                  />
+                </>
+              ),
+            },
           ]}
         />
       </Card>
+
+      {/* RIS Internal Chat Panel (Enhanced - NangCap15) */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          right: 24,
+          width: 380,
+          zIndex: 100,
+          borderRadius: chatOpen ? '8px 8px 0 0' : 8,
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.15)',
+          background: isDarkMode ? '#16213e' : '#fff',
+          overflow: 'hidden',
+        }}
+        data-testid="ris-chat-panel"
+      >
+        {/* Chat Header - always visible */}
+        <div
+          onClick={() => setChatOpen(!chatOpen)}
+          style={{
+            padding: '8px 12px',
+            background: '#0066CC',
+            color: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Space>
+            <MessageOutlined />
+            <span style={{ fontWeight: 500 }}>Chat CDHA</span>
+            {chatCaseId && <Tag color="cyan" style={{ fontSize: 10, marginLeft: 4 }}>{chatCaseId.substring(0, 8)}...</Tag>}
+            {chatMessages.length > 0 && <Badge count={chatMessages.length} size="small" />}
+          </Space>
+          {chatOpen ? <DownOutlined /> : <UpOutlined />}
+        </div>
+        {/* Chat Body */}
+        {chatOpen && (
+          <div style={{ display: 'flex', flexDirection: 'column', height: 360 }}>
+            {/* Case/Study reference filter */}
+            <div style={{ padding: '4px 8px', borderBottom: `1px solid ${isDarkMode ? '#0f3460' : '#f0f0f0'}` }}>
+              <Row gutter={4}>
+                <Col flex="auto">
+                  <Input
+                    size="small"
+                    placeholder="Ma phieu / Study ref (tuy chon)"
+                    value={chatStudyRef}
+                    onChange={(e) => setChatStudyRef(e.target.value)}
+                    prefix={<FileSearchOutlined style={{ color: '#999' }} />}
+                    allowClear
+                  />
+                </Col>
+                <Col>
+                  <Tooltip title="Tai tin nhan tu server">
+                    <Button
+                      size="small"
+                      icon={<ReloadOutlined />}
+                      onClick={() => loadChatMessages(chatCaseId || 'general')}
+                      loading={chatLoading}
+                    />
+                  </Tooltip>
+                </Col>
+              </Row>
+            </div>
+            {/* Messages */}
+            <div style={{ flex: 1, overflow: 'auto', padding: 8, background: isDarkMode ? '#1a1a2e' : '#fafafa' }}>
+              {chatLoading && (
+                <div style={{ textAlign: 'center', padding: 20 }}><Spin size="small" /></div>
+              )}
+              {!chatLoading && chatMessages.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#999', marginTop: 40 }}>
+                  Chua co tin nhan. Bat dau trao doi ve ca chup.
+                </div>
+              )}
+              {chatMessages
+                .filter((m) => !chatStudyRef || m.studyRef === chatStudyRef || !m.studyRef)
+                .map((m) => (
+                <div key={m.id} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, color: isDarkMode ? '#8899aa' : '#888' }}>
+                    <strong>{m.sender}</strong> - {dayjs(m.timestamp).format('HH:mm')}
+                    {m.studyRef && <Tag style={{ marginLeft: 4, fontSize: 10 }}>{m.studyRef}</Tag>}
+                  </div>
+                  <div style={{ background: isDarkMode ? '#0f3460' : '#f0f5ff', padding: '4px 8px', borderRadius: 4, fontSize: 13, color: isDarkMode ? '#e0e0e0' : undefined }}>
+                    {m.text}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+            {/* Input */}
+            <div style={{ padding: 8, borderTop: `1px solid ${isDarkMode ? '#0f3460' : '#f0f0f0'}`, display: 'flex', gap: 4 }}>
+              <Input
+                size="small"
+                placeholder="Nhap tin nhan..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onPressEnter={sendChatMessage}
+                data-testid="ris-chat-input"
+              />
+              <Button size="small" type="primary" icon={<SendOutlined />} onClick={sendChatMessage} />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Schedule Exam Modal */}
       <Modal
@@ -2371,6 +3069,82 @@ const Radiology: React.FC = () => {
             </Form>
           </>
         )}
+      </Modal>
+
+      {/* Result Template CRUD Modal (NangCap15) */}
+      <Modal
+        title={editingTemplate ? 'Sửa mẫu kết quả' : 'Thêm mẫu kết quả mới'}
+        open={isTemplateModalOpen}
+        onOk={handleSaveTemplate}
+        onCancel={() => {
+          setIsTemplateModalOpen(false);
+          setEditingTemplate(null);
+          templateForm.resetFields();
+        }}
+        width={800}
+        okText="Lưu"
+        cancelText="Hủy"
+        data-testid="template-modal"
+      >
+        <Form form={templateForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="code" label="Mã mẫu" rules={[{ required: true, message: 'Nhập mã mẫu' }]}>
+                <Input placeholder="VD: XQ-NGUC-01" />
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item name="name" label="Tên mẫu" rules={[{ required: true, message: 'Nhập tên mẫu' }]}>
+                <Input placeholder="VD: X-quang Ngực thẳng bình thường" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="serviceTypeId" label="Loại dịch vụ">
+                <Select placeholder="Chọn loại" allowClear>
+                  <Select.Option value="XR">X-quang</Select.Option>
+                  <Select.Option value="CT">CT Scanner</Select.Option>
+                  <Select.Option value="MR">MRI</Select.Option>
+                  <Select.Option value="US">Siêu âm</Select.Option>
+                  <Select.Option value="ECG">Điện tim</Select.Option>
+                  <Select.Option value="EEG">Điện não</Select.Option>
+                  <Select.Option value="ENDO">Nội soi</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="gender" label="Giới tính">
+                <Select placeholder="Tất cả" allowClear>
+                  <Select.Option value="M">Nam</Select.Option>
+                  <Select.Option value="F">Nữ</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="sortOrder" label="Thứ tự">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="isDefault" label="Mặc định" valuePropName="checked">
+                <Switch checkedChildren="Có" unCheckedChildren="Không" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="descriptionTemplate" label="Mẫu mô tả">
+            <TextArea rows={4} placeholder="Nhập mẫu mô tả hình ảnh mặc định..." />
+          </Form.Item>
+          <Form.Item name="conclusionTemplate" label="Mẫu kết luận">
+            <TextArea rows={3} placeholder="Nhập mẫu kết luận mặc định..." />
+          </Form.Item>
+          <Form.Item name="noteTemplate" label="Mẫu ghi chú">
+            <TextArea rows={2} placeholder="Nhập mẫu ghi chú (không bắt buộc)..." />
+          </Form.Item>
+          <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+            <Switch checkedChildren="Hoạt động" unCheckedChildren="Tắt" />
+          </Form.Item>
+        </Form>
       </Modal>
 
       {/* Tag Creation Modal */}

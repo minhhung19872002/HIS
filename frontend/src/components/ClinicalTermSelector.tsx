@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tag, Input, Space, Spin, Empty, Tooltip } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import { catalogApi, type ClinicalTermCatalogDto } from '../api/system';
 
 const { Search } = Input;
@@ -65,7 +65,7 @@ const ClinicalTermSelector: React.FC<ClinicalTermSelectorProps> = ({
       try {
         const resp = await catalogApi.getClinicalTerms(undefined, category, bodySystem, true);
         if (active) {
-          const data = (resp as any)?.data ?? resp;
+          const data = 'data' in resp ? resp.data : resp;
           setTerms(Array.isArray(data) ? data : []);
         }
       } catch {

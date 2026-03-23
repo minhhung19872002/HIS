@@ -2,6 +2,8 @@ import React, { forwardRef } from 'react';
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import type { MedicalRecordFullDto } from '../api/examination';
+import { DigitalSignatureStamp } from './EMRPrintTemplates';
+import type { SignatureStampInfo } from './EMRPrintTemplates';
 
 // Reuse same print styles
 const printStyles = `
@@ -39,6 +41,11 @@ const printStyles = `
 .emr-print-container .signature-row .sig-title { font-weight: bold; font-size: 13px; }
 .emr-print-container .signature-row .sig-date { font-style: italic; font-size: 12px; margin-bottom: 40px; }
 .emr-print-container .form-number { text-align: right; font-size: 11px; font-style: italic; }
+.emr-print-container .digital-sig-stamp { border: 2px solid #52c41a; border-radius: 4px; padding: 8px 12px; display: inline-block; text-align: left; font-size: 11px; line-height: 1.5; margin-top: 4px; position: relative; background: #fff; }
+.emr-print-container .digital-sig-stamp .sig-stamp-header { font-weight: bold; font-style: italic; color: #333; margin-bottom: 4px; }
+.emr-print-container .digital-sig-stamp .sig-stamp-field { padding-left: 8px; color: #cf1322; }
+.emr-print-container .digital-sig-stamp .sig-stamp-check { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; color: #4caf50; }
+.emr-print-container .digital-sig-stamp .sig-stamp-check svg { width: 28px; height: 28px; }
 `;
 
 const PrintHeader: React.FC<{ formNumber?: string }> = ({ formNumber }) => (
@@ -50,18 +57,32 @@ const PrintHeader: React.FC<{ formNumber?: string }> = ({ formNumber }) => (
   </div>
 );
 
-const SignatureBlock: React.FC<{ leftTitle: string; rightTitle: string; date?: Date }> = ({ leftTitle, rightTitle, date }) => (
+const SignatureBlock: React.FC<{
+  leftTitle: string;
+  rightTitle: string;
+  date?: Date;
+  leftStamp?: SignatureStampInfo;
+  rightStamp?: SignatureStampInfo;
+}> = ({ leftTitle, rightTitle, date, leftStamp, rightStamp }) => (
   <div className="signature-row">
     <div className="sig">
       <div className="sig-title">{leftTitle}</div>
-      <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      {leftStamp ? (
+        <DigitalSignatureStamp stamp={leftStamp} />
+      ) : (
+        <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      )}
     </div>
     <div className="sig">
       <div className="sig-date">
         {date ? `Ngày ${dayjs(date).format('DD')} tháng ${dayjs(date).format('MM')} năm ${dayjs(date).format('YYYY')}` : ''}
       </div>
       <div className="sig-title">{rightTitle}</div>
-      <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      {rightStamp ? (
+        <DigitalSignatureStamp stamp={rightStamp} />
+      ) : (
+        <div className="sig-date">(Ký, ghi rõ họ tên)</div>
+      )}
     </div>
   </div>
 );

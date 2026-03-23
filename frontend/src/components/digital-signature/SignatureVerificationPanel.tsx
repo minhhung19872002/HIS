@@ -59,6 +59,33 @@ export default function SignatureVerificationPanel({
       onClose={onClose}
       size="large"
     >
+      {/* Digital signature stamp preview */}
+      {isActive && (
+        <div style={{
+          border: '2px solid #52c41a',
+          borderRadius: 6,
+          padding: '12px 16px',
+          marginBottom: 16,
+          background: '#fff',
+          fontFamily: "'Times New Roman', serif",
+          position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute', top: -10, right: -6,
+            width: 32, height: 32, color: '#52c41a',
+          }}>
+            <CheckCircleOutlined style={{ fontSize: 28, color: '#52c41a' }} />
+          </div>
+          <div style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#333', marginBottom: 6 }}>Signature Valid</div>
+          {(signatureInfo.organizationName || signatureInfo.signerName) && (
+            <div style={{ paddingLeft: 12, color: '#cf1322' }}>
+              Ký bởi: {signatureInfo.organizationName || signatureInfo.signerName}
+            </div>
+          )}
+          <div style={{ paddingLeft: 12, color: '#cf1322' }}>Ký ngày: {signatureInfo.signedAt}</div>
+        </div>
+      )}
+
       <Descriptions column={1} bordered size="small">
         <Descriptions.Item label="Trạng thái">
           {isActive ? (
@@ -68,6 +95,12 @@ export default function SignatureVerificationPanel({
           )}
         </Descriptions.Item>
         <Descriptions.Item label="Người ký">{signatureInfo.signerName}</Descriptions.Item>
+        {signatureInfo.organizationName && (
+          <Descriptions.Item label="Tên đơn vị">{signatureInfo.organizationName}</Descriptions.Item>
+        )}
+        {signatureInfo.taxCode && (
+          <Descriptions.Item label="Mã số thuế">{signatureInfo.taxCode}</Descriptions.Item>
+        )}
         <Descriptions.Item label="Thời gian ký">{signatureInfo.signedAt}</Descriptions.Item>
         <Descriptions.Item label="Loại tài liệu">{signatureInfo.documentType}</Descriptions.Item>
         <Descriptions.Item label="Mã tài liệu">{signatureInfo.documentCode}</Descriptions.Item>

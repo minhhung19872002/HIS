@@ -45,7 +45,7 @@ import type {
   CreateGuidanceBatchDto,
 } from '../api/clinicalGuidance';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -215,8 +215,8 @@ const ClinicalGuidance: React.FC = () => {
       }
       setIsCreateModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'errorFields' in err) return;
       message.warning('Khong the luu dot chi dao tuyen');
     } finally {
       setSaving(false);
@@ -248,8 +248,8 @@ const ClinicalGuidance: React.FC = () => {
       // Refresh activities
       const acts = await guidanceApi.getGuidanceActivities(selectedBatch!.id);
       setActivities(acts);
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'errorFields' in err) return;
       message.warning('Khong the them hoat dong');
     } finally {
       setSaving(false);

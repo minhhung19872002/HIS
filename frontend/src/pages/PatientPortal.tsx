@@ -17,7 +17,6 @@ import {
   Statistic,
   Descriptions,
   Avatar,
-  Timeline,
   Divider,
   message,
   Rate,
@@ -62,10 +61,29 @@ import type {
   DepartmentInfoDto,
   DoctorInfoDto,
   PatientPortalDashboardDto,
+  PagedResultDto,
 } from '../api/patientPortal';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+
+type AppointmentFormValues = {
+  type: string;
+  departmentId: string;
+  specialtyId?: string;
+  doctorId?: string;
+  date?: string | Date;
+  time?: string;
+  notes?: string;
+};
+
+type FeedbackFormValues = {
+  departmentId?: string;
+  department?: string;
+  comment: string;
+  rating: number;
+  visitId?: string;
+};
 
 const PatientPortal: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -81,7 +99,6 @@ const PatientPortal: React.FC = () => {
 
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
-  const [isPatientViewOpen, setIsPatientViewOpen] = useState(false);
   const [appointmentForm] = Form.useForm();
   const [feedbackForm] = Form.useForm();
 
@@ -130,7 +147,7 @@ const PatientPortal: React.FC = () => {
       }
       if (notificationsRes.status === 'fulfilled') {
         const nData = notificationsRes.value.data;
-        setNotifications(Array.isArray(nData) ? nData : (nData as any)?.items ?? []);
+        setNotifications((nData as PagedResultDto<NotificationDto> | undefined)?.items ?? []);
       }
       if (departmentsRes.status === 'fulfilled') {
         setDepartments(departmentsRes.value.data ?? []);
@@ -166,7 +183,7 @@ const PatientPortal: React.FC = () => {
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
-  const handleBookAppointment = async (values: any) => {
+  const handleBookAppointment = async (values: AppointmentFormValues) => {
     try {
       await bookAppointment({
         appointmentType: values.type,
@@ -193,7 +210,7 @@ const PatientPortal: React.FC = () => {
     }
   };
 
-  const handleSubmitFeedback = async (values: any) => {
+  const handleSubmitFeedback = async (values: FeedbackFormValues) => {
     try {
       await submitFeedback({
         feedbackType: 'General',

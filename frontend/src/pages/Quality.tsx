@@ -23,15 +23,11 @@ import {
   Spin,
 } from 'antd';
 import {
-  SafetyOutlined,
   AlertOutlined,
   FileSearchOutlined,
-  BarChartOutlined,
   PrinterOutlined,
   PlusOutlined,
   ExclamationCircleOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -54,11 +50,48 @@ import type {
   QualityDashboardDto,
   CAPADto,
   SatisfactionStatisticsDto,
+  PagedResultDto,
+  CreateCorrectiveActionDto,
 } from '../api/quality';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+type IncidentFormValues = {
+  incidentDate: dayjs.Dayjs;
+  departmentId: string;
+  locationDescription?: string;
+  incidentType: string;
+  severity: number;
+  patientId?: string;
+  description: string;
+  immediateActions?: string;
+  isReportable?: boolean;
+  notes?: string;
+};
+
+type InvestigationFormValues = {
+  investigationFindings?: string;
+  rootCauseAnalysis?: string;
+  rcaMethod?: string;
+  contributingFactors?: string[];
+  correctiveActions?: CreateCorrectiveActionDto[];
+  preventiveMeasures?: string;
+  lessonLearned?: string;
+};
+
+type AuditFormValues = {
+  auditType: string;
+  title: string;
+  scope?: string;
+  objective?: string;
+  criteria?: string;
+  departmentId: string;
+  scheduledDate: dayjs.Dayjs;
+  leadAuditorId?: string;
+  notes?: string;
+};
 
 const INCIDENT_TYPES = [
   { value: 'MedicationError', label: 'Sai sót thuốc' },
@@ -113,7 +146,7 @@ const Quality: React.FC = () => {
       if (results[0].status === 'fulfilled') {
         const data = results[0].value?.data;
         if (data) {
-          setIncidents(Array.isArray(data) ? data : (data as any).items || []);
+          setIncidents((data as PagedResultDto<IncidentReportDto>).items || []);
         }
       } else {
         message.warning('Không thể tải danh sách sự cố');
@@ -207,7 +240,7 @@ const Quality: React.FC = () => {
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
-  const handleReportIncident = async (values: any) => {
+  const handleReportIncident = async (values: IncidentFormValues) => {
     try {
       await createIncident({
         incidentDate: values.incidentDate.format('YYYY-MM-DD'),
@@ -231,7 +264,7 @@ const Quality: React.FC = () => {
     }
   };
 
-  const handleInvestigation = async (values: any) => {
+  const handleInvestigation = async (values: InvestigationFormValues) => {
     if (!selectedIncident) return;
 
     try {
@@ -254,7 +287,7 @@ const Quality: React.FC = () => {
     }
   };
 
-  const handleAddAudit = async (values: any) => {
+  const handleAddAudit = async (values: AuditFormValues) => {
     try {
       await createAudit({
         auditType: values.auditType,
@@ -587,6 +620,7 @@ const Quality: React.FC = () => {
     if (ind.warningThreshold != null && ind.warningThreshold > 0) return 'warning';
     return 'good';
   };
+  void getIndicatorStatus;
 
   // Use dashboard QI trends to get current values if available
   const getIndicatorCurrentValue = (ind: QualityIndicatorDto): number | null => {

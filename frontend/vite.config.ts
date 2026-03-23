@@ -38,10 +38,10 @@ export default defineConfig({
       '/health': {
         target: 'http://localhost:5106',
         changeOrigin: true,
-        // Only proxy exact /health, /health/live, /health/ready, /health/details
-        // Do NOT proxy /health-exchange (frontend SPA route)
+        // Only proxy /health, /health/live, /health/ready, /health/details (backend)
+        // Bypass /health-* routes (frontend SPA: health-exchange, health-checkup, health-education)
         bypass(req) {
-          if (req.url && req.url.startsWith('/health-exchange')) {
+          if (req.url && /^\/health-/.test(req.url)) {
             return req.url;
           }
         },

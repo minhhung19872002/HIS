@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -20,13 +20,9 @@ import {
   Alert,
   Divider,
   Avatar,
-  Tooltip,
-  Timeline,
-  Upload,
   Popconfirm,
 } from 'antd';
 import {
-  SearchOutlined,
   PlusOutlined,
   TeamOutlined,
   VideoCameraOutlined,
@@ -41,13 +37,10 @@ import {
   QrcodeOutlined,
   CopyOutlined,
   DownloadOutlined,
-  DeleteOutlined,
   EditOutlined,
   EyeOutlined,
   ReloadOutlined,
   CalendarOutlined,
-  CommentOutlined,
-  PaperClipOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -55,16 +48,28 @@ import risApi from '../api/ris';
 import type {
   ConsultationSessionDto,
   ConsultationCaseDto,
-  ConsultationParticipantDto,
   ConsultationDiscussionDto,
   ConsultationMinutesDto,
   SaveConsultationSessionDto,
   SearchConsultationDto,
 } from '../api/ris';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Search, TextArea } = Input;
 const { RangePicker } = DatePicker;
+
+type SessionFormValues = {
+  title: string;
+  description?: string;
+  scheduledTime: dayjs.Dayjs;
+  meetingUrl?: string;
+};
+
+type MinutesFormValues = {
+  content: string;
+  conclusion?: string;
+  recommendations?: string;
+};
 
 const Consultation: React.FC = () => {
   const [activeTab, setActiveTab] = useState('sessions');
@@ -76,7 +81,6 @@ const Consultation: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMinutesModalOpen, setIsMinutesModalOpen] = useState(false);
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [discussionText, setDiscussionText] = useState('');
   const [form] = Form.useForm();
   const [minutesForm] = Form.useForm();
@@ -87,7 +91,7 @@ const Consultation: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
 
   // Fetch consultation sessions
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
       const response = await risApi.searchConsultations(searchParams);
@@ -102,11 +106,11 @@ const Consultation: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams]);
 
   useEffect(() => {
-    fetchSessions();
-  }, [searchParams]);
+    void fetchSessions();
+  }, [fetchSessions]);
 
   // Get status tag
   const getStatusTag = (status: number) => {
@@ -125,7 +129,7 @@ const Consultation: React.FC = () => {
   };
 
   // Handle create session
-  const handleCreateSession = async (values: any) => {
+  const handleCreateSession = async (values: SessionFormValues) => {
     try {
       const data: SaveConsultationSessionDto = {
         title: values.title,
@@ -137,8 +141,8 @@ const Consultation: React.FC = () => {
       message.success('Tạo phiên hội chẩn thành công');
       setIsCreateModalOpen(false);
       form.resetFields();
-      fetchSessions();
-    } catch (error) {
+      void fetchSessions();
+    } catch {
       message.warning('Có lỗi xảy ra khi tạo phiên hội chẩn');
     }
   };
@@ -148,8 +152,8 @@ const Consultation: React.FC = () => {
     try {
       await risApi.startConsultation(sessionId);
       message.success('Đã bắt đầu phiên hội chẩn');
-      fetchSessions();
-    } catch (error) {
+      void fetchSessions();
+    } catch {
       message.warning('Có lỗi xảy ra');
     }
   };
@@ -159,8 +163,8 @@ const Consultation: React.FC = () => {
     try {
       await risApi.endConsultation(sessionId);
       message.success('Đã kết thúc phiên hội chẩn');
-      fetchSessions();
-    } catch (error) {
+      void fetchSessions();
+    } catch {
       message.warning('Có lỗi xảy ra');
     }
   };
@@ -172,7 +176,7 @@ const Consultation: React.FC = () => {
       message.success('Đã tham gia phiên hội chẩn');
       // Open video conference or consultation viewer
       window.open(`/consultation/room/${sessionId}`, '_blank');
-    } catch (error) {
+    } catch {
       message.warning('Có lỗi xảy ra');
     }
   };
@@ -187,7 +191,7 @@ const Consultation: React.FC = () => {
       try {
         const response = await risApi.getConsultationDiscussions(session.cases[0].id);
         setDiscussions(response.data || []);
-      } catch (error) {
+      } catch {
         setDiscussions([]);
       }
     }
@@ -196,7 +200,7 @@ const Consultation: React.FC = () => {
     try {
       const minutesResponse = await risApi.getConsultationMinutes(session.id);
       setMinutes(minutesResponse.data);
-    } catch (error) {
+    } catch {
       setMinutes(null);
     }
   };
@@ -214,13 +218,13 @@ const Consultation: React.FC = () => {
       // Refresh discussions
       const response = await risApi.getConsultationDiscussions(selectedSession.cases[0].id);
       setDiscussions(response.data || []);
-    } catch (error) {
+    } catch {
       message.warning('Có lỗi xảy ra khi gửi thảo luận');
     }
   };
 
   // Handle save minutes
-  const handleSaveMinutes = async (values: any) => {
+  const handleSaveMinutes = async (values: MinutesFormValues) => {
     if (!selectedSession) return;
 
     try {
@@ -232,7 +236,7 @@ const Consultation: React.FC = () => {
       });
       message.success('Đã lưu biên bản hội chẩn');
       setIsMinutesModalOpen(false);
-    } catch (error) {
+    } catch {
       message.warning('Có lỗi xảy ra khi lưu biên bản');
     }
   };
@@ -262,7 +266,7 @@ const Consultation: React.FC = () => {
           </div>
         ),
       });
-    } catch (error) {
+    } catch {
       message.warning('Không thể tạo mã QR');
     }
   };

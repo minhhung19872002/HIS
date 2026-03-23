@@ -155,6 +155,19 @@ export const acknowledgeAlert = (alertId: string) =>
 export const resolveAlert = (alertId: string) =>
   apiClient.post<boolean>(`${BASE_URL}/alerts/${alertId}/resolve`);
 
+// ============================================================================
+// Clinical Pharmacy (Dược lâm sàng)
+// ============================================================================
+
+export const getClinicalReviews = () =>
+  apiClient.get(`${BASE_URL}/clinical-reviews`);
+
+export const getAdrReports = () =>
+  apiClient.get(`${BASE_URL}/adr-reports`);
+
+export const submitAdrReport = (data: Record<string, unknown>) =>
+  apiClient.post(`${BASE_URL}/adr-reports`, data);
+
 // Default export
 export default {
   getPendingPrescriptions,
@@ -174,4 +187,7 @@ export default {
   getAlerts,
   acknowledgeAlert,
   resolveAlert,
+  getClinicalReviews,
+  getAdrReports,
+  submitAdrReport,
 };

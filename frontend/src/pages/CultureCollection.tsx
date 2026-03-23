@@ -5,7 +5,7 @@ import {
   Timeline, Progress, Alert, Popconfirm,
 } from 'antd';
 import {
-  ExperimentOutlined, PlusOutlined, ReloadOutlined, SearchOutlined,
+  ExperimentOutlined, PlusOutlined, ReloadOutlined,
   WarningOutlined, CheckCircleOutlined, DeleteOutlined, EyeOutlined,
   ScissorOutlined, HistoryOutlined, MedicineBoxOutlined,
 } from '@ant-design/icons';

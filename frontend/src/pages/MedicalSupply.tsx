@@ -20,17 +20,14 @@ import {
   Tooltip,
   Progress,
   Spin,
-  InputNumber,
   Alert,
 } from 'antd';
 import {
-  SearchOutlined,
   PlusOutlined,
   ReloadOutlined,
   WarningOutlined,
   ExportOutlined,
   ImportOutlined,
-  PrinterOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
@@ -39,6 +36,10 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as warehouseApi from '../api/warehouse';
+
+type ProcurementPagedLike = {
+  items?: warehouseApi.ProcurementRequestDto[];
+};
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -133,7 +134,8 @@ const MedicalSupply: React.FC = () => {
         setReusableSupplies(results[4].value.data || []);
       }
       if (results[5].status === 'fulfilled' && results[5].value.data) {
-        const allProcurements = (results[5].value.data as any)?.items || results[5].value.data || [];
+        const procurementData = results[5].value.data as ProcurementPagedLike | warehouseApi.ProcurementRequestDto[] | undefined;
+        const allProcurements = Array.isArray(procurementData) ? procurementData : procurementData?.items || [];
         setProcurements(Array.isArray(allProcurements) ? allProcurements : []);
       }
 

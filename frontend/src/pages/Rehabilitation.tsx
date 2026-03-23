@@ -75,6 +75,32 @@ const ASSESSMENT_TYPES = [
   { value: 'moca', label: 'MoCA', maxScore: 30 },
   { value: 'berg', label: 'Berg Balance', maxScore: 56 },
 ];
+void ASSESSMENT_TYPES;
+
+type ReferralPagedLike = {
+  items?: RehabReferralDto[];
+};
+
+type AssessmentFormValues = {
+  totalScore?: number;
+  painLevel?: number;
+  notes?: string;
+  cooperation?: number;
+};
+
+type PlanFormValues = {
+  rehabType?: string;
+  frequency?: string;
+  totalSessions?: number;
+  goals?: string;
+};
+
+type SessionFormValues = {
+  planId?: string;
+  patientId?: string;
+  sessionDate: dayjs.Dayjs;
+  sessionTime: dayjs.Dayjs;
+};
 
 const Rehabilitation: React.FC = () => {
   const [referrals, setReferrals] = useState<RehabReferralDto[]>([]);
@@ -106,10 +132,10 @@ const Rehabilitation: React.FC = () => {
       if (results[0].status === 'fulfilled') {
         const data = results[0].value.data;
         // API may return paged result or array
-        if (data && Array.isArray((data as any).items)) {
-          setReferrals((data as any).items);
+        if (data && Array.isArray((data as ReferralPagedLike).items)) {
+          setReferrals((data as ReferralPagedLike).items || []);
         } else if (Array.isArray(data)) {
-          setReferrals(data as any);
+          setReferrals(data);
         } else {
           setReferrals([]);
         }
@@ -176,7 +202,7 @@ const Rehabilitation: React.FC = () => {
     return <Tag color={c.color}>{statusName || c.text}</Tag>;
   };
 
-  const handleAssessment = async (values: any) => {
+  const handleAssessment = async (values: AssessmentFormValues) => {
     if (!selectedReferral) return;
 
     const totalScore = values.totalScore || 0;
@@ -213,7 +239,7 @@ const Rehabilitation: React.FC = () => {
     }
   };
 
-  const handleCreatePlan = async (values: any) => {
+  const handleCreatePlan = async (values: PlanFormValues) => {
     if (!selectedReferral) return;
 
     try {
@@ -268,10 +294,10 @@ const Rehabilitation: React.FC = () => {
     }
   };
 
-  const handleAddSession = async (values: any) => {
+  const handleAddSession = async (values: SessionFormValues) => {
     try {
       const dto: CreateTreatmentSessionDto = {
-        planId: values.planId || values.patientId, // planId selected from in-treatment referrals
+        planId: values.planId || values.patientId || '', // planId selected from in-treatment referrals
         sessionDate: values.sessionDate.format('YYYY-MM-DD'),
         startTime: values.sessionTime.format('HH:mm'),
         location: 'Phòng PHCN',
@@ -289,7 +315,7 @@ const Rehabilitation: React.FC = () => {
     }
   };
 
-  const handleStartSession = async (session: TreatmentSessionDto) => {
+  const handleStartSession = async () => {
     // Start session - mark it as in_progress by completing with minimal data
     // The API may have a separate "start" endpoint or we update status
     try {
@@ -302,7 +328,7 @@ const Rehabilitation: React.FC = () => {
     }
   };
 
-  const handleRecordSession = async (values: any) => {
+  const handleRecordSession = async (values: AssessmentFormValues) => {
     if (!selectedSession) return;
 
     try {
@@ -584,7 +610,7 @@ const Rehabilitation: React.FC = () => {
               type="primary"
               size="small"
               icon={<PlayCircleOutlined />}
-              onClick={() => handleStartSession(record)}
+              onClick={() => handleStartSession()}
             >
               Bắt đầu
             </Button>

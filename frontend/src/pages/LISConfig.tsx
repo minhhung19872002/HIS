@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -85,6 +85,9 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
+const hasFormErrors = (error: unknown): error is { errorFields: unknown[] } =>
+  typeof error === 'object' && error !== null && 'errorFields' in error;
+
 // ===========================
 // Tab 1: Analyzer Config
 // ===========================
@@ -126,8 +129,8 @@ const AnalyzerConfigTab: React.FC = () => {
       form.resetFields();
       setEditingId(null);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return; // form validation
+    } catch (err: unknown) {
+      if (hasFormErrors(err)) return; // form validation
       message.warning('Lỗi khi lưu cấu hình máy xét nghiệm');
     }
   };
@@ -401,8 +404,8 @@ const TestParametersTab: React.FC = () => {
       form.resetFields();
       setEditingId(null);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (hasFormErrors(err)) return;
       message.warning('Lỗi khi lưu chỉ số xét nghiệm');
     }
   };
@@ -641,7 +644,7 @@ const ReferenceRangesTab: React.FC = () => {
   const [filterTestId, setFilterTestId] = useState<string | undefined>(undefined);
   const [form] = Form.useForm();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [rangeRes, paramRes] = await Promise.allSettled([
@@ -655,9 +658,9 @@ const ReferenceRangesTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterTestId]);
 
-  useEffect(() => { fetchData(); }, [filterTestId]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
     try {
@@ -673,8 +676,8 @@ const ReferenceRangesTab: React.FC = () => {
       form.resetFields();
       setEditingId(null);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (hasFormErrors(err)) return;
       message.warning('Lỗi khi lưu dải chỉ số');
     }
   };
@@ -895,7 +898,7 @@ const AnalyzerMappingTab: React.FC = () => {
   const [autoMapping, setAutoMapping] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [mapRes, analyzerRes, paramRes] = await Promise.allSettled([
@@ -911,9 +914,9 @@ const AnalyzerMappingTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterAnalyzerId]);
 
-  useEffect(() => { fetchData(); }, [filterAnalyzerId]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
     try {
@@ -929,8 +932,8 @@ const AnalyzerMappingTab: React.FC = () => {
       form.resetFields();
       setEditingId(null);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (hasFormErrors(err)) return;
       message.warning('Lỗi khi lưu ánh xạ');
     }
   };

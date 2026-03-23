@@ -190,13 +190,55 @@ interface DepartmentOption {
   name: string;
 }
 
+type RawApiItem = Record<string, unknown>;
+type RawApiResponse = {
+  data?: unknown;
+};
+type FormValidationError = {
+  errorFields?: unknown[];
+};
+type ServiceSearchItem = {
+  id: string;
+  code: string;
+  name: string;
+  serviceType: number;
+};
+type ItTicketListItem = Record<string, unknown>;
+type LockedServiceItem = Record<string, unknown>;
+
+const toRawItems = (value: unknown): RawApiItem[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is RawApiItem => typeof item === 'object' && item !== null);
+};
+
+const isFormValidationError = (error: unknown): error is FormValidationError =>
+  typeof error === 'object' && error !== null && 'errorFields' in error;
+
+const toStringValue = (value: unknown, fallback = ''): string =>
+  typeof value === 'string' ? value : value == null ? fallback : String(value);
+
+const toOptionalString = (value: unknown): string | undefined =>
+  value == null || value === '' ? undefined : toStringValue(value);
+
+const toBooleanValue = (value: unknown, fallback = false): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
+const toNumberValue = (value: unknown, fallback = 0): number =>
+  typeof value === 'number' ? value : fallback;
+
+const getNestedData = <T,>(value: unknown, fallback: T): T => {
+  if (typeof value === 'object' && value !== null && 'data' in value) {
+    return (value as { data?: T }).data ?? fallback;
+  }
+  return (value as T) ?? fallback;
+};
+
 const SystemAdmin: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [activeTab, setActiveTab] = useState('users');
@@ -388,117 +430,102 @@ const SystemAdmin: React.FC = () => {
   };
 
   // Helper to extract array data from API response (handles both direct array and { data: [...] } wrapper)
-  const extractData = (response: any): any[] => {
+  const extractData = (response: RawApiResponse): RawApiItem[] => {
     const d = response?.data;
-    if (Array.isArray(d)) return d;
-    if (d && Array.isArray(d.data)) return d.data;
-    if (d && Array.isArray(d.items)) return d.items;
+    if (Array.isArray(d)) return toRawItems(d);
+    if (typeof d === 'object' && d !== null) {
+      const wrappedData = (d as { data?: unknown }).data;
+      if (Array.isArray(wrappedData)) return toRawItems(wrappedData);
+      const wrappedItems = (d as { items?: unknown }).items;
+      if (Array.isArray(wrappedItems)) return toRawItems(wrappedItems);
+    }
     return [];
   };
 
-  // Fetch data on mount
-  useEffect(() => {
-    fetchData();
-    fetchEmrAdminData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersData, rolesData, permissionsData, configsData, auditLogsData, notificationsData, departmentsData] = await Promise.all([
+      const [usersData, rolesData, permissionsData, configsData, notificationsData, departmentsData] = await Promise.all([
         adminApi.getUsers().catch(() => ({ data: [] })),
         adminApi.getRoles().catch(() => ({ data: [] })),
         adminApi.getPermissions().catch(() => ({ data: [] })),
         adminApi.getSystemConfigs().catch(() => ({ data: [] })),
-        adminApi.getAuditLogs({}).catch(() => ({ data: [] })),
         adminApi.getSystemNotifications().catch(() => ({ data: [] })),
         catalogApi.getDepartments().catch(() => ({ data: [] })),
       ]);
 
       // Map API DTOs to local interfaces
-      setUsers(extractData(usersData).map((u: any) => ({
-        id: u.id || '',
-        username: u.username,
-        fullName: u.fullName,
-        email: u.email,
-        phoneNumber: u.phoneNumber,
-        employeeCode: u.employeeCode || u.employeeId,
-        title: u.title || '',
-        departmentId: u.departmentId,
-        departmentName: u.departmentName,
-        isActive: u.isActive,
-        lastLoginAt: u.lastLoginDate,
-        roles: (u.roles || []).map((r: any) => ({
-          id: r.id || '',
-          roleCode: r.code || r.roleCode,
-          roleName: r.name || r.roleName,
-          description: r.description,
-          permissions: r.permissions || [],
-          userCount: r.userCount || 0,
+      setUsers(extractData(usersData).map((u) => ({
+        id: toStringValue(u.id),
+        username: toStringValue(u.username),
+        fullName: toStringValue(u.fullName),
+        email: toOptionalString(u.email),
+        phoneNumber: toOptionalString(u.phoneNumber),
+        employeeCode: toOptionalString(u.employeeCode ?? u.employeeId),
+        title: toOptionalString(u.title),
+        departmentId: toOptionalString(u.departmentId),
+        departmentName: toOptionalString(u.departmentName),
+        isActive: toBooleanValue(u.isActive, true),
+        lastLoginAt: toOptionalString(u.lastLoginDate),
+        roles: toRawItems(u.roles).map((r) => ({
+          id: toStringValue(r.id),
+          roleCode: toStringValue(r.code ?? r.roleCode),
+          roleName: toStringValue(r.name ?? r.roleName),
+          description: toOptionalString(r.description),
+          permissions: [],
+          userCount: toNumberValue(r.userCount),
         })),
-        createdAt: u.createdDate,
+        createdAt: toStringValue(u.createdDate),
       })));
 
-      setRoles(extractData(rolesData).map((r: any) => ({
-        id: r.id || '',
-        roleCode: r.code || r.roleCode,
-        roleName: r.name || r.roleName,
-        description: r.description,
-        permissions: (r.permissions || []).map((p: any) => ({
-          id: p.id || '',
-          permissionCode: p.code || p.permissionCode,
-          permissionName: p.name || p.permissionName,
-          module: p.module,
-          description: p.description,
+      setRoles(extractData(rolesData).map((r) => ({
+        id: toStringValue(r.id),
+        roleCode: toStringValue(r.code ?? r.roleCode),
+        roleName: toStringValue(r.name ?? r.roleName),
+        description: toOptionalString(r.description),
+        permissions: toRawItems(r.permissions).map((p) => ({
+          id: toStringValue(p.id),
+          permissionCode: toStringValue(p.code ?? p.permissionCode),
+          permissionName: toStringValue(p.name ?? p.permissionName),
+          module: toOptionalString(p.module),
+          description: toOptionalString(p.description),
         })),
-        userCount: r.userCount || 0,
+        userCount: toNumberValue(r.userCount),
       })));
 
-      setPermissions(extractData(permissionsData).map((p: any) => ({
-        id: p.id || '',
-        permissionCode: p.code || p.permissionCode,
-        permissionName: p.name || p.permissionName,
-        module: p.module,
-        description: p.description,
+      setPermissions(extractData(permissionsData).map((p) => ({
+        id: toStringValue(p.id),
+        permissionCode: toStringValue(p.code ?? p.permissionCode),
+        permissionName: toStringValue(p.name ?? p.permissionName),
+        module: toOptionalString(p.module),
+        description: toOptionalString(p.description),
       })));
 
-      setConfigs(extractData(configsData).map((c: any) => ({
-        id: c.configKey || c.id,
-        configKey: c.configKey,
-        configValue: c.configValue,
-        configType: c.dataType || c.configType || 'String',
-        description: c.description,
+      setConfigs(extractData(configsData).map((c) => ({
+        id: toStringValue(c.configKey ?? c.id),
+        configKey: toStringValue(c.configKey),
+        configValue: toStringValue(c.configValue),
+        configType: toStringValue(c.dataType ?? c.configType, 'String'),
+        description: toOptionalString(c.description),
         isActive: c.isActive !== false,
       })));
 
-      setAuditLogs(extractData(auditLogsData).map((a: any) => ({
-        id: a.id,
-        tableName: a.entityType || a.tableName || '',
-        action: a.action,
-        oldValue: a.oldValues || a.oldValue,
-        newValue: a.newValues || a.newValue,
-        userId: a.userId,
-        username: a.username,
-        userFullName: a.fullName || a.userFullName,
-        createdAt: a.timestamp || a.createdAt,
+      setNotifications(extractData(notificationsData).map((n) => ({
+        id: toStringValue(n.id),
+        title: toStringValue(n.title),
+        content: toStringValue(n.content),
+        notificationType: toStringValue(n.notificationType),
+        targetUserId: toOptionalString(toRawItems(n.targetUsers)[0]?.id ?? (Array.isArray(n.targetUsers) ? n.targetUsers[0] : undefined)),
+        targetRoleId: toOptionalString(toRawItems(n.targetRoles)[0]?.id ?? (Array.isArray(n.targetRoles) ? n.targetRoles[0] : undefined)),
+        isRead: toBooleanValue(n.isRead),
+        readAt: toOptionalString(n.readAt),
+        createdAt: toStringValue(n.createdDate ?? n.createdAt),
       })));
 
-      setNotifications(extractData(notificationsData).map((n: any) => ({
-        id: n.id || '',
-        title: n.title,
-        content: n.content,
-        notificationType: n.notificationType,
-        targetUserId: n.targetUsers?.[0],
-        targetRoleId: n.targetRoles?.[0],
-        isRead: n.isRead ?? false,
-        readAt: n.readAt,
-        createdAt: n.createdDate || n.createdAt,
-      })));
-
-      setDepartments(extractData(departmentsData).map((d: any) => ({
-        id: d.id,
-        code: d.code || d.departmentCode,
-        name: d.name || d.departmentName,
+      setDepartments(extractData(departmentsData).map((d) => ({
+        id: toStringValue(d.id),
+        code: toStringValue(d.code ?? d.departmentCode),
+        name: toStringValue(d.name ?? d.departmentName),
       })));
     } catch (error) {
       console.warn('Error fetching data:', error);
@@ -506,7 +533,13 @@ const SystemAdmin: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData();
+    fetchEmrAdminData();
+  }, [fetchData, fetchEmrAdminData]);
 
   // Health & Monitoring fetch
   const fetchHealthData = useCallback(async () => {
@@ -590,7 +623,7 @@ const SystemAdmin: React.FC = () => {
     setMatrixLoading(true);
     try {
       const res = await getAccessControlMatrix();
-      const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      const data = getNestedData<AccessControlMatrixDto[]>(res.data, []);
       setMatrixData(data);
     } catch (error) {
       console.warn('Error fetching access control matrix:', error);
@@ -613,11 +646,11 @@ const SystemAdmin: React.FC = () => {
       ]);
       if (summaryRes.status === 'fulfilled') {
         const d = summaryRes.value.data;
-        setComplianceSummary((d as any)?.data || d);
+        setComplianceSummary(getNestedData<ComplianceSummaryDto | null>(d, null));
       }
       if (reportRes.status === 'fulfilled') {
         const d = reportRes.value.data;
-        setSensitiveReport(Array.isArray(d) ? d : (d as any)?.data || []);
+        setSensitiveReport(getNestedData<SensitiveDataAccessReportDto[]>(d, []));
       }
     } catch (error) {
       console.warn('Error fetching compliance data:', error);
@@ -693,7 +726,7 @@ const SystemAdmin: React.FC = () => {
   const [itRespondForm] = Form.useForm();
 
   // IT Ticket state
-  const [itTickets, setItTickets] = useState<any[]>([]);
+  const [itTickets, setItTickets] = useState<ItTicketListItem[]>([]);
   const [itTicketStats, setItTicketStats] = useState<{ newCount: number; inProgressCount: number; resolvedCount: number; closedCount: number; totalCount: number }>({ newCount: 0, inProgressCount: 0, resolvedCount: 0, closedCount: 0, totalCount: 0 });
   const [itTicketLoading, setItTicketLoading] = useState(false);
   const [isItTicketModalOpen, setIsItTicketModalOpen] = useState(false);
@@ -706,7 +739,7 @@ const SystemAdmin: React.FC = () => {
   const fetchItTickets = useCallback(async () => {
     setItTicketLoading(true);
     try {
-      const params: any = {};
+      const params: { status?: number; priority?: number; keyword?: string } = {};
       if (itTicketFilterStatus !== undefined) params.status = itTicketFilterStatus;
       if (itTicketFilterPriority !== undefined) params.priority = itTicketFilterPriority;
       if (itTicketKeyword) params.keyword = itTicketKeyword;
@@ -741,8 +774,8 @@ const SystemAdmin: React.FC = () => {
       setIsItTicketModalOpen(false);
       itTicketForm.resetFields();
       fetchItTickets();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error) {
+      if (isFormValidationError(error)) return;
       console.warn('Error creating IT ticket:', error);
       message.warning('Khong the tao yeu cau CNTT');
     }
@@ -758,8 +791,8 @@ const SystemAdmin: React.FC = () => {
       itRespondForm.resetFields();
       setSelectedTicketId(null);
       fetchItTickets();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error) {
+      if (isFormValidationError(error)) return;
       console.warn('Error responding to IT ticket:', error);
       message.warning('Khong the phan hoi yeu cau');
     }
@@ -777,19 +810,18 @@ const SystemAdmin: React.FC = () => {
   };
 
   // Locked services state
-  const [lockedServices, setLockedServices] = useState<any[]>([]);
+  const [lockedServices, setLockedServices] = useState<LockedServiceItem[]>([]);
   const [lockedServicesLoading, setLockedServicesLoading] = useState(false);
   const [isLockServiceModalOpen, setIsLockServiceModalOpen] = useState(false);
   const [lockServiceKeyword, setLockServiceKeyword] = useState('');
-  const [lockServiceSearchResults, setLockServiceSearchResults] = useState<{ id: string; code: string; name: string; serviceType: number }[]>([]);
+  const [lockServiceSearchResults, setLockServiceSearchResults] = useState<ServiceSearchItem[]>([]);
 
   // Fetch locked services
   const fetchLockedServices = useCallback(async () => {
     setLockedServicesLoading(true);
     try {
       const response = await adminApi.getLockedServices();
-      const data = response?.data;
-      setLockedServices(Array.isArray(data) ? data : (data as any)?.data || []);
+      setLockedServices(getNestedData<LockedServiceItem[]>(response?.data, []));
     } catch (error) {
       console.warn('Error fetching locked services:', error);
     } finally {
@@ -815,18 +847,18 @@ const SystemAdmin: React.FC = () => {
             catalogApi.getParaclinicalServices(lockServiceKeyword),
             catalogApi.getMedicines({ keyword: lockServiceKeyword }),
           ]);
-          const results: { id: string; code: string; name: string; serviceType: number }[] = [];
+          const results: ServiceSearchItem[] = [];
           if (examRes.status === 'fulfilled') {
-            const items = Array.isArray(examRes.value.data) ? examRes.value.data : [];
-            items.forEach((s: any) => results.push({ id: s.id, code: s.serviceCode || s.code || '', name: s.serviceName || s.name || '', serviceType: 3 }));
+            const items = toRawItems(examRes.value.data);
+            items.forEach((service) => results.push({ id: toStringValue(service.id), code: toStringValue(service.serviceCode ?? service.code), name: toStringValue(service.serviceName ?? service.name), serviceType: 3 }));
           }
           if (paraRes.status === 'fulfilled') {
-            const items = Array.isArray(paraRes.value.data) ? paraRes.value.data : [];
-            items.forEach((s: any) => results.push({ id: s.id, code: s.serviceCode || s.code || '', name: s.serviceName || s.name || '', serviceType: 3 }));
+            const items = toRawItems(paraRes.value.data);
+            items.forEach((service) => results.push({ id: toStringValue(service.id), code: toStringValue(service.serviceCode ?? service.code), name: toStringValue(service.serviceName ?? service.name), serviceType: 3 }));
           }
           if (medRes.status === 'fulfilled') {
-            const items = Array.isArray(medRes.value.data) ? medRes.value.data : [];
-            items.forEach((s: any) => results.push({ id: s.id, code: s.medicineCode || s.code || '', name: s.medicineName || s.name || '', serviceType: 1 }));
+            const items = toRawItems(medRes.value.data);
+            items.forEach((service) => results.push({ id: toStringValue(service.id), code: toStringValue(service.medicineCode ?? service.code), name: toStringValue(service.medicineName ?? service.name), serviceType: 1 }));
           }
           setLockServiceSearchResults(results.slice(0, 50));
         } catch {
@@ -846,8 +878,8 @@ const SystemAdmin: React.FC = () => {
       lockServiceForm.resetFields();
       setLockServiceKeyword('');
       fetchLockedServices();
-    } catch (error: any) {
-      if (error?.errorFields) return; // validation error
+    } catch (error) {
+      if (isFormValidationError(error)) return; // validation error
       console.warn('Error locking service:', error);
       message.warning('Không thể khóa dịch vụ');
     }
@@ -911,18 +943,6 @@ const SystemAdmin: React.FC = () => {
           (u.employeeCode && u.employeeCode.toLowerCase().includes(kw));
       })
     : users;
-
-  const filteredAuditLogs = auditLogs.filter(log => {
-    if (auditEntityType && log.tableName !== auditEntityType) return false;
-    if (auditAction && log.action !== auditAction) return false;
-    if (auditDateRange && auditDateRange[0] && auditDateRange[1]) {
-      const logDate = dayjs(log.createdAt);
-      if (logDate.isBefore(auditDateRange[0], 'day') || logDate.isAfter(auditDateRange[1], 'day')) {
-        return false;
-      }
-    }
-    return true;
-  });
 
   // User Management
   const userColumns: ColumnsType<User> = [
@@ -1080,8 +1100,8 @@ const SystemAdmin: React.FC = () => {
       setIsUserModalOpen(false);
       userForm.resetFields();
       fetchData();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error) {
+      if (isFormValidationError(error)) return;
       console.warn('Error saving user:', error);
       message.warning('Lưu người dùng thất bại!');
     }
@@ -1197,8 +1217,8 @@ const SystemAdmin: React.FC = () => {
       setIsRoleModalOpen(false);
       roleForm.resetFields();
       fetchData();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error) {
+      if (isFormValidationError(error)) return;
       console.warn('Error saving role:', error);
       message.warning('Lưu vai trò thất bại!');
     }
@@ -1284,14 +1304,13 @@ const SystemAdmin: React.FC = () => {
         dataType: selectedConfig?.configType || 'String',
         isEncrypted: false,
         isEditable: true,
-        isActive: values.isActive !== undefined ? values.isActive : selectedConfig?.isActive !== false,
-      } as any);
+      });
       message.success('Cập nhật cấu hình thành công!');
       setIsConfigModalOpen(false);
       configForm.resetFields();
       fetchData();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error) {
+      if (isFormValidationError(error)) return;
       console.warn('Error saving config:', error);
       message.warning('Cập nhật cấu hình thất bại!');
     }
@@ -1349,6 +1368,7 @@ const SystemAdmin: React.FC = () => {
       ellipsis: true,
     },
   ];
+  void auditLogColumns;
 
   // Notifications
   const notificationColumns: ColumnsType<NotificationItem> = [
@@ -1413,8 +1433,8 @@ const SystemAdmin: React.FC = () => {
       setIsNotificationModalOpen(false);
       notificationForm.resetFields();
       fetchData();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error) {
+      if (isFormValidationError(error)) return;
       console.warn('Error sending notification:', error);
       message.warning('Gửi thông báo thất bại!');
     }
@@ -1485,7 +1505,7 @@ const SystemAdmin: React.FC = () => {
                               <Descriptions.Item label="Chức danh">{record.title || '-'}</Descriptions.Item>
                               <Descriptions.Item label="Khoa/Phòng">{record.departmentName || '-'}</Descriptions.Item>
                               <Descriptions.Item label="Vai trò" span={2}>
-                                {record.roles?.map((r: any) => <Tag key={r.id} color="blue">{r.name}</Tag>)}
+                                {record.roles?.map((role) => <Tag key={role.id} color="blue">{role.roleName}</Tag>)}
                               </Descriptions.Item>
                               <Descriptions.Item label="Trạng thái">
                                 <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Khóa'}</Tag>
@@ -2811,9 +2831,9 @@ const SystemAdmin: React.FC = () => {
                         title: 'Loại',
                         dataIndex: 'serviceTypeName',
                         width: 100,
-                        render: (text: string, record: any) => {
+                        render: (text: string, record: LockedServiceItem) => {
                           const colorMap: Record<number, string> = { 1: 'blue', 2: 'orange', 3: 'green' };
-                          return <Tag color={colorMap[record.serviceType] || 'default'}>{text || 'Khác'}</Tag>;
+                          return <Tag color={colorMap[toNumberValue(record.serviceType)] || 'default'}>{text || 'Khác'}</Tag>;
                         },
                       },
                       {
@@ -2849,12 +2869,12 @@ const SystemAdmin: React.FC = () => {
                         title: 'Thao tác',
                         key: 'action',
                         width: 100,
-                        render: (_: unknown, record: any) => (
+                        render: (_: unknown, record: LockedServiceItem) => (
                           record.isLocked ? (
                             <Popconfirm
                               title="Mở khóa dịch vụ"
                               description={`Bạn có chắc muốn mở khóa "${record.serviceName}"?`}
-                              onConfirm={() => handleUnlockService(record.serviceId)}
+                              onConfirm={() => handleUnlockService(toStringValue(record.serviceId))}
                               okText="Mở khóa"
                               cancelText="Hủy"
                             >
@@ -3347,24 +3367,24 @@ const SystemAdmin: React.FC = () => {
                         key: 'actions',
                         width: 160,
                         fixed: 'right',
-                        render: (_: any, record: any) => (
+                        render: (_: unknown, record: ItTicketListItem) => (
                           <Space>
-                            {record.status < 2 && (
+                            {toNumberValue(record.status) < 2 && (
                               <Button
                                 size="small"
                                 type="link"
                                 onClick={() => {
-                                  setSelectedTicketId(record.id);
+                                  setSelectedTicketId(toStringValue(record.id));
                                   setIsItRespondModalOpen(true);
                                 }}
                               >
                                 Phan hoi
                               </Button>
                             )}
-                            {record.status < 3 && (
+                            {toNumberValue(record.status) < 3 && (
                               <Popconfirm
                                 title="Dong yeu cau nay?"
-                                onConfirm={() => handleCloseItTicket(record.id)}
+                                onConfirm={() => handleCloseItTicket(toStringValue(record.id))}
                                 okText="Dong"
                                 cancelText="Huy"
                               >
@@ -3381,28 +3401,28 @@ const SystemAdmin: React.FC = () => {
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         Modal.info({
-                          title: `Chi tiet yeu cau - ${record.title}`,
+                          title: `Chi tiet yeu cau - ${toStringValue(record.title)}`,
                           width: 600,
                           content: (
                             <Descriptions bordered size="small" column={1} style={{ marginTop: 16 }}>
-                              <Descriptions.Item label="Tieu de">{record.title}</Descriptions.Item>
-                              <Descriptions.Item label="Mo ta">{record.description || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Khoa/Phong">{record.departmentName || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Nguoi yeu cau">{record.requestedByName || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Tieu de">{toStringValue(record.title)}</Descriptions.Item>
+                              <Descriptions.Item label="Mo ta">{toStringValue(record.description, '-')}</Descriptions.Item>
+                              <Descriptions.Item label="Khoa/Phong">{toStringValue(record.departmentName, '-')}</Descriptions.Item>
+                              <Descriptions.Item label="Nguoi yeu cau">{toStringValue(record.requestedByName, '-')}</Descriptions.Item>
                               <Descriptions.Item label="Muc do">
-                                <Tag color={[,'default','blue','orange','red'][record.priority] || 'default'}>
-                                  {['','Thap','Trung binh','Cao','Khan cap'][record.priority] || record.priority}
+                                <Tag color={['default','default','blue','orange','red'][toNumberValue(record.priority)] || 'default'}>
+                                  {['','Thap','Trung binh','Cao','Khan cap'][toNumberValue(record.priority)] || toStringValue(record.priority)}
                                 </Tag>
                               </Descriptions.Item>
                               <Descriptions.Item label="Trang thai">
-                                <Tag color={['blue','orange','green','default'][record.status] || 'default'}>
-                                  {['Moi','Dang xu ly','Da giai quyet','Da dong'][record.status] || record.status}
+                                <Tag color={['blue','orange','green','default'][toNumberValue(record.status)] || 'default'}>
+                                  {['Moi','Dang xu ly','Da giai quyet','Da dong'][toNumberValue(record.status)] || toStringValue(record.status)}
                                 </Tag>
                               </Descriptions.Item>
-                              <Descriptions.Item label="Phan hoi">{record.response || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Nguoi xu ly">{record.assignedToName || '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Ngay tao">{record.createdAt ? dayjs(record.createdAt).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
-                              <Descriptions.Item label="Ngay xu ly">{record.resolvedAt ? dayjs(record.resolvedAt).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Phan hoi">{toStringValue(record.response, '-')}</Descriptions.Item>
+                              <Descriptions.Item label="Nguoi xu ly">{toStringValue(record.assignedToName, '-')}</Descriptions.Item>
+                              <Descriptions.Item label="Ngay tao">{record.createdAt ? dayjs(toStringValue(record.createdAt)).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ngay xu ly">{record.resolvedAt ? dayjs(toStringValue(record.resolvedAt)).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
                             </Descriptions>
                           ),
                         });

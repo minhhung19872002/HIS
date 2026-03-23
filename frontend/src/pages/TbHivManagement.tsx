@@ -101,6 +101,14 @@ const ADHERENCE_COLORS: Record<number, string> = {
   2: 'red',
 };
 
+type FormValidationError = {
+  errorFields?: unknown[];
+};
+
+function isFormValidationError(error: unknown): error is FormValidationError {
+  return typeof error === 'object' && error !== null && 'errorFields' in error;
+}
+
 const TbHivManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState<TbHivRecordDto[]>([]);
@@ -234,8 +242,8 @@ const TbHivManagement: React.FC = () => {
       }
       setIsCreateModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err) {
+      if (isFormValidationError(err)) return;
       message.warning('Khong the luu ho so');
     } finally {
       setSaving(false);
@@ -257,8 +265,8 @@ const TbHivManagement: React.FC = () => {
       // Refresh follow-ups
       const fups = await tbHivApi.getFollowUps(selectedRecord!.id);
       setFollowUps(fups);
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err) {
+      if (isFormValidationError(err)) return;
       message.warning('Khong the ghi nhan lan dieu tri');
     } finally {
       setSaving(false);
