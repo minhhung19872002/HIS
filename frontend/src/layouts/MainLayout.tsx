@@ -46,6 +46,7 @@ import {
   FileSearchOutlined,
   MessageOutlined,
   HomeOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -89,12 +90,12 @@ const MainLayout: React.FC = () => {
   const getOpenKeys = (): string[] => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
-      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols'],
+      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
       paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/consultation', '/blood-bank', '/pathology', '/lis-config'],
-      support: ['/pharmacy', '/medical-supply', '/nutrition', '/rehabilitation'],
+      support: ['/pharmacy', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/quality'],
-      integration: ['/health-exchange', '/emergency-disaster'],
+      integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance'],
       system: ['/master-data', '/reports', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
     };
     for (const [group, routes] of Object.entries(groupMap)) {
@@ -127,6 +128,8 @@ const MainLayout: React.FC = () => {
         { key: '/follow-up', icon: <CalendarOutlined />, label: 'Tái khám' },
         { key: '/booking-management', icon: <ScheduleOutlined />, label: 'Quản lý đặt lịch' },
         { key: '/treatment-protocols', icon: <ExperimentOutlined />, label: 'Phác đồ điều trị' },
+        { key: '/chronic-disease', icon: <HeartOutlined />, label: 'Bệnh mãn tính' },
+        { key: '/tb-hiv', icon: <MedicineBoxOutlined />, label: 'Quản lý Lao/HIV' },
       ],
     },
     {
@@ -155,6 +158,7 @@ const MainLayout: React.FC = () => {
       label: 'Hỗ trợ điều trị',
       children: [
         { key: '/pharmacy', icon: <MedicineBoxOutlined />, label: 'Nhà thuốc' },
+        { key: '/hospital-pharmacy', icon: <ShopOutlined />, label: 'Nhà thuốc BV' },
         { key: '/medical-supply', icon: <ToolOutlined />, label: 'Vật tư Y tế' },
         { key: '/nutrition', icon: <CoffeeOutlined />, label: 'Dinh dưỡng' },
         { key: '/rehabilitation', icon: <ThunderboltOutlined />, label: 'VLTL/PHCN' },
@@ -189,6 +193,7 @@ const MainLayout: React.FC = () => {
       children: [
         { key: '/health-exchange', icon: <CloudUploadOutlined />, label: 'Liên thông Y tế' },
         { key: '/emergency-disaster', icon: <BellOutlined />, label: 'Cấp cứu thảm họa' },
+        { key: '/clinical-guidance', icon: <TeamOutlined />, label: 'Chỉ đạo tuyến' },
       ],
     },
     {

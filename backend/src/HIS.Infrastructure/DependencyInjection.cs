@@ -231,6 +231,12 @@ public static class DependencyInjection
         // NangCap13: Canh bao nghiep vu (Business Alerts - 34 rules)
         services.AddScoped<IBusinessAlertService, BusinessAlertService>();
 
+        // NangCap14: BV Phoi Hai Duong - 4 new modules
+        services.AddScoped<IChronicDiseaseService, ChronicDiseaseService>();
+        services.AddScoped<IHospitalPharmacyService, HospitalPharmacyService>();
+        services.AddScoped<IClinicalGuidanceService, ClinicalGuidanceService>();
+        services.AddScoped<ITbHivManagementService, TbHivManagementService>();
+
         return services;
     }
 }

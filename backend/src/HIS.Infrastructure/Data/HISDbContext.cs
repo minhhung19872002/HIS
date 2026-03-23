@@ -415,6 +415,16 @@ public class HISDbContext : DbContext
     // NangCap13: Canh bao nghiep vu (Business Alerts - 34 rules)
     public DbSet<BusinessAlert> BusinessAlerts => Set<BusinessAlert>();
 
+    // NangCap14: BV Phoi Hai Duong
+    public DbSet<ChronicDiseaseRecord> ChronicDiseaseRecords => Set<ChronicDiseaseRecord>();
+    public DbSet<ChronicDiseaseFollowUp> ChronicDiseaseFollowUps => Set<ChronicDiseaseFollowUp>();
+    public DbSet<RetailSale> RetailSales => Set<RetailSale>();
+    public DbSet<RetailSaleItem> RetailSaleItems => Set<RetailSaleItem>();
+    public DbSet<ClinicalGuidanceBatch> ClinicalGuidanceBatches => Set<ClinicalGuidanceBatch>();
+    public DbSet<ClinicalGuidanceActivity> ClinicalGuidanceActivities => Set<ClinicalGuidanceActivity>();
+    public DbSet<TbHivRecord> TbHivRecords => Set<TbHivRecord>();
+    public DbSet<TbHivFollowUp> TbHivFollowUps => Set<TbHivFollowUp>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

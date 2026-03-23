@@ -68,6 +68,10 @@ const SigningWorkflow = lazy(() => import('./pages/SigningWorkflow'));
 const MedicalRecordPlanning = lazy(() => import('./pages/MedicalRecordPlanning'));
 const EndpointSecurity = lazy(() => import('./pages/EndpointSecurity'));
 const TreatmentProtocol = lazy(() => import('./pages/TreatmentProtocol'));
+const ChronicDisease = lazy(() => import('./pages/ChronicDisease'));
+const HospitalPharmacy = lazy(() => import('./pages/HospitalPharmacy'));
+const ClinicalGuidance = lazy(() => import('./pages/ClinicalGuidance'));
+const TbHivManagement = lazy(() => import('./pages/TbHivManagement'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -174,6 +178,10 @@ const AppRoutes: React.FC = () => {
           <Route path="medical-record-planning" element={<MedicalRecordPlanning />} />
           <Route path="endpoint-security" element={<EndpointSecurity />} />
           <Route path="treatment-protocols" element={<TreatmentProtocol />} />
+          <Route path="chronic-disease" element={<ChronicDisease />} />
+          <Route path="hospital-pharmacy" element={<HospitalPharmacy />} />
+          <Route path="clinical-guidance" element={<ClinicalGuidance />} />
+          <Route path="tb-hiv" element={<TbHivManagement />} />
           {/* Redirect aliases */}
           <Route path="inpatient" element={<Navigate to="/ipd" replace />} />
           <Route path="laboratory" element={<Navigate to="/lab" replace />} />

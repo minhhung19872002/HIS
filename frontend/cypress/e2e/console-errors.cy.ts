@@ -62,6 +62,10 @@ const pages = [
   { route: '/signing-workflow', name: 'Signing Workflow (Trinh ky)' },
   { route: '/endpoint-security', name: 'Endpoint Security (An toan thong tin)' },
   { route: '/treatment-protocols', name: 'Treatment Protocols (Phac do dieu tri)' },
+  { route: '/chronic-disease', name: 'Chronic Disease (Benh man tinh)' },
+  { route: '/hospital-pharmacy', name: 'Hospital Pharmacy (Nha thuoc BV)' },
+  { route: '/clinical-guidance', name: 'Clinical Guidance (Chi dao tuyen)' },
+  { route: '/tb-hiv', name: 'TB/HIV Management (Quan ly Lao/HIV)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

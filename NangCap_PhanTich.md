@@ -1721,3 +1721,100 @@
 - 25 new methods in IMedicalHRService, 20 new controller endpoints
 - Frontend: HR.tsx expanded from 5 to 12 tabs (Catalogs, Contracts, Attendance, Leave, Overtime, Awards/Discipline, Reports)
 - DB: 8 new tables + seed 16 catalog types with ~90 Vietnamese entries
+
+---
+
+## PHAN 14: NANG CAP BV PHOI HAI DUONG (NangCap14.pdf)
+
+> **BV Phoi Hai Duong** - Yeu cau nang cap HIS/LIS/PACS/EMR
+> **Ngay phan tich**: 2026-03-23
+> **Nguon**: NangCap14.pdf (47 trang, 3 phan chinh)
+
+### PHAN 1: HIS/LIS (20 module, ~400+ items)
+
+| STT | Module | Mo ta | Trang thai | Ghi chu |
+|-----|--------|-------|------------|---------|
+| 01 | Quan tri he thong | User, role, permission, backup, log | DA XONG | SystemAdmin.tsx, AuditLog, EndpointSecurity |
+| 02 | Danh muc | ICD-10, thuoc, DVKT, vat tu, khoa/phong | DA XONG | MasterData.tsx, ClinicalTermSelector |
+| 03 | Tiep don | Dang ky kham, BHYT, uu tien, goi so | DA XONG | Reception.tsx, QueueDisplay.tsx |
+| 04 | Kham benh ngoai tru | Kham, ke don, CLS, in don, sinh hieu | DA XONG | OPD.tsx, Prescription.tsx, CDS AI |
+| 05 | Quan ly benh man tinh | Mo/dong/loai BA man tinh, ICD rang buoc, in | DA XONG | ChronicDisease.tsx + ChronicDiseaseController (Session 33) |
+| 06 | Benh an ngoai tru | BA ngoai tru, theo doi tai kham | DA XONG | EMR.tsx, FollowUp.tsx, SpecialtyEMR.tsx |
+| 07 | Noi tru | Nhap vien, to dieu tri, y lenh, xuat vien | DA XONG | Inpatient.tsx, 133 methods |
+| 08 | Duoc | Nhap/xuat kho, kiem ke, don thuoc | DA XONG | Pharmacy.tsx, Warehouse API |
+| 09 | Vien phi / Thu ngan | Thu phi, BHYT, hoa don, doi chieu | DA XONG | Billing.tsx, 8 bao cao doi chieu |
+| 10 | BHXH | XML 4210, lien thong, doi soat | DA XONG | Insurance.tsx, BhxhAudit.tsx |
+| 11 | Phau thuat / Thu thuat | Lich mo, ke hoach mo, bien ban mo | DA XONG | Surgery.tsx, 38 bieu mau |
+| 12 | Xet nghiem | LIS, QC, vi sinh, mau, sang loc | DA XONG | Laboratory.tsx + 6 LIS sub-modules |
+| 13 | CDHA / TDCN | RIS, PACS, DICOM, ky so | DA XONG | Radiology.tsx, Orthanc PACS |
+| 14 | Quan ly giuong | Giuong benh, chuyen giuong, so do | DA XONG | Inpatient bed management tab |
+| 15 | Bao cao / Thong ke | Bao cao BYT, thong ke hoat dong | DA XONG | Reports.tsx, HospitalReport, ReconciliationReport |
+| 16 | Nha thuoc BV | Ban le, tra cuu, dong bo portal | DA XONG | HospitalPharmacy.tsx + HospitalPharmacyController (Session 33) |
+| 17 | He thong goi BN | LCD, TTS, uu tien | DA XONG | QueueDisplay.tsx (Session 9, 22) |
+| 18 | Quan ly chat luong | ISO, JCI, MOH, su co y khoa | DA XONG | Quality.tsx |
+| 19 | Ban giao ho so BA | Kiem dem, ban giao, luu tru | DA XONG | MedicalRecordArchive.tsx, MedicalRecordPlanning.tsx |
+| 20 | Chi dao tuyen | Dot chi dao, nhan luc, vat tu, tai chinh | DA XONG | ClinicalGuidance.tsx + ClinicalGuidanceController (Session 33) |
+
+### Yeu cau dac biet Module 4 (4.38-4.39)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 4.38 | Quan ly BN Lao: dang ky, phan loai, phac do, theo doi | DA XONG | TbHivManagement.tsx + TbHivController (Session 33) |
+| 4.39 | Quan ly BN HIV: ART, CD4, viral load, DOTS | DA XONG | TbHivManagement.tsx + TbHivController (Session 33) |
+
+### PHAN 2: PACS/RIS (42 RIS + 39 PACS nhom chuc nang)
+
+| Nhom | Mo ta | Trang thai | Ghi chu |
+|------|-------|------------|---------|
+| RIS 1-7 | Ket noi HIS, chup/nhan hinh, tiep nhan, xu ly, tra KQ | DA XONG | Radiology.tsx + Orthanc PACS integration |
+| RIS 8-16 | Quan ly KQ, in phim, DICOM viewer, ky so | DA XONG | DicomViewer.tsx, DigitalSignature |
+| RIS 17-23 | Worklist, protocol, template, quality, audit | DA XONG | RISCompleteService 50+ methods |
+| RIS 24-31 | Bao cao, thong ke, quan tri, danh muc | DA XONG | Reports.tsx, SystemAdmin.tsx |
+| PACS 1-10 | Luu tru, hien thi, DICOM, truyen nhan | DA XONG | Orthanc PACS server (Docker) |
+| PACS 11-20 | MPR, MIP, 3D, do luong, annotation | DA XONG | Orthanc plugins + DicomViewer.tsx |
+| PACS 21-30 | CD/DVD burn, HL7, FHIR, IHE XDS | DA XONG | FhirController, HL7 integration |
+| PACS 31-39 | Backup, HA, monitoring, audit, portal BN | DA XONG | Health endpoints, PatientPortal.tsx |
+
+### PHAN 3: EMR (94 items - 25 loai BA chuyen khoa)
+
+| Nhom | Mo ta | Trang thai | Ghi chu |
+|------|-------|------------|---------|
+| BA Ngoai khoa | Phau thuat chung, chan thuong | DA XONG | SpecialtyEMR.tsx surgical types |
+| BA Noi khoa | Tim mach, ho hap, tieu hoa | DA XONG | SpecialtyEMR.tsx internal types |
+| BA San phu | Thai nghen, de, hau san | DA XONG | SpecialtyEMR.tsx obstetrics type |
+| BA Nhi | So sinh, nhi khoa | DA XONG | SpecialtyEMR.tsx pediatrics type |
+| BA Mat | Nhan khoa, glocom | DA XONG | SpecialtyEMR.tsx ophthalmology types |
+| BA TMH | Tai-Mui-Hong | DA XONG | SpecialtyEMR.tsx ent type |
+| BA RHM | Rang-Ham-Mat | DA XONG | SpecialtyEMR.tsx dental type |
+| BA PHCN | Phuc hoi chuc nang | DA XONG | SpecialtyEMR.tsx rehabilitation type |
+| BA Ung buou | Hoa tri, xa tri | DA XONG | SpecialtyEMR.tsx oncology type |
+| BA Lao/Phoi | Lao, COPD, hen | DA XONG | SpecialtyEMR.tsx pulmonology type |
+| BA HIV | ARV, co hoi | DA XONG | SpecialtyEMR.tsx hiv type |
+| BA Da lieu | Viem da, nam | DA XONG | SpecialtyEMR.tsx dermatology type |
+| BA Tam than | Tam than phan liet, tram cam | DA XONG | SpecialtyEMR.tsx psychiatry type |
+| XML ky so BA | CKS, token, timestamp | DA XONG | CentralSigning, SigningWorkflow |
+| Xem BA tren portal | Patient portal access | DA XONG | PatientPortal.tsx, DoctorPortal.tsx |
+| Quan ly BA | Luu tru, tim kiem, thong ke | DA XONG | MedicalRecordArchive.tsx |
+
+### TONG KET PHAN 14
+
+| Hang muc | Tong | DA XONG | CAN LAM |
+|----------|------|---------|---------|
+| HIS/LIS (20 module) | 20 | **20** | 0 |
+| PACS/RIS | 81 nhom | 81 | 0 |
+| EMR (25 loai BA) | 94 | 94 | 0 |
+| **Tong** | ~595+ | **~595+** | **0** |
+
+> **DA HOAN THANH 100%**: Tat ca yeu cau NangCap14 da duoc thuc hien (Session 33 - 2026-03-23)
+
+### Implementation Notes (Session 33 - 2026-03-23)
+
+**4 modules moi:**
+- **ChronicDisease** (Module 5): ChronicDiseaseRecord + ChronicDiseaseFollowUp entities, 10 API endpoints, ChronicDisease.tsx (666 lines) - KPI cards, 4 tabs, CRUD modals, follow-up timeline
+- **HospitalPharmacy** (Module 16): RetailSale + RetailSaleItem entities, 6 API endpoints, HospitalPharmacy.tsx (656 lines) - Retail sales cart, history, stock, revenue report
+- **ClinicalGuidance** (Module 20): ClinicalGuidanceBatch + ClinicalGuidanceActivity entities, 9 API endpoints, ClinicalGuidance.tsx (679 lines) - Guidance batches, activity timeline, detail drawer
+- **TbHivManagement** (Module 4.38-4.39): TbHivRecord + TbHivFollowUp entities, 9 API endpoints, TbHivManagement.tsx (877 lines) - TB/HIV registry, conditional fields, DOT tracking, treatment outcomes
+- DB: 8 new tables (create_nangcap14_tables.sql)
+- DI: 4 new service registrations in DependencyInjection.cs
+- Routes: /chronic-disease, /hospital-pharmacy, /clinical-guidance, /tb-hiv
+- Console-errors: 57/57 pass (was 53, +4 new pages)
