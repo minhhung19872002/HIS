@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { message } from 'antd';
 
 // Create axios instance
@@ -82,26 +82,4 @@ request.interceptors.response.use(
   }
 );
 
-// Helper methods
-export const get = <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
-  return request.get(url, config);
-};
-
-export const post = <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
-  return request.post(url, data, config);
-};
-
-export const put = <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
-  return request.put(url, data, config);
-};
-
-export const patch = <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
-  return request.patch(url, data, config);
-};
-
-export const del = <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
-  return request.delete(url, config);
-};
-
-// Export default instance
 export default request;
