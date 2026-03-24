@@ -19,6 +19,7 @@ export default defineConfig({
           'vendor-charts': ['recharts'],
           'vendor-signalr': ['@microsoft/signalr'],
           'vendor-utils': ['axios', 'dayjs', '@tanstack/react-query'],
+          'vendor-qrcode': ['html5-qrcode'],
         },
       },
     },
