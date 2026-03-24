@@ -1,15 +1,25 @@
-$TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjllNTMwOWRjLWVjZjktNGQ0OC05YTA5LTIyNGNkMTUzNDdiMSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhZG1pbiIsImZ1bGxOYW1lIjoiQWRtaW5pc3RyYXRvciIsImVtcGxveWVlQ29kZSI6IiIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IlF1w6HCusKjbiB0csOhwrvigLkgaMOhwrvigKEgdGjDocK74oCYbmciLCJwZXJtaXNzaW9uIjpbIkFETUlOX1JFUE9SVCIsIlJFQ0VQVElPTl9FRElUIiwiT1BEX09SREVSIiwiQklMTElOR19SRUZVTkQiLCJMQUJfVklFVyIsIk9QRF9QUkVTQ1JJQkUiLCJSRUNFUFRJT05fQ1JFQVRFIiwiT1BEX0VYQU1JTkUiLCJCSUxMSU5HX1ZJRVciLCJMQUJfUkVTVUxUIiwiQURNSU5fVVNFUiIsIkFETUlOX0NBVEFMT0ciLCJPUERfVklFVyIsIklQRF9BRE1JVCIsIlBIQVJNQUNZX0lNUE9SVCIsIklQRF9ESVNDSEFSR0UiLCJCSUxMSU5HX0NPTExFQ1QiLCJJUERfVklFVyIsIlJFQ0VQVElPTl9ERUxFVEUiLCJSRUNFUFRJT05fVklFVyIsIlBIQVJNQUNZX0RJU1BFTlNFIiwiUEhBUk1BQ1lfVklFVyJdLCJleHAiOjE3NzAzNjg5NDQsImlzcyI6IkhJUy5BUEkiLCJhdWQiOiJISVMuQ2xpZW50In0.beXLkCqjyXkecqTTjCf3hl9KPB3UKSoaACdoWL83wKI"
+$loginBody = @{
+    username = "admin"
+    password = "Admin@123"
+} | ConvertTo-Json
+
+$loginResponse = Invoke-RestMethod -Uri "http://localhost:5106/api/auth/login" -Method POST -ContentType "application/json" -Body $loginBody
+$TOKEN = $loginResponse.data.token
 
 $headers = @{
     "Authorization" = "Bearer $TOKEN"
     "Content-Type" = "application/json"
 }
 
+function Get-SurgeryList() {
+    Invoke-RestMethod -Uri "http://localhost:5106/api/SurgeryComplete?page=1&pageSize=20" -Headers $headers -Method Get
+}
+
 Write-Host "=== Test Surgery Flow ==="
 
 # Step 1: Get existing surgeries
 Write-Host "`n=== 1. Get Surgeries List ===" -ForegroundColor Cyan
-$response = Invoke-RestMethod -Uri "http://localhost:5106/api/SurgeryComplete?page=1&pageSize=5" -Headers $headers -Method Get
+$response = Get-SurgeryList
 Write-Host "Found $($response.totalCount) surgeries"
 $response.items | ForEach-Object { Write-Host "- $($_.surgeryCode): $($_.patientName) - $($_.statusName)" }
 
@@ -35,6 +45,7 @@ try {
     $newSurgery = Invoke-RestMethod -Uri "http://localhost:5106/api/SurgeryComplete" -Headers $headers -Method Post -Body $createDto
     Write-Host "Created surgery: $($newSurgery.surgeryCode)" -ForegroundColor Green
     $surgeryId = $newSurgery.id
+    $global:targetSurgeryId = $surgeryId
 } catch {
     Write-Host "Error creating surgery: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host $_.ErrorDetails.Message
@@ -42,7 +53,11 @@ try {
 
 # Step 4: Approve surgery (use existing pending surgery)
 Write-Host "`n=== 4. Approve Surgery ===" -ForegroundColor Cyan
-$pendingSurgery = $response.items | Where-Object { $_.status -eq 0 } | Select-Object -First 1
+$pendingSurgery = if ($global:targetSurgeryId) {
+    $response.items | Where-Object { $_.id -eq $global:targetSurgeryId } | Select-Object -First 1
+} else {
+    $response.items | Where-Object { $_.status -eq 0 } | Select-Object -First 1
+}
 if ($pendingSurgery) {
     $approveDto = @{
         surgeryId = $pendingSurgery.id
@@ -54,6 +69,7 @@ if ($pendingSurgery) {
     try {
         $approved = Invoke-RestMethod -Uri "http://localhost:5106/api/SurgeryComplete/approve" -Headers $headers -Method Post -Body $approveDto
         Write-Host "Approved surgery: $($approved.surgeryCode) - New status: $($approved.statusName)" -ForegroundColor Green
+        $global:targetSurgeryId = $approved.id
     } catch {
         Write-Host "Error approving surgery: $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -63,7 +79,12 @@ if ($pendingSurgery) {
 
 # Step 5: Schedule surgery
 Write-Host "`n=== 5. Schedule Surgery ===" -ForegroundColor Cyan
-$approvedSurgery = $response.items | Where-Object { $_.status -eq 1 } | Select-Object -First 1
+$response = Get-SurgeryList
+$approvedSurgery = if ($global:targetSurgeryId) {
+    $response.items | Where-Object { $_.id -eq $global:targetSurgeryId } | Select-Object -First 1
+} else {
+    $response.items | Where-Object { $_.status -eq 1 } | Select-Object -First 1
+}
 if ($approvedSurgery) {
     $scheduleDto = @{
         surgeryId = $approvedSurgery.id
@@ -75,6 +96,7 @@ if ($approvedSurgery) {
     try {
         $scheduled = Invoke-RestMethod -Uri "http://localhost:5106/api/SurgeryComplete/schedule" -Headers $headers -Method Post -Body $scheduleDto
         Write-Host "Scheduled surgery: $($scheduled.surgeryCode) at $($scheduled.scheduledDate)" -ForegroundColor Green
+        $global:targetSurgeryId = $scheduled.id
     } catch {
         Write-Host "Error scheduling surgery: $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -84,7 +106,12 @@ if ($approvedSurgery) {
 
 # Step 6: Start surgery
 Write-Host "`n=== 6. Start Surgery ===" -ForegroundColor Cyan
-$scheduledSurgery = $response.items | Where-Object { $_.status -eq 2 } | Select-Object -First 1
+$response = Get-SurgeryList
+$scheduledSurgery = if ($global:targetSurgeryId) {
+    $response.items | Where-Object { $_.id -eq $global:targetSurgeryId } | Select-Object -First 1
+} else {
+    $response.items | Where-Object { $_.status -eq 2 } | Select-Object -First 1
+}
 if ($scheduledSurgery) {
     $startDto = @{
         surgeryId = $scheduledSurgery.id
@@ -94,6 +121,7 @@ if ($scheduledSurgery) {
     try {
         $started = Invoke-RestMethod -Uri "http://localhost:5106/api/SurgeryComplete/start" -Headers $headers -Method Post -Body $startDto
         Write-Host "Started surgery: $($started.surgeryCode) - New status: $($started.statusName)" -ForegroundColor Green
+        $global:targetSurgeryId = $started.id
     } catch {
         Write-Host "Error starting surgery: $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -103,7 +131,12 @@ if ($scheduledSurgery) {
 
 # Step 7: Complete surgery
 Write-Host "`n=== 7. Complete Surgery ===" -ForegroundColor Cyan
-$inProgressSurgery = $response.items | Where-Object { $_.status -eq 3 } | Select-Object -First 1
+$response = Get-SurgeryList
+$inProgressSurgery = if ($global:targetSurgeryId) {
+    $response.items | Where-Object { $_.id -eq $global:targetSurgeryId } | Select-Object -First 1
+} else {
+    $response.items | Where-Object { $_.status -eq 3 } | Select-Object -First 1
+}
 if ($inProgressSurgery) {
     $completeDto = @{
         surgeryId = $inProgressSurgery.id

@@ -672,7 +672,7 @@ public class LISCompleteService : ILISCompleteService
             SELECT i.Id, i.LabOrderId, i.TestCode, i.TestName, i.TestGroupName,
                    i.Unit, i.ReferenceRange, i.NormalMin, i.NormalMax, i.CriticalLow, i.CriticalHigh,
                    i.Result, i.ResultStatus, i.ResultEnteredAt,
-                   s.Id AS TestId, s.Price AS UnitPrice, s.InsurancePrice
+                   s.Id AS TestId, s.UnitPrice AS UnitPrice, s.InsurancePrice
             FROM LabOrderItems i
             LEFT JOIN Services s ON i.TestCode = s.ServiceCode AND s.IsDeleted = 0
             WHERE i.LabOrderId = @OrderId";
@@ -836,7 +836,7 @@ public class LISCompleteService : ILISCompleteService
             if (pendingApproval == 0)
             {
                 var updateOrderSql = @"UPDATE LabOrders SET Status = 5, ApprovedAt = GETDATE(),
-                                       ApprovedBy = @ApprovedBy
+                                       ApprovedById = @ApprovedBy
                                        WHERE Id = @OrderId";
                 using var updateCmd = new SqlCommand(updateOrderSql, connection);
                 updateCmd.Parameters.AddWithValue("@OrderId", dto.OrderId);
@@ -855,7 +855,7 @@ public class LISCompleteService : ILISCompleteService
         await connection.OpenAsync();
 
         // Set order status to 4 (Sơ duyệt - Preliminary approved)
-        var sql = @"UPDATE LabOrders SET Status = 4, ApprovedBy = @ApprovedBy,
+        var sql = @"UPDATE LabOrders SET Status = 4, ApprovedById = @ApprovedBy,
                     Notes = COALESCE(Notes + CHAR(10), '') + @Note
                     WHERE Id = @OrderId AND Status >= 3";
         using var cmd = new SqlCommand(sql, connection);
@@ -882,7 +882,7 @@ public class LISCompleteService : ILISCompleteService
         }
 
         // Set order status to 5 (Đã duyệt cuối)
-        var sql = @"UPDATE LabOrders SET Status = 5, ApprovedAt = GETDATE(), ApprovedBy = @ApprovedBy,
+        var sql = @"UPDATE LabOrders SET Status = 5, ApprovedAt = GETDATE(), ApprovedById = @ApprovedBy,
                     Notes = COALESCE(Notes + CHAR(10), '') + @Note
                     WHERE Id = @OrderId";
         using (var cmd = new SqlCommand(sql, connection))
@@ -913,7 +913,7 @@ public class LISCompleteService : ILISCompleteService
         }
 
         // Set order status back to 3 (Chờ duyệt)
-        var sql = @"UPDATE LabOrders SET Status = 3, ApprovedAt = NULL, ApprovedBy = NULL,
+        var sql = @"UPDATE LabOrders SET Status = 3, ApprovedAt = NULL, ApprovedById = NULL,
                     Notes = COALESCE(Notes + CHAR(10), '') + @Note
                     WHERE Id = @OrderId AND Status >= 4";
         using (var cmd = new SqlCommand(sql, connection))
@@ -977,17 +977,24 @@ public class LISCompleteService : ILISCompleteService
 
             // Get test results
             var resultSql = @"
-                SELECT s.ServiceName AS TestName, s.ServiceCode AS TestCode,
-                       r.ParameterName, r.Result, r.NumericResult, r.Unit,
-                       r.ReferenceRange, r.ReferenceMin, r.ReferenceMax,
-                       r.IsAbnormal, r.AbnormalType, r.SequenceNumber,
-                       ri.TestId
-                FROM LabResults r
-                INNER JOIN LabRequestItems ri ON r.LabRequestItemId = ri.Id
-                INNER JOIN LabRequests lr ON ri.LabRequestId = lr.Id
-                INNER JOIN Services s ON ri.TestId = s.Id
-                WHERE lr.LabOrderId = @OrderId AND r.IsDeleted = 0 AND ri.IsDeleted = 0
-                ORDER BY s.ServiceName, r.SequenceNumber";
+                SELECT
+                    COALESCE(s.ServiceName, i.TestName) AS TestName,
+                    i.TestCode,
+                    CAST(NULL AS nvarchar(255)) AS ParameterName,
+                    i.Result,
+                    CAST(NULL AS decimal(18,2)) AS NumericResult,
+                    COALESCE(i.Unit, s.Unit) AS Unit,
+                    i.ReferenceRange,
+                    i.NormalMin AS ReferenceMin,
+                    i.NormalMax AS ReferenceMax,
+                    CASE WHEN i.ResultStatus IN (1, 2, 3, 4) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsAbnormal,
+                    i.ResultStatus AS AbnormalType,
+                    0 AS SequenceNumber,
+                    s.Id AS TestId
+                FROM LabOrderItems i
+                LEFT JOIN Services s ON i.TestCode = s.ServiceCode AND s.IsDeleted = 0
+                WHERE i.LabOrderId = @OrderId
+                ORDER BY COALESCE(s.ServiceName, i.TestName), i.TestCode";
 
             var results = new System.Collections.Generic.List<(string testName, string paramName, string result, string unit, string refRange, bool isAbnormal, int? abnormalType)>();
 
@@ -1012,9 +1019,10 @@ public class LISCompleteService : ILISCompleteService
 
             // Get approver
             var approverSql = @"
-                SELECT u.FullName FROM LabRequests lr
-                INNER JOIN Users u ON lr.ApprovedBy = u.Id
-                WHERE lr.LabOrderId = @OrderId AND lr.IsDeleted = 0 AND lr.ApprovedBy IS NOT NULL";
+                SELECT u.FullName
+                FROM LabOrders o
+                INNER JOIN Users u ON o.ApprovedById = u.Id
+                WHERE o.Id = @OrderId AND o.IsDeleted = 0 AND o.ApprovedById IS NOT NULL";
             string? approverName = null;
             using (var cmd3 = new Microsoft.Data.SqlClient.SqlCommand(approverSql, connection))
             {
@@ -1893,7 +1901,7 @@ public class LISCompleteService : ILISCompleteService
         var sql = @"
             SELECT i.TestCode, i.TestName, ISNULL(i.TestGroupName, 'Khác') AS TestGroup,
                    COUNT(i.Id) AS Quantity,
-                   ISNULL(s.Price, 0) AS UnitPrice,
+                   ISNULL(s.UnitPrice, 0) AS UnitPrice,
                    ISNULL(s.InsurancePrice, 0) AS InsurancePrice,
                    s.Id AS TestId
             FROM LabOrderItems i
@@ -1904,7 +1912,7 @@ public class LISCompleteService : ILISCompleteService
         if (departmentId.HasValue)
             sql += " AND o.OrderDepartmentId = @DeptId";
 
-        sql += @" GROUP BY i.TestCode, i.TestName, i.TestGroupName, s.Price, s.InsurancePrice, s.Id
+        sql += @" GROUP BY i.TestCode, i.TestName, i.TestGroupName, s.UnitPrice, s.InsurancePrice, s.Id
                   ORDER BY Quantity DESC";
 
         using var connection = new SqlConnection(_context.Database.GetConnectionString());
