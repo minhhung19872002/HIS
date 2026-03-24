@@ -145,3 +145,33 @@ public class NurseShiftHandover : BaseEntity
     public DateTime? AcknowledgedAt { get; set; }
     public int Status { get; set; } // 0: Draft, 1: Submitted, 2: Acknowledged
 }
+
+/// <summary>
+/// Chi nhánh / Cơ sở bệnh viện - Hospital Branch (NangCap15 1.21)
+/// </summary>
+public class HospitalBranch : BaseEntity
+{
+    public string BranchCode { get; set; } = string.Empty; // Mã chi nhánh
+    public string BranchName { get; set; } = string.Empty; // Tên chi nhánh
+    public string? Address { get; set; } // Địa chỉ
+    public string? PhoneNumber { get; set; } // Số điện thoại
+    public string? Email { get; set; } // Email
+    public Guid? ParentBranchId { get; set; } // Chi nhánh cha (null = gốc)
+    public bool IsActive { get; set; } = true;
+    public bool IsHeadquarters { get; set; } = false; // Là trụ sở chính
+    public virtual HospitalBranch? ParentBranch { get; set; }
+    public virtual ICollection<HospitalBranch> ChildBranches { get; set; } = new List<HospitalBranch>();
+}
+
+/// <summary>
+/// PACS Server từ xa - Remote PACS Server (NangCap15 PACS 3/4)
+/// </summary>
+public class RemotePacsServer : BaseEntity
+{
+    public string Name { get; set; } = string.Empty; // Tên server
+    public string AeTitle { get; set; } = string.Empty; // AE Title (DICOM Application Entity)
+    public string Host { get; set; } = string.Empty; // Hostname hoặc IP
+    public int Port { get; set; } = 4242; // DICOM port (default 4242)
+    public string? Description { get; set; }
+    public bool IsActive { get; set; } = true;
+}

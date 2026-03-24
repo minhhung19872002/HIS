@@ -59,6 +59,7 @@ import {
   FolderOutlined,
   ToolOutlined,
   LaptopOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -286,6 +287,54 @@ const SystemAdmin: React.FC = () => {
   const [emrModalType, setEmrModalType] = useState<string>('');
   const [emrEditingItem, setEmrEditingItem] = useState<Record<string, unknown> | null>(null);
   const [emrForm] = Form.useForm();
+
+  // Branch Management state
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+  const [branchModalOpen, setBranchModalOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<any>(null);
+  const [branchForm] = Form.useForm();
+
+  const fetchBranches = useCallback(async () => {
+    setBranchLoading(true);
+    try {
+      const response = await catalogApi.getBranches();
+      setBranches(response.data || []);
+    } catch (error: any) {
+      console.warn('Fetch branches error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the tai danh sach chi nhanh');
+    } finally {
+      setBranchLoading(false);
+    }
+  }, []);
+
+  const handleSaveBranch = async () => {
+    try {
+      const values = await branchForm.validateFields();
+      const data = editingBranch ? { ...values, id: editingBranch.id } : values;
+      await catalogApi.saveBranch(data);
+      message.success(editingBranch ? 'Da cap nhat chi nhanh' : 'Da them chi nhanh moi');
+      setBranchModalOpen(false);
+      setEditingBranch(null);
+      branchForm.resetFields();
+      fetchBranches();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      console.warn('Save branch error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the luu chi nhanh');
+    }
+  };
+
+  const handleDeleteBranch = async (id: string) => {
+    try {
+      await catalogApi.deleteBranch(id);
+      message.success('Da xoa chi nhanh');
+      fetchBranches();
+    } catch (error: any) {
+      console.warn('Delete branch error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the xoa chi nhanh');
+    }
+  };
 
   const fetchEmrAdminData = useCallback(async () => {
     setEmrAdminLoading(true);
@@ -696,6 +745,11 @@ const SystemAdmin: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'data-management') fetchDataManagement();
   }, [activeTab, fetchDataManagement]);
+
+  // Auto-load branches when tab is active
+  useEffect(() => {
+    if (activeTab === 'branches') fetchBranches();
+  }, [activeTab, fetchBranches]);
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -3589,6 +3643,119 @@ const SystemAdmin: React.FC = () => {
                 </Spin>
               ),
             },
+            {
+              key: 'branches',
+              label: (
+                <span>
+                  <BankOutlined /> Quan ly chi nhanh
+                </span>
+              ),
+              children: (
+                <>
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
+                      <Input.Search
+                        placeholder="Tim theo ten, ma chi nhanh..."
+                        allowClear
+                        enterButton={<SearchOutlined />}
+                        style={{ maxWidth: 400 }}
+                        onSearch={() => fetchBranches()}
+                      />
+                    </Col>
+                    <Col>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+                        setEditingBranch(null);
+                        branchForm.resetFields();
+                        branchForm.setFieldsValue({ isActive: true, isHeadquarter: false });
+                        setBranchModalOpen(true);
+                      }}>
+                        Them chi nhanh
+                      </Button>
+                    </Col>
+                    <Col>
+                      <Button icon={<ReloadOutlined />} onClick={fetchBranches}>
+                        Lam moi
+                      </Button>
+                    </Col>
+                  </Row>
+
+                  <Table
+                    dataSource={branches}
+                    rowKey="id"
+                    size="small"
+                    loading={branchLoading}
+                    pagination={{
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total) => `Tong: ${total} chi nhanh`,
+                    }}
+                    columns={[
+                      { title: 'Ma', dataIndex: 'code', key: 'code', width: 100 },
+                      { title: 'Ten', dataIndex: 'name', key: 'name', width: 200 },
+                      { title: 'Dia chi', dataIndex: 'address', key: 'address', ellipsis: true },
+                      { title: 'SDT', dataIndex: 'phone', key: 'phone', width: 120 },
+                      {
+                        title: 'Tru so chinh',
+                        dataIndex: 'isHeadquarter',
+                        key: 'isHeadquarter',
+                        width: 100,
+                        align: 'center' as const,
+                        render: (v: boolean) => v ? <Tag color="gold">Tru so</Tag> : null,
+                      },
+                      {
+                        title: 'Trang thai',
+                        dataIndex: 'isActive',
+                        key: 'isActive',
+                        width: 100,
+                        render: (v: boolean) => <Tag color={v !== false ? 'green' : 'red'}>{v !== false ? 'Hoat dong' : 'Ngung'}</Tag>,
+                      },
+                      {
+                        title: 'Thao tac',
+                        key: 'action',
+                        width: 120,
+                        render: (_: any, record: any) => (
+                          <Space>
+                            <Button size="small" icon={<EditOutlined />} onClick={() => {
+                              setEditingBranch(record);
+                              branchForm.setFieldsValue(record);
+                              setBranchModalOpen(true);
+                            }} />
+                            <Popconfirm title="Xoa chi nhanh nay?" onConfirm={() => handleDeleteBranch(record.id)}>
+                              <Button size="small" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                          </Space>
+                        ),
+                      },
+                    ]}
+                    onRow={(record) => ({
+                      onDoubleClick: () => {
+                        Modal.info({
+                          title: `Chi tiet chi nhanh - ${record.name}`,
+                          width: 600,
+                          content: (
+                            <Descriptions bordered size="small" column={2} style={{ marginTop: 16 }}>
+                              <Descriptions.Item label="Ma">{record.code || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Ten">{record.name}</Descriptions.Item>
+                              <Descriptions.Item label="Dia chi" span={2}>{record.address || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="SDT">{record.phone || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Email">{record.email || '-'}</Descriptions.Item>
+                              <Descriptions.Item label="Tru so chinh">
+                                <Tag color={record.isHeadquarter ? 'gold' : 'default'}>{record.isHeadquarter ? 'Co' : 'Khong'}</Tag>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Trang thai">
+                                <Tag color={record.isActive !== false ? 'green' : 'red'}>{record.isActive !== false ? 'Hoat dong' : 'Ngung'}</Tag>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Ghi chu" span={2}>{record.description || '-'}</Descriptions.Item>
+                            </Descriptions>
+                          ),
+                        });
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
+                </>
+              ),
+            },
           ]}
         />
       </Card>
@@ -4048,6 +4215,67 @@ const SystemAdmin: React.FC = () => {
           </Form.Item>
           <Form.Item name="description" label="Mo ta">
             <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Branch Management Modal */}
+      <Modal
+        title={editingBranch ? 'Sua chi nhanh' : 'Them chi nhanh moi'}
+        open={branchModalOpen}
+        onOk={handleSaveBranch}
+        onCancel={() => {
+          setBranchModalOpen(false);
+          setEditingBranch(null);
+          branchForm.resetFields();
+        }}
+        okText="Luu"
+        cancelText="Huy"
+        width={600}
+        destroyOnHidden
+      >
+        <Form form={branchForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="code" label="Ma chi nhanh" rules={[{ required: true, message: 'Vui long nhap ma chi nhanh' }]}>
+                <Input placeholder="VD: CN01" />
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item name="name" label="Ten chi nhanh" rules={[{ required: true, message: 'Vui long nhap ten chi nhanh' }]}>
+                <Input placeholder="VD: Chi nhanh Hai Duong" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="address" label="Dia chi">
+            <Input placeholder="So nha, duong, phuong/xa, quan/huyen, tinh/TP" />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="phone" label="So dien thoai">
+                <Input placeholder="VD: 0220-3xxx-xxx" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="email" label="Email">
+                <Input placeholder="VD: chinhanh@benhvien.vn" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="isHeadquarter" label="Tru so chinh" valuePropName="checked">
+                <Switch checkedChildren="Co" unCheckedChildren="Khong" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="isActive" label="Trang thai" valuePropName="checked">
+                <Switch checkedChildren="Hoat dong" unCheckedChildren="Ngung" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="description" label="Ghi chu">
+            <Input.TextArea rows={2} placeholder="Ghi chu them ve chi nhanh..." />
           </Form.Item>
         </Form>
       </Modal>

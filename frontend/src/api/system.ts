@@ -1568,6 +1568,14 @@ export const catalogApi = {
   deleteClinicalTerm: (termId: string) =>
     apiClient.delete<boolean>(`/catalog/clinical-terms/${termId}`),
 
+  // Chi nhánh (Branches)
+  getBranches: (params?: { keyword?: string; isActive?: boolean }) =>
+    apiClient.get('/catalog/branches', { params }),
+  saveBranch: (data: any) =>
+    apiClient.post('/catalog/branches', data),
+  deleteBranch: (id: string) =>
+    apiClient.delete(`/catalog/branches/${id}`),
+
   // Đồng bộ BHXH
   syncBHXHMedicines: () => apiClient.post<SyncResultDto>('/catalog/sync/bhxh/medicines'),
   syncBHXHServices: () => apiClient.post<SyncResultDto>('/catalog/sync/bhxh/services'),

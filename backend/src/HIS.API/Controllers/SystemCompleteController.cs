@@ -746,6 +746,40 @@ namespace HIS.API.Controllers
             return Ok(result);
         }
 
+        // 13.19 Chi nhánh bệnh viện (NangCap15 1.21)
+        /// <summary>
+        /// Danh sách chi nhánh / cơ sở bệnh viện
+        /// </summary>
+        [HttpGet("api/catalog/branches")]
+        public async Task<ActionResult<List<HospitalBranchDto>>> GetBranches(
+            [FromQuery] string? keyword = null, [FromQuery] bool? isActive = null)
+        {
+            var result = await _service.GetBranchesAsync(keyword, isActive);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Thêm mới / Cập nhật chi nhánh bệnh viện
+        /// </summary>
+        [HttpPost("api/catalog/branches")]
+        [Authorize(Roles = "Admin,CatalogManager")]
+        public async Task<ActionResult<HospitalBranchDto>> SaveBranch([FromBody] HospitalBranchDto dto)
+        {
+            var result = await _service.SaveBranchAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa chi nhánh bệnh viện
+        /// </summary>
+        [HttpDelete("api/catalog/branches/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<bool>> DeleteBranch(Guid id)
+        {
+            var result = await _service.DeleteBranchAsync(id);
+            return Ok(result);
+        }
+
         // 13.18 Đồng bộ BHXH
         [HttpPost("api/catalog/sync/bhxh/medicines")]
         [Authorize(Roles = "Admin")]

@@ -2682,6 +2682,67 @@ namespace HIS.API.Controllers
         }
 
         #endregion
+
+        #region DICOM Export / Send (NangCap15 PACS 3/4)
+
+        /// <summary>
+        /// Export DICOM study as ZIP archive from Orthanc PACS
+        /// </summary>
+        [HttpGet("dicom/export/{studyId}")]
+        public async Task<IActionResult> ExportDicomStudy(string studyId, [FromQuery] string format = "zip")
+        {
+            var data = await _risService.ExportDicomStudyAsync(studyId, format);
+            if (data == null || data.Length == 0)
+                return NotFound(new { message = "Study not found or export failed" });
+
+            var contentType = format == "dicomdir" ? "application/dicom" : "application/zip";
+            var fileName = $"study_{studyId}.{(format == "dicomdir" ? "dcm" : "zip")}";
+            return File(data, contentType, fileName);
+        }
+
+        /// <summary>
+        /// Send DICOM study to remote PACS server via C-STORE
+        /// </summary>
+        [HttpPost("dicom/send")]
+        public async Task<ActionResult<DicomSendResultDto>> SendDicomToRemote([FromBody] DicomSendRequest request)
+        {
+            var result = await _risService.SendDicomToRemoteAsync(request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get list of configured remote PACS servers
+        /// </summary>
+        [HttpGet("dicom/remote-servers")]
+        public async Task<ActionResult<List<RemotePacsServerDto>>> GetRemoteServers()
+        {
+            var result = await _risService.GetRemoteServersAsync();
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Create or update remote PACS server configuration
+        /// </summary>
+        [HttpPost("dicom/remote-servers")]
+        [Authorize(Roles = "Admin,RadiologistManager")]
+        public async Task<ActionResult<RemotePacsServerDto>> SaveRemoteServer([FromBody] RemotePacsServerDto dto)
+        {
+            var result = await _risService.SaveRemoteServerAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Delete remote PACS server configuration
+        /// </summary>
+        [HttpDelete("dicom/remote-servers/{id}")]
+        [Authorize(Roles = "Admin,RadiologistManager")]
+        public async Task<ActionResult<bool>> DeleteRemoteServer(Guid id)
+        {
+            var result = await _risService.DeleteRemoteServerAsync(id);
+            return Ok(result);
+        }
+
+        #endregion
     }
 
     #region Request DTOs

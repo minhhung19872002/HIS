@@ -298,7 +298,11 @@ public class InpatientCompleteService : IInpatientCompleteService
             .Take(searchDto.PageSize)
             .Select(m => new InpatientListDto
             {
-                AdmissionId = m.Id,
+                AdmissionId = _context.Set<Admission>()
+                    .Where(a => a.MedicalRecordId == m.Id && !a.IsDeleted)
+                    .OrderByDescending(a => a.AdmissionDate)
+                    .Select(a => a.Id)
+                    .FirstOrDefault(),
                 MedicalRecordCode = m.MedicalRecordCode,
                 PatientCode = m.Patient.PatientCode,
                 PatientName = m.Patient.FullName,

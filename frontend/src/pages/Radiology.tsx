@@ -25,6 +25,7 @@ import {
   Popconfirm,
   Tooltip,
   Spin,
+  Drawer,
 } from 'antd';
 import {
   SearchOutlined,
@@ -54,8 +55,10 @@ import {
   ControlOutlined,
   BulbOutlined,
   CloudDownloadOutlined,
+  CloudUploadOutlined,
   EditOutlined,
   PlusOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -330,6 +333,127 @@ const Radiology: React.FC = () => {
       message.warning(error?.response?.data?.message || 'Khong the xuat file DICOM');
     } finally {
       setDicomExportLoading(null);
+    }
+  };
+
+  // ===== Feature: DICOM Send to Remote PACS (NangCap15) =====
+  const [dicomSendLoading, setDicomSendLoading] = useState<string | null>(null);
+  const [remoteServerDrawerOpen, setRemoteServerDrawerOpen] = useState(false);
+  const [remoteServers, setRemoteServers] = useState<any[]>([]);
+  const [remoteServerLoading, setRemoteServerLoading] = useState(false);
+  const [remoteServerModalOpen, setRemoteServerModalOpen] = useState(false);
+  const [editingRemoteServer, setEditingRemoteServer] = useState<any>(null);
+  const [remoteServerForm] = Form.useForm();
+
+  const fetchRemoteServers = async () => {
+    setRemoteServerLoading(true);
+    try {
+      const response = await risApi.getRemoteServers();
+      setRemoteServers(response.data || []);
+    } catch (error: any) {
+      console.warn('Fetch remote servers error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the tai danh sach Remote PACS');
+    } finally {
+      setRemoteServerLoading(false);
+    }
+  };
+
+  const handleSendDicomToRemote = async (studyId: string, studyInstanceUID: string) => {
+    if (!studyInstanceUID) {
+      message.warning('Khong co Study Instance UID de gui DICOM');
+      return;
+    }
+    // Fetch servers if not loaded
+    let servers = remoteServers;
+    if (servers.length === 0) {
+      try {
+        const resp = await risApi.getRemoteServers();
+        servers = resp.data || [];
+        setRemoteServers(servers);
+      } catch {
+        // ignore
+      }
+    }
+    if (servers.length === 0) {
+      message.warning('Chua co Remote PACS server nao. Vui long cau hinh truoc.');
+      setRemoteServerDrawerOpen(true);
+      fetchRemoteServers();
+      return;
+    }
+    const activeServers = servers.filter((s: any) => s.isActive !== false);
+    if (activeServers.length === 0) {
+      message.warning('Khong co Remote PACS server nao dang hoat dong.');
+      return;
+    }
+    // If only one active server, send directly
+    if (activeServers.length === 1) {
+      setDicomSendLoading(studyInstanceUID);
+      try {
+        await risApi.sendDicomToRemote({ studyId, remoteServerId: activeServers[0].id });
+        message.success(`Da gui DICOM den ${activeServers[0].name} thanh cong`);
+      } catch (error: any) {
+        console.warn('DICOM send error:', error);
+        message.warning(error?.response?.data?.message || 'Khong the gui DICOM den Remote PACS');
+      } finally {
+        setDicomSendLoading(null);
+      }
+      return;
+    }
+    // Multiple servers - show selection dialog
+    Modal.confirm({
+      title: 'Chon Remote PACS de gui',
+      width: 400,
+      content: (
+        <Select
+          style={{ width: '100%', marginTop: 12 }}
+          placeholder="Chon PACS server"
+          id="remote-pacs-select"
+          options={activeServers.map((s: any) => ({ label: `${s.name} (${s.aeTitle}@${s.host}:${s.port})`, value: s.id }))}
+        />
+      ),
+      onOk: async () => {
+        const selectEl = document.getElementById('remote-pacs-select') as any;
+        const selectedId = selectEl?._value || activeServers[0].id;
+        setDicomSendLoading(studyInstanceUID);
+        try {
+          await risApi.sendDicomToRemote({ studyId, remoteServerId: selectedId });
+          const serverName = activeServers.find((s: any) => s.id === selectedId)?.name || 'Remote PACS';
+          message.success(`Da gui DICOM den ${serverName} thanh cong`);
+        } catch (error: any) {
+          console.warn('DICOM send error:', error);
+          message.warning(error?.response?.data?.message || 'Khong the gui DICOM den Remote PACS');
+        } finally {
+          setDicomSendLoading(null);
+        }
+      },
+    });
+  };
+
+  const handleSaveRemoteServer = async () => {
+    try {
+      const values = await remoteServerForm.validateFields();
+      const data = editingRemoteServer ? { ...values, id: editingRemoteServer.id } : values;
+      await risApi.saveRemoteServer(data);
+      message.success(editingRemoteServer ? 'Da cap nhat Remote PACS server' : 'Da them Remote PACS server');
+      setRemoteServerModalOpen(false);
+      setEditingRemoteServer(null);
+      remoteServerForm.resetFields();
+      fetchRemoteServers();
+    } catch (error: any) {
+      if (error?.errorFields) return; // form validation error
+      console.warn('Save remote server error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the luu Remote PACS server');
+    }
+  };
+
+  const handleDeleteRemoteServer = async (id: string) => {
+    try {
+      await risApi.deleteRemoteServer(id);
+      message.success('Da xoa Remote PACS server');
+      fetchRemoteServers();
+    } catch (error: any) {
+      console.warn('Delete remote server error:', error);
+      message.warning(error?.response?.data?.message || 'Khong the xoa Remote PACS server');
     }
   };
 
@@ -1361,6 +1485,19 @@ const Radiology: React.FC = () => {
                 data-testid="dicom-export-btn"
               >
                 DICOM
+              </Button>
+            </Tooltip>
+          )}
+          {record.studyInstanceUID && (
+            <Tooltip title="Gui DICOM den Remote PACS">
+              <Button
+                size="small"
+                icon={<CloudUploadOutlined />}
+                loading={dicomSendLoading === record.studyInstanceUID}
+                onClick={() => handleSendDicomToRemote(record.id, record.studyInstanceUID!)}
+                data-testid="dicom-send-btn"
+              >
+                Send
               </Button>
             </Tooltip>
           )}
@@ -2501,6 +2638,20 @@ const Radiology: React.FC = () => {
                       </Card>
                     </Col>
                   </Row>
+                  <Row gutter={16} style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Card
+                        title={<><GlobalOutlined /> Remote PACS Servers</>}
+                        size="small"
+                        extra={<Button type="primary" size="small" icon={<SettingOutlined />} onClick={() => {
+                          setRemoteServerDrawerOpen(true);
+                          fetchRemoteServers();
+                        }}>Quan ly</Button>}
+                      >
+                        <p>Quan ly cac PACS server tu xa de gui anh DICOM (C-STORE). Cau hinh AE Title, host, port cho tung server.</p>
+                      </Card>
+                    </Col>
+                  </Row>
                 </>
               ),
             },
@@ -3267,6 +3418,105 @@ const Radiology: React.FC = () => {
             )}
           </Descriptions>
         )}
+      </Modal>
+
+      {/* Remote PACS Server Management Drawer */}
+      <Drawer
+        title={<><GlobalOutlined /> Quan ly Remote PACS Servers</>}
+        open={remoteServerDrawerOpen}
+        onClose={() => setRemoteServerDrawerOpen(false)}
+        width={700}
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+            setEditingRemoteServer(null);
+            remoteServerForm.resetFields();
+            remoteServerForm.setFieldsValue({ port: 4242, isActive: true });
+            setRemoteServerModalOpen(true);
+          }}>
+            Them server
+          </Button>
+        }
+      >
+        <Table
+          dataSource={remoteServers}
+          rowKey="id"
+          size="small"
+          loading={remoteServerLoading}
+          pagination={false}
+          columns={[
+            { title: 'Ten', dataIndex: 'name', key: 'name', width: 130 },
+            { title: 'AE Title', dataIndex: 'aeTitle', key: 'aeTitle', width: 100 },
+            { title: 'Host', dataIndex: 'host', key: 'host', width: 130 },
+            { title: 'Port', dataIndex: 'port', key: 'port', width: 60 },
+            {
+              title: 'Trang thai',
+              dataIndex: 'isActive',
+              key: 'isActive',
+              width: 90,
+              render: (v: boolean) => <Tag color={v !== false ? 'green' : 'red'}>{v !== false ? 'Hoat dong' : 'Tat'}</Tag>,
+            },
+            {
+              title: 'Thao tac',
+              key: 'action',
+              width: 120,
+              render: (_: any, record: any) => (
+                <Space>
+                  <Button size="small" icon={<EditOutlined />} onClick={() => {
+                    setEditingRemoteServer(record);
+                    remoteServerForm.setFieldsValue(record);
+                    setRemoteServerModalOpen(true);
+                  }} />
+                  <Popconfirm title="Xoa server nay?" onConfirm={() => handleDeleteRemoteServer(record.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Drawer>
+
+      {/* Remote PACS Server Add/Edit Modal */}
+      <Modal
+        title={editingRemoteServer ? 'Sua Remote PACS Server' : 'Them Remote PACS Server'}
+        open={remoteServerModalOpen}
+        onOk={handleSaveRemoteServer}
+        onCancel={() => {
+          setRemoteServerModalOpen(false);
+          setEditingRemoteServer(null);
+          remoteServerForm.resetFields();
+        }}
+        okText="Luu"
+        cancelText="Huy"
+        width={500}
+        destroyOnHidden
+      >
+        <Form form={remoteServerForm} layout="vertical">
+          <Form.Item name="name" label="Ten server" rules={[{ required: true, message: 'Vui long nhap ten server' }]}>
+            <Input placeholder="VD: PACS Benh vien tinh" />
+          </Form.Item>
+          <Form.Item name="aeTitle" label="AE Title" rules={[{ required: true, message: 'Vui long nhap AE Title' }]}>
+            <Input placeholder="VD: REMOTE_PACS" />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={16}>
+              <Form.Item name="host" label="Host / IP" rules={[{ required: true, message: 'Vui long nhap host' }]}>
+                <Input placeholder="VD: 192.168.1.100" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="port" label="Port" rules={[{ required: true, message: 'Vui long nhap port' }]}>
+                <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="description" label="Mo ta">
+            <Input.TextArea rows={2} placeholder="Ghi chu them ve server nay..." />
+          </Form.Item>
+          <Form.Item name="isActive" label="Trang thai" valuePropName="checked" initialValue={true}>
+            <Switch checkedChildren="Hoat dong" unCheckedChildren="Tat" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

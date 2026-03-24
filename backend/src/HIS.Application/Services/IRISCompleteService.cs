@@ -847,7 +847,66 @@ namespace HIS.Application.Services
     Task<bool> ToggleRecordingAsync(Guid sessionId, bool start);
 
     #endregion
+
+    #region DICOM Export / Send (NangCap15 PACS 3/4)
+
+    /// <summary>
+    /// Export DICOM study as ZIP archive from Orthanc
+    /// </summary>
+    Task<byte[]> ExportDicomStudyAsync(string studyId, string format = "zip");
+
+    /// <summary>
+    /// Send DICOM study to remote PACS via C-STORE
+    /// </summary>
+    Task<DicomSendResultDto> SendDicomToRemoteAsync(DicomSendRequest request);
+
+    /// <summary>
+    /// Get list of remote PACS servers
+    /// </summary>
+    Task<List<RemotePacsServerDto>> GetRemoteServersAsync();
+
+    /// <summary>
+    /// Create or update remote PACS server
+    /// </summary>
+    Task<RemotePacsServerDto> SaveRemoteServerAsync(RemotePacsServerDto dto);
+
+    /// <summary>
+    /// Delete remote PACS server
+    /// </summary>
+    Task<bool> DeleteRemoteServerAsync(Guid id);
+
+    #endregion
     }
+
+    #region DICOM Export/Send DTOs (NangCap15 PACS 3/4)
+
+    public class DicomSendRequest
+    {
+        public string StudyId { get; set; } = string.Empty;
+        public Guid RemoteServerId { get; set; }
+    }
+
+    public class DicomSendResultDto
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public string? StudyId { get; set; }
+        public string? RemoteServerName { get; set; }
+        public DateTime SentAt { get; set; }
+    }
+
+    public class RemotePacsServerDto
+    {
+        public Guid? Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string AeTitle { get; set; } = string.Empty;
+        public string Host { get; set; } = string.Empty;
+        public int Port { get; set; } = 4242;
+        public string? Description { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    #endregion
 
     #region Additional DTOs for RIS Service
 

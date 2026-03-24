@@ -215,6 +215,11 @@ public class HISDbContext : DbContext
     // RIS/PACS - CLS Screen (VII)
     public DbSet<RadiologyCLSScreenConfig> RadiologyCLSScreenConfigs => Set<RadiologyCLSScreenConfig>();
     public DbSet<RadiologyServiceDescriptionTemplate> RadiologyServiceDescriptionTemplates => Set<RadiologyServiceDescriptionTemplate>();
+    // RIS/PACS - Remote PACS Servers
+    public DbSet<RemotePacsServer> RemotePacsServers => Set<RemotePacsServer>();
+
+    // Chi nhánh bệnh viện (NangCap15 1.21)
+    public DbSet<HospitalBranch> HospitalBranches => Set<HospitalBranch>();
 
     // Dược/Cấp phát
     public DbSet<DispenseRequest> DispenseRequests => Set<DispenseRequest>();

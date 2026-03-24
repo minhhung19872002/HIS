@@ -443,6 +443,24 @@ namespace HIS.Application.DTOs.System
         public bool IsActive { get; set; }
     }
 
+    /// <summary>
+    /// Chi nhánh bệnh viện DTO (NangCap15 1.21)
+    /// </summary>
+    public class HospitalBranchDto
+    {
+        public Guid? Id { get; set; }
+        public string BranchCode { get; set; } = string.Empty;
+        public string BranchName { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Email { get; set; }
+        public Guid? ParentBranchId { get; set; }
+        public string? ParentBranchName { get; set; }
+        public bool IsActive { get; set; } = true;
+        public bool IsHeadquarters { get; set; } = false;
+        public int ChildCount { get; set; }
+    }
+
     public class SnomedIcdMappingDto
     {
         public Guid Id { get; set; }

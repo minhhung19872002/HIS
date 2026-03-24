@@ -2501,6 +2501,20 @@ export const exportDicomStudy = (data: DicomExportRequestDto) =>
 export const getDicomExportStatus = (studyInstanceUID: string) =>
   apiClient.get<DicomExportResultDto>(`/RISComplete/dicom/export-status/${studyInstanceUID}`);
 
+// DICOM Send to remote PACS
+export const sendDicomToRemote = (data: { studyId: string; remoteServerId: string }) =>
+  apiClient.post('/riscomplete/dicom/send', data);
+
+// Remote PACS Server management
+export const getRemoteServers = () =>
+  apiClient.get('/riscomplete/dicom/remote-servers');
+
+export const saveRemoteServer = (data: { id?: string; name: string; aeTitle: string; host: string; port: number; description?: string; isActive?: boolean }) =>
+  apiClient.post('/riscomplete/dicom/remote-servers', data);
+
+export const deleteRemoteServer = (id: string) =>
+  apiClient.delete(`/riscomplete/dicom/remote-servers/${id}`);
+
 // #endregion
 
 // #region VII. CLS Screen APIs
@@ -2742,4 +2756,8 @@ export default {
   deleteFilterPreset: deleteFilterPreset as (presetId: string) => ReturnType<typeof deleteFilterPreset>,
   exportDicomStudy,
   getDicomExportStatus,
+  sendDicomToRemote,
+  getRemoteServers,
+  saveRemoteServer,
+  deleteRemoteServer,
 };

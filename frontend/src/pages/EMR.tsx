@@ -65,17 +65,17 @@ import {
   SwallowingAssessmentPrint, DocumentScanPrint, VAPMonitoringPrint,
 } from '../components/EMRNursingPrintTemplates';
 import {
-  InternalMedicineMRPrint, InfectiousDiseaseMRPrint, GynecologyMRPrint,
-  PsychiatryMRPrint, DermatologyMRPrint, HematologyMRPrint,
-  SurgicalMRPrint, BurnsMRPrint, OncologyMRPrint,
-  DentalMRPrint, ENTMRPrint, OutpatientGeneralMRPrint,
-  OutpatientDentalMRPrint, CommuneHealthMRPrint,
-  TraditionalMedInpatientMRPrint, TraditionalMedOutpatientMRPrint, PediatricTCMMRPrint,
-  EyeTraumaMRPrint, EyeAnteriorMRPrint, EyePosteriorMRPrint,
-  EyeGlaucomaMRPrint, EyeStrabismusMRPrint, PediatricEyeMRPrint,
-  RehabilitationMRPrint, PediatricRehabMRPrint, OutpatientRehabMRPrint,
-  OnDemandExamPrint, SpecialtyExamPrint, NursingCareLevel1Print, NursingCareLevel2Print,
-} from '../components/SpecialtyMedicalRecordPrintTemplates';
+  NoiKhoaBAPrint, TruyenNhiemBAPrint, PhuKhoaBAPrint, TamThanBAPrint,
+  DaLieuBAPrint, HuyetHocBAPrint, NgoaiKhoaBAPrint, BongBAPrint,
+  UngBuouBAPrint, RHMBAPrint, TMHBAPrint, NgoaiTruChungBAPrint,
+  NgoaiTruRHMBAPrint, TuyenXaBAPrint, YHCTNoiTruBAPrint,
+} from '../components/SpecialtyEMRForms1';
+import {
+  YHCTNgoaiTruBAPrint, NhiYHCTBAPrint, MatBenhAnPrint, MatGlaucomaPrint,
+  MatDucTTTPrint, MatLeoPrint, MatVMCBPrint, MatKXTPrint,
+  PHCNBAPrint, PHCNNhiBAPrint, NgoaiTruPHCNBAPrint,
+  KhamTheoYCPrint, KhamCKPrint, CSCap1Print, CSCap2Print,
+} from '../components/SpecialtyEMRForms2';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -1598,12 +1598,12 @@ ${conclusion ? `<div class="section">
                     { key: 'sp-nhiyhct', label: 'MS.20 - Nhi YHCT' },
                   ]},
                   { key: 'eye-grp', label: 'BA Mắt', type: 'group' as const, children: [
-                    { key: 'sp-matchanthuong', label: 'MS.21 - Mắt chấn thương' },
-                    { key: 'sp-matbantruoc', label: 'MS.22 - Mắt bán phần trước' },
-                    { key: 'sp-matdaymat', label: 'MS.23 - Mắt đáy mắt' },
-                    { key: 'sp-matglocom', label: 'MS.24 - Mắt Glocom' },
-                    { key: 'sp-matlac', label: 'MS.25 - Mắt Lác' },
-                    { key: 'sp-mattreem', label: 'MS.26 - Mắt trẻ em' },
+                    { key: 'sp-matchung', label: 'MS.21 - Mắt chung' },
+                    { key: 'sp-matglocom', label: 'MS.22 - Mắt Glocom' },
+                    { key: 'sp-matducttt', label: 'MS.23 - Mắt đục TTT' },
+                    { key: 'sp-matleo', label: 'MS.24 - Mắt Lé' },
+                    { key: 'sp-matvmcb', label: 'MS.25 - Mắt Võng mạc' },
+                    { key: 'sp-matkxt', label: 'MS.26 - Mắt Khúc xạ' },
                   ]},
                   { key: 'rehab-grp', label: 'BA PHCN', type: 'group' as const, children: [
                     { key: 'sp-phcn', label: 'MS.27 - PHCN' },
@@ -1877,9 +1877,9 @@ ${conclusion ? `<div class="section">
           'sp-ngoaitrurhm': 'BA Ngoại trú RHM (MS.16)', 'sp-tuyenxa': 'BA Tuyến xã (MS.17)',
           'sp-yhctnoidru': 'BA YHCT nội trú (MS.18)', 'sp-yhctngoaitru': 'BA YHCT ngoại trú (MS.19)',
           'sp-nhiyhct': 'BA Nhi YHCT (MS.20)',
-          'sp-matchanthuong': 'BA Mắt chấn thương (MS.21)', 'sp-matbantruoc': 'BA Mắt bán phần trước (MS.22)',
-          'sp-matdaymat': 'BA Mắt đáy mắt (MS.23)', 'sp-matglocom': 'BA Mắt Glocom (MS.24)',
-          'sp-matlac': 'BA Mắt Lác (MS.25)', 'sp-mattreem': 'BA Mắt trẻ em (MS.26)',
+          'sp-matchung': 'BA Mắt chung (MS.21)', 'sp-matglocom': 'BA Mắt Glocom (MS.22)',
+          'sp-matducttt': 'BA Mắt đục TTT (MS.23)', 'sp-matleo': 'BA Mắt Lé (MS.24)',
+          'sp-matvmcb': 'BA Mắt Võng mạc (MS.25)', 'sp-matkxt': 'BA Mắt Khúc xạ (MS.26)',
           'sp-phcn': 'BA PHCN (MS.27)', 'sp-phcnnhi': 'BA PHCN Nhi (MS.28)',
           'sp-phcnngoaitru': 'BA PHCN ngoại trú (MS.29)',
           'sp-giaykhamsuckhoe': 'Khám theo yêu cầu (MS.03)', 'sp-phieuchuyenkhoa': 'Khám chuyên khoa (MS.04)',
@@ -1992,36 +1992,38 @@ ${conclusion ? `<div class="section">
           {printType === 'dd20-docscan' && <DocumentScanPrint ref={printRef} record={medicalRecord} />}
           {printType === 'dd21-vap' && <VAPMonitoringPrint ref={printRef} record={medicalRecord} />}
           {/* Specialty Medical Record forms (TT32/2023) */}
-          {printType === 'sp-noikhoa' && <InternalMedicineMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-truyennhiem' && <InfectiousDiseaseMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-phukhoa' && <GynecologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-tamthan' && <PsychiatryMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-dalieu' && <DermatologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-huyethoc' && <HematologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-ngoaikhoa' && <SurgicalMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-bong' && <BurnsMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-ungbuou' && <OncologyMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-rhm' && <DentalMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-tmh' && <ENTMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-ngoaitru' && <OutpatientGeneralMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-ngoaitrurhm' && <OutpatientDentalMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-tuyenxa' && <CommuneHealthMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-yhctnoidru' && <TraditionalMedInpatientMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-yhctngoaitru' && <TraditionalMedOutpatientMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-nhiyhct' && <PediatricTCMMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-matchanthuong' && <EyeTraumaMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-matbantruoc' && <EyeAnteriorMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-matdaymat' && <EyePosteriorMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-matglocom' && <EyeGlaucomaMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-matlac' && <EyeStrabismusMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-mattreem' && <PediatricEyeMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-phcn' && <RehabilitationMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-phcnnhi' && <PediatricRehabMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-phcnngoaitru' && <OutpatientRehabMRPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-giaykhamsuckhoe' && <OnDemandExamPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-phieuchuyenkhoa' && <SpecialtyExamPrint ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-chamsoccap1' && <NursingCareLevel1Print ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
-          {printType === 'sp-chamsoccap2' && <NursingCareLevel2Print ref={printRef} data={medicalRecord as unknown as Record<string, any>} />}
+          {/* BA Chuyên khoa - SpecialtyEMRForms1 (15 forms) */}
+          {printType === 'sp-noikhoa' && <NoiKhoaBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-truyennhiem' && <TruyenNhiemBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-phukhoa' && <PhuKhoaBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-tamthan' && <TamThanBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-dalieu' && <DaLieuBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-huyethoc' && <HuyetHocBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-ngoaikhoa' && <NgoaiKhoaBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-bong' && <BongBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-ungbuou' && <UngBuouBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-rhm' && <RHMBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-tmh' && <TMHBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-ngoaitru' && <NgoaiTruChungBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-ngoaitrurhm' && <NgoaiTruRHMBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-tuyenxa' && <TuyenXaBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-yhctnoidru' && <YHCTNoiTruBAPrint ref={printRef} data={medicalRecord} />}
+          {/* BA Chuyên khoa - SpecialtyEMRForms2 (15 forms) */}
+          {printType === 'sp-yhctngoaitru' && <YHCTNgoaiTruBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-nhiyhct' && <NhiYHCTBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-matchung' && <MatBenhAnPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-matglocom' && <MatGlaucomaPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-matducttt' && <MatDucTTTPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-matleo' && <MatLeoPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-matvmcb' && <MatVMCBPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-matkxt' && <MatKXTPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-phcn' && <PHCNBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-phcnnhi' && <PHCNNhiBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-phcnngoaitru' && <NgoaiTruPHCNBAPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-giaykhamsuckhoe' && <KhamTheoYCPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-phieuchuyenkhoa' && <KhamCKPrint ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-chamsoccap1' && <CSCap1Print ref={printRef} data={medicalRecord} />}
+          {printType === 'sp-chamsoccap2' && <CSCap2Print ref={printRef} data={medicalRecord} />}
         </div>
       </Drawer>
 

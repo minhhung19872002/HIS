@@ -842,6 +842,57 @@ If a new service/controller is added, register it there or you get 500 errors.
 **76. Git Commit**
 - `56c575f` - Add Level 6 audit logging system with middleware, UI, and Cypress tests
 
+### DA HOAN THANH (Session 34 - 2026-03-24)
+
+**77. NangCap15 RIS - 5 features completed (21/21 RIS)**
+- **RIS Chat (1.7)**: RisChatHub.cs SignalR hub (JoinStudyRoom, SendMessage, LeaveStudyRoom) + risChat.ts frontend client + Radiology.tsx chat panel
+- **Dark/Light theme (1.13)**: Already existed (ThemeContext.tsx + MainLayout toggle) - verified
+- **Filter presets (1.18)**: Already existed (FilterPreset localStorage + Radiology.tsx preset tags) - verified
+- **Result config (1.20)**: Already existed (Radiology config tab: maxResults, autoSave, printGrouping) - verified
+- **Branch management (1.21)**: HospitalBranch entity + SystemCompleteController 3 endpoints + SystemAdmin.tsx "Quan ly chi nhanh" tab
+
+**78. NangCap15 PACS - 2 features completed (4/5 PACS, 1 hardware)**
+- **DICOM export (3)**: ExportDicomStudyAsync (ZIP/DICOMDIR via Orthanc REST API) + Radiology.tsx download button
+- **DICOM send (4)**: SendDicomToRemoteAsync (C-STORE via Orthanc modalities API) + RemotePacsServer CRUD + Remote PACS Drawer UI
+- **Mobile app (5)**: Hardware/native - CHUA LAM
+
+**79. 30 Specialty EMR Forms (TT 32/2023/TT-BYT)**
+- **SpecialtyEMRForms1.tsx** (~1816 lines): 15 forms - Noi khoa, Truyen nhiem, Phu khoa, Tam than, Da lieu, Huyet hoc, Ngoai khoa, Bong, Ung buou, RHM, TMH, Ngoai tru chung, Ngoai tru RHM, Tuyen xa, YHCT noi tru
+- **SpecialtyEMRForms2.tsx** (~1756 lines): 15 forms - YHCT ngoai tru, Nhi YHCT, 6 Mat (chung, Glocom, Duc TTT, Le, Vong mac, Khuc xa), PHCN, PHCN Nhi, Ngoai tru PHCN, Kham theo YC, Kham CK, CS cap 1, CS cap 2
+- Integrated into EMR.tsx dropdown menu "BA Chuyen khoa (TT 32)" with Drawer print preview
+- 38/38 bieu mau TT 32 hoan thanh (26 BA chuyen khoa + 4 phieu y te + 8 existing)
+
+**80. Backend infrastructure**
+- HospitalBranch + RemotePacsServer entities in SystemAdmin.cs
+- DbSet registrations in HISDbContext.cs
+- 3 branch CRUD methods in SystemCompleteService
+- 5 DICOM endpoints in RISCompleteController (export, send, remote-servers CRUD)
+- 5 DICOM methods in RISCompleteService (Orthanc REST integration)
+- RisChatHub SignalR hub registered in Program.cs
+- DB script: scripts/create_nangcap15_tables.sql
+
+**81. Frontend additions**
+- frontend/src/api/risChat.ts: SignalR client with auto-reconnect
+- frontend/src/api/ris.ts: 4 new functions (sendDicomToRemote, getRemoteServers, saveRemoteServer, deleteRemoteServer)
+- frontend/src/api/system.ts: 3 new functions (getBranches, saveBranch, deleteBranch)
+- Radiology.tsx: Remote PACS Drawer + Send DICOM button + Remote server CRUD modal
+- SystemAdmin.tsx: Branch management tab (table + CRUD modal)
+- EMR.tsx: Import 30 new specialty form components, updated dropdown menu
+
+**82. Verification**
+
+| Test Suite | Pass | Fail | Total |
+|---|---|---|---|
+| Cypress console-errors | 76 | 0 | 76 |
+| Cypress emr | 34 | 0 | 34 |
+| Cypress user-workflow | 40 | 0 | 40 |
+| TypeScript | 0 errors | | |
+| Vite build | success (17.81s) | | |
+| Backend build | 0 errors | | |
+
+**NangCap15 status: 25/26 complete** (1 remaining: mobile app - hardware)
+**TT 32/2023 bieu mau: 38/38 complete**
+
 ---
 
 ### CAN LAM TIEP

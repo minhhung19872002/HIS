@@ -165,5 +165,6 @@ app.UseMiddleware<AuditLogMiddleware>();
 
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<RisChatHub>("/hubs/ris-chat");
 
 app.Run();

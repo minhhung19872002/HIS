@@ -217,6 +217,11 @@ namespace HIS.Application.Services
         Task<ClinicalTermCatalogDto> SaveClinicalTermAsync(ClinicalTermCatalogDto dto);
         Task<bool> DeleteClinicalTermAsync(Guid termId);
 
+        // 13.19 Chi nhánh / Cơ sở bệnh viện (NangCap15 1.21)
+        Task<List<HospitalBranchDto>> GetBranchesAsync(string? keyword = null, bool? isActive = null);
+        Task<HospitalBranchDto> SaveBranchAsync(HospitalBranchDto dto);
+        Task<bool> DeleteBranchAsync(Guid branchId);
+
         // SNOMED CT Mapping
         Task<List<SnomedIcdMappingDto>> GetSnomedMappingsAsync(string? keyword, string? icdCode);
         Task<SnomedIcdMappingDto> SaveSnomedMappingAsync(SnomedIcdMappingDto dto);
