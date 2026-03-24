@@ -2776,8 +2776,8 @@ const SystemAdmin: React.FC = () => {
                           {[
                             { name: 'App Bác sĩ', version: '2.1.0', platform: 'iOS + Android', users: 45, status: 'active', desc: 'Ứng dụng khám bệnh, ký số cho bác sĩ' },
                             { name: 'App Bệnh nhân', version: '1.5.2', platform: 'iOS + Android', users: 1250, status: 'active', desc: 'Đặt lịch, xem KQ, thanh toán trực tuyến' },
-                          ].map((app, idx) => (
-                            <Col span={12} key={idx}>
+                          ].map((app) => (
+                            <Col span={12} key={app.name}>
                               <Card size="small" title={<Space><MobileOutlined />{app.name} <Tag color="blue">v{app.version}</Tag></Space>}
                                 extra={<Tag color={app.status === 'active' ? 'green' : 'red'}>{app.status === 'active' ? 'Hoạt động' : 'Bảo trì'}</Tag>}>
                                 <Descriptions size="small" column={1}>
