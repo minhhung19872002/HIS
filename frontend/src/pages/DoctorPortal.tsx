@@ -595,7 +595,7 @@ const DoctorPortal: React.FC = () => {
 
       {selectedDocIds.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Tooltip title={hasMixedSelectedDocTypes ? 'Chỉ có thể ký hàng loạt khi tất cả cùng loại tài liệu' : ''}>
               <Button type="primary" icon={<FileProtectOutlined />} onClick={handleBatchSign}
                 disabled={hasMixedSelectedDocTypes}>

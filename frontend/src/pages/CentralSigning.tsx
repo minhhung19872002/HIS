@@ -283,14 +283,14 @@ const CentralSigning: React.FC = () => {
         <div>
           <Row gutter={[16, 16]}>
             <Col xs={12} sm={6}><Card><Statistic title="Tổng giao dịch" value={stats.totalTransactions} /></Card></Col>
-            <Col xs={12} sm={6}><Card><Statistic title="Thành công" value={stats.totalSuccess} valueStyle={{ color: '#3f8600' }} /></Card></Col>
-            <Col xs={12} sm={6}><Card><Statistic title="Thất bại" value={stats.totalFailed} valueStyle={{ color: '#cf1322' }} /></Card></Col>
+            <Col xs={12} sm={6}><Card><Statistic title="Thành công" value={stats.totalSuccess} styles={{ content: { color: '#3f8600' } }} /></Card></Col>
+            <Col xs={12} sm={6}><Card><Statistic title="Thất bại" value={stats.totalFailed} styles={{ content: { color: '#cf1322' } }} /></Card></Col>
             <Col xs={12} sm={6}><Card><Statistic title="Hôm nay" value={stats.todayTransactions} /></Card></Col>
           </Row>
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col xs={12} sm={6}><Card><Statistic title="CTS hoạt động" value={stats.activeCertificates} valueStyle={{ color: '#1890ff' }} /></Card></Col>
-            <Col xs={12} sm={6}><Card><Statistic title="Sắp hết hạn" value={stats.expiringSoon} valueStyle={{ color: '#faad14' }} /></Card></Col>
-            <Col xs={12} sm={6}><Card><Statistic title="Đã hết hạn" value={stats.expiredCertificates} valueStyle={{ color: '#cf1322' }} /></Card></Col>
+            <Col xs={12} sm={6}><Card><Statistic title="CTS hoạt động" value={stats.activeCertificates} styles={{ content: { color: '#1890ff' } }} /></Card></Col>
+            <Col xs={12} sm={6}><Card><Statistic title="Sắp hết hạn" value={stats.expiringSoon} styles={{ content: { color: '#faad14' } }} /></Card></Col>
+            <Col xs={12} sm={6}><Card><Statistic title="Đã hết hạn" value={stats.expiredCertificates} styles={{ content: { color: '#cf1322' } }} /></Card></Col>
             <Col xs={12} sm={6}><Card><Statistic title="Người dùng (30d)" value={stats.activeUsers} /></Card></Col>
           </Row>
           {stats.byType.length > 0 && (
@@ -377,7 +377,7 @@ const CentralSigning: React.FC = () => {
       label: <span><CloudServerOutlined /> HSM</span>,
       children: (
         <div>
-          <Alert message="HSM chưa được kết nối" description="Thiết bị HSM cần được cài đặt và cấu hình tại server. Liên hệ quản trị hệ thống." type="info" showIcon style={{ marginBottom: 16 }} />
+          <Alert title="HSM chưa được kết nối" description="Thiết bị HSM cần được cài đặt và cấu hình tại server. Liên hệ quản trị hệ thống." type="info" showIcon style={{ marginBottom: 16 }} />
           <Card title="Thông tin HSM" size="small">
             <Descriptions column={2}>
               <Descriptions.Item label="Trạng thái"><Badge status="default" text="Chưa kết nối" /></Descriptions.Item>
@@ -402,7 +402,7 @@ const CentralSigning: React.FC = () => {
       label: <span><QrcodeOutlined /> OTP Ký số</span>,
       children: (
         <div>
-          <Alert message="Xác thực OTP cho ký số" description="Kích hoạt xác thực 2 yếu tố bằng ứng dụng OTP trên điện thoại (Google Authenticator, Microsoft Authenticator). OTP hoạt động cả khi không có Internet." type="info" showIcon style={{ marginBottom: 16 }} />
+          <Alert title="Xác thực OTP cho ký số" description="Kích hoạt xác thực 2 yếu tố bằng ứng dụng OTP trên điện thoại (Google Authenticator, Microsoft Authenticator). OTP hoạt động cả khi không có Internet." type="info" showIcon style={{ marginBottom: 16 }} />
           <Card title="Thiết lập TOTP" size="small">
             <Space orientation="vertical">
               <Button type="primary" icon={<KeyOutlined />} onClick={async () => {

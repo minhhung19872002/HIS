@@ -3425,7 +3425,7 @@ const Radiology: React.FC = () => {
         title={<><GlobalOutlined /> Quan ly Remote PACS Servers</>}
         open={remoteServerDrawerOpen}
         onClose={() => setRemoteServerDrawerOpen(false)}
-        width={700}
+        size="large"
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => {
             setEditingRemoteServer(null);

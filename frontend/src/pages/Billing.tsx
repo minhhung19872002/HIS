@@ -2325,17 +2325,17 @@ const Billing: React.FC = () => {
         </Col>
         <Col span={4}>
           <Card size="small">
-            <Statistic title="Đã phát hành" value={eInvoiceStats?.issuedCount || 0} valueStyle={{ color: '#1890ff' }} />
+            <Statistic title="Đã phát hành" value={eInvoiceStats?.issuedCount || 0} styles={{ content: { color: '#1890ff' } }} />
           </Card>
         </Col>
         <Col span={4}>
           <Card size="small">
-            <Statistic title="Đã gửi" value={eInvoiceStats?.sentCount || 0} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="Đã gửi" value={eInvoiceStats?.sentCount || 0} styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
         <Col span={4}>
           <Card size="small">
-            <Statistic title="Đã hủy" value={eInvoiceStats?.cancelledCount || 0} valueStyle={{ color: '#f5222d' }} />
+            <Statistic title="Đã hủy" value={eInvoiceStats?.cancelledCount || 0} styles={{ content: { color: '#f5222d' } }} />
           </Card>
         </Col>
         <Col span={8}>
@@ -2345,7 +2345,7 @@ const Billing: React.FC = () => {
               value={eInvoiceStats?.totalWithVat || 0}
               precision={0}
               suffix="đ"
-              valueStyle={{ color: '#722ed1' }}
+              styles={{ content: { color: '#722ed1' } }}
               formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
             />
           </Card>
