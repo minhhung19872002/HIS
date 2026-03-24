@@ -13,6 +13,7 @@
 const BASE = 'http://localhost:5106/api';
 let TOKEN = '';
 let RESULTS = { pass: 0, fail: 0, errors: [] };
+const TEST_MARKER = '[AUTO-REG]';
 
 // Master data IDs
 const ADMIN_ID = '9e5309dc-ecf9-4d48-9a09-224cd15347b1';
@@ -83,7 +84,7 @@ async function testOPDFlow() {
     serviceType: 2, // Vien phi
     roomId: ROOM_P101,
     newPatient: {
-      fullName: 'Tr???n V??n Minh',
+      fullName: `${TEST_MARKER} OPD Patient`,
       dateOfBirth: '1985-06-15T00:00:00Z',
       gender: 1,
       identityNumber: '079085123456',
@@ -325,7 +326,7 @@ async function testIPDFlow() {
     serviceType: 2, // Vien phi
     roomId: ROOM_P101,
     newPatient: {
-      fullName: 'Nguy???n Th??? Lan',
+      fullName: `${TEST_MARKER} IPD Patient`,
       dateOfBirth: '1970-03-20T00:00:00Z',
       gender: 2,
       identityNumber: '079070654321',
