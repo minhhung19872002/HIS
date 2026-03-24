@@ -27,15 +27,7 @@ import {
   type MedicalRecordFullDto, type MedicalHistoryDto,
   type TreatmentSheetDto, type ConsultationRecordDto, type NursingCareSheetDto,
 } from '../api/examination';
-import {
-  MedicalRecordSummaryPrint, TreatmentSheetPrint, ConsultationPrint,
-  DischargeCertificatePrint, NursingCarePrint,
-  PreAnestheticExamPrint, SurgeryConsentPrint, TreatmentProgressNotePrint,
-  CounselingFormPrint, DeathReviewPrint, MedicalRecordFinalSummaryPrint,
-  NutritionExamPrint, SurgeryRecordPrint, SurgeryApprovalPrint,
-  SurgerySummaryPrint, DepartmentTransferPrint, AdmissionExamPrint,
-  ObstetricsMedicalRecordPrint, NeonatalMedicalRecordPrint, PediatricMedicalRecordPrint,
-} from '../components/EMRPrintTemplates';
+import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
 import { printEmrForm } from '../api/pdf';
 import client from '../api/client';
 import {
@@ -43,39 +35,12 @@ import {
   getPrintLogs, stampPrintLog, finalizeRecord,
   type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto,
 } from '../api/emrAdmin';
-import {
-  XRayReportPrint, CTScanReportPrint, MRIReportPrint, UltrasoundReportPrint,
-  ECGReportPrint, EEGReportPrint, EndoscopyReportPrint, PFTReportPrint,
-  GeneralLabReportPrint, HematologyReportPrint, BiochemistryReportPrint,
-  MicrobiologyReportPrint, AllergyFormPrint, PostOpNotePrint, ICUInfoSheetPrint,
-} from '../components/ClinicalFormPrintTemplates';
 import PatientTimeline from '../components/PatientTimeline';
 import VoiceDictation from '../components/VoiceDictation';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures, getSignaturesBatch } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
-import {
-  NursingCarePlanPrint, ICUNursingCarePlanPrint, NursingAssessmentPrint,
-  DailyNursingCarePrint, InfusionMonitoringPrint, BloodTransfusionLabPrint,
-  BloodTransfusionClinicalPrint, VitalSignsMonitoringPrint, MedicineDisclosurePrint,
-  PreOpPreparationPrint, ICUTransferCriteriaPrint, NursingDeptTransferPrint,
-  PreEclampsiaPrint, IPDHandoverChecklistPrint, ORHandoverChecklistPrint,
-  SurgicalSafetyChecklistPrint, GlucoseMonitoringPrint, PregnancyRiskPrint,
-  SwallowingAssessmentPrint, DocumentScanPrint, VAPMonitoringPrint,
-} from '../components/EMRNursingPrintTemplates';
-import {
-  NoiKhoaBAPrint, TruyenNhiemBAPrint, PhuKhoaBAPrint, TamThanBAPrint,
-  DaLieuBAPrint, HuyetHocBAPrint, NgoaiKhoaBAPrint, BongBAPrint,
-  UngBuouBAPrint, RHMBAPrint, TMHBAPrint, NgoaiTruChungBAPrint,
-  NgoaiTruRHMBAPrint, TuyenXaBAPrint, YHCTNoiTruBAPrint,
-} from '../components/SpecialtyEMRForms1';
-import {
-  YHCTNgoaiTruBAPrint, NhiYHCTBAPrint, MatBenhAnPrint, MatGlaucomaPrint,
-  MatDucTTTPrint, MatLeoPrint, MatVMCBPrint, MatKXTPrint,
-  PHCNBAPrint, PHCNNhiBAPrint, NgoaiTruPHCNBAPrint,
-  KhamTheoYCPrint, KhamCKPrint, CSCap1Print, CSCap2Print,
-} from '../components/SpecialtyEMRForms2';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -1891,139 +1856,14 @@ ${conclusion ? `<div class="section">
         extra={<Button type="primary" icon={<PrinterOutlined />} onClick={handleDoPrint}>In</Button>}
       >
         <div ref={printRef}>
-          {printType === 'summary' && medicalRecord && (
-            <MedicalRecordSummaryPrint record={medicalRecord} />
-          )}
-          {printType === 'treatment' && medicalRecord && (
-            <TreatmentSheetPrint record={medicalRecord} sheets={treatmentSheets} />
-          )}
-          {printType === 'consultation' && medicalRecord && selectedConsultation && (
-            <ConsultationPrint record={medicalRecord} consultation={selectedConsultation} />
-          )}
-          {printType === 'nursing' && medicalRecord && (
-            <NursingCarePrint record={medicalRecord} sheets={nursingSheets} />
-          )}
-          {printType === 'discharge' && medicalRecord && (
-            <DischargeCertificatePrint
-              patientName={medicalRecord.patient?.fullName ?? ''}
-              patientCode={medicalRecord.patient?.patientCode ?? ''}
-              gender={medicalRecord.patient?.gender ?? 1}
-              age={medicalRecord.patient?.age ?? 0}
-              address={medicalRecord.patient?.address}
-              admissionDate={dayjs().subtract(7, 'day').format('YYYY-MM-DD')}
-              dischargeDate={dayjs().format('YYYY-MM-DD')}
-              departmentName="Khoa Nội"
-              doctorName="BS. Nguyễn Văn A"
-              dischargeCondition="Đỡ, giảm"
-              daysOfStay={7}
-            />
-          )}
-          {printType === 'preanesthetic' && medicalRecord && (
-            <PreAnestheticExamPrint record={medicalRecord} />
-          )}
-          {printType === 'consent' && medicalRecord && (
-            <SurgeryConsentPrint
-              patientName={medicalRecord.patient?.fullName ?? ''}
-              patientCode={medicalRecord.patient?.patientCode ?? ''}
-              gender={medicalRecord.patient?.gender ?? 1}
-              age={medicalRecord.patient?.age ?? 0}
-              address={medicalRecord.patient?.address}
-            />
-          )}
-          {printType === 'progress' && medicalRecord && (
-            <TreatmentProgressNotePrint record={medicalRecord} />
-          )}
-          {printType === 'counseling' && medicalRecord && (
-            <CounselingFormPrint record={medicalRecord} />
-          )}
-          {printType === 'deathreview' && medicalRecord && (
-            <DeathReviewPrint record={medicalRecord} />
-          )}
-          {printType === 'finalsummary' && medicalRecord && (
-            <MedicalRecordFinalSummaryPrint record={medicalRecord} />
-          )}
-          {/* MS. 12-17 Doctor forms */}
-          {printType === 'nutrition' && <NutritionExamPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'surgeryrecord' && <SurgeryRecordPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'surgeryapproval' && <SurgeryApprovalPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'surgerysummary' && <SurgerySummaryPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'depttransfer' && <DepartmentTransferPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'admission' && <AdmissionExamPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'obstetrics' && <ObstetricsMedicalRecordPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'neonatal' && <NeonatalMedicalRecordPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'pediatric' && <PediatricMedicalRecordPrint ref={printRef} record={medicalRecord} />}
-          {/* CDHA. 01-05 Radiology forms */}
-          {printType === 'cdha-xray' && <XRayReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-ct' && <CTScanReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-mri' && <MRIReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-ultrasound' && <UltrasoundReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'cdha-ecg' && <ECGReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {/* TDCN/XN/LS forms */}
-          {printType === 'tdcn-eeg' && <EEGReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'tdcn-endoscopy' && <EndoscopyReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'tdcn-pft' && <PFTReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'xn-general' && <GeneralLabReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'xn-hematology' && <HematologyReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'xn-biochemistry' && <BiochemistryReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'xn-microbiology' && <MicrobiologyReportPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'ls-allergy' && <AllergyFormPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'ls-postop' && <PostOpNotePrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {printType === 'ls-icuinfo' && <ICUInfoSheetPrint record={medicalRecord as unknown as Record<string, unknown> | undefined} />}
-          {/* DD. 01-21 Nursing forms */}
-          {printType === 'dd01-careplan' && <NursingCarePlanPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd02-icucare' && <ICUNursingCarePlanPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd03-assessment' && <NursingAssessmentPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd04-dailycare' && <DailyNursingCarePrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd05-infusion' && <InfusionMonitoringPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd06-bloodlab' && <BloodTransfusionLabPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd07-bloodclinical' && <BloodTransfusionClinicalPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd08-vitalsigns' && <VitalSignsMonitoringPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd09-meddisclosure' && <MedicineDisclosurePrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd10-preop' && <PreOpPreparationPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd11-icutransfer' && <ICUTransferCriteriaPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd12-nursetransfer' && <NursingDeptTransferPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd13-preeclampsia' && <PreEclampsiaPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd14-ipdhandover' && <IPDHandoverChecklistPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd15-orhandover' && <ORHandoverChecklistPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd16-safetychecklist' && <SurgicalSafetyChecklistPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd17-glucose' && <GlucoseMonitoringPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd18-pregnancyrisk' && <PregnancyRiskPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd19-swallowing' && <SwallowingAssessmentPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd20-docscan' && <DocumentScanPrint ref={printRef} record={medicalRecord} />}
-          {printType === 'dd21-vap' && <VAPMonitoringPrint ref={printRef} record={medicalRecord} />}
-          {/* Specialty Medical Record forms (TT32/2023) */}
-          {/* BA Chuyên khoa - SpecialtyEMRForms1 (15 forms) */}
-          {printType === 'sp-noikhoa' && <NoiKhoaBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-truyennhiem' && <TruyenNhiemBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-phukhoa' && <PhuKhoaBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-tamthan' && <TamThanBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-dalieu' && <DaLieuBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-huyethoc' && <HuyetHocBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-ngoaikhoa' && <NgoaiKhoaBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-bong' && <BongBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-ungbuou' && <UngBuouBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-rhm' && <RHMBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-tmh' && <TMHBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-ngoaitru' && <NgoaiTruChungBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-ngoaitrurhm' && <NgoaiTruRHMBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-tuyenxa' && <TuyenXaBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-yhctnoidru' && <YHCTNoiTruBAPrint ref={printRef} data={medicalRecord} />}
-          {/* BA Chuyên khoa - SpecialtyEMRForms2 (15 forms) */}
-          {printType === 'sp-yhctngoaitru' && <YHCTNgoaiTruBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-nhiyhct' && <NhiYHCTBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-matchung' && <MatBenhAnPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-matglocom' && <MatGlaucomaPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-matducttt' && <MatDucTTTPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-matleo' && <MatLeoPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-matvmcb' && <MatVMCBPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-matkxt' && <MatKXTPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-phcn' && <PHCNBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-phcnnhi' && <PHCNNhiBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-phcnngoaitru' && <NgoaiTruPHCNBAPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-giaykhamsuckhoe' && <KhamTheoYCPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-phieuchuyenkhoa' && <KhamCKPrint ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-chamsoccap1' && <CSCap1Print ref={printRef} data={medicalRecord} />}
-          {printType === 'sp-chamsoccap2' && <CSCap2Print ref={printRef} data={medicalRecord} />}
+          <PrintTemplateRenderer
+            printType={printType}
+            record={medicalRecord}
+            printRef={printRef}
+            selectedConsultation={selectedConsultation}
+            treatmentSheets={treatmentSheets}
+            nursingSheets={nursingSheets}
+          />
         </div>
       </Drawer>
 
