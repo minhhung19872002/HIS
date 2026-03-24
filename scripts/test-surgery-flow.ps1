@@ -10,6 +10,7 @@ $headers = @{
     "Authorization" = "Bearer $TOKEN"
     "Content-Type" = "application/json"
 }
+$testMarker = "[AUTO-REG]"
 
 function Get-SurgeryList() {
     Invoke-RestMethod -Uri "http://localhost:5106/api/SurgeryComplete?page=1&pageSize=20" -Headers $headers -Method Get
@@ -36,7 +37,7 @@ $createDto = @{
     surgeryType = 1
     surgeryClass = 2
     surgeryNature = 2
-    preOperativeDiagnosis = "Test Appendicitis"
+    preOperativeDiagnosis = "$testMarker Test Appendicitis"
     preOperativeIcdCode = "K35"
     anesthesiaType = 2
 } | ConvertTo-Json
