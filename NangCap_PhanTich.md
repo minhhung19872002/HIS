@@ -1883,3 +1883,71 @@
 
 > DA XONG: 26 BA chuyen khoa (SpecialtyEMRForms1.tsx + SpecialtyEMRForms2.tsx) + 4 Phieu y te
 > Tich hop vao EMR.tsx dropdown menu "BA Chuyen khoa (TT 32)"
+
+---
+
+## PHAN 16: NANGCAP16 - GOI THAU EMR BV DA KHOA KHU VUC CAM RANH
+
+> Nguon: NangCap16.pdf - Thue phan mem Quan ly Benh an dien tu (EMR)
+> Gia goi thau: 2.400.000.000 VND
+> Thoi gian: 60 thang
+
+### A. Cac phan he EMR (25 muc)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| 1 | Quan ly Benh an dien tu (B.1.1) | DA XONG | EMR.tsx, 38 bieu mau, PDF generation |
+| 2 | Chia se to phieu/BA noi vien (B.1.2) | DA BO SUNG | EmrSharing backend + frontend |
+| 3 | Trich luc BA chong sao chep (B.1.3) | DA BO SUNG | EmrExtract + watermark PDF |
+| 4 | Ky, duyet benh an (B.1.4) | DA XONG | SigningWorkflow, CentralSigning |
+| 5 | Quan ly gay benh an (B.1.5) | DA BO SUNG | EmrSpine section organization |
+| 6 | Quan ly thong tin Benh nhan (B.1.6) | DA XONG | Reception.tsx full patient management |
+| 7 | Chu ky dien tu benh nhan (B.1.7) | DA BO SUNG | PatientSignature canvas + mobile |
+| 8 | Quan ly mau to benh an (B.1.8) | DA XONG | 38 print templates TT32 |
+| 9 | Mau BA chuyen nganh theo nguoi dung (B.1.9) | DA XONG | 30 specialty forms |
+| 10 | Nhan canh bao tu HIS/LIS/PACS (B.1.10) | DA XONG | NotificationHub SignalR |
+| 11 | Khoa, chiem dung to phieu (B.1.11) | DA BO SUNG | DocumentLocking + SignalR |
+| 12 | Thu vien can lam san (B.1.12) | DA XONG | RadiologyDiagnosisTemplate, InstructionLibrary |
+| 13 | Cau hinh the du lieu (B.1.13) | DA BO SUNG | EmrDataTag general-purpose |
+| 14 | Cau hinh he thong (B.1.14) | DA XONG | SystemAdmin.tsx multi-tab config |
+| 15 | Quan ly dang nhap (B.1.15) | DA XONG | AuthContext, 2FA, JWT, audit |
+| 16 | Quan ly nhan vien (B.1.16) | DA XONG | SystemAdmin user management |
+| 17 | Chu ky so nhan vien (B.1.17) | DA XONG | CentralSigning, USB Token |
+| 18 | Quan ly phong ban (B.1.18) | DA XONG | MasterData departments/rooms |
+| 19 | Qui trinh ky BA (B.1.19) | DA XONG | EmrSigningRole, EmrSigningOperation |
+| 20 | Thu vien hinh anh (B.1.20) | DA BO SUNG | EmrImageLibrary backend + frontend |
+| 21 | Quan ly danh muc du lieu (B.1.21) | DA XONG | MasterData, ICD-10, SNOMED CT |
+| 22 | Thu vien ma tat va ky tu dac biet (B.1.22) | DA BO SUNG | ShortcodeLibrary CRUD + autocomplete |
+| 23 | Quan tri bao cao thong minh (B.1.23) | DA XONG | Reports + ReportBuilder |
+| 24 | Quan tri ket noi API HIS (B.1.24) | DA XONG | Integrated system |
+| 25 | Tu dong kiem tra thieu sot (B.1.25) | DA BO SUNG | EmrAutoCheck validation rules |
+
+### B. Dac tinh ky thuat ho tro (5 muc)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|------------|---------|
+| B.2.1 | Quan ly chi dinh CLS | DA XONG | Lab + Radiology modules |
+| B.2.2 | Quan ly dien bien benh | DA XONG | TreatmentSheets, NursingCare |
+| B.2.3 | Quan ly lich su BA | DA XONG | PatientTimeline, AuditLog |
+| B.2.4 | Phuc hoi du lieu | DA BO SUNG | SoftDelete recovery, version compare |
+| B.2.5 | Dong ho so benh an | DA BO SUNG | Business rule validation |
+
+### C. Yeu cau phi chuc nang
+
+| STT | Yeu cau | Trang thai |
+|-----|---------|------------|
+| C.1 | TT32 forms, SNOMED CT, ICD10, audit | DA XONG |
+| C.2 | Bao mat: phan quyen, ma hoa, audit log | DA XONG |
+| C.3 | Sao luu va phuc hoi: SQL Server | DA XONG |
+| C.4 | Tinh kha dung: Unicode, WYSIWYG, responsive | DA XONG |
+| C.6 | Nen tang: MsSQL, client/server, web | DA XONG |
+| C.7 | HL7 FHIR, DICOM, JWT, RESTful API, XML | DA XONG |
+
+### Tong ket NangCap16
+
+| Hang muc | Tong | DA XONG | DA BO SUNG |
+|----------|------|---------|------------|
+| Phan he EMR (A) | 25 | 17 | 8 |
+| Tinh nang ho tro (B) | 5 | 3 | 2 |
+| Phi chuc nang (C) | 6 | 6 | 0 |
+| **Tong** | **36** | **26** | **10** |

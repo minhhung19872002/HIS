@@ -326,7 +326,9 @@ public class ReceptionCompleteService : IReceptionCompleteService
                 LastResetDate = today,
                 MaxPatients = 200,
                 MaxInsurancePatients = 100,
-                IsActive = true
+                IsActive = true,
+                CreatedAt = DateTime.Now,
+                IsDeleted = false
             };
             await _context.QueueConfigurations.AddAsync(config);
             nextNumber = 1;
@@ -364,7 +366,9 @@ public class ReceptionCompleteService : IReceptionCompleteService
             Status = 0, // Waiting
             PatientId = dto.PatientId,
             RoomId = dto.RoomId,
-            Notes = dto.Source
+            Notes = dto.Source,
+            CreatedAt = DateTime.Now,
+            IsDeleted = false
         };
 
         await _context.QueueTickets.AddAsync(ticket);
@@ -1066,7 +1070,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
             InsuranceRightRoute = insuranceResult.RightRoute,
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
-            Status = 0 // Waiting
+            Status = 0, // Waiting
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false
         };
 
         await _medicalRecordRepo.AddAsync(medicalRecord);
@@ -1083,7 +1090,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
             DepartmentId = room?.DepartmentId ?? Guid.Empty,
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
-            Status = 0 // Waiting
+            Status = 0, // Waiting
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false
         };
 
         await _examinationRepo.AddAsync(examination);
@@ -1251,7 +1261,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
                 InsuranceFacilityName = dto.NewPatient.InsuranceFacilityName,
                 GuardianName = dto.NewPatient.GuardianName,
                 GuardianPhone = dto.NewPatient.GuardianPhone,
-                GuardianRelationship = dto.NewPatient.GuardianRelationship
+                GuardianRelationship = dto.NewPatient.GuardianRelationship,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString(),
+                IsDeleted = false
             };
             await _patientRepo.AddAsync(patient);
         }
@@ -1281,7 +1294,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
             DepartmentId = room?.DepartmentId,
-            Status = 0 // Waiting
+            Status = 0, // Waiting
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false
         };
 
         await _medicalRecordRepo.AddAsync(medicalRecord);
@@ -1295,7 +1311,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
             DepartmentId = room?.DepartmentId ?? Guid.Empty,
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
-            Status = 0 // Waiting
+            Status = 0, // Waiting
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false
         };
 
         await _examinationRepo.AddAsync(examination);
@@ -1561,7 +1580,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
                 YearOfBirth = dto.EstimatedAge.HasValue ? DateTime.Today.Year - dto.EstimatedAge.Value : null,
                 IdentityNumber = dto.IdentityNumber,
                 PhoneNumber = dto.PhoneNumber,
-                InsuranceNumber = dto.InsuranceNumber
+                InsuranceNumber = dto.InsuranceNumber,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString(),
+                IsDeleted = false
             };
             await _patientRepo.AddAsync(patient);
         }
@@ -1588,7 +1610,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
             RoomId = emergencyRoom?.Id,
             DepartmentId = emergencyRoom?.DepartmentId,
             InitialDiagnosis = dto.ChiefComplaint,
-            Status = 0
+            Status = 0,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false
         };
 
         await _medicalRecordRepo.AddAsync(medicalRecord);
@@ -1602,7 +1627,10 @@ public class ReceptionCompleteService : IReceptionCompleteService
             DepartmentId = emergencyRoom?.DepartmentId ?? Guid.Empty,
             RoomId = emergencyRoom?.Id ?? Guid.Empty,
             ChiefComplaint = dto.ChiefComplaint,
-            Status = 0
+            Status = 0,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false
         };
 
         await _examinationRepo.AddAsync(examination);

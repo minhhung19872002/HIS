@@ -446,43 +446,60 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<PaymentDto> CreatePaymentAsync(CreatePaymentDto dto, Guid userId)
     {
-        // Verify patient has service requests to pay for
-        var patientMedicalRecordIds = await _context.MedicalRecords
-            .Where(m => m.PatientId == dto.PatientId && m.Status != 4) // Not cancelled
-            .Select(m => m.Id)
-            .ToListAsync();
+        decimal totalOwed;
+        Guid? medicalRecordId = null;
 
-        var unpaidServiceRequests = await _context.ServiceRequests
-            .Where(sr => patientMedicalRecordIds.Contains(sr.MedicalRecordId) && !sr.IsPaid && sr.Status != 4)
-            .ToListAsync();
+        if (dto.InvoiceId.HasValue && dto.InvoiceId.Value != Guid.Empty)
+        {
+            var invoice = await _context.InvoiceSummaries
+                .FirstOrDefaultAsync(i => i.Id == dto.InvoiceId.Value);
 
-        if (!unpaidServiceRequests.Any())
-            throw new Exception("Bệnh nhân không có dịch vụ chưa thanh toán");
+            if (invoice == null)
+                throw new Exception("Invoice not found");
 
-        var totalOwed = unpaidServiceRequests.Sum(sr => sr.PatientAmount);
+            totalOwed = invoice.RemainingAmount;
+            medicalRecordId = invoice.MedicalRecordId;
+        }
+        else
+        {
+            var patientMedicalRecordIds = await _context.MedicalRecords
+                .Where(m => m.PatientId == dto.PatientId && m.Status != 4)
+                .Select(m => m.Id)
+                .ToListAsync();
+
+            var unpaidServiceRequests = await _context.ServiceRequests
+                .Where(sr => patientMedicalRecordIds.Contains(sr.MedicalRecordId) && !sr.IsPaid && sr.Status != 4)
+                .ToListAsync();
+
+            if (!unpaidServiceRequests.Any())
+                throw new Exception("Benh nhan khong co hoa don hoac dich vu chua thanh toan");
+
+            totalOwed = unpaidServiceRequests.Sum(sr => sr.PatientAmount);
+            medicalRecordId = unpaidServiceRequests.Select(sr => (Guid?)sr.MedicalRecordId).FirstOrDefault();
+        }
+
         if (dto.Amount > totalOwed)
-            throw new Exception($"Số tiền thanh toán ({dto.Amount:N0}đ) vượt quá số tiền còn nợ ({totalOwed:N0}đ)");
+            throw new Exception($"So tien thanh toan ({dto.Amount:N0}d) vuot qua so tien con no ({totalOwed:N0}d)");
 
-        // Parse payment method to int
-        int paymentMethod = 1; // Default: Tiền mặt
+        int paymentMethod = 1;
         if (int.TryParse(dto.PaymentMethod, out int pm))
         {
             paymentMethod = pm;
         }
 
-        // Create a receipt record (Payment is Receipt in this system)
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
             ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
             PatientId = dto.PatientId,
-            ReceiptType = 2, // Thanh toán
+            MedicalRecordId = medicalRecordId,
+            ReceiptType = 2,
             PaymentMethod = paymentMethod,
             Amount = dto.Amount,
             Discount = 0,
             FinalAmount = dto.Amount,
-            Status = 1, // Đã thu
+            Status = 1,
             CashierId = userId,
             Note = dto.Note,
             CreatedAt = DateTime.Now,
@@ -492,7 +509,21 @@ public class BillingCompleteService : IBillingCompleteService
         _context.Receipts.Add(receipt);
         await _context.SaveChangesAsync();
 
-        // Get patient name
+        if (dto.InvoiceId.HasValue && dto.InvoiceId.Value != Guid.Empty)
+        {
+            var invoice = await _context.InvoiceSummaries.FirstOrDefaultAsync(i => i.Id == dto.InvoiceId.Value);
+            if (invoice != null)
+            {
+                invoice.PaidAmount += dto.Amount;
+                invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
+                if (invoice.RemainingAmount == 0)
+                    invoice.Status = 1;
+                invoice.UpdatedAt = DateTime.Now;
+                invoice.UpdatedBy = userId.ToString();
+                await _context.SaveChangesAsync();
+            }
+        }
+
         var patient = await _context.Patients.FindAsync(dto.PatientId);
 
         return new PaymentDto
@@ -504,7 +535,7 @@ public class BillingCompleteService : IBillingCompleteService
             InvoiceId = dto.InvoiceId,
             Amount = receipt.FinalAmount,
             PaymentMethod = GetPaymentMethodName(receipt.PaymentMethod),
-            PaymentStatus = "Đã thanh toán",
+            PaymentStatus = "Da thanh toan",
             PaymentDate = receipt.ReceiptDate,
             ReceivedBy = userId.ToString(),
             Note = receipt.Note ?? string.Empty,
@@ -2513,3 +2544,4 @@ public class BillingCompleteService : IBillingCompleteService
 
     #endregion
 }
+

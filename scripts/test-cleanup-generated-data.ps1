@@ -55,13 +55,13 @@ OUTPUT deleted.Id INTO @DeletedRequests(Id)
 WHERE RequestCode LIKE 'PT$today%' AND (PreOpDiagnosis = N'Test Appendicitis' OR CHARINDEX('[AUTO-REG]', PreOpDiagnosis) = 1);
 
 INSERT INTO @AutoPatients(Id)
-SELECT Id FROM Patients WHERE CHARINDEX('[AUTO-REG]', FullName) = 1;
+SELECT Id FROM Patients WHERE CHARINDEX('[AUTO-REG]', FullName) = 1 AND ISNULL(IsDeleted, 0) = 0;
 
 INSERT INTO @AutoAdmissions(Id)
-SELECT Id FROM Admissions WHERE PatientId IN (SELECT Id FROM @AutoPatients);
+SELECT Id FROM Admissions WHERE PatientId IN (SELECT Id FROM @AutoPatients) AND ISNULL(IsDeleted, 0) = 0;
 
 INSERT INTO @AutoMedicalRecords(Id)
-SELECT Id FROM MedicalRecords WHERE PatientId IN (SELECT Id FROM @AutoPatients);
+SELECT Id FROM MedicalRecords WHERE PatientId IN (SELECT Id FROM @AutoPatients) AND ISNULL(IsDeleted, 0) = 0;
 
 SELECT 'LabOrderItems' AS [Entity], COUNT(*) AS [DeletedCount] FROM @DeletedLabItems
 UNION ALL

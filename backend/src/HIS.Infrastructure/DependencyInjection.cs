@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Extensions.Http;
 using HIS.Core.Interfaces;
+using HIS.Application.Interfaces;
 using HIS.Application.Services;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
@@ -218,6 +219,9 @@ public static class DependencyInjection
 
         // NangCap11: EMR Admin (cover types, signers, signing roles, document types, completeness, etc.)
         services.AddScoped<IEmrAdminService, EmrAdminService>();
+
+        // NangCap16: EMR Management (sharing, extract, spine, patient signature, locks, tags, images, shortcodes, auto-check, close/reopen, recovery)
+        services.AddScoped<IEmrManagementService, EmrManagementService>();
 
         // Medical Record Planning (KHTH - Ke hoach Tong hop)
         services.AddScoped<IMedicalRecordPlanningService, MedicalRecordPlanningService>();

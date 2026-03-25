@@ -4,12 +4,15 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $root
 $steps = @(
     @{ Name = "Cleanup before"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-cleanup-generated-data.ps1") },
+    @{ Name = "Soft delete AUTO-REG before"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-soft-delete-auto-reg-patients.ps1") },
     @{ Name = "Real workflow"; Command = @("node", "$root/test_real_workflow.js") },
-    @{ Name = "Reception"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-reception-full.ps1") },
-    @{ Name = "IPD"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-ipd-flow.ps1") },
+    @{ Name = "Reception"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$repoRoot/test-reception-full.ps1") },
+    @{ Name = "IPD"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$repoRoot/test-ipd-flow.ps1") },
     @{ Name = "Surgery"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-surgery-flow.ps1") },
     @{ Name = "Print/LIS/Signing"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-print-lis-signing.ps1") },
-    @{ Name = "Cleanup after"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-cleanup-generated-data.ps1") }
+    @{ Name = "Cleanup after"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-cleanup-generated-data.ps1") },
+    @{ Name = "Soft delete AUTO-REG after"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-soft-delete-auto-reg-patients.ps1") },
+    @{ Name = "AUTO-REG report after"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-report-auto-reg-dependencies.ps1") }
 )
 
 $results = @()

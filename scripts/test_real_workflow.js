@@ -14,6 +14,11 @@ const BASE = 'http://localhost:5106/api';
 let TOKEN = '';
 let RESULTS = { pass: 0, fail: 0, errors: [] };
 const TEST_MARKER = '[AUTO-REG]';
+const RUN_SUFFIX = Date.now().toString().slice(-6);
+const OPD_IDENTITY = `079085${RUN_SUFFIX}`;
+const IPD_IDENTITY = `079070${RUN_SUFFIX}`;
+const OPD_PHONE = `09${RUN_SUFFIX.padStart(8, '0')}`;
+const IPD_PHONE = `08${RUN_SUFFIX.padStart(8, '0')}`;
 
 // Master data IDs
 const ADMIN_ID = '9e5309dc-ecf9-4d48-9a09-224cd15347b1';
@@ -84,11 +89,11 @@ async function testOPDFlow() {
     serviceType: 2, // Vien phi
     roomId: ROOM_P101,
     newPatient: {
-      fullName: `${TEST_MARKER} OPD Patient`,
+      fullName: `${TEST_MARKER} OPD Patient ${RUN_SUFFIX}`,
       dateOfBirth: '1985-06-15T00:00:00Z',
       gender: 1,
-      identityNumber: '079085123456',
-      phoneNumber: '0912345678',
+      identityNumber: OPD_IDENTITY,
+      phoneNumber: OPD_PHONE,
       address: '123 Nguy???n Tr??i, Qu???n 1, TP.HCM',
       provinceCode: 'HCM',
       provinceName: 'TP H??? Ch?? Minh',
@@ -326,11 +331,11 @@ async function testIPDFlow() {
     serviceType: 2, // Vien phi
     roomId: ROOM_P101,
     newPatient: {
-      fullName: `${TEST_MARKER} IPD Patient`,
+      fullName: `${TEST_MARKER} IPD Patient ${RUN_SUFFIX}`,
       dateOfBirth: '1970-03-20T00:00:00Z',
       gender: 2,
-      identityNumber: '079070654321',
-      phoneNumber: '0987654321',
+      identityNumber: IPD_IDENTITY,
+      phoneNumber: IPD_PHONE,
       address: '456 L?? L???i, Qu???n 3, TP.HCM',
       provinceName: 'TP H??? Ch?? Minh',
       districtName: 'Qu???n 3',

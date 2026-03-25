@@ -400,6 +400,20 @@ public class HISDbContext : DbContext
     public DbSet<EmrDocumentGroup> EmrDocumentGroups => Set<EmrDocumentGroup>();
     public DbSet<EmrDocumentType> EmrDocumentTypes => Set<EmrDocumentType>();
 
+    // NangCap16: EMR Management (sharing, extract, spine, signatures, locks, tags, images, shortcodes, auto-check, close)
+    public DbSet<EmrShare> EmrShares => Set<EmrShare>();
+    public DbSet<EmrShareAccessLog> EmrShareAccessLogs => Set<EmrShareAccessLog>();
+    public DbSet<EmrExtract> EmrExtracts => Set<EmrExtract>();
+    public DbSet<EmrSpine> EmrSpines => Set<EmrSpine>();
+    public DbSet<EmrSpineSection> EmrSpineSections => Set<EmrSpineSection>();
+    public DbSet<PatientSignature> PatientSignatures => Set<PatientSignature>();
+    public DbSet<DocumentLock> DocumentLocks => Set<DocumentLock>();
+    public DbSet<EmrDataTag> EmrDataTags => Set<EmrDataTag>();
+    public DbSet<EmrImage> EmrImages => Set<EmrImage>();
+    public DbSet<Shortcode> Shortcodes => Set<Shortcode>();
+    public DbSet<EmrAutoCheckRule> EmrAutoCheckRules => Set<EmrAutoCheckRule>();
+    public DbSet<EmrCloseLog> EmrCloseLogs => Set<EmrCloseLog>();
+
     // Partograph + Anesthesia (Clinical Records)
     public DbSet<PartographRecord> PartographRecords => Set<PartographRecord>();
     public DbSet<AnesthesiaRecord> AnesthesiaRecords => Set<AnesthesiaRecord>();

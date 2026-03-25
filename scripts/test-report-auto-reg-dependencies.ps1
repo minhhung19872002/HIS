@@ -12,6 +12,7 @@ DECLARE @sql nvarchar(max) = N'
 DECLARE @AutoPatients TABLE (Id uniqueidentifier);
 DECLARE @AutoMedicalRecords TABLE (Id uniqueidentifier);
 DECLARE @AutoAdmissions TABLE (Id uniqueidentifier);
+DECLARE @AutoExaminations TABLE (Id uniqueidentifier);
 DECLARE @Results TABLE (
     ScopeName nvarchar(50),
     TableName sysname,
@@ -33,6 +34,11 @@ INSERT INTO @AutoAdmissions(Id)
 SELECT Id
 FROM Admissions
 WHERE PatientId IN (SELECT Id FROM @AutoPatients);
+
+INSERT INTO @AutoExaminations(Id)
+SELECT Id
+FROM Examinations
+WHERE MedicalRecordId IN (SELECT Id FROM @AutoMedicalRecords);
 ';
 
 SELECT @sql = @sql + N'
@@ -40,40 +46,81 @@ INSERT INTO @Results(ScopeName, TableName, ColumnName, RefCount)
 SELECT N''PatientId'', N''' + TABLE_NAME + ''', N''PatientId'', COUNT(*)
 FROM ' + QUOTENAME(TABLE_NAME) + N'
 WHERE PatientId IN (SELECT Id FROM @AutoPatients)
+  AND ISNULL(IsDeleted, 0) = 0
 HAVING COUNT(*) > 0;'
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE COLUMN_NAME = 'PatientId'
   AND DATA_TYPE = 'uniqueidentifier'
-  AND TABLE_NAME <> 'Patients';
+  AND TABLE_NAME <> 'Patients'
+  AND TABLE_NAME IN (
+      SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'IsDeleted'
+  );
 
 SELECT @sql = @sql + N'
 INSERT INTO @Results(ScopeName, TableName, ColumnName, RefCount)
 SELECT N''MedicalRecordId'', N''' + TABLE_NAME + ''', N''MedicalRecordId'', COUNT(*)
 FROM ' + QUOTENAME(TABLE_NAME) + N'
 WHERE MedicalRecordId IN (SELECT Id FROM @AutoMedicalRecords)
+  AND ISNULL(IsDeleted, 0) = 0
 HAVING COUNT(*) > 0;'
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE COLUMN_NAME = 'MedicalRecordId'
   AND DATA_TYPE = 'uniqueidentifier'
-  AND TABLE_NAME <> 'MedicalRecords';
+  AND TABLE_NAME <> 'MedicalRecords'
+  AND TABLE_NAME IN (
+      SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'IsDeleted'
+  );
 
 SELECT @sql = @sql + N'
 INSERT INTO @Results(ScopeName, TableName, ColumnName, RefCount)
 SELECT N''AdmissionId'', N''' + TABLE_NAME + ''', N''AdmissionId'', COUNT(*)
 FROM ' + QUOTENAME(TABLE_NAME) + N'
 WHERE AdmissionId IN (SELECT Id FROM @AutoAdmissions)
+  AND ISNULL(IsDeleted, 0) = 0
 HAVING COUNT(*) > 0;'
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE COLUMN_NAME = 'AdmissionId'
   AND DATA_TYPE = 'uniqueidentifier'
-  AND TABLE_NAME <> 'Admissions';
+  AND TABLE_NAME <> 'Admissions'
+  AND TABLE_NAME IN (
+      SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'IsDeleted'
+  );
+
+SELECT @sql = @sql + N'
+INSERT INTO @Results(ScopeName, TableName, ColumnName, RefCount)
+SELECT N''ExaminationId'', N''' + TABLE_NAME + ''', N''ExaminationId'', COUNT(*)
+FROM ' + QUOTENAME(TABLE_NAME) + N'
+WHERE ExaminationId IN (SELECT Id FROM @AutoExaminations)
+  AND ISNULL(IsDeleted, 0) = 0
+HAVING COUNT(*) > 0;'
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE COLUMN_NAME = 'ExaminationId'
+  AND DATA_TYPE = 'uniqueidentifier'
+  AND TABLE_NAME <> 'Examinations'
+  AND TABLE_NAME IN (
+      SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'IsDeleted'
+  );
 
 SET @sql = @sql + N'
-SELECT ''AutoPatients'' AS Entity, COUNT(*) AS RefCount FROM @AutoPatients
+SELECT ''AutoPatients'' AS Entity, COUNT(*)
+FROM Patients
+WHERE Id IN (SELECT Id FROM @AutoPatients)
+  AND ISNULL(IsDeleted, 0) = 0
 UNION ALL
-SELECT ''AutoMedicalRecords'', COUNT(*) FROM @AutoMedicalRecords
+SELECT ''AutoMedicalRecords'', COUNT(*)
+FROM MedicalRecords
+WHERE Id IN (SELECT Id FROM @AutoMedicalRecords)
+  AND ISNULL(IsDeleted, 0) = 0
 UNION ALL
-SELECT ''AutoAdmissions'', COUNT(*) FROM @AutoAdmissions;
+SELECT ''AutoAdmissions'', COUNT(*)
+FROM Admissions
+WHERE Id IN (SELECT Id FROM @AutoAdmissions)
+  AND ISNULL(IsDeleted, 0) = 0
+UNION ALL
+SELECT ''AutoExaminations'', COUNT(*)
+FROM Examinations
+WHERE Id IN (SELECT Id FROM @AutoExaminations)
+  AND ISNULL(IsDeleted, 0) = 0;
 
 SELECT ScopeName, TableName, ColumnName, RefCount
 FROM @Results

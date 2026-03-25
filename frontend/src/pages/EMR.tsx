@@ -36,6 +36,7 @@ import {
   type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto,
 } from '../api/emrAdmin';
 import PatientTimeline from '../components/PatientTimeline';
+import EmrManagementTabs from '../components/EmrManagementTabs';
 import VoiceDictation from '../components/VoiceDictation';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
@@ -1416,6 +1417,10 @@ ${conclusion ? `<div class="section">
           )}
         </div>
       ),
+    },
+    {
+      key: 'management', label: <><FormOutlined /> Quan ly BA</>,
+      children: <EmrManagementTabs />,
     },
   ];
 
