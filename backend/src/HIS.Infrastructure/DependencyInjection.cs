@@ -223,6 +223,9 @@ public static class DependencyInjection
         // NangCap16: EMR Management (sharing, extract, spine, patient signature, locks, tags, images, shortcodes, auto-check, close/reopen, recovery)
         services.AddScoped<IEmrManagementService, EmrManagementService>();
 
+        // Phân hệ 16: Báo cáo & Thống kê (Reporting) - 38 methods
+        services.AddScoped<IReportingCompleteService, ReportingCompleteService>();
+
         // Medical Record Planning (KHTH - Ke hoach Tong hop)
         services.AddScoped<IMedicalRecordPlanningService, MedicalRecordPlanningService>();
 

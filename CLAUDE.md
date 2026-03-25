@@ -1276,3 +1276,65 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Console-errors: 41/41 pass
 
 **NangCap2 CAN MO RONG: 4/4 complete** (Ký số LIS PDF: Laboratory.tsx already has SignatureStatusIcon + handleSignResult + useSigningContext + PinEntryModal integration)
+
+### DA HOAN THANH (Session 36 - 2026-03-25)
+
+**102. NangCap16 - Goi thau EMR BV Da khoa khu vuc Cam Ranh**
+- Doc NangCap16.pdf (23 trang): 25 EMR modules (B.1.1-B.1.25) + 5 support features (B.2.1-B.2.5) + 6 non-functional (C.1-C.7)
+- Kiem tra codebase: 26/36 da co san, 10 can bo sung
+- Update NangCap_PhanTich.md voi PHAN 16
+
+**103. Implement 10 missing NangCap16 features (full-stack)**
+
+**Backend (5 files moi, 3 files modified):**
+- `EmrManagement.cs`: 12 entities (EmrShare, EmrShareAccessLog, EmrExtract, EmrSpine, EmrSpineSection, PatientSignature, DocumentLock, EmrDataTag, EmrImage, Shortcode, EmrAutoCheckRule, EmrCloseLog)
+- `EmrManagementDTOs.cs`: 28+ DTOs cho tat ca features
+- `IEmrManagementService.cs`: Interface voi 32 methods
+- `EmrManagementService.cs` (~780 lines): Full implementation - sharing (time-limited + audit log), extract (watermark + access code), spine CRUD, patient signature (base64 PNG), document lock (10min auto-expire, force-release), data tags, image library, shortcodes, auto-check (scan examinations + treatment sheets), close EMR (run all rules, block on Error severity)
+- `EmrManagementController.cs`: 35 endpoints tai `api/emr-management`
+- HISDbContext: 12 DbSet entries
+- DependencyInjection.cs: register IEmrManagementService
+
+**Database:**
+- `scripts/create_nangcap16_tables.sql`: 12 tables (IF NOT EXISTS) + seed data (5 spines, 21 sections, 10 auto-check rules, 15 shortcodes)
+- `scripts/fix_nangcap16_audit_columns.sql`: filtered indexes fix (QUOTED_IDENTIFIER)
+
+**Frontend (4 files moi, 1 file modified):**
+- `emrManagement.ts`: 30+ API functions
+- `EmrManagementTabs.tsx` (~680 lines): 6-tab component (Chia se BA, Trich luc, Gay BA, Thu vien hinh anh, Ma tat, Kiem tra thieu sot)
+- `PatientSignaturePad.tsx` (~150 lines): HTML5 Canvas signature capture (touch + mouse, guide line, clear/save)
+- `DocumentLockIndicator.tsx` (~115 lines): Lock status badge voi auto-refresh 30s, force-release Popconfirm
+- EMR.tsx: them tab "Quan ly BA" voi EmrManagementTabs
+
+**10 features:**
+1. EMR Sharing (B.1.2): time-limited access + access audit log
+2. Medical Record Extract (B.1.3): watermark + copy protection + access code
+3. Medical Record Spine (B.1.5): section-based organization CRUD
+4. Patient Electronic Signature (B.1.7): Canvas capture → base64 PNG
+5. Document Locking (B.1.11): auto-expire 10min, force-unlock, 30s refresh
+6. Data Tag Configuration (B.1.13): tag templates cho EMR forms
+7. Image Library (B.1.20): upload, annotation, gallery
+8. Shortcode/Abbreviation Library (B.1.22): 15 medical abbreviations seeded
+9. Auto-Check Missing Data (B.1.25): 10 validation rules, severity levels (Error/Warning/Info)
+10. Close EMR with Validation (B.2.5): run all rules, block close on Error violations
+
+**104. Test verification - ALL PASS**
+
+| Test Suite | Pass | Fail | Total |
+|---|---|---|---|
+| Console-errors | 76 | 0 | 76 |
+| EMR | 34 | 0 | 34 |
+| Deep-controls | 122 | 0 | 122 |
+| All-flows | 60 | 0 | 60 |
+| User-workflow | 40 | 0 | 40 |
+| Manual-user-workflow | 34 | 0 | 34 |
+| **Tong** | **366** | **0** | **366** |
+
+- TypeScript: 0 errors
+- Vite build: success
+- Backend build: 0 errors
+
+**105. Git Commit (Session 36)**
+- `e323b25` - feat: implement NangCap16 EMR management (BV Cam Ranh tender) - 10 features
+
+**NangCap16 Status: 36/36 complete** (26 existing + 10 implemented)

@@ -72,15 +72,8 @@ const Help: React.FC = () => {
       const response = await risApi.getHelpCategories();
       setCategories(response.data || []);
     } catch {
-      // Fallback: built-in help categories when API unavailable
-      setCategories([
-        { id: '1', code: 'getting-started', name: 'Bắt đầu sử dụng', description: 'Hướng dẫn cơ bản cho người mới', sortOrder: 1, isActive: true },
-        { id: '2', code: 'user-guide', name: 'Hướng dẫn sử dụng', description: 'Hướng dẫn chi tiết các tính năng', sortOrder: 2, isActive: true },
-        { id: '3', code: 'templates', name: 'Thiết kế mẫu kết quả', description: 'Hướng dẫn thiết kế mẫu báo cáo', sortOrder: 3, isActive: true },
-        { id: '4', code: 'integration', name: 'Tích hợp hệ thống', description: 'Hướng dẫn tích hợp với HIS/PACS', sortOrder: 4, isActive: true },
-        { id: '5', code: 'troubleshooting', name: 'Khắc phục sự cố', description: 'Các lỗi thường gặp và cách xử lý', sortOrder: 5, isActive: true },
-        { id: '6', code: 'permissions', name: 'Phân quyền', description: 'Hướng dẫn phân quyền người dùng', sortOrder: 6, isActive: true },
-      ]);
+      setCategories([]);
+      message.warning('Không thể tải danh mục trợ giúp. Vui lòng thử lại sau.');
     }
   };
 
@@ -96,65 +89,8 @@ const Help: React.FC = () => {
       });
       setArticles(response.data?.items || []);
     } catch {
-      // Fallback: built-in help articles when API unavailable
-      setArticles([
-        {
-          id: '1',
-          title: 'Cách đăng nhập vào hệ thống RIS',
-          summary: 'Hướng dẫn chi tiết các bước đăng nhập vào hệ thống RIS/PACS',
-          categoryId: '1',
-          categoryName: 'Bắt đầu sử dụng',
-          viewCount: 1250,
-          sortOrder: 1,
-          isActive: true,
-          content: `
-## Đăng nhập hệ thống
-
-### Bước 1: Truy cập trang đăng nhập
-Mở trình duyệt và truy cập địa chỉ hệ thống HIS (do quản trị viên cung cấp)
-
-### Bước 2: Nhập thông tin đăng nhập
-- **Tên đăng nhập**: Nhập tên tài khoản được cấp
-- **Mật khẩu**: Nhập mật khẩu
-
-### Bước 3: Nhấn nút "Đăng nhập"
-Sau khi nhập đầy đủ thông tin, nhấn nút Đăng nhập để vào hệ thống.
-
-> **Lưu ý**: Nếu quên mật khẩu, vui lòng liên hệ quản trị viên.
-          `,
-        },
-        {
-          id: '2',
-          title: 'Thiết kế mẫu kết quả CĐHA',
-          summary: 'Hướng dẫn tạo và chỉnh sửa mẫu kết quả chẩn đoán hình ảnh',
-          categoryId: '3',
-          categoryName: 'Thiết kế mẫu kết quả',
-          viewCount: 890,
-          sortOrder: 1,
-          isActive: true,
-          videoUrl: 'https://example.com/video/template-design',
-        },
-        {
-          id: '3',
-          title: 'Cấu hình kết nối PACS Server',
-          summary: 'Hướng dẫn thiết lập kết nối với máy chủ PACS',
-          categoryId: '4',
-          categoryName: 'Tích hợp hệ thống',
-          viewCount: 567,
-          sortOrder: 1,
-          isActive: true,
-        },
-        {
-          id: '4',
-          title: 'Phân quyền theo màn hình',
-          summary: 'Hướng dẫn thiết lập quyền truy cập cho từng màn hình',
-          categoryId: '6',
-          categoryName: 'Phân quyền',
-          viewCount: 432,
-          sortOrder: 1,
-          isActive: true,
-        },
-      ]);
+      setArticles([]);
+      message.warning('Không thể tải bài viết trợ giúp. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }

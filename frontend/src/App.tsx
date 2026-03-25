@@ -144,7 +144,7 @@ const AppRoutes: React.FC = () => {
         >
           <Route index element={<Dashboard />} />
           <Route path="reception" element={<Reception />} />
-          <Route path="patients" element={<div>Quản lý bệnh nhân</div>} />
+          <Route path="patients" element={<Navigate to="/reception" replace />} />
           <Route path="opd" element={<OPD />} />
           <Route path="prescription" element={<Prescription />} />
           <Route path="ipd" element={<Inpatient />} />
@@ -173,7 +173,7 @@ const AppRoutes: React.FC = () => {
           <Route path="admin" element={<SystemAdmin />} />
           <Route path="digital-signature" element={<DigitalSignature />} />
           <Route path="central-signing" element={<CentralSigning />} />
-          <Route path="settings" element={<div>Cài đặt hệ thống</div>} />
+          <Route path="settings" element={<Navigate to="/admin" replace />} />
           <Route path="telemedicine" element={<Telemedicine />} />
           <Route path="nutrition" element={<Nutrition />} />
           <Route path="infection-control" element={<InfectionControl />} />

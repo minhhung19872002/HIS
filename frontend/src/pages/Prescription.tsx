@@ -155,22 +155,6 @@ interface Prescription {
   overrideReason?: string;
 }
 
-// Hardcoded fallback templates used when API is unavailable
-const fallbackTemplates: PrescriptionTemplate[] = [
-  {
-    id: '1',
-    name: 'Cảm cúm thông thường',
-    diagnosis: 'Nhiễm khuẩn đường hô hấp trên',
-    items: [],
-  },
-  {
-    id: '2',
-    name: 'Viêm họng cấp',
-    diagnosis: 'Viêm họng do vi khuẩn',
-    items: [],
-  },
-];
-
 // ==================== HELPER FUNCTIONS ====================
 
 const calculateTotalDose = (dosage: DosageInstruction, duration: number): number => {
@@ -204,119 +188,6 @@ const formatDosage = (dosage: DosageInstruction): string => {
   return result;
 };
 
-// Local drug interaction check as fallback when API is unavailable.
-// Covers common clinically significant interaction pairs.
-const checkDrugInteractionsLocal = (medicines: Medicine[]): DrugInteraction[] => {
-  const interactions: DrugInteraction[] = [];
-  const ingredients = medicines.map(m => ({
-    name: m.name,
-    ingredient: m.activeIngredient.toLowerCase(),
-  }));
-
-  // Helper to check if any medicine contains a given ingredient keyword
-  const findMedicine = (keyword: string) =>
-    ingredients.find(m => m.ingredient.includes(keyword));
-
-  // NSAIDs group
-  const nsaidKeywords = ['aspirin', 'ibuprofen', 'naproxen', 'diclofenac', 'meloxicam', 'piroxicam', 'celecoxib', 'indomethacin', 'ketorolac'];
-  const nsaidMedicines = nsaidKeywords.map(k => findMedicine(k)).filter(Boolean);
-  if (nsaidMedicines.length >= 2) {
-    interactions.push({
-      medicine1: nsaidMedicines[0]!.name,
-      medicine2: nsaidMedicines[1]!.name,
-      severity: 'high',
-      description: 'Sử dụng đồng thời nhiều NSAIDs làm tăng nguy cơ xuất huyết tiêu hóa và tổn thương thận.',
-      recommendation: 'Không nên phối hợp nhiều NSAIDs. Chọn một loại duy nhất.',
-    });
-  }
-
-  // NSAIDs + Anticoagulants
-  const anticoagulantKeywords = ['warfarin', 'heparin', 'enoxaparin', 'rivaroxaban', 'apixaban', 'dabigatran', 'clopidogrel'];
-  const nsaid = nsaidKeywords.map(k => findMedicine(k)).find(Boolean);
-  const anticoagulant = anticoagulantKeywords.map(k => findMedicine(k)).find(Boolean);
-  if (nsaid && anticoagulant) {
-    interactions.push({
-      medicine1: nsaid.name,
-      medicine2: anticoagulant.name,
-      severity: 'high',
-      description: 'NSAIDs kết hợp với thuốc chống đông máu làm tăng đáng kể nguy cơ xuất huyết.',
-      recommendation: 'Tránh phối hợp hoặc theo dõi chặt INR/chức năng đông máu.',
-    });
-  }
-
-  // ACE Inhibitors + Potassium-sparing diuretics / Potassium supplements
-  const aceKeywords = ['enalapril', 'lisinopril', 'captopril', 'ramipril', 'perindopril', 'benazepril'];
-  const potassiumKeywords = ['spironolactone', 'amiloride', 'triamterene', 'potassium', 'kali'];
-  const ace = aceKeywords.map(k => findMedicine(k)).find(Boolean);
-  const potassium = potassiumKeywords.map(k => findMedicine(k)).find(Boolean);
-  if (ace && potassium) {
-    interactions.push({
-      medicine1: ace.name,
-      medicine2: potassium.name,
-      severity: 'high',
-      description: 'ACE Inhibitor kết hợp với thuốc/chất bổ sung kali có thể gây tăng kali máu nguy hiểm.',
-      recommendation: 'Theo dõi nồng độ kali máu thường xuyên. Cân nhắc thay đổi thuốc.',
-    });
-  }
-
-  // Metformin + Alcohol / Contrast agents
-  const metformin = findMedicine('metformin');
-  const contrast = findMedicine('iodine') || findMedicine('contrast');
-  if (metformin && contrast) {
-    interactions.push({
-      medicine1: metformin.name,
-      medicine2: contrast.name,
-      severity: 'high',
-      description: 'Metformin kết hợp với thuốc cản quang chứa iod có thể gây nhiễm toan lactic.',
-      recommendation: 'Ngừng Metformin 48 giờ trước và sau khi sử dụng thuốc cản quang.',
-    });
-  }
-
-  // Statin + Fibrate
-  const statinKeywords = ['atorvastatin', 'simvastatin', 'rosuvastatin', 'lovastatin', 'pravastatin'];
-  const fibrateKeywords = ['gemfibrozil', 'fenofibrate', 'bezafibrate'];
-  const statin = statinKeywords.map(k => findMedicine(k)).find(Boolean);
-  const fibrate = fibrateKeywords.map(k => findMedicine(k)).find(Boolean);
-  if (statin && fibrate) {
-    interactions.push({
-      medicine1: statin.name,
-      medicine2: fibrate.name,
-      severity: 'medium',
-      description: 'Statin kết hợp với fibrate có thể làm tăng nguy cơ bệnh cơ và tiêu cơ vân.',
-      recommendation: 'Nếu cần phối hợp, ưu tiên fenofibrate thay vì gemfibrozil. Theo dõi CK.',
-    });
-  }
-
-  // SSRIs + MAOIs
-  const ssriKeywords = ['fluoxetine', 'sertraline', 'paroxetine', 'citalopram', 'escitalopram'];
-  const maoiKeywords = ['phenelzine', 'tranylcypromine', 'isocarboxazid', 'selegiline'];
-  const ssri = ssriKeywords.map(k => findMedicine(k)).find(Boolean);
-  const maoi = maoiKeywords.map(k => findMedicine(k)).find(Boolean);
-  if (ssri && maoi) {
-    interactions.push({
-      medicine1: ssri.name,
-      medicine2: maoi.name,
-      severity: 'high',
-      description: 'SSRI kết hợp với MAOI có thể gây hội chứng serotonin - đe dọa tính mạng.',
-      recommendation: 'CHỐNG CHỈ ĐỊNH tuyệt đối. Cần khoảng cách rửa thuốc ít nhất 2-5 tuần.',
-    });
-  }
-
-  // Macrolide antibiotics + Statins
-  const macrolideKeywords = ['erythromycin', 'clarithromycin', 'azithromycin'];
-  const macrolide = macrolideKeywords.map(k => findMedicine(k)).find(Boolean);
-  if (macrolide && statin) {
-    interactions.push({
-      medicine1: macrolide.name,
-      medicine2: statin.name,
-      severity: 'medium',
-      description: 'Macrolide ức chế CYP3A4, làm tăng nồng độ statin trong máu, tăng nguy cơ bệnh cơ.',
-      recommendation: 'Cân nhắc giảm liều statin hoặc tạm ngưng trong thời gian dùng kháng sinh.',
-    });
-  }
-
-  return interactions;
-};
 
 // ==================== MAIN COMPONENT ====================
 
@@ -346,7 +217,7 @@ const Prescription: React.FC = () => {
   const [overrideReason, setOverrideReason] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [templateDiagnosis, setTemplateDiagnosis] = useState('');
-  const [prescriptionTemplates, setPrescriptionTemplates] = useState<PrescriptionTemplate[]>(fallbackTemplates);
+  const [prescriptionTemplates, setPrescriptionTemplates] = useState<PrescriptionTemplate[]>([]);
 
   // Data inheritance state (OPD → Prescription context)
   const [rxContext, setRxContext] = useState<PrescriptionContextDto | null>(null);
@@ -452,36 +323,31 @@ const Prescription: React.FC = () => {
           return;
         }
       } catch {
-        // API not available, fall back to local check
+        console.warn('Drug interaction check API unavailable');
+        setInteractions([]);
       }
-
-      // Local fallback
-      const foundInteractions = checkDrugInteractionsLocal(medicines);
-      setInteractions(foundInteractions);
     };
 
     checkInteractions();
   }, [prescriptionItems]);
 
-  // Load prescription templates from API on mount, fallback to hardcoded
+  // Load prescription templates from API on mount
   useEffect(() => {
     const loadTemplates = async () => {
       try {
         const response = await examinationApi.getPrescriptionTemplates();
         const apiTemplates = response.data;
-        if (apiTemplates && Array.isArray(apiTemplates) && apiTemplates.length > 0) {
+        if (apiTemplates && Array.isArray(apiTemplates)) {
           const mapped: PrescriptionTemplate[] = apiTemplates.map((t: PrescriptionTemplateDto) => ({
             id: t.id,
             name: t.templateName,
             diagnosis: t.description || '',
-            items: [], // Template items would need medicine lookup to fully populate
+            items: [],
           }));
           setPrescriptionTemplates(mapped);
         }
-        // If API returns empty, keep fallback templates
       } catch {
-        // API unavailable, keep fallback templates
-        console.warn('Could not load prescription templates from API, using fallback templates');
+        console.warn('Could not load prescription templates from API');
       }
     };
     loadTemplates();
