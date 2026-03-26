@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Table,
   Button,
@@ -12,6 +12,15 @@ import {
   Tabs,
   Spin,
   Tooltip,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Badge,
+  Space,
+  Typography,
+  Progress,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
@@ -30,8 +39,11 @@ import {
   ScanOutlined,
   SafetyCertificateOutlined,
   WarningOutlined,
+  ClockCircleOutlined,
+  MedicineBoxOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as receptionApi from '../api/reception';
 import * as insuranceApi from '../api/insurance';
@@ -40,6 +52,47 @@ import WebcamCapture from '../components/WebcamCapture';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const { Search } = Input;
+const { Title, Text } = Typography;
+
+/* ------------------------------------------------------------------ */
+/*  Inline helper: animated number counter                            */
+/* ------------------------------------------------------------------ */
+const NumberTicker = ({ value, duration = 1000 }: { value: number; duration?: number }) => {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef<number>(0);
+  useEffect(() => {
+    const start = ref.current;
+    const diff = value - start;
+    if (diff === 0) return;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + diff * eased);
+      setDisplay(current);
+      if (progress < 1) requestAnimationFrame(animate);
+      else ref.current = value;
+    };
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+  return <>{display.toLocaleString('vi-VN')}</>;
+};
+
+/* ------------------------------------------------------------------ */
+/*  Glass + KPI styles                                                */
+/* ------------------------------------------------------------------ */
+const glassStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.8)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.5)',
+};
+const kpiGlassStyle: React.CSSProperties = {
+  ...glassStyle,
+  boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+};
 
 interface ReceptionRecord {
   id: string;
@@ -918,205 +971,297 @@ const Reception: React.FC = () => {
   const examiningCount = data.filter(d => d.status === 1).length;
   const completedCount = data.filter(d => d.status === 3).length;
 
-  const statCards = [
-    { label: 'Tong BN hom nay', value: totalPatients, icon: <UserOutlined className="text-2xl" />, gradient: 'bg-gradient-to-br from-indigo-500 to-purple-600' },
-    { label: 'Dang cho kham', value: waitingCount, icon: <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" /><span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" /></span>, gradient: 'bg-gradient-to-br from-fuchsia-400 to-rose-500' },
-    { label: 'Dang kham', value: examiningCount, icon: <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" /><span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500" /></span>, gradient: 'bg-gradient-to-br from-blue-400 to-cyan-400' },
-    { label: 'Hoan thanh', value: completedCount, icon: <CheckCircleOutlined className="text-2xl" />, gradient: 'bg-gradient-to-br from-emerald-400 to-teal-400' },
+  const kpiCards = [
+    { label: 'Tong BN hom nay', value: totalPatients, icon: <UserOutlined style={{ fontSize: 20, color: '#6366f1' }} />, gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6)', glowBg: 'rgba(99,102,241,0.12)' },
+    { label: 'Dang cho kham', value: waitingCount, icon: <ClockCircleOutlined style={{ fontSize: 20, color: '#f59e0b' }} />, gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)', glowBg: 'rgba(245,158,11,0.12)' },
+    { label: 'Dang kham', value: examiningCount, icon: <MedicineBoxOutlined style={{ fontSize: 20, color: '#3b82f6' }} />, gradient: 'linear-gradient(135deg, #3b82f6, #06b6d4)', glowBg: 'rgba(59,130,246,0.12)' },
+    { label: 'Hoan thanh', value: completedCount, icon: <CheckCircleOutlined style={{ fontSize: 20, color: '#10b981' }} />, gradient: 'linear-gradient(135deg, #10b981, #14b8a6)', glowBg: 'rgba(16,185,129,0.12)' },
   ];
 
   return (
-    <div className="px-1">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-5">
-        <div>
-          <h4 className="text-lg font-semibold text-gray-800 tracking-tight m-0">Tiep don benh nhan</h4>
-          <p className="text-gray-500 text-sm mt-0.5">{dayjs().format('dddd, DD/MM/YYYY')} &middot; {data.length} benh nhan</p>
+    <Spin spinning={loading}>
+      {/* CSS Keyframes */}
+      <style>{`
+        @keyframes borderGlow { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        @keyframes float { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,-20px)} }
+        .reception-kpi-glow {
+          position: relative;
+        }
+        .reception-kpi-glow::before {
+          content: '';
+          position: absolute;
+          inset: -2px;
+          border-radius: 18px;
+          opacity: 0.2;
+          background-size: 200% 200%;
+          animation: borderGlow 6s linear infinite;
+          z-index: 0;
+          transition: opacity 0.5s;
+          pointer-events: none;
+        }
+        .reception-kpi-glow:hover::before {
+          opacity: 0.4;
+          filter: blur(4px);
+        }
+        .reception-kpi-glow .ant-card {
+          position: relative;
+          z-index: 1;
+        }
+        .room-stat-card .ant-card {
+          transition: all 0.3s ease;
+        }
+        .room-stat-card:hover .ant-card {
+          box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+          transform: translateY(-2px);
+        }
+      `}</style>
+
+      <div style={{ position: 'relative', minHeight: '100vh' }}>
+        {/* Gradient Mesh Background */}
+        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: 0, left: '25%', width: 384, height: 384, background: '#dbeafe', borderRadius: '50%', mixBlendMode: 'multiply', filter: 'blur(48px)', opacity: 0.3, animation: 'float 8s ease-in-out infinite' }} />
+          <div style={{ position: 'absolute', top: '33%', right: '25%', width: 384, height: 384, background: '#e9d5ff', borderRadius: '50%', mixBlendMode: 'multiply', filter: 'blur(48px)', opacity: 0.3, animation: 'float 8s ease-in-out infinite 2s' }} />
+          <div style={{ position: 'absolute', bottom: '25%', left: '33%', width: 384, height: 384, background: '#cffafe', borderRadius: '50%', mixBlendMode: 'multiply', filter: 'blur(48px)', opacity: 0.3, animation: 'float 8s ease-in-out infinite 4s' }} />
         </div>
-        <div className="flex items-center gap-2">
-          <Button icon={<ReloadOutlined />} onClick={() => { fetchRooms(); fetchAdmissions(); }}>Lam moi</Button>
-          <Button icon={<QrcodeOutlined />} onClick={() => setIsVerifyModalOpen(true)}>Tra cuu BHYT</Button>
-          <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => setIsModalOpen(true)}
-            style={{ borderRadius: 8, fontWeight: 600, height: 40, paddingInline: 24 }}>
-            Dang ky kham
-          </Button>
-        </div>
-      </div>
 
-      {/* Stat Cards with Gradient */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {statCards.map((card, idx) => (
-          <div
-            key={idx}
-            className={`${card.gradient} rounded-xl shadow-md overflow-hidden`}
-          >
-            <div className="flex justify-between items-center px-6 py-5">
-              <div>
-                <div className="text-white/85 text-sm mb-2">{card.label}</div>
-                <div className="text-white text-3xl font-bold leading-none">{card.value}</div>
-              </div>
-              <div className="w-13 h-13 rounded-xl bg-white/20 flex items-center justify-center text-white">
-                {card.icon}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+            <Col>
+              <Title level={4} style={{ margin: 0 }}>Tiep don benh nhan</Title>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                {dayjs().format('dddd, DD/MM/YYYY')} &middot; {data.length} benh nhan
+              </Text>
+            </Col>
+            <Col>
+              <Space>
+                <Button icon={<ReloadOutlined />} onClick={() => { fetchRooms(); fetchAdmissions(); }}>Lam moi</Button>
+                <Button icon={<QrcodeOutlined />} onClick={() => setIsVerifyModalOpen(true)}>Tra cuu BHYT</Button>
+                <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => setIsModalOpen(true)}
+                  style={{ borderRadius: 8, fontWeight: 600, height: 40, paddingInline: 24 }}>
+                  Dang ky kham
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+        </motion.div>
 
-      {/* Main Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <Tabs
-          style={{ padding: '0 16px' }}
-          items={[
-            {
-              key: 'list',
-              label: <span className="font-medium">Danh sach tiep don</span>,
-              children: (
-                <div className="px-2 pb-4">
-                  {/* Filters Row */}
-                  <div className="flex flex-wrap gap-2.5 items-center mb-4 p-3 bg-gray-50 rounded-xl">
-                    <Search
-                      placeholder="Tim theo ma BN, ten, SDT, CCCD..."
-                      allowClear
-                      enterButton={<SearchOutlined />}
-                      style={{ width: 320, flexShrink: 0 }}
-                      value={searchText}
-                      onSearch={(value) => { setSearchText(value); applyFilters(allData, value, filterStatus); }}
-                      onChange={(e) => { setSearchText(e.target.value); if (!e.target.value) applyFilters(allData, '', filterStatus); }}
-                    />
-                    <Tooltip title="Quet ma vach / QR Code">
-                      <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} style={{ borderRadius: 8 }} />
-                    </Tooltip>
-                    <Select
-                      defaultValue=""
-                      style={{ width: 170 }}
-                      placeholder="Phong kham"
-                      loading={loadingRooms}
-                      notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Khong co du lieu' : undefined)}
-                      onChange={(roomId) => {
-                        if (roomId) { setData(allData.filter(p => p.roomId === roomId)); }
-                        else { applyFilters(allData, searchText, filterStatus); }
-                      }}
-                      options={[{ value: '', label: 'Tat ca phong' }, ...rooms.map(room => ({ value: room.roomId, label: room.roomName }))]}
-                    />
-                    <Select
-                      defaultValue=""
-                      style={{ width: 130 }}
-                      placeholder="Trang thai"
-                      onChange={(value) => { setFilterStatus(value); applyFilters(allData, searchText, value); }}
-                      options={[
-                        { value: '', label: 'Tat ca' },
-                        { value: '0', label: 'Cho kham' },
-                        { value: '1', label: 'Dang kham' },
-                        { value: '2', label: 'Cho ket luan' },
-                        { value: '3', label: 'Hoan thanh' },
-                      ]}
-                    />
-                    <DatePicker
-                      value={filterDate}
-                      format="DD/MM/YYYY"
-                      style={{ borderRadius: 8 }}
-                      onChange={(date) => {
-                        setFilterDate(date);
-                        if (date) fetchAdmissions(date.format('YYYY-MM-DD'));
-                        else fetchAdmissions();
-                      }}
-                    />
-                  </div>
-
-                  <Table
-                    columns={columns}
-                    dataSource={data}
-                    rowKey="id"
-                    size="small"
-                    loading={loading}
-                    scroll={{ x: 1500 }}
-                    pagination={{
-                      showSizeChanger: true,
-                      showQuickJumper: true,
-                      showTotal: (total) => <span className="text-gray-500">Tong: <strong>{total}</strong> benh nhan</span>,
-                    }}
-                    rowClassName={(record) =>
-                      record.priority === 2 ? 'emergency-row' : record.priority === 1 ? 'priority-row' : ''
-                    }
-                    onRow={(record) => ({
-                      onDoubleClick: () => { setSelectedRecord(record); setIsDetailModalOpen(true); },
-                      style: { cursor: 'pointer' },
-                    })}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'stats',
-              label: <span className="font-medium">Thong ke phong kham</span>,
-              children: (
-                <div className="px-2 pt-2 pb-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {roomStats.map((room) => {
-                      const total = room.totalWaiting + room.totalServing + room.totalCompleted;
-                      const pct = total > 0 ? Math.round((room.totalCompleted / total) * 100) : 0;
-                      return (
-                        <div
-                          key={room.roomId}
-                          className={`bg-white rounded-xl p-5 border ${room.totalServing > 0 ? 'border-blue-300 shadow-sm' : 'border-gray-100'}`}
-                        >
-                          <div className="flex justify-between items-center mb-3">
-                            <div className="flex items-center gap-2">
-                              {room.totalServing > 0 ? (
-                                <span className="relative flex h-2.5 w-2.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
-                                </span>
-                              ) : (
-                                <span className="inline-flex rounded-full h-2.5 w-2.5 bg-gray-300" />
-                              )}
-                              <span className="font-semibold text-gray-800 text-base">{room.roomName}</span>
-                            </div>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                              {room.departmentName}
-                            </span>
-                          </div>
-                          <div className="flex gap-2 mb-3">
-                            <div className="flex-1 text-center py-2 bg-amber-50 rounded-lg">
-                              <div className="text-2xl font-bold text-amber-600">{room.totalWaiting}</div>
-                              <div className="text-xs text-amber-600">Cho</div>
-                            </div>
-                            <div className="flex-1 text-center py-2 bg-blue-50 rounded-lg">
-                              <div className="text-2xl font-bold text-blue-600">{room.totalServing}</div>
-                              <div className="text-xs text-blue-600">Dang kham</div>
-                            </div>
-                            <div className="flex-1 text-center py-2 bg-emerald-50 rounded-lg">
-                              <div className="text-2xl font-bold text-emerald-600">{room.totalCompleted}</div>
-                              <div className="text-xs text-emerald-600">Xong</div>
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center mb-1.5">
-                            <span className="text-gray-400 text-xs">BS: {room.doctorName || '\u2014'}</span>
-                            <span className="text-gray-400 text-xs">{pct}%</span>
-                          </div>
-                          {/* Progress bar */}
-                          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-blue-400 to-emerald-400 transition-all duration-300"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {roomStats.length === 0 && (
-                      <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400">
-                        <svg className="w-12 h-12 mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                        <span>Khong co du lieu phong kham</span>
-                      </div>
+        {/* KPI Cards with Animated Glow Borders */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+          {kpiCards.map((kpi, i) => (
+            <Col xs={12} sm={12} lg={6} key={kpi.label}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1, duration: 0.5, ease: 'easeOut' }}
+                className="reception-kpi-glow"
+              >
+                <style>{`
+                  .reception-kpi-glow:nth-child(${i + 1})::before {
+                    background: ${kpi.gradient};
+                  }
+                `}</style>
+                <Card style={kpiGlassStyle} styles={{ body: { padding: 20 } }}>
+                  <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+                    <Text type="secondary" style={{ fontSize: 14, fontWeight: 500 }}>{kpi.label}</Text>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: kpi.glowBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {kpi.icon}
+                    </div>
+                  </Row>
+                  <Statistic
+                    value={kpi.value}
+                    formatter={() => (
+                      <span style={{ fontSize: 30, fontWeight: 700, color: '#1f2937' }}>
+                        <NumberTicker value={kpi.value} duration={1200} />
+                      </span>
                     )}
-                  </div>
-                </div>
-              ),
-            },
-          ]}
-        />
+                  />
+                </Card>
+              </motion.div>
+            </Col>
+          ))}
+        </Row>
+
+        {/* Main Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
+          <Card style={{ ...glassStyle, boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }} styles={{ body: { padding: 0 } }}>
+            <Tabs
+              style={{ padding: '0 16px' }}
+              items={[
+                {
+                  key: 'list',
+                  label: <span style={{ fontWeight: 500 }}>Danh sach tiep don</span>,
+                  children: (
+                    <div style={{ padding: '0 8px 16px' }}>
+                      {/* Filters Row */}
+                      <Card
+                        style={{ marginBottom: 16, borderRadius: 12, background: '#f9fafb' }}
+                        styles={{ body: { padding: 12 } }}
+                      >
+                        <Space wrap size={10}>
+                          <Search
+                            placeholder="Tim theo ma BN, ten, SDT, CCCD..."
+                            allowClear
+                            enterButton={<SearchOutlined />}
+                            style={{ width: 320 }}
+                            value={searchText}
+                            onSearch={(value) => { setSearchText(value); applyFilters(allData, value, filterStatus); }}
+                            onChange={(e) => { setSearchText(e.target.value); if (!e.target.value) applyFilters(allData, '', filterStatus); }}
+                          />
+                          <Tooltip title="Quet ma vach / QR Code">
+                            <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} style={{ borderRadius: 8 }} />
+                          </Tooltip>
+                          <Select
+                            defaultValue=""
+                            style={{ width: 170 }}
+                            placeholder="Phong kham"
+                            loading={loadingRooms}
+                            notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Khong co du lieu' : undefined)}
+                            onChange={(roomId) => {
+                              if (roomId) { setData(allData.filter(p => p.roomId === roomId)); }
+                              else { applyFilters(allData, searchText, filterStatus); }
+                            }}
+                            options={[{ value: '', label: 'Tat ca phong' }, ...rooms.map(room => ({ value: room.roomId, label: room.roomName }))]}
+                          />
+                          <Select
+                            defaultValue=""
+                            style={{ width: 130 }}
+                            placeholder="Trang thai"
+                            onChange={(value) => { setFilterStatus(value); applyFilters(allData, searchText, value); }}
+                            options={[
+                              { value: '', label: 'Tat ca' },
+                              { value: '0', label: 'Cho kham' },
+                              { value: '1', label: 'Dang kham' },
+                              { value: '2', label: 'Cho ket luan' },
+                              { value: '3', label: 'Hoan thanh' },
+                            ]}
+                          />
+                          <DatePicker
+                            value={filterDate}
+                            format="DD/MM/YYYY"
+                            style={{ borderRadius: 8 }}
+                            onChange={(date) => {
+                              setFilterDate(date);
+                              if (date) fetchAdmissions(date.format('YYYY-MM-DD'));
+                              else fetchAdmissions();
+                            }}
+                          />
+                        </Space>
+                      </Card>
+
+                      <Table
+                        columns={columns}
+                        dataSource={data}
+                        rowKey="id"
+                        size="small"
+                        loading={loading}
+                        scroll={{ x: 1500 }}
+                        pagination={{
+                          showSizeChanger: true,
+                          showQuickJumper: true,
+                          showTotal: (total) => <Text type="secondary">Tong: <strong>{total}</strong> benh nhan</Text>,
+                        }}
+                        rowClassName={(record) =>
+                          record.priority === 2 ? 'emergency-row' : record.priority === 1 ? 'priority-row' : ''
+                        }
+                        onRow={(record) => ({
+                          onDoubleClick: () => { setSelectedRecord(record); setIsDetailModalOpen(true); },
+                          style: { cursor: 'pointer' },
+                        })}
+                      />
+                    </div>
+                  ),
+                },
+                {
+                  key: 'stats',
+                  label: <span style={{ fontWeight: 500 }}>Thong ke phong kham</span>,
+                  children: (
+                    <div style={{ padding: '8px 8px 16px' }}>
+                      <Row gutter={[16, 16]}>
+                        {roomStats.map((room, idx) => {
+                          const total = room.totalWaiting + room.totalServing + room.totalCompleted;
+                          const pct = total > 0 ? Math.round((room.totalCompleted / total) * 100) : 0;
+                          return (
+                            <Col xs={24} sm={12} lg={8} key={room.roomId}>
+                              <motion.div
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.05, duration: 0.4 }}
+                                className="room-stat-card"
+                              >
+                                <Card
+                                  style={{
+                                    ...glassStyle,
+                                    borderColor: room.totalServing > 0 ? '#93c5fd' : 'rgba(255,255,255,0.5)',
+                                    boxShadow: room.totalServing > 0 ? '0 4px 16px rgba(59,130,246,0.1)' : '0 2px 8px rgba(0,0,0,0.04)',
+                                  }}
+                                  styles={{ body: { padding: 20 } }}
+                                >
+                                  <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+                                    <Space size={8}>
+                                      <Badge status={room.totalServing > 0 ? 'processing' : 'default'} />
+                                      <Text strong style={{ fontSize: 15 }}>{room.roomName}</Text>
+                                    </Space>
+                                    <Tag color="blue" style={{ margin: 0 }}>{room.departmentName}</Tag>
+                                  </Row>
+
+                                  <Row gutter={8} style={{ marginBottom: 12 }}>
+                                    <Col span={8}>
+                                      <Card size="small" style={{ textAlign: 'center', background: '#fffbeb', border: 'none', borderRadius: 8 }} styles={{ body: { padding: '8px 4px' } }}>
+                                        <Statistic value={room.totalWaiting} valueStyle={{ fontSize: 22, fontWeight: 700, color: '#d97706' }} />
+                                        <Text style={{ fontSize: 11, color: '#d97706' }}>Cho</Text>
+                                      </Card>
+                                    </Col>
+                                    <Col span={8}>
+                                      <Card size="small" style={{ textAlign: 'center', background: '#eff6ff', border: 'none', borderRadius: 8 }} styles={{ body: { padding: '8px 4px' } }}>
+                                        <Statistic value={room.totalServing} valueStyle={{ fontSize: 22, fontWeight: 700, color: '#2563eb' }} />
+                                        <Text style={{ fontSize: 11, color: '#2563eb' }}>Dang kham</Text>
+                                      </Card>
+                                    </Col>
+                                    <Col span={8}>
+                                      <Card size="small" style={{ textAlign: 'center', background: '#ecfdf5', border: 'none', borderRadius: 8 }} styles={{ body: { padding: '8px 4px' } }}>
+                                        <Statistic value={room.totalCompleted} valueStyle={{ fontSize: 22, fontWeight: 700, color: '#059669' }} />
+                                        <Text style={{ fontSize: 11, color: '#059669' }}>Xong</Text>
+                                      </Card>
+                                    </Col>
+                                  </Row>
+
+                                  <Row justify="space-between" align="middle" style={{ marginBottom: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>BS: {room.doctorName || '\u2014'}</Text>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>{pct}%</Text>
+                                  </Row>
+                                  <Progress
+                                    percent={pct}
+                                    showInfo={false}
+                                    strokeColor={{ from: '#60a5fa', to: '#34d399' }}
+                                    size="small"
+                                  />
+                                </Card>
+                              </motion.div>
+                            </Col>
+                          );
+                        })}
+                        {roomStats.length === 0 && (
+                          <Col span={24}>
+                            <Empty description="Khong co du lieu phong kham" style={{ padding: '48px 0' }} />
+                          </Col>
+                        )}
+                      </Row>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          </Card>
+        </motion.div>
       </div>
 
       {/* Modal Tra cuu BHYT */}
@@ -1862,7 +2007,7 @@ const Reception: React.FC = () => {
           )}
         </Spin>
       </Modal>
-    </div>
+    </Spin>
   );
 };
 
