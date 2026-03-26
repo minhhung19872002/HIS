@@ -46,8 +46,8 @@ const BookingManagement = () => {
   const [doctors, setDoctors] = useState<BookingDoctorDto[]>([]);
 
   useEffect(() => {
-    getBookingDepartments().then(setDepartments).catch(() => {});
-    getBookingDoctors().then(setDoctors).catch(() => {});
+    getBookingDepartments().then(setDepartments).catch(() => { console.warn('Failed to load departments'); });
+    getBookingDoctors().then(setDoctors).catch(() => { console.warn('Failed to load doctors'); });
   }, []);
 
   // Fetch bookings

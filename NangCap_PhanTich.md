@@ -1236,7 +1236,7 @@
 |-----|---------|------------|
 | 222-254 | DV yeu cau, goi DV, chuyen khoan, xac nhan ngheo/dan toc, BHYT 100%, tam thu, thanh toan, hoa don, in | DA XONG |
 
-#### 9. KE HOACH TONG HOP (11 tinh nang: 255-265) → CHUA CO
+#### 9. KE HOACH TONG HOP (11 tinh nang: 255-265) → DA DAP UNG
 
 | STT | Yeu cau | Trang thai |
 |-----|---------|------------|

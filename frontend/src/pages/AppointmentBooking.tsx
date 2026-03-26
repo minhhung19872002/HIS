@@ -27,7 +27,7 @@ const AppointmentBooking = () => {
 
   // Load departments on mount
   useEffect(() => {
-    getBookingDepartments().then(setDepartments).catch(() => {});
+    getBookingDepartments().then(setDepartments).catch(() => { console.warn('Failed to load booking departments'); });
   }, []);
 
   // Load doctors when department changes
@@ -39,7 +39,7 @@ const AppointmentBooking = () => {
     try {
       const docs = await getBookingDoctors(departmentId);
       setDoctors(docs);
-    } catch { /* ignore */ }
+    } catch { console.warn('Failed to load doctors'); }
   }, [form]);
 
   // Load available slots

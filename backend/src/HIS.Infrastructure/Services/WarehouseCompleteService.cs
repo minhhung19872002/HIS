@@ -2106,7 +2106,63 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<StockCardDto> GetStockCardAsync(Guid warehouseId, Guid itemId, DateTime fromDate, DateTime toDate)
     {
-        return new StockCardDto();
+        try
+        {
+            var warehouse = await _context.Warehouses.FindAsync(warehouseId);
+            var medicine = await _context.Medicines.FindAsync(itemId);
+
+            // Get stock movements for this item in this warehouse within date range
+            var movements = await _context.StockMovements
+                .Where(sm => sm.WarehouseId == warehouseId && sm.MedicineId == itemId)
+                .OrderBy(sm => sm.MovementDate)
+                .ToListAsync();
+
+            // Calculate opening balance: sum of movements before fromDate
+            var priorMovements = movements.Where(m => m.MovementDate < fromDate).ToList();
+            var openingQty = priorMovements.Any() ? priorMovements.Last().BalanceAfter : 0;
+
+            // Movements within the period
+            var periodMovements = movements
+                .Where(m => m.MovementDate >= fromDate && m.MovementDate <= toDate)
+                .ToList();
+
+            var closingQty = periodMovements.Any() ? periodMovements.Last().BalanceAfter : openingQty;
+
+            var entries = periodMovements.Select(m => new StockCardEntryDto
+            {
+                TransactionDate = m.MovementDate,
+                DocumentCode = m.ReferenceCode ?? string.Empty,
+                TransactionType = m.MovementType switch
+                {
+                    1 => "Nhap kho",
+                    2 => "Xuat kho",
+                    3 => "Chuyen kho",
+                    4 => "Dieu chinh",
+                    5 => "Tra NCC",
+                    _ => "Khac"
+                },
+                Description = m.Notes,
+                ReceivedQuantity = m.MovementType == 1 || (m.MovementType == 4 && m.Quantity > 0) ? m.Quantity : 0,
+                IssuedQuantity = m.MovementType == 2 || m.MovementType == 5 || (m.MovementType == 4 && m.Quantity < 0) ? Math.Abs(m.Quantity) : 0,
+                Balance = m.BalanceAfter
+            }).ToList();
+
+            return new StockCardDto
+            {
+                ItemId = itemId,
+                ItemCode = medicine?.MedicineCode ?? string.Empty,
+                ItemName = medicine?.MedicineName ?? string.Empty,
+                Unit = medicine?.Unit ?? string.Empty,
+                WarehouseId = warehouseId,
+                WarehouseName = warehouse?.WarehouseName ?? string.Empty,
+                FromDate = fromDate,
+                ToDate = toDate,
+                OpeningQuantity = openingQty,
+                ClosingQuantity = closingQty,
+                Entries = entries
+            };
+        }
+        catch { return new StockCardDto { WarehouseId = warehouseId, ItemId = itemId, FromDate = fromDate, ToDate = toDate }; }
     }
 
     public async Task<List<StockMovementReportDto>> GetStockMovementReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate, int? itemType)
@@ -2172,7 +2228,64 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<DepartmentUsageReportDto> GetDepartmentUsageReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate)
     {
-        return new DepartmentUsageReportDto();
+        try
+        {
+            // Get issue movements (type=2) from this warehouse grouped by destination department
+            var transfers = await _context.WarehouseTransfers
+                .Include(t => t.ToWarehouse).ThenInclude(w => w!.Department)
+                .Include(t => t.Items).ThenInclude(i => i.Medicine)
+                .Where(t => t.FromWarehouseId == warehouseId
+                    && t.TransferDate >= fromDate && t.TransferDate <= toDate
+                    && t.Status >= 1 && t.Status != 4) // approved/received, not cancelled
+                .ToListAsync();
+
+            var departments = transfers
+                .Where(t => t.ToWarehouse?.Department != null)
+                .GroupBy(t => new
+                {
+                    DeptId = t.ToWarehouse!.DepartmentId!.Value,
+                    DeptCode = t.ToWarehouse.Department!.DepartmentCode ?? "",
+                    DeptName = t.ToWarehouse.Department.DepartmentName ?? ""
+                })
+                .Select(g =>
+                {
+                    var items = g.SelectMany(t => t.Items ?? Enumerable.Empty<WarehouseTransferItem>()).ToList();
+                    return new DepartmentUsageItemDto
+                    {
+                        DepartmentId = g.Key.DeptId,
+                        DepartmentCode = g.Key.DeptCode,
+                        DepartmentName = g.Key.DeptName,
+                        IssueCount = g.Count(),
+                        TotalQuantity = items.Sum(i => i.ReceivedQuantity ?? i.DeliveredQuantity ?? i.RequestedQuantity),
+                        TotalAmount = items.Sum(i => i.Amount),
+                        TopItems = items
+                            .GroupBy(i => new { i.MedicineId, Name = i.Medicine?.MedicineName ?? "", Code = i.Medicine?.MedicineCode ?? "", Unit = i.Medicine?.Unit ?? "" })
+                            .OrderByDescending(ig => ig.Sum(x => x.ReceivedQuantity ?? x.DeliveredQuantity ?? x.RequestedQuantity))
+                            .Take(5)
+                            .Select(ig => new ItemUsageDto
+                            {
+                                ItemId = ig.Key.MedicineId,
+                                ItemCode = ig.Key.Code,
+                                ItemName = ig.Key.Name,
+                                Unit = ig.Key.Unit,
+                                Quantity = ig.Sum(x => x.ReceivedQuantity ?? x.DeliveredQuantity ?? x.RequestedQuantity),
+                                Amount = ig.Sum(x => x.Amount)
+                            })
+                            .ToList()
+                    };
+                })
+                .OrderByDescending(d => d.TotalAmount)
+                .ToList();
+
+            return new DepartmentUsageReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                Departments = departments,
+                TotalAmount = departments.Sum(d => d.TotalAmount)
+            };
+        }
+        catch { return new DepartmentUsageReportDto { FromDate = fromDate, ToDate = toDate }; }
     }
 
     public async Task<byte[]> PrintDepartmentUsageReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate)

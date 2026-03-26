@@ -1004,7 +1004,7 @@ const EmrManagementTabs: React.FC = () => {
   const items = [
     {
       key: 'sharing',
-      label: <><ShareAltOutlined /> Chia se BA</>,
+      label: <><ShareAltOutlined /> Chia se</>,
       children: <SharingTab />,
     },
     {
@@ -1014,12 +1014,12 @@ const EmrManagementTabs: React.FC = () => {
     },
     {
       key: 'spine',
-      label: <><OrderedListOutlined /> Gay BA</>,
+      label: <><OrderedListOutlined /> Gay</>,
       children: <SpineTab />,
     },
     {
       key: 'images',
-      label: <><PictureOutlined /> Thu vien hinh anh</>,
+      label: <><PictureOutlined /> Hinh anh</>,
       children: <ImagesTab />,
     },
     {
@@ -1029,12 +1029,12 @@ const EmrManagementTabs: React.FC = () => {
     },
     {
       key: 'autocheck',
-      label: <><SafetyOutlined /> Kiem tra thieu sot</>,
+      label: <><SafetyOutlined /> Kiem tra</>,
       children: <AutoCheckTab />,
     },
   ];
 
-  return <Tabs items={items} size="small" />;
+  return <Tabs items={items} size="small" tabBarGutter={8} />;
 };
 
 export default EmrManagementTabs;
