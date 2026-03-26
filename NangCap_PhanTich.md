@@ -1951,3 +1951,117 @@
 | Tinh nang ho tro (B) | 5 | 3 | 2 |
 | Phi chuc nang (C) | 6 | 6 | 0 |
 | **Tong** | **36** | **26** | **10** |
+
+---
+
+## PHAN 17: BV San Nhi Phu Tho - Kho/Tai san, Lab IVF, Nha thuoc, Dao tao (NangCap17.pdf)
+
+> **Goi thau**: Cung cap PM quan ly kho, phong Lab IVF, Dao tao - Chi dao tuyen tai BV San Nhi tinh Phu Tho 2026-2029
+> **4 module chinh**: A. Kho-Tai san-CCDC-VT, B. Lab IVF, C. Nha thuoc, D. Dao tao-Chi dao tuyen-NCKH
+
+### A. Phan mem quan ly kho - tai san - CCDC - VT (110 tinh nang, 18 nhom)
+
+| Nhom | Ten | So TN | Trang thai | Ghi chu |
+|------|-----|-------|------------|---------|
+| I | De xuat - Du tru | 8 | CAN BO SUNG | Backend procurement co, thieu frontend page |
+| II | Quan ly thau | 9 | CHUA CO | Hoan toan moi |
+| III | Nhap kho | 6 | DA CO | WarehouseCompleteService 5 loai nhap |
+| IV | Tai san co dinh | 2 | DA CO 1 phan | Equipment.tsx co depreciation, thieu chi tiet nguyen gia |
+| V | Xuat kho | 4 | DA CO | WarehouseCompleteService 7 loai xuat |
+| VI | Khoa phong | 5 | DA CO 1 phan | Equipment.tsx + bao cao, thieu CCDC chi tiet |
+| VII | Quan ly su dung | 5 | CAN BO SUNG | Equipment co 1 phan, thieu ban giao/muon tra/bao hanh |
+| VIII | Sua chua - Kiem dinh | 3 | DA CO | Equipment.tsx co repair + calibration tabs |
+| IX | Kiem ke | 4 | DA CO 1 phan | WarehouseCompleteService co stocktake, thieu QRCode |
+| X | Hu hao - Thanh ly - Dau gia | 2 | CAN BO SUNG | Thieu thanh ly/dau gia workflow |
+| XI | QRCode | 3 | DA CO 1 phan | BarcodeScanner.tsx co, thieu asset QR generation |
+| XII | Ke toan | 7 | CAN BO SUNG | Thieu khau hao chi tiet, bien ban C34-C50 |
+| XIII | Danh muc | 11 | DA CO | MasterData.tsx + SystemAdmin |
+| XIV | Quan tri he thong | 3 | DA CO | SystemAdmin.tsx |
+| XV | Tra cuu - Bao cao | 30 | CAN BO SUNG | Co 1 phan, thieu 30 bieu mau TSCD |
+| XVI | Ket noi HSM | 2 | DA CO | CentralSigning, PdfSignatureService |
+| XVII | Dashboard | 3 | DA CO 1 phan | Equipment dashboard co, thieu thau/du tru dashboard |
+| XVIII | Ket noi PM khac | 2 | DA CO | API RESTful, tich hop HIS |
+
+### B. Phan mem quan ly phong Lab IVF (19 tinh nang)
+
+| STT | Ten | Trang thai | Ghi chu |
+|-----|-----|------------|---------|
+| 1 | Quan ly danh muc (hop, cong, binh, tu, barcode) | CHUA CO | Module hoan toan moi |
+| 2 | Nhap thong tin benh nhan (cap vo chong, API HIS) | CHUA CO | |
+| 3 | Quan ly troc hut trung | CHUA CO | |
+| 4 | Quan ly tao phoi (D2, D5, D6, D7 tracking) | CHUA CO | |
+| 5 | Quan ly tru dong phoi (hop/cong/tu) | CHUA CO | |
+| 6 | Sang loc phoi (chat luong, hinh anh) | CHUA CO | |
+| 7 | Ra dong phoi | CHUA CO | |
+| 8 | Chuyen phoi (tuoi/dong lanh) | CHUA CO | |
+| 9 | Quan ly chuyen phoi den (tu don vi khac) | CHUA CO | |
+| 10 | Quan ly tru dong phoi (nhac lich, phi luu tru) | CHUA CO | |
+| 11 | Quan ly tru dong tinh trung | CHUA CO | |
+| 12 | Quan ly chuyen tinh trung den | CHUA CO | |
+| 13 | Dashboard tong quan Lab IVF | CHUA CO | |
+| 14 | Quan ly ngan hang tinh trung | CHUA CO | |
+| 15 | DS benh nhan gui sinh thiet | CHUA CO | |
+| 16 | Bao cao hang ngay | CHUA CO | |
+| 17 | Quan ly phan quyen | DA CO | SystemAdmin phan quyen |
+| 18 | Thiet lap he thong | DA CO | SystemAdmin config |
+| 19 | Ket noi HIS | DA CO | API RESTful |
+
+### C. Phan mem quan ly nha thuoc (36 tinh nang)
+
+| STT | Ten | Trang thai | Ghi chu |
+|-----|-----|------------|---------|
+| 1 | Quan ly danh muc (duoc, quay, NCC, don mau...) | DA CO | MasterData + Pharmacy danh muc |
+| 2 | Quan ly nhap kho (5 loai) | DA CO | WarehouseCompleteService |
+| 3 | Quan ly du tru hang | DA CO 1 phan | Backend procurement co |
+| 4 | Quan ly xuat kho (6 loai) | DA CO | WarehouseCompleteService |
+| 5 | Quan ly ban hang (le, buon, theo don) | DA CO | HospitalPharmacy.tsx ban le |
+| 6 | Kiem ke (tu, nhom, lo, barcode) | DA CO 1 phan | StockTake co, thieu barcode kiem ke |
+| 7 | Quan ly khach hang (the, tich diem, lich su) | CAN BO SUNG | Thieu loyalty/tich diem |
+| 8 | Ke toan (thu chi, khoa so, doanh so, cong no) | DA CO 1 phan | Billing co, thieu nha thuoc rieng |
+| 9 | Tra cuu (15 loai bao cao) | DA CO 1 phan | Reports.tsx co 1 phan |
+| 10-13 | NXT lo/han, da don vi, canh bao ton | DA CO | Pharmacy + Warehouse |
+| 14 | Quan ly vi tri thuoc (o, tu) | DA CO 1 phan | ReagentManagement co |
+| 15 | Quan ly theo duoc quoc gia | DA CO | MasterData danh muc |
+| 16 | Ket noi cong BYT | DA CO | DQGVN module |
+| 17 | Quan ly tem Barcode | DA CO 1 phan | BarcodeScanner co |
+| 18-20 | Tinh gia, canh bao tuong tac, han dung | DA CO | DrugInteraction, Pharmacy |
+| 21 | Bao cao thuoc | DA CO | Reports.tsx 12 mau duoc |
+| 22 | Thu chi, khoa so theo ca | CAN BO SUNG | Thieu cashier shift |
+| 23-24 | Cham cong, tinh luong | CAN BO SUNG | Thieu attendance |
+| 25 | Don thuoc mau | DA CO | Prescription templates |
+| 26 | Hoa hong bac si | CAN BO SUNG | Thieu commission |
+| 27 | Gia theo quay (chuoi) | CAN BO SUNG | Thieu multi-store pricing |
+| 28-29 | Phu thu, cong no | DA CO 1 phan | Billing module |
+| 30 | Chiet khau NCC | CAN BO SUNG | |
+| 31 | Ban hang di dong | CAN BO SUNG | Responsive co, thieu mobile POS |
+| 32 | The tich diem | CAN BO SUNG | |
+| 33 | So GPP (ADR, dinh chi, nhiet do) | CAN BO SUNG | |
+| 34 | Ket noi HIS | DA CO | API RESTful |
+| 35 | Ke don bac si | DA CO | Prescription.tsx |
+| 36 | Ket noi don thuoc quoc gia | DA CO | DQGVN module |
+
+### D. Phan mem dao tao - chi dao tuyen - NCKH (25 tinh nang)
+
+| Nhom | Ten | So TN | Trang thai | Ghi chu |
+|------|-----|-------|------------|---------|
+| I | Dao tao (lop, giang vien, hoc vien, chung chi) | 8 | CAN BO SUNG | HR.tsx co CME co ban, thieu chi tiet |
+| II | Chi dao tuyen | 4 | CHUA CO | Hoan toan moi |
+| III | Nghien cuu khoa hoc | 3 | CHUA CO | Hoan toan moi |
+| IV | Quan ly hoi chan | 2 | DA CO 1 phan | Consultation.tsx co hoi chan |
+| V | Quan tri he thong | 3 | DA CO | SystemAdmin |
+| VI | Danh muc | 8 | DA CO | MasterData + SystemAdmin |
+| VII | Thong ke (Dashboard) | 1 | CAN BO SUNG | |
+| VIII | Ket noi - Dong bo | 2 | DA CO | API RESTful |
+| IX | Ke toan | 2 | CAN BO SUNG | |
+
+### Tong ket NangCap17
+
+| Module | Tong TN | DA CO | CAN BO SUNG | CHUA CO |
+|--------|---------|-------|-------------|---------|
+| A. Kho-Tai san-CCDC-VT | 110 | ~65 | ~35 | ~10 |
+| B. Lab IVF | 19 | 3 | 0 | 16 |
+| C. Nha thuoc | 36 | ~22 | ~14 | 0 |
+| D. Dao tao-CDT-NCKH | 25 | ~8 | ~10 | ~7 |
+| **Tong** | **190** | **~98 (52%)** | **~59 (31%)** | **~33 (17%)** |
+
+> **Uu tien thuc hien**: B (IVF Lab - hoan toan moi), D (Dao tao/NCKH - moi), A.II (Thau), A.VII/X/XII (Tai san nang cao)

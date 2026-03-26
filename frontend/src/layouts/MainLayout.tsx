@@ -159,6 +159,7 @@ const MainLayout: React.FC = () => {
         { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
         { key: '/pathology', icon: <FileSearchOutlined />, label: 'Giải phẫu bệnh' },
+        { key: '/ivf-lab', icon: <ExperimentOutlined />, label: 'Phòng Lab IVF' },
         { key: '/lis-config', icon: <SettingOutlined />, label: 'Cấu hình LIS' },
       ],
     },
@@ -192,7 +193,9 @@ const MainLayout: React.FC = () => {
       children: [
         { key: '/infection-control', icon: <AlertOutlined />, label: 'KSNK' },
         { key: '/equipment', icon: <ToolOutlined />, label: 'Thiết bị y tế' },
+        { key: '/asset-management', icon: <DatabaseOutlined />, label: 'Tài sản - CCDC' },
         { key: '/hr', icon: <SolutionOutlined />, label: 'Nhân sự' },
+        { key: '/training-research', icon: <ReadOutlined />, label: 'Đào tạo - NCKH' },
         { key: '/quality', icon: <AuditOutlined />, label: 'Chất lượng' },
       ],
     },

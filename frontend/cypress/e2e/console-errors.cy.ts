@@ -50,6 +50,7 @@ const pages = [
   { route: '/reagent-management', name: 'Reagent Management (Hoa chat XN)' },
   { route: '/sample-tracking', name: 'Sample Tracking (Theo doi mau)' },
   { route: '/pathology', name: 'Pathology (Giai phau benh)' },
+  { route: '/ivf-lab', name: 'IVF Lab (Phong Lab IVF)' },
   { route: '/culture-collection', name: 'Culture Collection (Luu chung VS)' },
   { route: '/digital-signature', name: 'Digital Signature (Chu ky so)' },
   { route: '/central-signing', name: 'Central Signing (Ky so tap trung)' },
@@ -85,6 +86,8 @@ const pages = [
   { route: '/health-education', name: 'Health Education (Truyen thong GDSK)' },
   { route: '/practice-license', name: 'Practice License (Hanh nghe)' },
   { route: '/inter-hospital', name: 'Inter Hospital Sharing (Lien vien)' },
+  { route: '/asset-management', name: 'Asset Management (Tai san CCDC)' },
+  { route: '/training-research', name: 'Training Research (Dao tao NCKH)' },
 ];
 
 // Patterns to ignore - these are expected/harmless noise

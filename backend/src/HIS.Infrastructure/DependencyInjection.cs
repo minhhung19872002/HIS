@@ -252,6 +252,12 @@ public static class DependencyInjection
         services.AddScoped<ICommunityHealthService, CommunityHealthService>();
         services.AddScoped<IHivManagementService, HivManagementService>();
 
+        // NangCap17: Asset/Tender Management (Tai san - CCDC)
+        services.AddScoped<IAssetManagementService, AssetManagementService>();
+
+        // NangCap17: Dao tao, Chi dao tuyen, NCKH (Training, Clinical Direction, Research)
+        services.AddScoped<ITrainingResearchService, TrainingResearchService>();
+
         // Medinet Healthcare Modules (10 modules)
         services.AddScoped<IForensicService, ForensicService>(); // Giám định Y khoa
         services.AddScoped<ITraditionalMedicineService, TraditionalMedicineService>(); // Y học cổ truyền
@@ -263,6 +269,9 @@ public static class DependencyInjection
         services.AddScoped<IHealthEducationService, HealthEducationService>(); // Truyền thông GDSK
         services.AddScoped<IPracticeLicenseService, PracticeLicenseService>(); // Quản lý hành nghề
         services.AddScoped<IInterHospitalService, InterHospitalService>(); // Chia sẻ dữ liệu liên viện
+
+        // NangCap17: IVF Lab Management (Phòng Lab IVF)
+        services.AddScoped<IIvfLabService, IvfLabService>();
 
         return services;
     }

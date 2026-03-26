@@ -57,6 +57,7 @@ const ReagentManagement = lazy(() => import('./pages/ReagentManagement'));
 const SampleTracking = lazy(() => import('./pages/SampleTracking'));
 const Pathology = lazy(() => import('./pages/Pathology'));
 const CultureCollection = lazy(() => import('./pages/CultureCollection'));
+const IvfLab = lazy(() => import('./pages/IvfLab'));
 const DigitalSignature = lazy(() => import('./pages/DigitalSignature'));
 const CentralSigning = lazy(() => import('./pages/CentralSigning'));
 const MedicalRecordArchive = lazy(() => import('./pages/MedicalRecordArchive'));
@@ -92,6 +93,8 @@ const PopulationHealth = lazy(() => import('./pages/PopulationHealth'));
 const HealthEducation = lazy(() => import('./pages/HealthEducation'));
 const PracticeLicense = lazy(() => import('./pages/PracticeLicense'));
 const InterHospitalSharing = lazy(() => import('./pages/InterHospitalSharing'));
+const AssetManagement = lazy(() => import('./pages/AssetManagement'));
+const TrainingResearch = lazy(() => import('./pages/TrainingResearch'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,6 +166,7 @@ const AppRoutes: React.FC = () => {
           <Route path="reagent-management" element={<ReagentManagement />} />
           <Route path="sample-tracking" element={<SampleTracking />} />
           <Route path="pathology" element={<Pathology />} />
+          <Route path="ivf-lab" element={<IvfLab />} />
           <Route path="radiology" element={<Radiology />} />
           <Route path="blood-bank" element={<BloodBank />} />
           <Route path="billing" element={<Billing />} />
@@ -221,6 +225,8 @@ const AppRoutes: React.FC = () => {
           <Route path="health-education" element={<HealthEducation />} />
           <Route path="practice-license" element={<PracticeLicense />} />
           <Route path="inter-hospital" element={<InterHospitalSharing />} />
+          <Route path="asset-management" element={<AssetManagement />} />
+          <Route path="training-research" element={<TrainingResearch />} />
           {/* Redirect aliases */}
           <Route path="inpatient" element={<Navigate to="/ipd" replace />} />
           <Route path="laboratory" element={<Navigate to="/lab" replace />} />

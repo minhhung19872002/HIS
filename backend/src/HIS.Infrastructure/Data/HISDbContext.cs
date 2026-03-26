@@ -507,6 +507,29 @@ public class HISDbContext : DbContext
     // Medinet: Chia sẻ dữ liệu liên viện (Inter-Hospital Sharing)
     public DbSet<InterHospitalRequest> InterHospitalRequests => Set<InterHospitalRequest>();
 
+    // NangCap17: Asset/Tender Management (Tai san - CCDC)
+    public DbSet<Tender> Tenders => Set<Tender>();
+    public DbSet<TenderItem> TenderItems => Set<TenderItem>();
+    public DbSet<FixedAsset> FixedAssets => Set<FixedAsset>();
+    public DbSet<AssetHandover> AssetHandovers => Set<AssetHandover>();
+    public DbSet<AssetDisposal> AssetDisposals => Set<AssetDisposal>();
+    public DbSet<AssetDepreciation> AssetDepreciations => Set<AssetDepreciation>();
+
+    // NangCap17: Dao tao, Chi dao tuyen, NCKH
+    public DbSet<TrainingClass> TrainingClasses => Set<TrainingClass>();
+    public DbSet<TrainingStudent> TrainingStudents => Set<TrainingStudent>();
+    public DbSet<ClinicalDirection> ClinicalDirections => Set<ClinicalDirection>();
+    public DbSet<ResearchProject> ResearchProjects => Set<ResearchProject>();
+
+    // NangCap17: IVF Lab Management (Phòng Lab IVF)
+    public DbSet<IvfPatientCouple> IvfPatientCouples => Set<IvfPatientCouple>();
+    public DbSet<IvfCycle> IvfCycles => Set<IvfCycle>();
+    public DbSet<IvfOvumPickup> IvfOvumPickups => Set<IvfOvumPickup>();
+    public DbSet<IvfEmbryo> IvfEmbryos => Set<IvfEmbryo>();
+    public DbSet<IvfEmbryoTransfer> IvfEmbryoTransfers => Set<IvfEmbryoTransfer>();
+    public DbSet<IvfSpermBank> IvfSpermBanks => Set<IvfSpermBank>();
+    public DbSet<IvfBiopsy> IvfBiopsies => Set<IvfBiopsy>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
