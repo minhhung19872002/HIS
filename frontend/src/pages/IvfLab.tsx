@@ -8,6 +8,7 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as ivfApi from '../api/ivfLab';
 import type {
@@ -465,8 +466,14 @@ const IvfLab: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 0 }}>
+    <div style={{ padding: 0, position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <h2><ExperimentOutlined /> Phong Lab IVF</h2>
+      </motion.div>
       <Tabs items={tabItems} defaultActiveKey="couples" />
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Tabs, Table, Input, Button, Tag, Descriptions, Form,
   DatePicker, Select, Modal, message,
   Drawer, Timeline, Spin, Badge, Tooltip, Dropdown, InputNumber, Alert,
@@ -1429,11 +1430,17 @@ ${conclusion ? `<div className="section">
   ];
 
   return (
-    <div style={{ height: '100%' }}>
+    <div style={{ position: 'relative', height: '100%', minHeight: '100vh' }}>
+      {/* Gradient mesh background */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
       <div className="flex gap-4 flex-wrap">
         {/* Left panel: Search + List */}
         <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3" style={{ height: '100%' }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3" style={{ height: '100%', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
             <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1"><FileTextOutlined /> Ho so benh an dien tu (EMR)</h4>
             {/* Search bar */}
             <div className="flex flex-col gap-2">
@@ -1469,6 +1476,7 @@ ${conclusion ? `<div className="section">
               scroll={{ y: 'calc(100vh - 340px)' }}
             />
           </div>
+          </motion.div>
         </div>
 
         {/* Right panel: Detail */}

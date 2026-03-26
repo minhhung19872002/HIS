@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Row,
@@ -73,6 +74,27 @@ const ISOLATION_TYPES = [
   { value: 'Airborne', label: 'Cách ly không khí' },
   { value: 'Protective', label: 'Cách ly bảo vệ' },
 ];
+
+const NumberTicker = ({ value, duration = 1000 }: { value: number; duration?: number }) => {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef<number>(0);
+  useEffect(() => {
+    const start = ref.current;
+    const diff = value - start;
+    if (diff === 0) return;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(start + diff * eased));
+      if (progress < 1) requestAnimationFrame(animate);
+      else ref.current = value;
+    };
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+  return <>{display.toLocaleString('vi-VN')}</>;
+};
 
 const InfectionControl: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -660,7 +682,13 @@ const InfectionControl: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div>
+      <div style={{ position: 'relative', minHeight: '100vh' }}>
+        {/* Gradient mesh background */}
+        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
             <Title level={4} style={{ margin: 0 }}>
@@ -673,48 +701,61 @@ const InfectionControl: React.FC = () => {
             </Button>
           </Col>
         </Row>
+        </motion.div>
 
         {/* Statistics */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={6}>
-            <Card>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}>
+            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Ca đang theo dõi"
                 value={activeCasesCount}
+                formatter={() => <NumberTicker value={activeCasesCount} />}
                 prefix={<BugOutlined style={{ color: '#ff4d4f' }} />}
                 styles={{ content: { color: '#ff4d4f' } }}
               />
             </Card>
+            </motion.div>
           </Col>
           <Col xs={24} sm={6}>
-            <Card>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
+            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Đã xác nhận"
                 value={confirmedCount}
+                formatter={() => <NumberTicker value={confirmedCount} />}
                 prefix={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
                 styles={{ content: { color: '#faad14' } }}
               />
             </Card>
+            </motion.div>
           </Col>
           <Col xs={24} sm={6}>
-            <Card>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}>
+            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Chờ điều tra"
                 value={pendingInvestigation}
+                formatter={() => <NumberTicker value={pendingInvestigation} />}
                 prefix={<AlertOutlined style={{ color: '#1890ff' }} />}
                 styles={{ content: { color: '#1890ff' } }}
               />
             </Card>
+            </motion.div>
           </Col>
           <Col xs={24} sm={6}>
-            <Card>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
+            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Đang cách ly"
                 value={activeIsolationsCount}
+                formatter={() => <NumberTicker value={activeIsolationsCount} />}
                 prefix={<SafetyOutlined style={{ color: '#722ed1' }} />}
                 styles={{ content: { color: '#722ed1' } }}
               />
             </Card>
+            </motion.div>
           </Col>
         </Row>
 

@@ -9,6 +9,7 @@ import {
   AlertOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { Alert, Badge } from 'antd';
+import { motion } from 'framer-motion';
 import type { ColumnsType } from 'antd/es/table';
 import {
   getPendingRequests,
@@ -505,6 +506,12 @@ const SigningWorkflow: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
+      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h4 className="text-lg font-semibold m-0">
           <SendOutlined /> Trinh ky
@@ -528,6 +535,7 @@ const SigningWorkflow: React.FC = () => {
           </Button>
         </div>
       </div>
+      </motion.div>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
@@ -638,6 +646,7 @@ const SigningWorkflow: React.FC = () => {
           placeholder="Nhap ly do tu choi..."
         />
       </Modal>
+      </div>
     </Spin>
   );
 };

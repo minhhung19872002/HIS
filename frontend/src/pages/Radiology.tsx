@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Table,
@@ -1652,6 +1653,11 @@ const Radiology: React.FC = () => {
   } : {};
 
   return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
     <div style={darkModeStyles} className={isDarkMode ? 'ris-dark-mode' : ''} data-testid="ris-page-container">
       {/* Dark mode style injection */}
       {isDarkMode && (
@@ -1681,6 +1687,7 @@ const Radiology: React.FC = () => {
           .ris-dark-mode .ant-table-pagination { background: transparent !important; }
         `}</style>
       )}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h4 className="text-lg font-semibold m-0">Quản lý Chẩn đoán Hình ảnh (RIS/PACS)</h4>
         <div className="flex items-center gap-2">
@@ -1698,8 +1705,9 @@ const Radiology: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={() => fetchRadiologyData()} size="small">Làm mới</Button>
         </div>
       </div>
+      </motion.div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -3518,6 +3526,7 @@ const Radiology: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

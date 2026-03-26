@@ -9,6 +9,7 @@ import {
   FileProtectOutlined, HistoryOutlined, DisconnectOutlined,
   LinkOutlined
 } from '@ant-design/icons';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as dsApi from '../api/digitalSignature';
 import type {
@@ -479,8 +480,15 @@ const DigitalSignature: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
+      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card
         title={<span><SafetyCertificateOutlined /> Chữ ký số (Digital Signature)</span>}
+        style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}
         extra={
           <Space>
             {isSessionActive ? (
@@ -521,6 +529,8 @@ const DigitalSignature: React.FC = () => {
           </Descriptions>
         )}
       </Modal>
+      </motion.div>
+      </div>
     </Spin>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Table,
@@ -533,9 +534,16 @@ const CommunityHealth: React.FC = () => {
   ];
 
   return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
     <Spin spinning={loading}>
       <div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <h4 className="text-lg font-semibold mb-4">Quan ly suc khoe cong dong</h4>
+        </motion.div>
         <div className="grid grid-cols-4 gap-4 mb-4">
           <div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -829,6 +837,7 @@ const CommunityHealth: React.FC = () => {
         </Modal>
       </div>
     </Spin>
+    </div>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Table,
@@ -1332,10 +1333,17 @@ const LabconnectTab: React.FC = () => {
 // ===========================
 const LISConfig: React.FC = () => {
   return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
     <div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Title level={4}>Cấu hình hệ thống xét nghiệm (LIS)</Title>
+      </motion.div>
 
-      <Card>
+      <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
         <Tabs
           items={[
             {
@@ -1376,6 +1384,7 @@ const LISConfig: React.FC = () => {
           ]}
         />
       </Card>
+    </div>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Row,
@@ -1643,14 +1644,21 @@ const HealthExchange: React.FC = () => {
   }
 
   return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
     <Spin spinning={loading && connections.length === 0}>
       <div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
           <Title level={3} style={{ margin: 0 }}>Liên thông Y tế (HIE)</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
             Làm mới
           </Button>
         </Space>
+        </motion.div>
 
         {/* Statistics */}
         <div className="grid grid-cols-4 gap-4">
@@ -1920,6 +1928,7 @@ const HealthExchange: React.FC = () => {
         </Drawer>
       </div>
     </Spin>
+    </div>
   );
 };
 

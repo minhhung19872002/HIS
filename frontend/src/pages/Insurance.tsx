@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   Table,
   Button,
@@ -1204,11 +1205,18 @@ const Insurance: React.FC = () => {
   );
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold text-gray-800 m-0">Giám định BHYT</h2>
-        <Button icon={<ReloadOutlined />} onClick={() => { fetchClaims(); fetchXmlBatches(); }} size="small">Làm mới</Button>
+    <div style={{ position: 'relative', minHeight: '100vh' }}>
+      {/* Gradient mesh background */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
       </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold text-gray-800 m-0">Giám định BHYT</h2>
+          <Button icon={<ReloadOutlined />} onClick={() => { fetchClaims(); fetchXmlBatches(); }} size="small">Làm mới</Button>
+        </div>
+      </motion.div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">

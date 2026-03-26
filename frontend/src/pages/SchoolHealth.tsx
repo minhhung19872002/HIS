@@ -33,6 +33,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as schoolHealthApi from '../api/schoolHealth';
 import type { SchoolExam, SchoolStats, School } from '../api/schoolHealth';
@@ -222,9 +223,14 @@ const SchoolHealth: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div>
+      <div style={{ position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        </div>
         {/* Header */}
-        <Card style={{ marginBottom: 16 }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <Card style={{ marginBottom: 16, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
           <Row justify="space-between" align="middle">
             <Col>
               <Title level={4} style={{ margin: 0 }}>
@@ -243,8 +249,10 @@ const SchoolHealth: React.FC = () => {
             </Col>
           </Row>
         </Card>
+        </motion.div>
 
         {/* Stats */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col xs={12} sm={6}>
             <Card>
@@ -267,9 +275,10 @@ const SchoolHealth: React.FC = () => {
             </Card>
           </Col>
         </Row>
+        </motion.div>
 
         {/* Filters */}
-        <Card style={{ marginBottom: 16 }}>
+        <Card style={{ marginBottom: 16, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
           <Row gutter={[16, 12]}>
             <Col xs={24} sm={8} md={6}>
               <Search

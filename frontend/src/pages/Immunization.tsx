@@ -35,6 +35,7 @@ import {
   CalendarOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as immunizationApi from '../api/immunization';
 import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../api/immunization';
@@ -403,8 +404,13 @@ const Immunization: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div>
-        <Card style={{ marginBottom: 16 }}>
+      <div style={{ position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <Card style={{ marginBottom: 16, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
           <Row justify="space-between" align="middle">
             <Col>
               <Title level={4} style={{ margin: 0 }}>
@@ -417,8 +423,9 @@ const Immunization: React.FC = () => {
             </Col>
           </Row>
         </Card>
+        </motion.div>
 
-        <Card>
+        <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
         </Card>
 

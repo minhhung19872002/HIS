@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { motion } from 'framer-motion';
 import * as envApi from '../api/environmentalHealth';
 import type { WasteRecord, MonitoringRecord, WasteStats, MonitoringStats, BiosafetyStatus } from '../api/environmentalHealth';
 
@@ -149,7 +150,12 @@ const EnvironmentalHealth: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div>
+      <div style={{ position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <Card style={{ marginBottom: 16 }}>
           <Row justify="space-between" align="middle">
             <Col><Title level={4} style={{ margin: 0 }}><CloudOutlined style={{ marginRight: 8 }} />Quản lý môi trường y tế</Title></Col>
@@ -162,6 +168,7 @@ const EnvironmentalHealth: React.FC = () => {
             </Col>
           </Row>
         </Card>
+        </motion.div>
 
         <Card style={{ marginBottom: 16 }}>
           <Row gutter={[16, 12]}>
@@ -174,6 +181,7 @@ const EnvironmentalHealth: React.FC = () => {
           </Row>
         </Card>
 
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col xs={12} sm={6}><Card><Statistic title="Thu gom tháng (kg)" value={wasteStats.totalCollectedThisMonth} prefix={<DeleteOutlined />} styles={{ content: { color: '#1890ff' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Không tuân thủ" value={wasteStats.nonCompliantItems} prefix={<WarningOutlined />} styles={{ content: { color: '#ff4d4f' } }} /></Card></Col>
@@ -182,6 +190,7 @@ const EnvironmentalHealth: React.FC = () => {
             prefix={biosafetyStatus.isCompliant ? <CheckCircleOutlined /> : <WarningOutlined />}
             styles={{ content: { color: biosafetyStatus.isCompliant ? '#52c41a' : '#ff4d4f' } }} /></Card></Col>
         </Row>
+        </motion.div>
 
         <Card>
           <Tabs activeKey={mainTab} onChange={setMainTab} items={[

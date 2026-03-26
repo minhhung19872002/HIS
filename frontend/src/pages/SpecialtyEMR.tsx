@@ -9,6 +9,7 @@ import {
   ReloadOutlined, FilePdfOutlined, FileExcelOutlined, DeleteOutlined,
   SaveOutlined, MedicineBoxOutlined,
 } from '@ant-design/icons';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import client from '../api/client';
@@ -532,10 +533,16 @@ const SpecialtyEMR: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: 16, position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <h4 className="text-lg font-semibold mb-4"><MedicineBoxOutlined /> Ho so benh an chuyen khoa</h4>
+      </motion.div>
 
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: 16, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
         <div className="grid grid-cols-4 gap-4 items-end">
           <div>
             <Text strong style={{ display: 'block', marginBottom: 4 }}>Tu khoa</Text>

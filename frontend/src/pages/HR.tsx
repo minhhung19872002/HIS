@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Row,
@@ -147,6 +148,27 @@ const LEAVE_STATUS_NAMES: Record<number, { color: string; text: string }> = {
   1: { color: 'green', text: 'Da duyet' },
   2: { color: 'red', text: 'Tu choi' },
   3: { color: 'default', text: 'Da huy' },
+};
+
+const NumberTicker = ({ value, duration = 1000 }: { value: number; duration?: number }) => {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef<number>(0);
+  useEffect(() => {
+    const start = ref.current;
+    const diff = value - start;
+    if (diff === 0) return;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(start + diff * eased));
+      if (progress < 1) requestAnimationFrame(animate);
+      else ref.current = value;
+    };
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+  return <>{display.toLocaleString('vi-VN')}</>;
 };
 
 const HR: React.FC = () => {
@@ -1159,22 +1181,35 @@ const HR: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div>
+      <div style={{ position: 'relative', minHeight: '100vh' }}>
+        {/* Gradient mesh background */}
+        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
           <Title level={4} style={{ margin: 0 }}>Quan ly nhan su y te</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         </Space>
+        </motion.div>
 
         {/* Statistics */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={8}>
-            <Card><Statistic title="Nhan vien dang lam viec" value={activeEmployees} prefix={<TeamOutlined style={{ color: '#52c41a' }} />} styles={{ content: { color: '#52c41a' } }} /></Card>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}>
+            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}><Statistic title="Nhan vien dang lam viec" value={activeEmployees} formatter={() => <NumberTicker value={activeEmployees} />} prefix={<TeamOutlined style={{ color: '#52c41a' }} />} styles={{ content: { color: '#52c41a' } }} /></Card>
+            </motion.div>
           </Col>
           <Col xs={24} sm={8}>
-            <Card><Statistic title="CCHN sap het han" value={licenseExpiringSoon} prefix={<SafetyCertificateOutlined style={{ color: '#faad14' }} />} styles={{ content: { color: '#faad14' } }} /></Card>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
+            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}><Statistic title="CCHN sap het han" value={licenseExpiringSoon} formatter={() => <NumberTicker value={licenseExpiringSoon} />} prefix={<SafetyCertificateOutlined style={{ color: '#faad14' }} />} styles={{ content: { color: '#faad14' } }} /></Card>
+            </motion.div>
           </Col>
           <Col xs={24} sm={8}>
-            <Card><Statistic title="CME chua du" value={cmeIncomplete} prefix={<BookOutlined style={{ color: '#ff4d4f' }} />} styles={{ content: { color: '#ff4d4f' } }} /></Card>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}>
+            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}><Statistic title="CME chua du" value={cmeIncomplete} formatter={() => <NumberTicker value={cmeIncomplete} />} prefix={<BookOutlined style={{ color: '#ff4d4f' }} />} styles={{ content: { color: '#ff4d4f' } }} /></Card>
+            </motion.div>
           </Col>
         </Row>
 

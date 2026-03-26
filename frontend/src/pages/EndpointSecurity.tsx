@@ -17,6 +17,7 @@ import {
   registerDevice, createIncident, resolveIncident,
   flagUnauthorized,
 } from '../api/endpointSecurity';
+import { motion } from 'framer-motion';
 
 const severityColors: Record<number, string> = { 1: 'red', 2: 'orange', 3: 'blue', 4: 'green' };
 const severityLabels: Record<number, string> = { 1: 'Nghiêm trọng', 2: 'Cao', 3: 'Trung bình', 4: 'Thấp' };
@@ -163,8 +164,13 @@ const EndpointSecurity: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ padding: 0 }}>
+      <div style={{ padding: 0, position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
         {/* Stats Cards */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={12} sm={6} md={6} lg={3}>
             <Card size="small"><Statistic title="Thiết bị" value={dashboard?.totalDevices ?? 0} prefix={<DesktopOutlined />} /></Card>
@@ -179,7 +185,9 @@ const EndpointSecurity: React.FC = () => {
             <Card size="small"><Statistic title="Tuân thủ" value={`${dashboard?.compliancePercent ?? 100}%`} styles={{ content: { color: (dashboard?.compliancePercent ?? 100) >= 90 ? '#52c41a' : '#f5222d' } }} /></Card>
           </Col>
         </Row>
+        </motion.div>
 
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <Card
           title={<Space orientation="horizontal"><SafetyCertificateOutlined /> An toàn thông tin</Space>}
           extra={<Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>}
@@ -254,6 +262,7 @@ const EndpointSecurity: React.FC = () => {
             },
           ]} />
         </Card>
+        </motion.div>
 
         {/* Register Device Modal */}
         <Modal title="Đăng ký thiết bị" open={deviceModalVisible} onCancel={() => setDeviceModalVisible(false)} onOk={() => deviceForm.submit()} okText="Đăng ký" cancelText="Hủy" width={600}>

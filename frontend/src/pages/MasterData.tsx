@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Table,
@@ -1954,11 +1955,18 @@ const MasterData: React.FC = () => {
   };
 
   return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
     <div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Quản lý Danh mục dùng chung</Title>
         <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>
       </div>
+      </motion.div>
 
       <Row gutter={16}>
         <Col span={6}>
@@ -2142,6 +2150,7 @@ const MasterData: React.FC = () => {
           {renderForm()}
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { MicrobiologyCulture, MicrobiologyOrganism, AntibioticSensitivity } from '../api/microbiology';
+import { motion } from 'framer-motion';
 import * as microApi from '../api/microbiology';
 
 const statusMap: Record<number, { text: string; color: string }> = {
@@ -144,6 +145,12 @@ const Microbiology: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
+      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card
         title={<span><BugOutlined /> Vi sinh (Microbiology)</span>}
         extra={
@@ -154,12 +161,14 @@ const Microbiology: React.FC = () => {
           </Space>
         }
       >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={6}><Statistic title="Tổng mẫu" value={cultures.length} prefix={<ExperimentOutlined />} /></Col>
           <Col span={6}><Statistic title="Chờ / Đang ủ" value={pendingCount} styles={{ content: { color: '#1890ff' } }} /></Col>
           <Col span={6}><Statistic title="Phát hiện VK" value={growthCount} styles={{ content: { color: '#fa8c16' } }} prefix={<BugOutlined />} /></Col>
           <Col span={6}><Statistic title="Hoàn thành" value={cultures.filter(c => c.status >= 3).length} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} /></Col>
         </Row>
+        </motion.div>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </Card>
 
@@ -253,6 +262,8 @@ const Microbiology: React.FC = () => {
         <Table columns={astColumns} dataSource={astData} rowKey="id" size="small" pagination={false}
           locale={{ emptyText: 'Chưa có kháng sinh đồ' }} />
       </Modal>
+    </motion.div>
+    </div>
     </Spin>
   );
 };

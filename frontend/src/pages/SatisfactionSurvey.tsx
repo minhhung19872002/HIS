@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   Card,
   Row,
@@ -612,16 +613,24 @@ const SatisfactionSurvey: React.FC = () => {
   ];
 
   return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+      </div>
     <Spin spinning={loading}>
       <div style={{ padding: 24 }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <Title level={3} style={{ margin: 0 }}>Khảo sát hài lòng</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
         </div>
+        </motion.div>
 
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={6}>
-            <Card size="small">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
+            <Card size="small" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Tổng khảo sát"
                 value={stats.totalSurveys}
@@ -629,18 +638,22 @@ const SatisfactionSurvey: React.FC = () => {
                 styles={{ content: { color: '#1890ff' } }}
               />
             </Card>
+            </motion.div>
           </Col>
           <Col span={6}>
-            <Card size="small">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+            <Card size="small" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Đã trả lời"
                 value={stats.totalResponses}
                 styles={{ content: { color: '#52c41a' } }}
               />
             </Card>
+            </motion.div>
           </Col>
           <Col span={6}>
-            <Card size="small">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+            <Card size="small" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Tỷ lệ hài lòng"
                 value={stats.satisfactionRate}
@@ -648,9 +661,11 @@ const SatisfactionSurvey: React.FC = () => {
                 styles={{ content: { color: stats.satisfactionRate >= 80 ? '#52c41a' : '#fa8c16' } }}
               />
             </Card>
+            </motion.div>
           </Col>
           <Col span={6}>
-            <Card size="small">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
+            <Card size="small" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
               <Statistic
                 title="Điểm trung bình"
                 value={stats.averageScore}
@@ -660,6 +675,7 @@ const SatisfactionSurvey: React.FC = () => {
                 styles={{ content: { color: stats.averageScore >= 4 ? '#52c41a' : stats.averageScore >= 3 ? '#fa8c16' : '#cf1322' } }}
               />
             </Card>
+            </motion.div>
           </Col>
         </Row>
 
@@ -781,6 +797,7 @@ const SatisfactionSurvey: React.FC = () => {
         </Drawer>
       </div>
     </Spin>
+    </div>
   );
 };
 

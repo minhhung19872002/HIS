@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   Tabs,
   Form,
@@ -1648,12 +1649,19 @@ const OPD: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div>
-          <h2 className="text-lg font-bold text-gray-800 mb-2">Khám bệnh ngoại trú</h2>
-        </div>
+    <div style={{ position: 'relative', padding: 24, minHeight: '100vh' }}>
+      {/* Gradient mesh background */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
       </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Khám bệnh ngoại trú</h2>
+          </div>
+        </div>
+      </motion.div>
 
       <div className="flex gap-4 flex-wrap">
         {/* Left Sidebar - Patient Selection */}

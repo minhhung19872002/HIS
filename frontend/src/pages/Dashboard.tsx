@@ -634,7 +634,7 @@ const Dashboard: React.FC = () => {
 
           {/* Sidebar */}
           <Col xs={24} lg={8}>
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={16} style={{ width: '100%' }}>
               {/* Mini PieChart - Patient Distribution */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}>
                 <Card style={glassStyle} styles={{ body: { padding: 16 } }}>
@@ -675,7 +675,7 @@ const Dashboard: React.FC = () => {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.5 }}>
                 <Card style={glassStyle} styles={{ body: { padding: 16 } }}>
                   <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 12 }}>Hoat dong hom nay</Text>
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%' }}>
                     <Row justify="space-between">
                       <Text type="secondary"><ArrowUpOutlined style={{ color: '#1890ff', marginRight: 6 }} />Nhap vien</Text>
                       <Text strong><NumberTicker value={data.admissionCount} /></Text>
@@ -746,7 +746,7 @@ const Dashboard: React.FC = () => {
                 styles={{ header: { border: 'none' }, body: { padding: '8px 24px 24px' } }}
               >
                 {data.outpatientByDepartment.length > 0 ? (
-                  <Space direction="vertical" size={10} style={{ width: '100%' }} className="dept-progress">
+                  <Space orientation="vertical" size={10} style={{ width: '100%' }} className="dept-progress">
                     {[...data.outpatientByDepartment]
                       .sort((a, b) => b.count - a.count)
                       .slice(0, 8)
@@ -783,7 +783,7 @@ const Dashboard: React.FC = () => {
                 styles={{ header: { border: 'none' }, body: { padding: '8px 24px 24px' } }}
               >
                 {data.revenueByDepartment.length > 0 ? (
-                  <Space direction="vertical" size={10} style={{ width: '100%' }} className="dept-progress">
+                  <Space orientation="vertical" size={10} style={{ width: '100%' }} className="dept-progress">
                     {[...data.revenueByDepartment]
                       .sort((a, b) => b.revenue - a.revenue)
                       .slice(0, 8)
