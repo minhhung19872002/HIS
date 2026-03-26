@@ -243,7 +243,7 @@ const CommunityHealth: React.FC = () => {
       dataIndex: 'assignedTeamName',
       key: 'assignedTeamName',
       width: 140,
-      render: (v: string) => v || <Text type="secondary">Chua phan cong</Text>,
+      render: (v: string) => v || <span className="text-gray-500">Chua phan cong</span>,
     },
     {
       title: 'Tham gan nhat',
@@ -262,7 +262,7 @@ const CommunityHealth: React.FC = () => {
           {r.hasChildUnder5 && <Tag color="cyan">Tre {'<'} 5t</Tag>}
           {r.hasPregnant && <Tag color="pink">Thai phu</Tag>}
           {r.hasChronicDisease && <Tag color="red">Benh man tinh</Tag>}
-        </Space>
+        </div>
       ),
     },
     {
@@ -270,10 +270,10 @@ const CommunityHealth: React.FC = () => {
       key: 'action',
       width: 100,
       render: (_: unknown, record: Household) => (
-        <Space size="small">
+        <div className="flex items-center gap-1">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewHousehold(record)} />
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditHousehold(record)} />
-        </Space>
+        </div>
       ),
     },
   ];
@@ -336,10 +336,10 @@ const CommunityHealth: React.FC = () => {
       key: 'cvdRisk',
       width: 120,
       render: (_: unknown, r: NcdScreening) => (
-        <Space>
-          <Text strong>{r.cvdRiskScore}%</Text>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{r.cvdRiskScore}%</span>
           <Tag color={RISK_COLORS[r.cvdRiskLevel] || 'default'}>{RISK_LABELS[r.cvdRiskLevel] || r.cvdRiskLevel}</Tag>
-        </Space>
+        </div>
       ),
     },
     {
@@ -451,7 +451,7 @@ const CommunityHealth: React.FC = () => {
               Them HGD
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </Space>
+          </div>
           <Table
             columns={householdColumns}
             dataSource={filteredHouseholds}
@@ -481,7 +481,7 @@ const CommunityHealth: React.FC = () => {
               Sang loc moi
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </Space>
+          </div>
           <Table
             columns={screeningColumns}
             dataSource={filteredScreenings}
@@ -506,7 +506,7 @@ const CommunityHealth: React.FC = () => {
               prefix={<SearchOutlined />}
             />
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </Space>
+          </div>
           <Table
             columns={teamColumns}
             dataSource={teams}
@@ -535,53 +535,33 @@ const CommunityHealth: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div>
-        <Title level={4}>Quan ly suc khoe cong dong</Title>
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Ho gia dinh"
-                value={stats?.totalHouseholds ?? 0}
-                prefix={<HomeOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Sang loc NCD"
-                value={stats?.screeningsThisMonth ?? 0}
-                prefix={<HeartOutlined />}
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Nguy co cao"
-                value={stats?.highRiskHouseholds ?? 0}
-                prefix={<WarningOutlined />}
-                styles={{ content: { color: '#ff4d4f' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Doi CSSKCD"
-                value={stats?.activeTeams ?? 0}
-                prefix={<TeamOutlined />}
-                styles={{ content: { color: '#13c2c2' } }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <h4 className="text-lg font-semibold mb-4">Quan ly suc khoe cong dong</h4>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Ho gia dinh</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><HomeOutlined className="mr-1" />{stats?.totalHouseholds ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Sang loc NCD</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><HeartOutlined className="mr-1" />{stats?.screeningsThisMonth ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Nguy co cao</div><div className="text-2xl font-semibold" style={{ color: '#ff4d4f' }}><WarningOutlined className="mr-1" />{stats?.highRiskHouseholds ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Doi CSSKCD</div><div className="text-2xl font-semibold" style={{ color: '#13c2c2' }}><TeamOutlined className="mr-1" />{stats?.activeTeams ?? 0}</div>
+            </div>
+          </div>
+        </div>
 
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        </Card>
+        </div>
 
         {/* Household Detail Modal */}
         <Modal
@@ -629,45 +609,45 @@ const CommunityHealth: React.FC = () => {
           destroyOnHidden
         >
           <Form form={householdForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="headName" label="Ten chu ho" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="phone" label="So dien thoai">
                   <Input />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="address" label="Dia chi" rules={[{ required: true, message: 'Bat buoc' }]}>
               <Input />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="ward" label="Phuong/Xa" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="district" label="Quan/Huyen">
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="province" label="Tinh/TP">
                   <Input />
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={8}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="memberCount" label="So thanh vien">
                   <InputNumber min={1} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="riskLevel" label="Muc do nguy co" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon">
                     <Select.Option value="Low">Thap</Select.Option>
@@ -676,8 +656,8 @@ const CommunityHealth: React.FC = () => {
                     <Select.Option value="VeryHigh">Rat cao</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="assignedTeamId" label="Doi phu trach">
                   <Select placeholder="Chon doi" allowClear>
                     {teams.map(t => (
@@ -685,14 +665,14 @@ const CommunityHealth: React.FC = () => {
                     ))}
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={6}><Form.Item name="hasElderlyMember" valuePropName="checked"><Checkbox>Nguoi cao tuoi</Checkbox></Form.Item></Col>
-              <Col span={6}><Form.Item name="hasChildUnder5" valuePropName="checked"><Checkbox>Tre &lt; 5 tuoi</Checkbox></Form.Item></Col>
-              <Col span={6}><Form.Item name="hasPregnant" valuePropName="checked"><Checkbox>Thai phu</Checkbox></Form.Item></Col>
-              <Col span={6}><Form.Item name="hasChronicDisease" valuePropName="checked"><Checkbox>Benh man tinh</Checkbox></Form.Item></Col>
-            </Row>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div><Form.Item name="hasElderlyMember" valuePropName="checked"><Checkbox>Nguoi cao tuoi</Checkbox></Form.Item></div>
+              <div><Form.Item name="hasChildUnder5" valuePropName="checked"><Checkbox>Tre &lt; 5 tuoi</Checkbox></Form.Item></div>
+              <div><Form.Item name="hasPregnant" valuePropName="checked"><Checkbox>Thai phu</Checkbox></Form.Item></div>
+              <div><Form.Item name="hasChronicDisease" valuePropName="checked"><Checkbox>Benh man tinh</Checkbox></Form.Item></div>
+            </div>
             <Form.Item name="notes" label="Ghi chu">
               <TextArea rows={2} />
             </Form.Item>
@@ -710,37 +690,37 @@ const CommunityHealth: React.FC = () => {
           destroyOnHidden
         >
           <Form form={screeningForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="patientName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="dateOfBirth" label="Ngay sinh">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="screeningDate" label="Ngay sang loc" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
 
-            <Divider>Huyet ap</Divider>
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Huyet ap</div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="systolicBP" label="HA tam thu (mmHg)" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <InputNumber min={60} max={300} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="diastolicBP" label="HA tam truong (mmHg)" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <InputNumber min={30} max={200} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="bpClassification" label="Phan loai">
                   <Select placeholder="Chon">
                     <Select.Option value="Normal">Binh thuong</Select.Option>
@@ -750,60 +730,60 @@ const CommunityHealth: React.FC = () => {
                     <Select.Option value="Crisis">Con THA</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
 
-            <Divider>Duong huyet</Divider>
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Duong huyet</div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="fastingGlucose" label="Glucose luc doi (mmol/L)">
                   <InputNumber min={0} max={50} step={0.1} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="randomGlucose" label="Glucose bat ky (mmol/L)">
                   <InputNumber min={0} max={50} step={0.1} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="hba1c" label="HbA1c (%)">
                   <InputNumber min={0} max={20} step={0.1} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
 
-            <Divider>Chi so co the</Divider>
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Chi so co the</div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="height" label="Chieu cao (cm)" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <InputNumber min={50} max={250} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="weight" label="Can nang (kg)" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <InputNumber min={1} max={300} step={0.1} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item label="BMI (tu tinh)">
-                  <Text type="secondary">Se tinh tu dong khi luu</Text>
+                  <span className="text-gray-500">Se tinh tu dong khi luu</span>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
 
-            <Divider>Yeu to nguy co</Divider>
-            <Row gutter={16}>
-              <Col span={6}>
+            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Yeu to nguy co</div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="isSmoker" valuePropName="checked">
                   <Checkbox>Hut thuoc</Checkbox>
                 </Form.Item>
-              </Col>
-              <Col span={6}>
+              </div>
+              <div>
                 <Form.Item name="familyHistoryCVD" valuePropName="checked">
                   <Checkbox>Tien su gia dinh CVD</Checkbox>
                 </Form.Item>
-              </Col>
-              <Col span={6}>
+              </div>
+              <div>
                 <Form.Item name="alcoholUse" label="Ruou bia">
                   <Select placeholder="Chon">
                     <Select.Option value="None">Khong</Select.Option>
@@ -812,8 +792,8 @@ const CommunityHealth: React.FC = () => {
                     <Select.Option value="Heavy">Nhieu</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={6}>
+              </div>
+              <div>
                 <Form.Item name="physicalActivity" label="Van dong">
                   <Select placeholder="Chon">
                     <Select.Option value="Active">Tich cuc</Select.Option>
@@ -821,27 +801,27 @@ const CommunityHealth: React.FC = () => {
                     <Select.Option value="Sedentary">It van dong</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
 
-            <Divider>Theo doi</Divider>
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Theo doi</div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="followUpRequired" valuePropName="checked">
                   <Checkbox>Can theo doi</Checkbox>
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="followUpDate" label="Ngay hen">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="referralRequired" valuePropName="checked">
                   <Checkbox>Can chuyen tuyen</Checkbox>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="followUpNotes" label="Ghi chu">
               <TextArea rows={2} />
             </Form.Item>

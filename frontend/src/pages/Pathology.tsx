@@ -264,7 +264,7 @@ const Pathology: React.FC = () => {
       key: 'actions',
       width: 150,
       render: (_: unknown, record: PathologyRequest) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button
             type="link"
             size="small"
@@ -293,7 +293,7 @@ const Pathology: React.FC = () => {
               In
             </Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -311,26 +311,26 @@ const Pathology: React.FC = () => {
     <Spin spinning={loading}>
       <div>
         {/* Header */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Title level={4} style={{ margin: 0 }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className="text-lg font-semibold m-0">
                 <ExperimentOutlined style={{ marginRight: 8 }} />
                 Giải phẫu bệnh & Tế bào học
-              </Title>
-            </Col>
-            <Col>
+              </h4>
+            </div>
+            <div>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>
                 Làm mới
               </Button>
-            </Col>
-          </Row>
-        </Card>
+            </div>
+          </div>
+        </div>
 
         {/* Filters */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row gutter={[16, 12]}>
-            <Col xs={24} sm={8} md={6}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Search
                 placeholder="Tìm kiếm bệnh nhân, mã YC..."
                 value={keyword}
@@ -339,8 +339,8 @@ const Pathology: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </Col>
-            <Col xs={12} sm={8} md={4}>
+            </div>
+            <div>
               <Select
                 placeholder="Loại mẫu"
                 allowClear
@@ -354,9 +354,9 @@ const Pathology: React.FC = () => {
                   { value: 'frozenSection', label: 'Cắt lạnh' },
                 ]}
               />
-            </Col>
+            </div>
             {activeTab === 'all' && (
-              <Col xs={12} sm={8} md={4}>
+              <div>
                 <Select
                   placeholder="Trạng thái"
                   allowClear
@@ -371,65 +371,45 @@ const Pathology: React.FC = () => {
                     { value: 4, label: 'Đã xác nhận' },
                   ]}
                 />
-              </Col>
+              </div>
             )}
-            <Col xs={24} sm={8} md={6}>
+            <div>
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange}
                 onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                 format="DD/MM/YYYY"
               />
-            </Col>
-          </Row>
-        </Card>
+            </div>
+          </div>
+        </div>
 
         {/* Statistics */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Tổng mẫu"
-                value={stats.totalRequests}
-                prefix={<ExperimentOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Chờ xử lý"
-                value={stats.pendingCount}
-                prefix={<ClockCircleOutlined />}
-                styles={{ content: { color: '#faad14' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Đang XL"
-                value={processingCount}
-                prefix={<FileSearchOutlined />}
-                styles={{ content: { color: '#722ed1' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Đã hoàn thành"
-                value={stats.completedCount}
-                prefix={<CheckCircleOutlined />}
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Tổng mẫu</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><ExperimentOutlined className="mr-1" />{stats.totalRequests}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Chờ xử lý</div><div className="text-2xl font-semibold" style={{ color: '#faad14' }}><ClockCircleOutlined className="mr-1" />{stats.pendingCount}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Đang XL</div><div className="text-2xl font-semibold" style={{ color: '#722ed1' }}><FileSearchOutlined className="mr-1" />{processingCount}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Đã hoàn thành</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.completedCount}</div>
+            </div>
+          </div>
+        </div>
 
         {/* Tabs + Table */}
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -476,7 +456,7 @@ const Pathology: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
           />
-        </Card>
+        </div>
 
         {/* Detail Modal */}
         <Modal
@@ -560,10 +540,10 @@ const Pathology: React.FC = () => {
                 </Descriptions.Item>
                 <Descriptions.Item label="Vị trí">{selectedRequest.specimenSite || '-'}</Descriptions.Item>
               </Descriptions>
-              <Divider />
+              <hr className="border-t border-gray-200 my-4" />
               <Form form={resultForm} layout="vertical">
-                <Row gutter={16}>
-                  <Col span={24}>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="col-span-2">
                     <Form.Item
                       name="grossDescription"
                       label="Mô tả đại thể"
@@ -571,8 +551,8 @@ const Pathology: React.FC = () => {
                     >
                       <TextArea rows={3} placeholder="Mô tả hình thái, kích thước, màu sắc, mặt cắt mẫu bệnh phẩm..." />
                     </Form.Item>
-                  </Col>
-                  <Col span={24}>
+                  </div>
+                  <div className="col-span-2">
                     <Form.Item
                       name="microscopicDescription"
                       label="Mô tả vi thể"
@@ -580,8 +560,8 @@ const Pathology: React.FC = () => {
                     >
                       <TextArea rows={3} placeholder="Mô tả cấu trúc mô học dưới kính hiển vi..." />
                     </Form.Item>
-                  </Col>
-                  <Col span={24}>
+                  </div>
+                  <div className="col-span-2">
                     <Form.Item
                       name="diagnosis"
                       label="Chẩn đoán giải phẫu bệnh"
@@ -589,13 +569,13 @@ const Pathology: React.FC = () => {
                     >
                       <TextArea rows={2} placeholder="Kết luận chẩn đoán giải phẫu bệnh..." />
                     </Form.Item>
-                  </Col>
-                  <Col span={12}>
+                  </div>
+                  <div>
                     <Form.Item name="icdCode" label="Mã ICD">
                       <Input placeholder="VD: C34.1" />
                     </Form.Item>
-                  </Col>
-                  <Col span={12}>
+                  </div>
+                  <div>
                     <Form.Item name="stainingMethods" label="Phương pháp nhuộm">
                       <Select
                         mode="multiple"
@@ -603,38 +583,38 @@ const Pathology: React.FC = () => {
                         options={STAINING_OPTIONS}
                       />
                     </Form.Item>
-                  </Col>
-                  <Col span={8}>
+                  </div>
+                  <div>
                     <Form.Item name="slideCount" label="Số lam kính">
                       <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
                     </Form.Item>
-                  </Col>
-                  <Col span={8}>
+                  </div>
+                  <div>
                     <Form.Item name="blockCount" label="Số block">
                       <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
                     </Form.Item>
-                  </Col>
-                  <Col span={8}>
+                  </div>
+                  <div>
                     <Form.Item name="pathologist" label="BS giải phẫu bệnh">
                       <Input placeholder="Tên bác sĩ" />
                     </Form.Item>
-                  </Col>
-                  <Col span={24}>
+                  </div>
+                  <div className="col-span-2">
                     <Form.Item name="specialStains" label="Nhuộm đặc biệt">
                       <TextArea rows={2} placeholder="Kết quả nhuộm đặc biệt (nếu có)..." />
                     </Form.Item>
-                  </Col>
-                  <Col span={24}>
+                  </div>
+                  <div className="col-span-2">
                     <Form.Item name="immunohistochemistry" label="Hóa mô miễn dịch (IHC)">
                       <TextArea rows={2} placeholder="Kết quả IHC: marker, cường độ, tỷ lệ dương tính..." />
                     </Form.Item>
-                  </Col>
-                  <Col span={24}>
+                  </div>
+                  <div className="col-span-2">
                     <Form.Item name="molecularTests" label="Xét nghiệm phân tử">
                       <TextArea rows={2} placeholder="Kết quả xét nghiệm phân tử/gen (nếu có)..." />
                     </Form.Item>
-                  </Col>
-                </Row>
+                  </div>
+                </div>
               </Form>
             </>
           )}

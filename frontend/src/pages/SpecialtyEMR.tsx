@@ -414,15 +414,15 @@ const renderField = (field: FieldDef): React.ReactNode => {
 
 const renderSpecialtySection = (specialtyKey: string): React.ReactNode => {
   const config = SPECIALTY_FIELDS[specialtyKey];
-  if (!config) return <Alert title="Vui long chon chuyen khoa" type="info" showIcon />;
+  if (!config) return <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-blue-700">Vui long chon chuyen khoa</div>;
   return (
     <>
-      <Divider>{config.title}</Divider>
-      <Row gutter={16}>
+      <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">{config.title}</div>
+      <div className="grid grid-cols-4 gap-4">
         {config.fields.map(field => (
-          <Col span={field.span || 24} key={field.name}>{renderField(field)}</Col>
+          <div>{renderField(field)}</div>
         ))}
-      </Row>
+      </div>
     </>
   );
 };
@@ -522,58 +522,58 @@ const SpecialtyEMR: React.FC = () => {
       render: (v: number) => <Tag color={statusColors[v] || 'default'}>{statusNames[v] || 'N/A'}</Tag> },
     { title: 'Thao tac', key: 'actions', width: 180, fixed: 'right' as const,
       render: (_: unknown, rec: SpecialtyRecordDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Tooltip title="Sua"><Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(rec)} /></Tooltip>
           <Tooltip title="PDF"><Button type="link" size="small" icon={<FilePdfOutlined />} onClick={() => handleExport(rec.id, 'pdf')} /></Tooltip>
           <Tooltip title="XML"><Button type="link" size="small" icon={<FileExcelOutlined />} onClick={() => handleExport(rec.id, 'xml')} /></Tooltip>
           <Tooltip title="Xoa"><Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(rec)} /></Tooltip>
-        </Space>
+        </div>
       ) },
   ];
 
   return (
     <div style={{ padding: 16 }}>
-      <Title level={4}><MedicineBoxOutlined /> Ho so benh an chuyen khoa</Title>
+      <h4 className="text-lg font-semibold mb-4"><MedicineBoxOutlined /> Ho so benh an chuyen khoa</h4>
 
       <Card size="small" style={{ marginBottom: 16 }}>
-        <Row gutter={[16, 12]} align="bottom">
-          <Col xs={24} sm={12} md={6}>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>Tu khoa</Text>
+        <div className="grid grid-cols-4 gap-4 items-end">
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Tu khoa</span>
             <Input placeholder="Ma BN, ho ten, CCCD..." prefix={<SearchOutlined />}
               value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
               onPressEnter={() => handleSearch(1)} allowClear />
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>Chuyen khoa</Text>
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Chuyen khoa</span>
             <Select placeholder="Tat ca chuyen khoa" value={specialtyFilter}
               onChange={v => setSpecialtyFilter(v)} allowClear style={{ width: '100%' }}
               options={SPECIALTY_TYPES.map(s => ({ value: s.key, label: s.label }))} />
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>Khoang thoi gian</Text>
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Khoang thoi gian</span>
             <RangePicker value={dateRange} onChange={v => setDateRange(v as [Dayjs | null, Dayjs | null])}
               format="DD/MM/YYYY" style={{ width: '100%' }} />
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Space>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
               <Button type="primary" icon={<SearchOutlined />} onClick={() => handleSearch(1)}>Tim kiem</Button>
               <Button icon={<ReloadOutlined />} onClick={() => handleSearch(currentPage)}>Lam moi</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>Tao moi</Button>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <Card size="small">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <Spin spinning={loading}>
           {records.length === 0 && !loading
-            ? <Empty description="Khong co du lieu. Nhan Tim kiem hoac Tao moi de bat dau." />
+            ? <div className="text-center text-gray-400 py-8">Khong co du lieu. Nhan Tim kiem hoac Tao moi de bat dau.</div>
             : <Table dataSource={records} columns={columns} rowKey="id" size="small" scroll={{ x: 1000 }}
                 pagination={{ current: currentPage, pageSize, total: totalCount,
                   showTotal: t => `Tong: ${t} ban ghi`, onChange: p => handleSearch(p) }}
                 onRow={r => ({ onDoubleClick: () => handleEdit(r), style: { cursor: 'pointer' } })} />}
         </Spin>
-      </Card>
+      </div>
 
       <Modal title={selectedRecord ? 'Chinh sua ho so chuyen khoa' : 'Tao ho so chuyen khoa moi'}
         open={modalOpen} onCancel={() => setModalOpen(false)} width={900} destroyOnHidden
@@ -583,26 +583,26 @@ const SpecialtyEMR: React.FC = () => {
           <Button key="save" type="primary" icon={<SaveOutlined />} loading={formLoading} onClick={handleSave}>Luu</Button>,
         ]}>
         <Form form={form} layout="vertical" size="small">
-          <Divider>Thong tin chung</Divider>
-          <Row gutter={16}>
-            <Col span={8}><Form.Item name="patientCode" label="Ma benh nhan" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ma BN" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="patientName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ho ten BN" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="createdAt" label="Ngay tao"><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item></Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}><Form.Item name="doctorName" label="BS dieu tri"><Input placeholder="Ten bac si" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="departmentName" label="Khoa/Phong"><Input placeholder="Khoa" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="diagnosisIcd" label="ICD-10"><Input placeholder="VD: J18.9" /></Form.Item></Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={16}><Form.Item name="diagnosisText" label="Chan doan"><Input placeholder="Mo ta chan doan" /></Form.Item></Col>
-            <Col span={8}>
+          <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Thong tin chung</div>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="patientCode" label="Ma benh nhan" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ma BN" /></Form.Item></div>
+            <div><Form.Item name="patientName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ho ten BN" /></Form.Item></div>
+            <div><Form.Item name="createdAt" label="Ngay tao"><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item></div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="doctorName" label="BS dieu tri"><Input placeholder="Ten bac si" /></Form.Item></div>
+            <div><Form.Item name="departmentName" label="Khoa/Phong"><Input placeholder="Khoa" /></Form.Item></div>
+            <div><Form.Item name="diagnosisIcd" label="ICD-10"><Input placeholder="VD: J18.9" /></Form.Item></div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-2"><Form.Item name="diagnosisText" label="Chan doan"><Input placeholder="Mo ta chan doan" /></Form.Item></div>
+            <div>
               <Form.Item label="Chuyen khoa">
                 <Select value={modalSpecialty} onChange={v => setModalSpecialty(v)}
                   options={SPECIALTY_TYPES.map(s => ({ value: s.key, label: s.label }))} />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           {renderSpecialtySection(modalSpecialty)}
         </Form>
       </Modal>
@@ -619,7 +619,7 @@ const SpecialtyEMR: React.FC = () => {
             <Descriptions.Item label="Chan doan">{selectedRecord.diagnosisText}</Descriptions.Item>
             <Descriptions.Item label="Trang thai"><Tag color={statusColors[selectedRecord.status]}>{statusNames[selectedRecord.status]}</Tag></Descriptions.Item>
           </Descriptions>
-        </Card>
+        </div>
       )}
     </div>
   );

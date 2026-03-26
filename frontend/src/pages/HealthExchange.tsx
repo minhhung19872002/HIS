@@ -503,10 +503,10 @@ const HealthExchange: React.FC = () => {
       dataIndex: 'connectionName',
       key: 'connectionName',
       render: (text: string) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <ApiOutlined />
-          <Text strong>{text}</Text>
-        </Space>
+          <span className="font-semibold">{text}</span>
+        </div>
       ),
     },
     {
@@ -539,7 +539,7 @@ const HealthExchange: React.FC = () => {
       title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: HIEConnectionDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button
             type="link"
             icon={<SyncOutlined />}
@@ -554,7 +554,7 @@ const HealthExchange: React.FC = () => {
           >
             Test
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -604,7 +604,7 @@ const HealthExchange: React.FC = () => {
       title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: InsuranceSubmissionDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button type="link" icon={<FileTextOutlined />}>
             Xem
           </Button>
@@ -626,7 +626,7 @@ const HealthExchange: React.FC = () => {
               Gửi lại
             </Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -690,7 +690,7 @@ const HealthExchange: React.FC = () => {
       title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: ElectronicReferralDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button type="link" icon={<FileTextOutlined />}>
             Chi tiết
           </Button>
@@ -729,7 +729,7 @@ const HealthExchange: React.FC = () => {
           >
             In
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -789,7 +789,7 @@ const HealthExchange: React.FC = () => {
       title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: TeleconsultationRequestDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           {record.status === 2 && record.videoRoomUrl && (
             <Button
               type="primary"
@@ -817,7 +817,7 @@ const HealthExchange: React.FC = () => {
           <Button type="link" icon={<FileTextOutlined />}>
             Chi tiết
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1039,7 +1039,7 @@ const HealthExchange: React.FC = () => {
             <Button icon={<SyncOutlined />} onClick={fetchData}>
               Đồng bộ tất cả
             </Button>
-          </Space>
+          </div>
           <Table
             columns={submissionColumns}
             dataSource={submissions}
@@ -1098,7 +1098,7 @@ const HealthExchange: React.FC = () => {
             <Button icon={<PrinterOutlined />} onClick={handlePrintReferral}>
               In mẫu
             </Button>
-          </Space>
+          </div>
           <Table
             columns={referralColumns}
             dataSource={referrals}
@@ -1173,7 +1173,7 @@ const HealthExchange: React.FC = () => {
             >
               Yêu cầu hội chẩn
             </Button>
-          </Space>
+          </div>
           <Table
             columns={consultationColumns}
             dataSource={consultations}
@@ -1262,14 +1262,14 @@ const HealthExchange: React.FC = () => {
                 {fhirMetadata.rest[0].resource.map(r => (
                   <Tag key={r.type} color="blue">{r.type} ({r.interaction?.map(i => i.code).join(', ')})</Tag>
                 ))}
-              </Space>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Search Section */}
           <Card size="small" title="Tìm kiếm FHIR Resources" style={{ marginBottom: 16 }}>
-            <Row gutter={[16, 8]}>
-              <Col span={6}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Select
                   value={fhirSearchType}
                   onChange={(val) => { setFhirSearchType(val); setFhirSearchParams({}); }}
@@ -1279,24 +1279,24 @@ const HealthExchange: React.FC = () => {
                     <Select.Option key={rt} value={rt}>{rt}</Select.Option>
                   ))}
                 </Select>
-              </Col>
+              </div>
               {fhirResourceSearchParams[fhirSearchType]?.map(param => (
-                <Col span={6} key={param.name}>
+                <div>
                   <Input
                     placeholder={param.placeholder}
                     value={fhirSearchParams[param.name] || ''}
                     onChange={e => setFhirSearchParams(prev => ({ ...prev, [param.name]: e.target.value }))}
                     onPressEnter={handleFhirSearch}
                   />
-                </Col>
+                </div>
               ))}
-              <Col>
+              <div>
                 <Button type="primary" icon={<SearchOutlined />} onClick={handleFhirSearch} loading={fhirSearchLoading}>
                   Tìm kiếm
                 </Button>
-              </Col>
-            </Row>
-          </Card>
+              </div>
+            </div>
+          </div>
 
           {/* Search Results */}
           {fhirSearchResults && (
@@ -1327,14 +1327,14 @@ const HealthExchange: React.FC = () => {
                 pagination={{ pageSize: 10, size: 'small' }}
                 size="small"
               />
-            </Card>
+            </div>
           )}
 
           {/* Export Patient Bundle */}
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Card size="small" title="Xuất dữ liệu FHIR Bundle">
-                <Space>
+                <div className="flex items-center gap-2">
                   <Input
                     placeholder="Patient ID (GUID)"
                     value={fhirExportPatientId}
@@ -1349,17 +1349,17 @@ const HealthExchange: React.FC = () => {
                   >
                     Xuất Bundle
                   </Button>
-                </Space>
+                </div>
                 <div style={{ marginTop: 8 }}>
                   <Typography.Text type="secondary">
                     Thu thap tat ca Patient, Encounter, Observation, MedicationRequest, Condition, AllergyIntolerance, Procedure, DiagnosticReport
                   </Typography.Text>
                 </div>
-              </Card>
-            </Col>
-            <Col span={12}>
+              </div>
+            </div>
+            <div>
               <Card size="small" title="Kết nối FHIR Server ngoài">
-                <Space>
+                <div className="flex items-center gap-2">
                   <Input
                     placeholder="https://other-hospital.vn/fhir"
                     value={fhirExternalUrl}
@@ -1373,16 +1373,16 @@ const HealthExchange: React.FC = () => {
                   >
                     Test
                   </Button>
-                </Space>
+                </div>
                 {fhirExternalStatus === 'success' && (
                   <Alert title="Kết nối thành công" type="success" showIcon style={{ marginTop: 8 }} />
                 )}
                 {fhirExternalStatus === 'error' && (
                   <Alert title="Kết nối thất bại" type="error" showIcon style={{ marginTop: 8 }} />
                 )}
-              </Card>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
         </div>
       ),
     },
@@ -1397,24 +1397,24 @@ const HealthExchange: React.FC = () => {
         <Spin spinning={nationalRxLoading}>
           {/* Stats */}
           {nationalRxStats && (
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="Đã gửi" value={nationalRxStats.totalSubmitted} styles={{ content: { color: '#1890ff' } }} /></Card>
-              </Col>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="Chấp nhận" value={nationalRxStats.totalAccepted} styles={{ content: { color: '#52c41a' } }} /></Card>
-              </Col>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="Từ chối" value={nationalRxStats.totalRejected} styles={{ content: { color: '#ff4d4f' } }} /></Card>
-              </Col>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="Chờ xử lý" value={nationalRxStats.totalPending} styles={{ content: { color: '#faad14' } }} /></Card>
-              </Col>
-            </Row>
+            <div className="grid grid-cols-4 gap-4 mb-4">
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Đã gửi" value={nationalRxStats.totalSubmitted} styles={{ content: { color: '#1890ff' } }} /></div>
+              </div>
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Chấp nhận" value={nationalRxStats.totalAccepted} styles={{ content: { color: '#52c41a' } }} /></div>
+              </div>
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Từ chối" value={nationalRxStats.totalRejected} styles={{ content: { color: '#ff4d4f' } }} /></div>
+              </div>
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Chờ xử lý" value={nationalRxStats.totalPending} styles={{ content: { color: '#faad14' } }} /></div>
+              </div>
+            </div>
           )}
           {/* Filters */}
-          <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col flex="auto">
+          <div className="grid grid-cols-4 gap-4 mb-4">
+            <div className="flex-1">
               <Space wrap>
                 <Select
                   placeholder="Trạng thái"
@@ -1435,10 +1435,10 @@ const HealthExchange: React.FC = () => {
                   style={{ width: 250 }}
                   onSearch={(v) => setNationalRxSearch(s => ({ ...s, keyword: v || undefined, pageIndex: 0 }))}
                 />
-              </Space>
-            </Col>
-            <Col>
-              <Space>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
                 <Button
                   type="primary"
                   icon={<SendOutlined />}
@@ -1450,9 +1450,9 @@ const HealthExchange: React.FC = () => {
                 <Button icon={<SyncOutlined />} onClick={() => { nationalRxApi.testConnection().then(r => { message.info(`Kết nối: ${r.connected ? 'OK' : 'Lỗi'} (${r.latencyMs}ms)`); }).catch(() => message.warning('Không thể kết nối')); }}>
                   Test kết nối
                 </Button>
-              </Space>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
           {/* Table */}
           <Table
             columns={[
@@ -1472,14 +1472,14 @@ const HealthExchange: React.FC = () => {
               {
                 title: 'Thao tác', key: 'action', width: 100,
                 render: (_: unknown, record: NationalPrescriptionDto) => (
-                  <Space size={4}>
+                  <div className="flex items-center gap-1">
                     {record.status === 0 && (
                       <Button size="small" type="primary" icon={<SendOutlined />} onClick={() => handleSubmitNationalRx(record.id)}>Gửi</Button>
                     )}
                     {record.status === 3 && (
                       <Button size="small" icon={<SyncOutlined />} onClick={() => nationalRxApi.retrySubmission(record.id).then(() => { message.success('Đã gửi lại'); fetchNationalRx(); }).catch(() => message.warning('Lỗi'))}>Gửi lại</Button>
                     )}
-                  </Space>
+                  </div>
                 ),
               },
             ] as ColumnsType<NationalPrescriptionDto>}
@@ -1515,24 +1515,24 @@ const HealthExchange: React.FC = () => {
         <Spin spinning={provLoading}>
           {/* Stats */}
           {provStats && (
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="BC tháng này" value={provStats.totalReportsThisMonth} styles={{ content: { color: '#1890ff' } }} /></Card>
-              </Col>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="Đã gửi" value={provStats.totalSubmitted} styles={{ content: { color: '#52c41a' } }} /></Card>
-              </Col>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="Chờ xử lý" value={provStats.totalPending} styles={{ content: { color: '#faad14' } }} /></Card>
-              </Col>
-              <Col xs={12} sm={6}>
-                <Card size="small"><Statistic title="Bệnh truyền nhiễm" value={provStats.infectiousDiseaseAlerts} styles={{ content: { color: provStats.infectiousDiseaseAlerts > 0 ? '#ff4d4f' : '#52c41a' } }} /></Card>
-              </Col>
-            </Row>
+            <div className="grid grid-cols-4 gap-4 mb-4">
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="BC tháng này" value={provStats.totalReportsThisMonth} styles={{ content: { color: '#1890ff' } }} /></div>
+              </div>
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Đã gửi" value={provStats.totalSubmitted} styles={{ content: { color: '#52c41a' } }} /></div>
+              </div>
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Chờ xử lý" value={provStats.totalPending} styles={{ content: { color: '#faad14' } }} /></div>
+              </div>
+              <div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Bệnh truyền nhiễm" value={provStats.infectiousDiseaseAlerts} styles={{ content: { color: provStats.infectiousDiseaseAlerts > 0 ? '#ff4d4f' : '#52c41a' } }} /></div>
+              </div>
+            </div>
           )}
           {/* Actions */}
-          <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col flex="auto">
+          <div className="grid grid-cols-4 gap-4 mb-4">
+            <div className="flex-1">
               <Space wrap>
                 <Select
                   placeholder="Loại báo cáo"
@@ -1561,18 +1561,18 @@ const HealthExchange: React.FC = () => {
                     { value: 3, label: 'Từ chối' },
                   ]}
                 />
-              </Space>
-            </Col>
-            <Col>
-              <Space>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
                 <Button type="primary" icon={<FileTextOutlined />} onClick={() => handleGenerateProvReport(3)}>Tạo BC tháng</Button>
                 <Button icon={<FileTextOutlined />} onClick={() => handleGenerateProvReport(1)}>Tạo BC ngày</Button>
                 <Button icon={<SyncOutlined />} onClick={() => { provincialApi.testConnection().then(r => { message.info(`Kết nối Sở Y tế: ${r.connected ? 'OK' : 'Lỗi'} (${r.latencyMs}ms)`); }).catch(() => message.warning('Không thể kết nối')); }}>
                   Test kết nối
                 </Button>
-              </Space>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
           {/* Reports Table */}
           <Table
             columns={[
@@ -1646,16 +1646,16 @@ const HealthExchange: React.FC = () => {
     <Spin spinning={loading && connections.length === 0}>
       <div>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-          <Title level={3} style={{ margin: 0 }}>Liên thông Y tế (HIE)</Title>
+          <Title level={3} style={{ margin: 0 }}>Liên thông Y tế (HIE)</h4>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
             Làm mới
           </Button>
-        </Space>
+        </div>
 
         {/* Statistics */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
-            <Card>
+        <div className="grid grid-cols-4 gap-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic
                 title="Kết nối hoạt động"
                 value={connectedCount}
@@ -1663,38 +1663,29 @@ const HealthExchange: React.FC = () => {
                 prefix={<ApiOutlined />}
                 styles={{ content: { color: connectedCount === totalConnections ? '#3f8600' : '#faad14' } }}
               />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Dữ liệu chờ xử lý"
-                value={pendingSubmissions}
-                prefix={<ClockCircleOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Dữ liệu chờ xử lý</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><ClockCircleOutlined className="mr-1" />{pendingSubmissions}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic
                 title="Chuyển viện chờ"
                 value={activeReferrals}
                 suffix={`/ ${referrals.length}`}
                 prefix={<SwapOutlined />}
               />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Hội chẩn từ xa"
-                value={activeConsultations}
-                prefix={<TeamOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Hội chẩn từ xa</div><div className="text-2xl font-semibold"><TeamOutlined className="mr-1" />{activeConsultations}</div>
+            </div>
+          </div>
+        </div>
 
         {/* Dashboard alerts */}
         {dashboard?.alerts && dashboard.alerts.length > 0 && (
@@ -1709,9 +1700,9 @@ const HealthExchange: React.FC = () => {
         )}
 
         {/* Main Content */}
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs items={tabItems} />
-        </Card>
+        </div>
 
         {/* Referral Modal */}
         <Modal
@@ -1722,25 +1713,25 @@ const HealthExchange: React.FC = () => {
           width={700}
         >
           <Form form={referralForm} layout="vertical" onFinish={handleCreateReferral}>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="patientId" label="Mã bệnh nhân" rules={[{ required: true }]}>
                   <Input placeholder="Nhập mã bệnh nhân" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="destinationFacilityCode" label="Mã BV tiếp nhận" rules={[{ required: true }]}>
                   <Input placeholder="Mã cơ sở tiếp nhận" />
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="destinationDepartment" label="Khoa tiếp nhận">
                   <Input placeholder="Khoa tiếp nhận (tùy chọn)" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="urgency" label="Mức độ khẩn cấp" rules={[{ required: true }]}>
                   <Select placeholder="Chọn mức độ">
                     <Select.Option value={1}>Thường quy</Select.Option>
@@ -1748,38 +1739,38 @@ const HealthExchange: React.FC = () => {
                     <Select.Option value={3}>Cấp cứu</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="diagnosis" label="Chẩn đoán" rules={[{ required: true }]}>
                   <Input placeholder="Chẩn đoán chính" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="diagnosisIcd" label="Mã ICD">
                   <Input placeholder="VD: J18.9" />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="reason" label="Lý do chuyển viện" rules={[{ required: true }]}>
               <TextArea rows={2} placeholder="Lý do chuyển viện" />
             </Form.Item>
             <Form.Item name="clinicalSummary" label="Tóm tắt lâm sàng">
               <TextArea rows={3} placeholder="Tóm tắt tình trạng lâm sàng, điều trị đã thực hiện" />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="currentMedications" label="Thuốc đang dùng">
                   <TextArea rows={2} placeholder="Danh sách thuốc hiện tại" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="allergies" label="Dị ứng">
                   <TextArea rows={2} placeholder="Tiền sử dị ứng (nếu có)" />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="specialInstructions" label="Chỉ dẫn đặc biệt">
               <TextArea rows={2} placeholder="Hướng dẫn đặc biệt cho cơ sở tiếp nhận" />
             </Form.Item>
@@ -1795,13 +1786,13 @@ const HealthExchange: React.FC = () => {
           width={600}
         >
           <Form form={consultationForm} layout="vertical" onFinish={handleCreateConsultation}>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="patientId" label="Mã bệnh nhân" rules={[{ required: true }]}>
                   <Input placeholder="Nhập mã bệnh nhân" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="requestType" label="Loại yêu cầu" rules={[{ required: true }]}>
                   <Select placeholder="Chọn loại">
                     <Select.Option value="SecondOpinion">Ý kiến thứ hai</Select.Option>
@@ -1809,15 +1800,15 @@ const HealthExchange: React.FC = () => {
                     <Select.Option value="EmergencyConsult">Hội chẩn cấp cứu</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="consultingFacilityCode" label="Mã BV hội chẩn" rules={[{ required: true }]}>
                   <Input placeholder="Mã cơ sở hội chẩn" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="specialty" label="Chuyên khoa" rules={[{ required: true }]}>
                   <Select placeholder="Chọn chuyên khoa">
                     <Select.Option value="Tim mạch">Tim mạch</Select.Option>
@@ -1830,8 +1821,8 @@ const HealthExchange: React.FC = () => {
                     <Select.Option value="Tai Mũi Họng">Tai Mũi Họng</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="chiefComplaint" label="Lý do chính" rules={[{ required: true }]}>
               <TextArea rows={2} placeholder="Lý do yêu cầu hội chẩn" />
             </Form.Item>
@@ -1844,13 +1835,13 @@ const HealthExchange: React.FC = () => {
             <Form.Item name="currentFindings" label="Kết quả hiện tại">
               <TextArea rows={2} placeholder="Kết quả khám, xét nghiệm hiện tại" />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="preferredDate" label="Ngày mong muốn">
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="urgency" label="Mức độ" initialValue={1}>
                   <Select>
                     <Select.Option value={1}>Thường</Select.Option>
@@ -1858,8 +1849,8 @@ const HealthExchange: React.FC = () => {
                     <Select.Option value={3}>Cấp cứu</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
           </Form>
         </Modal>
 
@@ -1880,18 +1871,18 @@ const HealthExchange: React.FC = () => {
                 <Select.Option value="XML7900">XML 7900 - Bao cao</Select.Option>
               </Select>
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="periodFrom" label="Từ ngày" rules={[{ required: true }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="periodTo" label="Đến ngày" rules={[{ required: true }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="departmentId" label="Khoa (tùy chọn)">
               <Input placeholder="Mã khoa (để trống để gửi tất cả)" />
             </Form.Item>
@@ -1903,11 +1894,11 @@ const HealthExchange: React.FC = () => {
         {/* FHIR JSON Drawer */}
         <Drawer
           title={
-            <Space>
+            <div className="flex items-center gap-2">
               <span>FHIR JSON - {fhirJsonTitle}</span>
               <Button size="small" icon={<CopyOutlined />} onClick={handleCopyJson}>Sao chép</Button>
               <Button size="small" icon={<DownloadOutlined />} onClick={handleDownloadJson}>Tải xuống</Button>
-            </Space>
+            </div>
           }
           open={fhirJsonDrawerOpen}
           onClose={() => setFhirJsonDrawerOpen(false)}

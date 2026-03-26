@@ -98,10 +98,10 @@ const AssetsTab = () => {
     { title: 'Trang thai', dataIndex: 'status', width: 120, render: (s: number) => <Tag color={ASSET_STATUS[s]?.color}>{ASSET_STATUS[s]?.text}</Tag> },
     {
       title: '', width: 110, render: (_: unknown, r: FixedAssetDto) => (
-        <Space size={4}>
+        <div className="flex items-center gap-1">
           <Tooltip title="Tao QR"><Button size="small" icon={<QrcodeOutlined />} onClick={() => handleQr(r.id)} /></Tooltip>
           <Tooltip title="Xem QR"><Button size="small" icon={<EyeOutlined />} onClick={() => handleViewQr(r.id)} /></Tooltip>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -115,32 +115,32 @@ const AssetsTab = () => {
         </Select>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Them tai san</Button>
-      </Space>
+      </div>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="Tai san co dinh" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={640} destroyOnHidden>
         <Form form={form} layout="vertical" size="small">
-          <Row gutter={12}>
-            <Col span={12}><Form.Item name="assetCode" label="Ma tai san" rules={[{ required: true }]}><Input /></Form.Item></Col>
-            <Col span={12}><Form.Item name="assetName" label="Ten tai san" rules={[{ required: true }]}><Input /></Form.Item></Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={8}><Form.Item name="originalValue" label="Nguyen gia"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="usefulLifeMonths" label="Thoi gian SD (thang)"><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="depreciationMethod" label="PP khau hao" initialValue={1}>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="assetCode" label="Ma tai san" rules={[{ required: true }]}><Input /></Form.Item></div>
+            <div><Form.Item name="assetName" label="Ten tai san" rules={[{ required: true }]}><Input /></Form.Item></div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="originalValue" label="Nguyen gia"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></div>
+            <div><Form.Item name="usefulLifeMonths" label="Thoi gian SD (thang)"><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></div>
+            <div><Form.Item name="depreciationMethod" label="PP khau hao" initialValue={1}>
               <Select><Option value={1}>Duong thang</Option><Option value={2}>Giam dan</Option></Select>
-            </Form.Item></Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}><Form.Item name="purchaseDate" label="Ngay mua"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={12}><Form.Item name="serialNumber" label="So serial"><Input /></Form.Item></Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}><Form.Item name="status" label="Trang thai" initialValue={1}>
+            </Form.Item></div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="purchaseDate" label="Ngay mua"><DatePicker style={{ width: '100%' }} /></Form.Item></div>
+            <div><Form.Item name="serialNumber" label="So serial"><Input /></Form.Item></div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="status" label="Trang thai" initialValue={1}>
               <Select>{Object.entries(ASSET_STATUS).map(([k, v]) => <Option key={k} value={Number(k)}>{v.text}</Option>)}</Select>
-            </Form.Item></Col>
-            <Col span={12}><Form.Item name="locationDescription" label="Vi tri"><Input /></Form.Item></Col>
-          </Row>
+            </Form.Item></div>
+            <div><Form.Item name="locationDescription" label="Vi tri"><Input /></Form.Item></div>
+          </div>
           <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
@@ -162,12 +162,12 @@ const AssetsTab = () => {
               <div style={{ fontSize: 14, marginBottom: 8 }}>{qrData.assetName}</div>
             </div>
             <div style={{ textAlign: 'left', marginTop: 12 }}>
-              <Row gutter={[8, 4]}>
-                <Col span={8}><strong>Khoa/Phong:</strong></Col><Col span={16}>{qrData.departmentName || '-'}</Col>
-                <Col span={8}><strong>Nguyen gia:</strong></Col><Col span={16}>{qrData.originalValue?.toLocaleString('vi-VN')} VND</Col>
-                <Col span={8}><strong>Serial:</strong></Col><Col span={16}>{qrData.serialNumber || '-'}</Col>
-                <Col span={8}><strong>Vi tri:</strong></Col><Col span={16}>{qrData.locationDescription || '-'}</Col>
-              </Row>
+              <div className="grid grid-cols-4 gap-4">
+                <div><strong>Khoa/Phong:</strong></div><div className="col-span-2">{qrData.departmentName || '-'}</div>
+                <div><strong>Nguyen gia:</strong></div><div className="col-span-2">{qrData.originalValue?.toLocaleString('vi-VN')} VND</div>
+                <div><strong>Serial:</strong></div><div className="col-span-2">{qrData.serialNumber || '-'}</div>
+                <div><strong>Vi tri:</strong></div><div className="col-span-2">{qrData.locationDescription || '-'}</div>
+              </div>
             </div>
             <div style={{ marginTop: 12, padding: 8, background: '#f5f5f5', borderRadius: 4, fontSize: 11, wordBreak: 'break-all' }}>
               <strong>QR Content:</strong> {qrData.qrContent}
@@ -245,10 +245,10 @@ const TendersTab = () => {
     { title: 'Hang muc', dataIndex: 'itemCount', width: 90, align: 'center' },
     {
       title: '', width: 120, render: (_: unknown, r: TenderDto) => (
-        <Space size={4}>
+        <div className="flex items-center gap-1">
           <Tooltip title="Hang muc"><Button size="small" icon={<FileTextOutlined />} onClick={() => openItems(r.id)} /></Tooltip>
           {r.status < 4 && <Tooltip title="Trao thau"><Popconfirm title="Xac nhan trao thau?" onConfirm={() => handleAward(r.id)}><Button size="small" icon={<TrophyOutlined />} /></Popconfirm></Tooltip>}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -258,28 +258,28 @@ const TendersTab = () => {
       <Space style={{ marginBottom: 12 }}>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Them goi thau</Button>
-      </Space>
+      </div>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="Goi thau" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={600} destroyOnHidden>
         <Form form={form} layout="vertical" size="small">
-          <Row gutter={12}>
-            <Col span={12}><Form.Item name="tenderCode" label="Ma goi thau" rules={[{ required: true }]}><Input /></Form.Item></Col>
-            <Col span={12}><Form.Item name="tenderName" label="Ten goi thau" rules={[{ required: true }]}><Input /></Form.Item></Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={8}><Form.Item name="tenderType" label="Loai" initialValue={1}>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="tenderCode" label="Ma goi thau" rules={[{ required: true }]}><Input /></Form.Item></div>
+            <div><Form.Item name="tenderName" label="Ten goi thau" rules={[{ required: true }]}><Input /></Form.Item></div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="tenderType" label="Loai" initialValue={1}>
               <Select>{Object.entries(TENDER_TYPE).map(([k, v]) => <Option key={k} value={Number(k)}>{v}</Option>)}</Select>
-            </Form.Item></Col>
-            <Col span={8}><Form.Item name="budgetAmount" label="Ngan sach"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="status" label="Trang thai" initialValue={1}>
+            </Form.Item></div>
+            <div><Form.Item name="budgetAmount" label="Ngan sach"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></div>
+            <div><Form.Item name="status" label="Trang thai" initialValue={1}>
               <Select>{Object.entries(TENDER_STATUS).map(([k, v]) => <Option key={k} value={Number(k)}>{v.text}</Option>)}</Select>
-            </Form.Item></Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}><Form.Item name="publishDate" label="Ngay dang"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={12}><Form.Item name="closingDate" label="Ngay dong"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-          </Row>
+            </Form.Item></div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="publishDate" label="Ngay dang"><DatePicker style={{ width: '100%' }} /></Form.Item></div>
+            <div><Form.Item name="closingDate" label="Ngay dong"><DatePicker style={{ width: '100%' }} /></Form.Item></div>
+          </div>
           <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
@@ -299,7 +299,7 @@ const TendersTab = () => {
             <Form.Item name="unitPrice"><InputNumber placeholder="Don gia" min={0} /></Form.Item>
             <Form.Item><Button type="primary" htmlType="submit" icon={<PlusOutlined />}>Them</Button></Form.Item>
           </Form>
-        </Card>
+        </div>
       </Modal>
     </>
   );
@@ -361,7 +361,7 @@ const HandoversTab = () => {
       <Space style={{ marginBottom: 12 }}>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<SwapOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Tao ban giao</Button>
-      </Space>
+      </div>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="Ban giao tai san" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} destroyOnHidden>
@@ -419,10 +419,10 @@ const DisposalsTab = () => {
     { title: 'TT', dataIndex: 'status', width: 110, render: (s: number) => <Tag color={DISPOSAL_STATUS[s]?.color}>{DISPOSAL_STATUS[s]?.text}</Tag> },
     {
       title: '', width: 100, render: (_: unknown, r: AssetDisposalDto) => (
-        <Space size={4}>
+        <div className="flex items-center gap-1">
           {r.status === 1 && <Popconfirm title="Duyet thanh ly?" onConfirm={() => handleApprove(r.id)}><Button size="small" icon={<CheckOutlined />} /></Popconfirm>}
           {r.status === 2 && <Popconfirm title="Hoan thanh?" onConfirm={() => handleComplete(r.id)}><Button size="small" type="primary" icon={<CheckOutlined />} /></Popconfirm>}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -432,7 +432,7 @@ const DisposalsTab = () => {
       <Space style={{ marginBottom: 12 }}>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<DeleteOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>De xuat thanh ly</Button>
-      </Space>
+      </div>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="De xuat thanh ly" open={modalOpen} onOk={handlePropose} onCancel={() => setModalOpen(false)} destroyOnHidden>
@@ -441,10 +441,10 @@ const DisposalsTab = () => {
           <Form.Item name="disposalType" label="Loai thanh ly" initialValue={1}>
             <Select>{Object.entries(DISPOSAL_TYPE).map(([k, v]) => <Option key={k} value={Number(k)}>{v}</Option>)}</Select>
           </Form.Item>
-          <Row gutter={12}>
-            <Col span={12}><Form.Item name="disposalValue" label="Gia thanh ly"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={12}><Form.Item name="residualValue" label="Gia tri con lai"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          </Row>
+          <div className="grid grid-cols-4 gap-4">
+            <div><Form.Item name="disposalValue" label="Gia thanh ly"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></div>
+            <div><Form.Item name="residualValue" label="Gia tri con lai"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></div>
+          </div>
           <Form.Item name="reason" label="Ly do"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
@@ -497,7 +497,7 @@ const DepreciationTab = () => {
         <InputNumber value={year} onChange={v => setYear(v || dayjs().year())} min={2020} max={2030} />
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<BarChartOutlined />} onClick={handleCalculate}>Tinh khau hao thang {month}/{year}</Button>
-      </Space>
+      </div>
       <Table dataSource={data} columns={columns} rowKey={r => `${r.fixedAssetId}-${r.month}-${r.year}`} loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 20, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
     </>
@@ -521,20 +521,20 @@ const DashboardTab = () => {
 
   return (
     <>
-      <Row gutter={[12, 12]}>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="Tong tai san" value={dashboard.totalAssets} /></Card></Col>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="Tong nguyen gia" value={dashboard.totalOriginalValue} formatter={v => formatVND(Number(v))} /></Card></Col>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="Gia tri con lai" value={dashboard.totalCurrentValue} formatter={v => formatVND(Number(v))} /></Card></Col>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="KH/thang" value={dashboard.monthlyDepreciationTotal} formatter={v => formatVND(Number(v))} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-      </Row>
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Dang dung" value={dashboard.inUseCount} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Hong" value={dashboard.brokenCount} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Dang sua" value={dashboard.underRepairCount} valueStyle={{ color: '#faad14' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Cho thanh ly" value={dashboard.pendingDisposalCount} valueStyle={{ color: '#ff7a45' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="BG cho duyet" value={dashboard.pendingHandovers} valueStyle={{ color: '#1890ff' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Goi thau" value={dashboard.activeTenders} /></Card></Col>
-      </Row>
+      <div className="grid grid-cols-4 gap-4">
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">Tong tai san</div><div className="text-2xl font-semibold">{dashboard.totalAssets}</div></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Tong nguyen gia" value={dashboard.totalOriginalValue} formatter={v => formatVND(Number(v))} /></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Gia tri con lai" value={dashboard.totalCurrentValue} formatter={v => formatVND(Number(v))} /></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="KH/thang" value={dashboard.monthlyDepreciationTotal} formatter={v => formatVND(Number(v))} valueStyle={{ color: '#ff4d4f' }} /></div></div>
+      </div>
+      <div className="grid grid-cols-4 gap-4">
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Dang dung" value={dashboard.inUseCount} valueStyle={{ color: '#52c41a' }} /></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Hong" value={dashboard.brokenCount} valueStyle={{ color: '#ff4d4f' }} /></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Dang sua" value={dashboard.underRepairCount} valueStyle={{ color: '#faad14' }} /></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="Cho thanh ly" value={dashboard.pendingDisposalCount} valueStyle={{ color: '#ff7a45' }} /></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><Statistic title="BG cho duyet" value={dashboard.pendingHandovers} valueStyle={{ color: '#1890ff' }} /></div></div>
+        <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">Goi thau</div><div className="text-2xl font-semibold">{dashboard.activeTenders}</div></div></div>
+      </div>
       <Card size="small" style={{ marginTop: 12 }}>
         <Segmented options={[{ label: 'Theo trang thai', value: 'status' }, { label: 'Xu huong KH', value: 'trend' }]} value={chartView} onChange={v => setChartView(String(v))} style={{ marginBottom: 12 }} />
         <div style={{ height: 300 }}>
@@ -559,7 +559,7 @@ const DashboardTab = () => {
             </ResponsiveContainer>
           )}
         </div>
-      </Card>
+      </div>
     </>
   );
 };
@@ -604,8 +604,8 @@ const ReportsTab = () => {
   return (
     <>
       <Card size="small" style={{ marginBottom: 12 }} title="Bo loc bao cao">
-        <Row gutter={[12, 12]}>
-          <Col xs={24} md={8}>
+        <div className="grid grid-cols-4 gap-4">
+          <div>
             <Select
               placeholder="Chon loai bao cao"
               value={selectedReport}
@@ -625,34 +625,34 @@ const ReportsTab = () => {
                 </Select.OptGroup>
               ))}
             </Select>
-          </Col>
-          <Col xs={12} md={3}>
+          </div>
+          <div>
             <InputNumber placeholder="Nam" value={year} onChange={v => setYear(v || dayjs().year())} min={2020} max={2030} style={{ width: '100%' }} />
-          </Col>
-          <Col xs={12} md={3}>
+          </div>
+          <div>
             <Select placeholder="Thang" allowClear value={month} onChange={setMonth} style={{ width: '100%' }}>
               {Array.from({ length: 12 }, (_, i) => <Option key={i + 1} value={i + 1}>Thang {i + 1}</Option>)}
             </Select>
-          </Col>
-          <Col xs={12} md={3}>
+          </div>
+          <div>
             <DatePicker placeholder="Tu ngay" onChange={(_, ds) => setFromDate(typeof ds === 'string' ? ds : undefined)} style={{ width: '100%' }} />
-          </Col>
-          <Col xs={12} md={3}>
+          </div>
+          <div>
             <DatePicker placeholder="Den ngay" onChange={(_, ds) => setToDate(typeof ds === 'string' ? ds : undefined)} style={{ width: '100%' }} />
-          </Col>
-          <Col xs={24} md={4}>
-            <Space>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
               <Input placeholder="Nhom TS" value={assetGroupCode} onChange={e => setAssetGroupCode(e.target.value || undefined)} style={{ width: 120 }} />
               <Button type="primary" icon={<PrinterOutlined />} onClick={handleGenerate} loading={loading}>
                 Xuat bao cao
               </Button>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
-      <Row gutter={[12, 12]}>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-4">
         {Object.entries(grouped).map(([cat, items]) => (
-          <Col xs={24} md={12} lg={8} key={cat}>
+          <div>
             <Card size="small" title={<Tag color={REPORT_CATEGORIES[cat] || 'default'}>{cat}</Tag>} style={{ height: '100%' }}>
               {items.map(rt => (
                 <div key={rt.code} style={{ padding: '4px 0', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
@@ -664,10 +664,10 @@ const ReportsTab = () => {
                   </Tooltip>
                 </div>
               ))}
-            </Card>
-          </Col>
+            </div>
+          </div>
         ))}
-      </Row>
+      </div>
     </>
   );
 };

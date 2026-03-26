@@ -231,7 +231,7 @@ const SigningWorkflow: React.FC = () => {
       key: 'actions',
       width: 250,
       render: (_: unknown, record: SigningRequestItem) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
@@ -243,7 +243,7 @@ const SigningWorkflow: React.FC = () => {
           <Button size="small" danger icon={<CloseOutlined />} onClick={() => handleRejectOpen(record.id)}>
             Tu choi
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -270,7 +270,7 @@ const SigningWorkflow: React.FC = () => {
       key: 'actions',
       width: 180,
       render: (_: unknown, record: SigningRequestItem) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
@@ -281,7 +281,7 @@ const SigningWorkflow: React.FC = () => {
               </Button>
             </Popconfirm>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -462,43 +462,43 @@ const SigningWorkflow: React.FC = () => {
       key: 'stats',
       label: 'Thong ke',
       children: (
-        <Row gutter={[16, 16]}>
-          <Col xs={12} sm={6}>
-            <Card>
+        <div className="grid grid-cols-4 gap-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic title="Cho duyet" value={stats?.pendingCount ?? 0} styles={{ content: { color: '#1890ff' } }} />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic title="Da duyet" value={stats?.approvedCount ?? 0} styles={{ content: { color: '#52c41a' } }} />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic title="Tu choi" value={stats?.rejectedCount ?? 0} styles={{ content: { color: '#ff4d4f' } }} />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic title="Da huy" value={stats?.cancelledCount ?? 0} styles={{ content: { color: '#8c8c8c' } }} />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic title="Tong cong" value={stats?.totalCount ?? 0} />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Tong cong</div><div className="text-2xl font-semibold">{stats?.totalCount ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic title="Gui hom nay" value={stats?.todaySubmitted ?? 0} styles={{ content: { color: '#722ed1' } }} />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic title="Duyet hom nay" value={stats?.todayApproved ?? 0} styles={{ content: { color: '#13c2c2' } }} />
-            </Card>
-          </Col>
-        </Row>
+            </div>
+          </div>
+        </div>
       ),
     },
   ];
@@ -506,10 +506,10 @@ const SigningWorkflow: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
+        <h4 className="text-lg font-semibold m-0">
           <SendOutlined /> Trinh ky
-        </Title>
-        <Space>
+        </h4>
+        <div className="flex items-center gap-2">
           <Input.Search
             placeholder="Tim kiem..."
             allowClear
@@ -526,7 +526,7 @@ const SigningWorkflow: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={fetchData}>
             Lam moi
           </Button>
-        </Space>
+        </div>
       </div>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
@@ -540,55 +540,55 @@ const SigningWorkflow: React.FC = () => {
       >
         {selectedRequest && (
           <div>
-            <Row gutter={[16, 12]}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <strong>Loai tai lieu:</strong>
                 <br />
                 <Tag color="blue">{DOCUMENT_TYPE_LABELS[selectedRequest.documentType] || selectedRequest.documentType}</Tag>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <strong>Trang thai:</strong>
                 <br />
                 <Tag color={STATUS_COLORS[selectedRequest.status]}>{STATUS_LABELS[selectedRequest.status]}</Tag>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <strong>Nguoi gui:</strong>
                 <br />
                 {selectedRequest.submittedByName}
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <strong>Nguoi duyet:</strong>
                 <br />
                 {selectedRequest.assignedToName}
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <strong>Benh nhan:</strong>
                 <br />
                 {selectedRequest.patientName || '-'}
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <strong>Khoa:</strong>
                 <br />
                 {selectedRequest.departmentName || '-'}
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <strong>Ngay gui:</strong>
                 <br />
                 {formatDate(selectedRequest.createdAt)}
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <strong>Ngay ky:</strong>
                 <br />
                 {formatDate(selectedRequest.signedAt)}
-              </Col>
+              </div>
               {selectedRequest.rejectReason && (
-                <Col span={24}>
+                <div className="col-span-2">
                   <strong>Ly do tu choi:</strong>
                   <br />
                   <Tag color="error">{selectedRequest.rejectReason}</Tag>
-                </Col>
+                </div>
               )}
-            </Row>
+            </div>
 
             <div style={{ marginTop: 16 }}>
               <strong>Noi dung tai lieu:</strong>

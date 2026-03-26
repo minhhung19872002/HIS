@@ -275,7 +275,7 @@ const HivManagement: React.FC = () => {
       width: 80,
       align: 'center',
       render: (v: number) => v != null ? (
-        <Text style={{ color: v < 200 ? '#ff4d4f' : v < 350 ? '#fa8c16' : '#52c41a' }}>{v}</Text>
+        <Text style={{ color: v < 200 ? '#ff4d4f' : v < 350 ? '#fa8c16' : '#52c41a' }}>{v}</span>
       ) : '-',
     },
     {
@@ -286,7 +286,7 @@ const HivManagement: React.FC = () => {
       render: (v: number) => v != null ? (
         <Text style={{ color: v >= 200 ? '#ff4d4f' : '#52c41a' }}>
           {v < 200 ? '< 200' : v.toLocaleString()}
-        </Text>
+        </span>
       ) : '-',
     },
     {
@@ -406,7 +406,7 @@ const HivManagement: React.FC = () => {
       render: (v: number, r: HivLabResult) => (
         <Text style={{ color: r.isAbnormal ? '#ff4d4f' : undefined, fontWeight: r.isAbnormal ? 'bold' : undefined }}>
           {v} {r.unit}
-        </Text>
+        </span>
       ),
     },
     {
@@ -458,7 +458,7 @@ const HivManagement: React.FC = () => {
               Dang ky BN
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </Space>
+          </div>
           <Table
             columns={patientColumns}
             dataSource={filteredPatients}
@@ -482,8 +482,8 @@ const HivManagement: React.FC = () => {
             description="Chon benh nhan tu tab Danh sach de xem lich su xet nghiem va them ket qua moi."
             style={{ marginBottom: 16 }}
           />
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Card title="Them ket qua xet nghiem" size="small">
                 <Form form={labForm} layout="vertical" onFinish={handleSaveLabResult}>
                   <Form.Item name="patientId" label="Ma benh nhan" rules={[{ required: true, message: 'Bat buoc' }]}>
@@ -491,8 +491,8 @@ const HivManagement: React.FC = () => {
                       options={patients.map(p => ({ value: p.id, label: `${p.hivCode} - ${p.fullName}` }))}
                     />
                   </Form.Item>
-                  <Row gutter={16}>
-                    <Col span={12}>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
                       <Form.Item name="testType" label="Loai xet nghiem" rules={[{ required: true, message: 'Bat buoc' }]}>
                         <Select placeholder="Chon">
                           <Select.Option value="CD4">CD4</Select.Option>
@@ -504,41 +504,41 @@ const HivManagement: React.FC = () => {
                           <Select.Option value="Lipid">Mo mau</Select.Option>
                         </Select>
                       </Form.Item>
-                    </Col>
-                    <Col span={12}>
+                    </div>
+                    <div>
                       <Form.Item name="testDate" label="Ngay xet nghiem" rules={[{ required: true, message: 'Bat buoc' }]}>
                         <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                       </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col span={8}>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
                       <Form.Item name="result" label="Ket qua" rules={[{ required: true, message: 'Bat buoc' }]}>
                         <InputNumber style={{ width: '100%' }} />
                       </Form.Item>
-                    </Col>
-                    <Col span={8}>
+                    </div>
+                    <div>
                       <Form.Item name="unit" label="Don vi">
                         <Input placeholder="cells/uL, copies/mL..." />
                       </Form.Item>
-                    </Col>
-                    <Col span={8}>
+                    </div>
+                    <div>
                       <Form.Item name="isAbnormal" label="Bat thuong" initialValue={false}>
                         <Select>
                           <Select.Option value={false}>Binh thuong</Select.Option>
                           <Select.Option value={true}>Bat thuong</Select.Option>
                         </Select>
                       </Form.Item>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
                   <Form.Item name="notes" label="Ghi chu">
                     <TextArea rows={2} />
                   </Form.Item>
                   <Button type="primary" htmlType="submit" loading={submitting}>Luu ket qua</Button>
                 </Form>
-              </Card>
-            </Col>
-            <Col xs={24} md={12}>
+              </div>
+            </div>
+            <div>
               <Card title="Canh bao bat thuong" size="small">
                 {patients.filter(p => p.lastCd4Count != null && p.lastCd4Count < 200).length > 0 ? (
                   patients.filter(p => p.lastCd4Count != null && p.lastCd4Count < 200).slice(0, 5).map(p => (
@@ -551,11 +551,11 @@ const HivManagement: React.FC = () => {
                     />
                   ))
                 ) : (
-                  <Text type="secondary">Khong co canh bao</Text>
+                  <span className="text-gray-500">Khong co canh bao</span>
                 )}
                 {patients.filter(p => p.lastViralLoad != null && p.lastViralLoad >= 200).length > 0 && (
                   <>
-                    <Divider />
+                    <hr className="border-t border-gray-200 my-4" />
                     {patients.filter(p => p.lastViralLoad != null && p.lastViralLoad >= 200).slice(0, 5).map(p => (
                       <Alert
                         key={p.id}
@@ -567,9 +567,9 @@ const HivManagement: React.FC = () => {
                     ))}
                   </>
                 )}
-              </Card>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
         </div>
       ),
     },
@@ -583,7 +583,7 @@ const HivManagement: React.FC = () => {
               Them PMTCT
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </Space>
+          </div>
           <Table
             columns={pmtctColumns}
             dataSource={pmtctRecords}
@@ -600,91 +600,91 @@ const HivManagement: React.FC = () => {
       label: <span><BarChartOutlined /> Thong ke</span>,
       children: (
         <div>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <Statistic title="Ty le ART" value={stats?.artCoverageRate ?? 0} suffix="%" styles={{ content: { color: '#52c41a' } }} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <Statistic title="Ty le uc che VR" value={stats?.viralSuppressionRate ?? 0} suffix="%" styles={{ content: { color: '#13c2c2' } }} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <Statistic title="Mat dau" value={stats?.lostToFollowUp ?? 0} styles={{ content: { color: '#ff4d4f' } }} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <Statistic title="Dang ky moi (thang)" value={stats?.newEnrollmentsThisMonth ?? 0} styles={{ content: { color: '#1890ff' } }} />
-              </Card>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
 
-          <Divider>Cascade 90-90-90</Divider>
-          <Card size="small">
-            <Row gutter={[16, 8]}>
-              <Col span={6}>
-                <Text>Chan doan</Text>
+          <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Cascade 90-90-90</div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <span>Chan doan</span>
                 <Progress percent={100} format={() => stats?.cascadeDiagnosed ?? 0} />
-              </Col>
-              <Col span={6}>
-                <Text>Ket noi dieu tri</Text>
+              </div>
+              <div>
+                <span>Ket noi dieu tri</span>
                 <Progress
                   percent={cascadeMax ? Math.round(((stats?.cascadeLinked ?? 0) / cascadeMax) * 100) : 0}
                   format={() => stats?.cascadeLinked ?? 0}
                   strokeColor="#1890ff"
                 />
-              </Col>
-              <Col span={6}>
-                <Text>Duy tri dieu tri</Text>
+              </div>
+              <div>
+                <span>Duy tri dieu tri</span>
                 <Progress
                   percent={cascadeMax ? Math.round(((stats?.cascadeRetained ?? 0) / cascadeMax) * 100) : 0}
                   format={() => stats?.cascadeRetained ?? 0}
                   strokeColor="#52c41a"
                 />
-              </Col>
-              <Col span={6}>
-                <Text>Uc che virus</Text>
+              </div>
+              <div>
+                <span>Uc che virus</span>
                 <Progress
                   percent={cascadeMax ? Math.round(((stats?.cascadeSuppressed ?? 0) / cascadeMax) * 100) : 0}
                   format={() => stats?.cascadeSuppressed ?? 0}
                   strokeColor="#13c2c2"
                 />
-              </Col>
-            </Row>
-          </Card>
+              </div>
+            </div>
+          </div>
 
-          <Divider>Ket qua PMTCT</Divider>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={6}>
-              <Card size="small">
-                <Statistic title="Ba me HIV+" value={stats?.pmtctMothers ?? 0} prefix={<HeartOutlined />} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card size="small">
-                <Statistic title="Tre phoi nhiem" value={stats?.pmtctInfantsExposed ?? 0} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card size="small">
-                <Statistic title="Tre da xet nghiem" value={stats?.pmtctInfantsTested ?? 0} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card size="small">
+          <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Ket qua PMTCT</div>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="text-gray-500 text-sm mb-1">Ba me HIV+</div><div className="text-2xl font-semibold"><HeartOutlined className="mr-1" />{stats?.pmtctMothers ?? 0}</div>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="text-gray-500 text-sm mb-1">Tre phoi nhiem</div><div className="text-2xl font-semibold">{stats?.pmtctInfantsExposed ?? 0}</div>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="text-gray-500 text-sm mb-1">Tre da xet nghiem</div><div className="text-2xl font-semibold">{stats?.pmtctInfantsTested ?? 0}</div>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <Statistic
                   title="Ty le lay truyen"
                   value={stats?.pmtctTransmissionRate ?? 0}
                   suffix="%"
                   styles={{ content: { color: (stats?.pmtctTransmissionRate ?? 0) > 2 ? '#ff4d4f' : '#52c41a' } }}
                 />
-              </Card>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
         </div>
       ),
     },
@@ -693,53 +693,33 @@ const HivManagement: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div>
-        <Title level={4}>Quan ly HIV/AIDS</Title>
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="BN dang theo doi"
-                value={stats?.totalPatients ?? 0}
-                prefix={<UserOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Dang ART"
-                value={stats?.onArt ?? 0}
-                prefix={<MedicineBoxOutlined />}
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Uc che virus"
-                value={stats?.viralSuppressed ?? 0}
-                prefix={<CheckCircleOutlined />}
-                styles={{ content: { color: '#13c2c2' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="PMTCT"
-                value={stats?.pmtctEnrolled ?? 0}
-                prefix={<HeartOutlined />}
-                styles={{ content: { color: '#eb2f96' } }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <h4 className="text-lg font-semibold mb-4">Quan ly HIV/AIDS</h4>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">BN dang theo doi</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><UserOutlined className="mr-1" />{stats?.totalPatients ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Dang ART</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><MedicineBoxOutlined className="mr-1" />{stats?.onArt ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Uc che virus</div><div className="text-2xl font-semibold" style={{ color: '#13c2c2' }}><CheckCircleOutlined className="mr-1" />{stats?.viralSuppressed ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">PMTCT</div><div className="text-2xl font-semibold" style={{ color: '#eb2f96' }}><HeartOutlined className="mr-1" />{stats?.pmtctEnrolled ?? 0}</div>
+            </div>
+          </div>
+        </div>
 
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        </Card>
+        </div>
 
         {/* Patient Detail Drawer */}
         <Drawer
@@ -788,7 +768,7 @@ const HivManagement: React.FC = () => {
                 <Descriptions.Item label="Hen kham">{selectedPatient.nextAppointmentDate ? dayjs(selectedPatient.nextAppointmentDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
               </Descriptions>
 
-              <Divider>Lich su xet nghiem</Divider>
+              <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Lich su xet nghiem</div>
               <Table
                 columns={labColumns}
                 dataSource={labHistory}
@@ -812,58 +792,58 @@ const HivManagement: React.FC = () => {
           destroyOnHidden
         >
           <Form form={enrollForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="fullName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="dateOfBirth" label="Ngay sinh" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="gender" label="Gioi tinh" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon">
                     <Select.Option value={1}>Nam</Select.Option>
                     <Select.Option value={2}>Nu</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={8}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="cccd" label="CCCD">
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="phone" label="Dien thoai">
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="insuranceNumber" label="So the BHYT">
                   <Input />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="address" label="Dia chi">
               <Input />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="diagnosisDate" label="Ngay chan doan" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="enrollmentDate" label="Ngay dang ky" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="whoStage" label="WHO Stage" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon">
                     <Select.Option value={1}>Stage 1</Select.Option>
@@ -872,10 +852,10 @@ const HivManagement: React.FC = () => {
                     <Select.Option value={4}>Stage 4</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={8}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="artStatus" label="Trang thai ART" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon">
                     {Object.entries(ART_STATUS_CONFIG).map(([k, v]) => (
@@ -883,13 +863,13 @@ const HivManagement: React.FC = () => {
                     ))}
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="artStartDate" label="Ngay bat dau ART">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="currentRegimen" label="Phac do">
                   <Select placeholder="Chon phac do" allowClear>
                     {ART_REGIMENS.map(r => (
@@ -897,8 +877,8 @@ const HivManagement: React.FC = () => {
                     ))}
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="notes" label="Ghi chu">
               <TextArea rows={2} />
             </Form.Item>
@@ -921,8 +901,8 @@ const HivManagement: React.FC = () => {
                 options={patients.map(p => ({ value: p.id, label: `${p.hivCode} - ${p.fullName}` }))}
               />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="testType" label="Loai xet nghiem" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon">
                     <Select.Option value="CD4">CD4</Select.Option>
@@ -933,33 +913,33 @@ const HivManagement: React.FC = () => {
                     <Select.Option value="Kidney">Chuc nang than</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="testDate" label="Ngay XN" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={8}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="result" label="Ket qua" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <InputNumber style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="unit" label="Don vi">
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="isAbnormal" label="Bat thuong" initialValue={false}>
                   <Select>
                     <Select.Option value={false}>Binh thuong</Select.Option>
                     <Select.Option value={true}>Bat thuong</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="notes" label="Ghi chu">
               <TextArea rows={2} />
             </Form.Item>
@@ -977,38 +957,38 @@ const HivManagement: React.FC = () => {
           destroyOnHidden
         >
           <Form form={pmtctForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="patientId" label="Ba me" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon benh nhan" showSearch optionFilterProp="label"
                     options={patients.filter(p => p.gender === 2).map(p => ({ value: p.id, label: `${p.hivCode} - ${p.fullName}` }))}
                   />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="gestationalAge" label="Tuoi thai (tuan)">
                   <InputNumber min={1} max={42} style={{ width: '100%' }} />
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={8}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="artBeforePregnancy" label="ART truoc thai ky" initialValue={false}>
                   <Select>
                     <Select.Option value={true}>Co</Select.Option>
                     <Select.Option value={false}>Khong</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="artDuringPregnancy" label="ART trong thai ky" initialValue={true}>
                   <Select>
                     <Select.Option value={true}>Co</Select.Option>
                     <Select.Option value={false}>Khong</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="artRegimen" label="Phac do">
                   <Select placeholder="Chon" allowClear>
                     {ART_REGIMENS.map(r => (
@@ -1016,24 +996,24 @@ const HivManagement: React.FC = () => {
                     ))}
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
-            <Divider>Thong tin sinh</Divider>
-            <Row gutter={16}>
-              <Col span={8}>
+              </div>
+            </div>
+            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Thong tin sinh</div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="deliveryDate" label="Ngay sinh">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="deliveryMode" label="Phuong phap sinh">
                   <Select placeholder="Chon" allowClear>
                     <Select.Option value="Vaginal">Sinh thuong</Select.Option>
                     <Select.Option value="Cesarean">Mo lay thai</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="infantFeedingMethod" label="Nuoi con">
                   <Select placeholder="Chon" allowClear>
                     <Select.Option value="Exclusive_BF">Bu me hoan toan</Select.Option>
@@ -1041,23 +1021,23 @@ const HivManagement: React.FC = () => {
                     <Select.Option value="Mixed">Ket hop</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={8}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="infantProphylaxis" label="Du phong tre" initialValue={false}>
                   <Select>
                     <Select.Option value={true}>Co</Select.Option>
                     <Select.Option value={false}>Khong</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="infantTestDate" label="Ngay XN tre">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="infantTestResult" label="KQ XN tre">
                   <Select placeholder="Chon" allowClear>
                     <Select.Option value="Negative">Am tinh</Select.Option>
@@ -1066,8 +1046,8 @@ const HivManagement: React.FC = () => {
                     <Select.Option value="Indeterminate">Chua xac dinh</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="notes" label="Ghi chu">
               <TextArea rows={2} />
             </Form.Item>

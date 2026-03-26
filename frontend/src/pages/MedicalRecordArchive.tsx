@@ -822,7 +822,7 @@ const MedicalRecordArchive: React.FC = () => {
       key: 'actions',
       width: 140,
       render: (_: unknown, record: ArchiveExamination) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Tooltip title="Xem hồ sơ">
             <Button
               type="link"
@@ -842,7 +842,7 @@ const MedicalRecordArchive: React.FC = () => {
               onClick={() => handleExportPdf(record.id)}
             />
           </Tooltip>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -897,7 +897,7 @@ const MedicalRecordArchive: React.FC = () => {
         const pct = record.totalForms > 0
           ? Math.round((record.completedForms / record.totalForms) * 100)
           : 0;
-        return <Progress percent={pct} size="small" />;
+        return <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${pct}%` }} /></div>;
       },
     },
     {
@@ -919,7 +919,7 @@ const MedicalRecordArchive: React.FC = () => {
       key: 'actions',
       width: 120,
       render: (_: unknown, record: HandoverRecord) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Tooltip title="Xem trước">
             <Button
               type="link"
@@ -1021,7 +1021,7 @@ const MedicalRecordArchive: React.FC = () => {
               }}
             />
           </Tooltip>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1087,7 +1087,7 @@ const MedicalRecordArchive: React.FC = () => {
                   </Descriptions.Item>
                 ))}
             </Descriptions>
-          </Card>
+          </div>
         ))}
         {arrayEntries.map(([key, value]) => {
           const arr = value as Record<string, unknown>[];
@@ -1108,7 +1108,7 @@ const MedicalRecordArchive: React.FC = () => {
                 }))}
                 scroll={{ x: 'max-content' }}
               />
-            </Card>
+            </div>
           );
         })}
       </div>
@@ -1145,8 +1145,8 @@ const MedicalRecordArchive: React.FC = () => {
 
   const renderSummaryTab = () => (
     <div>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col flex="auto">
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="flex-1">
           <Search
             placeholder="Tìm theo tên, mã bệnh nhân, mã hồ sơ..."
             allowClear
@@ -1156,17 +1156,17 @@ const MedicalRecordArchive: React.FC = () => {
             onSearch={() => searchSummaryExams(1, summaryPageSize)}
             style={{ maxWidth: 500 }}
           />
-        </Col>
-        <Col>
+        </div>
+        <div>
           <Button icon={<ReloadOutlined />} onClick={() => searchSummaryExams(summaryPage, summaryPageSize)}>
             Làm mới
           </Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
-      <Row gutter={16}>
+      <div className="grid grid-cols-4 gap-4">
         {/* Left: search results */}
-        <Col xs={24} lg={selectedExam ? 10 : 24}>
+        <div>
           <Table
             dataSource={summaryExams}
             columns={summaryColumns}
@@ -1191,20 +1191,20 @@ const MedicalRecordArchive: React.FC = () => {
             rowClassName={(record) => record.id === selectedExam?.id ? 'ant-table-row-selected' : ''}
             scroll={{ x: 900 }}
           />
-        </Col>
+        </div>
 
         {/* Right: record tree view */}
         {selectedExam && (
-          <Col xs={24} lg={14}>
+          <div>
             <Card
               title={
-                <Space>
+                <div className="flex items-center gap-2">
                   <FolderOutlined />
                   <span>Hồ sơ bệnh án: {selectedExam.patientName}</span>
-                </Space>
+                </div>
               }
               extra={
-                <Space>
+                <div className="flex items-center gap-2">
                   <Button
                     icon={<FilePdfOutlined />}
                     onClick={() => handleExportPdf(selectedExam.id)}
@@ -1221,7 +1221,7 @@ const MedicalRecordArchive: React.FC = () => {
                   >
                     Đóng
                   </Button>
-                </Space>
+                </div>
               }
               size="small"
             >
@@ -1245,17 +1245,17 @@ const MedicalRecordArchive: React.FC = () => {
                   />
                 )}
               </Spin>
-            </Card>
-          </Col>
+            </div>
+          </div>
         )}
-      </Row>
+      </div>
     </div>
   );
 
   const renderReviewTab = () => (
     <div>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col flex="auto">
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="flex-1">
           <Search
             placeholder="Nhập mã khám chữa bệnh (mã hồ sơ)"
             allowClear
@@ -1265,8 +1265,8 @@ const MedicalRecordArchive: React.FC = () => {
             onSearch={searchReviewRecord}
             style={{ maxWidth: 500 }}
           />
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       <Spin spinning={reviewLoading}>
         {reviewExam ? (
@@ -1275,10 +1275,10 @@ const MedicalRecordArchive: React.FC = () => {
 
             <Card
               title={
-                <Space>
+                <div className="flex items-center gap-2">
                   <AuditOutlined />
                   <span>Soát hồ sơ bệnh án trước bàn giao</span>
-                </Space>
+                </div>
               }
               extra={
                 <Button
@@ -1305,7 +1305,7 @@ const MedicalRecordArchive: React.FC = () => {
                   title="Không có dữ liệu hồ sơ"
                 />
               )}
-            </Card>
+            </div>
           </div>
         ) : (
           <Result
@@ -1322,53 +1322,33 @@ const MedicalRecordArchive: React.FC = () => {
     <div>
       {/* Summary cards */}
       {handoverSummary && (
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Chờ bàn giao"
-                value={handoverSummary.totalPending}
-                prefix={<ClockCircleOutlined />}
-                styles={{ content: { color: '#fa8c16' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Đã gửi"
-                value={handoverSummary.totalSent}
-                prefix={<SwapOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Đã nhận"
-                value={handoverSummary.totalReceived}
-                prefix={<ExportOutlined />}
-                styles={{ content: { color: '#722ed1' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Đã duyệt"
-                value={handoverSummary.totalApproved}
-                prefix={<CheckCircleOutlined />}
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Chờ bàn giao</div><div className="text-2xl font-semibold" style={{ color: '#fa8c16' }}><ClockCircleOutlined className="mr-1" />{handoverSummary.totalPending}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Đã gửi</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><SwapOutlined className="mr-1" />{handoverSummary.totalSent}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Đã nhận</div><div className="text-2xl font-semibold" style={{ color: '#722ed1' }}><ExportOutlined className="mr-1" />{handoverSummary.totalReceived}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Đã duyệt</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{handoverSummary.totalApproved}</div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Filters */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Search
             placeholder="Tìm theo mã HSBA, mã BN, tên..."
             allowClear
@@ -1376,8 +1356,8 @@ const MedicalRecordArchive: React.FC = () => {
             onChange={(e) => setHandoverKeyword(e.target.value)}
             onSearch={() => fetchHandoverList(1)}
           />
-        </Col>
-        <Col xs={12} sm={5}>
+        </div>
+        <div>
           <Select
             placeholder="Trạng thái"
             allowClear
@@ -1394,8 +1374,8 @@ const MedicalRecordArchive: React.FC = () => {
               { value: 3, label: 'Đã duyệt' },
             ]}
           />
-        </Col>
-        <Col xs={12} sm={6}>
+        </div>
+        <div>
           <RangePicker
             value={handoverDateRange}
             onChange={(dates) => {
@@ -1404,9 +1384,9 @@ const MedicalRecordArchive: React.FC = () => {
             format="DD/MM/YYYY"
             style={{ width: '100%' }}
           />
-        </Col>
-        <Col>
-          <Space>
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
             <Button icon={<SearchOutlined />} type="primary" onClick={() => fetchHandoverList(1)}>
               Tim
             </Button>
@@ -1418,14 +1398,14 @@ const MedicalRecordArchive: React.FC = () => {
             }}>
               Đặt lại
             </Button>
-          </Space>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
 
       {/* Actions */}
-      <Row gutter={16} style={{ marginBottom: 12 }}>
-        <Col>
-          <Space>
+      <div className="grid grid-cols-4 gap-4">
+        <div>
+          <div className="flex items-center gap-2">
             <Button
               type="primary"
               icon={<SwapOutlined />}
@@ -1446,9 +1426,9 @@ const MedicalRecordArchive: React.FC = () => {
                 Bỏ chọn tất cả
               </Button>
             )}
-          </Space>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
 
       {/* Table */}
       <Table
@@ -1526,12 +1506,9 @@ const MedicalRecordArchive: React.FC = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Hoàn thành biểu mẫu" span={2}>
-                <Progress
-                  percent={previewRecord.totalForms > 0
+                <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${previewRecord.totalForms > 0
                     ? Math.round((previewRecord.completedForms / previewRecord.totalForms) * 100)
-                    : 0}
-                  size="small"
-                />
+                    : 0}%` }} /></div>
                 {previewRecord.completedForms}/{previewRecord.totalForms} biểu mẫu
               </Descriptions.Item>
             </Descriptions>
@@ -1650,7 +1627,7 @@ const MedicalRecordArchive: React.FC = () => {
   const archiveColumns: ColumnsType<ArchivedRecord> = [
     {
       title: 'Mã HSBA', dataIndex: 'medicalRecordCode', key: 'code', width: 120,
-      render: (v: string) => <Text strong>{v || '-'}</Text>,
+      render: (v: string) => <span className="font-semibold">{v || '-'}</span>,
     },
     { title: 'Mã BN', dataIndex: 'patientCode', key: 'patientCode', width: 100 },
     { title: 'Họ tên', dataIndex: 'patientName', key: 'patientName', width: 160, ellipsis: true },
@@ -1688,7 +1665,7 @@ const MedicalRecordArchive: React.FC = () => {
     {
       title: 'Thao tác', key: 'actions', width: 180, fixed: 'right',
       render: (_: unknown, record: ArchivedRecord) => (
-        <Space size="small">
+        <div className="flex items-center gap-1">
           <Tooltip title="Giải mã xem">
             <Button size="small" icon={<CodeOutlined />} onClick={() => handleDecodeRecord(record)} />
           </Tooltip>
@@ -1698,7 +1675,7 @@ const MedicalRecordArchive: React.FC = () => {
           <Tooltip title="Xuất PDF">
             <Button size="small" icon={<FilePdfOutlined />} onClick={() => handleExportPdf(record.id)} />
           </Tooltip>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1713,8 +1690,8 @@ const MedicalRecordArchive: React.FC = () => {
   const renderArchiveTab = () => (
     <div>
       {/* Storage Status */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={12}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Card
             size="small"
             title={<><DatabaseOutlined /> Lưu trữ nội bộ (Local)</>}
@@ -1726,10 +1703,10 @@ const MedicalRecordArchive: React.FC = () => {
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {storageStatus.localOnly} hồ sơ chỉ lưu local
-            </Text>
-          </Card>
-        </Col>
-        <Col xs={24} md={12}>
+            </span>
+          </div>
+        </div>
+        <div>
           <Card
             size="small"
             title={<><CloudOutlined /> Lưu trữ đám mây (Cloud)</>}
@@ -1741,54 +1718,45 @@ const MedicalRecordArchive: React.FC = () => {
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {storageStatus.cloudOnly} hồ sơ chỉ lưu cloud
-            </Text>
-          </Card>
-        </Col>
-      </Row>
+            </span>
+          </div>
+        </div>
+      </div>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic
-              title="Tổng lưu trữ"
-              value={storageStatus.totalArchived}
-              prefix={<FolderOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic
-              title="Cả hai nơi"
-              value={storageStatus.bothStored}
-              prefix={<SafetyOutlined />}
-              styles={{ content: { color: '#52c41a' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="text-gray-500 text-sm mb-1">Tổng lưu trữ</div><div className="text-2xl font-semibold"><FolderOutlined className="mr-1" />{storageStatus.totalArchived}</div>
+          </div>
+        </div>
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="text-gray-500 text-sm mb-1">Cả hai nơi</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><SafetyOutlined className="mr-1" />{storageStatus.bothStored}</div>
+          </div>
+        </div>
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div style={{ marginBottom: 4 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Trạng thái đồng bộ</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>Trạng thái đồng bộ</span>
             </div>
             <Tag color={SYNC_STATUS_MAP[storageStatus.syncStatus]?.color || 'default'} icon={<SyncOutlined spin={storageStatus.syncStatus === 'syncing'} />}>
               {SYNC_STATUS_MAP[storageStatus.syncStatus]?.label || 'Không rõ'}
             </Tag>
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
+          </div>
+        </div>
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div style={{ marginBottom: 4 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Đồng bộ lần cuối</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>Đồng bộ lần cuối</span>
             </div>
-            <Text>{storageStatus.lastSyncDate ? dayjs(storageStatus.lastSyncDate).format('DD/MM/YYYY HH:mm') : 'Chưa đồng bộ'}</Text>
-          </Card>
-        </Col>
-      </Row>
+            <span>{storageStatus.lastSyncDate ? dayjs(storageStatus.lastSyncDate).format('DD/MM/YYYY HH:mm') : 'Chưa đồng bộ'}</span>
+          </div>
+        </div>
+      </div>
 
       {/* Search & Filter */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Search
             placeholder="Tìm theo mã BN, tên, mã HSBA..."
             allowClear
@@ -1796,8 +1764,8 @@ const MedicalRecordArchive: React.FC = () => {
             onChange={(e) => setArchiveKeyword(e.target.value)}
             onSearch={() => fetchArchivedRecords(1)}
           />
-        </Col>
-        <Col xs={12} sm={4}>
+        </div>
+        <div>
           <Select
             placeholder="Định dạng"
             allowClear
@@ -1810,17 +1778,17 @@ const MedicalRecordArchive: React.FC = () => {
               { value: 'CDA', label: 'CDA R2' },
             ]}
           />
-        </Col>
-        <Col xs={12} sm={6}>
+        </div>
+        <div>
           <RangePicker
             value={archiveDateRange}
             onChange={(dates) => setArchiveDateRange(dates ? [dates[0], dates[1]] : [null, null])}
             format="DD/MM/YYYY"
             style={{ width: '100%' }}
           />
-        </Col>
-        <Col>
-          <Space>
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
             <Button icon={<SearchOutlined />} type="primary" onClick={() => fetchArchivedRecords(1)}>
               Tìm
             </Button>
@@ -1833,20 +1801,20 @@ const MedicalRecordArchive: React.FC = () => {
             }}>
               Đặt lại
             </Button>
-          </Space>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
 
       {/* Generate archive action */}
       {selectedExam && (
         <Card size="small" style={{ marginBottom: 16, borderColor: '#1890ff' }}>
-          <Row gutter={16} align="middle">
-            <Col flex="auto">
-              <Text strong>Tạo lưu trữ cho: </Text>
-              <Text>{selectedExam.patientName} - {selectedExam.patientCode}</Text>
-            </Col>
-            <Col>
-              <Space>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="flex-1">
+              <span className="font-semibold">Tạo lưu trữ cho: </span>
+              <span>{selectedExam.patientName} - {selectedExam.patientCode}</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
                 <Button
                   type="primary"
                   icon={<ExportOutlined />}
@@ -1869,10 +1837,10 @@ const MedicalRecordArchive: React.FC = () => {
                 >
                   Lưu trữ CDA
                 </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Archived records table */}
@@ -1951,7 +1919,7 @@ const MedicalRecordArchive: React.FC = () => {
                           </Descriptions.Item>
                         ))}
                     </Descriptions>
-                  </Card>
+                  </div>
                 ))}
               {Object.entries(decodeContent)
                 .filter(([, v]) => Array.isArray(v))
@@ -1974,7 +1942,7 @@ const MedicalRecordArchive: React.FC = () => {
                         }))}
                         scroll={{ x: 'max-content' }}
                       />
-                    </Card>
+                    </div>
                   );
                 })}
             </div>
@@ -2005,49 +1973,30 @@ const MedicalRecordArchive: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div style={{ padding: '0 4px' }}>
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Tổng hồ sơ"
-                value={stats.totalRecords}
-                prefix={<FileTextOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Chờ soát"
-                value={stats.pendingReview}
-                prefix={<ClockCircleOutlined />}
-                styles={{ content: { color: '#fa8c16' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Đã bàn giao"
-                value={stats.handedOver}
-                prefix={<SwapOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card size="small">
-              <Statistic
-                title="Đã duyệt"
-                value={stats.approved}
-                prefix={<CheckCircleOutlined />}
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Tổng hồ sơ</div><div className="text-2xl font-semibold"><FileTextOutlined className="mr-1" />{stats.totalRecords}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Chờ soát</div><div className="text-2xl font-semibold" style={{ color: '#fa8c16' }}><ClockCircleOutlined className="mr-1" />{stats.pendingReview}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Đã bàn giao</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><SwapOutlined className="mr-1" />{stats.handedOver}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="text-gray-500 text-sm mb-1">Đã duyệt</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.approved}</div>
+            </div>
+          </div>
+        </div>
 
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -2076,7 +2025,7 @@ const MedicalRecordArchive: React.FC = () => {
                   <span>
                     <SwapOutlined /> Bàn giao HSBA{' '}
                     {stats.pendingReview > 0 && (
-                      <Badge count={stats.pendingReview} size="small" />
+                      <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">{stats.pendingReview}</span>
                     )}
                   </span>
                 ),
@@ -2093,7 +2042,7 @@ const MedicalRecordArchive: React.FC = () => {
               },
             ]}
           />
-        </Card>
+        </div>
 
         {/* Detail drawer for tree node clicks */}
         <Drawer

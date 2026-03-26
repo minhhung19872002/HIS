@@ -270,7 +270,7 @@ const FoodSafety: React.FC = () => {
       width: 120,
       render: (_: unknown, record: FoodSafetyIncident) => {
         const pct = record.investigationStatus === 3 ? 100 : record.investigationStatus === 2 ? 75 : record.investigationStatus === 1 ? 40 : 10;
-        return <Progress percent={pct} size="small" />;
+        return <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${pct}%` }} /></div>;
       },
     },
     {
@@ -278,10 +278,10 @@ const FoodSafety: React.FC = () => {
       key: 'action',
       width: 100,
       render: (_: unknown, record: FoodSafetyIncident) => (
-        <Space size="small">
+        <div className="flex items-center gap-1">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewIncident(record)} />
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditIncident(record)} />
-        </Space>
+        </div>
       ),
     },
   ];
@@ -331,7 +331,7 @@ const FoodSafety: React.FC = () => {
       render: (v: number) => (
         <Text strong style={{ color: v >= 80 ? '#52c41a' : v >= 60 ? '#faad14' : '#ff4d4f' }}>
           {v ?? '-'}
-        </Text>
+        </span>
       ),
     },
     {
@@ -415,7 +415,7 @@ const FoodSafety: React.FC = () => {
               Them su co
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </Space>
+          </div>
           <Table
             columns={incidentColumns}
             dataSource={filteredIncidents}
@@ -447,7 +447,7 @@ const FoodSafety: React.FC = () => {
               Them kiem tra
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </Space>
+          </div>
           <Table
             columns={inspectionColumns}
             dataSource={filteredInspections}
@@ -466,62 +466,62 @@ const FoodSafety: React.FC = () => {
       ),
       children: (
         <div>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
-                <Statistic title="Tong su co" value={stats?.totalIncidents ?? 0} prefix={<AlertOutlined />} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="text-gray-500 text-sm mb-1">Tong su co</div><div className="text-2xl font-semibold"><AlertOutlined className="mr-1" />{stats?.totalIncidents ?? 0}</div>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <Statistic title="Nguoi bi anh huong" value={stats?.totalAffected ?? 0} styles={{ content: { color: '#1890ff' } }} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <Statistic title="Diem tuan thu TB" value={stats?.avgComplianceScore ?? 0} suffix="/100" styles={{ content: { color: '#52c41a' } }} />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <Statistic title="CS vi pham" value={stats?.facilitiesViolating ?? 0} styles={{ content: { color: '#ff4d4f' } }} />
-              </Card>
-            </Col>
-          </Row>
-          <Divider />
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}>
+              </div>
+            </div>
+          </div>
+          <hr className="border-t border-gray-200 my-4" />
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Card title="Su co theo thang" size="small">
                 {stats?.incidentsByMonth?.length ? (
                   stats.incidentsByMonth.map(item => (
                     <div key={item.month} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                      <Text>{item.month}</Text>
-                      <Text strong>{item.count}</Text>
+                      <span>{item.month}</span>
+                      <span className="font-semibold">{item.count}</span>
                     </div>
                   ))
                 ) : (
-                  <Text type="secondary">Chua co du lieu</Text>
+                  <span className="text-gray-500">Chua co du lieu</span>
                 )}
-              </Card>
-            </Col>
-            <Col xs={24} md={12}>
+              </div>
+            </div>
+            <div>
               <Card title="Tuan thu theo loai co so" size="small">
                 {stats?.complianceByFacilityType?.length ? (
                   stats.complianceByFacilityType.map(item => (
                     <div key={item.type} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                      <Text>{item.type}</Text>
-                      <Space>
-                        <Text>{item.count} CS</Text>
+                      <span>{item.type}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{item.count} CS</span>
                         <Progress percent={Math.round(item.avgScore)} size="small" style={{ width: 100 }} />
-                      </Space>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <Text type="secondary">Chua co du lieu</Text>
+                  <span className="text-gray-500">Chua co du lieu</span>
                 )}
-              </Card>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
         </div>
       ),
     },
@@ -530,53 +530,33 @@ const FoodSafety: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div>
-        <Title level={4}>An toan ve sinh thuc pham</Title>
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Tong su co"
-                value={stats?.totalIncidents ?? 0}
-                prefix={<WarningOutlined />}
-                styles={{ content: { color: '#ff4d4f' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Dang dieu tra"
-                value={stats?.activeInvestigations ?? 0}
-                prefix={<SearchOutlined />}
-                styles={{ content: { color: '#fa8c16' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Nguoi bi anh huong"
-                value={stats?.totalAffected ?? 0}
-                prefix={<AlertOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Co so vi pham"
-                value={stats?.facilitiesViolating ?? 0}
-                prefix={<SafetyOutlined />}
-                styles={{ content: { color: '#722ed1' } }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <h4 className="text-lg font-semibold mb-4">An toan ve sinh thuc pham</h4>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Tong su co</div><div className="text-2xl font-semibold" style={{ color: '#ff4d4f' }}><WarningOutlined className="mr-1" />{stats?.totalIncidents ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Dang dieu tra</div><div className="text-2xl font-semibold" style={{ color: '#fa8c16' }}><SearchOutlined className="mr-1" />{stats?.activeInvestigations ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Nguoi bi anh huong</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><AlertOutlined className="mr-1" />{stats?.totalAffected ?? 0}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Co so vi pham</div><div className="text-2xl font-semibold" style={{ color: '#722ed1' }}><SafetyOutlined className="mr-1" />{stats?.facilitiesViolating ?? 0}</div>
+            </div>
+          </div>
+        </div>
 
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        </Card>
+        </div>
 
         {/* Incident Detail Modal */}
         <Modal
@@ -615,7 +595,7 @@ const FoodSafety: React.FC = () => {
                 <Descriptions.Item label="Mo ta" span={2}>{selectedIncident.description}</Descriptions.Item>
                 <Descriptions.Item label="Ket qua dieu tra" span={2}>{selectedIncident.investigationFindings || '-'}</Descriptions.Item>
               </Descriptions>
-              <Divider>Mau xet nghiem</Divider>
+              <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Mau xet nghiem</div>
               <Table
                 columns={sampleColumns}
                 dataSource={samples}
@@ -639,13 +619,13 @@ const FoodSafety: React.FC = () => {
           destroyOnHidden
         >
           <Form form={incidentForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="incidentDate" label="Ngay xay ra" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="locationType" label="Loai co so" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon loai">
                     <Select.Option value="Restaurant">Nha hang</Select.Option>
@@ -656,26 +636,26 @@ const FoodSafety: React.FC = () => {
                     <Select.Option value="Other">Khac</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="location" label="Dia diem" rules={[{ required: true, message: 'Bat buoc' }]}>
               <Input />
             </Form.Item>
             <Form.Item name="description" label="Mo ta su co" rules={[{ required: true, message: 'Bat buoc' }]}>
               <TextArea rows={3} />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={8}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="totalAffected" label="So nguoi bi anh huong">
                   <Input type="number" min={0} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="hospitalized" label="Nhap vien">
                   <Input type="number" min={0} />
                 </Form.Item>
-              </Col>
-              <Col span={8}>
+              </div>
+              <div>
                 <Form.Item name="severity" label="Muc do" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon">
                     <Select.Option value={1}>Nhe</Select.Option>
@@ -684,8 +664,8 @@ const FoodSafety: React.FC = () => {
                     <Select.Option value={4}>Nguy kich</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="suspectedFood" label="Thuc pham nghi ngo">
               <Input />
             </Form.Item>
@@ -706,13 +686,13 @@ const FoodSafety: React.FC = () => {
           destroyOnHidden
         >
           <Form form={inspectionForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="inspectionDate" label="Ngay kiem tra" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item name="facilityType" label="Loai co so" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon loai">
                     <Select.Option value="Restaurant">Nha hang</Select.Option>
@@ -723,31 +703,31 @@ const FoodSafety: React.FC = () => {
                     <Select.Option value="School">Truong hoc</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="facilityName" label="Ten co so" rules={[{ required: true, message: 'Bat buoc' }]}>
               <Input />
             </Form.Item>
             <Form.Item name="facilityAddress" label="Dia chi">
               <Input />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={6}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="hygieneScore" label="Diem ve sinh">
                   <Input type="number" min={0} max={100} />
                 </Form.Item>
-              </Col>
-              <Col span={6}>
+              </div>
+              <div>
                 <Form.Item name="foodStorageScore" label="Bao quan TP">
                   <Input type="number" min={0} max={100} />
                 </Form.Item>
-              </Col>
-              <Col span={6}>
+              </div>
+              <div>
                 <Form.Item name="staffTrainingScore" label="Dao tao NV">
                   <Input type="number" min={0} max={100} />
                 </Form.Item>
-              </Col>
-              <Col span={6}>
+              </div>
+              <div>
                 <Form.Item name="complianceLevel" label="Xep loai" rules={[{ required: true, message: 'Bat buoc' }]}>
                   <Select placeholder="Chon">
                     <Select.Option value="A">Loai A</Select.Option>
@@ -756,8 +736,8 @@ const FoodSafety: React.FC = () => {
                     <Select.Option value="D">Loai D</Select.Option>
                   </Select>
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="notes" label="Ghi chu / Vi pham">
               <TextArea rows={3} />
             </Form.Item>

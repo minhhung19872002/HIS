@@ -496,11 +496,11 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 100,
       render: (_: unknown, record: RecordCode) => (
-        <Space orientation="horizontal">
+        <div className="flex items-center gap-2">
           {record.status === 0 && (
             <Button type="link" size="small" onClick={() => handleAssignCode(record)}>Cap ma</Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -528,14 +528,14 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 140,
       render: (_: unknown, record: TransferRecord) => (
-        <Space orientation="horizontal">
+        <div className="flex items-center gap-2">
           {record.status === 0 && (
             <>
               <Button type="link" size="small" onClick={() => handleApproveTransfer(record, true)}>Duyet</Button>
               <Button type="link" size="small" danger onClick={() => handleApproveTransfer(record, false)}>Tu choi</Button>
             </>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -569,7 +569,7 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 180,
       render: (_: unknown, record: BorrowRecord) => (
-        <Space orientation="horizontal">
+        <div className="flex items-center gap-2">
           {(record.status === 0 || record.status === 3) && (
             <Button type="link" size="small" onClick={() => { setSelectedBorrow(record); setReturnModalOpen(true); }}>
               Tra
@@ -580,7 +580,7 @@ const MedicalRecordPlanning: React.FC = () => {
               Gia han
             </Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -609,14 +609,14 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 140,
       render: (_: unknown, record: HandoverRecord) => (
-        <Space orientation="horizontal">
+        <div className="flex items-center gap-2">
           {record.status === 1 && (
             <>
               <Button type="link" size="small" onClick={() => handleApproveHandover(record, true)}>Duyet</Button>
               <Button type="link" size="small" danger onClick={() => handleApproveHandover(record, false)}>Tu choi</Button>
             </>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -674,8 +674,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderRecordCodes = () => (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} md={8}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Search
             placeholder="Tim theo ma BA, ma BN, ho ten..."
             value={rcKeyword}
@@ -683,18 +683,18 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadRecordCodes(1)}
             allowClear
           />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
+        </div>
+        <div>
           <RangePicker
             style={{ width: '100%' }}
             value={rcDateRange}
             onChange={(dates) => setRcDateRange(dates as [Dayjs | null, Dayjs | null])}
           />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
+        </div>
+        <div>
           <Button icon={<ReloadOutlined />} onClick={() => loadRecordCodes(1)}>Tai lai</Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
       <Table
         columns={recordCodeColumns}
         dataSource={rcData}
@@ -715,8 +715,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderTransfers = () => (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} md={8}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Search
             placeholder="Tim theo ma BN, ho ten..."
             value={trKeyword}
@@ -724,18 +724,18 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadTransfers(1)}
             allowClear
           />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
+        </div>
+        <div>
           <RangePicker
             style={{ width: '100%' }}
             value={trDateRange}
             onChange={(dates) => setTrDateRange(dates as [Dayjs | null, Dayjs | null])}
           />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
+        </div>
+        <div>
           <Button icon={<ReloadOutlined />} onClick={() => loadTransfers(1)}>Tai lai</Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
       <Table
         columns={transferColumns}
         dataSource={trData}
@@ -756,8 +756,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderBorrowing = () => (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8} md={6}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Search
             placeholder="Tim theo ma, ho ten..."
             value={brKeyword}
@@ -765,8 +765,8 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadBorrowing(1)}
             allowClear
           />
-        </Col>
-        <Col xs={24} sm={8} md={4}>
+        </div>
+        <div>
           <Select
             style={{ width: '100%' }}
             placeholder="Trang thai"
@@ -780,14 +780,14 @@ const MedicalRecordPlanning: React.FC = () => {
               { value: 3, label: 'Gia han' },
             ]}
           />
-        </Col>
-        <Col xs={24} sm={8} md={6}>
-          <Space orientation="horizontal">
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
             <Button icon={<ReloadOutlined />} onClick={() => loadBorrowing(1)}>Tai lai</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setBorrowModalOpen(true)}>Tao phieu muon</Button>
-          </Space>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
       <Table
         columns={borrowColumns}
         dataSource={brData}
@@ -808,8 +808,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderHandover = () => (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8} md={6}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Search
             placeholder="Tim theo ma, ho ten..."
             value={hoKeyword}
@@ -817,8 +817,8 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadHandover(1)}
             allowClear
           />
-        </Col>
-        <Col xs={24} sm={8} md={4}>
+        </div>
+        <div>
           <Select
             style={{ width: '100%' }}
             placeholder="Trang thai"
@@ -832,11 +832,11 @@ const MedicalRecordPlanning: React.FC = () => {
               { value: 3, label: 'Tu choi' },
             ]}
           />
-        </Col>
-        <Col xs={24} sm={8} md={6}>
+        </div>
+        <div>
           <Button icon={<ReloadOutlined />} onClick={() => loadHandover(1)}>Tai lai</Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
       <Table
         columns={handoverColumns}
         dataSource={hoData}
@@ -857,8 +857,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderOutpatient = () => (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} md={8}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <Search
             placeholder="Tim theo ma BA, ma BN, ho ten..."
             value={opKeyword}
@@ -866,18 +866,18 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadOutpatient(1)}
             allowClear
           />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
+        </div>
+        <div>
           <RangePicker
             style={{ width: '100%' }}
             value={opDateRange}
             onChange={(dates) => setOpDateRange(dates as [Dayjs | null, Dayjs | null])}
           />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
+        </div>
+        <div>
           <Button icon={<ReloadOutlined />} onClick={() => loadOutpatient(1)}>Tai lai</Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
       <Table
         columns={outpatientColumns}
         dataSource={opData}
@@ -898,23 +898,23 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderAttendance = () => (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} md={8}>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
           <DatePicker
             style={{ width: '100%' }}
             value={attDate}
             onChange={(d) => d && setAttDate(d)}
           />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <Space orientation="horizontal">
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
             <Button icon={<ReloadOutlined />} onClick={() => loadAttendance()}>Tai lai</Button>
             <Badge count={attTotal - attCheckedIn} offset={[10, 0]}>
               <span>Chua cham cong: {attTotal - attCheckedIn}/{attTotal}</span>
             </Badge>
-          </Space>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
       <Table
         columns={attendanceColumns}
         dataSource={attData}
@@ -936,72 +936,72 @@ const MedicalRecordPlanning: React.FC = () => {
       <div style={{ padding: 16 }}>
         {/* Stats Cards */}
         {stats && (
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-            <Col xs={12} sm={8} md={4}>
-              <Card size="small">
+          <div className="grid grid-cols-4 gap-4 mb-4">
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <Statistic
                   title="Tong HS"
                   value={stats.totalRecords}
                   prefix={<FileTextOutlined />}
                   styles={{ content: { fontSize: 20 } }}
                 />
-              </Card>
-            </Col>
-            <Col xs={12} sm={8} md={4}>
-              <Card size="small">
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <Statistic
                   title="Da cap ma"
                   value={stats.assignedCodes}
                   prefix={<CheckCircleOutlined />}
                   styles={{ content: { color: '#52c41a', fontSize: 20 } }}
                 />
-              </Card>
-            </Col>
-            <Col xs={12} sm={8} md={4}>
-              <Card size="small">
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <Statistic
                   title="Chuyen vien"
                   value={stats.totalTransfers}
                   prefix={<SwapOutlined />}
                   styles={{ content: { fontSize: 20 } }}
                 />
-              </Card>
-            </Col>
-            <Col xs={12} sm={8} md={4}>
-              <Card size="small">
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <Statistic
                   title="Dang muon"
                   value={stats.activeBorrows}
                   prefix={<BookOutlined />}
                   styles={{ content: { color: '#1890ff', fontSize: 20 } }}
                 />
-              </Card>
-            </Col>
-            <Col xs={12} sm={8} md={4}>
-              <Card size="small">
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <Statistic
                   title="Qua han"
                   value={stats.overdueBorrows}
                   prefix={<WarningOutlined />}
                   styles={{ content: { color: '#ff4d4f', fontSize: 20 } }}
                 />
-              </Card>
-            </Col>
-            <Col xs={12} sm={8} md={4}>
-              <Card size="small">
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <Statistic
                   title="Ban giao"
                   value={stats.pendingHandovers}
                   prefix={<ClockCircleOutlined />}
                   styles={{ content: { color: '#faad14', fontSize: 20 } }}
                 />
-              </Card>
-            </Col>
-          </Row>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Tabs */}
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -1050,7 +1050,7 @@ const MedicalRecordPlanning: React.FC = () => {
               },
             ]}
           />
-        </Card>
+        </div>
 
         {/* Borrow Modal */}
         <Modal

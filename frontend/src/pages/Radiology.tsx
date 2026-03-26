@@ -1404,7 +1404,7 @@ const Radiology: React.FC = () => {
               Chat
             </Button>
           </Tooltip>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1612,7 +1612,7 @@ const Radiology: React.FC = () => {
               Duyệt
             </Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1682,8 +1682,8 @@ const Radiology: React.FC = () => {
         `}</style>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Quản lý Chẩn đoán Hình ảnh (RIS/PACS)</Title>
-        <Space>
+        <h4 className="text-lg font-semibold m-0">Quản lý Chẩn đoán Hình ảnh (RIS/PACS)</h4>
+        <div className="flex items-center gap-2">
           <Tooltip title={isDarkMode ? 'Chuyển sang giao dien sang' : 'Chuyển sang giao dien toi (phong doc)'}>
             <Button
               icon={<BulbOutlined />}
@@ -1696,10 +1696,10 @@ const Radiology: React.FC = () => {
             </Button>
           </Tooltip>
           <Button icon={<ReloadOutlined />} onClick={() => fetchRadiologyData()} size="small">Làm mới</Button>
-        </Space>
+        </div>
       </div>
 
-      <Card>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -1717,8 +1717,8 @@ const Radiology: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4 items-center">
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo mã phiếu, mã BN, tên bệnh nhân..."
                         allowClear
@@ -1727,16 +1727,16 @@ const Radiology: React.FC = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<ReloadOutlined />} onClick={() => fetchRadiologyData()}>
                         Làm mới
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
                   {/* Filter Presets */}
-                  <Row gutter={8} style={{ marginBottom: 12 }} align="middle">
-                    <Col>
+                  <div className="flex flex-wrap gap-2">
+                    <div>
                       <Input
                         placeholder="Ten preset..."
                         size="small"
@@ -1745,14 +1745,14 @@ const Radiology: React.FC = () => {
                         onChange={(e) => setPresetName(e.target.value)}
                         onPressEnter={saveFilterPreset}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button size="small" icon={<SaveOutlined />} onClick={saveFilterPreset} type="primary" ghost>
                         Luu
                       </Button>
-                    </Col>
+                    </div>
                     {filterPresets.map((p) => (
-                      <Col key={p.name}>
+                      <div>
                         <Tag
                           color="blue"
                           style={{ cursor: 'pointer', marginBottom: 0 }}
@@ -1762,9 +1762,9 @@ const Radiology: React.FC = () => {
                         >
                           {p.name}
                         </Tag>
-                      </Col>
+                      </div>
                     ))}
-                  </Row>
+                  </div>
 
                   <Table
                     columns={pendingColumns}
@@ -1801,8 +1801,8 @@ const Radiology: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <Select
                         placeholder="Chọn Modality"
                         style={{ width: 200 }}
@@ -1819,8 +1819,8 @@ const Radiology: React.FC = () => {
                             ]
                         }
                       />
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     columns={worklistColumns}
@@ -1943,8 +1943,8 @@ const Radiology: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo mã phiếu, mã BN..."
                         allowClear
@@ -1953,8 +1953,8 @@ const Radiology: React.FC = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                       />
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     columns={completedColumns}
@@ -1995,16 +1995,16 @@ const Radiology: React.FC = () => {
                     showIcon
                     style={{ marginBottom: 16 }}
                   />
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
                         value={statsDateRange}
                         onChange={(dates) => setStatsDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button
                         type="primary"
                         icon={<SearchOutlined />}
@@ -2033,8 +2033,8 @@ const Radiology: React.FC = () => {
                       >
                         Xem thống kê
                       </Button>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button
                         icon={<PrinterOutlined />}
                         onClick={async () => {
@@ -2060,42 +2060,42 @@ const Radiology: React.FC = () => {
                       >
                         Xuất Excel
                       </Button>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col span={6}>
-                      <Card size="small">
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>{statsData?.totalExams ?? 0}</div>
                           <div>Tổng số ca</div>
                         </div>
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>{statsData?.completedExams ?? 0}</div>
                           <div>Đã hoàn thành</div>
                         </div>
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 24, fontWeight: 'bold', color: '#faad14' }}>{statsData?.pendingExams ?? 0}</div>
                           <div>Đang chờ</div>
                         </div>
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 24, fontWeight: 'bold', color: '#722ed1' }}>{statsData?.averageTATMinutes ?? 0} phút</div>
                           <div>TB TAT</div>
                         </div>
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
                 </>
               ),
             },
@@ -2109,8 +2109,8 @@ const Radiology: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm tag..."
                         allowClear
@@ -2132,8 +2132,8 @@ const Radiology: React.FC = () => {
                           }
                         }}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button
                         type="primary"
                         icon={<TagsOutlined />}
@@ -2144,8 +2144,8 @@ const Radiology: React.FC = () => {
                       >
                         Thêm Tag mới
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
                   <Alert
                     title="Quản lý Tag ca chụp"
                     description="Tạo và quản lý các tag để phân loại, đánh dấu ca chụp. Hỗ trợ gắn nhiều tag cho một ca."
@@ -2165,7 +2165,7 @@ const Radiology: React.FC = () => {
                         <Tag color="purple">Bảo hiểm</Tag>
                       </>
                     )}
-                  </Space>
+                  </div>
                 </>
               ),
             },
@@ -2179,16 +2179,16 @@ const Radiology: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
                         value={dutyDateRange}
                         onChange={(dates) => setDutyDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Select
                         placeholder="Chọn phòng"
                         style={{ width: 200 }}
@@ -2210,8 +2210,8 @@ const Radiology: React.FC = () => {
                           )
                         }
                       </Select>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button
                         type="primary"
                         icon={<CalendarOutlined />}
@@ -2236,8 +2236,8 @@ const Radiology: React.FC = () => {
                       >
                         Tạo lịch trực
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
                   <Alert
                     title="Quản lý lịch phân công trực"
                     description="Phân công bác sĩ, kỹ thuật viên trực theo ca, theo phòng. Hỗ trợ tạo lịch hàng loạt."
@@ -2276,16 +2276,16 @@ const Radiology: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
                         value={logDateRange}
                         onChange={(dates) => setLogDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Select
                         placeholder="Loại message"
                         style={{ width: 150 }}
@@ -2297,8 +2297,8 @@ const Radiology: React.FC = () => {
                         <Select.Option value="ORU">ORU (Result)</Select.Option>
                         <Select.Option value="ADT">ADT (Patient)</Select.Option>
                       </Select>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Select
                         placeholder="Trạng thái"
                         style={{ width: 120 }}
@@ -2309,8 +2309,8 @@ const Radiology: React.FC = () => {
                         <Select.Option value="Success">Thành công</Select.Option>
                         <Select.Option value="Failed">Lỗi</Select.Option>
                       </Select>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button
                         type="primary"
                         icon={<SearchOutlined />}
@@ -2352,8 +2352,8 @@ const Radiology: React.FC = () => {
                       >
                         Tìm kiếm
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
                   <Alert
                     title="Log tích hợp HIS-RIS"
                     description="Theo dõi các message trao đổi giữa HIS và RIS. Hỗ trợ retry message lỗi."
@@ -2361,40 +2361,40 @@ const Radiology: React.FC = () => {
                     showIcon
                     style={{ marginBottom: 16 }}
                   />
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col span={6}>
-                      <Card size="small">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 20, fontWeight: 'bold' }}>{integrationLogStats?.totalMessages ?? 0}</div>
                           <div>Tổng message</div>
                         </div>
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 20, fontWeight: 'bold', color: '#52c41a' }}>{integrationLogStats?.successCount ?? 0}</div>
                           <div>Thành công</div>
                         </div>
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 20, fontWeight: 'bold', color: '#f5222d' }}>{integrationLogStats?.failedCount ?? 0}</div>
                           <div>Lỗi</div>
                         </div>
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 20, fontWeight: 'bold' }}>{integrationLogStats?.averageResponseTimeMs ?? 0} ms</div>
                           <div>TB Response</div>
                         </div>
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
                   {integrationLogs.length > 0 && (
                     <Table
                       dataSource={integrationLogs}
@@ -2434,8 +2434,8 @@ const Radiology: React.FC = () => {
                     showIcon
                     style={{ marginBottom: 16 }}
                   />
-                  <Row gutter={[16, 16]}>
-                    <Col span={8}>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
                       <Card
                         title="Mẫu chẩn đoán"
                         size="small"
@@ -2467,9 +2467,9 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Quản lý các mẫu mô tả, kết luận thường dùng cho từng loại dịch vụ CĐHA.</p>
-                      </Card>
-                    </Col>
-                    <Col span={8}>
+                      </div>
+                    </div>
+                    <div>
                       <Card
                         title="Từ viết tắt"
                         size="small"
@@ -2499,9 +2499,9 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Quản lý bộ từ viết tắt để tự động mở rộng khi nhập kết quả.</p>
-                      </Card>
-                    </Col>
-                    <Col span={8}>
+                      </div>
+                    </div>
+                    <div>
                       <Card
                         title="Cấu hình nhãn in"
                         size="small"
@@ -2532,9 +2532,9 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình mẫu nhãn dán cho ca chụp, bao gồm barcode/QR code.</p>
-                      </Card>
-                    </Col>
-                    <Col span={8}>
+                      </div>
+                    </div>
+                    <div>
                       <Card
                         title="Cấu hình ký số"
                         size="small"
@@ -2565,9 +2565,9 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình các phương thức ký số: USB Token, eKYC, SignServer, SmartCA.</p>
-                      </Card>
-                    </Col>
-                    <Col span={8}>
+                      </div>
+                    </div>
+                    <div>
                       <Card
                         title="Quản lý Modality"
                         size="small"
@@ -2600,9 +2600,9 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình kết nối các thiết bị chẩn đoán hình ảnh (CT, MRI, X-quang...).</p>
-                      </Card>
-                    </Col>
-                    <Col span={8}>
+                      </div>
+                    </div>
+                    <div>
                       <Card
                         title="Kết nối PACS"
                         size="small"
@@ -2635,11 +2635,11 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình kết nối với PACS server (tùy chọn).</p>
-                      </Card>
-                    </Col>
-                  </Row>
-                  <Row gutter={16} style={{ marginTop: 16 }}>
-                    <Col span={24}>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-2">
                       <Card
                         title={<><GlobalOutlined /> Remote PACS Servers</>}
                         size="small"
@@ -2649,9 +2649,9 @@ const Radiology: React.FC = () => {
                         }}>Quan ly</Button>}
                       >
                         <p>Quan ly cac PACS server tu xa de gui anh DICOM (C-STORE). Cau hinh AE Title, host, port cho tung server.</p>
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
                 </>
               ),
             },
@@ -2672,8 +2672,8 @@ const Radiology: React.FC = () => {
                     showIcon
                     style={{ marginBottom: 16 }}
                   />
-                  <Row gutter={[24, 16]}>
-                    <Col span={12}>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
                       <Card title="Giới hạn & Tự động" size="small">
                         <Form layout="vertical">
                           <Form.Item label="Số kết quả tối đa mỗi lần đọc">
@@ -2696,9 +2696,9 @@ const Radiology: React.FC = () => {
                             />
                           </Form.Item>
                         </Form>
-                      </Card>
-                    </Col>
-                    <Col span={12}>
+                      </div>
+                    </div>
+                    <div>
                       <Card title="In ấn & Nhân sự" size="small">
                         <Form layout="vertical">
                           <Form.Item label="Nhóm in kết quả">
@@ -2723,14 +2723,14 @@ const Radiology: React.FC = () => {
                             </div>
                           </Form.Item>
                         </Form>
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Result Template Management */}
-                  <Divider>Quản lý mẫu kết quả</Divider>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Quản lý mẫu kết quả</div>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
                       <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -2744,13 +2744,13 @@ const Radiology: React.FC = () => {
                       >
                         Thêm mẫu kết quả
                       </Button>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<ReloadOutlined />} onClick={loadResultTemplates} loading={resultTemplatesLoading}>
                         Tải lại
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
                   <Table
                     dataSource={resultTemplates}
                     rowKey="id"
@@ -2771,7 +2771,7 @@ const Radiology: React.FC = () => {
                         key: 'action',
                         width: 150,
                         render: (_: any, tpl: RadiologyResultTemplateDto) => (
-                          <Space>
+                          <div className="flex items-center gap-2">
                             <Button
                               size="small"
                               icon={<EditOutlined />}
@@ -2803,7 +2803,7 @@ const Radiology: React.FC = () => {
                             >
                               <Button size="small" icon={<DeleteOutlined />} danger>Xóa</Button>
                             </Popconfirm>
-                          </Space>
+                          </div>
                         ),
                       },
                     ]}
@@ -2814,7 +2814,7 @@ const Radiology: React.FC = () => {
             },
           ]}
         />
-      </Card>
+      </div>
 
       {/* RIS Internal Chat Panel (Enhanced - NangCap15) */}
       <div
@@ -2844,12 +2844,12 @@ const Radiology: React.FC = () => {
             justifyContent: 'space-between',
           }}
         >
-          <Space>
+          <div className="flex items-center gap-2">
             <MessageOutlined />
             <span style={{ fontWeight: 500 }}>Chat CDHA</span>
             {chatCaseId && <Tag color="cyan" style={{ fontSize: 10, marginLeft: 4 }}>{chatCaseId.substring(0, 8)}...</Tag>}
-            {chatMessages.length > 0 && <Badge count={chatMessages.length} size="small" />}
-          </Space>
+            {chatMessages.length > 0 && <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">{chatMessages.length}</span>}
+          </div>
           {chatOpen ? <DownOutlined /> : <UpOutlined />}
         </div>
         {/* Chat Body */}
@@ -2857,8 +2857,8 @@ const Radiology: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', height: 360 }}>
             {/* Case/Study reference filter */}
             <div style={{ padding: '4px 8px', borderBottom: `1px solid ${isDarkMode ? '#0f3460' : '#f0f0f0'}` }}>
-              <Row gutter={4}>
-                <Col flex="auto">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="flex-1">
                   <Input
                     size="small"
                     placeholder="Ma phieu / Study ref (tuy chon)"
@@ -2867,8 +2867,8 @@ const Radiology: React.FC = () => {
                     prefix={<FileSearchOutlined style={{ color: '#999' }} />}
                     allowClear
                   />
-                </Col>
-                <Col>
+                </div>
+                <div>
                   <Tooltip title="Tai tin nhan tu server">
                     <Button
                       size="small"
@@ -2877,8 +2877,8 @@ const Radiology: React.FC = () => {
                       loading={chatLoading}
                     />
                   </Tooltip>
-                </Col>
-              </Row>
+                </div>
+              </div>
             </div>
             {/* Messages */}
             <div style={{ flex: 1, overflow: 'auto', padding: 8, background: isDarkMode ? '#1a1a2e' : '#fafafa' }}>
@@ -2924,10 +2924,10 @@ const Radiology: React.FC = () => {
       {/* Schedule Exam Modal */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <CalendarOutlined />
             <span>Hẹn lịch thực hiện</span>
-          </Space>
+          </div>
         }
         open={isScheduleModalOpen}
         onOk={handleScheduleSubmit}
@@ -2957,11 +2957,11 @@ const Radiology: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider />
+            <hr className="border-t border-gray-200 my-4" />
 
             <Form form={scheduleForm} layout="vertical">
-              <Row gutter={16}>
-                <Col span={12}>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
                   <Form.Item
                     name="modalityId"
                     label="Chọn Modality"
@@ -2985,8 +2985,8 @@ const Radiology: React.FC = () => {
                       }
                     </Select>
                   </Form.Item>
-                </Col>
-                <Col span={12}>
+                </div>
+                <div>
                   <Form.Item
                     name="scheduledDate"
                     label="Thời gian hẹn"
@@ -2999,8 +2999,8 @@ const Radiology: React.FC = () => {
                       placeholder="Chọn thời gian"
                     />
                   </Form.Item>
-                </Col>
-              </Row>
+                </div>
+              </div>
 
               <Form.Item name="notes" label="Ghi chú">
                 <TextArea rows={3} placeholder="Nhập ghi chú (nếu có)" />
@@ -3013,10 +3013,10 @@ const Radiology: React.FC = () => {
       {/* Report Modal */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <FileSearchOutlined />
             <span>Nhập kết quả chẩn đoán hình ảnh</span>
-          </Space>
+          </div>
         }
         open={isReportModalOpen}
         onOk={handleReportSubmit}
@@ -3055,7 +3055,7 @@ const Radiology: React.FC = () => {
                 )}
               </Descriptions>
 
-              <Divider>Kết quả chẩn đoán</Divider>
+              <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Kết quả chẩn đoán</div>
 
               <Form form={reportForm} layout="vertical">
                 <Form.Item
@@ -3088,10 +3088,10 @@ const Radiology: React.FC = () => {
       {/* Digital Signature Modal */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <SafetyCertificateOutlined style={{ color: '#1890ff' }} />
             <span>Ký số kết quả Chẩn đoán Hình ảnh</span>
-          </Space>
+          </div>
         }
         open={isSignatureModalOpen}
         onCancel={() => {
@@ -3146,16 +3146,16 @@ const Radiology: React.FC = () => {
               >
                 <Select placeholder="Chọn phương thức ký">
                   <Select.Option value="USBToken">
-                    <Space>
+                    <div className="flex items-center gap-2">
                       <SafetyCertificateOutlined />
                       USB Token (VNPT-CA, Viettel-CA, FPT-CA, WINCA)
-                    </Space>
+                    </div>
                   </Select.Option>
                   <Select.Option value="SmartCA">
-                    <Space>
+                    <div className="flex items-center gap-2">
                       <SafetyCertificateOutlined />
                       SmartCA (Ký điện tử trên điện thoại)
-                    </Space>
+                    </div>
                   </Select.Option>
                 </Select>
               </Form.Item>
@@ -3171,10 +3171,10 @@ const Radiology: React.FC = () => {
                     <Form.Item
                       name="certificateThumbprint"
                       label={
-                        <Space>
+                        <div className="flex items-center gap-2">
                           Chứng thư số từ USB Token
                           {loadingCertificates && <span style={{ color: '#1890ff' }}>(Đang tải...)</span>}
-                        </Space>
+                        </div>
                       }
                       rules={[{ required: true, message: 'Vui lòng chọn chứng thư số' }]}
                     >
@@ -3195,7 +3195,7 @@ const Radiology: React.FC = () => {
                                 Cấp bởi: {cert.issuerName} | HSD: {cert.validTo}
                                 {!cert.isValid && <Tag color="red" style={{ marginLeft: 8 }}>Hết hạn</Tag>}
                               </span>
-                            </Space>
+                            </div>
                           </Select.Option>
                         ))}
                       </Select>
@@ -3238,20 +3238,20 @@ const Radiology: React.FC = () => {
         data-testid="template-modal"
       >
         <Form form={templateForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={8}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="code" label="Mã mẫu" rules={[{ required: true, message: 'Nhập mã mẫu' }]}>
                 <Input placeholder="VD: XQ-NGUC-01" />
               </Form.Item>
-            </Col>
-            <Col span={16}>
+            </div>
+            <div className="col-span-2">
               <Form.Item name="name" label="Tên mẫu" rules={[{ required: true, message: 'Nhập tên mẫu' }]}>
                 <Input placeholder="VD: X-quang Ngực thẳng bình thường" />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="serviceTypeId" label="Loại dịch vụ">
                 <Select placeholder="Chọn loại" allowClear>
                   <Select.Option value="XR">X-quang</Select.Option>
@@ -3263,26 +3263,26 @@ const Radiology: React.FC = () => {
                   <Select.Option value="ENDO">Nội soi</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div>
               <Form.Item name="gender" label="Giới tính">
                 <Select placeholder="Tất cả" allowClear>
                   <Select.Option value="M">Nam</Select.Option>
                   <Select.Option value="F">Nữ</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-            <Col span={4}>
+            </div>
+            <div>
               <Form.Item name="sortOrder" label="Thứ tự">
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={4}>
+            </div>
+            <div>
               <Form.Item name="isDefault" label="Mặc định" valuePropName="checked">
                 <Switch checkedChildren="Có" unCheckedChildren="Không" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="descriptionTemplate" label="Mẫu mô tả">
             <TextArea rows={4} placeholder="Nhập mẫu mô tả hình ảnh mặc định..." />
           </Form.Item>
@@ -3360,10 +3360,10 @@ const Radiology: React.FC = () => {
       {/* Detail Modal */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <EyeOutlined />
             <span>Chi tiết phiếu CĐHA - {selectedRequest?.requestCode}</span>
-          </Space>
+          </div>
         }
         open={isDetailModalOpen}
         onCancel={() => setIsDetailModalOpen(false)}
@@ -3460,7 +3460,7 @@ const Radiology: React.FC = () => {
               key: 'action',
               width: 120,
               render: (_: any, record: any) => (
-                <Space>
+                <div className="flex items-center gap-2">
                   <Button size="small" icon={<EditOutlined />} onClick={() => {
                     setEditingRemoteServer(record);
                     remoteServerForm.setFieldsValue(record);
@@ -3469,7 +3469,7 @@ const Radiology: React.FC = () => {
                   <Popconfirm title="Xoa server nay?" onConfirm={() => handleDeleteRemoteServer(record.id)}>
                     <Button size="small" danger icon={<DeleteOutlined />} />
                   </Popconfirm>
-                </Space>
+                </div>
               ),
             },
           ]}
@@ -3498,18 +3498,18 @@ const Radiology: React.FC = () => {
           <Form.Item name="aeTitle" label="AE Title" rules={[{ required: true, message: 'Vui long nhap AE Title' }]}>
             <Input placeholder="VD: REMOTE_PACS" />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={16}>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-2">
               <Form.Item name="host" label="Host / IP" rules={[{ required: true, message: 'Vui long nhap host' }]}>
                 <Input placeholder="VD: 192.168.1.100" />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div>
               <Form.Item name="port" label="Port" rules={[{ required: true, message: 'Vui long nhap port' }]}>
                 <InputNumber min={1} max={65535} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="description" label="Mo ta">
             <Input.TextArea rows={2} placeholder="Ghi chu them ve server nay..." />
           </Form.Item>

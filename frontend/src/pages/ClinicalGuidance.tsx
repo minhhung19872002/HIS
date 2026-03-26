@@ -311,7 +311,7 @@ const ClinicalGuidance: React.FC = () => {
       width: 150,
       fixed: 'right',
       render: (_: unknown, record: GuidanceBatchDto) => (
-        <Space size="small">
+        <div className="flex items-center gap-1">
           <Tooltip title="Xem chi tiet">
             <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
           </Tooltip>
@@ -323,7 +323,7 @@ const ClinicalGuidance: React.FC = () => {
               <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
             </Tooltip>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -332,51 +332,41 @@ const ClinicalGuidance: React.FC = () => {
     <Spin spinning={loading && batches.length === 0}>
       <div>
         {/* Header */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Title level={4} style={{ margin: 0 }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className="text-lg font-semibold m-0">
                 <TeamOutlined style={{ marginRight: 8 }} />
                 Chi dao tuyen
-              </Title>
-            </Col>
-            <Col>
-              <Space>
+              </h4>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenCreate()}>
                   Tao dot moi
                 </Button>
                 <Button icon={<ReloadOutlined />} onClick={fetchData}>
                   Lam moi
                 </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* KPI Cards */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
-                title="Dang thuc hien"
-                value={stats.inProgress}
-                prefix={<ClockCircleOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
-                title="Hoan thanh"
-                value={stats.completed}
-                prefix={<CheckCircleOutlined />}
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Dang thuc hien</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><ClockCircleOutlined className="mr-1" />{stats.inProgress}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Hoan thanh</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.completed}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Statistic
                 title="Tong ngan sach"
                 value={stats.totalBudget}
@@ -385,14 +375,14 @@ const ClinicalGuidance: React.FC = () => {
                 prefix={<DollarOutlined />}
                 styles={{ content: { color: '#faad14' } }}
               />
-            </Card>
-          </Col>
-        </Row>
+            </div>
+          </div>
+        </div>
 
         {/* Filters */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row gutter={[16, 12]}>
-            <Col xs={24} sm={8} md={6}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Search
                 placeholder="Tim kiem dot chi dao, co so..."
                 value={keyword}
@@ -401,8 +391,8 @@ const ClinicalGuidance: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </Col>
-            <Col xs={12} sm={8} md={4}>
+            </div>
+            <div>
               <Select
                 placeholder="Loai hinh"
                 allowClear
@@ -416,20 +406,20 @@ const ClinicalGuidance: React.FC = () => {
                   { value: 3, label: 'Ho tro' },
                 ]}
               />
-            </Col>
-            <Col xs={24} sm={8} md={6}>
+            </div>
+            <div>
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange}
                 onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                 format="DD/MM/YYYY"
               />
-            </Col>
-          </Row>
-        </Card>
+            </div>
+          </div>
+        </div>
 
         {/* Tabs + Table */}
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs
             activeKey={activeTab}
             onChange={(key) => { setActiveTab(key); setPagination({ current: 1, pageSize: 20 }); }}
@@ -460,7 +450,7 @@ const ClinicalGuidance: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
           />
-        </Card>
+        </div>
 
         {/* Create/Edit Modal */}
         <Modal
@@ -482,8 +472,8 @@ const ClinicalGuidance: React.FC = () => {
             >
               <Input placeholder="VD: Chi dao tuyen TTYT Huyen X Q2/2026" />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item
                   name="targetFacility"
                   label="Co so tuyen duoi"
@@ -491,8 +481,8 @@ const ClinicalGuidance: React.FC = () => {
                 >
                   <Input placeholder="Ten co so y te tuyen duoi" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item
                   name="guidanceType"
                   label="Loai hinh"
@@ -508,10 +498,10 @@ const ClinicalGuidance: React.FC = () => {
                     ]}
                   />
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item
                   name="startDate"
                   label="Ngay bat dau"
@@ -519,8 +509,8 @@ const ClinicalGuidance: React.FC = () => {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item
                   name="endDate"
                   label="Ngay ket thuc"
@@ -528,13 +518,13 @@ const ClinicalGuidance: React.FC = () => {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="teamMembers" label="Thanh vien doan">
               <TextArea rows={2} placeholder="Danh sach thanh vien tham gia..." />
             </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item name="budget" label="Ngan sach (VND)">
                   <InputNumber
                     min={0}
@@ -543,8 +533,8 @@ const ClinicalGuidance: React.FC = () => {
                     formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="notes" label="Ghi chu">
               <TextArea rows={2} placeholder="Ghi chu them..." />
             </Form.Item>
@@ -589,7 +579,7 @@ const ClinicalGuidance: React.FC = () => {
                 <Descriptions.Item label="Ghi chu" span={2}>{selectedBatch.notes || '-'}</Descriptions.Item>
               </Descriptions>
 
-              <Title level={5}>Hoat dong chi dao tuyen</Title>
+              <h5 className="text-base font-semibold mb-3">Hoat dong chi dao tuyen</h4>
               <Spin spinning={activitiesLoading}>
                 {activities.length > 0 ? (
                   <Timeline

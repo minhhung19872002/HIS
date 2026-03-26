@@ -1074,7 +1074,7 @@ const SystemAdmin: React.FC = () => {
       width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button
             size="small"
             icon={<EditOutlined />}
@@ -1097,7 +1097,7 @@ const SystemAdmin: React.FC = () => {
               Xóa
             </Button>
           </Popconfirm>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1219,7 +1219,7 @@ const SystemAdmin: React.FC = () => {
       key: 'action',
       width: 150,
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button
             size="small"
             icon={<EditOutlined />}
@@ -1235,7 +1235,7 @@ const SystemAdmin: React.FC = () => {
               Xóa
             </Button>
           </Popconfirm>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1497,11 +1497,11 @@ const SystemAdmin: React.FC = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Quản trị hệ thống</Title>
+        <h4 className="text-lg font-semibold m-0">Quản trị hệ thống</h4>
         <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>
       </div>
 
-      <Card>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -1515,8 +1515,8 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo tên, email, mã nhân viên..."
                         allowClear
@@ -1525,13 +1525,13 @@ const SystemAdmin: React.FC = () => {
                         onSearch={(value) => setUserSearchKeyword(value)}
                         onChange={(e) => { if (!e.target.value) setUserSearchKeyword(''); }}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateUser}>
                         Thêm người dùng
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     columns={userColumns}
@@ -1584,14 +1584,14 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto" />
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
+                    <div>
                       <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateRole}>
                         Thêm vai trò
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     columns={roleColumns}
@@ -1673,8 +1673,8 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <Select placeholder="Phân hệ" style={{ width: 160 }} allowClear onChange={(v) => { setAuditModule(v); setAuditPageIndex(0); }}>
                         <Option value="Reception">Tiếp đón</Option>
                         <Option value="OPD">Khám bệnh</Option>
@@ -1692,8 +1692,8 @@ const SystemAdmin: React.FC = () => {
                         <Option value="Auth">Đăng nhập</Option>
                         <Option value="MasterData">Danh mục</Option>
                       </Select>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Select placeholder="Đối tượng" style={{ width: 160 }} allowClear onChange={(v) => { setAuditEntityType(v); setAuditPageIndex(0); }}>
                         <Option value="patients">Bệnh nhân</Option>
                         <Option value="examination">Lượt khám</Option>
@@ -1703,8 +1703,8 @@ const SystemAdmin: React.FC = () => {
                         <Option value="admin">Quản trị</Option>
                         <Option value="auth">Xác thực</Option>
                       </Select>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Select placeholder="Hành động" style={{ width: 130 }} allowClear onChange={(v) => { setAuditAction(v); setAuditPageIndex(0); }}>
                         <Option value="Create">Tạo mới</Option>
                         <Option value="Update">Cập nhật</Option>
@@ -1715,14 +1715,14 @@ const SystemAdmin: React.FC = () => {
                         <Option value="Approve">Duyệt</Option>
                         <Option value="Cancel">Hủy</Option>
                       </Select>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <RangePicker
                         format="DD/MM/YYYY"
                         onChange={(dates) => { setAuditDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null); setAuditPageIndex(0); }}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Search
                         placeholder="Tìm theo tên, IP, đường dẫn..."
                         allowClear
@@ -1730,11 +1730,11 @@ const SystemAdmin: React.FC = () => {
                         enterButton={<SearchOutlined />}
                         onSearch={(v) => { setAuditKeyword(v); setAuditPageIndex(0); }}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<ReloadOutlined />} onClick={() => fetchAuditLogsLevel6()}>Làm mới</Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     columns={[
@@ -1893,14 +1893,14 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto" />
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
+                    <div>
                       <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsNotificationModalOpen(true)}>
                         Gửi thông báo
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     columns={notificationColumns}
@@ -1944,10 +1944,10 @@ const SystemAdmin: React.FC = () => {
               children: (
                 <Spin spinning={healthLoading}>
                   {/* Header with refresh controls */}
-                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4 items-center">
+                    <div className="flex-1">
                       {healthData && (
-                        <Space>
+                        <div className="flex items-center gap-2">
                           <Badge
                             status={healthData.status === 'Healthy' ? 'success' : healthData.status === 'Degraded' ? 'warning' : 'error'}
                             text={
@@ -1961,11 +1961,11 @@ const SystemAdmin: React.FC = () => {
                           <Tag color={healthData.status === 'Healthy' ? 'green' : healthData.status === 'Degraded' ? 'orange' : 'red'}>
                             {healthData.status}
                           </Tag>
-                        </Space>
+                        </div>
                       )}
-                    </Col>
-                    <Col>
-                      <Space>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
                         {healthLastUpdated && (
                           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                             <ClockCircleOutlined /> Cập nhật: {dayjs(healthLastUpdated).format('HH:mm:ss')}
@@ -1976,9 +1976,9 @@ const SystemAdmin: React.FC = () => {
                             Làm mới
                           </Button>
                         </Tooltip>
-                      </Space>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   {!healthData && !healthLoading && (
                     <Alert title="Không thể kết nối đến máy chủ" type="warning" showIcon
@@ -1989,68 +1989,65 @@ const SystemAdmin: React.FC = () => {
                   {healthData && (
                     <>
                       {/* Overview metrics row */}
-                      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                        <Col xs={12} sm={6}>
-                          <Card size="small">
-                            <Statistic title="Phiên bản" value={healthData.version} prefix={<ApiOutlined />} />
-                          </Card>
-                        </Col>
-                        <Col xs={12} sm={6}>
-                          <Card size="small">
-                            <Statistic title="Uptime" value={healthData.uptime} prefix={<ClockCircleOutlined />} />
-                          </Card>
-                        </Col>
+                      <div className="grid grid-cols-4 gap-4">
+                        <div>
+                          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                            <div className="text-gray-500 text-sm mb-1">Phiên bản</div><div className="text-2xl font-semibold"><ApiOutlined className="mr-1" />{healthData.version}</div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                            <div className="text-gray-500 text-sm mb-1">Uptime</div><div className="text-2xl font-semibold"><ClockCircleOutlined className="mr-1" />{healthData.uptime}</div>
+                          </div>
+                        </div>
                         {metricsData && (
                           <>
-                            <Col xs={12} sm={6}>
-                              <Card size="small">
-                                <Statistic title="Tổng requests" value={metricsData.totalRequests} />
-                              </Card>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <Card size="small">
+                            <div>
+                              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                                <div className="text-gray-500 text-sm mb-1">Tổng requests</div><div className="text-2xl font-semibold">{metricsData.totalRequests}</div>
+                              </div>
+                            </div>
+                            <div>
+                              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                                 <Statistic
                                   title="Requests/phút"
                                   value={metricsData.requestsPerMinute}
                                   precision={1}
                                 />
-                              </Card>
-                            </Col>
+                              </div>
+                            </div>
                           </>
                         )}
-                      </Row>
+                      </div>
 
                       {metricsData && (
-                        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                          <Col xs={12} sm={6}>
-                            <Card size="small">
-                              <Statistic
-                                title="Active requests"
-                                value={metricsData.activeRequests}
-                              />
-                            </Card>
-                          </Col>
-                          <Col xs={12} sm={6}>
-                            <Card size="small">
+                        <div className="grid grid-cols-4 gap-4">
+                          <div>
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                              <div className="text-gray-500 text-sm mb-1">Active requests</div><div className="text-2xl font-semibold">{metricsData.activeRequests}</div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                               <Statistic
                                 title="Thời gian phản hồi TB"
                                 value={metricsData.averageResponseTimeMs}
                                 precision={1}
                                 suffix="ms"
                               />
-                            </Card>
-                          </Col>
-                          <Col xs={12} sm={6}>
-                            <Card size="small">
+                            </div>
+                          </div>
+                          <div>
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                               <Statistic
                                 title="Lỗi"
                                 value={metricsData.errorCount}
                                 styles={{ content: { color: metricsData.errorCount > 0 ? '#cf1322' : '#3f8600' } }}
                               />
-                            </Card>
-                          </Col>
-                          <Col xs={12} sm={6}>
-                            <Card size="small">
+                            </div>
+                          </div>
+                          <div>
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                               <Statistic
                                 title="Tỷ lệ lỗi"
                                 value={metricsData.errorRate}
@@ -2058,16 +2055,16 @@ const SystemAdmin: React.FC = () => {
                                 suffix="%"
                                 styles={{ content: { color: metricsData.errorRate > 5 ? '#cf1322' : '#3f8600' } }}
                               />
-                            </Card>
-                          </Col>
-                        </Row>
+                            </div>
+                          </div>
+                        </div>
                       )}
 
                       {/* Component health cards */}
                       <Typography.Title level={5} style={{ marginBottom: 16 }}>
                         Trạng thái thành phần
                       </Typography.Title>
-                      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                      <div className="grid grid-cols-4 gap-4">
                         {(healthData.checks ? Object.entries(healthData.checks) : []).map(([key, check]: [string, ComponentHealth]) => {
                           const labels: Record<string, { name: string; icon: React.ReactNode }> = {
                             sqlServer: { name: 'SQL Server', icon: <DatabaseOutlined /> },
@@ -2084,34 +2081,34 @@ const SystemAdmin: React.FC = () => {
                             <CloseCircleOutlined style={{ color: statusColor }} />;
 
                           return (
-                            <Col xs={24} sm={12} md={8} key={key}>
+                            <div>
                               <Card
                                 size="small"
                                 title={
-                                  <Space>
+                                  <div className="flex items-center gap-2">
                                     {label.icon}
                                     {label.name}
                                     {statusIcon}
-                                  </Space>
+                                  </div>
                                 }
                                 style={{ borderLeft: `3px solid ${statusColor}` }}
                               >
-                                <Row gutter={8}>
-                                  <Col span={12}>
+                                <div className="flex flex-wrap gap-2">
+                                  <div>
                                     <Typography.Text type="secondary">Trạng thái</Typography.Text>
                                     <div>
                                       <Tag color={check.status === 'Healthy' ? 'green' : check.status === 'Degraded' ? 'orange' : 'red'}>
                                         {check.status}
                                       </Tag>
                                     </div>
-                                  </Col>
+                                  </div>
                                   {check.responseTime && (
-                                    <Col span={12}>
+                                    <div>
                                       <Typography.Text type="secondary">Phản hồi</Typography.Text>
                                       <div><Typography.Text strong>{check.responseTime}</Typography.Text></div>
-                                    </Col>
+                                    </div>
                                   )}
-                                </Row>
+                                </div>
                                 {check.error && (
                                   <div style={{ marginTop: 8 }}>
                                     <Typography.Text type="danger" style={{ fontSize: 12 }}>{check.error}</Typography.Text>
@@ -2148,11 +2145,11 @@ const SystemAdmin: React.FC = () => {
                                     </Typography.Text>
                                   </div>
                                 )}
-                              </Card>
-                            </Col>
+                              </div>
+                            </div>
                           );
                         })}
-                      </Row>
+                      </div>
 
                       {/* Metrics details */}
                       {metricsData && (
@@ -2163,23 +2160,23 @@ const SystemAdmin: React.FC = () => {
                               <Typography.Title level={5} style={{ marginBottom: 16 }}>
                                 Phân bố mã trạng thái HTTP
                               </Typography.Title>
-                              <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                              <div className="grid grid-cols-4 gap-4">
                                 {Object.entries(metricsData.statusCodeDistribution).map(([code, count]) => {
                                   const numCode = parseInt(code);
                                   const color = numCode < 300 ? '#52c41a' : numCode < 400 ? '#1890ff' : numCode < 500 ? '#faad14' : '#ff4d4f';
                                   return (
-                                    <Col xs={8} sm={4} key={code}>
-                                      <Card size="small">
+                                    <div>
+                                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                                         <Statistic
                                           title={`HTTP ${code}`}
                                           value={count}
                                           styles={{ content: { color, fontSize: 20 } }}
                                         />
-                                      </Card>
-                                    </Col>
+                                      </div>
+                                    </div>
                                   );
                                 })}
-                              </Row>
+                              </div>
                             </>
                           )}
 
@@ -2232,23 +2229,23 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <Spin spinning={matrixLoading}>
-                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4 items-center">
+                    <div className="flex-1">
                       <Typography.Text strong style={{ fontSize: 16 }}>
                         <LockOutlined /> Ma trận kiểm soát truy cập
                       </Typography.Text>
-                    </Col>
-                    <Col>
-                      <Space>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
                         <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
                           Xuất báo cáo
                         </Button>
                         <Button icon={<ReloadOutlined />} onClick={fetchMatrixData}>
                           Làm mới
                         </Button>
-                      </Space>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   <Table
                     dataSource={matrixData}
@@ -2338,42 +2335,33 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <Spin spinning={complianceLoading}>
-                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4 items-center">
+                    <div className="flex-1">
                       <Typography.Text strong style={{ fontSize: 16 }}>
                         <SafetyOutlined /> ATTT Cấp độ 3 (NĐ 85/2016/NĐ-CP)
                       </Typography.Text>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<ReloadOutlined />} onClick={fetchComplianceData}>
                         Làm mới
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   {/* Compliance Summary Cards */}
-                  <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
-                        <Statistic
-                          title="Tổng người dùng"
-                          value={complianceSummary?.totalUsers ?? 0}
-                          prefix={<UserOutlined />}
-                        />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
-                        <Statistic
-                          title="Người dùng hoạt động"
-                          value={complianceSummary?.activeUsers ?? 0}
-                          prefix={<CheckCircleOutlined />}
-                          styles={{ content: { color: '#3f8600' } }}
-                        />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Tổng người dùng</div><div className="text-2xl font-semibold"><UserOutlined className="mr-1" />{complianceSummary?.totalUsers ?? 0}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Người dùng hoạt động</div><div className="text-2xl font-semibold" style={{ color: '#3f8600' }}><CheckCircleOutlined className="mr-1" />{complianceSummary?.activeUsers ?? 0}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic
                           title="2FA đã bật"
                           value={complianceSummary?.totalUsers ? Math.round((complianceSummary.usersWithTwoFactor / complianceSummary.totalUsers) * 100) : 0}
@@ -2384,30 +2372,30 @@ const SystemAdmin: React.FC = () => {
                         <div style={{ fontSize: 11, color: '#888' }}>
                           {complianceSummary?.usersWithTwoFactor ?? 0} / {complianceSummary?.totalUsers ?? 0} người dùng
                         </div>
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic
                           title="TDE (Mã hóa dữ liệu)"
                           value={complianceSummary?.tdeEnabled ? 'BẬT' : 'TẮT'}
                           prefix={complianceSummary?.tdeEnabled ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
                           styles={{ content: { color: complianceSummary?.tdeEnabled ? '#3f8600' : '#cf1322' } }}
                         />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic
                           title="Mã hóa cột"
                           value={complianceSummary?.columnEncryptionEnabled ? 'BẬT' : 'TẮT'}
                           prefix={complianceSummary?.columnEncryptionEnabled ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
                           styles={{ content: { color: complianceSummary?.columnEncryptionEnabled ? '#3f8600' : '#cf1322' } }}
                         />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic
                           title="Sao lưu gần nhất"
                           value={complianceSummary?.lastBackupDate ? dayjs(complianceSummary.lastBackupDate).format('DD/MM HH:mm') : 'Chưa có'}
@@ -2417,35 +2405,31 @@ const SystemAdmin: React.FC = () => {
                             return hoursAgo > 24 ? <WarningOutlined style={{ color: '#faad14' }} /> : <CheckCircleOutlined style={{ color: '#52c41a' }} />;
                           })()}
                         />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
-                        <Statistic
-                          title="Nhật ký (30 ngày)"
-                          value={complianceSummary?.auditLogsLast30Days ?? 0}
-                          prefix={<FileTextOutlined />}
-                        />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={8} md={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Nhật ký (30 ngày)</div><div className="text-2xl font-semibold"><FileTextOutlined className="mr-1" />{complianceSummary?.auditLogsLast30Days ?? 0}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic
                           title="Truy cập nhạy cảm (30 ngày)"
                           value={complianceSummary?.sensitiveAccessLast30Days ?? 0}
                           prefix={<WarningOutlined />}
                           styles={{ content: { color: (complianceSummary?.sensitiveAccessLast30Days ?? 0) > 100 ? '#cf1322' : '#3f8600' } }}
                         />
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Sensitive Data Access Report */}
                   <Typography.Title level={5} style={{ marginBottom: 16 }}>
                     Báo cáo truy cập dữ liệu nhạy cảm
                   </Typography.Title>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <RangePicker
                         format="DD/MM/YYYY"
                         value={sensitiveReportDateRange}
@@ -2455,13 +2439,13 @@ const SystemAdmin: React.FC = () => {
                           }
                         }}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<SearchOutlined />} onClick={fetchComplianceData}>
                         Tìm kiếm
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     dataSource={sensitiveReport}
@@ -2580,28 +2564,28 @@ const SystemAdmin: React.FC = () => {
                     </Typography.Title>
                     <Button icon={<ReloadOutlined />} onClick={fetchSessions}>Lam moi</Button>
                   </div>
-                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                    <Col xs={12} sm={6}>
-                      <Card size="small">
-                        <Statistic title="Tong phien" value={sessions.length} />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={6}>
-                      <Card size="small">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Tong phien</div><div className="text-2xl font-semibold">{sessions.length}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic title="Dang hoat dong" value={sessions.filter((s) => s.isActive).length} styles={{ content: { color: '#3f8600' } }} />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={6}>
-                      <Card size="small">
-                        <Statistic title="Desktop" value={sessions.filter((s) => s.deviceType === 'Desktop').length} />
-                      </Card>
-                    </Col>
-                    <Col xs={12} sm={6}>
-                      <Card size="small">
-                        <Statistic title="Mobile" value={sessions.filter((s) => s.deviceType !== 'Desktop').length} />
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Desktop</div><div className="text-2xl font-semibold">{sessions.filter((s) => s.deviceType === 'Desktop').length}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Mobile</div><div className="text-2xl font-semibold">{sessions.filter((s) => s.deviceType !== 'Desktop').length}</div>
+                      </div>
+                    </div>
+                  </div>
                   <Table
                     dataSource={sessions}
                     rowKey="id"
@@ -2701,28 +2685,28 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <div>
-                  <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                    <Col xs={24} sm={12} md={6}>
-                      <Card size="small">
-                        <Statistic title="API Keys" value={3} prefix={<KeyOutlined />} styles={{ content: { color: '#1890ff' } }} />
-                      </Card>
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                      <Card size="small">
-                        <Statistic title="Webhooks" value={5} prefix={<ApiOutlined />} styles={{ content: { color: '#52c41a' } }} />
-                      </Card>
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                      <Card size="small">
-                        <Statistic title="App kết nối" value={2} prefix={<MobileOutlined />} styles={{ content: { color: '#722ed1' } }} />
-                      </Card>
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                      <Card size="small">
-                        <Statistic title="Gọi API hôm nay" value={1247} prefix={<ThunderboltOutlined />} styles={{ content: { color: '#faad14' } }} />
-                      </Card>
-                    </Col>
-                  </Row>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">API Keys</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><KeyOutlined className="mr-1" />{3}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Webhooks</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><ApiOutlined className="mr-1" />{5}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">App kết nối</div><div className="text-2xl font-semibold" style={{ color: '#722ed1' }}><MobileOutlined className="mr-1" />{2}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="text-gray-500 text-sm mb-1">Gọi API hôm nay</div><div className="text-2xl font-semibold" style={{ color: '#faad14' }}><ThunderboltOutlined className="mr-1" />{1247}</div>
+                      </div>
+                    </div>
+                  </div>
                   <Tabs defaultActiveKey="apikeys" items={[
                     {
                       key: 'apikeys',
@@ -2741,7 +2725,7 @@ const SystemAdmin: React.FC = () => {
                             { title: 'Ngày tạo', dataIndex: 'created', key: 'created', render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
                             { title: 'Sử dụng cuối', dataIndex: 'lastUsed', key: 'lastUsed', render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
                             { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? 'Hoạt động' : 'Vô hiệu'}</Tag> },
-                            { title: 'Thao tác', key: 'action', render: () => <Space><Button size="small" type="link" danger>Thu hồi</Button></Space> },
+                            { title: 'Thao tác', key: 'action', render: () => <div className="flex items-center gap-2"><Button size="small" type="link" danger>Thu hồi</Button></div> },
                           ]} pagination={false} />
                         </div>
                       ),
@@ -2763,7 +2747,7 @@ const SystemAdmin: React.FC = () => {
                             { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
                             { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'active' ? 'green' : 'red'}>{v === 'active' ? 'Hoạt động' : 'Tạm dừng'}</Tag> },
                             { title: 'Gọi cuối', dataIndex: 'lastTriggered', key: 'lastTriggered' },
-                            { title: 'Thao tác', key: 'action', render: () => <Space><Button size="small" type="link">Sửa</Button><Button size="small" type="link" danger>Xóa</Button></Space> },
+                            { title: 'Thao tác', key: 'action', render: () => <div className="flex items-center gap-2"><Button size="small" type="link">Sửa</Button><Button size="small" type="link" danger>Xóa</Button></div> },
                           ]} pagination={false} />
                         </div>
                       ),
@@ -2772,23 +2756,23 @@ const SystemAdmin: React.FC = () => {
                       key: 'apps',
                       label: 'Ứng dụng kết nối',
                       children: (
-                        <Row gutter={[16, 16]}>
+                        <div className="grid grid-cols-4 gap-4">
                           {[
                             { name: 'App Bác sĩ', version: '2.1.0', platform: 'iOS + Android', users: 45, status: 'active', desc: 'Ứng dụng khám bệnh, ký số cho bác sĩ' },
                             { name: 'App Bệnh nhân', version: '1.5.2', platform: 'iOS + Android', users: 1250, status: 'active', desc: 'Đặt lịch, xem KQ, thanh toán trực tuyến' },
                           ].map((app) => (
-                            <Col span={12} key={app.name}>
-                              <Card size="small" title={<Space><MobileOutlined />{app.name} <Tag color="blue">v{app.version}</Tag></Space>}
+                            <div>
+                              <Card size="small" title={<div className="flex items-center gap-2"><MobileOutlined />{app.name} <Tag color="blue">v{app.version}</Tag></div>}
                                 extra={<Tag color={app.status === 'active' ? 'green' : 'red'}>{app.status === 'active' ? 'Hoạt động' : 'Bảo trì'}</Tag>}>
                                 <Descriptions size="small" column={1}>
                                   <Descriptions.Item label="Mô tả">{app.desc}</Descriptions.Item>
                                   <Descriptions.Item label="Nền tảng">{app.platform}</Descriptions.Item>
                                   <Descriptions.Item label="Người dùng">{app.users}</Descriptions.Item>
                                 </Descriptions>
-                              </Card>
-                            </Col>
+                              </div>
+                            </div>
                           ))}
-                        </Row>
+                        </div>
                       ),
                     },
                     {
@@ -2829,25 +2813,25 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <Spin spinning={lockedServicesLoading}>
-                  <Row gutter={16} style={{ marginBottom: 16 }} align="middle">
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4 items-center">
+                    <div className="flex-1">
                       <Typography.Text strong style={{ fontSize: 16 }}>
                         <LockOutlined /> Quản lý khóa dịch vụ
                       </Typography.Text>
                       <Typography.Text type="secondary" style={{ marginLeft: 12 }}>
                         Khi khóa, bác sĩ không thể kê dịch vụ này
                       </Typography.Text>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<ReloadOutlined />} onClick={fetchLockedServices}>
                         Làm mới
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   {/* Lock a new service */}
                   <Card size="small" style={{ marginBottom: 16 }}>
-                    <Space>
+                    <div className="flex items-center gap-2">
                       <Input.Search
                         placeholder="Nhập tên hoặc mã dịch vụ để khóa..."
                         style={{ width: 400 }}
@@ -2866,8 +2850,8 @@ const SystemAdmin: React.FC = () => {
                           </Button>
                         }
                       />
-                    </Space>
-                  </Card>
+                    </div>
+                  </div>
 
                   <Table
                     columns={[
@@ -2960,26 +2944,26 @@ const SystemAdmin: React.FC = () => {
                 <Spin spinning={dataLoading}>
                   {/* Data Overview */}
                   {dataStats && (
-                    <Row gutter={16} style={{ marginBottom: 16 }}>
-                      <Col xs={12} sm={6} lg={4}>
-                        <Card size="small"><Statistic title="Bệnh nhân" value={dataStats.totalPatients} /></Card>
-                      </Col>
-                      <Col xs={12} sm={6} lg={4}>
-                        <Card size="small"><Statistic title="Lượt khám" value={dataStats.totalExaminations} /></Card>
-                      </Col>
-                      <Col xs={12} sm={6} lg={4}>
-                        <Card size="small"><Statistic title="Đơn thuốc" value={dataStats.totalPrescriptions} /></Card>
-                      </Col>
-                      <Col xs={12} sm={6} lg={4}>
-                        <Card size="small"><Statistic title="KQ XN" value={dataStats.totalLabResults} /></Card>
-                      </Col>
-                      <Col xs={12} sm={6} lg={4}>
-                        <Card size="small"><Statistic title="DB (MB)" value={dataStats.databaseSizeMB} /></Card>
-                      </Col>
-                      <Col xs={12} sm={6} lg={4}>
-                        <Card size="small"><Statistic title="Files (MB)" value={dataStats.attachmentsSizeMB} /></Card>
-                      </Col>
-                    </Row>
+                    <div className="grid grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">Bệnh nhân</div><div className="text-2xl font-semibold">{dataStats.totalPatients}</div></div>
+                      </div>
+                      <div>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">Lượt khám</div><div className="text-2xl font-semibold">{dataStats.totalExaminations}</div></div>
+                      </div>
+                      <div>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">Đơn thuốc</div><div className="text-2xl font-semibold">{dataStats.totalPrescriptions}</div></div>
+                      </div>
+                      <div>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">KQ XN</div><div className="text-2xl font-semibold">{dataStats.totalLabResults}</div></div>
+                      </div>
+                      <div>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">DB (MB)</div><div className="text-2xl font-semibold">{dataStats.databaseSizeMB}</div></div>
+                      </div>
+                      <div>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"><div className="text-gray-500 text-sm mb-1">Files (MB)</div><div className="text-2xl font-semibold">{dataStats.attachmentsSizeMB}</div></div>
+                      </div>
+                    </div>
                   )}
 
                   {/* Module Data Counts */}
@@ -2995,10 +2979,10 @@ const SystemAdmin: React.FC = () => {
                       size="small"
                       pagination={false}
                     />
-                  </Card>
+                  </div>
 
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col span={12}>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       {/* Backup History */}
                       <Card size="small" title="Sao lưu" extra={
                         <Button size="small" type="primary" icon={<HddOutlined />} onClick={() => {
@@ -3018,9 +3002,9 @@ const SystemAdmin: React.FC = () => {
                           size="small"
                           pagination={{ pageSize: 5 }}
                         />
-                      </Card>
-                    </Col>
-                    <Col span={12}>
+                      </div>
+                    </div>
+                    <div>
                       {/* Export History */}
                       <Card size="small" title="Xuất dữ liệu" extra={
                         <Button size="small" type="primary" icon={<CloudServerOutlined />} onClick={() => {
@@ -3040,9 +3024,9 @@ const SystemAdmin: React.FC = () => {
                           size="small"
                           pagination={{ pageSize: 5 }}
                         />
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Handover Management */}
                   <Card size="small" title="Biên bản chuyển giao dữ liệu" extra={
@@ -3089,7 +3073,7 @@ const SystemAdmin: React.FC = () => {
                       pagination={{ pageSize: 10 }}
                       locale={{ emptyText: 'Chưa có biên bản chuyển giao' }}
                     />
-                  </Card>
+                  </div>
                 </Spin>
               ),
             },
@@ -3102,12 +3086,12 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <div>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col xs={24} lg={12}>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <Card size="small" title={<><CloudUploadOutlined /> Cau hinh sao luu tu dong</>}>
                         <Form layout="vertical" size="small">
-                          <Row gutter={16}>
-                            <Col span={8}>
+                          <div className="grid grid-cols-4 gap-4">
+                            <div>
                               <Form.Item label="Thoi gian sao luu">
                                 <TimePicker
                                   format="HH:mm"
@@ -3118,8 +3102,8 @@ const SystemAdmin: React.FC = () => {
                                   style={{ width: '100%' }}
                                 />
                               </Form.Item>
-                            </Col>
-                            <Col span={8}>
+                            </div>
+                            <div>
                               <Form.Item label="Tan suat">
                                 <Select
                                   value={backupConfig.frequency}
@@ -3130,8 +3114,8 @@ const SystemAdmin: React.FC = () => {
                                   <Option value="monthly">Hang thang</Option>
                                 </Select>
                               </Form.Item>
-                            </Col>
-                            <Col span={8}>
+                            </div>
+                            <div>
                               <Form.Item label="Luu giu (ngay)">
                                 <InputNumber
                                   min={1}
@@ -3141,10 +3125,10 @@ const SystemAdmin: React.FC = () => {
                                   style={{ width: '100%' }}
                                 />
                               </Form.Item>
-                            </Col>
-                          </Row>
-                          <Row gutter={16}>
-                            <Col span={12}>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-4 gap-4">
+                            <div>
                               <Form.Item label="Nen du lieu">
                                 <Switch
                                   checked={backupConfig.compress}
@@ -3153,8 +3137,8 @@ const SystemAdmin: React.FC = () => {
                                   unCheckedChildren="Tat"
                                 />
                               </Form.Item>
-                            </Col>
-                            <Col span={12}>
+                            </div>
+                            <div>
                               <Form.Item label="Mat khau bao ve">
                                 <Switch
                                   checked={backupConfig.passwordProtect}
@@ -3163,17 +3147,17 @@ const SystemAdmin: React.FC = () => {
                                   unCheckedChildren="Tat"
                                 />
                               </Form.Item>
-                            </Col>
-                          </Row>
+                            </div>
+                          </div>
                         </Form>
-                      </Card>
-                    </Col>
-                    <Col xs={24} lg={12}>
+                      </div>
+                    </div>
+                    <div>
                       <Card size="small" title={<><FolderOutlined /> Muc tieu sao luu</>}>
                         {backupConfig.targets.map((target, idx) => (
                           <div key={target.type} style={{ marginBottom: 12, padding: 8, border: '1px solid #f0f0f0', borderRadius: 4 }}>
-                            <Row gutter={8} align="middle">
-                              <Col span={4}>
+                            <div className="flex flex-wrap gap-2">
+                              <div>
                                 <Switch
                                   size="small"
                                   checked={target.enabled}
@@ -3183,13 +3167,13 @@ const SystemAdmin: React.FC = () => {
                                     saveBackupConfig({ ...backupConfig, targets: newTargets });
                                   }}
                                 />
-                              </Col>
-                              <Col span={6}>
+                              </div>
+                              <div>
                                 <Tag color={target.type === 'local' ? 'blue' : target.type === 'lan' ? 'green' : 'purple'}>
                                   {target.type === 'local' ? 'Server local' : target.type === 'lan' ? 'Mang LAN' : 'Cloud'}
                                 </Tag>
-                              </Col>
-                              <Col span={14}>
+                              </div>
+                              <div>
                                 <Input
                                   size="small"
                                   placeholder={target.type === 'local' ? 'D:\\HIS_Backups' : target.type === 'lan' ? '\\\\server\\share' : 'https://storage.example.com'}
@@ -3200,8 +3184,8 @@ const SystemAdmin: React.FC = () => {
                                     saveBackupConfig({ ...backupConfig, targets: newTargets });
                                   }}
                                 />
-                              </Col>
-                            </Row>
+                              </div>
+                            </div>
                             {target.type === 'cloud' && target.enabled && (
                               <Input
                                 size="small"
@@ -3217,13 +3201,13 @@ const SystemAdmin: React.FC = () => {
                             )}
                           </div>
                         ))}
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   <Card size="small" title="Sao luu thu cong" style={{ marginBottom: 16 }}>
-                    <Row gutter={16} align="middle">
-                      <Col>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
                         <Button
                           type="primary"
                           icon={<SaveOutlined />}
@@ -3232,14 +3216,14 @@ const SystemAdmin: React.FC = () => {
                         >
                           {backupRunning ? 'Dang sao luu...' : 'Sao luu ngay'}
                         </Button>
-                      </Col>
-                      <Col flex="auto">
+                      </div>
+                      <div className="flex-1">
                         {backupRunning && (
                           <Progress percent={backupProgress} status="active" size="small" />
                         )}
-                      </Col>
-                    </Row>
-                  </Card>
+                      </div>
+                    </div>
+                  </div>
 
                   <Card size="small" title="Lich su sao luu">
                     <Table
@@ -3255,7 +3239,7 @@ const SystemAdmin: React.FC = () => {
                         { title: 'Vi tri', dataIndex: 'location', key: 'location', width: 100 },
                       ]}
                     />
-                  </Card>
+                  </div>
                 </div>
               ),
             },
@@ -3268,31 +3252,31 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col span={6}>
-                      <Card size="small">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic title="Moi" value={itTicketStats.newCount} styles={{ content: { color: '#1890ff' } }} prefix={<ClockCircleOutlined />} />
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic title="Dang xu ly" value={itTicketStats.inProgressCount} styles={{ content: { color: '#fa8c16' } }} prefix={<ThunderboltOutlined />} />
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic title="Da giai quyet" value={itTicketStats.resolvedCount} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} />
-                      </Card>
-                    </Col>
-                    <Col span={6}>
-                      <Card size="small">
+                      </div>
+                    </div>
+                    <div>
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <Statistic title="Da dong" value={itTicketStats.closedCount} styles={{ content: { color: '#8c8c8c' } }} prefix={<CloseCircleOutlined />} />
-                      </Card>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
-                  <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
                       <Select
                         placeholder="Muc do"
                         style={{ width: 140 }}
@@ -3305,8 +3289,8 @@ const SystemAdmin: React.FC = () => {
                         <Option value={3}>Cao</Option>
                         <Option value={4}>Khan cap</Option>
                       </Select>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Select
                         placeholder="Trang thai"
                         style={{ width: 140 }}
@@ -3319,8 +3303,8 @@ const SystemAdmin: React.FC = () => {
                         <Option value={2}>Da giai quyet</Option>
                         <Option value={3}>Da dong</Option>
                       </Select>
-                    </Col>
-                    <Col flex="auto">
+                    </div>
+                    <div className="flex-1">
                       <Search
                         placeholder="Tim kiem yeu cau..."
                         allowClear
@@ -3329,16 +3313,16 @@ const SystemAdmin: React.FC = () => {
                         onSearch={(v) => setItTicketKeyword(v)}
                         onChange={(e) => { if (!e.target.value) setItTicketKeyword(''); }}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<ReloadOutlined />} onClick={() => fetchItTickets()} />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsItTicketModalOpen(true)}>
                         Tao yeu cau
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     dataSource={itTickets}
@@ -3422,7 +3406,7 @@ const SystemAdmin: React.FC = () => {
                         width: 160,
                         fixed: 'right',
                         render: (_: unknown, record: ItTicketListItem) => (
-                          <Space>
+                          <div className="flex items-center gap-2">
                             {toNumberValue(record.status) < 2 && (
                               <Button
                                 size="small"
@@ -3447,7 +3431,7 @@ const SystemAdmin: React.FC = () => {
                                 </Button>
                               </Popconfirm>
                             )}
-                          </Space>
+                          </div>
                         ),
                       },
                     ]}
@@ -3504,10 +3488,10 @@ const SystemAdmin: React.FC = () => {
                       { title: 'Thu tu', dataIndex: 'sortOrder', key: 'sort', width: 70 },
                       { title: 'Trang thai', dataIndex: 'isActive', key: 'active', width: 90, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Hoat dong' : 'Khoa'}</Tag> },
                       { title: 'Thao tac', key: 'actions', width: 120, render: (_: unknown, r: EmrCoverTypeDto) => (
-                        <Space>
+                        <div className="flex items-center gap-2">
                           <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('cover', r as unknown as Record<string, unknown>)} />
                           <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('cover', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
-                        </Space>
+                        </div>
                       )},
                     ]}
                   />
@@ -3531,10 +3515,10 @@ const SystemAdmin: React.FC = () => {
                       { title: 'Chung thu', dataIndex: 'certificateInfo', key: 'cert', width: 150, ellipsis: true },
                       { title: 'Trang thai', dataIndex: 'isActive', key: 'active', width: 90, render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Hoat dong' : 'Khoa'}</Tag> },
                       { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrSignerCatalogDto) => (
-                        <Space>
+                        <div className="flex items-center gap-2">
                           <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('signer', r as unknown as Record<string, unknown>)} />
                           <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('signer', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
-                        </Space>
+                        </div>
                       )},
                     ]}
                   />
@@ -3556,10 +3540,10 @@ const SystemAdmin: React.FC = () => {
                       { title: 'Mo ta', dataIndex: 'description', key: 'desc', ellipsis: true },
                       { title: 'Thu tu', dataIndex: 'sortOrder', key: 'sort', width: 70 },
                       { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrSigningRoleDto) => (
-                        <Space>
+                        <div className="flex items-center gap-2">
                           <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('role', r as unknown as Record<string, unknown>)} />
                           <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('role', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
-                        </Space>
+                        </div>
                       )},
                     ]}
                   />
@@ -3582,10 +3566,10 @@ const SystemAdmin: React.FC = () => {
                       { title: 'Loai VB', dataIndex: 'documentType', key: 'doc', width: 120 },
                       { title: 'Bat buoc', dataIndex: 'isRequired', key: 'req', width: 80, render: (v: boolean) => <Tag color={v ? 'red' : 'default'}>{v ? 'Co' : 'Khong'}</Tag> },
                       { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrSigningOperationDto) => (
-                        <Space>
+                        <div className="flex items-center gap-2">
                           <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('operation', r as unknown as Record<string, unknown>)} />
                           <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('operation', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
-                        </Space>
+                        </div>
                       )},
                     ]}
                   />
@@ -3607,10 +3591,10 @@ const SystemAdmin: React.FC = () => {
                       { title: 'Phan loai', dataIndex: 'category', key: 'cat', width: 120 },
                       { title: 'Thu tu', dataIndex: 'sortOrder', key: 'sort', width: 70 },
                       { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrDocumentGroupDto) => (
-                        <Space>
+                        <div className="flex items-center gap-2">
                           <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('group', r as unknown as Record<string, unknown>)} />
                           <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('group', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
-                        </Space>
+                        </div>
                       )},
                     ]}
                   />
@@ -3633,10 +3617,10 @@ const SystemAdmin: React.FC = () => {
                       { title: 'Template', dataIndex: 'formTemplateKey', key: 'tmpl', width: 120 },
                       { title: 'Bat buoc', dataIndex: 'isRequired', key: 'req', width: 80, render: (v: boolean) => <Tag color={v ? 'red' : 'default'}>{v ? 'Co' : 'Khong'}</Tag> },
                       { title: '', key: 'actions', width: 100, render: (_: unknown, r: EmrDocumentTypeDto) => (
-                        <Space>
+                        <div className="flex items-center gap-2">
                           <Button size="small" icon={<EditOutlined />} onClick={() => openEmrModal('doctype', r as unknown as Record<string, unknown>)} />
                           <Popconfirm title="Xoa?" onConfirm={() => handleEmrAdminDelete('doctype', r.id)}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
-                        </Space>
+                        </div>
                       )},
                     ]}
                   />
@@ -3652,8 +3636,8 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
                       <Input.Search
                         placeholder="Tim theo ten, ma chi nhanh..."
                         allowClear
@@ -3661,8 +3645,8 @@ const SystemAdmin: React.FC = () => {
                         style={{ maxWidth: 400 }}
                         onSearch={() => fetchBranches()}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button type="primary" icon={<PlusOutlined />} onClick={() => {
                         setEditingBranch(null);
                         branchForm.resetFields();
@@ -3671,13 +3655,13 @@ const SystemAdmin: React.FC = () => {
                       }}>
                         Them chi nhanh
                       </Button>
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Button icon={<ReloadOutlined />} onClick={fetchBranches}>
                         Lam moi
                       </Button>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     dataSource={branches}
@@ -3714,7 +3698,7 @@ const SystemAdmin: React.FC = () => {
                         key: 'action',
                         width: 120,
                         render: (_: any, record: any) => (
-                          <Space>
+                          <div className="flex items-center gap-2">
                             <Button size="small" icon={<EditOutlined />} onClick={() => {
                               setEditingBranch(record);
                               branchForm.setFieldsValue(record);
@@ -3723,7 +3707,7 @@ const SystemAdmin: React.FC = () => {
                             <Popconfirm title="Xoa chi nhanh nay?" onConfirm={() => handleDeleteBranch(record.id)}>
                               <Button size="small" danger icon={<DeleteOutlined />} />
                             </Popconfirm>
-                          </Space>
+                          </div>
                         ),
                       },
                     ]}
@@ -3758,7 +3742,7 @@ const SystemAdmin: React.FC = () => {
             },
           ]}
         />
-      </Card>
+      </div>
 
       {/* IT Ticket Create Modal */}
       <Modal
@@ -3880,8 +3864,8 @@ const SystemAdmin: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={userForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item
                 name="username"
                 label="Tên đăng nhập"
@@ -3889,9 +3873,9 @@ const SystemAdmin: React.FC = () => {
               >
                 <Input placeholder="Nhập tên đăng nhập" disabled={!!selectedUser} />
               </Form.Item>
-            </Col>
+            </div>
             {!selectedUser && (
-              <Col span={12}>
+              <div>
                 <Form.Item
                   name="password"
                   label="Mật khẩu"
@@ -3899,12 +3883,12 @@ const SystemAdmin: React.FC = () => {
                 >
                   <Input.Password placeholder="Nhập mật khẩu" />
                 </Form.Item>
-              </Col>
+              </div>
             )}
-          </Row>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item
                 name="fullName"
                 label="Họ tên"
@@ -3912,34 +3896,34 @@ const SystemAdmin: React.FC = () => {
               >
                 <Input placeholder="Nhập họ tên" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div>
               <Form.Item name="email" label="Email">
                 <Input placeholder="Nhập email" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="phoneNumber" label="Số điện thoại">
                 <Input placeholder="Nhập số điện thoại" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div>
               <Form.Item name="employeeCode" label="Mã nhân viên">
                 <Input placeholder="Nhập mã nhân viên" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="title" label="Chức danh">
                 <Input placeholder="Nhập chức danh" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div>
               <Form.Item name="departmentId" label="Khoa/Phòng">
                 <Select placeholder="Chọn khoa/phòng" allowClear showSearch optionFilterProp="children">
                   {departments.map((dept) => (
@@ -3949,8 +3933,8 @@ const SystemAdmin: React.FC = () => {
                   ))}
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
           <Form.Item name="roleIds" label="Vai trò" rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}>
             <Select mode="multiple" placeholder="Chọn vai trò">
@@ -3979,8 +3963,8 @@ const SystemAdmin: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={roleForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item
                 name="roleCode"
                 label="Mã vai trò"
@@ -3988,8 +3972,8 @@ const SystemAdmin: React.FC = () => {
               >
                 <Input placeholder="Nhập mã vai trò (VD: ADMIN, DOCTOR)" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div>
               <Form.Item
                 name="roleName"
                 label="Tên vai trò"
@@ -3997,8 +3981,8 @@ const SystemAdmin: React.FC = () => {
               >
                 <Input placeholder="Nhập tên vai trò" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
           <Form.Item name="description" label="Mô tả">
             <TextArea rows={3} placeholder="Nhập mô tả vai trò" />
@@ -4096,8 +4080,8 @@ const SystemAdmin: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="targetUserId" label="Gửi đến người dùng">
                 <Select placeholder="Chọn người dùng" allowClear>
                   {users.map((user) => (
@@ -4107,8 +4091,8 @@ const SystemAdmin: React.FC = () => {
                   ))}
                 </Select>
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div>
               <Form.Item name="targetRoleId" label="Gửi đến vai trò">
                 <Select placeholder="Chọn vai trò" allowClear>
                   {roles.map((role) => (
@@ -4118,8 +4102,8 @@ const SystemAdmin: React.FC = () => {
                   ))}
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
         </Form>
       </Modal>
 
@@ -4235,45 +4219,45 @@ const SystemAdmin: React.FC = () => {
         destroyOnHidden
       >
         <Form form={branchForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={8}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="code" label="Ma chi nhanh" rules={[{ required: true, message: 'Vui long nhap ma chi nhanh' }]}>
                 <Input placeholder="VD: CN01" />
               </Form.Item>
-            </Col>
-            <Col span={16}>
+            </div>
+            <div className="col-span-2">
               <Form.Item name="name" label="Ten chi nhanh" rules={[{ required: true, message: 'Vui long nhap ten chi nhanh' }]}>
                 <Input placeholder="VD: Chi nhanh Hai Duong" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="address" label="Dia chi">
             <Input placeholder="So nha, duong, phuong/xa, quan/huyen, tinh/TP" />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="phone" label="So dien thoai">
                 <Input placeholder="VD: 0220-3xxx-xxx" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div>
               <Form.Item name="email" label="Email">
                 <Input placeholder="VD: chinhanh@benhvien.vn" />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Form.Item name="isHeadquarter" label="Tru so chinh" valuePropName="checked">
                 <Switch checkedChildren="Co" unCheckedChildren="Khong" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div>
               <Form.Item name="isActive" label="Trang thai" valuePropName="checked">
                 <Switch checkedChildren="Hoat dong" unCheckedChildren="Ngung" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="description" label="Ghi chu">
             <Input.TextArea rows={2} placeholder="Ghi chu them ve chi nhanh..." />
           </Form.Item>

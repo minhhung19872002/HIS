@@ -335,7 +335,7 @@ const ChronicDisease: React.FC = () => {
               <Button size="small" type="primary" ghost icon={<UndoOutlined />} onClick={() => handleReopen(record)} />
             </Tooltip>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -344,16 +344,16 @@ const ChronicDisease: React.FC = () => {
     <Spin spinning={loading && records.length === 0}>
       <div>
         {/* Header */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Title level={4} style={{ margin: 0 }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className="text-lg font-semibold m-0">
                 <HeartOutlined style={{ marginRight: 8 }} />
                 Quan ly benh man tinh
-              </Title>
-            </Col>
-            <Col>
-              <Space>
+              </h4>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenCreate()}>
                   Them ho so
                 </Button>
@@ -363,59 +363,39 @@ const ChronicDisease: React.FC = () => {
                 <Button icon={<ReloadOutlined />} onClick={fetchData}>
                   Lam moi
                 </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* KPI Cards */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Tong dang theo doi"
-                value={stats.totalActive}
-                prefix={<HeartOutlined />}
-                styles={{ content: { color: '#1890ff' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Can tai kham"
-                value={stats.needFollowUp}
-                prefix={<ClockCircleOutlined />}
-                styles={{ content: { color: '#fa8c16' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Moi trong thang"
-                value={stats.newThisMonth}
-                prefix={<CheckCircleOutlined />}
-                styles={{ content: { color: '#52c41a' } }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Da dong/loai"
-                value={stats.closedOrRemoved}
-                prefix={<CloseCircleOutlined />}
-                styles={{ content: { color: '#8c8c8c' } }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Tong dang theo doi</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><HeartOutlined className="mr-1" />{stats.totalActive}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Can tai kham</div><div className="text-2xl font-semibold" style={{ color: '#fa8c16' }}><ClockCircleOutlined className="mr-1" />{stats.needFollowUp}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Moi trong thang</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.newThisMonth}</div>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-gray-500 text-sm mb-1">Da dong/loai</div><div className="text-2xl font-semibold" style={{ color: '#8c8c8c' }}><CloseCircleOutlined className="mr-1" />{stats.closedOrRemoved}</div>
+            </div>
+          </div>
+        </div>
 
         {/* Filters */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row gutter={[16, 12]}>
-            <Col xs={24} sm={8} md={6}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+          <div className="grid grid-cols-4 gap-4">
+            <div>
               <Search
                 placeholder="Tim kiem BN, ma BN, ten benh..."
                 value={keyword}
@@ -424,28 +404,28 @@ const ChronicDisease: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </Col>
-            <Col xs={12} sm={8} md={4}>
+            </div>
+            <div>
               <Input
                 placeholder="Ma ICD (VD: E11)"
                 value={icdCodeFilter}
                 onChange={(e) => setIcdCodeFilter(e.target.value || undefined)}
                 allowClear
               />
-            </Col>
-            <Col xs={24} sm={8} md={6}>
+            </div>
+            <div>
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange}
                 onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                 format="DD/MM/YYYY"
               />
-            </Col>
-          </Row>
-        </Card>
+            </div>
+          </div>
+        </div>
 
         {/* Tabs + Table */}
-        <Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <Tabs
             activeKey={activeTab}
             onChange={(key) => { setActiveTab(key); setPagination({ current: 1, pageSize: 20 }); }}
@@ -500,7 +480,7 @@ const ChronicDisease: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
           />
-        </Card>
+        </div>
 
         {/* Create/Edit Modal */}
         <Modal
@@ -515,8 +495,8 @@ const ChronicDisease: React.FC = () => {
           destroyOnHidden
         >
           <Form form={createForm} layout="vertical">
-            <Row gutter={16}>
-              <Col span={12}>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item
                   name="patientId"
                   label="Ma benh nhan"
@@ -524,8 +504,8 @@ const ChronicDisease: React.FC = () => {
                 >
                   <Input placeholder="Nhap ma benh nhan" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item
                   name="icdCode"
                   label="Ma ICD"
@@ -533,10 +513,10 @@ const ChronicDisease: React.FC = () => {
                 >
                   <Input placeholder="VD: E11, I10, J45" />
                 </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
                 <Form.Item
                   name="diagnosisDate"
                   label="Ngay chan doan"
@@ -544,8 +524,8 @@ const ChronicDisease: React.FC = () => {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </Col>
-              <Col span={12}>
+              </div>
+              <div>
                 <Form.Item
                   name="followUpIntervalDays"
                   label="Chu ky tai kham (ngay)"
@@ -553,8 +533,8 @@ const ChronicDisease: React.FC = () => {
                 >
                   <InputNumber min={1} max={365} style={{ width: '100%' }} placeholder="30" />
                 </Form.Item>
-              </Col>
-            </Row>
+              </div>
+            </div>
             <Form.Item name="doctorId" label="Ma bac si phu trach">
               <Input placeholder="Ma bac si (tuy chon)" />
             </Form.Item>
@@ -601,7 +581,7 @@ const ChronicDisease: React.FC = () => {
                 <Descriptions.Item label="Ghi chu" span={2}>{selectedRecord.notes || '-'}</Descriptions.Item>
               </Descriptions>
 
-              <Title level={5}>Lich su tai kham</Title>
+              <h5 className="text-base font-semibold mb-3">Lich su tai kham</h4>
               <Spin spinning={followUpsLoading}>
                 {followUps.length > 0 ? (
                   <Timeline
