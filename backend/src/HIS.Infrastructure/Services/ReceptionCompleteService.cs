@@ -2952,6 +2952,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
         // Get the max patient code with today's prefix
         var maxCode = await _context.Patients
+            .IgnoreQueryFilters()
             .Where(p => p.PatientCode.StartsWith(prefix))
             .OrderByDescending(p => p.PatientCode)
             .Select(p => p.PatientCode)

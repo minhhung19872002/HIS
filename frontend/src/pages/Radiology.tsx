@@ -1404,7 +1404,7 @@ const Radiology: React.FC = () => {
               Chat
             </Button>
           </Tooltip>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -1612,7 +1612,7 @@ const Radiology: React.FC = () => {
               Duyệt
             </Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -2165,7 +2165,7 @@ const Radiology: React.FC = () => {
                         <Tag color="purple">Bảo hiểm</Tag>
                       </>
                     )}
-                  </div>
+                  </Space>
                 </>
               ),
             },
@@ -2467,7 +2467,7 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Quản lý các mẫu mô tả, kết luận thường dùng cho từng loại dịch vụ CĐHA.</p>
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       <Card
@@ -2499,7 +2499,7 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Quản lý bộ từ viết tắt để tự động mở rộng khi nhập kết quả.</p>
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       <Card
@@ -2532,7 +2532,7 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình mẫu nhãn dán cho ca chụp, bao gồm barcode/QR code.</p>
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       <Card
@@ -2565,7 +2565,7 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình các phương thức ký số: USB Token, eKYC, SignServer, SmartCA.</p>
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       <Card
@@ -2600,7 +2600,7 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình kết nối các thiết bị chẩn đoán hình ảnh (CT, MRI, X-quang...).</p>
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       <Card
@@ -2635,7 +2635,7 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Cấu hình kết nối với PACS server (tùy chọn).</p>
-                      </div>
+                      </Card>
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-4">
@@ -2649,7 +2649,7 @@ const Radiology: React.FC = () => {
                         }}>Quan ly</Button>}
                       >
                         <p>Quan ly cac PACS server tu xa de gui anh DICOM (C-STORE). Cau hinh AE Title, host, port cho tung server.</p>
-                      </div>
+                      </Card>
                     </div>
                   </div>
                 </>
@@ -2696,7 +2696,7 @@ const Radiology: React.FC = () => {
                             />
                           </Form.Item>
                         </Form>
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       <Card title="In ấn & Nhân sự" size="small">
@@ -2723,7 +2723,7 @@ const Radiology: React.FC = () => {
                             </div>
                           </Form.Item>
                         </Form>
-                      </div>
+                      </Card>
                     </div>
                   </div>
 
@@ -3195,7 +3195,7 @@ const Radiology: React.FC = () => {
                                 Cấp bởi: {cert.issuerName} | HSD: {cert.validTo}
                                 {!cert.isValid && <Tag color="red" style={{ marginLeft: 8 }}>Hết hạn</Tag>}
                               </span>
-                            </div>
+                            </Space>
                           </Select.Option>
                         ))}
                       </Select>

@@ -579,7 +579,7 @@ const ClinicalGuidance: React.FC = () => {
                 <Descriptions.Item label="Ghi chu" span={2}>{selectedBatch.notes || '-'}</Descriptions.Item>
               </Descriptions>
 
-              <h5 className="text-base font-semibold mb-3">Hoat dong chi dao tuyen</h4>
+              <h5 className="text-base font-semibold mb-3">Hoat dong chi dao tuyen</h5>
               <Spin spinning={activitiesLoading}>
                 {activities.length > 0 ? (
                   <Timeline

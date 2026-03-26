@@ -1584,8 +1584,8 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <div className="grid grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex-1" />
                     <div>
                       <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateRole}>
                         Thêm vai trò
@@ -1893,8 +1893,8 @@ const SystemAdmin: React.FC = () => {
               ),
               children: (
                 <>
-                  <div className="grid grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex-1" />
                     <div>
                       <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsNotificationModalOpen(true)}>
                         Gửi thông báo
@@ -2145,7 +2145,7 @@ const SystemAdmin: React.FC = () => {
                                     </Typography.Text>
                                   </div>
                                 )}
-                              </div>
+                              </Card>
                             </div>
                           );
                         })}
@@ -2769,7 +2769,7 @@ const SystemAdmin: React.FC = () => {
                                   <Descriptions.Item label="Nền tảng">{app.platform}</Descriptions.Item>
                                   <Descriptions.Item label="Người dùng">{app.users}</Descriptions.Item>
                                 </Descriptions>
-                              </div>
+                              </Card>
                             </div>
                           ))}
                         </div>
@@ -2851,7 +2851,7 @@ const SystemAdmin: React.FC = () => {
                         }
                       />
                     </div>
-                  </div>
+                  </Card>
 
                   <Table
                     columns={[
@@ -2979,7 +2979,7 @@ const SystemAdmin: React.FC = () => {
                       size="small"
                       pagination={false}
                     />
-                  </div>
+                  </Card>
 
                   <div className="grid grid-cols-4 gap-4 mb-4">
                     <div>
@@ -3002,7 +3002,7 @@ const SystemAdmin: React.FC = () => {
                           size="small"
                           pagination={{ pageSize: 5 }}
                         />
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       {/* Export History */}
@@ -3024,7 +3024,7 @@ const SystemAdmin: React.FC = () => {
                           size="small"
                           pagination={{ pageSize: 5 }}
                         />
-                      </div>
+                      </Card>
                     </div>
                   </div>
 
@@ -3073,7 +3073,7 @@ const SystemAdmin: React.FC = () => {
                       pagination={{ pageSize: 10 }}
                       locale={{ emptyText: 'Chưa có biên bản chuyển giao' }}
                     />
-                  </div>
+                  </Card>
                 </Spin>
               ),
             },
@@ -3150,7 +3150,7 @@ const SystemAdmin: React.FC = () => {
                             </div>
                           </div>
                         </Form>
-                      </div>
+                      </Card>
                     </div>
                     <div>
                       <Card size="small" title={<><FolderOutlined /> Muc tieu sao luu</>}>
@@ -3201,7 +3201,7 @@ const SystemAdmin: React.FC = () => {
                             )}
                           </div>
                         ))}
-                      </div>
+                      </Card>
                     </div>
                   </div>
 
@@ -3223,7 +3223,7 @@ const SystemAdmin: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </Card>
 
                   <Card size="small" title="Lich su sao luu">
                     <Table
@@ -3239,7 +3239,7 @@ const SystemAdmin: React.FC = () => {
                         { title: 'Vi tri', dataIndex: 'location', key: 'location', width: 100 },
                       ]}
                     />
-                  </div>
+                  </Card>
                 </div>
               ),
             },

@@ -410,7 +410,7 @@ const TrainingResearch: React.FC = () => {
         />
         <Button icon={<ReloadOutlined />} onClick={fetchClasses}>Lam moi</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => openClassModal()}>Tao lop</Button>
-      </div>
+      </Space>
 
       <div className="grid grid-cols-4 gap-4">
         <div>
@@ -424,7 +424,7 @@ const TrainingResearch: React.FC = () => {
             <Card title={`Hoc vien: ${selectedClass.className}`} size="small"
               extra={<Button size="small" icon={<PlusOutlined />} onClick={() => setStudentModalOpen(true)}>Them</Button>}>
               <Table dataSource={students} columns={studentColumns} rowKey="id" size="small" pagination={false} />
-            </div>
+            </Card>
           </div>
         )}
       </div>
@@ -436,7 +436,7 @@ const TrainingResearch: React.FC = () => {
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ReloadOutlined />} onClick={fetchDirections}>Lam moi</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => openDirModal()}>Them moi</Button>
-      </div>
+      </Space>
       <Table dataSource={directions} columns={dirColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
     </div>
   );
@@ -454,7 +454,7 @@ const TrainingResearch: React.FC = () => {
         />
         <Button icon={<ReloadOutlined />} onClick={fetchProjects}>Lam moi</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => openProjModal()}>Them de tai</Button>
-      </div>
+      </Space>
       <Table dataSource={projects} columns={projColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
     </div>
   );
@@ -463,7 +463,7 @@ const TrainingResearch: React.FC = () => {
     <div>
       <Card title="Tong hop tin chi CME theo nhan vien" size="small">
         <Table dataSource={creditSummary} columns={creditColumns} rowKey="staffId" size="small" pagination={{ pageSize: 20 }} />
-      </div>
+      </Card>
     </div>
   );
 
@@ -502,7 +502,7 @@ const TrainingResearch: React.FC = () => {
                   </PieChart>
                 </ResponsiveContainer>
               ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chua co du lieu</div>}
-            </div>
+            </Card>
           </div>
           <div>
             <Card title="De tai NCKH theo trang thai" size="small">
@@ -517,7 +517,7 @@ const TrainingResearch: React.FC = () => {
                   ))}
                 </div>
               ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chua co du lieu</div>}
-            </div>
+            </Card>
           </div>
         </div>
       </div>

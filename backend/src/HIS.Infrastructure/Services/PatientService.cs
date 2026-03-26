@@ -119,6 +119,7 @@ public class PatientService : IPatientService
         var prefix = $"BN{year}";
 
         var lastCode = await _context.Patients
+            .IgnoreQueryFilters()
             .Where(p => p.PatientCode.StartsWith(prefix))
             .OrderByDescending(p => p.PatientCode)
             .Select(p => p.PatientCode)

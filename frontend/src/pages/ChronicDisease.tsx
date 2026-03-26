@@ -335,7 +335,7 @@ const ChronicDisease: React.FC = () => {
               <Button size="small" type="primary" ghost icon={<UndoOutlined />} onClick={() => handleReopen(record)} />
             </Tooltip>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -581,7 +581,7 @@ const ChronicDisease: React.FC = () => {
                 <Descriptions.Item label="Ghi chu" span={2}>{selectedRecord.notes || '-'}</Descriptions.Item>
               </Descriptions>
 
-              <h5 className="text-base font-semibold mb-3">Lich su tai kham</h4>
+              <h5 className="text-base font-semibold mb-3">Lich su tai kham</h5>
               <Spin spinning={followUpsLoading}>
                 {followUps.length > 0 ? (
                   <Timeline

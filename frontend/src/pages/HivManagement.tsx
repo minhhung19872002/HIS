@@ -275,7 +275,7 @@ const HivManagement: React.FC = () => {
       width: 80,
       align: 'center',
       render: (v: number) => v != null ? (
-        <Text style={{ color: v < 200 ? '#ff4d4f' : v < 350 ? '#fa8c16' : '#52c41a' }}>{v}</span>
+        <Text style={{ color: v < 200 ? '#ff4d4f' : v < 350 ? '#fa8c16' : '#52c41a' }}>{v}</Text>
       ) : '-',
     },
     {
@@ -286,7 +286,7 @@ const HivManagement: React.FC = () => {
       render: (v: number) => v != null ? (
         <Text style={{ color: v >= 200 ? '#ff4d4f' : '#52c41a' }}>
           {v < 200 ? '< 200' : v.toLocaleString()}
-        </span>
+        </Text>
       ) : '-',
     },
     {
@@ -406,7 +406,7 @@ const HivManagement: React.FC = () => {
       render: (v: number, r: HivLabResult) => (
         <Text style={{ color: r.isAbnormal ? '#ff4d4f' : undefined, fontWeight: r.isAbnormal ? 'bold' : undefined }}>
           {v} {r.unit}
-        </span>
+        </Text>
       ),
     },
     {
@@ -458,7 +458,7 @@ const HivManagement: React.FC = () => {
               Dang ky BN
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </div>
+          </Space>
           <Table
             columns={patientColumns}
             dataSource={filteredPatients}
@@ -536,7 +536,7 @@ const HivManagement: React.FC = () => {
                   </Form.Item>
                   <Button type="primary" htmlType="submit" loading={submitting}>Luu ket qua</Button>
                 </Form>
-              </div>
+              </Card>
             </div>
             <div>
               <Card title="Canh bao bat thuong" size="small">
@@ -567,7 +567,7 @@ const HivManagement: React.FC = () => {
                     ))}
                   </>
                 )}
-              </div>
+              </Card>
             </div>
           </div>
         </div>
@@ -583,7 +583,7 @@ const HivManagement: React.FC = () => {
               Them PMTCT
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </div>
+          </Space>
           <Table
             columns={pmtctColumns}
             dataSource={pmtctRecords}

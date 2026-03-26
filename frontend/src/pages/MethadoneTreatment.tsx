@@ -392,7 +392,7 @@ const MethadoneTreatment: React.FC = () => {
               <hr className="border-t border-gray-200 my-4" />
               <p>BN đang điều trị: <strong>{activePatients.length}</strong></p>
               <p>BN bỏ liều tháng này: <strong style={{ color: '#ff4d4f' }}>{stats.missedDoses}</strong></p>
-            </div>
+            </Card>
           </div>
           <div>
             <Card title="Phân bố giai đoạn điều trị">
@@ -409,7 +409,7 @@ const MethadoneTreatment: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
+            </Card>
           </div>
           <div>
             <Card title="Kết quả XN nước tiểu gần nhất">
@@ -424,7 +424,7 @@ const MethadoneTreatment: React.FC = () => {
               ) : (
                 <Typography.Text type="secondary">Chưa có dữ liệu</Typography.Text>
               )}
-            </div>
+            </Card>
           </div>
           <div>
             <Card title="Liều trung bình theo giai đoạn">
@@ -442,7 +442,7 @@ const MethadoneTreatment: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
+            </Card>
           </div>
         </div>
       ),

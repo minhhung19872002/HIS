@@ -331,7 +331,7 @@ const FoodSafety: React.FC = () => {
       render: (v: number) => (
         <Text strong style={{ color: v >= 80 ? '#52c41a' : v >= 60 ? '#faad14' : '#ff4d4f' }}>
           {v ?? '-'}
-        </span>
+        </Text>
       ),
     },
     {
@@ -415,7 +415,7 @@ const FoodSafety: React.FC = () => {
               Them su co
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </div>
+          </Space>
           <Table
             columns={incidentColumns}
             dataSource={filteredIncidents}
@@ -447,7 +447,7 @@ const FoodSafety: React.FC = () => {
               Them kiem tra
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </div>
+          </Space>
           <Table
             columns={inspectionColumns}
             dataSource={filteredInspections}
@@ -502,7 +502,7 @@ const FoodSafety: React.FC = () => {
                 ) : (
                   <span className="text-gray-500">Chua co du lieu</span>
                 )}
-              </div>
+              </Card>
             </div>
             <div>
               <Card title="Tuan thu theo loai co so" size="small">
@@ -519,7 +519,7 @@ const FoodSafety: React.FC = () => {
                 ) : (
                   <span className="text-gray-500">Chua co du lieu</span>
                 )}
-              </div>
+              </Card>
             </div>
           </div>
         </div>

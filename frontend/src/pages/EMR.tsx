@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Card, Tabs, Table, Input, Button, Space, Tag, Descriptions, Form,
-  DatePicker, Select, Modal, message, Typography, Row, Col, Divider,
-  Drawer, Timeline, Spin, Empty, Badge, Tooltip, Dropdown, InputNumber, Alert,
-  TimePicker, Statistic, Popconfirm
+import { Tabs, Table, Input, Button, Tag, Descriptions, Form,
+  DatePicker, Select, Modal, message,
+  Drawer, Timeline, Spin, Badge, Tooltip, Dropdown, InputNumber, Alert,
+  TimePicker, Popconfirm
 } from 'antd';
 import {
   FileTextOutlined, SearchOutlined, MedicineBoxOutlined, HeartOutlined,
@@ -43,7 +42,6 @@ import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures, getSignaturesBatch } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 
-const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
@@ -496,14 +494,14 @@ const EMR: React.FC = () => {
 </style>
 </head>
 <body>
-<button class="btn-print no-print" onclick="window.print()">In</button>
-<div class="header">
+<button className="btn-print no-print" onclick="window.print()">In</button>
+<div className="header">
   <h2>BỘ Y TẾ</h2>
   <h1>HỒ SƠ BỆNH ÁN ĐIỆN TỬ</h1>
-  <div class="meta">Mã hồ sơ: ${esc(exam.id)} | Ngày xuất: ${dayjs().format('DD/MM/YYYY HH:mm')}</div>
+  <div className="meta">Mã hồ sơ: ${esc(exam.id)} | Ngày xuất: ${dayjs().format('DD/MM/YYYY HH:mm')}</div>
 </div>
 
-<div class="section">
+<div className="section">
   <h3>I. THÔNG TIN BỆNH NHÂN</h3>
   <table>
     <tr><th>Họ và tên</th><td><b>${esc(p?.fullName)}</b></td></tr>
@@ -516,7 +514,7 @@ const EMR: React.FC = () => {
   </table>
 </div>
 
-<div class="section">
+<div className="section">
   <h3>II. THÔNG TIN KHÁM BỆNH</h3>
   <table>
     <tr><th>Ngày khám</th><td>${esc(examDate)}</td></tr>
@@ -526,7 +524,7 @@ const EMR: React.FC = () => {
   </table>
 </div>
 
-${vs ? `<div class="section">
+${vs ? `<div className="section">
   <h3>III. SINH HIỆU</h3>
   <table>
     <tr><th>Cân nặng</th><td>${esc(vs.weight)} kg</td><th>Chiều cao</th><td>${esc(vs.height)} cm</td></tr>
@@ -536,7 +534,7 @@ ${vs ? `<div class="section">
   </table>
 </div>` : ''}
 
-${interview ? `<div class="section">
+${interview ? `<div className="section">
   <h3>IV. BỆNH SỬ</h3>
   <table>
     <tr><th>Lý do khám</th><td>${esc(interview.chiefComplaint)}</td></tr>
@@ -547,7 +545,7 @@ ${interview ? `<div class="section">
   </table>
 </div>` : ''}
 
-${physExam ? `<div class="section">
+${physExam ? `<div className="section">
   <h3>V. KHÁM LÂM SÀNG</h3>
   <table>
     <tr><th>Toàn thân</th><td>${esc(physExam.generalAppearance)}</td></tr>
@@ -561,7 +559,7 @@ ${physExam ? `<div class="section">
   </table>
 </div>` : ''}
 
-${diagnoses.length > 0 ? `<div class="section">
+${diagnoses.length > 0 ? `<div className="section">
   <h3>VI. CHẨN ĐOÁN</h3>
   <table>
     <tr><th>Mã ICD</th><th>Tên bệnh</th></tr>
@@ -569,7 +567,7 @@ ${diagnoses.map(d => `    <tr><td>${esc(d.icdCode)}</td><td>${esc(d.icdName)}</t
   </table>
 </div>` : ''}
 
-${allergies.length > 0 ? `<div class="section">
+${allergies.length > 0 ? `<div className="section">
   <h3>VII. DỊ ỨNG</h3>
   <table>
     <tr><th>Chất gây dị ứng</th><th>Phản ứng</th><th>Mức độ</th></tr>
@@ -577,14 +575,14 @@ ${allergies.map(a => `    <tr><td>${esc(a.allergenName)}</td><td>${esc(a.reactio
   </table>
 </div>` : ''}
 
-${conclusion ? `<div class="section">
+${conclusion ? `<div className="section">
   <h3>VIII. KẾT LUẬN</h3>
   <table>
     <tr><th>Kết luận</th><td>${esc(conclusion.conclusionNotes)}</td></tr>
   </table>
 </div>` : ''}
 
-<div class="footer">
+<div className="footer">
   <p>Tài liệu được xuất từ Hệ thống Thông tin Bệnh viện (HIS) ngày ${dayjs().format('DD/MM/YYYY HH:mm:ss')}</p>
   <p>File này mở bằng trình duyệt web (Chrome, Edge, Firefox) hoặc bấm nút "In" để in ra giấy/PDF.</p>
 </div>
@@ -834,7 +832,7 @@ ${conclusion ? `<div class="section">
     {
       title: '', key: 'actions', width: 120,
       render: (_: unknown, r: TreatmentSheetDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Tooltip title="Sửa"><Button type="link" size="small" icon={<EditOutlined />}
             onClick={() => { setEditingTreatment(r); treatmentForm.setFieldsValue({ ...r, treatmentDate: dayjs(r.treatmentDate) }); setTreatmentModalOpen(true); }} /></Tooltip>
           <Dropdown menu={{ items: [
@@ -844,7 +842,7 @@ ${conclusion ? `<div class="section">
           ], onClick: ({ key }) => handleCopyTreatmentMultiDay(r, Number(key)) }}>
             <Tooltip title="Sao chép nhiều ngày"><Button type="link" size="small" icon={<CopyOutlined />} /></Tooltip>
           </Dropdown>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -861,12 +859,12 @@ ${conclusion ? `<div class="section">
     {
       title: '', key: 'actions', width: 80,
       render: (_: unknown, r: ConsultationRecordDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button type="link" size="small" icon={<EditOutlined />}
             onClick={() => { setEditingConsultation(r); consultationForm.setFieldsValue({ ...r, consultationDate: dayjs(r.consultationDate) }); setConsultationModalOpen(true); }} />
           <Button type="link" size="small" icon={<PrinterOutlined />}
             onClick={() => handlePrintPreview('consultation', r)} />
-        </Space>
+        </div>
       ),
     },
   ];
@@ -888,7 +886,7 @@ ${conclusion ? `<div class="section">
     {
       title: '', key: 'actions', width: 120,
       render: (_: unknown, r: NursingCareSheetDto) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Tooltip title="Sửa"><Button type="link" size="small" icon={<EditOutlined />}
             onClick={() => { setEditingNursing(r); nursingForm.setFieldsValue({ ...r, careDate: dayjs(r.careDate) }); setNursingModalOpen(true); }} /></Tooltip>
           <Dropdown menu={{ items: [
@@ -898,33 +896,33 @@ ${conclusion ? `<div class="section">
           ], onClick: ({ key }) => handleCopyNursingMultiDay(r, Number(key)) }}>
             <Tooltip title="Sao chép nhiều ngày"><Button type="link" size="small" icon={<CopyOutlined />} /></Tooltip>
           </Dropdown>
-        </Space>
+        </div>
       ),
     },
   ];
 
   // Detail panel - Medical Record view
   const renderMedicalRecord = () => {
-    if (!medicalRecord) return <Empty description="Chưa có dữ liệu hồ sơ bệnh án" />;
+    if (!medicalRecord) return <div className="text-center py-10 text-gray-400">Khong co du lieu</div>;
     const { patient, vitalSigns, interview, physicalExam, diagnoses, allergies } = medicalRecord;
 
     return (
       <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
         {/* Patient Info */}
-        <Card size="small" title={<><UserOutlined /> Thông tin bệnh nhân</>} style={{ marginBottom: 12 }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3"><h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1"><UserOutlined /> Thong tin benh nhan</h4>
           <Descriptions size="small" column={3}>
             <Descriptions.Item label="Mã BN">{patient?.patientCode}</Descriptions.Item>
-            <Descriptions.Item label="Họ tên"><Text strong>{patient?.fullName}</Text></Descriptions.Item>
+            <Descriptions.Item label="Họ tên"><span className="font-semibold">{patient?.fullName}</span></Descriptions.Item>
             <Descriptions.Item label="Giới">{patient?.gender === 1 ? 'Nam' : 'Nữ'}</Descriptions.Item>
             <Descriptions.Item label="Tuổi">{patient?.age}</Descriptions.Item>
             <Descriptions.Item label="SĐT">{patient?.phoneNumber ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="Địa chỉ">{patient?.address ?? '-'}</Descriptions.Item>
           </Descriptions>
-        </Card>
+        </div>
 
         {/* Vital Signs */}
         {vitalSigns && (
-          <Card size="small" title={<><HeartOutlined /> Sinh hiệu</>} style={{ marginBottom: 12 }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3"><h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1"><HeartOutlined /> Sinh hieu</h4>
             <Descriptions size="small" column={4}>
               <Descriptions.Item label="Mạch">{vitalSigns.pulse ?? '-'} l/ph</Descriptions.Item>
               <Descriptions.Item label="Nhiệt độ">{vitalSigns.temperature ?? '-'} °C</Descriptions.Item>
@@ -935,12 +933,12 @@ ${conclusion ? `<div class="section">
               <Descriptions.Item label="BMI">{vitalSigns.bmi ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="SpO2">{vitalSigns.spO2 ?? '-'} %</Descriptions.Item>
             </Descriptions>
-          </Card>
+          </div>
         )}
 
         {/* Interview */}
         {interview && (
-          <Card size="small" title={<><FormOutlined /> Bệnh sử</>} style={{ marginBottom: 12 }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3"><h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1"><FormOutlined /> Benh su</h4>
             <Descriptions size="small" column={1} layout="vertical">
               {interview.chiefComplaint && <Descriptions.Item label="Lý do khám">{interview.chiefComplaint}</Descriptions.Item>}
               {interview.historyOfPresentIllness && <Descriptions.Item label="Quá trình bệnh lý">{interview.historyOfPresentIllness}</Descriptions.Item>}
@@ -948,12 +946,12 @@ ${conclusion ? `<div class="section">
               {interview.familyHistory && <Descriptions.Item label="Tiền sử gia đình">{interview.familyHistory}</Descriptions.Item>}
               {interview.socialHistory && <Descriptions.Item label="Tiền sử xã hội">{interview.socialHistory}</Descriptions.Item>}
             </Descriptions>
-          </Card>
+          </div>
         )}
 
         {/* Physical Exam */}
         {physicalExam && (
-          <Card size="small" title={<><ExperimentOutlined /> Khám lâm sàng</>} style={{ marginBottom: 12 }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3"><h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1"><ExperimentOutlined /> Kham lam sang</h4>
             <Descriptions size="small" column={1} layout="vertical">
               {physicalExam.generalAppearance && <Descriptions.Item label="Toàn thân">{physicalExam.generalAppearance}</Descriptions.Item>}
               {physicalExam.cardiovascular && <Descriptions.Item label="Tim mạch">{physicalExam.cardiovascular}</Descriptions.Item>}
@@ -962,12 +960,12 @@ ${conclusion ? `<div class="section">
               {physicalExam.neurological && <Descriptions.Item label="Thần kinh">{physicalExam.neurological}</Descriptions.Item>}
               {physicalExam.musculoskeletal && <Descriptions.Item label="Cơ xương khớp">{physicalExam.musculoskeletal}</Descriptions.Item>}
             </Descriptions>
-          </Card>
+          </div>
         )}
 
         {/* Diagnoses */}
         {diagnoses?.length > 0 && (
-          <Card size="small" title={<><SafetyOutlined /> Chẩn đoán</>} style={{ marginBottom: 12 }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3"><h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1"><SafetyOutlined /> Chan doan</h4>
             <Table size="small" dataSource={diagnoses} pagination={false} rowKey="id"
               columns={[
                 { title: 'Mã ICD', dataIndex: 'icdCode', width: 90 },
@@ -975,28 +973,28 @@ ${conclusion ? `<div class="section">
                 { title: 'Loại', dataIndex: 'diagnosisType', width: 100,
                   render: (v: number) => v === 1 ? <Tag color="blue">Chính</Tag> : <Tag>Phụ</Tag> },
               ]} />
-          </Card>
+          </div>
         )}
 
         {/* Allergies */}
         {allergies?.length > 0 && (
-          <Card size="small" title="Dị ứng" style={{ marginBottom: 12 }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             {allergies.map(a => (
               <Tag key={a.id} color={a.severity === 3 ? 'red' : a.severity === 2 ? 'orange' : 'default'}>
                 {a.allergenName}
               </Tag>
             ))}
-          </Card>
+          </div>
         )}
 
         {/* Conclusion */}
         {medicalRecord.conclusion && (
-          <Card size="small" title="Kết luận" style={{ marginBottom: 12 }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <Descriptions size="small" column={1}>
               <Descriptions.Item label="Kết luận">{medicalRecord.conclusion.conclusionType === 1 ? 'Về nhà' : medicalRecord.conclusion.conclusionType === 2 ? 'Nhập viện' : medicalRecord.conclusion.conclusionType === 3 ? 'Chuyển viện' : 'Khác'}</Descriptions.Item>
               {medicalRecord.conclusion.conclusionNotes && <Descriptions.Item label="Ghi chú">{medicalRecord.conclusion.conclusionNotes}</Descriptions.Item>}
             </Descriptions>
-          </Card>
+          </div>
         )}
       </div>
     );
@@ -1004,7 +1002,7 @@ ${conclusion ? `<div class="section">
 
   // History timeline
   const renderHistory = () => {
-    if (!patientHistory.length) return <Empty description="Chưa có lịch sử khám" />;
+    if (!patientHistory.length) return <div className="text-center py-10 text-gray-400">Khong co du lieu</div>;
     return (
       <Timeline
         items={patientHistory.map(h => ({
@@ -1021,13 +1019,13 @@ ${conclusion ? `<div class="section">
               };
               loadDetail(exam);
             }}>
-              <Text strong>{dayjs(h.examinationDate).format('DD/MM/YYYY')}</Text>
+              <span className="font-semibold">{dayjs(h.examinationDate).format('DD/MM/YYYY')}</span>
               <br />
-              <Text type="secondary">{h.roomName}</Text>
-              {h.doctorName && <Text type="secondary"> - BS. {h.doctorName}</Text>}
+              <span className="text-gray-500 text-sm">{h.roomName}</span>
+              {h.doctorName && <span className="text-gray-500 text-sm"> - BS. {h.doctorName}</span>}
               <br />
               {h.diagnosisCode && <Tag color="blue">{h.diagnosisCode}</Tag>}
-              {h.diagnosisName && <Text>{h.diagnosisName}</Text>}
+              {h.diagnosisName && <span className="text-sm">{h.diagnosisName}</span>}
             </div>
           ),
         }))}
@@ -1061,7 +1059,7 @@ ${conclusion ? `<div class="section">
             setDetailTab('record');
           }}
         />
-      ) : <Empty description="Chọn bệnh nhân để xem timeline" />,
+      ) : <div className="text-center py-10 text-gray-400">Khong co du lieu</div>,
     },
     {
       key: 'treatment', label: <Badge count={treatmentSheets.length} showZero={false} size="small" offset={[8, 0]}><FileTextOutlined /> Phiếu điều trị</Badge>,
@@ -1120,7 +1118,7 @@ ${conclusion ? `<div class="section">
             <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('drug-reaction')}>In</Button>
           </div>
           {drugReactionTests.length === 0 ? (
-            <Empty description="Chưa có phiếu thử phản ứng thuốc" />
+            <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
           ) : (
             <Table size="small" dataSource={drugReactionTests} rowKey="id" pagination={false}
               columns={[
@@ -1164,7 +1162,7 @@ ${conclusion ? `<div class="section">
             <Alert title="CHÚ Ý: Độ mở CTC đã đạt đường báo động (Alert Line). Theo dõi sát." type="warning" showIcon style={{ marginBottom: 8 }} />
           )}
           {partographEntries.length === 0 ? (
-            <Empty description="Chưa có dữ liệu biểu đồ chuyển dạ" />
+            <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
           ) : (
             <Table size="small" dataSource={partographEntries} rowKey="id" pagination={false}
               columns={[
@@ -1200,33 +1198,33 @@ ${conclusion ? `<div class="section">
       key: 'anesthesia', label: <><MedicineIcon /> Gây mê hồi sức</>,
       children: (
         <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
-          <Card size="small" title="Đánh giá trước mổ" style={{ marginBottom: 8 }}>
-            <Row gutter={8}>
-              <Col span={4}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex gap-4 flex-wrap">
+              <div className="w-full lg:w-1/6">
                 <div style={{ fontSize: 11, color: '#888' }}>ASA</div>
                 <Select size="small" style={{ width: '100%' }} value={anesthesiaPreOp.asaClass}
                   onChange={v => setAnesthesiaPreOp(p => ({ ...p, asaClass: v }))}>
                   {['I', 'II', 'III', 'IV', 'V', 'VI'].map(c => <Select.Option key={c} value={c}>ASA {c}</Select.Option>)}
                 </Select>
-              </Col>
-              <Col span={4}>
+              </div>
+              <div className="w-full lg:w-1/6">
                 <div style={{ fontSize: 11, color: '#888' }}>Mallampati</div>
                 <Select size="small" style={{ width: '100%' }} value={anesthesiaPreOp.mallampati}
                   onChange={v => setAnesthesiaPreOp(p => ({ ...p, mallampati: v }))}>
                   {['I', 'II', 'III', 'IV'].map(c => <Select.Option key={c} value={c}>Class {c}</Select.Option>)}
                 </Select>
-              </Col>
-              <Col span={5}>
+              </div>
+              <div>
                 <div style={{ fontSize: 11, color: '#888' }}>Dị ứng</div>
                 <Input size="small" value={anesthesiaPreOp.allergies}
                   onChange={e => setAnesthesiaPreOp(p => ({ ...p, allergies: e.target.value }))} placeholder="Dị ứng thuốc..." />
-              </Col>
-              <Col span={4}>
+              </div>
+              <div className="w-full lg:w-1/6">
                 <div style={{ fontSize: 11, color: '#888' }}>NPO (giờ)</div>
                 <Input size="small" value={anesthesiaPreOp.npoTime}
                   onChange={e => setAnesthesiaPreOp(p => ({ ...p, npoTime: e.target.value }))} placeholder="8h" />
-              </Col>
-              <Col span={4}>
+              </div>
+              <div className="w-full lg:w-1/6">
                 <div style={{ fontSize: 11, color: '#888' }}>Loại gây mê</div>
                 <Select size="small" style={{ width: '100%' }} value={anesthesiaPreOp.anesthesiaType}
                   onChange={v => setAnesthesiaPreOp(p => ({ ...p, anesthesiaType: v }))}>
@@ -1235,19 +1233,21 @@ ${conclusion ? `<div class="section">
                   <Select.Option value="local">Tại chỗ</Select.Option>
                   <Select.Option value="sedation">An thần</Select.Option>
                 </Select>
-              </Col>
-              <Col span={3}>
+              </div>
+              <div>
                 <div style={{ fontSize: 11, color: '#888' }}>Đường thở</div>
                 <Input size="small" value={anesthesiaPreOp.airway}
                   onChange={e => setAnesthesiaPreOp(p => ({ ...p, airway: e.target.value }))} placeholder="NKQ, LMA..." />
-              </Col>
-            </Row>
-          </Card>
-          <Card size="small" title="Theo dõi sinh hiệu" style={{ marginBottom: 8 }}
-            extra={<Button size="small" type="primary" icon={<PlusOutlined />}
-              onClick={() => { anesthesiaMonitorForm.resetFields(); anesthesiaMonitorForm.setFieldsValue({ time: dayjs() }); setAnesthesiaModalOpen(true); }}>Thêm</Button>}>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-sm font-semibold text-gray-700">Theo doi gay me</h4>
+              <Button onClick={() => { anesthesiaMonitorForm.resetFields(); anesthesiaMonitorForm.setFieldsValue({ time: dayjs() }); setAnesthesiaModalOpen(true); }}>Them</Button>
+            </div>
             {anesthesiaEntries.length === 0 ? (
-              <Empty description="Chưa có dữ liệu theo dõi" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
             ) : (
               <Table size="small" dataSource={anesthesiaEntries} rowKey="id" pagination={false}
                 columns={[
@@ -1261,14 +1261,16 @@ ${conclusion ? `<div class="section">
                 ]}
               />
             )}
-          </Card>
-          <Row gutter={8}>
-            <Col span={12}>
-              <Card size="small" title="Thuốc sử dụng" style={{ marginBottom: 8 }}
-                extra={<Button size="small" icon={<PlusOutlined />}
-                  onClick={() => { anesthesiaDrugForm.resetFields(); anesthesiaDrugForm.setFieldsValue({ time: dayjs() }); setAnesthesiaDrugModalOpen(true); }}>Thêm</Button>}>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-sm font-semibold text-gray-700">Thuoc gay me</h4>
+                  <Button onClick={() => { anesthesiaDrugForm.resetFields(); anesthesiaDrugForm.setFieldsValue({ time: dayjs() }); setAnesthesiaDrugModalOpen(true); }}>Them</Button>
+                </div>
                 {anesthesiaDrugs.length === 0 ? (
-                  <Empty description="Chưa có" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
                 ) : (
                   <Table size="small" dataSource={anesthesiaDrugs} rowKey="id" pagination={false}
                     columns={[
@@ -1279,14 +1281,16 @@ ${conclusion ? `<div class="section">
                     ]}
                   />
                 )}
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card size="small" title="Dịch truyền" style={{ marginBottom: 8 }}
-                extra={<Button size="small" icon={<PlusOutlined />}
-                  onClick={() => { anesthesiaFluidForm.resetFields(); anesthesiaFluidForm.setFieldsValue({ startTime: dayjs() }); setAnesthesiaFluidModalOpen(true); }}>Thêm</Button>}>
+              </div>
+            </div>
+            <div className="w-full lg:w-1/2">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-sm font-semibold text-gray-700">Dich truyen</h4>
+                  <Button onClick={() => { anesthesiaFluidForm.resetFields(); anesthesiaFluidForm.setFieldsValue({ startTime: dayjs() }); setAnesthesiaFluidModalOpen(true); }}>Them</Button>
+                </div>
                 {anesthesiaFluids.length === 0 ? (
-                  <Empty description="Chưa có" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
                 ) : (
                   <Table size="small" dataSource={anesthesiaFluids} rowKey="id" pagination={false}
                     columns={[
@@ -1296,14 +1300,14 @@ ${conclusion ? `<div class="section">
                     ]}
                   />
                 )}
-              </Card>
-            </Col>
-          </Row>
-          <Card size="small" title="Ghi chú hồi tỉnh">
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <Input.TextArea rows={2} value={anesthesiaRecovery}
               onChange={e => setAnesthesiaRecovery(e.target.value)}
               placeholder="Tình trạng bệnh nhân sau mổ, thời gian tỉnh, đau, buồn nôn, sinh hiệu ổn định..." />
-          </Card>
+          </div>
         </div>
       ),
     },
@@ -1313,12 +1317,12 @@ ${conclusion ? `<div class="section">
         <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
           {completeness ? (
             <>
-              <Row gutter={16} style={{ marginBottom: 12 }}>
-                <Col span={6}><Card size="small"><Statistic title="Tổng tài liệu" value={completeness.totalDocuments} /></Card></Col>
-                <Col span={6}><Card size="small"><Statistic title="Đã ký" value={completeness.signedDocuments} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
-                <Col span={6}><Card size="small"><Statistic title="Chưa ký" value={completeness.unsignedDocuments} styles={{ content: { color: '#fa8c16' } }} /></Card></Col>
-                <Col span={6}><Card size="small"><Statistic title="Thiếu" value={completeness.missingRequiredDocuments} styles={{ content: { color: '#ff4d4f' } }} /></Card></Col>
-              </Row>
+              <div className="flex gap-4 flex-wrap">
+                <div className="w-full lg:w-1/4"><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div><div className="text-xs text-gray-500 font-semibold">Tổng tài liệu</div><div className="text-2xl font-bold">{completeness.totalDocuments}</div></div></div></div>
+                <div className="w-full lg:w-1/4"><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div><div className="text-xs text-gray-500 font-semibold">Đã ký</div><div className="text-2xl font-bold">{completeness.signedDocuments}</div></div></div></div>
+                <div className="w-full lg:w-1/4"><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div><div className="text-xs text-gray-500 font-semibold">Chưa ký</div><div className="text-2xl font-bold">{completeness.unsignedDocuments}</div></div></div></div>
+                <div className="w-full lg:w-1/4"><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div><div className="text-xs text-gray-500 font-semibold">Thiếu</div><div className="text-2xl font-bold">{completeness.missingRequiredDocuments}</div></div></div></div>
+              </div>
               <div style={{ marginBottom: 12 }}>
                 <span style={{ fontWeight: 'bold', marginRight: 8 }}>Hoàn thiện:</span>
                 <Tag color={completeness.isComplete ? 'green' : 'orange'}>{completeness.completenessPercent}%</Tag>
@@ -1350,7 +1354,7 @@ ${conclusion ? `<div class="section">
               )}
             </>
           ) : (
-            <Empty description="Chọn hồ sơ để kiểm tra tính hoàn thiện" />
+            <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
           )}
         </div>
       ),
@@ -1365,7 +1369,7 @@ ${conclusion ? `<div class="section">
             </Button>
           </div>
           {attachments.length === 0 ? (
-            <Empty description="Chưa có tài liệu đính kèm" />
+            <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
           ) : (
             <Table size="small" dataSource={attachments} rowKey="id" pagination={false}
               columns={[
@@ -1395,7 +1399,7 @@ ${conclusion ? `<div class="section">
       children: (
         <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
           {printLogs.length === 0 ? (
-            <Empty description="Chưa có nhật ký in ấn" />
+            <div className="text-center py-10 text-gray-400">Khong co du lieu</div>
           ) : (
             <Table size="small" dataSource={printLogs} rowKey="id" pagination={false}
               columns={[
@@ -1426,14 +1430,13 @@ ${conclusion ? `<div class="section">
 
   return (
     <div style={{ height: '100%' }}>
-      <Row gutter={12} style={{ height: '100%' }}>
+      <div className="flex gap-4 flex-wrap">
         {/* Left panel: Search + List */}
-        <Col span={10}>
-          <Card size="small" title={<><FileTextOutlined /> Hồ sơ bệnh án điện tử (EMR)</>}
-            style={{ height: '100%' }}
-            styles={{ body: { padding: '8px 12px' } }}>
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3" style={{ height: '100%' }}>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1"><FileTextOutlined /> Ho so benh an dien tu (EMR)</h4>
             {/* Search bar */}
-            <Space orientation="vertical" style={{ width: '100%', marginBottom: 8 }}>
+            <div className="flex flex-col gap-2">
               <Input.Search
                 placeholder="Tìm theo mã BN, họ tên, SĐT..."
                 value={searchKeyword}
@@ -1442,7 +1445,7 @@ ${conclusion ? `<div class="section">
                 enterButton={<SearchOutlined />}
                 allowClear
               />
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <div className="flex items-center gap-2">
                 <RangePicker size="small" value={dateRange}
                   onChange={v => setDateRange(v ? [v[0], v[1]] : [null, null])}
                   format="DD/MM/YYYY" style={{ width: 220 }} />
@@ -1451,8 +1454,8 @@ ${conclusion ? `<div class="section">
                   onChange={v => setStatusFilter(v)}
                   options={Object.entries(statusNames).map(([k, v]) => ({ value: Number(k), label: v }))} />
                 <Button size="small" icon={<ReloadOutlined />} onClick={() => handleSearch(1)} />
-              </Space>
-            </Space>
+              </div>
+            </div>
 
             {/* Examination table */}
             <Table size="small" dataSource={examinations} columns={examColumns}
@@ -1465,18 +1468,21 @@ ${conclusion ? `<div class="section">
               }}
               scroll={{ y: 'calc(100vh - 340px)' }}
             />
-          </Card>
-        </Col>
+          </div>
+        </div>
 
         {/* Right panel: Detail */}
-        <Col span={14}>
-          <Card size="small"
-            title={selectedExam
-              ? <><UserOutlined /> {selectedExam.patientName} - {selectedExam.patientCode}</>
-              : <><FileTextOutlined /> Chi tiết hồ sơ</>
-            }
-            extra={selectedExam && (
-              <Space wrap size={4}>
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3" style={{ height: '100%' }}>
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                {selectedExam ? <><UserOutlined /> {selectedExam.patientName} - {selectedExam.patientCode}</> : <><FileTextOutlined /> Chi tiet ho so</>}
+              </h4>
+              {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
+              <span className="hidden">placeholder</span>
+            </div>
+            {selectedExam && (
+              <div className="flex items-center gap-2 flex-wrap">
                 <Tooltip title="Tóm tắt BA">
                   <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintPreview('summary')} />
                 </Tooltip>
@@ -1628,10 +1634,8 @@ ${conclusion ? `<div class="section">
                     }}
                   />
                 )}
-              </Space>
+              </div>
             )}
-            style={{ height: '100%' }}
-            styles={{ body: { padding: '8px 12px' } }}>
             {!selectedExam ? (
               <div style={{ textAlign: 'center', padding: 60 }}>
                 <FolderOpenOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
@@ -1678,9 +1682,9 @@ ${conclusion ? `<div class="section">
                 <Tabs activeKey={detailTab} onChange={setDetailTab} items={detailTabs} size="small" />
               </>
             )}
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
 
       {/* Treatment Sheet Modal */}
       <Modal
@@ -1692,18 +1696,18 @@ ${conclusion ? `<div class="section">
         width={700}
       >
         <Form form={treatmentForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item name="treatmentDate" label="Ngày điều trị" rules={[{ required: true }]}>
                 <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item name="dayNumber" label="Ngày thứ" rules={[{ required: true }]}>
                 <Input type="number" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="dailyProgress" label={<span>Diễn biến bệnh <VoiceDictation onTranscript={(text) => {
             const prev = treatmentForm.getFieldValue('dailyProgress') || '';
             treatmentForm.setFieldValue('dailyProgress', prev ? `${prev} ${text}` : text);
@@ -1735,18 +1739,18 @@ ${conclusion ? `<div class="section">
         width={700}
       >
         <Form form={consultationForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item name="consultationDate" label="Ngày hội chẩn" rules={[{ required: true }]}>
                 <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item name="chairman" label="Chủ tọa">
                 <Input placeholder="Tên chủ tọa" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="reason" label="Lý do hội chẩn" rules={[{ required: true }]}>
             <TextArea rows={2} placeholder="Lý do yêu cầu hội chẩn..." />
           </Form.Item>
@@ -1775,13 +1779,13 @@ ${conclusion ? `<div class="section">
         width={700}
       >
         <Form form={nursingForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item name="careDate" label="Ngày chăm sóc" rules={[{ required: true }]}>
                 <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item name="shift" label="Ca trực" rules={[{ required: true }]}>
                 <Select options={[
                   { value: 1, label: 'Sáng' },
@@ -1789,8 +1793,8 @@ ${conclusion ? `<div class="section">
                   { value: 3, label: 'Đêm' },
                 ]} />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="patientCondition" label="Tình trạng bệnh nhân">
             <TextArea rows={2} placeholder="Mô tả tình trạng bệnh nhân..." />
           </Form.Item>
@@ -1924,18 +1928,18 @@ ${conclusion ? `<div class="section">
         destroyOnHidden
       >
         <Form form={drugReactionForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item name="drugName" label="Tên thuốc" rules={[{ required: true, message: 'Vui lòng nhập tên thuốc' }]}>
                 <Input placeholder="Tên thuốc thử" />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item name="dose" label="Liều">
                 <Input placeholder="0.1ml" />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item name="route" label="Đường dùng">
                 <Select placeholder="Chọn">
                   <Select.Option value="Tiêm trong da">Tiêm trong da</Select.Option>
@@ -1944,20 +1948,20 @@ ${conclusion ? `<div class="section">
                   <Select.Option value="Uống">Uống</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3">
               <Form.Item name="testDate" label="Ngày thử">
                 <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="testTime" label="Giờ thử">
                 <TimePicker format="HH:mm" style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="result" label="Kết quả" rules={[{ required: true }]}>
                 <Select>
                   <Select.Option value="Negative">Âm tính</Select.Option>
@@ -1965,29 +1969,29 @@ ${conclusion ? `<div class="section">
                   <Select.Option value="Inconclusive">Không xác định</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="reactionDescription" label="Mô tả phản ứng">
             <Input.TextArea rows={2} placeholder="Mô tả phản ứng nếu có (mẩn đỏ, sưng, ngứa...)" />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item name="tester" label="Người thử">
                 <Input placeholder="Tên ĐD/BS thực hiện" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item name="notes" label="Ghi chú">
                 <Input placeholder="Ghi chú thêm" />
               </Form.Item>
-            </Col>
-          </Row>
-          <Divider style={{ margin: '8px 0' }} />
+            </div>
+          </div>
+          <hr className="border-gray-200 my-4" />
           <Form.Item>
-            <Space>
+            <div className="flex items-center gap-2">
               <input type="checkbox" checked={drugReactionCopyRange} onChange={e => setDrugReactionCopyRange(e.target.checked)} />
               <span>Sao chép nhiều ngày</span>
-            </Space>
+            </div>
           </Form.Item>
           {drugReactionCopyRange && (
             <Form.Item name="copyDateRange" label="Khoảng ngày sao chép">
@@ -2007,18 +2011,18 @@ ${conclusion ? `<div class="section">
         destroyOnHidden
       >
         <Form form={partographForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={8}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3">
               <Form.Item name="entryTime" label="Thời gian" rules={[{ required: true }]}>
                 <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="cervicalDilation" label="Độ mở CTC (cm)" rules={[{ required: true }]}>
                 <InputNumber min={0} max={10} step={0.5} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="descent" label="Ngôi (station)">
                 <Select placeholder="Chọn">
                   {['-3', '-2', '-1', '0', '+1', '+2', '+3'].map(s => (
@@ -2026,47 +2030,47 @@ ${conclusion ? `<div class="section">
                   ))}
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={6}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/4">
               <Form.Item name="contractionFreq" label="Cơn co (lần/10p)">
                 <InputNumber min={0} max={10} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item name="contractionDuration" label="TG co (giây)">
                 <InputNumber min={0} max={120} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item name="fhr" label="Tim thai (lần/p)" rules={[{ required: true }]}>
                 <InputNumber min={60} max={220} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item name="maternalTemp" label="Nhiệt độ mẹ">
                 <InputNumber min={35} max={42} step={0.1} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3">
               <Form.Item name="systolicBP" label="HA tâm thu">
                 <InputNumber min={60} max={250} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="diastolicBP" label="HA tâm trương">
                 <InputNumber min={30} max={150} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="maternalPulse" label="Mạch mẹ">
                 <InputNumber min={40} max={200} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item name="notes" label="Ghi chú">
             <Input.TextArea rows={2} placeholder="Ghi chú thêm..." />
           </Form.Item>
@@ -2097,17 +2101,17 @@ ${conclusion ? `<div class="section">
         destroyOnHidden
       >
         <Form form={anesthesiaMonitorForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={8}><Form.Item name="time" label="Thời gian" rules={[{ required: true }]}><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="systolicBP" label="HA tâm thu"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="diastolicBP" label="HA tâm trương"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={6}><Form.Item name="hr" label="Mạch"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="spo2" label="SpO2"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="etco2" label="EtCO2"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="temp" label="Nhiệt độ"><InputNumber step={0.1} style={{ width: '100%' }} /></Form.Item></Col>
-          </Row>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3"><Form.Item name="time" label="Thời gian" rules={[{ required: true }]}><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></div>
+            <div className="w-full lg:w-1/3"><Form.Item name="systolicBP" label="HA tâm thu"><InputNumber style={{ width: '100%' }} /></Form.Item></div>
+            <div className="w-full lg:w-1/3"><Form.Item name="diastolicBP" label="HA tâm trương"><InputNumber style={{ width: '100%' }} /></Form.Item></div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/4"><Form.Item name="hr" label="Mạch"><InputNumber style={{ width: '100%' }} /></Form.Item></div>
+            <div className="w-full lg:w-1/4"><Form.Item name="spo2" label="SpO2"><InputNumber style={{ width: '100%' }} /></Form.Item></div>
+            <div className="w-full lg:w-1/4"><Form.Item name="etco2" label="EtCO2"><InputNumber style={{ width: '100%' }} /></Form.Item></div>
+            <div className="w-full lg:w-1/4"><Form.Item name="temp" label="Nhiệt độ"><InputNumber step={0.1} style={{ width: '100%' }} /></Form.Item></div>
+          </div>
           <Form.Item name="notes" label="Ghi chú"><Input placeholder="Ghi chú..." /></Form.Item>
         </Form>
       </Modal>
@@ -2134,14 +2138,14 @@ ${conclusion ? `<div class="section">
         destroyOnHidden
       >
         <Form form={anesthesiaDrugForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={8}><Form.Item name="time" label="Giờ"><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={16}><Form.Item name="drugName" label="Tên thuốc" rules={[{ required: true }]}><Input placeholder="Propofol, Fentanyl..." /></Form.Item></Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}><Form.Item name="dose" label="Liều"><Input placeholder="200mg" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="route" label="Đường dùng"><Input placeholder="IV, IM..." /></Form.Item></Col>
-            <Col span={8}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3"><Form.Item name="time" label="Giờ"><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></div>
+            <div className="w-full lg:w-2/3"><Form.Item name="drugName" label="Tên thuốc" rules={[{ required: true }]}><Input placeholder="Propofol, Fentanyl..." /></Form.Item></div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3"><Form.Item name="dose" label="Liều"><Input placeholder="200mg" /></Form.Item></div>
+            <div className="w-full lg:w-1/3"><Form.Item name="route" label="Đường dùng"><Input placeholder="IV, IM..." /></Form.Item></div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="category" label="Phân loại">
                 <Select placeholder="Chọn">
                   <Select.Option value="Khởi mê">Khởi mê</Select.Option>
@@ -2151,8 +2155,8 @@ ${conclusion ? `<div class="section">
                   <Select.Option value="Giãn cơ">Giãn cơ</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
         </Form>
       </Modal>
 
@@ -2176,8 +2180,8 @@ ${conclusion ? `<div class="section">
         destroyOnHidden
       >
         <Form form={anesthesiaFluidForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={10}>
+          <div className="flex gap-4 flex-wrap">
+            <div>
               <Form.Item name="fluidType" label="Loại dịch" rules={[{ required: true }]}>
                 <Select placeholder="Chọn">
                   <Select.Option value="NaCl 0.9%">NaCl 0.9%</Select.Option>
@@ -2190,10 +2194,10 @@ ${conclusion ? `<div class="section">
                   <Select.Option value="Tiểu cầu">Tiểu cầu</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-            <Col span={7}><Form.Item name="volume" label="Thể tích (ml)"><Input placeholder="500ml" /></Form.Item></Col>
-            <Col span={7}><Form.Item name="startTime" label="Bắt đầu"><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></Col>
-          </Row>
+            </div>
+            <div><Form.Item name="volume" label="Thể tích (ml)"><Input placeholder="500ml" /></Form.Item></div>
+            <div><Form.Item name="startTime" label="Bắt đầu"><DatePicker showTime format="HH:mm" style={{ width: '100%' }} /></Form.Item></div>
+          </div>
         </Form>
       </Modal>
 

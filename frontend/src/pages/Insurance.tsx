@@ -1,28 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Card,
   Table,
   Button,
-  Space,
   Input,
   Tag,
-  Row,
-  Col,
   Modal,
-  Typography,
   message,
   Tabs,
   Badge,
   Descriptions,
   DatePicker,
   Alert,
-  Statistic,
-  Progress,
   Select,
   Tooltip,
   Spin,
-  Form,
-  Divider,
+  Form
 } from 'antd';
 import {
   SearchOutlined,
@@ -49,7 +41,6 @@ import dayjs from 'dayjs';
 import * as insuranceApi from '../api/insurance';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
-const { Title, Text } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 
@@ -687,7 +678,7 @@ const Insurance: React.FC = () => {
       dataIndex: 'insuranceNumber',
       key: 'insuranceNumber',
       width: 160,
-      render: (num) => <Text code>{num}</Text>,
+      render: (num) => <code className="bg-gray-100 px-1 rounded text-sm">{num}</code>,
     },
     {
       title: 'Ngày khám',
@@ -720,7 +711,7 @@ const Insurance: React.FC = () => {
       key: 'insuranceAmount',
       width: 140,
       align: 'right',
-      render: (amount) => <Text type="success">{formatCurrency(amount)}</Text>,
+      render: (amount) => <span className="text-green-600">{formatCurrency(amount)}</span>,
     },
     {
       title: 'Trạng thái',
@@ -742,7 +733,7 @@ const Insurance: React.FC = () => {
       width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button
             size="small"
             icon={<FileSearchOutlined />}
@@ -753,7 +744,7 @@ const Insurance: React.FC = () => {
           >
             Chi tiết
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -792,7 +783,7 @@ const Insurance: React.FC = () => {
       key: 'totalAmount',
       width: 180,
       align: 'right',
-      render: (amount) => <Text strong>{formatCurrency(amount)}</Text>,
+      render: (amount) => <span className="font-semibold">{formatCurrency(amount)}</span>,
     },
     {
       title: 'Ngày tạo',
@@ -813,7 +804,7 @@ const Insurance: React.FC = () => {
       key: 'action',
       width: 200,
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button size="small" icon={<ExportOutlined />} onClick={() => handleDownloadBatch(record)}>
             Tải xuống
           </Button>
@@ -822,7 +813,7 @@ const Insurance: React.FC = () => {
               Gửi BHXH
             </Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -847,7 +838,7 @@ const Insurance: React.FC = () => {
       key: 'recordCount',
       width: 120,
       align: 'right',
-      render: (count) => <Text strong>{new Intl.NumberFormat('vi-VN').format(count)}</Text>,
+      render: (count) => <span className="font-semibold">{new Intl.NumberFormat('vi-VN').format(count)}</span>,
     },
   ];
 
@@ -875,7 +866,7 @@ const Insurance: React.FC = () => {
       title: 'Mô tả lỗi',
       key: 'message',
       render: (_: any, record: any) => (
-        <Text type="danger">{record.errors?.map((e: any) => e.message).join('; ') || '-'}</Text>
+        <span className="text-red-500">{record.errors?.map((e: any) => e.message).join('; ') || '-'}</span>
       ),
     },
   ];
@@ -892,12 +883,12 @@ const Insurance: React.FC = () => {
   // XML Export tab content - 4-step workflow
   // =============================================
   const renderXmlExportTab = () => (
-    <Space orientation="vertical" style={{ width: '100%' }} size="large">
+    <div className="flex flex-col gap-2">
       {/* Step 1: Configure export */}
-      <Card title="Bước 1: Cấu hình xuất XML" size="small">
-        <Row gutter={16} align="middle">
-          <Col span={10}>
-            <Text strong>Khoảng thời gian: </Text>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Bước 1: Cấu hình xuất XML</h4>
+        <div className="flex gap-4 flex-wrap">
+          <div>
+            <span className="font-semibold">Khoảng thời gian: </span>
             <RangePicker
               format="DD/MM/YYYY"
               value={exportDateRange}
@@ -908,9 +899,9 @@ const Insurance: React.FC = () => {
               }}
               style={{ marginLeft: 8 }}
             />
-          </Col>
-          <Col span={8}>
-            <Text strong>Khoa: </Text>
+          </div>
+          <div className="w-full lg:w-1/3">
+            <span className="font-semibold">Khoa: </span>
             <Select
               placeholder="Tất cả các khoa"
               allowClear
@@ -920,8 +911,8 @@ const Insurance: React.FC = () => {
             >
               <Select.Option value="">Tất cả các khoa</Select.Option>
             </Select>
-          </Col>
-          <Col span={6} style={{ textAlign: 'right' }}>
+          </div>
+          <div>
             <Button
               type="primary"
               icon={<EyeOutlined />}
@@ -931,55 +922,36 @@ const Insurance: React.FC = () => {
             >
               Xem trước
             </Button>
-          </Col>
-        </Row>
-      </Card>
+          </div>
+        </div>
+      </div>
 
       {/* Step 2: Preview results */}
       {exportPreview && (
-        <Card title="Bước 2: Kết quả xem trước" size="small">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Bước 2: Kết quả xem trước</h4>
           {/* Summary cards */}
-          <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Tổng hồ sơ"
-                  value={exportPreview.totalRecords}
-                  prefix={<FileDoneOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Tổng chi phí"
-                  value={exportPreview.totalCostAmount}
-                  formatter={(value) => formatVND(value as number)}
-                  styles={{ content: { color: '#1890ff', fontSize: 16 } }}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="BHYT chi trả"
-                  value={exportPreview.totalInsuranceAmount}
-                  formatter={(value) => formatVND(value as number)}
-                  styles={{ content: { color: '#52c41a', fontSize: 16 } }}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Người bệnh trả"
-                  value={exportPreview.totalPatientAmount}
-                  formatter={(value) => formatVND(value as number)}
-                  styles={{ content: { color: '#faad14', fontSize: 16 } }}
-                />
-              </Card>
-            </Col>
-          </Row>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="w-full lg:w-1/4">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div><div className="text-xs text-gray-500 font-semibold">Tổng hồ sơ</div><div className="text-2xl font-bold">{exportPreview.totalRecords}</div></div>
+              </div>
+            </div>
+            <div className="w-full lg:w-1/4">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div><div className="text-xs text-gray-500 font-semibold">Tổng chi phí</div><div className="text-2xl font-bold">{exportPreview.totalCostAmount}</div></div>
+              </div>
+            </div>
+            <div className="w-full lg:w-1/4">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div><div className="text-xs text-gray-500 font-semibold">BHYT chi trả</div><div className="text-2xl font-bold">{exportPreview.totalInsuranceAmount}</div></div>
+              </div>
+            </div>
+            <div className="w-full lg:w-1/4">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div><div className="text-xs text-gray-500 font-semibold">Người bệnh trả</div><div className="text-2xl font-bold">{exportPreview.totalPatientAmount}</div></div>
+              </div>
+            </div>
+          </div>
 
           {/* Table listing all XML tables with record counts */}
           <Table
@@ -1031,12 +1003,12 @@ const Insurance: React.FC = () => {
               </Button>
             </>
           )}
-        </Card>
+        </div>
       )}
 
       {/* Step 3: Export result */}
       {exportResult && (
-        <Card title="Bước 3: Kết quả xuất XML" size="small">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Bước 3: Kết quả xuất XML</h4>
           <Alert
             title={`Xuất XML thành công! Mã lô: ${exportResult.batchCode || exportResult.batchId}`}
             description={`Tổng: ${exportResult.totalRecords} hồ sơ, Thành công: ${exportResult.successRecords}, Thất bại: ${exportResult.failedRecords}`}
@@ -1054,7 +1026,7 @@ const Insurance: React.FC = () => {
             />
           )}
 
-          <Space>
+          <div className="flex items-center gap-2">
             <Button
               type="primary"
               icon={<DownloadOutlined />}
@@ -1071,24 +1043,24 @@ const Insurance: React.FC = () => {
             >
               Ký số XML
             </Button>
-          </Space>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Step 4: Sign result */}
       {signResult && (
-        <Card title="Bước 4: Kết quả ký số" size="small">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Bước 4: Kết quả ký số</h4>
           <Alert
             title={signResult.success ? 'Ký số XML thành công!' : 'Ký số XML không thành công'}
             description={signResult.message}
             type={signResult.success ? 'success' : 'error'}
             showIcon
           />
-        </Card>
+        </div>
       )}
 
       {/* Existing batches table */}
-      <Card title="Lịch sử xuất XML" size="small">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Lịch sử xuất XML</h4>
         <Table
           columns={xmlColumns}
           dataSource={xmlBatches}
@@ -1101,19 +1073,19 @@ const Insurance: React.FC = () => {
             showTotal: (total) => `Tổng: ${total} lô`,
           }}
         />
-      </Card>
-    </Space>
+      </div>
+    </div>
   );
 
   // =============================================
   // Card verification tab content
   // =============================================
   const renderCardVerificationTab = () => (
-    <Space orientation="vertical" style={{ width: '100%' }} size="large">
-      <Card title="Tra cứu thẻ BHYT" size="small">
+    <div className="flex flex-col gap-2">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Tra cứu thẻ BHYT</h4>
         <Form form={verifyForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={8}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3">
               <Form.Item
                 name="insuranceNumber"
                 label="Số thẻ BHYT"
@@ -1121,18 +1093,18 @@ const Insurance: React.FC = () => {
               >
                 <Input placeholder="Nhập số thẻ BHYT (15 ký tự)" maxLength={15} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item name="patientName" label="Họ tên bệnh nhân">
                 <Input placeholder="Nhập họ tên (không bắt buộc)" />
               </Form.Item>
-            </Col>
-            <Col span={5}>
+            </div>
+            <div>
               <Form.Item name="dateOfBirth" label="Ngày sinh">
                 <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={3}>
+            </div>
+            <div>
               <Form.Item label=" ">
                 <Button
                   type="primary"
@@ -1144,25 +1116,22 @@ const Insurance: React.FC = () => {
                   Xác minh
                 </Button>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
         </Form>
-      </Card>
+      </div>
 
       {cardVerification && (
-        <Card
-          title="Kết quả xác minh"
-          size="small"
-          extra={
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-sm font-semibold text-gray-700">Ket qua xac minh</h4>
             <Button
-              icon={<HistoryOutlined />}
               onClick={handleViewHistory}
               loading={historyLoading}
             >
-              Xem lịch sử KCB
+              Xem lich su KCB
             </Button>
-          }
-        >
+          </div>
           <Alert
             title={cardVerification.duDkKcb ? 'Đủ điều kiện KCB' : 'Không đủ điều kiện KCB'}
             description={cardVerification.duDkKcb
@@ -1175,7 +1144,7 @@ const Insurance: React.FC = () => {
 
           <Descriptions bordered size="small" column={2}>
             <Descriptions.Item label="Mã thẻ" span={2}>
-              <Text code strong>{cardVerification.maThe}</Text>
+              <code className="font-semibold bg-gray-100 px-1 rounded text-sm">{cardVerification.maThe}</code>
             </Descriptions.Item>
             <Descriptions.Item label="Họ tên">
               {cardVerification.hoTen}
@@ -1199,7 +1168,7 @@ const Insurance: React.FC = () => {
               {cardVerification.tenDkbd || '-'} ({cardVerification.maDkbd || '-'})
             </Descriptions.Item>
             <Descriptions.Item label="Mức hưởng">
-              <Text strong style={{ color: '#1890ff' }}>{cardVerification.mucHuong}%</Text>
+              <span className="font-semibold" style={{color: '#1890ff'}}>{cardVerification.mucHuong}%</span>
             </Descriptions.Item>
             <Descriptions.Item label="Đủ ĐK KCB">
               {cardVerification.duDkKcb ? (
@@ -1222,77 +1191,51 @@ const Insurance: React.FC = () => {
             </Descriptions.Item>
             {cardVerification.lyDoKhongDuDk && (
               <Descriptions.Item label="Lý do không đủ ĐK" span={2}>
-                <Text type="danger">{cardVerification.lyDoKhongDuDk}</Text>
+                <span className="text-red-500">{cardVerification.lyDoKhongDuDk}</span>
               </Descriptions.Item>
             )}
             <Descriptions.Item label="Thời gian xác minh" span={2}>
               {cardVerification.verificationTime ? dayjs(cardVerification.verificationTime).format('DD/MM/YYYY HH:mm:ss') : '-'}
             </Descriptions.Item>
           </Descriptions>
-        </Card>
+        </div>
       )}
-    </Space>
+    </div>
   );
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Giám định BHYT</Title>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-bold text-gray-800 m-0">Giám định BHYT</h2>
         <Button icon={<ReloadOutlined />} onClick={() => { fetchClaims(); fetchXmlBatches(); }} size="small">Làm mới</Button>
       </div>
 
       {/* Summary Cards */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Tổng hồ sơ"
-              value={totalClaims}
-              prefix={<FileDoneOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Chờ giám định"
-              value={pendingClaims}
-              styles={{ content: { color: pendingClaims > 0 ? '#faad14' : '#52c41a' } }}
-              prefix={<ClockCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Đã duyệt / Từ chối"
-              value={approvedClaims}
-              suffix={`/ ${rejectedClaims}`}
-              styles={{ content: { color: '#52c41a' } }}
-              prefix={<CheckCircleOutlined />}
-            />
-            <Progress
-              percent={Math.round((approvedClaims / (approvedClaims + rejectedClaims || 1)) * 100)}
-              size="small"
-              strokeColor="#52c41a"
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Tổng BHYT chi trả"
-              value={totalInsuranceAmount}
-              precision={0}
-              styles={{ content: { color: '#1890ff' } }}
-              suffix="VND"
-              formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="w-full lg:w-1/4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div><div className="text-xs text-gray-500 font-semibold">Tổng hồ sơ</div><div className="text-2xl font-bold">{totalClaims}</div></div>
+          </div>
+        </div>
+        <div className="w-full lg:w-1/4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div><div className="text-xs text-gray-500 font-semibold">Chờ giám định</div><div className="text-2xl font-bold">{pendingClaims}</div></div>
+          </div>
+        </div>
+        <div className="w-full lg:w-1/4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div><div className="text-xs text-gray-500 font-semibold">Đã duyệt / Từ chối</div><div className="text-2xl font-bold">{approvedClaims}</div></div>
+            <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1"><div className="h-1.5 rounded-full" style={{width: Math.round((approvedClaims / (approvedClaims + rejectedClaims || 1)) * 100)+'%', backgroundColor: '#52c41a'}}></div></div>
+          </div>
+        </div>
+        <div className="w-full lg:w-1/4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div><div className="text-xs text-gray-500 font-semibold">Tổng BHYT chi trả</div><div className="text-2xl font-bold">{totalInsuranceAmount}</div></div>
+          </div>
+        </div>
+      </div>
 
-      <Card>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -1308,9 +1251,9 @@ const Insurance: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
-                      <Space>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
                         <Search
                           placeholder="Tìm theo mã giám định, mã BN, số thẻ BHYT..."
                           allowClear
@@ -1336,10 +1279,10 @@ const Insurance: React.FC = () => {
                             applyClaimFilters(claims, claimSearchText, range);
                           }}
                         />
-                      </Space>
-                    </Col>
-                    <Col>
-                      <Space>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
                         <Button
                           type="primary"
                           icon={<CheckCircleOutlined />}
@@ -1358,9 +1301,9 @@ const Insurance: React.FC = () => {
                         <Button icon={<SyncOutlined />} onClick={handleSync} loading={syncLoading}>
                           Đồng bộ
                         </Button>
-                      </Space>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   {rejectedClaims > 0 && (
                     <Alert
@@ -1439,109 +1382,103 @@ const Insurance: React.FC = () => {
                 </span>
               ),
               children: (
-                <Row gutter={[16, 16]}>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'mau19'}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="w-full lg:w-1/3">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+  loading={reportLoading === 'mau19'}
                       onClick={() => handleReportClick('mau19', 'Báo cáo mẫu 19')}
                     >
-                      <Space>
+                      <div className="flex items-center gap-2">
                         <PrinterOutlined style={{ fontSize: 24, color: '#1890ff' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 19</Text>
+                          <span className="font-semibold">Báo cáo mẫu 19</span>
                           <br />
-                          <Text type="secondary">Báo cáo tổng hợp KCB BHYT</Text>
+                          <span className="text-gray-500 text-sm">Báo cáo tổng hợp KCB BHYT</span>
                         </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'mau20'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full lg:w-1/3">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+  loading={reportLoading === 'mau20'}
                       onClick={() => handleReportClick('mau20', 'Báo cáo mẫu 20')}
                     >
-                      <Space>
+                      <div className="flex items-center gap-2">
                         <PrinterOutlined style={{ fontSize: 24, color: '#52c41a' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 20</Text>
+                          <span className="font-semibold">Báo cáo mẫu 20</span>
                           <br />
-                          <Text type="secondary">Chi tiết chi phí KCB BHYT</Text>
+                          <span className="text-gray-500 text-sm">Chi tiết chi phí KCB BHYT</span>
                         </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'mau21'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full lg:w-1/3">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+  loading={reportLoading === 'mau21'}
                       onClick={() => handleReportClick('mau21', 'Báo cáo mẫu 21')}
                     >
-                      <Space>
+                      <div className="flex items-center gap-2">
                         <PrinterOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 21</Text>
+                          <span className="font-semibold">Báo cáo mẫu 21</span>
                           <br />
-                          <Text type="secondary">Báo cáo chi tiết theo đối tượng</Text>
+                          <span className="text-gray-500 text-sm">Báo cáo chi tiết theo đối tượng</span>
                         </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'mau79'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full lg:w-1/3">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+  loading={reportLoading === 'mau79'}
                       onClick={() => handleReportClick('mau79', 'Báo cáo mẫu 79')}
                     >
-                      <Space>
+                      <div className="flex items-center gap-2">
                         <PrinterOutlined style={{ fontSize: 24, color: '#722ed1' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 79</Text>
+                          <span className="font-semibold">Báo cáo mẫu 79</span>
                           <br />
-                          <Text type="secondary">Báo cáo chi tiết PTTT</Text>
+                          <span className="text-gray-500 text-sm">Báo cáo chi tiết PTTT</span>
                         </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'mau80'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full lg:w-1/3">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+  loading={reportLoading === 'mau80'}
                       onClick={() => handleReportClick('mau80', 'Báo cáo mẫu 80')}
                     >
-                      <Space>
+                      <div className="flex items-center gap-2">
                         <PrinterOutlined style={{ fontSize: 24, color: '#faad14' }} />
                         <div>
-                          <Text strong>Báo cáo mẫu 80</Text>
+                          <span className="font-semibold">Báo cáo mẫu 80</span>
                           <br />
-                          <Text type="secondary">Tổng hợp chi phí thuốc BHYT</Text>
+                          <span className="text-gray-500 text-sm">Tổng hợp chi phí thuốc BHYT</span>
                         </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'tt102'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full lg:w-1/3">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+  loading={reportLoading === 'tt102'}
                       onClick={() => handleReportClick('tt102', 'Báo cáo TT 102/2018')}
                     >
-                      <Space>
+                      <div className="flex items-center gap-2">
                         <PrinterOutlined style={{ fontSize: 24, color: '#13c2c2' }} />
                         <div>
-                          <Text strong>Báo cáo TT 102/2018</Text>
+                          <span className="font-semibold">Báo cáo TT 102/2018</span>
                           <br />
-                          <Text type="secondary">Báo cáo theo Thông tư 102/2018/TT-BTC</Text>
+                          <span className="text-gray-500 text-sm">Báo cáo theo Thông tư 102/2018/TT-BTC</span>
                         </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                </Row>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ),
             },
           ]}
         />
-      </Card>
+      </div>
 
       {/* Detail Modal */}
       <Modal
@@ -1587,8 +1524,8 @@ const Insurance: React.FC = () => {
                   </style>
                 </head>
                 <body>
-                  <div class="header">
-                    <div class="header-left">
+                  <div className="header">
+                    <div className="header-left">
                       <div><strong>${HOSPITAL_NAME}</strong></div>
                       <div>Phòng Tài chính - Kế toán</div>
                     </div>
@@ -1598,63 +1535,63 @@ const Insurance: React.FC = () => {
                     </div>
                   </div>
 
-                  <div class="title">BẢNG KÊ CHI PHÍ KHÁM CHỮA BỆNH BHYT</div>
+                  <div className="title">BẢNG KÊ CHI PHÍ KHÁM CHỮA BỆNH BHYT</div>
                   <div style="text-align: center; margin-bottom: 15px;">
                     Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}
                   </div>
 
-                  <div class="info-row">Mã giám định: <span class="field"><strong>${selectedClaim.claimCode}</strong></span></div>
-                  <div class="info-row">Mã BN: <span class="field">${selectedClaim.patientCode}</span> Họ tên BN: <span class="field" style="width: 250px;"><strong>${selectedClaim.patientName}</strong></span></div>
-                  <div class="info-row">Số thẻ BHYT: <span class="field">${selectedClaim.insuranceNumber}</span></div>
-                  <div class="info-row">Ngày khám: <span class="field">${dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}</span> Ngày ra viện: <span class="field">${selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '---'}</span></div>
-                  <div class="info-row">Khoa/Phòng: <span class="field">${selectedClaim.department || '---'}</span></div>
-                  <div class="info-row">Chẩn đoán: <span class="field" style="width: 400px;">${selectedClaim.diagnosis}</span></div>
+                  <div className="info-row">Mã giám định: <span className="field"><strong>${selectedClaim.claimCode}</strong></span></div>
+                  <div className="info-row">Mã BN: <span className="field">${selectedClaim.patientCode}</span> Họ tên BN: <span className="field" style="width: 250px;"><strong>${selectedClaim.patientName}</strong></span></div>
+                  <div className="info-row">Số thẻ BHYT: <span className="field">${selectedClaim.insuranceNumber}</span></div>
+                  <div className="info-row">Ngày khám: <span className="field">${dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}</span> Ngày ra viện: <span className="field">${selectedClaim.dischargeDate ? dayjs(selectedClaim.dischargeDate).format('DD/MM/YYYY') : '---'}</span></div>
+                  <div className="info-row">Khoa/Phòng: <span className="field">${selectedClaim.department || '---'}</span></div>
+                  <div className="info-row">Chẩn đoán: <span className="field" style="width: 400px;">${selectedClaim.diagnosis}</span></div>
 
                   <table>
                     <thead>
                       <tr>
                         <th>Nội dung</th>
-                        <th class="text-right" style="width: 180px;">Số tiền (VND)</th>
+                        <th className="text-right" style="width: 180px;">Số tiền (VND)</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
                         <td>Tổng chi phí KCB</td>
-                        <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
+                        <td className="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
                       </tr>
                       <tr>
                         <td>BHYT chi trả</td>
-                        <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.insuranceAmount)}</td>
+                        <td className="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.insuranceAmount)}</td>
                       </tr>
                       <tr>
                         <td>Người bệnh chi trả</td>
-                        <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.patientAmount)}</td>
+                        <td className="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.patientAmount)}</td>
                       </tr>
-                      <tr class="total-row">
+                      <tr className="total-row">
                         <td>Tổng cộng</td>
-                        <td class="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
+                        <td className="text-right">${new Intl.NumberFormat('vi-VN').format(selectedClaim.totalAmount)}</td>
                       </tr>
                     </tbody>
                   </table>
 
                   ${selectedClaim.status === 4 && selectedClaim.rejectReason ? `
-                    <div class="reject-box">
+                    <div className="reject-box">
                       <strong>Lý do từ chối:</strong> ${selectedClaim.rejectReason}
                     </div>
                   ` : ''}
 
-                  ${selectedClaim.submittedDate ? `<div class="info-row">Ngày gửi BHXH: <span class="field">${dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}</span></div>` : ''}
+                  ${selectedClaim.submittedDate ? `<div className="info-row">Ngày gửi BHXH: <span className="field">${dayjs(selectedClaim.submittedDate).format('DD/MM/YYYY')}</span></div>` : ''}
 
-                  <div class="signature-row">
-                    <div class="signature-col">
+                  <div className="signature-row">
+                    <div className="signature-col">
                       <div><strong>NGƯỜI LẬP BẢNG KÊ</strong></div>
                       <div>(Ký, ghi rõ họ tên)</div>
                     </div>
-                    <div class="signature-col">
+                    <div className="signature-col">
                       <div><strong>KẾ TOÁN VIỆN PHÍ</strong></div>
                       <div>(Ký, ghi rõ họ tên)</div>
                     </div>
-                    <div class="signature-col">
+                    <div className="signature-col">
                       <div><strong>GIÁM ĐỐC BỆNH VIỆN</strong></div>
                       <div>(Ký tên, đóng dấu)</div>
                     </div>
@@ -1683,7 +1620,7 @@ const Insurance: React.FC = () => {
               <Descriptions.Item label="Mã BN">{selectedClaim.patientCode}</Descriptions.Item>
               <Descriptions.Item label="Họ tên BN">{selectedClaim.patientName}</Descriptions.Item>
               <Descriptions.Item label="Số thẻ BHYT" span={2}>
-                <Text code>{selectedClaim.insuranceNumber}</Text>
+                <code className="bg-gray-100 px-1 rounded text-sm">{selectedClaim.insuranceNumber}</code>
               </Descriptions.Item>
               <Descriptions.Item label="Ngày khám">
                 {dayjs(selectedClaim.visitDate).format('DD/MM/YYYY')}
@@ -1694,10 +1631,10 @@ const Insurance: React.FC = () => {
               <Descriptions.Item label="Khoa/Phòng">{selectedClaim.department}</Descriptions.Item>
               <Descriptions.Item label="Chẩn đoán" span={2}>{selectedClaim.diagnosis}</Descriptions.Item>
               <Descriptions.Item label="Tổng chi phí">
-                <Text strong>{formatCurrency(selectedClaim.totalAmount)}</Text>
+                <span className="font-semibold">{formatCurrency(selectedClaim.totalAmount)}</span>
               </Descriptions.Item>
               <Descriptions.Item label="BHYT chi trả">
-                <Text type="success" strong>{formatCurrency(selectedClaim.insuranceAmount)}</Text>
+                <span className="text-green-600 text-sm">{formatCurrency(selectedClaim.insuranceAmount)}</span>
               </Descriptions.Item>
               <Descriptions.Item label="BN chi trả">
                 {formatCurrency(selectedClaim.patientAmount)}
@@ -1714,7 +1651,7 @@ const Insurance: React.FC = () => {
               )}
               {selectedClaim.rejectReason && (
                 <Descriptions.Item label="Lý do từ chối" span={2}>
-                  <Text type="danger">{selectedClaim.rejectReason}</Text>
+                  <span className="text-red-500">{selectedClaim.rejectReason}</span>
                 </Descriptions.Item>
               )}
             </Descriptions>
@@ -1748,7 +1685,7 @@ const Insurance: React.FC = () => {
             <>
               <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
                 <Descriptions.Item label="Mã thẻ BHYT">
-                  <Text code>{insuranceHistory.maThe}</Text>
+                  <code className="bg-gray-100 px-1 rounded text-sm">{insuranceHistory.maThe}</code>
                 </Descriptions.Item>
               </Descriptions>
               <Table

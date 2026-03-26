@@ -583,7 +583,7 @@ const TreatmentProtocol: React.FC = () => {
             />
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Main table */}
       <Table
@@ -912,7 +912,7 @@ const TreatmentProtocol: React.FC = () => {
                   />
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
 
           <Button type="dashed" block icon={<PlusOutlined />} onClick={addStep} style={{ marginTop: 8 }}>

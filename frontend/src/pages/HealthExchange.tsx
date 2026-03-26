@@ -1039,7 +1039,7 @@ const HealthExchange: React.FC = () => {
             <Button icon={<SyncOutlined />} onClick={fetchData}>
               Đồng bộ tất cả
             </Button>
-          </div>
+          </Space>
           <Table
             columns={submissionColumns}
             dataSource={submissions}
@@ -1098,7 +1098,7 @@ const HealthExchange: React.FC = () => {
             <Button icon={<PrinterOutlined />} onClick={handlePrintReferral}>
               In mẫu
             </Button>
-          </div>
+          </Space>
           <Table
             columns={referralColumns}
             dataSource={referrals}
@@ -1173,7 +1173,7 @@ const HealthExchange: React.FC = () => {
             >
               Yêu cầu hội chẩn
             </Button>
-          </div>
+          </Space>
           <Table
             columns={consultationColumns}
             dataSource={consultations}
@@ -1262,8 +1262,8 @@ const HealthExchange: React.FC = () => {
                 {fhirMetadata.rest[0].resource.map(r => (
                   <Tag key={r.type} color="blue">{r.type} ({r.interaction?.map(i => i.code).join(', ')})</Tag>
                 ))}
-              </div>
-            </div>
+              </Space>
+            </Card>
           )}
 
           {/* Search Section */}
@@ -1296,7 +1296,7 @@ const HealthExchange: React.FC = () => {
                 </Button>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Search Results */}
           {fhirSearchResults && (
@@ -1327,7 +1327,7 @@ const HealthExchange: React.FC = () => {
                 pagination={{ pageSize: 10, size: 'small' }}
                 size="small"
               />
-            </div>
+            </Card>
           )}
 
           {/* Export Patient Bundle */}
@@ -1355,7 +1355,7 @@ const HealthExchange: React.FC = () => {
                     Thu thap tat ca Patient, Encounter, Observation, MedicationRequest, Condition, AllergyIntolerance, Procedure, DiagnosticReport
                   </Typography.Text>
                 </div>
-              </div>
+              </Card>
             </div>
             <div>
               <Card size="small" title="Kết nối FHIR Server ngoài">
@@ -1380,7 +1380,7 @@ const HealthExchange: React.FC = () => {
                 {fhirExternalStatus === 'error' && (
                   <Alert title="Kết nối thất bại" type="error" showIcon style={{ marginTop: 8 }} />
                 )}
-              </div>
+              </Card>
             </div>
           </div>
         </div>
@@ -1435,7 +1435,7 @@ const HealthExchange: React.FC = () => {
                   style={{ width: 250 }}
                   onSearch={(v) => setNationalRxSearch(s => ({ ...s, keyword: v || undefined, pageIndex: 0 }))}
                 />
-              </div>
+              </Space>
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -1561,7 +1561,7 @@ const HealthExchange: React.FC = () => {
                     { value: 3, label: 'Từ chối' },
                   ]}
                 />
-              </div>
+              </Space>
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -1646,11 +1646,11 @@ const HealthExchange: React.FC = () => {
     <Spin spinning={loading && connections.length === 0}>
       <div>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-          <Title level={3} style={{ margin: 0 }}>Liên thông Y tế (HIE)</h4>
+          <Title level={3} style={{ margin: 0 }}>Liên thông Y tế (HIE)</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
             Làm mới
           </Button>
-        </div>
+        </Space>
 
         {/* Statistics */}
         <div className="grid grid-cols-4 gap-4">

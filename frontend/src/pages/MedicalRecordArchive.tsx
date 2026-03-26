@@ -1087,7 +1087,7 @@ const MedicalRecordArchive: React.FC = () => {
                   </Descriptions.Item>
                 ))}
             </Descriptions>
-          </div>
+          </Card>
         ))}
         {arrayEntries.map(([key, value]) => {
           const arr = value as Record<string, unknown>[];
@@ -1108,7 +1108,7 @@ const MedicalRecordArchive: React.FC = () => {
                 }))}
                 scroll={{ x: 'max-content' }}
               />
-            </div>
+            </Card>
           );
         })}
       </div>
@@ -1245,7 +1245,7 @@ const MedicalRecordArchive: React.FC = () => {
                   />
                 )}
               </Spin>
-            </div>
+            </Card>
           </div>
         )}
       </div>
@@ -1305,7 +1305,7 @@ const MedicalRecordArchive: React.FC = () => {
                   title="Không có dữ liệu hồ sơ"
                 />
               )}
-            </div>
+            </Card>
           </div>
         ) : (
           <Result
@@ -1703,8 +1703,8 @@ const MedicalRecordArchive: React.FC = () => {
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {storageStatus.localOnly} hồ sơ chỉ lưu local
-            </span>
-          </div>
+            </Text>
+          </Card>
         </div>
         <div>
           <Card
@@ -1718,8 +1718,8 @@ const MedicalRecordArchive: React.FC = () => {
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {storageStatus.cloudOnly} hồ sơ chỉ lưu cloud
-            </span>
-          </div>
+            </Text>
+          </Card>
         </div>
       </div>
 
@@ -1737,7 +1737,7 @@ const MedicalRecordArchive: React.FC = () => {
         <div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div style={{ marginBottom: 4 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Trạng thái đồng bộ</span>
+              <Text type="secondary" style={{ fontSize: 12 }}>Trạng thái đồng bộ</Text>
             </div>
             <Tag color={SYNC_STATUS_MAP[storageStatus.syncStatus]?.color || 'default'} icon={<SyncOutlined spin={storageStatus.syncStatus === 'syncing'} />}>
               {SYNC_STATUS_MAP[storageStatus.syncStatus]?.label || 'Không rõ'}
@@ -1747,7 +1747,7 @@ const MedicalRecordArchive: React.FC = () => {
         <div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div style={{ marginBottom: 4 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Đồng bộ lần cuối</span>
+              <Text type="secondary" style={{ fontSize: 12 }}>Đồng bộ lần cuối</Text>
             </div>
             <span>{storageStatus.lastSyncDate ? dayjs(storageStatus.lastSyncDate).format('DD/MM/YYYY HH:mm') : 'Chưa đồng bộ'}</span>
           </div>
@@ -1840,7 +1840,7 @@ const MedicalRecordArchive: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Archived records table */}
@@ -1919,7 +1919,7 @@ const MedicalRecordArchive: React.FC = () => {
                           </Descriptions.Item>
                         ))}
                     </Descriptions>
-                  </div>
+                  </Card>
                 ))}
               {Object.entries(decodeContent)
                 .filter(([, v]) => Array.isArray(v))
@@ -1942,7 +1942,7 @@ const MedicalRecordArchive: React.FC = () => {
                         }))}
                         scroll={{ x: 'max-content' }}
                       />
-                    </div>
+                    </Card>
                   );
                 })}
             </div>

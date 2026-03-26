@@ -262,7 +262,7 @@ const CommunityHealth: React.FC = () => {
           {r.hasChildUnder5 && <Tag color="cyan">Tre {'<'} 5t</Tag>}
           {r.hasPregnant && <Tag color="pink">Thai phu</Tag>}
           {r.hasChronicDisease && <Tag color="red">Benh man tinh</Tag>}
-        </div>
+        </Space>
       ),
     },
     {
@@ -451,7 +451,7 @@ const CommunityHealth: React.FC = () => {
               Them HGD
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </div>
+          </Space>
           <Table
             columns={householdColumns}
             dataSource={filteredHouseholds}
@@ -481,7 +481,7 @@ const CommunityHealth: React.FC = () => {
               Sang loc moi
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </div>
+          </Space>
           <Table
             columns={screeningColumns}
             dataSource={filteredScreenings}
@@ -506,7 +506,7 @@ const CommunityHealth: React.FC = () => {
               prefix={<SearchOutlined />}
             />
             <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-          </div>
+          </Space>
           <Table
             columns={teamColumns}
             dataSource={teams}

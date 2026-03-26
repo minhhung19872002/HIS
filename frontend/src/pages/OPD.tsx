@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card,
-  Row,
-  Col,
   Tabs,
   Form,
   Input,
   InputNumber,
   Button,
-  Space,
   Table,
   Tag,
   Descriptions,
@@ -16,12 +12,10 @@ import {
   message,
   AutoComplete,
   DatePicker,
-  Divider,
-  Typography,
   Spin,
   Alert,
   Tooltip,
-  Select,
+  Select
 } from 'antd';
 import {
   SaveOutlined,
@@ -93,7 +87,6 @@ interface TreatmentOrder {
 }
 type Service = ServiceDto;
 
-const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 interface ICDOption {
@@ -1013,7 +1006,7 @@ const OPD: React.FC = () => {
           @media print { body { padding: 10px; } }
         </style>
       </head><body>
-        <div class="title">PHIẾU KÊ VẬT TƯ Y TẾ</div>
+        <div className="title">PHIẾU KÊ VẬT TƯ Y TẾ</div>
         <p><strong>Bệnh nhân:</strong> ${selectedPatient.fullName} &nbsp;&nbsp; <strong>Mã BN:</strong> ${selectedPatient.patientCode}</p>
         <p><strong>Chẩn đoán:</strong> ${diagnoses.map(d => `${d.icdCode} - ${d.icdName}`).join('; ') || '-'}</p>
         <p><strong>Ngày:</strong> ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
@@ -1024,7 +1017,7 @@ const OPD: React.FC = () => {
           </tbody>
           <tfoot><tr><td colspan="4"><strong>Tổng cộng</strong></td><td><strong>${totalItems}</strong></td></tr></tfoot>
         </table>
-        <div class="footer">
+        <div className="footer">
           <div><strong>Người kê</strong><br/><br/><br/>(Ký, ghi rõ họ tên)</div>
           <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}<br/><strong>Bác sĩ điều trị</strong><br/><br/><br/>(Ký, ghi rõ họ tên)</div>
         </div>
@@ -1348,85 +1341,85 @@ const OPD: React.FC = () => {
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="header-left">
-            <div>Sở Y tế: <span class="field">${formValues.healthDepartment || '...........................'}</span></div>
-            <div>Bệnh viện: <span class="field">${formValues.hospitalName || '...........................'}</span></div>
+        <div className="header">
+          <div className="header-left">
+            <div>Sở Y tế: <span className="field">${formValues.healthDepartment || '...........................'}</span></div>
+            <div>Bệnh viện: <span className="field">${formValues.hospitalName || '...........................'}</span></div>
           </div>
           <div style="text-align: right;">
             <div><strong>MS: ${recordType.code}</strong></div>
-            <div>Số ngoại trú: <span class="field">${examination?.id?.substring(0, 8) || '...........'}</span></div>
-            <div>Số lưu trữ: <span class="field">................</span></div>
+            <div>Số ngoại trú: <span className="field">${examination?.id?.substring(0, 8) || '...........'}</span></div>
+            <div>Số lưu trữ: <span className="field">................</span></div>
           </div>
         </div>
 
-        <div class="title">${recordType.label.toUpperCase()}</div>
-        <div class="subtitle">KHOA: <span class="field">${formValues.departmentName || '..............................'}</span></div>
+        <div className="title">${recordType.label.toUpperCase()}</div>
+        <div className="subtitle">KHOA: <span className="field">${formValues.departmentName || '..............................'}</span></div>
 
-        <div class="section">
-          <div class="section-title">I. HÀNH CHÍNH:</div>
-          <div class="row">
-            <div class="col-2">1. Họ và tên (In hoa): <span class="field">${formValues.patientName || ''}</span></div>
-            <div class="col">2. Sinh ngày: <span class="field">${formValues.dateOfBirth || ''}</span></div>
-            <div style="width: 60px;">Tuổi: <span class="field">${formValues.age || ''}</span></div>
+        <div className="section">
+          <div className="section-title">I. HÀNH CHÍNH:</div>
+          <div className="row">
+            <div className="col-2">1. Họ và tên (In hoa): <span className="field">${formValues.patientName || ''}</span></div>
+            <div className="col">2. Sinh ngày: <span className="field">${formValues.dateOfBirth || ''}</span></div>
+            <div style="width: 60px;">Tuổi: <span className="field">${formValues.age || ''}</span></div>
           </div>
-          <div class="row">
-            <div class="col">3. Giới:
-              <span class="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam
-              <span class="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ
+          <div className="row">
+            <div className="col">3. Giới:
+              <span className="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam
+              <span className="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ
             </div>
-            <div class="col">4. Nghề nghiệp: <span class="field">${formValues.occupation || ''}</span></div>
+            <div className="col">4. Nghề nghiệp: <span className="field">${formValues.occupation || ''}</span></div>
           </div>
-          <div class="row">
-            <div class="col">5. Dân tộc: <span class="field">${formValues.ethnicity || ''}</span></div>
-            <div class="col">6. Ngoại kiều: <span class="field">${formValues.nationality || ''}</span></div>
+          <div className="row">
+            <div className="col">5. Dân tộc: <span className="field">${formValues.ethnicity || ''}</span></div>
+            <div className="col">6. Ngoại kiều: <span className="field">${formValues.nationality || ''}</span></div>
           </div>
-          <div class="row">
-            <div>7. Địa chỉ: <span class="field" style="width: 90%;">${formValues.address || ''}</span></div>
+          <div className="row">
+            <div>7. Địa chỉ: <span className="field" style="width: 90%;">${formValues.address || ''}</span></div>
           </div>
-          <div class="row">
-            <div class="col">8. Nơi làm việc: <span class="field">${formValues.workplace || ''}</span></div>
-            <div class="col">9. Đối tượng:
-              <span class="checkbox ${selectedPatient?.insuranceNumber ? 'checked' : ''}"></span>BHYT
-              <span class="checkbox ${!selectedPatient?.insuranceNumber ? 'checked' : ''}"></span>Thu phí
-              <span class="checkbox"></span>Miễn
-              <span class="checkbox"></span>Khác
+          <div className="row">
+            <div className="col">8. Nơi làm việc: <span className="field">${formValues.workplace || ''}</span></div>
+            <div className="col">9. Đối tượng:
+              <span className="checkbox ${selectedPatient?.insuranceNumber ? 'checked' : ''}"></span>BHYT
+              <span className="checkbox ${!selectedPatient?.insuranceNumber ? 'checked' : ''}"></span>Thu phí
+              <span className="checkbox"></span>Miễn
+              <span className="checkbox"></span>Khác
             </div>
           </div>
-          <div class="row">
-            <div>10. BHYT giá trị đến ngày <span class="field">${formValues.insuranceExpiry || '......./......./........'}</span> Số thẻ BHYT: <span class="field">${formValues.insuranceNumber || ''}</span></div>
+          <div className="row">
+            <div>10. BHYT giá trị đến ngày <span className="field">${formValues.insuranceExpiry || '......./......./........'}</span> Số thẻ BHYT: <span className="field">${formValues.insuranceNumber || ''}</span></div>
           </div>
-          <div class="row">
-            <div>11. Họ tên, địa chỉ người nhà khi cần báo tin: <span class="field">${formValues.contactName || ''}</span> ĐT: <span class="field">${formValues.contactPhone || ''}</span></div>
+          <div className="row">
+            <div>11. Họ tên, địa chỉ người nhà khi cần báo tin: <span className="field">${formValues.contactName || ''}</span> ĐT: <span className="field">${formValues.contactPhone || ''}</span></div>
           </div>
-          <div class="row">
-            <div>12. Đến khám bệnh lúc: <span class="field">${formValues.visitTime || ''}</span></div>
+          <div className="row">
+            <div>12. Đến khám bệnh lúc: <span className="field">${formValues.visitTime || ''}</span></div>
           </div>
-          <div class="row">
-            <div>13. Chẩn đoán của nơi giới thiệu: <span class="field">${formValues.referralDiagnosis || ''}</span>
-              <span class="checkbox"></span>Y tế <span class="checkbox"></span>Tự đến
+          <div className="row">
+            <div>13. Chẩn đoán của nơi giới thiệu: <span className="field">${formValues.referralDiagnosis || ''}</span>
+              <span className="checkbox"></span>Y tế <span className="checkbox"></span>Tự đến
             </div>
           </div>
         </div>
 
-        <div class="section">
-          <div class="section-title">II. LÝ DO VÀO VIỆN:</div>
-          <div class="field-long">${formValues.visitReason || ''}</div>
+        <div className="section">
+          <div className="section-title">II. LÝ DO VÀO VIỆN:</div>
+          <div className="field-long">${formValues.visitReason || ''}</div>
         </div>
 
-        <div class="section">
-          <div class="section-title">III. HỎI BỆNH:</div>
+        <div className="section">
+          <div className="section-title">III. HỎI BỆNH:</div>
           <div>1. Quá trình bệnh lý:</div>
-          <div class="field-long" style="min-height: 60px;">${formValues.diseaseProgress || ''}</div>
+          <div className="field-long" style="min-height: 60px;">${formValues.diseaseProgress || ''}</div>
           <div style="margin-top: 10px;">2. Tiền sử bệnh:</div>
-          <div>+ Bản thân: <span class="field-long">${formValues.personalHistory || ''}</span></div>
-          <div>+ Gia đình: <span class="field-long">${formValues.familyHistory || ''}</span></div>
+          <div>+ Bản thân: <span className="field-long">${formValues.personalHistory || ''}</span></div>
+          <div>+ Gia đình: <span className="field-long">${formValues.familyHistory || ''}</span></div>
         </div>
 
-        <div class="section">
-          <div class="section-title" style="display: flex; justify-content: space-between;">
+        <div className="section">
+          <div className="section-title" style="display: flex; justify-content: space-between;">
             <span>IV. KHÁM BỆNH:</span>
-            <div class="vital-box">
+            <div className="vital-box">
               <div>Mạch: ${formValues.pulse || '......'} lần/ph</div>
               <div>Nhiệt độ: ${formValues.temperature || '......'} °C</div>
               <div>Huyết áp: ${formValues.bloodPressure || '.../..'} mmHg</div>
@@ -1435,25 +1428,25 @@ const OPD: React.FC = () => {
             </div>
           </div>
           <div>1. Toàn thân:</div>
-          <div class="field-long" style="min-height: 40px;">${formValues.generalExam || ''}</div>
+          <div className="field-long" style="min-height: 40px;">${formValues.generalExam || ''}</div>
           <div style="margin-top: 10px;">2. Các bộ phận:</div>
-          <div class="field-long" style="min-height: 80px; white-space: pre-wrap;">${formValues.organExam || ''}</div>
+          <div className="field-long" style="min-height: 80px; white-space: pre-wrap;">${formValues.organExam || ''}</div>
           <div style="margin-top: 10px;">3. Tóm tắt kết quả cận lâm sàng:</div>
-          <div class="field-long" style="min-height: 40px;">${formValues.labResults || ''}</div>
+          <div className="field-long" style="min-height: 40px;">${formValues.labResults || ''}</div>
           <div style="margin-top: 10px;">4. Chẩn đoán ban đầu:</div>
-          <div class="field-long">${formValues.initialDiagnosis || ''}</div>
+          <div className="field-long">${formValues.initialDiagnosis || ''}</div>
           <div style="margin-top: 10px;">5. Đã xử lý (thuốc, chăm sóc):</div>
-          <div class="field-long" style="min-height: 60px;">${formValues.treatment || ''}</div>
-          <div style="margin-top: 10px;">6. Chẩn đoán khi ra viện: <span class="field" style="width: 70%;">${formValues.finalDiagnosis || ''}</span></div>
-          <div style="margin-top: 5px;">7. Điều trị ngoại trú từ ngày <span class="field">${formValues.treatmentFromDate || '....../....../........'}</span> đến ngày <span class="field">${formValues.treatmentToDate || '....../....../........'}</span></div>
+          <div className="field-long" style="min-height: 60px;">${formValues.treatment || ''}</div>
+          <div style="margin-top: 10px;">6. Chẩn đoán khi ra viện: <span className="field" style="width: 70%;">${formValues.finalDiagnosis || ''}</span></div>
+          <div style="margin-top: 5px;">7. Điều trị ngoại trú từ ngày <span className="field">${formValues.treatmentFromDate || '....../....../........'}</span> đến ngày <span className="field">${formValues.treatmentToDate || '....../....../........'}</span></div>
         </div>
 
-        <div class="signature-row">
-          <div class="signature-col">
+        <div className="signature-row">
+          <div className="signature-col">
             <div><strong>Giám đốc bệnh viện</strong></div>
             <div style="margin-top: 60px;">Họ tên: ................................</div>
           </div>
-          <div class="signature-col">
+          <div className="signature-col">
             <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
             <div><strong>Bác sỹ khám bệnh</strong></div>
             <div style="margin-top: 40px;">Họ tên: ................................</div>
@@ -1656,27 +1649,19 @@ const OPD: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col>
-          <Title level={4}>Khám bệnh ngoại trú</Title>
-        </Col>
-      </Row>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800 mb-2">Khám bệnh ngoại trú</h2>
+        </div>
+      </div>
 
-      <Row gutter={16}>
+      <div className="flex gap-4 flex-wrap">
         {/* Left Sidebar - Patient Selection */}
-        <Col xs={24} lg={6}>
-          <Card
-            title={
-              <Space>
-                <UserOutlined />
-                Thông tin bệnh nhân
-              </Space>
-            }
-            size="small"
-            style={{ marginBottom: 16 }}
-          >
-            <Space orientation="vertical" style={{ width: '100%' }}>
-              <Space.Compact style={{ width: '100%' }}>
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><UserOutlined />Thông tin bệnh nhân</h4>
+            <div className="flex flex-col gap-2">
+              <div className="flex">
                 <Input.Search
                   placeholder="Mã BN, CCCD, SĐT, BHYT..."
                   value={searchKeyword}
@@ -1687,11 +1672,11 @@ const OPD: React.FC = () => {
                 <Tooltip title="Quét mã vạch">
                   <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} />
                 </Tooltip>
-              </Space.Compact>
+              </div>
 
               {selectedPatient && (
                 <>
-                  <Divider style={{ margin: '12px 0' }} />
+                  <hr className="border-gray-200 my-4" />
                   <Descriptions column={1} size="small" bordered>
                     <Descriptions.Item label="Mã BN">
                       <strong>{selectedPatient.patientCode}</strong>
@@ -1710,7 +1695,7 @@ const OPD: React.FC = () => {
                     </Descriptions.Item>
                     <Descriptions.Item label="Số BHYT">
                       {selectedPatient.insuranceNumber ? (
-                        <Text copyable>{selectedPatient.insuranceNumber}</Text>
+                        <span>{selectedPatient.insuranceNumber}</span>
                       ) : (
                         'N/A'
                       )}
@@ -1722,10 +1707,10 @@ const OPD: React.FC = () => {
 
                   {/* Data Inheritance Panel: Registration context from Reception */}
                   {opdContext && (
-                    <Card size="small" style={{ marginTop: 8 }} styles={{ body: { padding: '8px 12px' } }}>
-                      <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                      <span className="text-sm font-semibold" style={{ fontSize: 12, color: '#1677ff' }}>
                         Thông tin tiếp đón
-                      </Typography.Text>
+                      </span>
                       <Descriptions column={1} size="small" style={{ marginTop: 4 }}>
                         <Descriptions.Item label="Đối tượng">
                           <Tag color={opdContext.patientType === 1 ? 'green' : opdContext.patientType === 3 ? 'blue' : 'orange'}>
@@ -1734,7 +1719,7 @@ const OPD: React.FC = () => {
                         </Descriptions.Item>
                         {opdContext.insuranceNumber && (
                           <Descriptions.Item label="Số BHYT">
-                            <Text copyable style={{ fontSize: 12 }}>{opdContext.insuranceNumber}</Text>
+                            <span className="text-xs">{opdContext.insuranceNumber}</span>
                           </Descriptions.Item>
                         )}
                         {opdContext.insuranceRightRouteName && (
@@ -1752,21 +1737,21 @@ const OPD: React.FC = () => {
                         </Descriptions.Item>
                         {opdContext.allergyHistory && (
                           <Descriptions.Item label="Dị ứng">
-                            <Text type="danger" style={{ fontSize: 12 }}>{opdContext.allergyHistory}</Text>
+                            <span className="text-red-500 text-xs">{opdContext.allergyHistory}</span>
                           </Descriptions.Item>
                         )}
                         {opdContext.medicalHistory && (
                           <Descriptions.Item label="Tiền sử">
-                            <Text style={{ fontSize: 12 }}>{opdContext.medicalHistory}</Text>
+                            <span className="text-xs">{opdContext.medicalHistory}</span>
                           </Descriptions.Item>
                         )}
                         {opdContext.queueNotes && (
                           <Descriptions.Item label="Ghi chú">
-                            <Text style={{ fontSize: 12 }}>{opdContext.queueNotes}</Text>
+                            <span className="text-xs">{opdContext.queueNotes}</span>
                           </Descriptions.Item>
                         )}
                       </Descriptions>
-                    </Card>
+                    </div>
                   )}
 
                   {/* NangCap4: Deposit insufficient warning */}
@@ -1811,24 +1796,19 @@ const OPD: React.FC = () => {
                   </Button>
                 </>
               )}
-            </Space>
-          </Card>
+            </div>
+          </div>
 
-          <Card
-            title="Danh sách chờ khám"
-            size="small"
-            extra={
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-sm font-semibold text-gray-700">Danh sach benh nhan</h4>
               <Button
-                type="text"
-                size="small"
-                icon={<ReloadOutlined />}
                 onClick={() => loadQueue(selectedRoomId)}
                 loading={loadingQueue}
               >
-                Làm mới
+                Lam moi
               </Button>
-            }
-          >
+            </div>
             <Select
               placeholder="Chọn phòng khám"
               style={{ width: '100%', marginBottom: 12 }}
@@ -1881,25 +1861,25 @@ const OPD: React.FC = () => {
                 locale={{ emptyText: selectedRoomId ? 'Không có bệnh nhân' : 'Vui lòng chọn phòng khám' }}
               />
             </Spin>
-          </Card>
-        </Col>
+          </div>
+        </div>
 
         {/* Main Area - Examination Form */}
-        <Col xs={24} lg={18}>
+        <div>
           {!selectedPatient ? (
-            <Card>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <Alert
                 title="Vui lòng chọn bệnh nhân"
                 description="Chọn bệnh nhân từ danh sách chờ khám hoặc tìm kiếm bệnh nhân để bắt đầu khám bệnh."
                 type="info"
                 showIcon
               />
-            </Card>
+            </div>
           ) : (
-            <Card
-              title="Phiếu khám bệnh"
-              extra={
-                <Space>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-sm font-semibold text-gray-700">Phiếu khám bệnh</h4>
+                <div className="flex items-center gap-2">
                   <Tooltip title="Lưu nháp (F2)">
                     <Button
                       type="default"
@@ -1932,9 +1912,8 @@ const OPD: React.FC = () => {
                   >
                     Giấy nghỉ BHXH
                   </Button>
-                </Space>
-              }
-            >
+                </div>
+              </div>
               <Form
                 form={examForm}
                 layout="vertical"
@@ -1957,8 +1936,8 @@ const OPD: React.FC = () => {
                       ),
                       children: (
                         <>
-                        <Row gutter={16}>
-                          <Col xs={24} sm={12} md={8}>
+                        <div className="flex gap-4 flex-wrap">
+                          <div>
                             <Form.Item
                               label="Cân nặng (kg)"
                               name={['vitalSigns', 'weight']}
@@ -1979,8 +1958,8 @@ const OPD: React.FC = () => {
                                 }}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item
                               label="Chiều cao (cm)"
                               name={['vitalSigns', 'height']}
@@ -2001,8 +1980,8 @@ const OPD: React.FC = () => {
                                 }}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item label="BMI" name={['vitalSigns', 'bmi']}>
                               <InputNumber
                                 min={0}
@@ -2013,8 +1992,8 @@ const OPD: React.FC = () => {
                                 disabled
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item
                               label="Huyết áp tâm thu (mmHg)"
                               name={['vitalSigns', 'bloodPressureSystolic']}
@@ -2026,8 +2005,8 @@ const OPD: React.FC = () => {
                                 placeholder="VD: 120"
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item
                               label="Huyết áp tâm trương (mmHg)"
                               name={['vitalSigns', 'bloodPressureDiastolic']}
@@ -2039,8 +2018,8 @@ const OPD: React.FC = () => {
                                 placeholder="VD: 80"
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item
                               label="Nhiệt độ (°C)"
                               name={['vitalSigns', 'temperature']}
@@ -2053,8 +2032,8 @@ const OPD: React.FC = () => {
                                 placeholder="VD: 36.5"
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item
                               label="Mạch (lần/phút)"
                               name={['vitalSigns', 'pulse']}
@@ -2066,8 +2045,8 @@ const OPD: React.FC = () => {
                                 placeholder="VD: 72"
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item
                               label="Nhịp thở (lần/phút)"
                               name={['vitalSigns', 'respiratoryRate']}
@@ -2079,8 +2058,8 @@ const OPD: React.FC = () => {
                                 placeholder="VD: 18"
                               />
                             </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
+                          </div>
+                          <div>
                             <Form.Item
                               label="SpO2 (%)"
                               name={['vitalSigns', 'spo2']}
@@ -2092,14 +2071,14 @@ const OPD: React.FC = () => {
                                 placeholder="VD: 98"
                               />
                             </Form.Item>
-                          </Col>
-                        </Row>
+                          </div>
+                        </div>
 
                         {/* NEWS2 Early Warning Score */}
                         {earlyWarningScore && (
-                          <Card size="small" style={{ marginTop: 12, borderColor: earlyWarningScore.riskColor === 'red' ? '#ff4d4f' : earlyWarningScore.riskColor === 'orange' ? '#fa8c16' : earlyWarningScore.riskColor === 'gold' ? '#faad14' : '#52c41a' }}>
-                            <Row align="middle" gutter={16}>
-                              <Col>
+                          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                            <div className="flex items-center gap-4">
+                              <div>
                                 <div style={{ textAlign: 'center' }}>
                                   <div style={{ fontSize: 28, fontWeight: 'bold', color: earlyWarningScore.riskColor === 'green' ? '#52c41a' : earlyWarningScore.riskColor === 'gold' ? '#faad14' : earlyWarningScore.riskColor === 'orange' ? '#fa8c16' : '#ff4d4f' }}>
                                     {earlyWarningScore.totalScore}
@@ -2108,10 +2087,10 @@ const OPD: React.FC = () => {
                                     NEWS2: {earlyWarningScore.riskLevel}
                                   </Tag>
                                 </div>
-                              </Col>
-                              <Col flex="auto">
-                                <Text strong>Khuyến nghị: </Text>
-                                <Text>{earlyWarningScore.recommendation}</Text>
+                              </div>
+                              <div className="flex-1">
+                                <span className="font-semibold">Khuyến nghị: </span>
+                                <span className="text-sm">{earlyWarningScore.recommendation}</span>
                                 <div style={{ marginTop: 4 }}>
                                   {earlyWarningScore.parameters.filter(p => p.score > 0).map((p, i) => (
                                     <Tag key={i} color={p.score >= 3 ? 'red' : p.score >= 2 ? 'orange' : 'gold'}>
@@ -2119,9 +2098,9 @@ const OPD: React.FC = () => {
                                     </Tag>
                                   ))}
                                 </div>
-                              </Col>
-                            </Row>
-                          </Card>
+                              </div>
+                            </div>
+                          </div>
                         )}
                         </>
                       ),
@@ -2134,8 +2113,8 @@ const OPD: React.FC = () => {
                         </span>
                       ),
                       children: (
-                        <Row gutter={16}>
-                          <Col span={24}>
+                        <div className="flex gap-4 flex-wrap">
+                          <div className="w-full">
                             <Form.Item
                               label="Lý do khám (triệu chứng)"
                               name={['medicalHistory', 'chiefComplaint']}
@@ -2147,8 +2126,8 @@ const OPD: React.FC = () => {
                                 maxHeight={150}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label={<span>Bệnh sử <VoiceDictation onTranscript={(text) => {
                                 const prev = examForm.getFieldValue(['medicalHistory', 'historyOfPresentIllness']) || '';
@@ -2161,8 +2140,8 @@ const OPD: React.FC = () => {
                                 placeholder="Nhập quá trình bệnh lý hiện tại..."
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label={<span>Tiền sử bệnh <VoiceDictation onTranscript={(text) => {
                                 const prev = examForm.getFieldValue(['medicalHistory', 'pastMedicalHistory']) || '';
@@ -2175,8 +2154,8 @@ const OPD: React.FC = () => {
                                 placeholder="Các bệnh đã mắc, phẫu thuật..."
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label={<span>Tiền sử gia đình <VoiceDictation onTranscript={(text) => {
                                 const prev = examForm.getFieldValue(['medicalHistory', 'familyHistory']) || '';
@@ -2189,8 +2168,8 @@ const OPD: React.FC = () => {
                                 placeholder="Bệnh lý gia đình..."
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label={<span>Dị ứng <VoiceDictation onTranscript={(text) => {
                                 const prev = examForm.getFieldValue(['medicalHistory', 'allergies']) || '';
@@ -2203,8 +2182,8 @@ const OPD: React.FC = () => {
                                 placeholder="Dị ứng thuốc, thực phẩm..."
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label="Thuốc đang dùng"
                               name={['medicalHistory', 'currentMedications']}
@@ -2214,8 +2193,8 @@ const OPD: React.FC = () => {
                                 placeholder="Các thuốc đang sử dụng..."
                               />
                             </Form.Item>
-                          </Col>
-                        </Row>
+                          </div>
+                        </div>
                       ),
                     },
                     {
@@ -2226,8 +2205,8 @@ const OPD: React.FC = () => {
                         </span>
                       ),
                       children: (
-                        <Row gutter={16}>
-                          <Col span={24}>
+                        <div className="flex gap-4 flex-wrap">
+                          <div className="w-full">
                             <Form.Item
                               label="Toàn thân"
                               name={['physicalExamination', 'generalAppearance']}
@@ -2240,8 +2219,8 @@ const OPD: React.FC = () => {
                                 maxHeight={120}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label="Tim mạch"
                               name={['physicalExamination', 'cardiovascular']}
@@ -2254,8 +2233,8 @@ const OPD: React.FC = () => {
                                 maxHeight={120}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label="Hô hấp"
                               name={['physicalExamination', 'respiratory']}
@@ -2268,8 +2247,8 @@ const OPD: React.FC = () => {
                                 maxHeight={120}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label="Tiêu hóa"
                               name={['physicalExamination', 'gastrointestinal']}
@@ -2282,8 +2261,8 @@ const OPD: React.FC = () => {
                                 maxHeight={120}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label="Thần kinh"
                               name={['physicalExamination', 'neurological']}
@@ -2296,8 +2275,8 @@ const OPD: React.FC = () => {
                                 maxHeight={120}
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label={<span>Cơ xương khớp <VoiceDictation onTranscript={(text) => {
                                 const prev = examForm.getFieldValue(['physicalExamination', 'musculoskeletal']) || '';
@@ -2310,8 +2289,8 @@ const OPD: React.FC = () => {
                                 placeholder="Khám cơ xương khớp..."
                               />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label={<span>Da <VoiceDictation onTranscript={(text) => {
                                 const prev = examForm.getFieldValue(['physicalExamination', 'skin']) || '';
@@ -2321,8 +2300,8 @@ const OPD: React.FC = () => {
                             >
                               <TextArea rows={2} placeholder="Khám da..." />
                             </Form.Item>
-                          </Col>
-                          <Col span={24}>
+                          </div>
+                          <div className="w-full">
                             <Form.Item
                               label={<span>Khác <VoiceDictation onTranscript={(text) => {
                                 const prev = examForm.getFieldValue(['physicalExamination', 'other']) || '';
@@ -2335,8 +2314,8 @@ const OPD: React.FC = () => {
                                 placeholder="Các khám khác..."
                               />
                             </Form.Item>
-                          </Col>
-                        </Row>
+                          </div>
+                        </div>
                       ),
                     },
                     {
@@ -2348,7 +2327,7 @@ const OPD: React.FC = () => {
                       ),
                       children: (
                         <>
-                          <Space style={{ marginBottom: 16 }}>
+                          <div className="flex items-center gap-2">
                             <AutoComplete
                               style={{ width: 400 }}
                               options={icdOptions}
@@ -2380,7 +2359,7 @@ const OPD: React.FC = () => {
                             >
                               Thêm chẩn đoán phụ
                             </Button>
-                          </Space>
+                          </div>
 
                           {/* AI Diagnosis Suggestions */}
                           <div style={{ marginBottom: 16 }}>
@@ -2394,7 +2373,7 @@ const OPD: React.FC = () => {
                               Gợi ý chẩn đoán (AI)
                             </Button>
                             {aiSuggestions.length > 0 && (
-                              <Card size="small" title="Gợi ý chẩn đoán từ AI" style={{ marginBottom: 12, background: '#f6ffed', borderColor: '#b7eb8f' }}>
+                              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                                 {aiSuggestions.map((s, i) => (
                                   <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 6, gap: 8 }}>
                                     <Tag color={s.confidenceLevel === 'Cao' ? 'green' : s.confidenceLevel === 'Trung bình' ? 'gold' : 'default'}>
@@ -2409,10 +2388,10 @@ const OPD: React.FC = () => {
                                       <strong>{s.icdCode}</strong> - {s.icdName}
                                     </Button>
                                     {s.isCommonInDepartment && <Tag color="blue">Thường gặp</Tag>}
-                                    <Text type="secondary" style={{ fontSize: 11 }}>{s.reasoning}</Text>
+                                    <span className="text-gray-500 text-xs">{s.reasoning}</span>
                                   </div>
                                 ))}
-                              </Card>
+                              </div>
                             )}
                             {clinicalAlerts.length > 0 && (
                               <div style={{ marginBottom: 12 }}>
@@ -2445,18 +2424,18 @@ const OPD: React.FC = () => {
                             locale={{ emptyText: 'Chưa có chẩn đoán' }}
                           />
 
-                          <Divider />
+                          <hr className="border-gray-200 my-4" />
 
-                          <Row gutter={16}>
-                            <Col span={24}>
+                          <div className="flex gap-4 flex-wrap">
+                            <div className="w-full">
                               <Form.Item label="Kết luận" name="conclusion">
                                 <TextArea
                                   rows={3}
                                   placeholder="Nhập kết luận..."
                                 />
                               </Form.Item>
-                            </Col>
-                            <Col span={24}>
+                            </div>
+                            <div className="w-full">
                               <Form.Item
                                 label="Hướng điều trị"
                                 name="recommendations"
@@ -2466,16 +2445,16 @@ const OPD: React.FC = () => {
                                   placeholder="Nhập hướng điều trị..."
                                 />
                               </Form.Item>
-                            </Col>
-                            <Col span={12}>
+                            </div>
+                            <div className="w-full lg:w-1/2">
                               <Form.Item label="Ngày tái khám" name="followUpDate">
                                 <DatePicker
                                   style={{ width: '100%' }}
                                   format="DD/MM/YYYY"
                                 />
                               </Form.Item>
-                            </Col>
-                          </Row>
+                            </div>
+                          </div>
                         </>
                       ),
                     },
@@ -2488,7 +2467,7 @@ const OPD: React.FC = () => {
                       ),
                       children: (
                         <>
-                          <Space style={{ marginBottom: 16 }} wrap>
+                          <div className="flex items-center gap-2 flex-wrap">
                             <AutoComplete
                               style={{ width: 400 }}
                               options={serviceOptions}
@@ -2556,7 +2535,7 @@ const OPD: React.FC = () => {
                                 DV
                               </Button>
                             </Tooltip>
-                          </Space>
+                          </div>
 
                           <Table
                             columns={orderColumns}
@@ -2578,7 +2557,7 @@ const OPD: React.FC = () => {
                       ),
                       children: (
                         <>
-                          <Space style={{ marginBottom: 16 }} wrap>
+                          <div className="flex items-center gap-2 flex-wrap">
                             <AutoComplete
                               style={{ width: 400 }}
                               options={supplySearchResults.map((s) => ({
@@ -2647,7 +2626,7 @@ const OPD: React.FC = () => {
                                 Dùng đơn VT cũ
                               </Button>
                             </Tooltip>
-                          </Space>
+                          </div>
 
                           <Table
                             columns={[
@@ -2715,10 +2694,10 @@ const OPD: React.FC = () => {
                   ]}
                 />
               </Form>
-            </Card>
+            </div>
           )}
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {/* History Modal */}
       <Modal
@@ -2820,108 +2799,108 @@ const OPD: React.FC = () => {
           </Select>
         </Form.Item>
         <Form form={printForm} layout="vertical" size="small">
-          <Divider><strong>I. HÀNH CHÍNH</strong></Divider>
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>I. HÀNH CHÍNH</strong></span><hr className="flex-1 border-gray-200" /></div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Bệnh viện" name="hospitalName">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Khoa" name="departmentName">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Họ và tên (In hoa)" name="patientName">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Ngày sinh" name="dateOfBirth">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Tuổi" name="age">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={6}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Giới tính" name="gender">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Nghề nghiệp" name="occupation">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Dân tộc" name="ethnicity">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Quốc tịch" name="nationality">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={16}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-2/3">
               <Form.Item label="Địa chỉ" name="address">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item label="Nơi làm việc" name="workplace">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Số thẻ BHYT" name="insuranceNumber">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Giá trị đến ngày" name="insuranceExpiry">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Người nhà khi cần báo tin" name="contactName">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Điện thoại" name="contactPhone">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Đến khám lúc" name="visitTime">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Divider><strong>II. LÝ DO VÀO VIỆN</strong></Divider>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>II. LÝ DO VÀO VIỆN</strong></span><hr className="flex-1 border-gray-200" /></div>
           <Form.Item name="visitReason">
             <TextArea rows={2} placeholder="Lý do vào viện..." />
           </Form.Item>
 
-          <Divider><strong>III. HỎI BỆNH</strong></Divider>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>III. HỎI BỆNH</strong></span><hr className="flex-1 border-gray-200" /></div>
           <Form.Item label="1. Quá trình bệnh lý" name="diseaseProgress">
             <TextArea rows={3} placeholder="Quá trình bệnh lý..." />
           </Form.Item>
@@ -2932,34 +2911,34 @@ const OPD: React.FC = () => {
             <TextArea rows={2} placeholder="Tiền sử gia đình..." />
           </Form.Item>
 
-          <Divider><strong>IV. KHÁM BỆNH</strong></Divider>
-          <Row gutter={16}>
-            <Col span={4}>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>IV. KHÁM BỆNH</strong></span><hr className="flex-1 border-gray-200" /></div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/6">
               <Form.Item label="Mạch (lần/ph)" name="pulse">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={4}>
+            </div>
+            <div className="w-full lg:w-1/6">
               <Form.Item label="Nhiệt độ (°C)" name="temperature">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={4}>
+            </div>
+            <div className="w-full lg:w-1/6">
               <Form.Item label="Huyết áp" name="bloodPressure">
                 <Input placeholder="120/80" />
               </Form.Item>
-            </Col>
-            <Col span={4}>
+            </div>
+            <div className="w-full lg:w-1/6">
               <Form.Item label="Nhịp thở" name="respiratoryRate">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={4}>
+            </div>
+            <div className="w-full lg:w-1/6">
               <Form.Item label="Cân nặng (kg)" name="weight">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item label="1. Toàn thân" name="generalExam">
             <TextArea rows={2} placeholder="Khám toàn thân..." />
           </Form.Item>
@@ -3006,14 +2985,14 @@ const OPD: React.FC = () => {
         />
         {selectedPatient && (
           <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 4 }}>
-            <Text strong>Bệnh nhân: </Text>
-            <Text>{selectedPatient.fullName}</Text>
-            <Text type="secondary"> - Mã BN: {selectedPatient.patientCode}</Text>
+            <span className="font-semibold">Bệnh nhân: </span>
+            <span className="text-sm">{selectedPatient.fullName}</span>
+            <span className="text-gray-500 text-sm"> - Mã BN: {selectedPatient.patientCode}</span>
           </div>
         )}
         <Form form={sickLeaveForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="fromDate"
                 label="Từ ngày"
@@ -3030,8 +3009,8 @@ const OPD: React.FC = () => {
                   }}
                 />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="toDate"
                 label="Đến ngày"
@@ -3048,8 +3027,8 @@ const OPD: React.FC = () => {
                   }}
                 />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item
             name="days"
             label="Số ngày nghỉ"
@@ -3096,7 +3075,7 @@ const OPD: React.FC = () => {
         width={400}
       >
         <div style={{ marginBottom: 12 }}>
-          <Text type="secondary">Nhập tên để nhận biết mẫu vật tư ({supplyOrders.length} loại vật tư):</Text>
+          <span className="text-gray-500 text-sm">Nhập tên để nhận biết mẫu vật tư ({supplyOrders.length} loại vật tư):</span>
         </div>
         <Input
           placeholder="VD: Phẫu thuật nhỏ, Thay băng, Đặt catheter..."
@@ -3108,7 +3087,7 @@ const OPD: React.FC = () => {
         />
         {supplyTemplates.length > 0 && (
           <div style={{ marginTop: 12 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>Mẫu đã lưu: {supplyTemplates.map(t => t.name).join(', ')}</Text>
+            <span className="text-gray-500 text-xs">Mẫu đã lưu: {supplyTemplates.map(t => t.name).join(', ')}</span>
           </div>
         )}
       </Modal>

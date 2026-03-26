@@ -538,19 +538,19 @@ const SpecialtyEMR: React.FC = () => {
       <Card size="small" style={{ marginBottom: 16 }}>
         <div className="grid grid-cols-4 gap-4 items-end">
           <div>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>Tu khoa</span>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Tu khoa</Text>
             <Input placeholder="Ma BN, ho ten, CCCD..." prefix={<SearchOutlined />}
               value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
               onPressEnter={() => handleSearch(1)} allowClear />
           </div>
           <div>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>Chuyen khoa</span>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Chuyen khoa</Text>
             <Select placeholder="Tat ca chuyen khoa" value={specialtyFilter}
               onChange={v => setSpecialtyFilter(v)} allowClear style={{ width: '100%' }}
               options={SPECIALTY_TYPES.map(s => ({ value: s.key, label: s.label }))} />
           </div>
           <div>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>Khoang thoi gian</span>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Khoang thoi gian</Text>
             <RangePicker value={dateRange} onChange={v => setDateRange(v as [Dayjs | null, Dayjs | null])}
               format="DD/MM/YYYY" style={{ width: '100%' }} />
           </div>
@@ -562,7 +562,7 @@ const SpecialtyEMR: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <Spin spinning={loading}>
@@ -619,7 +619,7 @@ const SpecialtyEMR: React.FC = () => {
             <Descriptions.Item label="Chan doan">{selectedRecord.diagnosisText}</Descriptions.Item>
             <Descriptions.Item label="Trang thai"><Tag color={statusColors[selectedRecord.status]}>{statusNames[selectedRecord.status]}</Tag></Descriptions.Item>
           </Descriptions>
-        </div>
+        </Card>
       )}
     </div>
   );

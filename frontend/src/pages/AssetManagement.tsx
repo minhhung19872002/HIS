@@ -115,7 +115,7 @@ const AssetsTab = () => {
         </Select>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Them tai san</Button>
-      </div>
+      </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="Tai san co dinh" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={640} destroyOnHidden>
@@ -258,7 +258,7 @@ const TendersTab = () => {
       <Space style={{ marginBottom: 12 }}>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Them goi thau</Button>
-      </div>
+      </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="Goi thau" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={600} destroyOnHidden>
@@ -299,7 +299,7 @@ const TendersTab = () => {
             <Form.Item name="unitPrice"><InputNumber placeholder="Don gia" min={0} /></Form.Item>
             <Form.Item><Button type="primary" htmlType="submit" icon={<PlusOutlined />}>Them</Button></Form.Item>
           </Form>
-        </div>
+        </Card>
       </Modal>
     </>
   );
@@ -361,7 +361,7 @@ const HandoversTab = () => {
       <Space style={{ marginBottom: 12 }}>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<SwapOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Tao ban giao</Button>
-      </div>
+      </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="Ban giao tai san" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} destroyOnHidden>
@@ -432,7 +432,7 @@ const DisposalsTab = () => {
       <Space style={{ marginBottom: 12 }}>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<DeleteOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>De xuat thanh ly</Button>
-      </div>
+      </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
       <Modal title="De xuat thanh ly" open={modalOpen} onOk={handlePropose} onCancel={() => setModalOpen(false)} destroyOnHidden>
@@ -497,7 +497,7 @@ const DepreciationTab = () => {
         <InputNumber value={year} onChange={v => setYear(v || dayjs().year())} min={2020} max={2030} />
         <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
         <Button type="primary" icon={<BarChartOutlined />} onClick={handleCalculate}>Tinh khau hao thang {month}/{year}</Button>
-      </div>
+      </Space>
       <Table dataSource={data} columns={columns} rowKey={r => `${r.fixedAssetId}-${r.month}-${r.year}`} loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 20, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
     </>
@@ -559,7 +559,7 @@ const DashboardTab = () => {
             </ResponsiveContainer>
           )}
         </div>
-      </div>
+      </Card>
     </>
   );
 };
@@ -649,7 +649,7 @@ const ReportsTab = () => {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
       <div className="grid grid-cols-4 gap-4">
         {Object.entries(grouped).map(([cat, items]) => (
           <div>
@@ -664,7 +664,7 @@ const ReportsTab = () => {
                   </Tooltip>
                 </div>
               ))}
-            </div>
+            </Card>
           </div>
         ))}
       </div>

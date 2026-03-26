@@ -370,7 +370,7 @@ const Epidemiology: React.FC = () => {
               ) : (
                 <Typography.Text type="secondary">Chưa có dữ liệu</Typography.Text>
               )}
-            </div>
+            </Card>
           </div>
           <div>
             <Card title="Xu hướng theo tháng">
@@ -386,7 +386,7 @@ const Epidemiology: React.FC = () => {
               ) : (
                 <Typography.Text type="secondary">Chưa có dữ liệu</Typography.Text>
               )}
-            </div>
+            </Card>
           </div>
           <div>
             <Card title="Danh mục 28 bệnh truyền nhiễm phải báo cáo">
@@ -397,7 +397,7 @@ const Epidemiology: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       ),

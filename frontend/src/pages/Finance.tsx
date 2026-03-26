@@ -1,22 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card,
   Table,
   Button,
-  Space,
   Input,
   Tag,
-  Row,
-  Col,
-  Typography,
   message,
   Tabs,
   DatePicker,
-  Statistic,
-  Progress,
   Select,
   Modal,
-  Descriptions,
+  Descriptions
 } from 'antd';
 import {
   SearchOutlined,
@@ -41,7 +34,6 @@ import {
   type FinancialSummaryReportDto,
 } from '../api/system';
 
-const { Title, Text } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 
@@ -409,7 +401,7 @@ const Finance: React.FC = () => {
       key: 'insuranceAmount',
       width: 150,
       align: 'right',
-      render: (amount) => <Text type="success">{formatCurrency(amount)}</Text>,
+      render: (amount) => <span className="text-green-600">{formatCurrency(amount)}</span>,
     },
     {
       title: 'BN chi trả',
@@ -425,7 +417,7 @@ const Finance: React.FC = () => {
       key: 'totalAmount',
       width: 150,
       align: 'right',
-      render: (amount) => <Text strong>{formatCurrency(amount)}</Text>,
+      render: (amount) => <span className="font-semibold">{formatCurrency(amount)}</span>,
     },
   ];
 
@@ -469,7 +461,7 @@ const Finance: React.FC = () => {
       key: 'amount',
       width: 150,
       align: 'right',
-      render: (amount) => <Text type="danger">{formatCurrency(amount)}</Text>,
+      render: (amount) => <span className="text-red-500">{formatCurrency(amount)}</span>,
     },
     {
       title: 'Trạng thái',
@@ -536,7 +528,7 @@ const Finance: React.FC = () => {
       key: 'totalRevenue',
       width: 180,
       align: 'right',
-      render: (amount) => <Text strong>{formatCurrency(amount)}</Text>,
+      render: (amount) => <span className="font-semibold">{formatCurrency(amount)}</span>,
     },
     {
       title: 'Tăng trưởng',
@@ -545,16 +537,10 @@ const Finance: React.FC = () => {
       width: 130,
       align: 'right',
       render: (growth) => (
-        <Space>
-          {growth >= 0 ? (
-            <RiseOutlined style={{ color: '#52c41a' }} />
-          ) : (
-            <FallOutlined style={{ color: '#ff4d4f' }} />
-          )}
-          <Text style={{ color: growth >= 0 ? '#52c41a' : '#ff4d4f' }}>
-            {growth >= 0 ? '+' : ''}{growth}%
-          </Text>
-        </Space>
+        <span className={`inline-flex items-center gap-1 ${growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          {growth >= 0 ? <RiseOutlined /> : <FallOutlined />}
+          {growth >= 0 ? '+' : ''}{growth}%
+        </span>
       ),
       sorter: (a, b) => a.growth - b.growth,
     },
@@ -562,90 +548,42 @@ const Finance: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Quản lý Tài chính</Title>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-bold text-gray-800 m-0">Quản lý Tài chính</h2>
         <Button icon={<ReloadOutlined />} onClick={() => loadData()} size="small">Làm mới</Button>
       </div>
 
       {/* Summary Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Tổng doanh thu"
-              value={totalRevenue}
-              precision={0}
-              styles={{ content: { color: '#3f8600' } }}
-              prefix={<DollarOutlined />}
-              suffix="đ"
-              formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="BHYT chi trả"
-              value={totalInsurance}
-              precision={0}
-              styles={{ content: { color: '#1890ff' } }}
-              prefix={<DollarOutlined />}
-              suffix="đ"
-              formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
-            />
-            <Progress
-              percent={safePercent(totalInsurance, totalRevenue)}
-              showInfo={false}
-              strokeColor="#1890ff"
-            />
-            <Text type="secondary">{safePercent(totalInsurance, totalRevenue)}% tổng DT</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Tổng chi phí"
-              value={totalExpense}
-              precision={0}
-              styles={{ content: { color: '#cf1322' } }}
-              prefix={<DollarOutlined />}
-              suffix="đ"
-              formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
-            />
-            <Progress
-              percent={safePercent(totalExpense, totalRevenue)}
-              showInfo={false}
-              strokeColor="#ff4d4f"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Lợi nhuận"
-              value={profit}
-              precision={0}
-              styles={{ content: { color: profit >= 0 ? '#3f8600' : '#cf1322' } }}
-              prefix={profit >= 0 ? <RiseOutlined /> : <FallOutlined />}
-              suffix="đ"
-              formatter={(value) => new Intl.NumberFormat('vi-VN').format(value as number)}
-            />
-            <Progress
-              percent={safePercent(Math.abs(profit), totalRevenue)}
-              showInfo={false}
-              strokeColor={profit >= 0 ? '#52c41a' : '#ff4d4f'}
-            />
-            <Text type="secondary">{safePercent(profit, totalRevenue)}% biên lợi nhuận</Text>
-          </Card>
-        </Col>
-      </Row>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="text-xs text-gray-500 font-semibold mb-1"><DollarOutlined className="mr-1" />Tổng doanh thu</div>
+          <div className="text-2xl font-bold text-green-700">{new Intl.NumberFormat('vi-VN').format(totalRevenue)}đ</div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="text-xs text-gray-500 font-semibold mb-1"><DollarOutlined className="mr-1" />BHYT chi trả</div>
+          <div className="text-2xl font-bold text-blue-500">{new Intl.NumberFormat('vi-VN').format(totalInsurance)}đ</div>
+          <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2"><div className="h-1.5 rounded-full bg-blue-500" style={{width: safePercent(totalInsurance, totalRevenue)+'%'}}></div></div>
+          <span className="text-xs text-gray-400 mt-1">{safePercent(totalInsurance, totalRevenue)}% tổng DT</span>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="text-xs text-gray-500 font-semibold mb-1"><DollarOutlined className="mr-1" />Tổng chi phí</div>
+          <div className="text-2xl font-bold text-red-600">{new Intl.NumberFormat('vi-VN').format(totalExpense)}đ</div>
+          <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2"><div className="h-1.5 rounded-full bg-red-500" style={{width: safePercent(totalExpense, totalRevenue)+'%'}}></div></div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="text-xs text-gray-500 font-semibold mb-1">{profit >= 0 ? <RiseOutlined className="mr-1" /> : <FallOutlined className="mr-1" />}Lợi nhuận</div>
+          <div className={`text-2xl font-bold ${profit >= 0 ? 'text-green-700' : 'text-red-600'}`}>{new Intl.NumberFormat('vi-VN').format(profit)}đ</div>
+          <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2"><div className={`h-1.5 rounded-full ${profit >= 0 ? 'bg-green-500' : 'bg-red-500'}`} style={{width: safePercent(Math.abs(profit), totalRevenue)+'%'}}></div></div>
+          <span className="text-xs text-gray-400 mt-1">{safePercent(profit, totalRevenue)}% biên lợi nhuận</span>
+        </div>
+      </div>
 
-      <Card>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
           tabBarExtraContent={
-            <Space>
+            <div className="flex items-center gap-2">
               <RangePicker
                 format="DD/MM/YYYY"
                 value={dateRange}
@@ -659,7 +597,7 @@ const Finance: React.FC = () => {
               <Button icon={<FileExcelOutlined />} onClick={handleExportExcel} loading={exportLoading}>
                 Xuất Excel
               </Button>
-            </Space>
+            </div>
           }
           items={[
             {
@@ -672,37 +610,30 @@ const Finance: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col span={8}>
-                      <Card title="Cơ cấu doanh thu">
-                        <Space orientation="vertical" style={{ width: '100%' }}>
-                          <div>
-                            <Text>BHYT</Text>
-                            <Progress
-                              percent={safePercent(totalInsurance, totalRevenue)}
-                              strokeColor="#1890ff"
-                            />
-                          </div>
-                          <div>
-                            <Text>Viện phí</Text>
-                            <Progress
-                              percent={safePercent(totalSelfPay, totalRevenue)}
-                              strokeColor="#52c41a"
-                            />
-                          </div>
-                          <div>
-                            <Text>Dịch vụ</Text>
-                            <Progress
-                              percent={safePercent(totalService, totalRevenue)}
-                              strokeColor="#faad14"
-                            />
-                          </div>
-                        </Space>
-                      </Card>
-                    </Col>
-                    <Col span={16}>
-                      <Card title="Doanh thu theo khoa/phòng">
-                        <Table
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Cơ cấu doanh thu</h4>
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <span className="text-sm text-gray-600">BHYT</span>
+                          <div className="w-full bg-gray-100 rounded-full h-2 mt-1"><div className="h-2 rounded-full bg-blue-500" style={{width: safePercent(totalInsurance, totalRevenue)+'%'}}></div></div>
+                          <span className="text-xs text-gray-400">{safePercent(totalInsurance, totalRevenue)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600">Viện phí</span>
+                          <div className="w-full bg-gray-100 rounded-full h-2 mt-1"><div className="h-2 rounded-full bg-green-500" style={{width: safePercent(totalSelfPay, totalRevenue)+'%'}}></div></div>
+                          <span className="text-xs text-gray-400">{safePercent(totalSelfPay, totalRevenue)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600">Dịch vụ</span>
+                          <div className="w-full bg-gray-100 rounded-full h-2 mt-1"><div className="h-2 rounded-full bg-yellow-500" style={{width: safePercent(totalService, totalRevenue)+'%'}}></div></div>
+                          <span className="text-xs text-gray-400">{safePercent(totalService, totalRevenue)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Doanh thu theo khoa/phòng</h4>
+                      <Table
                           columns={departmentColumns}
                           dataSource={departmentRevenue}
                           rowKey="key"
@@ -719,9 +650,8 @@ const Finance: React.FC = () => {
                             style: { cursor: 'pointer' },
                           })}
                         />
-                      </Card>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
                 </>
               ),
             },
@@ -735,8 +665,8 @@ const Finance: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="flex gap-4 mb-4 items-center">
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo khoa/phòng, loại dịch vụ..."
                         allowClear
@@ -753,25 +683,23 @@ const Finance: React.FC = () => {
                           applyRevenueFilters(revenueRecords, value, revenueDeptFilter);
                         }}
                       />
-                    </Col>
-                    <Col>
-                      <Select
-                        value={revenueDeptFilter}
-                        style={{ width: 150 }}
-                        onChange={(value) => {
-                          setRevenueDeptFilter(value);
-                          applyRevenueFilters(revenueRecords, revenueSearchText, value);
-                        }}
-                      >
-                        <Select.Option value="all">Tất cả khoa</Select.Option>
-                        <Select.Option value="noi">Khoa Nội</Select.Option>
-                        <Select.Option value="ngoai">Khoa Ngoại</Select.Option>
-                        <Select.Option value="san">Khoa Sản</Select.Option>
-                        <Select.Option value="xn">Khoa Xét nghiệm</Select.Option>
-                        <Select.Option value="cdha">Khoa CĐHA</Select.Option>
-                      </Select>
-                    </Col>
-                  </Row>
+                    </div>
+                    <Select
+                      value={revenueDeptFilter}
+                      style={{ width: 150 }}
+                      onChange={(value) => {
+                        setRevenueDeptFilter(value);
+                        applyRevenueFilters(revenueRecords, revenueSearchText, value);
+                      }}
+                    >
+                      <Select.Option value="all">Tất cả khoa</Select.Option>
+                      <Select.Option value="noi">Khoa Nội</Select.Option>
+                      <Select.Option value="ngoai">Khoa Ngoại</Select.Option>
+                      <Select.Option value="san">Khoa Sản</Select.Option>
+                      <Select.Option value="xn">Khoa Xét nghiệm</Select.Option>
+                      <Select.Option value="cdha">Khoa CĐHA</Select.Option>
+                    </Select>
+                  </div>
 
                   <Table
                     columns={revenueColumns}
@@ -800,19 +728,19 @@ const Finance: React.FC = () => {
                       return (
                         <Table.Summary.Row>
                           <Table.Summary.Cell index={0} colSpan={3}>
-                            <Text strong>Tổng cộng</Text>
+                            <span className="font-semibold">Tổng cộng</span>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={3} align="right">
-                            <Text strong>{totalTrans}</Text>
+                            <span className="font-semibold">{totalTrans}</span>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={4} align="right">
-                            <Text strong type="success">{formatCurrency(totalInsur)}</Text>
+                            <span className="font-semibold text-green-600">{formatCurrency(totalInsur)}</span>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={5} align="right">
-                            <Text strong>{formatCurrency(totalPatient)}</Text>
+                            <span className="font-semibold">{formatCurrency(totalPatient)}</span>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={6} align="right">
-                            <Text strong>{formatCurrency(total)}</Text>
+                            <span className="font-semibold">{formatCurrency(total)}</span>
                           </Table.Summary.Cell>
                         </Table.Summary.Row>
                       );
@@ -831,8 +759,8 @@ const Finance: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="flex gap-4 mb-4 items-center">
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo mô tả, nhà cung cấp, số hóa đơn..."
                         allowClear
@@ -849,24 +777,22 @@ const Finance: React.FC = () => {
                           applyExpenseFilters(expenseRecords, value, expenseCategoryFilter);
                         }}
                       />
-                    </Col>
-                    <Col>
-                      <Select
-                        value={expenseCategoryFilter}
-                        style={{ width: 150 }}
-                        onChange={(value) => {
-                          setExpenseCategoryFilter(value);
-                          applyExpenseFilters(expenseRecords, expenseSearchText, value);
-                        }}
-                      >
-                        <Select.Option value="all">Tất cả danh mục</Select.Option>
-                        <Select.Option value="thuoc">Thuốc</Select.Option>
-                        <Select.Option value="vattu">Vật tư y tế</Select.Option>
-                        <Select.Option value="thietbi">Thiết bị</Select.Option>
-                        <Select.Option value="khac">Khác</Select.Option>
-                      </Select>
-                    </Col>
-                  </Row>
+                    </div>
+                    <Select
+                      value={expenseCategoryFilter}
+                      style={{ width: 150 }}
+                      onChange={(value) => {
+                        setExpenseCategoryFilter(value);
+                        applyExpenseFilters(expenseRecords, expenseSearchText, value);
+                      }}
+                    >
+                      <Select.Option value="all">Tất cả danh mục</Select.Option>
+                      <Select.Option value="thuoc">Thuốc</Select.Option>
+                      <Select.Option value="vattu">Vật tư y tế</Select.Option>
+                      <Select.Option value="thietbi">Thiết bị</Select.Option>
+                      <Select.Option value="khac">Khác</Select.Option>
+                    </Select>
+                  </div>
 
                   <Table
                     columns={expenseColumns}
@@ -892,10 +818,10 @@ const Finance: React.FC = () => {
                       return (
                         <Table.Summary.Row>
                           <Table.Summary.Cell index={0} colSpan={5}>
-                            <Text strong>Tổng chi phí</Text>
+                            <span className="font-semibold">Tổng chi phí</span>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={5} align="right">
-                            <Text strong type="danger">{formatCurrency(total)}</Text>
+                            <span className="font-semibold text-red-500">{formatCurrency(total)}</span>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={6} colSpan={2} />
                         </Table.Summary.Row>
@@ -914,109 +840,36 @@ const Finance: React.FC = () => {
                 </span>
               ),
               children: (
-                <Row gutter={[16, 16]}>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'revenue_dept'}
-                      onClick={() => handleReportClick('revenue_dept', 'Báo cáo doanh thu theo khoa')}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { key: 'revenue_dept', name: 'Báo cáo doanh thu theo khoa', desc: 'Thống kê doanh thu chi tiết theo từng khoa/phòng', color: 'text-blue-500', Icon: BarChartOutlined },
+                    { key: 'revenue_service', name: 'Báo cáo doanh thu theo dịch vụ', desc: 'Thống kê doanh thu theo nhóm dịch vụ', color: 'text-green-500', Icon: BarChartOutlined },
+                    { key: 'expense', name: 'Báo cáo chi phí', desc: 'Thống kê chi phí theo danh mục', color: 'text-red-500', Icon: BarChartOutlined },
+                    { key: 'insurance', name: 'Báo cáo thanh toán BHYT', desc: 'Báo cáo theo QĐ 6556/BYT', color: 'text-purple-500', Icon: BarChartOutlined },
+                    { key: 'surgery_profit', name: 'Báo cáo lợi nhuận PTTT', desc: 'Tính toán lợi nhuận phẫu thuật thủ thuật', color: 'text-yellow-500', Icon: BarChartOutlined },
+                    { key: 'summary', name: 'Báo cáo tổng hợp', desc: 'Báo cáo tổng hợp tài chính theo kỳ', color: 'text-teal-500', Icon: FileExcelOutlined },
+                  ].map(r => (
+                    <div
+                      key={r.key}
+                      className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => handleReportClick(r.key, r.name)}
                     >
-                      <Space>
-                        {reportLoading === 'revenue_dept' ? <LoadingOutlined style={{ fontSize: 24 }} /> : <BarChartOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
+                      <div className="flex items-center gap-3">
+                        {reportLoading === r.key ? <LoadingOutlined className="text-2xl" /> : <r.Icon className={`text-2xl ${r.color}`} />}
                         <div>
-                          <Text strong>Báo cáo doanh thu theo khoa</Text>
+                          <span className="font-semibold text-sm">{r.name}</span>
                           <br />
-                          <Text type="secondary">Thống kê doanh thu chi tiết theo từng khoa/phòng</Text>
+                          <span className="text-xs text-gray-400">{r.desc}</span>
                         </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'revenue_service'}
-                      onClick={() => handleReportClick('revenue_service', 'Báo cáo doanh thu theo dịch vụ')}
-                    >
-                      <Space>
-                        {reportLoading === 'revenue_service' ? <LoadingOutlined style={{ fontSize: 24 }} /> : <BarChartOutlined style={{ fontSize: 24, color: '#52c41a' }} />}
-                        <div>
-                          <Text strong>Báo cáo doanh thu theo dịch vụ</Text>
-                          <br />
-                          <Text type="secondary">Thống kê doanh thu theo nhóm dịch vụ</Text>
-                        </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'expense'}
-                      onClick={() => handleReportClick('expense', 'Báo cáo chi phí')}
-                    >
-                      <Space>
-                        {reportLoading === 'expense' ? <LoadingOutlined style={{ fontSize: 24 }} /> : <BarChartOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />}
-                        <div>
-                          <Text strong>Báo cáo chi phí</Text>
-                          <br />
-                          <Text type="secondary">Thống kê chi phí theo danh mục</Text>
-                        </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'insurance'}
-                      onClick={() => handleReportClick('insurance', 'Báo cáo thanh toán BHYT')}
-                    >
-                      <Space>
-                        {reportLoading === 'insurance' ? <LoadingOutlined style={{ fontSize: 24 }} /> : <BarChartOutlined style={{ fontSize: 24, color: '#722ed1' }} />}
-                        <div>
-                          <Text strong>Báo cáo thanh toán BHYT</Text>
-                          <br />
-                          <Text type="secondary">Báo cáo theo QĐ 6556/BYT</Text>
-                        </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'surgery_profit'}
-                      onClick={() => handleReportClick('surgery_profit', 'Báo cáo lợi nhuận PTTT')}
-                    >
-                      <Space>
-                        {reportLoading === 'surgery_profit' ? <LoadingOutlined style={{ fontSize: 24 }} /> : <BarChartOutlined style={{ fontSize: 24, color: '#faad14' }} />}
-                        <div>
-                          <Text strong>Báo cáo lợi nhuận PTTT</Text>
-                          <br />
-                          <Text type="secondary">Tính toán lợi nhuận phẫu thuật thủ thuật</Text>
-                        </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card
-                      hoverable
-                      loading={reportLoading === 'summary'}
-                      onClick={() => handleReportClick('summary', 'Báo cáo tổng hợp')}
-                    >
-                      <Space>
-                        {reportLoading === 'summary' ? <LoadingOutlined style={{ fontSize: 24 }} /> : <FileExcelOutlined style={{ fontSize: 24, color: '#13c2c2' }} />}
-                        <div>
-                          <Text strong>Báo cáo tổng hợp</Text>
-                          <br />
-                          <Text type="secondary">Báo cáo tổng hợp tài chính theo kỳ</Text>
-                        </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                </Row>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ),
             },
           ]}
         />
-      </Card>
+      </div>
 
       {/* Finance Detail Modal */}
       <Modal
@@ -1037,7 +890,7 @@ const Finance: React.FC = () => {
             <Descriptions.Item label="BHYT">{formatCurrency(revenueDetail.insuranceAmount)}</Descriptions.Item>
             <Descriptions.Item label="BN chi trả">{formatCurrency(revenueDetail.patientAmount)}</Descriptions.Item>
             <Descriptions.Item label="Tổng doanh thu" span={2}>
-              <Text strong>{formatCurrency(revenueDetail.totalAmount)}</Text>
+              <span className="font-semibold">{formatCurrency(revenueDetail.totalAmount)}</span>
             </Descriptions.Item>
           </Descriptions>
         )}
@@ -1061,9 +914,9 @@ const Finance: React.FC = () => {
             <Descriptions.Item label="Khoa/Phòng" span={2}>{departmentDetail.department}</Descriptions.Item>
             <Descriptions.Item label="Tổng doanh thu">{formatCurrency(departmentDetail.totalRevenue)}</Descriptions.Item>
             <Descriptions.Item label="Tăng trưởng">
-              <Text style={{ color: departmentDetail.growth >= 0 ? '#52c41a' : '#f5222d' }}>
+              <span className={departmentDetail.growth >= 0 ? 'text-green-500' : 'text-red-500'}>
                 {departmentDetail.growth >= 0 ? '+' : ''}{departmentDetail.growth}%
-              </Text>
+              </span>
             </Descriptions.Item>
             <Descriptions.Item label="BHYT">{formatCurrency(departmentDetail.insuranceRevenue)}</Descriptions.Item>
             <Descriptions.Item label="Viện phí">{formatCurrency(departmentDetail.selfPayRevenue)}</Descriptions.Item>

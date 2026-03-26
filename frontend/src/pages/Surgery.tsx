@@ -1,27 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Card,
   Table,
   Button,
-  Space,
   Input,
   Tag,
-  Row,
-  Col,
   Modal,
   Form,
   Select,
   DatePicker,
   TimePicker,
   InputNumber,
-  Typography,
   message,
   Tabs,
   Badge,
   Descriptions,
   Alert,
-  Divider,
-  Spin,
+  Spin
 } from 'antd';
 import {
   SearchOutlined,
@@ -41,7 +35,6 @@ import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery,
 import { examinationApi } from '../api/examination';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
-const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
@@ -627,80 +620,80 @@ const Surgery: React.FC = () => {
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="header-left">
-            <div>Sở Y tế: <span class="field">..........................</span></div>
-            <div>BV: <span class="field">${formValues.hospitalName || ''}</span></div>
+        <div className="header">
+          <div className="header-left">
+            <div>Sở Y tế: <span className="field">..........................</span></div>
+            <div>BV: <span className="field">${formValues.hospitalName || ''}</span></div>
           </div>
           <div style="text-align: right;">
             <div><strong>MS: 06/BV-02</strong></div>
-            <div>Số vào viện: <span class="field">${selectedSchedule?.requestCode || ''}</span></div>
+            <div>Số vào viện: <span className="field">${selectedSchedule?.requestCode || ''}</span></div>
           </div>
         </div>
 
-        <div class="title">Phiếu phẫu thuật/thủ thuật</div>
+        <div className="title">Phiếu phẫu thuật/thủ thuật</div>
 
-        <div class="row">
-          - Họ tên người bệnh: <span class="field">${formValues.patientName || ''}</span>
-          Tuổi: <span class="field">${formValues.age || ''}</span>
+        <div className="row">
+          - Họ tên người bệnh: <span className="field">${formValues.patientName || ''}</span>
+          Tuổi: <span className="field">${formValues.age || ''}</span>
           ${formValues.gender || 'Nam/Nữ'}
         </div>
-        <div class="row">
-          - Khoa: <span class="field">${formValues.departmentName || ''}</span>
-          Buồng: <span class="field">${formValues.roomName || ''}</span>
-          Giường: <span class="field">${formValues.bedName || ''}</span>
+        <div className="row">
+          - Khoa: <span className="field">${formValues.departmentName || ''}</span>
+          Buồng: <span className="field">${formValues.roomName || ''}</span>
+          Giường: <span className="field">${formValues.bedName || ''}</span>
         </div>
-        <div class="row">
-          - Vào viện lúc: <span class="field">${formValues.admissionTime || '......... giờ ....... phút'}</span>
-          ngày <span class="field">........ tháng ........ năm ........</span>
+        <div className="row">
+          - Vào viện lúc: <span className="field">${formValues.admissionTime || '......... giờ ....... phút'}</span>
+          ngày <span className="field">........ tháng ........ năm ........</span>
         </div>
-        <div class="row">
-          - Phẫu thuật/thủ thuật lúc: <span class="field">${formValues.surgeryTime || ''}</span>
+        <div className="row">
+          - Phẫu thuật/thủ thuật lúc: <span className="field">${formValues.surgeryTime || ''}</span>
         </div>
 
-        <div class="section">
-          <div class="row">- Chẩn đoán:</div>
-          <div class="row" style="margin-left: 20px;">
-            . Trước phẫu thuật/thủ thuật: <span class="field-long">${formValues.preOpDiagnosis || ''}</span>
+        <div className="section">
+          <div className="row">- Chẩn đoán:</div>
+          <div className="row" style="margin-left: 20px;">
+            . Trước phẫu thuật/thủ thuật: <span className="field-long">${formValues.preOpDiagnosis || ''}</span>
           </div>
-          <div class="row" style="margin-left: 20px;">
-            . Sau phẫu thuật/thủ thuật: <span class="field-long">${formValues.postOpDiagnosis || ''}</span>
+          <div className="row" style="margin-left: 20px;">
+            . Sau phẫu thuật/thủ thuật: <span className="field-long">${formValues.postOpDiagnosis || ''}</span>
           </div>
         </div>
 
-        <div class="row">
-          - Phương pháp phẫu thuật/thủ thuật: <span class="field-long">${formValues.surgeryMethod || ''}</span>
+        <div className="row">
+          - Phương pháp phẫu thuật/thủ thuật: <span className="field-long">${formValues.surgeryMethod || ''}</span>
         </div>
-        <div class="row">
-          - Loại phẫu thuật/thủ thuật: <span class="field">${formValues.surgeryType || ''}</span>
+        <div className="row">
+          - Loại phẫu thuật/thủ thuật: <span className="field">${formValues.surgeryType || ''}</span>
         </div>
-        <div class="row">
-          - Phương pháp vô cảm: <span class="field">${formValues.anesthesiaMethod || ''}</span>
+        <div className="row">
+          - Phương pháp vô cảm: <span className="field">${formValues.anesthesiaMethod || ''}</span>
         </div>
-        <div class="row">
-          - Bác sĩ phẫu thuật/thủ thuật: <span class="field">${formValues.surgeonName || ''}</span>
+        <div className="row">
+          - Bác sĩ phẫu thuật/thủ thuật: <span className="field">${formValues.surgeonName || ''}</span>
         </div>
-        <div class="row">
-          - Bác sĩ gây mê hồi sức: <span class="field">${formValues.anesthesiologistName || ''}</span>
+        <div className="row">
+          - Bác sĩ gây mê hồi sức: <span className="field">${formValues.anesthesiologistName || ''}</span>
         </div>
 
-        <div class="section-title">Lược đồ phẫu thuật/thủ thuật</div>
+        <div className="section-title">Lược đồ phẫu thuật/thủ thuật</div>
         <div style="border: 1px solid #ccc; min-height: 150px; padding: 10px; margin: 10px 0;">
           ${formValues.surgeryDiagram || ''}
         </div>
 
-        <div class="row">- Dẫn lưu: <span class="field">${formValues.drainInfo || ''}</span></div>
-        <div class="row">- Bấc: <span class="field">${formValues.packingInfo || ''}</span></div>
-        <div class="row">- Ngày rút: <span class="field">${formValues.removalDate || ''}</span></div>
-        <div class="row">- Ngày cắt chỉ: <span class="field">${formValues.stitchRemovalDate || ''}</span></div>
-        <div class="row">- Khác: <span class="field">${formValues.notes || ''}</span></div>
+        <div className="row">- Dẫn lưu: <span className="field">${formValues.drainInfo || ''}</span></div>
+        <div className="row">- Bấc: <span className="field">${formValues.packingInfo || ''}</span></div>
+        <div className="row">- Ngày rút: <span className="field">${formValues.removalDate || ''}</span></div>
+        <div className="row">- Ngày cắt chỉ: <span className="field">${formValues.stitchRemovalDate || ''}</span></div>
+        <div className="row">- Khác: <span className="field">${formValues.notes || ''}</span></div>
 
-        <div class="section-title">Trình tự phẫu thuật/thủ thuật</div>
+        <div className="section-title">Trình tự phẫu thuật/thủ thuật</div>
         <div style="border: 1px solid #ccc; min-height: 200px; padding: 10px; margin: 10px 0; white-space: pre-wrap;">
           ${formValues.surgeryDescription || ''}
         </div>
 
-        <div class="signature">
+        <div className="signature">
           <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
           <div style="margin-top: 10px;"><strong>Phẫu thuật/thủ thuật viên</strong></div>
           <div style="margin-top: 50px;">Họ tên: ${formValues.surgeonName || '..................................'}</div>
@@ -785,7 +778,7 @@ const Surgery: React.FC = () => {
       width: 220,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button
             size="small"
             icon={<FileTextOutlined />}
@@ -806,7 +799,7 @@ const Surgery: React.FC = () => {
           {record.status === 1 && (
             <Tag color="blue">Đã lên lịch</Tag>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -877,7 +870,7 @@ const Surgery: React.FC = () => {
       width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           {(record.status === 0 || record.status === 1) && (
             <Button
               type="primary"
@@ -888,7 +881,7 @@ const Surgery: React.FC = () => {
               Bắt đầu
             </Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -935,7 +928,7 @@ const Surgery: React.FC = () => {
       key: 'todaySchedules',
       width: 100,
       render: (_, record) => (
-        <Text>{record.todaySchedules?.length || 0} ca</Text>
+        <span className="text-sm">{record.todaySchedules?.length || 0} ca</span>
       ),
     },
   ];
@@ -977,7 +970,7 @@ const Surgery: React.FC = () => {
       key: 'action',
       width: 200,
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button type="primary" size="small" onClick={() => handleCompleteSurgery(record)}>
             Hoàn thành
           </Button>
@@ -988,7 +981,7 @@ const Surgery: React.FC = () => {
           >
             In phiếu
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -1097,12 +1090,12 @@ const Surgery: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Quản lý Phẫu thuật / Thủ thuật</Title>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-bold text-gray-800 m-0">Quản lý Phẫu thuật / Thủ thuật</h2>
         <Button icon={<ReloadOutlined />} onClick={() => { fetchSurgeries(); fetchOperatingRooms(); }} size="small">Làm mới</Button>
       </div>
 
-      <Card>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -1120,8 +1113,8 @@ const Surgery: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo mã yêu cầu, mã BN, tên bệnh nhân..."
                         allowClear
@@ -1130,16 +1123,16 @@ const Surgery: React.FC = () => {
                         onSearch={(value) => setRequestSearchText(value)}
                         onChange={(e) => { if (!e.target.value) setRequestSearchText(''); }}
                       />
-                    </Col>
-                    <Col>
-                      <Space>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
                         <Button icon={<ReloadOutlined />} onClick={() => { setRequestSearchText(''); fetchSurgeries(); }}>Làm mới</Button>
                         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateRequest}>
                           Tạo yêu cầu
                         </Button>
-                      </Space>
-                    </Col>
-                  </Row>
+                      </div>
+                    </div>
+                  </div>
 
                   <Table
                     columns={requestColumns}
@@ -1196,16 +1189,16 @@ const Surgery: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div>
                       <DatePicker
                         placeholder="Chọn ngày"
                         format="DD/MM/YYYY"
                         defaultValue={dayjs()}
                         onChange={(date) => setScheduleFilterDate(date)}
                       />
-                    </Col>
-                    <Col>
+                    </div>
+                    <div>
                       <Select
                         placeholder="Chọn phòng mổ"
                         style={{ width: 200 }}
@@ -1218,8 +1211,8 @@ const Surgery: React.FC = () => {
                           </Select.Option>
                         ))}
                       </Select>
-                    </Col>
-                    <Col flex="auto">
+                    </div>
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo mã yêu cầu, tên bệnh nhân..."
                         allowClear
@@ -1228,8 +1221,8 @@ const Surgery: React.FC = () => {
                         onSearch={(value) => setScheduleSearchText(value)}
                         onChange={(e) => { if (!e.target.value) setScheduleSearchText(''); }}
                       />
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <Table
                     columns={scheduleColumns}
@@ -1382,15 +1375,15 @@ const Surgery: React.FC = () => {
               ),
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div>
                       <DatePicker.RangePicker
                         format="DD/MM/YYYY"
                         placeholder={['Từ ngày', 'Đến ngày']}
                         onChange={(dates) => setRecordDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
                       />
-                    </Col>
-                    <Col flex="auto">
+                    </div>
+                    <div className="flex-1">
                       <Search
                         placeholder="Tìm theo mã yêu cầu, tên bệnh nhân..."
                         allowClear
@@ -1399,8 +1392,8 @@ const Surgery: React.FC = () => {
                         onSearch={(value) => setRecordSearchText(value)}
                         onChange={(e) => { if (!e.target.value) setRecordSearchText(''); }}
                       />
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   {filteredRecords.length === 0 ? (
                     <Alert
@@ -1427,15 +1420,15 @@ const Surgery: React.FC = () => {
             },
           ]}
         />
-      </Card>
+      </div>
 
       {/* Create Request Modal */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <PlusOutlined />
             <span>Tạo yêu cầu phẫu thuật</span>
-          </Space>
+          </div>
         }
         open={isRequestModalOpen}
         onOk={handleRequestSubmit}
@@ -1448,8 +1441,8 @@ const Surgery: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={requestForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="patientCode"
                 label="Mã bệnh nhân"
@@ -1457,8 +1450,8 @@ const Surgery: React.FC = () => {
               >
                 <Input placeholder="Nhập hoặc tìm mã bệnh nhân" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="patientName"
                 label="Tên bệnh nhân"
@@ -1466,11 +1459,11 @@ const Surgery: React.FC = () => {
               >
                 <Input placeholder="Tên bệnh nhân" />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="medicalRecordId"
                 label="Hồ sơ bệnh án"
@@ -1487,8 +1480,8 @@ const Surgery: React.FC = () => {
                   allowClear
                 />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="surgeryServiceId"
                 label="Dịch vụ phẫu thuật"
@@ -1505,11 +1498,11 @@ const Surgery: React.FC = () => {
                   allowClear
                 />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="surgeryType"
                 label="Loại phẫu thuật"
@@ -1522,8 +1515,8 @@ const Surgery: React.FC = () => {
                   <Select.Option value="Thủ thuật">Thủ thuật</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="priority"
                 label="Độ ưu tiên"
@@ -1535,8 +1528,8 @@ const Surgery: React.FC = () => {
                   <Select.Option value={3}>Cấp cứu</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
           <Form.Item
             name="plannedProcedure"
@@ -1546,8 +1539,8 @@ const Surgery: React.FC = () => {
             <Input placeholder="Nhập phương pháp phẫu thuật" />
           </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={18}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-3/4">
               <Form.Item
                 name="preOpDiagnosis"
                 label="Chẩn đoán trước mổ"
@@ -1555,8 +1548,8 @@ const Surgery: React.FC = () => {
               >
                 <TextArea rows={2} placeholder="Nhập chẩn đoán trước mổ" />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item
                 name="preOperativeIcdCode"
                 label="Mã ICD"
@@ -1573,19 +1566,19 @@ const Surgery: React.FC = () => {
                   allowClear
                 />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item
                 name="estimatedDuration"
                 label="Thời gian dự kiến (phút)"
               >
                 <InputNumber min={15} max={480} style={{ width: '100%' }} placeholder="60" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item name="anesthesiaType" label="Loại gây mê">
                 <Select placeholder="Chọn loại gây mê">
                   <Select.Option value={1}>Gây mê toàn thân</Select.Option>
@@ -1594,8 +1587,8 @@ const Surgery: React.FC = () => {
                   <Select.Option value={4}>Khác</Select.Option>
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
           <Form.Item
             name="requestingDoctorName"
@@ -1610,10 +1603,10 @@ const Surgery: React.FC = () => {
       {/* Schedule Surgery Modal */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <CalendarOutlined />
             <span>Lên lịch phẫu thuật</span>
-          </Space>
+          </div>
         }
         open={isScheduleModalOpen}
         onOk={handleScheduleSubmit}
@@ -1641,11 +1634,11 @@ const Surgery: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider />
+            <hr className="border-gray-200 my-4" />
 
             <Form form={scheduleForm} layout="vertical">
-              <Row gutter={16}>
-                <Col span={12}>
+              <div className="flex gap-4 flex-wrap">
+                <div className="w-full lg:w-1/2">
                   <Form.Item
                     name="scheduledDate"
                     label="Ngày mổ"
@@ -1658,8 +1651,8 @@ const Surgery: React.FC = () => {
                       disabledDate={(current) => current && current < dayjs().startOf('day')}
                     />
                   </Form.Item>
-                </Col>
-                <Col span={12}>
+                </div>
+                <div className="w-full lg:w-1/2">
                   <Form.Item
                     name="scheduledTime"
                     label="Giờ mổ"
@@ -1672,11 +1665,11 @@ const Surgery: React.FC = () => {
                       minuteStep={15}
                     />
                   </Form.Item>
-                </Col>
-              </Row>
+                </div>
+              </div>
 
-              <Row gutter={16}>
-                <Col span={12}>
+              <div className="flex gap-4 flex-wrap">
+                <div className="w-full lg:w-1/2">
                   <Form.Item
                     name="operatingRoomId"
                     label="Phòng mổ"
@@ -1692,8 +1685,8 @@ const Surgery: React.FC = () => {
                         ))}
                     </Select>
                   </Form.Item>
-                </Col>
-                <Col span={12}>
+                </div>
+                <div className="w-full lg:w-1/2">
                   <Form.Item
                     name="estimatedDuration"
                     label="Thời gian dự kiến (phút)"
@@ -1701,8 +1694,8 @@ const Surgery: React.FC = () => {
                   >
                     <InputNumber min={15} max={480} style={{ width: '100%' }} />
                   </Form.Item>
-                </Col>
-              </Row>
+                </div>
+              </div>
 
               <Form.Item
                 name="surgeonName"
@@ -1730,10 +1723,10 @@ const Surgery: React.FC = () => {
       {/* Start Surgery Modal */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <MedicineBoxOutlined />
             <span>Bắt đầu phẫu thuật</span>
-          </Space>
+          </div>
         }
         open={isStartSurgeryModalOpen}
         onOk={handleStartSurgerySubmit}
@@ -1772,7 +1765,7 @@ const Surgery: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider />
+            <hr className="border-gray-200 my-4" />
 
             <Form form={startSurgeryForm} layout="vertical">
               <Form.Item
@@ -1817,55 +1810,55 @@ const Surgery: React.FC = () => {
         ]}
       >
         <Form form={printForm} layout="vertical" size="small">
-          <Divider><strong>Thông tin bệnh nhân</strong></Divider>
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Thông tin bệnh nhân</strong></span><hr className="flex-1 border-gray-200" /></div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Họ tên người bệnh" name="patientName">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Tuổi" name="age">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={6}>
+            </div>
+            <div className="w-full lg:w-1/4">
               <Form.Item label="Giới tính" name="gender">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3">
               <Form.Item label="Khoa" name="departmentName">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item label="Buồng/Phòng mổ" name="roomName">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item label="Giường" name="bedName">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Vào viện lúc" name="admissionTime">
                 <Input placeholder="... giờ ... phút, ngày ... tháng ... năm" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Phẫu thuật/thủ thuật lúc" name="surgeryTime">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Divider><strong>Chẩn đoán</strong></Divider>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Chẩn đoán</strong></span><hr className="flex-1 border-gray-200" /></div>
           <Form.Item label="Trước phẫu thuật/thủ thuật" name="preOpDiagnosis">
             <TextArea rows={2} />
           </Form.Item>
@@ -1873,58 +1866,58 @@ const Surgery: React.FC = () => {
             <TextArea rows={2} />
           </Form.Item>
 
-          <Divider><strong>Thông tin phẫu thuật</strong></Divider>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Thông tin phẫu thuật</strong></span><hr className="flex-1 border-gray-200" /></div>
           <Form.Item label="Phương pháp phẫu thuật/thủ thuật" name="surgeryMethod">
             <TextArea rows={2} />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Loại phẫu thuật/thủ thuật" name="surgeryType">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Phương pháp vô cảm" name="anesthesiaMethod">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Bác sĩ phẫu thuật/thủ thuật" name="surgeonName">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Bác sĩ gây mê hồi sức" name="anesthesiologistName">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Divider><strong>Trình tự phẫu thuật</strong></Divider>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Trình tự phẫu thuật</strong></span><hr className="flex-1 border-gray-200" /></div>
           <Form.Item label="Mô tả trình tự phẫu thuật/thủ thuật" name="surgeryDescription">
             <TextArea rows={6} placeholder="Mô tả chi tiết các bước phẫu thuật..." />
           </Form.Item>
 
-          <Divider><strong>Thông tin hậu phẫu</strong></Divider>
-          <Row gutter={16}>
-            <Col span={8}>
+          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Thông tin hậu phẫu</strong></span><hr className="flex-1 border-gray-200" /></div>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/3">
               <Form.Item label="Dẫn lưu" name="drainInfo">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item label="Ngày rút" name="removalDate">
                 <Input />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div className="w-full lg:w-1/3">
               <Form.Item label="Ngày cắt chỉ" name="stitchRemovalDate">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item label="Ghi chú khác" name="notes">
             <TextArea rows={2} />
           </Form.Item>
@@ -1977,10 +1970,10 @@ const Surgery: React.FC = () => {
           ]}
         />
 
-        <Divider>Thêm cam kết mới</Divider>
+        <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Thêm cam kết mới</span><hr className="flex-1 border-gray-200" /></div>
         <Form form={consentForm} layout="vertical" onFinish={handleSaveConsent}>
-          <Row gutter={16}>
-            <Col span={12}>
+          <div className="flex gap-4 flex-wrap">
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Loại cam kết" name="consentType" rules={[{ required: true, message: 'Chọn loại' }]}>
                 <Select options={[
                   { value: 1, label: 'Cam kết phẫu thuật' },
@@ -1989,13 +1982,13 @@ const Surgery: React.FC = () => {
                   { value: 4, label: 'Cam kết thủ thuật' },
                 ]} />
               </Form.Item>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="w-full lg:w-1/2">
               <Form.Item label="Chẩn đoán" name="diagnosis">
                 <Input />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
           <Form.Item label="Phương pháp dự kiến" name="plannedProcedure">
             <Input />
           </Form.Item>
