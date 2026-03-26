@@ -109,7 +109,7 @@ public class AssetManagementController : ControllerBase
         [FromQuery] Guid? fixedAssetId = null, [FromQuery] Guid? departmentId = null,
         [FromQuery] int? status = null, [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20)
     {
-        var filter = new HandoverSearchDto { FixedAssetId = fixedAssetId, DepartmentId = departmentId, Status = status, PageIndex = pageIndex, PageSize = pageSize };
+        var filter = new AssetHandoverSearchDto { FixedAssetId = fixedAssetId, DepartmentId = departmentId, Status = status, PageIndex = pageIndex, PageSize = pageSize };
         return Ok(await _service.GetHandoversAsync(filter));
     }
 
