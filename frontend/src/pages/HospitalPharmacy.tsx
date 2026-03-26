@@ -33,6 +33,14 @@ import {
   BarChartOutlined,
   PrinterOutlined,
   ExclamationCircleOutlined,
+  TeamOutlined,
+  ClockCircleOutlined,
+  SafetyOutlined,
+  PercentageOutlined,
+  EditOutlined,
+  CheckOutlined,
+  GiftOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -43,6 +51,10 @@ import type {
   PharmacyDashboardDto,
   PharmacyRevenueDto,
   RetailSaleCreateDto,
+  PharmacyCustomerDto,
+  PharmacyShiftDto,
+  PharmacyGppRecordDto,
+  PharmacyCommissionDto,
 } from '../api/hospitalPharmacy';
 
 const { Title, Text } = Typography;
@@ -100,6 +112,32 @@ const HospitalPharmacy: React.FC = () => {
   const [discount, setDiscount] = useState<number>(0);
   const [searchResults, setSearchResults] = useState<{ value: string; label: string; medicine: MedicineSearchResultDto }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // NangCap17 Module C: Enhanced Pharmacy state
+  const [customers, setCustomers] = useState<PharmacyCustomerDto[]>([]);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<PharmacyCustomerDto | null>(null);
+  const [customerForm] = Form.useForm();
+  const [pointsModalOpen, setPointsModalOpen] = useState(false);
+  const [pointsCustomer, setPointsCustomer] = useState<PharmacyCustomerDto | null>(null);
+  const [pointsForm] = Form.useForm();
+
+  const [shifts, setShifts] = useState<PharmacyShiftDto[]>([]);
+  const [openShiftModalOpen, setOpenShiftModalOpen] = useState(false);
+  const [closeShiftModalOpen, setCloseShiftModalOpen] = useState(false);
+  const [closingShift, setClosingShift] = useState<PharmacyShiftDto | null>(null);
+  const [shiftForm] = Form.useForm();
+  const [closeShiftForm] = Form.useForm();
+
+  const [gppRecords, setGppRecords] = useState<PharmacyGppRecordDto[]>([]);
+  const [gppModalOpen, setGppModalOpen] = useState(false);
+  const [gppForm] = Form.useForm();
+  const [gppFilterType, setGppFilterType] = useState<number | undefined>(undefined);
+
+  const [commissions, setCommissions] = useState<PharmacyCommissionDto[]>([]);
+  const [commissionModalOpen, setCommissionModalOpen] = useState(false);
+  const [commissionForm] = Form.useForm();
+  const [selectedCommissionIds, setSelectedCommissionIds] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -240,6 +278,167 @@ const HospitalPharmacy: React.FC = () => {
       message.warning('Khong the tao don ban le');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // NangCap17: Fetch functions for new tabs
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const data = await pharmacyApi.getCustomers();
+      setCustomers(data);
+    } catch { /* silent */ }
+  }, []);
+
+  const fetchShifts = useCallback(async () => {
+    try {
+      const data = await pharmacyApi.getShifts({ fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'), toDate: dayjs().format('YYYY-MM-DD') });
+      setShifts(data);
+    } catch { /* silent */ }
+  }, []);
+
+  const fetchGppRecords = useCallback(async () => {
+    try {
+      const data = await pharmacyApi.getGppRecords({ recordType: gppFilterType });
+      setGppRecords(data);
+    } catch { /* silent */ }
+  }, [gppFilterType]);
+
+  const fetchCommissions = useCallback(async () => {
+    try {
+      const data = await pharmacyApi.getCommissions();
+      setCommissions(data);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'customers') fetchCustomers();
+    if (activeTab === 'shifts') fetchShifts();
+    if (activeTab === 'gpp') fetchGppRecords();
+    if (activeTab === 'commission') fetchCommissions();
+  }, [activeTab, fetchCustomers, fetchShifts, fetchGppRecords, fetchCommissions]);
+
+  const handleSaveCustomer = async () => {
+    try {
+      const values = await customerForm.validateFields();
+      await pharmacyApi.saveCustomer({
+        id: editingCustomer?.id,
+        fullName: values.fullName,
+        phone: values.phone,
+        email: values.email,
+        address: values.address,
+        dateOfBirth: values.dateOfBirth?.format('YYYY-MM-DD'),
+        gender: values.gender,
+        customerType: values.customerType ?? 1,
+        cardNumber: values.cardNumber,
+        notes: values.notes,
+      });
+      message.success(editingCustomer ? 'Da cap nhat khach hang' : 'Da them khach hang moi');
+      setCustomerModalOpen(false);
+      setEditingCustomer(null);
+      customerForm.resetFields();
+      fetchCustomers();
+    } catch {
+      message.warning('Khong the luu khach hang');
+    }
+  };
+
+  const handleAddRedeemPoints = async (type: 'add' | 'redeem') => {
+    try {
+      const values = await pointsForm.validateFields();
+      if (type === 'add') {
+        await pharmacyApi.addPoints({ customerId: pointsCustomer!.id, points: values.points, description: values.description });
+        message.success(`Da cong ${values.points} diem`);
+      } else {
+        await pharmacyApi.redeemPoints({ customerId: pointsCustomer!.id, points: values.points, description: values.description });
+        message.success(`Da tru ${values.points} diem`);
+      }
+      setPointsModalOpen(false);
+      pointsForm.resetFields();
+      fetchCustomers();
+    } catch {
+      message.warning('Khong the xu ly diem');
+    }
+  };
+
+  const handleOpenShift = async () => {
+    try {
+      const values = await shiftForm.validateFields();
+      await pharmacyApi.openShift({ openingCash: values.openingCash, notes: values.notes });
+      message.success('Da mo ca lam viec');
+      setOpenShiftModalOpen(false);
+      shiftForm.resetFields();
+      fetchShifts();
+    } catch {
+      message.warning('Khong the mo ca');
+    }
+  };
+
+  const handleCloseShift = async () => {
+    if (!closingShift) return;
+    try {
+      const values = await closeShiftForm.validateFields();
+      await pharmacyApi.closeShift({ shiftId: closingShift.id, closingCash: values.closingCash, notes: values.notes });
+      message.success('Da dong ca lam viec');
+      setCloseShiftModalOpen(false);
+      setClosingShift(null);
+      closeShiftForm.resetFields();
+      fetchShifts();
+    } catch {
+      message.warning('Khong the dong ca');
+    }
+  };
+
+  const handleSaveGppRecord = async () => {
+    try {
+      const values = await gppForm.validateFields();
+      await pharmacyApi.saveGppRecord({
+        recordType: values.recordType,
+        recordDate: values.recordDate?.format('YYYY-MM-DD'),
+        description: values.description,
+        medicineName: values.medicineName,
+        batchNumber: values.batchNumber,
+        temperature: values.temperature,
+        humidity: values.humidity,
+        actionTaken: values.actionTaken,
+      });
+      message.success('Da luu ban ghi GPP');
+      setGppModalOpen(false);
+      gppForm.resetFields();
+      fetchGppRecords();
+    } catch {
+      message.warning('Khong the luu ban ghi GPP');
+    }
+  };
+
+  const handleSaveCommission = async () => {
+    try {
+      const values = await commissionForm.validateFields();
+      await pharmacyApi.saveCommission({
+        doctorName: values.doctorName,
+        saleDate: values.saleDate?.format('YYYY-MM-DD'),
+        medicineName: values.medicineName,
+        quantity: values.quantity,
+        saleAmount: values.saleAmount,
+        commissionRate: values.commissionRate,
+      });
+      message.success('Da luu hoa hong');
+      setCommissionModalOpen(false);
+      commissionForm.resetFields();
+      fetchCommissions();
+    } catch {
+      message.warning('Khong the luu hoa hong');
+    }
+  };
+
+  const handlePayCommissions = async () => {
+    if (selectedCommissionIds.length === 0) { message.warning('Vui long chon hoa hong can thanh toan'); return; }
+    try {
+      await pharmacyApi.payCommissions(selectedCommissionIds);
+      message.success(`Da thanh toan ${selectedCommissionIds.length} khoan hoa hong`);
+      setSelectedCommissionIds([]);
+      fetchCommissions();
+    } catch {
+      message.warning('Khong the thanh toan hoa hong');
     }
   };
 
@@ -583,6 +782,571 @@ const HospitalPharmacy: React.FC = () => {
               );
             }}
           />
+        </>
+      ),
+    },
+    // ====== NangCap17 Module C: 4 new tabs ======
+    {
+      key: 'customers',
+      label: (
+        <span>
+          <TeamOutlined /> Khach hang
+        </span>
+      ),
+      children: (
+        <>
+          <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Search
+              placeholder="Tim khach hang, SDT, the..."
+              onSearch={(val) => pharmacyApi.getCustomers({ keyword: val || undefined }).then(setCustomers)}
+              allowClear
+              style={{ width: 300 }}
+            />
+            <Select
+              placeholder="Loai KH"
+              allowClear
+              style={{ width: 150 }}
+              onChange={(val) => pharmacyApi.getCustomers({ customerType: val }).then(setCustomers)}
+              options={[
+                { label: 'Thuong', value: 1 },
+                { label: 'VIP', value: 2 },
+                { label: 'Nhan vien', value: 3 },
+              ]}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingCustomer(null); customerForm.resetFields(); setCustomerModalOpen(true); }}>
+              Them khach hang
+            </Button>
+          </div>
+          <Table
+            dataSource={customers}
+            rowKey="id"
+            size="small"
+            scroll={{ x: 1100 }}
+            columns={[
+              { title: 'Ma KH', dataIndex: 'customerCode', key: 'customerCode', width: 100 },
+              { title: 'Ho ten', dataIndex: 'fullName', key: 'fullName', width: 180 },
+              { title: 'SDT', dataIndex: 'phone', key: 'phone', width: 120, render: (v: string) => v || '-' },
+              {
+                title: 'Loai',
+                dataIndex: 'customerType',
+                key: 'customerType',
+                width: 100,
+                render: (v: number) =>
+                  v === 2 ? <Tag color="gold">VIP</Tag> :
+                  v === 3 ? <Tag color="blue">NV</Tag> :
+                  <Tag>Thuong</Tag>,
+              },
+              { title: 'So the', dataIndex: 'cardNumber', key: 'cardNumber', width: 120, render: (v: string) => v || '-' },
+              {
+                title: 'Diem',
+                dataIndex: 'totalPoints',
+                key: 'totalPoints',
+                width: 80,
+                align: 'right',
+                render: (v: number) => <Tag color="green">{v}</Tag>,
+              },
+              {
+                title: 'Tong mua',
+                dataIndex: 'totalPurchaseAmount',
+                key: 'totalPurchaseAmount',
+                width: 130,
+                align: 'right',
+                render: (v: number) => (v || 0).toLocaleString() + ' d',
+              },
+              { title: 'So don', dataIndex: 'totalPurchaseCount', key: 'totalPurchaseCount', width: 80, align: 'right' },
+              {
+                title: '',
+                key: 'actions',
+                width: 180,
+                render: (_: unknown, record: PharmacyCustomerDto) => (
+                  <Space>
+                    <Tooltip title="Sua">
+                      <Button size="small" icon={<EditOutlined />} onClick={() => {
+                        setEditingCustomer(record);
+                        customerForm.setFieldsValue({
+                          ...record,
+                          dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : undefined,
+                        });
+                        setCustomerModalOpen(true);
+                      }} />
+                    </Tooltip>
+                    <Tooltip title="Diem">
+                      <Button size="small" icon={<GiftOutlined />} onClick={() => { setPointsCustomer(record); pointsForm.resetFields(); setPointsModalOpen(true); }} />
+                    </Tooltip>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+          {/* Customer Modal */}
+          <Modal
+            title={editingCustomer ? 'Sua khach hang' : 'Them khach hang'}
+            open={customerModalOpen}
+            onOk={handleSaveCustomer}
+            onCancel={() => { setCustomerModalOpen(false); setEditingCustomer(null); }}
+            okText="Luu"
+            cancelText="Huy"
+          >
+            <Form form={customerForm} layout="vertical">
+              <Form.Item name="fullName" label="Ho ten" rules={[{ required: true, message: 'Nhap ho ten' }]}>
+                <Input />
+              </Form.Item>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="phone" label="SDT">
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="email" label="Email">
+                    <Input />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="customerType" label="Loai KH" initialValue={1}>
+                    <Select options={[{ label: 'Thuong', value: 1 }, { label: 'VIP', value: 2 }, { label: 'Nhan vien', value: 3 }]} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="cardNumber" label="So the">
+                    <Input />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="dateOfBirth" label="Ngay sinh">
+                    <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="gender" label="Gioi tinh">
+                    <Select allowClear options={[{ label: 'Nam', value: 1 }, { label: 'Nu', value: 0 }]} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item name="address" label="Dia chi">
+                <Input />
+              </Form.Item>
+              <Form.Item name="notes" label="Ghi chu">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            </Form>
+          </Modal>
+          {/* Points Modal */}
+          <Modal
+            title={`Quan ly diem - ${pointsCustomer?.fullName || ''} (${pointsCustomer?.totalPoints || 0} diem)`}
+            open={pointsModalOpen}
+            onCancel={() => setPointsModalOpen(false)}
+            footer={[
+              <Button key="cancel" onClick={() => setPointsModalOpen(false)}>Huy</Button>,
+              <Button key="redeem" icon={<MinusCircleOutlined />} onClick={() => handleAddRedeemPoints('redeem')}>Doi diem</Button>,
+              <Button key="add" type="primary" icon={<GiftOutlined />} onClick={() => handleAddRedeemPoints('add')}>Cong diem</Button>,
+            ]}
+          >
+            <Form form={pointsForm} layout="vertical">
+              <Form.Item name="points" label="So diem" rules={[{ required: true, message: 'Nhap so diem' }]}>
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item name="description" label="Mo ta">
+                <Input />
+              </Form.Item>
+            </Form>
+          </Modal>
+        </>
+      ),
+    },
+    {
+      key: 'shifts',
+      label: (
+        <span>
+          <ClockCircleOutlined /> Ca lam viec
+        </span>
+      ),
+      children: (
+        <>
+          <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { shiftForm.resetFields(); setOpenShiftModalOpen(true); }}>
+              Mo ca
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchShifts}>Lam moi</Button>
+          </div>
+          <Table
+            dataSource={shifts}
+            rowKey="id"
+            size="small"
+            scroll={{ x: 1100 }}
+            columns={[
+              { title: 'Ma ca', dataIndex: 'shiftCode', key: 'shiftCode', width: 130 },
+              { title: 'Thu ngan', dataIndex: 'cashierName', key: 'cashierName', width: 150, render: (v: string) => v || '-' },
+              { title: 'Bat dau', dataIndex: 'startTime', key: 'startTime', width: 150, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '-' },
+              { title: 'Ket thuc', dataIndex: 'endTime', key: 'endTime', width: 150, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '-' },
+              {
+                title: 'Tien dau ca',
+                dataIndex: 'openingCash',
+                key: 'openingCash',
+                width: 130,
+                align: 'right',
+                render: (v: number) => (v || 0).toLocaleString() + ' d',
+              },
+              {
+                title: 'Tien cuoi ca',
+                dataIndex: 'closingCash',
+                key: 'closingCash',
+                width: 130,
+                align: 'right',
+                render: (v: number) => (v || 0).toLocaleString() + ' d',
+              },
+              {
+                title: 'Doanh thu',
+                dataIndex: 'totalSales',
+                key: 'totalSales',
+                width: 130,
+                align: 'right',
+                render: (v: number) => <strong>{(v || 0).toLocaleString()} d</strong>,
+              },
+              {
+                title: 'Trang thai',
+                dataIndex: 'status',
+                key: 'status',
+                width: 100,
+                render: (v: number) => v === 1 ? <Tag color="green">Dang mo</Tag> : <Tag>Da dong</Tag>,
+              },
+              {
+                title: '',
+                key: 'actions',
+                width: 100,
+                render: (_: unknown, record: PharmacyShiftDto) =>
+                  record.status === 1 ? (
+                    <Button size="small" icon={<CheckOutlined />} onClick={() => { setClosingShift(record); closeShiftForm.resetFields(); setCloseShiftModalOpen(true); }}>
+                      Dong ca
+                    </Button>
+                  ) : null,
+              },
+            ]}
+          />
+          {/* Open Shift Modal */}
+          <Modal
+            title="Mo ca lam viec"
+            open={openShiftModalOpen}
+            onOk={handleOpenShift}
+            onCancel={() => setOpenShiftModalOpen(false)}
+            okText="Mo ca"
+            cancelText="Huy"
+          >
+            <Form form={shiftForm} layout="vertical">
+              <Form.Item name="openingCash" label="Tien dau ca" rules={[{ required: true, message: 'Nhap tien dau ca' }]}>
+                <InputNumber min={0} style={{ width: '100%' }} formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+              </Form.Item>
+              <Form.Item name="notes" label="Ghi chu">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            </Form>
+          </Modal>
+          {/* Close Shift Modal */}
+          <Modal
+            title={`Dong ca - ${closingShift?.shiftCode || ''}`}
+            open={closeShiftModalOpen}
+            onOk={handleCloseShift}
+            onCancel={() => { setCloseShiftModalOpen(false); setClosingShift(null); }}
+            okText="Dong ca"
+            cancelText="Huy"
+          >
+            {closingShift && (
+              <div style={{ marginBottom: 16 }}>
+                <Row gutter={16}>
+                  <Col span={12}><Statistic title="Tien dau ca" value={closingShift.openingCash} suffix="d" /></Col>
+                  <Col span={12}><Statistic title="Doanh thu" value={closingShift.totalSales} suffix="d" /></Col>
+                </Row>
+              </div>
+            )}
+            <Form form={closeShiftForm} layout="vertical">
+              <Form.Item name="closingCash" label="Tien cuoi ca (kiem dem)" rules={[{ required: true, message: 'Nhap tien cuoi ca' }]}>
+                <InputNumber min={0} style={{ width: '100%' }} formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+              </Form.Item>
+              <Form.Item name="notes" label="Ghi chu">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            </Form>
+          </Modal>
+        </>
+      ),
+    },
+    {
+      key: 'gpp',
+      label: (
+        <span>
+          <SafetyOutlined /> So GPP
+        </span>
+      ),
+      children: (
+        <>
+          <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Select
+              placeholder="Loai ban ghi"
+              allowClear
+              style={{ width: 200 }}
+              value={gppFilterType}
+              onChange={(val) => setGppFilterType(val)}
+              options={[
+                { label: 'ADR (Phan ung thuoc)', value: 1 },
+                { label: 'Dinh chi thuoc', value: 2 },
+                { label: 'Nhiet do', value: 3 },
+                { label: 'Do am', value: 4 },
+              ]}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { gppForm.resetFields(); setGppModalOpen(true); }}>
+              Them ban ghi
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchGppRecords}>Lam moi</Button>
+          </div>
+          <Table
+            dataSource={gppRecords}
+            rowKey="id"
+            size="small"
+            scroll={{ x: 1100 }}
+            columns={[
+              {
+                title: 'Loai',
+                dataIndex: 'recordType',
+                key: 'recordType',
+                width: 140,
+                render: (v: number) => {
+                  const labels: Record<number, { text: string; color: string }> = {
+                    1: { text: 'ADR', color: 'red' },
+                    2: { text: 'Dinh chi', color: 'orange' },
+                    3: { text: 'Nhiet do', color: 'blue' },
+                    4: { text: 'Do am', color: 'cyan' },
+                  };
+                  const l = labels[v] || { text: 'Khac', color: 'default' };
+                  return <Tag color={l.color}>{l.text}</Tag>;
+                },
+              },
+              { title: 'Ngay', dataIndex: 'recordDate', key: 'recordDate', width: 120, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+              { title: 'Ten thuoc', dataIndex: 'medicineName', key: 'medicineName', width: 200, ellipsis: true, render: (v: string) => v || '-' },
+              { title: 'So lo', dataIndex: 'batchNumber', key: 'batchNumber', width: 100, render: (v: string) => v || '-' },
+              { title: 'Nhiet do', dataIndex: 'temperature', key: 'temperature', width: 90, align: 'right', render: (v: number) => v != null ? `${v} C` : '-' },
+              { title: 'Do am', dataIndex: 'humidity', key: 'humidity', width: 90, align: 'right', render: (v: number) => v != null ? `${v}%` : '-' },
+              { title: 'Mo ta', dataIndex: 'description', key: 'description', width: 250, ellipsis: true },
+              { title: 'Xu ly', dataIndex: 'actionTaken', key: 'actionTaken', width: 200, ellipsis: true, render: (v: string) => v || '-' },
+              { title: 'Nguoi ghi', dataIndex: 'recordedByName', key: 'recordedByName', width: 130, render: (v: string) => v || '-' },
+            ]}
+          />
+          {/* GPP Record Modal */}
+          <Modal
+            title="Them ban ghi GPP"
+            open={gppModalOpen}
+            onOk={handleSaveGppRecord}
+            onCancel={() => setGppModalOpen(false)}
+            okText="Luu"
+            cancelText="Huy"
+            width={600}
+          >
+            <Form form={gppForm} layout="vertical">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="recordType" label="Loai ban ghi" rules={[{ required: true, message: 'Chon loai' }]}>
+                    <Select options={[
+                      { label: 'ADR (Phan ung thuoc)', value: 1 },
+                      { label: 'Dinh chi thuoc', value: 2 },
+                      { label: 'Nhiet do', value: 3 },
+                      { label: 'Do am', value: 4 },
+                    ]} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="recordDate" label="Ngay" rules={[{ required: true, message: 'Chon ngay' }]}>
+                    <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="medicineName" label="Ten thuoc">
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="batchNumber" label="So lo">
+                    <Input />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="temperature" label="Nhiet do (C)">
+                    <InputNumber style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="humidity" label="Do am (%)">
+                    <InputNumber min={0} max={100} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item name="description" label="Mo ta">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+              <Form.Item name="actionTaken" label="Bien phap xu ly">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            </Form>
+          </Modal>
+        </>
+      ),
+    },
+    {
+      key: 'commission',
+      label: (
+        <span>
+          <PercentageOutlined /> Hoa hong
+        </span>
+      ),
+      children: (
+        <>
+          <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Search
+              placeholder="Tim bac si, thuoc..."
+              onSearch={(val) => pharmacyApi.getCommissions({ keyword: val || undefined }).then(setCommissions)}
+              allowClear
+              style={{ width: 250 }}
+            />
+            <Select
+              placeholder="Trang thai"
+              allowClear
+              style={{ width: 150 }}
+              onChange={(val) => pharmacyApi.getCommissions({ status: val }).then(setCommissions)}
+              options={[
+                { label: 'Cho thanh toan', value: 1 },
+                { label: 'Da thanh toan', value: 2 },
+              ]}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { commissionForm.resetFields(); setCommissionModalOpen(true); }}>
+              Them hoa hong
+            </Button>
+            <Button
+              icon={<DollarOutlined />}
+              disabled={selectedCommissionIds.length === 0}
+              onClick={handlePayCommissions}
+            >
+              Thanh toan ({selectedCommissionIds.length})
+            </Button>
+          </div>
+          <Table
+            dataSource={commissions}
+            rowKey="id"
+            size="small"
+            scroll={{ x: 1100 }}
+            rowSelection={{
+              selectedRowKeys: selectedCommissionIds,
+              onChange: (keys) => setSelectedCommissionIds(keys as string[]),
+              getCheckboxProps: (record: PharmacyCommissionDto) => ({ disabled: record.status === 2 }),
+            }}
+            columns={[
+              { title: 'Bac si', dataIndex: 'doctorName', key: 'doctorName', width: 160 },
+              { title: 'Ngay ban', dataIndex: 'saleDate', key: 'saleDate', width: 110, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+              { title: 'Thuoc', dataIndex: 'medicineName', key: 'medicineName', width: 200, ellipsis: true },
+              { title: 'SL', dataIndex: 'quantity', key: 'quantity', width: 70, align: 'right' },
+              {
+                title: 'Doanh so',
+                dataIndex: 'saleAmount',
+                key: 'saleAmount',
+                width: 130,
+                align: 'right',
+                render: (v: number) => (v || 0).toLocaleString() + ' d',
+              },
+              {
+                title: 'Ti le',
+                dataIndex: 'commissionRate',
+                key: 'commissionRate',
+                width: 80,
+                align: 'right',
+                render: (v: number) => `${v}%`,
+              },
+              {
+                title: 'Hoa hong',
+                dataIndex: 'commissionAmount',
+                key: 'commissionAmount',
+                width: 130,
+                align: 'right',
+                render: (v: number) => <strong>{(v || 0).toLocaleString()} d</strong>,
+              },
+              {
+                title: 'Trang thai',
+                dataIndex: 'status',
+                key: 'status',
+                width: 120,
+                render: (v: number) => v === 2 ? <Tag color="green">Da TT</Tag> : <Tag color="orange">Cho TT</Tag>,
+              },
+              {
+                title: 'Ngay TT',
+                dataIndex: 'paidDate',
+                key: 'paidDate',
+                width: 110,
+                render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
+              },
+            ]}
+            summary={(data) => {
+              const totalSale = data.reduce((s, r) => s + r.saleAmount, 0);
+              const totalComm = data.reduce((s, r) => s + r.commissionAmount, 0);
+              return (
+                <Table.Summary.Row>
+                  <Table.Summary.Cell index={0} colSpan={5}><strong>Tong cong</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={5} align="right"><strong>{totalSale.toLocaleString()} d</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={6} />
+                  <Table.Summary.Cell index={7} align="right"><strong>{totalComm.toLocaleString()} d</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={8} />
+                  <Table.Summary.Cell index={9} />
+                </Table.Summary.Row>
+              );
+            }}
+          />
+          {/* Commission Modal */}
+          <Modal
+            title="Them hoa hong"
+            open={commissionModalOpen}
+            onOk={handleSaveCommission}
+            onCancel={() => setCommissionModalOpen(false)}
+            okText="Luu"
+            cancelText="Huy"
+          >
+            <Form form={commissionForm} layout="vertical">
+              <Form.Item name="doctorName" label="Bac si" rules={[{ required: true, message: 'Nhap ten bac si' }]}>
+                <Input />
+              </Form.Item>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="medicineName" label="Thuoc" rules={[{ required: true, message: 'Nhap ten thuoc' }]}>
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="saleDate" label="Ngay ban" rules={[{ required: true, message: 'Chon ngay' }]}>
+                    <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="quantity" label="So luong" rules={[{ required: true }]}>
+                    <InputNumber min={0} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="saleAmount" label="Doanh so (d)" rules={[{ required: true }]}>
+                    <InputNumber min={0} style={{ width: '100%' }} formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="commissionRate" label="Ti le (%)" rules={[{ required: true }]}>
+                    <InputNumber min={0} max={100} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Form>
+          </Modal>
         </>
       ),
     },

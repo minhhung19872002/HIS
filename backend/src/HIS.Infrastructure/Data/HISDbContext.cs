@@ -439,6 +439,11 @@ public class HISDbContext : DbContext
     public DbSet<ChronicDiseaseFollowUp> ChronicDiseaseFollowUps => Set<ChronicDiseaseFollowUp>();
     public DbSet<RetailSale> RetailSales => Set<RetailSale>();
     public DbSet<RetailSaleItem> RetailSaleItems => Set<RetailSaleItem>();
+    public DbSet<PharmacyCustomer> PharmacyCustomers => Set<PharmacyCustomer>();
+    public DbSet<PharmacyPointTransaction> PharmacyPointTransactions => Set<PharmacyPointTransaction>();
+    public DbSet<PharmacyShift> PharmacyShifts => Set<PharmacyShift>();
+    public DbSet<PharmacyGppRecord> PharmacyGppRecords => Set<PharmacyGppRecord>();
+    public DbSet<PharmacyCommission> PharmacyCommissions => Set<PharmacyCommission>();
     public DbSet<ClinicalGuidanceBatch> ClinicalGuidanceBatches => Set<ClinicalGuidanceBatch>();
     public DbSet<ClinicalGuidanceActivity> ClinicalGuidanceActivities => Set<ClinicalGuidanceActivity>();
     public DbSet<TbHivRecord> TbHivRecords => Set<TbHivRecord>();

@@ -110,3 +110,212 @@ public class MedicineForSaleDto
     public string? BatchNumber { get; set; }
     public string? ExpiryDate { get; set; }
 }
+
+// ====== NangCap17 Module C: Enhanced Pharmacy DTOs ======
+
+// --- Customer ---
+public class PharmacyCustomerSearchDto
+{
+    public string? Keyword { get; set; }
+    public int? CustomerType { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; } = 50;
+}
+
+public class PharmacyCustomerListDto
+{
+    public Guid Id { get; set; }
+    public string CustomerCode { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+    public int CustomerType { get; set; }
+    public string? CardNumber { get; set; }
+    public int TotalPoints { get; set; }
+    public decimal TotalPurchaseAmount { get; set; }
+    public int TotalPurchaseCount { get; set; }
+    public string? LastPurchaseDate { get; set; }
+}
+
+public class PharmacyCustomerDetailDto : PharmacyCustomerListDto
+{
+    public string? Address { get; set; }
+    public string? DateOfBirth { get; set; }
+    public int? Gender { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class SavePharmacyCustomerDto
+{
+    public Guid? Id { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+    public string? Address { get; set; }
+    public string? DateOfBirth { get; set; }
+    public int? Gender { get; set; }
+    public int CustomerType { get; set; } = 1;
+    public string? CardNumber { get; set; }
+    public string? Notes { get; set; }
+}
+
+// --- Point Transaction ---
+public class PharmacyPointTransactionDto
+{
+    public Guid Id { get; set; }
+    public Guid CustomerId { get; set; }
+    public int TransactionType { get; set; }
+    public int Points { get; set; }
+    public Guid? SaleId { get; set; }
+    public string? Description { get; set; }
+    public string? CreatedAt { get; set; }
+}
+
+public class AddPointsDto
+{
+    public Guid CustomerId { get; set; }
+    public int Points { get; set; }
+    public Guid? SaleId { get; set; }
+    public string? Description { get; set; }
+}
+
+public class RedeemPointsDto
+{
+    public Guid CustomerId { get; set; }
+    public int Points { get; set; }
+    public string? Description { get; set; }
+}
+
+// --- Shift ---
+public class PharmacyShiftSearchDto
+{
+    public string? FromDate { get; set; }
+    public string? ToDate { get; set; }
+    public Guid? CashierId { get; set; }
+    public int? Status { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; } = 50;
+}
+
+public class PharmacyShiftListDto
+{
+    public Guid Id { get; set; }
+    public string ShiftCode { get; set; } = string.Empty;
+    public Guid CashierId { get; set; }
+    public string? CashierName { get; set; }
+    public string? StartTime { get; set; }
+    public string? EndTime { get; set; }
+    public decimal OpeningCash { get; set; }
+    public decimal ClosingCash { get; set; }
+    public decimal TotalSales { get; set; }
+    public decimal TotalRefunds { get; set; }
+    public int Status { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class OpenShiftDto
+{
+    public decimal OpeningCash { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class CloseShiftDto
+{
+    public Guid ShiftId { get; set; }
+    public decimal ClosingCash { get; set; }
+    public string? Notes { get; set; }
+}
+
+// --- GPP Record ---
+public class PharmacyGppRecordSearchDto
+{
+    public string? Keyword { get; set; }
+    public int? RecordType { get; set; }
+    public string? FromDate { get; set; }
+    public string? ToDate { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; } = 50;
+}
+
+public class PharmacyGppRecordListDto
+{
+    public Guid Id { get; set; }
+    public int RecordType { get; set; }
+    public string? RecordDate { get; set; }
+    public string? Description { get; set; }
+    public string? MedicineName { get; set; }
+    public string? BatchNumber { get; set; }
+    public decimal? Temperature { get; set; }
+    public decimal? Humidity { get; set; }
+    public string? ActionTaken { get; set; }
+    public string? RecordedByName { get; set; }
+}
+
+public class SavePharmacyGppRecordDto
+{
+    public Guid? Id { get; set; }
+    public int RecordType { get; set; }
+    public string? RecordDate { get; set; }
+    public string? Description { get; set; }
+    public string? MedicineName { get; set; }
+    public string? BatchNumber { get; set; }
+    public decimal? Temperature { get; set; }
+    public decimal? Humidity { get; set; }
+    public string? ActionTaken { get; set; }
+}
+
+// --- Commission ---
+public class PharmacyCommissionSearchDto
+{
+    public string? Keyword { get; set; }
+    public int? Status { get; set; }
+    public string? FromDate { get; set; }
+    public string? ToDate { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; } = 50;
+}
+
+public class PharmacyCommissionListDto
+{
+    public Guid Id { get; set; }
+    public string? DoctorName { get; set; }
+    public string? SaleDate { get; set; }
+    public string? MedicineName { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal SaleAmount { get; set; }
+    public decimal CommissionRate { get; set; }
+    public decimal CommissionAmount { get; set; }
+    public int Status { get; set; }
+    public string? PaidDate { get; set; }
+}
+
+public class SavePharmacyCommissionDto
+{
+    public Guid? Id { get; set; }
+    public Guid? DoctorId { get; set; }
+    public string? DoctorName { get; set; }
+    public Guid? SaleId { get; set; }
+    public string? SaleDate { get; set; }
+    public string? MedicineName { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal SaleAmount { get; set; }
+    public decimal CommissionRate { get; set; }
+}
+
+public class PayCommissionDto
+{
+    public List<Guid> CommissionIds { get; set; } = new();
+}
+
+// --- Enhanced Dashboard ---
+public class PharmacyEnhancedDashboardDto
+{
+    public decimal TodayRevenue { get; set; }
+    public int TodaySaleCount { get; set; }
+    public int LowStockCount { get; set; }
+    public int TotalCustomers { get; set; }
+    public int VipCustomers { get; set; }
+    public int OpenShiftCount { get; set; }
+    public int TodayGppRecords { get; set; }
+    public decimal PendingCommission { get; set; }
+}
