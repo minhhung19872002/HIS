@@ -141,6 +141,17 @@ const OPD_RECORD_TYPES = [
   { value: 'ngoai_tru_phcn', label: 'Bệnh án ngoại trú Phục hồi chức năng', code: '29/BV-01' },
 ];
 
+// Module-level constants (avoid re-creation in render)
+const QUEUE_STATUS_COLORS: Record<number, string> = {
+  0: 'orange', 1: 'blue', 2: 'cyan', 3: 'purple', 4: 'green',
+};
+const EXAM_STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: 'Nháp', color: 'default' },
+  1: { text: 'Đang khám', color: 'blue' },
+  2: { text: 'Hoàn thành', color: 'green' },
+  3: { text: 'Đã hủy', color: 'red' },
+};
+
 const OPD: React.FC = () => {
   // State for room selection
   const [rooms, setRooms] = useState<RoomDto[]>([]);
@@ -1637,16 +1648,9 @@ const OPD: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'statusName',
       width: 110,
-      render: (statusName, record) => {
-        const colorMap: Record<number, string> = {
-          0: 'orange',   // Chờ khám
-          1: 'blue',     // Đang khám
-          2: 'cyan',     // Chờ CLS
-          3: 'purple',   // Chờ kết luận
-          4: 'green',    // Hoàn thành
-        };
-        return <Tag color={colorMap[record.status] || 'default'}>{statusName || 'Chờ khám'}</Tag>;
-      },
+      render: (statusName, record) => (
+        <Tag color={QUEUE_STATUS_COLORS[record.status] || 'default'}>{statusName || 'Chờ khám'}</Tag>
+      ),
     },
   ];
 
@@ -2759,13 +2763,7 @@ const OPD: React.FC = () => {
               title: 'Trạng thái',
               dataIndex: 'status',
               render: (status) => {
-                const statusMap = {
-                  0: { text: 'Nháp', color: 'default' },
-                  1: { text: 'Đang khám', color: 'blue' },
-                  2: { text: 'Hoàn thành', color: 'green' },
-                  3: { text: 'Đã hủy', color: 'red' },
-                };
-                const s = statusMap[status as keyof typeof statusMap] || statusMap[0];
+                const s = EXAM_STATUS_MAP[status as number] || EXAM_STATUS_MAP[0];
                 return <Tag color={s.color}>{s.text}</Tag>;
               },
             },

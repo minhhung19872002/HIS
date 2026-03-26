@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Row, Col, Card, Statistic, Typography, Spin, Tag, message, Progress, Badge, Button, Segmented, Empty } from 'antd';
 import {
   UserOutlined,
@@ -210,18 +210,18 @@ const Dashboard: React.FC = () => {
   const maxDeptCount = Math.max(...data.outpatientByDepartment.map(d => d.count), 1);
   const maxDeptRevenue = Math.max(...data.revenueByDepartment.map(d => d.revenue), 1);
 
-  // Pie chart data for patient distribution
-  const pieData = [
+  // Memoize chart data to avoid re-computation on every render
+  const pieData = useMemo(() => [
     { name: 'Ngoại trú', value: data.outpatientCount, color: '#1890ff' },
     { name: 'Cấp cứu', value: data.emergencyCount, color: '#ff4d4f' },
     { name: 'Nội trú', value: data.inpatientCount, color: '#faad14' },
-  ].filter(d => d.value > 0);
+  ].filter(d => d.value > 0), [data.outpatientCount, data.emergencyCount, data.inpatientCount]);
 
-  // Bar chart data for department breakdown (top 8)
-  const deptBarData = data.outpatientByDepartment
+  const deptBarData = useMemo(() => [...data.outpatientByDepartment]
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
-    .map(d => ({ name: d.departmentName.length > 12 ? d.departmentName.substring(0, 12) + '...' : d.departmentName, 'Bệnh nhân': d.count }));
+    .map(d => ({ name: d.departmentName.length > 12 ? d.departmentName.substring(0, 12) + '...' : d.departmentName, 'Bệnh nhân': d.count })),
+    [data.outpatientByDepartment]);
 
   return (
     <Spin spinning={loading}>
