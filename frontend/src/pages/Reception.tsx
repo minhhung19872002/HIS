@@ -929,148 +929,132 @@ const Reception: React.FC = () => {
     }
   };
 
+  // Computed stats
+  const totalPatients = data.length;
+  const waitingCount = data.filter(d => d.status === 0).length;
+  const examiningCount = data.filter(d => d.status === 1).length;
+  const completedCount = data.filter(d => d.status === 3).length;
+
+  const statCards = [
+    { label: 'Tổng BN hôm nay', value: totalPatients, icon: <UserOutlined style={{ fontSize: 28 }} />, gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', iconBg: 'rgba(255,255,255,0.2)' },
+    { label: 'Đang chờ khám', value: waitingCount, icon: <Badge status="warning" text="" />, gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', iconBg: 'rgba(255,255,255,0.2)' },
+    { label: 'Đang khám', value: examiningCount, icon: <Badge status="processing" text="" />, gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', iconBg: 'rgba(255,255,255,0.2)' },
+    { label: 'Hoàn thành', value: completedCount, icon: <CheckCircleOutlined style={{ fontSize: 28 }} />, gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', iconBg: 'rgba(255,255,255,0.2)' },
+  ];
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Tiếp đón bệnh nhân</Title>
-        <Button icon={<ReloadOutlined />} onClick={() => { fetchRooms(); fetchAdmissions(); }} size="small">Làm mới</Button>
+    <div style={{ padding: '0 4px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <Title level={4} style={{ margin: 0, letterSpacing: '-0.5px' }}>Tiếp đón bệnh nhân</Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>{dayjs().format('dddd, DD/MM/YYYY')} &middot; {data.length} bệnh nhân</Text>
+        </div>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={() => { fetchRooms(); fetchAdmissions(); }}>Làm mới</Button>
+          <Button icon={<QrcodeOutlined />} onClick={() => setIsVerifyModalOpen(true)}>Tra cứu BHYT</Button>
+          <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => setIsModalOpen(true)}
+            style={{ borderRadius: 8, fontWeight: 600, height: 40, paddingInline: 24 }}>
+            Đăng ký khám
+          </Button>
+        </Space>
       </div>
 
-      {/* Thống kê tổng quan */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Tổng BN hôm nay"
-              value={data.length}
-              prefix={<UserOutlined />}
-              styles={{ content: { color: '#1890ff' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Đang chờ khám"
-              value={data.filter(d => d.status === 0).length}
-              prefix={<Badge status="warning" />}
-              styles={{ content: { color: '#faad14' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Đang khám"
-              value={data.filter(d => d.status === 1).length}
-              prefix={<Badge status="processing" />}
-              styles={{ content: { color: '#1890ff' } }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Hoàn thành"
-              value={data.filter(d => d.status === 3).length}
-              prefix={<CheckCircleOutlined />}
-              styles={{ content: { color: '#52c41a' } }}
-            />
-          </Card>
-        </Col>
+      {/* Stat Cards with Gradient */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        {statCards.map((card, idx) => (
+          <Col xs={12} sm={12} lg={6} key={idx}>
+            <Card
+              style={{
+                background: card.gradient,
+                borderRadius: 12,
+                border: 'none',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+                overflow: 'hidden',
+              }}
+              styles={{ body: { padding: '20px 24px' } }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginBottom: 8 }}>{card.label}</div>
+                  <div style={{ color: '#fff', fontSize: 32, fontWeight: 700, lineHeight: 1 }}>{card.value}</div>
+                </div>
+                <div style={{
+                  width: 52, height: 52, borderRadius: 12, background: card.iconBg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                }}>
+                  {card.icon}
+                </div>
+              </div>
+            </Card>
+          </Col>
+        ))}
       </Row>
 
-      <Card>
+      {/* Main Content */}
+      <Card style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }} styles={{ body: { padding: 0 } }}>
         <Tabs
+          style={{ padding: '0 16px' }}
           items={[
             {
               key: 'list',
-              label: 'Danh sách tiếp đón',
+              label: <span style={{ fontWeight: 500 }}>Danh sách tiếp đón</span>,
               children: (
-                <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col flex="auto">
-                      <Space>
-                        <Search
-                          placeholder="Tìm theo mã BN, tên, SĐT, CCCD..."
-                          allowClear
-                          enterButton={<SearchOutlined />}
-                          style={{ width: 350 }}
-                          value={searchText}
-                          onSearch={(value) => {
-                            setSearchText(value);
-                            applyFilters(allData, value, filterStatus);
-                          }}
-                          onChange={(e) => {
-                            setSearchText(e.target.value);
-                            if (!e.target.value) {
-                              applyFilters(allData, '', filterStatus);
-                            }
-                          }}
-                        />
-                        <Tooltip title="Quét mã vạch / QR Code">
-                          <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} />
-                        </Tooltip>
-                        <Select
-                          defaultValue=""
-                          style={{ width: 180 }}
-                          placeholder="Phòng khám"
-                          loading={loadingRooms}
-                          notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Không có dữ liệu' : undefined)}
-                          onChange={(roomId) => {
-                            if (roomId) {
-                              const filtered = allData.filter(p => p.roomId === roomId);
-                              setData(filtered);
-                            } else {
-                              applyFilters(allData, searchText, filterStatus);
-                            }
-                          }}
-                          options={[
-                            { value: '', label: 'Tất cả phòng' },
-                            ...rooms.map(room => ({ value: room.roomId, label: room.roomName })),
-                          ]}
-                        />
-                        <Select
-                          defaultValue=""
-                          style={{ width: 120 }}
-                          placeholder="Trạng thái"
-                          onChange={(value) => {
-                            setFilterStatus(value);
-                            applyFilters(allData, searchText, value);
-                          }}
-                          options={[
-                            { value: '', label: 'Tất cả' },
-                            { value: '0', label: 'Chờ khám' },
-                            { value: '1', label: 'Đang khám' },
-                            { value: '2', label: 'Chờ kết luận' },
-                            { value: '3', label: 'Hoàn thành' },
-                          ]}
-                        />
-                        <DatePicker
-                          value={filterDate}
-                          format="DD/MM/YYYY"
-                          onChange={(date) => {
-                            setFilterDate(date);
-                            if (date) {
-                              fetchAdmissions(date.format('YYYY-MM-DD'));
-                            } else {
-                              fetchAdmissions();
-                            }
-                          }}
-                        />
-                      </Space>
-                    </Col>
-                    <Col>
-                      <Space>
-                        <Button icon={<QrcodeOutlined />} onClick={() => setIsVerifyModalOpen(true)}>
-                          Tra cứu BHYT
-                        </Button>
-                        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-                          Đăng ký khám
-                        </Button>
-                      </Space>
-                    </Col>
-                  </Row>
+                <div style={{ padding: '0 8px 16px' }}>
+                  {/* Filters Row */}
+                  <div style={{
+                    display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
+                    marginBottom: 16, padding: '12px 16px',
+                    background: '#f8f9fb', borderRadius: 10,
+                  }}>
+                    <Search
+                      placeholder="Tìm theo mã BN, tên, SĐT, CCCD..."
+                      allowClear
+                      enterButton={<SearchOutlined />}
+                      style={{ width: 320, flexShrink: 0 }}
+                      value={searchText}
+                      onSearch={(value) => { setSearchText(value); applyFilters(allData, value, filterStatus); }}
+                      onChange={(e) => { setSearchText(e.target.value); if (!e.target.value) applyFilters(allData, '', filterStatus); }}
+                    />
+                    <Tooltip title="Quét mã vạch / QR Code">
+                      <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} style={{ borderRadius: 8 }} />
+                    </Tooltip>
+                    <Select
+                      defaultValue=""
+                      style={{ width: 170 }}
+                      placeholder="Phòng khám"
+                      loading={loadingRooms}
+                      notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Không có dữ liệu' : undefined)}
+                      onChange={(roomId) => {
+                        if (roomId) { setData(allData.filter(p => p.roomId === roomId)); }
+                        else { applyFilters(allData, searchText, filterStatus); }
+                      }}
+                      options={[{ value: '', label: 'Tất cả phòng' }, ...rooms.map(room => ({ value: room.roomId, label: room.roomName }))]}
+                    />
+                    <Select
+                      defaultValue=""
+                      style={{ width: 130 }}
+                      placeholder="Trạng thái"
+                      onChange={(value) => { setFilterStatus(value); applyFilters(allData, searchText, value); }}
+                      options={[
+                        { value: '', label: 'Tất cả' },
+                        { value: '0', label: 'Chờ khám' },
+                        { value: '1', label: 'Đang khám' },
+                        { value: '2', label: 'Chờ kết luận' },
+                        { value: '3', label: 'Hoàn thành' },
+                      ]}
+                    />
+                    <DatePicker
+                      value={filterDate}
+                      format="DD/MM/YYYY"
+                      style={{ borderRadius: 8 }}
+                      onChange={(date) => {
+                        setFilterDate(date);
+                        if (date) fetchAdmissions(date.format('YYYY-MM-DD'));
+                        else fetchAdmissions();
+                      }}
+                    />
+                  </div>
 
                   <Table
                     columns={columns}
@@ -1082,67 +1066,69 @@ const Reception: React.FC = () => {
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
-                      showTotal: (total) => `Tổng: ${total} bệnh nhân`,
+                      showTotal: (total) => <Text type="secondary">Tổng: <strong>{total}</strong> bệnh nhân</Text>,
                     }}
                     rowClassName={(record) =>
                       record.priority === 2 ? 'emergency-row' : record.priority === 1 ? 'priority-row' : ''
                     }
                     onRow={(record) => ({
-                      onDoubleClick: () => {
-                        setSelectedRecord(record);
-                        setIsDetailModalOpen(true);
-                      },
+                      onDoubleClick: () => { setSelectedRecord(record); setIsDetailModalOpen(true); },
                       style: { cursor: 'pointer' },
                     })}
                   />
-                </>
+                </div>
               ),
             },
             {
               key: 'stats',
-              label: 'Thống kê phòng khám',
+              label: <span style={{ fontWeight: 500 }}>Thống kê phòng khám</span>,
               children: (
-                <Row gutter={[16, 16]}>
-                  {roomStats.map((room) => (
-                    <Col span={8} key={room.roomId}>
-                      <Card
-                        title={
-                          <Space>
-                            <Badge status={room.totalServing > 0 ? 'processing' : 'default'} />
-                            {room.roomName}
-                          </Space>
-                        }
-                        extra={<Tag color="blue">{room.departmentName}</Tag>}
-                      >
-                        <Descriptions column={1} size="small">
-                          <Descriptions.Item label="Bác sĩ">{room.doctorName}</Descriptions.Item>
-                          <Descriptions.Item label="Số hiện tại">
-                            <Text strong style={{ fontSize: 18, color: '#1890ff' }}>
-                              {room.currentNumber}
-                            </Text>
-                          </Descriptions.Item>
-                        </Descriptions>
-                        <Divider style={{ margin: '12px 0' }} />
-                        <Row gutter={8}>
-                          <Col span={8}>
-                            <Statistic title="Chờ" value={room.totalWaiting} styles={{ content: { color: '#faad14' } }} />
-                          </Col>
-                          <Col span={8}>
-                            <Statistic title="Đang khám" value={room.totalServing} styles={{ content: { color: '#1890ff' } }} />
-                          </Col>
-                          <Col span={8}>
-                            <Statistic title="Hoàn thành" value={room.totalCompleted} styles={{ content: { color: '#52c41a' } }} />
-                          </Col>
-                        </Row>
-                        <Progress
-                          percent={Math.round((room.totalCompleted / (room.totalWaiting + room.totalServing + room.totalCompleted)) * 100)}
-                          size="small"
-                          style={{ marginTop: 12 }}
-                        />
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
+                <div style={{ padding: '8px 8px 16px' }}>
+                  <Row gutter={[16, 16]}>
+                    {roomStats.map((room) => {
+                      const total = room.totalWaiting + room.totalServing + room.totalCompleted;
+                      const pct = total > 0 ? Math.round((room.totalCompleted / total) * 100) : 0;
+                      return (
+                        <Col xs={24} sm={12} lg={8} key={room.roomId}>
+                          <Card
+                            style={{ borderRadius: 12, border: room.totalServing > 0 ? '1px solid #91caff' : undefined }}
+                            styles={{ body: { padding: 20 } }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                              <Space>
+                                <Badge status={room.totalServing > 0 ? 'processing' : 'default'} />
+                                <Text strong style={{ fontSize: 15 }}>{room.roomName}</Text>
+                              </Space>
+                              <Tag color="blue" style={{ borderRadius: 6 }}>{room.departmentName}</Tag>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                              <div style={{ flex: 1, textAlign: 'center', padding: '8px 0', background: '#fff7e6', borderRadius: 8 }}>
+                                <div style={{ fontSize: 22, fontWeight: 700, color: '#d48806' }}>{room.totalWaiting}</div>
+                                <div style={{ fontSize: 11, color: '#d48806' }}>Chờ</div>
+                              </div>
+                              <div style={{ flex: 1, textAlign: 'center', padding: '8px 0', background: '#e6f4ff', borderRadius: 8 }}>
+                                <div style={{ fontSize: 22, fontWeight: 700, color: '#1677ff' }}>{room.totalServing}</div>
+                                <div style={{ fontSize: 11, color: '#1677ff' }}>Đang khám</div>
+                              </div>
+                              <div style={{ flex: 1, textAlign: 'center', padding: '8px 0', background: '#f6ffed', borderRadius: 8 }}>
+                                <div style={{ fontSize: 22, fontWeight: 700, color: '#389e0d' }}>{room.totalCompleted}</div>
+                                <div style={{ fontSize: 11, color: '#389e0d' }}>Xong</div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>BS: {room.doctorName || '—'}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>{pct}%</Text>
+                            </div>
+                            <Progress percent={pct} size="small" showInfo={false} strokeColor={{ from: '#4facfe', to: '#43e97b' }} />
+                          </Card>
+                        </Col>
+                      );
+                    })}
+                    {roomStats.length === 0 && (
+                      <Col span={24}><Empty description="Không có dữ liệu phòng khám" /></Col>
+                    )}
+                  </Row>
+                </div>
               ),
             },
           ]}

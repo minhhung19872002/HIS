@@ -223,3 +223,19 @@ body {
     display: none;
   }
 }
+
+/* Reception page - Priority row highlights */
+.emergency-row {
+  background: linear-gradient(90deg, #fff1f0 0%, #fff 40%) !important;
+  border-left: 3px solid #ff4d4f !important;
+}
+.emergency-row:hover > td {
+  background: #fff1f0 !important;
+}
+.priority-row {
+  background: linear-gradient(90deg, #fffbe6 0%, #fff 40%) !important;
+  border-left: 3px solid #faad14 !important;
+}
+.priority-row:hover > td {
+  background: #fffbe6 !important;
+}
