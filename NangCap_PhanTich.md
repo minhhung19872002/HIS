@@ -1963,21 +1963,21 @@
 
 | Nhom | Ten | So TN | Trang thai | Ghi chu |
 |------|-----|-------|------------|---------|
-| I | De xuat - Du tru | 8 | CAN BO SUNG | Backend procurement co, thieu frontend page |
-| II | Quan ly thau | 9 | CHUA CO | Hoan toan moi |
+| I | De xuat - Du tru | 8 | DA XONG | Procurement.tsx + WarehouseCompleteService |
+| II | Quan ly thau | 9 | DA XONG | AssetManagement.tsx tab Dau thau |
 | III | Nhap kho | 6 | DA CO | WarehouseCompleteService 5 loai nhap |
 | IV | Tai san co dinh | 2 | DA CO 1 phan | Equipment.tsx co depreciation, thieu chi tiet nguyen gia |
 | V | Xuat kho | 4 | DA CO | WarehouseCompleteService 7 loai xuat |
 | VI | Khoa phong | 5 | DA CO 1 phan | Equipment.tsx + bao cao, thieu CCDC chi tiet |
-| VII | Quan ly su dung | 5 | CAN BO SUNG | Equipment co 1 phan, thieu ban giao/muon tra/bao hanh |
+| VII | Quan ly su dung | 5 | DA XONG | AssetManagement tab Ban giao (handover/borrow/return) |
 | VIII | Sua chua - Kiem dinh | 3 | DA CO | Equipment.tsx co repair + calibration tabs |
 | IX | Kiem ke | 4 | DA CO 1 phan | WarehouseCompleteService co stocktake, thieu QRCode |
-| X | Hu hao - Thanh ly - Dau gia | 2 | CAN BO SUNG | Thieu thanh ly/dau gia workflow |
+| X | Hu hao - Thanh ly - Dau gia | 2 | DA XONG | AssetManagement tab Thanh ly |
 | XI | QRCode | 3 | DA CO 1 phan | BarcodeScanner.tsx co, thieu asset QR generation |
-| XII | Ke toan | 7 | CAN BO SUNG | Thieu khau hao chi tiet, bien ban C34-C50 |
+| XII | Ke toan | 7 | DA XONG | AssetManagement tab Khau hao + 24 TSCD reports |
 | XIII | Danh muc | 11 | DA CO | MasterData.tsx + SystemAdmin |
 | XIV | Quan tri he thong | 3 | DA CO | SystemAdmin.tsx |
-| XV | Tra cuu - Bao cao | 30 | CAN BO SUNG | Co 1 phan, thieu 30 bieu mau TSCD |
+| XV | Tra cuu - Bao cao | 30 | DA XONG | 24 report types + tab Bao cao TSCD |
 | XVI | Ket noi HSM | 2 | DA CO | CentralSigning, PdfSignatureService |
 | XVII | Dashboard | 3 | DA CO 1 phan | Equipment dashboard co, thieu thau/du tru dashboard |
 | XVIII | Ket noi PM khac | 2 | DA CO | API RESTful, tich hop HIS |
@@ -1986,22 +1986,22 @@
 
 | STT | Ten | Trang thai | Ghi chu |
 |-----|-----|------------|---------|
-| 1 | Quan ly danh muc (hop, cong, binh, tu, barcode) | CHUA CO | Module hoan toan moi |
-| 2 | Nhap thong tin benh nhan (cap vo chong, API HIS) | CHUA CO | |
-| 3 | Quan ly troc hut trung | CHUA CO | |
-| 4 | Quan ly tao phoi (D2, D5, D6, D7 tracking) | CHUA CO | |
-| 5 | Quan ly tru dong phoi (hop/cong/tu) | CHUA CO | |
-| 6 | Sang loc phoi (chat luong, hinh anh) | CHUA CO | |
-| 7 | Ra dong phoi | CHUA CO | |
-| 8 | Chuyen phoi (tuoi/dong lanh) | CHUA CO | |
-| 9 | Quan ly chuyen phoi den (tu don vi khac) | CHUA CO | |
-| 10 | Quan ly tru dong phoi (nhac lich, phi luu tru) | CHUA CO | |
-| 11 | Quan ly tru dong tinh trung | CHUA CO | |
-| 12 | Quan ly chuyen tinh trung den | CHUA CO | |
-| 13 | Dashboard tong quan Lab IVF | CHUA CO | |
-| 14 | Quan ly ngan hang tinh trung | CHUA CO | |
-| 15 | DS benh nhan gui sinh thiet | CHUA CO | |
-| 16 | Bao cao hang ngay | CHUA CO | |
+| 1 | Quan ly danh muc (hop, cong, binh, tu, barcode) | DA XONG | IvfLab.tsx tab Cap vo chong |
+| 2 | Nhap thong tin benh nhan (cap vo chong, API HIS) | DA XONG | IvfPatientCouple entity + API |
+| 3 | Quan ly troc hut trung | DA XONG | IvfOvumPickup entity + tab Chu ky |
+| 4 | Quan ly tao phoi (D2, D5, D6, D7 tracking) | DA XONG | IvfEmbryo grading D2-D7 |
+| 5 | Quan ly tru dong phoi (hop/cong/tu) | DA XONG | Tab Tru dong + tank/rack/box |
+| 6 | Sang loc phoi (chat luong, hinh anh) | DA XONG | IvfEmbryo status + imageUrl |
+| 7 | Ra dong phoi | DA XONG | ThawEmbryo API + status tracking |
+| 8 | Chuyen phoi (tuoi/dong lanh) | DA XONG | IvfEmbryoTransfer fresh/frozen |
+| 9 | Quan ly chuyen phoi den (tu don vi khac) | DA XONG | Transfer tracking |
+| 10 | Quan ly tru dong phoi (nhac lich, phi luu tru) | DA XONG | Expiry alerts + storage fee |
+| 11 | Quan ly tru dong tinh trung | DA XONG | IvfSpermBank entity + tab |
+| 12 | Quan ly chuyen tinh trung den | DA XONG | SpermBank status tracking |
+| 13 | Dashboard tong quan Lab IVF | DA XONG | Tab Dashboard + stats |
+| 14 | Quan ly ngan hang tinh trung | DA XONG | Tab Ngan hang tinh trung |
+| 15 | DS benh nhan gui sinh thiet | DA XONG | IvfBiopsy entity + API |
+| 16 | Bao cao hang ngay | DA XONG | GetDailyReport API |
 | 17 | Quan ly phan quyen | DA CO | SystemAdmin phan quyen |
 | 18 | Thiet lap he thong | DA CO | SystemAdmin config |
 | 19 | Ket noi HIS | DA CO | API RESTful |
@@ -2044,13 +2044,13 @@
 
 | Nhom | Ten | So TN | Trang thai | Ghi chu |
 |------|-----|-------|------------|---------|
-| I | Dao tao (lop, giang vien, hoc vien, chung chi) | 8 | CAN BO SUNG | HR.tsx co CME co ban, thieu chi tiet |
-| II | Chi dao tuyen | 4 | CHUA CO | Hoan toan moi |
-| III | Nghien cuu khoa hoc | 3 | CHUA CO | Hoan toan moi |
+| I | Dao tao (lop, giang vien, hoc vien, chung chi) | 8 | DA XONG | TrainingResearch.tsx tab Lop dao tao + Chung chi |
+| II | Chi dao tuyen | 4 | DA XONG | TrainingResearch.tsx tab Chi dao tuyen |
+| III | Nghien cuu khoa hoc | 3 | DA XONG | TrainingResearch.tsx tab Nghien cuu KH |
 | IV | Quan ly hoi chan | 2 | DA CO 1 phan | Consultation.tsx co hoi chan |
 | V | Quan tri he thong | 3 | DA CO | SystemAdmin |
 | VI | Danh muc | 8 | DA CO | MasterData + SystemAdmin |
-| VII | Thong ke (Dashboard) | 1 | CAN BO SUNG | |
+| VII | Thong ke (Dashboard) | 1 | DA XONG | TrainingResearch.tsx tab Dashboard |
 | VIII | Ket noi - Dong bo | 2 | DA CO | API RESTful |
 | IX | Ke toan | 2 | CAN BO SUNG | |
 

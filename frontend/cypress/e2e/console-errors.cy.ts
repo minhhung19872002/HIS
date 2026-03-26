@@ -87,6 +87,7 @@ const pages = [
   { route: '/practice-license', name: 'Practice License (Hanh nghe)' },
   { route: '/inter-hospital', name: 'Inter Hospital Sharing (Lien vien)' },
   { route: '/asset-management', name: 'Asset Management (Tai san CCDC)' },
+  { route: '/procurement', name: 'Procurement (De xuat Du tru)' },
   { route: '/training-research', name: 'Training Research (Dao tao NCKH)' },
 ];
 

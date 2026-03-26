@@ -95,6 +95,7 @@ const PracticeLicense = lazy(() => import('./pages/PracticeLicense'));
 const InterHospitalSharing = lazy(() => import('./pages/InterHospitalSharing'));
 const AssetManagement = lazy(() => import('./pages/AssetManagement'));
 const TrainingResearch = lazy(() => import('./pages/TrainingResearch'));
+const Procurement = lazy(() => import('./pages/Procurement'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -227,6 +228,7 @@ const AppRoutes: React.FC = () => {
           <Route path="inter-hospital" element={<InterHospitalSharing />} />
           <Route path="asset-management" element={<AssetManagement />} />
           <Route path="training-research" element={<TrainingResearch />} />
+          <Route path="procurement" element={<Procurement />} />
           {/* Redirect aliases */}
           <Route path="inpatient" element={<Navigate to="/ipd" replace />} />
           <Route path="laboratory" element={<Navigate to="/lab" replace />} />

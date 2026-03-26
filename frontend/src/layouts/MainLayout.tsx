@@ -194,6 +194,7 @@ const MainLayout: React.FC = () => {
         { key: '/infection-control', icon: <AlertOutlined />, label: 'KSNK' },
         { key: '/equipment', icon: <ToolOutlined />, label: 'Thiết bị y tế' },
         { key: '/asset-management', icon: <DatabaseOutlined />, label: 'Tài sản - CCDC' },
+        { key: '/procurement', icon: <InboxOutlined />, label: 'Đề xuất - Dự trù' },
         { key: '/hr', icon: <SolutionOutlined />, label: 'Nhân sự' },
         { key: '/training-research', icon: <ReadOutlined />, label: 'Đào tạo - NCKH' },
         { key: '/quality', icon: <AuditOutlined />, label: 'Chất lượng' },
