@@ -64,7 +64,8 @@ const BookingManagement = () => {
       });
       setBookings(result.items);
       setTotalBookings(result.totalCount);
-    } catch {
+    } catch (err) {
+      console.warn('Load bookings:', err);
       message.warning('Không thể tải danh sách lịch hẹn');
     } finally {
       setLoading(false);
@@ -80,7 +81,8 @@ const BookingManagement = () => {
         toDate: dayjs().add(14, 'day').format('YYYY-MM-DD'),
       });
       setSchedules(result);
-    } catch {
+    } catch (err) {
+      console.warn('Load doctor schedules:', err);
       message.warning('Không thể tải lịch bác sĩ');
     } finally {
       setLoading(false);
@@ -92,7 +94,8 @@ const BookingManagement = () => {
     try {
       const result = await bookingApi.getBookingStats(statsDate.format('YYYY-MM-DD'));
       setStats(result);
-    } catch {
+    } catch (err) {
+      console.warn('Load booking stats:', err);
       message.warning('Không thể tải thống kê');
     }
   }, [statsDate]);
@@ -109,7 +112,7 @@ const BookingManagement = () => {
       await bookingApi.confirmBooking(code);
       message.success('Đã xác nhận');
       fetchBookings();
-    } catch { message.warning('Lỗi xác nhận'); }
+    } catch (err) { console.warn('Confirm booking:', err); message.warning('Lỗi xác nhận'); }
   };
 
   const handleCheckin = async (code: string) => {
@@ -117,7 +120,7 @@ const BookingManagement = () => {
       await bookingApi.checkInBooking(code);
       message.success('Đã check-in');
       fetchBookings();
-    } catch { message.warning('Lỗi check-in'); }
+    } catch (err) { console.warn('Check-in booking:', err); message.warning('Lỗi check-in'); }
   };
 
   const handleNoShow = async (code: string) => {
@@ -125,7 +128,7 @@ const BookingManagement = () => {
       await bookingApi.markNoShow(code);
       message.success('Đã đánh dấu không đến');
       fetchBookings();
-    } catch { message.warning('Lỗi cập nhật'); }
+    } catch (err) { console.warn('Mark no-show:', err); message.warning('Lỗi cập nhật'); }
   };
 
   // Schedule CRUD
@@ -151,7 +154,7 @@ const BookingManagement = () => {
       scheduleForm.resetFields();
       setEditingSchedule(null);
       fetchSchedules();
-    } catch { message.warning('Vui lòng điền đầy đủ thông tin'); }
+    } catch (err) { console.warn('Save schedule:', err); message.warning('Vui lòng điền đầy đủ thông tin'); }
   };
 
   const handleDeleteSchedule = async (id: string) => {
@@ -159,7 +162,7 @@ const BookingManagement = () => {
       await bookingApi.deleteDoctorSchedule(id);
       message.success('Đã xóa');
       fetchSchedules();
-    } catch { message.warning('Lỗi xóa'); }
+    } catch (err) { console.warn('Delete schedule:', err); message.warning('Lỗi xóa'); }
   };
 
   const openScheduleModal = (schedule?: DoctorScheduleListDto) => {

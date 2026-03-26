@@ -245,7 +245,7 @@ const HealthExchange: React.FC = () => {
       await nationalRxApi.submitPrescription(id);
       message.success('Đã gửi đơn thuốc lên Cổng quốc gia');
       fetchNationalRx();
-    } catch { message.warning('Không thể gửi đơn thuốc'); }
+    } catch (err) { console.warn('Submit national prescription:', err); message.warning('Không thể gửi đơn thuốc'); }
   };
 
   const handleBatchSubmitNationalRx = async () => {
@@ -255,7 +255,7 @@ const HealthExchange: React.FC = () => {
       message.success(`Gửi thành công ${result.successCount}/${selectedNationalRxIds.length} đơn thuốc`);
       setSelectedNationalRxIds([]);
       fetchNationalRx();
-    } catch { message.warning('Không thể gửi hàng loạt'); }
+    } catch (err) { console.warn('Batch submit national prescriptions:', err); message.warning('Không thể gửi hàng loạt'); }
   };
 
   // ==================== Provincial Health Monitoring ====================
@@ -283,7 +283,7 @@ const HealthExchange: React.FC = () => {
       await provincialApi.generateReport(reportType, period);
       message.success('Đã tạo báo cáo');
       fetchProvReports();
-    } catch { message.warning('Không thể tạo báo cáo'); }
+    } catch (err) { console.warn('Generate provincial report:', err); message.warning('Không thể tạo báo cáo'); }
   };
 
   const handleSubmitProvReport = async (id: string) => {
@@ -291,7 +291,7 @@ const HealthExchange: React.FC = () => {
       await provincialApi.submitReport(id);
       message.success('Đã gửi báo cáo lên Sở Y tế');
       fetchProvReports();
-    } catch { message.warning('Không thể gửi báo cáo'); }
+    } catch (err) { console.warn('Submit provincial report:', err); message.warning('Không thể gửi báo cáo'); }
   };
 
   // ==================== FHIR Handlers ====================

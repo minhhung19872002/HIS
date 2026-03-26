@@ -279,8 +279,79 @@ public class ForensicService : IForensicService
         catch { return new ForensicStatsDto(); }
     }
 
-    public Task<byte[]> PrintCertificateAsync(Guid caseId)
+    public async Task<byte[]> PrintCertificateAsync(Guid caseId)
     {
-        return Task.FromResult(Array.Empty<byte>());
+        try
+        {
+            var c = await _context.ForensicCases
+                .Include(x => x.Examinations.Where(e => !e.IsDeleted))
+                .FirstOrDefaultAsync(x => x.Id == caseId && !x.IsDeleted);
+            if (c == null) return Array.Empty<byte>();
+
+            var genderText = c.Gender == 1 ? "Nam" : c.Gender == 2 ? "Nữ" : "Khác";
+            var dob = c.DateOfBirth?.ToString("dd/MM/yyyy") ?? "";
+            var examDate = c.ExaminationDate?.ToString("dd/MM/yyyy") ?? "";
+            var requestDate = c.RequestDate?.ToString("dd/MM/yyyy") ?? "";
+
+            var examRows = "";
+            int idx = 0;
+            foreach (var e in c.Examinations)
+            {
+                idx++;
+                examRows += $@"<tr><td style=""text-align:center"">{idx}</td><td>{System.Net.WebUtility.HtmlEncode(e.ExamCategory ?? "")}</td><td>{System.Net.WebUtility.HtmlEncode(e.Findings ?? "")}</td><td style=""text-align:center"">{e.FunctionScore?.ToString() ?? ""}</td><td style=""text-align:center"">{e.DisabilityScore?.ToString() ?? ""}</td><td>{System.Net.WebUtility.HtmlEncode(e.ExaminerName ?? "")}</td></tr>";
+            }
+
+            var html = $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""><title>Giay chung nhan giam dinh - {System.Net.WebUtility.HtmlEncode(c.CaseCode)}</title>
+<style>
+body {{ font-family: 'Times New Roman', serif; font-size: 13px; margin: 20px; }}
+h1 {{ text-align: center; font-size: 18px; text-transform: uppercase; }}
+h2 {{ font-size: 14px; margin-top: 14px; }}
+table {{ width: 100%; border-collapse: collapse; margin: 8px 0; }}
+th, td {{ border: 1px solid #333; padding: 4px 6px; font-size: 12px; }}
+th {{ background: #f0f0f0; text-align: center; }}
+.info {{ margin: 4px 0; }}
+.label {{ font-weight: bold; display: inline-block; width: 180px; }}
+.signature {{ display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }}
+.signature div {{ width: 45%; }}
+</style></head><body>
+<h1>GIAY CHUNG NHAN GIAM DINH</h1>
+<p style=""text-align:center;font-style:italic"">So: {System.Net.WebUtility.HtmlEncode(c.CaseCode)}</p>
+
+<h2>I. THONG TIN DOI TUONG GIAM DINH</h2>
+<div class=""info""><span class=""label"">Ho va ten:</span> {System.Net.WebUtility.HtmlEncode(c.PatientName)}</div>
+<div class=""info""><span class=""label"">Ngay sinh:</span> {dob}</div>
+<div class=""info""><span class=""label"">Gioi tinh:</span> {genderText}</div>
+<div class=""info""><span class=""label"">CCCD:</span> {System.Net.WebUtility.HtmlEncode(c.Cccd ?? "")}</div>
+<div class=""info""><span class=""label"">Co quan yeu cau:</span> {System.Net.WebUtility.HtmlEncode(c.RequestingOrganization ?? "")}</div>
+<div class=""info""><span class=""label"">Ngay yeu cau:</span> {requestDate}</div>
+<div class=""info""><span class=""label"">Ngay giam dinh:</span> {examDate}</div>
+<div class=""info""><span class=""label"">Loai giam dinh:</span> {System.Net.WebUtility.HtmlEncode(c.CaseType ?? "")}</div>
+
+<h2>II. KET QUA KHAM GIAM DINH</h2>
+<table><thead><tr><th>STT</th><th>Hang muc</th><th>Ket qua</th><th>Diem CN</th><th>Diem KT</th><th>Nguoi kham</th></tr></thead><tbody>
+{examRows}
+</tbody></table>
+
+<h2>III. KET LUAN</h2>
+<p>{System.Net.WebUtility.HtmlEncode(c.Conclusion ?? "Chua co ket luan")}</p>
+<p><b>Ty le khuyet tat/thuong tat:</b> {(c.DisabilityPercentage.HasValue ? $"{c.DisabilityPercentage}%" : "Chua xac dinh")}</p>
+
+{(string.IsNullOrEmpty(c.Notes) ? "" : $"<h2>IV. GHI CHU</h2><p>{System.Net.WebUtility.HtmlEncode(c.Notes)}</p>")}
+
+{(string.IsNullOrEmpty(c.CouncilMembers) ? "" : $"<h2>THANH PHAN HOI DONG</h2><p>{System.Net.WebUtility.HtmlEncode(c.CouncilMembers)}</p>")}
+
+<div class=""signature"">
+  <div><p><i>Ngay ... thang ... nam {DateTime.Now:yyyy}</i></p><p><b>CHU TICH HOI DONG</b></p><br/><br/><br/><p>(Ky, ghi ro ho ten)</p></div>
+  <div><p><i>Ngay ... thang ... nam {DateTime.Now:yyyy}</i></p><p><b>THU KY HOI DONG</b></p><br/><br/><br/><p>(Ky, ghi ro ho ten)</p></div>
+</div>
+</body></html>";
+
+            return System.Text.Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 }

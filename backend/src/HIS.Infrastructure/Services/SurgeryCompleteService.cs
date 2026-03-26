@@ -2427,8 +2427,75 @@ public class SurgeryCompleteService : ISurgeryCompleteService
 
     public async Task<byte[]> PrintConsentFormAsync(Guid consentId)
     {
-        await Task.CompletedTask;
-        return Array.Empty<byte>();
+        try
+        {
+            var consentRaw = await _context.Database.SqlQueryRaw<SurgeryConsentRaw>(
+                @"SELECT Id, SurgeryId, ConsentType, Diagnosis, PlannedProcedure, Risks, Alternatives,
+                         DoctorExplanation, SignerName, SignerRelationship, SignedAt, IsSigned, DoctorId, CreatedAt
+                  FROM SurgeryConsents WHERE Id = {0} AND IsDeleted = 0", consentId).FirstOrDefaultAsync();
+            if (consentRaw == null) return Array.Empty<byte>();
+
+            var surgery = await _context.Set<SurgeryRequest>()
+                .Include(s => s.Patient)
+                .FirstOrDefaultAsync(s => s.Id == consentRaw.SurgeryId);
+            var pat = surgery?.Patient;
+
+            var doctorName = "";
+            if (consentRaw.DoctorId.HasValue)
+            {
+                var doc = await _context.Users.FindAsync(consentRaw.DoctorId.Value);
+                doctorName = doc?.FullName ?? "";
+            }
+
+            var consentTypeName = GetConsentTypeName(consentRaw.ConsentType);
+
+            var body = new StringBuilder();
+            body.AppendLine(GetHospitalHeader());
+            body.AppendLine($@"<div class=""form-title"">GIAY {consentTypeName.ToUpper()}</div>");
+            body.AppendLine($@"<div class=""form-number"">MS. CK-{consentRaw.ConsentType:D2}</div>");
+
+            if (pat != null)
+                body.AppendLine(GetPatientInfoBlock(pat.PatientCode, pat.FullName, pat.Gender, pat.DateOfBirth, pat.Address, pat.PhoneNumber, null));
+
+            body.AppendLine($@"
+<div class=""section-title"">I. CHAN DOAN VA PHUONG PHAP</div>
+<div class=""field""><span class=""field-label"">Chan doan:</span><span class=""field-value"">{Esc(consentRaw.Diagnosis)}</span></div>
+<div class=""field""><span class=""field-label"">Phuong phap du kien:</span><span class=""field-value"">{Esc(consentRaw.PlannedProcedure)}</span></div>
+
+<div class=""section-title"">II. NGUY CO VA TAC DUNG PHU</div>
+<div class=""field""><span class=""field-value"">{Esc(consentRaw.Risks ?? "Khong co ghi nhan")}</span></div>
+
+<div class=""section-title"">III. PHUONG PHAP THAY THE</div>
+<div class=""field""><span class=""field-value"">{Esc(consentRaw.Alternatives ?? "Khong co")}</span></div>");
+
+            if (!string.IsNullOrEmpty(consentRaw.DoctorExplanation))
+            {
+                body.AppendLine($@"
+<div class=""section-title"">IV. GIAI THICH CUA BAC SI</div>
+<div class=""field""><span class=""field-value"">{Esc(consentRaw.DoctorExplanation)}</span></div>");
+            }
+
+            body.AppendLine($@"
+<div class=""section-title"">CAM KET</div>
+<p>Toi da duoc bac si {Esc(doctorName)} giai thich day du ve tinh trang benh, phuong phap dieu tri, cac nguy co co the xay ra. Toi dong y va cam ket thuc hien {Esc(consentTypeName?.ToLower())} theo phuong phap da neu tren.</p>");
+
+            if (consentRaw.IsSigned)
+            {
+                body.AppendLine($@"
+<div class=""field""><span class=""field-label"">Nguoi ky:</span><span class=""field-value"">{Esc(consentRaw.SignerName)}</span></div>
+<div class=""field""><span class=""field-label"">Quan he:</span><span class=""field-value"">{Esc(consentRaw.SignerRelationship)}</span></div>
+<div class=""field""><span class=""field-label"">Ngay ky:</span><span class=""field-value"">{consentRaw.SignedAt?.ToString("dd/MM/yyyy HH:mm") ?? ""}</span></div>");
+            }
+
+            body.AppendLine(GetSignatureBlock(doctorName, null, null, false));
+
+            var html = WrapHtmlPage($"{consentTypeName} - MS.CK-{consentRaw.ConsentType:D2}", body.ToString());
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
     }
 
     private static string GetConsentTypeName(int type) => type switch

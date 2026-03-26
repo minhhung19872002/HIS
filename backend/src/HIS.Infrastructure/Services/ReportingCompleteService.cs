@@ -33,6 +33,35 @@ public class ReportingCompleteService : IReportingCompleteService
             ?? "system";
     }
 
+    private record ReportRow(string Code, string Name, string Value, string Date, string Note);
+
+    private async Task<List<ReportRow>> GetReportRowsAsync(string reportCode, DateTime fromDate, DateTime toDate)
+    {
+        try
+        {
+            // Query examinations as default report data source
+            var exams = await _context.Examinations
+                .Include(e => e.Doctor)
+                .Include(e => e.Department)
+                .Where(e => e.CreatedAt >= fromDate && e.CreatedAt < toDate.AddDays(1) && !e.IsDeleted)
+                .OrderByDescending(e => e.StartTime)
+                .Take(500)
+                .ToListAsync();
+
+            return exams.Select(e => new ReportRow(
+                e.Id.ToString("N")[..8],
+                e.MainDiagnosis ?? "",
+                e.Department?.DepartmentName ?? "",
+                e.StartTime?.ToString("dd/MM/yyyy") ?? "",
+                e.Doctor?.FullName ?? ""
+            )).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<ReportRow>();
+        }
+    }
+
     #region Dashboard & KPI
 
     public async Task<DashboardDto> GetDashboardAsync(DateTime? date = null)
@@ -1653,16 +1682,76 @@ public class ReportingCompleteService : IReportingCompleteService
         }
     }
 
-    public Task<byte[]> ExportToExcelAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
+    public async Task<byte[]> ExportToExcelAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
     {
-        // Excel export requires external library (e.g., ClosedXML, EPPlus)
-        return Task.FromResult(Array.Empty<byte>());
+        try
+        {
+            // Generate CSV with UTF-8 BOM for Vietnamese character support
+            var rows = await GetReportRowsAsync(reportCode, fromDate, toDate);
+            var sb = new System.Text.StringBuilder();
+            // CSV header
+            sb.AppendLine("STT,Ma,Ten,Gia tri,Ngay,Ghi chu");
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
+                sb.AppendLine($"{i + 1},\"{EscCsv(r.Code)}\",\"{EscCsv(r.Name)}\",\"{EscCsv(r.Value)}\",\"{EscCsv(r.Date)}\",\"{EscCsv(r.Note)}\"");
+            }
+            // UTF-8 BOM + content
+            var bom = new byte[] { 0xEF, 0xBB, 0xBF };
+            var content = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var result = new byte[bom.Length + content.Length];
+            bom.CopyTo(result, 0);
+            content.CopyTo(result, bom.Length);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ExportToExcelAsync failed for {ReportCode}", reportCode);
+            return Array.Empty<byte>();
+        }
     }
 
-    public Task<byte[]> ExportToPdfAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
+    private static string EscCsv(string? val) => (val ?? "").Replace("\"", "\"\"");
+
+    public async Task<byte[]> ExportToPdfAsync(string reportCode, DateTime fromDate, DateTime toDate, object? parameters = null)
     {
-        // PDF export requires external library (e.g., iText7, QuestPDF)
-        return Task.FromResult(Array.Empty<byte>());
+        try
+        {
+            var rows = await GetReportRowsAsync(reportCode, fromDate, toDate);
+            var tableRows = new System.Text.StringBuilder();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
+                tableRows.AppendLine($@"<tr><td style=""text-align:center"">{i + 1}</td><td>{System.Net.WebUtility.HtmlEncode(r.Code)}</td><td>{System.Net.WebUtility.HtmlEncode(r.Name)}</td><td style=""text-align:right"">{System.Net.WebUtility.HtmlEncode(r.Value)}</td><td>{System.Net.WebUtility.HtmlEncode(r.Date)}</td><td>{System.Net.WebUtility.HtmlEncode(r.Note)}</td></tr>");
+            }
+
+            var html = $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""><title>Bao cao {System.Net.WebUtility.HtmlEncode(reportCode)}</title>
+<style>
+body {{ font-family: 'Times New Roman', serif; font-size: 13px; margin: 20px; }}
+h1 {{ text-align: center; font-size: 16px; text-transform: uppercase; }}
+p.subtitle {{ text-align: center; font-style: italic; }}
+table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
+th, td {{ border: 1px solid #333; padding: 4px 6px; font-size: 12px; }}
+th {{ background: #f0f0f0; text-align: center; }}
+</style></head><body>
+<h1>BAO CAO {System.Net.WebUtility.HtmlEncode(reportCode.ToUpper())}</h1>
+<p class=""subtitle"">Tu ngay {fromDate:dd/MM/yyyy} den ngay {toDate:dd/MM/yyyy}</p>
+<p class=""subtitle"">Ngay xuat: {DateTime.Now:dd/MM/yyyy HH:mm}</p>
+<table><thead><tr><th>STT</th><th>Ma</th><th>Ten</th><th>Gia tri</th><th>Ngay</th><th>Ghi chu</th></tr></thead><tbody>
+{tableRows}
+</tbody></table>
+<p style=""text-align:right;margin-top:30px""><i>Ngay {DateTime.Now:dd} thang {DateTime.Now:MM} nam {DateTime.Now:yyyy}</i></p>
+<p style=""text-align:right""><b>Nguoi lap bao cao</b></p>
+</body></html>";
+
+            return System.Text.Encoding.UTF8.GetBytes(html);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ExportToPdfAsync failed for {ReportCode}", reportCode);
+            return Array.Empty<byte>();
+        }
     }
 
     public async Task<List<ReportHistoryDto>> GetReportHistoryAsync(string? reportCode = null, DateTime? fromDate = null, DateTime? toDate = null, int? top = 50)
@@ -1691,10 +1780,46 @@ public class ReportingCompleteService : IReportingCompleteService
         }
     }
 
-    public Task<byte[]> DownloadReportFromHistoryAsync(Guid reportHistoryId)
+    public async Task<byte[]> DownloadReportFromHistoryAsync(Guid reportHistoryId)
     {
-        // Would retrieve file from storage based on history record
-        return Task.FromResult(Array.Empty<byte>());
+        try
+        {
+            var report = await _context.GeneratedReports.FirstOrDefaultAsync(r => r.Id == reportHistoryId && !r.IsDeleted);
+            if (report == null) return Array.Empty<byte>();
+
+            // If file exists on disk, return it
+            if (!string.IsNullOrEmpty(report.OutputPath) && System.IO.File.Exists(report.OutputPath))
+            {
+                return await System.IO.File.ReadAllBytesAsync(report.OutputPath);
+            }
+
+            // Otherwise regenerate a summary HTML
+            var html = $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""><title>{System.Net.WebUtility.HtmlEncode(report.ReportName)}</title>
+<style>
+body {{ font-family: 'Times New Roman', serif; font-size: 13px; margin: 20px; }}
+h1 {{ text-align: center; font-size: 16px; }}
+.info {{ margin: 6px 0; }}
+.label {{ font-weight: bold; display: inline-block; width: 160px; }}
+</style></head><body>
+<h1>{System.Net.WebUtility.HtmlEncode(report.ReportName)}</h1>
+<div class=""info""><span class=""label"">Ma bao cao:</span> {System.Net.WebUtility.HtmlEncode(report.ReportCode)}</div>
+<div class=""info""><span class=""label"">Ngay tao:</span> {report.GeneratedAt:dd/MM/yyyy HH:mm}</div>
+<div class=""info""><span class=""label"">Dinh dang:</span> {System.Net.WebUtility.HtmlEncode(report.FileFormat ?? "HTML")}</div>
+<div class=""info""><span class=""label"">So ban ghi:</span> {report.TotalRecords?.ToString() ?? "N/A"}</div>
+<div class=""info""><span class=""label"">Trang thai:</span> {(report.Status == 1 ? "Hoan thanh" : report.Status == 2 ? "Loi" : "Dang tao")}</div>
+{(string.IsNullOrEmpty(report.Parameters) ? "" : $"<div class=\"info\"><span class=\"label\">Tham so:</span> {System.Net.WebUtility.HtmlEncode(report.Parameters)}</div>")}
+{(string.IsNullOrEmpty(report.ErrorMessage) ? "" : $"<div class=\"info\" style=\"color:red\"><span class=\"label\">Loi:</span> {System.Net.WebUtility.HtmlEncode(report.ErrorMessage)}</div>")}
+<p style=""font-style:italic;margin-top:20px"">File goc khong con tren he thong. Day la ban tom tat thong tin bao cao.</p>
+</body></html>";
+
+            return System.Text.Encoding.UTF8.GetBytes(html);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "DownloadReportFromHistoryAsync failed for {Id}", reportHistoryId);
+            return Array.Empty<byte>();
+        }
     }
 
     #endregion

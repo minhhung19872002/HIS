@@ -2221,7 +2221,83 @@ public class PatientPortalServiceImpl : IPatientPortalService
         return exams.Select(e => new VisitSummaryDto { VisitId = e.Id, VisitDate = e.StartTime ?? DateTime.MinValue, Department = e.Room?.Department?.DepartmentName ?? "", DoctorName = e.Doctor?.FullName ?? "", Diagnosis = e.MainDiagnosis }).ToList();
     }
 
-    public Task<byte[]> ExportHealthRecordPdfAsync(Guid patientId) => Task.FromResult(Array.Empty<byte>());
+    public async Task<byte[]> ExportHealthRecordPdfAsync(Guid patientId)
+    {
+        try
+        {
+            var patient = await _context.Patients.FirstOrDefaultAsync(x => x.Id == patientId);
+            if (patient == null) return Array.Empty<byte>();
+
+            var exams = await _context.Examinations
+                .Include(x => x.Room).ThenInclude(x => x!.Department)
+                .Include(x => x.Doctor)
+                .Include(x => x.MedicalRecord)
+                .Where(x => x.MedicalRecord!.PatientId == patientId)
+                .OrderByDescending(x => x.StartTime)
+                .Take(50)
+                .ToListAsync();
+
+            var prescriptions = await _context.Prescriptions
+                .Include(x => x.MedicalRecord)
+                .Where(x => x.MedicalRecord!.PatientId == patientId)
+                .OrderByDescending(x => x.PrescriptionDate)
+                .Take(20)
+                .ToListAsync();
+
+            var gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "Khác";
+            var dob = patient.DateOfBirth?.ToString("dd/MM/yyyy") ?? "";
+
+            var html = $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""><title>Ho so suc khoe - {System.Net.WebUtility.HtmlEncode(patient.FullName)}</title>
+<style>
+body {{ font-family: 'Times New Roman', serif; font-size: 13px; margin: 20px; }}
+h1 {{ text-align: center; font-size: 18px; }}
+h2 {{ font-size: 14px; border-bottom: 1px solid #333; padding-bottom: 4px; margin-top: 16px; }}
+table {{ width: 100%; border-collapse: collapse; margin: 8px 0; }}
+th, td {{ border: 1px solid #333; padding: 4px 6px; font-size: 12px; }}
+th {{ background: #f0f0f0; text-align: center; }}
+.info {{ margin: 4px 0; }}
+.label {{ font-weight: bold; display: inline-block; width: 140px; }}
+</style></head><body>
+<h1>HO SO SUC KHOE TONG HOP</h1>
+<div class=""info""><span class=""label"">Ho ten:</span> {System.Net.WebUtility.HtmlEncode(patient.FullName)}</div>
+<div class=""info""><span class=""label"">Ma benh nhan:</span> {System.Net.WebUtility.HtmlEncode(patient.PatientCode)}</div>
+<div class=""info""><span class=""label"">Ngay sinh:</span> {dob}</div>
+<div class=""info""><span class=""label"">Gioi tinh:</span> {gender}</div>
+<div class=""info""><span class=""label"">Dia chi:</span> {System.Net.WebUtility.HtmlEncode(patient.Address)}</div>
+<div class=""info""><span class=""label"">SDT:</span> {System.Net.WebUtility.HtmlEncode(patient.PhoneNumber)}</div>
+<div class=""info""><span class=""label"">Ngay xuat:</span> {DateTime.Now:dd/MM/yyyy HH:mm}</div>
+
+<h2>LICH SU KHAM BENH ({exams.Count} lan kham gan nhat)</h2>
+<table><thead><tr><th>STT</th><th>Ngay kham</th><th>Khoa/Phong</th><th>Bac si</th><th>Chan doan</th></tr></thead><tbody>";
+
+            for (int i = 0; i < exams.Count; i++)
+            {
+                var e = exams[i];
+                html += $@"<tr><td style=""text-align:center"">{i + 1}</td><td>{e.StartTime?.ToString("dd/MM/yyyy") ?? ""}</td><td>{System.Net.WebUtility.HtmlEncode(e.Room?.Department?.DepartmentName ?? "")}</td><td>{System.Net.WebUtility.HtmlEncode(e.Doctor?.FullName ?? "")}</td><td>{System.Net.WebUtility.HtmlEncode(e.MainDiagnosis ?? "")}</td></tr>";
+            }
+
+            html += @"</tbody></table>
+<h2>DON THUOC GAN DAY</h2>
+<table><thead><tr><th>STT</th><th>Ngay ke</th><th>Ma don</th><th>Trang thai</th></tr></thead><tbody>";
+
+            for (int i = 0; i < prescriptions.Count; i++)
+            {
+                var p = prescriptions[i];
+                var status = p.Status == 2 ? "Da cap" : p.Status == 1 ? "Dang xu ly" : "Cho xu ly";
+                html += $@"<tr><td style=""text-align:center"">{i + 1}</td><td>{p.PrescriptionDate:dd/MM/yyyy}</td><td>{System.Net.WebUtility.HtmlEncode(p.PrescriptionCode ?? "")}</td><td>{status}</td></tr>";
+            }
+
+            html += @"</tbody></table>
+</body></html>";
+
+            return System.Text.Encoding.UTF8.GetBytes(html);
+        }
+        catch
+        {
+            return Array.Empty<byte>();
+        }
+    }
 
     public async Task<List<PortalLabResultDto>> GetLabResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null)
     {

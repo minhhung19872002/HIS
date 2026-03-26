@@ -65,7 +65,7 @@ const CentralSigning: React.FC = () => {
     try {
       const res = await centralSigningApi.getCertificates();
       setCertificates(res.data || []);
-    } catch { message.warning('Không thể tải danh sách chứng thư số'); }
+    } catch (err) { console.warn('Load certificates:', err); message.warning('Không thể tải danh sách chứng thư số'); }
   }, []);
 
   const fetchTransactions = useCallback(async (page = 0) => {
@@ -75,21 +75,21 @@ const CentralSigning: React.FC = () => {
       });
       setTransactions(res.data?.items || []);
       setTransactionTotal(res.data?.total || 0);
-    } catch { message.warning('Không thể tải lịch sử giao dịch'); }
+    } catch (err) { console.warn('Load transactions:', err); message.warning('Không thể tải lịch sử giao dịch'); }
   }, [txFilters]);
 
   const fetchStats = useCallback(async () => {
     try {
       const res = await centralSigningApi.getStatistics();
       setStats(res.data);
-    } catch { message.warning('Không thể tải thống kê'); }
+    } catch (err) { console.warn('Load statistics:', err); message.warning('Không thể tải thống kê'); }
   }, []);
 
   const fetchAppearance = useCallback(async () => {
     try {
       const res = await centralSigningApi.getAppearanceConfig();
       setAppearance(res.data);
-    } catch { /* ignore */ }
+    } catch (err) { console.warn('Load appearance config:', err); }
   }, []);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ const CentralSigning: React.FC = () => {
       certForm.resetFields();
       setEditingCert(null);
       fetchCertificates();
-    } catch { message.warning('Không thể lưu chứng thư số'); }
+    } catch (err) { console.warn('Save certificate:', err); message.warning('Không thể lưu chứng thư số'); }
   };
 
   const handleDeleteCert = async (id: string) => {
@@ -133,7 +133,7 @@ const CentralSigning: React.FC = () => {
       await centralSigningApi.deleteCertificate(id);
       message.success('Đã xóa chứng thư số');
       fetchCertificates();
-    } catch { message.warning('Không thể xóa'); }
+    } catch (err) { console.warn('Delete certificate:', err); message.warning('Không thể xóa'); }
   };
 
   const handleSaveAppearance = async (values: Record<string, unknown>) => {
@@ -141,7 +141,7 @@ const CentralSigning: React.FC = () => {
       await centralSigningApi.saveAppearanceConfig(values as unknown as AppearanceConfig);
       message.success('Đã lưu cấu hình hiển thị');
       fetchAppearance();
-    } catch { message.warning('Không thể lưu cấu hình'); }
+    } catch (err) { console.warn('Save appearance config:', err); message.warning('Không thể lưu cấu hình'); }
   };
 
   const handleExportSerials = async () => {
@@ -154,7 +154,7 @@ const CentralSigning: React.FC = () => {
       a.href = url; a.download = 'certificate_serials.txt'; a.click();
       URL.revokeObjectURL(url);
       message.success('Đã xuất danh sách Serial');
-    } catch { message.warning('Không thể xuất'); }
+    } catch (err) { console.warn('Export serials:', err); message.warning('Không thể xuất'); }
   };
 
   // Certificate columns
@@ -423,13 +423,13 @@ const CentralSigning: React.FC = () => {
                       width: 500,
                     });
                   }
-                } catch { message.warning('Không thể thiết lập TOTP'); }
+                } catch (err) { console.warn('Setup TOTP:', err); message.warning('Không thể thiết lập TOTP'); }
               }}>Thiết lập TOTP</Button>
               <Button danger onClick={async () => {
                 try {
                   await centralSigningApi.disableTotp();
                   message.success('Đã tắt TOTP');
-                } catch { message.warning('Không thể tắt TOTP'); }
+                } catch (err) { console.warn('Disable TOTP:', err); message.warning('Không thể tắt TOTP'); }
               }}>Tắt TOTP</Button>
             </Space>
           </Card>
@@ -463,7 +463,7 @@ const CentralSigning: React.FC = () => {
                     }
                     message.info('Vui lòng xác thực bằng vân tay/khuôn mặt trên thiết bị...');
                     // WebAuthn registration flow would be triggered here via API
-                  } catch { message.warning('Lỗi kiểm tra WebAuthn'); }
+                  } catch (err) { console.warn('Check WebAuthn:', err); message.warning('Lỗi kiểm tra WebAuthn'); }
                 }}>
                 Đăng ký sinh trắc học
               </Button>
