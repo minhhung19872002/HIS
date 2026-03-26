@@ -1,29 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card,
   Table,
   Button,
-  Space,
   Input,
   Tag,
-  Row,
-  Col,
   Modal,
   Form,
   Select,
   DatePicker,
-  Typography,
   message,
   Tabs,
-  Statistic,
-  Badge,
-  Divider,
-  Alert,
-  Tooltip,
-  Progress,
-  Descriptions,
   Spin,
-  Empty,
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -51,7 +39,6 @@ import BarcodeScanner from '../components/BarcodeScanner';
 import WebcamCapture from '../components/WebcamCapture';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
-const { Title, Text } = Typography;
 const { Search } = Input;
 
 interface ReceptionRecord {
@@ -134,31 +121,31 @@ function unwrapResponseData<T>(result: T | { data?: T }): T {
 
 // Vietnamese CCCD province codes
 const CCCD_PROVINCES: Record<string, string> = {
-  '001': 'Hà Nội', '002': 'Hà Giang', '004': 'Cao Bằng', '006': 'Bắc Kạn',
-  '008': 'Tuyên Quang', '010': 'Lào Cai', '011': 'Điện Biên', '012': 'Lai Châu',
-  '014': 'Sơn La', '015': 'Yên Bái', '017': 'Hoà Bình', '019': 'Thái Nguyên',
-  '020': 'Lạng Sơn', '022': 'Quảng Ninh', '024': 'Bắc Giang', '025': 'Phú Thọ',
-  '026': 'Vĩnh Phúc', '027': 'Bắc Ninh', '030': 'Hải Dương', '031': 'Hải Phòng',
-  '033': 'Hưng Yên', '034': 'Thái Bình', '035': 'Hà Nam', '036': 'Nam Định',
-  '037': 'Ninh Bình', '038': 'Thanh Hoá', '040': 'Nghệ An', '042': 'Hà Tĩnh',
-  '044': 'Quảng Bình', '045': 'Quảng Trị', '046': 'Thừa Thiên Huế', '048': 'Đà Nẵng',
-  '049': 'Quảng Nam', '051': 'Quảng Ngãi', '052': 'Bình Định', '054': 'Phú Yên',
-  '056': 'Khánh Hoà', '058': 'Ninh Thuận', '060': 'Bình Thuận', '062': 'Kon Tum',
-  '064': 'Gia Lai', '066': 'Đắk Lắk', '067': 'Đắk Nông', '068': 'Lâm Đồng',
-  '070': 'Bình Phước', '072': 'Tây Ninh', '074': 'Bình Dương', '075': 'Đồng Nai',
-  '077': 'Bà Rịa - Vũng Tàu', '079': 'TP. Hồ Chí Minh', '080': 'Long An',
-  '082': 'Tiền Giang', '083': 'Bến Tre', '084': 'Trà Vinh', '086': 'Vĩnh Long',
-  '087': 'Đồng Tháp', '089': 'An Giang', '091': 'Kiên Giang', '092': 'Cần Thơ',
-  '093': 'Hậu Giang', '094': 'Sóc Trăng', '095': 'Bạc Liêu', '096': 'Cà Mau',
+  '001': 'Ha Noi', '002': 'Ha Giang', '004': 'Cao Bang', '006': 'Bac Kan',
+  '008': 'Tuyen Quang', '010': 'Lao Cai', '011': 'Dien Bien', '012': 'Lai Chau',
+  '014': 'Son La', '015': 'Yen Bai', '017': 'Hoa Binh', '019': 'Thai Nguyen',
+  '020': 'Lang Son', '022': 'Quang Ninh', '024': 'Bac Giang', '025': 'Phu Tho',
+  '026': 'Vinh Phuc', '027': 'Bac Ninh', '030': 'Hai Duong', '031': 'Hai Phong',
+  '033': 'Hung Yen', '034': 'Thai Binh', '035': 'Ha Nam', '036': 'Nam Dinh',
+  '037': 'Ninh Binh', '038': 'Thanh Hoa', '040': 'Nghe An', '042': 'Ha Tinh',
+  '044': 'Quang Binh', '045': 'Quang Tri', '046': 'Thua Thien Hue', '048': 'Da Nang',
+  '049': 'Quang Nam', '051': 'Quang Ngai', '052': 'Binh Dinh', '054': 'Phu Yen',
+  '056': 'Khanh Hoa', '058': 'Ninh Thuan', '060': 'Binh Thuan', '062': 'Kon Tum',
+  '064': 'Gia Lai', '066': 'Dak Lak', '067': 'Dak Nong', '068': 'Lam Dong',
+  '070': 'Binh Phuoc', '072': 'Tay Ninh', '074': 'Binh Duong', '075': 'Dong Nai',
+  '077': 'Ba Ria - Vung Tau', '079': 'TP. Ho Chi Minh', '080': 'Long An',
+  '082': 'Tien Giang', '083': 'Ben Tre', '084': 'Tra Vinh', '086': 'Vinh Long',
+  '087': 'Dong Thap', '089': 'An Giang', '091': 'Kien Giang', '092': 'Can Tho',
+  '093': 'Hau Giang', '094': 'Soc Trang', '095': 'Bac Lieu', '096': 'Ca Mau',
 };
 
 const validateCccd = (value: string): { valid: boolean; error?: string; province?: string } => {
   if (!value) return { valid: true }; // optional field
   const cleaned = value.replace(/\s/g, '');
-  if (!/^\d{12}$/.test(cleaned)) return { valid: false, error: 'CCCD phải có đúng 12 chữ số' };
+  if (!/^\d{12}$/.test(cleaned)) return { valid: false, error: 'CCCD phai co dung 12 chu so' };
   const provinceCode = cleaned.substring(0, 3);
   const province = CCCD_PROVINCES[provinceCode];
-  if (!province) return { valid: false, error: `Mã tỉnh/thành '${provinceCode}' không hợp lệ` };
+  if (!province) return { valid: false, error: `Ma tinh/thanh '${provinceCode}' khong hop le` };
   return { valid: true, province };
 };
 
@@ -197,10 +184,10 @@ const Reception: React.FC = () => {
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
-    { key: 'F2', handler: () => setIsModalOpen(true), description: 'Đăng ký mới' },
-    { key: 'F5', handler: () => { fetchRooms(); fetchAdmissions(); }, description: 'Làm mới' },
-    { key: 'F7', handler: () => setIsScannerOpen(true), description: 'Quét mã vạch' },
-    { key: 'f', ctrl: true, handler: () => document.querySelector<HTMLInputElement>('.ant-input-search input')?.focus(), description: 'Tìm kiếm' },
+    { key: 'F2', handler: () => setIsModalOpen(true), description: 'Dang ky moi' },
+    { key: 'F5', handler: () => { fetchRooms(); fetchAdmissions(); }, description: 'Lam moi' },
+    { key: 'F7', handler: () => setIsScannerOpen(true), description: 'Quet ma vach' },
+    { key: 'f', ctrl: true, handler: () => document.querySelector<HTMLInputElement>('.ant-input-search input')?.focus(), description: 'Tim kiem' },
   ]);
 
   const [form] = Form.useForm();
@@ -237,9 +224,9 @@ const Reception: React.FC = () => {
       console.warn('Failed to fetch rooms:', error);
       // If unauthorized, redirect to login
       if (getErrorStatus(error) === 401) {
-        message.warning('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
+        message.warning('Phien lam viec het han. Vui long dang nhap lai.');
       } else {
-        message.warning('Không thể tải danh sách phòng khám');
+        message.warning('Khong the tai danh sach phong kham');
       }
     } finally {
       setLoadingRooms(false);
@@ -261,7 +248,7 @@ const Reception: React.FC = () => {
           dateOfBirth: a.dateOfBirth,
           phoneNumber: a.phoneNumber,
           identityNumber: a.identityNumber,
-          patientType: a.insuranceNumber ? 1 : 2, // 1=BHYT, 2=Viện phí
+          patientType: a.insuranceNumber ? 1 : 2, // 1=BHYT, 2=Vien phi
           insuranceNumber: a.insuranceNumber,
           departmentName: a.departmentName,
           roomName: a.roomName,
@@ -282,31 +269,38 @@ const Reception: React.FC = () => {
   };
 
   const getStatusTag = (status: number) => {
-    switch (status) {
-      case 0:
-        return <Tag color="orange">Chờ khám</Tag>;
-      case 1:
-        return <Tag color="blue">Đang khám</Tag>;
-      case 2:
-        return <Tag color="cyan">Chờ kết luận</Tag>;
-      case 3:
-        return <Tag color="green">Hoàn thành</Tag>;
-      default:
-        return <Tag>Không xác định</Tag>;
-    }
+    const styles: Record<number, string> = {
+      0: 'bg-amber-50 text-amber-700 border border-amber-200',
+      1: 'bg-blue-50 text-blue-700 border border-blue-200',
+      2: 'bg-cyan-50 text-cyan-700 border border-cyan-200',
+      3: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    };
+    const labels: Record<number, string> = { 0: 'Cho kham', 1: 'Dang kham', 2: 'Cho ket luan', 3: 'Hoan thanh' };
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
+        {labels[status] || 'Khong xac dinh'}
+      </span>
+    );
   };
 
   const getPatientTypeTag = (type: number) => {
-    switch (type) {
-      case 1:
-        return <Tag color="green">BHYT</Tag>;
-      case 2:
-        return <Tag color="blue">Viện phí</Tag>;
-      case 3:
-        return <Tag color="purple">Dịch vụ</Tag>;
-      default:
-        return <Tag>Khác</Tag>;
-    }
+    const styles: Record<number, string> = {
+      1: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+      2: 'bg-blue-50 text-blue-700 border border-blue-200',
+      3: 'bg-purple-50 text-purple-700 border border-purple-200',
+    };
+    const labels: Record<number, string> = { 1: 'BHYT', 2: 'Vien phi', 3: 'Dich vu' };
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${styles[type] || 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
+        {labels[type] || 'Khac'}
+      </span>
+    );
+  };
+
+  const getPriorityTag = (priority?: number) => {
+    if (priority === 1) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Uu tien</span>;
+    if (priority === 2) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">Cap cuu</span>;
+    return null;
   };
 
   const columns: ColumnsType<ReceptionRecord> = [
@@ -318,95 +312,95 @@ const Reception: React.FC = () => {
       render: (_: unknown, _record: ReceptionRecord, index: number) => <strong>{index + 1}</strong>,
     },
     {
-      title: 'Mã BN',
+      title: 'Ma BN',
       dataIndex: 'patientCode',
       key: 'patientCode',
       width: 120,
     },
     {
-      title: 'Họ tên',
+      title: 'Ho ten',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 180,
     },
     {
-      title: 'Giới tính',
+      title: 'Gioi tinh',
       dataIndex: 'gender',
       key: 'gender',
       width: 80,
-      render: (gender) => (gender === 1 ? 'Nam' : gender === 2 ? 'Nữ' : 'Khác'),
+      render: (gender) => (gender === 1 ? 'Nam' : gender === 2 ? 'Nu' : 'Khac'),
     },
     {
-      title: 'Ngày sinh',
+      title: 'Ngay sinh',
       dataIndex: 'dateOfBirth',
       key: 'dateOfBirth',
       width: 100,
       render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '',
     },
     {
-      title: 'Đối tượng',
+      title: 'Doi tuong',
       dataIndex: 'patientType',
       key: 'patientType',
       width: 100,
       render: (type) => getPatientTypeTag(type),
     },
     {
-      title: 'Số thẻ BHYT',
+      title: 'So the BHYT',
       dataIndex: 'insuranceNumber',
       key: 'insuranceNumber',
       width: 140,
     },
     {
-      title: 'Phòng khám',
+      title: 'Phong kham',
       dataIndex: 'roomName',
       key: 'roomName',
       width: 150,
     },
     {
-      title: 'Trạng thái',
+      title: 'Trang thai',
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (status) => getStatusTag(status),
     },
     {
-      title: 'Ưu tiên',
+      title: 'Uu tien',
       dataIndex: 'priority',
       key: 'priority',
       width: 80,
       render: (priority) => getPriorityTag(priority),
     },
     {
-      title: 'Thao tác',
+      title: 'Thao tac',
       key: 'action',
       width: 280,
       fixed: 'right' as const,
       render: (_, record) => (
-        <Space size="small" wrap>
-          <Tooltip title="Gọi số">
+        <div className="flex items-center gap-1 flex-wrap">
+          <Tooltip title="Goi so">
             <Button size="small" type="primary" icon={<SoundOutlined />} onClick={() => handleCallNumber(record)}>
-              Gọi
+              Goi
             </Button>
           </Tooltip>
-          <Tooltip title="Gọi lại">
+          <Tooltip title="Goi lai">
             <Button size="small" icon={<ReloadOutlined />} onClick={() => handleRecall(record)} />
           </Tooltip>
-          <Tooltip title="Bỏ qua">
+          <Tooltip title="Bo qua">
             <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleSkip(record)} />
           </Tooltip>
-          <Tooltip title="Chuyển phòng">
+          <Tooltip title="Chuyen phong">
             <Button size="small" icon={<SwapOutlined />} onClick={() => handleTransferRoom(record)} />
           </Tooltip>
-          <Tooltip title="Lịch sử khám">
+          <Tooltip title="Lich su kham">
             <Button size="small" icon={<HistoryOutlined />} onClick={() => handleViewHistory(record)} />
           </Tooltip>
-          <Tooltip title="In phiếu">
+          <Tooltip title="In phieu">
             <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrintTicket(record)} />
           </Tooltip>
-          <Tooltip title="In giấy yêu cầu">
+          <Tooltip title="In giay yeu cau">
             <Button size="small" icon={<FileTextOutlined />} onClick={() => handlePrintRequestForm(record)} />
           </Tooltip>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -438,13 +432,13 @@ const Reception: React.FC = () => {
             address: values.address,
             identityNumber: values.identityNumber,
           },
-          serviceType: patientType === 2 ? 2 : 3, // 2: Viện phí, 3: Dịch vụ
+          serviceType: patientType === 2 ? 2 : 3, // 2: Vien phi, 3: Dich vu
           roomId: values.roomId,
         };
         await receptionApi.registerFeePatient(dto);
       }
 
-      message.success('Đăng ký khám thành công!');
+      message.success('Dang ky kham thanh cong!');
       setIsModalOpen(false);
       form.resetFields();
       // Refresh data
@@ -452,7 +446,7 @@ const Reception: React.FC = () => {
       fetchAdmissions();
     } catch (error) {
       console.warn('Registration error:', error);
-      message.warning(getErrorMessage(error, 'Đăng ký thất bại. Vui lòng thử lại!'));
+      message.warning(getErrorMessage(error, 'Dang ky that bai. Vui long thu lai!'));
     } finally {
       setSubmitting(false);
     }
@@ -462,7 +456,7 @@ const Reception: React.FC = () => {
   const handleInlineInsuranceVerify = async () => {
     const insuranceNumber = form.getFieldValue('insuranceNumber');
     if (!insuranceNumber || insuranceNumber.length < 10) {
-      message.warning('Vui lòng nhập số thẻ BHYT hợp lệ');
+      message.warning('Vui long nhap so the BHYT hop le');
       return;
     }
     setInlineVerifyLoading(true);
@@ -480,15 +474,15 @@ const Reception: React.FC = () => {
       setInlineCardVerification(data);
       if (data.duDkKcb) {
         setInlineVerifyStatus('valid');
-        message.success('Thẻ BHYT hợp lệ - Đủ điều kiện KCB');
+        message.success('The BHYT hop le - Du dieu kien KCB');
       } else {
         setInlineVerifyStatus('invalid');
-        message.warning(data.lyDoKhongDuDk || 'Thẻ BHYT không đủ điều kiện');
+        message.warning(data.lyDoKhongDuDk || 'The BHYT khong du dieu kien');
       }
     } catch (error) {
       console.warn('Inline insurance verification error:', error);
       setInlineVerifyStatus('error');
-      message.warning('Không kết nối được cổng BHXH. Có thể nhập thủ công.');
+      message.warning('Khong ket noi duoc cong BHXH. Co the nhap thu cong.');
     } finally {
       setInlineVerifyLoading(false);
     }
@@ -506,7 +500,7 @@ const Reception: React.FC = () => {
       setBhxhHistory(data);
     } catch (error) {
       console.warn('Error fetching BHXH history:', error);
-      message.warning('Không thể tải lịch sử KCB');
+      message.warning('Khong the tai lich su KCB');
     } finally {
       setBhxhHistoryLoading(false);
     }
@@ -532,7 +526,7 @@ const Reception: React.FC = () => {
   };
 
   const handleBarcodeScan = useCallback((decodedText: string, format: string) => {
-    message.success(`Đã quét: ${decodedText} (${format})`);
+    message.success(`Da quet: ${decodedText} (${format})`);
     setSearchText(decodedText);
     applyFilters(allData, decodedText, filterStatus);
 
@@ -547,7 +541,7 @@ const Reception: React.FC = () => {
       receptionApi.searchPatient(decodedText).then((res) => {
         if (res.data && res.data.length > 0) {
           const patient = res.data[0];
-          message.info(`Tìm thấy BN: ${patient.fullName || patient.patientName} - ${patient.patientCode}`);
+          message.info(`Tim thay BN: ${patient.fullName || patient.patientName} - ${patient.patientCode}`);
           // Open modal first, then set fields after mount
           setIsModalOpen(true);
           setTimeout(() => {
@@ -573,41 +567,41 @@ const Reception: React.FC = () => {
     try {
       if (record.roomId) {
         await receptionApi.callSpecificQueue(record.id);
-        message.success(`Đang gọi số ${record.queueNumber} - ${record.patientName}`);
+        message.success(`Dang goi so ${record.queueNumber} - ${record.patientName}`);
         fetchAdmissions();
       } else {
-        message.warning('Bệnh nhân chưa được phân phòng');
+        message.warning('Benh nhan chua duoc phan phong');
       }
     } catch (error) {
       console.warn('Call queue error:', error);
-      message.info(`Gọi số ${record.queueNumber} - ${record.patientName}`);
+      message.info(`Goi so ${record.queueNumber} - ${record.patientName}`);
     }
   };
 
   const handleRecall = async (record: ReceptionRecord) => {
     try {
       await receptionApi.recallQueue(record.id);
-      message.success(`Đã gọi lại số ${record.queueNumber} - ${record.patientName}`);
+      message.success(`Da goi lai so ${record.queueNumber} - ${record.patientName}`);
     } catch (error) {
       console.warn('Recall queue error:', error);
-      message.info(`Gọi lại số ${record.queueNumber}`);
+      message.info(`Goi lai so ${record.queueNumber}`);
     }
   };
 
   const handleSkip = (record: ReceptionRecord) => {
     Modal.confirm({
-      title: 'Bỏ qua số',
-      content: `Xác nhận bỏ qua số ${record.queueNumber} - ${record.patientName}?`,
-      okText: 'Xác nhận',
-      cancelText: 'Hủy',
+      title: 'Bo qua so',
+      content: `Xac nhan bo qua so ${record.queueNumber} - ${record.patientName}?`,
+      okText: 'Xac nhan',
+      cancelText: 'Huy',
       onOk: async () => {
         try {
-          await receptionApi.skipQueue(record.id, 'Bỏ qua');
-          message.success('Đã bỏ qua số');
+          await receptionApi.skipQueue(record.id, 'Bo qua');
+          message.success('Da bo qua so');
           fetchAdmissions();
         } catch (error) {
           console.warn('Skip queue error:', error);
-          message.success('Đã bỏ qua số');
+          message.success('Da bo qua so');
         }
       },
     });
@@ -634,19 +628,19 @@ const Reception: React.FC = () => {
         values.reason
       );
 
-      message.success('Chuyển phòng thành công!');
+      message.success('Chuyen phong thanh cong!');
       setIsTransferModalOpen(false);
       transferForm.resetFields();
       fetchAdmissions();
       fetchRooms();
     } catch (error) {
-      message.warning(getErrorMessage(error, 'Chuyển phòng thất bại'));
+      message.warning(getErrorMessage(error, 'Chuyen phong that bai'));
     }
   };
 
   const handlePrintTicket = async (record: ReceptionRecord) => {
     try {
-      message.loading('Đang in phiếu khám...', 1);
+      message.loading('Dang in phieu kham...', 1);
 
       // Fetch estimated wait time and CLS locations
       let estimatedWait = 0;
@@ -661,17 +655,17 @@ const Reception: React.FC = () => {
         // Fallback: no CLS data available
       }
 
-      const priorityLabel = record.priority === 2 ? '<div class="priority emergency">CẤP CỨU</div>' :
-        record.priority === 1 ? '<div class="priority urgent">ƯU TIÊN</div>' : '';
+      const priorityLabel = record.priority === 2 ? '<div class="priority emergency">CAP CUU</div>' :
+        record.priority === 1 ? '<div class="priority urgent">UU TIEN</div>' : '';
 
       const clsSection = clsSteps.length > 0 ? `
         <div class="cls-section">
-          <h3>HƯỚNG DẪN ĐI KHÁM</h3>
+          <h3>HUONG DAN DI KHAM</h3>
           <table class="cls-table">
-            <tr><th>STT</th><th>Phòng</th><th>Vị trí</th><th>Chờ ~</th></tr>
+            <tr><th>STT</th><th>Phong</th><th>Vi tri</th><th>Cho ~</th></tr>
             ${clsSteps.map((step, i) => {
-              const loc = [step.building ? `Tòa ${step.building}` : '', step.floor ? `Tầng ${step.floor}` : ''].filter(Boolean).join(', ');
-              return `<tr><td>${i + 1}</td><td>${step.roomName}</td><td>${loc || '-'}</td><td>${step.estimatedWaitMinutes} phút</td></tr>`;
+              const loc = [step.building ? `Toa ${step.building}` : '', step.floor ? `Tang ${step.floor}` : ''].filter(Boolean).join(', ');
+              return `<tr><td>${i + 1}</td><td>${step.roomName}</td><td>${loc || '-'}</td><td>${step.estimatedWaitMinutes} phut</td></tr>`;
             }).join('')}
           </table>
         </div>` : '';
@@ -681,7 +675,7 @@ const Reception: React.FC = () => {
         printWindow.document.write(`
           <html>
             <head>
-              <title>Phiếu khám bệnh - ${record.patientCode}</title>
+              <title>Phieu kham benh - ${record.patientCode}</title>
               <style>
                 body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
                 .header { text-align: center; margin-bottom: 15px; }
@@ -702,21 +696,21 @@ const Reception: React.FC = () => {
             </head>
             <body>
               <div class="header">
-                <h2>PHIẾU KHÁM BỆNH</h2>
-                <p>Ngày: ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
+                <h2>PHIEU KHAM BENH</h2>
+                <p>Ngay: ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
               </div>
               ${priorityLabel}
               <div class="queue-number">${record.queueNumber}</div>
-              <div class="room">${record.roomName || 'Chưa phân phòng'}</div>
-              <div class="wait-time">Thời gian chờ ước tính: ~${estimatedWait > 0 ? estimatedWait + ' phút' : 'Không chờ'}</div>
-              <div class="info"><strong>Mã BN:</strong> ${record.patientCode}</div>
-              <div class="info"><strong>Họ tên:</strong> ${record.patientName}</div>
-              <div class="info"><strong>Giới tính:</strong> ${record.gender === 1 ? 'Nam' : 'Nữ'}</div>
-              <div class="info"><strong>Ngày sinh:</strong> ${record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '-'}</div>
-              <div class="info"><strong>Loại khám:</strong> ${record.patientType === 1 ? 'BHYT' : record.patientType === 2 ? 'Viện phí' : 'Dịch vụ'}</div>
-              ${record.insuranceNumber ? `<div class="info"><strong>Số BHYT:</strong> ${record.insuranceNumber}</div>` : ''}
+              <div class="room">${record.roomName || 'Chua phan phong'}</div>
+              <div class="wait-time">Thoi gian cho uoc tinh: ~${estimatedWait > 0 ? estimatedWait + ' phut' : 'Khong cho'}</div>
+              <div class="info"><strong>Ma BN:</strong> ${record.patientCode}</div>
+              <div class="info"><strong>Ho ten:</strong> ${record.patientName}</div>
+              <div class="info"><strong>Gioi tinh:</strong> ${record.gender === 1 ? 'Nam' : 'Nu'}</div>
+              <div class="info"><strong>Ngay sinh:</strong> ${record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '-'}</div>
+              <div class="info"><strong>Loai kham:</strong> ${record.patientType === 1 ? 'BHYT' : record.patientType === 2 ? 'Vien phi' : 'Dich vu'}</div>
+              ${record.insuranceNumber ? `<div class="info"><strong>So BHYT:</strong> ${record.insuranceNumber}</div>` : ''}
               ${clsSection}
-              <div class="footer">Vui lòng chờ gọi số tại phòng khám. Xin cảm ơn!</div>
+              <div class="footer">Vui long cho goi so tai phong kham. Xin cam on!</div>
             </body>
           </html>
         `);
@@ -728,7 +722,7 @@ const Reception: React.FC = () => {
       }
     } catch (error) {
       void error;
-      message.warning('Không thể in phiếu khám');
+      message.warning('Khong the in phieu kham');
     }
   };
 
@@ -750,13 +744,13 @@ const Reception: React.FC = () => {
     }
   };
 
-  // Handle print request-based examination form (Giấy khám chữa bệnh theo yêu cầu MS: 03/BV-02)
+  // Handle print request-based examination form (Giay kham chua benh theo yeu cau MS: 03/BV-02)
   const handlePrintRequestForm = (record: ReceptionRecord) => {
     setSelectedRecord(record);
     printRequestForm.setFieldsValue({
       patientName: record.patientName,
       age: record.dateOfBirth ? dayjs().diff(dayjs(record.dateOfBirth), 'year') : '',
-      gender: record.gender === 1 ? 'Nam' : 'Nữ',
+      gender: record.gender === 1 ? 'Nam' : 'Nu',
       identityNumber: record.identityNumber,
       address: record.address,
       roomName: record.roomName,
@@ -768,7 +762,7 @@ const Reception: React.FC = () => {
     const formValues = printRequestForm.getFieldsValue();
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      message.warning('Khong the mo cua so in. Vui long cho phep popup.');
       return;
     }
 
@@ -776,7 +770,7 @@ const Reception: React.FC = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Giấy khám chữa bệnh theo yêu cầu</title>
+        <title>Giay kham chua benh theo yeu cau</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.6; padding: 30px 40px; }
@@ -800,71 +794,71 @@ const Reception: React.FC = () => {
       <body>
         <div class="header">
           <div class="header-left">
-            Sở Y tế: <span class="field">${formValues.healthDepartment || '.....................'}</span><br/>
+            So Y te: <span class="field">${formValues.healthDepartment || '.....................'}</span><br/>
             BV: <span class="field">${formValues.hospitalName || '.....................'}</span>
           </div>
           <div class="header-center">
-            <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
-            <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
+            <strong>CONG HOA XA HOI CHU NGHIA VIET NAM</strong><br/>
+            <strong>Doc lap - Tu do - Hanh phuc</strong><br/>
             <span>-----------------------------------------</span>
           </div>
           <div class="header-right">
             MS: 03/BV-02<br/>
-            Số: <span class="field">${formValues.formNumber || '............'}</span>
+            So: <span class="field">${formValues.formNumber || '............'}</span>
           </div>
         </div>
 
-        <div class="title">Giấy khám chữa bệnh theo yêu cầu</div>
+        <div class="title">Giay kham chua benh theo yeu cau</div>
 
-        <div class="subtitle">Kính gửi: <span class="field">${formValues.recipient || '......................................................'}</span></div>
+        <div class="subtitle">Kinh gui: <span class="field">${formValues.recipient || '......................................................'}</span></div>
 
         <div class="section">
-          <div class="row">- Tên tôi là: <span class="field">${formValues.patientName || ''}</span> Tuổi: <span class="field">${formValues.age || ''}</span> Nam/Nữ: <span class="field">${formValues.gender || ''}</span></div>
-          <div class="row">- CMND/Hộ chiếu/Hộ khẩu số: <span class="field">${formValues.identityNumber || ''}</span> Cơ quan cấp: <span class="field">${formValues.issuingAuthority || ''}</span></div>
-          <div class="row">- Dân tộc: <span class="field">${formValues.ethnicity || ''}</span> Ngoại kiều: <span class="field">${formValues.nationality || ''}</span></div>
-          <div class="row">- Nghề nghiệp: <span class="field">${formValues.occupation || ''}</span> Nơi làm việc: <span class="field">${formValues.workplace || ''}</span></div>
-          <div class="row">- Địa chỉ: <span class="field" style="width: 80%">${formValues.address || ''}</span></div>
-          <div class="row">- Khi cần báo tin: <span class="field" style="width: 70%">${formValues.emergencyContact || ''}</span></div>
-          <div class="row">- Là người bệnh/đại diện gia đình người bệnh họ tên là: <span class="field">${formValues.representativeName || ''}</span></div>
-          <div class="row">Hiện đang khám/chữa bệnh tại Khoa: <span class="field">${formValues.roomName || ''}</span> Bệnh viện: <span class="field">${formValues.hospitalName || ''}</span></div>
+          <div class="row">- Ten toi la: <span class="field">${formValues.patientName || ''}</span> Tuoi: <span class="field">${formValues.age || ''}</span> Nam/Nu: <span class="field">${formValues.gender || ''}</span></div>
+          <div class="row">- CMND/Ho chieu/Ho khau so: <span class="field">${formValues.identityNumber || ''}</span> Co quan cap: <span class="field">${formValues.issuingAuthority || ''}</span></div>
+          <div class="row">- Dan toc: <span class="field">${formValues.ethnicity || ''}</span> Ngoai kieu: <span class="field">${formValues.nationality || ''}</span></div>
+          <div class="row">- Nghe nghiep: <span class="field">${formValues.occupation || ''}</span> Noi lam viec: <span class="field">${formValues.workplace || ''}</span></div>
+          <div class="row">- Dia chi: <span class="field" style="width: 80%">${formValues.address || ''}</span></div>
+          <div class="row">- Khi can bao tin: <span class="field" style="width: 70%">${formValues.emergencyContact || ''}</span></div>
+          <div class="row">- La nguoi benh/dai dien gia dinh nguoi benh ho ten la: <span class="field">${formValues.representativeName || ''}</span></div>
+          <div class="row">Hien dang kham/chua benh tai Khoa: <span class="field">${formValues.roomName || ''}</span> Benh vien: <span class="field">${formValues.hospitalName || ''}</span></div>
         </div>
 
         <div class="section">
-          <p><strong>1. Sau khi nghe bác sĩ phổ biến quy định khám/chữa bệnh theo yêu cầu của bệnh viện, tôi viết giấy này thỏa thuận xin khám/chữa bệnh theo yêu cầu và chọn dịch vụ chăm sóc như sau:</strong></p>
+          <p><strong>1. Sau khi nghe bac si pho bien quy dinh kham/chua benh theo yeu cau cua benh vien, toi viet giay nay thoa thuan xin kham/chua benh theo yeu cau va chon dich vu cham soc nhu sau:</strong></p>
           <div class="indent">
-            <div class="row">a. Bác sĩ khám/chữa bệnh/phẫu thuật/đỡ đẻ/chăm sóc: <span class="field">${formValues.requestedDoctor || ''}</span></div>
-            <div class="row">b. <span class="checkbox"></span> Y tá (điều dưỡng) chăm sóc theo chế độ bệnh lý tại giường.</div>
-            <div class="row">c. <span class="checkbox"></span> Được dùng thuốc theo chỉ định của bác sĩ điều trị</div>
-            <div class="row">d. Được nằm chữa bệnh tại buồng loại: <span class="field">${formValues.roomType || ''}</span>, có tiện nghi: điều hòa nhiệt độ, tủ lạnh, nước nóng lạnh, buồng vệ sinh riêng.</div>
+            <div class="row">a. Bac si kham/chua benh/phau thuat/do de/cham soc: <span class="field">${formValues.requestedDoctor || ''}</span></div>
+            <div class="row">b. <span class="checkbox"></span> Y ta (dieu duong) cham soc theo che do benh ly tai giuong.</div>
+            <div class="row">c. <span class="checkbox"></span> Duoc dung thuoc theo chi dinh cua bac si dieu tri</div>
+            <div class="row">d. Duoc nam chua benh tai buong loai: <span class="field">${formValues.roomType || ''}</span>, co tien nghi: dieu hoa nhiet do, tu lanh, nuoc nong lanh, buong ve sinh rieng.</div>
           </div>
         </div>
 
         <div class="section">
-          <p><strong>2. Tôi xin ứng trước một khoản tiền theo quy định của bệnh viện là:</strong> <span class="field">${formValues.depositAmount || ''}</span> đồng,</p>
-          <p>(bằng chữ): <span class="field" style="width: 80%">${formValues.depositAmountInWords || ''}</span></p>
-          <p>để khám/chữa bệnh theo yêu cầu; khi ra viện tôi xin thanh toán đầy đủ.</p>
+          <p><strong>2. Toi xin ung truoc mot khoan tien theo quy dinh cua benh vien la:</strong> <span class="field">${formValues.depositAmount || ''}</span> dong,</p>
+          <p>(bang chu): <span class="field" style="width: 80%">${formValues.depositAmountInWords || ''}</span></p>
+          <p>de kham/chua benh theo yeu cau; khi ra vien toi xin thanh toan day du.</p>
         </div>
 
         <div class="section">
-          <p><strong>3.</strong> Trong khi thực hiện khám/chữa bệnh theo yêu cầu, nếu có vấn đề phát sinh đề nghị bác sĩ thông báo cho tôi/gia đình tôi biết để tiện thanh toán kịp thời.</p>
+          <p><strong>3.</strong> Trong khi thuc hien kham/chua benh theo yeu cau, neu co van de phat sinh de nghi bac si thong bao cho toi/gia dinh toi biet de tien thanh toan kip thoi.</p>
         </div>
 
         <div class="section">
-          <p><strong>4.</strong> Tôi xin chấp hành đầy đủ nội quy khám/chữa bệnh của bệnh viện, yên tâm chữa bệnh và chịu trách nhiệm về những yêu cầu khám/chữa bệnh của tôi.</p>
+          <p><strong>4.</strong> Toi xin chap hanh day du noi quy kham/chua benh cua benh vien, yen tam chua benh va chiu trach nhiem ve nhung yeu cau kham/chua benh cua toi.</p>
         </div>
 
         <div class="signature-row">
           <div class="signature-box">
-            <p>Duyệt của</p>
-            <p><strong>Giám đốc bệnh viện</strong></p>
+            <p>Duyet cua</p>
+            <p><strong>Giam doc benh vien</strong></p>
             <br/><br/><br/>
-            <p>Họ tên: ................................</p>
+            <p>Ho ten: ................................</p>
           </div>
           <div class="signature-box">
-            <p>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</p>
-            <p><strong>Người bệnh/đại diện gia đình</strong></p>
+            <p>Ngay ${dayjs().format('DD')} thang ${dayjs().format('MM')} nam ${dayjs().format('YYYY')}</p>
+            <p><strong>Nguoi benh/dai dien gia dinh</strong></p>
             <br/><br/><br/>
-            <p>Họ tên: ................................</p>
+            <p>Ho ten: ................................</p>
           </div>
         </div>
 
@@ -901,31 +895,20 @@ const Reception: React.FC = () => {
           isExpired: result.isExpired,
           isRightRoute: result.rightRoute === 1,
           paymentRate: result.paymentRate,
-          validationMessage: result.isValid ? 'Thẻ BHYT hợp lệ' : result.errorMessage,
+          validationMessage: result.isValid ? 'The BHYT hop le' : result.errorMessage,
         };
         setInsuranceVerification(verification);
         if (result.isValid) {
-          message.success('Xác minh thẻ BHYT thành công!');
+          message.success('Xac minh the BHYT thanh cong!');
         } else {
-          message.warning(result.errorMessage || 'Thẻ BHYT không hợp lệ');
+          message.warning(result.errorMessage || 'The BHYT khong hop le');
         }
       }
     } catch (error) {
       console.warn('Insurance verification error:', error);
-      message.warning(getErrorMessage(error, 'Không thể xác minh thẻ BHYT'));
+      message.warning(getErrorMessage(error, 'Khong the xac minh the BHYT'));
     } finally {
       setVerifyingInsurance(false);
-    }
-  };
-
-  const getPriorityTag = (priority?: number) => {
-    switch (priority) {
-      case 1:
-        return <Tag color="gold">Ưu tiên</Tag>;
-      case 2:
-        return <Tag color="red">Cấp cứu</Tag>;
-      default:
-        return null;
     }
   };
 
@@ -936,79 +919,64 @@ const Reception: React.FC = () => {
   const completedCount = data.filter(d => d.status === 3).length;
 
   const statCards = [
-    { label: 'Tổng BN hôm nay', value: totalPatients, icon: <UserOutlined style={{ fontSize: 28 }} />, gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', iconBg: 'rgba(255,255,255,0.2)' },
-    { label: 'Đang chờ khám', value: waitingCount, icon: <Badge status="warning" text="" />, gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', iconBg: 'rgba(255,255,255,0.2)' },
-    { label: 'Đang khám', value: examiningCount, icon: <Badge status="processing" text="" />, gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', iconBg: 'rgba(255,255,255,0.2)' },
-    { label: 'Hoàn thành', value: completedCount, icon: <CheckCircleOutlined style={{ fontSize: 28 }} />, gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', iconBg: 'rgba(255,255,255,0.2)' },
+    { label: 'Tong BN hom nay', value: totalPatients, icon: <UserOutlined className="text-2xl" />, gradient: 'bg-gradient-to-br from-indigo-500 to-purple-600' },
+    { label: 'Dang cho kham', value: waitingCount, icon: <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" /><span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" /></span>, gradient: 'bg-gradient-to-br from-fuchsia-400 to-rose-500' },
+    { label: 'Dang kham', value: examiningCount, icon: <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" /><span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500" /></span>, gradient: 'bg-gradient-to-br from-blue-400 to-cyan-400' },
+    { label: 'Hoan thanh', value: completedCount, icon: <CheckCircleOutlined className="text-2xl" />, gradient: 'bg-gradient-to-br from-emerald-400 to-teal-400' },
   ];
 
   return (
-    <div style={{ padding: '0 4px' }}>
+    <div className="px-1">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div className="flex justify-between items-center mb-5">
         <div>
-          <Title level={4} style={{ margin: 0, letterSpacing: '-0.5px' }}>Tiếp đón bệnh nhân</Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>{dayjs().format('dddd, DD/MM/YYYY')} &middot; {data.length} bệnh nhân</Text>
+          <h4 className="text-lg font-semibold text-gray-800 tracking-tight m-0">Tiep don benh nhan</h4>
+          <p className="text-gray-500 text-sm mt-0.5">{dayjs().format('dddd, DD/MM/YYYY')} &middot; {data.length} benh nhan</p>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => { fetchRooms(); fetchAdmissions(); }}>Làm mới</Button>
-          <Button icon={<QrcodeOutlined />} onClick={() => setIsVerifyModalOpen(true)}>Tra cứu BHYT</Button>
+        <div className="flex items-center gap-2">
+          <Button icon={<ReloadOutlined />} onClick={() => { fetchRooms(); fetchAdmissions(); }}>Lam moi</Button>
+          <Button icon={<QrcodeOutlined />} onClick={() => setIsVerifyModalOpen(true)}>Tra cuu BHYT</Button>
           <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => setIsModalOpen(true)}
             style={{ borderRadius: 8, fontWeight: 600, height: 40, paddingInline: 24 }}>
-            Đăng ký khám
+            Dang ky kham
           </Button>
-        </Space>
+        </div>
       </div>
 
       {/* Stat Cards with Gradient */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {statCards.map((card, idx) => (
-          <Col xs={12} sm={12} lg={6} key={idx}>
-            <Card
-              style={{
-                background: card.gradient,
-                borderRadius: 12,
-                border: 'none',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-                overflow: 'hidden',
-              }}
-              styles={{ body: { padding: '20px 24px' } }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginBottom: 8 }}>{card.label}</div>
-                  <div style={{ color: '#fff', fontSize: 32, fontWeight: 700, lineHeight: 1 }}>{card.value}</div>
-                </div>
-                <div style={{
-                  width: 52, height: 52, borderRadius: 12, background: card.iconBg,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
-                }}>
-                  {card.icon}
-                </div>
+          <div
+            key={idx}
+            className={`${card.gradient} rounded-xl shadow-md overflow-hidden`}
+          >
+            <div className="flex justify-between items-center px-6 py-5">
+              <div>
+                <div className="text-white/85 text-sm mb-2">{card.label}</div>
+                <div className="text-white text-3xl font-bold leading-none">{card.value}</div>
               </div>
-            </Card>
-          </Col>
+              <div className="w-13 h-13 rounded-xl bg-white/20 flex items-center justify-center text-white">
+                {card.icon}
+              </div>
+            </div>
+          </div>
         ))}
-      </Row>
+      </div>
 
       {/* Main Content */}
-      <Card style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }} styles={{ body: { padding: 0 } }}>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <Tabs
           style={{ padding: '0 16px' }}
           items={[
             {
               key: 'list',
-              label: <span style={{ fontWeight: 500 }}>Danh sách tiếp đón</span>,
+              label: <span className="font-medium">Danh sach tiep don</span>,
               children: (
-                <div style={{ padding: '0 8px 16px' }}>
+                <div className="px-2 pb-4">
                   {/* Filters Row */}
-                  <div style={{
-                    display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
-                    marginBottom: 16, padding: '12px 16px',
-                    background: '#f8f9fb', borderRadius: 10,
-                  }}>
+                  <div className="flex flex-wrap gap-2.5 items-center mb-4 p-3 bg-gray-50 rounded-xl">
                     <Search
-                      placeholder="Tìm theo mã BN, tên, SĐT, CCCD..."
+                      placeholder="Tim theo ma BN, ten, SDT, CCCD..."
                       allowClear
                       enterButton={<SearchOutlined />}
                       style={{ width: 320, flexShrink: 0 }}
@@ -1016,32 +984,32 @@ const Reception: React.FC = () => {
                       onSearch={(value) => { setSearchText(value); applyFilters(allData, value, filterStatus); }}
                       onChange={(e) => { setSearchText(e.target.value); if (!e.target.value) applyFilters(allData, '', filterStatus); }}
                     />
-                    <Tooltip title="Quét mã vạch / QR Code">
+                    <Tooltip title="Quet ma vach / QR Code">
                       <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} style={{ borderRadius: 8 }} />
                     </Tooltip>
                     <Select
                       defaultValue=""
                       style={{ width: 170 }}
-                      placeholder="Phòng khám"
+                      placeholder="Phong kham"
                       loading={loadingRooms}
-                      notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Không có dữ liệu' : undefined)}
+                      notFoundContent={loadingRooms ? <Spin size="small" /> : (rooms.length === 0 ? 'Khong co du lieu' : undefined)}
                       onChange={(roomId) => {
                         if (roomId) { setData(allData.filter(p => p.roomId === roomId)); }
                         else { applyFilters(allData, searchText, filterStatus); }
                       }}
-                      options={[{ value: '', label: 'Tất cả phòng' }, ...rooms.map(room => ({ value: room.roomId, label: room.roomName }))]}
+                      options={[{ value: '', label: 'Tat ca phong' }, ...rooms.map(room => ({ value: room.roomId, label: room.roomName }))]}
                     />
                     <Select
                       defaultValue=""
                       style={{ width: 130 }}
-                      placeholder="Trạng thái"
+                      placeholder="Trang thai"
                       onChange={(value) => { setFilterStatus(value); applyFilters(allData, searchText, value); }}
                       options={[
-                        { value: '', label: 'Tất cả' },
-                        { value: '0', label: 'Chờ khám' },
-                        { value: '1', label: 'Đang khám' },
-                        { value: '2', label: 'Chờ kết luận' },
-                        { value: '3', label: 'Hoàn thành' },
+                        { value: '', label: 'Tat ca' },
+                        { value: '0', label: 'Cho kham' },
+                        { value: '1', label: 'Dang kham' },
+                        { value: '2', label: 'Cho ket luan' },
+                        { value: '3', label: 'Hoan thanh' },
                       ]}
                     />
                     <DatePicker
@@ -1066,7 +1034,7 @@ const Reception: React.FC = () => {
                     pagination={{
                       showSizeChanger: true,
                       showQuickJumper: true,
-                      showTotal: (total) => <Text type="secondary">Tổng: <strong>{total}</strong> bệnh nhân</Text>,
+                      showTotal: (total) => <span className="text-gray-500">Tong: <strong>{total}</strong> benh nhan</span>,
                     }}
                     rowClassName={(record) =>
                       record.priority === 2 ? 'emergency-row' : record.priority === 1 ? 'priority-row' : ''
@@ -1081,67 +1049,83 @@ const Reception: React.FC = () => {
             },
             {
               key: 'stats',
-              label: <span style={{ fontWeight: 500 }}>Thống kê phòng khám</span>,
+              label: <span className="font-medium">Thong ke phong kham</span>,
               children: (
-                <div style={{ padding: '8px 8px 16px' }}>
-                  <Row gutter={[16, 16]}>
+                <div className="px-2 pt-2 pb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {roomStats.map((room) => {
                       const total = room.totalWaiting + room.totalServing + room.totalCompleted;
                       const pct = total > 0 ? Math.round((room.totalCompleted / total) * 100) : 0;
                       return (
-                        <Col xs={24} sm={12} lg={8} key={room.roomId}>
-                          <Card
-                            style={{ borderRadius: 12, border: room.totalServing > 0 ? '1px solid #91caff' : undefined }}
-                            styles={{ body: { padding: 20 } }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                              <Space>
-                                <Badge status={room.totalServing > 0 ? 'processing' : 'default'} />
-                                <Text strong style={{ fontSize: 15 }}>{room.roomName}</Text>
-                              </Space>
-                              <Tag color="blue" style={{ borderRadius: 6 }}>{room.departmentName}</Tag>
+                        <div
+                          key={room.roomId}
+                          className={`bg-white rounded-xl p-5 border ${room.totalServing > 0 ? 'border-blue-300 shadow-sm' : 'border-gray-100'}`}
+                        >
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-2">
+                              {room.totalServing > 0 ? (
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+                                </span>
+                              ) : (
+                                <span className="inline-flex rounded-full h-2.5 w-2.5 bg-gray-300" />
+                              )}
+                              <span className="font-semibold text-gray-800 text-base">{room.roomName}</span>
                             </div>
-                            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                              <div style={{ flex: 1, textAlign: 'center', padding: '8px 0', background: '#fff7e6', borderRadius: 8 }}>
-                                <div style={{ fontSize: 22, fontWeight: 700, color: '#d48806' }}>{room.totalWaiting}</div>
-                                <div style={{ fontSize: 11, color: '#d48806' }}>Chờ</div>
-                              </div>
-                              <div style={{ flex: 1, textAlign: 'center', padding: '8px 0', background: '#e6f4ff', borderRadius: 8 }}>
-                                <div style={{ fontSize: 22, fontWeight: 700, color: '#1677ff' }}>{room.totalServing}</div>
-                                <div style={{ fontSize: 11, color: '#1677ff' }}>Đang khám</div>
-                              </div>
-                              <div style={{ flex: 1, textAlign: 'center', padding: '8px 0', background: '#f6ffed', borderRadius: 8 }}>
-                                <div style={{ fontSize: 22, fontWeight: 700, color: '#389e0d' }}>{room.totalCompleted}</div>
-                                <div style={{ fontSize: 11, color: '#389e0d' }}>Xong</div>
-                              </div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              {room.departmentName}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 mb-3">
+                            <div className="flex-1 text-center py-2 bg-amber-50 rounded-lg">
+                              <div className="text-2xl font-bold text-amber-600">{room.totalWaiting}</div>
+                              <div className="text-xs text-amber-600">Cho</div>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                              <Text type="secondary" style={{ fontSize: 12 }}>BS: {room.doctorName || '—'}</Text>
-                              <Text type="secondary" style={{ fontSize: 12 }}>{pct}%</Text>
+                            <div className="flex-1 text-center py-2 bg-blue-50 rounded-lg">
+                              <div className="text-2xl font-bold text-blue-600">{room.totalServing}</div>
+                              <div className="text-xs text-blue-600">Dang kham</div>
                             </div>
-                            <Progress percent={pct} size="small" showInfo={false} strokeColor={{ from: '#4facfe', to: '#43e97b' }} />
-                          </Card>
-                        </Col>
+                            <div className="flex-1 text-center py-2 bg-emerald-50 rounded-lg">
+                              <div className="text-2xl font-bold text-emerald-600">{room.totalCompleted}</div>
+                              <div className="text-xs text-emerald-600">Xong</div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className="text-gray-400 text-xs">BS: {room.doctorName || '\u2014'}</span>
+                            <span className="text-gray-400 text-xs">{pct}%</span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-blue-400 to-emerald-400 transition-all duration-300"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
                       );
                     })}
                     {roomStats.length === 0 && (
-                      <Col span={24}><Empty description="Không có dữ liệu phòng khám" /></Col>
+                      <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400">
+                        <svg className="w-12 h-12 mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                        <span>Khong co du lieu phong kham</span>
+                      </div>
                     )}
-                  </Row>
+                  </div>
                 </div>
               ),
             },
           ]}
         />
-      </Card>
+      </div>
 
-      {/* Modal Tra cứu BHYT */}
+      {/* Modal Tra cuu BHYT */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <IdcardOutlined />
-            Tra cứu thẻ BHYT
-          </Space>
+            <span>Tra cuu the BHYT</span>
+          </div>
         }
         open={isVerifyModalOpen}
         onCancel={() => {
@@ -1154,24 +1138,24 @@ const Reception: React.FC = () => {
         destroyOnHidden={false}
       >
         <Form form={verifyForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={16}>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
               <Form.Item
                 name="insuranceNumber"
-                label="Số thẻ BHYT"
-                rules={[{ required: true, message: 'Vui lòng nhập số thẻ BHYT' }]}
+                label="So the BHYT"
+                rules={[{ required: true, message: 'Vui long nhap so the BHYT' }]}
               >
-                <Input placeholder="Nhập số thẻ BHYT (15 ký tự)" maxLength={15} />
+                <Input placeholder="Nhap so the BHYT (15 ky tu)" maxLength={15} />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </div>
+            <div>
               <Form.Item label=" ">
                 <Button type="primary" onClick={handleVerifyInsurance} loading={verifyingInsurance} block>
-                  Tra cứu
+                  Tra cuu
                 </Button>
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
         </Form>
 
         {insuranceVerification && (() => {
@@ -1182,62 +1166,84 @@ const Reception: React.FC = () => {
 
           return (
           <>
-            <Divider />
+            <hr className="border-gray-200 my-4" />
             {/* Expiry warning for standalone verification */}
             {vIsExpired && (
-              <Alert
-                title={`Thẻ BHYT đã hết hạn từ ngày ${vEndDate?.format('DD/MM/YYYY')} (${Math.abs(vDaysLeft!)} ngày trước)`}
-                description="Bệnh nhân cần gia hạn thẻ BHYT. Nếu tiếp tục, bệnh nhân sẽ phải thanh toán toàn bộ chi phí."
-                type="error"
-                showIcon
-                style={{ marginBottom: 12 }}
-              />
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-3 flex items-start gap-2">
+                <CloseCircleOutlined className="text-red-500 mt-0.5" />
+                <div>
+                  <div className="font-medium text-red-700">The BHYT da het han tu ngay {vEndDate?.format('DD/MM/YYYY')} ({Math.abs(vDaysLeft!)} ngay truoc)</div>
+                  <div className="text-red-600 text-sm mt-0.5">Benh nhan can gia han the BHYT. Neu tiep tuc, benh nhan se phai thanh toan toan bo chi phi.</div>
+                </div>
+              </div>
             )}
             {vIsExpiringSoon && (
-              <Alert
-                title={`Thẻ BHYT sắp hết hạn: còn ${vDaysLeft} ngày (hết hạn ngày ${vEndDate?.format('DD/MM/YYYY')})`}
-                description="Vui lòng nhắc bệnh nhân gia hạn thẻ BHYT trước khi hết hạn."
-                type="warning"
-                showIcon
-                style={{ marginBottom: 12 }}
-              />
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mb-3 flex items-start gap-2">
+                <WarningOutlined className="text-amber-500 mt-0.5" />
+                <div>
+                  <div className="font-medium text-amber-700">The BHYT sap het han: con {vDaysLeft} ngay (het han ngay {vEndDate?.format('DD/MM/YYYY')})</div>
+                  <div className="text-amber-600 text-sm mt-0.5">Vui long nhac benh nhan gia han the BHYT truoc khi het han.</div>
+                </div>
+              </div>
             )}
-            <Alert
-              title={insuranceVerification.isValid ? 'Thẻ BHYT hợp lệ' : 'Thẻ BHYT không hợp lệ'}
-              type={insuranceVerification.isValid ? 'success' : 'error'}
-              showIcon
-              icon={insuranceVerification.isValid ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-              style={{ marginBottom: 16 }}
-            />
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Số thẻ" span={2}>
-                <Text strong>{insuranceVerification.insuranceNumber}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Họ tên">{insuranceVerification.patientName}</Descriptions.Item>
-              <Descriptions.Item label="Ngày sinh">
-                {insuranceVerification.dateOfBirth ? dayjs(insuranceVerification.dateOfBirth).format('DD/MM/YYYY') : ''}
-              </Descriptions.Item>
-              <Descriptions.Item label="Nơi ĐKKCB BĐ" span={2}>
-                {insuranceVerification.facilityName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngày bắt đầu">
-                {insuranceVerification.startDate ? dayjs(insuranceVerification.startDate).format('DD/MM/YYYY') : ''}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngày kết thúc">
-                {insuranceVerification.endDate ? dayjs(insuranceVerification.endDate).format('DD/MM/YYYY') : ''}
-              </Descriptions.Item>
-              <Descriptions.Item label="Đúng tuyến">
-                {insuranceVerification.isRightRoute ? (
-                  <Tag color="green">Đúng tuyến</Tag>
-                ) : (
-                  <Tag color="orange">Trái tuyến</Tag>
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="Tỷ lệ thanh toán">
-                <Text strong style={{ color: '#1890ff' }}>{insuranceVerification.paymentRate}%</Text>
-              </Descriptions.Item>
-            </Descriptions>
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
+            <div className={`p-3 rounded-lg mb-4 flex items-center gap-2 ${insuranceVerification.isValid ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
+              {insuranceVerification.isValid ? <CheckCircleOutlined className="text-emerald-500 text-lg" /> : <CloseCircleOutlined className="text-red-500 text-lg" />}
+              <span className={`font-medium ${insuranceVerification.isValid ? 'text-emerald-700' : 'text-red-700'}`}>
+                {insuranceVerification.isValid ? 'The BHYT hop le' : 'The BHYT khong hop le'}
+              </span>
+            </div>
+            {/* Insurance details grid */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden text-sm">
+              <div className="grid grid-cols-2 border-b border-gray-200">
+                <div className="col-span-2 flex">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">So the</div>
+                  <div className="px-3 py-2 font-semibold">{insuranceVerification.insuranceNumber}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 border-b border-gray-200">
+                <div className="flex border-r border-gray-200">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ho ten</div>
+                  <div className="px-3 py-2">{insuranceVerification.patientName}</div>
+                </div>
+                <div className="flex">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ngay sinh</div>
+                  <div className="px-3 py-2">{insuranceVerification.dateOfBirth ? dayjs(insuranceVerification.dateOfBirth).format('DD/MM/YYYY') : ''}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 border-b border-gray-200">
+                <div className="col-span-2 flex">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Noi DKKCB BD</div>
+                  <div className="px-3 py-2">{insuranceVerification.facilityName}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 border-b border-gray-200">
+                <div className="flex border-r border-gray-200">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ngay bat dau</div>
+                  <div className="px-3 py-2">{insuranceVerification.startDate ? dayjs(insuranceVerification.startDate).format('DD/MM/YYYY') : ''}</div>
+                </div>
+                <div className="flex">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ngay ket thuc</div>
+                  <div className="px-3 py-2">{insuranceVerification.endDate ? dayjs(insuranceVerification.endDate).format('DD/MM/YYYY') : ''}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2">
+                <div className="flex border-r border-gray-200">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Dung tuyen</div>
+                  <div className="px-3 py-2">
+                    {insuranceVerification.isRightRoute ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Dung tuyen</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Trai tuyen</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex">
+                  <div className="w-36 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ty le thanh toan</div>
+                  <div className="px-3 py-2 font-semibold text-blue-600">{insuranceVerification.paymentRate}%</div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 text-right">
               <Button
                 type="primary"
                 onClick={() => {
@@ -1251,7 +1257,7 @@ const Reception: React.FC = () => {
                   }, 0);
                 }}
               >
-                Sử dụng thông tin này
+                Su dung thong tin nay
               </Button>
             </div>
           </>
@@ -1259,13 +1265,13 @@ const Reception: React.FC = () => {
         })()}
       </Modal>
 
-      {/* Modal Lịch sử khám */}
+      {/* Modal Lich su kham */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <HistoryOutlined />
-            Lịch sử khám bệnh - {selectedRecord?.patientName}
-          </Space>
+            <span>Lich su kham benh - {selectedRecord?.patientName}</span>
+          </div>
         }
         open={isHistoryModalOpen}
         onCancel={() => {
@@ -1280,35 +1286,40 @@ const Reception: React.FC = () => {
             size="small"
             columns={[
               {
-                title: 'Ngày khám',
+                title: 'Ngay kham',
                 dataIndex: 'visitDate',
                 key: 'visitDate',
                 render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
               },
-              { title: 'Phòng khám', dataIndex: 'roomName', key: 'roomName' },
-              { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctorName' },
-              { title: 'Chẩn đoán', dataIndex: 'diagnosisName', key: 'diagnosisName' },
+              { title: 'Phong kham', dataIndex: 'roomName', key: 'roomName' },
+              { title: 'Bac si', dataIndex: 'doctorName', key: 'doctorName' },
+              { title: 'Chan doan', dataIndex: 'diagnosisName', key: 'diagnosisName' },
               {
-                title: 'Kết quả',
+                title: 'Ket qua',
                 dataIndex: 'treatmentResult',
                 key: 'treatmentResult',
-                render: (result: string) => result ? <Tag color="green">{result}</Tag> : <Tag color="blue">Hoàn thành</Tag>,
+                render: (result: string) => result ? <Tag color="green">{result}</Tag> : <Tag color="blue">Hoan thanh</Tag>,
               },
             ]}
             dataSource={visitHistory.map((v, idx) => ({ ...v, key: v.medicalRecordId || idx }))}
-            locale={{ emptyText: <Empty description="Không có lịch sử khám bệnh" /> }}
+            locale={{ emptyText: (
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <svg className="w-10 h-10 mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                <span>Khong co lich su kham benh</span>
+              </div>
+            ) }}
             pagination={false}
           />
         </Spin>
       </Modal>
 
-      {/* Modal Chi tiết bệnh nhân */}
+      {/* Modal Chi tiet benh nhan */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <UserOutlined />
-            Chi tiết bệnh nhân - {selectedRecord?.patientName}
-          </Space>
+            <span>Chi tiet benh nhan - {selectedRecord?.patientName}</span>
+          </div>
         }
         open={isDetailModalOpen}
         onCancel={() => setIsDetailModalOpen(false)}
@@ -1317,83 +1328,109 @@ const Reception: React.FC = () => {
             setIsDetailModalOpen(false);
             setIsHistoryModalOpen(true);
           }}>
-            Lịch sử khám
+            Lich su kham
           </Button>,
           <Button key="close" onClick={() => setIsDetailModalOpen(false)}>
-            Đóng
+            Dong
           </Button>,
         ]}
         width={700}
       >
         {selectedRecord && (
-          <Descriptions bordered column={2} size="small">
-            <Descriptions.Item label="Số thứ tự" span={1}>
-              <Text strong style={{ fontSize: 18 }}>{selectedRecord.queueNumber}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Mã BN" span={1}>
-              <Text strong>{selectedRecord.patientCode}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Họ tên" span={2}>
-              {selectedRecord.patientName}
-            </Descriptions.Item>
-            <Descriptions.Item label="Giới tính" span={1}>
-              {selectedRecord.gender === 1 ? 'Nam' : selectedRecord.gender === 2 ? 'Nữ' : 'Khác'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Ngày sinh" span={1}>
-              {selectedRecord.dateOfBirth ? dayjs(selectedRecord.dateOfBirth).format('DD/MM/YYYY') : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="SĐT" span={1}>
-              {selectedRecord.phoneNumber || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="CMND/CCCD" span={1}>
-              {selectedRecord.identityNumber || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Địa chỉ" span={2}>
-              {selectedRecord.address || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Loại khám" span={1}>
-              {selectedRecord.patientType === 1 ? (
-                <Tag color="green">BHYT</Tag>
-              ) : selectedRecord.patientType === 2 ? (
-                <Tag color="blue">Viện phí</Tag>
-              ) : (
-                <Tag color="purple">Dịch vụ</Tag>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="Số BHYT" span={1}>
-              {selectedRecord.insuranceNumber || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Phòng khám" span={1}>
-              {selectedRecord.roomName || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Khoa" span={1}>
-              {selectedRecord.departmentName || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Trạng thái" span={1}>
-              {selectedRecord.status === 0 ? (
-                <Tag color="orange">Chờ khám</Tag>
-              ) : selectedRecord.status === 1 ? (
-                <Tag color="blue">Đang khám</Tag>
-              ) : selectedRecord.status === 2 ? (
-                <Tag color="cyan">Chờ kết quả</Tag>
-              ) : (
-                <Tag color="green">Hoàn thành</Tag>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="Ngày đăng ký" span={1}>
-              {dayjs(selectedRecord.admissionDate).format('DD/MM/YYYY HH:mm')}
-            </Descriptions.Item>
-          </Descriptions>
+          <div className="border border-gray-200 rounded-lg overflow-hidden text-sm">
+            <div className="grid grid-cols-2 border-b border-gray-200">
+              <div className="flex border-r border-gray-200">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">So thu tu</div>
+                <div className="px-3 py-2 font-bold text-lg">{selectedRecord.queueNumber}</div>
+              </div>
+              <div className="flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ma BN</div>
+                <div className="px-3 py-2 font-semibold">{selectedRecord.patientCode}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 border-b border-gray-200">
+              <div className="col-span-2 flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ho ten</div>
+                <div className="px-3 py-2">{selectedRecord.patientName}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 border-b border-gray-200">
+              <div className="flex border-r border-gray-200">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Gioi tinh</div>
+                <div className="px-3 py-2">{selectedRecord.gender === 1 ? 'Nam' : selectedRecord.gender === 2 ? 'Nu' : 'Khac'}</div>
+              </div>
+              <div className="flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ngay sinh</div>
+                <div className="px-3 py-2">{selectedRecord.dateOfBirth ? dayjs(selectedRecord.dateOfBirth).format('DD/MM/YYYY') : '-'}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 border-b border-gray-200">
+              <div className="flex border-r border-gray-200">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">SDT</div>
+                <div className="px-3 py-2">{selectedRecord.phoneNumber || '-'}</div>
+              </div>
+              <div className="flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">CMND/CCCD</div>
+                <div className="px-3 py-2">{selectedRecord.identityNumber || '-'}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 border-b border-gray-200">
+              <div className="col-span-2 flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Dia chi</div>
+                <div className="px-3 py-2">{selectedRecord.address || '-'}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 border-b border-gray-200">
+              <div className="flex border-r border-gray-200">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Loai kham</div>
+                <div className="px-3 py-2">
+                  {selectedRecord.patientType === 1 ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">BHYT</span>
+                  ) : selectedRecord.patientType === 2 ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">Vien phi</span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">Dich vu</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">So BHYT</div>
+                <div className="px-3 py-2">{selectedRecord.insuranceNumber || '-'}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 border-b border-gray-200">
+              <div className="flex border-r border-gray-200">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Phong kham</div>
+                <div className="px-3 py-2">{selectedRecord.roomName || '-'}</div>
+              </div>
+              <div className="flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Khoa</div>
+                <div className="px-3 py-2">{selectedRecord.departmentName || '-'}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2">
+              <div className="flex border-r border-gray-200">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Trang thai</div>
+                <div className="px-3 py-2">
+                  {getStatusTag(selectedRecord.status)}
+                </div>
+              </div>
+              <div className="flex">
+                <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ngay DK</div>
+                <div className="px-3 py-2">{dayjs(selectedRecord.admissionDate).format('DD/MM/YYYY HH:mm')}</div>
+              </div>
+            </div>
+          </div>
         )}
       </Modal>
 
-      {/* Modal Đăng ký khám */}
+      {/* Modal Dang ky kham */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <FileTextOutlined />
-            Đăng ký khám bệnh
-          </Space>
+            <span>Dang ky kham benh</span>
+          </div>
         }
         open={isModalOpen}
         onOk={handleCreate}
@@ -1403,132 +1440,122 @@ const Reception: React.FC = () => {
           setInlineVerifyStatus('none');
         }}
         width={900}
-        okText="Đăng ký"
-        cancelText="Hủy"
+        okText="Dang ky"
+        cancelText="Huy"
         confirmLoading={submitting}
         destroyOnHidden={false}
       >
         <Form form={form} layout="vertical">
-          <Row gutter={16}>
-            <Col span={18}>
-              <Row gutter={16}>
-                <Col span={16}>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-3">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
                   <Form.Item
                     name="fullName"
-                    label="Họ tên"
-                    rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+                    label="Ho ten"
+                    rules={[{ required: true, message: 'Vui long nhap ho ten' }]}
                   >
-                    <Input placeholder="Nhập họ tên bệnh nhân" />
+                    <Input placeholder="Nhap ho ten benh nhan" />
                   </Form.Item>
-                </Col>
-                <Col span={8}>
+                </div>
+                <div>
                   <Form.Item
                     name="gender"
-                    label="Giới tính"
+                    label="Gioi tinh"
                     rules={[{ required: true }]}
                   >
-                    <Select placeholder="Chọn" options={[
+                    <Select placeholder="Chon" options={[
                       { value: 1, label: 'Nam' },
-                      { value: 2, label: 'Nữ' },
+                      { value: 2, label: 'Nu' },
                     ]} />
                   </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item name="dateOfBirth" label="Ngày sinh">
-                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="phoneNumber" label="Số điện thoại">
-                    <Input placeholder="Nhập SĐT" />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="photo" label="Ảnh bệnh nhân">
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Form.Item name="dateOfBirth" label="Ngay sinh">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+                <Form.Item name="phoneNumber" label="So dien thoai">
+                  <Input placeholder="Nhap SDT" />
+                </Form.Item>
+              </div>
+            </div>
+            <div>
+              <Form.Item name="photo" label="Anh benh nhan">
                 <WebcamCapture width={140} height={170} />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="identityNumber" label="CCCD/CMND" rules={[{
-                validator: (_: unknown, value: string) => {
-                  if (!value) return Promise.resolve();
-                  const result = validateCccd(value);
-                  if (!result.valid) return Promise.reject(new Error(result.error));
-                  return Promise.resolve();
-                }
-              }]} help={(() => {
-                if (watchedIdentityNumber && watchedIdentityNumber.length === 12) {
-                  const r = validateCccd(watchedIdentityNumber);
-                  if (r.valid && r.province) return `Nơi cấp: ${r.province}`;
-                }
-                return undefined;
-              })()}>
-                <Input placeholder="Nhập số CCCD (12 chữ số)" maxLength={12} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="patientType"
-                label="Đối tượng"
-                rules={[{ required: true }]}
-              >
-                <Select placeholder="Chọn đối tượng" options={[
-                  { value: 1, label: 'BHYT' },
-                  { value: 2, label: 'Viện phí' },
-                  { value: 3, label: 'Dịch vụ' },
-                ]} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="email" label="Email">
-                <Input placeholder="Nhập email" />
-              </Form.Item>
-            </Col>
-          </Row>
+          <div className="grid grid-cols-3 gap-4">
+            <Form.Item name="identityNumber" label="CCCD/CMND" rules={[{
+              validator: (_: unknown, value: string) => {
+                if (!value) return Promise.resolve();
+                const result = validateCccd(value);
+                if (!result.valid) return Promise.reject(new Error(result.error));
+                return Promise.resolve();
+              }
+            }]} help={(() => {
+              if (watchedIdentityNumber && watchedIdentityNumber.length === 12) {
+                const r = validateCccd(watchedIdentityNumber);
+                if (r.valid && r.province) return `Noi cap: ${r.province}`;
+              }
+              return undefined;
+            })()}>
+              <Input placeholder="Nhap so CCCD (12 chu so)" maxLength={12} />
+            </Form.Item>
+            <Form.Item
+              name="patientType"
+              label="Doi tuong"
+              rules={[{ required: true }]}
+            >
+              <Select placeholder="Chon doi tuong" options={[
+                { value: 1, label: 'BHYT' },
+                { value: 2, label: 'Vien phi' },
+                { value: 3, label: 'Dich vu' },
+              ]} />
+            </Form.Item>
+            <Form.Item name="email" label="Email">
+              <Input placeholder="Nhap email" />
+            </Form.Item>
+          </div>
 
-          <Row gutter={16}>
-            <Col span={10}>
-              <Form.Item name="insuranceNumber" label="Số thẻ BHYT">
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-5">
+              <Form.Item name="insuranceNumber" label="So the BHYT">
                 <Input
-                  placeholder="Nhập số thẻ BHYT"
+                  placeholder="Nhap so the BHYT"
                   maxLength={15}
                   onBlur={handleInlineInsuranceVerify}
                 />
               </Form.Item>
-            </Col>
-            <Col span={2} style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 24 }}>
-              <Tooltip title="Xác minh thẻ BHYT qua cổng BHXH">
+            </div>
+            <div className="col-span-2 flex items-end pb-6">
+              <Tooltip title="Xac minh the BHYT qua cong BHXH">
                 <Button
                   icon={<SafetyCertificateOutlined />}
                   onClick={handleInlineInsuranceVerify}
                   loading={inlineVerifyLoading}
                 >
-                  Xác minh
+                  Xac minh
                 </Button>
               </Tooltip>
-            </Col>
-            <Col span={12}>
+            </div>
+            <div className="col-span-5">
               <Form.Item
                 name="roomId"
-                label="Phòng khám"
-                rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
+                label="Phong kham"
+                rules={[{ required: true, message: 'Vui long chon phong kham' }]}
               >
                 <Select
-                  placeholder="Chọn phòng khám"
+                  placeholder="Chon phong kham"
                   loading={loadingRooms}
-                  notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
+                  notFoundContent={loadingRooms ? <Spin size="small" /> : 'Khong co du lieu'}
                   options={rooms.map(room => ({ value: room.roomId, label: `${room.roomName} - ${room.departmentName}` }))}
                 />
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
+          </div>
 
           {/* Inline insurance verification result */}
           {inlineVerifyStatus === 'valid' && inlineCardVerification && (() => {
@@ -1538,101 +1565,72 @@ const Reception: React.FC = () => {
             const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
 
             return (
-              <div style={{ marginBottom: 16 }}>
+              <div className="mb-4">
                 {/* Expiry warning - shown prominently at top */}
                 {isExpired && (
-                  <Alert
-                    title={
-                      <Space>
-                        <WarningOutlined />
-                        <Text strong type="danger">
-                          Thẻ BHYT đã hết hạn từ ngày {endDate?.format('DD/MM/YYYY')} ({Math.abs(daysUntilExpiry!)} ngày trước)
-                        </Text>
-                      </Space>
-                    }
-                    description="Bệnh nhân cần gia hạn thẻ BHYT. Nếu tiếp tục đăng ký, bệnh nhân sẽ phải thanh toán toàn bộ chi phí."
-                    type="error"
-                    showIcon
-                    style={{ marginBottom: 8 }}
-                  />
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-2 flex items-start gap-2">
+                    <WarningOutlined className="text-red-500 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-red-700">The BHYT da het han tu ngay {endDate?.format('DD/MM/YYYY')} ({Math.abs(daysUntilExpiry!)} ngay truoc)</div>
+                      <div className="text-red-600 text-sm mt-0.5">Benh nhan can gia han the BHYT. Neu tiep tuc dang ky, benh nhan se phai thanh toan toan bo chi phi.</div>
+                    </div>
+                  </div>
                 )}
                 {isExpiringSoon && (
-                  <Alert
-                    title={
-                      <Space>
-                        <WarningOutlined />
-                        <Text strong style={{ color: '#d48806' }}>
-                          Thẻ BHYT sắp hết hạn: còn {daysUntilExpiry} ngày (hết hạn ngày {endDate?.format('DD/MM/YYYY')})
-                        </Text>
-                      </Space>
-                    }
-                    description="Vui lòng nhắc bệnh nhân gia hạn thẻ BHYT trước khi hết hạn để đảm bảo quyền lợi."
-                    type="warning"
-                    showIcon
-                    style={{ marginBottom: 8 }}
-                  />
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mb-2 flex items-start gap-2">
+                    <WarningOutlined className="text-amber-500 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-amber-700">The BHYT sap het han: con {daysUntilExpiry} ngay (het han ngay {endDate?.format('DD/MM/YYYY')})</div>
+                      <div className="text-amber-600 text-sm mt-0.5">Vui long nhac benh nhan gia han the BHYT truoc khi het han de dam bao quyen loi.</div>
+                    </div>
+                  </div>
                 )}
-                <Alert
-                  title={
-                    <Space>
-                      <Tag color="green">Đủ điều kiện KCB</Tag>
-                      <Text>Mức hưởng: {inlineCardVerification.mucHuong}%</Text>
-                      <Text type="secondary">
-                        Hiệu lực: {inlineCardVerification.gtTheTu ? dayjs(inlineCardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - {inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen).format('DD/MM/YYYY') : ''}
-                      </Text>
-                      <Button size="small" type="link" icon={<HistoryOutlined />} onClick={handleViewBhxhHistory}>
-                        Xem lịch sử KCB
-                      </Button>
-                    </Space>
-                  }
-                  type="success"
-                  showIcon
-                />
+                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-2 flex-wrap">
+                  <CheckCircleOutlined className="text-emerald-500" />
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Du dieu kien KCB</span>
+                  <span className="text-sm">Muc huong: {inlineCardVerification.mucHuong}%</span>
+                  <span className="text-gray-400 text-sm">
+                    Hieu luc: {inlineCardVerification.gtTheTu ? dayjs(inlineCardVerification.gtTheTu).format('DD/MM/YYYY') : ''} - {inlineCardVerification.gtTheDen ? dayjs(inlineCardVerification.gtTheDen).format('DD/MM/YYYY') : ''}
+                  </span>
+                  <Button size="small" type="link" icon={<HistoryOutlined />} onClick={handleViewBhxhHistory}>
+                    Xem lich su KCB
+                  </Button>
+                </div>
               </div>
             );
           })()}
           {inlineVerifyStatus === 'invalid' && inlineCardVerification && (
-            <div style={{ marginBottom: 16 }}>
-              <Alert
-                title={
-                  <Space>
-                    <Tag color="red">Không đủ điều kiện</Tag>
-                    <Text type="danger">{inlineCardVerification.lyDoKhongDuDk || 'Không có thông tin'}</Text>
-                  </Space>
-                }
-                type="error"
-                showIcon
-              />
+            <div className="mb-4">
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2">
+                <CloseCircleOutlined className="text-red-500" />
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Khong du dieu kien</span>
+                <span className="text-red-600 text-sm">{inlineCardVerification.lyDoKhongDuDk || 'Khong co thong tin'}</span>
+              </div>
             </div>
           )}
           {inlineVerifyStatus === 'error' && (
-            <div style={{ marginBottom: 16 }}>
-              <Alert
-                title={
-                  <Space>
-                    <Tag color="gold">Không kết nối được cổng BHXH</Tag>
-                    <Text type="warning">Có thể nhập thủ công và tiếp tục đăng ký</Text>
-                  </Space>
-                }
-                type="warning"
-                showIcon
-              />
+            <div className="mb-4">
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2">
+                <WarningOutlined className="text-amber-500" />
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Khong ket noi duoc cong BHXH</span>
+                <span className="text-amber-600 text-sm">Co the nhap thu cong va tiep tuc dang ky</span>
+              </div>
             </div>
           )}
 
-          <Form.Item name="address" label="Địa chỉ">
-            <Input.TextArea rows={2} placeholder="Nhập địa chỉ" />
+          <Form.Item name="address" label="Dia chi">
+            <Input.TextArea rows={2} placeholder="Nhap dia chi" />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* Modal Chuyển phòng */}
+      {/* Modal Chuyen phong */}
       <Modal
         title={
-          <Space>
+          <div className="flex items-center gap-2">
             <SwapOutlined />
-            Chuyển phòng khám - {selectedRecord?.patientName}
-          </Space>
+            <span>Chuyen phong kham - {selectedRecord?.patientName}</span>
+          </div>
         }
         open={isTransferModalOpen}
         destroyOnHidden={false}
@@ -1641,36 +1639,36 @@ const Reception: React.FC = () => {
           setIsTransferModalOpen(false);
           transferForm.resetFields();
         }}
-        okText="Chuyển phòng"
-        cancelText="Hủy"
+        okText="Chuyen phong"
+        cancelText="Huy"
       >
         <Form form={transferForm} layout="vertical">
-          <Form.Item name="currentRoom" label="Phòng hiện tại">
+          <Form.Item name="currentRoom" label="Phong hien tai">
             <Input disabled />
           </Form.Item>
           <Form.Item
             name="newRoomId"
-            label="Phòng mới"
-            rules={[{ required: true, message: 'Vui lòng chọn phòng mới' }]}
+            label="Phong moi"
+            rules={[{ required: true, message: 'Vui long chon phong moi' }]}
           >
             <Select
-              placeholder="Chọn phòng khám mới"
+              placeholder="Chon phong kham moi"
               loading={loadingRooms}
-              notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
+              notFoundContent={loadingRooms ? <Spin size="small" /> : 'Khong co du lieu'}
               options={rooms
                 .filter(room => room.roomId !== selectedRecord?.roomId)
-                .map(room => ({ value: room.roomId, label: `${room.roomName} - ${room.departmentName} (Chờ: ${room.waitingCount})` }))}
+                .map(room => ({ value: room.roomId, label: `${room.roomName} - ${room.departmentName} (Cho: ${room.waitingCount})` }))}
             />
           </Form.Item>
-          <Form.Item name="reason" label="Lý do chuyển">
-            <Input.TextArea rows={2} placeholder="Nhập lý do chuyển phòng (không bắt buộc)" />
+          <Form.Item name="reason" label="Ly do chuyen">
+            <Input.TextArea rows={2} placeholder="Nhap ly do chuyen phong (khong bat buoc)" />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Print Request-based Examination Form Modal (MS: 03/BV-02) */}
       <Modal
-        title="In Giấy khám chữa bệnh theo yêu cầu (MS: 03/BV-02)"
+        title="In Giay kham chua benh theo yeu cau (MS: 03/BV-02)"
         open={isPrintRequestModalOpen}
         onCancel={() => {
           setIsPrintRequestModalOpen(false);
@@ -1680,137 +1678,116 @@ const Reception: React.FC = () => {
         destroyOnHidden={false}
         footer={[
           <Button key="cancel" onClick={() => setIsPrintRequestModalOpen(false)}>
-            Hủy
+            Huy
           </Button>,
           <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={executePrintRequestForm}>
-            In giấy yêu cầu
+            In giay yeu cau
           </Button>,
         ]}
       >
         <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '16px' }}>
           <Form form={printRequestForm} layout="vertical">
-            <Alert
-              title="Giấy khám chữa bệnh theo yêu cầu dành cho bệnh nhân dịch vụ, yêu cầu bác sĩ/buồng bệnh cụ thể"
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="hospitalName" label="Bệnh viện">
-                  <Input placeholder="Tên bệnh viện" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="healthDepartment" label="Sở Y tế">
-                  <Input placeholder="Tên Sở Y tế" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 mb-4 flex items-start gap-2">
+              <FileTextOutlined className="text-blue-500 mt-0.5" />
+              <span className="text-blue-700 text-sm">Giay kham chua benh theo yeu cau danh cho benh nhan dich vu, yeu cau bac si/buong benh cu the</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item name="hospitalName" label="Benh vien">
+                <Input placeholder="Ten benh vien" />
+              </Form.Item>
+              <Form.Item name="healthDepartment" label="So Y te">
+                <Input placeholder="Ten So Y te" />
+              </Form.Item>
+            </div>
 
-            <Divider>Thông tin người bệnh</Divider>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="patientName" label="Họ tên">
+            <div className="relative my-5">
+              <hr className="border-gray-200" />
+              <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-white px-3 text-gray-500 text-sm font-medium">Thong tin nguoi benh</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item name="patientName" label="Ho ten">
+                <Input />
+              </Form.Item>
+              <div className="grid grid-cols-2 gap-4">
+                <Form.Item name="age" label="Tuoi">
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item name="age" label="Tuổi">
+                <Form.Item name="gender" label="Gioi tinh">
                   <Input />
                 </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Form.Item name="gender" label="Giới tính">
-                  <Input />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="identityNumber" label="CMND/CCCD" rules={[{
-                  validator: (_: unknown, value: string) => {
-                    if (!value) return Promise.resolve();
-                    const result = validateCccd(value);
-                    if (!result.valid) return Promise.reject(new Error(result.error));
-                    return Promise.resolve();
-                  }
-                }]}>
-                  <Input placeholder="12 chữ số" maxLength={12} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="issuingAuthority" label="Cơ quan cấp">
-                  <Input />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="ethnicity" label="Dân tộc">
-                  <Input placeholder="Kinh" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="nationality" label="Ngoại kiều">
-                  <Input />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="occupation" label="Nghề nghiệp">
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="workplace" label="Nơi làm việc">
-                  <Input />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item name="address" label="Địa chỉ">
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item name="identityNumber" label="CMND/CCCD" rules={[{
+                validator: (_: unknown, value: string) => {
+                  if (!value) return Promise.resolve();
+                  const result = validateCccd(value);
+                  if (!result.valid) return Promise.reject(new Error(result.error));
+                  return Promise.resolve();
+                }
+              }]}>
+                <Input placeholder="12 chu so" maxLength={12} />
+              </Form.Item>
+              <Form.Item name="issuingAuthority" label="Co quan cap">
+                <Input />
+              </Form.Item>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item name="ethnicity" label="Dan toc">
+                <Input placeholder="Kinh" />
+              </Form.Item>
+              <Form.Item name="nationality" label="Ngoai kieu">
+                <Input />
+              </Form.Item>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item name="occupation" label="Nghe nghiep">
+                <Input />
+              </Form.Item>
+              <Form.Item name="workplace" label="Noi lam viec">
+                <Input />
+              </Form.Item>
+            </div>
+            <Form.Item name="address" label="Dia chi">
               <Input />
             </Form.Item>
-            <Form.Item name="emergencyContact" label="Khi cần báo tin">
-              <Input placeholder="Họ tên, số điện thoại người thân" />
+            <Form.Item name="emergencyContact" label="Khi can bao tin">
+              <Input placeholder="Ho ten, so dien thoai nguoi than" />
             </Form.Item>
 
-            <Divider>Yêu cầu dịch vụ</Divider>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="roomName" label="Khám tại Khoa/Phòng">
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="requestedDoctor" label="Bác sĩ yêu cầu">
-                  <Input placeholder="Tên bác sĩ muốn khám" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item name="roomType" label="Loại buồng bệnh (nếu nằm viện)">
-              <Select placeholder="Chọn loại buồng" options={[
-                { value: 'VIP', label: 'VIP - Phòng riêng' },
-                { value: 'A', label: 'Loại A - 2 giường' },
-                { value: 'B', label: 'Loại B - 4 giường' },
-                { value: '', label: 'Không yêu cầu' },
+            <div className="relative my-5">
+              <hr className="border-gray-200" />
+              <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-white px-3 text-gray-500 text-sm font-medium">Yeu cau dich vu</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item name="roomName" label="Kham tai Khoa/Phong">
+                <Input />
+              </Form.Item>
+              <Form.Item name="requestedDoctor" label="Bac si yeu cau">
+                <Input placeholder="Ten bac si muon kham" />
+              </Form.Item>
+            </div>
+            <Form.Item name="roomType" label="Loai buong benh (neu nam vien)">
+              <Select placeholder="Chon loai buong" options={[
+                { value: 'VIP', label: 'VIP - Phong rieng' },
+                { value: 'A', label: 'Loai A - 2 giuong' },
+                { value: 'B', label: 'Loai B - 4 giuong' },
+                { value: '', label: 'Khong yeu cau' },
               ]} />
             </Form.Item>
 
-            <Divider>Thanh toán</Divider>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="depositAmount" label="Số tiền tạm ứng (đồng)">
-                  <Input type="number" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="depositAmountInWords" label="Bằng chữ">
-                  <Input placeholder="Ví dụ: Một triệu đồng" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <div className="relative my-5">
+              <hr className="border-gray-200" />
+              <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-white px-3 text-gray-500 text-sm font-medium">Thanh toan</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item name="depositAmount" label="So tien tam ung (dong)">
+                <Input type="number" />
+              </Form.Item>
+              <Form.Item name="depositAmountInWords" label="Bang chu">
+                <Input placeholder="Vi du: Mot trieu dong" />
+              </Form.Item>
+            </div>
           </Form>
         </div>
       </Modal>
@@ -1820,12 +1797,12 @@ const Reception: React.FC = () => {
         open={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={handleBarcodeScan}
-        title="Quét mã vạch / QR Code bệnh nhân"
+        title="Quet ma vach / QR Code benh nhan"
       />
 
       {/* BHXH Insurance History Modal */}
       <Modal
-        title="Lịch sử khám chữa bệnh BHYT"
+        title="Lich su kham chua benh BHYT"
         open={isInsuranceHistoryModalOpen}
         onCancel={() => {
           setIsInsuranceHistoryModalOpen(false);
@@ -1837,34 +1814,35 @@ const Reception: React.FC = () => {
         <Spin spinning={bhxhHistoryLoading}>
           {bhxhHistory ? (
             <>
-              <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="Mã thẻ BHYT">
-                  <Text code>{bhxhHistory.maThe}</Text>
-                </Descriptions.Item>
-              </Descriptions>
+              <div className="border border-gray-200 rounded-lg mb-4 text-sm">
+                <div className="flex">
+                  <div className="w-32 bg-gray-50 px-3 py-2 font-medium text-gray-600 border-r border-gray-200 shrink-0">Ma the BHYT</div>
+                  <div className="px-3 py-2"><code className="bg-gray-100 px-2 py-0.5 rounded text-sm">{bhxhHistory.maThe}</code></div>
+                </div>
+              </div>
               <Table
                 size="small"
                 columns={[
                   {
-                    title: 'Ngày KCB',
+                    title: 'Ngay KCB',
                     dataIndex: 'ngayKcb',
                     key: 'ngayKcb',
                     width: 110,
                     render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
                   },
                   {
-                    title: 'Tên CSKCB',
+                    title: 'Ten CSKCB',
                     dataIndex: 'tenCsKcb',
                     key: 'tenCsKcb',
                   },
                   {
-                    title: 'Mã bệnh chính',
+                    title: 'Ma benh chinh',
                     dataIndex: 'maBenhChinh',
                     key: 'maBenhChinh',
                     width: 120,
                   },
                   {
-                    title: 'Tiền BHYT',
+                    title: 'Tien BHYT',
                     dataIndex: 'tienBhyt',
                     key: 'tienBhyt',
                     width: 130,
@@ -1877,7 +1855,10 @@ const Reception: React.FC = () => {
               />
             </>
           ) : (
-            <Empty description="Không có lịch sử KCB" />
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <svg className="w-12 h-12 mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <span>Khong co lich su KCB</span>
+            </div>
           )}
         </Spin>
       </Modal>
