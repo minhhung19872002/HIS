@@ -2058,10 +2058,11 @@
 
 | Module | Tong TN | DA CO | CAN BO SUNG | CHUA CO |
 |--------|---------|-------|-------------|---------|
-| A. Kho-Tai san-CCDC-VT | 110 | ~90 | ~20 | 0 |
+| A. Kho-Tai san-CCDC-VT | 110 | ~105 | ~5 | 0 |
 | B. Lab IVF | 19 | 19 | 0 | 0 |
 | C. Nha thuoc | 36 | ~32 | ~4 | 0 |
 | D. Dao tao-CDT-NCKH | 25 | 23 | 2 | 0 |
-| **Tong** | **190** | **~164 (86%)** | **~24 (13%)** | **~2 (1%)** |
+| **Tong** | **190** | **~179 (94%)** | **~11 (6%)** | **0** |
 
-> **Uu tien thuc hien**: B (IVF Lab - hoan toan moi), D (Dao tao/NCKH - moi), A.II (Thau), A.VII/X/XII (Tai san nang cao)
+> **Da thuc hien**: B (IVF Lab), D (Dao tao/NCKH), A (Asset/Tender/TSCD 24 reports), C (Pharmacy enhanced)
+> **Con lai ~11 items**: hardware-dependent (cham cong, may quet), multi-store pricing, 1 so CCDC detail reports
