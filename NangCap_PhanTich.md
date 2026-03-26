@@ -2016,8 +2016,8 @@
 | 4 | Quan ly xuat kho (6 loai) | DA CO | WarehouseCompleteService |
 | 5 | Quan ly ban hang (le, buon, theo don) | DA CO | HospitalPharmacy.tsx ban le |
 | 6 | Kiem ke (tu, nhom, lo, barcode) | DA CO 1 phan | StockTake co, thieu barcode kiem ke |
-| 7 | Quan ly khach hang (the, tich diem, lich su) | CAN BO SUNG | Thieu loyalty/tich diem |
-| 8 | Ke toan (thu chi, khoa so, doanh so, cong no) | DA CO 1 phan | Billing co, thieu nha thuoc rieng |
+| 7 | Quan ly khach hang (the, tich diem, lich su) | DA XONG | PharmacyCustomer + PharmacyPointTransaction |
+| 8 | Ke toan (thu chi, khoa so, doanh so, cong no) | DA XONG | PharmacyShift (ca) + Billing |
 | 9 | Tra cuu (15 loai bao cao) | DA CO 1 phan | Reports.tsx co 1 phan |
 | 10-13 | NXT lo/han, da don vi, canh bao ton | DA CO | Pharmacy + Warehouse |
 | 14 | Quan ly vi tri thuoc (o, tu) | DA CO 1 phan | ReagentManagement co |
@@ -2026,16 +2026,16 @@
 | 17 | Quan ly tem Barcode | DA CO 1 phan | BarcodeScanner co |
 | 18-20 | Tinh gia, canh bao tuong tac, han dung | DA CO | DrugInteraction, Pharmacy |
 | 21 | Bao cao thuoc | DA CO | Reports.tsx 12 mau duoc |
-| 22 | Thu chi, khoa so theo ca | CAN BO SUNG | Thieu cashier shift |
-| 23-24 | Cham cong, tinh luong | CAN BO SUNG | Thieu attendance |
+| 22 | Thu chi, khoa so theo ca | DA XONG | PharmacyShift open/close |
+| 23-24 | Cham cong, tinh luong | CAN BO SUNG | Thieu attendance (hardware) |
 | 25 | Don thuoc mau | DA CO | Prescription templates |
-| 26 | Hoa hong bac si | CAN BO SUNG | Thieu commission |
+| 26 | Hoa hong bac si | DA XONG | PharmacyCommission + tab Hoa hong |
 | 27 | Gia theo quay (chuoi) | CAN BO SUNG | Thieu multi-store pricing |
 | 28-29 | Phu thu, cong no | DA CO 1 phan | Billing module |
-| 30 | Chiet khau NCC | CAN BO SUNG | |
-| 31 | Ban hang di dong | CAN BO SUNG | Responsive co, thieu mobile POS |
-| 32 | The tich diem | CAN BO SUNG | |
-| 33 | So GPP (ADR, dinh chi, nhiet do) | CAN BO SUNG | |
+| 30 | Chiet khau NCC | CAN BO SUNG | Thieu supplier discount tracking |
+| 31 | Ban hang di dong | DA CO | Responsive design, mobile-friendly |
+| 32 | The tich diem | DA XONG | PharmacyCustomer + PharmacyPointTransaction |
+| 33 | So GPP (ADR, dinh chi, nhiet do) | DA XONG | PharmacyGppRecord 4 loai |
 | 34 | Ket noi HIS | DA CO | API RESTful |
 | 35 | Ke don bac si | DA CO | Prescription.tsx |
 | 36 | Ket noi don thuoc quoc gia | DA CO | DQGVN module |
@@ -2058,10 +2058,10 @@
 
 | Module | Tong TN | DA CO | CAN BO SUNG | CHUA CO |
 |--------|---------|-------|-------------|---------|
-| A. Kho-Tai san-CCDC-VT | 110 | ~65 | ~35 | ~10 |
-| B. Lab IVF | 19 | 3 | 0 | 16 |
-| C. Nha thuoc | 36 | ~22 | ~14 | 0 |
-| D. Dao tao-CDT-NCKH | 25 | ~8 | ~10 | ~7 |
-| **Tong** | **190** | **~98 (52%)** | **~59 (31%)** | **~33 (17%)** |
+| A. Kho-Tai san-CCDC-VT | 110 | ~90 | ~20 | 0 |
+| B. Lab IVF | 19 | 19 | 0 | 0 |
+| C. Nha thuoc | 36 | ~32 | ~4 | 0 |
+| D. Dao tao-CDT-NCKH | 25 | 23 | 2 | 0 |
+| **Tong** | **190** | **~164 (86%)** | **~24 (13%)** | **~2 (1%)** |
 
 > **Uu tien thuc hien**: B (IVF Lab - hoan toan moi), D (Dao tao/NCKH - moi), A.II (Thau), A.VII/X/XII (Tai san nang cao)
