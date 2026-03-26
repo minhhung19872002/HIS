@@ -179,4 +179,46 @@ public class AssetManagementController : ControllerBase
     {
         return Ok(await _service.GetAssetDashboardAsync());
     }
+
+    // ===== REPORTS =====
+
+    [HttpGet("reports/types")]
+    public async Task<ActionResult<List<AssetReportTypeDto>>> GetReportTypes()
+    {
+        return Ok(await _service.GetAssetReportTypesAsync());
+    }
+
+    [HttpGet("reports/generate")]
+    public async Task<ActionResult> GenerateReport(
+        [FromQuery] int reportType, [FromQuery] int? departmentId = null,
+        [FromQuery] string? assetGroupCode = null, [FromQuery] string? fromDate = null,
+        [FromQuery] string? toDate = null, [FromQuery] string? assetId = null,
+        [FromQuery] int? year = null, [FromQuery] int? month = null)
+    {
+        var filter = new AssetReportFilterDto
+        {
+            DepartmentId = departmentId,
+            AssetGroupCode = assetGroupCode,
+            FromDate = !string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var fd) ? fd : null,
+            ToDate = !string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var td) ? td : null,
+            AssetId = !string.IsNullOrEmpty(assetId) && Guid.TryParse(assetId, out var aid) ? aid : null,
+            Year = year,
+            Month = month,
+        };
+        var bytes = await _service.PrintAssetReportAsync(reportType, filter);
+        return File(bytes, "text/html; charset=utf-8");
+    }
+
+    [HttpGet("assets/{id}/qrcode")]
+    public async Task<ActionResult<AssetQrCodeDto>> GetAssetQrCode(Guid id)
+    {
+        try
+        {
+            return Ok(await _service.GetAssetQrCodeDataAsync(id));
+        }
+        catch (Exception ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
 }

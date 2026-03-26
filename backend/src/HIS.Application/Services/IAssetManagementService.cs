@@ -36,4 +36,9 @@ public interface IAssetManagementService
 
     // Dashboard
     Task<AssetDashboardDto> GetAssetDashboardAsync();
+
+    // Reports
+    Task<byte[]> PrintAssetReportAsync(int reportType, AssetReportFilterDto filter);
+    Task<List<AssetReportTypeDto>> GetAssetReportTypesAsync();
+    Task<AssetQrCodeDto> GetAssetQrCodeDataAsync(Guid assetId);
 }

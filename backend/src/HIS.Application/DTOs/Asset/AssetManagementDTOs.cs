@@ -286,6 +286,39 @@ public class DepreciationTrend
     public decimal Amount { get; set; }
 }
 
+// ---- Report DTOs ----
+
+public class AssetReportFilterDto
+{
+    public int? DepartmentId { get; set; }
+    public string? AssetGroupCode { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+    public Guid? AssetId { get; set; }
+    public int? Year { get; set; }
+    public int? Month { get; set; }
+}
+
+public class AssetReportTypeDto
+{
+    public int Code { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+}
+
+public class AssetQrCodeDto
+{
+    public Guid AssetId { get; set; }
+    public string AssetCode { get; set; } = string.Empty;
+    public string AssetName { get; set; } = string.Empty;
+    public string? DepartmentName { get; set; }
+    public decimal OriginalValue { get; set; }
+    public string? SerialNumber { get; set; }
+    public string? LocationDescription { get; set; }
+    public string QrContent { get; set; } = string.Empty;
+}
+
 // ---- Paged Result ----
 
 public class AssetPagedResult<T>

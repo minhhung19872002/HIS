@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, ReloadOutlined, QrcodeOutlined, CheckOutlined,
   DeleteOutlined, TrophyOutlined, FileTextOutlined, BarChartOutlined,
-  SwapOutlined, StopOutlined,
+  SwapOutlined, StopOutlined, PrinterOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer } from 'recharts';
 import dayjs from 'dayjs';
@@ -17,8 +17,10 @@ import {
   getAssets, saveAsset, generateQrCode, getHandovers, saveHandover, confirmHandover,
   getDisposals, proposeDisposal, approveDisposal, completeDisposal,
   calculateDepreciation, getDepreciationReport, getAssetDashboard,
+  getAssetReportTypes, generateAssetReport, getAssetQrCode,
   type TenderDto, type TenderItemDto, type FixedAssetDto, type AssetHandoverDto,
   type AssetDisposalDto, type DepreciationReportDto, type AssetDashboardDto,
+  type AssetReportTypeDto, type AssetQrCodeDto,
 } from '../api/assetManagement';
 
 const { Option } = Select;
@@ -51,6 +53,8 @@ const AssetsTab = () => {
   const [statusFilter, setStatusFilter] = useState<number | undefined>();
   const [keyword, setKeyword] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrData, setQrData] = useState<AssetQrCodeDto | null>(null);
   const [form] = Form.useForm();
 
   const fetchData = useCallback(async () => {
@@ -78,6 +82,12 @@ const AssetsTab = () => {
     message.success('Da tao QR code'); fetchData();
   };
 
+  const handleViewQr = async (id: string) => {
+    const data = await getAssetQrCode(id);
+    if (data) { setQrData(data); setQrModalOpen(true); }
+    else { message.warning('Khong lay duoc du lieu QR'); }
+  };
+
   const columns: ColumnsType<FixedAssetDto> = [
     { title: 'Ma TS', dataIndex: 'assetCode', width: 120 },
     { title: 'Ten tai san', dataIndex: 'assetName', ellipsis: true },
@@ -87,8 +97,11 @@ const AssetsTab = () => {
     { title: 'KH/thang', dataIndex: 'monthlyDepreciation', width: 110, render: (v: number) => v?.toLocaleString('vi-VN') },
     { title: 'Trang thai', dataIndex: 'status', width: 120, render: (s: number) => <Tag color={ASSET_STATUS[s]?.color}>{ASSET_STATUS[s]?.text}</Tag> },
     {
-      title: '', width: 80, render: (_: unknown, r: FixedAssetDto) => (
-        <Tooltip title="Tao QR"><Button size="small" icon={<QrcodeOutlined />} onClick={() => handleQr(r.id)} /></Tooltip>
+      title: '', width: 110, render: (_: unknown, r: FixedAssetDto) => (
+        <Space size={4}>
+          <Tooltip title="Tao QR"><Button size="small" icon={<QrcodeOutlined />} onClick={() => handleQr(r.id)} /></Tooltip>
+          <Tooltip title="Xem QR"><Button size="small" icon={<EyeOutlined />} onClick={() => handleViewQr(r.id)} /></Tooltip>
+        </Space>
       ),
     },
   ];
@@ -130,6 +143,37 @@ const AssetsTab = () => {
           </Row>
           <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
         </Form>
+      </Modal>
+      <Modal title="Thong tin QR Code tai san" open={qrModalOpen} onCancel={() => setQrModalOpen(false)} footer={[
+        <Button key="print" icon={<PrinterOutlined />} onClick={() => {
+          const w = window.open('', '_blank');
+          if (w && qrData) {
+            w.document.write(`<html><head><meta charset="utf-8"/><style>body{font-family:Arial;text-align:center;padding:40px} .qr-box{border:3px solid #333;padding:20px;display:inline-block;margin:20px} .code{font-size:36px;font-weight:bold;letter-spacing:4px;margin:12px 0} table{margin:12px auto;text-align:left} td{padding:4px 12px} @media print{body{margin:0}}</style></head><body><div class="qr-box"><div class="code">${qrData.assetCode}</div><div style="font-size:14px">${qrData.assetName}</div><hr/><table><tr><td><strong>Khoa/Phong:</strong></td><td>${qrData.departmentName || ''}</td></tr><tr><td><strong>Nguyen gia:</strong></td><td>${qrData.originalValue?.toLocaleString('vi-VN')} VND</td></tr><tr><td><strong>Serial:</strong></td><td>${qrData.serialNumber || ''}</td></tr><tr><td><strong>Vi tri:</strong></td><td>${qrData.locationDescription || ''}</td></tr></table><div style="font-size:10px;margin-top:8px;color:#666">QR: ${qrData.qrContent}</div></div></body></html>`);
+            w.document.close();
+            w.print();
+          }
+        }}>In nhan</Button>,
+        <Button key="close" onClick={() => setQrModalOpen(false)}>Dong</Button>,
+      ]} width={480}>
+        {qrData && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ border: '2px solid #333', padding: 16, display: 'inline-block', borderRadius: 8, margin: '12px 0' }}>
+              <div style={{ fontSize: 28, fontWeight: 'bold', letterSpacing: 3, marginBottom: 8 }}>{qrData.assetCode}</div>
+              <div style={{ fontSize: 14, marginBottom: 8 }}>{qrData.assetName}</div>
+            </div>
+            <div style={{ textAlign: 'left', marginTop: 12 }}>
+              <Row gutter={[8, 4]}>
+                <Col span={8}><strong>Khoa/Phong:</strong></Col><Col span={16}>{qrData.departmentName || '-'}</Col>
+                <Col span={8}><strong>Nguyen gia:</strong></Col><Col span={16}>{qrData.originalValue?.toLocaleString('vi-VN')} VND</Col>
+                <Col span={8}><strong>Serial:</strong></Col><Col span={16}>{qrData.serialNumber || '-'}</Col>
+                <Col span={8}><strong>Vi tri:</strong></Col><Col span={16}>{qrData.locationDescription || '-'}</Col>
+              </Row>
+            </div>
+            <div style={{ marginTop: 12, padding: 8, background: '#f5f5f5', borderRadius: 4, fontSize: 11, wordBreak: 'break-all' }}>
+              <strong>QR Content:</strong> {qrData.qrContent}
+            </div>
+          </div>
+        )}
       </Modal>
     </>
   );
@@ -520,6 +564,114 @@ const DashboardTab = () => {
   );
 };
 
+// ============ REPORTS TAB ============
+const REPORT_CATEGORIES: Record<string, string> = {
+  'So sach': 'blue', 'Bien ban': 'green', 'Khau hao': 'orange',
+  'Ke khai': 'purple', 'Tong hop': 'cyan', 'Cong khai': 'magenta',
+};
+
+const ReportsTab = () => {
+  const [reportTypes, setReportTypes] = useState<AssetReportTypeDto[]>([]);
+  const [selectedReport, setSelectedReport] = useState<number | undefined>();
+  const [loading, setLoading] = useState(false);
+  const [year, setYear] = useState(dayjs().year());
+  const [month, setMonth] = useState<number | undefined>();
+  const [fromDate, setFromDate] = useState<string | undefined>();
+  const [toDate, setToDate] = useState<string | undefined>();
+  const [assetGroupCode, setAssetGroupCode] = useState<string | undefined>();
+
+  useEffect(() => {
+    getAssetReportTypes().then(setReportTypes);
+  }, []);
+
+  const handleGenerate = async () => {
+    if (!selectedReport) { message.warning('Vui long chon loai bao cao'); return; }
+    setLoading(true);
+    try {
+      await generateAssetReport(selectedReport, {
+        year, month, fromDate, toDate, assetGroupCode,
+      });
+    } catch { message.warning('Loi xuat bao cao'); }
+    finally { setLoading(false); }
+  };
+
+  const grouped = reportTypes.reduce<Record<string, AssetReportTypeDto[]>>((acc, rt) => {
+    if (!acc[rt.category]) acc[rt.category] = [];
+    acc[rt.category].push(rt);
+    return acc;
+  }, {});
+
+  return (
+    <>
+      <Card size="small" style={{ marginBottom: 12 }} title="Bo loc bao cao">
+        <Row gutter={[12, 12]}>
+          <Col xs={24} md={8}>
+            <Select
+              placeholder="Chon loai bao cao"
+              value={selectedReport}
+              onChange={setSelectedReport}
+              style={{ width: '100%' }}
+              showSearch
+              optionFilterProp="children"
+              allowClear
+            >
+              {Object.entries(grouped).map(([cat, items]) => (
+                <Select.OptGroup key={cat} label={cat}>
+                  {items.map(rt => (
+                    <Option key={rt.code} value={rt.code}>
+                      {rt.code}. {rt.name}
+                    </Option>
+                  ))}
+                </Select.OptGroup>
+              ))}
+            </Select>
+          </Col>
+          <Col xs={12} md={3}>
+            <InputNumber placeholder="Nam" value={year} onChange={v => setYear(v || dayjs().year())} min={2020} max={2030} style={{ width: '100%' }} />
+          </Col>
+          <Col xs={12} md={3}>
+            <Select placeholder="Thang" allowClear value={month} onChange={setMonth} style={{ width: '100%' }}>
+              {Array.from({ length: 12 }, (_, i) => <Option key={i + 1} value={i + 1}>Thang {i + 1}</Option>)}
+            </Select>
+          </Col>
+          <Col xs={12} md={3}>
+            <DatePicker placeholder="Tu ngay" onChange={(_, ds) => setFromDate(typeof ds === 'string' ? ds : undefined)} style={{ width: '100%' }} />
+          </Col>
+          <Col xs={12} md={3}>
+            <DatePicker placeholder="Den ngay" onChange={(_, ds) => setToDate(typeof ds === 'string' ? ds : undefined)} style={{ width: '100%' }} />
+          </Col>
+          <Col xs={24} md={4}>
+            <Space>
+              <Input placeholder="Nhom TS" value={assetGroupCode} onChange={e => setAssetGroupCode(e.target.value || undefined)} style={{ width: 120 }} />
+              <Button type="primary" icon={<PrinterOutlined />} onClick={handleGenerate} loading={loading}>
+                Xuat bao cao
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+      <Row gutter={[12, 12]}>
+        {Object.entries(grouped).map(([cat, items]) => (
+          <Col xs={24} md={12} lg={8} key={cat}>
+            <Card size="small" title={<Tag color={REPORT_CATEGORIES[cat] || 'default'}>{cat}</Tag>} style={{ height: '100%' }}>
+              {items.map(rt => (
+                <div key={rt.code} style={{ padding: '4px 0', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
+                  onClick={() => { setSelectedReport(rt.code); handleGenerate(); }}>
+                  <Tooltip title={rt.description}>
+                    <Button type="link" size="small" icon={<FileTextOutlined />} style={{ padding: 0 }}>
+                      {rt.code}. {rt.name}
+                    </Button>
+                  </Tooltip>
+                </div>
+              ))}
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    </>
+  );
+};
+
 // ============ MAIN PAGE ============
 const AssetManagement = () => {
   return (
@@ -536,6 +688,7 @@ const AssetManagement = () => {
           { key: 'handovers', label: 'Ban giao', children: <HandoversTab /> },
           { key: 'disposals', label: 'Thanh ly', children: <DisposalsTab /> },
           { key: 'depreciation', label: 'Khau hao', children: <DepreciationTab /> },
+          { key: 'reports', label: 'Bao cao TSCD', children: <ReportsTab /> },
           { key: 'dashboard', label: 'Dashboard', children: <DashboardTab /> },
         ]}
       />

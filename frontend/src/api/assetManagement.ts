@@ -281,6 +281,63 @@ export const getDepreciationReport = async (params?: Record<string, unknown>): P
   }
 };
 
+// Reports
+export interface AssetReportTypeDto {
+  code: number;
+  name: string;
+  description: string;
+  category: string;
+}
+
+export interface AssetQrCodeDto {
+  assetId: string;
+  assetCode: string;
+  assetName: string;
+  departmentName?: string;
+  originalValue: number;
+  serialNumber?: string;
+  locationDescription?: string;
+  qrContent: string;
+}
+
+export const getAssetReportTypes = async (): Promise<AssetReportTypeDto[]> => {
+  try {
+    const response = await apiClient.get<AssetReportTypeDto[]>('/asset-management/reports/types');
+    return response.data || [];
+  } catch {
+    console.warn('Failed to fetch report types');
+    return [];
+  }
+};
+
+export const generateAssetReport = async (reportType: number, filter?: Record<string, unknown>): Promise<void> => {
+  try {
+    const params = { reportType, ...filter };
+    const response = await apiClient.get('/asset-management/reports/generate', {
+      params,
+      responseType: 'text',
+    });
+    const html = response.data as string;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  } catch {
+    console.warn('Failed to generate report');
+  }
+};
+
+export const getAssetQrCode = async (assetId: string): Promise<AssetQrCodeDto | null> => {
+  try {
+    const response = await apiClient.get<AssetQrCodeDto>(`/asset-management/assets/${assetId}/qrcode`);
+    return response.data;
+  } catch {
+    console.warn('Failed to fetch QR code data');
+    return null;
+  }
+};
+
 // Dashboard
 export const getAssetDashboard = async (): Promise<AssetDashboardDto> => {
   try {
