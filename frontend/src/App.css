@@ -1,241 +1,363 @@
-/* HIS Application Styles */
+/* ============================================================
+   HIS - Hospital Information System
+   Global Design System - Modern Healthcare UI
+   ============================================================ */
+
+/* --- Base & Typography --- */
 body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #f0f2f5;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Ant Design overrides */
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c1c7cd; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #8c939a; }
+
+/* --- Layout --- */
 .ant-layout-sider {
   border-right: 1px solid #e8ecf0;
 }
 
-/* Light sidebar menu styles */
+/* --- Sidebar Menu --- */
 .ant-menu-light .ant-menu-item-selected {
-  background-color: #e6f0fa;
+  background: linear-gradient(135deg, #e6f0fa 0%, #dbeafe 100%);
   color: #0066CC;
-  font-weight: 500;
+  font-weight: 600;
+  border-right: 3px solid #0066CC;
 }
-
 .ant-menu-light .ant-menu-item:hover {
   background-color: #f0f5ff;
   color: #0066CC;
 }
-
 .ant-menu-light .ant-menu-submenu-title:hover {
   color: #0066CC;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* Table styles */
-.ant-table-thead > tr > th {
-  background-color: #fafafa;
-  font-weight: 600;
-}
-
-/* Card styles */
+/* ============================================================
+   CARDS - Elevated with soft shadows
+   ============================================================ */
 .ant-card {
+  border-radius: 12px !important;
+  border: 1px solid #e8ecf0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ============================================================
+   TABLES - Clean, readable, modern
+   ============================================================ */
+.ant-table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ant-table-thead > tr > th {
+  background: linear-gradient(180deg, #f8f9fc 0%, #f0f2f7 100%) !important;
+  font-weight: 600;
+  font-size: 13px;
+  color: #4a5568 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding: 10px 12px !important;
+}
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f0f2f5 !important;
+  transition: background 0.15s ease;
+}
+.ant-table-tbody > tr:hover > td {
+  background: #f0f7ff !important;
+}
+.ant-table-tbody > tr:nth-child(even) > td {
+  background: #fafbfc;
+}
+.ant-table-tbody > tr:nth-child(even):hover > td {
+  background: #f0f7ff !important;
+}
+/* Pagination */
+.ant-pagination {
+  margin-top: 12px !important;
+}
+.ant-pagination .ant-pagination-item-active {
+  border-color: #1677ff;
   border-radius: 8px;
 }
 
-/* Button styles */
+/* ============================================================
+   BUTTONS - Rounded, clear hierarchy
+   ============================================================ */
+.ant-btn {
+  border-radius: 8px !important;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
 .ant-btn-primary {
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.25);
+}
+.ant-btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.35);
+  transform: translateY(-1px);
+}
+.ant-btn-default:hover {
+  border-color: #91caff;
+  color: #1677ff;
 }
 
-/* Form styles */
-.ant-form-item-label > label {
-  font-weight: 500;
-}
-
-/* Tag styles */
+/* ============================================================
+   TAGS - Pill-shaped
+   ============================================================ */
 .ant-tag {
-  border-radius: 4px;
-}
-
-/* Pharmacy page specific styles */
-.row-out-of-stock {
-  background-color: #fff2f0 !important;
-}
-
-.row-low-stock {
-  background-color: #fffbe6 !important;
-}
-
-.row-expiring {
-  background-color: #fff7e6 !important;
-}
-
-.row-out-of-stock:hover,
-.row-low-stock:hover,
-.row-expiring:hover {
-  opacity: 0.8;
-}
-
-/* Batch selection cards */
-.ant-radio-wrapper {
-  width: 100%;
-}
-
-/* Alert animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.ant-alert {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-/* Statistic card hover effect */
-.ant-statistic-title {
-  color: rgba(0, 0, 0, 0.65);
+  border-radius: 6px !important;
   font-weight: 500;
+  padding: 1px 10px !important;
+  border: none !important;
 }
 
-/* Progress bar styling */
-.ant-progress-text {
+/* ============================================================
+   FORMS - Clean, spacious
+   ============================================================ */
+.ant-form-item-label > label {
   font-weight: 600;
+  font-size: 13px;
+  color: #374151;
+}
+.ant-input,
+.ant-select-selector,
+.ant-picker {
+  border-radius: 8px !important;
+}
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector {
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.1) !important;
+}
+.ant-input-search .ant-input-group .ant-input {
+  border-radius: 8px 0 0 8px !important;
+}
+.ant-input-search .ant-input-group .ant-input-search-button {
+  border-radius: 0 8px 8px 0 !important;
 }
 
-/* Drawer footer */
-.ant-drawer-footer {
-  border-top: 1px solid #f0f0f0;
-  padding: 16px;
+/* ============================================================
+   TABS - Modern underline
+   ============================================================ */
+.ant-tabs-tab {
+  font-weight: 500 !important;
+  padding: 12px 4px !important;
+  transition: color 0.2s ease;
 }
-
-/* Badge styling for tabs */
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  font-weight: 600 !important;
+}
+.ant-tabs-ink-bar {
+  height: 3px !important;
+  border-radius: 3px !important;
+}
+.ant-tabs-nav {
+  margin-bottom: 16px !important;
+}
 .ant-tabs-tab .ant-badge {
   margin-left: 8px;
 }
 
-/* ==================== RESPONSIVE DESIGN ==================== */
-
-/* Tablet (768px - 1024px) */
-@media (max-width: 1024px) {
-  .ant-table {
-    font-size: 13px;
-  }
-  .ant-table-thead > tr > th,
-  .ant-table-tbody > tr > td {
-    padding: 8px 8px !important;
-  }
-  .ant-card {
-    margin-bottom: 8px;
-  }
-  .ant-statistic-title {
-    font-size: 12px;
-  }
-  .ant-descriptions-item-label {
-    font-size: 12px;
-  }
+/* ============================================================
+   MODALS - Soft, elevated
+   ============================================================ */
+.ant-modal-content {
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+}
+.ant-modal-header {
+  padding: 20px 24px 16px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+.ant-modal-title {
+  font-weight: 700 !important;
+  font-size: 16px !important;
+}
+.ant-modal-footer {
+  padding: 12px 24px 20px !important;
+  border-top: 1px solid #f0f0f0 !important;
 }
 
-/* Mobile (< 768px) */
-@media (max-width: 767px) {
-  .ant-table {
-    font-size: 12px;
-  }
-  .ant-table-thead > tr > th,
-  .ant-table-tbody > tr > td {
-    padding: 6px 4px !important;
-  }
-  .ant-card-body {
-    padding: 12px !important;
-  }
-  .ant-statistic-content-value {
-    font-size: 20px !important;
-  }
-  .ant-statistic-title {
-    font-size: 11px;
-  }
-  .ant-form-item {
-    margin-bottom: 12px;
-  }
-  .ant-form-item-label > label {
-    font-size: 13px;
-  }
-  /* Stack Antd Row/Col on mobile */
-  .ant-col {
-    max-width: 100% !important;
-    flex: 0 0 100% !important;
-  }
-  /* Reduce modal width on mobile */
-  .ant-modal {
-    max-width: calc(100vw - 16px) !important;
-    margin: 8px auto !important;
-  }
-  .ant-modal-body {
-    max-height: 70vh;
-    overflow-y: auto;
-  }
-  /* Tabs scroll on mobile */
-  .ant-tabs-nav {
-    overflow-x: auto;
-  }
-  /* Descriptions vertical on mobile */
-  .ant-descriptions-row {
-    flex-direction: column;
-  }
-  /* Drawer full width on mobile */
-  .ant-drawer-content-wrapper {
-    max-width: 100vw !important;
-  }
-  /* Header adjustments */
-  .ant-layout-header {
-    padding: 0 8px !important;
-  }
-  /* Space compact on mobile */
-  .ant-space {
-    flex-wrap: wrap;
-    gap: 4px !important;
-  }
-  /* Hide text on small action buttons */
-  .ant-btn-sm span:not(.anticon) {
-    display: none;
-  }
+/* ============================================================
+   STATISTIC - Better visual weight
+   ============================================================ */
+.ant-statistic-title {
+  color: rgba(0, 0, 0, 0.55);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+.ant-statistic-content-value {
+  font-weight: 700;
 }
 
-/* Reception page - Priority row highlights */
+/* ============================================================
+   ALERTS - Rounded, animated
+   ============================================================ */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ant-alert {
+  border-radius: 10px !important;
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.ant-progress-text {
+  font-weight: 700;
+}
+.ant-progress-inner {
+  border-radius: 6px !important;
+}
+.ant-progress-bg {
+  border-radius: 6px !important;
+}
+
+/* ============================================================
+   DESCRIPTIONS
+   ============================================================ */
+.ant-descriptions-bordered .ant-descriptions-item-label {
+  background: #f8f9fc !important;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+/* ============================================================
+   DRAWER - Soft header
+   ============================================================ */
+.ant-drawer-header {
+  border-bottom: 1px solid #f0f0f0;
+}
+.ant-drawer-footer {
+  border-top: 1px solid #f0f0f0;
+  padding: 16px;
+}
+.ant-drawer-content-wrapper {
+  border-radius: 16px 0 0 16px;
+}
+
+/* ============================================================
+   SELECT DROPDOWN
+   ============================================================ */
+.ant-select-dropdown {
+  border-radius: 10px !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12) !important;
+  padding: 4px !important;
+}
+.ant-select-item-option {
+  border-radius: 6px !important;
+}
+
+/* ============================================================
+   POPOVER & TOOLTIP
+   ============================================================ */
+.ant-popover-inner {
+  border-radius: 12px !important;
+}
+.ant-tooltip-inner {
+  border-radius: 8px !important;
+}
+
+/* ============================================================
+   DIVIDER
+   ============================================================ */
+.ant-divider-horizontal.ant-divider-with-text {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* ============================================================
+   SPECIAL ROW HIGHLIGHTS (Reception, Pharmacy, etc.)
+   ============================================================ */
 .emergency-row {
   background: linear-gradient(90deg, #fff1f0 0%, #fff 40%) !important;
   border-left: 3px solid #ff4d4f !important;
 }
-.emergency-row:hover > td {
-  background: #fff1f0 !important;
-}
+.emergency-row:hover > td { background: #fff1f0 !important; }
+
 .priority-row {
   background: linear-gradient(90deg, #fffbe6 0%, #fff 40%) !important;
   border-left: 3px solid #faad14 !important;
 }
-.priority-row:hover > td {
-  background: #fffbe6 !important;
+.priority-row:hover > td { background: #fffbe6 !important; }
+
+.row-out-of-stock {
+  background: linear-gradient(90deg, #fff1f0 0%, #fff 40%) !important;
+}
+.row-low-stock {
+  background: linear-gradient(90deg, #fffbe6 0%, #fff 40%) !important;
+}
+.row-expiring {
+  background: linear-gradient(90deg, #fff7e6 0%, #fff 40%) !important;
+}
+
+/* ============================================================
+   BADGE PULSE ANIMATION
+   ============================================================ */
+@keyframes badgePulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 77, 79, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
+}
+.ant-badge-status-processing::after {
+  animation: badgePulse 1.5s infinite;
+}
+
+/* ============================================================
+   RADIO/CHECKBOX - Slightly larger touch targets
+   ============================================================ */
+.ant-radio-wrapper { width: 100%; }
+.ant-checkbox-wrapper { border-radius: 4px; }
+
+/* ============================================================
+   RESPONSIVE DESIGN
+   ============================================================ */
+
+/* Tablet (768px - 1024px) */
+@media (max-width: 1024px) {
+  .ant-table { font-size: 13px; }
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td { padding: 8px 8px !important; }
+  .ant-card { margin-bottom: 8px; }
+  .ant-statistic-title { font-size: 12px; }
+  .ant-descriptions-item-label { font-size: 12px; }
+}
+
+/* Mobile (< 768px) */
+@media (max-width: 767px) {
+  .ant-table { font-size: 12px; }
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td { padding: 6px 4px !important; }
+  .ant-card-body { padding: 12px !important; }
+  .ant-statistic-content-value { font-size: 20px !important; }
+  .ant-statistic-title { font-size: 11px; }
+  .ant-form-item { margin-bottom: 12px; }
+  .ant-form-item-label > label { font-size: 13px; }
+  .ant-col { max-width: 100% !important; flex: 0 0 100% !important; }
+  .ant-modal { max-width: calc(100vw - 16px) !important; margin: 8px auto !important; }
+  .ant-modal-body { max-height: 70vh; overflow-y: auto; }
+  .ant-tabs-nav { overflow-x: auto; }
+  .ant-descriptions-row { flex-direction: column; }
+  .ant-drawer-content-wrapper { max-width: 100vw !important; }
+  .ant-layout-header { padding: 0 8px !important; }
+  .ant-space { flex-wrap: wrap; gap: 4px !important; }
+  .ant-btn-sm span:not(.anticon) { display: none; }
 }
