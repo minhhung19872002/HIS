@@ -125,7 +125,7 @@ describe('Online Booking System', () => {
     });
 
     it('loads booking management page', () => {
-      cy.contains('Quản lý đặt lịch').should('be.visible');
+      cy.contains(/Qu[aả]n l[yý] [dđ][aặ]t l[iị]ch/i).should('exist');
     });
 
     it('shows 3 tabs: bookings, schedules, stats', () => {

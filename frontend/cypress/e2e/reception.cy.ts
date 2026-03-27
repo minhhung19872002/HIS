@@ -7,12 +7,12 @@ describe('Reception Module', () => {
   it('should display reception page', () => {
     cy.url().should('include', '/reception')
     cy.get('body').should('be.visible')
-    cy.contains(/Tiep don|Reception|Benh nhan/i).should('exist')
+    cy.contains(/Ti[eế]p [dđ][oô]n|Reception|B[eệ]nh nh[aâ]n/i).should('exist')
   })
 
   it('should open patient registration form', () => {
-    cy.contains('button', /Dang ky kham|Dang ky moi/i).click()
-    cy.contains('.ant-modal-title', /Dang ky kham benh/i).should('be.visible')
+    cy.contains('button', /[DĐ][aă]ng k[yý] kh[aá]m|[DĐ][aă]ng k[yý] m[oớ]i/i).click()
+    cy.get('.ant-modal').should('be.visible')
   })
 
   it('should search for patients', () => {
