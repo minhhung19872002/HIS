@@ -2178,4 +2178,4 @@
 - Mobile PACS viewer (native app)
 - Multi-monitor LCD hardware setup
 
-### Trang thai: CHUA THUC HIEN
+### Trang thai: DA THUC HIEN (17/20 software features, 8 hardware-dependent)
