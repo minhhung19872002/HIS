@@ -65,8 +65,8 @@ export const searchMethadonePatients = async (params?: {
   status?: number;
 }) => {
   try {
-    const response = await apiClient.get<MethadonePatient[]>('/methadone/patients', { params });
-    return response.data || [];
+    const response = await apiClient.get<any>('/methadone/patients', { params });
+    return Array.isArray(response.data) ? response.data : (response.data?.items || []);
   } catch {
     console.warn('Failed to fetch methadone patients');
     return [];
@@ -99,8 +99,11 @@ export const getDosingHistory = async (params?: {
   toDate?: string;
 }) => {
   try {
-    const response = await apiClient.get<DoseRecord[]>('/methadone/doses', { params });
-    return response.data || [];
+    if (params?.patientId) {
+      const response = await apiClient.get<any>(`/methadone/patient/${params.patientId}/doses`);
+      return Array.isArray(response.data) ? response.data : [];
+    }
+    return [];
   } catch {
     console.warn('Failed to fetch dosing history');
     return [];
@@ -118,8 +121,11 @@ export const getUrineTests = async (params?: {
   toDate?: string;
 }) => {
   try {
-    const response = await apiClient.get<UrineTest[]>('/methadone/urine-tests', { params });
-    return response.data || [];
+    if (params?.patientId) {
+      const response = await apiClient.get<any>(`/methadone/patient/${params.patientId}/screenings`);
+      return Array.isArray(response.data) ? response.data : [];
+    }
+    return [];
   } catch {
     console.warn('Failed to fetch urine tests');
     return [];
@@ -128,7 +134,7 @@ export const getUrineTests = async (params?: {
 
 export const getMethadoneStats = async (): Promise<MethadoneStats> => {
   try {
-    const response = await apiClient.get<MethadoneStats>('/methadone/statistics');
+    const response = await apiClient.get<MethadoneStats>('/methadone/dashboard');
     return response.data;
   } catch {
     console.warn('Failed to fetch methadone statistics');

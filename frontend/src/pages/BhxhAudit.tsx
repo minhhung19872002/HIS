@@ -331,7 +331,7 @@ const BhxhAudit: React.FC = () => {
   const fetchAuditorAccounts = useCallback(async () => {
     try {
       setAccountsLoading(true);
-      const res = await client.get('/insurance-xml/bhxh-audit/auditor-accounts');
+      const res = await client.get('/bhxh-audit/auditor-accounts');
       const accounts = res.data?.data || res.data || [];
       setAuditorAccounts(
         (Array.isArray(accounts) ? accounts : []).map((a: AuditorAccountItem) => ({
@@ -360,7 +360,7 @@ const BhxhAudit: React.FC = () => {
       setPortalLoading(true);
       const params: Record<string, unknown> = { pageIndex: 0, pageSize: 200 };
       if (portalSearch) params.keyword = portalSearch;
-      const res = await client.get('/insurance-xml/bhxh-audit/records', { params });
+      const res = await client.get('/bhxh-audit/records', { params });
       const items = res.data?.items || res.data?.data?.items || res.data?.data || res.data || [];
       setPortalRecords(
         (Array.isArray(items) ? items : []).map((r: PortalRecordItem) => ({
@@ -391,7 +391,7 @@ const BhxhAudit: React.FC = () => {
   useEffect(() => {
     const checkAvailability = async () => {
       setAvailabilityLoading(true);
-      const available = await isApiAvailable('/insurance-xml/bhxh-audit/records');
+      const available = await isApiAvailable('/bhxh-audit/sessions');
       setModuleAvailable(available);
       if (available) {
         fetchRecords();
@@ -483,7 +483,7 @@ const BhxhAudit: React.FC = () => {
       const file = fileList[0]?.originFileObj || fileList[0];
       formData.append('file', file as Blob);
 
-      const res = await client.post('/insurance-xml/bhxh-audit/import-excel', formData, {
+      const res = await client.post('/bhxh-audit/import-excel', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -529,7 +529,7 @@ const BhxhAudit: React.FC = () => {
 
     try {
       setLoading(true);
-      await client.post('/insurance-xml/bhxh-audit/approve', {
+      await client.post('/bhxh-audit/approve', {
         recordIds: selectedRowKeys,
       });
       message.success(`Đã duyệt ${selectedRowKeys.length} hồ sơ`);
@@ -651,7 +651,7 @@ const BhxhAudit: React.FC = () => {
   const handleSaveAccount = async () => {
     try {
       const values = await accountForm.validateFields();
-      await client.post('/insurance-xml/bhxh-audit/auditor-accounts', {
+      await client.post('/bhxh-audit/auditor-accounts', {
         ...values,
         id: editingAccount?.id,
       });
@@ -1286,7 +1286,7 @@ const BhxhAudit: React.FC = () => {
         <Space orientation="vertical" size="small">
           <strong>Màn hình giám định BHXH chưa khả dụng.</strong>
           <span style={{ color: 'rgba(0,0,0,0.45)' }}>
-            Backend hiện chưa cung cấp các endpoint `/api/insurance-xml/bhxh-audit/*`, nên frontend tạm thời không gọi các API này để tránh lỗi `404`.
+            Backend hiện chưa cung cấp các endpoint `/api/bhxh-audit/*`, nên frontend tạm thời không gọi các API này để tránh lỗi `404`.
           </span>
         </Space>
       </Card>
@@ -1636,7 +1636,7 @@ const BhxhAudit: React.FC = () => {
                   icon={<EyeOutlined />}
                   onClick={() => {
                     window.open(
-                      `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/insurance-xml/bhxh-audit/records/${selectedPortalRecord.id}/pdf`,
+                      `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/bhxh-audit/records/${selectedPortalRecord.id}/pdf`,
                       '_blank'
                     );
                   }}
@@ -1647,7 +1647,7 @@ const BhxhAudit: React.FC = () => {
                   icon={<DownloadOutlined />}
                   onClick={() => {
                     const link = document.createElement('a');
-                    link.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/insurance-xml/bhxh-audit/records/${selectedPortalRecord.id}/pdf`;
+                    link.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/bhxh-audit/records/${selectedPortalRecord.id}/pdf`;
                     link.download = `HSBA_${selectedPortalRecord.maLk}.pdf`;
                     link.click();
                   }}
