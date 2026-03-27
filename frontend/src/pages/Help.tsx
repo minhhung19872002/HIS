@@ -35,7 +35,6 @@ import {
   ExclamationCircleOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
-import { motion } from 'framer-motion';
 import risApi from '../api/ris';
 import type {
   HelpCategoryDto,
@@ -286,16 +285,10 @@ const Help: React.FC = () => {
   );
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <Title level={4}>
-          <QuestionCircleOutlined /> Hướng dẫn sử dụng
-        </Title>
-      </motion.div>
+    <div>
+      <Title level={4}>
+        <QuestionCircleOutlined /> Hướng dẫn sử dụng
+      </Title>
 
       <Row gutter={[16, 16]}>
         {/* Sidebar */}

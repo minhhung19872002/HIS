@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Row, Col, Form, Input, Select, DatePicker, Button, Steps, Result, Tag, message, Spin, Divider, Typography } from 'antd';
 import { CalendarOutlined, UserOutlined, PhoneOutlined, SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, MedicineBoxOutlined, EnvironmentOutlined } from '@ant-design/icons';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import {
   getBookingDepartments, getBookingDoctors, getAvailableSlots, bookAppointment, lookupAppointment, cancelBooking,
@@ -164,13 +163,8 @@ const AppointmentBooking = () => {
   );
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px', position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div style={{ textAlign: 'center', marginBottom: 16, padding: '16px 0', borderBottom: '2px solid #1890ff' }}>
         <MedicineBoxOutlined style={{ fontSize: 48, color: '#1890ff' }} />
         <Title level={2} style={{ marginTop: 8, marginBottom: 4 }}>Đặt Lịch Khám Trực Tuyến</Title>
@@ -180,7 +174,6 @@ const AppointmentBooking = () => {
           <Text style={{ color: '#52c41a' }}>Đặt lịch trước - Không cần chờ đợi - Ưu tiên khám</Text>
         </div>
       </div>
-      </motion.div>
 
       {/* Toggle: Book vs Lookup */}
       <div style={{ textAlign: 'center', marginBottom: 24 }}>

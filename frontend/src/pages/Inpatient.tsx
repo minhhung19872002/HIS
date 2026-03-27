@@ -1,22 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
 import {
+  Card,
   Table,
   Button,
+  Space,
   Input,
   Tag,
+  Row,
+  Col,
   Modal,
   Form,
   Select,
   DatePicker,
+  Typography,
   message,
   Tabs,
   Badge,
+  Divider,
   Spin,
   Descriptions,
   Alert,
   InputNumber,
-  Tooltip
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -64,6 +69,7 @@ import { patientApi, type Patient } from '../api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
@@ -464,9 +470,9 @@ const Inpatient: React.FC = () => {
       render: (_, record) => (
         <div>
           <div>{record.roomName}</div>
-          <span className="text-gray-500 text-xs">
+          <Text type="secondary" style={{ fontSize: 12 }}>
             {record.bedName || 'Chưa phân giường'}
-          </span>
+          </Text>
         </div>
       ),
     },
@@ -491,7 +497,7 @@ const Inpatient: React.FC = () => {
       width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <div className="flex flex-col gap-2">
+        <Space orientation="vertical" size="small">
           <Button
             size="small"
             icon={<EyeOutlined />}
@@ -509,7 +515,7 @@ const Inpatient: React.FC = () => {
           >
             Chi tiết
           </Button>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -557,12 +563,12 @@ const Inpatient: React.FC = () => {
             <div>
               <strong>{record.patientName}</strong>
             </div>
-            <span className="text-gray-500 text-xs">
+            <Text type="secondary" style={{ fontSize: 12 }}>
               {record.patientCode}
-            </span>
+            </Text>
           </div>
         ) : (
-          <span className="text-gray-500 text-sm">-</span>
+          <Text type="secondary">-</Text>
         ),
     },
     {
@@ -1038,125 +1044,125 @@ const Inpatient: React.FC = () => {
         </style>
       </head>
       <body>
-        <div className="header">
-          <div className="header-left">
-            Sở Y tế: <span className="field">${formValues.healthDepartment || '........................'}</span><br/>
-            Bệnh viện: <span className="field">${formValues.hospitalName || '........................'}</span><br/>
-            Khoa: <span className="field">${formValues.departmentName || '............'}</span> Giường: <span className="field">${formValues.bedNumber || '......'}</span>
+        <div class="header">
+          <div class="header-left">
+            Sở Y tế: <span class="field">${formValues.healthDepartment || '........................'}</span><br/>
+            Bệnh viện: <span class="field">${formValues.hospitalName || '........................'}</span><br/>
+            Khoa: <span class="field">${formValues.departmentName || '............'}</span> Giường: <span class="field">${formValues.bedNumber || '......'}</span>
           </div>
-          <div className="header-center">
-            <div className="title">${recordType.label.toUpperCase()}</div>
+          <div class="header-center">
+            <div class="title">${recordType.label.toUpperCase()}</div>
           </div>
-          <div className="header-right">
+          <div class="header-right">
             MS: ${recordType.code}<br/>
-            Số lưu trữ: <span className="field">${formValues.archiveNumber || '............'}</span><br/>
-            Mã YT: <span className="field">${formValues.medicalCode || '...../...../...../.....'}</span>
+            Số lưu trữ: <span class="field">${formValues.archiveNumber || '............'}</span><br/>
+            Mã YT: <span class="field">${formValues.medicalCode || '...../...../...../.....'}</span>
           </div>
         </div>
 
-        <div className="section">
-          <div className="section-title">I. HÀNH CHÍNH:</div>
-          <div className="row">
-            <div className="col-2">1. Họ và tên (In hoa): <span className="field">${formValues.patientName || ''}</span></div>
-            <div className="col">2. Sinh ngày: <span className="field">${formValues.dateOfBirth || ''}</span></div>
-            <div>Tuổi: <span className="field">${formValues.age || ''}</span></div>
+        <div class="section">
+          <div class="section-title">I. HÀNH CHÍNH:</div>
+          <div class="row">
+            <div class="col-2">1. Họ và tên (In hoa): <span class="field">${formValues.patientName || ''}</span></div>
+            <div class="col">2. Sinh ngày: <span class="field">${formValues.dateOfBirth || ''}</span></div>
+            <div>Tuổi: <span class="field">${formValues.age || ''}</span></div>
           </div>
-          <div className="row">
-            <div className="col">3. Giới: <span className="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam <span className="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ</div>
-            <div className="col-2">4. Nghề nghiệp: <span className="field">${formValues.occupation || ''}</span></div>
+          <div class="row">
+            <div class="col">3. Giới: <span class="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam <span class="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ</div>
+            <div class="col-2">4. Nghề nghiệp: <span class="field">${formValues.occupation || ''}</span></div>
           </div>
-          <div className="row">
-            <div className="col">5. Dân tộc: <span className="field">${formValues.ethnicity || ''}</span></div>
-            <div className="col">6. Ngoại kiều: <span className="field">${formValues.nationality || ''}</span></div>
+          <div class="row">
+            <div class="col">5. Dân tộc: <span class="field">${formValues.ethnicity || ''}</span></div>
+            <div class="col">6. Ngoại kiều: <span class="field">${formValues.nationality || ''}</span></div>
           </div>
-          <div className="row">
-            <div>7. Địa chỉ: Số nhà <span className="field">${formValues.houseNumber || ''}</span> Thôn, phố <span className="field">${formValues.street || ''}</span> Xã, phường <span className="field">${formValues.ward || ''}</span></div>
+          <div class="row">
+            <div>7. Địa chỉ: Số nhà <span class="field">${formValues.houseNumber || ''}</span> Thôn, phố <span class="field">${formValues.street || ''}</span> Xã, phường <span class="field">${formValues.ward || ''}</span></div>
           </div>
-          <div className="row">
-            <div>Huyện (Q, Tx) <span className="field">${formValues.district || ''}</span> Tỉnh, thành phố <span className="field">${formValues.province || ''}</span></div>
+          <div class="row">
+            <div>Huyện (Q, Tx) <span class="field">${formValues.district || ''}</span> Tỉnh, thành phố <span class="field">${formValues.province || ''}</span></div>
           </div>
-          <div className="row">
-            <div className="col">8. Nơi làm việc: <span className="field">${formValues.workplace || ''}</span></div>
-            <div className="col">9. Đối tượng: <span className="checkbox ${formValues.patientType === 'bhyt' ? 'checked' : ''}"></span>BHYT <span className="checkbox ${formValues.patientType === 'fee' ? 'checked' : ''}"></span>Thu phí <span className="checkbox ${formValues.patientType === 'free' ? 'checked' : ''}"></span>Miễn <span className="checkbox ${formValues.patientType === 'other' ? 'checked' : ''}"></span>Khác</div>
+          <div class="row">
+            <div class="col">8. Nơi làm việc: <span class="field">${formValues.workplace || ''}</span></div>
+            <div class="col">9. Đối tượng: <span class="checkbox ${formValues.patientType === 'bhyt' ? 'checked' : ''}"></span>BHYT <span class="checkbox ${formValues.patientType === 'fee' ? 'checked' : ''}"></span>Thu phí <span class="checkbox ${formValues.patientType === 'free' ? 'checked' : ''}"></span>Miễn <span class="checkbox ${formValues.patientType === 'other' ? 'checked' : ''}"></span>Khác</div>
           </div>
-          <div className="row">
-            <div>10. BHYT giá trị đến ngày <span className="field">${formValues.insuranceValidDate || ''}</span> Số thẻ BHYT: <span className="field">${formValues.insuranceNumber || ''}</span></div>
+          <div class="row">
+            <div>10. BHYT giá trị đến ngày <span class="field">${formValues.insuranceValidDate || ''}</span> Số thẻ BHYT: <span class="field">${formValues.insuranceNumber || ''}</span></div>
           </div>
-          <div className="row">
-            <div>11. Họ tên, địa chỉ người nhà khi cần báo tin: <span className="field">${formValues.emergencyContact || ''}</span> Điện thoại: <span className="field">${formValues.emergencyPhone || ''}</span></div>
-          </div>
-        </div>
-
-        <div className="section">
-          <div className="section-title">II. QUẢN LÝ NGƯỜI BỆNH</div>
-          <div className="row">
-            <div className="col">12. Vào viện: <span className="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('HH') : ''}</span> giờ <span className="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('mm') : ''}</span> ph ngày <span className="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('DD/MM/YYYY') : ''}</span></div>
-            <div className="col">14. Nơi giới thiệu: <span className="checkbox"></span>Cơ quan y tế <span className="checkbox"></span>Tự đến <span className="checkbox"></span>Khác</div>
-          </div>
-          <div className="row">
-            <div className="col">13. Trực tiếp vào: <span className="checkbox"></span>Cấp cứu <span className="checkbox"></span>KKB <span className="checkbox"></span>Khoa điều trị</div>
-            <div className="col">- Vào viện do bệnh này lần thứ: <span className="field">${formValues.visitNumber || ''}</span></div>
+          <div class="row">
+            <div>11. Họ tên, địa chỉ người nhà khi cần báo tin: <span class="field">${formValues.emergencyContact || ''}</span> Điện thoại: <span class="field">${formValues.emergencyPhone || ''}</span></div>
           </div>
         </div>
 
-        <div className="section">
-          <div className="section-title">III. CHẨN ĐOÁN</div>
-          <div className="row">
-            <div className="col">20. Nơi chuyển đến: <span className="field-long">${formValues.referralFrom || ''}</span></div>
-            <div className="col">23. Ra viện:</div>
+        <div class="section">
+          <div class="section-title">II. QUẢN LÝ NGƯỜI BỆNH</div>
+          <div class="row">
+            <div class="col">12. Vào viện: <span class="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('HH') : ''}</span> giờ <span class="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('mm') : ''}</span> ph ngày <span class="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('DD/MM/YYYY') : ''}</span></div>
+            <div class="col">14. Nơi giới thiệu: <span class="checkbox"></span>Cơ quan y tế <span class="checkbox"></span>Tự đến <span class="checkbox"></span>Khác</div>
           </div>
-          <div className="row">
-            <div className="col">21. KKB, Cấp cứu: <span className="field-long">${formValues.emergencyDiagnosis || ''}</span></div>
-            <div className="col">+ Bệnh chính: <span className="field-long">${formValues.mainDiagnosis || formValues.diagnosis || ''}</span></div>
+          <div class="row">
+            <div class="col">13. Trực tiếp vào: <span class="checkbox"></span>Cấp cứu <span class="checkbox"></span>KKB <span class="checkbox"></span>Khoa điều trị</div>
+            <div class="col">- Vào viện do bệnh này lần thứ: <span class="field">${formValues.visitNumber || ''}</span></div>
           </div>
-          <div className="row">
-            <div className="col">22. Khi vào khoa điều trị: <span className="field-long">${formValues.admissionDiagnosis || ''}</span></div>
-            <div className="col">+ Bệnh kèm theo: <span className="field-long">${formValues.comorbidity || ''}</span></div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">III. CHẨN ĐOÁN</div>
+          <div class="row">
+            <div class="col">20. Nơi chuyển đến: <span class="field-long">${formValues.referralFrom || ''}</span></div>
+            <div class="col">23. Ra viện:</div>
+          </div>
+          <div class="row">
+            <div class="col">21. KKB, Cấp cứu: <span class="field-long">${formValues.emergencyDiagnosis || ''}</span></div>
+            <div class="col">+ Bệnh chính: <span class="field-long">${formValues.mainDiagnosis || formValues.diagnosis || ''}</span></div>
+          </div>
+          <div class="row">
+            <div class="col">22. Khi vào khoa điều trị: <span class="field-long">${formValues.admissionDiagnosis || ''}</span></div>
+            <div class="col">+ Bệnh kèm theo: <span class="field-long">${formValues.comorbidity || ''}</span></div>
           </div>
           ${isNgoaiKhoa ? `
-          <div className="row">
-            <div className="col">+ Chẩn đoán trước phẫu thuật: <span className="field-long">${formValues.preOpDiagnosis || ''}</span></div>
+          <div class="row">
+            <div class="col">+ Chẩn đoán trước phẫu thuật: <span class="field-long">${formValues.preOpDiagnosis || ''}</span></div>
           </div>
-          <div className="row">
-            <div className="col">+ Chẩn đoán sau phẫu thuật: <span className="field-long">${formValues.postOpDiagnosis || ''}</span></div>
+          <div class="row">
+            <div class="col">+ Chẩn đoán sau phẫu thuật: <span class="field-long">${formValues.postOpDiagnosis || ''}</span></div>
           </div>
-          <div className="row">
-            <div>23. Tổng số ngày điều trị sau phẫu thuật: <span className="field">${formValues.postOpDays || ''}</span></div>
-            <div>24. Tổng số lần phẫu thuật: <span className="field">${formValues.surgeryCount || ''}</span></div>
+          <div class="row">
+            <div>23. Tổng số ngày điều trị sau phẫu thuật: <span class="field">${formValues.postOpDays || ''}</span></div>
+            <div>24. Tổng số lần phẫu thuật: <span class="field">${formValues.surgeryCount || ''}</span></div>
           </div>
           ` : ''}
         </div>
 
-        <div className="section">
-          <div className="section-title">IV. TÌNH TRẠNG RA VIỆN</div>
-          <div className="row">
-            <div className="col">
+        <div class="section">
+          <div class="section-title">IV. TÌNH TRẠNG RA VIỆN</div>
+          <div class="row">
+            <div class="col">
               ${isNgoaiKhoa ? '26' : '24'}. Kết quả điều trị:<br/>
-              <span className="checkbox"></span>1. Khỏi <span className="checkbox"></span>4. Nặng hơn<br/>
-              <span className="checkbox"></span>2. Đỡ, giảm <span className="checkbox"></span>5. Tử vong<br/>
-              <span className="checkbox"></span>3. Không thay đổi
+              <span class="checkbox"></span>1. Khỏi <span class="checkbox"></span>4. Nặng hơn<br/>
+              <span class="checkbox"></span>2. Đỡ, giảm <span class="checkbox"></span>5. Tử vong<br/>
+              <span class="checkbox"></span>3. Không thay đổi
             </div>
-            <div className="col">
-              ${isNgoaiKhoa ? '28' : '26'}. Tình hình tử vong: <span className="field"></span> giờ <span className="field"></span> ph ngày <span className="field"></span><br/>
-              <span className="checkbox"></span>1. Do bệnh <span className="checkbox"></span>2. Do tai biến điều trị <span className="checkbox"></span>3. Khác<br/>
-              <span className="checkbox"></span>1. Trong 24 giờ vào viện <span className="checkbox"></span>2. Sau 24 giờ vào viện
+            <div class="col">
+              ${isNgoaiKhoa ? '28' : '26'}. Tình hình tử vong: <span class="field"></span> giờ <span class="field"></span> ph ngày <span class="field"></span><br/>
+              <span class="checkbox"></span>1. Do bệnh <span class="checkbox"></span>2. Do tai biến điều trị <span class="checkbox"></span>3. Khác<br/>
+              <span class="checkbox"></span>1. Trong 24 giờ vào viện <span class="checkbox"></span>2. Sau 24 giờ vào viện
             </div>
           </div>
         </div>
 
         <div style="page-break-before: always;"></div>
 
-        <div className="section">
-          <div className="section-title">A - BỆNH ÁN</div>
-          <div><strong>I. Lý do vào viện:</strong> <span className="field-long">${formValues.admissionReason || ''}</span> Vào ngày thứ <span className="field">${formValues.illnessDay || ''}</span> của bệnh</div>
+        <div class="section">
+          <div class="section-title">A - BỆNH ÁN</div>
+          <div><strong>I. Lý do vào viện:</strong> <span class="field-long">${formValues.admissionReason || ''}</span> Vào ngày thứ <span class="field">${formValues.illnessDay || ''}</span> của bệnh</div>
 
           <div><strong>II. Hỏi bệnh:</strong></div>
           <div>1. Quá trình bệnh lý: (khởi phát, diễn biến, chẩn đoán, điều trị của tuyến dưới v.v..)</div>
-          <div className="field-long" style="min-height: 80px;">${formValues.illnessHistory || ''}</div>
+          <div class="field-long" style="min-height: 80px;">${formValues.illnessHistory || ''}</div>
 
           <div>2. Tiền sử bệnh:</div>
           <div>+ Bản thân: (phát triển thể lực từ nhỏ đến lớn, những bệnh đã mắc, phương pháp ĐTr, tiêm phòng, ăn uống, sinh hoạt vv...)</div>
-          <div className="field-long" style="min-height: 60px;">${formValues.personalHistory || ''}</div>
+          <div class="field-long" style="min-height: 60px;">${formValues.personalHistory || ''}</div>
 
           <div>Đặc điểm liên quan bệnh:</div>
           <table>
@@ -1179,72 +1185,72 @@ const Inpatient: React.FC = () => {
           </table>
 
           <div>+ Gia đình: (Những người trong gia đình: bệnh đã mắc, đời sống, tinh thần, vật chất v.v...)</div>
-          <div className="field-long" style="min-height: 40px;">${formValues.familyHistory || ''}</div>
+          <div class="field-long" style="min-height: 40px;">${formValues.familyHistory || ''}</div>
         </div>
 
-        <div className="section">
+        <div class="section">
           <div><strong>III - Khám bệnh:</strong></div>
-          <div className="vital-signs">
-            Mạch: <span className="field">${formValues.pulse || ''}</span> lần/ph<br/>
-            Nhiệt độ: <span className="field">${formValues.temperature || ''}</span> °C<br/>
-            Huyết áp: <span className="field">${formValues.bloodPressure || ''}</span> mmHg<br/>
-            Nhịp thở: <span className="field">${formValues.respRate || ''}</span> lần/ph<br/>
-            Cân nặng: <span className="field">${formValues.weight || ''}</span> kg
+          <div class="vital-signs">
+            Mạch: <span class="field">${formValues.pulse || ''}</span> lần/ph<br/>
+            Nhiệt độ: <span class="field">${formValues.temperature || ''}</span> °C<br/>
+            Huyết áp: <span class="field">${formValues.bloodPressure || ''}</span> mmHg<br/>
+            Nhịp thở: <span class="field">${formValues.respRate || ''}</span> lần/ph<br/>
+            Cân nặng: <span class="field">${formValues.weight || ''}</span> kg
           </div>
           <div>1. Toàn thân: (ý thức, da niêm mạc, hệ thống hạch, tuyến giáp, vị trí, kích thước, số lượng, di động v.v)</div>
-          <div className="field-long" style="min-height: 60px;">${formValues.generalExam || ''}</div>
+          <div class="field-long" style="min-height: 60px;">${formValues.generalExam || ''}</div>
 
           ${isNgoaiKhoa ? `
           <div>2. Bệnh ngoại khoa:</div>
-          <div className="field-long" style="min-height: 100px;">${formValues.surgicalExam || ''}</div>
+          <div class="field-long" style="min-height: 100px;">${formValues.surgicalExam || ''}</div>
           ` : ''}
 
           <div>${isNgoaiKhoa ? '3' : '2'}. Các cơ quan:</div>
-          <div>+ Tuần hoàn: <span className="field-long">${formValues.cardiovascular || ''}</span></div>
-          <div>+ Hô hấp: <span className="field-long">${formValues.respiratory || ''}</span></div>
-          <div>+ Tiêu hoá: <span className="field-long">${formValues.digestive || ''}</span></div>
-          <div>+ Thận - Tiết niệu - Sinh dục: <span className="field-long">${formValues.urogenital || ''}</span></div>
-          <div>+ Thần Kinh: <span className="field-long">${formValues.neurological || ''}</span></div>
-          <div>+ Cơ - Xương - Khớp: <span className="field-long">${formValues.musculoskeletal || ''}</span></div>
-          <div>+ Tai - Mũi - Họng: <span className="field-long">${formValues.ent || ''}</span></div>
-          <div>+ Răng - Hàm - Mặt: <span className="field-long">${formValues.dental || ''}</span></div>
-          <div>+ Mắt: <span className="field-long">${formValues.eye || ''}</span></div>
-          <div>+ Nội tiết, dinh dưỡng và các bệnh lý khác: <span className="field-long">${formValues.other || ''}</span></div>
+          <div>+ Tuần hoàn: <span class="field-long">${formValues.cardiovascular || ''}</span></div>
+          <div>+ Hô hấp: <span class="field-long">${formValues.respiratory || ''}</span></div>
+          <div>+ Tiêu hoá: <span class="field-long">${formValues.digestive || ''}</span></div>
+          <div>+ Thận - Tiết niệu - Sinh dục: <span class="field-long">${formValues.urogenital || ''}</span></div>
+          <div>+ Thần Kinh: <span class="field-long">${formValues.neurological || ''}</span></div>
+          <div>+ Cơ - Xương - Khớp: <span class="field-long">${formValues.musculoskeletal || ''}</span></div>
+          <div>+ Tai - Mũi - Họng: <span class="field-long">${formValues.ent || ''}</span></div>
+          <div>+ Răng - Hàm - Mặt: <span class="field-long">${formValues.dental || ''}</span></div>
+          <div>+ Mắt: <span class="field-long">${formValues.eye || ''}</span></div>
+          <div>+ Nội tiết, dinh dưỡng và các bệnh lý khác: <span class="field-long">${formValues.other || ''}</span></div>
         </div>
 
-        <div className="section">
+        <div class="section">
           <div>${isNgoaiKhoa ? '4' : '3'}. Các xét nghiệm cận lâm sàng cần làm:</div>
-          <div className="field-long" style="min-height: 40px;">${formValues.labTests || ''}</div>
+          <div class="field-long" style="min-height: 40px;">${formValues.labTests || ''}</div>
 
           <div>${isNgoaiKhoa ? '5' : '4'}. Tóm tắt bệnh án:</div>
-          <div className="field-long" style="min-height: 80px;">${formValues.summary || ''}</div>
+          <div class="field-long" style="min-height: 80px;">${formValues.summary || ''}</div>
         </div>
 
-        <div className="section">
+        <div class="section">
           <div><strong>IV. Chẩn đoán khi vào khoa điều trị:</strong></div>
-          <div>+ Bệnh chính: <span className="field-long">${formValues.mainDiagnosis || formValues.diagnosis || ''}</span></div>
-          <div>+ Bệnh kèm theo (nếu có): <span className="field-long">${formValues.comorbidity || ''}</span></div>
-          <div>+ Phân biệt: <span className="field-long">${formValues.differentialDiagnosis || ''}</span></div>
+          <div>+ Bệnh chính: <span class="field-long">${formValues.mainDiagnosis || formValues.diagnosis || ''}</span></div>
+          <div>+ Bệnh kèm theo (nếu có): <span class="field-long">${formValues.comorbidity || ''}</span></div>
+          <div>+ Phân biệt: <span class="field-long">${formValues.differentialDiagnosis || ''}</span></div>
         </div>
 
-        <div className="section">
-          <div><strong>V. Tiên lượng:</strong> <span className="field-long">${formValues.prognosis || ''}</span></div>
-          <div><strong>VI. Hướng điều trị:</strong> <span className="field-long">${formValues.treatmentPlan || ''}</span></div>
+        <div class="section">
+          <div><strong>V. Tiên lượng:</strong> <span class="field-long">${formValues.prognosis || ''}</span></div>
+          <div><strong>VI. Hướng điều trị:</strong> <span class="field-long">${formValues.treatmentPlan || ''}</span></div>
         </div>
 
-        <div className="signature-row">
+        <div class="signature-row">
           <div></div>
-          <div className="signature-box">
-            <div>Ngày <span className="field">${dayjs().format('DD')}</span> tháng <span className="field">${dayjs().format('MM')}</span> năm <span className="field">${dayjs().format('YYYY')}</span></div>
-            <div className="signature-title">Bác sỹ làm bệnh án</div>
-            <div>Họ và tên: <span className="field">${formValues.doctorName || ''}</span></div>
+          <div class="signature-box">
+            <div>Ngày <span class="field">${dayjs().format('DD')}</span> tháng <span class="field">${dayjs().format('MM')}</span> năm <span class="field">${dayjs().format('YYYY')}</span></div>
+            <div class="signature-title">Bác sỹ làm bệnh án</div>
+            <div>Họ và tên: <span class="field">${formValues.doctorName || ''}</span></div>
           </div>
         </div>
 
         ${isNgoaiKhoa ? `
         <div style="page-break-before: always;"></div>
-        <div className="section">
-          <div className="section-title">B. TỔNG KẾT BỆNH ÁN</div>
+        <div class="section">
+          <div class="section-title">B. TỔNG KẾT BỆNH ÁN</div>
           <div>3. Phương pháp điều trị:</div>
           <table>
             <tr>
@@ -1335,38 +1341,38 @@ const Inpatient: React.FC = () => {
         </style>
       </head>
       <body>
-        <div className="header">
-          <div className="header-left">
-            <div>Cơ sở KB, CB: <span className="field">${formValues.hospitalName || ''}</span></div>
-            <div>Khoa: <span className="field">${formValues.departmentName || ''}</span></div>
+        <div class="header">
+          <div class="header-left">
+            <div>Cơ sở KB, CB: <span class="field">${formValues.hospitalName || ''}</span></div>
+            <div>Khoa: <span class="field">${formValues.departmentName || ''}</span></div>
           </div>
           <div style="text-align: center;">
             <div style="font-weight: bold;">PHIẾU THEO DÕI ĐIỀU TRỊ</div>
-            <div>Tờ số: <span className="field">${formValues.sheetNumber || '1'}</span></div>
+            <div>Tờ số: <span class="field">${formValues.sheetNumber || '1'}</span></div>
           </div>
           <div style="text-align: right;">
             <div><strong>MS: 36/BV2</strong></div>
-            <div>Số vào viện: <span className="field">${formValues.admissionCode || ''}</span></div>
-            <div>Mã người bệnh: <span className="field">${formValues.patientCode || ''}</span></div>
+            <div>Số vào viện: <span class="field">${formValues.admissionCode || ''}</span></div>
+            <div>Mã người bệnh: <span class="field">${formValues.patientCode || ''}</span></div>
           </div>
         </div>
 
-        <div className="row">
-          Họ và tên người bệnh: <span className="field" style="width: 300px;">${formValues.patientName || ''}</span>
-          Tuổi: <span className="field">${formValues.age || ''}</span>
-          <span className="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam
-          <span className="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ
+        <div class="row">
+          Họ và tên người bệnh: <span class="field" style="width: 300px;">${formValues.patientName || ''}</span>
+          Tuổi: <span class="field">${formValues.age || ''}</span>
+          <span class="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam
+          <span class="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ
         </div>
-        <div className="row">
-          Khoa: <span className="field">${formValues.departmentName || ''}</span>
-          Phòng: <span className="field">${formValues.roomName || ''}</span>
-          Giường: <span className="field">${formValues.bedName || ''}</span>
+        <div class="row">
+          Khoa: <span class="field">${formValues.departmentName || ''}</span>
+          Phòng: <span class="field">${formValues.roomName || ''}</span>
+          Giường: <span class="field">${formValues.bedName || ''}</span>
         </div>
-        <div className="row">
-          Chẩn đoán: <span className="field-long">${formValues.diagnosis || ''}</span>
+        <div class="row">
+          Chẩn đoán: <span class="field-long">${formValues.diagnosis || ''}</span>
         </div>
-        <div className="row">
-          Chẩn đoán phân biệt: <span className="field-long">${formValues.differentialDiagnosis || ''}</span>
+        <div class="row">
+          Chẩn đoán phân biệt: <span class="field-long">${formValues.differentialDiagnosis || ''}</span>
         </div>
 
         <table>
@@ -1397,7 +1403,7 @@ const Inpatient: React.FC = () => {
           </tbody>
         </table>
 
-        <div className="note">
+        <div class="note">
           <strong>Ghi chú:</strong> Bác sỹ ký ngay sau mỗi lần ghi chép trong phần "Diễn biến bệnh" hoặc "Chỉ định".
         </div>
 
@@ -1422,20 +1428,13 @@ const Inpatient: React.FC = () => {
   };
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Gradient mesh background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý nội trú (IPD)</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { loadAdmissions(); loadBeds(); }} size="small">Làm mới</Button>
       </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-800 m-0">Quản lý nội trú (IPD)</h2>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadAdmissions(); loadBeds(); }} size="small">Làm mới</Button>
-        </div>
-      </motion.div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+      <Card>
         <Tabs
           items={[
             {
@@ -1443,9 +1442,9 @@ const Inpatient: React.FC = () => {
               label: 'Danh sách đang điều trị',
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
+                      <Space>
                         <Search
                           placeholder="Tìm theo mã BN, tên, mã HS..."
                           allowClear
@@ -1480,9 +1479,9 @@ const Inpatient: React.FC = () => {
                         >
                           Làm mới
                         </Button>
-                      </div>
-                    </div>
-                    <div>
+                      </Space>
+                    </Col>
+                    <Col>
                       <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -1490,8 +1489,8 @@ const Inpatient: React.FC = () => {
                       >
                         Nhập viện
                       </Button>
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
 
                   <Spin spinning={loading}>
                     <Table
@@ -1527,9 +1526,9 @@ const Inpatient: React.FC = () => {
               label: 'Quản lý giường',
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
+                      <Space>
                         <Select
                           placeholder="Khoa"
                           style={{ width: 150 }}
@@ -1572,9 +1571,9 @@ const Inpatient: React.FC = () => {
                         >
                           Làm mới
                         </Button>
-                      </div>
-                    </div>
-                  </div>
+                      </Space>
+                    </Col>
+                  </Row>
 
                   <Spin spinning={loadingBeds}>
                     <Table
@@ -1618,8 +1617,8 @@ const Inpatient: React.FC = () => {
               label: 'Diễn biến hàng ngày',
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
                       <Search
                         placeholder="Tìm theo mã BN, tên..."
                         allowClear
@@ -1628,8 +1627,8 @@ const Inpatient: React.FC = () => {
                         onSearch={(value) => setProgressSearchText(value)}
                         onChange={(e) => { if (!e.target.value) setProgressSearchText(''); }}
                       />
-                    </div>
-                    <div>
+                    </Col>
+                    <Col>
                       <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -1637,8 +1636,8 @@ const Inpatient: React.FC = () => {
                       >
                         Ghi nhận diễn biến
                       </Button>
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
                   {filteredProgressAdmissions.length > 0 ? (
                     <Table
                       columns={admissionColumns}
@@ -1657,7 +1656,7 @@ const Inpatient: React.FC = () => {
                     />
                   ) : (
                     <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                      <span className="text-gray-500 text-sm">Chọn bệnh nhân để xem diễn biến hàng ngày</span>
+                      <Text type="secondary">Chọn bệnh nhân để xem diễn biến hàng ngày</Text>
                     </div>
                   )}
                 </>
@@ -1668,8 +1667,8 @@ const Inpatient: React.FC = () => {
               label: 'Chăm sóc điều dưỡng',
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
                       <Search
                         placeholder="Tìm theo mã BN, tên..."
                         allowClear
@@ -1678,8 +1677,8 @@ const Inpatient: React.FC = () => {
                         onSearch={(value) => setNursingSearchText(value)}
                         onChange={(e) => { if (!e.target.value) setNursingSearchText(''); }}
                       />
-                    </div>
-                    <div>
+                    </Col>
+                    <Col>
                       <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -1687,8 +1686,8 @@ const Inpatient: React.FC = () => {
                       >
                         Ghi nhận chăm sóc
                       </Button>
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
                   {filteredNursingAdmissions.length > 0 ? (
                     <Table
                       columns={admissionColumns}
@@ -1707,7 +1706,7 @@ const Inpatient: React.FC = () => {
                     />
                   ) : (
                     <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                      <span className="text-gray-500 text-sm">Chọn bệnh nhân để xem lịch sử chăm sóc</span>
+                      <Text type="secondary">Chọn bệnh nhân để xem lịch sử chăm sóc</Text>
                     </div>
                   )}
                 </>
@@ -1718,9 +1717,9 @@ const Inpatient: React.FC = () => {
               label: 'Xuất viện',
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
+                      <Space>
                         <Search
                           placeholder="Tìm theo mã BN, tên..."
                           allowClear
@@ -1733,9 +1732,9 @@ const Inpatient: React.FC = () => {
                           format="DD/MM/YYYY"
                           onChange={(dates) => setDischargeDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
                         />
-                      </div>
-                    </div>
-                    <div>
+                      </Space>
+                    </Col>
+                    <Col>
                       <Button
                         type="primary"
                         danger
@@ -1744,8 +1743,8 @@ const Inpatient: React.FC = () => {
                       >
                         Xuất viện
                       </Button>
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
                   {filteredDischargeAdmissions.length > 0 ? (
                     <Table
                       columns={admissionColumns}
@@ -1764,7 +1763,7 @@ const Inpatient: React.FC = () => {
                     />
                   ) : (
                     <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                      <span className="text-gray-500 text-sm">Danh sách bệnh nhân đã xuất viện</span>
+                      <Text type="secondary">Danh sách bệnh nhân đã xuất viện</Text>
                     </div>
                   )}
                 </>
@@ -1772,7 +1771,7 @@ const Inpatient: React.FC = () => {
             },
           ]}
         />
-      </div>
+      </Card>
 
       {/* Admit Patient Modal */}
       <Modal
@@ -1787,8 +1786,8 @@ const Inpatient: React.FC = () => {
       >
         <Form form={form} layout="vertical">
           {/* Data Inheritance: OPD examination lookup */}
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full">
+          <Row gutter={16}>
+            <Col span={24}>
               <Form.Item label="Tra cứu lượt khám OPD (tự động điền thông tin)">
                 <Input.Search
                   placeholder="Nhập mã lượt khám (examination ID) từ OPD"
@@ -1798,39 +1797,39 @@ const Inpatient: React.FC = () => {
                   allowClear
                 />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           {/* OPD Context Panel */}
           {admissionCtx && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <span className="text-sm font-semibold" style={{ fontSize: 12, color: '#1677ff' }}>
+            <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '8px 12px' } }}>
+              <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
                 Dữ liệu kế thừa từ OPD
-              </span>
+              </Typography.Text>
               <Descriptions column={2} size="small" style={{ marginTop: 4 }}>
                 <Descriptions.Item label="Bệnh nhân">
-                  <span className="font-semibold">{admissionCtx.fullName}</span> ({admissionCtx.patientCode})
+                  <Text strong>{admissionCtx.fullName}</Text> ({admissionCtx.patientCode})
                 </Descriptions.Item>
                 <Descriptions.Item label="Tuổi/GT">
                   {admissionCtx.age} tuổi - {admissionCtx.genderName}
                 </Descriptions.Item>
                 {admissionCtx.mainDiagnosis && (
                   <Descriptions.Item label="Chẩn đoán" span={2}>
-                    <span className="font-semibold">
+                    <Text strong>
                       {admissionCtx.mainIcdCode && `${admissionCtx.mainIcdCode} - `}{admissionCtx.mainDiagnosis}
-                    </span>
+                    </Text>
                   </Descriptions.Item>
                 )}
                 {(admissionCtx.temperature || admissionCtx.bloodPressureSystolic) && (
                   <Descriptions.Item label="Sinh hiệu" span={2}>
-                    <div className="flex items-center gap-1">
+                    <Space orientation="horizontal" size={4}>
                       {admissionCtx.temperature && <Tag>Nhiệt độ: {String(admissionCtx.temperature)}</Tag>}
                       {admissionCtx.bloodPressureSystolic && (
                         <Tag>HA: {admissionCtx.bloodPressureSystolic}/{admissionCtx.bloodPressureDiastolic}</Tag>
                       )}
                       {admissionCtx.pulse && <Tag>Mạch: {admissionCtx.pulse}</Tag>}
                       {admissionCtx.weight && <Tag>Cân nặng: {String(admissionCtx.weight)}kg</Tag>}
-                    </div>
+                    </Space>
                   </Descriptions.Item>
                 )}
                 {admissionCtx.examDoctorName && (
@@ -1845,15 +1844,15 @@ const Inpatient: React.FC = () => {
                 )}
                 {admissionCtx.allergyHistory && (
                   <Descriptions.Item label="Dị ứng" span={2}>
-                    <span className="text-red-500">{admissionCtx.allergyHistory}</span>
+                    <Text type="danger">{admissionCtx.allergyHistory}</Text>
                   </Descriptions.Item>
                 )}
               </Descriptions>
-            </div>
+            </Card>
           )}
 
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 name="patientId"
                 label="Bệnh nhân"
@@ -1872,8 +1871,8 @@ const Inpatient: React.FC = () => {
                   }))}
                 />
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item
                 name="medicalRecordId"
                 label="Hồ sơ bệnh án"
@@ -1881,11 +1880,11 @@ const Inpatient: React.FC = () => {
               >
                 <Input placeholder="Nhập mã hồ sơ bệnh án" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/3">
+          <Row gutter={16}>
+            <Col span={8}>
               <Form.Item
                 name="admissionDate"
                 label="Ngày nhập viện"
@@ -1894,8 +1893,8 @@ const Inpatient: React.FC = () => {
               >
                 <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" />
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/3">
+            </Col>
+            <Col span={8}>
               <Form.Item
                 name="admissionType"
                 label="Loại nhập viện"
@@ -1908,16 +1907,16 @@ const Inpatient: React.FC = () => {
                   <Select.Option value={4}>Khác</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/3">
+            </Col>
+            <Col span={8}>
               <Form.Item name="referralSource" label="Nguồn chuyển đến">
                 <Input placeholder="Nhập nguồn chuyển đến" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/3">
+          <Row gutter={16}>
+            <Col span={8}>
               <Form.Item
                 name="departmentId"
                 label="Khoa"
@@ -1928,8 +1927,8 @@ const Inpatient: React.FC = () => {
                   <Select.Option value="2">Khoa Ngoại</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/3">
+            </Col>
+            <Col span={8}>
               <Form.Item
                 name="roomId"
                 label="Phòng"
@@ -1940,19 +1939,19 @@ const Inpatient: React.FC = () => {
                   <Select.Option value="2">Phòng Nội 2</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/3">
+            </Col>
+            <Col span={8}>
               <Form.Item name="bedId" label="Giường">
                 <Select placeholder="Chọn giường" allowClear>
                   <Select.Option value="1">Giường 01</Select.Option>
                   <Select.Option value="2">Giường 02</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full">
+          <Row gutter={16}>
+            <Col span={24}>
               <Form.Item
                 name="admittingDoctorId"
                 label="Bác sĩ nhập viện"
@@ -1963,8 +1962,8 @@ const Inpatient: React.FC = () => {
                   <Select.Option value="2">BS. Trần Thị B</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           <Form.Item name="diagnosisOnAdmission" label="Chẩn đoán khi nhập viện">
             <TextArea rows={2} placeholder="Nhập chẩn đoán" />
@@ -1987,8 +1986,8 @@ const Inpatient: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={form} layout="vertical">
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 name="admissionId"
                 label="Bệnh nhân"
@@ -1999,8 +1998,8 @@ const Inpatient: React.FC = () => {
                   <Select.Option value="2">BN26000002 - Trần Thị B</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item
                 name="progressDate"
                 label="Ngày ghi nhận"
@@ -2009,10 +2008,10 @@ const Inpatient: React.FC = () => {
               >
                 <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
-          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Diễn biến (SOAP)</span><hr className="flex-1 border-gray-200" /></div>
+          <Divider>Diễn biến (SOAP)</Divider>
 
           <Form.Item name="subjectiveFindings" label="Chủ quan (S - Subjective)">
             <TextArea rows={2} placeholder="Triệu chứng, cảm giác của bệnh nhân..." />
@@ -2030,18 +2029,18 @@ const Inpatient: React.FC = () => {
             <TextArea rows={2} placeholder="Kế hoạch điều trị..." />
           </Form.Item>
 
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item name="dietOrder" label="Chế độ ăn">
                 <Input placeholder="Nhập chế độ ăn" />
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item name="activityOrder" label="Chế độ vận động">
                 <Input placeholder="Nhập chế độ vận động" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
         </Form>
       </Modal>
 
@@ -2056,8 +2055,8 @@ const Inpatient: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={form} layout="vertical">
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 name="admissionId"
                 label="Bệnh nhân"
@@ -2068,8 +2067,8 @@ const Inpatient: React.FC = () => {
                   <Select.Option value="2">BN26000002 - Trần Thị B</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item
                 name="careDate"
                 label="Ngày chăm sóc"
@@ -2078,8 +2077,8 @@ const Inpatient: React.FC = () => {
               >
                 <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           <Form.Item
             name="careType"
@@ -2117,8 +2116,8 @@ const Inpatient: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={form} layout="vertical">
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 name="admissionId"
                 label="Bệnh nhân"
@@ -2129,8 +2128,8 @@ const Inpatient: React.FC = () => {
                   <Select.Option value="2">BN26000002 - Trần Thị B</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item
                 name="dischargeDate"
                 label="Ngày xuất viện"
@@ -2139,11 +2138,11 @@ const Inpatient: React.FC = () => {
               >
                 <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 name="dischargeType"
                 label="Loại xuất viện"
@@ -2156,8 +2155,8 @@ const Inpatient: React.FC = () => {
                   <Select.Option value={4}>Tử vong</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item
                 name="dischargeCondition"
                 label="Tình trạng ra viện"
@@ -2171,8 +2170,8 @@ const Inpatient: React.FC = () => {
                   <Select.Option value={5}>Tử vong</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           <Form.Item name="dischargeDiagnosis" label="Chẩn đoán ra viện">
             <TextArea rows={2} placeholder="Nhập chẩn đoán ra viện" />
@@ -2233,35 +2232,35 @@ const Inpatient: React.FC = () => {
               module="Inpatient"
               compact={false}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="w-full">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                  <div className="flex gap-4 flex-wrap">
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Mã bệnh nhân:</span>
+            <Row gutter={[16, 16]}>
+              <Col span={24}>
+                <Card size="small" title="Thông tin bệnh nhân">
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Mã bệnh nhân:</Text>
                       <div><strong>{selectedAdmission.patientCode}</strong></div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Họ tên:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Họ tên:</Text>
                       <div><strong>{selectedAdmission.patientName}</strong></div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Giới tính / Tuổi:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Giới tính / Tuổi:</Text>
                       <div>
                         <strong>
                           {selectedAdmission.gender === 1 ? 'Nam' : 'Nữ'} / {selectedAdmission.age || 'N/A'} tuổi
                         </strong>
                       </div>
-                    </div>
-                  </div>
-                  <hr className="border-gray-200 my-4" />
-                  <div className="flex gap-4 flex-wrap">
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Mã hồ sơ:</span>
+                    </Col>
+                  </Row>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Mã hồ sơ:</Text>
                       <div><strong>{selectedAdmission.medicalRecordCode}</strong></div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">BHYT:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">BHYT:</Text>
                       <div>
                         {selectedAdmission.isInsurance ? (
                           <Tag color="green">{selectedAdmission.insuranceNumber || 'Có BHYT'}</Tag>
@@ -2269,20 +2268,20 @@ const Inpatient: React.FC = () => {
                           <Tag>Không có BHYT</Tag>
                         )}
                       </div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Trạng thái:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Trạng thái:</Text>
                       <div>{getStatusTag(selectedAdmission.status, selectedAdmission.statusName)}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
 
-              <div className="w-full">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                  <div className="flex gap-4 flex-wrap">
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Ngày nhập viện:</span>
+              <Col span={24}>
+                <Card size="small" title="Thông tin nhập viện">
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Ngày nhập viện:</Text>
                       <div>
                         <strong>
                           {selectedAdmission.admissionDate
@@ -2290,43 +2289,43 @@ const Inpatient: React.FC = () => {
                             : 'N/A'}
                         </strong>
                       </div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Số ngày điều trị:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Số ngày điều trị:</Text>
                       <div><strong>{selectedAdmission.daysOfStay} ngày</strong></div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Bác sĩ điều trị:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Bác sĩ điều trị:</Text>
                       <div><strong>{selectedAdmission.attendingDoctorName || 'N/A'}</strong></div>
-                    </div>
-                  </div>
-                  <hr className="border-gray-200 my-4" />
-                  <div className="flex gap-4 flex-wrap">
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Khoa:</span>
+                    </Col>
+                  </Row>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Text type="secondary">Khoa:</Text>
                       <div><strong>{selectedAdmission.departmentName}</strong></div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Phòng:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Phòng:</Text>
                       <div><strong>{selectedAdmission.roomName}</strong></div>
-                    </div>
-                    <div className="w-full lg:w-1/3">
-                      <span className="text-gray-500 text-sm">Giường:</span>
+                    </Col>
+                    <Col span={8}>
+                      <Text type="secondary">Giường:</Text>
                       <div><strong>{selectedAdmission.bedName || 'Chưa phân giường'}</strong></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
 
-              <div className="w-full">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                  <span className="text-sm">{selectedAdmission.mainDiagnosis || 'Chưa có chẩn đoán'}</span>
-                </div>
-              </div>
+              <Col span={24}>
+                <Card size="small" title="Chẩn đoán">
+                  <Text>{selectedAdmission.mainDiagnosis || 'Chưa có chẩn đoán'}</Text>
+                </Card>
+              </Col>
 
-              <div className="w-full">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                  <div className="flex items-center gap-2 flex-wrap">
+              <Col span={24}>
+                <Card size="small" title="Cảnh báo">
+                  <Space wrap>
                     {selectedAdmission.hasPendingOrders && (
                       <Tag color="orange">Có y lệnh chờ xử lý</Tag>
                     )}
@@ -2347,14 +2346,14 @@ const Inpatient: React.FC = () => {
                       !selectedAdmission.hasUnclaimedMedicine &&
                       !selectedAdmission.isDebtWarning &&
                       !selectedAdmission.isInsuranceExpiring && (
-                        <span className="text-gray-500 text-sm">Không có cảnh báo</span>
+                        <Text type="secondary">Không có cảnh báo</Text>
                       )}
-                  </div>
-                </div>
-              </div>
+                  </Space>
+                </Card>
+              </Col>
 
               {/* BUG-015: Detail sub-data tabs */}
-              <div className="w-full">
+              <Col span={24}>
                 <Spin spinning={detailSubData.loading}>
                   <Tabs
                     items={[
@@ -2374,7 +2373,7 @@ const Inpatient: React.FC = () => {
                               { title: 'Y lệnh', dataIndex: 'orders', ellipsis: true },
                             ]}
                           />
-                        ) : <span className="text-gray-500 text-sm">Chưa có tờ điều trị</span>,
+                        ) : <Text type="secondary">Chưa có tờ điều trị</Text>,
                       },
                       {
                         key: 'prescriptions',
@@ -2392,7 +2391,7 @@ const Inpatient: React.FC = () => {
                               { title: 'Cấp phát', dataIndex: 'isDispensed', render: (v: boolean) => v ? <Tag color="green">Đã cấp</Tag> : <Tag color="orange">Chờ cấp</Tag> },
                             ]}
                           />
-                        ) : <span className="text-gray-500 text-sm">Chưa có đơn thuốc</span>,
+                        ) : <Text type="secondary">Chưa có đơn thuốc</Text>,
                       },
                       {
                         key: 'services',
@@ -2409,7 +2408,7 @@ const Inpatient: React.FC = () => {
                               { title: 'Trạng thái', dataIndex: 'statusName', render: (v: string) => <Tag>{v || 'N/A'}</Tag> },
                             ]}
                           />
-                        ) : <span className="text-gray-500 text-sm">Chưa có chỉ định dịch vụ</span>,
+                        ) : <Text type="secondary">Chưa có chỉ định dịch vụ</Text>,
                       },
                       {
                         key: 'nursing',
@@ -2427,16 +2426,16 @@ const Inpatient: React.FC = () => {
                               { title: 'Can thiệp ĐD', dataIndex: 'interventions', ellipsis: true },
                             ]}
                           />
-                        ) : <span className="text-gray-500 text-sm">Chưa có phiếu chăm sóc</span>,
+                        ) : <Text type="secondary">Chưa có phiếu chăm sóc</Text>,
                       },
                     ]}
                   />
                 </Spin>
-              </div>
+              </Col>
 
               {/* NangCap4: Deposit insufficient warning */}
               {depositWarning && (
-                <div className="w-full">
+                <Col span={24}>
                   <Alert
                     type="error"
                     showIcon
@@ -2453,12 +2452,12 @@ const Inpatient: React.FC = () => {
                     closable
                     onClose={() => setDepositWarning(null)}
                   />
-                </div>
+                </Col>
               )}
 
               {/* NangCap4: Active medication warning */}
               {activeMedWarning && (
-                <div className="w-full">
+                <Col span={24}>
                   <Alert
                     type="warning"
                     showIcon
@@ -2467,15 +2466,21 @@ const Inpatient: React.FC = () => {
                     closable
                     onClose={() => setActiveMedWarning(null)}
                   />
-                </div>
+                </Col>
               )}
 
               {/* NangCap4: Supply order template section */}
-              <div className="w-full">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2"><WarningOutlined style={{ color: '#1677ff' }} /><span>Vật tư y tế (NangCap4)</span></h4>
-                    <div className="flex items-center gap-2">
+              <Col span={24}>
+                <Card
+                  size="small"
+                  title={
+                    <Space>
+                      <WarningOutlined style={{ color: '#1677ff' }} />
+                      <span>Vật tư y tế (NangCap4)</span>
+                    </Space>
+                  }
+                  extra={
+                    <Space>
                       <Tooltip title="Kê đơn mới – kiểm tra thuốc đang dùng">
                         <Button
                           size="small"
@@ -2497,20 +2502,21 @@ const Inpatient: React.FC = () => {
                           Kiểm tra tạm ứng
                         </Button>
                       </Tooltip>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 flex-wrap">
-                    <div className="flex-1">
+                    </Space>
+                  }
+                >
+                  <Row gutter={[8, 8]} align="middle">
+                    <Col flex="auto">
                       <Input.TextArea
                         rows={3}
                         value={currentSupplyItems}
                         onChange={(e) => setCurrentSupplyItems(e.target.value)}
                         placeholder="Nhập đơn vật tư y tế (tên vật tư, số lượng, đơn vị)&#10;VD: Bông gạc vô khuẩn x5 gói, Băng keo y tế x2 cuộn..."
                       />
-                    </div>
-                  </div>
-                  <div className="flex gap-4 flex-wrap mt-2">
-                    <div className="flex items-center gap-2">
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 8 }}>
+                    <Space>
                       <Tooltip title="Lưu đơn vật tư hiện tại thành mẫu để dùng lại">
                         <Button
                           size="small"
@@ -2546,11 +2552,11 @@ const Inpatient: React.FC = () => {
                           Dùng đơn VT cũ
                         </Button>
                       </Tooltip>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                    </Space>
+                  </Row>
+                </Card>
+              </Col>
+            </Row>
           </div>
         )}
       </Modal>
@@ -2558,10 +2564,10 @@ const Inpatient: React.FC = () => {
       {/* NangCap4: Save Supply Template Modal */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
+          <Space>
             <SaveOutlined />
             Lưu mẫu vật tư
-          </div>
+          </Space>
         }
         open={isSupplyTemplateModalOpen}
         onOk={handleSaveSupplyTemplate}
@@ -2640,8 +2646,8 @@ const Inpatient: React.FC = () => {
               showIcon
               style={{ marginBottom: 16 }}
             />
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item label="Loại bệnh án">
                   <Select
                     value={printType}
@@ -2657,103 +2663,103 @@ const Inpatient: React.FC = () => {
                     ))}
                   </Select>
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>I. Hành chính</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+            <Divider><strong>I. Hành chính</strong></Divider>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="hospitalName" label="Bệnh viện">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="departmentName" label="Khoa">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="bedNumber" label="Giường">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="patientName" label="Họ tên bệnh nhân (IN HOA)">
                   <Input style={{ textTransform: 'uppercase' }} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="dateOfBirth" label="Ngày sinh">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="age" label="Tuổi">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/4">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={6}>
                 <Form.Item name="gender" label="Giới tính">
                   <Select>
                     <Select.Option value="Nam">Nam</Select.Option>
                     <Select.Option value="Nữ">Nữ</Select.Option>
                   </Select>
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="occupation" label="Nghề nghiệp">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="ethnicity" label="Dân tộc">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="nationality" label="Ngoại kiều">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/4">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={6}>
                 <Form.Item name="houseNumber" label="Số nhà">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="street" label="Thôn/Phố">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="ward" label="Xã/Phường">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="district" label="Quận/Huyện">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="province" label="Tỉnh/Thành phố">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="insuranceNumber" label="Số thẻ BHYT">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="patientType" label="Đối tượng">
                   <Select>
                     <Select.Option value="bhyt">BHYT</Select.Option>
@@ -2762,29 +2768,29 @@ const Inpatient: React.FC = () => {
                     <Select.Option value="other">Khác</Select.Option>
                   </Select>
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="emergencyContact" label="Người nhà (khi cần báo tin)">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="emergencyPhone" label="Điện thoại người nhà">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>II. Quản lý người bệnh</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+            <Divider><strong>II. Quản lý người bệnh</strong></Divider>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="admissionDate" label="Ngày vào viện">
                   <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="admissionType" label="Trực tiếp vào">
                   <Select>
                     <Select.Option value="emergency">Cấp cứu</Select.Option>
@@ -2792,82 +2798,82 @@ const Inpatient: React.FC = () => {
                     <Select.Option value="treatment">Khoa điều trị</Select.Option>
                   </Select>
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="visitNumber" label="Vào viện do bệnh này lần thứ">
                   <Input type="number" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>III. Chẩn đoán</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Divider><strong>III. Chẩn đoán</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="emergencyDiagnosis" label="21. KKB, Cấp cứu">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="admissionDiagnosis" label="22. Khi vào khoa điều trị">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="mainDiagnosis" label="Bệnh chính">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="comorbidity" label="Bệnh kèm theo">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
             {printType === 'ngoai_khoa' && (
               <>
-                <div className="flex gap-4 flex-wrap">
-                  <div className="w-full lg:w-1/2">
+                <Row gutter={16}>
+                  <Col span={12}>
                     <Form.Item name="preOpDiagnosis" label="Chẩn đoán trước phẫu thuật">
                       <TextArea rows={2} />
                     </Form.Item>
-                  </div>
-                  <div className="w-full lg:w-1/2">
+                  </Col>
+                  <Col span={12}>
                     <Form.Item name="postOpDiagnosis" label="Chẩn đoán sau phẫu thuật">
                       <TextArea rows={2} />
                     </Form.Item>
-                  </div>
-                </div>
-                <div className="flex gap-4 flex-wrap">
-                  <div className="w-full lg:w-1/3">
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={8}>
                     <Form.Item name="postOpDays" label="Số ngày ĐT sau PT">
                       <Input type="number" />
                     </Form.Item>
-                  </div>
-                  <div className="w-full lg:w-1/3">
+                  </Col>
+                  <Col span={8}>
                     <Form.Item name="surgeryCount" label="Tổng số lần phẫu thuật">
                       <Input type="number" />
                     </Form.Item>
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               </>
             )}
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>A. Bệnh án</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-3/4">
+            <Divider><strong>A. Bệnh án</strong></Divider>
+            <Row gutter={16}>
+              <Col span={18}>
                 <Form.Item name="admissionReason" label="I. Lý do vào viện">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="illnessDay" label="Vào ngày thứ ... của bệnh">
                   <Input type="number" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="illnessHistory" label="II. Quá trình bệnh lý">
               <TextArea rows={3} placeholder="Khởi phát, diễn biến, chẩn đoán, điều trị của tuyến dưới..." />
             </Form.Item>
@@ -2878,34 +2884,34 @@ const Inpatient: React.FC = () => {
               <TextArea rows={2} />
             </Form.Item>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>III. Khám bệnh</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/6">
+            <Divider><strong>III. Khám bệnh</strong></Divider>
+            <Row gutter={16}>
+              <Col span={4}>
                 <Form.Item name="pulse" label="Mạch (lần/ph)">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <Form.Item name="temperature" label="Nhiệt độ (°C)">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <Form.Item name="bloodPressure" label="Huyết áp">
                   <Input placeholder="120/80" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <Form.Item name="respRate" label="Nhịp thở">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <Form.Item name="weight" label="Cân nặng (kg)">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="generalExam" label="1. Toàn thân">
               <TextArea rows={2} placeholder="Ý thức, da niêm mạc, hệ thống hạch, tuyến giáp..." />
             </Form.Item>
@@ -2916,42 +2922,42 @@ const Inpatient: React.FC = () => {
               </Form.Item>
             )}
 
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="cardiovascular" label="Tuần hoàn">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="respiratory" label="Hô hấp">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="digestive" label="Tiêu hoá">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="urogenital" label="Thận - Tiết niệu - Sinh dục">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="neurological" label="Thần kinh">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="musculoskeletal" label="Cơ - Xương - Khớp">
                   <TextArea rows={2} />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
             <Form.Item name="labTests" label="Các xét nghiệm cận lâm sàng cần làm">
               <TextArea rows={2} />
@@ -2960,7 +2966,7 @@ const Inpatient: React.FC = () => {
               <TextArea rows={3} />
             </Form.Item>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>IV. Chẩn đoán & Điều trị</strong></span><hr className="flex-1 border-gray-200" /></div>
+            <Divider><strong>IV. Chẩn đoán & Điều trị</strong></Divider>
             <Form.Item name="differentialDiagnosis" label="Chẩn đoán phân biệt">
               <TextArea rows={2} />
             </Form.Item>
@@ -2976,31 +2982,31 @@ const Inpatient: React.FC = () => {
 
             {printType === 'ngoai_khoa' && (
               <>
-                <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>B. Phẫu thuật / Thủ thuật</strong></span><hr className="flex-1 border-gray-200" /></div>
-                <div className="flex gap-4 flex-wrap">
-                  <div className="w-full lg:w-1/3">
+                <Divider><strong>B. Phẫu thuật / Thủ thuật</strong></Divider>
+                <Row gutter={16}>
+                  <Col span={8}>
                     <Form.Item name="surgeryDateTime" label="Giờ, ngày PT">
                       <Input />
                     </Form.Item>
-                  </div>
-                  <div className="w-full lg:w-1/3">
+                  </Col>
+                  <Col span={8}>
                     <Form.Item name="surgeryMethod" label="Phương pháp PT/vô cảm">
                       <Input />
                     </Form.Item>
-                  </div>
-                </div>
-                <div className="flex gap-4 flex-wrap">
-                  <div className="w-full lg:w-1/2">
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={12}>
                     <Form.Item name="surgeonName" label="Bác sĩ phẫu thuật">
                       <Input />
                     </Form.Item>
-                  </div>
-                  <div className="w-full lg:w-1/2">
+                  </Col>
+                  <Col span={12}>
                     <Form.Item name="anesthesiologistName" label="Bác sĩ gây mê">
                       <Input />
                     </Form.Item>
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               </>
             )}
           </Form>
@@ -3027,61 +3033,61 @@ const Inpatient: React.FC = () => {
       >
         <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '16px' }}>
           <Form form={treatmentTrackingForm} layout="vertical">
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-2/3">
+            <Row gutter={16}>
+              <Col span={16}>
                 <Form.Item name="hospitalName" label="Cơ sở khám bệnh, chữa bệnh">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="department" label="Khoa">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Thông tin bệnh nhân</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Divider><strong>Thông tin bệnh nhân</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="patientName" label="Họ tên">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="age" label="Tuổi">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="gender" label="Giới tính">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="medicalRecordCode" label="Số hồ sơ">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="bedNumber" label="Giường số">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="roomNumber" label="Buồng">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Chẩn đoán</strong></span><hr className="flex-1 border-gray-200" /></div>
+            <Divider><strong>Chẩn đoán</strong></Divider>
             <Form.Item name="diagnosis" label="Chẩn đoán">
               <TextArea rows={2} />
             </Form.Item>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Theo dõi hàng ngày (Mẫu SOAP)</strong></span><hr className="flex-1 border-gray-200" /></div>
+            <Divider><strong>Theo dõi hàng ngày (Mẫu SOAP)</strong></Divider>
             <Alert
               title="Hướng dẫn ghi chép theo mẫu SOAP"
               description={
@@ -3113,7 +3119,7 @@ P - Kế hoạch điều trị:
 (Y lệnh thuốc, xét nghiệm, chăm sóc)`} />
             </Form.Item>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Điều trị</strong></span><hr className="flex-1 border-gray-200" /></div>
+            <Divider><strong>Điều trị</strong></Divider>
             <Form.Item name="medications" label="Thuốc điều trị">
               <TextArea rows={3} placeholder="Tên thuốc - Liều dùng - Cách dùng - Số lượng" />
             </Form.Item>
@@ -3121,19 +3127,19 @@ P - Kế hoạch điều trị:
               <TextArea rows={2} />
             </Form.Item>
 
-            <hr className="border-gray-200 my-4" />
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Divider />
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="attendingDoctor" label="Bác sĩ điều trị">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="nurse" label="Điều dưỡng">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
           </Form>
         </div>
       </Modal>
@@ -3141,10 +3147,10 @@ P - Kế hoạch điều trị:
       {/* Bed Transfer Modal */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
+          <Space>
             <SwapOutlined />
             Chuyển giường - {selectedBed?.patientName}
-          </div>
+          </Space>
         }
         open={isBedTransferModalOpen}
         onOk={handleBedTransferSubmit}
@@ -3187,10 +3193,10 @@ P - Kế hoạch điều trị:
       {/* Bed Assign Modal */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
+          <Space>
             <PlusOutlined />
             Phân giường - {selectedBed?.bedName}
-          </div>
+          </Space>
         }
         open={isBedAssignModalOpen}
         onOk={handleBedAssignSubmit}
@@ -3245,58 +3251,58 @@ P - Kế hoạch điều trị:
       >
         <div style={{ maxHeight: '70vh', overflow: 'auto' }}>
           <Form form={birthCertForm} layout="vertical" size="small">
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>Thông tin giấy chứng sinh</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Divider><strong>Thông tin giấy chứng sinh</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="certificateNumber" label="Số giấy chứng sinh">
                   <Input placeholder="VD: 001/2026" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="issueDate" label="Ngày cấp">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>I. Thông tin trẻ sơ sinh</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Divider><strong>I. Thông tin trẻ sơ sinh</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="babyFullName" label="Họ và tên trẻ">
                   <Input placeholder="Họ và tên trẻ sơ sinh" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="babyGender" label="Giới tính">
                   <Select>
                     <Select.Option value="Nam">Nam</Select.Option>
                     <Select.Option value="Nu">Nữ</Select.Option>
                   </Select>
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="dateOfBirth" label="Ngày giờ sinh">
                   <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/4">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={6}>
                 <Form.Item name="birthWeight" label="Cân nặng (gram)">
                   <InputNumber style={{ width: '100%' }} min={0} max={10000} placeholder="VD: 3200" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="birthLength" label="Chiều dài (cm)">
                   <InputNumber style={{ width: '100%' }} min={0} max={100} placeholder="VD: 50" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="gestationalAge" label="Tuổi thai (tuần)">
                   <InputNumber style={{ width: '100%' }} min={20} max={45} placeholder="VD: 39" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="deliveryMethod" label="Phương pháp đẻ">
                   <Select>
                     <Select.Option value="normal">Đẻ thường</Select.Option>
@@ -3305,147 +3311,147 @@ P - Kế hoạch điều trị:
                     <Select.Option value="vacuum">Giác hút</Select.Option>
                   </Select>
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/4">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={6}>
                 <Form.Item name="apgar1" label="Apgar 1 phút">
                   <InputNumber style={{ width: '100%' }} min={0} max={10} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="apgar5" label="Apgar 5 phút">
                   <InputNumber style={{ width: '100%' }} min={0} max={10} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/4">
+              </Col>
+              <Col span={6}>
                 <Form.Item name="apgar10" label="Apgar 10 phút">
                   <InputNumber style={{ width: '100%' }} min={0} max={10} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="birthOrder" label="Con thứ">
                   <InputNumber style={{ width: '100%' }} min={1} max={20} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="pregnancyOrder" label="Lần mang thai thứ">
                   <InputNumber style={{ width: '100%' }} min={1} max={20} />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="numberOfBabies" label="Số con sinh">
                   <InputNumber style={{ width: '100%' }} min={1} max={10} />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>II. Thông tin người mẹ</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Divider><strong>II. Thông tin người mẹ</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="motherFullName" label="Họ và tên mẹ" rules={[{ required: true, message: 'Nhập tên mẹ' }]}>
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="motherDateOfBirth" label="Ngày sinh mẹ">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="motherIdNumber" label="CMND/CCCD">
                   <Input placeholder="Số CCCD/CMND" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="motherNationality" label="Quốc tịch">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="motherEthnicity" label="Dân tộc">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="motherOccupation" label="Nghề nghiệp">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="motherAddress" label="Nơi cư trú">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>III. Thông tin người cha</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+            <Divider><strong>III. Thông tin người cha</strong></Divider>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="fatherFullName" label="Họ và tên cha">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="fatherDateOfBirth" label="Ngày sinh cha">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="fatherIdNumber" label="CMND/CCCD">
                   <Input placeholder="Số CCCD/CMND" />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="fatherNationality" label="Quốc tịch">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="fatherEthnicity" label="Dân tộc">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="fatherOccupation" label="Nghề nghiệp">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/2">
+              </Col>
+              <Col span={12}>
                 <Form.Item name="fatherAddress" label="Nơi cư trú">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap"><strong>IV. Người đỡ đẻ</strong></span><hr className="flex-1 border-gray-200" /></div>
-            <div className="flex gap-4 flex-wrap">
-              <div className="w-full lg:w-1/3">
+            <Divider><strong>IV. Người đỡ đẻ</strong></Divider>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="doctorName" label="Bác sĩ">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="midwifeName" label="Nữ hộ sinh">
                   <Input />
                 </Form.Item>
-              </div>
-              <div className="w-full lg:w-1/3">
+              </Col>
+              <Col span={8}>
                 <Form.Item name="departmentName" label="Khoa">
                   <Input />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
           </Form>
         </div>
       </Modal>

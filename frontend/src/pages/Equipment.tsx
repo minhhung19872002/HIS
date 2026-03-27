@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   Card,
@@ -372,25 +371,17 @@ const Equipment: React.FC = () => {
   ];
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
     <Spin spinning={loading}>
       <div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <Title level={4} style={{ margin: 0 }}>Quản lý trang thiết bị y tế</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData} size="small">Làm mới</Button>
         </div>
-        </motion.div>
 
         {/* Statistics */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={8}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+            <Card>
               <Statistic
                 title="Thiết bị hoạt động"
                 value={activeEquipment}
@@ -399,11 +390,9 @@ const Equipment: React.FC = () => {
                 suffix={`/ ${dashboard?.totalEquipment ?? equipmentList.length}`}
               />
             </Card>
-            </motion.div>
           </Col>
           <Col xs={24} sm={8}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+            <Card>
               <Statistic
                 title="Cần bảo trì"
                 value={maintenanceDue}
@@ -411,11 +400,9 @@ const Equipment: React.FC = () => {
                 styles={{ content: { color: '#faad14' } }}
               />
             </Card>
-            </motion.div>
           </Col>
           <Col xs={24} sm={8}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+            <Card>
               <Statistic
                 title="Yêu cầu sửa chữa"
                 value={pendingRepairs}
@@ -423,7 +410,6 @@ const Equipment: React.FC = () => {
                 styles={{ content: { color: '#ff4d4f' } }}
               />
             </Card>
-            </motion.div>
           </Col>
         </Row>
 
@@ -644,7 +630,6 @@ const Equipment: React.FC = () => {
         </Modal>
       </div>
     </Spin>
-    </div>
   );
 };
 

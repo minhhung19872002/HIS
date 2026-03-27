@@ -9,7 +9,6 @@ import {
   TeamOutlined, ExperimentOutlined, BookOutlined, TrophyOutlined,
 } from '@ant-design/icons';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -316,7 +315,7 @@ const TrainingResearch: React.FC = () => {
     {
       title: '', key: 'actions', width: 100,
       render: (_: unknown, r: TrainingStudentDto) => (
-        <div className="flex items-center gap-2">
+        <Space>
           {r.attendanceStatus < 3 && (
             <Button size="small" onClick={() => updateStudentStatus(r.id, { attendanceStatus: r.attendanceStatus + 1 }).then(() => { message.success('Cap nhat'); handleClassRowClick(selectedClass!); })}>
               {r.attendanceStatus === 1 ? 'Bat dau' : 'Hoan thanh'}
@@ -327,7 +326,7 @@ const TrainingResearch: React.FC = () => {
               <Button size="small" icon={<SafetyCertificateOutlined />} onClick={() => { setCertStudent(r); setCertModalOpen(true); }} />
             </Tooltip>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -413,22 +412,22 @@ const TrainingResearch: React.FC = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={() => openClassModal()}>Tao lop</Button>
       </Space>
 
-      <div className="grid grid-cols-4 gap-4">
-        <div>
+      <Row gutter={16}>
+        <Col span={selectedClass ? 14 : 24}>
           <Table dataSource={classes} columns={classColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }}
             onRow={(r) => ({ onClick: () => handleClassRowClick(r), style: { cursor: 'pointer' } })}
             rowClassName={(r) => r.id === selectedClass?.id ? 'ant-table-row-selected' : ''}
           />
-        </div>
+        </Col>
         {selectedClass && (
-          <div>
+          <Col span={10}>
             <Card title={`Hoc vien: ${selectedClass.className}`} size="small"
               extra={<Button size="small" icon={<PlusOutlined />} onClick={() => setStudentModalOpen(true)}>Them</Button>}>
               <Table dataSource={students} columns={studentColumns} rowKey="id" size="small" pagination={false} />
             </Card>
-          </div>
+          </Col>
         )}
-      </div>
+      </Row>
     </div>
   );
 
@@ -473,24 +472,24 @@ const TrainingResearch: React.FC = () => {
     const pieData = dashboard.classesByType.map(c => ({ name: c.typeName, value: c.count }));
     return (
       <div>
-        <div className="grid grid-cols-4 gap-4">
-          <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Tong lop</div><div className="text-2xl font-semibold"><BookOutlined className="mr-1" />{dashboard.totalClasses}</div></div></div>
-          <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Dang dien ra</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><TeamOutlined className="mr-1" />{dashboard.activeClasses}</div></div></div>
-          <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Hoc vien</div><div className="text-2xl font-semibold"><TeamOutlined className="mr-1" />{dashboard.totalStudents}</div></div></div>
-          <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Chung chi cap</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><SafetyCertificateOutlined className="mr-1" />{dashboard.certificatesIssued}</div></div></div>
-          <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">De tai NCKH</div><div className="text-2xl font-semibold"><ExperimentOutlined className="mr-1" />{dashboard.researchProjects}</div></div></div>
-          <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Da cong bo</div><div className="text-2xl font-semibold" style={{ color: '#faad14' }}><TrophyOutlined className="mr-1" />{dashboard.researchPublished}</div></div></div>
-          <div><div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Chi dao tuyen</div><div className="text-2xl font-semibold">{dashboard.clinicalDirections}</div></div></div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <Row gutter={[16, 16]}>
+          <Col xs={12} sm={6}><Card><Statistic title="Tong lop" value={dashboard.totalClasses} prefix={<BookOutlined />} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Dang dien ra" value={dashboard.activeClasses} prefix={<TeamOutlined />} styles={{ content: { color: '#1890ff' } }} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Hoc vien" value={dashboard.totalStudents} prefix={<TeamOutlined />} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Chung chi cap" value={dashboard.certificatesIssued} prefix={<SafetyCertificateOutlined />} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="De tai NCKH" value={dashboard.researchProjects} prefix={<ExperimentOutlined />} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Da cong bo" value={dashboard.researchPublished} prefix={<TrophyOutlined />} styles={{ content: { color: '#faad14' } }} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Chi dao tuyen" value={dashboard.clinicalDirections} /></Card></Col>
+          <Col xs={12} sm={6}>
+            <Card>
               <div style={{ marginBottom: 8 }}>CME Compliance</div>
               <Progress type="circle" percent={Math.round(dashboard.cmeCompliancePercent)} size={80}
                 status={dashboard.cmeCompliancePercent >= 80 ? 'success' : dashboard.cmeCompliancePercent >= 50 ? 'normal' : 'exception'} />
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-4">
-          <div>
+            </Card>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={12}>
             <Card title="Lop theo loai dao tao" size="small">
               {pieData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={250}>
@@ -504,8 +503,8 @@ const TrainingResearch: React.FC = () => {
                 </ResponsiveContainer>
               ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chua co du lieu</div>}
             </Card>
-          </div>
-          <div>
+          </Col>
+          <Col span={12}>
             <Card title="De tai NCKH theo trang thai" size="small">
               {dashboard.projectsByStatus.length > 0 ? (
                 <div style={{ padding: '16px 0' }}>
@@ -519,8 +518,8 @@ const TrainingResearch: React.FC = () => {
                 </div>
               ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chua co du lieu</div>}
             </Card>
-          </div>
-        </div>
+          </Col>
+        </Row>
       </div>
     );
   };
@@ -535,45 +534,39 @@ const TrainingResearch: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ padding: '16px 24px', position: 'relative' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <div style={{ padding: '16px 24px' }}>
         <h2>Dao tao - Chi dao tuyen - NCKH</h2>
-        </motion.div>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
         {/* Class Modal */}
         <Modal title={editingClass ? 'Sua lop dao tao' : 'Tao lop dao tao'} open={classModalOpen}
           onOk={handleSaveClass} onCancel={() => { setClassModalOpen(false); setEditingClass(null); classForm.resetFields(); }} width={600}>
           <Form form={classForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div><Form.Item name="classCode" label="Ma lop" rules={[{ required: true }]}><Input /></Form.Item></div>
-              <div><Form.Item name="className" label="Ten lop" rules={[{ required: true }]}><Input /></Form.Item></div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}><Form.Item name="classCode" label="Ma lop" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="className" label="Ten lop" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="trainingType" label="Loai dao tao" rules={[{ required: true }]}>
                   <Select options={Object.entries(TRAINING_TYPES).map(([k, v]) => ({ value: Number(k), label: v.label }))} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item name="status" label="Trang thai" initialValue={1}>
                   <Select options={Object.entries(CLASS_STATUS).map(([k, v]) => ({ value: Number(k), label: v.label }))} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div><Form.Item name="startDate" label="Ngay bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></div>
-              <div><Form.Item name="endDate" label="Ngay ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div><Form.Item name="maxStudents" label="Si so toi da" initialValue={30}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></div>
-              <div><Form.Item name="creditHours" label="Tin chi" initialValue={0}><InputNumber min={0} step={0.5} style={{ width: '100%' }} /></Form.Item></div>
-              <div><Form.Item name="fee" label="Hoc phi (VND)" initialValue={0}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></div>
-            </div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}><Form.Item name="startDate" label="Ngay bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="endDate" label="Ngay ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}><Form.Item name="maxStudents" label="Si so toi da" initialValue={30}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="creditHours" label="Tin chi" initialValue={0}><InputNumber min={0} step={0.5} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="fee" label="Hoc phi (VND)" initialValue={0}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
+            </Row>
             <Form.Item name="location" label="Dia diem"><Input /></Form.Item>
             <Form.Item name="description" label="Mo ta"><TextArea rows={3} /></Form.Item>
           </Form>
@@ -604,23 +597,23 @@ const TrainingResearch: React.FC = () => {
         <Modal title={editingDir ? 'Sua chi dao tuyen' : 'Them chi dao tuyen'} open={dirModalOpen}
           onOk={handleSaveDir} onCancel={() => { setDirModalOpen(false); setEditingDir(null); dirForm.resetFields(); }} width={600}>
           <Form form={dirForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="directionType" label="Loai" rules={[{ required: true }]}>
                   <Select options={[{ value: 1, label: 'Tuyen tren' }, { value: 2, label: 'Tuyen duoi' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item name="status" label="Trang thai" initialValue={1}>
                   <Select options={Object.entries(DIRECTION_STATUS).map(([k, v]) => ({ value: Number(k), label: v.label }))} />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="partnerHospital" label="Benh vien doi tac" rules={[{ required: true }]}><Input /></Form.Item>
-            <div className="grid grid-cols-4 gap-4">
-              <div><Form.Item name="startDate" label="Bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></div>
-              <div><Form.Item name="endDate" label="Ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></div>
-            </div>
+            <Row gutter={16}>
+              <Col span={12}><Form.Item name="startDate" label="Bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="endDate" label="Ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            </Row>
             <Form.Item name="objectives" label="Muc tieu"><TextArea rows={3} /></Form.Item>
             <Form.Item name="notes" label="Ghi chu"><TextArea rows={2} /></Form.Item>
           </Form>
@@ -630,26 +623,26 @@ const TrainingResearch: React.FC = () => {
         <Modal title={editingProj ? 'Sua de tai' : 'Them de tai'} open={projModalOpen}
           onOk={handleSaveProj} onCancel={() => { setProjModalOpen(false); setEditingProj(null); projForm.resetFields(); }} width={600}>
           <Form form={projForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div><Form.Item name="projectCode" label="Ma de tai" rules={[{ required: true }]}><Input /></Form.Item></div>
-              <div><Form.Item name="title" label="Ten de tai" rules={[{ required: true }]}><Input /></Form.Item></div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}><Form.Item name="projectCode" label="Ma de tai" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="title" label="Ten de tai" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="level" label="Cap" rules={[{ required: true }]}>
                   <Select options={Object.entries(RESEARCH_LEVELS).map(([k, v]) => ({ value: Number(k), label: v }))} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item name="status" label="Trang thai" initialValue={1}>
                   <Select options={Object.entries(RESEARCH_STATUS).map(([k, v]) => ({ value: Number(k), label: v.label }))} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div><Form.Item name="startDate" label="Bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></div>
-              <div><Form.Item name="endDate" label="Ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></div>
-            </div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}><Form.Item name="startDate" label="Bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="endDate" label="Ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            </Row>
             <Form.Item name="budget" label="Ngan sach (VND)" initialValue={0}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
             <Form.Item name="abstract" label="Tom tat"><TextArea rows={3} /></Form.Item>
             <Form.Item name="findings" label="Ket qua"><TextArea rows={3} /></Form.Item>

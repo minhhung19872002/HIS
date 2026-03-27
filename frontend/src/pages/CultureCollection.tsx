@@ -9,7 +9,6 @@ import {
   WarningOutlined, CheckCircleOutlined, DeleteOutlined, EyeOutlined,
   ScissorOutlined, HistoryOutlined, MedicineBoxOutlined,
 } from '@ant-design/icons';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import type { CultureStock, CultureStockLog, CultureStockStats } from '../api/cultureStock';
 import * as stockApi from '../api/cultureStock';
@@ -232,15 +231,8 @@ const CultureCollection: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card
         title={<span><ExperimentOutlined /> Kho lưu chủng Vi Sinh (Culture Collection)</span>}
-        style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}
         extra={
           <Space>
             <Input.Search placeholder="Tìm kiếm mã, tên VK..." value={searchText} onChange={e => setSearchText(e.target.value)} onSearch={fetchData} style={{ width: 220 }} allowClear />
@@ -449,8 +441,6 @@ const CultureCollection: React.FC = () => {
           <Form.Item name="notes" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
-      </motion.div>
-      </div>
     </Spin>
   );
 };

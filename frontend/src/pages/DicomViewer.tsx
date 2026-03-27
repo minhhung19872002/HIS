@@ -28,7 +28,6 @@ import {
   ExclamationCircleOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
-import { motion } from 'framer-motion';
 import risApi from '../api/ris';
 import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
 
@@ -205,13 +204,8 @@ const DicomViewer: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 24, position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
+    <div style={{ padding: 24 }}>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Col>
           <Space>
@@ -252,7 +246,6 @@ const DicomViewer: React.FC = () => {
           </Space>
         </Col>
       </Row>
-      </motion.div>
 
       {/* Error Alert */}
       {error && (

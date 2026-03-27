@@ -9,7 +9,6 @@ import {
   AlertOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { Alert, Badge } from 'antd';
-import { motion } from 'framer-motion';
 import type { ColumnsType } from 'antd/es/table';
 import {
   getPendingRequests,
@@ -232,7 +231,7 @@ const SigningWorkflow: React.FC = () => {
       key: 'actions',
       width: 250,
       render: (_: unknown, record: SigningRequestItem) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
@@ -244,7 +243,7 @@ const SigningWorkflow: React.FC = () => {
           <Button size="small" danger icon={<CloseOutlined />} onClick={() => handleRejectOpen(record.id)}>
             Tu choi
           </Button>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -271,7 +270,7 @@ const SigningWorkflow: React.FC = () => {
       key: 'actions',
       width: 180,
       render: (_: unknown, record: SigningRequestItem) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
@@ -282,7 +281,7 @@ const SigningWorkflow: React.FC = () => {
               </Button>
             </Popconfirm>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -463,60 +462,54 @@ const SigningWorkflow: React.FC = () => {
       key: 'stats',
       label: 'Thong ke',
       children: (
-        <div className="grid grid-cols-4 gap-4">
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <Row gutter={[16, 16]}>
+          <Col xs={12} sm={6}>
+            <Card>
               <Statistic title="Cho duyet" value={stats?.pendingCount ?? 0} styles={{ content: { color: '#1890ff' } }} />
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
               <Statistic title="Da duyet" value={stats?.approvedCount ?? 0} styles={{ content: { color: '#52c41a' } }} />
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
               <Statistic title="Tu choi" value={stats?.rejectedCount ?? 0} styles={{ content: { color: '#ff4d4f' } }} />
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
               <Statistic title="Da huy" value={stats?.cancelledCount ?? 0} styles={{ content: { color: '#8c8c8c' } }} />
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Tong cong</div><div className="text-2xl font-semibold">{stats?.totalCount ?? 0}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic title="Tong cong" value={stats?.totalCount ?? 0} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
               <Statistic title="Gui hom nay" value={stats?.todaySubmitted ?? 0} styles={{ content: { color: '#722ed1' } }} />
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
               <Statistic title="Duyet hom nay" value={stats?.todayApproved ?? 0} styles={{ content: { color: '#13c2c2' } }} />
-            </div>
-          </div>
-        </div>
+            </Card>
+          </Col>
+        </Row>
       ),
     },
   ];
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h4 className="text-lg font-semibold m-0">
+        <Title level={4} style={{ margin: 0 }}>
           <SendOutlined /> Trinh ky
-        </h4>
-        <div className="flex items-center gap-2">
+        </Title>
+        <Space>
           <Input.Search
             placeholder="Tim kiem..."
             allowClear
@@ -533,9 +526,8 @@ const SigningWorkflow: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={fetchData}>
             Lam moi
           </Button>
-        </div>
+        </Space>
       </div>
-      </motion.div>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
@@ -548,55 +540,55 @@ const SigningWorkflow: React.FC = () => {
       >
         {selectedRequest && (
           <div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={[16, 12]}>
+              <Col span={12}>
                 <strong>Loai tai lieu:</strong>
                 <br />
                 <Tag color="blue">{DOCUMENT_TYPE_LABELS[selectedRequest.documentType] || selectedRequest.documentType}</Tag>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <strong>Trang thai:</strong>
                 <br />
                 <Tag color={STATUS_COLORS[selectedRequest.status]}>{STATUS_LABELS[selectedRequest.status]}</Tag>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <strong>Nguoi gui:</strong>
                 <br />
                 {selectedRequest.submittedByName}
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <strong>Nguoi duyet:</strong>
                 <br />
                 {selectedRequest.assignedToName}
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <strong>Benh nhan:</strong>
                 <br />
                 {selectedRequest.patientName || '-'}
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <strong>Khoa:</strong>
                 <br />
                 {selectedRequest.departmentName || '-'}
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <strong>Ngay gui:</strong>
                 <br />
                 {formatDate(selectedRequest.createdAt)}
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <strong>Ngay ky:</strong>
                 <br />
                 {formatDate(selectedRequest.signedAt)}
-              </div>
+              </Col>
               {selectedRequest.rejectReason && (
-                <div className="col-span-2">
+                <Col span={24}>
                   <strong>Ly do tu choi:</strong>
                   <br />
                   <Tag color="error">{selectedRequest.rejectReason}</Tag>
-                </div>
+                </Col>
               )}
-            </div>
+            </Row>
 
             <div style={{ marginTop: 16 }}>
               <strong>Noi dung tai lieu:</strong>
@@ -646,7 +638,6 @@ const SigningWorkflow: React.FC = () => {
           placeholder="Nhap ly do tu choi..."
         />
       </Modal>
-      </div>
     </Spin>
   );
 };

@@ -3175,3 +3175,744 @@ RULE_PRINT_005: Loại biểu mẫu chuyên khoa
 ```
 
 ---
+
+
+# PHAN 5: LUONG DU LIEU BO SUNG (SUPPLEMENTARY DATA FLOWS)
+
+## 5.1 LUONG 43: DAT LICH KHAM ONLINE (Online Appointment Booking)
+
+```
+[BN truy cap cong dat lich]
+     |
+     v
++-------------+     +-------------+     +-------------+
+| Chon Khoa/  |---->| Chon Bac si |---->| Chon Khung  |
+| Chuyen khoa |     | (neu co)    |     | gio trong   |
++-------------+     +-------------+     +------+------+
+                                               |
+     +---------------------------------------------+
+     v
++-------------+     +-------------+     +-------------+
+| Nhap thong  |---->| Xac nhan &  |---->| Gui SMS/    |
+| tin BN      |     | Tao booking |     | Email xac   |
++-------------+     +-------------+     | nhan        |
+                                        +------+------+
+                                               |
+                                               v
+                                        +-------------+
+                                        | Check-in tai|
+                                        | Tiep don    |
+                                        +-------------+
+```
+- **Frontend**: `/dat-lich` (public, khong can dang nhap)
+- **API**: `appointmentBooking.ts`
+- **Entities**: Appointments, AppointmentServices
+
+## 5.2 LUONG 44: QUAN LY DAT LICH NOI BO (Booking Management)
+
+```
+[Quan tri dat lich]
+     |
+     +-->  Cau hinh khung gio theo bac si/phong
+     +-->  Duyet/tu choi booking online
+     +-->  Quan ly slot trong/day
+     +-->  Gui nhac lich hen (SMS/Email)
+     +-->  Thong ke ty le den kham/vang
+```
+- **Frontend**: `/booking-management`
+- **API**: `bookingManagement.ts`
+
+## 5.3 LUONG 45: TAI KHAM & THEO DOI HEN (Follow-up Tracking)
+
+```
+[BS hen tai kham]
+     |
+     v
++-------------+     +-------------+     +-------------+
+| Tao lich    |---->| SMS nhac    |---->| BN den tai  |
+| tai kham    |     | truoc 1 ngay|     | kham / vang |
++-------------+     +-------------+     +------+------+
+                                               |
+                    +--------------------------+
+                    v                          v
+             +-------------+           +-------------+
+             | Cap nhat    |           | Danh dau    |
+             | trang thai  |           | qua han     |
+             +-------------+           +-------------+
+```
+- **Frontend**: `/follow-up`
+- **API**: `examination.ts` (searchAppointments, getOverdueFollowUps)
+- **Tabs**: Hom nay / Sap toi / Qua han / Tat ca
+
+## 5.4 LUONG 46: DE XUAT - DU TRU MUA SAM (Procurement)
+
+```
+[He thong canh bao ton kho duoi muc toi thieu]
+     |
+     v
++-------------+     +-------------+     +-------------+
+| Tu dong goi |---->| Tao phieu   |---->| Truong khoa |
+| y du tru    |     | de xuat     |     | phe duyet   |
++-------------+     +-------------+     +------+------+
+                                               |
+                                               v
+                                        +-------------+
+                                        | Chuyen bo   |
+                                        | phan mua sam|
+                                        +-------------+
+```
+- **Frontend**: `/procurement`
+- **API**: `warehouse.ts` (getProcurementRequests, getAutoProcurementSuggestions)
+
+## 5.5 LUONG 47: QUAN LY TAI SAN - CCDC (Asset Management)
+
+```
++------------------------------------------------------+
+|                  VONG DOI TAI SAN                     |
++------------------------------------------------------+
+|                                                       |
+|  [Dau thau] --> [Mua sam] --> [Nhap kho]             |
+|       |              |              |                 |
+|       v              v              v                 |
+|  [Ho so thau] [Hop dong]   [Gan ma QR]              |
+|                                     |                 |
+|                              [Ban giao] --> [Su dung] |
+|                                     |              |  |
+|                              [Khau hao]     [Bao tri] |
+|                                     |              |  |
+|                              [Thanh ly] <----------+  |
+|                                                       |
+|  BAO CAO: 24 mau TSCD + Ma QR tai san               |
++------------------------------------------------------+
+```
+- **Frontend**: `/asset-management`
+- **API**: `assetManagement.ts`
+- **7 tabs**: Dau thau, Tai san, Ban giao, Thanh ly, Khau hao, Bao cao TSCD, QR Code
+
+## 5.6 LUONG 48: DAO TAO - NGHIEN CUU KHOA HOC (Training & Research)
+
+```
++-----------------------------------------------------+
+|  DAO TAO                    NGHIEN CUU              |
+|  +-- Tao lop dao tao        +-- De tai NCKH        |
+|  +-- Dang ky hoc vien       |   (5 giai doan:      |
+|  +-- Diem danh              |   De xuat -> Duyet   |
+|  +-- Danh gia ket qua       |   -> Thuc hien ->    |
+|  +-- Cap chung chi          |   Hoan thanh ->      |
+|                              |   Cong bo)           |
+|  CHI DAO TUYEN              +-- Bai bao khoa hoc   |
+|  +-- Huong dan tuyen duoi                          |
++-----------------------------------------------------+
+```
+- **Frontend**: `/training-research`
+- **API**: `trainingResearch.ts`
+
+## 5.7 LUONG 49: PHONG LAB IVF (In Vitro Fertilization)
+
+```
+[Benh nhan vo sinh]
+     |
+     v
++-------------+     +-------------+     +-------------+
+| Chu ky kich |---->| Choc trung  |---->| Nuoi cay    |
+| thich buong |     | IVF/ICSI    |     | phoi (D1-D5)|
+| trung       |     |             |     | Danh gia CL |
++-------------+     +-------------+     +------+------+
+                                               |
+                    +--------------------------+
+                    v                          v
+             +-------------+           +-------------+
+             | Dong lanh   |           | Chuyen phoi |
+             | phoi/trung  |           | (fresh)     |
+             | Cryo storage|           +------+------+
+             +------+------+                  |
+                    |                          v
+                    +---------------->  +-------------+
+                                        | Ket qua     |
+                                        | sinh song   |
+                                        +-------------+
+```
+- **Frontend**: `/ivf-lab`
+- **API**: `ivfLab.ts`
+- **6 tabs**: Chu ky, Nuoi cay phoi, Dong lanh, Chuyen phoi, Ket qua, Dashboard
+
+## 5.8 LUONG 50: LUU CHUNG VI SINH (Culture Collection)
+
+```
+[Vi sinh phan lap chung VK/nam]
+     |
+     v
++-------------+     +-------------+     +-------------+
+| Luu tru vao |---->| Gan vi tri  |---->| Theo doi    |
+| stock (4 PP)|     | tu/rack/hop |     | han su dung |
++-------------+     +-------------+     +------+------+
+                                               |
+     +------------------+--------------------------+
+     v                  v                      v
++----------+     +----------+          +----------+
+| Cay chuyen|    | KT viab- |          | Xuat su  |
+| (passage) |    | ility    |          | dung     |
+| tu dong ++|    | (>90ngay)|          | aliquot  |
++----------+     +----------+          +----------+
+```
+- **Frontend**: `/culture-collection`
+- **API**: `cultureStock.ts`
+- **4 PP bao quan**: Glycerol stock, Dong kho, Dong lanh sau, Sua gay
+
+## 5.9 LUONG 51: GIAM DINH Y KHOA (Medical Forensics)
+
+```
+[Yeu cau giam dinh] --> [Tiep nhan ho so] --> [Kham giam dinh] --> [Bien ban] --> [Ket luan]
+                                                mau thuong tat      giam dinh      nop co quan
+                                                                                   phap luat
+```
+- **Frontend**: `/medical-forensics`
+- **API**: `forensic.ts`
+
+## 5.10 LUONG 52: QUAN LY LAO/HIV (TB/HIV Management)
+
+```
+[Phat hien ca Lao/HIV] --> [Dang ky so] --> [Chon phac do] --> [Cap thuoc hang thang]
+                                                                       |
+     +---------------------------------------------+-----------------+
+     v                                             v
+[Theo doi tuan thu thuoc]                   [Danh gia dinh ky] --> [Ket qua: khoi/that bai]
+```
+- **Frontend**: `/tb-hiv`
+- **API**: `tbHivManagement.ts`
+
+## 5.11 LUONG 53: CHUONG TRINH METHADONE (Methadone Treatment)
+
+```
+[BN nghien chat] --> [Dang ky MMT] --> [Cap Methadone hang ngay] --> [XN nuoc tieu] --> [Tu van]
+```
+- **Frontend**: `/methadone-treatment`
+- **API**: `methadone.ts`
+
+## 5.12 LUONG 54: QUAN LY HIV (HIV Management)
+
+```
+[BN HIV+] --> [Baseline] --> [XN CD4/Viral Load] --> [Bat dau ART] --> [Theo doi tuan thu ARV]
+                                                                              |
+                                                                              v
+                                                                       [Quan ly benh kem (OI, TB)]
+```
+- **Frontend**: `/hiv-management`
+- **API**: `hivManagement.ts`
+
+## 5.13 LUONG 55: Y TE TAM THAN (Mental Health)
+
+```
+[BN tam than] --> [Danh gia DSM-5] --> [Lap ke hoach dieu tri] --> [Thuoc + Tam ly tri lieu] --> [Theo doi]
+```
+- **Frontend**: `/mental-health`
+- **API**: `mentalHealth.ts`
+
+## 5.14 LUONG 56: Y HOC CO TRUYEN (Traditional Medicine)
+
+```
+[BN YHCT] --> [Tu chan (vong/van/van/thiet)] --> [Bat cuong bien chung] --> [Ke don dong duoc] --> [Cham cuu/Xoa bop]
+```
+- **Frontend**: `/traditional-medicine`
+- **API**: `traditionalMedicine.ts`
+
+## 5.15 LUONG 57: TIEM CHUNG (Immunization)
+
+```
+[Lich tiem chung QG] --> [Dang ky tiem] --> [Kiem tra CCĐ] --> [Thuc hien tiem] --> [Theo doi phan ung] --> [Ghi so]
+```
+- **Frontend**: `/immunization`
+- **API**: `immunization.ts`
+
+## 5.16 LUONG 58: KHAM SUC KHOE DINH KY (Health Checkup)
+
+```
+[To chuc dot kham] --> [Dang ky nhom] --> [Kham sang loc] --> [Tra ket qua] --> [Cap giay CN SK]
+```
+- **Frontend**: `/health-checkup`
+- **API**: `healthCheckup.ts`
+
+## 5.17 LUONG 59: GIAM SAT DICH TE (Epidemiology)
+
+```
+[Phat hien ca benh] --> [Bao cao BTN] --> [Dieu tra o dich] --> [Truy vet tiep xuc] --> [Bao cao CDC]
+```
+- **Frontend**: `/epidemiology`
+- **API**: `epidemiology.ts`
+
+## 5.18 LUONG 60: Y TE TRUONG HOC (School Health)
+
+```
+[Truong hoc] --> [Kham sang loc HS] --> [Tiem chung chien dich] --> [GDSK] --> [Xu tri cap cuu tai truong]
+```
+- **Frontend**: `/school-health`
+- **API**: `schoolHealth.ts`
+
+## 5.19 LUONG 61: Y TE NGHE NGHIEP (Occupational Health)
+
+```
+[Doanh nghiep] --> [Kham nghe nghiep DK] --> [Phat hien benh NN] --> [Giam sat MT lao dong] --> [Bao cao So YT]
+```
+- **Frontend**: `/occupational-health`
+- **API**: `occupationalHealth.ts`
+
+## 5.20 LUONG 62: Y TE CONG DONG (Community Health)
+
+```
+[Chuong trinh YTCD] --> [Tham ho gia dinh] --> [Phong benh CD] --> [PK luu dong] --> [GDSK cong dong]
+```
+- **Frontend**: `/community-health`
+- **API**: `communityHealth.ts`
+
+## 5.21 LUONG 63: MOI TRUONG Y TE (Environmental Health)
+
+```
+[Giam sat MT BV] --> [Kiem tra nuoc/KK/rac] --> [Quan ly chat thai YT] --> [Danh gia tuan thu]
+```
+- **Frontend**: `/environmental-health`
+- **API**: `environmentalHealth.ts`
+
+## 5.22 LUONG 64: DAN SO - KHHGD (Population Health)
+
+```
+[Quan ly dan so] --> [KHHGD tu van] --> [Cham soc SKSS] --> [MCH ba me tre em] --> [Thong ke]
+```
+- **Frontend**: `/population-health`
+- **API**: `populationHealth.ts`
+
+## 5.23 LUONG 65: AN TOAN THUC PHAM (Food Safety)
+
+```
+[Kiem tra VSATTP] --> [Lay mau thuc pham] --> [Xet nghiem VS/HH] --> [Xu ly vi pham] --> [Bao cao]
+```
+- **Frontend**: `/food-safety`
+- **API**: `foodSafety.ts`
+
+## 5.24 LUONG 66: SUC KHOE SINH SAN (Reproductive Health)
+
+```
+[Thai phu] --> [Kham thai DK (ANC)] --> [Theo doi thai ky] --> [Sinh de] --> [Hau san]
+```
+- **Frontend**: `/reproductive-health`
+- **API**: `reproductiveHealth.ts`
+
+## 5.25 LUONG 67: TRUYEN THONG GDSK (Health Education)
+
+```
+[Xay dung ND GDSK] --> [To chuc buoi TT] --> [Chien dich TT] --> [Tai lieu cho BN] --> [Danh gia HQ]
+```
+- **Frontend**: `/health-education`
+- **API**: `healthEducation.ts`
+
+## 5.26 LUONG 68: BENH MAN TINH (Chronic Disease Management)
+
+```
+[Dang ky so QL] --> [Lap KH dieu tri dai han] --> [Theo doi dinh ky] --> [Dieu chinh phac do] --> [Danh gia KQ]
+ (DTD, THA, hen,
+  COPD, ung thu)
+```
+- **Frontend**: `/chronic-disease`
+- **API**: `chronicDisease.ts`
+
+## 5.27 LUONG 69: PHAC DO DIEU TRI (Treatment Protocol)
+
+```
+[Xay dung phac do EBM] --> [Phe duyet HĐ thuoc BV] --> [Ap dung ke don] --> [Theo doi tuan thu] --> [Cap nhat]
+```
+- **Frontend**: `/treatment-protocols`
+- **API**: `treatmentProtocol.ts`
+
+## 5.28 LUONG 70: CHI DAO TUYEN (Clinical Guidance)
+
+```
+[Tuyen tren] --> [Huong dan CM tuyen duoi] --> [Tu van tu xa] --> [Chuyen tuyen] --> [Theo doi KQ]
+```
+- **Frontend**: `/clinical-guidance`
+- **API**: `clinicalGuidance.ts`
+
+## 5.29 LUONG 71: HOI CHAN (Consultation)
+
+```
+[BS yeu cau hoi chan] --> [Moi chuyen gia] --> [To chuc hoi chan] --> [Bien ban KL] --> [Thuc hien]
+```
+- **Frontend**: `/consultation`
+- **API**: `consultation.ts`
+
+## 5.30 LUONG 72: KE HOACH & LUU TRU HSBA (Medical Record Planning & Archive)
+
+```
++-----------------------------------------------------+
+|  KE HOACH HSBA              LUU TRU HSBA            |
+|  +-- Phan bo ma ho so       +-- Nhan HS hoan thanh  |
+|  +-- Quan ly cap phat       +-- Gan vi tri kho      |
+|  +-- Cho muon/tra           +-- Yeu cau muon        |
+|  +-- Ban giao lien khoa     +-- Luu tru dai han     |
+|  +-- Canh bao qua han       +-- Tieu huy het han    |
++-----------------------------------------------------+
+```
+- **Frontend**: `/medical-record-planning`, `/medical-record-archive`
+- **API**: `medicalRecordPlanning.ts`, `medicalRecordArchive.ts`
+
+## 5.31 LUONG 73: NHA THUOC BV BAN LE (Hospital Pharmacy Retail)
+
+```
+[Khach mua thuoc] --> [Tim thuoc] --> [Tao hoa don] --> [Thanh toan] --> [Phat thuoc]
+     |
+     +-- Quan ly: Khach hang than thiet, Tich diem, Ca truc, GPP, Hoa hong NV
+```
+- **Frontend**: `/hospital-pharmacy`
+- **API**: `hospitalPharmacy.ts`
+
+## 5.32 LUONG 74: VAT TU Y TE (Medical Supply)
+
+```
+[Nhap VT tu kho] --> [Phan phoi khoa/phong] --> [Su dung cho BN] --> [Tiet trung VT tai SD] --> [Kiem ke]
+ (itemType=2)
+```
+- **Frontend**: `/medical-supply`
+- **API**: `warehouse.ts` (filter itemType=2)
+
+## 5.33 LUONG 75: KY SO TAP TRUNG (Central Signing)
+
+```
+[Admin tao batch ky] --> [Gan tai lieu] --> [Chuyen nguoi ky] --> [Ky so USB Token] --> [Audit trail]
+```
+- **Frontend**: `/central-signing`
+- **API**: `centralSigning.ts`
+
+## 5.34 LUONG 76: TRINH KY (Signing Workflow)
+
+```
+[Tao trinh ky] --> [Chon luong duyet] --> [Nguoi ky 1] --> [Nguoi ky 2] --> [Hoan thanh]
+                   (tuan tu/song song)     ky/tu choi       ky/tu choi
+```
+- **Frontend**: `/signing-workflow`
+- **API**: `signingWorkflow.ts`
+
+## 5.35 LUONG 77: QUAN LY SMS (SMS Gateway Management)
+
+```
+[Cau hinh SMS Gateway] --> [Test ket noi] --> [Gui SMS] --> [Theo doi log] --> [Thong ke chi phi]
+ (eSMS.vn/SpeedSMS.vn)     kiem tra balance   6 loai SMS   OTP/KQ/Hen/Nhac
+```
+- **Frontend**: `/sms-management`
+- **API**: `sms.ts`
+
+## 5.36 LUONG 78: AN NINH ENDPOINT (Endpoint Security)
+
+```
+[Dang ky thiet bi] --> [Giam sat truy cap] --> [Phat hien su co] --> [Danh gia lo hong] --> [Xu ly]
+ may tram/server        bat thuong              5 muc severity        vulnerability scan
+```
+- **Frontend**: `/endpoint-security`
+- **API**: `endpointSecurity.ts`
+
+## 5.37 LUONG 79: QC XET NGHIEM (Lab QC)
+
+```
+[Tao lo QC] --> [Chay mau QC hang ngay] --> [Ve Levey-Jennings] --> [Ap dung Westgard] --> [Duyet/Tu choi]
+                                             bieu do kiem soat       12s/13s/22s/R4s/41s/10x
+```
+- **Frontend**: `/lab-qc`
+- **API**: `labQC.ts`
+
+## 5.38 LUONG 80: LUU TRU MAU XET NGHIEM (Sample Storage)
+
+```
+[Mau XN hoan thanh] --> [Quet QR/barcode] --> [Gan vi tri tu/rack/hop] --> [Theo doi HSD] --> [Xuat/Huy]
+```
+- **Frontend**: `/sample-storage`
+- **API**: `sampleStorage.ts`
+
+## 5.39 LUONG 81: THEO DOI MAU & TU CHOI (Sample Tracking)
+
+```
+[Nhan mau XN] --> [Kiem tra CL] --> Tu choi? -- CO --> [Gan ma ly do (8 ma)] --> [Yeu cau lay lai]
+                   chat luong mau       |                tan mau/dong/thieu/
+                                        v                nhiem ban...
+                                      KHONG
+                                        |
+                                        v
+                                   [Xu ly XN]
+```
+- **Frontend**: `/sample-tracking`
+- **API**: `sampleTracking.ts`
+
+## 5.40 LUONG 82: SANG LOC SO SINH & THAI KY (Screening)
+
+```
++------------------------------------------------------+
+|  SANG LOC SO SINH            SANG LOC THAI KY        |
+|  +-- Lay mau mau got chan    +-- Double test          |
+|  |   (48-72h)               +-- Triple test          |
+|  +-- XN TSH, PKU, G6PD     +-- NIPT                 |
+|  +-- Ket qua (+/-)         +-- Sieu am hinh thai    |
+|  +-- Tu van di truyen      +-- Tu van ket qua       |
++------------------------------------------------------+
+```
+- **Frontend**: `/screening`
+- **API**: `screening.ts`
+
+## 5.41 LUONG 83: QUAN LY HOA CHAT XN (Reagent Management)
+
+```
+[Nhap hoa chat lot/batch] --> [Theo doi ton] --> [Giam sat HSD] --> [Ghi nhan su dung] --> [Dat hang bo sung]
+```
+- **Frontend**: `/reagent-management`
+- **API**: `reagent.ts`
+
+## 5.42 LUONG 84: VI SINH CHI TIET (Microbiology)
+
+```
+[Mau cay] --> [Nuoi cay 24-48h] --> [Dinh danh VK] --> [KSD (AST)] --> [Ket qua S/I/R] --> [Nhuom Gram]
+```
+- **Frontend**: `/microbiology`
+- **API**: `microbiology.ts`
+
+## 5.43 LUONG 85: CAU HINH LIS (LIS Configuration)
+
+```
+[Quan tri LIS] --> [Cau hinh may XN] --> [Mapping test code LOINC] --> [HL7 interface] --> [Khoang tham chieu]
+```
+- **Frontend**: `/lis-config`
+- **API**: `lisConfig.ts`
+
+## 5.44 LUONG 86: HANH NGHE Y (Practice License)
+
+```
+[Dang ky hanh nghe] --> [Xac minh bang cap] --> [Cap phep pham vi HN] --> [Theo doi gia han] --> [Canh bao HH]
+```
+- **Frontend**: `/practice-license`
+- **API**: `practiceLicense.ts`
+
+## 5.45 LUONG 87: SO CHAN THUONG (Trauma Registry)
+
+```
+[Ca chan thuong] --> [Dang ky so] --> [Cham diem ISS/GCS/SAPS II] --> [Theo doi KQ] --> [Thong ke dich te CT]
+```
+- **Frontend**: `/trauma-registry`
+- **API**: `traumaRegistry.ts`
+
+## 5.46 LUONG 88: LIEN VIEN (Inter-Hospital Sharing)
+
+```
+[Chuyen vien] --> [Chia se HSBA dien tu] --> [Phoi hop dieu tri] --> [Tiep nhan KQ] --> [Cap nhat EMR]
+ BV gui -> BV nhan
+```
+- **Frontend**: `/inter-hospital`
+- **API**: `interHospitalSharing.ts`
+
+## 5.47 LUONG 89: KIEM TRA BHXH (BHXH Audit)
+
+```
+[Du lieu KCB BHYT] --> [Doi chieu XML 130] --> [Phat hien sai lech] --> [Sua chua] --> [Nop lai BHXH]
+ hang thang             so sanh voi BHXH       vuot tran/sai ma ICD     chinh sua HS
+```
+- **Frontend**: `/bhxh-audit`
+- **API**: `bhxhAudit.ts`
+
+## 5.48 LUONG 90: HO SO BA CHUYEN KHOA TT 32/2023 (Specialty EMR)
+
+```
+[Chon chuyen khoa] --> [Mo bieu mau BA] --> [Dien thong tin CK] --> [In an] --> [Luu EMR]
+ (30 loai theo TT       bieu mau rieng      theo yeu cau BYT       theo mau     ho so
+  32/2023-BYT)           tung CK                                    quy dinh    dien tu
+```
+- **Frontend**: `/specialty-emr`
+- **API**: `specialtyEmr.ts`
+- **30 bieu mau**: Noi khoa, Truyen nhiem, Phu khoa, Tam than, Da lieu, Huyet hoc, Ngoai khoa, Bong, Ung buou, RHM, TMH, Ngoai tru, YHCT, Nhi, 6 Mat CK, PHCN, Kham CK, CS cap 1-2
+
+## 5.49 LUONG 91: HE THONG XEP HANG DIEN TU (Queue Display System)
+
+```
++------------------------------------------------------+
+|  3 CHE DO HIEN THI                                    |
+|                                                       |
+|  1. PHONG KHAM (?rooms=id1,id2)                      |
+|     +-- So dang goi (font 72px, nhap nhay)           |
+|     +-- Danh sach cho (bang)                          |
+|     +-- TTS tieng Viet: "Moi so X vao phong Y"       |
+|                                                       |
+|  2. XET NGHIEM (?mode=lab)                           |
+|     +-- Dang xu ly (cards)                            |
+|     +-- Cho xu ly (bang)                              |
+|     +-- Vua hoan thanh (thong bao)                    |
+|                                                       |
+|  3. KIOSK TU PHUC VU (?mode=kiosk)                  |
+|     +-- Lay so kham benh                             |
+|     +-- Check-in hen kham                            |
+|     +-- Tra cuu gia dich vu                          |
+|     +-- Khao sat hai long                            |
++------------------------------------------------------+
+```
+- **Frontend**: `/queue-display` (public, khong can dang nhap)
+- **API**: `publicClient.ts`
+- **Features**: Fullscreen, Web Speech API TTS, Auto-refresh 4s, Dark theme
+
+---
+
+## TONG KET LUONG DU LIEU
+
+| Nhom | Luong | So luong |
+|------|-------|---------|
+| Lam sang chinh | 1-10 | 10 |
+| Ho tro & Tai chinh | 11-20 | 10 |
+| Nghiep vu mo rong | 21-42 | 22 |
+| **Bo sung moi** | **43-91** | **49** |
+| **TONG CONG** | **1-91** | **91** |
+
+### Phan nhom luong bo sung:
+- **Dat lich & Theo doi**: 43-45 (Booking, Follow-up)
+- **Mua sam & Tai san**: 46-47 (Procurement, Asset)
+- **Dao tao & NCKH**: 48 (Training/Research)
+- **Chuyen khoa dac biet**: 49-56 (IVF, Vi sinh, Phap y, Lao/HIV, Methadone, HIV, Tam than, YHCT)
+- **Y te du phong & Cong dong**: 57-67 (Tiem chung, Kham SK, Dich te, Truong hoc, Nghe nghiep, Cong dong, Moi truong, Dan so, ATTP, SKSS, GDSK)
+- **Benh man tinh & Phac do**: 68-70 (Man tinh, Phac do, Chi dao tuyen)
+- **Quan ly noi bo**: 71-78 (Hoi chan, HSBA, Nha thuoc, Vat tu, Ky so, SMS, An ninh)
+- **Xet nghiem nang cao**: 79-85 (QC, Luu mau, Tu choi, Sang loc, Hoa chat, Vi sinh, LIS config)
+- **Khac**: 86-91 (Hanh nghe, Chan thuong, Lien vien, BHXH, BA CK, Xep hang)
+
+## 5.50 LUONG 92: DANH MUC HANH CHINH (Administrative Catalog)
+
+```
+[Quan ly danh muc he thong]
+     |
+     +-- Nghe nghiep (Ma nghe, Ten nghe)
+     +-- Gioi tinh
+     +-- Don vi hanh chinh (Tinh/Huyen/Xa - 3 cap)
+     +-- Quoc gia
+     +-- Co so kham chua benh (CSKCB) - Ma BHXH
+```
+- **Frontend**: Su dung trong Registration, Insurance forms
+- **API**: `administrativeCatalog.ts`
+- **Dung boi**: Reception (dia chi BN), Insurance (CSKCB)
+
+## 5.51 LUONG 93: CANH BAO NGHIEP VU (Business Alerts)
+
+```
+[Su kien lam sang] --> [Kiem tra rule] --> [Tao canh bao] --> [Hien thi cho BS/DD]
+ (ke don/chi dinh/      tuong tac thuoc     muc do:           popup/badge/
+  nhap vien...)          di ung, CCĐ        Error/Warning/     notification
+                         vuot lieu           Info
+```
+- **Frontend**: OPD, Inpatient, Radiology (embedded alerts)
+- **API**: `businessAlerts.ts`
+- **Endpoints**: checkOpdAlerts, checkInpatientAlerts, checkRadiologyAlerts, checkLabAlerts
+
+## 5.52 LUONG 94: HO SO LAM SANG (Clinical Records - Partograph & Anesthesia)
+
+```
++-----------------------------------------------------+
+|  PARTOGRAPH (Bieu do chuyen da)                     |
+|  +-- Ghi nhan co tu cung, do lot thai               |
+|  +-- Tim thai, co giat                              |
+|  +-- Ve bieu do theo thoi gian                      |
+|  +-- Canh bao bat thuong                            |
+|                                                      |
+|  ANESTHESIA RECORD (Ho so gay me)                   |
+|  +-- Theo doi sinh hieu trong mo                    |
+|  +-- Ghi nhan thuoc gay me                          |
+|  +-- Monitoring su co                               |
++-----------------------------------------------------+
+```
+- **Frontend**: Inpatient (Obstetrics), Surgery
+- **API**: `clinicalRecords.ts` (partographApi, anesthesiaApi)
+
+## 5.53 LUONG 95: XUAT DU LIEU & BAN GIAO (Data Export & Handover)
+
+```
+[Yeu cau xuat DL] --> [Chon module] --> [Export CSV/Excel] --> [Ban giao] --> [Luu lich su]
+                       thong ke so lieu   backup du lieu        ky nhan         audit trail
+```
+- **Frontend**: SystemAdmin (Data Management tab)
+- **API**: `dataExport.ts`
+- **Endpoints**: getDataStats, getModuleDataCounts, exportData, createHandover
+
+## 5.54 LUONG 96: KE THUA DU LIEU LIEN MODULE (Cross-Module Data Inheritance)
+
+```
+[Tiep don] --thong tin BN/BHYT--> [Kham benh]
+[Kham benh] --chan doan/sinh hieu--> [Ke don]
+[Ke don] --don thuoc--> [Thu ngan]
+[Thu ngan] --phieu thu--> [Nha thuoc]
+[Nha thuoc] --phat thuoc--> [Noi tru]
+```
+- **Frontend**: OPD (panel "Thong tin tiep don"), Prescription (panel "Thong tin kham benh"), Inpatient (auto-fill admission)
+- **API**: `dataInheritance.ts`
+- **Endpoints**: getOpdContext, getPrescriptionContext, getBillingContext, getPharmacyContext, getInpatientContext
+
+## 5.55 LUONG 97: QUAN TRI EMR (EMR Administration)
+
+```
+[Quan tri EMR]
+     |
+     +-- Quan ly loai bia BA (cover types)
+     +-- Quan ly loai tai lieu EMR (document types/groups)
+     +-- Cau hinh nguoi ky (signer catalog + signing roles)
+     +-- Luu lich su in an (print logs)
+     +-- Quan ly tai lieu dinh kem (attachments)
+```
+- **Frontend**: SystemAdmin (EMR Config tabs)
+- **API**: `emrAdmin.ts`
+
+## 5.56 LUONG 98: QUAN LY HO SO BENH AN (EMR Management)
+
+```
++-----------------------------------------------------+
+|  CHIA SE BA         TRICH LUC BA        GAY BA      |
+|  +-- Tao link      +-- Tao trich luc    +-- CRUD    |
+|      co thoi han       watermark          sections   |
+|  +-- Access log     +-- Ma truy cap                  |
+|                                                      |
+|  KY SO BN          KHOA TAI LIEU      KIEM TRA      |
+|  +-- Canvas sign   +-- Auto-expire     +-- 10 rules |
+|  +-- Base64 PNG       10 phut          +-- Severity  |
+|                    +-- Force-release    +-- Block     |
+|                                           close on   |
+|  THU VIEN ANH      MA TAT               Error        |
+|  +-- Upload        +-- 15 abbreviations              |
+|  +-- Annotation    +-- Medical terms                 |
++-----------------------------------------------------+
+```
+- **Frontend**: EMR (tab "Quan ly BA" - EmrManagementTabs)
+- **API**: `emrManagement.ts`
+- **10 features**: Chia se, Trich luc, Gay BA, Ky so BN, Khoa TL, Data tags, Thu vien anh, Ma tat, Kiem tra thieu sot, Dong BA
+
+## 5.57 LUONG 99: BAO CAO BENH VIEN (Hospital Reports)
+
+```
+[Chon loai bao cao] --> [Nhap tham so] --> [Truy van DB] --> [Xuat PDF/Excel] --> [In/Tai ve]
+ (giay khai sinh,        thoi gian,        aggregate         bieu mau quy dinh
+  giay chuyen vien,      khoa/phong        du lieu
+  giay hen tai kham,
+  bao cao hoat dong...)
+```
+- **Frontend**: Reports page
+- **API**: `hospitalReport.ts`
+- **Bao cao**: Giay khai sinh, Giay chuyen vien, Bao cao hoat dong BV, Thong ke benh tat
+
+## 5.58 LUONG 100: PHIEU YEU CAU IT (IT Ticket System)
+
+```
+[NV tao phieu IT] --> [Phan loai] --> [IT tiep nhan] --> [Xu ly] --> [Dong phieu]
+                      (hardware/       phan cong         cap nhat     danh gia
+                       software/        xu ly             trang thai   hai long
+                       network/
+                       account)
+```
+- **Frontend**: SystemAdmin (IT Tickets tab)
+- **API**: `itTicket.ts`
+- **Endpoints**: getItTickets, createItTicket, respondToTicket, closeTicket, getItTicketStats
+
+---
+
+## TONG KET CUOI CUNG
+
+| Nhom | Luong | So luong |
+|------|-------|---------|
+| Lam sang chinh | 1-10 | 10 |
+| Ho tro & Tai chinh | 11-20 | 10 |
+| Nghiep vu mo rong | 21-42 | 22 |
+| Bo sung dot 1 (pages) | 43-91 | 49 |
+| Bo sung dot 2 (API/support) | 92-100 | 9 |
+| **TONG CONG** | **1-100** | **100 luong** |

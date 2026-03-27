@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import {
   Card, Input, Button, Table, Tabs, Tag, Modal, message, Spin,
   Row, Col, DatePicker, Select, Statistic, Space, Form, InputNumber,
@@ -497,11 +496,11 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 100,
       render: (_: unknown, record: RecordCode) => (
-        <div className="flex items-center gap-2">
+        <Space orientation="horizontal">
           {record.status === 0 && (
             <Button type="link" size="small" onClick={() => handleAssignCode(record)}>Cap ma</Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -529,14 +528,14 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 140,
       render: (_: unknown, record: TransferRecord) => (
-        <div className="flex items-center gap-2">
+        <Space orientation="horizontal">
           {record.status === 0 && (
             <>
               <Button type="link" size="small" onClick={() => handleApproveTransfer(record, true)}>Duyet</Button>
               <Button type="link" size="small" danger onClick={() => handleApproveTransfer(record, false)}>Tu choi</Button>
             </>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -570,7 +569,7 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 180,
       render: (_: unknown, record: BorrowRecord) => (
-        <div className="flex items-center gap-2">
+        <Space orientation="horizontal">
           {(record.status === 0 || record.status === 3) && (
             <Button type="link" size="small" onClick={() => { setSelectedBorrow(record); setReturnModalOpen(true); }}>
               Tra
@@ -581,7 +580,7 @@ const MedicalRecordPlanning: React.FC = () => {
               Gia han
             </Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -610,14 +609,14 @@ const MedicalRecordPlanning: React.FC = () => {
     {
       title: 'Thao tac', key: 'action', width: 140,
       render: (_: unknown, record: HandoverRecord) => (
-        <div className="flex items-center gap-2">
+        <Space orientation="horizontal">
           {record.status === 1 && (
             <>
               <Button type="link" size="small" onClick={() => handleApproveHandover(record, true)}>Duyet</Button>
               <Button type="link" size="small" danger onClick={() => handleApproveHandover(record, false)}>Tu choi</Button>
             </>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -675,8 +674,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderRecordCodes = () => (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8}>
           <Search
             placeholder="Tim theo ma BA, ma BN, ho ten..."
             value={rcKeyword}
@@ -684,18 +683,18 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadRecordCodes(1)}
             allowClear
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
           <RangePicker
             style={{ width: '100%' }}
             value={rcDateRange}
             onChange={(dates) => setRcDateRange(dates as [Dayjs | null, Dayjs | null])}
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
           <Button icon={<ReloadOutlined />} onClick={() => loadRecordCodes(1)}>Tai lai</Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
       <Table
         columns={recordCodeColumns}
         dataSource={rcData}
@@ -716,8 +715,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderTransfers = () => (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8}>
           <Search
             placeholder="Tim theo ma BN, ho ten..."
             value={trKeyword}
@@ -725,18 +724,18 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadTransfers(1)}
             allowClear
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
           <RangePicker
             style={{ width: '100%' }}
             value={trDateRange}
             onChange={(dates) => setTrDateRange(dates as [Dayjs | null, Dayjs | null])}
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
           <Button icon={<ReloadOutlined />} onClick={() => loadTransfers(1)}>Tai lai</Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
       <Table
         columns={transferColumns}
         dataSource={trData}
@@ -757,8 +756,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderBorrowing = () => (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8} md={6}>
           <Search
             placeholder="Tim theo ma, ho ten..."
             value={brKeyword}
@@ -766,8 +765,8 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadBorrowing(1)}
             allowClear
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={8} md={4}>
           <Select
             style={{ width: '100%' }}
             placeholder="Trang thai"
@@ -781,14 +780,14 @@ const MedicalRecordPlanning: React.FC = () => {
               { value: 3, label: 'Gia han' },
             ]}
           />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
+        </Col>
+        <Col xs={24} sm={8} md={6}>
+          <Space orientation="horizontal">
             <Button icon={<ReloadOutlined />} onClick={() => loadBorrowing(1)}>Tai lai</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setBorrowModalOpen(true)}>Tao phieu muon</Button>
-          </div>
-        </div>
-      </div>
+          </Space>
+        </Col>
+      </Row>
       <Table
         columns={borrowColumns}
         dataSource={brData}
@@ -809,8 +808,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderHandover = () => (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8} md={6}>
           <Search
             placeholder="Tim theo ma, ho ten..."
             value={hoKeyword}
@@ -818,8 +817,8 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadHandover(1)}
             allowClear
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={8} md={4}>
           <Select
             style={{ width: '100%' }}
             placeholder="Trang thai"
@@ -833,11 +832,11 @@ const MedicalRecordPlanning: React.FC = () => {
               { value: 3, label: 'Tu choi' },
             ]}
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={8} md={6}>
           <Button icon={<ReloadOutlined />} onClick={() => loadHandover(1)}>Tai lai</Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
       <Table
         columns={handoverColumns}
         dataSource={hoData}
@@ -858,8 +857,8 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderOutpatient = () => (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8}>
           <Search
             placeholder="Tim theo ma BA, ma BN, ho ten..."
             value={opKeyword}
@@ -867,18 +866,18 @@ const MedicalRecordPlanning: React.FC = () => {
             onSearch={() => loadOutpatient(1)}
             allowClear
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
           <RangePicker
             style={{ width: '100%' }}
             value={opDateRange}
             onChange={(dates) => setOpDateRange(dates as [Dayjs | null, Dayjs | null])}
           />
-        </div>
-        <div>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
           <Button icon={<ReloadOutlined />} onClick={() => loadOutpatient(1)}>Tai lai</Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
       <Table
         columns={outpatientColumns}
         dataSource={opData}
@@ -899,23 +898,23 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const renderAttendance = () => (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8}>
           <DatePicker
             style={{ width: '100%' }}
             value={attDate}
             onChange={(d) => d && setAttDate(d)}
           />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Space orientation="horizontal">
             <Button icon={<ReloadOutlined />} onClick={() => loadAttendance()}>Tai lai</Button>
             <Badge count={attTotal - attCheckedIn} offset={[10, 0]}>
               <span>Chua cham cong: {attTotal - attCheckedIn}/{attTotal}</span>
             </Badge>
-          </div>
-        </div>
-      </div>
+          </Space>
+        </Col>
+      </Row>
       <Table
         columns={attendanceColumns}
         dataSource={attData}
@@ -933,81 +932,76 @@ const MedicalRecordPlanning: React.FC = () => {
   // -------------------------------------------------------------------------
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
     <Spin spinning={loading}>
       <div style={{ padding: 16 }}>
         {/* Stats Cards */}
         {stats && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="grid grid-cols-4 gap-4 mb-4">
-            <div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={12} sm={8} md={4}>
+              <Card size="small">
                 <Statistic
                   title="Tong HS"
                   value={stats.totalRecords}
                   prefix={<FileTextOutlined />}
                   styles={{ content: { fontSize: 20 } }}
                 />
-              </div>
-            </div>
-            <div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card size="small">
                 <Statistic
                   title="Da cap ma"
                   value={stats.assignedCodes}
                   prefix={<CheckCircleOutlined />}
                   styles={{ content: { color: '#52c41a', fontSize: 20 } }}
                 />
-              </div>
-            </div>
-            <div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card size="small">
                 <Statistic
                   title="Chuyen vien"
                   value={stats.totalTransfers}
                   prefix={<SwapOutlined />}
                   styles={{ content: { fontSize: 20 } }}
                 />
-              </div>
-            </div>
-            <div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card size="small">
                 <Statistic
                   title="Dang muon"
                   value={stats.activeBorrows}
                   prefix={<BookOutlined />}
                   styles={{ content: { color: '#1890ff', fontSize: 20 } }}
                 />
-              </div>
-            </div>
-            <div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card size="small">
                 <Statistic
                   title="Qua han"
                   value={stats.overdueBorrows}
                   prefix={<WarningOutlined />}
                   styles={{ content: { color: '#ff4d4f', fontSize: 20 } }}
                 />
-              </div>
-            </div>
-            <div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              </Card>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
+              <Card size="small">
                 <Statistic
                   title="Ban giao"
                   value={stats.pendingHandovers}
                   prefix={<ClockCircleOutlined />}
                   styles={{ content: { color: '#faad14', fontSize: 20 } }}
                 />
-              </div>
-            </div>
-          </motion.div>
+              </Card>
+            </Col>
+          </Row>
         )}
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+        <Card>
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -1056,7 +1050,7 @@ const MedicalRecordPlanning: React.FC = () => {
               },
             ]}
           />
-        </div>
+        </Card>
 
         {/* Borrow Modal */}
         <Modal
@@ -1121,7 +1115,6 @@ const MedicalRecordPlanning: React.FC = () => {
         </Modal>
       </div>
     </Spin>
-    </div>
   );
 };
 

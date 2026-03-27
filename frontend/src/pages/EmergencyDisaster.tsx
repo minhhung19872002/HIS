@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
@@ -972,14 +971,8 @@ const EmergencyDisaster: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative', minHeight: '100vh' }}>
-        {/* Gradient mesh background */}
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
+      <div>
         {/* Header with MCI Status */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         {mciEvent && (mciEvent.status === 1 || mciEvent.status === 2) ? (
           <Alert
             title={
@@ -1062,7 +1055,6 @@ const EmergencyDisaster: React.FC = () => {
             </Row>
           </Card>
         )}
-        </motion.div>
 
         {/* Main Content */}
         {mciEvent && (mciEvent.status === 1 || mciEvent.status === 2) && (

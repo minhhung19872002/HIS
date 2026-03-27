@@ -10,7 +10,6 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Reagent, ReagentUsage, ReagentAlert } from '../api/reagent';
-import { motion } from 'framer-motion';
 import * as reagentApi from '../api/reagent';
 
 const statusMap: Record<number, { text: string; color: string }> = {
@@ -147,12 +146,6 @@ const ReagentManagement: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card
         title={<span><MedicineBoxOutlined /> Quản lý hóa chất xét nghiệm</span>}
         extra={
@@ -163,14 +156,12 @@ const ReagentManagement: React.FC = () => {
           </Space>
         }
       >
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={6}><Statistic title="Tổng loại HC" value={reagents.length} prefix={<MedicineBoxOutlined />} /></Col>
           <Col span={6}><Statistic title="Đang dùng" value={reagents.filter(r => r.status <= 1).length} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} /></Col>
           <Col span={6}><Statistic title="Sắp hết" value={lowStockCount} styles={{ content: { color: lowStockCount > 0 ? '#fa8c16' : '#52c41a' } }} prefix={<WarningOutlined />} /></Col>
           <Col span={6}><Statistic title="Hết hạn" value={expiredCount} styles={{ content: { color: expiredCount > 0 ? '#cf1322' : '#52c41a' } }} /></Col>
         </Row>
-        </motion.div>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </Card>
 
@@ -237,8 +228,6 @@ const ReagentManagement: React.FC = () => {
           </Descriptions>
         )}
       </Modal>
-    </motion.div>
-    </div>
     </Spin>
   );
 };

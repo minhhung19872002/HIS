@@ -11,7 +11,6 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { motion } from 'framer-motion';
 import * as mhApi from '../api/mentalHealth';
 import type { MentalHealthCase, MentalHealthStats, MentalHealthAssessment } from '../api/mentalHealth';
 
@@ -168,12 +167,7 @@ const MentalHealth: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <div>
         <Card style={{ marginBottom: 16 }}>
           <Row justify="space-between" align="middle">
             <Col><Title level={4} style={{ margin: 0 }}><SmileOutlined style={{ marginRight: 8 }} />Sức khỏe tâm thần</Title></Col>
@@ -186,7 +180,6 @@ const MentalHealth: React.FC = () => {
             </Col>
           </Row>
         </Card>
-        </motion.div>
 
         <Card style={{ marginBottom: 16 }}>
           <Row gutter={[16, 12]}>
@@ -203,14 +196,12 @@ const MentalHealth: React.FC = () => {
           </Row>
         </Card>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col xs={12} sm={6}><Card><Statistic title="Đang điều trị" value={stats.activeCases} prefix={<SmileOutlined />} styles={{ content: { color: '#1890ff' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Nặng" value={stats.severeCases} prefix={<WarningOutlined />} styles={{ content: { color: '#ff4d4f' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Quá hạn tái khám" value={stats.overdueFollowUps} prefix={<ClockCircleOutlined />} styles={{ content: { color: '#faad14' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Đánh giá tháng" value={stats.assessmentsThisMonth} prefix={<CalendarOutlined />} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
         </Row>
-        </motion.div>
 
         <Card>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={[

@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -109,27 +108,6 @@ type BloodIssueRequestDto = {
   departmentName: string;
   status: string;
   clinicalIndication?: string;
-};
-
-const NumberTicker = ({ value, duration = 1000 }: { value: number; duration?: number }) => {
-  const [display, setDisplay] = useState(0);
-  const ref = useRef<number>(0);
-  useEffect(() => {
-    const start = ref.current;
-    const diff = value - start;
-    if (diff === 0) return;
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(start + diff * eased));
-      if (progress < 1) requestAnimationFrame(animate);
-      else ref.current = value;
-    };
-    requestAnimationFrame(animate);
-  }, [value, duration]);
-  return <>{display.toLocaleString('vi-VN')}</>;
 };
 
 const BloodBank: React.FC = () => {
@@ -859,75 +837,56 @@ const BloodBank: React.FC = () => {
   };
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Gradient mesh background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Ngân hàng Máu</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchBloodInventory(); fetchBloodRequests(); }} size="small">Làm mới</Button>
       </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0 }}>Quản lý Ngân hàng Máu</Title>
-          <Button icon={<ReloadOutlined />} onClick={() => { fetchBloodInventory(); fetchBloodRequests(); }} size="small">Làm mới</Button>
-        </div>
-      </motion.div>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}>
-          <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+          <Card>
             <Statistic
               title="Đơn vị sẵn sàng"
               value={availableUnits}
-              formatter={() => <NumberTicker value={availableUnits} />}
               styles={{ content: { color: '#52c41a' } }}
               prefix={<MedicineBoxOutlined />}
             />
           </Card>
-          </motion.div>
         </Col>
         <Col span={6}>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
-          <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+          <Card>
             <Statistic
               title="Đã đặt trước"
               value={reservedUnits}
-              formatter={() => <NumberTicker value={reservedUnits} />}
               styles={{ content: { color: '#1890ff' } }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
-          </motion.div>
         </Col>
         <Col span={6}>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}>
-          <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+          <Card>
             <Statistic
               title="Sắp hết hạn"
               value={expiringUnits}
-              formatter={() => <NumberTicker value={expiringUnits} />}
               styles={{ content: { color: expiringUnits > 0 ? '#faad14' : '#52c41a' } }}
               prefix={<WarningOutlined />}
             />
           </Card>
-          </motion.div>
         </Col>
         <Col span={6}>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
-          <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+          <Card>
             <Statistic
               title="Yêu cầu chờ duyệt"
               value={pendingRequests}
-              formatter={() => <NumberTicker value={pendingRequests} />}
               styles={{ content: { color: pendingRequests > 0 ? '#ff4d4f' : '#52c41a' } }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
-          </motion.div>
         </Col>
       </Row>
 
-      <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+      <Card>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import {
   Card,
   Table,
@@ -279,8 +278,8 @@ const MethadoneTreatment: React.FC = () => {
       ),
       children: (
         <>
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            <div>
+          <Row gutter={[16, 12]} style={{ marginBottom: 16 }}>
+            <Col xs={24} sm={8} md={6}>
               <Search
                 placeholder="Tìm họ tên, mã BN..."
                 value={keyword}
@@ -289,8 +288,8 @@ const MethadoneTreatment: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={12} sm={6} md={4}>
               <Select
                 placeholder="Giai đoạn"
                 allowClear
@@ -299,13 +298,13 @@ const MethadoneTreatment: React.FC = () => {
                 onChange={setPhaseFilter}
                 options={Object.entries(PHASE_LABELS).map(([k, v]) => ({ value: k, label: v.label }))}
               />
-            </div>
-            <div className="flex-1">
+            </Col>
+            <Col flex="auto" style={{ textAlign: 'right' }}>
               <Button type="primary" icon={<UserAddOutlined />} onClick={() => { enrollForm.resetFields(); setIsEnrollModalOpen(true); }}>
                 Đăng ký BN mới
               </Button>
-            </div>
-          </div>
+            </Col>
+          </Row>
           <Table
             dataSource={patients}
             columns={patientColumns}
@@ -327,11 +326,11 @@ const MethadoneTreatment: React.FC = () => {
       ),
       children: (
         <>
-          <div className="grid grid-cols-4 gap-4">
+          <Row justify="end" style={{ marginBottom: 16 }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { doseForm.resetFields(); setIsDoseModalOpen(true); }}>
               Ghi nhận cấp liều
             </Button>
-          </div>
+          </Row>
           <Table
             dataSource={doses}
             columns={doseColumns}
@@ -352,11 +351,11 @@ const MethadoneTreatment: React.FC = () => {
       ),
       children: (
         <>
-          <div className="grid grid-cols-4 gap-4">
+          <Row justify="end" style={{ marginBottom: 16 }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { urineForm.resetFields(); setIsUrineModalOpen(true); }}>
               Ghi nhận xét nghiệm
             </Button>
-          </div>
+          </Row>
           <Table
             dataSource={urineTests}
             columns={urineColumns}
@@ -376,8 +375,8 @@ const MethadoneTreatment: React.FC = () => {
         </span>
       ),
       children: (
-        <div className="grid grid-cols-4 gap-4">
-          <div>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12}>
             <Card title="Tuân thủ điều trị">
               <Statistic
                 title="Tỷ lệ tuân thủ (không bỏ liều)"
@@ -390,29 +389,29 @@ const MethadoneTreatment: React.FC = () => {
                 strokeColor={complianceRate >= 80 ? '#52c41a' : complianceRate >= 60 ? '#faad14' : '#ff4d4f'}
                 style={{ marginTop: 8 }}
               />
-              <hr className="border-t border-gray-200 my-4" />
+              <Divider />
               <p>BN đang điều trị: <strong>{activePatients.length}</strong></p>
               <p>BN bỏ liều tháng này: <strong style={{ color: '#ff4d4f' }}>{stats.missedDoses}</strong></p>
             </Card>
-          </div>
-          <div>
+          </Col>
+          <Col xs={24} md={12}>
             <Card title="Phân bố giai đoạn điều trị">
               {Object.entries(PHASE_LABELS).map(([key, info]) => {
                 const count = activePatients.filter(p => p.phase === key).length;
                 const percent = activePatients.length > 0 ? Math.round((count / activePatients.length) * 100) : 0;
                 return (
                   <div key={key} style={{ marginBottom: 12 }}>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div><Tag color={info.color}>{info.label}</Tag></div>
-                      <div><strong>{count}</strong> ({percent}%)</div>
-                    </div>
+                    <Row justify="space-between" style={{ marginBottom: 4 }}>
+                      <Col><Tag color={info.color}>{info.label}</Tag></Col>
+                      <Col><strong>{count}</strong> ({percent}%)</Col>
+                    </Row>
                     <Progress percent={percent} strokeColor={info.color === 'green' ? '#52c41a' : info.color === 'blue' ? '#1890ff' : info.color === 'cyan' ? '#13c2c2' : '#faad14'} size="small" showInfo={false} />
                   </div>
                 );
               })}
             </Card>
-          </div>
-          <div>
+          </Col>
+          <Col xs={24} md={12}>
             <Card title="Kết quả XN nước tiểu gần nhất">
               {urineTests.length > 0 ? (
                 <>
@@ -426,8 +425,8 @@ const MethadoneTreatment: React.FC = () => {
                 <Typography.Text type="secondary">Chưa có dữ liệu</Typography.Text>
               )}
             </Card>
-          </div>
-          <div>
+          </Col>
+          <Col xs={24} md={12}>
             <Card title="Liều trung bình theo giai đoạn">
               {Object.entries(PHASE_LABELS).map(([key, info]) => {
                 const phasePatients = activePatients.filter(p => p.phase === key);
@@ -436,72 +435,65 @@ const MethadoneTreatment: React.FC = () => {
                   : 0;
                 return (
                   <div key={key} style={{ marginBottom: 8 }}>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div><Tag color={info.color}>{info.label}</Tag></div>
-                      <div><strong>{avgDose} mg</strong> (n={phasePatients.length})</div>
-                    </div>
+                    <Row justify="space-between">
+                      <Col><Tag color={info.color}>{info.label}</Tag></Col>
+                      <Col><strong>{avgDose} mg</strong> (n={phasePatients.length})</Col>
+                    </Row>
                   </div>
                 );
               })}
             </Card>
-          </div>
-        </div>
+          </Col>
+        </Row>
       ),
     },
   ];
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
     <Spin spinning={loading}>
       <div>
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-          <div className="flex justify-between items-center">
-            <div>
-              <h4 className="text-lg font-semibold m-0">
+        <Card style={{ marginBottom: 16 }}>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Title level={4} style={{ margin: 0 }}>
                 <MedicineBoxOutlined style={{ marginRight: 8 }} />
                 Điều trị thay thế nghiện chất (Methadone)
-              </h4>
-            </div>
-            <div>
+              </Title>
+            </Col>
+            <Col>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
-            </div>
-          </div>
-        </div>
-        </motion.div>
+            </Col>
+          </Row>
+        </Card>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">BN đang điều trị</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><MedicineBoxOutlined className="mr-1" />{stats.activePatients}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Tổng liều hôm nay</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.todayDoses}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">XN nước tiểu tháng</div><div className="text-2xl font-semibold" style={{ color: '#722ed1' }}><ExperimentOutlined className="mr-1" />{stats.monthlyUrineTests}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Bỏ liều</div><div className="text-2xl font-semibold" style={{ color: '#ff4d4f' }}><WarningOutlined className="mr-1" />{stats.missedDoses}</div>
-            </div>
-          </div>
-        </div>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic title="BN đang điều trị" value={stats.activePatients} prefix={<MedicineBoxOutlined />} styles={{ content: { color: '#1890ff' } }} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic title="Tổng liều hôm nay" value={stats.todayDoses} prefix={<CheckCircleOutlined />} styles={{ content: { color: '#52c41a' } }} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic title="XN nước tiểu tháng" value={stats.monthlyUrineTests} prefix={<ExperimentOutlined />} styles={{ content: { color: '#722ed1' } }} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic title="Bỏ liều" value={stats.missedDoses} prefix={<WarningOutlined />} styles={{ content: { color: '#ff4d4f' } }} />
+            </Card>
+          </Col>
+        </Row>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <Card>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        </div>
+        </Card>
 
         {/* Enroll Patient Modal */}
         <Modal
@@ -516,55 +508,55 @@ const MethadoneTreatment: React.FC = () => {
           destroyOnHidden
         >
           <Form form={enrollForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="patientName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
                   <Input placeholder="Họ và tên bệnh nhân" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="gender" label="Giới tính">
                   <Select options={[{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="dateOfBirth" label="Ngày sinh">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="col-span-2">
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={16}>
                 <Form.Item name="address" label="Địa chỉ">
                   <Input placeholder="Địa chỉ" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="phone" label="Số điện thoại">
                   <Input placeholder="SĐT" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="enrollmentDate" label="Ngày đăng ký" rules={[{ required: true, message: 'Chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="currentDose" label="Liều khởi đầu (mg)" rules={[{ required: true, message: 'Nhập liều' }]}>
                   <InputNumber min={5} max={200} style={{ width: '100%' }} placeholder="mg" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="doseType" label="Hình thức uống" rules={[{ required: true, message: 'Chọn hình thức' }]}>
                   <Select options={[
                     { value: 'witnessed', label: 'Uống tại chỗ' },
                     { value: 'takeHome', label: 'Mang về' },
                   ]} />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="notes" label="Ghi chú">
               <TextArea rows={2} placeholder="Tiền sử, ghi chú..." />
             </Form.Item>
@@ -584,8 +576,8 @@ const MethadoneTreatment: React.FC = () => {
           destroyOnHidden
         >
           <Form form={doseForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="patientId" label="Bệnh nhân" rules={[{ required: true, message: 'Chọn BN' }]}>
                   <Select
                     placeholder="Chọn bệnh nhân"
@@ -594,28 +586,28 @@ const MethadoneTreatment: React.FC = () => {
                     options={activePatients.map(p => ({ value: p.id, label: `${p.patientCode} - ${p.patientName}` }))}
                   />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="doseDate" label="Ngày cấp" rules={[{ required: true, message: 'Chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="doseAmount" label="Liều (mg)" rules={[{ required: true, message: 'Nhập liều' }]}>
                   <InputNumber min={1} max={200} style={{ width: '100%' }} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="doseType" label="Hình thức" rules={[{ required: true, message: 'Chọn' }]}>
                   <Select options={[
                     { value: 'witnessed', label: 'Uống tại chỗ' },
                     { value: 'takeHome', label: 'Mang về' },
                   ]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="status" label="Kết quả" rules={[{ required: true, message: 'Chọn' }]}>
                   <Select options={[
                     { value: 1, label: 'Đã uống' },
@@ -623,13 +615,13 @@ const MethadoneTreatment: React.FC = () => {
                     { value: 3, label: 'Từ chối' },
                   ]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="witnessedBy" label="Người chứng kiến">
                   <Input placeholder="Tên người CK" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="notes" label="Ghi chú">
               <TextArea rows={2} placeholder="Ghi chú..." />
             </Form.Item>
@@ -649,8 +641,8 @@ const MethadoneTreatment: React.FC = () => {
           destroyOnHidden
         >
           <Form form={urineForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="patientId" label="Bệnh nhân" rules={[{ required: true, message: 'Chọn BN' }]}>
                   <Select
                     placeholder="Chọn bệnh nhân"
@@ -659,48 +651,48 @@ const MethadoneTreatment: React.FC = () => {
                     options={activePatients.map(p => ({ value: p.id, label: `${p.patientCode} - ${p.patientName}` }))}
                   />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="testDate" label="Ngày XN" rules={[{ required: true, message: 'Chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Kết quả</div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Divider>Kết quả</Divider>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="morphine" label="Morphine" rules={[{ required: true, message: 'Chọn KQ' }]}>
                   <Select options={[{ value: 'positive', label: 'Dương tính (+)' }, { value: 'negative', label: 'Âm tính (-)' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="amphetamine" label="Amphetamine" rules={[{ required: true, message: 'Chọn KQ' }]}>
                   <Select options={[{ value: 'positive', label: 'Dương tính (+)' }, { value: 'negative', label: 'Âm tính (-)' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="thc" label="THC (Cần sa)" rules={[{ required: true, message: 'Chọn KQ' }]}>
                   <Select options={[{ value: 'positive', label: 'Dương tính (+)' }, { value: 'negative', label: 'Âm tính (-)' }]} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="benzodiazepine" label="Benzodiazepine" rules={[{ required: true, message: 'Chọn KQ' }]}>
                   <Select options={[{ value: 'positive', label: 'Dương tính (+)' }, { value: 'negative', label: 'Âm tính (-)' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="methadone" label="Methadone" rules={[{ required: true, message: 'Chọn KQ' }]}>
                   <Select options={[{ value: 'positive', label: 'Dương tính (+)' }, { value: 'negative', label: 'Âm tính (-)' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="otherSubstances" label="Khác">
                   <Input placeholder="Chất khác..." />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="notes" label="Ghi chú">
               <TextArea rows={2} placeholder="Ghi chú..." />
             </Form.Item>
@@ -744,7 +736,6 @@ const MethadoneTreatment: React.FC = () => {
         </Modal>
       </div>
     </Spin>
-    </div>
   );
 };
 

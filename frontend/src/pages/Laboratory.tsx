@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
 import {
+  Card,
   Table,
   Button,
+  Space,
   Input,
   Tag,
+  Row,
+  Col,
   Modal,
   Form,
   Select,
   InputNumber,
+  Typography,
   message,
   Tabs,
   Badge,
@@ -16,7 +20,8 @@ import {
   Timeline,
   DatePicker,
   Alert,
-  Tooltip
+  Divider,
+  Tooltip,
 } from 'antd';
 import {
   SearchOutlined,
@@ -40,6 +45,7 @@ import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
@@ -286,13 +292,13 @@ const Laboratory: React.FC = () => {
           @media print { body { padding: 0; } }
         </style></head>
         <body>
-          <div className="label">
+          <div class="label">
             <div style="font-weight: bold; font-size: 11px;">${HOSPITAL_NAME}</div>
-            <div className="barcode">||||| ${barcode} |||||</div>
-            <div className="code"><strong>${barcode}</strong></div>
-            <div className="patient">${record.patientName} - ${record.patientCode}</div>
-            <div className="patient">${record.requestedTests?.join(', ') || ''}</div>
-            <div className="patient">${dayjs().format('DD/MM/YYYY HH:mm')}</div>
+            <div class="barcode">||||| ${barcode} |||||</div>
+            <div class="code"><strong>${barcode}</strong></div>
+            <div class="patient">${record.patientName} - ${record.patientCode}</div>
+            <div class="patient">${record.requestedTests?.join(', ') || ''}</div>
+            <div class="patient">${dayjs().format('DD/MM/YYYY HH:mm')}</div>
           </div>
         </body></html>
       `);
@@ -595,12 +601,12 @@ const Laboratory: React.FC = () => {
         @media print { body { padding: 10px; } }
       </style></head><body>
         <div style="text-align: center;"><strong>${HOSPITAL_NAME}</strong></div>
-        <div className="title">KẾT QUẢ XÉT NGHIỆM</div>
-        <div className="info">Mã phiếu: <strong>${result.requestCode}</strong></div>
-        <div className="info">Mã BN: <strong>${result.patientCode}</strong> - Họ tên: <strong>${result.patientName}</strong></div>
-        <div className="info">Xét nghiệm: <strong>${result.testName}</strong></div>
-        ${result.enteredBy ? `<div className="info">Người nhập: ${result.enteredBy} - ${result.enteredTime ? dayjs(result.enteredTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
-        ${result.approvedBy ? `<div className="info">Người duyệt: ${result.approvedBy} - ${result.approvedTime ? dayjs(result.approvedTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
+        <div class="title">KẾT QUẢ XÉT NGHIỆM</div>
+        <div class="info">Mã phiếu: <strong>${result.requestCode}</strong></div>
+        <div class="info">Mã BN: <strong>${result.patientCode}</strong> - Họ tên: <strong>${result.patientName}</strong></div>
+        <div class="info">Xét nghiệm: <strong>${result.testName}</strong></div>
+        ${result.enteredBy ? `<div class="info">Người nhập: ${result.enteredBy} - ${result.enteredTime ? dayjs(result.enteredTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
+        ${result.approvedBy ? `<div class="info">Người duyệt: ${result.approvedBy} - ${result.approvedTime ? dayjs(result.approvedTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
         <table>
           <thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Đơn vị</th><th>Giá trị tham chiếu</th><th>Trạng thái</th></tr></thead>
           <tbody>
@@ -609,18 +615,18 @@ const Laboratory: React.FC = () => {
               const isAbnormal = status === 'high' || status === 'low' || status === 'critical';
               return `<tr>
                 <td>${p.name}</td>
-                <td className="${isAbnormal ? 'abnormal' : ''}">${p.value ?? '-'}</td>
+                <td class="${isAbnormal ? 'abnormal' : ''}">${p.value ?? '-'}</td>
                 <td>${p.unit}</td>
                 <td>${p.referenceRange}</td>
-                <td className="${isAbnormal ? 'abnormal' : ''}">${status === 'normal' ? 'Bình thường' : status === 'high' ? 'Cao' : status === 'low' ? 'Thấp' : status === 'critical' ? 'Nguy hiểm' : '-'}</td>
+                <td class="${isAbnormal ? 'abnormal' : ''}">${status === 'normal' ? 'Bình thường' : status === 'high' ? 'Cao' : status === 'low' ? 'Thấp' : status === 'critical' ? 'Nguy hiểm' : '-'}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
-        ${result.notes ? `<div className="info">Ghi chú: ${result.notes}</div>` : ''}
-        <div className="signature-row">
-          <div className="signature-col"><div><strong>Người thực hiện</strong></div><div style="margin-top: 50px;">${result.enteredBy || ''}</div></div>
-          <div className="signature-col"><div><strong>Trưởng khoa</strong></div><div style="margin-top: 50px;">${result.approvedBy || ''}</div></div>
+        ${result.notes ? `<div class="info">Ghi chú: ${result.notes}</div>` : ''}
+        <div class="signature-row">
+          <div class="signature-col"><div><strong>Người thực hiện</strong></div><div style="margin-top: 50px;">${result.enteredBy || ''}</div></div>
+          <div class="signature-col"><div><strong>Trưởng khoa</strong></div><div style="margin-top: 50px;">${result.approvedBy || ''}</div></div>
         </div>
       </body></html>
     `);
@@ -725,9 +731,9 @@ const Laboratory: React.FC = () => {
       key: 'sampleBarcode',
       width: 130,
       render: (barcode) => (
-        <code className="font-semibold bg-gray-100 px-1 rounded text-sm">
+        <Text strong code>
           {barcode}
-        </code>
+        </Text>
       ),
     },
     {
@@ -761,7 +767,7 @@ const Laboratory: React.FC = () => {
       width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Button
             size="small"
             icon={<PrinterOutlined />}
@@ -769,7 +775,7 @@ const Laboratory: React.FC = () => {
           >
             In nhãn
           </Button>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -783,9 +789,9 @@ const Laboratory: React.FC = () => {
       width: 130,
       fixed: 'left',
       render: (barcode) => (
-        <code className="font-semibold bg-gray-100 px-1 rounded text-sm">
+        <Text strong code>
           {barcode}
-        </code>
+        </Text>
       ),
     },
     {
@@ -833,7 +839,7 @@ const Laboratory: React.FC = () => {
       width: 200,
       fixed: 'right',
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           {record.status === 1 && (
             <Button
               type="primary"
@@ -854,7 +860,7 @@ const Laboratory: React.FC = () => {
               Hoàn thành
             </Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -989,7 +995,7 @@ const Laboratory: React.FC = () => {
       width: 250,
       fixed: 'right',
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           {record.status === 1 && (
             <Button
               type="primary"
@@ -1032,7 +1038,7 @@ const Laboratory: React.FC = () => {
               )}
             </>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -1045,20 +1051,13 @@ const Laboratory: React.FC = () => {
   const enteredResults = testResults.filter(r => r.status === 1 || r.status === 2);
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Gradient mesh background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý Xét nghiệm</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchLabRequests(); fetchTestResults(); }} size="small">Làm mới</Button>
       </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-800 m-0">Quản lý Xét nghiệm</h2>
-          <Button icon={<ReloadOutlined />} onClick={() => { fetchLabRequests(); fetchTestResults(); }} size="small">Làm mới</Button>
-        </div>
-      </motion.div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+      <Card>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -1076,8 +1075,8 @@ const Laboratory: React.FC = () => {
               ),
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
                       <Search
                         placeholder="Tìm theo mã phiếu, mã BN, tên bệnh nhân..."
                         allowClear
@@ -1086,13 +1085,13 @@ const Laboratory: React.FC = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                       />
-                    </div>
-                    <div>
+                    </Col>
+                    <Col>
                       <Button icon={<ReloadOutlined />} onClick={() => { setSearchText(''); fetchLabRequests(); fetchTestResults(); message.success('Đã làm mới danh sách'); }}>
                         Làm mới
                       </Button>
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
 
                   <Table
                     columns={pendingColumns}
@@ -1129,8 +1128,8 @@ const Laboratory: React.FC = () => {
               ),
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
                       <Search
                         placeholder="Tìm theo mã barcode, mã phiếu..."
                         allowClear
@@ -1140,8 +1139,8 @@ const Laboratory: React.FC = () => {
                         onChange={(e) => setSearchText(e.target.value)}
                         onSearch={(value) => setSearchText(value)}
                       />
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
 
                   <Table
                     columns={collectionColumns}
@@ -1261,8 +1260,8 @@ const Laboratory: React.FC = () => {
               ),
               children: (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div className="flex-1">
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col flex="auto">
                       <Search
                         placeholder="Tìm theo mã phiếu, mã BN..."
                         allowClear
@@ -1272,8 +1271,8 @@ const Laboratory: React.FC = () => {
                         onChange={(e) => setSearchText(e.target.value)}
                         onSearch={(value) => setSearchText(value)}
                       />
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
 
                   <Table
                     columns={approvedColumns}
@@ -1299,15 +1298,15 @@ const Laboratory: React.FC = () => {
             },
           ]}
         />
-      </div>
+      </Card>
 
       {/* Sample Collection Modal */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
+          <Space>
             <BarcodeOutlined />
             <span>Lấy mẫu xét nghiệm</span>
-          </div>
+          </Space>
         }
         open={isCollectionModalOpen}
         onOk={handleCollectionSubmit}
@@ -1338,11 +1337,11 @@ const Laboratory: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <hr className="border-gray-200 my-4" />
+            <Divider />
 
             <Form form={collectionForm} layout="vertical">
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full lg:w-1/2">
+              <Row gutter={16}>
+                <Col span={12}>
                   <Form.Item
                     name="sampleType"
                     label="Loại mẫu"
@@ -1357,8 +1356,8 @@ const Laboratory: React.FC = () => {
                       <Select.Option value="Khác">Khác</Select.Option>
                     </Select>
                   </Form.Item>
-                </div>
-                <div className="w-full lg:w-1/2">
+                </Col>
+                <Col span={12}>
                   <Form.Item
                     name="collectionTime"
                     label="Thời gian lấy mẫu"
@@ -1371,8 +1370,8 @@ const Laboratory: React.FC = () => {
                       placeholder="Chọn thời gian"
                     />
                   </Form.Item>
-                </div>
-              </div>
+                </Col>
+              </Row>
 
               <Form.Item
                 name="collectorName"
@@ -1399,10 +1398,10 @@ const Laboratory: React.FC = () => {
       {/* Result Entry Modal */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
+          <Space>
             <FileSearchOutlined />
             <span>Nhập kết quả xét nghiệm</span>
-          </div>
+          </Space>
         }
         open={isResultEntryModalOpen}
         onOk={() => {
@@ -1432,7 +1431,7 @@ const Laboratory: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Kết quả xét nghiệm</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider>Kết quả xét nghiệm</Divider>
 
             <Table
               dataSource={selectedResult.parameters}
@@ -1517,9 +1516,9 @@ const Laboratory: React.FC = () => {
                   render: (value, record) =>
                     value ? (
                       <Tooltip title="Kết quả lần xét nghiệm trước">
-                        <span className="text-gray-500 text-sm">
+                        <Text type="secondary">
                           {value} {record.unit}
-                        </span>
+                        </Text>
                       </Tooltip>
                     ) : (
                       '-'
@@ -1551,7 +1550,7 @@ const Laboratory: React.FC = () => {
               ]}
             />
 
-            <hr className="border-gray-200 my-4" />
+            <Divider />
 
             <Form.Item label="Ghi chú">
               <TextArea
@@ -1579,10 +1578,10 @@ const Laboratory: React.FC = () => {
       {/* Result View Modal */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
+          <Space>
             <FileSearchOutlined />
             <span>Xem kết quả xét nghiệm</span>
-          </div>
+          </Space>
         }
         open={isResultViewModalOpen}
         onCancel={() => {
@@ -1618,7 +1617,7 @@ const Laboratory: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Kết quả xét nghiệm</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider>Kết quả xét nghiệm</Divider>
 
             <Table
               dataSource={selectedResult.parameters}
@@ -1641,13 +1640,16 @@ const Laboratory: React.FC = () => {
                     const status = getParameterStatus(record);
                     const color = getParameterColor(status);
                     return (
-                      <span className="text-sm font-semibold" style={{
+                      <Text
+                        strong
+                        style={{
                           color: color,
                           fontSize: status === 'critical' ? 16 : 14,
                           fontWeight: status === 'critical' ? 'bold' : 'normal',
-                        }}>
+                        }}
+                      >
                         {value || '-'}
-                      </span>
+                      </Text>
                     );
                   },
                 },
@@ -1691,21 +1693,21 @@ const Laboratory: React.FC = () => {
 
             {selectedResult.notes && (
               <>
-                <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Ghi chú</span><hr className="flex-1 border-gray-200" /></div>
-                <span className="text-sm">{selectedResult.notes}</span>
+                <Divider>Ghi chú</Divider>
+                <Text>{selectedResult.notes}</Text>
               </>
             )}
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Lịch sử</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider>Lịch sử</Divider>
             <Timeline
               items={[
                 {
                   color: 'blue',
                   content: (
                     <>
-                      <span className="font-semibold">Yêu cầu xét nghiệm</span>
+                      <Text strong>Yêu cầu xét nghiệm</Text>
                       <br />
-                      <span className="text-gray-500 text-sm">BS. Trần Văn B - 30/01/2026 08:00</span>
+                      <Text type="secondary">BS. Trần Văn B - 30/01/2026 08:00</Text>
                     </>
                   ),
                 },
@@ -1713,9 +1715,9 @@ const Laboratory: React.FC = () => {
                   color: 'green',
                   content: (
                     <>
-                      <span className="font-semibold">Lấy mẫu</span>
+                      <Text strong>Lấy mẫu</Text>
                       <br />
-                      <span className="text-gray-500 text-sm">ĐD. Nguyễn D - 30/01/2026 08:30</span>
+                      <Text type="secondary">ĐD. Nguyễn D - 30/01/2026 08:30</Text>
                     </>
                   ),
                 },
@@ -1723,9 +1725,9 @@ const Laboratory: React.FC = () => {
                   color: 'purple',
                   content: (
                     <>
-                      <span className="font-semibold">Xử lý mẫu</span>
+                      <Text strong>Xử lý mẫu</Text>
                       <br />
-                      <span className="text-gray-500 text-sm">KTV. Nguyễn Văn X - 30/01/2026 09:00</span>
+                      <Text type="secondary">KTV. Nguyễn Văn X - 30/01/2026 09:00</Text>
                     </>
                   ),
                 },
@@ -1733,12 +1735,12 @@ const Laboratory: React.FC = () => {
                   color: 'cyan',
                   content: (
                     <>
-                      <span className="font-semibold">Nhập kết quả</span>
+                      <Text strong>Nhập kết quả</Text>
                       <br />
-                      <span className="text-gray-500 text-sm">
+                      <Text type="secondary">
                         {selectedResult.enteredBy} -{' '}
                         {dayjs(selectedResult.enteredTime).format('DD/MM/YYYY HH:mm')}
-                      </span>
+                      </Text>
                     </>
                   ),
                 },
@@ -1746,12 +1748,12 @@ const Laboratory: React.FC = () => {
                   color: 'green',
                   content: (
                     <>
-                      <span className="font-semibold">Duyệt kết quả</span>
+                      <Text strong>Duyệt kết quả</Text>
                       <br />
-                      <span className="text-gray-500 text-sm">
+                      <Text type="secondary">
                         {selectedResult.approvedBy} -{' '}
                         {dayjs(selectedResult.approvedTime).format('DD/MM/YYYY HH:mm')}
-                      </span>
+                      </Text>
                     </>
                   ),
                 },
@@ -1764,10 +1766,10 @@ const Laboratory: React.FC = () => {
       {/* Lab Detail Modal */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
+          <Space>
             <FileSearchOutlined />
             <span>Chi tiết phiếu xét nghiệm - {selectedRequest?.requestCode}</span>
-          </div>
+          </Space>
         }
         open={isLabDetailModalOpen}
         onCancel={() => setIsLabDetailModalOpen(false)}

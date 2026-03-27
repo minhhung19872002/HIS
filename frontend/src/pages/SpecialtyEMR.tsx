@@ -9,7 +9,6 @@ import {
   ReloadOutlined, FilePdfOutlined, FileExcelOutlined, DeleteOutlined,
   SaveOutlined, MedicineBoxOutlined,
 } from '@ant-design/icons';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import client from '../api/client';
@@ -415,15 +414,15 @@ const renderField = (field: FieldDef): React.ReactNode => {
 
 const renderSpecialtySection = (specialtyKey: string): React.ReactNode => {
   const config = SPECIALTY_FIELDS[specialtyKey];
-  if (!config) return <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-blue-700">Vui long chon chuyen khoa</div>;
+  if (!config) return <Alert title="Vui long chon chuyen khoa" type="info" showIcon />;
   return (
     <>
-      <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">{config.title}</div>
-      <div className="grid grid-cols-4 gap-4">
+      <Divider>{config.title}</Divider>
+      <Row gutter={16}>
         {config.fields.map(field => (
-          <div>{renderField(field)}</div>
+          <Col span={field.span || 24} key={field.name}>{renderField(field)}</Col>
         ))}
-      </div>
+      </Row>
     </>
   );
 };
@@ -523,64 +522,58 @@ const SpecialtyEMR: React.FC = () => {
       render: (v: number) => <Tag color={statusColors[v] || 'default'}>{statusNames[v] || 'N/A'}</Tag> },
     { title: 'Thao tac', key: 'actions', width: 180, fixed: 'right' as const,
       render: (_: unknown, rec: SpecialtyRecordDto) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Tooltip title="Sua"><Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(rec)} /></Tooltip>
           <Tooltip title="PDF"><Button type="link" size="small" icon={<FilePdfOutlined />} onClick={() => handleExport(rec.id, 'pdf')} /></Tooltip>
           <Tooltip title="XML"><Button type="link" size="small" icon={<FileExcelOutlined />} onClick={() => handleExport(rec.id, 'xml')} /></Tooltip>
           <Tooltip title="Xoa"><Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(rec)} /></Tooltip>
-        </div>
+        </Space>
       ) },
   ];
 
   return (
-    <div style={{ padding: 16, position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <h4 className="text-lg font-semibold mb-4"><MedicineBoxOutlined /> Ho so benh an chuyen khoa</h4>
-      </motion.div>
+    <div style={{ padding: 16 }}>
+      <Title level={4}><MedicineBoxOutlined /> Ho so benh an chuyen khoa</Title>
 
-      <Card size="small" style={{ marginBottom: 16, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-        <div className="grid grid-cols-4 gap-4 items-end">
-          <div>
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 12]} align="bottom">
+          <Col xs={24} sm={12} md={6}>
             <Text strong style={{ display: 'block', marginBottom: 4 }}>Tu khoa</Text>
             <Input placeholder="Ma BN, ho ten, CCCD..." prefix={<SearchOutlined />}
               value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
               onPressEnter={() => handleSearch(1)} allowClear />
-          </div>
-          <div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
             <Text strong style={{ display: 'block', marginBottom: 4 }}>Chuyen khoa</Text>
             <Select placeholder="Tat ca chuyen khoa" value={specialtyFilter}
               onChange={v => setSpecialtyFilter(v)} allowClear style={{ width: '100%' }}
               options={SPECIALTY_TYPES.map(s => ({ value: s.key, label: s.label }))} />
-          </div>
-          <div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
             <Text strong style={{ display: 'block', marginBottom: 4 }}>Khoang thoi gian</Text>
             <RangePicker value={dateRange} onChange={v => setDateRange(v as [Dayjs | null, Dayjs | null])}
               format="DD/MM/YYYY" style={{ width: '100%' }} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Space>
               <Button type="primary" icon={<SearchOutlined />} onClick={() => handleSearch(1)}>Tim kiem</Button>
               <Button icon={<ReloadOutlined />} onClick={() => handleSearch(currentPage)}>Lam moi</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>Tao moi</Button>
-            </div>
-          </div>
-        </div>
+            </Space>
+          </Col>
+        </Row>
       </Card>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <Card size="small">
         <Spin spinning={loading}>
           {records.length === 0 && !loading
-            ? <div className="text-center text-gray-400 py-8">Khong co du lieu. Nhan Tim kiem hoac Tao moi de bat dau.</div>
+            ? <Empty description="Khong co du lieu. Nhan Tim kiem hoac Tao moi de bat dau." />
             : <Table dataSource={records} columns={columns} rowKey="id" size="small" scroll={{ x: 1000 }}
                 pagination={{ current: currentPage, pageSize, total: totalCount,
                   showTotal: t => `Tong: ${t} ban ghi`, onChange: p => handleSearch(p) }}
                 onRow={r => ({ onDoubleClick: () => handleEdit(r), style: { cursor: 'pointer' } })} />}
         </Spin>
-      </div>
+      </Card>
 
       <Modal title={selectedRecord ? 'Chinh sua ho so chuyen khoa' : 'Tao ho so chuyen khoa moi'}
         open={modalOpen} onCancel={() => setModalOpen(false)} width={900} destroyOnHidden
@@ -590,26 +583,26 @@ const SpecialtyEMR: React.FC = () => {
           <Button key="save" type="primary" icon={<SaveOutlined />} loading={formLoading} onClick={handleSave}>Luu</Button>,
         ]}>
         <Form form={form} layout="vertical" size="small">
-          <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Thong tin chung</div>
-          <div className="grid grid-cols-4 gap-4">
-            <div><Form.Item name="patientCode" label="Ma benh nhan" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ma BN" /></Form.Item></div>
-            <div><Form.Item name="patientName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ho ten BN" /></Form.Item></div>
-            <div><Form.Item name="createdAt" label="Ngay tao"><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item></div>
-          </div>
-          <div className="grid grid-cols-4 gap-4">
-            <div><Form.Item name="doctorName" label="BS dieu tri"><Input placeholder="Ten bac si" /></Form.Item></div>
-            <div><Form.Item name="departmentName" label="Khoa/Phong"><Input placeholder="Khoa" /></Form.Item></div>
-            <div><Form.Item name="diagnosisIcd" label="ICD-10"><Input placeholder="VD: J18.9" /></Form.Item></div>
-          </div>
-          <div className="grid grid-cols-4 gap-4">
-            <div className="col-span-2"><Form.Item name="diagnosisText" label="Chan doan"><Input placeholder="Mo ta chan doan" /></Form.Item></div>
-            <div>
+          <Divider>Thong tin chung</Divider>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="patientCode" label="Ma benh nhan" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ma BN" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="patientName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ho ten BN" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="createdAt" label="Ngay tao"><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="doctorName" label="BS dieu tri"><Input placeholder="Ten bac si" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="departmentName" label="Khoa/Phong"><Input placeholder="Khoa" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="diagnosisIcd" label="ICD-10"><Input placeholder="VD: J18.9" /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={16}><Form.Item name="diagnosisText" label="Chan doan"><Input placeholder="Mo ta chan doan" /></Form.Item></Col>
+            <Col span={8}>
               <Form.Item label="Chuyen khoa">
                 <Select value={modalSpecialty} onChange={v => setModalSpecialty(v)}
                   options={SPECIALTY_TYPES.map(s => ({ value: s.key, label: s.label }))} />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
           {renderSpecialtySection(modalSpecialty)}
         </Form>
       </Modal>

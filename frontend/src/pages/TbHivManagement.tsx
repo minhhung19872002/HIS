@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import {
   Card,
   Table,
@@ -347,7 +346,7 @@ const TbHivManagement: React.FC = () => {
       width: 160,
       fixed: 'right',
       render: (_: unknown, record: TbHivRecordDto) => (
-        <div className="flex items-center gap-1">
+        <Space size="small">
           <Tooltip title="Xem chi tiet">
             <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
           </Tooltip>
@@ -359,71 +358,84 @@ const TbHivManagement: React.FC = () => {
           <Tooltip title="In phieu">
             <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrint(record.id)} />
           </Tooltip>
-        </div>
+        </Space>
       ),
     },
   ];
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
     <Spin spinning={loading && records.length === 0}>
       <div>
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-          <div className="flex justify-between items-center">
-            <div>
-              <h4 className="text-lg font-semibold m-0">
+        <Card style={{ marginBottom: 16 }}>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Title level={4} style={{ margin: 0 }}>
                 <MedicineBoxOutlined style={{ marginRight: 8 }} />
                 Quan ly BN Lao/HIV
-              </h4>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
+              </Title>
+            </Col>
+            <Col>
+              <Space>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenCreate()}>
                   Them ho so
                 </Button>
                 <Button icon={<ReloadOutlined />} onClick={fetchData}>
                   Lam moi
                 </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        </motion.div>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Dang dieu tri</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><ClockCircleOutlined className="mr-1" />{stats.onTreatment}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Lao</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.tbCount}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">HIV</div><div className="text-2xl font-semibold" style={{ color: '#ff4d4f' }}><ExclamationCircleOutlined className="mr-1" />{stats.hivCount}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Dong nhiem Lao/HIV</div><div className="text-2xl font-semibold" style={{ color: '#fa8c16' }}><WarningOutlined className="mr-1" />{stats.coInfectionCount}</div>
-            </div>
-          </div>
-        </div>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="Dang dieu tri"
+                value={stats.onTreatment}
+                prefix={<ClockCircleOutlined />}
+                styles={{ content: { color: '#1890ff' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="Lao"
+                value={stats.tbCount}
+                prefix={<CheckCircleOutlined />}
+                styles={{ content: { color: '#52c41a' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="HIV"
+                value={stats.hivCount}
+                prefix={<ExclamationCircleOutlined />}
+                styles={{ content: { color: '#ff4d4f' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="Dong nhiem Lao/HIV"
+                value={stats.coInfectionCount}
+                prefix={<WarningOutlined />}
+                styles={{ content: { color: '#fa8c16' } }}
+              />
+            </Card>
+          </Col>
+        </Row>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
-          <div className="grid grid-cols-4 gap-4">
-            <div>
+        <Card style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 12]}>
+            <Col xs={24} sm={8} md={6}>
               <Search
                 placeholder="Tim kiem BN, ma DK..."
                 value={keyword}
@@ -432,8 +444,8 @@ const TbHivManagement: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={12} sm={4}>
               <Select
                 placeholder="Loai benh"
                 allowClear
@@ -446,8 +458,8 @@ const TbHivManagement: React.FC = () => {
                   { value: 2, label: 'Dong nhiem' },
                 ]}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={12} sm={4}>
               <Select
                 placeholder="Phan loai DT"
                 allowClear
@@ -462,20 +474,20 @@ const TbHivManagement: React.FC = () => {
                   { value: 4, label: 'Khac' },
                 ]}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange}
                 onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                 format="DD/MM/YYYY"
               />
-            </div>
-          </div>
-        </div>
+            </Col>
+          </Row>
+        </Card>
 
         {/* Tabs + Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <Card>
           <Tabs
             activeKey={activeTab}
             onChange={(key) => { setActiveTab(key); setPagination({ current: 1, pageSize: 20 }); }}
@@ -506,7 +518,7 @@ const TbHivManagement: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
           />
-        </div>
+        </Card>
 
         {/* Create/Edit Modal */}
         <Modal
@@ -521,8 +533,8 @@ const TbHivManagement: React.FC = () => {
           destroyOnHidden
         >
           <Form form={recordForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item
                   name="patientId"
                   label="Ma benh nhan"
@@ -530,8 +542,8 @@ const TbHivManagement: React.FC = () => {
                 >
                   <Input placeholder="Ma benh nhan" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item
                   name="recordType"
                   label="Loai"
@@ -547,10 +559,10 @@ const TbHivManagement: React.FC = () => {
                     ]}
                   />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item
                   name="treatmentCategory"
                   label="Phan loai dieu tri"
@@ -567,8 +579,8 @@ const TbHivManagement: React.FC = () => {
                     ]}
                   />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item
                   name="regimen"
                   label="Phac do dieu tri"
@@ -576,10 +588,10 @@ const TbHivManagement: React.FC = () => {
                 >
                   <Input placeholder="VD: 2RHZE/4RH, TDF/3TC/DTG" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item
                   name="startDate"
                   label="Ngay bat dau dieu tri"
@@ -587,15 +599,15 @@ const TbHivManagement: React.FC = () => {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
             {/* TB-specific fields */}
             {(recordTypeValue === 0 || recordTypeValue === 2) && (
               <>
-                <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Thong tin Lao</div>
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
+                <Divider>Thong tin Lao</Divider>
+                <Row gutter={16}>
+                  <Col span={12}>
                     <Form.Item name="sputumSmearResult" label="Ket qua soi dom">
                       <Select
                         placeholder="Chon ket qua"
@@ -608,8 +620,8 @@ const TbHivManagement: React.FC = () => {
                         ]}
                       />
                     </Form.Item>
-                  </div>
-                  <div>
+                  </Col>
+                  <Col span={12}>
                     <Form.Item name="geneXpertResult" label="Ket qua GeneXpert">
                       <Select
                         placeholder="Chon ket qua"
@@ -622,32 +634,32 @@ const TbHivManagement: React.FC = () => {
                         ]}
                       />
                     </Form.Item>
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               </>
             )}
 
             {/* HIV-specific fields */}
             {(recordTypeValue === 1 || recordTypeValue === 2) && (
               <>
-                <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Thong tin HIV</div>
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
+                <Divider>Thong tin HIV</Divider>
+                <Row gutter={16}>
+                  <Col span={8}>
                     <Form.Item name="cd4Count" label="CD4 (te bao/uL)">
                       <InputNumber min={0} max={3000} style={{ width: '100%' }} placeholder="0" />
                     </Form.Item>
-                  </div>
-                  <div>
+                  </Col>
+                  <Col span={8}>
                     <Form.Item name="viralLoad" label="Viral Load (copies/mL)">
                       <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
                     </Form.Item>
-                  </div>
-                  <div>
+                  </Col>
+                  <Col span={8}>
                     <Form.Item name="artRegimen" label="Phac do ART">
                       <Input placeholder="VD: TDF/3TC/DTG" />
                     </Form.Item>
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               </>
             )}
 
@@ -736,7 +748,7 @@ const TbHivManagement: React.FC = () => {
                 <Descriptions.Item label="Ghi chu" span={2}>{selectedRecord.notes || '-'}</Descriptions.Item>
               </Descriptions>
 
-              <h5 className="text-base font-semibold mb-3">Lich su dieu tri</h5>
+              <Title level={5}>Lich su dieu tri</Title>
               <Spin spinning={followUpsLoading}>
                 {followUps.length > 0 ? (
                   <Timeline
@@ -782,8 +794,8 @@ const TbHivManagement: React.FC = () => {
           destroyOnHidden
         >
           <Form form={followUpForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item
                   name="visitDate"
                   label="Ngay kham"
@@ -791,8 +803,8 @@ const TbHivManagement: React.FC = () => {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item
                   name="treatmentMonth"
                   label="Thang dieu tri"
@@ -800,15 +812,15 @@ const TbHivManagement: React.FC = () => {
                 >
                   <InputNumber min={1} max={36} style={{ width: '100%' }} placeholder="1" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="weight" label="Can nang (kg)">
                   <InputNumber min={0} max={300} style={{ width: '100%' }} placeholder="0" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item
                   name="drugAdherence"
                   label="Tuan thu thuoc"
@@ -823,8 +835,8 @@ const TbHivManagement: React.FC = () => {
                     ]}
                   />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="sideEffects" label="Tac dung phu">
               <TextArea rows={2} placeholder="Mo ta tac dung phu (neu co)..." />
             </Form.Item>
@@ -846,18 +858,18 @@ const TbHivManagement: React.FC = () => {
             )}
 
             {selectedRecord && (selectedRecord.recordType === 1 || selectedRecord.recordType === 2) && (
-              <div className="grid grid-cols-4 gap-4">
-                <div>
+              <Row gutter={16}>
+                <Col span={12}>
                   <Form.Item name="cd4Count" label="CD4 (te bao/uL)">
                     <InputNumber min={0} max={3000} style={{ width: '100%' }} placeholder="0" />
                   </Form.Item>
-                </div>
-                <div>
+                </Col>
+                <Col span={12}>
                   <Form.Item name="viralLoad" label="Viral Load (copies/mL)">
                     <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
                   </Form.Item>
-                </div>
-              </div>
+                </Col>
+              </Row>
             )}
 
             <Form.Item name="notes" label="Ghi chu">
@@ -867,7 +879,6 @@ const TbHivManagement: React.FC = () => {
         </Modal>
       </div>
     </Spin>
-    </div>
   );
 };
 

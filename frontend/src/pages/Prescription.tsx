@@ -1,12 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
 import {
+  Row,
+  Col,
+  Card,
   Form,
   Input,
   InputNumber,
   Select,
   Button,
   Table,
+  Space,
+  Typography,
+  Divider,
   Tag,
   Alert,
   Modal,
@@ -17,7 +22,7 @@ import {
   Descriptions,
   Drawer,
   Spin,
-  Tooltip
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -46,7 +51,7 @@ import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
-
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -698,14 +703,14 @@ const Prescription: React.FC = () => {
         @media print { body { padding: 10px; } }
       </style></head><body>
         <div style="text-align: center;"><strong>${HOSPITAL_NAME}</strong></div>
-        <div className="title">ĐƠN THUỐC</div>
+        <div class="title">ĐƠN THUỐC</div>
         ${patient ? `
-          <div className="info">Họ tên: <strong>${patient.fullName}</strong> - Mã BN: ${patient.patientCode}</div>
-          <div className="info">Ngày sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} - Giới: ${patient.gender === 1 ? 'Nam' : 'Nữ'}</div>
-          <div className="info">Địa chỉ: ${patient.address || ''}</div>
-          ${patient.insuranceNumber ? `<div className="info">Số thẻ BHYT: ${patient.insuranceNumber}</div>` : ''}
+          <div class="info">Họ tên: <strong>${patient.fullName}</strong> - Mã BN: ${patient.patientCode}</div>
+          <div class="info">Ngày sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} - Giới: ${patient.gender === 1 ? 'Nam' : 'Nữ'}</div>
+          <div class="info">Địa chỉ: ${patient.address || ''}</div>
+          ${patient.insuranceNumber ? `<div class="info">Số thẻ BHYT: ${patient.insuranceNumber}</div>` : ''}
         ` : ''}
-        <div className="info">Chẩn đoán: <strong>${diagnosis}</strong></div>
+        <div class="info">Chẩn đoán: <strong>${diagnosis}</strong></div>
         <table>
           <thead><tr>
             <th>STT</th><th>Tên thuốc</th><th>Liều dùng</th><th>Số ngày</th><th>SL</th><th>Đường dùng</th><th>Ghi chú</th>
@@ -722,11 +727,11 @@ const Prescription: React.FC = () => {
             </tr>`).join('')}
           </tbody>
         </table>
-        <div className="info"><strong>Tổng tiền:</strong> ${totalCost.toLocaleString('vi-VN')} đ</div>
-        ${totalInsurance > 0 ? `<div className="info">BHYT chi trả: ${totalInsurance.toLocaleString('vi-VN')} đ</div>` : ''}
-        <div className="info"><strong>Bệnh nhân trả:</strong> ${finalCost.toLocaleString('vi-VN')} đ</div>
-        <div className="signature-row">
-          <div className="signature-col"><div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div><div><strong>Bác sĩ kê đơn</strong></div><div style="margin-top: 50px;"></div></div>
+        <div class="info"><strong>Tổng tiền:</strong> ${totalCost.toLocaleString('vi-VN')} đ</div>
+        ${totalInsurance > 0 ? `<div class="info">BHYT chi trả: ${totalInsurance.toLocaleString('vi-VN')} đ</div>` : ''}
+        <div class="info"><strong>Bệnh nhân trả:</strong> ${finalCost.toLocaleString('vi-VN')} đ</div>
+        <div class="signature-row">
+          <div class="signature-col"><div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div><div><strong>Bác sĩ kê đơn</strong></div><div style="margin-top: 50px;"></div></div>
         </div>
       </body></html>
     `);
@@ -765,17 +770,17 @@ const Prescription: React.FC = () => {
         .signature-col .note { font-style: italic; font-size: 12px; }
         @media print { body { padding: 10px; } }
       </style></head><body>
-        <div className="header">
-          <div className="hospital">${HOSPITAL_NAME}</div>
-          <div className="address">${HOSPITAL_ADDRESS}</div>
+        <div class="header">
+          <div class="hospital">${HOSPITAL_NAME}</div>
+          <div class="address">${HOSPITAL_ADDRESS}</div>
         </div>
-        <div className="form-title">PHIẾU CÔNG KHAI THUỐC</div>
+        <div class="form-title">PHIẾU CÔNG KHAI THUỐC</div>
         ${patient ? `
-          <div className="info">Họ tên: <strong>${patient.fullName}</strong> &nbsp;&nbsp; Mã BN: <strong>${patient.patientCode}</strong></div>
-          <div className="info">Ngày sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} &nbsp;&nbsp; Giới tính: ${patient.gender === 1 ? 'Nam' : 'Nữ'}</div>
-          ${patient.insuranceNumber ? `<div className="info">Số thẻ BHYT: <strong>${patient.insuranceNumber}</strong></div>` : ''}
+          <div class="info">Họ tên: <strong>${patient.fullName}</strong> &nbsp;&nbsp; Mã BN: <strong>${patient.patientCode}</strong></div>
+          <div class="info">Ngày sinh: ${patient.dateOfBirth ? dayjs(patient.dateOfBirth).format('DD/MM/YYYY') : ''} &nbsp;&nbsp; Giới tính: ${patient.gender === 1 ? 'Nam' : 'Nữ'}</div>
+          ${patient.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${patient.insuranceNumber}</strong></div>` : ''}
         ` : ''}
-        <div className="info">Chẩn đoán: <strong>${diagnosis}</strong></div>
+        <div class="info">Chẩn đoán: <strong>${diagnosis}</strong></div>
         <table>
           <thead><tr>
             <th style="width:35px;">STT</th>
@@ -795,36 +800,36 @@ const Prescription: React.FC = () => {
               const bhytPays = isBHYT && item.medicine.insuranceCovered ? Math.round(itemTotal * 0.8) : 0;
               const patientPays = itemTotal - bhytPays;
               return `<tr>
-                <td className="text-center">${i + 1}</td>
+                <td class="text-center">${i + 1}</td>
                 <td><strong>${item.medicine.name}</strong>${item.medicine.activeIngredient ? `<br/><small>${item.medicine.activeIngredient}</small>` : ''}</td>
-                <td className="text-center">${item.strength || item.medicine.strength || ''}</td>
-                <td className="text-center">${item.medicine.unit}</td>
-                <td className="text-center">${item.quantity}</td>
-                <td className="text-right">${item.medicine.unitPrice.toLocaleString('vi-VN')}</td>
-                <td className="text-right">${itemTotal.toLocaleString('vi-VN')}</td>
-                <td className="text-right">${bhytPays > 0 ? bhytPays.toLocaleString('vi-VN') : '-'}</td>
-                <td className="text-right">${patientPays.toLocaleString('vi-VN')}</td>
+                <td class="text-center">${item.strength || item.medicine.strength || ''}</td>
+                <td class="text-center">${item.medicine.unit}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-right">${item.medicine.unitPrice.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${itemTotal.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${bhytPays > 0 ? bhytPays.toLocaleString('vi-VN') : '-'}</td>
+                <td class="text-right">${patientPays.toLocaleString('vi-VN')}</td>
                 <td>${item.notes || ''}</td>
               </tr>`;
             }).join('')}
-            <tr className="total-row">
-              <td colspan="6" className="text-center"><strong>Tổng cộng</strong></td>
-              <td className="text-right"><strong>${totalCost.toLocaleString('vi-VN')}</strong></td>
-              <td className="text-right"><strong>${isBHYT ? totalInsurance.toLocaleString('vi-VN') : '-'}</strong></td>
-              <td className="text-right"><strong>${finalCost.toLocaleString('vi-VN')}</strong></td>
+            <tr class="total-row">
+              <td colspan="6" class="text-center"><strong>Tổng cộng</strong></td>
+              <td class="text-right"><strong>${totalCost.toLocaleString('vi-VN')}</strong></td>
+              <td class="text-right"><strong>${isBHYT ? totalInsurance.toLocaleString('vi-VN') : '-'}</strong></td>
+              <td class="text-right"><strong>${finalCost.toLocaleString('vi-VN')}</strong></td>
               <td></td>
             </tr>
           </tbody>
         </table>
-        <div className="info"><em>Tổng số: ${prescriptionItems.length} khoản thuốc</em></div>
-        <div className="signature-section">
-          <div className="signature-col">
-            <div className="note">(Ký, ghi rõ họ tên)</div>
-            <div className="title">Người lập</div>
+        <div class="info"><em>Tổng số: ${prescriptionItems.length} khoản thuốc</em></div>
+        <div class="signature-section">
+          <div class="signature-col">
+            <div class="note">(Ký, ghi rõ họ tên)</div>
+            <div class="title">Người lập</div>
           </div>
-          <div className="signature-col">
-            <div className="note">(Ký, ghi rõ họ tên)</div>
-            <div className="title">Bệnh nhân/Người nhà</div>
+          <div class="signature-col">
+            <div class="note">(Ký, ghi rõ họ tên)</div>
+            <div class="title">Bệnh nhân/Người nhà</div>
           </div>
         </div>
         <div style="text-align: right; margin-top: 15px; font-size: 12px;">
@@ -894,13 +899,13 @@ const Prescription: React.FC = () => {
       render: (name, record) => (
         <div>
           <div><strong>{name}</strong></div>
-          <span className="text-gray-500 text-xs">
+          <Text type="secondary" style={{ fontSize: 12 }}>
             {record.medicine.activeIngredient}
-          </span>
+          </Text>
           <div>
-            <span className="text-gray-500 text-xs">
+            <Text type="secondary" style={{ fontSize: 12 }}>
               Mã: {record.medicine.code}
-            </span>
+            </Text>
           </div>
         </div>
       ),
@@ -912,7 +917,7 @@ const Prescription: React.FC = () => {
       render: (_, record) => (
         <div>
           <div>{record.dosageForm}</div>
-          <span className="text-gray-500 text-sm">{record.strength}</span>
+          <Text type="secondary">{record.strength}</Text>
         </div>
       ),
     },
@@ -958,9 +963,9 @@ const Prescription: React.FC = () => {
         <div>
           <div>{record.totalCost.toLocaleString('vi-VN')} đ</div>
           {record.insuranceCoverage > 0 && (
-            <span className="text-green-600 text-xs">
+            <Text type="success" style={{ fontSize: 12 }}>
               BHYT: -{record.insuranceCoverage.toLocaleString('vi-VN')} đ
-            </span>
+            </Text>
           )}
         </div>
       ),
@@ -971,7 +976,7 @@ const Prescription: React.FC = () => {
       width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <div className="flex items-center gap-1">
+        <Space size="small">
           <Button
             type="link"
             size="small"
@@ -986,7 +991,7 @@ const Prescription: React.FC = () => {
           >
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -994,24 +999,25 @@ const Prescription: React.FC = () => {
   // ==================== RENDER ====================
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Gradient mesh background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Kê đơn thuốc</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} size="small">Làm mới</Button>
       </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-800 m-0">Kê đơn thuốc</h2>
-          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} size="small">Làm mới</Button>
-        </div>
-      </motion.div>
 
-      <div className="flex gap-4 flex-wrap">
+      <Row gutter={16}>
         {/* LEFT PANEL - Patient Info */}
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><InfoCircleOutlined /><span>Thông tin bệnh nhân</span></h4>
+        <Col xs={24} lg={8}>
+          <Card
+            title={
+              <Space>
+                <InfoCircleOutlined />
+                <span>Thông tin bệnh nhân</span>
+              </Space>
+            }
+            size="small"
+            style={{ marginBottom: 16 }}
+          >
             {patient ? (
               <>
                 <Descriptions column={1} size="small" bordered>
@@ -1052,7 +1058,7 @@ const Prescription: React.FC = () => {
                 Tìm bệnh nhân
               </Button>
             )}
-          </div>
+          </Card>
 
           {patient && (
             <>
@@ -1063,38 +1069,38 @@ const Prescription: React.FC = () => {
               />
               {/* Data Inheritance: OPD examination context (diagnosis, vitals) */}
               {rxContext && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                  <span className="text-sm font-semibold" style={{ fontSize: 12, color: '#1677ff' }}>
+                <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '8px 12px' } }}>
+                  <Typography.Text strong style={{ fontSize: 12, color: '#1677ff' }}>
                     Thông tin khám bệnh (OPD)
-                  </span>
+                  </Typography.Text>
                   <Descriptions column={1} size="small" style={{ marginTop: 4 }}>
                     {rxContext.mainDiagnosis && (
                       <Descriptions.Item label="Chẩn đoán">
-                        <span className="font-semibold text-xs">
+                        <Text strong style={{ fontSize: 12 }}>
                           {rxContext.mainIcdCode && `${rxContext.mainIcdCode} - `}{rxContext.mainDiagnosis}
-                        </span>
+                        </Text>
                       </Descriptions.Item>
                     )}
                     {rxContext.chiefComplaint && (
                       <Descriptions.Item label="Lý do khám">
-                        <span className="text-xs">{rxContext.chiefComplaint}</span>
+                        <Text style={{ fontSize: 12 }}>{rxContext.chiefComplaint}</Text>
                       </Descriptions.Item>
                     )}
                     {(rxContext.weight || rxContext.bloodPressureSystolic) && (
                       <Descriptions.Item label="Sinh hiệu">
-                        <div className="flex items-center gap-1">
+                        <Space orientation="horizontal" size={4}>
                           {rxContext.weight && <Tag>{rxContext.weight}kg</Tag>}
                           {rxContext.bloodPressureSystolic && (
                             <Tag>HA: {rxContext.bloodPressureSystolic}/{rxContext.bloodPressureDiastolic}</Tag>
                           )}
                           {rxContext.pulse && <Tag>M: {rxContext.pulse}</Tag>}
                           {rxContext.temperature && <Tag>T: {rxContext.temperature}</Tag>}
-                        </div>
+                        </Space>
                       </Descriptions.Item>
                     )}
                     {rxContext.doctorName && (
                       <Descriptions.Item label="BS khám">
-                        <span className="text-xs">{rxContext.doctorName}</span>
+                        <Text style={{ fontSize: 12 }}>{rxContext.doctorName}</Text>
                       </Descriptions.Item>
                     )}
                   </Descriptions>
@@ -1105,13 +1111,13 @@ const Prescription: React.FC = () => {
                       showIcon
                       style={{ marginTop: 4 }}
                       description={
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <Space wrap>
                           {rxContext.allergies.map((a, i) => (
                             <Tag color={a.severity === 3 ? 'red' : a.severity === 2 ? 'orange' : 'gold'} key={i}>
                               {a.allergenName} ({a.severityName})
                             </Tag>
                           ))}
-                        </div>
+                        </Space>
                       }
                     />
                   )}
@@ -1123,45 +1129,49 @@ const Prescription: React.FC = () => {
                       style={{ marginTop: 4 }}
                     />
                   )}
-                </div>
+                </Card>
               )}
 
               {/* Allergies */}
               {patient.allergies && patient.allergies.length > 0 && (
-                <Alert
-                  title="⚠ Dị ứng"
-                  type="warning"
-                  showIcon
+                <Card
+                  title={<span style={{ color: '#ff4d4f' }}>⚠ Dị ứng</span>}
                   size="small"
                   style={{ marginBottom: 16 }}
-                  description={
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {patient.allergies.map((allergy) => (
-                        <Tag color="red" key={allergy}>
-                          {allergy}
-                        </Tag>
-                      ))}
-                    </div>
-                  }
-                />
+                >
+                  <Space wrap>
+                    {patient.allergies.map((allergy) => (
+                      <Tag color="red" key={allergy}>
+                        {allergy}
+                      </Tag>
+                    ))}
+                  </Space>
+                </Card>
               )}
 
               {/* Current Medications */}
               {patient.currentMedications && patient.currentMedications.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Thuoc dang dung</h4>
+                <Card
+                  title={<span style={{ color: '#1890ff' }}>Thuốc đang dùng</span>}
+                  size="small"
+                  style={{ marginBottom: 16 }}
+                >
                   <div>
                     {patient.currentMedications.map((item) => (
                       <div key={item} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>{item}</div>
                     ))}
                   </div>
-                </div>
+                </Card>
               )}
             </>
           )}
 
           {/* Summary */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <Card
+            title="Tổng kết đơn thuốc"
+            size="small"
+            style={{ marginBottom: 16 }}
+          >
             <Descriptions column={1} size="small">
               <Descriptions.Item label="Tổng số thuốc">
                 <strong>{prescriptionItems.length}</strong>
@@ -1171,28 +1181,28 @@ const Prescription: React.FC = () => {
               </Descriptions.Item>
               {patient?.insuranceNumber && (
                 <Descriptions.Item label="BHYT chi trả">
-                  <span className="text-green-600">
+                  <Text type="success">
                     <strong>{totalInsurance.toLocaleString('vi-VN')} đ</strong>
-                  </span>
+                  </Text>
                 </Descriptions.Item>
               )}
               <Descriptions.Item label="Bệnh nhân trả">
-                <span className="font-semibold" style={{color: '#1890ff'}}>
+                <Text strong style={{ color: '#1890ff', fontSize: 16 }}>
                   {finalCost.toLocaleString('vi-VN')} đ
-                </span>
+                </Text>
               </Descriptions.Item>
             </Descriptions>
-          </div>
+          </Card>
 
           {/* Drug Interactions Warning */}
           {interactions.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <Card size="small" style={{ marginBottom: 16 }}>
               <Alert
                 title={
-                  <div className="flex items-center gap-2">
+                  <Space>
                     <span>Cảnh báo tương tác thuốc</span>
                     <Badge count={interactions.length} />
-                  </div>
+                  </Space>
                 }
                 description={
                   <div>
@@ -1213,9 +1223,9 @@ const Prescription: React.FC = () => {
                             ? 'Trung bình'
                             : 'Nhẹ'}
                         </Tag>
-                        <span className="font-semibold">
+                        <Text strong>
                           {interaction.medicine1} ↔ {interaction.medicine2}
-                        </span>
+                        </Text>
                         <div style={{ fontSize: 12, marginTop: 4 }}>
                           {interaction.description}
                         </div>
@@ -1235,16 +1245,21 @@ const Prescription: React.FC = () => {
                 showIcon
                 icon={<WarningOutlined />}
               />
-            </div>
+            </Card>
           )}
-        </div>
+        </Col>
 
         {/* RIGHT PANEL - Prescription Form */}
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2"><MedicineBoxOutlined /><span>Đơn thuốc</span></h4>
-              <div className="flex items-center gap-2">
+        <Col xs={24} lg={16}>
+          <Card
+            title={
+              <Space>
+                <MedicineBoxOutlined />
+                <span>Đơn thuốc</span>
+              </Space>
+            }
+            extra={
+              <Space>
                 <Button
                   icon={<FileTextOutlined />}
                   onClick={() => setIsTemplateModalOpen(true)}
@@ -1254,19 +1269,20 @@ const Prescription: React.FC = () => {
                 <Button icon={<SaveOutlined />} onClick={handleSaveTemplate}>
                   Lưu mẫu
                 </Button>
-              </div>
-            </div>
+              </Space>
+            }
+          >
             <Form form={form} layout="vertical">
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full">
+              <Row gutter={16}>
+                <Col span={24}>
                   <Form.Item label="Chẩn đoán" name="diagnosis">
                     <Input placeholder="Nhập chẩn đoán" />
                   </Form.Item>
-                </div>
-              </div>
+                </Col>
+              </Row>
             </Form>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Danh sách thuốc</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider>Danh sách thuốc</Divider>
 
             <Button
               type="dashed"
@@ -1312,7 +1328,7 @@ const Prescription: React.FC = () => {
               })}
             />
 
-            <hr className="border-gray-200 my-4" />
+            <Divider />
 
             <Form.Item label="Ghi chú thêm">
               <TextArea
@@ -1322,7 +1338,7 @@ const Prescription: React.FC = () => {
               />
             </Form.Item>
 
-            <div className="flex items-center gap-2">
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
               <Button icon={<SaveOutlined />} onClick={handleSaveDraft}>
                 Lưu nháp
               </Button>
@@ -1360,10 +1376,10 @@ const Prescription: React.FC = () => {
               >
                 Gửi nhà thuốc
               </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
 
       {/* Add/Edit Medicine Modal */}
       <Modal
@@ -1376,8 +1392,8 @@ const Prescription: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={medicineForm} layout="vertical">
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full">
+          <Row gutter={16}>
+            <Col span={24}>
               <Form.Item
                 label="Tìm thuốc"
                 name="medicine"
@@ -1391,9 +1407,9 @@ const Prescription: React.FC = () => {
                         <div>
                           <strong>{m.name}</strong> - {m.strength}
                         </div>
-                        <span className="text-gray-500 text-xs">
+                        <Text type="secondary" style={{ fontSize: 12 }}>
                           {m.activeIngredient} | Mã: {m.code} | Tồn: {m.stock} {m.unit}
-                        </span>
+                        </Text>
                       </div>
                     ),
                   }))}
@@ -1403,8 +1419,8 @@ const Prescription: React.FC = () => {
                   allowClear
                 />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           {selectedMedicine && (
             <>
@@ -1431,8 +1447,8 @@ const Prescription: React.FC = () => {
                 style={{ marginBottom: 16 }}
               />
 
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full lg:w-1/2">
+              <Row gutter={16}>
+                <Col span={12}>
                   <Form.Item
                     label="Dạng bào chế"
                     name="dosageForm"
@@ -1449,49 +1465,49 @@ const Prescription: React.FC = () => {
                       <Option value="Gói">Gói</Option>
                     </Select>
                   </Form.Item>
-                </div>
-                <div className="w-full lg:w-1/2">
+                </Col>
+                <Col span={12}>
                   <Form.Item label="Hàm lượng" name="strength" rules={[{ required: true }]}>
                     <Input placeholder="VD: 500mg" />
                   </Form.Item>
-                </div>
-              </div>
+                </Col>
+              </Row>
 
-              <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Liều dùng (số viên mỗi lần)</span><hr className="flex-1 border-gray-200" /></div>
+              <Divider>Liều dùng (số viên mỗi lần)</Divider>
 
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full lg:w-1/4">
+              <Row gutter={16}>
+                <Col span={6}>
                   <Form.Item label="Sáng" name="morning" initialValue={0}>
                     <InputNumber min={0} max={10} step={0.5} style={{ width: '100%' }} />
                   </Form.Item>
-                </div>
-                <div className="w-full lg:w-1/4">
+                </Col>
+                <Col span={6}>
                   <Form.Item label="Trưa" name="noon" initialValue={0}>
                     <InputNumber min={0} max={10} step={0.5} style={{ width: '100%' }} />
                   </Form.Item>
-                </div>
-                <div className="w-full lg:w-1/4">
+                </Col>
+                <Col span={6}>
                   <Form.Item label="Chiều" name="evening" initialValue={0}>
                     <InputNumber min={0} max={10} step={0.5} style={{ width: '100%' }} />
                   </Form.Item>
-                </div>
-                <div className="w-full lg:w-1/4">
+                </Col>
+                <Col span={6}>
                   <Form.Item label="Tối" name="night" initialValue={0}>
                     <InputNumber min={0} max={10} step={0.5} style={{ width: '100%' }} />
                   </Form.Item>
-                </div>
-              </div>
+                </Col>
+              </Row>
 
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full lg:w-1/3">
+              <Row gutter={16}>
+                <Col span={8}>
                   <Form.Item label="Thời điểm dùng" name="mealTiming">
                     <Select placeholder="Chọn" allowClear>
                       <Option value="before">Trước ăn</Option>
                       <Option value="after">Sau ăn</Option>
                     </Select>
                   </Form.Item>
-                </div>
-                <div className="w-full lg:w-1/3">
+                </Col>
+                <Col span={8}>
                   <Form.Item
                     label="Số ngày uống"
                     name="duration"
@@ -1500,8 +1516,8 @@ const Prescription: React.FC = () => {
                   >
                     <InputNumber min={1} max={90} style={{ width: '100%' }} addonAfter="ngày" />
                   </Form.Item>
-                </div>
-                <div className="w-full lg:w-1/3">
+                </Col>
+                <Col span={8}>
                   <Form.Item
                     label="Số lượng"
                     name="quantity"
@@ -1514,11 +1530,11 @@ const Prescription: React.FC = () => {
                       addonAfter={selectedMedicine.unit}
                     />
                   </Form.Item>
-                </div>
-              </div>
+                </Col>
+              </Row>
 
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full lg:w-1/2">
+              <Row gutter={16}>
+                <Col span={12}>
                   <Form.Item
                     label="Đường dùng"
                     name="route"
@@ -1535,8 +1551,8 @@ const Prescription: React.FC = () => {
                       <Option value="Đặt">Đặt</Option>
                     </Select>
                   </Form.Item>
-                </div>
-              </div>
+                </Col>
+              </Row>
 
               <Form.Item label="Ghi chú / Hướng dẫn" name="notes">
                 <TextArea
@@ -1718,7 +1734,7 @@ const Prescription: React.FC = () => {
                     render: (_: unknown, record: PrescriptionItem) => (
                       <div>
                         <div><strong>{record.medicine.name}</strong></div>
-                        {record.medicine.activeIngredient && <span className="text-gray-500 text-xs">{record.medicine.activeIngredient}</span>}
+                        {record.medicine.activeIngredient && <Text type="secondary" style={{ fontSize: 11 }}>{record.medicine.activeIngredient}</Text>}
                       </div>
                     ),
                   },
@@ -1792,17 +1808,17 @@ const Prescription: React.FC = () => {
               <div style={{ margin: '12px 0', fontSize: 13 }}>
                 <em>Tổng số: {prescriptionItems.length} khoản thuốc</em>
               </div>
-              <hr className="border-gray-200 my-4" />
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full lg:w-1/2">
+              <Divider />
+              <Row gutter={48} style={{ marginTop: 24, textAlign: 'center' }}>
+                <Col span={12}>
                   <div style={{ fontStyle: 'italic', fontSize: 12, marginBottom: 4 }}>(Ký, ghi rõ họ tên)</div>
                   <div style={{ fontWeight: 'bold' }}>Người lập</div>
-                </div>
-                <div className="w-full lg:w-1/2">
+                </Col>
+                <Col span={12}>
                   <div style={{ fontStyle: 'italic', fontSize: 12, marginBottom: 4 }}>(Ký, ghi rõ họ tên)</div>
                   <div style={{ fontWeight: 'bold' }}>Bệnh nhân/Người nhà</div>
-                </div>
-              </div>
+                </Col>
+              </Row>
               <div style={{ textAlign: 'right', marginTop: 20, fontSize: 12 }}>
                 Ngày {dayjs().format('DD')} tháng {dayjs().format('MM')} năm {dayjs().format('YYYY')}
               </div>
@@ -1820,8 +1836,8 @@ const Prescription: React.FC = () => {
         size={500}
       >
         {interactions.map((interaction) => (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div className="flex flex-col gap-2">
+          <Card key={`${interaction.medicine1}-${interaction.medicine2}`} style={{ marginBottom: 16 }} size="small">
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <div>
                 <Tag
                   color={
@@ -1839,26 +1855,26 @@ const Prescription: React.FC = () => {
                     : 'Nhẹ'}
                 </Tag>
               </div>
-              <span className="font-semibold">
+              <Text strong>
                 {interaction.medicine1} ↔ {interaction.medicine2}
-              </span>
+              </Text>
               <div>
-                <span className="font-semibold">Mô tả:</span>
+                <Text strong>Mô tả:</Text>
                 <div>{interaction.description}</div>
               </div>
               {interaction.recommendation && (
                 <div>
-                  <span className="font-semibold">Khuyến nghị:</span>
+                  <Text strong>Khuyến nghị:</Text>
                   <div style={{ color: '#1890ff' }}>{interaction.recommendation}</div>
                 </div>
               )}
-            </div>
-          </div>
+            </Space>
+          </Card>
         ))}
 
         {interactions.some(i => i.severity === 'high') && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <span className="font-semibold">Lý do ghi đè:</span>
+          <Card size="small" style={{ marginTop: 16 }}>
+            <Text strong>Lý do ghi đè:</Text>
             <TextArea
               rows={3}
               placeholder="Nhập lý do cho việc tiếp tục kê đơn mặc dù có tương tác nghiêm trọng..."
@@ -1880,7 +1896,7 @@ const Prescription: React.FC = () => {
             >
               Xác nhận ghi đè
             </Button>
-          </div>
+          </Card>
         )}
       </Drawer>
 

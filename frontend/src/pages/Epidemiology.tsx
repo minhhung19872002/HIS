@@ -36,7 +36,6 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as epidemiologyApi from '../api/epidemiology';
 import type { DiseaseReport, Outbreak, EpiStats, NotifiableDisease } from '../api/epidemiology';
@@ -218,9 +217,9 @@ const Epidemiology: React.FC = () => {
     {
       title: 'Thao tác', key: 'actions', width: 100,
       render: (_: unknown, record: DiseaseReport) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewReport(record)}>Xem</Button>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -255,8 +254,8 @@ const Epidemiology: React.FC = () => {
       ),
       children: (
         <>
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            <div>
+          <Row gutter={[16, 12]} style={{ marginBottom: 16 }}>
+            <Col xs={24} sm={8} md={6}>
               <Search
                 placeholder="Tìm bệnh nhân, mã BC..."
                 value={keyword}
@@ -265,8 +264,8 @@ const Epidemiology: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={12} sm={6} md={4}>
               <Select
                 placeholder="Nhóm bệnh"
                 allowClear
@@ -279,21 +278,21 @@ const Epidemiology: React.FC = () => {
                   { value: 'C', label: 'Nhóm C' },
                 ]}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange}
                 onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                 format="DD/MM/YYYY"
               />
-            </div>
-            <div className="flex-1">
+            </Col>
+            <Col flex="auto" style={{ textAlign: 'right' }}>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => { reportForm.resetFields(); setIsReportModalOpen(true); }}>
                 Báo cáo ca bệnh
               </Button>
-            </div>
-          </div>
+            </Col>
+          </Row>
           <Table dataSource={reports} columns={reportColumns} rowKey="id" size="small" scroll={{ x: 1300 }}
             pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Tổng ${t} bản ghi` }}
             onRow={(record) => ({ onDoubleClick: () => handleViewReport(record), style: { cursor: 'pointer' } })}
@@ -310,11 +309,11 @@ const Epidemiology: React.FC = () => {
       ),
       children: (
         <>
-          <div className="grid grid-cols-4 gap-4">
+          <Row justify="end" style={{ marginBottom: 16 }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { outbreakForm.resetFields(); setIsOutbreakModalOpen(true); }}>
               Tạo báo cáo ổ dịch
             </Button>
-          </div>
+          </Row>
           <Table dataSource={outbreaks} columns={outbreakColumns} rowKey="id" size="small" scroll={{ x: 1100 }}
             pagination={{ pageSize: 10, showTotal: (t) => `Tổng ${t} ổ dịch` }} />
         </>
@@ -328,7 +327,7 @@ const Epidemiology: React.FC = () => {
         </span>
       ),
       children: (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <Card>
           <Alert
             title="Chức năng truy vết tiếp xúc liên kết với báo cáo ca bệnh. Chọn một ca bệnh để bắt đầu truy vết."
             type="info"
@@ -345,7 +344,7 @@ const Epidemiology: React.FC = () => {
               showIcon
             />
           )}
-        </div>
+        </Card>
       ),
     },
     {
@@ -356,77 +355,71 @@ const Epidemiology: React.FC = () => {
         </span>
       ),
       children: (
-        <div className="grid grid-cols-4 gap-4">
-          <div>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12}>
             <Card title="Phân bố theo bệnh">
               {epiStats.diseaseDistribution.length > 0 ? (
                 epiStats.diseaseDistribution.map(item => (
                   <div key={item.disease} style={{ marginBottom: 8 }}>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>{item.disease}</div>
-                      <div><strong>{item.count}</strong> ca</div>
-                    </div>
+                    <Row justify="space-between">
+                      <Col>{item.disease}</Col>
+                      <Col><strong>{item.count}</strong> ca</Col>
+                    </Row>
                   </div>
                 ))
               ) : (
                 <Typography.Text type="secondary">Chưa có dữ liệu</Typography.Text>
               )}
             </Card>
-          </div>
-          <div>
+          </Col>
+          <Col xs={24} md={12}>
             <Card title="Xu hướng theo tháng">
               {epiStats.monthlyTrend.length > 0 ? (
                 epiStats.monthlyTrend.map(item => (
                   <div key={item.month} style={{ marginBottom: 8 }}>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>{item.month}</div>
-                      <div><strong>{item.count}</strong> ca</div>
-                    </div>
+                    <Row justify="space-between">
+                      <Col>{item.month}</Col>
+                      <Col><strong>{item.count}</strong> ca</Col>
+                    </Row>
                   </div>
                 ))
               ) : (
                 <Typography.Text type="secondary">Chưa có dữ liệu</Typography.Text>
               )}
             </Card>
-          </div>
-          <div>
+          </Col>
+          <Col xs={24}>
             <Card title="Danh mục 28 bệnh truyền nhiễm phải báo cáo">
-              <div className="grid grid-cols-4 gap-4">
+              <Row gutter={[8, 8]}>
                 {notifiableDiseases.map(d => (
-                  <div>
+                  <Col key={d.code} xs={12} sm={8} md={6}>
                     <Tag color={DISEASE_GROUP_COLORS[d.group]}>{d.group}</Tag> {d.name}
-                  </div>
+                  </Col>
                 ))}
-              </div>
+              </Row>
             </Card>
-          </div>
-        </div>
+          </Col>
+        </Row>
       ),
     },
   ];
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-          <div className="flex justify-between items-center">
-            <div>
-              <h4 className="text-lg font-semibold m-0">
+      <div>
+        <Card style={{ marginBottom: 16 }}>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Title level={4} style={{ margin: 0 }}>
                 <AlertOutlined style={{ marginRight: 8 }} />
                 Giám sát dịch tễ &amp; Bệnh truyền nhiễm
-              </h4>
-            </div>
-            <div>
+              </Title>
+            </Col>
+            <Col>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
-            </div>
-          </div>
-        </div>
-        </motion.div>
+            </Col>
+          </Row>
+        </Card>
 
         {/* Active outbreak alert */}
         {activeOutbreaks.length > 0 && (
@@ -453,26 +446,24 @@ const Epidemiology: React.FC = () => {
         )}
 
         {/* Statistics */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Tổng ca báo cáo</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><AlertOutlined className="mr-1" />{epiStats.totalReports}</div></div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><Statistic title="Đã xác nhận" value={epiStats.confirmedCases} styles={{ content: { color: '#faad14' } }} /></div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><div className="text-gray-500 text-sm mb-1">Ổ dịch hoạt động</div><div className="text-2xl font-semibold" style={{ color: '#ff4d4f' }}><FireOutlined className="mr-1" />{epiStats.activeOutbreaks}</div></div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><Statistic title="Tử vong" value={epiStats.deathCount} styles={{ content: { color: '#ff4d4f' } }} /></div>
-          </div>
-        </div>
-        </motion.div>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={12} sm={6}>
+            <Card><Statistic title="Tổng ca báo cáo" value={epiStats.totalReports} prefix={<AlertOutlined />} styles={{ content: { color: '#1890ff' } }} /></Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card><Statistic title="Đã xác nhận" value={epiStats.confirmedCases} styles={{ content: { color: '#faad14' } }} /></Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card><Statistic title="Ổ dịch hoạt động" value={epiStats.activeOutbreaks} prefix={<FireOutlined />} styles={{ content: { color: '#ff4d4f' } }} /></Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card><Statistic title="Tử vong" value={epiStats.deathCount} styles={{ content: { color: '#ff4d4f' } }} /></Card>
+          </Col>
+        </Row>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+        <Card>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        </div>
+        </Card>
 
         {/* Report Disease Modal */}
         <Modal
@@ -487,28 +478,28 @@ const Epidemiology: React.FC = () => {
           destroyOnHidden
         >
           <Form form={reportForm} layout="vertical">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="patientName" label="Họ tên bệnh nhân" rules={[{ required: true, message: 'Nhập họ tên' }]}>
                   <Input placeholder="Họ và tên" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="gender" label="Giới">
                   <Select options={[{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="age" label="Tuổi">
                   <Input type="number" placeholder="0" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="address" label="Địa chỉ">
               <Input placeholder="Địa chỉ bệnh nhân" />
             </Form.Item>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="diseaseCode" label="Bệnh" rules={[{ required: true, message: 'Chọn bệnh' }]}>
                   <Select
                     placeholder="Chọn bệnh truyền nhiễm"
@@ -520,8 +511,8 @@ const Epidemiology: React.FC = () => {
                     }))}
                   />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item name="diseaseGroup" label="Nhóm bệnh" rules={[{ required: true, message: 'Chọn nhóm' }]}>
                   <Select options={[
                     { value: 'A', label: 'Nhóm A - Đặc biệt nguy hiểm' },
@@ -529,25 +520,25 @@ const Epidemiology: React.FC = () => {
                     { value: 'C', label: 'Nhóm C - Ít nguy hiểm' },
                   ]} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="onsetDate" label="Ngày khởi phát" rules={[{ required: true, message: 'Chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="diagnosisDate" label="Ngày chẩn đoán">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="reportDate" label="Ngày báo cáo" rules={[{ required: true, message: 'Chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="labConfirmed" label="Xét nghiệm xác nhận">
               <Select options={[{ value: true, label: 'Có' }, { value: false, label: 'Không' }]} />
             </Form.Item>
@@ -573,25 +564,25 @@ const Epidemiology: React.FC = () => {
             <Form.Item name="name" label="Tên ổ dịch" rules={[{ required: true, message: 'Nhập tên' }]}>
               <Input placeholder="VD: Ổ dịch SXH phường A" />
             </Form.Item>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="diseaseName" label="Bệnh" rules={[{ required: true, message: 'Nhập tên bệnh' }]}>
                   <Input placeholder="Tên bệnh" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item name="location" label="Vị trí" rules={[{ required: true, message: 'Nhập vị trí' }]}>
                   <Input placeholder="Địa điểm ổ dịch" />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="startDate" label="Ngày phát hiện" rules={[{ required: true, message: 'Chọn ngày' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="riskLevel" label="Mức nguy cơ" rules={[{ required: true, message: 'Chọn mức' }]}>
                   <Select options={[
                     { value: 1, label: 'Thấp' },
@@ -600,13 +591,13 @@ const Epidemiology: React.FC = () => {
                     { value: 4, label: 'Rất cao' },
                   ]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="caseCount" label="Số ca ban đầu">
                   <Input type="number" placeholder="0" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="description" label="Mô tả">
               <TextArea rows={3} placeholder="Mô tả tình hình ổ dịch..." />
             </Form.Item>

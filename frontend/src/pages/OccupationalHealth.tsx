@@ -35,7 +35,6 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { motion } from 'framer-motion';
 import * as occApi from '../api/occupationalHealth';
 import type { OccExam, OccStats, HazardType } from '../api/occupationalHealth';
 
@@ -259,13 +258,8 @@ const OccupationalHealth: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
+      <div>
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <Card style={{ marginBottom: 16 }}>
           <Row justify="space-between" align="middle">
             <Col>
@@ -282,10 +276,8 @@ const OccupationalHealth: React.FC = () => {
             </Col>
           </Row>
         </Card>
-        </motion.div>
 
         {/* Stats */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col xs={12} sm={6}>
             <Card>
@@ -308,7 +300,6 @@ const OccupationalHealth: React.FC = () => {
             </Card>
           </Col>
         </Row>
-        </motion.div>
 
         {/* Tabs + Content */}
         <Card>

@@ -1,20 +1,26 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Card,
   Table,
   Button,
+  Space,
   Input,
   Tag,
+  Row,
+  Col,
   Modal,
   Form,
   Select,
   DatePicker,
+  Typography,
   message,
   Tabs,
   InputNumber,
+  Statistic,
+  Divider,
   Descriptions,
   Radio,
-  Drawer
+  Drawer,
 } from 'antd';
 import {
   SearchOutlined,
@@ -73,6 +79,7 @@ import {
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
@@ -285,77 +292,77 @@ const Billing: React.FC = () => {
         </style>
       </head>
       <body>
-        <div className="header">
-          <div className="header-left">
+        <div class="header">
+          <div class="header-left">
             <div><strong>${HOSPITAL_NAME}</strong></div>
             <div>Địa chỉ: ${HOSPITAL_ADDRESS}</div>
             <div>ĐT: ${HOSPITAL_PHONE}</div>
           </div>
-          <div className="header-right">
+          <div class="header-right">
             <div><strong>MS: 04/BV-02</strong></div>
             <div>Số: HD-${dayjs().format('YYYYMMDD')}-${String(selectedPatient?.id || '').slice(-3).padStart(3, '0')}</div>
           </div>
         </div>
 
-        <div className="title">PHIẾU THU TIỀN</div>
-        <div className="subtitle">Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
+        <div class="title">PHIẾU THU TIỀN</div>
+        <div class="subtitle">Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
 
-        <div className="info-row">Mã bệnh nhân: <span className="field">${selectedPatient.code}</span></div>
-        <div className="info-row">Họ và tên: <span className="field" style="width: 300px;">${selectedPatient.name}</span> Giới tính: <span className="field">${selectedPatient.gender === 1 ? 'Nam' : selectedPatient.gender === 2 ? 'Nữ' : '-'}</span></div>
-        <div className="info-row">Ngày sinh: <span className="field">${selectedPatient.dateOfBirth ? dayjs(selectedPatient.dateOfBirth).format('DD/MM/YYYY') : ''}</span> SĐT: <span className="field">${selectedPatient.phoneNumber || ''}</span></div>
-        <div className="info-row">Số thẻ BHYT: <span className="field" style="width: 200px;">${selectedPatient.insuranceNumber || 'Không có'}</span></div>
-        <div className="info-row">Đối tượng: <span className="field">${selectedPatient.insuranceNumber ? 'BHYT' : 'Viện phí'}</span></div>
+        <div class="info-row">Mã bệnh nhân: <span class="field">${selectedPatient.code}</span></div>
+        <div class="info-row">Họ và tên: <span class="field" style="width: 300px;">${selectedPatient.name}</span> Giới tính: <span class="field">${selectedPatient.gender === 1 ? 'Nam' : selectedPatient.gender === 2 ? 'Nữ' : '-'}</span></div>
+        <div class="info-row">Ngày sinh: <span class="field">${selectedPatient.dateOfBirth ? dayjs(selectedPatient.dateOfBirth).format('DD/MM/YYYY') : ''}</span> SĐT: <span class="field">${selectedPatient.phoneNumber || ''}</span></div>
+        <div class="info-row">Số thẻ BHYT: <span class="field" style="width: 200px;">${selectedPatient.insuranceNumber || 'Không có'}</span></div>
+        <div class="info-row">Đối tượng: <span class="field">${selectedPatient.insuranceNumber ? 'BHYT' : 'Viện phí'}</span></div>
 
         <table>
           <thead>
             <tr>
-              <th className="text-center" style="width: 40px;">STT</th>
+              <th class="text-center" style="width: 40px;">STT</th>
               <th>Mã DV</th>
               <th>Tên dịch vụ</th>
-              <th className="text-center">SL</th>
-              <th className="text-right">Đơn giá</th>
-              <th className="text-right">Thành tiền</th>
-              <th className="text-right">BHYT trả</th>
-              <th className="text-right">BN trả</th>
+              <th class="text-center">SL</th>
+              <th class="text-right">Đơn giá</th>
+              <th class="text-right">Thành tiền</th>
+              <th class="text-right">BHYT trả</th>
+              <th class="text-right">BN trả</th>
             </tr>
           </thead>
           <tbody>
             ${selectedItems.map((item, index) => `
               <tr>
-                <td className="text-center">${index + 1}</td>
+                <td class="text-center">${index + 1}</td>
                 <td>${item.serviceCode}</td>
                 <td>${item.serviceName}</td>
-                <td className="text-center">${item.quantity}</td>
-                <td className="text-right">${item.unitPrice.toLocaleString('vi-VN')}</td>
-                <td className="text-right">${item.totalPrice.toLocaleString('vi-VN')}</td>
-                <td className="text-right">${item.insuranceAmount.toLocaleString('vi-VN')}</td>
-                <td className="text-right">${item.patientAmount.toLocaleString('vi-VN')}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-right">${item.unitPrice.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${item.totalPrice.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${item.insuranceAmount.toLocaleString('vi-VN')}</td>
+                <td class="text-right">${item.patientAmount.toLocaleString('vi-VN')}</td>
               </tr>
             `).join('')}
-            <tr className="total-row">
-              <td colspan="5" className="text-right">TỔNG CỘNG:</td>
-              <td className="text-right">${totals.totalAmount.toLocaleString('vi-VN')} đ</td>
-              <td className="text-right">${totals.insuranceAmount.toLocaleString('vi-VN')} đ</td>
-              <td className="text-right">${totals.patientAmount.toLocaleString('vi-VN')} đ</td>
+            <tr class="total-row">
+              <td colspan="5" class="text-right">TỔNG CỘNG:</td>
+              <td class="text-right">${totals.totalAmount.toLocaleString('vi-VN')} đ</td>
+              <td class="text-right">${totals.insuranceAmount.toLocaleString('vi-VN')} đ</td>
+              <td class="text-right">${totals.patientAmount.toLocaleString('vi-VN')} đ</td>
             </tr>
           </tbody>
         </table>
 
-        <div className="amount-words">Số tiền bằng chữ: <strong>${numberToWords(totals.patientAmount)}</strong></div>
-        <div className="info-row">Phương thức thanh toán: <span className="field">Tiền mặt / Chuyển khoản / Thẻ</span></div>
+        <div class="amount-words">Số tiền bằng chữ: <strong>${numberToWords(totals.patientAmount)}</strong></div>
+        <div class="info-row">Phương thức thanh toán: <span class="field">Tiền mặt / Chuyển khoản / Thẻ</span></div>
 
-        <div className="signature-row">
-          <div className="signature-col">
+        <div class="signature-row">
+          <div class="signature-col">
             <div><strong>Người nộp tiền</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
             <div style="margin-top: 60px;"></div>
           </div>
-          <div className="signature-col">
+          <div class="signature-col">
             <div><strong>Kế toán</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
             <div style="margin-top: 60px;"></div>
           </div>
-          <div className="signature-col">
+          <div class="signature-col">
             <div><strong>Thu ngân</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
             <div style="margin-top: 60px;"></div>
@@ -397,32 +404,32 @@ const Billing: React.FC = () => {
         </style>
       </head>
       <body>
-        <div className="header">
+        <div class="header">
           <div><strong>${HOSPITAL_NAME}</strong></div>
           <div>${HOSPITAL_ADDRESS} - ĐT: ${HOSPITAL_PHONE}</div>
         </div>
 
-        <div className="title" style="text-align: center;">PHIẾU TẠM ỨNG</div>
+        <div class="title" style="text-align: center;">PHIẾU TẠM ỨNG</div>
         <div style="text-align: center; margin-bottom: 20px;">Ngày ${dayjs(deposit.depositDate).format('DD')} tháng ${dayjs(deposit.depositDate).format('MM')} năm ${dayjs(deposit.depositDate).format('YYYY')}</div>
 
-        <div className="info">Mã bệnh nhân: <span className="field">${deposit.patientCode}</span></div>
-        <div className="info">Họ và tên: <span className="field" style="width: 350px;">${deposit.patientName}</span></div>
+        <div class="info">Mã bệnh nhân: <span class="field">${deposit.patientCode}</span></div>
+        <div class="info">Họ và tên: <span class="field" style="width: 350px;">${deposit.patientName}</span></div>
 
-        <div className="amount-box">
+        <div class="amount-box">
           <div>Số tiền tạm ứng:</div>
           <div style="font-size: 24px; font-weight: bold; color: #1890ff;">${deposit.amount.toLocaleString('vi-VN')} VNĐ</div>
           <div style="font-style: italic;">(${numberToWords(deposit.amount)})</div>
         </div>
 
-        <div className="info">Ghi chú: <span className="field" style="width: 80%;">${deposit.note || ''}</span></div>
-        <div className="info">Thu ngân: <span className="field">${deposit.cashier}</span></div>
+        <div class="info">Ghi chú: <span class="field" style="width: 80%;">${deposit.note || ''}</span></div>
+        <div class="info">Thu ngân: <span class="field">${deposit.cashier}</span></div>
 
-        <div className="signature-row">
-          <div className="signature-col">
+        <div class="signature-row">
+          <div class="signature-col">
             <div><strong>Người nộp tiền</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
-          <div className="signature-col">
+          <div class="signature-col">
             <div><strong>Thu ngân</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
@@ -463,38 +470,38 @@ const Billing: React.FC = () => {
         </style>
       </head>
       <body>
-        <div className="header">
+        <div class="header">
           <div><strong>${HOSPITAL_NAME}</strong></div>
           <div>${HOSPITAL_ADDRESS} - ĐT: ${HOSPITAL_PHONE}</div>
         </div>
 
-        <div className="title" style="text-align: center;">PHIẾU HOÀN TIỀN</div>
+        <div class="title" style="text-align: center;">PHIẾU HOÀN TIỀN</div>
         <div style="text-align: center; margin-bottom: 20px;">Ngày ${dayjs(refund.refundDate).format('DD')} tháng ${dayjs(refund.refundDate).format('MM')} năm ${dayjs(refund.refundDate).format('YYYY')}</div>
 
-        <div className="info">Mã bệnh nhân: <span className="field">${refund.patientCode}</span></div>
-        <div className="info">Họ và tên: <span className="field" style="width: 350px;">${refund.patientName}</span></div>
+        <div class="info">Mã bệnh nhân: <span class="field">${refund.patientCode}</span></div>
+        <div class="info">Họ và tên: <span class="field" style="width: 350px;">${refund.patientName}</span></div>
 
-        <div className="amount-box">
+        <div class="amount-box">
           <div>Số tiền hoàn trả:</div>
           <div style="font-size: 24px; font-weight: bold; color: #f5222d;">${refund.amount.toLocaleString('vi-VN')} VNĐ</div>
           <div style="font-style: italic;">(${numberToWords(refund.amount)})</div>
         </div>
 
-        <div className="info">Lý do hoàn tiền: <span className="field" style="width: 80%;">${refund.reason}</span></div>
-        <div className="info">Phương thức hoàn: <span className="field">${refund.paymentMethod}</span></div>
-        <div className="info">Người yêu cầu: <span className="field">${refund.requestedBy}</span></div>
-        <div className="info">Người duyệt: <span className="field">${refund.approvedBy || ''}</span></div>
+        <div class="info">Lý do hoàn tiền: <span class="field" style="width: 80%;">${refund.reason}</span></div>
+        <div class="info">Phương thức hoàn: <span class="field">${refund.paymentMethod}</span></div>
+        <div class="info">Người yêu cầu: <span class="field">${refund.requestedBy}</span></div>
+        <div class="info">Người duyệt: <span class="field">${refund.approvedBy || ''}</span></div>
 
-        <div className="signature-row">
-          <div className="signature-col">
+        <div class="signature-row">
+          <div class="signature-col">
             <div><strong>Người nhận tiền</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
-          <div className="signature-col">
+          <div class="signature-col">
             <div><strong>Kế toán</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
-          <div className="signature-col">
+          <div class="signature-col">
             <div><strong>Thu ngân</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
@@ -907,8 +914,8 @@ const Billing: React.FC = () => {
 
   const UnpaidServicesTab = (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="flex-1">
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col flex="auto">
           <Search
             placeholder="Tìm bệnh nhân theo mã, tên, SĐT..."
             allowClear
@@ -917,8 +924,8 @@ const Billing: React.FC = () => {
             onSearch={handleSearchPatient}
             style={{ maxWidth: 500 }}
           />
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       {selectedPatient && (
         <>
@@ -927,7 +934,7 @@ const Billing: React.FC = () => {
             module="Billing"
             compact={false}
           />
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <Card size="small" style={{ marginBottom: 16 }}>
             <Descriptions column={{ xs: 2, sm: 2, md: 4 }} size="small">
               <Descriptions.Item label="Mã BN">
                 <strong>{selectedPatient.code}</strong>
@@ -955,7 +962,7 @@ const Billing: React.FC = () => {
                 )}
               </Descriptions.Item>
             </Descriptions>
-          </div>
+          </Card>
 
           <Table
             columns={unpaidServicesColumns}
@@ -977,43 +984,43 @@ const Billing: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
             footer={() => (
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full lg:w-1/2">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-4 flex-wrap">
-                      <div className="w-full lg:w-1/2">
-                        <span className="font-semibold">Tổng cộng:</span>
-                      </div>
-                      <div>
-                        <span className="font-semibold text-base">
+              <Row gutter={16} style={{ padding: '8px 0' }}>
+                <Col span={12}>
+                  <Space orientation="vertical" style={{ width: '100%' }}>
+                    <Row>
+                      <Col span={12}>
+                        <Text strong>Tổng cộng:</Text>
+                      </Col>
+                      <Col span={12} style={{ textAlign: 'right' }}>
+                        <Text strong style={{ fontSize: 16 }}>
                           {totals.totalAmount.toLocaleString('vi-VN')} đ
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex gap-4 flex-wrap">
-                      <div className="w-full lg:w-1/2">
-                        <span className="text-sm">BHYT trả:</span>
-                      </div>
-                      <div>
-                        <span style={{color: '#52c41a'}}>
+                        </Text>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col span={12}>
+                        <Text>BHYT trả:</Text>
+                      </Col>
+                      <Col span={12} style={{ textAlign: 'right' }}>
+                        <Text style={{ color: '#52c41a' }}>
                           {totals.insuranceAmount.toLocaleString('vi-VN')} đ
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex gap-4 flex-wrap">
-                      <div className="w-full lg:w-1/2">
-                        <span className="font-semibold">Bệnh nhân trả:</span>
-                      </div>
-                      <div>
-                        <span className="font-semibold text-base" style={{color: '#f5222d'}}>
+                        </Text>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col span={12}>
+                        <Text strong>Bệnh nhân trả:</Text>
+                      </Col>
+                      <Col span={12} style={{ textAlign: 'right' }}>
+                        <Text strong style={{ fontSize: 16, color: '#f5222d' }}>
                           {totals.patientAmount.toLocaleString('vi-VN')} đ
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
+                        </Text>
+                      </Col>
+                    </Row>
+                  </Space>
+                </Col>
+                <Col span={12} style={{ textAlign: 'right' }}>
+                  <Space>
                     <Button
                       type="primary"
                       size="large"
@@ -1029,9 +1036,9 @@ const Billing: React.FC = () => {
                     >
                       Thanh toán ({selectedServices.length} dịch vụ)
                     </Button>
-                  </div>
-                </div>
-              </div>
+                  </Space>
+                </Col>
+              </Row>
             )}
           />
         </>
@@ -1099,31 +1106,49 @@ const Billing: React.FC = () => {
       cancelText="Hủy"
     >
       <Form form={paymentForm} layout="vertical">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/3">
-              <div><div className="text-xs text-gray-500 font-semibold">Tổng tiền</div><div className="text-2xl font-bold">{totals.totalAmount}</div></div>
-            </div>
-            <div className="w-full lg:w-1/3">
-              <div><div className="text-xs text-gray-500 font-semibold">BHYT trả</div><div className="text-2xl font-bold">{totals.insuranceAmount}</div></div>
-            </div>
-            <div className="w-full lg:w-1/3">
-              <div><div className="text-xs text-gray-500 font-semibold">Bệnh nhân trả</div><div className="text-2xl font-bold">{totals.patientAmount}</div></div>
-            </div>
-          </div>
-        </div>
+        <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f0f5ff' }}>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Statistic
+                title="Tổng tiền"
+                value={totals.totalAmount}
+                suffix="đ"
+                styles={{ content: { fontSize: 18 } }}
+                formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+              />
+            </Col>
+            <Col span={8}>
+              <Statistic
+                title="BHYT trả"
+                value={totals.insuranceAmount}
+                suffix="đ"
+                styles={{ content: { fontSize: 18, color: '#52c41a' } }}
+                formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+              />
+            </Col>
+            <Col span={8}>
+              <Statistic
+                title="Bệnh nhân trả"
+                value={totals.patientAmount}
+                suffix="đ"
+                styles={{ content: { fontSize: 18, color: '#f5222d' } }}
+                formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+              />
+            </Col>
+          </Row>
+        </Card>
 
-        <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Phương thức thanh toán</span><hr className="flex-1 border-gray-200" /></div>
+        <Divider>Phương thức thanh toán</Divider>
 
         <Form.Item name="paymentMethod" initialValue="cash">
           <Radio.Group>
-            <div className="flex flex-col gap-2">
+            <Space orientation="vertical">
               <Radio value="cash">Tiền mặt</Radio>
               <Radio value="card">Thẻ ngân hàng</Radio>
               <Radio value="transfer">Chuyển khoản</Radio>
               <Radio value="deposit">Sử dụng tạm ứng</Radio>
               <Radio value="mixed">Kết hợp</Radio>
-            </div>
+            </Space>
           </Radio.Group>
         </Form.Item>
 
@@ -1225,23 +1250,23 @@ const Billing: React.FC = () => {
       open={receiptDrawerVisible}
       size={450}
       extra={
-        <div className="flex items-center gap-2">
+        <Space>
           <Button icon={<PrinterOutlined />} type="primary" onClick={executePrintReceipt}>
             In hóa đơn
           </Button>
-        </div>
+        </Space>
       }
     >
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <h2 className="text-lg font-bold text-gray-800 mb-2">{HOSPITAL_NAME}</h2>
-        <span className="text-sm">{HOSPITAL_ADDRESS}</span>
+        <Title level={4}>{HOSPITAL_NAME}</Title>
+        <Text>{HOSPITAL_ADDRESS}</Text>
         <br />
-        <span className="text-sm">SĐT: {HOSPITAL_PHONE}</span>
-        <hr className="border-gray-200 my-4" />
-        <h2 className="text-xl font-bold text-gray-800 mb-3">HÓA ĐƠN THANH TOÁN</h2>
-        <span className="text-sm">Số: HD-{dayjs().format('YYYYMMDD')}-001</span>
+        <Text>SĐT: {HOSPITAL_PHONE}</Text>
+        <Divider />
+        <Title level={3}>HÓA ĐƠN THANH TOÁN</Title>
+        <Text>Số: HD-{dayjs().format('YYYYMMDD')}-001</Text>
         <br />
-        <span className="text-sm">{dayjs().format('DD/MM/YYYY HH:mm:ss')}</span>
+        <Text>{dayjs().format('DD/MM/YYYY HH:mm:ss')}</Text>
       </div>
 
       <Descriptions column={1} size="small" bordered>
@@ -1256,7 +1281,7 @@ const Billing: React.FC = () => {
         </Descriptions.Item>
       </Descriptions>
 
-      <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Chi tiết dịch vụ</span><hr className="flex-1 border-gray-200" /></div>
+      <Divider>Chi tiết dịch vụ</Divider>
 
       <Table
         dataSource={unpaidServices.filter((s) => selectedServices.includes(s.id))}
@@ -1285,41 +1310,41 @@ const Billing: React.FC = () => {
         rowKey="id"
       />
 
-      <hr className="border-gray-200 my-4" />
+      <Divider />
 
-      <div className="flex gap-4 flex-wrap mb-4">
-        <div className="w-full lg:w-1/2">
-          <span className="text-sm">Tổng cộng:</span>
-        </div>
-        <div>
-          <span className="text-sm">{totals.totalAmount.toLocaleString('vi-VN')} đ</span>
-        </div>
-      </div>
-      <div className="flex gap-4 flex-wrap mb-4">
-        <div className="w-full lg:w-1/2">
-          <span className="text-sm">BHYT trả:</span>
-        </div>
-        <div>
-          <span className="text-sm">{totals.insuranceAmount.toLocaleString('vi-VN')} đ</span>
-        </div>
-      </div>
-      <div className="flex gap-4 flex-wrap mb-4">
-        <div className="w-full lg:w-1/2">
-          <span className="font-semibold">Bệnh nhân trả:</span>
-        </div>
-        <div>
-          <span className="font-semibold text-base">
+      <Row style={{ marginBottom: 8 }}>
+        <Col span={12}>
+          <Text>Tổng cộng:</Text>
+        </Col>
+        <Col span={12} style={{ textAlign: 'right' }}>
+          <Text>{totals.totalAmount.toLocaleString('vi-VN')} đ</Text>
+        </Col>
+      </Row>
+      <Row style={{ marginBottom: 8 }}>
+        <Col span={12}>
+          <Text>BHYT trả:</Text>
+        </Col>
+        <Col span={12} style={{ textAlign: 'right' }}>
+          <Text>{totals.insuranceAmount.toLocaleString('vi-VN')} đ</Text>
+        </Col>
+      </Row>
+      <Row style={{ marginBottom: 16 }}>
+        <Col span={12}>
+          <Text strong>Bệnh nhân trả:</Text>
+        </Col>
+        <Col span={12} style={{ textAlign: 'right' }}>
+          <Text strong style={{ fontSize: 16 }}>
             {totals.patientAmount.toLocaleString('vi-VN')} đ
-          </span>
-        </div>
-      </div>
+          </Text>
+        </Col>
+      </Row>
 
-      <hr className="border-gray-200 my-4" />
+      <Divider />
 
       <div style={{ textAlign: 'center' }}>
-        <span className="text-gray-500 text-sm">Cảm ơn quý khách!</span>
+        <Text type="secondary">Cảm ơn quý khách!</Text>
         <br />
-        <span className="text-gray-500 text-sm">Thu ngân: Admin</span>
+        <Text type="secondary">Thu ngân: Admin</Text>
       </div>
     </Drawer>
   );
@@ -1422,7 +1447,7 @@ const Billing: React.FC = () => {
       key: 'action',
       width: 150,
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Button size="small" icon={<PrinterOutlined />} onClick={() => executePrintDeposit(record)}>
             In
           </Button>
@@ -1455,16 +1480,16 @@ const Billing: React.FC = () => {
               Hoàn
             </Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
 
   const DepositsTab = (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col flex="auto">
+          <Space>
             <Search
               placeholder="Tìm tạm ứng theo mã BN, tên BN..."
               allowClear
@@ -1477,11 +1502,22 @@ const Billing: React.FC = () => {
                 fetchDeposits(value || undefined);
               }}
             />
-            <div><div className="text-xs text-gray-500 font-semibold">Tổng tạm ứng</div><div className="text-2xl font-bold">{deposits.reduce((sum, d) => sum + d.amount, 0)}</div></div>
-            <div><div className="text-xs text-gray-500 font-semibold">Còn lại</div><div className="text-2xl font-bold">{deposits.reduce((sum, d) => sum + d.remainingAmount, 0)}</div></div>
-          </div>
-        </div>
-        <div>
+            <Statistic
+              title="Tổng tạm ứng"
+              value={deposits.reduce((sum, d) => sum + d.amount, 0)}
+              suffix="đ"
+              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+            />
+            <Statistic
+              title="Còn lại"
+              value={deposits.reduce((sum, d) => sum + d.remainingAmount, 0)}
+              suffix="đ"
+              styles={{ content: { color: '#52c41a' } }}
+              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+            />
+          </Space>
+        </Col>
+        <Col>
           <Button
             type="primary"
             icon={<WalletOutlined />}
@@ -1489,8 +1525,8 @@ const Billing: React.FC = () => {
           >
             Tạo tạm ứng mới
           </Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       <Table
         columns={depositsColumns}
@@ -1679,7 +1715,7 @@ const Billing: React.FC = () => {
       key: 'action',
       width: 150,
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           {record.status === 0 && (
             <>
               <Button
@@ -1727,7 +1763,7 @@ const Billing: React.FC = () => {
               In
             </Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -1756,9 +1792,9 @@ const Billing: React.FC = () => {
 
   const RefundsTab = (
     <div>
-      <div className="flex gap-4 flex-wrap mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+      <Row style={{ marginBottom: 16 }}>
+        <Col flex="auto">
+          <Space>
             <Search
               placeholder="Tìm theo mã BN, tên..."
               allowClear
@@ -1775,9 +1811,9 @@ const Billing: React.FC = () => {
                 setRefundDateRange(dates ? [dates[0]!, dates[1]!] as [Dayjs, Dayjs] : null);
               }}
             />
-          </div>
-        </div>
-        <div>
+          </Space>
+        </Col>
+        <Col>
           <Button
             type="primary"
             icon={<RollbackOutlined />}
@@ -1785,8 +1821,8 @@ const Billing: React.FC = () => {
           >
             Tạo yêu cầu hoàn tiền
           </Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       <Table
         columns={refundsColumns}
@@ -1968,7 +2004,7 @@ const Billing: React.FC = () => {
         headers.join(','),
         ...rows.map(r => r.join(',')),
         '',
-        `Tổng doanh thu,${data.totalRevenue},${data.insuranceRevenue},${data.patientRevenue}`,
+        `Tổng doanh thu,,,${data.totalRevenue},${data.insuranceRevenue},${data.patientRevenue}`,
       ].join('\n');
 
       const BOM = '\uFEFF';
@@ -1992,50 +2028,73 @@ const Billing: React.FC = () => {
 
   const ReportsTab = (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col>
           <RangePicker
             value={reportDateRange}
             onChange={(dates) => dates && setReportDateRange(dates as [Dayjs, Dayjs])}
             format="DD/MM/YYYY"
           />
-        </div>
-        <div>
+        </Col>
+        <Col>
           <Button type="primary" icon={<BarChartOutlined />} onClick={handleViewReport} loading={loadingReport}>
             Xem báo cáo
           </Button>
-        </div>
-        <div>
+        </Col>
+        <Col>
           <Button icon={<FileTextOutlined />} onClick={handleExportExcel} loading={loadingReport}>Xuất Excel</Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
-      <div className="flex gap-4 flex-wrap">
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Tong doanh thu</div><div className="text-2xl font-bold text-blue-500">{(reportData?.totalRevenue ?? 0).toLocaleString('vi-VN')}</div></div>
-          </div>
-        </div>
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Viện phí</div><div className="text-2xl font-bold">{reportData?.patientRevenue ?? 0}</div></div>
-          </div>
-        </div>
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Số hóa đơn</div><div className="text-2xl font-bold">{reportData?.totalInvoices ?? 0}</div></div>
-          </div>
-        </div>
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">BHYT</div><div className="text-2xl font-bold">{reportData?.insuranceRevenue ?? 0}</div></div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Tổng doanh thu"
+              value={reportData?.totalRevenue ?? 0}
+              suffix="đ"
+              prefix={<DollarOutlined style={{ color: '#1890ff' }} />}
+              styles={{ content: { color: '#1890ff' } }}
+              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Viện phí"
+              value={reportData?.patientRevenue ?? 0}
+              suffix="đ"
+              styles={{ content: { color: '#52c41a' } }}
+              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Số hóa đơn"
+              value={reportData?.totalInvoices ?? 0}
+              styles={{ content: { color: '#faad14' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="BHYT"
+              value={reportData?.insuranceRevenue ?? 0}
+              suffix="đ"
+              styles={{ content: { color: '#eb2f96' } }}
+              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="flex gap-4 flex-wrap">
-        <div className="w-full lg:w-1/2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Doanh thu theo loại dịch vụ</h4>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Card title="Doanh thu theo loại dịch vụ" size="small">
             <Table
               dataSource={(reportData?.serviceDetails || []).map((s, idx) => ({
                 key: s.serviceId || `svc-${idx}`,
@@ -2067,10 +2126,10 @@ const Billing: React.FC = () => {
               size="small"
               locale={{ emptyText: 'Nhấn "Xem báo cáo" để tải dữ liệu' }}
             />
-          </div>
-        </div>
-        <div className="w-full lg:w-1/2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"><h4 className="text-sm font-semibold text-gray-700 mb-3">Công nợ chưa thu</h4>
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card title="Công nợ chưa thu" size="small">
             <Table
               dataSource={(debtData?.topDebtors || []).map((d, idx) => ({
                 key: d.patientId || `debt-${idx}`,
@@ -2105,9 +2164,9 @@ const Billing: React.FC = () => {
                   align: 'right' as const,
                   width: 120,
                   render: (value: number) => (
-                    <span className="font-semibold" style={{color: '#f5222d'}}>
+                    <Text strong style={{ color: '#f5222d' }}>
                       {(value || 0).toLocaleString('vi-VN')} đ
-                    </span>
+                    </Text>
                   ),
                 },
               ]}
@@ -2115,9 +2174,9 @@ const Billing: React.FC = () => {
               size="small"
               locale={{ emptyText: 'Nhấn "Xem báo cáo" để tải dữ liệu' }}
             />
-          </div>
-        </div>
-      </div>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 
@@ -2140,7 +2199,7 @@ const Billing: React.FC = () => {
       dataIndex: 'eInvoiceNumber',
       key: 'eInvoiceNumber',
       width: 180,
-      render: (text: string) => <span className="font-semibold">{text}</span>,
+      render: (text: string) => <Text strong>{text}</Text>,
     },
     {
       title: 'Ký hiệu',
@@ -2162,7 +2221,7 @@ const Billing: React.FC = () => {
       render: (_: unknown, record: ElectronicInvoiceDto) => (
         <div>
           <div>{record.buyerName || record.patientName || '-'}</div>
-          {record.buyerTaxCode && <span className="text-gray-500 text-xs">MST: {record.buyerTaxCode}</span>}
+          {record.buyerTaxCode && <Text type="secondary" style={{ fontSize: 11 }}>MST: {record.buyerTaxCode}</Text>}
         </div>
       ),
     },
@@ -2172,7 +2231,7 @@ const Billing: React.FC = () => {
       key: 'totalAmount',
       width: 130,
       align: 'right' as const,
-      render: (v: number) => <span className="font-semibold">{(v || 0).toLocaleString('vi-VN')} đ</span>,
+      render: (v: number) => <Text strong>{(v || 0).toLocaleString('vi-VN')} đ</Text>,
     },
     {
       title: 'Trạng thái',
@@ -2197,7 +2256,7 @@ const Billing: React.FC = () => {
       key: 'actions',
       width: 220,
       render: (_: unknown, record: ElectronicInvoiceDto) => (
-        <div className="flex items-center gap-1">
+        <Space size="small">
           <Button
             size="small"
             icon={<EyeOutlined />}
@@ -2248,7 +2307,7 @@ const Billing: React.FC = () => {
               Hủy
             </Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -2258,37 +2317,44 @@ const Billing: React.FC = () => {
   const EInvoiceTab = (
     <div>
       {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="w-full lg:w-1/6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Tổng HĐ</div><div className="text-2xl font-bold">{eInvoiceStats?.totalInvoices || 0}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Đã phát hành</div><div className="text-2xl font-bold">{eInvoiceStats?.issuedCount || 0}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Đã gửi</div><div className="text-2xl font-bold">{eInvoiceStats?.sentCount || 0}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Đã hủy</div><div className="text-2xl font-bold">{eInvoiceStats?.cancelledCount || 0}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/3">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Tổng tiền (chưa hủy)</div><div className="text-2xl font-bold">{eInvoiceStats?.totalWithVat || 0}</div></div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Tổng HĐ" value={eInvoiceStats?.totalInvoices || 0} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Đã phát hành" value={eInvoiceStats?.issuedCount || 0} styles={{ content: { color: '#1890ff' } }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Đã gửi" value={eInvoiceStats?.sentCount || 0} styles={{ content: { color: '#52c41a' } }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small">
+            <Statistic title="Đã hủy" value={eInvoiceStats?.cancelledCount || 0} styles={{ content: { color: '#f5222d' } }} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic
+              title="Tổng tiền (chưa hủy)"
+              value={eInvoiceStats?.totalWithVat || 0}
+              precision={0}
+              suffix="đ"
+              styles={{ content: { color: '#722ed1' } }}
+              formatter={(value) => `${Number(value).toLocaleString('vi-VN')}`}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Search & filter */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="w-full lg:w-1/4">
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
           <Input.Search
             placeholder="Tìm số HĐ, tên BN, MST..."
             value={eInvoiceSearchText}
@@ -2296,8 +2362,8 @@ const Billing: React.FC = () => {
             onSearch={() => fetchEInvoices()}
             allowClear
           />
-        </div>
-        <div className="w-full lg:w-1/6">
+        </Col>
+        <Col span={4}>
           <Select
             placeholder="Trạng thái"
             style={{ width: '100%' }}
@@ -2312,21 +2378,21 @@ const Billing: React.FC = () => {
               { value: 4, label: 'Đã thay thế' },
             ]}
           />
-        </div>
-        <div className="w-full lg:w-1/4">
+        </Col>
+        <Col span={6}>
           <RangePicker
             value={eInvoiceDateRange}
             onChange={(dates) => setEInvoiceDateRange(dates as [Dayjs, Dayjs] | null)}
             format="DD/MM/YYYY"
             style={{ width: '100%' }}
           />
-        </div>
-        <div>
+        </Col>
+        <Col>
           <Button type="primary" icon={<SearchOutlined />} onClick={() => { fetchEInvoices(); fetchEInvoiceStats(); }}>
             Tìm kiếm
           </Button>
-        </div>
-        <div>
+        </Col>
+        <Col>
           <Button
             type="primary"
             icon={<ThunderboltOutlined />}
@@ -2339,8 +2405,8 @@ const Billing: React.FC = () => {
           >
             Tạo HĐĐT
           </Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       {/* Table */}
       <Table
@@ -2368,20 +2434,13 @@ const Billing: React.FC = () => {
   // ============= MAIN RENDER =============
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Gradient mesh background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý viện phí</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => { fetchDeposits(); fetchRefunds(); }} size="small">Làm mới</Button>
       </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-800 m-0">Quản lý viện phí</h2>
-          <Button icon={<ReloadOutlined />} onClick={() => { fetchDeposits(); fetchRefunds(); }} size="small">Làm mới</Button>
-        </div>
-      </motion.div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+      <Card>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -2438,7 +2497,7 @@ const Billing: React.FC = () => {
             },
           ]}
         />
-      </div>
+      </Card>
 
       {PaymentModal}
       {DepositModal}
@@ -2472,28 +2531,28 @@ const Billing: React.FC = () => {
               }))}
             />
           </Form.Item>
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item name="buyerName" label="Tên người mua">
                 <Input placeholder="Họ tên người mua" />
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item name="buyerTaxCode" label="Mã số thuế">
                 <Input placeholder="MST (nếu có)" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
           <Form.Item name="buyerAddress" label="Địa chỉ người mua">
             <Input placeholder="Địa chỉ" />
           </Form.Item>
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item name="buyerEmail" label="Email">
                 <Input placeholder="Email nhận hóa đơn" />
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item name="paymentMethod" label="Hình thức thanh toán" initialValue="TM">
                 <Select
                   options={[
@@ -2504,8 +2563,8 @@ const Billing: React.FC = () => {
                   ]}
                 />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
           <Form.Item name="sendEmail" valuePropName="checked" initialValue={false}>
             <Radio.Group>
               <Radio value={true}>Gửi email ngay sau khi tạo</Radio>
@@ -2528,9 +2587,9 @@ const Billing: React.FC = () => {
       >
         {selectedEInvoice && (
           <div style={{ marginBottom: 16 }}>
-            <span className="text-sm">Hóa đơn: <span className="font-semibold">{selectedEInvoice.eInvoiceNumber}</span></span>
+            <Text>Hóa đơn: <Text strong>{selectedEInvoice.eInvoiceNumber}</Text></Text>
             <br />
-            <span className="text-sm">Số tiền: <span className="font-semibold">{(selectedEInvoice.totalAmount || 0).toLocaleString('vi-VN')} đ</span></span>
+            <Text>Số tiền: <Text strong>{(selectedEInvoice.totalAmount || 0).toLocaleString('vi-VN')} đ</Text></Text>
           </div>
         )}
         <Form form={cancelEInvoiceForm} layout="vertical" onFinish={handleCancelEInvoice}>
@@ -2556,9 +2615,9 @@ const Billing: React.FC = () => {
       >
         {selectedEInvoice && (
           <div style={{ marginBottom: 16 }}>
-            <span className="text-sm">Hóa đơn: <span className="font-semibold">{selectedEInvoice.eInvoiceNumber}</span></span>
+            <Text>Hóa đơn: <Text strong>{selectedEInvoice.eInvoiceNumber}</Text></Text>
             <br />
-            <span className="text-sm">Người mua: <span className="font-semibold">{selectedEInvoice.buyerName || selectedEInvoice.patientName}</span></span>
+            <Text>Người mua: <Text strong>{selectedEInvoice.buyerName || selectedEInvoice.patientName}</Text></Text>
           </div>
         )}
         <Form form={sendEInvoiceForm} layout="vertical" onFinish={handleSendEInvoice}>
@@ -2599,7 +2658,7 @@ const Billing: React.FC = () => {
               <Descriptions.Item label="Mã NCC">{selectedEInvoice.providerInvoiceId || '-'}</Descriptions.Item>
             </Descriptions>
 
-            <div className="flex items-center gap-3 my-4"><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Thông tin người mua</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider titlePlacement="start" style={{ fontSize: 13 }}>Thông tin người mua</Divider>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="Tên BN/Người mua">{selectedEInvoice.buyerName || selectedEInvoice.patientName || '-'}</Descriptions.Item>
               <Descriptions.Item label="Mã số thuế">{selectedEInvoice.buyerTaxCode || '-'}</Descriptions.Item>
@@ -2608,20 +2667,20 @@ const Billing: React.FC = () => {
               <Descriptions.Item label="Email">{selectedEInvoice.sentTo || selectedEInvoice.buyerEmail || '-'}</Descriptions.Item>
             </Descriptions>
 
-            <div className="flex items-center gap-3 my-4"><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Số tiền</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider titlePlacement="start" style={{ fontSize: 13 }}>Số tiền</Divider>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="Tiền trước thuế">{(selectedEInvoice.subTotal || selectedEInvoice.amount || 0).toLocaleString('vi-VN')} đ</Descriptions.Item>
               <Descriptions.Item label="Thuế suất VAT">{selectedEInvoice.vatRate || 8}%</Descriptions.Item>
               <Descriptions.Item label="Tiền thuế GTGT">{(selectedEInvoice.vatAmount || 0).toLocaleString('vi-VN')} đ</Descriptions.Item>
               <Descriptions.Item label="Giảm giá">{(selectedEInvoice.discountAmount || 0).toLocaleString('vi-VN')} đ</Descriptions.Item>
               <Descriptions.Item label="Tổng thanh toán" span={2}>
-                <span className="font-semibold text-base" style={{color: '#722ed1'}}>
+                <Text strong style={{ fontSize: 16, color: '#722ed1' }}>
                   {(selectedEInvoice.totalAmount || 0).toLocaleString('vi-VN')} đ
-                </span>
+                </Text>
               </Descriptions.Item>
             </Descriptions>
 
-            <div className="flex items-center gap-3 my-4"><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Tra cứu</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider titlePlacement="start" style={{ fontSize: 13 }}>Tra cứu</Divider>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="Mã tra cứu">{selectedEInvoice.lookupCode || '-'}</Descriptions.Item>
               <Descriptions.Item label="URL tra cứu">
@@ -2633,7 +2692,7 @@ const Billing: React.FC = () => {
 
             {selectedEInvoice.status === 3 && (
               <>
-                <div className="flex items-center gap-3 my-4"><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Thông tin hủy</span><hr className="flex-1 border-gray-200" /></div>
+                <Divider titlePlacement="start" style={{ fontSize: 13, color: '#f5222d' }}>Thông tin hủy</Divider>
                 <Descriptions bordered size="small" column={2}>
                   <Descriptions.Item label="Lý do hủy" span={2}>{selectedEInvoice.cancelReason || '-'}</Descriptions.Item>
                   <Descriptions.Item label="Ngày hủy">{selectedEInvoice.cancelledAt ? dayjs(selectedEInvoice.cancelledAt).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
@@ -2643,7 +2702,7 @@ const Billing: React.FC = () => {
 
             {selectedEInvoice.sentAt && (
               <>
-                <div className="flex items-center gap-3 my-4"><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Thông tin gửi</span><hr className="flex-1 border-gray-200" /></div>
+                <Divider titlePlacement="start" style={{ fontSize: 13, color: '#52c41a' }}>Thông tin gửi</Divider>
                 <Descriptions bordered size="small" column={2}>
                   <Descriptions.Item label="Đã gửi tới">{selectedEInvoice.sentTo || '-'}</Descriptions.Item>
                   <Descriptions.Item label="Ngày gửi">{dayjs(selectedEInvoice.sentAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>

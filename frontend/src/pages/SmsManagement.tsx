@@ -10,7 +10,6 @@ import {
   PhoneOutlined, ApiOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import {
   getSmsBalance, testSmsConnection, sendTestSms, getSmsLogs, getSmsStats,
@@ -480,12 +479,6 @@ const SmsManagement = () => {
 
   return (
     <Spin spinning={false}>
-      <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>
           <MessageOutlined /> Quản lý SMS Gateway
@@ -494,9 +487,7 @@ const SmsManagement = () => {
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} />
         </Tooltip>
       </div>
-      </motion.div>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-      </div>
     </Spin>
   );
 };

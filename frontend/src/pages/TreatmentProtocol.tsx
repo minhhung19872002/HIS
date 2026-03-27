@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import {
   Card,
   Table,
@@ -315,7 +314,7 @@ const TreatmentProtocol: React.FC = () => {
       dataIndex: 'code',
       key: 'code',
       width: 110,
-      render: (text: string) => <span className="font-semibold">{text}</span>,
+      render: (text: string) => <Text strong>{text}</Text>,
     },
     {
       title: 'Ten phac do',
@@ -380,7 +379,7 @@ const TreatmentProtocol: React.FC = () => {
       key: 'actions',
       width: 100,
       render: (_: unknown, record: TreatmentProtocolDto) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Tooltip title="Chinh sua">
             <Button
               type="link"
@@ -410,7 +409,7 @@ const TreatmentProtocol: React.FC = () => {
               />
             </Tooltip>
           </Popconfirm>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -477,58 +476,70 @@ const TreatmentProtocol: React.FC = () => {
   // --- Render ---
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
     <Spin spinning={loading}>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h4 className="text-lg font-semibold m-0">
+        <Title level={4} style={{ margin: 0 }}>
           <ExperimentOutlined style={{ marginRight: 8 }} />
           Phac do dieu tri
-        </h4>
-        <div className="flex items-center gap-2">
+        </Title>
+        <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchProtocols}>
             Lam moi
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             Them phac do
           </Button>
-        </div>
+        </Space>
       </div>
-      </motion.div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-gray-500 text-sm mb-1">Tong phac do</div><div className="text-2xl font-semibold"><FileTextOutlined className="mr-1" />{stats.total}</div>
-          </div>
-        </div>
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-gray-500 text-sm mb-1">Dang ap dung</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.active}</div>
-          </div>
-        </div>
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-gray-500 text-sm mb-1">Ban nhap</div><div className="text-2xl font-semibold" style={{ color: '#faad14' }}><ClockCircleOutlined className="mr-1" />{stats.draft}</div>
-          </div>
-        </div>
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-gray-500 text-sm mb-1">Het hieu luc</div><div className="text-2xl font-semibold" style={{ color: '#ff4d4f' }}><StopOutlined className="mr-1" />{stats.expired}</div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic
+              title="Tong phac do"
+              value={stats.total}
+              prefix={<FileTextOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic
+              title="Dang ap dung"
+              value={stats.active}
+              prefix={<CheckCircleOutlined />}
+              styles={{ content: { color: '#52c41a' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic
+              title="Ban nhap"
+              value={stats.draft}
+              prefix={<ClockCircleOutlined />}
+              styles={{ content: { color: '#faad14' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic
+              title="Het hieu luc"
+              value={stats.expired}
+              prefix={<StopOutlined />}
+              styles={{ content: { color: '#ff4d4f' } }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Search / Filter bar */}
       <Card size="small" style={{ marginBottom: 16 }}>
-        <div className="grid grid-cols-4 gap-4">
-          <div>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={8} md={6}>
             <Search
               placeholder="Tim theo ten, ma..."
               allowClear
@@ -537,8 +548,8 @@ const TreatmentProtocol: React.FC = () => {
                 setPageIndex(0);
               }}
             />
-          </div>
-          <div>
+          </Col>
+          <Col xs={12} sm={6} md={4}>
             <Input
               placeholder="Ma ICD"
               allowClear
@@ -549,8 +560,8 @@ const TreatmentProtocol: React.FC = () => {
               }}
               prefix={<SearchOutlined />}
             />
-          </div>
-          <div>
+          </Col>
+          <Col xs={12} sm={6} md={4}>
             <Select
               placeholder="Nhom benh"
               allowClear
@@ -562,8 +573,8 @@ const TreatmentProtocol: React.FC = () => {
               }}
               options={diseaseGroups.map((g) => ({ value: g, label: g }))}
             />
-          </div>
-          <div>
+          </Col>
+          <Col xs={12} sm={6} md={4}>
             <Input
               placeholder="Khoa"
               allowClear
@@ -573,8 +584,8 @@ const TreatmentProtocol: React.FC = () => {
                 setPageIndex(0);
               }}
             />
-          </div>
-          <div>
+          </Col>
+          <Col xs={12} sm={6} md={4}>
             <Select
               placeholder="Trang thai"
               allowClear
@@ -589,8 +600,8 @@ const TreatmentProtocol: React.FC = () => {
                 label: v.label,
               }))}
             />
-          </div>
-        </div>
+          </Col>
+        </Row>
       </Card>
 
       {/* Main table */}
@@ -630,7 +641,7 @@ const TreatmentProtocol: React.FC = () => {
         onClose={() => setDrawerOpen(false)}
         extra={
           selectedProtocol && (
-            <div className="flex items-center gap-2">
+            <Space>
               <Button icon={<EditOutlined />} onClick={() => handleEdit(selectedProtocol)}>
                 Sua
               </Button>
@@ -650,56 +661,56 @@ const TreatmentProtocol: React.FC = () => {
               <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
                 In
               </Button>
-            </div>
+            </Space>
           )
         }
       >
         {selectedProtocol && (
           <>
-            <div className="grid grid-cols-4 gap-4">
-              <div><span className="text-gray-500">Ma phac do:</span> <span className="font-semibold">{selectedProtocol.code}</span></div>
-              <div><span className="text-gray-500">Phien ban:</span> <span>v{selectedProtocol.version}</span></div>
-              <div>
-                <span className="text-gray-500">Trang thai:</span>{' '}
+            <Row gutter={[16, 8]}>
+              <Col span={8}><Text type="secondary">Ma phac do:</Text> <Text strong>{selectedProtocol.code}</Text></Col>
+              <Col span={8}><Text type="secondary">Phien ban:</Text> <Text>v{selectedProtocol.version}</Text></Col>
+              <Col span={8}>
+                <Text type="secondary">Trang thai:</Text>{' '}
                 <Tag color={STATUS_MAP[selectedProtocol.status]?.color || 'default'}>
                   {STATUS_MAP[selectedProtocol.status]?.label || 'N/A'}
                 </Tag>
-              </div>
-              <div><span className="text-gray-500">Ma ICD:</span> <span>{selectedProtocol.icdCode || '-'}</span></div>
-              <div><span className="text-gray-500">Ten ICD:</span> <span>{selectedProtocol.icdName || '-'}</span></div>
-              <div><span className="text-gray-500">Nhom benh:</span> <span>{selectedProtocol.diseaseGroup || '-'}</span></div>
-              <div><span className="text-gray-500">Khoa:</span> <span>{selectedProtocol.department || '-'}</span></div>
-              <div>
-                <span className="text-gray-500">Ngay ap dung:</span>{' '}
-                <span>{selectedProtocol.effectiveDate ? dayjs(selectedProtocol.effectiveDate).format('DD/MM/YYYY') : '-'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Het han:</span>{' '}
-                <span>{selectedProtocol.expiryDate ? dayjs(selectedProtocol.expiryDate).format('DD/MM/YYYY') : '-'}</span>
-              </div>
+              </Col>
+              <Col span={8}><Text type="secondary">Ma ICD:</Text> <Text>{selectedProtocol.icdCode || '-'}</Text></Col>
+              <Col span={8}><Text type="secondary">Ten ICD:</Text> <Text>{selectedProtocol.icdName || '-'}</Text></Col>
+              <Col span={8}><Text type="secondary">Nhom benh:</Text> <Text>{selectedProtocol.diseaseGroup || '-'}</Text></Col>
+              <Col span={8}><Text type="secondary">Khoa:</Text> <Text>{selectedProtocol.department || '-'}</Text></Col>
+              <Col span={8}>
+                <Text type="secondary">Ngay ap dung:</Text>{' '}
+                <Text>{selectedProtocol.effectiveDate ? dayjs(selectedProtocol.effectiveDate).format('DD/MM/YYYY') : '-'}</Text>
+              </Col>
+              <Col span={8}>
+                <Text type="secondary">Het han:</Text>{' '}
+                <Text>{selectedProtocol.expiryDate ? dayjs(selectedProtocol.expiryDate).format('DD/MM/YYYY') : '-'}</Text>
+              </Col>
               {selectedProtocol.approvedBy && (
-                <div>
-                  <span className="text-gray-500">Nguoi phe duyet:</span> <span>{selectedProtocol.approvedBy}</span>
+                <Col span={12}>
+                  <Text type="secondary">Nguoi phe duyet:</Text> <Text>{selectedProtocol.approvedBy}</Text>
                   {selectedProtocol.approvedDate && ` (${dayjs(selectedProtocol.approvedDate).format('DD/MM/YYYY')})`}
-                </div>
+                </Col>
               )}
-            </div>
+            </Row>
 
             {selectedProtocol.description && (
               <>
-                <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Mo ta</div>
-                <span>{selectedProtocol.description}</span>
+                <Divider>Mo ta</Divider>
+                <Text>{selectedProtocol.description}</Text>
               </>
             )}
 
             {selectedProtocol.references && (
               <>
-                <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Tai lieu tham khao</div>
-                <span>{selectedProtocol.references}</span>
+                <Divider>Tai lieu tham khao</Divider>
+                <Text>{selectedProtocol.references}</Text>
               </>
             )}
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Cac buoc dieu tri ({selectedProtocol.steps?.length || 0})</div>
+            <Divider>Cac buoc dieu tri ({selectedProtocol.steps?.length || 0})</Divider>
             <Table
               dataSource={selectedProtocol.steps || []}
               columns={stepColumns}
@@ -711,8 +722,8 @@ const TreatmentProtocol: React.FC = () => {
 
             {selectedProtocol.notes && (
               <>
-                <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Ghi chu</div>
-                <span>{selectedProtocol.notes}</span>
+                <Divider>Ghi chu</Divider>
+                <Text>{selectedProtocol.notes}</Text>
               </>
             )}
           </>
@@ -731,60 +742,60 @@ const TreatmentProtocol: React.FC = () => {
         cancelText="Huy"
       >
         <Form form={form} layout="vertical" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-          <div className="grid grid-cols-4 gap-4">
-            <div>
+          <Row gutter={16}>
+            <Col span={8}>
               <Form.Item name="code" label="Ma phac do" rules={[{ required: true, message: 'Nhap ma phac do' }]}>
                 <Input placeholder="VD: PD-001" />
               </Form.Item>
-            </div>
-            <div className="col-span-2">
+            </Col>
+            <Col span={16}>
               <Form.Item name="name" label="Ten phac do" rules={[{ required: true, message: 'Nhap ten phac do' }]}>
                 <Input placeholder="Ten phac do dieu tri" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           <Form.Item name="description" label="Mo ta">
             <TextArea rows={2} placeholder="Mo ta ngan gon ve phac do" />
           </Form.Item>
 
-          <div className="grid grid-cols-4 gap-4">
-            <div>
+          <Row gutter={16}>
+            <Col span={6}>
               <Form.Item name="icdCode" label="Ma ICD">
                 <Input placeholder="VD: J18.9" />
               </Form.Item>
-            </div>
-            <div>
+            </Col>
+            <Col span={10}>
               <Form.Item name="icdName" label="Ten ICD">
                 <Input placeholder="Ten benh theo ICD" />
               </Form.Item>
-            </div>
-            <div>
+            </Col>
+            <Col span={8}>
               <Form.Item name="diseaseGroup" label="Nhom benh">
                 <Select placeholder="Chon nhom benh" allowClear options={diseaseGroups.map((g) => ({ value: g, label: g }))} />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
-          <div className="grid grid-cols-4 gap-4">
-            <div>
+          <Row gutter={16}>
+            <Col span={8}>
               <Form.Item name="department" label="Khoa">
                 <Input placeholder="Khoa ap dung" />
               </Form.Item>
-            </div>
-            <div className="col-span-2">
+            </Col>
+            <Col span={16}>
               <Form.Item name="references" label="Tai lieu tham khao">
                 <TextArea rows={1} placeholder="Link hoac ten tai lieu tham khao" />
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           <Form.Item name="notes" label="Ghi chu">
             <TextArea rows={2} placeholder="Ghi chu them" />
           </Form.Item>
 
           {/* Steps section */}
-          <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Cac buoc dieu tri</div>
+          <Divider>Cac buoc dieu tri</Divider>
 
           {steps.map((step, idx) => (
             <Card
@@ -803,16 +814,16 @@ const TreatmentProtocol: React.FC = () => {
                 </Button>
               }
             >
-              <div className="grid grid-cols-4 gap-4">
-                <div>
+              <Row gutter={12}>
+                <Col span={10}>
                   <Input
                     placeholder="Ten buoc"
                     value={step.name}
                     onChange={(e) => updateStep(idx, 'name', e.target.value)}
                     style={{ marginBottom: 8 }}
                   />
-                </div>
-                <div>
+                </Col>
+                <Col span={8}>
                   <Select
                     placeholder="Loai hoat dong"
                     value={step.activityType}
@@ -820,8 +831,8 @@ const TreatmentProtocol: React.FC = () => {
                     options={ACTIVITY_TYPES}
                     style={{ width: '100%', marginBottom: 8 }}
                   />
-                </div>
-                <div>
+                </Col>
+                <Col span={4}>
                   <InputNumber
                     placeholder="Ngay"
                     value={step.durationDays}
@@ -830,37 +841,37 @@ const TreatmentProtocol: React.FC = () => {
                     style={{ width: '100%', marginBottom: 8 }}
                     addonAfter="ngay"
                   />
-                </div>
-                <div>
+                </Col>
+                <Col span={2} style={{ textAlign: 'center', paddingTop: 4 }}>
                   <Checkbox
                     checked={step.isOptional}
                     onChange={(e) => updateStep(idx, 'isOptional', e.target.checked)}
                   >
                     TC
                   </Checkbox>
-                </div>
-              </div>
+                </Col>
+              </Row>
 
               {/* Conditional fields for Medication */}
               {step.activityType === 'Medication' && (
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
+                <Row gutter={12}>
+                  <Col span={8}>
                     <Input
                       placeholder="Ten thuoc"
                       value={step.medicationName}
                       onChange={(e) => updateStep(idx, 'medicationName', e.target.value)}
                       style={{ marginBottom: 8 }}
                     />
-                  </div>
-                  <div>
+                  </Col>
+                  <Col span={5}>
                     <Input
                       placeholder="Lieu luong"
                       value={step.medicationDose}
                       onChange={(e) => updateStep(idx, 'medicationDose', e.target.value)}
                       style={{ marginBottom: 8 }}
                     />
-                  </div>
-                  <div>
+                  </Col>
+                  <Col span={5}>
                     <Select
                       placeholder="Duong dung"
                       value={step.medicationRoute}
@@ -868,58 +879,58 @@ const TreatmentProtocol: React.FC = () => {
                       options={MEDICATION_ROUTES}
                       style={{ width: '100%', marginBottom: 8 }}
                     />
-                  </div>
-                  <div>
+                  </Col>
+                  <Col span={6}>
                     <Input
                       placeholder="Tan suat"
                       value={step.medicationFrequency}
                       onChange={(e) => updateStep(idx, 'medicationFrequency', e.target.value)}
                       style={{ marginBottom: 8 }}
                     />
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               )}
 
               {/* Conditional fields for Lab / Imaging */}
               {(step.activityType === 'Lab' || step.activityType === 'Imaging') && (
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
+                <Row gutter={12}>
+                  <Col span={8}>
                     <Input
                       placeholder="Ma dich vu"
                       value={step.serviceCode}
                       onChange={(e) => updateStep(idx, 'serviceCode', e.target.value)}
                       style={{ marginBottom: 8 }}
                     />
-                  </div>
-                  <div className="col-span-2">
+                  </Col>
+                  <Col span={16}>
                     <Input
                       placeholder="Ten dich vu"
                       value={step.serviceName}
                       onChange={(e) => updateStep(idx, 'serviceName', e.target.value)}
                       style={{ marginBottom: 8 }}
                     />
-                  </div>
-                </div>
+                  </Col>
+                </Row>
               )}
 
-              <div className="grid grid-cols-4 gap-4">
-                <div>
+              <Row gutter={12}>
+                <Col span={12}>
                   <Input
                     placeholder="Dieu kien ap dung"
                     value={step.conditions}
                     onChange={(e) => updateStep(idx, 'conditions', e.target.value)}
                     style={{ marginBottom: 8 }}
                   />
-                </div>
-                <div>
+                </Col>
+                <Col span={12}>
                   <Input
                     placeholder="Ket qua mong doi"
                     value={step.expectedOutcome}
                     onChange={(e) => updateStep(idx, 'expectedOutcome', e.target.value)}
                     style={{ marginBottom: 8 }}
                   />
-                </div>
-              </div>
+                </Col>
+              </Row>
             </Card>
           ))}
 
@@ -929,7 +940,6 @@ const TreatmentProtocol: React.FC = () => {
         </Form>
       </Modal>
     </Spin>
-    </div>
   );
 };
 

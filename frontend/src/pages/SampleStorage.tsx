@@ -10,7 +10,6 @@ import {
 import dayjs from 'dayjs';
 import type { SampleStorageRecord, StorageLocation, StorageAlert } from '../api/sampleStorage';
 import * as storageApi from '../api/sampleStorage';
-import { motion } from 'framer-motion';
 import BarcodeScanner from '../components/BarcodeScanner';
 
 const statusMap: Record<number, { text: string; color: string }> = {
@@ -153,12 +152,6 @@ const SampleStorage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card
         title={<span><DatabaseOutlined /> Lưu trữ mẫu xét nghiệm</span>}
         extra={
@@ -175,14 +168,12 @@ const SampleStorage: React.FC = () => {
             title={`${alerts.length} cảnh báo lưu trữ`}
             description={alerts.slice(0, 3).map(a => a.message).join(' | ')} />
         )}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={6}><Statistic title="Tổng mẫu lưu" value={storedCount} prefix={<DatabaseOutlined />} /></Col>
           <Col span={6}><Statistic title="Đã lấy ra" value={records.filter(r => r.status === 1).length} styles={{ content: { color: '#52c41a' } }} /></Col>
           <Col span={6}><Statistic title="Hết hạn" value={expiredCount} styles={{ content: { color: expiredCount > 0 ? '#cf1322' : '#3f8600' } }} prefix={<WarningOutlined />} /></Col>
           <Col span={6}><Statistic title="Cảnh báo" value={alerts.length} styles={{ content: { color: alerts.length > 0 ? '#fa8c16' : '#3f8600' } }} /></Col>
         </Row>
-        </motion.div>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </Card>
 
@@ -246,8 +237,6 @@ const SampleStorage: React.FC = () => {
 
       {/* Barcode Scanner */}
       <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onScan={handleBarcodeScan} />
-    </motion.div>
-    </div>
     </Spin>
   );
 };

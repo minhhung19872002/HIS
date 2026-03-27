@@ -535,6 +535,20 @@ public class HISDbContext : DbContext
     public DbSet<IvfSpermBank> IvfSpermBanks => Set<IvfSpermBank>();
     public DbSet<IvfBiopsy> IvfBiopsies => Set<IvfBiopsy>();
 
+    // Supplementary Modules
+    public DbSet<FollowUpAppointment> FollowUpAppointments => Set<FollowUpAppointment>();
+    public DbSet<ProcurementRequest> ProcurementRequests => Set<ProcurementRequest>();
+    public DbSet<ProcurementRequestItem> ProcurementRequestItems => Set<ProcurementRequestItem>();
+    public DbSet<ImmunizationBatch> ImmunizationBatches => Set<ImmunizationBatch>();
+    public DbSet<HealthCheckupCampaign> HealthCheckupCampaigns => Set<HealthCheckupCampaign>();
+    public DbSet<HealthCheckupRecord> HealthCheckupRecords => Set<HealthCheckupRecord>();
+    public DbSet<DiseaseCase> DiseaseCases => Set<DiseaseCase>();
+    public DbSet<ContactTrace> ContactTraces => Set<ContactTrace>();
+
+    // Supplementary Module 9: Kiểm tra BHXH (BHXH Audit)
+    public DbSet<BhxhAuditSession> BhxhAuditSessions => Set<BhxhAuditSession>();
+    public DbSet<BhxhAuditError> BhxhAuditErrors => Set<BhxhAuditError>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

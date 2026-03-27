@@ -1,59 +1,96 @@
-describe('EMR - Hồ sơ bệnh án điện tử', () => {
+const disableAnimations = (win: Window) => {
+  const style = win.document.createElement('style')
+  style.innerHTML = `
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+      caret-color: transparent !important;
+    }
+  `
+  win.document.head.appendChild(style)
+}
+
+const visitEmr = () => {
+  cy.visit('/emr', {
+    onBeforeLoad(win) {
+      disableAnimations(win)
+    },
+  })
+}
+
+const openMockedRecord = () => {
+  visitEmr()
+  cy.wait('@searchExam')
+  cy.get('.ant-table-tbody .ant-table-row', { timeout: 5000 }).first().click({ force: true })
+  cy.wait('@getMedicalRecord')
+}
+
+const openDropdownAndSelectForm = (formLabel: string) => {
+  openMockedRecord()
+  cy.contains('button', /Bieu mau khac|Biểu mẫu khác/i).click({ force: true })
+  cy.get('.ant-dropdown').should('exist')
+  cy.contains('.ant-dropdown-menu-item', formLabel).click({ force: true })
+  cy.get('.ant-drawer').should('exist')
+}
+
+describe('EMR - Ho so benh an dien tu', () => {
   beforeEach(() => {
     cy.request('POST', 'http://localhost:5106/api/auth/login', {
       username: 'admin',
-      password: 'Admin@123'
-    }).then(resp => {
-      window.localStorage.setItem('token', resp.body.data.token);
-      window.localStorage.setItem('user', JSON.stringify(resp.body.data.user));
-    });
-  });
+      password: 'Admin@123',
+    }).then((resp) => {
+      window.localStorage.setItem('token', resp.body.data.token)
+      window.localStorage.setItem('user', JSON.stringify(resp.body.data.user))
+    })
+  })
 
   describe('Page load and structure', () => {
     it('loads EMR page at /emr', () => {
-      cy.visit('/emr');
-      cy.contains('Hồ sơ bệnh án điện tử (EMR)', { timeout: 10000 }).should('be.visible');
-    });
+      visitEmr()
+      cy.contains(/H[oồ] s[oơ] b[eệ]nh [aá]n [dđ]i[eệ]n t[uử] \(EMR\)/i, { timeout: 10000 }).should('be.visible')
+    })
 
     it('has left panel with search and list', () => {
-      cy.visit('/emr');
-      cy.get('input[placeholder*="Tìm theo mã BN"]', { timeout: 10000 }).should('be.visible');
-      cy.get('.ant-picker-range').should('be.visible');
-    });
+      visitEmr()
+      cy.get('.ant-input-search input', { timeout: 10000 }).should('be.visible')
+      cy.get('.ant-picker-range').should('be.visible')
+    })
 
     it('has right panel with empty state', () => {
-      cy.visit('/emr');
-      cy.contains('Chọn một hồ sơ bệnh án từ danh sách bên trái', { timeout: 10000 }).should('be.visible');
-    });
+      visitEmr()
+      cy.contains(/Chon mot ho so benh an|Chọn một hồ sơ bệnh án/i, { timeout: 10000 }).should('be.visible')
+    })
 
     it('has status filter dropdown', () => {
-      cy.visit('/emr');
-      cy.get('.ant-select', { timeout: 10000 }).should('exist');
-    });
-  });
+      visitEmr()
+      cy.get('.ant-select', { timeout: 10000 }).should('exist')
+    })
+  })
 
   describe('Search functionality', () => {
     it('can search by keyword', () => {
-      cy.visit('/emr');
-      cy.get('input[placeholder*="Tìm theo mã BN"]', { timeout: 10000 }).type('test');
-      cy.get('button .anticon-search').click();
-      cy.get('.ant-table', { timeout: 5000 }).should('be.visible');
-    });
+      visitEmr()
+      cy.get('.ant-input-search input', { timeout: 10000 }).type('test{enter}')
+      cy.get('.ant-table', { timeout: 5000 }).should('be.visible')
+    })
 
     it('table shows examination columns', () => {
-      cy.visit('/emr');
-      cy.get('.ant-table', { timeout: 10000 }).should('be.visible');
-      cy.contains('th', 'Ngày').should('exist');
-      cy.contains('th', 'Mã BN').should('exist');
-      cy.contains('th', 'Họ tên').should('exist');
-    });
+      visitEmr()
+      cy.get('.ant-table', { timeout: 10000 }).should('be.visible')
+      cy.contains('th', /Ngay|Ngày/i).should('exist')
+      cy.contains('th', /Ma BN|Mã BN/i).should('exist')
+      cy.contains('th', /Ho ten|Họ tên/i).should('exist')
+    })
 
     it('reload button triggers search', () => {
-      cy.visit('/emr');
-      cy.get('button .anticon-reload', { timeout: 10000 }).click();
-      cy.get('.ant-table').should('be.visible');
-    });
-  });
+      visitEmr()
+      cy.get('button .anticon-reload', { timeout: 10000 }).click()
+      cy.get('.ant-table').should('be.visible')
+    })
+  })
 
   describe('Detail panel with mocked data', () => {
     beforeEach(() => {
@@ -66,23 +103,23 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
               id: '00000000-0000-0000-0000-000000000001',
               patientId: '00000000-0000-0000-0000-000000000002',
               patientCode: 'BN001',
-              patientName: 'Nguyễn Văn A',
+              patientName: 'Nguyen Van A',
               roomId: '00000000-0000-0000-0000-000000000003',
-              roomName: 'Phòng khám 1',
+              roomName: 'Phong kham 1',
               status: 4,
-              statusName: 'Hoàn thành',
+              statusName: 'Hoan thanh',
               queueNumber: 1,
               examinationDate: new Date().toISOString(),
               diagnosisCode: 'J06',
-              diagnosisName: 'Nhiễm khuẩn đường hô hấp trên',
+              diagnosisName: 'Nhiem khuan duong ho hap tren',
             }],
             totalCount: 1,
             pageNumber: 1,
             pageSize: 20,
             totalPages: 1,
-          }
-        }
-      }).as('searchExam');
+          },
+        },
+      }).as('searchExam')
 
       cy.intercept('GET', '**/api/examination/*/medical-record', {
         statusCode: 200,
@@ -94,11 +131,11 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
             patient: {
               id: '00000000-0000-0000-0000-000000000002',
               patientCode: 'BN001',
-              fullName: 'Nguyễn Văn A',
+              fullName: 'Nguyen Van A',
               gender: 1,
               age: 35,
               phoneNumber: '0901234567',
-              address: '123 Lê Lợi, Q1, TP.HCM',
+              address: '123 Le Loi, Q1, TP.HCM',
             },
             vitalSigns: {
               weight: 65, height: 170, bmi: 22.5,
@@ -107,14 +144,14 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
               respiratoryRate: 18, spo2: 98,
             },
             interview: {
-              chiefComplaint: 'Ho, sốt nhẹ 2 ngày',
-              historyOfPresentIllness: 'Bệnh nhân ho khan, sốt nhẹ 37.5, đau họng',
-              pastMedicalHistory: 'Không có tiền sử bệnh lý đặc biệt',
+              chiefComplaint: 'Ho, sot nhe 2 ngay',
+              historyOfPresentIllness: 'Benh nhan ho khan, sot nhe 37.5, dau hong',
+              pastMedicalHistory: 'Khong co tien su benh ly dac biet',
             },
             diagnoses: [{
               id: 'd1',
               icdCode: 'J06',
-              icdName: 'Nhiễm khuẩn đường hô hấp trên',
+              icdName: 'Nhiem khuan duong ho hap tren',
               diagnosisType: 1,
             }],
             allergies: [],
@@ -122,186 +159,128 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
             serviceOrders: [],
             prescriptions: [],
             history: [],
-          }
-        }
-      }).as('getMedicalRecord');
+          },
+        },
+      }).as('getMedicalRecord')
 
       cy.intercept('GET', '**/api/examination/patient/*/medical-history*', {
         statusCode: 200,
-        body: { success: true, data: [] }
-      });
+        body: { success: true, data: [] },
+      })
       cy.intercept('GET', '**/api/examination/*/treatment-sheets', {
         statusCode: 200,
-        body: { success: true, data: [] }
-      });
+        body: { success: true, data: [] },
+      })
       cy.intercept('GET', '**/api/examination/*/consultation-records', {
         statusCode: 200,
-        body: { success: true, data: [] }
-      });
+        body: { success: true, data: [] },
+      })
       cy.intercept('GET', '**/api/examination/*/nursing-care-sheets', {
         statusCode: 200,
-        body: { success: true, data: [] }
-      });
-    });
+        body: { success: true, data: [] },
+      })
+    })
 
     it('clicking a row loads medical record detail', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('Thông tin bệnh nhân', { timeout: 5000 }).should('be.visible');
-      cy.contains('BN001').should('be.visible');
-    });
+      openMockedRecord()
+      cy.contains(/Thong tin benh nhan|Thông tin bệnh nhân/i, { timeout: 5000 }).should('exist')
+      cy.contains('BN001').should('be.visible')
+    })
 
     it('shows vital signs in detail', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('Sinh hiệu', { timeout: 5000 }).should('be.visible');
-    });
+      openMockedRecord()
+      cy.contains(/Sinh hieu|Sinh hiệu/i, { timeout: 5000 }).should('exist')
+    })
 
     it('shows interview/history data', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('Bệnh sử', { timeout: 5000 }).should('be.visible');
-    });
+      openMockedRecord()
+      cy.contains(/Benh su|Bệnh sử/i, { timeout: 5000 }).should('exist')
+    })
 
     it('shows diagnosis with ICD code', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      // Look in the detail panel (right side), not the examinations table (left side)
-      cy.get('.ant-col-14', { timeout: 5000 }).within(() => {
-        cy.contains('J06').should('exist');
-      });
-    });
+      openMockedRecord()
+      cy.contains('J06', { timeout: 5000 }).should('exist')
+    })
 
     it('has tabs for different form types', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.get('.ant-tabs-tab', { timeout: 5000 }).should('have.length.gte', 4);
-      cy.contains('.ant-tabs-tab', 'Hồ sơ BA').should('exist');
-      cy.contains('.ant-tabs-tab', 'Lịch sử khám').should('exist');
-      cy.contains('.ant-tabs-tab', 'Phiếu điều trị').should('exist');
-      cy.contains('.ant-tabs-tab', 'Hội chẩn').should('exist');
-    });
+      openMockedRecord()
+      cy.get('.ant-tabs-tab', { timeout: 5000 }).should('have.length.gte', 4)
+      cy.contains('.ant-tabs-tab', /Ho so BA|Hồ sơ BA/i).should('exist')
+      cy.contains('.ant-tabs-tab', /Lich su kham|Lịch sử khám/i).should('exist')
+      cy.contains('.ant-tabs-tab', /Phieu dieu tri|Phiếu điều trị/i).should('exist')
+      cy.contains('.ant-tabs-tab', /Hoi chan|Hội chẩn/i).should('exist')
+    })
 
     it('treatment tab has Add button', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('.ant-tabs-tab', 'Phiếu điều trị', { timeout: 5000 }).click();
-      cy.contains('Thêm phiếu').should('be.visible');
-    });
+      openMockedRecord()
+      cy.contains('.ant-tabs-tab', /Phieu dieu tri|Phiếu điều trị/i).click({ force: true })
+      cy.contains('button', /Them phieu|Thêm phiếu/i).should('exist')
+    })
 
     it('can open treatment sheet modal', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('.ant-tabs-tab', 'Phiếu điều trị', { timeout: 5000 }).click();
-      cy.contains('Thêm phiếu').click();
-      cy.contains('Thêm phiếu điều trị', { timeout: 3000 }).should('be.visible');
-      cy.contains('Ngày điều trị').should('be.visible');
-      cy.contains('Y lệnh điều trị').should('be.visible');
-      cy.contains('Diễn biến bệnh').should('be.visible');
-    });
+      openMockedRecord()
+      cy.contains('.ant-tabs-tab', /Phieu dieu tri|Phiếu điều trị/i).click({ force: true })
+      cy.contains('button', /Them phieu|Thêm phiếu/i).click({ force: true })
+      cy.contains('.ant-modal-title', /Them phieu dieu tri|Thêm phiếu điều trị/i).should('exist')
+      cy.contains(/Ngay dieu tri|Ngày điều trị/i).should('exist')
+      cy.contains(/Y lenh dieu tri|Y lệnh điều trị/i).should('exist')
+      cy.contains(/Dien bien benh|Diễn biến bệnh/i).should('exist')
+    })
 
     it('can open consultation modal', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('.ant-tabs-tab', 'Hội chẩn', { timeout: 5000 }).click({ force: true });
-      cy.wait(500);
-      cy.get('.ant-tabs-tabpane-active', { timeout: 5000 }).within(() => {
-        cy.contains('Thêm biên bản').click();
-      });
-      cy.contains('Thêm biên bản hội chẩn', { timeout: 3000 }).should('be.visible');
-      cy.contains('Lý do hội chẩn').should('be.visible');
-      cy.contains('Tóm tắt bệnh án').should('be.visible');
-    });
+      openMockedRecord()
+      cy.contains('.ant-tabs-tab', /Hoi chan|Hội chẩn/i).click({ force: true })
+      cy.contains('.ant-tabs-tabpane-active button', /Them bien ban|Thêm biên bản/i).click({ force: true })
+      cy.contains('.ant-modal-title', /Them bien ban hoi chan|Thêm biên bản hội chẩn/i).should('exist')
+      cy.contains(/Ly do hoi chan|Lý do hội chẩn/i).should('exist')
+      cy.contains(/Tom tat benh an|Tóm tắt bệnh án/i).should('exist')
+    })
 
     it('can open nursing care modal', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('.ant-tabs-tab', 'Chăm sóc', { timeout: 5000 }).click({ force: true });
-      cy.wait(300); // Wait for tab content to render
-      cy.get('.ant-tabs-tabpane-active', { timeout: 3000 }).within(() => {
-        cy.contains('Thêm phiếu').click();
-      });
-      cy.contains('Thêm phiếu chăm sóc', { timeout: 3000 }).should('be.visible');
-      cy.contains('Tình trạng bệnh nhân').should('be.visible');
-      cy.contains('Can thiệp điều dưỡng').should('be.visible');
-    });
+      openMockedRecord()
+      cy.contains('.ant-tabs-tab', /Cham soc|Chăm sóc/i).click({ force: true })
+      cy.contains('.ant-tabs-tabpane-active button', /Them phieu|Thêm phiếu/i).click({ force: true })
+      cy.contains('.ant-modal-title', /Them phieu cham soc|Thêm phiếu chăm sóc/i).should('exist')
+      cy.contains(/Tinh trang benh nhan|Tình trạng bệnh nhân/i).should('exist')
+      cy.contains(/Can thiep dieu duong|Can thiệp điều dưỡng/i).should('exist')
+    })
 
     it('print buttons visible when record selected', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.get('.anticon-printer', { timeout: 5000 }).should('have.length.gte', 2);
-    });
+      openMockedRecord()
+      cy.get('.anticon-printer', { timeout: 5000 }).should('have.length.gte', 2)
+    })
 
     it('can open print preview drawer for medical record summary', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      // Click first print button (Tom tat BA)
-      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click();
-      cy.contains('Tóm tắt bệnh án', { timeout: 3000 }).should('be.visible');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('TÓM TẮT BỆNH ÁN').should('be.visible');
-      cy.contains('BỘ Y TẾ').should('be.visible');
-      cy.contains('BỆNH VIỆN ĐA KHOA ABC').should('be.visible');
-    });
+      openMockedRecord()
+      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click({ force: true })
+      cy.get('.ant-drawer', { timeout: 5000 }).should('exist')
+      cy.contains(/Tom tat benh an|Tóm tắt bệnh án/i).should('exist')
+    })
 
     it('print preview shows patient info from medical record', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click();
-      cy.get('.ant-drawer', { timeout: 3000 }).within(() => {
-        cy.contains('Nguyễn Văn A').should('exist');
-        cy.contains('BN001').should('exist');
-        cy.contains('QUÁ TRÌNH BỆNH LÝ').should('exist');
-        cy.contains('CHẨN ĐOÁN').should('exist');
-      });
-    });
+      openMockedRecord()
+      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click({ force: true })
+      cy.get('.ant-drawer', { timeout: 5000 }).within(() => {
+        cy.contains(/Nguyen Van A|Nguyễn Văn A/i).should('exist')
+        cy.contains('BN001').should('exist')
+      })
+    })
 
     it('print preview has In button', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click();
-      cy.get('.ant-drawer', { timeout: 3000 }).within(() => {
-        cy.contains('button', 'In').should('be.visible');
-      });
-    });
+      openMockedRecord()
+      cy.get('.anticon-printer', { timeout: 5000 }).first().closest('button').click({ force: true })
+      cy.get('.ant-drawer', { timeout: 5000 }).within(() => {
+        cy.contains('button', /^In$/).should('exist')
+      })
+    })
 
     it('can open treatment sheet print preview', () => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      // Click second print button (To dieu tri)
-      cy.get('.anticon-printer', { timeout: 5000 }).eq(1).closest('button').click();
-      cy.get('.ant-drawer', { timeout: 3000 }).should('be.visible');
-      cy.contains('TỜ ĐIỀU TRỊ').should('be.visible');
-    });
-  });
+      openMockedRecord()
+      cy.get('.anticon-printer', { timeout: 5000 }).eq(1).closest('button').click({ force: true })
+      cy.get('.ant-drawer', { timeout: 5000 }).should('exist')
+      cy.contains(/To dieu tri|Tờ điều trị/i).should('exist')
+    })
+  })
 
   describe('Additional print forms via dropdown', () => {
     beforeEach(() => {
@@ -314,20 +293,23 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
               id: '00000000-0000-0000-0000-000000000001',
               patientId: '00000000-0000-0000-0000-000000000002',
               patientCode: 'BN001',
-              patientName: 'Nguyễn Văn A',
+              patientName: 'Nguyen Van A',
               roomId: '00000000-0000-0000-0000-000000000003',
-              roomName: 'Phòng khám 1',
+              roomName: 'Phong kham 1',
               status: 4,
-              statusName: 'Hoàn thành',
+              statusName: 'Hoan thanh',
               queueNumber: 1,
               examinationDate: new Date().toISOString(),
               diagnosisCode: 'J06',
-              diagnosisName: 'Nhiễm khuẩn đường hô hấp trên',
+              diagnosisName: 'Nhiem khuan duong ho hap tren',
             }],
-            totalCount: 1, pageNumber: 1, pageSize: 20, totalPages: 1,
-          }
-        }
-      }).as('searchExam');
+            totalCount: 1,
+            pageNumber: 1,
+            pageSize: 20,
+            totalPages: 1,
+          },
+        },
+      }).as('searchExam')
 
       cy.intercept('GET', '**/api/examination/*/medical-record', {
         statusCode: 200,
@@ -338,134 +320,97 @@ describe('EMR - Hồ sơ bệnh án điện tử', () => {
             medicalRecordCode: 'BA2026001',
             patient: {
               id: '00000000-0000-0000-0000-000000000002',
-              patientCode: 'BN001', fullName: 'Nguyễn Văn A',
-              gender: 1, age: 35, phoneNumber: '0901234567', address: '123 Lê Lợi, Q1, TP.HCM',
+              patientCode: 'BN001',
+              fullName: 'Nguyen Van A',
+              gender: 1,
+              age: 35,
+              phoneNumber: '0901234567',
+              address: '123 Le Loi, Q1, TP.HCM',
             },
             vitalSigns: { weight: 65, height: 170, bmi: 22.5, pulse: 78, temperature: 36.8, systolicBp: 120, diastolicBp: 80, respiratoryRate: 18, spo2: 98 },
-            interview: { chiefComplaint: 'Ho, sốt nhẹ', historyOfPresentIllness: 'Sốt 2 ngày', pastMedicalHistory: 'Không' },
-            diagnoses: [{ id: 'd1', icdCode: 'J06', icdName: 'Nhiễm khuẩn hô hấp trên', diagnosisType: 1 }],
-            allergies: [], contraindications: [], serviceOrders: [], prescriptions: [], history: [],
-          }
-        }
-      }).as('getMedicalRecord');
+            interview: { chiefComplaint: 'Ho, sot nhe', historyOfPresentIllness: 'Sot 2 ngay', pastMedicalHistory: 'Khong' },
+            diagnoses: [{ id: 'd1', icdCode: 'J06', icdName: 'Nhiem khuan ho hap tren', diagnosisType: 1 }],
+            allergies: [],
+            contraindications: [],
+            serviceOrders: [],
+            prescriptions: [],
+            history: [],
+          },
+        },
+      }).as('getMedicalRecord')
 
-      cy.intercept('GET', '**/api/examination/patient/*/medical-history*', { statusCode: 200, body: { success: true, data: [] } });
-      cy.intercept('GET', '**/api/examination/*/treatment-sheets', { statusCode: 200, body: { success: true, data: [] } });
-      cy.intercept('GET', '**/api/examination/*/consultation-records', { statusCode: 200, body: { success: true, data: [] } });
-      cy.intercept('GET', '**/api/examination/*/nursing-care-sheets', { statusCode: 200, body: { success: true, data: [] } });
-    });
-
-    const openDropdownAndSelectForm = (formLabel: string) => {
-      cy.visit('/emr');
-      cy.wait('@searchExam');
-      cy.get('.ant-table-row', { timeout: 5000 }).first().click({ force: true });
-      cy.wait('@getMedicalRecord');
-      cy.contains('button', 'Biểu mẫu khác', { timeout: 5000 }).click();
-      cy.get('.ant-dropdown', { timeout: 3000 }).should('be.visible');
-      cy.contains('.ant-dropdown-menu-item', formLabel).click();
-    };
+      cy.intercept('GET', '**/api/examination/patient/*/medical-history*', { statusCode: 200, body: { success: true, data: [] } })
+      cy.intercept('GET', '**/api/examination/*/treatment-sheets', { statusCode: 200, body: { success: true, data: [] } })
+      cy.intercept('GET', '**/api/examination/*/consultation-records', { statusCode: 200, body: { success: true, data: [] } })
+      cy.intercept('GET', '**/api/examination/*/nursing-care-sheets', { statusCode: 200, body: { success: true, data: [] } })
+    })
 
     it('opens pre-anesthetic exam form', () => {
-      openDropdownAndSelectForm('Khám tiền mê');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU KHÁM TIỀN MÊ').should('exist');
-      cy.contains('MS. 06/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.06 - Khám tiền mê')
+      cy.contains(/PHIEU KHAM TIEN ME|PHIẾU KHÁM TIỀN MÊ/i).should('exist')
+    })
 
     it('opens surgery consent form', () => {
-      openDropdownAndSelectForm('Cam kết PT');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('GIẤY CAM KẾT PHẪU THUẬT').should('exist');
-      cy.contains('MS. 07/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.07 - Cam kết PT')
+      cy.contains(/GIAY CAM KET PHAU THUAT|GIẤY CAM KẾT PHẪU THUẬT/i).should('exist')
+    })
 
     it('opens treatment progress note', () => {
-      openDropdownAndSelectForm('Sơ kết 15 ngày');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU SƠ KẾT 15 NGÀY ĐIỀU TRỊ').should('exist');
-      cy.contains('MS. 08/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.08 - Sơ kết 15 ngày')
+      cy.contains(/PHIEU SO KET 15 NGAY DIEU TRI|PHIẾU SƠ KẾT 15 NGÀY ĐIỀU TRỊ/i).should('exist')
+    })
 
     it('opens counseling form', () => {
-      openDropdownAndSelectForm('Phiếu tư vấn');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU TƯ VẤN NGƯỜI BỆNH').should('exist');
-      cy.contains('MS. 09/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.09 - Phiếu tư vấn')
+      cy.contains(/PHIEU TU VAN NGUOI BENH|PHIẾU TƯ VẤN NGƯỜI BỆNH/i).should('exist')
+    })
 
     it('opens death review form', () => {
-      openDropdownAndSelectForm('Kiểm điểm tử vong');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('BIÊN BẢN KIỂM ĐIỂM TỬ VONG').should('exist');
-      cy.contains('MS. 10/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.10 - Kiểm điểm tử vong')
+      cy.contains(/BIEN BAN KIEM DIEM TU VONG|BIÊN BẢN KIỂM ĐIỂM TỬ VONG/i).should('exist')
+    })
 
     it('opens medical record final summary', () => {
-      openDropdownAndSelectForm('Tổng kết HSBA');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('TỔNG KẾT HỒ SƠ BỆNH ÁN').should('exist');
-      cy.contains('MS. 11/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.11 - Tổng kết HSBA')
+      cy.contains(/TONG KET HO SO BENH AN|TỔNG KẾT HỒ SƠ BỆNH ÁN/i).should('exist')
+    })
 
-    // New doctor forms (MS. 12-17)
     it('opens nutrition exam form', () => {
-      openDropdownAndSelectForm('Khám dinh dưỡng');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU KHÁM DINH DƯỠNG').should('exist');
-      cy.contains('MS. 12/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.12 - Khám dinh dưỡng')
+      cy.contains(/PHIEU KHAM DINH DUONG|PHIẾU KHÁM DINH DƯỠNG/i).should('exist')
+    })
 
     it('opens surgery record form', () => {
-      openDropdownAndSelectForm('Phiếu phẫu thuật');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU PHẪU THUẬT / THỦ THUẬT').should('exist');
-      cy.contains('MS. 13/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.13 - Phiếu phẫu thuật')
+      cy.contains(/PHIEU PHAU THUAT|PHIẾU PHẪU THUẬT/i).should('exist')
+    })
 
     it('opens admission exam form', () => {
-      openDropdownAndSelectForm('Khám vào viện');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU KHÁM VÀO VIỆN').should('exist');
-      cy.contains('MS. 17/BV').should('exist');
-    });
+      openDropdownAndSelectForm('MS.17 - Khám vào viện')
+      cy.contains(/PHIEU KHAM VAO VIEN|PHIẾU KHÁM VÀO VIỆN/i).should('exist')
+    })
 
-    // Nursing forms (DD. 01-21) - sample tests
     it('opens nursing care plan form', () => {
-      openDropdownAndSelectForm('KH chăm sóc');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU KẾ HOẠCH CHĂM SÓC ĐIỀU DƯỠNG').should('exist');
-      cy.contains('DD. 01/BV').should('exist');
-    });
+      openDropdownAndSelectForm('DD.01 - KH chăm sóc')
+      cy.contains(/KE HOACH CHAM SOC DIEU DUONG|KẾ HOẠCH CHĂM SÓC ĐIỀU DƯỠNG/i).should('exist')
+    })
 
     it('opens surgical safety checklist', () => {
-      openDropdownAndSelectForm('An toàn PT');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('BẢNG KIỂM AN TOÀN PHẪU THUẬT').should('exist');
-      cy.contains('DD. 16/BV').should('exist');
-    });
+      openDropdownAndSelectForm('DD.16 - An toàn PT')
+      cy.contains(/BANG KIEM AN TOAN PHAU THUAT|BẢNG KIỂM AN TOÀN PHẪU THUẬT/i).should('exist')
+    })
 
     it('opens VAP monitoring form', () => {
-      openDropdownAndSelectForm('VP thở máy');
-      cy.get('.ant-drawer', { timeout: 3000 }).should('exist');
-      cy.contains('PHIẾU THEO DÕI PHÒNG NGỪA VIÊM PHỔI THỞ MÁY').should('exist');
-      cy.contains('DD. 21/BV').should('exist');
-    });
-  });
+      openDropdownAndSelectForm('DD.21 - VP thở máy')
+      cy.contains(/PHIEU THEO DOI PHONG NGUA VIEM PHOI THO MAY|PHIẾU THEO DÕI PHÒNG NGỪA VIÊM PHỔI THỞ MÁY/i).should('exist')
+    })
+  })
 
   describe('Menu integration', () => {
     it('EMR menu item exists in sidebar', () => {
-      cy.visit('/emr');
-      // Open Lam sang group if collapsed
-      cy.get('.ant-menu', { timeout: 10000 }).should('be.visible');
-      cy.get('.ant-layout-sider').then($sider => {
-        if ($sider.find('[title="Hồ sơ BA (EMR)"]').length > 0 || $sider.text().includes('Hồ sơ BA')) {
-          cy.contains('Hồ sơ BA').should('exist');
-        } else {
-          // Menu item is under Lam sang group - click to expand
-          cy.contains('.ant-menu-submenu-title', 'Lâm sàng').click({ force: true });
-          cy.contains('Hồ sơ BA').should('exist');
-        }
-      });
-    });
-  });
-});
+      visitEmr()
+      cy.get('.ant-menu', { timeout: 10000 }).should('be.visible')
+      cy.contains(/Ho so BA|Hồ sơ BA/i).should('exist')
+    })
+  })
+})

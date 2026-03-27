@@ -1,23 +1,30 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Card,
   Table,
   Button,
+  Space,
   Input,
   Tag,
+  Row,
+  Col,
   Modal,
   Form,
   Select,
+  Typography,
   message,
   Tabs,
   Badge,
   Alert,
+  Statistic,
   InputNumber,
   Drawer,
+  Divider,
+  Progress,
   Radio,
   Descriptions,
   Spin,
-  Timeline
+  Timeline,
 } from 'antd';
 import {
   SearchOutlined,
@@ -42,6 +49,7 @@ import pharmacyApi from '../api/pharmacy';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import BarcodeScanner from '../components/BarcodeScanner';
 
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
@@ -498,9 +506,9 @@ const Pharmacy: React.FC = () => {
       render: (text, record) => (
         <div>
           <div>{text}</div>
-          <span className="text-gray-500 text-xs">
+          <Text type="secondary" style={{ fontSize: 12 }}>
             {record.patientCode}
-          </span>
+          </Text>
         </div>
       ),
     },
@@ -552,7 +560,7 @@ const Pharmacy: React.FC = () => {
       width: 180,
       fixed: 'right',
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           {record.status === 'pending' && (
             <>
               <Button
@@ -599,7 +607,7 @@ const Pharmacy: React.FC = () => {
           <Button size="small" icon={<FileTextOutlined />} onClick={() => handleViewPrescriptionDetail(record)}>
             Chi tiết
           </Button>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -661,8 +669,8 @@ const Pharmacy: React.FC = () => {
         </style>
       </head>
       <body>
-        <div className="header">
-          <div className="header-left">
+        <div class="header">
+          <div class="header-left">
             <div><strong>${HOSPITAL_NAME}</strong></div>
             <div>Khoa Dược</div>
           </div>
@@ -672,19 +680,19 @@ const Pharmacy: React.FC = () => {
           </div>
         </div>
 
-        <div className="title">PHIẾU XUẤT THUỐC</div>
+        <div class="title">PHIẾU XUẤT THUỐC</div>
         <div style="text-align: center; margin-bottom: 10px;">Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
 
-        <div className="info-row">Mã BN: <span className="field">${selectedPrescription.patientCode}</span> Họ tên: <span className="field" style="width: 200px;"><strong>${selectedPrescription.patientName}</strong></span></div>
-        <div className="info-row">Khoa/Phòng: <span className="field">${selectedPrescription.department}</span> Bác sĩ kê: <span className="field">${selectedPrescription.doctorName}</span></div>
+        <div class="info-row">Mã BN: <span class="field">${selectedPrescription.patientCode}</span> Họ tên: <span class="field" style="width: 200px;"><strong>${selectedPrescription.patientName}</strong></span></div>
+        <div class="info-row">Khoa/Phòng: <span class="field">${selectedPrescription.department}</span> Bác sĩ kê: <span class="field">${selectedPrescription.doctorName}</span></div>
 
         <table>
           <thead>
             <tr>
-              <th className="text-center" style="width: 30px;">STT</th>
+              <th class="text-center" style="width: 30px;">STT</th>
               <th>Tên thuốc</th>
-              <th className="text-center" style="width: 50px;">ĐVT</th>
-              <th className="text-center" style="width: 40px;">SL</th>
+              <th class="text-center" style="width: 50px;">ĐVT</th>
+              <th class="text-center" style="width: 40px;">SL</th>
               <th style="width: 80px;">Số lô</th>
               <th style="width: 65px;">Hạn SD</th>
               <th style="width: 100px;">Cách dùng</th>
@@ -695,10 +703,10 @@ const Pharmacy: React.FC = () => {
               const batch = item.batches?.find(b => b.batchNumber === item.selectedBatch) || item.batches?.[0];
               return `
                 <tr>
-                  <td className="text-center">${index + 1}</td>
+                  <td class="text-center">${index + 1}</td>
                   <td><strong>${item.medicationName}</strong></td>
-                  <td className="text-center">${item.unit}</td>
-                  <td className="text-center">${item.dispensedQuantity}</td>
+                  <td class="text-center">${item.unit}</td>
+                  <td class="text-center">${item.dispensedQuantity}</td>
                   <td>${batch?.batchNumber || 'N/A'}</td>
                   <td>${batch?.expiryDate ? dayjs(batch.expiryDate).format('DD/MM/YY') : 'N/A'}</td>
                   <td style="font-size: 10px;">${item.dosage}</td>
@@ -708,7 +716,7 @@ const Pharmacy: React.FC = () => {
           </tbody>
         </table>
 
-        <div className="instructions">
+        <div class="instructions">
           <strong>Hướng dẫn sử dụng:</strong>
           <ul style="margin-left: 15px; margin-top: 5px;">
             ${medicationItems.filter(item => item.dispensedQuantity > 0 && item.instruction).map(item =>
@@ -717,16 +725,16 @@ const Pharmacy: React.FC = () => {
           </ul>
         </div>
 
-        <div className="signature-row">
-          <div className="signature-col">
+        <div class="signature-row">
+          <div class="signature-col">
             <div><strong>NGƯỜI NHẬN</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
-          <div className="signature-col">
+          <div class="signature-col">
             <div><strong>DƯỢC SĨ PHÁT</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
-          <div className="signature-col">
+          <div class="signature-col">
             <div><strong>TRƯỞNG KHOA</strong></div>
             <div>(Ký, ghi rõ họ tên)</div>
           </div>
@@ -859,9 +867,9 @@ const Pharmacy: React.FC = () => {
           <div>
             {stock} {record.unit}
           </div>
-          <span className="text-gray-500 text-xs">
+          <Text type="secondary" style={{ fontSize: 11 }}>
             Min: {record.minStock}
-          </span>
+          </Text>
         </div>
       ),
     },
@@ -892,12 +900,12 @@ const Pharmacy: React.FC = () => {
       key: 'action',
       width: 150,
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Button size="small" onClick={() => handleViewInventoryDetail(record)}>Chi tiết</Button>
           <Button size="small" type="link" onClick={() => handleViewInventoryHistory(record)}>
             Lịch sử
           </Button>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -1017,7 +1025,7 @@ const Pharmacy: React.FC = () => {
       key: 'action',
       width: 200,
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <Space>
           {record.status === 'pending' && (
             <>
               <Button size="small" type="primary" onClick={() => handleApproveTransfer(record)}>
@@ -1034,7 +1042,7 @@ const Pharmacy: React.FC = () => {
             </Button>
           )}
           <Button size="small" onClick={() => handleViewTransferDetail(record)}>Chi tiết</Button>
-        </div>
+        </Space>
       ),
     },
   ];
@@ -1106,32 +1114,49 @@ const Pharmacy: React.FC = () => {
 
   const renderPendingPrescriptionsTab = () => (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Chờ xử lý</div><div className="text-2xl font-bold">{pendingPrescriptions.filter((p) => p.status === 'pending').length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Đang cấp phát</div><div className="text-2xl font-bold">{pendingPrescriptions.filter((p) => p.status === 'dispensing').length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Hoàn thành hôm nay</div><div className="text-2xl font-bold">{15}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Khẩn cấp</div><div className="text-2xl font-bold">{pendingPrescriptions.filter((p) => p.priority === 'urgent').length}</div></div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Chờ xử lý"
+              value={pendingPrescriptions.filter((p) => p.status === 'pending').length}
+              styles={{ content: { color: '#faad14' } }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Đang cấp phát"
+              value={pendingPrescriptions.filter((p) => p.status === 'dispensing').length}
+              styles={{ content: { color: '#1890ff' } }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Hoàn thành hôm nay"
+              value={15}
+              styles={{ content: { color: '#52c41a' } }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Khẩn cấp"
+              value={pendingPrescriptions.filter((p) => p.priority === 'urgent').length}
+              styles={{ content: { color: '#ff4d4f' } }}
+              prefix={<ExclamationCircleOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <div className="flex-1">
+      <Card>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col flex="auto">
             <Search
               placeholder="Tìm theo mã đơn, mã BN, tên bệnh nhân..."
               allowClear
@@ -1144,9 +1169,9 @@ const Pharmacy: React.FC = () => {
                 applyPrescriptionFilters(pendingPrescriptions, value, prescriptionStatusFilter, prescriptionPriorityFilter);
               }}
             />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
+          </Col>
+          <Col>
+            <Space>
               <Select
                 value={prescriptionStatusFilter}
                 style={{ width: 150 }}
@@ -1171,9 +1196,9 @@ const Pharmacy: React.FC = () => {
                 <Select.Option value="urgent">Khẩn cấp</Select.Option>
                 <Select.Option value="normal">Bình thường</Select.Option>
               </Select>
-            </div>
-          </div>
-        </div>
+            </Space>
+          </Col>
+        </Row>
 
         <Table
           columns={pendingPrescriptionsColumns}
@@ -1192,7 +1217,7 @@ const Pharmacy: React.FC = () => {
             style: { cursor: 'pointer' },
           })}
         />
-      </div>
+      </Card>
     </div>
   );
 
@@ -1202,10 +1227,10 @@ const Pharmacy: React.FC = () => {
         <div>
           <div>Cấp phát thuốc</div>
           {selectedPrescription && (
-            <span className="text-gray-500 text-xs">
+            <Text type="secondary" style={{ fontSize: 14 }}>
               Đơn thuốc: {selectedPrescription.prescriptionCode} - Bệnh nhân:{' '}
               {selectedPrescription.patientName}
-            </span>
+            </Text>
           )}
         </div>
       }
@@ -1214,7 +1239,7 @@ const Pharmacy: React.FC = () => {
       open={dispensingDrawerVisible}
       onClose={() => setDispensingDrawerVisible(false)}
       footer={
-        <div className="flex items-center gap-2">
+        <Space style={{ float: 'right' }}>
           <Button onClick={() => setDispensingDrawerVisible(false)}>Hủy</Button>
           <Button icon={<PrinterOutlined />} onClick={executePrintDispensingSlip}>
             In phiếu xuất
@@ -1222,7 +1247,7 @@ const Pharmacy: React.FC = () => {
           <Button type="primary" icon={<CheckOutlined />} onClick={handleCompleteDispensing}>
             Hoàn thành cấp phát
           </Button>
-        </div>
+        </Space>
       }
     >
       {selectedPrescription && (
@@ -1250,80 +1275,86 @@ const Pharmacy: React.FC = () => {
           />
 
           <div style={{ marginBottom: 16 }}>
-            <span className="font-semibold">Tiến độ cấp phát:</span>
-            
+            <Text strong>Tiến độ cấp phát:</Text>
+            <Progress percent={Math.round(calculateDispenseProgress())} status="active" />
           </div>
 
-          <hr className="border-gray-200 my-4" />
+          <Divider />
 
           {medicationItems.map((item, index) => (
-            <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                <span className="font-semibold">
-                  {index + 1}. {item.medicationName}
-                </span>
-                {item.dispensedQuantity >= item.quantity && (
-                  <Tag color="success" style={{ marginLeft: 8 }}>
-                    Đã đủ
-                  </Tag>
-                )}
-                {item.dispensedQuantity > 0 && item.dispensedQuantity < item.quantity && (
-                  <Tag color="warning" style={{ marginLeft: 8 }}>
-                    Chưa đủ
-                  </Tag>
-                )}
-              </h4>
-              <div className="flex gap-4 flex-wrap">
-                <div className="w-full">
-                  <div className="flex flex-col gap-2">
+            <Card
+              key={item.id}
+              size="small"
+              style={{ marginBottom: 16 }}
+              title={
+                <div>
+                  <Text strong>
+                    {index + 1}. {item.medicationName}
+                  </Text>
+                  {item.dispensedQuantity >= item.quantity && (
+                    <Tag color="success" style={{ marginLeft: 8 }}>
+                      Đã đủ
+                    </Tag>
+                  )}
+                  {item.dispensedQuantity > 0 && item.dispensedQuantity < item.quantity && (
+                    <Tag color="warning" style={{ marginLeft: 8 }}>
+                      Chưa đủ
+                    </Tag>
+                  )}
+                </div>
+              }
+            >
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Space orientation="vertical" style={{ width: '100%' }}>
                     <div>
-                      <span className="text-gray-500 text-sm">Liều lượng:</span> <span className="text-sm">{item.dosage}</span>
+                      <Text type="secondary">Liều lượng:</Text> <Text>{item.dosage}</Text>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-sm">Hướng dẫn:</span> <span className="text-sm">{item.instruction}</span>
+                      <Text type="secondary">Hướng dẫn:</Text> <Text>{item.instruction}</Text>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-sm">Số lượng cần cấp:</span>{' '}
-                      <span className="font-semibold">
+                      <Text type="secondary">Số lượng cần cấp:</Text>{' '}
+                      <Text strong>
                         {item.quantity} {item.unit}
-                      </span>
+                      </Text>
                     </div>
 
-                    <hr className="border-gray-200 my-4" />
+                    <Divider style={{ margin: '12px 0' }} />
 
                     <div>
-                      <span className="font-semibold">Chọn lô thuốc:</span>
+                      <Text strong>Chọn lô thuốc:</Text>
                       <Radio.Group
                         style={{ width: '100%', marginTop: 8 }}
                         value={item.selectedBatch}
                         onChange={(e) => handleBatchSelect(item.id, e.target.value)}
                       >
-                        <div className="flex flex-col gap-2">
+                        <Space orientation="vertical" style={{ width: '100%' }}>
                           {item.batches.map((batch) => (
                             <Radio key={batch.batchNumber} value={batch.batchNumber}>
                               <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold">Lô: {batch.batchNumber}</span>
+                                <Space>
+                                  <Text strong>Lô: {batch.batchNumber}</Text>
                                   {getBatchStatusTag(batch)}
-                                </div>
+                                </Space>
                                 <div style={{ marginLeft: 24, marginTop: 4 }}>
-                                  <span className="text-gray-500 text-xs">
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
                                     HSD: {dayjs(batch.expiryDate).format('DD/MM/YYYY')} | Tồn:{' '}
                                     {batch.availableQuantity} {item.unit} | Kho:{' '}
                                     {batch.warehouse}
-                                  </span>
+                                  </Text>
                                 </div>
                               </div>
                             </Radio>
                           ))}
-                        </div>
+                        </Space>
                       </Radio.Group>
                     </div>
 
-                    <hr className="border-gray-200 my-4" />
+                    <Divider style={{ margin: '12px 0' }} />
 
                     <div>
-                      <span className="font-semibold">Số lượng cấp phát:</span>
+                      <Text strong>Số lượng cấp phát:</Text>
                       <InputNumber
                         min={0}
                         max={item.quantity}
@@ -1340,10 +1371,10 @@ const Pharmacy: React.FC = () => {
                         Cấp đủ
                       </Button>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
           ))}
         </>
       )}
@@ -1352,33 +1383,52 @@ const Pharmacy: React.FC = () => {
 
   const renderInventoryTab = () => (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Tổng mặt hàng</div><div className="text-2xl font-bold">{inventoryItems.length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Sắp hết hàng</div><div className="text-2xl font-bold">{inventoryItems.filter((i) => i.status === 'low').length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Hết hàng</div><div className="text-2xl font-bold">{inventoryItems.filter((i) => i.status === 'out').length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Sắp hết hạn</div><div className="text-2xl font-bold">{inventoryItems.filter((i) => i.status === 'expiring').length}</div></div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Tổng mặt hàng"
+              value={inventoryItems.length}
+              prefix={<MedicineBoxOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Sắp hết hàng"
+              value={inventoryItems.filter((i) => i.status === 'low').length}
+              styles={{ content: { color: '#faad14' } }}
+              prefix={<WarningOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Hết hàng"
+              value={inventoryItems.filter((i) => i.status === 'out').length}
+              styles={{ content: { color: '#ff4d4f' } }}
+              prefix={<ExclamationCircleOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Sắp hết hạn"
+              value={inventoryItems.filter((i) => i.status === 'expiring').length}
+              styles={{ content: { color: '#ff7a45' } }}
+              prefix={<ExclamationCircleOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
+      <Card>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col flex="auto">
+            <Space>
               <Search
                 placeholder="Tìm theo mã thuốc, tên thuốc..."
                 allowClear
@@ -1392,10 +1442,10 @@ const Pharmacy: React.FC = () => {
                 }}
               />
               <Button icon={<ScanOutlined />} onClick={() => setIsScannerOpen(true)} title="Quét mã vạch thuốc" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
+            </Space>
+          </Col>
+          <Col>
+            <Space>
               <Select
                 value={inventoryWarehouseFilter}
                 style={{ width: 150 }}
@@ -1439,9 +1489,9 @@ const Pharmacy: React.FC = () => {
               </Select>
               <Button icon={<FilterOutlined />} onClick={handleInventoryFilter}>Lọc</Button>
               <Button icon={<SyncOutlined />} onClick={handleInventorySync} loading={loading}>Đồng bộ</Button>
-            </div>
-          </div>
-        </div>
+            </Space>
+          </Col>
+        </Row>
 
         <Table
           columns={inventoryColumns}
@@ -1466,15 +1516,15 @@ const Pharmacy: React.FC = () => {
             style: { cursor: 'pointer' },
           })}
         />
-      </div>
+      </Card>
     </div>
   );
 
   const renderTransfersTab = () => (
     <div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <div className="flex-1">
+      <Card>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col flex="auto">
             <Search
               placeholder="Tìm theo mã phiếu, kho..."
               allowClear
@@ -1487,8 +1537,8 @@ const Pharmacy: React.FC = () => {
                 applyTransferFilters(transfers, value);
               }}
             />
-          </div>
-          <div>
+          </Col>
+          <Col>
             <Button
               type="primary"
               icon={<SwapOutlined />}
@@ -1496,8 +1546,8 @@ const Pharmacy: React.FC = () => {
             >
               Tạo phiếu điều chuyển
             </Button>
-          </div>
-        </div>
+          </Col>
+        </Row>
 
         <Table
           columns={transferColumns}
@@ -1515,7 +1565,7 @@ const Pharmacy: React.FC = () => {
             style: { cursor: 'pointer' },
           })}
         />
-      </div>
+      </Card>
 
       <Modal
         title="Tạo phiếu điều chuyển"
@@ -1527,8 +1577,8 @@ const Pharmacy: React.FC = () => {
         cancelText="Hủy"
       >
         <Form form={transferForm} layout="vertical">
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2">
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 name="fromWarehouse"
                 label="Từ kho"
@@ -1540,8 +1590,8 @@ const Pharmacy: React.FC = () => {
                   <Select.Option value="floor2">Nhà thuốc tầng 2</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-            <div className="w-full lg:w-1/2">
+            </Col>
+            <Col span={12}>
               <Form.Item
                 name="toWarehouse"
                 label="Đến kho"
@@ -1553,32 +1603,32 @@ const Pharmacy: React.FC = () => {
                   <Select.Option value="floor2">Nhà thuốc tầng 2</Select.Option>
                 </Select>
               </Form.Item>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
           <Form.Item name="note" label="Ghi chú">
             <TextArea rows={3} placeholder="Nhập lý do điều chuyển..." />
           </Form.Item>
 
-          <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Danh sách thuốc điều chuyển</span><hr className="flex-1 border-gray-200" /></div>
+          <Divider>Danh sách thuốc điều chuyển</Divider>
 
           {transferDrugItems.map((item, index) => (
-            <div className="flex gap-2 flex-wrap mb-2">
-              <div className="w-full lg:w-1/3">
+            <Row key={item._key} gutter={8} style={{ marginBottom: 8 }}>
+              <Col span={8}>
                 <Input
                   placeholder="Tên thuốc"
                   value={item.medicationName}
                   onChange={(e) => handleUpdateTransferDrug(index, 'medicationName', e.target.value)}
                 />
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <Input
                   placeholder="Mã thuốc"
                   value={item.medicationCode}
                   onChange={(e) => handleUpdateTransferDrug(index, 'medicationCode', e.target.value)}
                 />
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <InputNumber
                   min={1}
                   placeholder="SL"
@@ -1586,18 +1636,18 @@ const Pharmacy: React.FC = () => {
                   onChange={(value) => handleUpdateTransferDrug(index, 'quantity', value || 1)}
                   style={{ width: '100%' }}
                 />
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <Input
                   placeholder="ĐVT"
                   value={item.unit}
                   onChange={(e) => handleUpdateTransferDrug(index, 'unit', e.target.value)}
                 />
-              </div>
-              <div className="w-full lg:w-1/6">
+              </Col>
+              <Col span={4}>
                 <Button danger icon={<CloseOutlined />} onClick={() => handleRemoveTransferDrug(index)} />
-              </div>
-            </div>
+              </Col>
+            </Row>
           ))}
 
           <Button type="dashed" block icon={<PlusOutlined />} onClick={handleAddTransferDrug}>
@@ -1610,34 +1660,47 @@ const Pharmacy: React.FC = () => {
 
   const renderAlertsTab = () => (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="w-full lg:w-1/3">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Cảnh báo chưa xử lý</div><div className="text-2xl font-bold">{unacknowledgedCount}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/3">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Sắp hết hàng</div><div className="text-2xl font-bold">{alerts.filter((a) => a.type === 'low_stock').length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/3">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Sắp hết hạn</div><div className="text-2xl font-bold">{alerts.filter((a) => a.type === 'expiry').length}</div></div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Cảnh báo chưa xử lý"
+              value={unacknowledgedCount}
+              styles={{ content: { color: '#ff4d4f' } }}
+              prefix={<BellOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Sắp hết hàng"
+              value={alerts.filter((a) => a.type === 'low_stock').length}
+              styles={{ content: { color: '#faad14' } }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Sắp hết hạn"
+              value={alerts.filter((a) => a.type === 'expiry').length}
+              styles={{ content: { color: '#ff7a45' } }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="flex flex-col gap-2">
+      <Card>
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           {alerts.map((alert) => (
             <Alert
               key={alert.id}
               title={
                 <div>
-                  <div className="flex items-center gap-2">
+                  <Space>
                     {getAlertIcon(alert.type)}
-                    <span className="font-semibold">{alert.medicationName || 'Cảnh báo hệ thống'}</span>
+                    <Text strong>{alert.medicationName || 'Cảnh báo hệ thống'}</Text>
                     <Tag color={getAlertSeverityColor(alert.severity)}>
                       {alert.severity === 'high'
                         ? 'Cao'
@@ -1645,16 +1708,16 @@ const Pharmacy: React.FC = () => {
                         ? 'Trung bình'
                         : 'Thấp'}
                     </Tag>
-                  </div>
+                  </Space>
                 </div>
               }
               description={
                 <div>
                   <div>{alert.message}</div>
                   <div style={{ marginTop: 8 }}>
-                    <span className="text-gray-500 text-xs">
+                    <Text type="secondary" style={{ fontSize: 12 }}>
                       {dayjs(alert.createdDate).format('DD/MM/YYYY HH:mm')}
-                    </span>
+                    </Text>
                   </div>
                 </div>
               }
@@ -1668,14 +1731,14 @@ const Pharmacy: React.FC = () => {
               showIcon
               action={
                 !alert.acknowledged && (
-                  <div className="flex items-center gap-2">
+                  <Space>
                     <Button size="small" onClick={() => handleAcknowledgeAlert(alert.id)}>
                       Xác nhận
                     </Button>
                     <Button size="small" type="primary" onClick={() => handleResolveAlert(alert.id)}>
                       Xử lý
                     </Button>
-                  </div>
+                  </Space>
                 )
               }
               style={{
@@ -1683,8 +1746,8 @@ const Pharmacy: React.FC = () => {
               }}
             />
           ))}
-        </div>
-      </div>
+        </Space>
+      </Card>
     </div>
   );
 
@@ -1763,37 +1826,37 @@ const Pharmacy: React.FC = () => {
 
   const renderClinicalPharmacyTab = () => (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Tổng review</div><div className="text-2xl font-bold">{clinicalReviews.length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Cần xử lý</div><div className="text-2xl font-bold">{clinicalReviews.filter(r => r.status === 'pending' || r.status === 'flagged').length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">Báo cáo ADR</div><div className="text-2xl font-bold">{adrReports.length}</div></div>
-          </div>
-        </div>
-        <div className="w-full lg:w-1/4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div><div className="text-xs text-gray-500 font-semibold">ADR nghiêm trọng</div><div className="text-2xl font-bold">{adrReports.filter(r => r.severity === 'severe' || r.severity === 'fatal').length}</div></div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic title="Tổng review" value={clinicalReviews.length} styles={{ content: { color: '#1677ff' } }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="Cần xử lý" value={clinicalReviews.filter(r => r.status === 'pending' || r.status === 'flagged').length} styles={{ content: { color: '#ff4d4f' } }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="Báo cáo ADR" value={adrReports.length} styles={{ content: { color: '#fa8c16' } }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="ADR nghiêm trọng" value={adrReports.filter(r => r.severity === 'severe' || r.severity === 'fatal').length} styles={{ content: { color: '#cf1322' } }} />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <Card>
         <Tabs activeKey={clinicalSubTab} onChange={setClinicalSubTab} items={[
           {
             key: 'reviews',
             label: <span><FileTextOutlined /> Duyệt đơn thuốc ({clinicalReviews.filter(r => r.status === 'pending').length} chờ)</span>,
             children: (
               <div>
-                <div className="flex items-center gap-2">
+                <Space style={{ marginBottom: 16 }}>
                   <Select defaultValue="all" style={{ width: 160 }} options={[
                     { value: 'all', label: 'Tất cả loại' },
                     { value: 'interaction', label: 'Tương tác thuốc' },
@@ -1809,7 +1872,7 @@ const Pharmacy: React.FC = () => {
                     { value: 'flagged', label: 'Cảnh báo' },
                     { value: 'approved', label: 'Đã duyệt' },
                   ]} />
-                </div>
+                </Space>
                 <Table<ClinicalReview>
                   dataSource={clinicalReviews}
                   columns={reviewColumns}
@@ -1827,7 +1890,7 @@ const Pharmacy: React.FC = () => {
             children: (
               <div>
                 <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <div className="flex items-center gap-2">
+                  <Space>
                     <Select defaultValue="all" style={{ width: 140 }} options={[
                       { value: 'all', label: 'Tất cả mức độ' },
                       { value: 'mild', label: 'Nhẹ' },
@@ -1835,7 +1898,7 @@ const Pharmacy: React.FC = () => {
                       { value: 'severe', label: 'Nặng' },
                       { value: 'fatal', label: 'Tử vong' },
                     ]} />
-                  </div>
+                  </Space>
                   <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdrModalVisible(true)}>Báo cáo ADR mới</Button>
                 </div>
                 <Table<AdrReport>
@@ -1854,28 +1917,28 @@ const Pharmacy: React.FC = () => {
             children: (
               <div>
                 <Alert title="Đối chiếu thuốc (Medication Reconciliation)" description="Quy trình đối chiếu danh sách thuốc bệnh nhân đang sử dụng khi nhập viện, chuyển khoa và xuất viện. Phát hiện sai khác, bỏ sót hoặc trùng lặp thuốc giữa các giai đoạn điều trị." type="info" showIcon style={{ marginBottom: 16 }} />
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <Card>
                   <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
                     <MedicineBoxOutlined style={{ fontSize: 48, marginBottom: 16 }} />
                     <div>Chọn bệnh nhân để bắt đầu đối chiếu thuốc</div>
                     <Button type="primary" style={{ marginTop: 16 }} icon={<SearchOutlined />}>Tìm bệnh nhân</Button>
                   </div>
-                </div>
+                </Card>
               </div>
             ),
           },
         ]} />
-      </div>
+      </Card>
 
       <Modal title="Báo cáo phản ứng có hại (ADR)" open={adrModalVisible} onCancel={() => setAdrModalVisible(false)} onOk={handleSubmitAdr} okText="Gửi báo cáo" width={600} destroyOnHidden>
         <Form form={adrForm} layout="vertical">
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2"><Form.Item name="patientCode" label="Mã bệnh nhân" rules={[{ required: true }]}><Input /></Form.Item></div>
-            <div className="w-full lg:w-1/2"><Form.Item name="patientName" label="Họ tên" rules={[{ required: true }]}><Input /></Form.Item></div>
-          </div>
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2"><Form.Item name="medicationName" label="Thuốc nghi ngờ" rules={[{ required: true }]}><Input /></Form.Item></div>
-            <div className="w-full lg:w-1/2"><Form.Item name="reactionType" label="Loại phản ứng" rules={[{ required: true }]}><Select options={[
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="patientCode" label="Mã bệnh nhân" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="patientName" label="Họ tên" rules={[{ required: true }]}><Input /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="medicationName" label="Thuốc nghi ngờ" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="reactionType" label="Loại phản ứng" rules={[{ required: true }]}><Select options={[
               { value: 'skin', label: 'Da (phát ban, mề đay)' },
               { value: 'gi', label: 'Tiêu hóa (buồn nôn, tiêu chảy)' },
               { value: 'liver', label: 'Gan (tăng men gan)' },
@@ -1885,17 +1948,17 @@ const Pharmacy: React.FC = () => {
               { value: 'cardiac', label: 'Tim mạch (loạn nhịp)' },
               { value: 'anaphylaxis', label: 'Sốc phản vệ' },
               { value: 'other', label: 'Khác' },
-            ]} /></Form.Item></div>
-          </div>
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full lg:w-1/2"><Form.Item name="severity" label="Mức độ" rules={[{ required: true }]}><Select options={[
+            ]} /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="severity" label="Mức độ" rules={[{ required: true }]}><Select options={[
               { value: 'mild', label: 'Nhẹ' },
               { value: 'moderate', label: 'Trung bình' },
               { value: 'severe', label: 'Nặng' },
               { value: 'fatal', label: 'Tử vong' },
-            ]} /></Form.Item></div>
-            <div className="w-full lg:w-1/2"><Form.Item name="onsetDate" label="Ngày khởi phát"><Input type="date" /></Form.Item></div>
-          </div>
+            ]} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="onsetDate" label="Ngày khởi phát"><Input type="date" /></Form.Item></Col>
+          </Row>
           <Form.Item name="description" label="Mô tả chi tiết"><Input.TextArea rows={3} /></Form.Item>
           <Form.Item name="outcome" label="Kết quả xử trí"><Input.TextArea rows={2} /></Form.Item>
         </Form>
@@ -1904,20 +1967,13 @@ const Pharmacy: React.FC = () => {
   );
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Gradient mesh background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý nhà thuốc</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>
       </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-800 m-0">Quản lý nhà thuốc</h2>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>
-        </div>
-      </motion.div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+      <Card>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -1988,7 +2044,7 @@ const Pharmacy: React.FC = () => {
             },
           ]}
         />
-      </div>
+      </Card>
 
       {renderDispensingDrawer()}
 
@@ -2018,31 +2074,31 @@ const Pharmacy: React.FC = () => {
               <Descriptions.Item label="Mức độ">{getPriorityTag(selectedPrescription.priority)}</Descriptions.Item>
               <Descriptions.Item label="Thời gian">{dayjs(selectedPrescription.createdDate).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
               <Descriptions.Item label="Tổng tiền" span={2}>
-                <span className="font-semibold">{selectedPrescription.totalAmount.toLocaleString('vi-VN')} đ</span>
+                <Text strong>{selectedPrescription.totalAmount.toLocaleString('vi-VN')} đ</Text>
               </Descriptions.Item>
             </Descriptions>
 
-            <div className="flex items-center gap-3 my-4"><hr className="flex-1 border-gray-200" /><span className="text-xs text-gray-500 font-medium whitespace-nowrap">Danh sách thuốc ({medicationItems.length})</span><hr className="flex-1 border-gray-200" /></div>
+            <Divider>Danh sách thuốc ({medicationItems.length})</Divider>
 
             {medicationItems.map((item, index) => (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="flex gap-4 flex-wrap">
-                  <div className="w-full lg:w-2/3">
-                    <span className="font-semibold">{index + 1}. {item.medicationName}</span>
+              <Card key={item.id} size="small" style={{ marginBottom: 8 }}>
+                <Row>
+                  <Col span={16}>
+                    <Text strong>{index + 1}. {item.medicationName}</Text>
                     <br />
-                    <span className="text-gray-500 text-sm">Mã: {item.medicationCode} | ĐVT: {item.unit}</span>
+                    <Text type="secondary">Mã: {item.medicationCode} | ĐVT: {item.unit}</Text>
                     <br />
-                    <span className="text-gray-500 text-sm">Liều: {item.dosage}</span>
+                    <Text type="secondary">Liều: {item.dosage}</Text>
                     <br />
-                    <span className="text-gray-500 text-sm">Hướng dẫn: {item.instruction}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold">SL: {item.quantity} {item.unit}</span>
+                    <Text type="secondary">Hướng dẫn: {item.instruction}</Text>
+                  </Col>
+                  <Col span={8} style={{ textAlign: 'right' }}>
+                    <Text strong>SL: {item.quantity} {item.unit}</Text>
                     <br />
-                    <span className="text-gray-500 text-sm">Đã cấp: {item.dispensedQuantity}</span>
-                  </div>
-                </div>
-              </div>
+                    <Text type="secondary">Đã cấp: {item.dispensedQuantity}</Text>
+                  </Col>
+                </Row>
+              </Card>
             ))}
           </>
         )}
@@ -2098,7 +2154,7 @@ const Pharmacy: React.FC = () => {
         }
       >
         {selectedInventoryItem && (
-          <div className="flex flex-col gap-2">
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <Alert
               title={`Thuốc: ${selectedInventoryItem.medicationName}`}
               description={`Mã: ${selectedInventoryItem.medicationCode} | Kho: ${selectedInventoryItem.warehouse} | Tồn hiện tại: ${selectedInventoryItem.totalStock} ${selectedInventoryItem.unit}`}
@@ -2131,16 +2187,16 @@ const Pharmacy: React.FC = () => {
                       <div>
                         <div>
                           <Tag color={color}>{label}</Tag>
-                          <span className="font-semibold">{entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}</span>
+                          <Text strong>{entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}</Text>
                           {' '}{selectedInventoryItem.unit}
                         </div>
-                        {entry.batchNumber && <div><span className="text-gray-500 text-sm">Lô: {entry.batchNumber}</span></div>}
-                        {entry.referenceCode && <div><span className="text-gray-500 text-sm">Mã tham chiếu: {entry.referenceCode}</span></div>}
-                        {entry.note && <div><span className="text-gray-500 text-sm">Ghi chú: {entry.note}</span></div>}
+                        {entry.batchNumber && <div><Text type="secondary">Lô: {entry.batchNumber}</Text></div>}
+                        {entry.referenceCode && <div><Text type="secondary">Mã tham chiếu: {entry.referenceCode}</Text></div>}
+                        {entry.note && <div><Text type="secondary">Ghi chú: {entry.note}</Text></div>}
                         <div>
-                          <span className="text-gray-500 text-xs">
+                          <Text type="secondary" style={{ fontSize: 12 }}>
                             {dayjs(entry.createdDate).format('DD/MM/YYYY HH:mm')} - {entry.createdBy}
-                          </span>
+                          </Text>
                         </div>
                       </div>
                     ),
@@ -2148,7 +2204,7 @@ const Pharmacy: React.FC = () => {
                 })}
               />
             )}
-          </div>
+          </Space>
         )}
       </Drawer>
 

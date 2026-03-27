@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import {
   Card, Row, Col, Segmented, Spin, Table, Tag, Button, Modal,
   Descriptions, Badge, Calendar, Space, message, Statistic, Input,
@@ -724,21 +723,14 @@ const DoctorPortal: React.FC = () => {
   // ============================================================================
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-      </div>
     <Spin spinning={loading && opdPatients.length === 0 && ipdPatients.length === 0}>
       <div style={{ padding: 0 }}>
-        <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
             <Title level={4} style={{ margin: 0 }}><SolutionOutlined /> Cổng Bác sĩ</Title>
             <Tooltip title="Làm mới"><Button icon={<ReloadOutlined />} onClick={handleRefresh} /></Tooltip>
           </div>
-          </motion.div>
 
           <div style={{ marginBottom: 16, overflowX: 'auto' }}>
             <Segmented value={activeTab} onChange={(v) => setActiveTab(v as string)}
@@ -761,7 +753,6 @@ const DoctorPortal: React.FC = () => {
         </Card>
       </div>
     </Spin>
-    </div>
   );
 };
 

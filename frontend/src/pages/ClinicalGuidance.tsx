@@ -36,7 +36,6 @@ import {
   DollarOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as guidanceApi from '../api/clinicalGuidance';
 import type {
@@ -312,7 +311,7 @@ const ClinicalGuidance: React.FC = () => {
       width: 150,
       fixed: 'right',
       render: (_: unknown, record: GuidanceBatchDto) => (
-        <div className="flex items-center gap-1">
+        <Space size="small">
           <Tooltip title="Xem chi tiet">
             <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
           </Tooltip>
@@ -324,57 +323,60 @@ const ClinicalGuidance: React.FC = () => {
               <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
             </Tooltip>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
 
   return (
     <Spin spinning={loading && batches.length === 0}>
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
+      <div>
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-          <div className="flex justify-between items-center">
-            <div>
-              <h4 className="text-lg font-semibold m-0">
+        <Card style={{ marginBottom: 16 }}>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Title level={4} style={{ margin: 0 }}>
                 <TeamOutlined style={{ marginRight: 8 }} />
                 Chi dao tuyen
-              </h4>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
+              </Title>
+            </Col>
+            <Col>
+              <Space>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenCreate()}>
                   Tao dot moi
                 </Button>
                 <Button icon={<ReloadOutlined />} onClick={fetchData}>
                   Lam moi
                 </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        </motion.div>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
 
         {/* KPI Cards */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Dang thuc hien</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><ClockCircleOutlined className="mr-1" />{stats.inProgress}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Hoan thanh</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.completed}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="Dang thuc hien"
+                value={stats.inProgress}
+                prefix={<ClockCircleOutlined />}
+                styles={{ content: { color: '#1890ff' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card>
+              <Statistic
+                title="Hoan thanh"
+                value={stats.completed}
+                prefix={<CheckCircleOutlined />}
+                styles={{ content: { color: '#52c41a' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card>
               <Statistic
                 title="Tong ngan sach"
                 value={stats.totalBudget}
@@ -383,15 +385,14 @@ const ClinicalGuidance: React.FC = () => {
                 prefix={<DollarOutlined />}
                 styles={{ content: { color: '#faad14' } }}
               />
-            </div>
-          </div>
-        </div>
-        </motion.div>
+            </Card>
+          </Col>
+        </Row>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-          <div className="grid grid-cols-4 gap-4">
-            <div>
+        <Card style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 12]}>
+            <Col xs={24} sm={8} md={6}>
               <Search
                 placeholder="Tim kiem dot chi dao, co so..."
                 value={keyword}
@@ -400,8 +401,8 @@ const ClinicalGuidance: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
               <Select
                 placeholder="Loai hinh"
                 allowClear
@@ -415,20 +416,20 @@ const ClinicalGuidance: React.FC = () => {
                   { value: 3, label: 'Ho tro' },
                 ]}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange}
                 onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                 format="DD/MM/YYYY"
               />
-            </div>
-          </div>
-        </div>
+            </Col>
+          </Row>
+        </Card>
 
         {/* Tabs + Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+        <Card>
           <Tabs
             activeKey={activeTab}
             onChange={(key) => { setActiveTab(key); setPagination({ current: 1, pageSize: 20 }); }}
@@ -459,7 +460,7 @@ const ClinicalGuidance: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
           />
-        </div>
+        </Card>
 
         {/* Create/Edit Modal */}
         <Modal
@@ -481,8 +482,8 @@ const ClinicalGuidance: React.FC = () => {
             >
               <Input placeholder="VD: Chi dao tuyen TTYT Huyen X Q2/2026" />
             </Form.Item>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item
                   name="targetFacility"
                   label="Co so tuyen duoi"
@@ -490,8 +491,8 @@ const ClinicalGuidance: React.FC = () => {
                 >
                   <Input placeholder="Ten co so y te tuyen duoi" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item
                   name="guidanceType"
                   label="Loai hinh"
@@ -507,10 +508,10 @@ const ClinicalGuidance: React.FC = () => {
                     ]}
                   />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item
                   name="startDate"
                   label="Ngay bat dau"
@@ -518,8 +519,8 @@ const ClinicalGuidance: React.FC = () => {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item
                   name="endDate"
                   label="Ngay ket thuc"
@@ -527,13 +528,13 @@ const ClinicalGuidance: React.FC = () => {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="teamMembers" label="Thanh vien doan">
               <TextArea rows={2} placeholder="Danh sach thanh vien tham gia..." />
             </Form.Item>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="budget" label="Ngan sach (VND)">
                   <InputNumber
                     min={0}
@@ -542,8 +543,8 @@ const ClinicalGuidance: React.FC = () => {
                     formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
             <Form.Item name="notes" label="Ghi chu">
               <TextArea rows={2} placeholder="Ghi chu them..." />
             </Form.Item>
@@ -588,7 +589,7 @@ const ClinicalGuidance: React.FC = () => {
                 <Descriptions.Item label="Ghi chu" span={2}>{selectedBatch.notes || '-'}</Descriptions.Item>
               </Descriptions>
 
-              <h5 className="text-base font-semibold mb-3">Hoat dong chi dao tuyen</h5>
+              <Title level={5}>Hoat dong chi dao tuyen</Title>
               <Spin spinning={activitiesLoading}>
                 {activities.length > 0 ? (
                   <Timeline

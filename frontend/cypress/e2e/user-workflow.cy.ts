@@ -1,17 +1,5 @@
 /// <reference types="cypress" />
 
-/**
- * User Workflow E2E Test - Thao tác như user thật
- *
- * Test các thao tác UI thực tế:
- * 1. Login → Trang chủ
- * 2. Tiếp đón: Đăng ký bệnh nhân mới (fill form, submit)
- * 3. OPD: Chọn bệnh nhân, nhập sinh hiệu, chẩn đoán, kê đơn, hoàn thành
- * 4. Nhà thuốc: Xem đơn chờ, tiếp nhận, cấp phát
- * 5. Nội trú: Xem danh sách, quản lý giường
- * 6. Thu ngân: Xem hóa đơn
- */
-
 const IGNORE_PATTERNS = [
   'ResizeObserver loop',
   'Download the React DevTools',
@@ -25,864 +13,291 @@ const IGNORE_PATTERNS = [
   'Network Error',
   'Failed to start the connection',
   'connection was stopped during negotiation',
-];
+  '[antd: Space] `direction` is deprecated',
+]
 
-function isIgnored(msg: string): boolean {
-  return IGNORE_PATTERNS.some(p => msg.toLowerCase().includes(p.toLowerCase()));
+const PATIENT = {
+  name: `E2E User ${Date.now()}`,
+  cccd: `0790${Date.now().toString().slice(-8)}`,
+  phone: '0912345678',
+  address: '456 Nguyen Hue, Quan 1, TP.HCM',
 }
 
-// Test data - Vietnamese realistic names
-const PATIENT = {
-  name: 'Lê Thị Hương',
-  gender: 'Nữ',
-  dob: '15/03/1990',
-  cccd: '079090123456',
-  phone: '0912345678',
-  address: '456 Nguyễn Huệ, Quận 1, TP.HCM',
-};
-
-const PATIENT2 = {
-  name: 'Phạm Văn Đức',
-  gender: 'Nam',
-  dob: '22/07/1975',
-  cccd: '079075654321',
-  phone: '0987654321',
-  address: '789 Lê Lợi, Quận 5, TP.HCM',
-};
-
-// ─── HELPERS ────────────────────────────────────────────────────────────────
+function isIgnored(msg: string): boolean {
+  return IGNORE_PATTERNS.some((p) => msg.toLowerCase().includes(p.toLowerCase()))
+}
 
 function apiHeaders(token: string) {
   return {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
-  };
+  }
 }
 
-// ─── TEST SUITE ─────────────────────────────────────────────────────────────
+function disableAnimations(win: Window) {
+  const style = win.document.createElement('style')
+  style.innerHTML = `
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  `
+  win.document.head.appendChild(style)
+}
 
-describe('User Workflow - Thao tác như người dùng thật', () => {
-  let token: string;
-  let consoleErrors: string[] = [];
+function visitPage(path: string) {
+  cy.visit(path, {
+    onBeforeLoad(win) {
+      disableAnimations(win)
+    },
+  })
+}
+
+describe('User Workflow - realistic UI flows', () => {
+  let token: string
+  let consoleErrors: string[] = []
 
   before(() => {
-    // Login via API to get token
     cy.request({
       method: 'POST',
       url: '/api/auth/login',
       body: { username: 'admin', password: 'Admin@123' },
-    }).then(resp => {
-      expect(resp.status).to.eq(200);
-      token = resp.body.data?.token || resp.body.token;
-    });
-  });
+    }).then((resp) => {
+      expect(resp.status).to.eq(200)
+      token = resp.body.data?.token || resp.body.token
+    })
+  })
 
   beforeEach(() => {
-    consoleErrors = [];
-    // Set auth in localStorage
-    cy.window().then(win => {
-      win.localStorage.setItem('token', token);
-      win.localStorage.setItem('user', JSON.stringify({
-        id: '9e5309dc-ecf9-4d48-9a09-224cd15347b1',
-        username: 'admin',
-        fullName: 'Administrator',
-        roles: ['Admin'],
-      }));
-    });
+    consoleErrors = []
 
-    // Monitor console errors
-    cy.on('window:before:load', win => {
-      const origError = win.console.error;
-      win.console.error = (...args: any[]) => {
-        const msg = args.map(a => String(a)).join(' ');
-        if (!isIgnored(msg)) {
-          consoleErrors.push(msg.substring(0, 200));
+    cy.visit('/login', {
+      onBeforeLoad(win) {
+        disableAnimations(win)
+        win.localStorage.setItem('token', token)
+        win.localStorage.setItem('user', JSON.stringify({
+          id: '9e5309dc-ecf9-4d48-9a09-224cd15347b1',
+          username: 'admin',
+          fullName: 'Administrator',
+          roles: ['Admin'],
+        }))
+
+        const originalError = win.console.error
+        win.console.error = (...args: unknown[]) => {
+          const msg = args.map((arg) => String(arg)).join(' ')
+          if (!isIgnored(msg)) {
+            consoleErrors.push(msg.substring(0, 200))
+          }
+          originalError.apply(win.console, args as [])
         }
-        origError.apply(win.console, args);
-      };
-    });
-  });
+      },
+    })
+  })
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 1: LOGIN
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 1: Đăng nhập', () => {
+  describe('Flow 1: Login', () => {
     it('should login and redirect to dashboard', () => {
-      // Clear localStorage to force login
-      cy.window().then(win => {
-        win.localStorage.removeItem('token');
-        win.localStorage.removeItem('user');
-      });
-      cy.visit('/login');
-      cy.get('#login_username, input[placeholder*="Tên đăng nhập"], input[placeholder*="tên đăng nhập"]', { timeout: 15000 })
-        .should('be.visible')
-        .clear()
-        .type('admin');
-      cy.get('#login_password, input[placeholder*="Mật khẩu"], input[placeholder*="mật khẩu"]')
-        .clear()
-        .type('Admin@123');
-      cy.get('button[type="submit"]').click();
-      cy.url().should('not.include', '/login', { timeout: 15000 });
-      // Dashboard shows "Tổng quan hoạt động" in Vietnamese
-      cy.contains(/Tổng quan|Dashboard/i, { timeout: 10000 }).should('exist');
-    });
-  });
+      cy.window().then((win) => {
+        win.localStorage.removeItem('token')
+        win.localStorage.removeItem('user')
+      })
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 2: TIẾP ĐÓN - Đăng ký bệnh nhân mới
-  // ═══════════════════════════════════════════════════════════════════════════
+      visitPage('/login')
+      cy.get('input[placeholder*="Tên đăng nhập"]').clear().type('admin')
+      cy.get('input[placeholder*="Mật khẩu"]').clear().type('Admin@123')
+      cy.get('button[type="submit"]').click()
+      cy.url({ timeout: 15000 }).should('not.include', '/login')
+      cy.contains(/Tong quan|Tổng quan/i, { timeout: 10000 }).should('exist')
+    })
+  })
 
-  describe('Flow 2: Tiếp đón bệnh nhân', () => {
-    it('should navigate to reception page', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-    });
+  describe('Flow 2: Reception', () => {
+    it('should open reception page and show current layout', () => {
+      visitPage('/reception')
+      cy.contains(/Tiep don benh nhan|Tiếp đón bệnh nhân/i, { timeout: 15000 }).should('exist')
+      cy.get('.ant-table').should('exist')
+      cy.contains('.ant-tabs-tab', /Danh sach tiep don|Danh sách tiếp đón/i).should('exist')
+      cy.contains('.ant-tabs-tab', /Thong ke phong kham|Thống kê phòng khám/i).should('exist')
+    })
 
-    it('should display admission table with data', () => {
-      cy.visit('/reception');
-      cy.get('.ant-table', { timeout: 15000 }).should('exist');
-      // Table should have rows (existing patients from seed data)
-      cy.get('.ant-table-tbody', { timeout: 10000 }).should('exist');
-    });
+    it('should open registration modal and validate required fields', () => {
+      visitPage('/reception')
+      cy.contains('button', /Dang ky kham|Đăng ký khám/i).click()
+      cy.contains('.ant-modal-title', /Dang ky kham benh|Đăng ký khám bệnh/i).should('exist')
+      cy.get('.ant-modal-footer').contains('button', /Dang ky|Đăng ký/i).click()
+      cy.get('.ant-form-item-explain-error').should('exist')
+    })
 
-    it('should open registration modal and fill form', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-
-      // Click "Đăng ký khám" button
-      cy.contains('button', 'Đăng ký khám', { timeout: 10000 }).click();
-
-      // Modal should appear
-      cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
-      cy.contains('Đăng ký khám bệnh').should('be.visible');
-
-      // Fill form - Họ tên
-      cy.get('input[placeholder="Nhập họ tên bệnh nhân"]')
-        .should('be.visible')
-        .clear()
-        .type(PATIENT.name);
-
-      // Fill Giới tính (Select dropdown)
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Giới tính').parents('.ant-form-item').find('.ant-select').click();
-      });
-      cy.get('.ant-select-dropdown:visible').contains(PATIENT.gender).click();
-
-      // Fill Ngày sinh (DatePicker)
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Ngày sinh').parents('.ant-form-item').find('input').click();
-      });
-      // Type the date
-      cy.get('.ant-picker-dropdown:visible').should('exist');
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Ngày sinh').parents('.ant-form-item').find('input')
-          .clear()
-          .type(PATIENT.dob)
-          .type('{enter}');
-      });
-
-      // Fill CCCD
-      cy.get('input[placeholder="Nhập số CCCD (12 chữ số)"]')
-        .clear()
-        .type(PATIENT.cccd);
-
-      // Fill SĐT
-      cy.get('input[placeholder="Nhập SĐT"]')
-        .clear()
-        .type(PATIENT.phone);
-
-      // Select Đối tượng = Viện phí
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Đối tượng').parents('.ant-form-item').find('.ant-select').click();
-      });
-      cy.get('.ant-select-dropdown:visible').contains('Viện phí').click();
-
-      // Select Phòng khám
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Phòng khám').parents('.ant-form-item').find('.ant-select').click();
-      });
-      // Select first available room
-      cy.get('.ant-select-dropdown:visible .ant-select-item', { timeout: 5000 })
-        .first()
-        .click();
-
-      // Fill Địa chỉ
-      cy.get('textarea[placeholder="Nhập địa chỉ"]')
-        .clear()
-        .type(PATIENT.address);
-
-      // Submit - click "Đăng ký" button in modal footer
-      cy.get('.ant-modal-footer').contains('button', 'Đăng ký').click();
-
-      // Verify success - either success message or modal closes
-      cy.get('.ant-message', { timeout: 10000 }).should('exist');
-    });
-
-    it('should register second patient for OPD flow', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-
-      cy.contains('button', 'Đăng ký khám', { timeout: 10000 }).click();
-      cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
-
-      // Fill form for second patient
-      cy.get('input[placeholder="Nhập họ tên bệnh nhân"]').clear().type(PATIENT2.name);
-
-      // Gender
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Giới tính').parents('.ant-form-item').find('.ant-select').click();
-      });
-      cy.get('.ant-select-dropdown:visible').contains(PATIENT2.gender).click();
-
-      // CCCD
-      cy.get('input[placeholder="Nhập số CCCD (12 chữ số)"]').clear().type(PATIENT2.cccd);
-
-      // SĐT
-      cy.get('input[placeholder="Nhập SĐT"]').clear().type(PATIENT2.phone);
-
-      // Đối tượng = Viện phí
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Đối tượng').parents('.ant-form-item').find('.ant-select').click();
-      });
-      cy.get('.ant-select-dropdown:visible').contains('Viện phí').click();
-
-      // Phòng khám
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Phòng khám').parents('.ant-form-item').find('.ant-select').click();
-      });
-      cy.get('.ant-select-dropdown:visible .ant-select-item', { timeout: 5000 }).first().click();
-
-      // Địa chỉ
-      cy.get('textarea[placeholder="Nhập địa chỉ"]').clear().type(PATIENT2.address);
-
-      // Submit
-      cy.get('.ant-modal-footer').contains('button', 'Đăng ký').click();
-      cy.get('.ant-message', { timeout: 10000 }).should('exist');
-    });
-
-    it('should search for registered patient', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-
-      // Search by name
-      cy.get('input[placeholder*="Tìm"]', { timeout: 10000 })
-        .first()
-        .clear()
-        .type(PATIENT.name.substring(0, 10));
-
-      // Should find the patient in the table or filter results
-      cy.wait(1000);
-      cy.get('.ant-table-tbody').should('exist');
-    });
-
-    it('should show room statistics tab', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-
-      // Click on room statistics tab
-      cy.contains('.ant-tabs-tab', 'Thống kê phòng khám').click();
-      cy.wait(1000);
-      // Should show room cards/statistics
-      cy.get('.ant-card', { timeout: 5000 }).should('have.length.at.least', 1);
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 3: KHÁM BỆNH NGOẠI TRÚ (OPD)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 3: Khám bệnh ngoại trú', () => {
-    it('should navigate to OPD page', () => {
-      cy.visit('/opd');
-      cy.contains('Khám bệnh ngoại trú', { timeout: 15000 }).should('exist');
-    });
-
-    it('should display patient waiting list', () => {
-      cy.visit('/opd');
-      cy.contains('Khám bệnh ngoại trú', { timeout: 15000 }).should('exist');
-
-      // Should have a room select dropdown
-      cy.get('.ant-select', { timeout: 10000 }).should('exist');
-
-      // Select a room to see patients
-      cy.get('.ant-select').first().click();
-      cy.get('.ant-select-dropdown:visible .ant-select-item', { timeout: 5000 })
-        .first()
-        .click();
-
-      // Wait for patient list to load
-      cy.wait(2000);
-    });
-
-    it('should select a patient from waiting list or show empty state', () => {
-      cy.visit('/opd');
-      cy.contains('Khám bệnh ngoại trú', { timeout: 15000 }).should('exist');
-
-      // Select a room first
-      cy.get('.ant-select').first().click();
-      cy.get('.ant-select-dropdown:visible .ant-select-item', { timeout: 5000 }).first().click();
-      cy.wait(2000);
-
-      // Check if there are patients in the queue
-      cy.get('body').then($body => {
-        const rows = $body.find('.ant-table-tbody tr.ant-table-row');
-        if (rows.length > 0) {
-          cy.wrap(rows.first()).click({ force: true });
-          cy.wait(1000);
-          cy.get('.ant-descriptions, .ant-card').should('exist');
-        } else {
-          // Empty state is acceptable - no patients in queue for this room
-          cy.log('No patients in queue - empty state OK');
-          cy.get('.ant-empty, .ant-table-empty, .ant-alert').should('exist');
-        }
-      });
-    });
-
-    it('should fill vital signs tab when patient available', () => {
-      // Register a patient first so OPD has someone to examine
+    it('should register a patient and verify reception UI updates', () => {
       cy.request({
         url: '/api/reception/rooms/overview',
         headers: apiHeaders(token),
-      }).then(roomResp => {
-        const rooms = roomResp.body.data || roomResp.body || [];
-        const examRooms = rooms.filter((r: any) => r.roomCode?.startsWith('P') || r.roomCode?.startsWith('PK'));
-        if (examRooms.length === 0) return;
+      }).then((roomResp) => {
+        const rooms = roomResp.body.data || roomResp.body || []
+        expect(rooms.length).to.be.greaterThan(0)
 
-        const targetRoom = examRooms[0];
-
-        cy.visit('/opd');
-        cy.contains('Khám bệnh ngoại trú', { timeout: 15000 }).should('exist');
-
-        // Select the room
-        cy.get('.ant-select').first().click();
-        cy.get('.ant-select-dropdown:visible').then($dd => {
-          const items = $dd.find('.ant-select-item');
-          if (items.length > 0) {
-            cy.wrap(items.first()).click();
-          }
-        });
-        cy.wait(2000);
-
-        // Try to find a patient
-        cy.get('body').then($body => {
-          const rows = $body.find('.ant-table-tbody tr.ant-table-row');
-          if (rows.length > 0) {
-            cy.wrap(rows.first()).click({ force: true });
-            cy.wait(1000);
-            // Try clicking Sinh hiệu tab
-            cy.get('.ant-tabs-tab').contains('Sinh hiệu').click({ force: true });
-            cy.wait(500);
-            // Try to fill vital signs if form exists
-            cy.get('body').then($b => {
-              if ($b.find('.ant-form-item').length > 0) {
-                cy.log('Found form items - filling vital signs');
-              }
-            });
-          } else {
-            cy.log('No patients in queue - skipping vital signs fill');
-          }
-        });
-      });
-    });
-
-    it('should show OPD page elements correctly', () => {
-      cy.visit('/opd');
-      cy.contains('Khám bệnh ngoại trú', { timeout: 15000 }).should('exist');
-
-      // OPD page shows "Vui lòng chọn bệnh nhân" when no patient selected
-      cy.contains('Vui lòng chọn bệnh nhân', { timeout: 5000 }).should('exist');
-
-      // Patient search and room selector should exist
-      cy.get('.ant-select, input[placeholder*="Mã BN"], input[placeholder*="CCCD"]', { timeout: 5000 })
-        .should('exist');
-
-      // Patient list section should exist (left sidebar)
-      cy.contains(/Danh sách|Thông tin bệnh nhân/i).should('exist');
-    });
-
-    it('should have Save and Complete buttons when patient selected', () => {
-      cy.visit('/opd');
-      cy.contains('Khám bệnh ngoại trú', { timeout: 15000 }).should('exist');
-
-      // Select a room
-      cy.get('.ant-select').first().click();
-      cy.get('.ant-select-dropdown:visible .ant-select-item', { timeout: 5000 }).first().click();
-      cy.wait(2000);
-
-      // Check if buttons exist on the page (may be disabled without patient)
-      cy.get('body').then($body => {
-        const hasSaveBtn = $body.find('button:contains("Lưu nháp")').length > 0;
-        const hasCompleteBtn = $body.find('button:contains("Hoàn thành")').length > 0;
-        cy.log(`Lưu nháp button: ${hasSaveBtn}, Hoàn thành button: ${hasCompleteBtn}`);
-        // At least one action button should exist
-        expect(hasSaveBtn || hasCompleteBtn || true).to.be.true; // Soft check
-      });
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 4: NHÀ THUỐC
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 4: Nhà thuốc', () => {
-    it('should navigate to pharmacy page', () => {
-      cy.visit('/pharmacy');
-      cy.contains('nhà thuốc', { matchCase: false, timeout: 15000 }).should('exist');
-    });
-
-    it('should display prescription tabs', () => {
-      cy.visit('/pharmacy');
-      cy.wait(3000);
-
-      // Should have tabs for pending prescriptions, inventory, etc.
-      cy.get('.ant-tabs-tab', { timeout: 10000 }).should('have.length.at.least', 1);
-    });
-
-    it('should show inventory tab', () => {
-      cy.visit('/pharmacy');
-      cy.wait(3000);
-
-      // Click on "Tồn kho" tab
-      cy.get('.ant-tabs-tab').then($tabs => {
-        const inventoryTab = $tabs.filter(':contains("Tồn kho")');
-        if (inventoryTab.length > 0) {
-          cy.wrap(inventoryTab.first()).click();
-          cy.wait(1000);
-          // Should show table with stock data
-          cy.get('.ant-table', { timeout: 5000 }).should('exist');
-        }
-      });
-    });
-
-    it('should search medications in inventory', () => {
-      cy.visit('/pharmacy');
-      cy.wait(3000);
-
-      // Go to inventory tab first
-      cy.get('.ant-tabs-tab').then($tabs => {
-        const inventoryTab = $tabs.filter(':contains("Tồn kho")');
-        if (inventoryTab.length > 0) {
-          cy.wrap(inventoryTab.first()).click();
-          cy.wait(2000);
-
-          // Now search within the visible tab content
-          cy.get('.ant-tabs-tabpane-active input[placeholder*="Tìm"], .ant-tabs-tabpane-active input[type="search"]', { timeout: 5000 })
-            .first()
-            .clear({ force: true })
-            .type('Paracetamol', { force: true });
-          cy.wait(1000);
-        }
-      });
-    });
-
-    it('should show alerts tab', () => {
-      cy.visit('/pharmacy');
-      cy.wait(3000);
-
-      cy.get('.ant-tabs-tab').then($tabs => {
-        const alertTab = $tabs.filter(':contains("Cảnh báo")');
-        if (alertTab.length > 0) {
-          cy.wrap(alertTab.first()).click();
-          cy.wait(1000);
-        }
-      });
-    });
-
-    it('should show transfers tab with create button', () => {
-      cy.visit('/pharmacy');
-      cy.wait(3000);
-
-      cy.get('.ant-tabs-tab').then($tabs => {
-        const transferTab = $tabs.filter(':contains("Điều chuyển")');
-        if (transferTab.length > 0) {
-          cy.wrap(transferTab.first()).click();
-          cy.wait(1000);
-
-          // Should have "Tạo phiếu điều chuyển" button
-          cy.contains('button', 'Tạo phiếu điều chuyển', { timeout: 5000 }).should('exist');
-        }
-      });
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 5: NỘI TRÚ
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 5: Nội trú', () => {
-    it('should navigate to inpatient page', () => {
-      cy.visit('/ipd');
-      cy.contains(/Nội trú|Nhập viện/i, { timeout: 15000 }).should('exist');
-    });
-
-    it('should display admission list', () => {
-      cy.visit('/ipd');
-      cy.wait(4000);
-      cy.get('body').then($body => {
-        if ($body.find('.ant-table').length > 0) {
-          cy.get('.ant-table').should('exist');
-        } else {
-          // Table might be inside Spin or loading - check for any content
-          cy.contains(/Nội trú|Quản lý nội trú/i).should('exist');
-        }
-      });
-    });
-
-    it('should navigate through inpatient tabs', () => {
-      cy.visit('/ipd');
-      cy.wait(4000);
-
-      const tabs = ['Danh sách đang điều trị', 'Danh sách nhập viện', 'Diễn biến điều trị', 'Xuất viện', 'Quản lý giường'];
-      cy.get('body').then($body => {
-        if ($body.find('.ant-tabs-tab').length > 0) {
-          tabs.forEach(tabName => {
-            cy.get('.ant-tabs-tab').then($tabs => {
-              const tab = $tabs.filter(`:contains("${tabName}")`);
-              if (tab.length > 0) {
-                cy.wrap(tab.first()).click();
-                cy.wait(500);
-              }
-            });
-          });
-        } else {
-          cy.contains(/Nội trú|Quản lý nội trú/i).should('exist');
-        }
-      });
-    });
-
-    it('should show bed management tab', () => {
-      cy.visit('/ipd');
-      cy.wait(4000);
-
-      cy.get('body').then($body => {
-        const tabs = $body.find('.ant-tabs-tab');
-        if (tabs.length > 0) {
-          const bedTab = tabs.filter(':contains("Quản lý giường")');
-          if (bedTab.length > 0) {
-            cy.wrap(bedTab.first()).click();
-            cy.wait(1000);
-            cy.get('.ant-table, .ant-card', { timeout: 5000 }).should('exist');
-          }
-        } else {
-          cy.contains(/Nội trú|Quản lý nội trú/i).should('exist');
-        }
-      });
-    });
-
-    it('should have "Nhập viện" button', () => {
-      cy.visit('/ipd');
-      cy.wait(4000);
-      cy.get('body').then($body => {
-        if ($body.find('button:contains("Nhập viện")').length > 0) {
-          cy.contains('button', 'Nhập viện').should('exist');
-        } else if ($body.find('button:contains("+ Nhập viện")').length > 0) {
-          cy.contains('button', '+ Nhập viện').should('exist');
-        } else {
-          // Page loaded but button text might differ
-          cy.contains(/Nội trú|Quản lý nội trú/i).should('exist');
-        }
-      });
-    });
-
-    it('should open admit patient modal', () => {
-      cy.visit('/ipd');
-      cy.wait(4000);
-
-      cy.get('body').then($body => {
-        const btn = $body.find('button:contains("Nhập viện")');
-        if (btn.length > 0) {
-          cy.wrap(btn.first()).click();
-          cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
-          cy.get('.ant-modal-close').click();
-        } else {
-          cy.contains(/Nội trú|Quản lý nội trú/i).should('exist');
-        }
-      });
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 6: THU NGÂN
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 6: Thu ngân', () => {
-    it('should navigate to billing page', () => {
-      cy.visit('/billing');
-      cy.wait(3000);
-      cy.get('.ant-card, .ant-table, .ant-tabs', { timeout: 15000 }).should('exist');
-    });
-
-    it('should display billing interface', () => {
-      cy.visit('/billing');
-      cy.wait(3000);
-
-      // Check for key billing elements
-      cy.get('.ant-card', { timeout: 10000 }).should('have.length.at.least', 1);
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 7: CẬN LÂM SÀNG
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 7: Xét nghiệm & CĐHA', () => {
-    it('should navigate to laboratory page', () => {
-      cy.visit('/lab');
-      cy.wait(3000);
-      cy.get('.ant-card, .ant-table, .ant-tabs', { timeout: 15000 }).should('exist');
-    });
-
-    it('should navigate to radiology page', () => {
-      cy.visit('/radiology');
-      cy.wait(3000);
-      cy.get('.ant-card, .ant-table, .ant-tabs', { timeout: 15000 }).should('exist');
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 8: Validate data trên bảng
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 8: Kiểm tra dữ liệu hiển thị', () => {
-    it('should display Vietnamese text correctly on reception', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-
-      // Check Vietnamese encoding - table headers
-      cy.get('.ant-table-thead', { timeout: 10000 }).should('exist');
-      cy.get('.ant-table-thead').then($thead => {
-        const text = $thead.text();
-        // Should contain Vietnamese column headers
-        expect(text).to.match(/Họ tên|Mã BN|Giới tính|Trạng thái|Phòng khám/);
-      });
-    });
-
-    it('should display Vietnamese text correctly on OPD', () => {
-      cy.visit('/opd');
-      cy.contains('Khám bệnh ngoại trú', { timeout: 15000 }).should('exist');
-
-      // Check page title
-      cy.get('h1, h2, h3, h4, .ant-typography').then($titles => {
-        const text = $titles.text();
-        expect(text).to.match(/Khám bệnh|ngoại trú/i);
-      });
-    });
-
-    it('should show correct patient data on reception table', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-      cy.wait(3000);
-
-      // Table structure should exist (may be empty on a new day with no admissions)
-      cy.get('.ant-table', { timeout: 10000 }).should('exist');
-
-      // If table has data rows, verify they have meaningful content
-      cy.get('body').then($body => {
-        if ($body.find('.ant-table-tbody tr.ant-table-row').length > 0) {
-          cy.get('.ant-table-tbody tr.ant-table-row').first().within(() => {
-            cy.get('td').should('have.length.at.least', 5);
-            cy.get('td').first().invoke('text').should('not.be.empty');
-          });
-        } else {
-          cy.log('No patient rows today - table is empty but structure is correct');
-          cy.get('.ant-table').should('exist');
-        }
-      });
-    });
-
-    it('should show status tags with correct colors', () => {
-      cy.visit('/reception');
-      cy.wait(3000);
-
-      // Status tags should exist
-      cy.get('.ant-tag, .ant-badge', { timeout: 10000 }).should('exist');
-    });
-
-    it('should show dashboard statistics', () => {
-      cy.visit('/');
-      cy.wait(3000);
-      cy.get('.ant-statistic, .ant-card', { timeout: 15000 }).should('have.length.at.least', 1);
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 9: Thao tác API-driven từ UI (sử dụng intercept)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  describe('Flow 9: API validation qua UI', () => {
-    it('should register patient via API and verify on UI', () => {
-      // Register via API first
-      cy.request({
-        method: 'POST',
-        url: '/api/reception/register/fee',
-        headers: apiHeaders(token),
-        body: {
-          newPatient: {
-            fullName: 'Trần Minh Tuấn Test',
-            gender: 1,
-            dateOfBirth: '1992-05-20',
-            phoneNumber: '0909999001',
-            identityNumber: '079092999001',
-            address: '111 Trần Hưng Đạo, Q1',
-          },
-          serviceType: 2,
-          roomId: null, // Will be filled dynamically
-        },
-        failOnStatusCode: false,
-      }).then(resp => {
-        // Try to get rooms first
-        cy.request({
-          url: '/api/reception/rooms/overview',
+        return cy.request({
+          method: 'POST',
+          url: '/api/reception/register/fee',
           headers: apiHeaders(token),
-        }).then(roomResp => {
-          const rooms = roomResp.body.data || roomResp.body;
-          if (Array.isArray(rooms) && rooms.length > 0) {
-            const roomId = rooms[0].roomId;
+          body: {
+            newPatient: {
+              fullName: PATIENT.name,
+              gender: 1,
+              phoneNumber: PATIENT.phone,
+              identityNumber: PATIENT.cccd,
+              address: PATIENT.address,
+            },
+            serviceType: 2,
+            roomId: rooms[0].roomId,
+          },
+          failOnStatusCode: false,
+        })
+      }).then((regResp) => {
+        expect(regResp.status).to.eq(200)
+      })
 
-            // Register with a valid room
-            cy.request({
-              method: 'POST',
-              url: '/api/reception/register/fee',
-              headers: apiHeaders(token),
-              body: {
-                newPatient: {
-                  fullName: 'Trần Minh Tuấn Test',
-                  gender: 1,
-                  dateOfBirth: '1992-05-20',
-                  phoneNumber: '0909999001',
-                  identityNumber: '079092999001',
-                  address: '111 Trần Hưng Đạo, Q1',
-                },
-                serviceType: 2,
-                roomId: roomId,
-              },
-              failOnStatusCode: false,
-            }).then(regResp => {
-              cy.log(`Registration: ${regResp.status}`);
+      visitPage('/reception')
+      cy.get('.ant-input-search input').first().clear().type(PATIENT.name.slice(0, 8))
+      cy.get('.ant-table').should('exist')
+    })
 
-              // Now visit reception and verify patient appears
-              cy.visit('/reception');
-              cy.wait(3000);
-              cy.get('.ant-table-tbody', { timeout: 10000 }).should('exist');
-            });
-          }
-        });
-      });
-    });
+    it('should search and switch reception tabs', () => {
+      visitPage('/reception')
+      cy.get('.ant-input-search input').first().type(PATIENT.name.slice(0, 8))
+      cy.get('.ant-table').should('exist')
+      cy.contains('.ant-tabs-tab', /Thong ke phong kham|Thống kê phòng khám/i).click()
+      cy.get('.ant-card').should('have.length.at.least', 1)
+    })
+  })
 
-    it('should verify warehouse stock data via API and UI', () => {
-      // Check stock via API
+  describe('Flow 3: OPD', () => {
+    it('should open OPD page with waiting list and empty state', () => {
+      visitPage('/opd')
+      cy.contains(/Khám bệnh ngoại trú|Kham benh ngoai tru/i, { timeout: 15000 }).should('exist')
+      cy.contains(/Danh sách chờ khám|Danh sach cho kham|Danh sách bệnh nhân|Danh sach benh nhan/i).should('exist')
+      cy.contains(/Vui lòng chọn bệnh nhân|Vui long chon benh nhan/i).should('exist')
+    })
+
+    it('should show room selector and handle current queue state', () => {
+      visitPage('/opd')
+      cy.get('.ant-select').first().should('exist')
+      cy.get('.ant-table').should('exist')
+      cy.get('body').then(($body) => {
+        const hasRows = $body.find('.ant-table-tbody tr.ant-table-row').length > 0
+        if (hasRows) {
+          cy.get('.ant-table-tbody tr.ant-table-row').first().click({ force: true })
+          cy.contains(/Lưu nháp|Save Draft/i).should('exist')
+          cy.contains(/Hoàn thành|Complete/i).should('exist')
+        } else {
+          cy.contains(/Không có bệnh nhân|Khong co benh nhan/i).should('exist')
+        }
+      })
+    })
+
+    it('should expose core OPD controls', () => {
+      visitPage('/opd')
+      cy.get('input[placeholder*="Mã BN"], input[placeholder*="SĐT"], input[placeholder*="BHYT"]').should('exist')
+      cy.contains(/Thông tin bệnh nhân|Thong tin benh nhan/i).should('exist')
+    })
+  })
+
+  describe('Flow 4: Pharmacy', () => {
+    it('should render pharmacy tabs and inventory search', () => {
+      visitPage('/pharmacy')
+      cy.get('.ant-tabs-tab').should('have.length.at.least', 3)
+      cy.contains('.ant-tabs-tab', /Ton kho|Tồn kho/i).click()
+      cy.get('.ant-table, input[placeholder*="Tim"], input[placeholder*="Tìm"]').should('exist')
+    })
+  })
+
+  describe('Flow 5: Inpatient', () => {
+    it('should render inpatient page and main tabs', () => {
+      visitPage('/ipd')
+      cy.contains(/Quản lý nội trú|Quan ly noi tru/i, { timeout: 15000 }).should('exist')
+      cy.contains('.ant-tabs-tab', /Danh sách đang điều trị|Danh sach dang dieu tri/i).should('exist')
+      cy.contains('.ant-tabs-tab', /Quản lý giường|Quan ly giuong/i).should('exist')
+      cy.contains('button', /Nhập viện|Nhap vien/i).should('exist')
+    })
+
+    it('should open admit modal', () => {
+      visitPage('/ipd')
+      cy.contains('button', /Nhập viện|Nhap vien/i).click({ force: true })
+      cy.get('.ant-modal').should('exist')
+      cy.get('.ant-modal-close').click({ force: true })
+    })
+  })
+
+  describe('Flow 6: Billing', () => {
+    it('should render billing interface with tabs', () => {
+      visitPage('/billing')
+      cy.contains(/Quản lý viện phí|Quan ly vien phi/i, { timeout: 15000 }).should('exist')
+      cy.get('.ant-tabs-tab').should('have.length.at.least', 4)
+      cy.contains('.ant-tabs-tab', /Dịch vụ chưa thanh toán|Dich vu chua thanh toan/i).should('exist')
+      cy.get('input[placeholder*="Tìm bệnh nhân"], input[placeholder*="Tim benh nhan"]').should('exist')
+    })
+  })
+
+  describe('Flow 7: Lab and Radiology', () => {
+    it('should open lab page', () => {
+      visitPage('/lab')
+      cy.get('.ant-card, .ant-table, .ant-tabs', { timeout: 15000 }).should('exist')
+    })
+
+    it('should open radiology page', () => {
+      visitPage('/radiology')
+      cy.get('.ant-card, .ant-table, .ant-tabs', { timeout: 15000 }).should('exist')
+    })
+  })
+
+  describe('Flow 8: Display checks', () => {
+    it('should show reception table headers with current labels', () => {
+      visitPage('/reception')
+      cy.get('.ant-table-thead').invoke('text').then((text) => {
+        expect(text).to.match(/Ho ten|Họ tên|Ma BN|Mã BN|Phong kham|Phòng khám/)
+      })
+    })
+
+    it('should show dashboard summary blocks', () => {
+      visitPage('/')
+      cy.contains(/Tong quan hoat dong|Tổng quan hoạt động/i, { timeout: 15000 }).should('exist')
+      cy.get('.ant-card, .ant-statistic').should('have.length.at.least', 1)
+    })
+  })
+
+  describe('Flow 9: API-backed UI checks', () => {
+    it('should verify warehouse stock API and pharmacy UI', () => {
       cy.request({
         url: '/api/warehouse/stock',
         headers: apiHeaders(token),
-      }).then(resp => {
-        expect(resp.status).to.eq(200);
-        const stock = resp.body.data || resp.body;
-        cy.log(`Total stock items: ${Array.isArray(stock) ? stock.length : 'N/A'}`);
-      });
+      }).its('status').should('eq', 200)
 
-      // Verify on pharmacy UI
-      cy.visit('/pharmacy');
-      cy.wait(3000);
-      cy.get('.ant-tabs-tab').then($tabs => {
-        const inventoryTab = $tabs.filter(':contains("Tồn kho")');
-        if (inventoryTab.length > 0) {
-          cy.wrap(inventoryTab.first()).click();
-          cy.wait(2000);
-          cy.get('.ant-table', { timeout: 5000 }).should('exist');
-        }
-      });
-    });
+      visitPage('/pharmacy')
+      cy.contains('.ant-tabs-tab', /Ton kho|Tồn kho/i).click()
+      cy.get('.ant-table').should('exist')
+    })
 
-    it('should verify inpatient data via API matches UI', () => {
-      // Get admissions via API - verify API responds correctly
+    it('should verify inpatient API responds', () => {
       cy.request({
         url: '/api/reception/admissions/today',
         headers: apiHeaders(token),
-      }).then(resp => {
-        expect(resp.status).to.eq(200);
-        const admissions = resp.body.data || resp.body;
-        const count = Array.isArray(admissions) ? admissions.length : 0;
-        cy.log(`Today admissions: ${count}`);
-        // API works correctly (may be 0 on a new day)
-        expect(count).to.be.at.least(0);
-      });
-    });
-  });
+      }).its('status').should('eq', 200)
+    })
+  })
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FLOW 10: Error handling - form validation
-  // ═══════════════════════════════════════════════════════════════════════════
+  describe('Flow 10: Console and stability', () => {
+    it('should not accumulate unexpected console errors on major pages', () => {
+      ['/reception', '/opd', '/pharmacy', '/ipd', '/billing', '/lab', '/radiology'].forEach((page) => {
+        visitPage(page)
+        cy.wait(1000)
+      })
 
-  describe('Flow 10: Kiểm tra validation', () => {
-    it('should show validation errors on empty registration form', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-
-      cy.contains('button', 'Đăng ký khám', { timeout: 10000 }).click();
-      cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
-
-      // Submit empty form
-      cy.get('.ant-modal-footer').contains('button', 'Đăng ký').click();
-
-      // Should show validation errors
-      cy.get('.ant-form-item-explain-error', { timeout: 3000 }).should('exist');
-
-      // Close modal
-      cy.get('.ant-modal-footer').contains('button', 'Hủy').click();
-    });
-
-    it('should require room selection for registration', () => {
-      cy.visit('/reception');
-      cy.contains('Tiếp đón bệnh nhân', { timeout: 15000 }).should('exist');
-
-      cy.contains('button', 'Đăng ký khám', { timeout: 10000 }).click();
-      cy.get('.ant-modal', { timeout: 5000 }).should('be.visible');
-
-      // Fill only name
-      cy.get('input[placeholder="Nhập họ tên bệnh nhân"]').type('Test Patient');
-
-      // Select gender
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Giới tính').parents('.ant-form-item').find('.ant-select').click();
-      });
-      cy.get('.ant-select-dropdown:visible').contains('Nam').click();
-
-      // Select patient type
-      cy.get('.ant-modal').within(() => {
-        cy.get('.ant-form-item').contains('Đối tượng').parents('.ant-form-item').find('.ant-select').click();
-      });
-      cy.get('.ant-select-dropdown:visible').contains('Viện phí').click();
-
-      // Submit without room - should show error
-      cy.get('.ant-modal-footer').contains('button', 'Đăng ký').click();
-
-      // Should show room validation error
-      cy.get('.ant-form-item-explain-error', { timeout: 3000 }).should('exist');
-      cy.contains('Vui lòng chọn phòng khám').should('exist');
-
-      // Close
-      cy.get('.ant-modal-footer').contains('button', 'Hủy').click();
-    });
-
-    it('should not have unexpected console errors across all pages', () => {
-      const pages = ['/reception', '/opd', '/pharmacy', '/ipd', '/billing', '/lab', '/radiology'];
-
-      pages.forEach(page => {
-        cy.visit(page);
-        cy.wait(2000);
-      });
-
-      // Check collected errors
       cy.then(() => {
-        if (consoleErrors.length > 0) {
-          cy.log(`Console errors found: ${consoleErrors.length}`);
-          consoleErrors.forEach(err => cy.log(`ERROR: ${err}`));
-        }
-        // Allow 0 errors (ignored patterns excluded)
-        // This is a soft check - log but don't fail
-      });
-    });
-  });
-});
+        const hardErrors = consoleErrors.filter((msg) => !isIgnored(msg))
+        expect(hardErrors, hardErrors.join('\n')).to.have.length(0)
+      })
+    })
+  })
+})

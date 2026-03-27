@@ -11,7 +11,6 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { motion } from 'framer-motion';
 import * as tmApi from '../api/traditionalMedicine';
 import type { TraditionalTreatment, TraditionalMedicineStats, HerbalPrescription } from '../api/traditionalMedicine';
 
@@ -196,12 +195,7 @@ const TraditionalMedicine: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <div>
         <Card style={{ marginBottom: 16 }}>
           <Row justify="space-between" align="middle">
             <Col><Title level={4} style={{ margin: 0 }}><ExperimentOutlined style={{ marginRight: 8 }} />Y học cổ truyền</Title></Col>
@@ -213,7 +207,6 @@ const TraditionalMedicine: React.FC = () => {
             </Col>
           </Row>
         </Card>
-        </motion.div>
 
         <Card style={{ marginBottom: 16 }}>
           <Row gutter={[16, 12]}>
@@ -230,14 +223,12 @@ const TraditionalMedicine: React.FC = () => {
           </Row>
         </Card>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col xs={12} sm={6}><Card><Statistic title="Đang điều trị" value={stats.activeTreatments} prefix={<MedicineBoxOutlined />} styles={{ content: { color: '#1890ff' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Hoàn thành tháng" value={stats.completedThisMonth} prefix={<CalendarOutlined />} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Lượt châm cứu" value={stats.acupunctureSessions} prefix={<ExperimentOutlined />} styles={{ content: { color: '#722ed1' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Đơn thuốc thang" value={stats.herbalPrescriptions} prefix={<MedicineBoxOutlined />} styles={{ content: { color: '#fa8c16' } }} /></Card></Col>
         </Row>
-        </motion.div>
 
         <Card>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={[

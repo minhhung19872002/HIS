@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
@@ -84,27 +83,6 @@ type FeedbackFormValues = {
   comment: string;
   rating: number;
   visitId?: string;
-};
-
-const NumberTicker = ({ value, duration = 1000 }: { value: number; duration?: number }) => {
-  const [display, setDisplay] = useState(0);
-  const ref = useRef<number>(0);
-  useEffect(() => {
-    const start = ref.current;
-    const diff = value - start;
-    if (diff === 0) return;
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(start + diff * eased));
-      if (progress < 1) requestAnimationFrame(animate);
-      else ref.current = value;
-    };
-    requestAnimationFrame(animate);
-  }, [value, duration]);
-  return <>{display.toLocaleString('vi-VN')}</>;
 };
 
 const PatientPortal: React.FC = () => {
@@ -474,26 +452,18 @@ const PatientPortal: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative', minHeight: '100vh' }}>
-        {/* Gradient mesh background */}
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <Title level={4} style={{ margin: 0 }}>Cổng bệnh nhân (Patient Portal)</Title>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
             Làm mới
           </Button>
         </div>
-        </motion.div>
 
         {/* Statistics */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={6}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}>
-            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+            <Card>
               <Statistic
                 title="Tài khoản"
                 value={account ? 1 : 0}
@@ -502,37 +472,29 @@ const PatientPortal: React.FC = () => {
                 suffix={account ? <Tag color="green" style={{ marginLeft: 8, fontSize: 12 }}>{account.accountStatusName || 'Active'}</Tag> : undefined}
               />
             </Card>
-            </motion.div>
           </Col>
           <Col xs={24} sm={6}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
-            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+            <Card>
               <Statistic
                 title="Lịch hẹn sắp tới"
                 value={upcomingAppointments}
-                formatter={() => <NumberTicker value={upcomingAppointments} />}
                 prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
                 styles={{ content: { color: '#1890ff' } }}
               />
             </Card>
-            </motion.div>
           </Col>
           <Col xs={24} sm={6}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}>
-            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+            <Card>
               <Statistic
                 title="Kết quả chờ trả"
                 value={pendingResults}
-                formatter={() => <NumberTicker value={pendingResults} />}
                 prefix={<FileTextOutlined style={{ color: '#faad14' }} />}
                 styles={{ content: { color: '#faad14' } }}
               />
             </Card>
-            </motion.div>
           </Col>
           <Col xs={24} sm={6}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
-            <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+            <Card>
               <Statistic
                 title="Công nợ"
                 value={outstandingBalance}
@@ -541,12 +503,11 @@ const PatientPortal: React.FC = () => {
                 formatter={(val) => `${Number(val).toLocaleString('vi-VN')} VND`}
               />
             </Card>
-            </motion.div>
           </Col>
         </Row>
 
         {/* Main Content */}
-        <Card style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+        <Card>
           <Tabs
             defaultActiveKey="appointments"
             items={[

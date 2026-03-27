@@ -273,6 +273,25 @@ public static class DependencyInjection
         // NangCap17: IVF Lab Management (Phòng Lab IVF)
         services.AddScoped<IIvfLabService, IvfLabService>();
 
+        // Supplementary Modules
+        services.AddScoped<IFollowUpService, FollowUpService>(); // Tái khám
+        services.AddScoped<IProcurementService, ProcurementService>(); // Dự trù mua sắm
+        services.AddScoped<IImmunizationService, ImmunizationService>(); // Tiêm chủng
+        services.AddScoped<IHealthCheckupService, HealthCheckupService>(); // Khám sức khỏe định kỳ
+        services.AddScoped<IEpidemiologyService, EpidemiologyService>(); // Giám sát dịch tễ
+
+        // Supplementary Module 6: Y tế trường học (School Health)
+        services.AddScoped<ISchoolHealthService, SchoolHealthService>();
+
+        // Supplementary Module 7: Y tế nghề nghiệp (Occupational Health)
+        services.AddScoped<IOccupationalHealthService, OccupationalHealthService>();
+
+        // Supplementary Module 8: Chương trình Methadone (Methadone Treatment)
+        services.AddScoped<IMethadoneTreatmentService, MethadoneTreatmentService>();
+
+        // Supplementary Module 9: Kiểm tra BHXH (BHXH Audit)
+        services.AddScoped<IBhxhAuditService, BhxhAuditService>();
+
         return services;
     }
 }

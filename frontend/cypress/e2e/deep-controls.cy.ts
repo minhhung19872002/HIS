@@ -200,6 +200,36 @@ describe('Deep Controls - All Pages', () => {
             req.continue();
             return;
           }
+
+          if (req.method === 'GET' && req.url.includes('/api/auth/me')) {
+            req.reply({
+              statusCode: 200,
+              body: {
+                success: true,
+                data: user,
+              },
+            });
+            return;
+          }
+
+          if (req.method === 'GET' && req.url.includes('/api/notification/unread-count')) {
+            req.reply({
+              statusCode: 200,
+              body: {
+                count: 0,
+              },
+            });
+            return;
+          }
+
+          if (req.method === 'GET' && req.url.includes('/api/notification/my')) {
+            req.reply({
+              statusCode: 200,
+              body: [],
+            });
+            return;
+          }
+
           req.continue((res) => {
             try {
               if (res && res.statusCode && res.statusCode >= 500) {

@@ -34,7 +34,6 @@ import {
   CalendarOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import * as healthCheckupApi from '../api/healthCheckup';
 import type { HealthCheckup as HealthCheckupType, HealthCheckupStats } from '../api/healthCheckup';
@@ -254,7 +253,7 @@ const HealthCheckup: React.FC = () => {
       key: 'actions',
       width: 150,
       render: (_: unknown, record: HealthCheckupType) => (
-        <div className="flex items-center gap-2">
+        <Space>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
@@ -268,7 +267,7 @@ const HealthCheckup: React.FC = () => {
               In
             </Button>
           )}
-        </div>
+        </Space>
       ),
     },
   ];
@@ -286,23 +285,18 @@ const HealthCheckup: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '10%', left: '20%', width: 300, height: 300, background: 'rgba(59,130,246,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '20%', width: 300, height: 300, background: 'rgba(168,85,247,0.08)', borderRadius: '50%', filter: 'blur(80px)' }} />
-        </div>
+      <div>
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
-          <div className="flex justify-between items-center">
-            <div>
-              <h4 className="text-lg font-semibold m-0">
+        <Card style={{ marginBottom: 16 }}>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Title level={4} style={{ margin: 0 }}>
                 <FileProtectOutlined style={{ marginRight: 8 }} />
                 Khám sức khỏe tổng quát
-              </h4>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
+              </Title>
+            </Col>
+            <Col>
+              <Space>
                 <Button icon={<UploadOutlined />}>Nhập lô</Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
                   Tạo phiếu khám
@@ -310,52 +304,69 @@ const HealthCheckup: React.FC = () => {
                 <Button icon={<ReloadOutlined />} onClick={fetchData}>
                   Làm mới
                 </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        </motion.div>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
 
         {/* Statistics */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Tổng khám</div><div className="text-2xl font-semibold" style={{ color: '#1890ff' }}><FileProtectOutlined className="mr-1" />{stats.totalCheckups}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Hôm nay</div><div className="text-2xl font-semibold" style={{ color: '#722ed1' }}><CalendarOutlined className="mr-1" />{stats.todayCount}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Đạt SK</div><div className="text-2xl font-semibold" style={{ color: '#52c41a' }}><CheckCircleOutlined className="mr-1" />{stats.passCount}</div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-gray-500 text-sm mb-1">Không đạt</div><div className="text-2xl font-semibold" style={{ color: '#ff4d4f' }}><CloseCircleOutlined className="mr-1" />{stats.failCount}</div>
-            </div>
-          </div>
-        </div>
-        </motion.div>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="Tổng khám"
+                value={stats.totalCheckups}
+                prefix={<FileProtectOutlined />}
+                styles={{ content: { color: '#1890ff' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="Hôm nay"
+                value={stats.todayCount}
+                prefix={<CalendarOutlined />}
+                styles={{ content: { color: '#722ed1' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="Đạt SK"
+                value={stats.passCount}
+                prefix={<CheckCircleOutlined />}
+                styles={{ content: { color: '#52c41a' } }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card>
+              <Statistic
+                title="Không đạt"
+                value={stats.failCount}
+                prefix={<CloseCircleOutlined />}
+                styles={{ content: { color: '#ff4d4f' } }}
+              />
+            </Card>
+          </Col>
+        </Row>
 
         {/* Segmented control */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4" style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderRadius: 16 }}>
+        <Card style={{ marginBottom: 16 }}>
           <Segmented
             options={segmentOptions}
             value={checkupTypeFilter}
             onChange={(val) => setCheckupTypeFilter(val as string)}
             block
           />
-        </div>
+        </Card>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
-          <div className="grid grid-cols-4 gap-4">
-            <div>
+        <Card style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 12]}>
+            <Col xs={24} sm={8} md={6}>
               <Search
                 placeholder="Tìm kiếm họ tên, mã phiếu..."
                 value={keyword}
@@ -364,8 +375,8 @@ const HealthCheckup: React.FC = () => {
                 allowClear
                 prefix={<SearchOutlined />}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={12} sm={8} md={4}>
               <Select
                 placeholder="Trạng thái"
                 allowClear
@@ -379,20 +390,20 @@ const HealthCheckup: React.FC = () => {
                   { value: 3, label: 'Đã cấp GCN' },
                 ]}
               />
-            </div>
-            <div>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange}
                 onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
                 format="DD/MM/YYYY"
               />
-            </div>
-          </div>
-        </div>
+            </Col>
+          </Row>
+        </Card>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <Card>
           <Table
             dataSource={data}
             columns={columns}
@@ -405,7 +416,7 @@ const HealthCheckup: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
           />
-        </div>
+        </Card>
 
         {/* Detail Modal */}
         <Modal
@@ -433,7 +444,7 @@ const HealthCheckup: React.FC = () => {
                 <Descriptions.Item label="Ngày khám">{selectedRecord.checkupDate ? dayjs(selectedRecord.checkupDate).format('DD/MM/YYYY') : '-'}</Descriptions.Item>
                 <Descriptions.Item label="Công ty" span={2}>{selectedRecord.companyName || '-'}</Descriptions.Item>
               </Descriptions>
-              <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Kết quả khám</div>
+              <Divider>Kết quả khám</Divider>
               <Descriptions column={2} bordered size="small">
                 <Descriptions.Item label="Nội khoa">{selectedRecord.internalMedicine || '-'}</Descriptions.Item>
                 <Descriptions.Item label="Ngoại khoa">{selectedRecord.surgery || '-'}</Descriptions.Item>
@@ -446,7 +457,7 @@ const HealthCheckup: React.FC = () => {
                 <Descriptions.Item label="Xét nghiệm" span={2}>{selectedRecord.labResults || '-'}</Descriptions.Item>
                 <Descriptions.Item label="X-quang" span={2}>{selectedRecord.xrayResults || '-'}</Descriptions.Item>
               </Descriptions>
-              <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Kết luận</div>
+              <Divider>Kết luận</Divider>
               <Descriptions column={2} bordered size="small">
                 <Descriptions.Item label="Kết luận">
                   {selectedRecord.conclusion ? (
@@ -478,75 +489,75 @@ const HealthCheckup: React.FC = () => {
           destroyOnHidden
         >
           <Form form={formInstance} layout="vertical">
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Thông tin chung</div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Divider>Thông tin chung</Divider>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="patientName" label="Họ tên" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>
                   <Input placeholder="Họ và tên" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={4}>
                 <Form.Item name="gender" label="Giới tính">
                   <Select options={[{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }]} />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="checkupDate" label="Ngày khám">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={6}>
                 <Form.Item name="checkupType" label="Loại khám" rules={[{ required: true, message: 'Chọn loại khám' }]}>
                   <Select options={Object.entries(CHECKUP_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))} />
                 </Form.Item>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Form.Item name="companyName" label="Công ty / Đơn vị">
                   <Input placeholder="Tên công ty (nếu khám tập thể)" />
                 </Form.Item>
-              </div>
-              <div>
+              </Col>
+              <Col span={12}>
                 <Form.Item name="groupName" label="Nhóm / Đợt khám">
                   <Input placeholder="Tên nhóm / đợt khám" />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Nội khoa</div>
+            <Divider>Nội khoa</Divider>
             <Form.Item name="internalMedicine"><TextArea rows={2} placeholder="Kết quả khám nội khoa..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Ngoại khoa</div>
+            <Divider>Ngoại khoa</Divider>
             <Form.Item name="surgery"><TextArea rows={2} placeholder="Kết quả khám ngoại khoa..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Mắt</div>
+            <Divider>Mắt</Divider>
             <Form.Item name="ophthalmology"><TextArea rows={2} placeholder="Thị lực, nhãn áp, đáy mắt..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Tai Mũi Họng</div>
+            <Divider>Tai Mũi Họng</Divider>
             <Form.Item name="entExam"><TextArea rows={2} placeholder="Kết quả khám TMH..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Răng Hàm Mặt</div>
+            <Divider>Răng Hàm Mặt</Divider>
             <Form.Item name="dentalExam"><TextArea rows={2} placeholder="Kết quả khám RHM..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Da liễu</div>
+            <Divider>Da liễu</Divider>
             <Form.Item name="dermatology"><TextArea rows={2} placeholder="Kết quả khám da liễu..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Phụ khoa</div>
+            <Divider>Phụ khoa</Divider>
             <Form.Item name="gynecology"><TextArea rows={2} placeholder="Kết quả khám phụ khoa (nếu có)..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Tâm thần</div>
+            <Divider>Tâm thần</Divider>
             <Form.Item name="psychiatry"><TextArea rows={2} placeholder="Kết quả khám tâm thần..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Xét nghiệm</div>
+            <Divider>Xét nghiệm</Divider>
             <Form.Item name="labResults"><TextArea rows={2} placeholder="Kết quả xét nghiệm máu, nước tiểu..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">X-quang</div>
+            <Divider>X-quang</Divider>
             <Form.Item name="xrayResults"><TextArea rows={2} placeholder="Kết quả X-quang ngực thẳng..." /></Form.Item>
 
-            <div className="border-t border-gray-200 my-4 pt-2 text-center text-sm text-gray-500">Kết luận</div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
+            <Divider>Kết luận</Divider>
+            <Row gutter={16}>
+              <Col span={8}>
                 <Form.Item name="conclusion" label="Phân loại sức khỏe">
                   <Select
                     placeholder="Chọn kết luận"
@@ -558,13 +569,13 @@ const HealthCheckup: React.FC = () => {
                     ]}
                   />
                 </Form.Item>
-              </div>
-              <div className="col-span-2">
+              </Col>
+              <Col span={16}>
                 <Form.Item name="notes" label="Ghi chú">
                   <TextArea rows={2} placeholder="Ghi chú thêm..." />
                 </Form.Item>
-              </div>
-            </div>
+              </Col>
+            </Row>
           </Form>
         </Modal>
       </div>
