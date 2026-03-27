@@ -54,7 +54,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
 
   useEffect(() => {
     if (open) {
-      Html5Qrcode.getCameras()
+      // Request camera permission explicitly first
+      navigator.mediaDevices?.getUserMedia({ video: true })
+        .then((stream) => {
+          // Got permission - stop the test stream immediately
+          stream.getTracks().forEach((track) => track.stop());
+          // Now enumerate cameras
+          return Html5Qrcode.getCameras();
+        })
         .then((devices) => {
           if (devices && devices.length > 0) {
             const cameraList = devices.map((d) => ({ id: d.id, label: d.label || `Camera ${d.id.slice(0, 8)}` }));
@@ -67,8 +74,15 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
             setError('Không tìm thấy camera. Vui lòng kết nối camera và thử lại.');
           }
         })
-        .catch(() => {
-          setError('Không thể truy cập camera. Vui lòng cho phép trình duyệt sử dụng camera.');
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('NotAllowedError') || msg.includes('Permission denied')) {
+            setError('Trình duyệt chặn quyền camera. Nhấn biểu tượng 🔒 trên thanh địa chỉ → Camera → Cho phép → Tải lại trang.');
+          } else if (msg.includes('NotFoundError')) {
+            setError('Không tìm thấy camera. Vui lòng kiểm tra kết nối webcam.');
+          } else {
+            setError('Không thể truy cập camera: ' + msg);
+          }
         });
     }
     return () => {
@@ -80,15 +94,21 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     if (!selectedCamera) return;
     await stopScanner();
 
-    // Wait for DOM element
-    await new Promise((r) => setTimeout(r, 200));
+    // Wait for DOM element to be ready (Modal animation)
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      if (document.getElementById(containerId)) break;
+    }
     const el = document.getElementById(containerId);
-    if (!el) return;
-
-    const scanner = new Html5Qrcode(containerId, { formatsToSupport: formats, verbose: false });
-    scannerRef.current = scanner;
+    if (!el) {
+      setError('Không tìm thấy vùng hiển thị camera. Vui lòng thử lại.');
+      return;
+    }
 
     try {
+      const scanner = new Html5Qrcode(containerId, { formatsToSupport: formats, verbose: false });
+      scannerRef.current = scanner;
+
       await scanner.start(
         selectedCamera,
         { fps: 10, qrbox: { width: 280, height: 180 }, aspectRatio: 1.5 },
@@ -105,8 +125,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       setScanning(true);
       setError('');
     } catch (err: unknown) {
-      // @ts-expect-error narrow runtime error message when available
-      setError(err?.message || 'Không thể khởi động camera');
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Permission denied') || msg.includes('NotAllowedError')) {
+        setError('Trình duyệt chặn quyền truy cập camera. Vui lòng cho phép camera trong cài đặt trình duyệt (Settings > Privacy > Camera).');
+      } else if (msg.includes('NotFoundError') || msg.includes('Requested device not found')) {
+        setError('Không tìm thấy camera. Vui lòng kiểm tra kết nối camera.');
+      } else if (msg.includes('NotReadableError') || msg.includes('Could not start video source')) {
+        setError('Camera đang được sử dụng bởi ứng dụng khác. Vui lòng đóng ứng dụng đó và thử lại.');
+      } else {
+        setError(msg || 'Không thể khởi động camera');
+      }
       setScanning(false);
     }
   }, [selectedCamera, formats, onScan, onClose, stopScanner]);
@@ -123,10 +151,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       onCancel={handleClose}
       footer={null}
       width={500}
-      destroyOnHidden
+      destroyOnHidden={false}
       afterOpenChange={(visible) => {
         if (visible && selectedCamera) {
-          startScanner();
+          // Delay to ensure DOM is rendered after Modal animation
+          setTimeout(() => startScanner(), 500);
+        } else if (!visible) {
+          stopScanner();
         }
       }}
     >
