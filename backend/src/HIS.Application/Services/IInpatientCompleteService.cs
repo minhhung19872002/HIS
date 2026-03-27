@@ -800,4 +800,28 @@ public interface IInpatientCompleteService
     Task<byte[]> PrintMedicineSupplyUsageReportAsync(ReportSearchDto searchDto);
 
     #endregion
+
+    #region NangCap18 - Diagnosis Interruption, Medicine Rules, Service Compatibility
+
+    /// <summary>
+    /// Tạo gián đoạn chẩn đoán
+    /// </summary>
+    Task<DTOs.NangCap18.DiagnosisInterruptionDto> CreateDiagnosisInterruptionAsync(DTOs.NangCap18.CreateDiagnosisInterruptionDto dto, Guid userId);
+
+    /// <summary>
+    /// Lấy danh sách gián đoạn chẩn đoán
+    /// </summary>
+    Task<List<DTOs.NangCap18.DiagnosisInterruptionDto>> GetDiagnosisInterruptionsAsync(Guid admissionId);
+
+    /// <summary>
+    /// Kiểm tra quy tắc kê đơn thuốc nội trú
+    /// </summary>
+    Task<DTOs.NangCap18.CheckMedicineOrderRulesResultDto> CheckMedicineOrderRulesAsync(DTOs.NangCap18.CheckMedicineOrderRulesDto dto);
+
+    /// <summary>
+    /// Kiểm tra tương thích chỉ định dịch vụ với chẩn đoán
+    /// </summary>
+    Task<DTOs.NangCap18.ServiceCompatibilityResultDto> CheckServiceOrderCompatibilityAsync(DTOs.NangCap18.CheckServiceCompatibilityDto dto);
+
+    #endregion
 }

@@ -565,6 +565,25 @@ public interface ISurgeryCompleteService
     Task<byte[]> PrintConsentFormAsync(Guid consentId);
 
     #endregion
+
+    #region NangCap18 - Anesthesia Chart & Profit Calculation
+
+    /// <summary>
+    /// Lưu dữ liệu biểu đồ gây mê
+    /// </summary>
+    Task<bool> SaveAnesthesiaChartAsync(DTOs.NangCap18.SaveAnesthesiaChartDto dto, Guid userId);
+
+    /// <summary>
+    /// Lấy dữ liệu biểu đồ gây mê
+    /// </summary>
+    Task<DTOs.NangCap18.AnesthesiaChartDto> GetAnesthesiaChartAsync(Guid surgeryId);
+
+    /// <summary>
+    /// Tính lợi nhuận phẫu thuật
+    /// </summary>
+    Task<DTOs.NangCap18.SurgeryProfitDto> CalculateSurgeryProfitAsync(Guid surgeryId);
+
+    #endregion
 }
 
 /// <summary>

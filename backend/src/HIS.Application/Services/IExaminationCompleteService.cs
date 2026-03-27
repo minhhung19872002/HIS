@@ -818,6 +818,20 @@ public interface IExaminationCompleteService
     Task<List<ExaminationActivityLogDto>> GetExaminationLogsAsync(Guid examinationId);
 
     #endregion
+
+    #region NangCap18 - Transfer Room & Doctor Certification
+
+    /// <summary>
+    /// Chuyển bệnh nhân sang phòng khám khác
+    /// </summary>
+    Task<DTOs.NangCap18.TransferPatientRoomResultDto> TransferPatientRoomAsync(Guid examinationId, Guid newRoomId, string? reason, Guid userId);
+
+    /// <summary>
+    /// Kiểm tra chứng chỉ hành nghề của bác sĩ
+    /// </summary>
+    Task<DTOs.NangCap18.DoctorCertificationResultDto> CheckDoctorCertificationAsync(Guid doctorId);
+
+    #endregion
 }
 
 #region Supporting DTOs

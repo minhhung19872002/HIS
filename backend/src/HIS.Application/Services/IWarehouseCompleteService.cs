@@ -418,4 +418,23 @@ public interface IWarehouseCompleteService
     Task<decimal> CalculateSellingPriceAsync(Guid warehouseId, Guid itemId, decimal costPrice);
 
     #endregion
+
+    #region NangCap18 - Drug Equivalence & Merge Vouchers
+
+    /// <summary>
+    /// Lấy danh sách thuốc tương đương
+    /// </summary>
+    Task<List<DTOs.NangCap18.DrugEquivalenceDto>> GetDrugEquivalencesAsync(Guid medicineId);
+
+    /// <summary>
+    /// Lưu khai báo thuốc tương đương
+    /// </summary>
+    Task<DTOs.NangCap18.DrugEquivalenceDto> SaveDrugEquivalenceAsync(DTOs.NangCap18.SaveDrugEquivalenceDto dto, Guid userId);
+
+    /// <summary>
+    /// Gộp phiếu xuất thuốc
+    /// </summary>
+    Task<DTOs.NangCap18.MergeVouchersResultDto> MergeDispensingVouchersAsync(List<Guid> voucherIds, Guid userId);
+
+    #endregion
 }

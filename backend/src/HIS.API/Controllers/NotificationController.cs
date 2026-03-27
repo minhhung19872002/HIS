@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using HIS.API.Hubs;
+using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Services;
 
 namespace HIS.API.Controllers;
 
@@ -14,11 +16,13 @@ public class NotificationController : ControllerBase
 {
     private readonly HISDbContext _context;
     private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly ISmsService _smsService;
 
-    public NotificationController(HISDbContext context, IHubContext<NotificationHub> hubContext)
+    public NotificationController(HISDbContext context, IHubContext<NotificationHub> hubContext, ISmsService smsService)
     {
         _context = context;
         _hubContext = hubContext;
+        _smsService = smsService;
     }
 
     private Guid? GetUserId()
@@ -149,5 +153,60 @@ public class NotificationController : ControllerBase
         });
 
         return Ok(new { notification.Id });
+    }
+
+    /// <summary>
+    /// Tạo link kết quả xét nghiệm online và gửi SMS
+    /// </summary>
+    [HttpPost("send-lab-result-link")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.LabResultLinkResultDto>> SendLabResultLink(
+        [FromBody] HIS.Application.DTOs.NangCap18.SendLabResultLinkDto dto)
+    {
+        // Find lab request
+        var labRequest = await _context.LabRequests
+            .Include(r => r.Patient)
+            .FirstOrDefaultAsync(r => r.Id == dto.LabRequestId && !r.IsDeleted);
+
+        if (labRequest == null)
+            return Ok(new HIS.Application.DTOs.NangCap18.LabResultLinkResultDto
+            {
+                Success = false,
+                Message = "Không tìm thấy yêu cầu xét nghiệm"
+            });
+
+        // Generate one-time access token
+        var token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+            .Replace("+", "-").Replace("/", "_").TrimEnd('=');
+
+        var link = new LabResultAccessLink
+        {
+            Id = Guid.NewGuid(),
+            LabRequestId = dto.LabRequestId,
+            AccessToken = token,
+            ExpiresAt = DateTime.Now.AddHours(72),
+            Phone = dto.Phone,
+            CreatedAt = DateTime.Now,
+            CreatedBy = GetUserId()?.ToString()
+        };
+
+        _context.Set<LabResultAccessLink>().Add(link);
+        await _context.SaveChangesAsync();
+
+        // Build access URL
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var accessUrl = $"{baseUrl}/lab-result?token={token}";
+
+        // Send SMS
+        var patientName = labRequest.Patient?.FullName ?? "Quý khách";
+        var smsMessage = $"BV Da Khoa: {patientName}, ket qua xet nghiem cua ban da co. Xem tai: {accessUrl} (het han sau 72h)";
+        var smsSent = await _smsService.SendSmsAsync(dto.Phone, smsMessage, "LabResult", patientName, "LabRequest", dto.LabRequestId);
+
+        return Ok(new HIS.Application.DTOs.NangCap18.LabResultLinkResultDto
+        {
+            Success = true,
+            Message = smsSent ? "Đã gửi SMS thành công" : "Đã tạo link nhưng gửi SMS thất bại (link vẫn hoạt động)",
+            AccessUrl = accessUrl,
+            ExpiresAt = link.ExpiresAt
+        });
     }
 }

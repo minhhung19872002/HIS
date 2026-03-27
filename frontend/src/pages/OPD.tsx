@@ -42,6 +42,7 @@ import {
   WarningOutlined,
   ToolOutlined,
   CalendarOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -225,6 +226,11 @@ const OPD: React.FC = () => {
   });
   const [templateNameModalVisible, setTemplateNameModalVisible] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
+
+  // Transfer room modal
+  const [isTransferRoomModalOpen, setIsTransferRoomModalOpen] = useState(false);
+  const [transferRoomForm] = Form.useForm();
+  const [transferringRoom, setTransferringRoom] = useState(false);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -1238,6 +1244,39 @@ const OPD: React.FC = () => {
     });
   };
 
+  const handleOpenTransferRoom = () => {
+    if (!examination?.id) {
+      message.warning('Vui lòng chọn bệnh nhân');
+      return;
+    }
+    transferRoomForm.resetFields();
+    setIsTransferRoomModalOpen(true);
+  };
+
+  const handleTransferRoomSubmit = async () => {
+    try {
+      const values = await transferRoomForm.validateFields();
+      setTransferringRoom(true);
+      await examinationApi.transferRoom({
+        examinationId: examination!.id,
+        newRoomId: values.newRoomId,
+        reason: values.reason || '',
+        keepOriginalQueue: false,
+      });
+      message.success('Chuyển phòng thành công');
+      setIsTransferRoomModalOpen(false);
+      // Refresh queue
+      if (selectedRoomId) {
+        loadQueue(selectedRoomId);
+      }
+    } catch (error) {
+      console.warn('Transfer room error:', error);
+      message.warning('Không thể chuyển phòng');
+    } finally {
+      setTransferringRoom(false);
+    }
+  };
+
   const handlePrint = () => {
     if (!examination?.id || !selectedPatient) {
       message.warning('Vui lòng chọn bệnh nhân và lưu phiếu khám');
@@ -1927,6 +1966,13 @@ const OPD: React.FC = () => {
                     disabled={!examination?.id}
                   >
                     Giấy nghỉ BHXH
+                  </Button>
+                  <Button
+                    icon={<SwapOutlined />}
+                    onClick={handleOpenTransferRoom}
+                    disabled={!examination?.id}
+                  >
+                    Chuyển phòng
                   </Button>
                 </Space>
               }
@@ -3113,6 +3159,49 @@ const OPD: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 12 }}>Mẫu đã lưu: {supplyTemplates.map(t => t.name).join(', ')}</Text>
           </div>
         )}
+      </Modal>
+
+      {/* Transfer Room Modal */}
+      <Modal
+        title={<><SwapOutlined /> Chuyển phòng khám</>}
+        open={isTransferRoomModalOpen}
+        onOk={handleTransferRoomSubmit}
+        onCancel={() => setIsTransferRoomModalOpen(false)}
+        okText="Chuyển phòng"
+        cancelText="Hủy"
+        confirmLoading={transferringRoom}
+        width={450}
+        destroyOnHidden
+      >
+        {selectedPatient && (
+          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 4 }}>
+            <Text strong>Bệnh nhân: </Text>
+            <Text>{selectedPatient.fullName}</Text>
+            <Text type="secondary"> - Phòng hiện tại: {rooms.find(r => r.id === selectedRoomId)?.name || '-'}</Text>
+          </div>
+        )}
+        <Form form={transferRoomForm} layout="vertical">
+          <Form.Item
+            name="newRoomId"
+            label="Phòng khám mới"
+            rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
+          >
+            <Select
+              placeholder="Chọn phòng khám"
+              showSearch
+              optionFilterProp="label"
+              options={rooms
+                .filter(r => r.id !== selectedRoomId)
+                .map(r => ({ value: r.id, label: `${r.name} - ${r.departmentName || ''}` }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="reason"
+            label="Lý do chuyển phòng"
+          >
+            <Input.TextArea rows={2} placeholder="Nhập lý do chuyển phòng (không bắt buộc)..." />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

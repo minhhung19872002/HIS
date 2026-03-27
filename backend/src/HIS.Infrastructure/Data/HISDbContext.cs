@@ -549,6 +549,12 @@ public class HISDbContext : DbContext
     public DbSet<BhxhAuditSession> BhxhAuditSessions => Set<BhxhAuditSession>();
     public DbSet<BhxhAuditError> BhxhAuditErrors => Set<BhxhAuditError>();
 
+    // NangCap18: New entities
+    public DbSet<DiagnosisInterruption> DiagnosisInterruptions => Set<DiagnosisInterruption>();
+    public DbSet<AnesthesiaChartEntry> AnesthesiaChartEntries => Set<AnesthesiaChartEntry>();
+    public DbSet<DrugEquivalence> DrugEquivalences => Set<DrugEquivalence>();
+    public DbSet<LabResultAccessLink> LabResultAccessLinks => Set<LabResultAccessLink>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -681,6 +687,18 @@ public class HISDbContext : DbContext
             .WithMany(t => t.AnalyzerMappings)
             .HasForeignKey(m => m.HisTestParameterId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // NangCap18: DrugEquivalence has two FKs to Medicine - prevent cascade
+        modelBuilder.Entity<DrugEquivalence>()
+            .HasOne(d => d.Medicine)
+            .WithMany()
+            .HasForeignKey(d => d.MedicineId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DrugEquivalence>()
+            .HasOne(d => d.EquivalentMedicine)
+            .WithMany()
+            .HasForeignKey(d => d.EquivalentMedicineId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         // Column-level encryption for Patient PII (SEC-02: Data encryption at rest)
         if (_dataProtectionProvider != null)

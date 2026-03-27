@@ -1035,12 +1035,125 @@ function KioskView() {
   );
 }
 
+// ===================== ZONE DISPLAY =====================
+function ZoneQueueView({ zone }: { zone: string }) {
+  const [clock, setClock] = useState(formatTime(new Date()));
+  const [zoneData, setZoneData] = useState<{ items: { id: string; code: string; name: string; status: string; waitMinutes: number; room?: string }[]; stats: { waiting: number; serving: number; completed: number } } | null>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(formatTime(new Date())), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const fetchZoneData = async () => {
+      try {
+        const endpoint = zone === 'lab' ? '/liscomplete/queue/display'
+          : zone === 'pharmacy' ? '/warehouse/queue/display'
+          : '/reception/rooms/overview';
+        const res = await publicClient.get(endpoint);
+        if (!active) return;
+
+        if (zone === 'lab' && res.data) {
+          const d = res.data as LabQueueDisplayDto;
+          setZoneData({
+            items: [...(d.processingItems || []).map(i => ({ id: i.id, code: i.orderCode, name: i.patientName, status: 'Đang XL', waitMinutes: i.waitMinutes })),
+              ...(d.waitingItems || []).map(i => ({ id: i.id, code: i.orderCode, name: i.patientName, status: 'Chờ', waitMinutes: i.waitMinutes }))],
+            stats: { waiting: d.totalPending, serving: d.totalProcessing, completed: d.totalCompletedToday },
+          });
+        } else if (zone === 'reception' && Array.isArray(res.data)) {
+          const rooms = res.data as { roomId: string; roomName: string; waitingCount: number; inProgressCount: number; completedCount: number }[];
+          const items = rooms.map(r => ({ id: r.roomId, code: r.roomName, name: `${r.waitingCount} chờ`, status: r.inProgressCount > 0 ? 'Đang phục vụ' : 'Sẵn sàng', waitMinutes: 0, room: r.roomName }));
+          setZoneData({
+            items,
+            stats: { waiting: rooms.reduce((s, r) => s + r.waitingCount, 0), serving: rooms.reduce((s, r) => s + r.inProgressCount, 0), completed: rooms.reduce((s, r) => s + r.completedCount, 0) },
+          });
+        } else {
+          // Pharmacy or unknown zone - generic display
+          setZoneData({ items: [], stats: { waiting: 0, serving: 0, completed: 0 } });
+        }
+      } catch {
+        // Will retry on next poll
+      }
+    };
+    fetchZoneData();
+    const interval = setInterval(fetchZoneData, POLL_INTERVAL);
+    return () => { active = false; clearInterval(interval); };
+  }, [zone]);
+
+  const zoneTitle = zone === 'lab' ? 'Xét nghiệm' : zone === 'pharmacy' ? 'Nhà thuốc' : 'Tiếp đón';
+
+  return (
+    <div className="queue-display">
+      <div className="queue-header">
+        <div className="queue-header-left">
+          <h1>{HOSPITAL_NAME}</h1>
+          <p>Hệ thống hiển thị - Khu vực {zoneTitle}</p>
+        </div>
+        <div className="queue-clock">{clock}</div>
+      </div>
+
+      <div className="lab-stats-bar">
+        <div className="lab-stat">
+          <span className="lab-stat-label">Chờ</span>
+          <span className="lab-stat-value" style={{ color: '#faad14' }}>{zoneData?.stats.waiting ?? 0}</span>
+        </div>
+        <div className="lab-stat">
+          <span className="lab-stat-label">Đang phục vụ</span>
+          <span className="lab-stat-value" style={{ color: '#1890ff' }}>{zoneData?.stats.serving ?? 0}</span>
+        </div>
+        <div className="lab-stat">
+          <span className="lab-stat-label">Hoàn thành</span>
+          <span className="lab-stat-value" style={{ color: '#52c41a' }}>{zoneData?.stats.completed ?? 0}</span>
+        </div>
+      </div>
+
+      <div className="lab-panels" style={{ display: 'flex', gap: 16, padding: '0 16px', flex: 1, overflow: 'auto' }}>
+        <div style={{ flex: 1 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e0e0e0', fontSize: 18 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #333' }}>
+                <th style={{ padding: '10px 12px', textAlign: 'left' }}>STT</th>
+                <th style={{ textAlign: 'left' }}>Mã</th>
+                <th style={{ textAlign: 'left' }}>Tên / Phòng</th>
+                <th style={{ textAlign: 'center' }}>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(zoneData?.items ?? []).map((item, idx) => (
+                <tr key={item.id} style={{ borderBottom: '1px solid #222' }}>
+                  <td style={{ padding: '8px 12px' }}>{idx + 1}</td>
+                  <td>{item.code}</td>
+                  <td>{item.name}{item.room ? ` - ${item.room}` : ''}</td>
+                  <td style={{ textAlign: 'center', color: item.status === 'Chờ' ? '#faad14' : '#52c41a' }}>{item.status}</td>
+                </tr>
+              ))}
+              {(zoneData?.items ?? []).length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#666' }}>Không có dữ liệu</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="queue-footer">
+        <div className="queue-footer-stat">Khu vực:<strong>{zoneTitle}</strong></div>
+        <div className="queue-footer-stat">Tổng chờ:<strong>{zoneData?.stats.waiting ?? 0}</strong></div>
+        <div className="queue-footer-stat">Hoàn thành:<strong>{zoneData?.stats.completed ?? 0}</strong></div>
+      </div>
+    </div>
+  );
+}
+
 // ===================== MAIN EXPORT =====================
 export default function QueueDisplay() {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
+  const zone = searchParams.get('zone');
 
   if (mode === 'kiosk') return <KioskView />;
   if (mode === 'lab') return <LabQueueView />;
+  if (zone) return <ZoneQueueView zone={zone} />;
   return <RoomQueueView />;
 }

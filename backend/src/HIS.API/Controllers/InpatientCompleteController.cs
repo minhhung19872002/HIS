@@ -1362,6 +1362,53 @@ public partial class InpatientCompleteController
     }
 
 #endregion
+
+    #region NangCap18 - Diagnosis Interruption, Medicine Rules, Service Compatibility
+
+    /// <summary>
+    /// Tạo gián đoạn chẩn đoán
+    /// </summary>
+    [HttpPost("diagnosis-interruption")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.DiagnosisInterruptionDto>> CreateDiagnosisInterruption(
+        [FromBody] HIS.Application.DTOs.NangCap18.CreateDiagnosisInterruptionDto dto)
+    {
+        var result = await _inpatientService.CreateDiagnosisInterruptionAsync(dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách gián đoạn chẩn đoán theo đợt nhập viện
+    /// </summary>
+    [HttpGet("{admissionId}/diagnosis-interruptions")]
+    public async Task<ActionResult<List<HIS.Application.DTOs.NangCap18.DiagnosisInterruptionDto>>> GetDiagnosisInterruptions(Guid admissionId)
+    {
+        var result = await _inpatientService.GetDiagnosisInterruptionsAsync(admissionId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Kiểm tra quy tắc kê đơn thuốc nội trú (cảnh báo/chặn)
+    /// </summary>
+    [HttpPost("check-medicine-rules")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.CheckMedicineOrderRulesResultDto>> CheckMedicineOrderRules(
+        [FromBody] HIS.Application.DTOs.NangCap18.CheckMedicineOrderRulesDto dto)
+    {
+        var result = await _inpatientService.CheckMedicineOrderRulesAsync(dto);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Kiểm tra tương thích chỉ định dịch vụ với chẩn đoán
+    /// </summary>
+    [HttpPost("check-service-compatibility")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.ServiceCompatibilityResultDto>> CheckServiceOrderCompatibility(
+        [FromBody] HIS.Application.DTOs.NangCap18.CheckServiceCompatibilityDto dto)
+    {
+        var result = await _inpatientService.CheckServiceOrderCompatibilityAsync(dto);
+        return Ok(result);
+    }
+
+    #endregion
 }
 
 public class CreateShiftHandoverRequest

@@ -868,6 +868,40 @@ public class SurgeryCompleteController : ControllerBase
     }
 
     #endregion
+
+    #region NangCap18 - Anesthesia Chart & Profit
+
+    /// <summary>
+    /// Lưu dữ liệu biểu đồ gây mê
+    /// </summary>
+    [HttpPost("anesthesia-chart")]
+    public async Task<ActionResult<bool>> SaveAnesthesiaChart([FromBody] HIS.Application.DTOs.NangCap18.SaveAnesthesiaChartDto dto)
+    {
+        var result = await _surgeryService.SaveAnesthesiaChartAsync(dto, GetUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy dữ liệu biểu đồ gây mê
+    /// </summary>
+    [HttpGet("{surgeryId}/anesthesia-chart")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.AnesthesiaChartDto>> GetAnesthesiaChart(Guid surgeryId)
+    {
+        var result = await _surgeryService.GetAnesthesiaChartAsync(surgeryId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tính lợi nhuận phẫu thuật
+    /// </summary>
+    [HttpGet("{surgeryId}/profit")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.SurgeryProfitDto>> CalculateSurgeryProfit(Guid surgeryId)
+    {
+        var result = await _surgeryService.CalculateSurgeryProfitAsync(surgeryId);
+        return Ok(result);
+    }
+
+    #endregion
 }
 
 #region Request DTOs

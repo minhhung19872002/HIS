@@ -19,6 +19,8 @@ import {
   Segmented,
   Descriptions,
   Divider,
+  InputNumber,
+  Tabs,
 } from 'antd';
 import {
   FileProtectOutlined,
@@ -32,6 +34,7 @@ import {
   CloseCircleOutlined,
   UploadOutlined,
   CalendarOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -94,6 +97,78 @@ const HealthCheckup: React.FC = () => {
   const [editMode, setEditMode] = useState(false);
   const [formInstance] = Form.useForm();
   const [saving, setSaving] = useState(false);
+  const [mainTab, setMainTab] = useState('list');
+
+  // Report data - computed from existing data
+  const campaignSummary = React.useMemo(() => {
+    const groups: Record<string, { company: string; total: number; completed: number; pass: number; fail: number }> = {};
+    data.forEach((item) => {
+      const key = item.companyName || 'Cá nhân';
+      if (!groups[key]) groups[key] = { company: key, total: 0, completed: 0, pass: 0, fail: 0 };
+      groups[key].total++;
+      if (item.status >= 2) groups[key].completed++;
+      if (item.conclusion === 'pass') groups[key].pass++;
+      if (item.conclusion === 'fail') groups[key].fail++;
+    });
+    return Object.values(groups);
+  }, [data]);
+
+  const handlePrintResult = (record: HealthCheckupType) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+    const conclusionText = CONCLUSION_LABELS[record.conclusion]?.label || 'Chưa kết luận';
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Phiếu KSK - ${record.patientName}</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; padding: 30px; font-size: 14px; line-height: 1.6; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .title { font-size: 18px; font-weight: bold; text-align: center; margin: 15px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #000; padding: 6px 10px; text-align: left; }
+        th { background: #f0f0f0; }
+        .conclusion { font-size: 16px; font-weight: bold; text-align: center; margin: 20px 0; padding: 10px; border: 2px solid #000; }
+        .signature-row { display: flex; justify-content: space-between; margin-top: 40px; }
+        .signature-box { text-align: center; width: 30%; }
+        @media print { body { padding: 15px; } }
+      </style></head>
+      <body>
+        <div class="header"><strong>PHIẾU KHÁM SỨC KHỎE</strong></div>
+        <div class="title">${CHECKUP_TYPE_LABELS[record.checkupType] || record.checkupType}</div>
+        <table>
+          <tr><th>Họ tên</th><td>${record.patientName}</td><th>Giới tính</th><td>${record.gender === 1 ? 'Nam' : 'Nữ'}</td></tr>
+          <tr><th>Ngày sinh</th><td>${record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '-'}</td><th>Ngày khám</th><td>${record.checkupDate ? dayjs(record.checkupDate).format('DD/MM/YYYY') : '-'}</td></tr>
+          <tr><th>Công ty</th><td colspan="3">${record.companyName || '-'}</td></tr>
+        </table>
+        <table>
+          <tr><th>Chuyên khoa</th><th>Kết quả</th></tr>
+          <tr><td>Nội khoa</td><td>${record.internalMedicine || '-'}</td></tr>
+          <tr><td>Ngoại khoa</td><td>${record.surgery || '-'}</td></tr>
+          <tr><td>Mắt</td><td>${record.ophthalmology || '-'}</td></tr>
+          <tr><td>Tai mũi họng</td><td>${record.entExam || '-'}</td></tr>
+          <tr><td>Răng hàm mặt</td><td>${record.dentalExam || '-'}</td></tr>
+          <tr><td>Da liễu</td><td>${record.dermatology || '-'}</td></tr>
+          <tr><td>Phụ khoa</td><td>${record.gynecology || '-'}</td></tr>
+          <tr><td>Tâm thần</td><td>${record.psychiatry || '-'}</td></tr>
+          <tr><td>Xét nghiệm</td><td>${record.labResults || '-'}</td></tr>
+          <tr><td>X-quang</td><td>${record.xrayResults || '-'}</td></tr>
+        </table>
+        <div class="conclusion">KẾT LUẬN: ${conclusionText}</div>
+        ${record.notes ? `<p><strong>Ghi chú:</strong> ${record.notes}</p>` : ''}
+        <div class="signature-row">
+          <div class="signature-box"><strong>Người khám</strong><br/><br/><br/>${record.examDoctor || ''}</div>
+          <div class="signature-box"><strong>Trưởng khoa</strong><br/><br/><br/></div>
+          <div class="signature-box"><strong>Giám đốc BV</strong><br/><br/><br/></div>
+        </div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -263,9 +338,14 @@ const HealthCheckup: React.FC = () => {
             </Button>
           )}
           {record.status >= 2 && (
-            <Button type="link" size="small" icon={<PrinterOutlined />} onClick={() => handlePrint(record.id)}>
-              In
-            </Button>
+            <>
+              <Button type="link" size="small" icon={<PrinterOutlined />} onClick={() => handlePrint(record.id)}>
+                In
+              </Button>
+              <Button type="link" size="small" icon={<PrinterOutlined />} onClick={() => handlePrintResult(record)}>
+                In KQ
+              </Button>
+            </>
           )}
         </Space>
       ),
@@ -353,70 +433,128 @@ const HealthCheckup: React.FC = () => {
           </Col>
         </Row>
 
-        {/* Segmented control */}
-        <Card style={{ marginBottom: 16 }}>
-          <Segmented
-            options={segmentOptions}
-            value={checkupTypeFilter}
-            onChange={(val) => setCheckupTypeFilter(val as string)}
-            block
-          />
-        </Card>
+        <Tabs
+          activeKey={mainTab}
+          onChange={setMainTab}
+          items={[
+            {
+              key: 'list',
+              label: <span><FileProtectOutlined /> Danh sách KSK</span>,
+              children: (
+                <>
+                  {/* Segmented control */}
+                  <Card style={{ marginBottom: 16 }}>
+                    <Segmented
+                      options={segmentOptions}
+                      value={checkupTypeFilter}
+                      onChange={(val) => setCheckupTypeFilter(val as string)}
+                      block
+                    />
+                  </Card>
 
-        {/* Filters */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row gutter={[16, 12]}>
-            <Col xs={24} sm={8} md={6}>
-              <Search
-                placeholder="Tìm kiếm họ tên, mã phiếu..."
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onSearch={fetchData}
-                allowClear
-                prefix={<SearchOutlined />}
-              />
-            </Col>
-            <Col xs={12} sm={8} md={4}>
-              <Select
-                placeholder="Trạng thái"
-                allowClear
-                style={{ width: '100%' }}
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={[
-                  { value: 0, label: 'Chờ khám' },
-                  { value: 1, label: 'Đang khám' },
-                  { value: 2, label: 'Hoàn thành' },
-                  { value: 3, label: 'Đã cấp GCN' },
-                ]}
-              />
-            </Col>
-            <Col xs={24} sm={8} md={6}>
-              <RangePicker
-                style={{ width: '100%' }}
-                value={dateRange}
-                onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
-                format="DD/MM/YYYY"
-              />
-            </Col>
-          </Row>
-        </Card>
+                  {/* Filters */}
+                  <Card style={{ marginBottom: 16 }}>
+                    <Row gutter={[16, 12]}>
+                      <Col xs={24} sm={8} md={6}>
+                        <Search
+                          placeholder="Tìm kiếm họ tên, mã phiếu..."
+                          value={keyword}
+                          onChange={(e) => setKeyword(e.target.value)}
+                          onSearch={fetchData}
+                          allowClear
+                          prefix={<SearchOutlined />}
+                        />
+                      </Col>
+                      <Col xs={12} sm={8} md={4}>
+                        <Select
+                          placeholder="Trạng thái"
+                          allowClear
+                          style={{ width: '100%' }}
+                          value={statusFilter}
+                          onChange={setStatusFilter}
+                          options={[
+                            { value: 0, label: 'Chờ khám' },
+                            { value: 1, label: 'Đang khám' },
+                            { value: 2, label: 'Hoàn thành' },
+                            { value: 3, label: 'Đã cấp GCN' },
+                          ]}
+                        />
+                      </Col>
+                      <Col xs={24} sm={8} md={6}>
+                        <RangePicker
+                          style={{ width: '100%' }}
+                          value={dateRange}
+                          onChange={(val) => setDateRange(val as [dayjs.Dayjs, dayjs.Dayjs] | null)}
+                          format="DD/MM/YYYY"
+                        />
+                      </Col>
+                    </Row>
+                  </Card>
 
-        {/* Table */}
-        <Card>
-          <Table
-            dataSource={data}
-            columns={columns}
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Tổng ${t} bản ghi` }}
-            scroll={{ x: 1400 }}
-            onRow={(record) => ({
-              onDoubleClick: () => handleViewDetail(record),
-              style: { cursor: 'pointer' },
-            })}
-          />
-        </Card>
+                  {/* Table */}
+                  <Card>
+                    <Table
+                      dataSource={data}
+                      columns={columns}
+                      rowKey="id"
+                      size="small"
+                      pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `Tổng ${t} bản ghi` }}
+                      scroll={{ x: 1400 }}
+                      onRow={(record) => ({
+                        onDoubleClick: () => handleViewDetail(record),
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  </Card>
+                </>
+              ),
+            },
+            {
+              key: 'report',
+              label: <span><BarChartOutlined /> Báo cáo</span>,
+              children: (
+                <Card title="Báo cáo tổng hợp KSK theo đợt / công ty">
+                  <Table
+                    dataSource={campaignSummary}
+                    rowKey="company"
+                    size="small"
+                    pagination={false}
+                    columns={[
+                      { title: 'Công ty / Đợt', dataIndex: 'company', key: 'company', width: 250 },
+                      { title: 'Tổng đăng ký', dataIndex: 'total', key: 'total', width: 120, align: 'center' as const },
+                      { title: 'Đã hoàn thành', dataIndex: 'completed', key: 'completed', width: 120, align: 'center' as const },
+                      { title: 'Đạt SK', dataIndex: 'pass', key: 'pass', width: 100, align: 'center' as const, render: (v: number) => <Tag color="green">{v}</Tag> },
+                      { title: 'Không đạt', dataIndex: 'fail', key: 'fail', width: 100, align: 'center' as const, render: (v: number) => <Tag color="red">{v}</Tag> },
+                      {
+                        title: 'Tỷ lệ hoàn thành',
+                        key: 'rate',
+                        width: 130,
+                        align: 'center' as const,
+                        render: (_: unknown, r: { total: number; completed: number }) => r.total > 0 ? `${Math.round(r.completed / r.total * 100)}%` : '0%',
+                      },
+                    ]}
+                    summary={() => {
+                      const totals = campaignSummary.reduce(
+                        (acc, r) => ({ total: acc.total + r.total, completed: acc.completed + r.completed, pass: acc.pass + r.pass, fail: acc.fail + r.fail }),
+                        { total: 0, completed: 0, pass: 0, fail: 0 }
+                      );
+                      return (
+                        <Table.Summary.Row>
+                          <Table.Summary.Cell index={0}><strong>Tổng cộng</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={1} align="center"><strong>{totals.total}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={2} align="center"><strong>{totals.completed}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={3} align="center"><strong>{totals.pass}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={4} align="center"><strong>{totals.fail}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={5} align="center"><strong>{totals.total > 0 ? `${Math.round(totals.completed / totals.total * 100)}%` : '0%'}</strong></Table.Summary.Cell>
+                        </Table.Summary.Row>
+                      );
+                    }}
+                  />
+                </Card>
+              ),
+            },
+          ]}
+        />
 
         {/* Detail Modal */}
         <Modal
@@ -518,9 +656,14 @@ const HealthCheckup: React.FC = () => {
                   <Input placeholder="Tên công ty (nếu khám tập thể)" />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col span={8}>
                 <Form.Item name="groupName" label="Nhóm / Đợt khám">
                   <Input placeholder="Tên nhóm / đợt khám" />
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item name="discountPercent" label="Giảm giá đoàn (%)">
+                  <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="0" addonAfter="%" />
                 </Form.Item>
               </Col>
             </Row>

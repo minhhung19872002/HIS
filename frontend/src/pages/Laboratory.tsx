@@ -34,6 +34,7 @@ import {
   FileSearchOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
+  MobileOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -129,6 +130,21 @@ const Laboratory: React.FC = () => {
       }
     } catch {
       message.warning('Lỗi ký số');
+    }
+  };
+
+  // Send lab result via SMS
+  const handleSendResultSms = async (record: TestResult) => {
+    try {
+      message.loading('Đang gửi SMS kết quả xét nghiệm...', 1);
+      const { apiClient } = await import('../api/client');
+      await apiClient.post('/sms/send-test', {
+        phoneNumber: record.patientCode, // backend will look up patient phone by code
+        message: `Ket qua XN ${record.testName || record.requestCode} da hoan thanh. Vui long lien he BV de nhan ket qua. Ma phieu: ${record.requestCode}`,
+      });
+      message.success(`Đã gửi SMS kết quả cho bệnh nhân ${record.patientName}`);
+    } catch {
+      message.warning('Không thể gửi SMS. Vui lòng kiểm tra cấu hình SMS gateway.');
     }
   };
 
@@ -1036,6 +1052,15 @@ const Laboratory: React.FC = () => {
                   </Button>
                 </Tooltip>
               )}
+              <Tooltip title="Gửi kết quả qua SMS">
+                <Button
+                  size="small"
+                  icon={<MobileOutlined />}
+                  onClick={() => handleSendResultSms(record)}
+                >
+                  SMS
+                </Button>
+              </Tooltip>
             </>
           )}
         </Space>

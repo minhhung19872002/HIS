@@ -2508,6 +2508,150 @@ public class SurgeryCompleteService : ISurgeryCompleteService
     };
 
     #endregion
+
+    #region NangCap18 - Anesthesia Chart & Profit Calculation
+
+    public async Task<bool> SaveAnesthesiaChartAsync(HIS.Application.DTOs.NangCap18.SaveAnesthesiaChartDto dto, Guid userId)
+    {
+        var schedule = await _context.Set<SurgerySchedule>().FindAsync(dto.SurgeryId);
+        if (schedule == null)
+            throw new InvalidOperationException("Không tìm thấy lịch phẫu thuật");
+
+        // Remove existing entries for this surgery
+        var existing = await _context.Set<AnesthesiaChartEntry>()
+            .Where(e => e.SurgeryScheduleId == dto.SurgeryId && !e.IsDeleted)
+            .ToListAsync();
+        foreach (var e in existing)
+            e.IsDeleted = true;
+
+        // Add new entries
+        foreach (var entry in dto.Entries)
+        {
+            var entity = new AnesthesiaChartEntry
+            {
+                Id = entry.Id ?? Guid.NewGuid(),
+                SurgeryScheduleId = dto.SurgeryId,
+                TimeMinutes = entry.TimeMinutes,
+                HeartRate = entry.HeartRate,
+                SystolicBP = entry.SystolicBP,
+                DiastolicBP = entry.DiastolicBP,
+                SpO2 = entry.SpO2,
+                Temperature = entry.Temperature,
+                EtCO2 = entry.EtCO2,
+                Drug = entry.Drug,
+                DoseGiven = entry.DoseGiven,
+                Notes = entry.Notes,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString()
+            };
+            _context.Set<AnesthesiaChartEntry>().Add(entity);
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<HIS.Application.DTOs.NangCap18.AnesthesiaChartDto> GetAnesthesiaChartAsync(Guid surgeryId)
+    {
+        var schedule = await _context.Set<SurgerySchedule>()
+            .Include(s => s.SurgeryRequest)
+                .ThenInclude(r => r.Patient)
+            .Include(s => s.SurgeryRecord)
+            .FirstOrDefaultAsync(s => s.Id == surgeryId);
+
+        var entries = await _context.Set<AnesthesiaChartEntry>()
+            .Where(e => e.SurgeryScheduleId == surgeryId && !e.IsDeleted)
+            .OrderBy(e => e.TimeMinutes)
+            .Select(e => new HIS.Application.DTOs.NangCap18.AnesthesiaChartEntryDto
+            {
+                Id = e.Id,
+                TimeMinutes = e.TimeMinutes,
+                HeartRate = e.HeartRate,
+                SystolicBP = e.SystolicBP,
+                DiastolicBP = e.DiastolicBP,
+                SpO2 = e.SpO2,
+                Temperature = e.Temperature,
+                EtCO2 = e.EtCO2,
+                Drug = e.Drug,
+                DoseGiven = e.DoseGiven,
+                Notes = e.Notes
+            })
+            .ToListAsync();
+
+        return new HIS.Application.DTOs.NangCap18.AnesthesiaChartDto
+        {
+            SurgeryId = surgeryId,
+            PatientName = schedule?.SurgeryRequest?.Patient?.FullName,
+            ProcedureName = schedule?.SurgeryRequest?.PlannedProcedure,
+            SurgeryStart = schedule?.SurgeryRecord?.ActualStartTime,
+            SurgeryEnd = schedule?.SurgeryRecord?.ActualEndTime,
+            AnesthesiaType = schedule?.SurgeryRequest?.AnesthesiaType,
+            Entries = entries
+        };
+    }
+
+    public async Task<HIS.Application.DTOs.NangCap18.SurgeryProfitDto> CalculateSurgeryProfitAsync(Guid surgeryId)
+    {
+        var schedule = await _context.Set<SurgerySchedule>()
+            .Include(s => s.SurgeryRequest)
+            .Include(s => s.SurgeryRecord)
+            .FirstOrDefaultAsync(s => s.Id == surgeryId);
+
+        if (schedule == null)
+            throw new InvalidOperationException("Không tìm thấy lịch phẫu thuật");
+
+        // Revenue: from ServiceRequests linked to this surgery's medical record
+        var medicalRecordId = schedule.SurgeryRequest?.MedicalRecordId;
+        decimal revenue = 0;
+        if (medicalRecordId.HasValue)
+        {
+            revenue = await _context.ServiceRequestDetails
+                .Where(d => d.ServiceRequest.MedicalRecordId == medicalRecordId.Value && !d.IsDeleted)
+                .SumAsync(d => (decimal?)d.Amount) ?? 0;
+        }
+
+        // Supply cost: from ExportReceiptDetails linked to surgery (estimate from recent period)
+        decimal supplyCost = 0;
+        decimal drugCost = 0;
+
+        if (medicalRecordId.HasValue)
+        {
+            var exportDetails = await _context.ExportReceiptDetails
+                .Include(d => d.ExportReceipt)
+                .Where(d => d.ExportReceipt.MedicalRecordId == medicalRecordId.Value && !d.IsDeleted)
+                .ToListAsync();
+
+            supplyCost = exportDetails.Where(d => d.SupplyId.HasValue).Sum(d => d.Quantity * d.UnitPrice); // vật tư
+            drugCost = exportDetails.Where(d => d.MedicineId.HasValue).Sum(d => d.Quantity * d.UnitPrice); // thuốc
+        }
+
+        // Staff cost: estimate based on team size and duration
+        var duration = schedule.SurgeryRecord?.ActualDuration ?? schedule.EstimatedDuration ?? 60;
+        var teamSize = 1 + (schedule.AssistantIds?.Split(',').Length ?? 0) + (schedule.AnesthesiologistId.HasValue ? 1 : 0) + (schedule.NurseIds?.Split(',').Length ?? 0);
+        decimal staffCost = teamSize * (duration / 60m) * 200000; // 200k VND/hour/person estimate
+
+        // Overhead: 10% of revenue
+        decimal overheadCost = revenue * 0.10m;
+
+        decimal totalCost = supplyCost + drugCost + staffCost + overheadCost;
+        decimal profit = revenue - totalCost;
+        decimal profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
+        return new HIS.Application.DTOs.NangCap18.SurgeryProfitDto
+        {
+            SurgeryId = surgeryId,
+            ProcedureName = schedule.SurgeryRequest?.PlannedProcedure,
+            Revenue = revenue,
+            SupplyCost = supplyCost,
+            DrugCost = drugCost,
+            StaffCost = staffCost,
+            OverheadCost = overheadCost,
+            Profit = profit,
+            ProfitMargin = Math.Round(profitMargin, 2)
+        };
+    }
+
+    #endregion
 }
 
 internal class SurgeryConsentRaw

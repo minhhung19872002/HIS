@@ -2066,3 +2066,116 @@
 
 > **Da thuc hien**: B (IVF Lab), D (Dao tao/NCKH), A (Asset/Tender/TSCD 24 reports), C (Pharmacy enhanced)
 > **Con lai ~11 items**: hardware-dependent (cham cong, may quet), multi-store pricing, 1 so CCDC detail reports
+
+---
+
+## PHAN 18: BV TTYT KHU VUC MU CANG CHAI (NangCap18.pdf)
+
+> **Chu dau tu**: Trung tam Y te khu vuc Mu Cang Chai
+> **Gia goi thau**: 712.800.000 VND
+> **Thoi gian**: 12 thang
+> **Pham vi**: HIS-LIS + EMR + PACS
+
+### Bang so sanh chi tiet
+
+| STT | Phan he | Tong YC | Da co | Thieu | % |
+|-----|---------|---------|-------|-------|---|
+| I | Dang ky kham benh | 32 | 30 | 2 | 94% |
+| II | Kham benh (OPD) | 43 | 41 | 2 | 95% |
+| III | Noi tru (IPD) | 66 | 62 | 4 | 94% |
+| IV | Phau thuat thu thuat | 16 | 14 | 2 | 88% |
+| V | CLS CDHA (RIS) | 12 | 12 | 0 | 100% |
+| VI | CLS Xet nghiem (LIS) | 11 | 11 | 0 | 100% |
+| VII | Quan ly duoc | 22 | 20 | 2 | 91% |
+| VIII | Quan ly vien phi | 23 | 22 | 1 | 96% |
+| IX | Ke hoach tong hop | 11 | 11 | 0 | 100% |
+| X | Ket noi BHYT | 5 | 5 | 0 | 100% |
+| XI | Quan tri he thong | 14 | 14 | 0 | 100% |
+| XII | Danh muc | 91 | 85 | 6 | 93% |
+| XIII | Bao cao thong ke | 40 | 39 | 1 | 98% |
+| XIV | Lien thong | 7 | 6 | 1 | 86% |
+| XV | Hoa don dien tu | 5 | 4 | 1 | 80% |
+| XVI | Hang doi | 11 | 9 | 2 | 82% |
+| XVII | Kham SK theo doan | 8 | 5 | 3 | 63% |
+| XVIII | Kios tu dang ky | 16 | 12 | 4 | 75% |
+| XIX | SMS thong bao | 8 | 7 | 1 | 88% |
+| - | RIS/PACS chi tiet | ~500 | ~495 | 5 | 99% |
+| - | EMR (TT32+TT13+TT54) | 38 | 38 | 0 | 100% |
+| **TONG** | | **~1000** | **~945** | **~55** | **~94%** |
+
+### Chi tiet cac features THIEU can implement
+
+**I. Dang ky kham benh (2 thieu)**
+1. In ma vach dan HSBA (print barcode label for medical record)
+2. Lay van tay BN (fingerprint - HARDWARE DEPENDENT)
+
+**II. Kham benh OPD (2 thieu)**
+1. Chuyen phong kham / Nho kham (transfer patient between exam rooms)
+2. Cam kham khi BS chua co CCHN (block exam if doctor not certified)
+
+**III. Noi tru IPD (4 thieu)**
+1. Ngat quang chan doan benh (diagnosis interruption tracking)
+2. Cam ke le thuoc (prevent individual medicine ordering outside protocol)
+3. Cam ke dich vu khong phu hop chan doan (block incompatible service orders)
+4. Cam/canh bao thoi gian chi dinh DV toi thieu (minimum interval warning)
+
+**IV. Phau thuat (2 thieu)**
+1. Lap bieu do gay me (anesthesia flowchart - partograph style)
+2. Tinh lo lai phau thuat (surgery cost/profit calculation)
+
+**VII. Quan ly duoc (2 thieu)**
+1. Khai bao tuong duong thuoc (drug equivalence declaration)
+2. Gop phieu linh (merge dispensing vouchers)
+
+**VIII. Vien phi (1 thieu)**
+1. Day hoa don len cong HDDT (push e-invoice to tax authority)
+
+**XIII. Bao cao (1 thieu)**
+1. Bao cao tinh lo lai PTTT
+
+**XV. Hoa don dien tu (1 thieu)**
+1. Ket noi cong nha cung cap HDDT (VNPT/Viettel/BKAV e-invoice gateway)
+
+**XVI. Hang doi (2 thieu)**
+1. Goi bang loa vat ly (hardware intercom - HARDWARE DEPENDENT)
+2. Hien thi LCD theo tung khu vuc (multi-zone LCD - da co co ban, can mo rong)
+
+**XVII. Kham SK theo doan (3 thieu)**
+1. Bao cao tong hop chi phi theo doan
+2. Giam gia theo doan (bulk discount)
+3. In phieu ket qua KSK tong hop
+
+**XVIII. Kios (4 thieu - da co Kiosk mode co ban)**
+1. Quet the BHYT tu dong (BHYT card reader - HARDWARE DEPENDENT)
+2. Quet the kham benh thong minh (smart card - HARDWARE DEPENDENT)
+3. Thanh toan tien mat/the tai kios (payment terminal - HARDWARE DEPENDENT)
+4. In phieu kham tu kios (receipt printer - HARDWARE DEPENDENT)
+
+**XIX. SMS (1 thieu)**
+1. Tao link xem ket qua XN truc tuyen gui qua SMS
+
+### Phan loai muc do kha thi
+
+**CAN IMPLEMENT (software, ~20 features)**
+- OPD: Chuyen phong kham, Cam kham khi chua CCHN
+- IPD: Ngat quang chan doan, Cam ke le, Cam ke DV khong phu hop, Canh bao thoi gian DV
+- Surgery: Bieu do gay me, Tinh lo lai PTTT
+- Pharmacy: Khai bao tuong duong, Gop phieu linh
+- Billing: Ket noi HDDT gateway stub
+- Reports: BC lo lai PTTT
+- Queue: Mo rong multi-zone LCD
+- Group checkup: BC tong hop, giam gia doan, in phieu KSK
+- Reception: In ma vach HSBA
+- SMS: Link ket qua XN online
+
+**HARDWARE DEPENDENT (can thiet bi, ~8 features)**
+- Lay van tay (fingerprint reader)
+- Quet the BHYT (card reader)
+- Quet the thong minh (smart card)
+- Goi bang loa vat ly (intercom)
+- Thanh toan tai kios (payment terminal)
+- In phieu tu kios (receipt printer)
+- Mobile PACS viewer (native app)
+- Multi-monitor LCD hardware setup
+
+### Trang thai: CHUA THUC HIEN

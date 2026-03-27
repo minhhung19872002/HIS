@@ -1672,6 +1672,32 @@ public class ExaminationCompleteController : ControllerBase
     }
 
     #endregion
+
+    #region NangCap18 - Transfer Room & Doctor Certification
+
+    /// <summary>
+    /// Chuyển bệnh nhân sang phòng khám khác
+    /// </summary>
+    [HttpPut("transfer-room")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.TransferPatientRoomResultDto>> TransferPatientRoom(
+        [FromBody] HIS.Application.DTOs.NangCap18.TransferPatientRoomDto dto)
+    {
+        var userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : Guid.Empty;
+        var result = await _examinationService.TransferPatientRoomAsync(dto.ExaminationId, dto.NewRoomId, dto.Reason, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Kiểm tra chứng chỉ hành nghề của bác sĩ
+    /// </summary>
+    [HttpGet("check-doctor-certification/{doctorId}")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.DoctorCertificationResultDto>> CheckDoctorCertification(Guid doctorId)
+    {
+        var result = await _examinationService.CheckDoctorCertificationAsync(doctorId);
+        return Ok(result);
+    }
+
+    #endregion
 }
 
 #region Request DTOs

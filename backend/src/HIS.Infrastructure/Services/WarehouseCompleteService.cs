@@ -2615,4 +2615,174 @@ public class WarehouseCompleteService : IWarehouseCompleteService
     }
 
     #endregion
+
+    #region NangCap18 - Drug Equivalence & Merge Vouchers
+
+    public async Task<List<HIS.Application.DTOs.NangCap18.DrugEquivalenceDto>> GetDrugEquivalencesAsync(Guid medicineId)
+    {
+        var equivalences = await _context.Set<DrugEquivalence>()
+            .Where(e => (e.MedicineId == medicineId || e.EquivalentMedicineId == medicineId) && !e.IsDeleted)
+            .ToListAsync();
+
+        var allMedicineIds = equivalences.SelectMany(e => new[] { e.MedicineId, e.EquivalentMedicineId }).Distinct().ToList();
+        var medicines = await _context.Medicines
+            .Where(m => allMedicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id, m => m.MedicineName);
+
+        return equivalences.Select(e => new HIS.Application.DTOs.NangCap18.DrugEquivalenceDto
+        {
+            Id = e.Id,
+            MedicineId = e.MedicineId,
+            MedicineName = medicines.GetValueOrDefault(e.MedicineId, ""),
+            EquivalentMedicineId = e.EquivalentMedicineId,
+            EquivalentMedicineName = medicines.GetValueOrDefault(e.EquivalentMedicineId, ""),
+            Notes = e.Notes,
+            CreatedAt = e.CreatedAt
+        }).ToList();
+    }
+
+    public async Task<HIS.Application.DTOs.NangCap18.DrugEquivalenceDto> SaveDrugEquivalenceAsync(
+        HIS.Application.DTOs.NangCap18.SaveDrugEquivalenceDto dto, Guid userId)
+    {
+        // Check if equivalence already exists
+        var existing = await _context.Set<DrugEquivalence>()
+            .FirstOrDefaultAsync(e => !e.IsDeleted &&
+                ((e.MedicineId == dto.MedicineId && e.EquivalentMedicineId == dto.EquivalentMedicineId) ||
+                 (e.MedicineId == dto.EquivalentMedicineId && e.EquivalentMedicineId == dto.MedicineId)));
+
+        if (existing != null)
+        {
+            existing.Notes = dto.Notes;
+            existing.UpdatedAt = DateTime.Now;
+            existing.UpdatedBy = userId.ToString();
+        }
+        else
+        {
+            existing = new DrugEquivalence
+            {
+                Id = Guid.NewGuid(),
+                MedicineId = dto.MedicineId,
+                EquivalentMedicineId = dto.EquivalentMedicineId,
+                Notes = dto.Notes,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString()
+            };
+            _context.Set<DrugEquivalence>().Add(existing);
+        }
+
+        await _context.SaveChangesAsync();
+
+        var med1 = await _context.Medicines.FindAsync(dto.MedicineId);
+        var med2 = await _context.Medicines.FindAsync(dto.EquivalentMedicineId);
+
+        return new HIS.Application.DTOs.NangCap18.DrugEquivalenceDto
+        {
+            Id = existing.Id,
+            MedicineId = existing.MedicineId,
+            MedicineName = med1?.MedicineName ?? "",
+            EquivalentMedicineId = existing.EquivalentMedicineId,
+            EquivalentMedicineName = med2?.MedicineName ?? "",
+            Notes = existing.Notes,
+            CreatedAt = existing.CreatedAt
+        };
+    }
+
+    public async Task<HIS.Application.DTOs.NangCap18.MergeVouchersResultDto> MergeDispensingVouchersAsync(
+        List<Guid> voucherIds, Guid userId)
+    {
+        if (voucherIds.Count < 2)
+            return new HIS.Application.DTOs.NangCap18.MergeVouchersResultDto
+            {
+                Success = false,
+                Message = "Cần ít nhất 2 phiếu xuất để gộp"
+            };
+
+        var vouchers = await _context.ExportReceipts
+            .Where(r => voucherIds.Contains(r.Id) && !r.IsDeleted && r.Status == 1)
+            .ToListAsync();
+
+        if (vouchers.Count < 2)
+            return new HIS.Application.DTOs.NangCap18.MergeVouchersResultDto
+            {
+                Success = false,
+                Message = "Không tìm đủ phiếu xuất hợp lệ (trạng thái 'Đã xuất')"
+            };
+
+        // Verify all vouchers belong to same patient
+        var patientIds = vouchers.Select(v => v.PatientId).Distinct().ToList();
+        if (patientIds.Count > 1)
+            return new HIS.Application.DTOs.NangCap18.MergeVouchersResultDto
+            {
+                Success = false,
+                Message = "Chỉ có thể gộp phiếu xuất cùng bệnh nhân"
+            };
+
+        // Create merged voucher
+        var firstVoucher = vouchers.First();
+        var mergedReceipt = new ExportReceipt
+        {
+            Id = Guid.NewGuid(),
+            ReceiptCode = $"MRG-{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptDate = DateTime.Now,
+            WarehouseId = firstVoucher.WarehouseId,
+            ExportType = firstVoucher.ExportType,
+            PatientId = firstVoucher.PatientId,
+            MedicalRecordId = firstVoucher.MedicalRecordId,
+            Note = $"Gộp từ {vouchers.Count} phiếu: {string.Join(", ", vouchers.Select(v => v.ReceiptCode))}",
+            Status = 1,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        // Copy all details from source vouchers
+        decimal totalAmount = 0;
+        foreach (var voucher in vouchers)
+        {
+            var details = await _context.ExportReceiptDetails
+                .Where(d => d.ExportReceiptId == voucher.Id && !d.IsDeleted)
+                .ToListAsync();
+
+            foreach (var detail in details)
+            {
+                var newDetail = new ExportReceiptDetail
+                {
+                    Id = Guid.NewGuid(),
+                    ExportReceiptId = mergedReceipt.Id,
+                    MedicineId = detail.MedicineId,
+                    SupplyId = detail.SupplyId,
+                    InventoryItemId = detail.InventoryItemId,
+                    BatchNumber = detail.BatchNumber,
+                    ExpiryDate = detail.ExpiryDate,
+                    Quantity = detail.Quantity,
+                    Unit = detail.Unit,
+                    UnitPrice = detail.UnitPrice,
+                    Amount = detail.Amount,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = userId.ToString()
+                };
+                _context.ExportReceiptDetails.Add(newDetail);
+                totalAmount += detail.Amount;
+            }
+
+            // Soft delete original voucher
+            voucher.IsDeleted = true;
+            voucher.UpdatedAt = DateTime.Now;
+            voucher.UpdatedBy = userId.ToString();
+        }
+
+        mergedReceipt.TotalAmount = totalAmount;
+        _context.ExportReceipts.Add(mergedReceipt);
+        await _context.SaveChangesAsync();
+
+        return new HIS.Application.DTOs.NangCap18.MergeVouchersResultDto
+        {
+            Success = true,
+            Message = $"Đã gộp {vouchers.Count} phiếu xuất thành công",
+            MergedVoucherId = mergedReceipt.Id,
+            MergedCount = vouchers.Count,
+            TotalAmount = totalAmount
+        };
+    }
+
+    #endregion
 }

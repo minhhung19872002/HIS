@@ -675,6 +675,42 @@ public class WarehouseCompleteController : ControllerBase
     }
 
     #endregion
+
+    #region NangCap18 - Drug Equivalence & Merge Vouchers
+
+    /// <summary>
+    /// Lấy danh sách thuốc tương đương
+    /// </summary>
+    [HttpGet("drug-equivalences/{medicineId}")]
+    public async Task<ActionResult<List<HIS.Application.DTOs.NangCap18.DrugEquivalenceDto>>> GetDrugEquivalences(Guid medicineId)
+    {
+        var result = await _warehouseService.GetDrugEquivalencesAsync(medicineId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lưu khai báo thuốc tương đương
+    /// </summary>
+    [HttpPost("drug-equivalence")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.DrugEquivalenceDto>> SaveDrugEquivalence(
+        [FromBody] HIS.Application.DTOs.NangCap18.SaveDrugEquivalenceDto dto)
+    {
+        var result = await _warehouseService.SaveDrugEquivalenceAsync(dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gộp phiếu xuất thuốc
+    /// </summary>
+    [HttpPost("merge-vouchers")]
+    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.MergeVouchersResultDto>> MergeDispensingVouchers(
+        [FromBody] HIS.Application.DTOs.NangCap18.MergeVouchersDto dto)
+    {
+        var result = await _warehouseService.MergeDispensingVouchersAsync(dto.VoucherIds, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    #endregion
 }
 
 #region Request DTOs

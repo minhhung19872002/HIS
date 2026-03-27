@@ -42,6 +42,7 @@ import {
   ScanOutlined,
   SafetyCertificateOutlined,
   WarningOutlined,
+  BarcodeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -379,7 +380,7 @@ const Reception: React.FC = () => {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 280,
+      width: 320,
       fixed: 'right' as const,
       render: (_, record) => (
         <Space size="small" wrap>
@@ -405,6 +406,9 @@ const Reception: React.FC = () => {
           </Tooltip>
           <Tooltip title="In giấy yêu cầu">
             <Button size="small" icon={<FileTextOutlined />} onClick={() => handlePrintRequestForm(record)} />
+          </Tooltip>
+          <Tooltip title="In mã vạch">
+            <Button size="small" icon={<BarcodeOutlined />} onClick={() => handlePrintBarcodeLabel(record)} />
           </Tooltip>
         </Space>
       ),
@@ -877,6 +881,41 @@ const Reception: React.FC = () => {
       printWindow.print();
     }, 500);
     setIsPrintRequestModalOpen(false);
+  };
+
+  const handlePrintBarcodeLabel = (record: ReceptionRecord) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+    const dob = record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '';
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Mã vạch - ${record.patientCode}</title>
+      <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 10px; margin: 0; }
+        .label { border: 1px solid #000; padding: 8px 12px; display: inline-block; min-width: 220px; }
+        .barcode { font-size: 28px; font-weight: bold; letter-spacing: 4px; font-family: 'Libre Barcode 128', monospace; margin: 6px 0; }
+        .barcode-text { font-size: 16px; font-weight: bold; letter-spacing: 2px; font-family: monospace; margin: 4px 0; }
+        .patient-name { font-size: 13px; font-weight: bold; margin: 4px 0; }
+        .info { font-size: 11px; color: #333; margin: 2px 0; }
+        @media print { body { padding: 0; } .label { border: 1px solid #000; } }
+      </style></head>
+      <body>
+        <div class="label">
+          <div class="barcode">||||| ${record.patientCode} |||||</div>
+          <div class="barcode-text">${record.patientCode}</div>
+          <div class="patient-name">${record.patientName}</div>
+          ${dob ? `<div class="info">NS: ${dob}</div>` : ''}
+          <div class="info">HSBA: ${record.id.substring(0, 8).toUpperCase()}</div>
+          <div class="info">${dayjs().format('DD/MM/YYYY HH:mm')}</div>
+        </div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
   };
 
   const handleVerifyInsurance = async () => {
