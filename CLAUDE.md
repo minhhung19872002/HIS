@@ -1338,3 +1338,60 @@ If a new service/controller is added, register it there or you get 500 errors.
 - `e323b25` - feat: implement NangCap16 EMR management (BV Cam Ranh tender) - 10 features
 
 **NangCap16 Status: 36/36 complete** (26 existing + 10 implemented)
+
+### DA HOAN THANH (Session 38 - 2026-03-30)
+
+**106. NangCap19 - TTYT Quang Hoa, Cao Bang**
+- Doc NangCap19.pdf (67 trang): EMR + RIS/PACS + Mobile App + LIS + Thiet bi
+- Phan tich 73 software features: 69 DA CO, 4 CAN BO SUNG
+- Update NangCap_PhanTich.md voi PHAN 19
+
+**107. Implement 4 Patient Portal features (NangCap19)**
+
+**Backend (7 files modified):**
+- `ExtendedWorkflowEntities.cs`: 4 entities (FamilyMember, MedicineReminder, HealthMetric, PatientQuestion)
+- `PatientPortalDTOs.cs`: 11 DTOs (CRUD + trends + Q&A)
+- `IExtendedWorkflowServices.cs`: 15 interface methods
+- `ExtendedWorkflowServices.cs`: Full EF Core implementations (~370 lines) - auto-BMI, trends aggregation, Q&A workflow
+- `ExtendedWorkflowControllers.cs`: 15 endpoints at `/api/portal/`
+- `HISDbContext.cs`: 4 DbSet entries
+- `ExtendedServiceImplementations.cs`: stub fallbacks
+
+**Frontend (2 files modified):**
+- `patientPortal.ts`: 9 interfaces + 13 API functions
+- `PatientPortal.tsx`: 4 new tabs (+654 lines):
+  1. Gia dinh: CRUD table thanh vien (ten, quan he, DOB, SDT, BHYT)
+  2. Nhac thuoc: CRUD + toggle active, frequency Select, TimePicker
+  3. Suc khoe: Ghi chi so (HA, nhip tim, can nang, duong huyet, SpO2) + recharts LineChart xu huong
+  4. Hoi dap: Dat cau hoi, xem tra loi, status tags (Pending/Answered/Closed)
+
+**Database:**
+- `scripts/create_nangcap19_tables.sql`: 4 tables (FamilyMembers, MedicineReminders, HealthMetrics, PatientQuestions)
+
+**108. Test verification - ALL PASS**
+
+| Test Suite | Pass | Fail | Total |
+|---|---|---|---|
+| Console-errors | 80 | 0 | 80 |
+| Deep-controls | 122 | 0 | 122 |
+| All-flows | 60 | 0 | 60 |
+| User-workflow | 19 | 0 | 19 |
+| Real-workflow | 71 | 0 | 71 |
+| Manual-user-workflow | 34 | 0 | 34 |
+| EMR | 34 | 0 | 34 |
+| New-features | 34 | 0 | 34 |
+| Form-interactions | 27 | 0 | 27 |
+| Click-through-workflow | 23 | 0 | 23 |
+| Two-factor-auth | 9 | 0 | 9 |
+| Queue-display | 22 | 0 | 22 |
+| Fhir-health-pdf | 37 | 0 | 37 |
+| **Tong** | **572** | **0** | **572** |
+
+- TypeScript: 0 errors
+- Vite build: success (17.13s)
+- Backend build: 0 errors
+
+**109. Git Commit (Session 38)**
+- `0cfe4cc` - feat: implement NangCap19 (TTYT Quang Hoa) - 4 patient portal features, 15 API endpoints
+
+**NangCap19 Status: 73/73 software features (100%)** - chi con ~36 hardware items
