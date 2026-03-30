@@ -39,7 +39,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import laboratoryApi from '../api/laboratory';
-import type { LabRequest, TestResult, TestParameter, LabTestItem } from '../api/laboratory';
+import type { LabRequest, TestResult, TestParameter } from '../api/laboratory';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
@@ -169,8 +169,7 @@ const Laboratory: React.FC = () => {
 
   const fetchTestResults = async () => {
     try {
-      const response = await laboratoryApi.getTestResults({ search: searchText || undefined });
-      const data = (response as any)?.data || response;
+      const data = await laboratoryApi.getTestResults({ search: searchText || undefined });
       if (data && Array.isArray(data)) {
         setTestResults(data);
       }
@@ -1782,7 +1781,7 @@ const Laboratory: React.FC = () => {
                     </>
                   ),
                 },
-              ].filter(Boolean) as any}
+              ].filter(Boolean) as React.ReactNode[]}
             />
           </>
         )}
