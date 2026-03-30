@@ -19,9 +19,6 @@ import {
   Form,
   Descriptions,
   Alert,
-  Badge,
-  Timeline,
-  Divider,
 } from 'antd';
 import {
   AlertOutlined,
@@ -31,7 +28,6 @@ import {
   WarningOutlined,
   FireOutlined,
   EyeOutlined,
-  EditOutlined,
   BarChartOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';

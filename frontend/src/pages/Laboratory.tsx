@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -149,7 +149,7 @@ const Laboratory: React.FC = () => {
   };
 
   // Fetch data from API
-  const fetchLabRequests = async () => {
+  const fetchLabRequests = useCallback(async () => {
     setLoading(true);
     try {
       const data = await laboratoryApi.getLabRequests({ search: searchText || undefined });
@@ -165,9 +165,9 @@ const Laboratory: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchText]);
 
-  const fetchTestResults = async () => {
+  const fetchTestResults = useCallback(async () => {
     try {
       const data = await laboratoryApi.getTestResults({ search: searchText || undefined });
       if (data && Array.isArray(data)) {
@@ -176,24 +176,24 @@ const Laboratory: React.FC = () => {
     } catch (error) {
       console.warn('Error fetching test results:', error);
     }
-  };
+  }, [searchText]);
 
   // Load data on mount and when search text changes
   useEffect(() => {
     // Skip the debounce on initial load
     if (searchText === '') {
-      fetchLabRequests();
-      fetchTestResults();
+      void fetchLabRequests();
+      void fetchTestResults();
       return;
     }
 
     // Debounce search
     const timer = setTimeout(() => {
-      fetchLabRequests();
-      fetchTestResults();
+      void fetchLabRequests();
+      void fetchTestResults();
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, fetchLabRequests, fetchTestResults]);
 
   // Get priority tag
   const getPriorityBadge = (priority: number) => {

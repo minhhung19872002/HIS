@@ -29,7 +29,6 @@ import {
   PlusOutlined,
   EyeOutlined,
   EditOutlined,
-  ExperimentOutlined,
   SafetyOutlined,
   BarChartOutlined,
   WarningOutlined,
@@ -48,7 +47,6 @@ import type {
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
-const { RangePicker } = DatePicker;
 
 const SEVERITY_CONFIG: Record<number, { label: string; color: string }> = {
   1: { label: 'Nhẹ', color: 'green' },
@@ -84,7 +82,7 @@ const FoodSafety: React.FC = () => {
   const [incidents, setIncidents] = useState<FoodSafetyIncident[]>([]);
   const [inspections, setInspections] = useState<FoodInspection[]>([]);
   const [stats, setStats] = useState<FoodSafetyStats | null>(null);
-  const [inspectionStats, setInspectionStats] = useState<InspectionStats | null>(null);
+  const [, setInspectionStats] = useState<InspectionStats | null>(null);
   const [samples, setSamples] = useState<FoodSafetySample[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<FoodSafetyIncident | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);

@@ -1322,9 +1322,9 @@ const Prescription: React.FC = () => {
                         <Descriptions.Item label="Hàm lượng">{record.strength}</Descriptions.Item>
                         <Descriptions.Item label="Số lượng">{record.quantity} {record.medicine.unit}</Descriptions.Item>
                         <Descriptions.Item label="Đường dùng">{record.route}</Descriptions.Item>
-                        <Descriptions.Item label="Liều dùng">{record.dosage.morning}-{record.dosage.noon}-{(record.dosage as any).afternoon || 0}-{record.dosage.evening}</Descriptions.Item>
+                        <Descriptions.Item label="Liều dùng">{record.dosage.morning}-{record.dosage.noon}-{record.dosage.night}-{record.dosage.evening}</Descriptions.Item>
                         <Descriptions.Item label="Số ngày">{record.duration} ngày</Descriptions.Item>
-                        <Descriptions.Item label="Đơn giá">{(record.medicine as any).price?.toLocaleString('vi-VN') || '0'}đ</Descriptions.Item>
+                        <Descriptions.Item label="Đơn giá">{record.medicine.unitPrice?.toLocaleString('vi-VN') || '0'}đ</Descriptions.Item>
                         <Descriptions.Item label="Thành tiền">{record.totalCost?.toLocaleString('vi-VN')}đ</Descriptions.Item>
                         <Descriptions.Item label="Ghi chú" span={2}>{record.notes || '-'}</Descriptions.Item>
                       </Descriptions>
@@ -1920,3 +1920,4 @@ const Prescription: React.FC = () => {
 };
 
 export default Prescription;
+

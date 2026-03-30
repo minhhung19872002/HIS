@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   ReadOutlined, SearchOutlined, ReloadOutlined, PlusOutlined,
-  EditOutlined, TeamOutlined, CalendarOutlined,
+  TeamOutlined, CalendarOutlined,
   FileTextOutlined, PlayCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';

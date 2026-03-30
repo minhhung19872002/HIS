@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card, Table, Button, Space, Modal, Form, Input, Select, DatePicker,
+  Card, Table, Button, Space, Modal, Form, Input, Select,
   Tag, Tabs, message, Spin, Statistic, Row, Col, Descriptions, Badge, Tooltip
 } from 'antd';
 import {
-  BugOutlined, PlusOutlined, ReloadOutlined, SearchOutlined,
-  CheckCircleOutlined, ExperimentOutlined, FileTextOutlined, EyeOutlined
+  BugOutlined, PlusOutlined, ReloadOutlined,
+  CheckCircleOutlined, ExperimentOutlined, EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { MicrobiologyCulture, MicrobiologyOrganism, AntibioticSensitivity } from '../api/microbiology';

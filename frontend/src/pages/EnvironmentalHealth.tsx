@@ -6,7 +6,7 @@ import {
 import {
   CloudOutlined, SearchOutlined, ReloadOutlined, PlusOutlined,
   WarningOutlined, CheckCircleOutlined, ExperimentOutlined,
-  DeleteOutlined, CalendarOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';

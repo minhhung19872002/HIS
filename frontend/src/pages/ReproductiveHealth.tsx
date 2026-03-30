@@ -6,8 +6,8 @@ import {
 } from 'antd';
 import {
   HeartOutlined, SearchOutlined, ReloadOutlined, PlusOutlined,
-  EyeOutlined, EditOutlined, WarningOutlined, CalendarOutlined,
-  TeamOutlined, CheckCircleOutlined,
+  EyeOutlined, WarningOutlined, CalendarOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';

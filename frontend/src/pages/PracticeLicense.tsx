@@ -6,7 +6,7 @@ import {
 import {
   SafetyCertificateOutlined, SearchOutlined, ReloadOutlined, PlusOutlined,
   EditOutlined, WarningOutlined, CheckCircleOutlined,
-  ClockCircleOutlined, StopOutlined, PrinterOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';

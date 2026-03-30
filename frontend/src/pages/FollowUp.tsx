@@ -21,7 +21,6 @@ import {
   Descriptions,
 } from 'antd';
 import {
-  SearchOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -30,13 +29,12 @@ import {
   WarningOutlined,
   ClockCircleOutlined,
   UserOutlined,
-  PrinterOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as examApi from '../api/examination';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 

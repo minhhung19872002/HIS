@@ -15,7 +15,7 @@ import {
   getSmsBalance, testSmsConnection, sendTestSms, getSmsLogs, getSmsStats,
 } from '../api/sms';
 import type {
-  SmsBalanceDto, SmsLogDto, SmsLogSearchDto, SmsLogPagedResult, SmsStatsDto,
+  SmsBalanceDto, SmsLogDto, SmsLogSearchDto, SmsStatsDto,
 } from '../api/sms';
 
 const { Title, Text } = Typography;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -42,7 +42,14 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
-import { catalogApi, type ClinicalTermCatalogDto } from '../api/system';
+import {
+  catalogApi,
+  type ClinicalTermCatalogDto,
+  type ParaclinicalServiceCatalogDto,
+  type MedicineCatalogDto,
+  type DepartmentCatalogDto,
+  type ICD10CatalogDto,
+} from '../api/system';
 import {
   administrativeCatalogApi,
   type OccupationDto,
@@ -58,7 +65,7 @@ const { TextArea } = Input;
 
 // Interfaces
 interface ServiceItem {
-  id: string;
+  id?: string;
   code: string;
   name: string;
   bhytCode?: string;
@@ -66,11 +73,12 @@ interface ServiceItem {
   price: number;
   bhytPrice?: number;
   unit: string;
+  departmentId?: string;
   isActive: boolean;
 }
 
 interface Medicine {
-  id: string;
+  id?: string;
   code: string;
   name: string;
   activeIngredient: string;
@@ -86,17 +94,18 @@ interface Medicine {
 }
 
 interface Department {
-  id: string;
+  id?: string;
   code: string;
   name: string;
   bhytCode?: string;
   type: string;
   parentId?: string;
+  headDoctor?: string;
   isActive: boolean;
 }
 
 interface IcdCode {
-  id: string;
+  id?: string;
   code: string;
   name: string;
   nameEnglish?: string;
@@ -104,6 +113,47 @@ interface IcdCode {
   group: string;
   isActive: boolean;
 }
+
+type MasterDataRecord =
+  | ServiceItem
+  | Medicine
+  | Department
+  | IcdCode
+  | ClinicalTermCatalogDto
+  | OccupationDto
+  | GenderDto
+  | AdministrativeDivisionDto
+  | CountryDto
+  | HealthcareFacilityDto;
+
+type ApiListResponse<T> =
+  | T[]
+  | {
+      data?: T[] | { data?: T[]; items?: T[] };
+    }
+  | null
+  | undefined;
+
+type KeywordSearchRecord = {
+  code?: string;
+  name?: string;
+  bhytCode?: string;
+};
+
+type FormValidationError = {
+  errorFields?: unknown[];
+};
+
+type ServiceCatalogLike = ParaclinicalServiceCatalogDto & {
+  unit?: string;
+};
+
+type DepartmentCatalogLike = DepartmentCatalogDto & {
+  departmentCode?: string;
+  departmentName?: string;
+  bhxhCode?: string;
+  departmentCodeBYT?: string;
+};
 
 // Mock data removed - data will be fetched from API
 
@@ -195,38 +245,34 @@ const MasterData: React.FC = () => {
   const [facilityLevelFilter, setFacilityLevelFilter] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editingRecord, setEditingRecord] = useState<MasterDataRecord | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [form] = Form.useForm();
 
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchData();
-  }, [activeTab]);
-
   // Helper to extract array data from API response (handles both direct array and { data: [...] } wrapper)
-  const extractData = (response: any): any[] => {
-    const d = response?.data;
+  const extractData = <T,>(response: ApiListResponse<T>): T[] => {
+    const d = Array.isArray(response) ? response : response?.data;
     if (Array.isArray(d)) return d;
     if (d && Array.isArray(d.data)) return d.data;
     if (d && Array.isArray(d.items)) return d.items;
     return [];
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       switch (activeTab) {
         case 'services': {
           const servicesResponse = await catalogApi.getParaclinicalServices();
-          const mappedServices = extractData(servicesResponse).map((s: any) => ({
-            id: s.id,
+          const mappedServices = extractData<ServiceCatalogLike>(servicesResponse).map((s) => ({
+            id: s.id ?? s.code,
             code: s.code,
             name: s.name,
             bhytCode: s.bhxhCode,
             groupName: s.serviceGroupName || s.serviceType,
             price: s.unitPrice || 0,
             bhytPrice: s.insurancePrice,
+            departmentId: s.departmentId,
             unit: s.unit || 'Lần',
             isActive: s.isActive,
           }));
@@ -235,8 +281,8 @@ const MasterData: React.FC = () => {
         }
         case 'medicines': {
           const medicinesResponse = await catalogApi.getMedicines({});
-          const mappedMedicines = extractData(medicinesResponse).map((m: any) => ({
-            id: m.id,
+          const mappedMedicines = extractData<MedicineCatalogDto>(medicinesResponse).map((m) => ({
+            id: m.id ?? m.code,
             code: m.code,
             name: m.name,
             activeIngredient: m.activeIngredient || '',
@@ -255,10 +301,10 @@ const MasterData: React.FC = () => {
         }
         case 'departments': {
           const departmentsResponse = await catalogApi.getDepartments();
-          const mappedDepartments = extractData(departmentsResponse).map((d: any) => ({
-            id: d.id,
-            code: d.code || d.departmentCode,
-            name: d.name || d.departmentName,
+          const mappedDepartments = extractData<DepartmentCatalogLike>(departmentsResponse).map((d) => ({
+            id: d.id ?? d.code ?? d.departmentCode,
+            code: d.code || d.departmentCode || '',
+            name: d.name || d.departmentName || '',
             bhytCode: d.bhxhCode || d.departmentCodeBYT,
             type: d.departmentType,
             parentId: d.parentId,
@@ -269,13 +315,13 @@ const MasterData: React.FC = () => {
         }
         case 'icd': {
           const icdResponse = await catalogApi.getICD10Codes();
-          const mappedIcd = extractData(icdResponse).map((i: any) => ({
-            id: i.id,
+          const mappedIcd = extractData<ICD10CatalogDto>(icdResponse).map((i) => ({
+            id: i.id ?? i.code,
             code: i.code,
             name: i.name,
             nameEnglish: i.nameEnglish,
             chapter: i.chapterCode,
-            group: i.groupCode,
+            group: i.groupCode || '',
             isActive: i.isActive,
           }));
           setIcdCodes(mappedIcd);
@@ -283,33 +329,33 @@ const MasterData: React.FC = () => {
         }
         case 'clinical-terms': {
           const ctResponse = await catalogApi.getClinicalTerms();
-          const mappedCt = extractData(ctResponse);
+          const mappedCt = extractData<ClinicalTermCatalogDto>(ctResponse);
           setClinicalTerms(mappedCt);
           break;
         }
         case 'occupations': {
           const occResponse = await administrativeCatalogApi.getOccupations();
-          setOccupations(extractData(occResponse));
+          setOccupations(extractData<OccupationDto>(occResponse));
           break;
         }
         case 'genders': {
           const genResponse = await administrativeCatalogApi.getGenders();
-          setGenders(extractData(genResponse));
+          setGenders(extractData<GenderDto>(genResponse));
           break;
         }
         case 'admin-divisions': {
           const divResponse = await administrativeCatalogApi.getAdministrativeDivisions(undefined, adminDivisionLevel, adminDivisionParentCode);
-          setAdminDivisions(extractData(divResponse));
+          setAdminDivisions(extractData<AdministrativeDivisionDto>(divResponse));
           break;
         }
         case 'countries': {
           const countryResponse = await administrativeCatalogApi.getCountries();
-          setCountries(extractData(countryResponse));
+          setCountries(extractData<CountryDto>(countryResponse));
           break;
         }
         case 'healthcare-facilities': {
           const facResponse = await administrativeCatalogApi.getHealthcareFacilities(undefined, facilityLevelFilter);
-          setHealthcareFacilities(extractData(facResponse));
+          setHealthcareFacilities(extractData<HealthcareFacilityDto>(facResponse));
           break;
         }
       }
@@ -319,7 +365,12 @@ const MasterData: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, adminDivisionLevel, adminDivisionParentCode, facilityLevelFilter]);
+
+  // Fetch data on component mount
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -363,18 +414,22 @@ const MasterData: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (record: any) => {
+  const handleEdit = (record: MasterDataRecord) => {
     setEditingRecord(record);
     form.setFieldsValue(record);
     setIsModalOpen(true);
   };
 
-  const handleDelete = (record: any) => {
+  const handleDelete = (record: MasterDataRecord) => {
     Modal.confirm({
       title: 'Xác nhận xóa',
       content: `Bạn có chắc chắn muốn xóa "${record.name}"?`,
       onOk: async () => {
         try {
+          if (!record.id) {
+            message.warning('KhÃ´ng tÃ¬m tháº¥y Ä‘á»‹nh danh báº£n ghi');
+            return;
+          }
           switch (activeTab) {
             case 'services':
               await catalogApi.deleteParaclinicalService(record.id);
@@ -408,7 +463,7 @@ const MasterData: React.FC = () => {
               break;
           }
           message.success('Đã xóa thành công');
-          fetchData();
+          void fetchData();
         } catch (error) {
           console.warn('Error deleting:', error);
           message.warning('Xóa thất bại. Vui lòng thử lại.');
@@ -427,7 +482,7 @@ const MasterData: React.FC = () => {
             code: values.code,
             name: values.name,
             serviceType: values.groupName || 'Khám bệnh',
-            departmentId: editingRecord?.departmentId || '',
+            departmentId: (editingRecord && 'departmentId' in editingRecord ? editingRecord.departmentId : undefined) || '',
             bhxhCode: values.bhytCode,
             unitPrice: values.price || 0,
             insurancePrice: values.bhytPrice,
@@ -552,9 +607,9 @@ const MasterData: React.FC = () => {
       setIsModalOpen(false);
       form.resetFields();
       setEditingRecord(null);
-      fetchData();
-    } catch (error: any) {
-      if (error?.errorFields) {
+      void fetchData();
+    } catch (error: unknown) {
+      if ((error as FormValidationError)?.errorFields) {
         return; // Form validation error
       }
       console.warn('Error saving:', error);
@@ -841,7 +896,7 @@ const MasterData: React.FC = () => {
     },
   ];
 
-  const filterByKeyword = (data: any[]) => {
+  const filterByKeyword = <T extends KeywordSearchRecord>(data: T[]) => {
     if (!searchKeyword) return data;
     const kw = searchKeyword.toLowerCase();
     return data.filter((item) =>
@@ -874,9 +929,9 @@ const MasterData: React.FC = () => {
                 <Descriptions.Item label="Mã dịch vụ">{record.code}</Descriptions.Item>
                 <Descriptions.Item label="Tên dịch vụ">{record.name}</Descriptions.Item>
                 <Descriptions.Item label="Mã BHYT">{record.bhytCode || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Nhóm">{record.group || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Nhóm">{record.groupName || '-'}</Descriptions.Item>
                 <Descriptions.Item label="Đơn giá BHYT">{record.bhytPrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
-                <Descriptions.Item label="Đơn giá dịch vụ">{record.servicePrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
+                <Descriptions.Item label="Đơn giá dịch vụ">{record.price?.toLocaleString('vi-VN')} đ</Descriptions.Item>
                 <Descriptions.Item label="Đơn vị">{record.unit || '-'}</Descriptions.Item>
                 <Descriptions.Item label="Trạng thái">
                   <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
@@ -923,13 +978,13 @@ const MasterData: React.FC = () => {
                 <Descriptions.Item label="Mã thuốc">{record.code}</Descriptions.Item>
                 <Descriptions.Item label="Tên thuốc">{record.name}</Descriptions.Item>
                 <Descriptions.Item label="Hoạt chất">{record.activeIngredient || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Hàm lượng">{record.dosage || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Dạng bào chế">{record.dosageForm || '-'}</Descriptions.Item>
                 <Descriptions.Item label="Đơn vị">{record.unit || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Đường dùng">{record.route || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Số đăng ký">{record.registrationNumber || '-'}</Descriptions.Item>
                 <Descriptions.Item label="Nhà sản xuất">{record.manufacturer || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Nước SX">{record.countryOfOrigin || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Nước SX">{record.country || '-'}</Descriptions.Item>
                 <Descriptions.Item label="Giá BHYT">{record.bhytPrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
-                <Descriptions.Item label="Giá bán">{record.retailPrice?.toLocaleString('vi-VN')} đ</Descriptions.Item>
+                <Descriptions.Item label="Giá bán">{record.price?.toLocaleString('vi-VN')} đ</Descriptions.Item>
                 <Descriptions.Item label="Trạng thái">
                   <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Hoạt động' : 'Ngừng'}</Tag>
                 </Descriptions.Item>
@@ -1064,7 +1119,7 @@ const MasterData: React.FC = () => {
   const renderClinicalTermsTable = () => (
     <Table
       columns={clinicalTermColumns}
-      dataSource={filterByKeyword(clinicalTerms as any) as any}
+      dataSource={filterByKeyword(clinicalTerms)}
       rowKey="id"
       size="small"
       loading={loading}
