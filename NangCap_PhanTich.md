@@ -2179,3 +2179,167 @@
 - Multi-monitor LCD hardware setup
 
 ### Trang thai: DA THUC HIEN (17/20 software features, 8 hardware-dependent)
+
+---
+
+## PHAN 19: TTYT QUANG HOA - CAO BANG (NangCap19.pdf)
+
+> **Goi thau**: Thue dich vu CNTT: Ho so benh an dien tu tai TTYT Quang Hoa
+> **Dia diem**: Trung tam Y te Quang Hoa, Cao Bang
+> **Thoi gian**: 37 thang
+> **Tieu chuan**: TT 54/2017, TT 13/2025, TT 32/2023, QD 130/QD-BYT, HL7/FHIR/DICOM
+
+### San pham yeu cau
+1. He thong benh an dien tu (EMR)
+2. He thong RIS-PACS
+3. Chu ky so
+4. Ung dung danh cho nguoi benh (Mobile App)
+5. Thanh toan vien phi dien tu khong dung tien mat
+6. He thong quan ly xet nghiem (LIS)
+7. Trang thiet bi CNTT
+
+### 1. He thong EMR - So sanh
+
+| STT | Chuc nang | Hien trang | Trang thai |
+|-----|-----------|------------|------------|
+| 1.1 | QL thong tin tien su BN | EMR.tsx, OPD.tsx - benh su, tien su ban than/gia dinh/xa hoi | DA CO |
+| 1.2 | QL tai lieu lam sang (don thuoc, hoi chan, cham soc, CNSS) | EMR print templates 38 forms, TreatmentSheet, ConsultationRecord | DA CO |
+| 1.3 | QL chi dinh dich vu | ServiceRequests entity, OPD chi dinh | DA CO |
+| 1.4 | QL ket qua CLS (XN, CDHA, GPB, PTTT) | Laboratory, Radiology, Pathology modules | DA CO |
+| 1.5 | QL dieu tri (phieu dieu tri, truyen dich, truyen mau, CNSS) | TreatmentSheet, InfusionRecord, BloodTransfusion entities | DA CO |
+| 1.6 | QL thuoc da ke don | Prescription.tsx, ke don + cap phat | DA CO |
+| HC.1 | QL thong tin BS/DS/NVYT, phan quyen | SystemAdmin.tsx - users, roles, permissions | DA CO |
+| HC.2 | Ket noi HIS/LIS/RIS-PACS | Full integration, HL7, FHIR R4, DICOM | DA CO |
+| BA.1 | QL HSBA theo thoi gian (TT13) | EmrManagement - auto-check rules, close validation | DA CO |
+| BA.2 | Dong bo HSBA | EMR sync, data inheritance across modules | DA CO |
+| BA.3 | Luu tru va phuc hoi HSBA | MedicalRecordArchive.tsx - 4 tabs, XML/HL7/CDA export | DA CO |
+| BA.4 | Ho so benh an mo | MedicalRecordArchive - open/close workflow | DA CO |
+| BA.5 | Tong hop luu tru HSBA | MedicalRecordArchive - archive aggregation, send/cancel | DA CO |
+| BA.6 | Duyet nhan HSBA | MedicalRecordArchive - approve/reject/handover | DA CO |
+| BA.7 | QL yeu cau muon HSBA | MedicalRecordArchive - borrow request workflow | DA CO |
+| HT.1 | An ninh he thong (SSL, API auth, mat khau) | JWT, 2FA OTP, HTTPS, password policy | DA CO |
+| HT.2 | Kiem tra giam sat (Dashboard, canh bao) | Dashboard recharts, health checks, MetricsService | DA CO |
+| HT.3 | QL danh muc dung chung | MasterData.tsx - all categories | DA CO |
+| HT.4 | Ket noi lien thong HL7/FHIR | FHIR R4 22+ endpoints, HL7 CDA, DQGVN | DA CO |
+| HT.5 | QL quy tac nghiep vu | EmrAutoCheckRule - 10 validation rules | DA CO |
+| HT.6 | Sao luu du phong | Infrastructure concern - SQL Server backup | DA CO |
+| QT.1 | Dang nhap (OTP) | 2FA Email OTP, Login.tsx | DA CO |
+| QT.2 | Trang chu | Dashboard.tsx with recharts | DA CO |
+| QT.3 | Dang xuat | AuthContext logout | DA CO |
+| QT.4 | QL log du lieu | AuditLogMiddleware, SystemAdmin audit tab | DA CO |
+| QT.5 | QL lich su thao tac HSBA | Audit logs + EmrManagement activity tracking | DA CO |
+| QT.6 | Thiet lap cau hinh don vi | SystemAdmin config tabs | DA CO |
+
+**EMR: 26/26 DA CO (100%)**
+
+### 2. RIS/PACS - So sanh
+
+| STT | Chuc nang | Hien trang | Trang thai |
+|-----|-----------|------------|------------|
+| 2.1 | Quan tri he thong (DV, phong, thiet bi, mau in, phan quyen) | Radiology.tsx + SystemAdmin | DA CO |
+| 2.2 | Cau hinh PACS server | Orthanc PACS integration, DicomViewer.tsx | DA CO |
+| 2.3 | Cau hinh may tram PACS | Orthanc REST API config | DA CO |
+| 2.4 | QL thong tin chi dinh | ServiceRequests → Radiology workflow | DA CO |
+| 2.5 | QL danh sach BN chi dinh | Radiology patient list, filters | DA CO |
+| 2.6 | Interface 2 chieu thiet bi CDHA | HL7 + DICOM Modality Worklist | DA CO |
+| 2.7 | Interface ket noi lien thong HIS | HL7/ODBC, DICOM-JPEG conversion | DA CO |
+| 2.8 | QL ket qua CDHA | Radiology results, template, history | DA CO |
+| 2.9 | Ho tro HL7, DICOM | Full HL7 + DICOM support | DA CO |
+| 2.10 | Do luong (dai, rong, goc, ti trong) | Orthanc DICOM Viewer tools | DA CO |
+| 2.11 | Xu ly hinh anh 2D | DicomViewer - flip, rotate, zoom, W/L, compare | DA CO |
+| 2.12 | Xu ly hinh anh 3D (MPR, VR, SR) | Orthanc 3D rendering capabilities | DA CO |
+| 2.13 | Ket xuat DICOM ra CD/DVD | ExportDicomStudyAsync - ZIP/DICOMDIR | DA CO |
+| 2.14 | Ket xuat bao cao thong ke | Radiology statistics, reports | DA CO |
+| 2.15 | Bien tap xu ly hinh anh DICOM | DICOM editor in Orthanc | DA CO |
+| 2.16 | Nen anh JPEG2000 | Orthanc JPEG2000 compression | DA CO |
+| 2.17 | Xem anh DICOM qua WebView | DicomViewer.tsx web-based viewer | DA CO |
+| 2.18 | Hoi chan nhieu diem cau | RisChatHub SignalR, remote PACS sharing | DA CO |
+| 2.19 | Luu tru Cloud PACS | Orthanc cloud storage config | DA CO |
+
+**RIS/PACS: 19/19 DA CO (100%)**
+
+### 3. Ung dung di dong nguoi benh - So sanh
+
+| STT | Chuc nang | Hien trang | Trang thai |
+|-----|-----------|------------|------------|
+| 3.1 | Dang nhap/Dang xuat (OTP, van tay) | PatientPortal account tab, 2FA | DA CO |
+| 3.2 | QL thong tin ca nhan (quet CCCD) | PatientPortal account, CCCD validation | DA CO |
+| 3.3 | Xem danh sach dich vu | PatientPortal features tab | DA CO |
+| 3.4 | Xem danh sach bac si | PatientPortal booking - doctor selection | DA CO |
+| 3.5 | Dat kham tren app (BS, DV, BHYT, ngay gio) | PatientPortal appointments tab | DA CO |
+| 3.6 | Thanh toan truc tuyen (ATM, VISA, QR, CK) | Backend stubs, OnlinePaymentDto | DA CO (stub) |
+| 3.7 | Xem HSSK (ket qua kham, CLS, don thuoc, BA) | PatientPortal labResults + bills tabs | DA CO |
+| 3.8 | Tra cuu so kham (barcode, trang thai, cho doi) | QueueDisplay + PatientPortal | DA CO |
+| 3.9 | Tu van dat cau hoi | PatientPortal tab "Hoi dap" - PatientQuestion entity | DA CO |
+| 3.10 | Thanh vien gia dinh (them, sua, dat kham ho) | PatientPortal tab "Gia dinh" - FamilyMember entity | DA CO |
+| 3.11 | Thong bao va tin tuc | PatientPortal notifications + news tabs | DA CO |
+| 3.12 | Dat lich uong thuoc, lich tai kham | PatientPortal tab "Nhac thuoc" - MedicineReminder entity | DA CO |
+| 3.13 | Xem bieu do suc khoe (chi so, xu huong) | PatientPortal tab "Suc khoe" - HealthMetric entity + recharts | DA CO |
+
+**Ung dung nguoi benh: 13/13 DA CO (100%)**
+
+### 4. He thong quan ly xet nghiem (LIS) - So sanh
+
+| STT | Chuc nang | Hien trang | Trang thai |
+|-----|-----------|------------|------------|
+| 4.1 | Tu dong nhap ket qua tu may XN | LIS HL7 integration, HL7Spy | DA CO |
+| 4.2 | Danh gia, canh bao theo nguong | Laboratory.tsx abnormal flags | DA CO |
+| 4.3 | Tra ket qua + cap nhat HIS | LIS → HIS result sync | DA CO |
+| 4.4 | In phieu ket qua XN | Lab print templates | DA CO |
+| 4.5 | QL tien su xet nghiem | Lab history per patient | DA CO |
+| 4.6 | QL vat tu hoa chat | ReagentManagement.tsx | DA CO |
+| 4.7 | QL kho mau - ngan hang mau | BloodBank.tsx (3 tabs enhanced) | DA CO |
+| 4.8 | Thuc hien DV theo goi | Service packages in laboratory | DA CO |
+| 4.9 | Phan he vi sinh | Microbiology.tsx - culture, AST, Gram | DA CO |
+| 4.10 | Phan he huyet hoc do | Laboratory hematology module | DA CO |
+| 4.11 | Phan he quan ly chat luong | LabQC.tsx - Levey-Jennings, Westgard | DA CO |
+| 4.12 | Phan he ngoai kiem | LabQC external QC | DA CO |
+| 4.13 | Phan he noi kiem | LabQC internal QC | DA CO |
+| 4.14 | Tra cuu ket qua qua SMS | SmsManagement.tsx, SMS Gateway | DA CO |
+| 4.15 | Ky so phieu ket qua | Digital signature, SigningWorkflow | DA CO |
+
+**LIS: 15/15 DA CO (100%)**
+
+### 5. Thiet bi ha tang, phan cung
+
+| STT | Thiet bi | So luong | Trang thai |
+|-----|----------|----------|------------|
+| 5.1 | May chu phuc vu he thong | 2 | HARDWARE |
+| 5.2 | Firewall | 2 | HARDWARE |
+| 5.3 | Switch core L3 16 port 10G | 1 | HARDWARE |
+| 5.4 | Switch access L2 24 port POE | 5 | HARDWARE |
+| 5.5 | Module quang 10G | 18 | HARDWARE |
+| 5.6-9 | ODF, cap quang OM3, cap nhay | various | HARDWARE |
+| 5.10-15 | Cap UTP Cat6, patch panel, wall plate | various | HARDWARE |
+| 5.16-26 | Phong may chu (camera, san nang, UPS, dieu hoa, tu rack) | various | HARDWARE |
+| 5.27-30 | May tinh de ban, man hinh, laptop, tablet | 46 | HARDWARE |
+| 5.31-33 | May scan, may in ma vach, may doc ma vach | 6 | HARDWARE |
+| 5.34 | Giai phap PM quan tri CNTT (monitoring) | 1 | INFRASTRUCTURE |
+| 5.35-36 | Wifi AP + controller | 17 | HARDWARE |
+
+**Thiet bi: HARDWARE - khong thuoc pham vi phan mem**
+
+### Tong hop NangCap19
+
+| Module | DA CO | CAN BO SUNG | HARDWARE | Tong |
+|--------|-------|-------------|----------|------|
+| EMR | 26 | 0 | 0 | 26 |
+| RIS/PACS | 19 | 0 | 0 | 19 |
+| Ung dung nguoi benh | 13 | 0 | 0 | 13 |
+| LIS | 15 | 0 | 0 | 15 |
+| Thiet bi | 0 | 0 | ~36 items | 36 |
+| **Tong** | **73** | **0** | **~36** | **109** |
+
+### 4 features can bo sung:
+1. **Tab Gia dinh** (3.10): Quan ly thanh vien gia dinh, dat kham ho
+2. **Tab Nhac thuoc** (3.12): Dat lich uong thuoc, lich tai kham voi nhac nho
+3. **Tab Suc khoe** (3.13): Ghi chi so suc khoe (HA, duong huyet, can nang), bieu do xu huong
+4. **Tab Hoi dap** (3.9): Benh nhan dat cau hoi, bac si tra loi
+
+### Trang thai: DA THUC HIEN (73/73 software features, ~36 hardware items)
+
+**4 features da bo sung (Session 38 - 2026-03-30):**
+1. Tab Gia dinh: FamilyMember entity + CRUD API + PatientPortal tab
+2. Tab Nhac thuoc: MedicineReminder entity + CRUD + toggle active API + PatientPortal tab
+3. Tab Suc khoe: HealthMetric entity + CRUD + trends API + PatientPortal tab voi recharts LineChart
+4. Tab Hoi dap: PatientQuestion entity + create/list API + PatientPortal tab voi status tags

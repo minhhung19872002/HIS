@@ -583,6 +583,135 @@ export interface NotificationDto {
 
 // #endregion
 
+// #region Family Member DTOs
+export interface FamilyMemberDto {
+  id: string;
+  accountId: string;
+  fullName: string;
+  relationship: string;
+  dateOfBirth?: string;
+  gender?: string;
+  idNumber?: string;
+  phone?: string;
+  insuranceNumber?: string;
+  linkedPatientId?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface SaveFamilyMemberDto {
+  id?: string;
+  fullName: string;
+  relationship: string;
+  dateOfBirth?: string;
+  gender?: string;
+  idNumber?: string;
+  phone?: string;
+  insuranceNumber?: string;
+}
+// #endregion
+
+// #region Medicine Reminder DTOs
+export interface MedicineReminderDto {
+  id: string;
+  accountId: string;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  times?: string;
+  instructions?: string;
+  startDate: string;
+  endDate?: string;
+  isActive: boolean;
+  prescriptionId?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface SaveMedicineReminderDto {
+  id?: string;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  times?: string;
+  instructions?: string;
+  startDate: string;
+  endDate?: string;
+  notes?: string;
+}
+// #endregion
+
+// #region Health Metric DTOs
+export interface HealthMetricDto {
+  id: string;
+  accountId: string;
+  recordedAt: string;
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
+  heartRate?: number;
+  weight?: number;
+  height?: number;
+  bmi?: number;
+  bloodGlucose?: number;
+  temperature?: number;
+  spO2?: number;
+  notes?: string;
+  source: string;
+  createdAt: string;
+}
+
+export interface SaveHealthMetricDto {
+  recordedAt: string;
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
+  heartRate?: number;
+  weight?: number;
+  height?: number;
+  bloodGlucose?: number;
+  temperature?: number;
+  spO2?: number;
+  notes?: string;
+}
+
+export interface HealthMetricTrendDto {
+  date: string;
+  avgSystolic?: number;
+  avgDiastolic?: number;
+  avgHeartRate?: number;
+  avgWeight?: number;
+  avgBmi?: number;
+  avgGlucose?: number;
+  avgTemperature?: number;
+  avgSpO2?: number;
+}
+// #endregion
+
+// #region Patient Question DTOs
+export interface PatientQuestionDto {
+  id: string;
+  accountId: string;
+  subject: string;
+  content: string;
+  category?: string;
+  imageUrls?: string;
+  status: number;
+  statusName: string;
+  answeredBy?: string;
+  answeredByName?: string;
+  answer?: string;
+  answeredAt?: string;
+  isPublic: boolean;
+  createdAt: string;
+}
+
+export interface CreateQuestionDto {
+  subject: string;
+  content: string;
+  category?: string;
+  imageUrls?: string;
+}
+// #endregion
+
 // #region Common DTOs
 
 export interface PagedResultDto<T> {
@@ -813,6 +942,61 @@ export const markAllNotificationsRead = () =>
 
 // #endregion
 
+// #region Family Members
+
+export const getFamilyMembers = () =>
+  apiClient.get<FamilyMemberDto[]>(`${BASE_URL}/family-members`);
+
+export const saveFamilyMember = (data: SaveFamilyMemberDto) =>
+  apiClient.post<FamilyMemberDto>(`${BASE_URL}/family-members`, data);
+
+export const deleteFamilyMember = (id: string) =>
+  apiClient.delete(`${BASE_URL}/family-members/${id}`);
+
+// #endregion
+
+// #region Medicine Reminders
+
+export const getMedicineReminders = () =>
+  apiClient.get<MedicineReminderDto[]>(`${BASE_URL}/medicine-reminders`);
+
+export const saveMedicineReminder = (data: SaveMedicineReminderDto) =>
+  apiClient.post<MedicineReminderDto>(`${BASE_URL}/medicine-reminders`, data);
+
+export const deleteMedicineReminder = (id: string) =>
+  apiClient.delete(`${BASE_URL}/medicine-reminders/${id}`);
+
+export const toggleMedicineReminder = (id: string) =>
+  apiClient.put(`${BASE_URL}/medicine-reminders/${id}/toggle`);
+
+// #endregion
+
+// #region Health Metrics
+
+export const getHealthMetrics = (days?: number) =>
+  apiClient.get<HealthMetricDto[]>(`${BASE_URL}/health-metrics`, { params: { days } });
+
+export const saveHealthMetric = (data: SaveHealthMetricDto) =>
+  apiClient.post<HealthMetricDto>(`${BASE_URL}/health-metrics`, data);
+
+export const deleteHealthMetric = (id: string) =>
+  apiClient.delete(`${BASE_URL}/health-metrics/${id}`);
+
+export const getHealthMetricTrends = (days?: number) =>
+  apiClient.get<HealthMetricTrendDto[]>(`${BASE_URL}/health-metrics/trends`, { params: { days } });
+
+// #endregion
+
+// #region Patient Questions
+
+export const getPatientQuestions = () =>
+  apiClient.get<PatientQuestionDto[]>(`${BASE_URL}/questions`);
+
+export const createPatientQuestion = (data: CreateQuestionDto) =>
+  apiClient.post<PatientQuestionDto>(`${BASE_URL}/questions`, data);
+
+// #endregion
+
 export default {
   // Account
   getAccount,
@@ -882,4 +1066,21 @@ export default {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  // Family Members
+  getFamilyMembers,
+  saveFamilyMember,
+  deleteFamilyMember,
+  // Medicine Reminders
+  getMedicineReminders,
+  saveMedicineReminder,
+  deleteMedicineReminder,
+  toggleMedicineReminder,
+  // Health Metrics
+  getHealthMetrics,
+  saveHealthMetric,
+  deleteHealthMetric,
+  getHealthMetricTrends,
+  // Patient Questions
+  getPatientQuestions,
+  createPatientQuestion,
 };

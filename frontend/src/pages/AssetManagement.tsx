@@ -541,7 +541,15 @@ const DashboardTab = () => {
           {chartView === 'status' ? (
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={dashboard.statusBreakdown} dataKey="count" nameKey="statusName" cx="50%" cy="50%" outerRadius={100} label={({ statusName, count }: { statusName: string; count: number }) => `${statusName}: ${count}`}>
+                <Pie
+                  data={dashboard.statusBreakdown}
+                  dataKey="count"
+                  nameKey="statusName"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label={({ name, value }) => `${String(name ?? '')}: ${Number(value ?? 0)}`}
+                >
                   {dashboard.statusBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <RTooltip />
@@ -553,7 +561,7 @@ const DashboardTab = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tickFormatter={(m: number, i: number) => `T${m}/${dashboard.depreciationTrends[i]?.year}`} />
                 <YAxis tickFormatter={(v: number) => formatVND(v)} />
-                <RTooltip formatter={(v: number) => v?.toLocaleString('vi-VN')} />
+                <RTooltip formatter={(value) => Number(value ?? 0).toLocaleString('vi-VN')} />
                 <Bar dataKey="amount" fill="#ff4d4f" name="Khau hao" />
               </BarChart>
             </ResponsiveContainer>

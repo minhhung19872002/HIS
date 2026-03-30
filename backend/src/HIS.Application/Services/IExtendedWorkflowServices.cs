@@ -449,6 +449,29 @@ namespace HIS.Application.Services
 
         // Dashboard
         Task<PatientPortalDashboardDto> GetDashboardAsync(Guid patientId);
+
+        // NangCap19: Family Members
+        Task<List<FamilyMemberDto>> GetFamilyMembersAsync(Guid accountId);
+        Task<FamilyMemberDto> SaveFamilyMemberAsync(SaveFamilyMemberDto dto);
+        Task<bool> DeleteFamilyMemberAsync(Guid id);
+
+        // NangCap19: Medicine Reminders
+        Task<List<MedicineReminderDto>> GetMedicineRemindersAsync(Guid accountId, bool activeOnly = true);
+        Task<MedicineReminderDto> SaveMedicineReminderAsync(SaveMedicineReminderDto dto);
+        Task<bool> DeleteMedicineReminderAsync(Guid id);
+        Task<bool> ToggleMedicineReminderAsync(Guid id);
+
+        // NangCap19: Health Metrics
+        Task<List<HealthMetricDto>> GetHealthMetricsAsync(Guid accountId, DateTime? fromDate = null, DateTime? toDate = null);
+        Task<HealthMetricDto> SaveHealthMetricAsync(SaveHealthMetricDto dto);
+        Task<bool> DeleteHealthMetricAsync(Guid id);
+        Task<List<HealthMetricTrendDto>> GetHealthMetricTrendsAsync(Guid accountId, int days = 30);
+
+        // NangCap19: Patient Q&A
+        Task<List<PatientQuestionDto>> GetPatientQuestionsAsync(Guid accountId, int? status = null);
+        Task<PatientQuestionDto> CreatePatientQuestionAsync(CreatePatientQuestionDto dto);
+        Task<PatientQuestionDto> GetQuestionByIdAsync(Guid id);
+        Task<PatientQuestionDto> AnswerPatientQuestionAsync(Guid id, AnswerPatientQuestionDto dto);
     }
 
     #endregion

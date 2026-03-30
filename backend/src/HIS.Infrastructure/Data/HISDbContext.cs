@@ -372,6 +372,10 @@ public class HISDbContext : DbContext
     public DbSet<PortalAccount> PortalAccounts => Set<PortalAccount>();
     public DbSet<PortalAppointment> PortalAppointments => Set<PortalAppointment>();
     public DbSet<OnlinePayment> OnlinePayments => Set<OnlinePayment>();
+    public DbSet<FamilyMember> FamilyMembers => Set<FamilyMember>();
+    public DbSet<MedicineReminder> MedicineReminders => Set<MedicineReminder>();
+    public DbSet<HealthMetric> HealthMetrics => Set<HealthMetric>();
+    public DbSet<PatientQuestion> PatientQuestions => Set<PatientQuestion>();
 
     // Luồng 19: Health Information Exchange
     public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();

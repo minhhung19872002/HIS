@@ -23,6 +23,10 @@ import {
   Badge,
   Result,
   Spin,
+  Switch,
+  TimePicker,
+  InputNumber,
+  Popconfirm,
 } from 'antd';
 import {
   UserOutlined,
@@ -34,9 +38,17 @@ import {
   BellOutlined,
   HistoryOutlined,
   ReloadOutlined,
+  TeamOutlined,
+  ClockCircleOutlined,
+  HeartOutlined,
+  QuestionCircleOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   getAccount,
   getMyAppointments,
@@ -50,6 +62,19 @@ import {
   getDepartments,
   getDoctors,
   markNotificationRead,
+  getFamilyMembers,
+  saveFamilyMember,
+  deleteFamilyMember,
+  getMedicineReminders,
+  saveMedicineReminder,
+  deleteMedicineReminder,
+  toggleMedicineReminder,
+  getHealthMetrics,
+  saveHealthMetric,
+  deleteHealthMetric,
+  getHealthMetricTrends,
+  getPatientQuestions,
+  createPatientQuestion,
 } from '../api/patientPortal';
 import type {
   PatientAccountDto,
@@ -62,6 +87,11 @@ import type {
   DoctorInfoDto,
   PatientPortalDashboardDto,
   PagedResultDto,
+  FamilyMemberDto,
+  MedicineReminderDto,
+  HealthMetricDto,
+  HealthMetricTrendDto,
+  PatientQuestionDto,
 } from '../api/patientPortal';
 
 const { Title, Text, Paragraph } = Typography;
@@ -97,10 +127,27 @@ const PatientPortal: React.FC = () => {
   const [doctors, setDoctors] = useState<DoctorInfoDto[]>([]);
   const [dashboard, setDashboard] = useState<PatientPortalDashboardDto | null>(null);
 
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberDto[]>([]);
+  const [reminders, setReminders] = useState<MedicineReminderDto[]>([]);
+  const [healthMetrics, setHealthMetrics] = useState<HealthMetricDto[]>([]);
+  const [healthTrends, setHealthTrends] = useState<HealthMetricTrendDto[]>([]);
+  const [questions, setQuestions] = useState<PatientQuestionDto[]>([]);
+
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isFamilyModalOpen, setIsFamilyModalOpen] = useState(false);
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [editingFamily, setEditingFamily] = useState<FamilyMemberDto | null>(null);
+  const [selectedTrendMetric, setSelectedTrendMetric] = useState<string>('avgSystolic');
+
   const [appointmentForm] = Form.useForm();
   const [feedbackForm] = Form.useForm();
+  const [familyForm] = Form.useForm();
+  const [reminderForm] = Form.useForm();
+  const [healthForm] = Form.useForm();
+  const [questionForm] = Form.useForm();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -115,6 +162,11 @@ const PatientPortal: React.FC = () => {
         notificationsRes,
         departmentsRes,
         doctorsRes,
+        familyRes,
+        remindersRes,
+        metricsRes,
+        trendsRes,
+        questionsRes,
       ] = await Promise.allSettled([
         getAccount(),
         getMyAppointments(),
@@ -125,6 +177,11 @@ const PatientPortal: React.FC = () => {
         getNotifications(false, 1, 20),
         getDepartments(),
         getDoctors(),
+        getFamilyMembers(),
+        getMedicineReminders(),
+        getHealthMetrics(30),
+        getHealthMetricTrends(30),
+        getPatientQuestions(),
       ]);
 
       if (accountRes.status === 'fulfilled') {
@@ -154,6 +211,21 @@ const PatientPortal: React.FC = () => {
       }
       if (doctorsRes.status === 'fulfilled') {
         setDoctors(doctorsRes.value.data ?? []);
+      }
+      if (familyRes.status === 'fulfilled') {
+        setFamilyMembers(familyRes.value.data ?? []);
+      }
+      if (remindersRes.status === 'fulfilled') {
+        setReminders(remindersRes.value.data ?? []);
+      }
+      if (metricsRes.status === 'fulfilled') {
+        setHealthMetrics(metricsRes.value.data ?? []);
+      }
+      if (trendsRes.status === 'fulfilled') {
+        setHealthTrends(trendsRes.value.data ?? []);
+      }
+      if (questionsRes.status === 'fulfilled') {
+        setQuestions(questionsRes.value.data ?? []);
       }
     } catch {
       message.warning('Không thể tải dữ liệu cổng bệnh nhân');
@@ -242,6 +314,245 @@ const PatientPortal: React.FC = () => {
       );
     } catch { /* ignore */ }
   };
+
+  // Family member handlers
+  const handleSaveFamily = async (values: Record<string, unknown>) => {
+    try {
+      await saveFamilyMember({
+        id: editingFamily?.id,
+        fullName: values.fullName as string,
+        relationship: values.relationship as string,
+        dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth as string).format('YYYY-MM-DD') : undefined,
+        gender: values.gender as string | undefined,
+        idNumber: values.idNumber as string | undefined,
+        phone: values.phone as string | undefined,
+        insuranceNumber: values.insuranceNumber as string | undefined,
+      });
+      message.success(editingFamily ? 'Đã cập nhật thành viên' : 'Đã thêm thành viên');
+      setIsFamilyModalOpen(false);
+      setEditingFamily(null);
+      familyForm.resetFields();
+      try { const res = await getFamilyMembers(); setFamilyMembers(res.data ?? []); } catch { /* ignore */ }
+    } catch {
+      message.warning('Không thể lưu thành viên. Vui lòng thử lại.');
+    }
+  };
+
+  const handleDeleteFamily = async (id: string) => {
+    try {
+      await deleteFamilyMember(id);
+      message.success('Đã xóa thành viên');
+      setFamilyMembers((prev) => prev.filter((m) => m.id !== id));
+    } catch {
+      message.warning('Không thể xóa thành viên.');
+    }
+  };
+
+  // Medicine reminder handlers
+  const handleSaveReminder = async (values: Record<string, unknown>) => {
+    try {
+      await saveMedicineReminder({
+        medicineName: values.medicineName as string,
+        dosage: values.dosage as string,
+        frequency: values.frequency as string,
+        times: values.times ? dayjs(values.times as string).format('HH:mm') : undefined,
+        instructions: values.instructions as string | undefined,
+        startDate: values.startDate ? dayjs(values.startDate as string).format('YYYY-MM-DD') : '',
+        endDate: values.endDate ? dayjs(values.endDate as string).format('YYYY-MM-DD') : undefined,
+        notes: values.notes as string | undefined,
+      });
+      message.success('Đã lưu lịch nhắc thuốc');
+      setIsReminderModalOpen(false);
+      reminderForm.resetFields();
+      try { const res = await getMedicineReminders(); setReminders(res.data ?? []); } catch { /* ignore */ }
+    } catch {
+      message.warning('Không thể lưu lịch nhắc thuốc.');
+    }
+  };
+
+  const handleToggleReminder = async (id: string) => {
+    try {
+      await toggleMedicineReminder(id);
+      setReminders((prev) => prev.map((r) => r.id === id ? { ...r, isActive: !r.isActive } : r));
+    } catch {
+      message.warning('Không thể thay đổi trạng thái.');
+    }
+  };
+
+  const handleDeleteReminder = async (id: string) => {
+    try {
+      await deleteMedicineReminder(id);
+      message.success('Đã xóa lịch nhắc');
+      setReminders((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      message.warning('Không thể xóa lịch nhắc.');
+    }
+  };
+
+  // Health metric handlers
+  const handleSaveHealth = async (values: Record<string, unknown>) => {
+    try {
+      await saveHealthMetric({
+        recordedAt: values.recordedAt ? dayjs(values.recordedAt as string).toISOString() : new Date().toISOString(),
+        bloodPressureSystolic: values.bloodPressureSystolic as number | undefined,
+        bloodPressureDiastolic: values.bloodPressureDiastolic as number | undefined,
+        heartRate: values.heartRate as number | undefined,
+        weight: values.weight as number | undefined,
+        height: values.height as number | undefined,
+        bloodGlucose: values.bloodGlucose as number | undefined,
+        temperature: values.temperature as number | undefined,
+        spO2: values.spO2 as number | undefined,
+        notes: values.notes as string | undefined,
+      });
+      message.success('Đã ghi chỉ số sức khỏe');
+      setIsHealthModalOpen(false);
+      healthForm.resetFields();
+      try {
+        const [mRes, tRes] = await Promise.allSettled([getHealthMetrics(30), getHealthMetricTrends(30)]);
+        if (mRes.status === 'fulfilled') setHealthMetrics(mRes.value.data ?? []);
+        if (tRes.status === 'fulfilled') setHealthTrends(tRes.value.data ?? []);
+      } catch { /* ignore */ }
+    } catch {
+      message.warning('Không thể ghi chỉ số sức khỏe.');
+    }
+  };
+
+  const handleDeleteHealthMetric = async (id: string) => {
+    try {
+      await deleteHealthMetric(id);
+      message.success('Đã xóa chỉ số');
+      setHealthMetrics((prev) => prev.filter((m) => m.id !== id));
+    } catch {
+      message.warning('Không thể xóa chỉ số.');
+    }
+  };
+
+  // Question handlers
+  const handleCreateQuestion = async (values: Record<string, unknown>) => {
+    try {
+      await createPatientQuestion({
+        subject: values.subject as string,
+        content: values.content as string,
+        category: values.category as string | undefined,
+      });
+      message.success('Đã gửi câu hỏi');
+      setIsQuestionModalOpen(false);
+      questionForm.resetFields();
+      try { const res = await getPatientQuestions(); setQuestions(res.data ?? []); } catch { /* ignore */ }
+    } catch {
+      message.warning('Không thể gửi câu hỏi.');
+    }
+  };
+
+  // Column definitions for new tabs
+  const familyColumns: ColumnsType<FamilyMemberDto> = [
+    { title: 'Họ tên', dataIndex: 'fullName', key: 'fullName' },
+    { title: 'Quan hệ', dataIndex: 'relationship', key: 'relationship' },
+    { title: 'Ngày sinh', dataIndex: 'dateOfBirth', key: 'dateOfBirth', render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-' },
+    { title: 'Giới tính', dataIndex: 'gender', key: 'gender', render: (val) => val || '-' },
+    { title: 'SĐT', dataIndex: 'phone', key: 'phone', render: (val) => val || '-' },
+    { title: 'Số BHYT', dataIndex: 'insuranceNumber', key: 'insuranceNumber', render: (val) => val || '-' },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingFamily(record);
+              familyForm.setFieldsValue({
+                ...record,
+                dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : undefined,
+              });
+              setIsFamilyModalOpen(true);
+            }}
+          />
+          <Popconfirm title="Xóa thành viên này?" onConfirm={() => handleDeleteFamily(record.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  const reminderColumns: ColumnsType<MedicineReminderDto> = [
+    { title: 'Tên thuốc', dataIndex: 'medicineName', key: 'medicineName' },
+    { title: 'Liều dùng', dataIndex: 'dosage', key: 'dosage' },
+    { title: 'Tần suất', dataIndex: 'frequency', key: 'frequency' },
+    { title: 'Giờ uống', dataIndex: 'times', key: 'times', render: (val) => val || '-' },
+    { title: 'Bắt đầu', dataIndex: 'startDate', key: 'startDate', render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-' },
+    { title: 'Kết thúc', dataIndex: 'endDate', key: 'endDate', render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-' },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'isActive',
+      key: 'isActive',
+      render: (val, record) => (
+        <Switch checked={val} onChange={() => handleToggleReminder(record.id)} size="small" />
+      ),
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      render: (_, record) => (
+        <Popconfirm title="Xóa lịch nhắc này?" onConfirm={() => handleDeleteReminder(record.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  const healthMetricColumns: ColumnsType<HealthMetricDto> = [
+    { title: 'Thời gian', dataIndex: 'recordedAt', key: 'recordedAt', render: (val) => val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-' },
+    { title: 'HA (mmHg)', key: 'bp', render: (_, r) => r.bloodPressureSystolic ? `${r.bloodPressureSystolic}/${r.bloodPressureDiastolic}` : '-' },
+    { title: 'Nhịp tim', dataIndex: 'heartRate', key: 'heartRate', render: (val) => val ? `${val} bpm` : '-' },
+    { title: 'Cân nặng', dataIndex: 'weight', key: 'weight', render: (val) => val ? `${val} kg` : '-' },
+    { title: 'Chiều cao', dataIndex: 'height', key: 'height', render: (val) => val ? `${val} cm` : '-' },
+    { title: 'Đường huyết', dataIndex: 'bloodGlucose', key: 'bloodGlucose', render: (val) => val ? `${val} mmol/L` : '-' },
+    { title: 'Nhiệt độ', dataIndex: 'temperature', key: 'temperature', render: (val) => val ? `${val} °C` : '-' },
+    { title: 'SpO2', dataIndex: 'spO2', key: 'spO2', render: (val) => val ? `${val}%` : '-' },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      render: (_, record) => (
+        <Popconfirm title="Xóa chỉ số này?" onConfirm={() => handleDeleteHealthMetric(record.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  const questionColumns: ColumnsType<PatientQuestionDto> = [
+    { title: 'Chủ đề', dataIndex: 'subject', key: 'subject', ellipsis: true },
+    { title: 'Danh mục', dataIndex: 'category', key: 'category', render: (val) => val || '-' },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: number, record) => {
+        const config: Record<number, { color: string; text: string }> = {
+          0: { color: 'orange', text: 'Chờ trả lời' },
+          1: { color: 'green', text: 'Đã trả lời' },
+          2: { color: 'default', text: 'Đã đóng' },
+        };
+        const c = config[status] || { color: 'default', text: record.statusName || 'N/A' };
+        return <Tag color={c.color}>{c.text}</Tag>;
+      },
+    },
+    { title: 'Ngày gửi', dataIndex: 'createdAt', key: 'createdAt', render: (val) => val ? dayjs(val).format('DD/MM/YYYY') : '-' },
+    { title: 'Người trả lời', dataIndex: 'answeredByName', key: 'answeredByName', render: (val) => val || '-' },
+  ];
+
+  const trendMetricOptions = [
+    { value: 'avgSystolic', label: 'HA tâm thu' },
+    { value: 'avgDiastolic', label: 'HA tâm trương' },
+    { value: 'avgHeartRate', label: 'Nhịp tim' },
+    { value: 'avgWeight', label: 'Cân nặng' },
+    { value: 'avgGlucose', label: 'Đường huyết' },
+    { value: 'avgTemperature', label: 'Nhiệt độ' },
+    { value: 'avgSpO2', label: 'SpO2' },
+  ];
 
   const appointmentColumns: ColumnsType<OnlineAppointmentDto> = [
     {
@@ -954,6 +1265,161 @@ const PatientPortal: React.FC = () => {
                   <Result status="info" title="Chưa có thông tin tài khoản" />
                 ),
               },
+              {
+                key: 'family',
+                label: <span><TeamOutlined /> Gia đình</span>,
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => {
+                        setEditingFamily(null);
+                        familyForm.resetFields();
+                        setIsFamilyModalOpen(true);
+                      }}
+                    >
+                      Thêm thành viên
+                    </Button>
+                    <Table
+                      columns={familyColumns}
+                      dataSource={familyMembers}
+                      rowKey="id"
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'medicine-reminders',
+                label: <span><ClockCircleOutlined /> Nhắc thuốc</span>,
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => {
+                        reminderForm.resetFields();
+                        setIsReminderModalOpen(true);
+                      }}
+                    >
+                      Thêm lịch
+                    </Button>
+                    <Table
+                      columns={reminderColumns}
+                      dataSource={reminders}
+                      rowKey="id"
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'health',
+                label: <span><HeartOutlined /> Sức khỏe</span>,
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => {
+                        healthForm.resetFields();
+                        setIsHealthModalOpen(true);
+                      }}
+                    >
+                      Ghi chỉ số
+                    </Button>
+                    <Table
+                      columns={healthMetricColumns}
+                      dataSource={healthMetrics}
+                      rowKey="id"
+                      style={{ marginBottom: 24 }}
+                    />
+                    <Card title="Biểu đồ xu hướng" size="small">
+                      <Select
+                        value={selectedTrendMetric}
+                        onChange={setSelectedTrendMetric}
+                        style={{ width: 200, marginBottom: 16 }}
+                        options={trendMetricOptions}
+                      />
+                      {healthTrends.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={healthTrends}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="date" tickFormatter={(val) => dayjs(val).format('DD/MM')} />
+                            <YAxis />
+                            <Tooltip labelFormatter={(val) => dayjs(val).format('DD/MM/YYYY')} />
+                            <Line
+                              type="monotone"
+                              dataKey={selectedTrendMetric}
+                              stroke="#1890ff"
+                              strokeWidth={2}
+                              dot={{ r: 4 }}
+                              name={trendMetricOptions.find((o) => o.value === selectedTrendMetric)?.label || ''}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <Result status="info" title="Chưa có dữ liệu xu hướng" />
+                      )}
+                    </Card>
+                  </>
+                ),
+              },
+              {
+                key: 'qa',
+                label: <span><QuestionCircleOutlined /> Hỏi đáp</span>,
+                children: (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      style={{ marginBottom: 16 }}
+                      onClick={() => {
+                        questionForm.resetFields();
+                        setIsQuestionModalOpen(true);
+                      }}
+                    >
+                      Đặt câu hỏi
+                    </Button>
+                    <Table
+                      columns={questionColumns}
+                      dataSource={questions}
+                      rowKey="id"
+                      onRow={(record) => ({
+                        onDoubleClick: () => {
+                          Modal.info({
+                            title: record.subject,
+                            width: 600,
+                            content: (
+                              <div style={{ marginTop: 16 }}>
+                                <Descriptions bordered size="small" column={1}>
+                                  <Descriptions.Item label="Danh mục">{record.category || '-'}</Descriptions.Item>
+                                  <Descriptions.Item label="Ngày gửi">{record.createdAt ? dayjs(record.createdAt).format('DD/MM/YYYY HH:mm') : '-'}</Descriptions.Item>
+                                  <Descriptions.Item label="Trạng thái">{record.statusName}</Descriptions.Item>
+                                  <Descriptions.Item label="Nội dung câu hỏi">
+                                    <Paragraph>{record.content}</Paragraph>
+                                  </Descriptions.Item>
+                                  {record.answer && (
+                                    <Descriptions.Item label="Trả lời">
+                                      <Paragraph>{record.answer}</Paragraph>
+                                      <Text type="secondary">
+                                        {record.answeredByName} - {record.answeredAt ? dayjs(record.answeredAt).format('DD/MM/YYYY HH:mm') : ''}
+                                      </Text>
+                                    </Descriptions.Item>
+                                  )}
+                                </Descriptions>
+                              </div>
+                            ),
+                          });
+                        },
+                        style: { cursor: 'pointer' },
+                      })}
+                    />
+                  </>
+                ),
+              },
             ]}
           />
         </Card>
@@ -1043,6 +1509,194 @@ const PatientPortal: React.FC = () => {
             </Form.Item>
             <Form.Item name="comment" label="Nhận xét" rules={[{ required: true, message: 'Vui lòng nhập nhận xét' }]}>
               <TextArea rows={4} placeholder="Chia sẻ trải nghiệm của bạn..." />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Family Member Modal */}
+        <Modal
+          title={editingFamily ? 'Sửa thành viên' : 'Thêm thành viên gia đình'}
+          open={isFamilyModalOpen}
+          onCancel={() => { setIsFamilyModalOpen(false); setEditingFamily(null); }}
+          onOk={() => familyForm.submit()}
+        >
+          <Form form={familyForm} layout="vertical" onFinish={handleSaveFamily}>
+            <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>
+              <Input placeholder="Nhập họ tên" />
+            </Form.Item>
+            <Form.Item name="relationship" label="Quan hệ" rules={[{ required: true, message: 'Vui lòng chọn quan hệ' }]}>
+              <Select placeholder="Chọn quan hệ">
+                <Select.Option value="Vợ/Chồng">Vợ/Chồng</Select.Option>
+                <Select.Option value="Con">Con</Select.Option>
+                <Select.Option value="Bố/Mẹ">Bố/Mẹ</Select.Option>
+                <Select.Option value="Anh/Chị/Em">Anh/Chị/Em</Select.Option>
+                <Select.Option value="Ông/Bà">Ông/Bà</Select.Option>
+                <Select.Option value="Khác">Khác</Select.Option>
+              </Select>
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="dateOfBirth" label="Ngày sinh">
+                  <DatePicker style={{ width: '100%' }} placeholder="Chọn ngày sinh" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="gender" label="Giới tính">
+                  <Select placeholder="Chọn" allowClear>
+                    <Select.Option value="Nam">Nam</Select.Option>
+                    <Select.Option value="Nữ">Nữ</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="idNumber" label="CCCD">
+              <Input placeholder="Nhập số CCCD" />
+            </Form.Item>
+            <Form.Item name="phone" label="Số điện thoại">
+              <Input placeholder="Nhập SĐT" />
+            </Form.Item>
+            <Form.Item name="insuranceNumber" label="Số BHYT">
+              <Input placeholder="Nhập số BHYT" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Medicine Reminder Modal */}
+        <Modal
+          title="Thêm lịch nhắc thuốc"
+          open={isReminderModalOpen}
+          onCancel={() => setIsReminderModalOpen(false)}
+          onOk={() => reminderForm.submit()}
+        >
+          <Form form={reminderForm} layout="vertical" onFinish={handleSaveReminder}>
+            <Form.Item name="medicineName" label="Tên thuốc" rules={[{ required: true, message: 'Vui lòng nhập tên thuốc' }]}>
+              <Input placeholder="Nhập tên thuốc" />
+            </Form.Item>
+            <Form.Item name="dosage" label="Liều dùng" rules={[{ required: true, message: 'Vui lòng nhập liều dùng' }]}>
+              <Input placeholder="VD: 1 viên, 5ml..." />
+            </Form.Item>
+            <Form.Item name="frequency" label="Tần suất" rules={[{ required: true, message: 'Vui lòng chọn tần suất' }]}>
+              <Select placeholder="Chọn tần suất">
+                <Select.Option value="1 lần/ngày">1 lần/ngày</Select.Option>
+                <Select.Option value="2 lần/ngày">2 lần/ngày</Select.Option>
+                <Select.Option value="3 lần/ngày">3 lần/ngày</Select.Option>
+                <Select.Option value="4 lần/ngày">4 lần/ngày</Select.Option>
+                <Select.Option value="Khi cần">Khi cần</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="times" label="Giờ uống">
+              <TimePicker format="HH:mm" style={{ width: '100%' }} placeholder="Chọn giờ" />
+            </Form.Item>
+            <Form.Item name="instructions" label="Hướng dẫn">
+              <TextArea rows={2} placeholder="VD: Uống sau ăn, uống với nước ấm..." />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="startDate" label="Ngày bắt đầu" rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}>
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="endDate" label="Ngày kết thúc">
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="notes" label="Ghi chú">
+              <TextArea rows={2} placeholder="Ghi chú thêm..." />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Health Metric Modal */}
+        <Modal
+          title="Ghi chỉ số sức khỏe"
+          open={isHealthModalOpen}
+          onCancel={() => setIsHealthModalOpen(false)}
+          onOk={() => healthForm.submit()}
+          width={600}
+        >
+          <Form form={healthForm} layout="vertical" onFinish={handleSaveHealth}>
+            <Form.Item name="recordedAt" label="Thời gian đo">
+              <DatePicker showTime style={{ width: '100%' }} placeholder="Chọn thời gian (mặc định: hiện tại)" />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="bloodPressureSystolic" label="HA tâm thu (mmHg)">
+                  <InputNumber style={{ width: '100%' }} min={50} max={300} placeholder="VD: 120" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="bloodPressureDiastolic" label="HA tâm trương (mmHg)">
+                  <InputNumber style={{ width: '100%' }} min={30} max={200} placeholder="VD: 80" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="heartRate" label="Nhịp tim (bpm)">
+                  <InputNumber style={{ width: '100%' }} min={30} max={250} placeholder="VD: 72" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="spO2" label="SpO2 (%)">
+                  <InputNumber style={{ width: '100%' }} min={50} max={100} placeholder="VD: 98" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="weight" label="Cân nặng (kg)">
+                  <InputNumber style={{ width: '100%' }} min={1} max={300} step={0.1} placeholder="VD: 65" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="height" label="Chiều cao (cm)">
+                  <InputNumber style={{ width: '100%' }} min={30} max={250} placeholder="VD: 170" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="bloodGlucose" label="Đường huyết (mmol/L)">
+                  <InputNumber style={{ width: '100%' }} min={0} max={50} step={0.1} placeholder="VD: 5.5" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="temperature" label="Nhiệt độ (°C)">
+                  <InputNumber style={{ width: '100%' }} min={34} max={43} step={0.1} placeholder="VD: 36.5" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="notes" label="Ghi chú">
+              <TextArea rows={2} placeholder="Ghi chú thêm..." />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Question Modal */}
+        <Modal
+          title="Đặt câu hỏi"
+          open={isQuestionModalOpen}
+          onCancel={() => setIsQuestionModalOpen(false)}
+          onOk={() => questionForm.submit()}
+        >
+          <Form form={questionForm} layout="vertical" onFinish={handleCreateQuestion}>
+            <Form.Item name="subject" label="Chủ đề" rules={[{ required: true, message: 'Vui lòng nhập chủ đề' }]}>
+              <Input placeholder="Nhập chủ đề câu hỏi" />
+            </Form.Item>
+            <Form.Item name="category" label="Danh mục">
+              <Select placeholder="Chọn danh mục" allowClear>
+                <Select.Option value="Khám bệnh">Khám bệnh</Select.Option>
+                <Select.Option value="Xét nghiệm">Xét nghiệm</Select.Option>
+                <Select.Option value="Thuốc">Thuốc</Select.Option>
+                <Select.Option value="Bảo hiểm">Bảo hiểm</Select.Option>
+                <Select.Option value="Thủ tục">Thủ tục</Select.Option>
+                <Select.Option value="Khác">Khác</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="content" label="Nội dung câu hỏi" rules={[{ required: true, message: 'Vui lòng nhập nội dung' }]}>
+              <TextArea rows={4} placeholder="Mô tả chi tiết câu hỏi của bạn..." />
             </Form.Item>
           </Form>
         </Modal>

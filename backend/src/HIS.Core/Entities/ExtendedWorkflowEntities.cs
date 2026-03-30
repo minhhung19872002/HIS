@@ -1491,6 +1491,79 @@ public class OnlinePayment : BaseEntity
     public virtual Patient? Patient { get; set; }
 }
 
+/// <summary>
+/// Thành viên gia đình - Family Member (NangCap19)
+/// </summary>
+public class FamilyMember : BaseEntity
+{
+    public Guid AccountId { get; set; }  // Patient portal account
+    public string FullName { get; set; } = string.Empty;
+    public string Relationship { get; set; } = string.Empty; // Vợ/Chồng, Con, Cha/Mẹ, Anh/Chị/Em
+    public string? DateOfBirth { get; set; }
+    public string? Gender { get; set; }
+    public string? IdNumber { get; set; }
+    public string? Phone { get; set; }
+    public string? InsuranceNumber { get; set; }
+    public Guid? LinkedPatientId { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Nhắc nhở uống thuốc - Medicine Reminder (NangCap19)
+/// </summary>
+public class MedicineReminder : BaseEntity
+{
+    public Guid AccountId { get; set; }
+    public string MedicineName { get; set; } = string.Empty;
+    public string Dosage { get; set; } = string.Empty;
+    public string Frequency { get; set; } = string.Empty; // 1 lan/ngay, 2 lan/ngay, 3 lan/ngay
+    public string? Times { get; set; } // "08:00,12:00,20:00"
+    public string? Instructions { get; set; } // Truoc an, Sau an, etc
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public bool IsActive { get; set; } = true;
+    public string? PrescriptionId { get; set; }
+    public string? Notes { get; set; }
+}
+
+/// <summary>
+/// Chỉ số sức khỏe - Health Metric (NangCap19)
+/// </summary>
+public class HealthMetric : BaseEntity
+{
+    public Guid AccountId { get; set; }
+    public DateTime RecordedAt { get; set; }
+    public decimal? BloodPressureSystolic { get; set; }
+    public decimal? BloodPressureDiastolic { get; set; }
+    public decimal? HeartRate { get; set; }
+    public decimal? Weight { get; set; }
+    public decimal? Height { get; set; }
+    public decimal? BMI { get; set; }
+    public decimal? BloodGlucose { get; set; }
+    public decimal? Temperature { get; set; }
+    public decimal? SpO2 { get; set; }
+    public string? Notes { get; set; }
+    public string Source { get; set; } = "Manual"; // Manual, Device
+}
+
+/// <summary>
+/// Hỏi đáp bệnh nhân - Patient Q&A (NangCap19)
+/// </summary>
+public class PatientQuestion : BaseEntity
+{
+    public Guid AccountId { get; set; }
+    public string Subject { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string? Category { get; set; } // Noi khoa, Ngoai khoa, San, Nhi, etc
+    public string? ImageUrls { get; set; } // JSON array of image URLs
+    public int Status { get; set; } = 1; // 1=Pending, 2=Answered, 3=Closed
+    public string? AnsweredBy { get; set; }
+    public string? AnsweredByName { get; set; }
+    public string? Answer { get; set; }
+    public DateTime? AnsweredAt { get; set; }
+    public bool IsPublic { get; set; } = false;
+}
+
 #endregion
 
 #region Luồng 19: Health Information Exchange Entities

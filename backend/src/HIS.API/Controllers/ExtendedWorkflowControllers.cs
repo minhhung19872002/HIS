@@ -917,6 +917,90 @@ namespace HIS.API.Controllers
         [Authorize]
         public async Task<ActionResult<PatientPortalDashboardDto>> GetDashboard([FromQuery] Guid patientId)
             => Ok(await _service.GetDashboardAsync(patientId));
+
+        // NangCap19: Family Members
+        [HttpGet("family-members")]
+        [Authorize]
+        public async Task<ActionResult<List<FamilyMemberDto>>> GetFamilyMembers([FromQuery] Guid accountId)
+            => Ok(await _service.GetFamilyMembersAsync(accountId));
+
+        [HttpPost("family-members")]
+        [Authorize]
+        public async Task<ActionResult<FamilyMemberDto>> SaveFamilyMember([FromBody] SaveFamilyMemberDto dto)
+            => Ok(await _service.SaveFamilyMemberAsync(dto));
+
+        [HttpDelete("family-members/{id}")]
+        [Authorize]
+        public async Task<ActionResult<bool>> DeleteFamilyMember(Guid id)
+            => Ok(await _service.DeleteFamilyMemberAsync(id));
+
+        // NangCap19: Medicine Reminders
+        [HttpGet("medicine-reminders")]
+        [Authorize]
+        public async Task<ActionResult<List<MedicineReminderDto>>> GetMedicineReminders(
+            [FromQuery] Guid accountId, [FromQuery] bool activeOnly = true)
+            => Ok(await _service.GetMedicineRemindersAsync(accountId, activeOnly));
+
+        [HttpPost("medicine-reminders")]
+        [Authorize]
+        public async Task<ActionResult<MedicineReminderDto>> SaveMedicineReminder([FromBody] SaveMedicineReminderDto dto)
+            => Ok(await _service.SaveMedicineReminderAsync(dto));
+
+        [HttpDelete("medicine-reminders/{id}")]
+        [Authorize]
+        public async Task<ActionResult<bool>> DeleteMedicineReminder(Guid id)
+            => Ok(await _service.DeleteMedicineReminderAsync(id));
+
+        [HttpPut("medicine-reminders/{id}/toggle")]
+        [Authorize]
+        public async Task<ActionResult<bool>> ToggleMedicineReminder(Guid id)
+            => Ok(await _service.ToggleMedicineReminderAsync(id));
+
+        // NangCap19: Health Metrics
+        [HttpGet("health-metrics")]
+        [Authorize]
+        public async Task<ActionResult<List<HealthMetricDto>>> GetHealthMetrics(
+            [FromQuery] Guid accountId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+            => Ok(await _service.GetHealthMetricsAsync(accountId, fromDate, toDate));
+
+        [HttpPost("health-metrics")]
+        [Authorize]
+        public async Task<ActionResult<HealthMetricDto>> SaveHealthMetric([FromBody] SaveHealthMetricDto dto)
+            => Ok(await _service.SaveHealthMetricAsync(dto));
+
+        [HttpDelete("health-metrics/{id}")]
+        [Authorize]
+        public async Task<ActionResult<bool>> DeleteHealthMetric(Guid id)
+            => Ok(await _service.DeleteHealthMetricAsync(id));
+
+        [HttpGet("health-metrics/trends")]
+        [Authorize]
+        public async Task<ActionResult<List<HealthMetricTrendDto>>> GetHealthMetricTrends(
+            [FromQuery] Guid accountId, [FromQuery] int days = 30)
+            => Ok(await _service.GetHealthMetricTrendsAsync(accountId, days));
+
+        // NangCap19: Patient Q&A
+        [HttpGet("questions")]
+        [Authorize]
+        public async Task<ActionResult<List<PatientQuestionDto>>> GetPatientQuestions(
+            [FromQuery] Guid accountId, [FromQuery] int? status = null)
+            => Ok(await _service.GetPatientQuestionsAsync(accountId, status));
+
+        [HttpPost("questions")]
+        [Authorize]
+        public async Task<ActionResult<PatientQuestionDto>> CreatePatientQuestion([FromBody] CreatePatientQuestionDto dto)
+            => Ok(await _service.CreatePatientQuestionAsync(dto));
+
+        [HttpGet("questions/{id}")]
+        [Authorize]
+        public async Task<ActionResult<PatientQuestionDto>> GetQuestionById(Guid id)
+            => Ok(await _service.GetQuestionByIdAsync(id));
+
+        [HttpPut("questions/{id}/answer")]
+        [Authorize]
+        public async Task<ActionResult<PatientQuestionDto>> AnswerPatientQuestion(
+            Guid id, [FromBody] AnswerPatientQuestionDto dto)
+            => Ok(await _service.AnswerPatientQuestionAsync(id, dto));
     }
 
     #endregion

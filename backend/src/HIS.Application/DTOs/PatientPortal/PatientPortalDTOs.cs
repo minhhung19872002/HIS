@@ -553,4 +553,170 @@ namespace HIS.Application.DTOs.PatientPortal
     }
 
     #endregion
+
+    #region NangCap19: Family Member DTOs
+
+    public class FamilyMemberDto
+    {
+        public Guid Id { get; set; }
+        public Guid AccountId { get; set; }
+        public string FullName { get; set; }
+        public string Relationship { get; set; }
+        public string DateOfBirth { get; set; }
+        public string Gender { get; set; }
+        public string IdNumber { get; set; }
+        public string Phone { get; set; }
+        public string InsuranceNumber { get; set; }
+        public Guid? LinkedPatientId { get; set; }
+        public string LinkedPatientName { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class SaveFamilyMemberDto
+    {
+        public Guid? Id { get; set; }
+        public Guid AccountId { get; set; }
+        public string FullName { get; set; }
+        public string Relationship { get; set; }
+        public string DateOfBirth { get; set; }
+        public string Gender { get; set; }
+        public string IdNumber { get; set; }
+        public string Phone { get; set; }
+        public string InsuranceNumber { get; set; }
+        public Guid? LinkedPatientId { get; set; }
+    }
+
+    #endregion
+
+    #region NangCap19: Medicine Reminder DTOs
+
+    public class MedicineReminderDto
+    {
+        public Guid Id { get; set; }
+        public Guid AccountId { get; set; }
+        public string MedicineName { get; set; }
+        public string Dosage { get; set; }
+        public string Frequency { get; set; }
+        public string Times { get; set; }
+        public string Instructions { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public bool IsActive { get; set; }
+        public string PrescriptionId { get; set; }
+        public string Notes { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class SaveMedicineReminderDto
+    {
+        public Guid? Id { get; set; }
+        public Guid AccountId { get; set; }
+        public string MedicineName { get; set; }
+        public string Dosage { get; set; }
+        public string Frequency { get; set; }
+        public string Times { get; set; }
+        public string Instructions { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string PrescriptionId { get; set; }
+        public string Notes { get; set; }
+    }
+
+    #endregion
+
+    #region NangCap19: Health Metric DTOs
+
+    public class HealthMetricDto
+    {
+        public Guid Id { get; set; }
+        public Guid AccountId { get; set; }
+        public DateTime RecordedAt { get; set; }
+        public decimal? BloodPressureSystolic { get; set; }
+        public decimal? BloodPressureDiastolic { get; set; }
+        public decimal? HeartRate { get; set; }
+        public decimal? Weight { get; set; }
+        public decimal? Height { get; set; }
+        public decimal? BMI { get; set; }
+        public decimal? BloodGlucose { get; set; }
+        public decimal? Temperature { get; set; }
+        public decimal? SpO2 { get; set; }
+        public string Notes { get; set; }
+        public string Source { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class SaveHealthMetricDto
+    {
+        public Guid? Id { get; set; }
+        public Guid AccountId { get; set; }
+        public DateTime RecordedAt { get; set; }
+        public decimal? BloodPressureSystolic { get; set; }
+        public decimal? BloodPressureDiastolic { get; set; }
+        public decimal? HeartRate { get; set; }
+        public decimal? Weight { get; set; }
+        public decimal? Height { get; set; }
+        public decimal? BloodGlucose { get; set; }
+        public decimal? Temperature { get; set; }
+        public decimal? SpO2 { get; set; }
+        public string Notes { get; set; }
+        public string Source { get; set; }
+    }
+
+    public class HealthMetricTrendDto
+    {
+        public string MetricName { get; set; }
+        public List<HealthMetricPointDto> DataPoints { get; set; }
+        public decimal? MinValue { get; set; }
+        public decimal? MaxValue { get; set; }
+        public decimal? AvgValue { get; set; }
+        public decimal? LatestValue { get; set; }
+    }
+
+    public class HealthMetricPointDto
+    {
+        public DateTime RecordedAt { get; set; }
+        public decimal Value { get; set; }
+    }
+
+    #endregion
+
+    #region NangCap19: Patient Q&A DTOs
+
+    public class PatientQuestionDto
+    {
+        public Guid Id { get; set; }
+        public Guid AccountId { get; set; }
+        public string Subject { get; set; }
+        public string Content { get; set; }
+        public string Category { get; set; }
+        public string ImageUrls { get; set; }
+        public int Status { get; set; }
+        public string StatusText { get; set; }
+        public string AnsweredBy { get; set; }
+        public string AnsweredByName { get; set; }
+        public string Answer { get; set; }
+        public DateTime? AnsweredAt { get; set; }
+        public bool IsPublic { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class CreatePatientQuestionDto
+    {
+        public Guid AccountId { get; set; }
+        public string Subject { get; set; }
+        public string Content { get; set; }
+        public string Category { get; set; }
+        public string ImageUrls { get; set; }
+        public bool IsPublic { get; set; }
+    }
+
+    public class AnswerPatientQuestionDto
+    {
+        public string AnsweredBy { get; set; }
+        public string AnsweredByName { get; set; }
+        public string Answer { get; set; }
+    }
+
+    #endregion
 }

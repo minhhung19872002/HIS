@@ -1864,6 +1864,29 @@ namespace HIS.Application.Services
                 UnreadNotifications = 3
             };
         }
+
+        // NangCap19: Family Members
+        public Task<List<FamilyMemberDto>> GetFamilyMembersAsync(Guid accountId) => Task.FromResult(new List<FamilyMemberDto>());
+        public Task<FamilyMemberDto> SaveFamilyMemberAsync(SaveFamilyMemberDto dto) => Task.FromResult(new FamilyMemberDto { Id = Guid.NewGuid(), FullName = dto.FullName, Relationship = dto.Relationship });
+        public Task<bool> DeleteFamilyMemberAsync(Guid id) => Task.FromResult(true);
+
+        // NangCap19: Medicine Reminders
+        public Task<List<MedicineReminderDto>> GetMedicineRemindersAsync(Guid accountId, bool activeOnly = true) => Task.FromResult(new List<MedicineReminderDto>());
+        public Task<MedicineReminderDto> SaveMedicineReminderAsync(SaveMedicineReminderDto dto) => Task.FromResult(new MedicineReminderDto { Id = Guid.NewGuid(), MedicineName = dto.MedicineName, Dosage = dto.Dosage });
+        public Task<bool> DeleteMedicineReminderAsync(Guid id) => Task.FromResult(true);
+        public Task<bool> ToggleMedicineReminderAsync(Guid id) => Task.FromResult(true);
+
+        // NangCap19: Health Metrics
+        public Task<List<HealthMetricDto>> GetHealthMetricsAsync(Guid accountId, DateTime? fromDate = null, DateTime? toDate = null) => Task.FromResult(new List<HealthMetricDto>());
+        public Task<HealthMetricDto> SaveHealthMetricAsync(SaveHealthMetricDto dto) => Task.FromResult(new HealthMetricDto { Id = Guid.NewGuid(), RecordedAt = dto.RecordedAt });
+        public Task<bool> DeleteHealthMetricAsync(Guid id) => Task.FromResult(true);
+        public Task<List<HealthMetricTrendDto>> GetHealthMetricTrendsAsync(Guid accountId, int days = 30) => Task.FromResult(new List<HealthMetricTrendDto>());
+
+        // NangCap19: Patient Q&A
+        public Task<List<PatientQuestionDto>> GetPatientQuestionsAsync(Guid accountId, int? status = null) => Task.FromResult(new List<PatientQuestionDto>());
+        public Task<PatientQuestionDto> CreatePatientQuestionAsync(CreatePatientQuestionDto dto) => Task.FromResult(new PatientQuestionDto { Id = Guid.NewGuid(), Subject = dto.Subject, Content = dto.Content, Status = 1, StatusText = "Chờ trả lời" });
+        public Task<PatientQuestionDto> GetQuestionByIdAsync(Guid id) => Task.FromResult(new PatientQuestionDto { Id = id });
+        public Task<PatientQuestionDto> AnswerPatientQuestionAsync(Guid id, AnswerPatientQuestionDto dto) => Task.FromResult(new PatientQuestionDto { Id = id, Answer = dto.Answer, Status = 2, StatusText = "Đã trả lời" });
     }
 
     #endregion
