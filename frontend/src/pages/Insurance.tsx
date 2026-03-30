@@ -84,6 +84,22 @@ interface XmlBatch {
   xmlType: string;
 }
 
+type ApiEnvelope<T> = { data?: T } | T;
+
+const unwrapData = <T,>(value: ApiEnvelope<T>): T => {
+  if (value && typeof value === 'object' && 'data' in value) {
+    return (value as { data?: T }).data as T;
+  }
+  return value as T;
+};
+
+const getResponseBlobPart = (value: unknown): BlobPart => {
+  if (value && typeof value === 'object' && 'data' in value) {
+    return (value as { data?: BlobPart }).data ?? '';
+  }
+  return '';
+};
+
 const Insurance: React.FC = () => {
   const [activeTab, setActiveTab] = useState('claims');
   const [claims, setClaims] = useState<InsuranceClaim[]>([]);
@@ -132,7 +148,8 @@ const Insurance: React.FC = () => {
         pageNumber: 1,
         pageSize: 100,
       });
-      const mappedClaims: InsuranceClaim[] = ((result as any).data?.items || []).map((item: any) => ({
+      const responseData = unwrapData(result) as { items?: insuranceApi.InsuranceClaimSummaryDto[] };
+      const mappedClaims: InsuranceClaim[] = (responseData.items || []).map((item) => ({
         id: item.id,
         claimCode: item.maLk,
         patientCode: item.patientCode,
@@ -185,7 +202,7 @@ const Insurance: React.FC = () => {
     try {
       const currentYear = new Date().getFullYear();
       const batches = await insuranceApi.getSettlementBatches(currentYear);
-      const mappedBatches: XmlBatch[] = ((batches as any).data || []).map((batch: any) => ({
+      const mappedBatches: XmlBatch[] = (unwrapData(batches) || []).map((batch) => ({
         id: batch.id,
         batchCode: batch.batchCode,
         period: `${batch.month.toString().padStart(2, '0')}/${batch.year}`,
@@ -339,7 +356,7 @@ const Insurance: React.FC = () => {
     try {
       const config = buildExportConfig();
       const result = await insuranceApi.previewExport(config);
-      const data = (result as any).data || result;
+      const data = unwrapData(result);
       setExportPreview(data);
     } catch (error) {
       // Fallback: if preview endpoint not yet available, build preview from individual generators
@@ -355,8 +372,8 @@ const Insurance: React.FC = () => {
           insuranceApi.generateXml7Data(config),
         ]);
 
-        const getCount = (res: PromiseSettledResult<any>) =>
-          res.status === 'fulfilled' ? ((res.value as any).data?.length || 0) : 0;
+        const getCount = <T,>(res: PromiseSettledResult<ApiEnvelope<T[]>>) =>
+          res.status === 'fulfilled' ? (unwrapData(res.value)?.length || 0) : 0;
 
         const xml1Count = getCount(xml1Res);
         const xml2Count = getCount(xml2Res);
@@ -366,18 +383,18 @@ const Insurance: React.FC = () => {
         const xml7Count = getCount(xml7Res);
 
         // Calculate totals from XML1 data
-        const xml1Data = xml1Res.status === 'fulfilled' ? ((xml1Res.value as any).data || []) : [];
-        const totalCost = xml1Data.reduce((sum: number, r: any) =>
+        const xml1Data: insuranceApi.Xml1MedicalRecordDto[] = xml1Res.status === 'fulfilled' ? (unwrapData(xml1Res.value) || []) : [];
+        const totalCost = xml1Data.reduce((sum: number, r) =>
           sum + (r.tienKham || 0) + (r.tienGiuong || 0) + (r.tienNgoaitruth || 0), 0);
-        const totalInsurance = xml1Data.reduce((sum: number, r: any) => sum + (r.tienBhyt || 0), 0);
-        const totalPatient = xml1Data.reduce((sum: number, r: any) => sum + (r.tienNguoibenh || 0), 0);
+        const totalInsurance = xml1Data.reduce((sum: number, r) => sum + (r.tienBhyt || 0), 0);
+        const totalPatient = xml1Data.reduce((sum: number, r) => sum + (r.tienNguoibenh || 0), 0);
 
         // Also run validation
         let validationErrors: insuranceApi.InsuranceValidationResultDto[] = [];
         let hasBlockingErrors = false;
         try {
           const validationResult = await insuranceApi.validateBeforeExport(config);
-          validationErrors = (validationResult as any).data || [];
+          validationErrors = unwrapData(validationResult) || [];
           hasBlockingErrors = validationErrors.some(v => !v.isValid && v.errors.length > 0);
         } catch {
           // validation endpoint may fail, that's ok
@@ -419,7 +436,7 @@ const Insurance: React.FC = () => {
     try {
       const config = buildExportConfig();
       const result = await insuranceApi.exportXml(config);
-      const data = (result as any).data || result;
+      const data = unwrapData(result);
       setExportResult(data);
       message.success(`Xuất XML thành công! Mã lô: ${data.batchCode || data.batchId}`);
       await fetchXmlBatches();
@@ -435,7 +452,7 @@ const Insurance: React.FC = () => {
     if (!exportResult?.batchId) return;
     try {
       const response = await insuranceApi.downloadXmlFile(exportResult.batchId);
-      const blob = new Blob([(response as any).data], { type: 'application/zip' });
+      const blob = new Blob([getResponseBlobPart(response)], { type: 'application/zip' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -457,7 +474,7 @@ const Insurance: React.FC = () => {
     setSignResult(null);
     try {
       const result = await insuranceApi.signXmlBatch(exportResult.batchId);
-      const data = (result as any).data || result;
+      const data = unwrapData(result);
       setSignResult(data);
       if (data.success) {
         message.success('Ký số XML thành công!');
@@ -489,7 +506,7 @@ const Insurance: React.FC = () => {
         patientName: values.patientName || '',
         dateOfBirth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : '',
       });
-      const data = (result as any).data || result;
+      const data = unwrapData(result);
       setCardVerification(data);
 
       if (data.duDkKcb) {
@@ -513,7 +530,7 @@ const Insurance: React.FC = () => {
     setIsHistoryModalOpen(true);
     try {
       const result = await insuranceApi.getInsuranceHistory(cardVerification.maThe);
-      const data = (result as any).data || result;
+      const data = unwrapData(result);
       setInsuranceHistory(data);
     } catch (error) {
       message.warning('Không thể tải lịch sử KCB');
@@ -528,7 +545,7 @@ const Insurance: React.FC = () => {
     setSyncLoading(true);
     try {
       const result = await insuranceApi.testPortalConnection();
-      const data = (result as any).data;
+      const data = unwrapData(result);
       if (data?.isConnected) {
         message.success(`Đồng bộ thành công (${data.responseTimeMs}ms)`);
         await fetchClaims();
@@ -547,7 +564,7 @@ const Insurance: React.FC = () => {
   const handleDownloadBatch = async (batch: XmlBatch) => {
     try {
       const response = await insuranceApi.downloadXmlFile(batch.id);
-      const blob = new Blob([(response as any).data], { type: 'application/xml' });
+      const blob = new Blob([getResponseBlobPart(response)], { type: 'application/xml' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -568,7 +585,7 @@ const Insurance: React.FC = () => {
     try {
       setLoading(true);
       const portalConfig = await insuranceApi.getPortalConfig();
-      const config = (portalConfig as any).data;
+      const config = unwrapData(portalConfig) as { username?: string; password?: string; certificatePath?: string; testMode?: boolean };
       const result = await insuranceApi.submitToInsurancePortal({
         batchId: batch.id,
         username: config?.username || '',
@@ -576,7 +593,7 @@ const Insurance: React.FC = () => {
         certificatePath: config?.certificatePath || '',
         testMode: config?.testMode ?? true,
       });
-      const submitData = (result as any).data;
+      const submitData = unwrapData(result) as { success?: boolean; message?: string };
       if (submitData?.success) {
         message.success(`Đã gửi lô ${batch.batchCode} thành công`);
         await fetchXmlBatches();
@@ -622,14 +639,14 @@ const Insurance: React.FC = () => {
 
       // Try to export
       try {
-        let response: any;
+        let response: unknown;
         if (reportType === 'mau79') {
           response = await insuranceApi.exportReportC79aToExcel(month, year);
         } else if (reportType === 'mau80') {
           response = await insuranceApi.exportReport80aToExcel(month, year);
         }
         if (response) {
-          const blob = new Blob([(response as any).data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const blob = new Blob([getResponseBlobPart(response)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -850,7 +867,7 @@ const Insurance: React.FC = () => {
   ];
 
   // Validation errors columns
-  const validationErrorColumns: ColumnsType<any> = [
+  const validationErrorColumns: ColumnsType<insuranceApi.InsuranceValidationResultDto> = [
     {
       title: 'MaLk',
       dataIndex: 'maLk',
@@ -861,19 +878,19 @@ const Insurance: React.FC = () => {
       title: 'Trường',
       key: 'field',
       width: 120,
-      render: (_: any, record: any) => record.errors?.[0]?.field || '-',
+      render: (_: unknown, record) => record.errors?.[0]?.field || '-',
     },
     {
       title: 'Mã lỗi',
       key: 'errorCode',
       width: 100,
-      render: (_: any, record: any) => record.errors?.[0]?.errorCode || '-',
+      render: (_: unknown, record) => record.errors?.[0]?.errorCode || '-',
     },
     {
       title: 'Mô tả lỗi',
       key: 'message',
-      render: (_: any, record: any) => (
-        <Text type="danger">{record.errors?.map((e: any) => e.message).join('; ') || '-'}</Text>
+      render: (_: unknown, record) => (
+        <Text type="danger">{record.errors?.map((e) => e.message).join('; ') || '-'}</Text>
       ),
     },
   ];

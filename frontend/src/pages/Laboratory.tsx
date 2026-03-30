@@ -64,7 +64,7 @@ const Laboratory: React.FC = () => {
   const [isLabDetailModalOpen, setIsLabDetailModalOpen] = useState(false);
   const [collectionForm] = Form.useForm();
   const [searchText, setSearchText] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // Digital signature
   const { sessionActive, openSession, tryAutoOpenSession, signDocument } = useSigningContext();
@@ -1727,7 +1727,7 @@ const Laboratory: React.FC = () => {
               items={[
                 {
                   color: 'blue',
-                  content: (
+                  children: (
                     <>
                       <Text strong>Yêu cầu xét nghiệm</Text>
                       <br />
@@ -1737,7 +1737,7 @@ const Laboratory: React.FC = () => {
                 },
                 {
                   color: 'green',
-                  content: (
+                  children: (
                     <>
                       <Text strong>Lấy mẫu</Text>
                       <br />
@@ -1747,7 +1747,7 @@ const Laboratory: React.FC = () => {
                 },
                 {
                   color: 'purple',
-                  content: (
+                  children: (
                     <>
                       <Text strong>Xử lý mẫu</Text>
                       <br />
@@ -1757,7 +1757,7 @@ const Laboratory: React.FC = () => {
                 },
                 selectedResult.enteredTime && {
                   color: 'cyan',
-                  content: (
+                  children: (
                     <>
                       <Text strong>Nhập kết quả</Text>
                       <br />
@@ -1770,7 +1770,7 @@ const Laboratory: React.FC = () => {
                 },
                 selectedResult.approvedTime && {
                   color: 'green',
-                  content: (
+                  children: (
                     <>
                       <Text strong>Duyệt kết quả</Text>
                       <br />
@@ -1781,7 +1781,7 @@ const Laboratory: React.FC = () => {
                     </>
                   ),
                 },
-              ].filter(Boolean) as React.ReactNode[]}
+              ].filter((item): item is { color: string; children: React.ReactElement } => Boolean(item))}
             />
           </>
         )}
