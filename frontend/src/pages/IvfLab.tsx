@@ -24,8 +24,6 @@ const embryoStatusColor: Record<number, string> = {
   1: 'processing', 2: 'green', 3: 'cyan', 4: 'orange', 5: 'success', 6: 'error'
 };
 const spermStatusColor: Record<number, string> = { 1: 'cyan', 2: 'default', 3: 'error' };
-const resultStatusColor: Record<number, string> = { 0: 'default', 1: 'success', 2: 'error' };
-
 // ---- Tab 1: Couples ----
 const CouplesTab: React.FC = () => {
   const [data, setData] = useState<IvfCouple[]>([]);
@@ -97,12 +95,27 @@ const CyclesTab: React.FC = () => {
   const [form] = Form.useForm();
 
   useEffect(() => { ivfApi.getCouples().then(setCouples); }, []);
-  useEffect(() => {
-    if (selectedCouple) {
-      setLoading(true);
-      ivfApi.getCycles(selectedCouple).then(setCycles).finally(() => setLoading(false));
+  const loadCycles = useCallback(async (coupleId: string) => {
+    if (!coupleId) {
+      setCycles([]);
+      return;
     }
-  }, [selectedCouple]);
+
+    setLoading(true);
+    try {
+      setCycles(await ivfApi.getCycles(coupleId));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadCycles(selectedCouple);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadCycles, selectedCouple]);
 
   const handleSave = async () => {
     try {
@@ -265,7 +278,7 @@ const EmbryosTab: React.FC = () => {
 
 // ---- Tab 4: Cryopreservation ----
 const CryoTab: React.FC = () => {
-  const [frozenEmbryos, setFrozenEmbryos] = useState<IvfEmbryo[]>([]);
+  const frozenEmbryos: IvfEmbryo[] = [];
   const [expiringSperm, setExpiringSperm] = useState<IvfSpermSample[]>([]);
   const [loading, setLoading] = useState(false);
 

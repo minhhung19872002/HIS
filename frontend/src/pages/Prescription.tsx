@@ -45,7 +45,7 @@ import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '
 import { patientApi, type Patient as ApiPatient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../constants/hospital';
-import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signature';
+import { PinEntryModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
@@ -132,6 +132,15 @@ interface DrugInteraction {
   recommendation?: string;
 }
 
+interface DrugInteractionApiDto {
+  drug1Name: string;
+  drug2Name: string;
+  severity?: number;
+  severityName?: string;
+  description?: string;
+  recommendation?: string;
+}
+
 interface PrescriptionTemplate {
   id: string;
   name: string;
@@ -194,8 +203,6 @@ const formatDosage = (dosage: DosageInstruction): string => {
 const Prescription: React.FC = () => {
   const [form] = Form.useForm();
   const [medicineForm] = Form.useForm();
-  const [patientSearchForm] = Form.useForm();
-
   // State
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loadingPatient, setLoadingPatient] = useState(false);
@@ -211,7 +218,7 @@ const Prescription: React.FC = () => {
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
   const [medicineSearchResults, setMedicineSearchResults] = useState<Medicine[]>([]);
-  const [loadingMedicines, setLoadingMedicines] = useState(false);
+  const [, setLoadingMedicines] = useState(false);
   const [isInteractionDrawerOpen, setIsInteractionDrawerOpen] = useState(false);
   const [isDrugDisclosureDrawerOpen, setIsDrugDisclosureDrawerOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
@@ -310,7 +317,7 @@ const Prescription: React.FC = () => {
         const response = await examinationApi.checkDrugInteractions(medicineIds);
         const apiData = response.data;
         if (apiData && Array.isArray(apiData) && apiData.length > 0) {
-          const mapped: DrugInteraction[] = apiData.map((dto: any) => ({
+          const mapped: DrugInteraction[] = apiData.map((dto: DrugInteractionApiDto) => ({
             medicine1: dto.drug1Name,
             medicine2: dto.drug2Name,
             severity: dto.severity === 3 || dto.severityName === 'high' ? 'high'
@@ -369,7 +376,7 @@ const Prescription: React.FC = () => {
       } else {
         setPatientSearchResults([]);
       }
-    } catch (error) {
+    } catch {
       message.warning('Không thể tìm kiếm bệnh nhân');
       setPatientSearchResults([]);
     } finally {
@@ -447,7 +454,7 @@ const Prescription: React.FC = () => {
       } else {
         setMedicineSearchResults([]);
       }
-    } catch (error) {
+    } catch {
       // Fallback: show empty results
       setMedicineSearchResults([]);
     } finally {

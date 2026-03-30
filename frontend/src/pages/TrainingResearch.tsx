@@ -121,16 +121,40 @@ const TrainingResearch: React.FC = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (activeTab === 'classes') fetchClasses();
-    else if (activeTab === 'directions') fetchDirections();
-    else if (activeTab === 'research') fetchProjects();
-    else if (activeTab === 'dashboard') fetchDashboard();
-    else if (activeTab === 'certificates') {
-      fetchClasses();
-      getCreditSummary().then(setCreditSummary);
+  const loadActiveTab = useCallback(async (tab: string) => {
+    if (tab === 'classes') {
+      await fetchClasses();
+      return;
     }
-  }, [activeTab, fetchClasses, fetchDirections, fetchProjects, fetchDashboard]);
+
+    if (tab === 'directions') {
+      await fetchDirections();
+      return;
+    }
+
+    if (tab === 'research') {
+      await fetchProjects();
+      return;
+    }
+
+    if (tab === 'dashboard') {
+      await fetchDashboard();
+      return;
+    }
+
+    if (tab === 'certificates') {
+      await fetchClasses();
+      setCreditSummary(await getCreditSummary());
+    }
+  }, [fetchClasses, fetchDashboard, fetchDirections, fetchProjects]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadActiveTab(activeTab);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [activeTab, loadActiveTab]);
 
   // ---- Class handlers ----
   const handleSaveClass = async () => {

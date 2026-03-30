@@ -105,6 +105,8 @@ interface IcdCode {
   isActive: boolean;
 }
 
+type CatalogRow = Record<string, unknown>;
+
 // Mock data removed - data will be fetched from API
 
 // Category tree data
@@ -195,21 +197,21 @@ const MasterData: React.FC = () => {
   const [facilityLevelFilter, setFacilityLevelFilter] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editingRecord, setEditingRecord] = useState<CatalogRow | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [form] = Form.useForm();
 
   // Fetch data on component mount
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [activeTab]);
 
   // Helper to extract array data from API response (handles both direct array and { data: [...] } wrapper)
-  const extractData = (response: any): any[] => {
-    const d = response?.data;
+  const extractData = (response: unknown): CatalogRow[] => {
+    const d = (response as { data?: unknown } | undefined)?.data;
     if (Array.isArray(d)) return d;
-    if (d && Array.isArray(d.data)) return d.data;
-    if (d && Array.isArray(d.items)) return d.items;
+    if (d && typeof d === 'object' && Array.isArray((d as { data?: unknown[] }).data)) return (d as { data: CatalogRow[] }).data;
+    if (d && typeof d === 'object' && Array.isArray((d as { items?: unknown[] }).items)) return (d as { items: CatalogRow[] }).items;
     return [];
   };
 
@@ -219,7 +221,7 @@ const MasterData: React.FC = () => {
       switch (activeTab) {
         case 'services': {
           const servicesResponse = await catalogApi.getParaclinicalServices();
-          const mappedServices = extractData(servicesResponse).map((s: any) => ({
+          const mappedServices = extractData(servicesResponse).map((s) => ({
             id: s.id,
             code: s.code,
             name: s.name,
@@ -235,7 +237,7 @@ const MasterData: React.FC = () => {
         }
         case 'medicines': {
           const medicinesResponse = await catalogApi.getMedicines({});
-          const mappedMedicines = extractData(medicinesResponse).map((m: any) => ({
+          const mappedMedicines = extractData(medicinesResponse).map((m) => ({
             id: m.id,
             code: m.code,
             name: m.name,
@@ -255,7 +257,7 @@ const MasterData: React.FC = () => {
         }
         case 'departments': {
           const departmentsResponse = await catalogApi.getDepartments();
-          const mappedDepartments = extractData(departmentsResponse).map((d: any) => ({
+          const mappedDepartments = extractData(departmentsResponse).map((d) => ({
             id: d.id,
             code: d.code || d.departmentCode,
             name: d.name || d.departmentName,
@@ -269,7 +271,7 @@ const MasterData: React.FC = () => {
         }
         case 'icd': {
           const icdResponse = await catalogApi.getICD10Codes();
-          const mappedIcd = extractData(icdResponse).map((i: any) => ({
+          const mappedIcd = extractData(icdResponse).map((i) => ({
             id: i.id,
             code: i.code,
             name: i.name,
@@ -363,13 +365,13 @@ const MasterData: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (record: any) => {
+  const handleEdit = (record: CatalogRow) => {
     setEditingRecord(record);
     form.setFieldsValue(record);
     setIsModalOpen(true);
   };
 
-  const handleDelete = (record: any) => {
+  const handleDelete = (record: CatalogRow) => {
     Modal.confirm({
       title: 'Xác nhận xóa',
       content: `Bạn có chắc chắn muốn xóa "${record.name}"?`,
@@ -553,8 +555,8 @@ const MasterData: React.FC = () => {
       form.resetFields();
       setEditingRecord(null);
       fetchData();
-    } catch (error: any) {
-      if (error?.errorFields) {
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error && 'errorFields' in error) {
         return; // Form validation error
       }
       console.warn('Error saving:', error);
@@ -841,7 +843,7 @@ const MasterData: React.FC = () => {
     },
   ];
 
-  const filterByKeyword = (data: any[]) => {
+  const filterByKeyword = <T extends { code?: string; name?: string }>(data: T[]) => {
     if (!searchKeyword) return data;
     const kw = searchKeyword.toLowerCase();
     return data.filter((item) =>
@@ -1064,7 +1066,7 @@ const MasterData: React.FC = () => {
   const renderClinicalTermsTable = () => (
     <Table
       columns={clinicalTermColumns}
-      dataSource={filterByKeyword(clinicalTerms as any) as any}
+      dataSource={filterByKeyword(clinicalTerms)}
       rowKey="id"
       size="small"
       loading={loading}

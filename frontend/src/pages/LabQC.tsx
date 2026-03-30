@@ -12,8 +12,6 @@ import dayjs from 'dayjs';
 import type { QCLot, QCResult, LeveyJenningsData, QCReport } from '../api/labQC';
 import * as labQCApi from '../api/labQC';
 
-const { RangePicker } = DatePicker;
-
 const LabQC: React.FC = () => {
   const [activeTab, setActiveTab] = useState('lots');
   const [loading, setLoading] = useState(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -324,18 +324,7 @@ const Inpatient: React.FC = () => {
     }
   };
 
-  // Load data on mount
-  useEffect(() => {
-    loadAdmissions();
-    loadBeds();
-  }, []);
-
-  // Reload when search params change
-  useEffect(() => {
-    loadAdmissions();
-  }, [searchParams]);
-
-  const loadAdmissions = async () => {
+  const loadAdmissions = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getInpatientList(searchParams);
@@ -354,9 +343,9 @@ const Inpatient: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams]);
 
-  const loadBeds = async () => {
+  const loadBeds = useCallback(async () => {
     try {
       setLoadingBeds(true);
       const response = await getBedStatus();
@@ -374,7 +363,18 @@ const Inpatient: React.FC = () => {
     } finally {
       setLoadingBeds(false);
     }
-  };
+  }, []);
+
+  // Load data on mount
+  useEffect(() => {
+    void loadAdmissions();
+    void loadBeds();
+  }, [loadAdmissions, loadBeds]);
+
+  // Reload when search params change
+  useEffect(() => {
+    void loadAdmissions();
+  }, [loadAdmissions]);
 
   const handleSearch = (keyword: string) => {
     setSearchParams(prev => ({ ...prev, keyword, page: 1 }));
@@ -997,12 +997,6 @@ const Inpatient: React.FC = () => {
     const formValues = medicalRecordForm.getFieldsValue();
     const recordType = MEDICAL_RECORD_TYPES.find(t => t.value === printType) || MEDICAL_RECORD_TYPES[0];
     const isNgoaiKhoa = ['ngoai_khoa', 'bong', 'ung_buou', 'rhm', 'tmh'].includes(printType);
-    const isNhiKhoa = ['nhi_khoa', 'so_sinh', 'yhct_nhi', 'mat_tre_em', 'phcn_nhi'].includes(printType);
-    const isSanPhuKhoa = ['phu_khoa', 'san_khoa'].includes(printType);
-    const isMat = printType.startsWith('mat_');
-    const isYHCT = printType.startsWith('yhct');
-    const isPHCN = printType.startsWith('phcn');
-
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');

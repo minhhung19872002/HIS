@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Space, Input, Tag, Row, Col, Select, DatePicker,
-  Typography, message, Tabs, Statistic, Spin, Modal, Form, InputNumber,
+  Typography, message, Tabs, Statistic, Spin, Modal, Form,
   Descriptions, Drawer, Progress, Badge,
 } from 'antd';
 import {

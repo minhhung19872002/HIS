@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   SwapOutlined, SearchOutlined, ReloadOutlined, PlusOutlined,
-  EyeOutlined, CheckCircleOutlined, ClockCircleOutlined,
+  EyeOutlined, ClockCircleOutlined,
   SendOutlined, CalendarOutlined, FieldTimeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
