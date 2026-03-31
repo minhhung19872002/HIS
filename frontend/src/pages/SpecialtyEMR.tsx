@@ -22,34 +22,34 @@ const { TextArea } = Input;
 interface SpecialtyType { key: string; label: string; code: string }
 
 const SPECIALTY_TYPES: SpecialtyType[] = [
-  { key: 'surgical', label: 'Ngoai khoa', code: 'NK' },
-  { key: 'internal', label: 'Noi khoa', code: 'NoiK' },
-  { key: 'obstetrics', label: 'San khoa', code: 'SK' },
+  { key: 'surgical', label: 'Ngoại khoa', code: 'NK' },
+  { key: 'internal', label: 'Nội khoa', code: 'NoiK' },
+  { key: 'obstetrics', label: 'Sản khoa', code: 'SK' },
   { key: 'pediatrics', label: 'Nhi khoa', code: 'NhiK' },
   { key: 'dental', label: 'Rang-Ham-Mat', code: 'RHM' },
   { key: 'ent', label: 'Tai-Mui-Hong', code: 'TMH' },
   { key: 'traditional', label: 'YHCT & PHCN', code: 'YHCT' },
-  { key: 'traditional_outpatient', label: 'YHCT ngoai tru', code: 'YHCTNT' },
-  { key: 'hematology', label: 'Huyet hoc-Truyen mau', code: 'HH' },
-  { key: 'oncology', label: 'Ung buou', code: 'UB' },
+  { key: 'traditional_outpatient', label: 'YHCT ngoại trú', code: 'YHCTNT' },
+  { key: 'hematology', label: 'Huyết học-Truyen mau', code: 'HH' },
+  { key: 'oncology', label: 'Ung bướu', code: 'UB' },
   { key: 'burns', label: 'Bong', code: 'B' },
-  { key: 'psychiatry', label: 'Tam than', code: 'TT' },
-  { key: 'dermatology', label: 'Da lieu', code: 'DL' },
+  { key: 'psychiatry', label: 'Tâm thần', code: 'TT' },
+  { key: 'dermatology', label: 'Da liễu', code: 'DL' },
   { key: 'ophthalmology', label: 'Mat', code: 'M' },
-  { key: 'infectious', label: 'Truyen nhiem', code: 'TN' },
+  { key: 'infectious', label: 'Truyền nhiễm', code: 'TN' },
   // NangCap9: 10 loai bo sung
   { key: 'neonatal', label: 'So sinh', code: 'SS' },
   { key: 'gynecology', label: 'Phu khoa', code: 'PK' },
-  { key: 'outpatient', label: 'Ngoai tru', code: 'NT' },
-  { key: 'outpatient_dental', label: 'Ngoai tru RHM', code: 'NTRHM' },
-  { key: 'outpatient_ent', label: 'Ngoai tru TMH', code: 'NTTMH' },
+  { key: 'outpatient', label: 'Ngoại trú', code: 'NT' },
+  { key: 'outpatient_dental', label: 'Ngoại trú RHM', code: 'NTRHM' },
+  { key: 'outpatient_ent', label: 'Ngoại trú TMH', code: 'NTTMH' },
   { key: 'ophthalmology_retina', label: 'Day mat', code: 'DM' },
   { key: 'ophthalmology_strabismus', label: 'Mat lac', code: 'ML' },
   { key: 'ophthalmology_pediatric', label: 'Mat tre em', code: 'MTE' },
   { key: 'ophthalmology_trauma', label: 'Chan thuong mat', code: 'CTM' },
   { key: 'ophthalmology_anterior', label: 'Mat ban phan truoc', code: 'MBPT' },
   { key: 'ophthalmology_glaucoma', label: 'Mat glocom', code: 'MG' },
-  { key: 'nursing_rehab', label: 'Dieu duong & PHCN', code: 'DDPHCN' },
+  { key: 'nursing_rehab', label: 'Điều dưỡng & PHCN', code: 'DDPHCN' },
 ];
 
 interface SpecialtyRecordDto {
@@ -93,19 +93,19 @@ interface FieldDef {
 const opts = (items: string[]) => items.map(v => ({ value: v, label: v }));
 
 const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = {
-  surgical: { title: 'Ngoai khoa', fields: [
-    { name: 'surgicalHistory', label: 'Tien su phau thuat', type: 'textarea', span: 12, rows: 2, placeholder: 'Mo ta tien su phau thuat' },
-    { name: 'procedureType', label: 'Loai phau thuat', type: 'select', span: 12, options: [
+  surgical: { title: 'Ngoại khoa', fields: [
+    { name: 'surgicalHistory', label: 'Tien su phẫu thuật', type: 'textarea', span: 12, rows: 2, placeholder: 'Mô tả tien su phẫu thuật' },
+    { name: 'procedureType', label: 'Loai phẫu thuật', type: 'select', span: 12, options: [
       { value: 'emergency', label: 'Cap cuu' }, { value: 'elective', label: 'Phien' },
       { value: 'minor', label: 'Tieu phau' }, { value: 'major', label: 'Dai phau' }] },
-    { name: 'woundDescription', label: 'Mo ta vet thuong', type: 'textarea', span: 12, rows: 2, placeholder: 'Vi tri, kich thuoc, tinh chat' },
+    { name: 'woundDescription', label: 'Mô tả vet thuong', type: 'textarea', span: 12, rows: 2, placeholder: 'Vi tri, kich thuoc, tinh chat' },
     { name: 'anesthesiaType', label: 'Phuong phap vo cam', type: 'select', span: 12, options: [
       { value: 'general', label: 'Gay me toan than' }, { value: 'spinal', label: 'Te tuy song' },
       { value: 'epidural', label: 'Te ngoai mang cung' }, { value: 'local', label: 'Te tai cho' }] },
     { name: 'operativeFindings', label: 'Nhan xet trong mo', type: 'textarea', span: 24, rows: 2, placeholder: 'Ton thuong phat hien, xu tri' },
   ]},
-  internal: { title: 'Noi khoa', fields: [
-    { name: 'systemReview', label: 'Kham he thong', type: 'textarea', span: 24, rows: 3, placeholder: 'Tim mach, ho hap, tieu hoa, than-tiet nieu, co-xuong-khop, than kinh' },
+  internal: { title: 'Nội khoa', fields: [
+    { name: 'systemReview', label: 'Kham hệ thống', type: 'textarea', span: 24, rows: 3, placeholder: 'Tim mach, ho hap, tieu hoa, than-tiet nieu, co-xuong-khop, than kinh' },
     { name: 'chronicConditions', label: 'Benh man tinh', type: 'tags', span: 24, options: [
       { value: 'diabetes', label: 'Dai thao duong' }, { value: 'hypertension', label: 'Tang huyet ap' },
       { value: 'copd', label: 'COPD' }, { value: 'ckd', label: 'Suy than man' },
@@ -113,12 +113,12 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
     { name: 'currentMedications', label: 'Thuoc dang dung', type: 'textarea', span: 12, rows: 2, placeholder: 'Ten thuoc, lieu, thoi gian' },
     { name: 'allergies', label: 'Di ung', type: 'textarea', span: 12, rows: 2, placeholder: 'Thuoc, thuc pham, khac' },
   ]},
-  obstetrics: { title: 'San khoa', fields: [
+  obstetrics: { title: 'Sản khoa', fields: [
     { name: 'gravida', label: 'So lan mang thai (G)', type: 'number', span: 6, min: 0, max: 20 },
     { name: 'para', label: 'So lan sinh (P)', type: 'number', span: 6, min: 0, max: 20 },
     { name: 'abortions', label: 'Say/pha (A)', type: 'number', span: 6, min: 0, max: 20 },
     { name: 'gestationalWeeks', label: 'Tuoi thai (tuan)', type: 'number', span: 6, min: 0, max: 45 },
-    { name: 'fetalStatus', label: 'Tinh trang thai nhi', type: 'select', span: 12, options: [
+    { name: 'fetalStatus', label: 'Tinh trạng thái nhi', type: 'select', span: 12, options: [
       { value: 'normal', label: 'Binh thuong' }, { value: 'distress', label: 'Suy thai' },
       { value: 'iugr', label: 'Thai cham tang truong' }, { value: 'macrosomia', label: 'Thai to' }] },
     { name: 'laborMonitoring', label: 'Theo doi chuyen da', type: 'textarea', span: 12, rows: 2, placeholder: 'Co tu cung, tim thai, do mo CTC' },
@@ -146,7 +146,7 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
   ent: { title: 'Tai-Mui-Hong', fields: [
     { name: 'hearingTestLeft', label: 'Nghe tai trai (dB)', type: 'number', span: 12, min: 0, max: 120 },
     { name: 'hearingTestRight', label: 'Nghe tai phai (dB)', type: 'number', span: 12, min: 0, max: 120 },
-    { name: 'endoscopyFindings', label: 'Ket qua noi soi', type: 'textarea', span: 24, rows: 3, placeholder: 'Noi soi tai, mui, hong, thanh quan' },
+    { name: 'endoscopyFindings', label: 'Kết quả noi soi', type: 'textarea', span: 24, rows: 3, placeholder: 'Noi soi tai, mui, hong, thanh quan' },
     { name: 'tympanometry', label: 'Do nhi luong', type: 'select', span: 12, options: [
       { value: 'typeA', label: 'Type A (Binh thuong)' }, { value: 'typeB', label: 'Type B (Tran dich)' }, { value: 'typeC', label: 'Type C (Roi loan Eustachian)' }] },
     { name: 'nasalObstruction', label: 'Tac mui', type: 'select', span: 12, options: [
@@ -159,17 +159,17 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
     { name: 'thiet', label: 'Thiet chan (So bat mach)', type: 'textarea', span: 12, rows: 2, placeholder: 'Mach tay trai/phai, phu tram tri sac' },
     { name: 'acupuncturePoints', label: 'Huyet vi cham cuu', type: 'textarea', span: 24, rows: 2, placeholder: 'Hop Coc (LI4), Tuc Tam Ly (ST36), Bai Hoi (GV20)' },
     { name: 'herbalPrescription', label: 'Phuong thuoc YHCT', type: 'textarea', span: 12, rows: 2, placeholder: 'Bai thuoc, vi thuoc, lieu luong' },
-    { name: 'rehabPlan', label: 'Ke hoach PHCN', type: 'textarea', span: 12, rows: 2, placeholder: 'Bai tap, vat ly tri lieu, dien xung' },
+    { name: 'rehabPlan', label: 'Kế hoạch PHCN', type: 'textarea', span: 12, rows: 2, placeholder: 'Bai tap, vat ly tri lieu, dien xung' },
   ]},
-  traditional_outpatient: { title: 'YHCT ngoai tru', fields: [
+  traditional_outpatient: { title: 'YHCT ngoại trú', fields: [
     { name: 'vong', label: 'Vong chan (Nhin)', type: 'textarea', span: 12, rows: 2, placeholder: 'Sac mat, luoi, hinh the' },
     { name: 'van', label: 'Van chan (Nghe/Ngui)', type: 'textarea', span: 12, rows: 2, placeholder: 'Giong noi, hoi tho, mui' },
     { name: 'van2', label: 'Van chan (Hoi)', type: 'textarea', span: 12, rows: 2, placeholder: 'Benh su, trieu chung' },
     { name: 'thiet', label: 'Thiet chan (So bat mach)', type: 'textarea', span: 12, rows: 2, placeholder: 'Mach tay, phu tram tri sac' },
-    { name: 'acupuncturePoints', label: 'Huyet vi cham cuu', type: 'textarea', span: 24, rows: 2, placeholder: 'Huyet vi su dung' },
+    { name: 'acupuncturePoints', label: 'Huyet vi cham cuu', type: 'textarea', span: 24, rows: 2, placeholder: 'Huyet vi sử dụng' },
     { name: 'herbalPrescription', label: 'Phuong thuoc YHCT', type: 'textarea', span: 24, rows: 2, placeholder: 'Bai thuoc, vi thuoc, lieu luong' },
   ]},
-  hematology: { title: 'Huyet hoc - Truyen mau', fields: [
+  hematology: { title: 'Huyết học - Truyen mau', fields: [
     { name: 'bloodDisorder', label: 'Benh ly huyet hoc', type: 'tags', span: 24, options: [
       { value: 'anemia', label: 'Thieu mau' }, { value: 'leukemia', label: 'Bach cau cap' },
       { value: 'lymphoma', label: 'U lympho' }, { value: 'thalassemia', label: 'Thalassemia' },
@@ -179,15 +179,15 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
     { name: 'transfusionCount', label: 'So lan truyen mau', type: 'number', span: 8, min: 0 },
     { name: 'transfusionHistory', label: 'Tien su truyen mau', type: 'textarea', span: 24, rows: 2, placeholder: 'Ngay, loai che pham, the tich, phan ung' },
   ]},
-  oncology: { title: 'Ung buou', fields: [
+  oncology: { title: 'Ung bướu', fields: [
     { name: 'tnmT', label: 'TNM - T', type: 'select', span: 8, options: opts(['Tx','T0','Tis','T1','T2','T3','T4']) },
     { name: 'tnmN', label: 'TNM - N', type: 'select', span: 8, options: opts(['Nx','N0','N1','N2','N3']) },
     { name: 'tnmM', label: 'TNM - M', type: 'select', span: 8, options: opts(['Mx','M0','M1']) },
     { name: 'cancerStage', label: 'Giai doan', type: 'select', span: 12, options: opts(['0','IA','IB','IIA','IIB','IIIA','IIIB','IIIC','IV']) },
     { name: 'histopathology', label: 'Mo benh hoc', type: 'text', span: 12, placeholder: 'Loai mo hoc, do mo hoa' },
-    { name: 'treatmentProtocol', label: 'Phac do dieu tri', type: 'textarea', span: 24, rows: 2, placeholder: 'Phau thuat, hoa tri, xa tri, mien dich' },
-    { name: 'chemoCurrentCycle', label: 'Chu ky hoa tri hien tai', type: 'number', span: 8, min: 0, max: 50 },
-    { name: 'chemoTotalCycles', label: 'Tong so chu ky', type: 'number', span: 8, min: 0, max: 50 },
+    { name: 'treatmentProtocol', label: 'Phác đồ điều trị', type: 'textarea', span: 24, rows: 2, placeholder: 'Phẫu thuật, hoa tri, xa tri, mien dich' },
+    { name: 'chemoCurrentCycle', label: 'Chu kỳ hoa tri hien tai', type: 'number', span: 8, min: 0, max: 50 },
+    { name: 'chemoTotalCycles', label: 'Tong so chu kỳ', type: 'number', span: 8, min: 0, max: 50 },
     { name: 'ecogScore', label: 'ECOG Performance', type: 'select', span: 8, options: [0,1,2,3,4].map(v => ({ value: String(v), label: `ECOG ${v}` })) },
   ]},
   burns: { title: 'Bong', fields: [
@@ -205,25 +205,25 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
       { value: 'right_leg', label: 'Chan phai 18%' }, { value: 'perineum', label: 'Tang sinh mon 1%' }] },
     { name: 'fluidResuscitation', label: 'Bu dich (Parkland)', type: 'textarea', span: 24, rows: 2, placeholder: 'The tich, toc do, loai dich' },
   ]},
-  psychiatry: { title: 'Tam than', fields: [
+  psychiatry: { title: 'Tâm thần', fields: [
     { name: 'psychiatricAssessment', label: 'Danh gia tam than', type: 'textarea', span: 24, rows: 3, placeholder: 'Benh su, yeu to khoi phat, gia dinh' },
-    { name: 'mentalStatusExam', label: 'Kham trang thai tam than (MSE)', type: 'textarea', span: 12, rows: 3, placeholder: 'Ngoai hinh, hanh vi, cam xuc, tu duy, tri giac' },
+    { name: 'mentalStatusExam', label: 'Kham trạng thái tam than (MSE)', type: 'textarea', span: 12, rows: 3, placeholder: 'Ngoai hinh, hanh vi, cam xuc, tu duy, tri giac' },
     { name: 'riskAssessment', label: 'Danh gia nguy co', type: 'textarea', span: 12, rows: 3, placeholder: 'Tu tu, tu hai, bao luc, bo tron' },
     { name: 'suicideRisk', label: 'Nguy co tu tu', type: 'select', span: 8, options: [
       { value: 'none', label: 'Khong' }, { value: 'low', label: 'Thap' }, { value: 'moderate', label: 'Trung binh' }, { value: 'high', label: 'Cao' }] },
     { name: 'insight', label: 'Nhan thuc benh', type: 'select', span: 8, options: [
       { value: 'full', label: 'Day du' }, { value: 'partial', label: 'Mot phan' }, { value: 'none', label: 'Khong' }] },
-    { name: 'complianceLevel', label: 'Tuan thu dieu tri', type: 'select', span: 8, options: [
+    { name: 'complianceLevel', label: 'Tuan thu điều trị', type: 'select', span: 8, options: [
       { value: 'good', label: 'Tot' }, { value: 'partial', label: 'Mot phan' }, { value: 'poor', label: 'Kem' }] },
   ]},
-  dermatology: { title: 'Da lieu', fields: [
-    { name: 'lesionDescription', label: 'Mo ta ton thuong', type: 'textarea', span: 12, rows: 3, placeholder: 'Hinh dang, mau sac, kich thuoc, bo, be mat' },
+  dermatology: { title: 'Da liễu', fields: [
+    { name: 'lesionDescription', label: 'Mô tả ton thuong', type: 'textarea', span: 12, rows: 3, placeholder: 'Hinh dang, mau sac, kich thuoc, bo, be mat' },
     { name: 'lesionLocation', label: 'Vi tri ton thuong', type: 'textarea', span: 12, rows: 3, placeholder: 'Vung da bi anh huong, phan bo' },
     { name: 'morphology', label: 'Hinh thai', type: 'multiselect', span: 12, options: [
       { value: 'macule', label: 'Dam' }, { value: 'papule', label: 'San' }, { value: 'vesicle', label: 'Mun nuoc' },
       { value: 'bulla', label: 'Bong nuoc' }, { value: 'pustule', label: 'Mun mu' }, { value: 'nodule', label: 'Cuc' },
       { value: 'plaque', label: 'Mang' }, { value: 'ulcer', label: 'Loet' }] },
-    { name: 'skinBiopsy', label: 'Sinh thiet da', type: 'textarea', span: 12, rows: 2, placeholder: 'Ket qua (neu co)' },
+    { name: 'skinBiopsy', label: 'Sinh thiet da', type: 'textarea', span: 12, rows: 2, placeholder: 'Kết quả (neu co)' },
   ]},
   ophthalmology: { title: 'Mat', fields: [
     { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
@@ -232,10 +232,10 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
     { name: 'iopLeft', label: 'Nhan ap trai (mmHg)', type: 'number', span: 6, min: 0, max: 80 },
     { name: 'fundoscopy', label: 'Soi day mat', type: 'textarea', span: 12, rows: 2, placeholder: 'Dia thi, vong mac, mach mau, hoang diem' },
     { name: 'slitLamp', label: 'Kham sinh hien vi', type: 'textarea', span: 12, rows: 2, placeholder: 'Giac mac, tien phong, mong mat, the thuy tinh' },
-    { name: 'refractionRight', label: 'Khuc xa mat phai', type: 'text', span: 12, placeholder: '-2.50DS / -0.75DC x 180' },
-    { name: 'refractionLeft', label: 'Khuc xa mat trai', type: 'text', span: 12, placeholder: '-3.00DS / -1.00DC x 175' },
+    { name: 'refractionRight', label: 'Khúc xạ mat phai', type: 'text', span: 12, placeholder: '-2.50DS / -0.75DC x 180' },
+    { name: 'refractionLeft', label: 'Khúc xạ mat trai', type: 'text', span: 12, placeholder: '-3.00DS / -1.00DC x 175' },
   ]},
-  infectious: { title: 'Truyen nhiem', fields: [
+  infectious: { title: 'Truyền nhiễm', fields: [
     { name: 'pathogen', label: 'Tac nhan gay benh', type: 'text', span: 12, placeholder: 'Vi khuan, virus, ky sinh trung, nam' },
     { name: 'isolationStatus', label: 'Cach ly', type: 'select', span: 12, options: [
       { value: 'none', label: 'Khong' }, { value: 'contact', label: 'Tiep xuc' },
@@ -244,12 +244,12 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
     { name: 'transmissionRoute', label: 'Duong lay truyen', type: 'multiselect', span: 12, options: [
       { value: 'respiratory', label: 'Ho hap' }, { value: 'fecal_oral', label: 'Phan-mieng' },
       { value: 'blood', label: 'Duong mau' }, { value: 'sexual', label: 'Tinh duc' }, { value: 'vector', label: 'Trung gian' }] },
-    { name: 'notifiableDisease', label: 'Nhom benh bao cao', type: 'select', span: 12, options: [
+    { name: 'notifiableDisease', label: 'Nhom benh báo cáo', type: 'select', span: 12, options: [
       { value: 'none', label: 'Khong' }, { value: 'groupA', label: 'Nhom A (Dac biet nguy hiem)' },
       { value: 'groupB', label: 'Nhom B (Nguy hiem)' }, { value: 'groupC', label: 'Nhom C (It nguy hiem)' }] },
-    { name: 'antibioticRegimen', label: 'Phac do khang sinh', type: 'textarea', span: 24, rows: 2, placeholder: 'Ten thuoc, lieu, duong dung, thoi gian' },
+    { name: 'antibioticRegimen', label: 'Phác đồ khang sinh', type: 'textarea', span: 24, rows: 2, placeholder: 'Ten thuoc, lieu, duong dung, thoi gian' },
   ]},
-  // NangCap9: 10 loai BA chuyen khoa bo sung
+  // NangCap9: 10 loai BA chuyên khoa bo sung
   neonatal: { title: 'So sinh', fields: [
     { name: 'birthWeight', label: 'Can nang luc sinh (g)', type: 'number', span: 6, min: 200, max: 6000 },
     { name: 'gestationalAge', label: 'Tuoi thai (tuan)', type: 'number', span: 6, min: 22, max: 45 },
@@ -266,7 +266,7 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
       { value: 'breast', label: 'Bu me' }, { value: 'formula', label: 'Sua cong thuc' }, { value: 'mixed', label: 'Ket hop' }, { value: 'iv', label: 'Tinh mach' }] },
   ]},
   gynecology: { title: 'Phu khoa', fields: [
-    { name: 'menstrualHistory', label: 'Tien su kinh nguyet', type: 'textarea', span: 12, rows: 2, placeholder: 'Tuoi co kinh, chu ky, so ngay hanh kinh, kinh cuoi' },
+    { name: 'menstrualHistory', label: 'Tien su kinh nguyet', type: 'textarea', span: 12, rows: 2, placeholder: 'Tuoi co kinh, chu kỳ, so ngay hanh kinh, kinh cuoi' },
     { name: 'obstetricHistory', label: 'Tien su san khoa', type: 'textarea', span: 12, rows: 2, placeholder: 'PARA, sinh thuong/mo, bien chung' },
     { name: 'gynecExam', label: 'Kham phu khoa', type: 'textarea', span: 24, rows: 3, placeholder: 'Am ho, am dao, co tu cung, tu cung, phan phu' },
     { name: 'papSmear', label: 'Pap smear', type: 'select', span: 12, options: [
@@ -274,25 +274,25 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
       { value: 'lsil', label: 'LSIL' }, { value: 'hsil', label: 'HSIL' }, { value: 'cancer', label: 'Ung thu' }] },
     { name: 'contraception', label: 'Bien phap tranh thai', type: 'select', span: 12, options: [
       { value: 'none', label: 'Khong' }, { value: 'pill', label: 'Thuoc tranh thai' },
-      { value: 'iud', label: 'Vong tranh thai' }, { value: 'condom', label: 'Bao cao su' }, { value: 'other', label: 'Khac' }] },
+      { value: 'iud', label: 'Vong tranh thai' }, { value: 'condom', label: 'Báo cáo su' }, { value: 'other', label: 'Khac' }] },
   ]},
-  outpatient: { title: 'Ngoai tru', fields: [
+  outpatient: { title: 'Ngoại trú', fields: [
     { name: 'chiefComplaint', label: 'Ly do kham', type: 'textarea', span: 24, rows: 2, placeholder: 'Ly do den kham' },
     { name: 'historyOfPresentIllness', label: 'Benh su', type: 'textarea', span: 24, rows: 3, placeholder: 'Dien bien benh tu khi khoi phat' },
     { name: 'physicalExam', label: 'Kham lam sang', type: 'textarea', span: 24, rows: 3, placeholder: 'Kham toan than va cac co quan' },
-    { name: 'treatmentPlan', label: 'Huong xu tri', type: 'textarea', span: 24, rows: 2, placeholder: 'Ke hoach dieu tri, don thuoc, hen tai kham' },
+    { name: 'treatmentPlan', label: 'Huong xu tri', type: 'textarea', span: 24, rows: 2, placeholder: 'Kế hoạch điều trị, don thuoc, hen tai kham' },
   ]},
-  outpatient_dental: { title: 'Ngoai tru RHM', fields: [
+  outpatient_dental: { title: 'Ngoại trú RHM', fields: [
     { name: 'dentalChart', label: 'So do rang', type: 'textarea', span: 12, rows: 3, placeholder: 'Tinh trang tung rang' },
     { name: 'chiefComplaint', label: 'Ly do kham', type: 'textarea', span: 12, rows: 2, placeholder: 'Dau rang, chay mau loi, lung lay' },
     { name: 'oralExam', label: 'Kham mieng', type: 'textarea', span: 24, rows: 2, placeholder: 'Niem mac mieng, nuou, luoi, san mieng' },
-    { name: 'treatment', label: 'Xu tri', type: 'textarea', span: 24, rows: 2, placeholder: 'Han rang, nho rang, lay cao rang, phau thuat' },
+    { name: 'treatment', label: 'Xu tri', type: 'textarea', span: 24, rows: 2, placeholder: 'Han rang, nho rang, lay cao rang, phẫu thuật' },
   ]},
-  outpatient_ent: { title: 'Ngoai tru TMH', fields: [
+  outpatient_ent: { title: 'Ngoại trú TMH', fields: [
     { name: 'chiefComplaint', label: 'Ly do kham', type: 'textarea', span: 12, rows: 2, placeholder: 'Dau tai, nghet mui, dau hong' },
-    { name: 'endoscopyFindings', label: 'Noi soi', type: 'textarea', span: 12, rows: 2, placeholder: 'Ket qua noi soi tai, mui, hong' },
+    { name: 'endoscopyFindings', label: 'Noi soi', type: 'textarea', span: 12, rows: 2, placeholder: 'Kết quả noi soi tai, mui, hong' },
     { name: 'hearingTest', label: 'Do thinh luc', type: 'textarea', span: 12, rows: 2, placeholder: 'Tai trai: ...dB, Tai phai: ...dB' },
-    { name: 'treatment', label: 'Xu tri', type: 'textarea', span: 12, rows: 2, placeholder: 'Thuoc, thu thuat, hen tai kham' },
+    { name: 'treatment', label: 'Xu tri', type: 'textarea', span: 12, rows: 2, placeholder: 'Thuoc, thủ thuật, hen tai kham' },
   ]},
   ophthalmology_retina: { title: 'Day mat', fields: [
     { name: 'vaRight', label: 'Thi luc mat phai', type: 'text', span: 6, placeholder: '10/10' },
@@ -361,8 +361,8 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
     { name: 'gonioscopy', label: 'Soi goc tien phong', type: 'textarea', span: 12, rows: 2, placeholder: 'Phan loai Shaffer/Scheie, dinh mat, tan mach' },
     { name: 'rnflThickness', label: 'Do day RNFL (OCT)', type: 'textarea', span: 24, rows: 1, placeholder: 'Trung binh, tren, duoi, mui, thai duong' },
   ]},
-  nursing_rehab: { title: 'Dieu duong & PHCN', fields: [
-    { name: 'nursingAssessment', label: 'Nhan dinh dieu duong', type: 'textarea', span: 24, rows: 3, placeholder: 'Tinh trang chung, nhu cau, nguy co' },
+  nursing_rehab: { title: 'Điều dưỡng & PHCN', fields: [
+    { name: 'nursingAssessment', label: 'Nhan dinh điều dưỡng', type: 'textarea', span: 24, rows: 3, placeholder: 'Tinh trang chung, nhu cau, nguy co' },
     { name: 'adlScore', label: 'Diem ADL (Barthel)', type: 'number', span: 8, min: 0, max: 100 },
     { name: 'fallRiskScore', label: 'Diem nguy co te nga (Morse)', type: 'number', span: 8, min: 0, max: 125 },
     { name: 'pressureUlcerRisk', label: 'Diem loet ep (Braden)', type: 'number', span: 8, min: 6, max: 23 },
@@ -370,8 +370,8 @@ const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[] }> = 
       { value: 'independent', label: 'Tu lap' }, { value: 'assisted', label: 'Can ho tro' },
       { value: 'dependent', label: 'Phu thuoc' }, { value: 'bedbound', label: 'Nam tai giuong' }] },
     { name: 'rehabGoals', label: 'Muc tieu PHCN', type: 'textarea', span: 12, rows: 2, placeholder: 'Muc tieu ngan han, dai han' },
-    { name: 'rehabPlan', label: 'Ke hoach PHCN', type: 'textarea', span: 12, rows: 2, placeholder: 'Vat ly tri lieu, hoat dong tri lieu, ngon ngu tri lieu' },
-    { name: 'carePlan', label: 'Ke hoach cham soc', type: 'textarea', span: 12, rows: 2, placeholder: 'Van de DD, muc tieu, can thiep, danh gia' },
+    { name: 'rehabPlan', label: 'Kế hoạch PHCN', type: 'textarea', span: 12, rows: 2, placeholder: 'Vat ly tri lieu, hoạt động tri lieu, ngon ngu tri lieu' },
+    { name: 'carePlan', label: 'Kế hoạch chăm sóc', type: 'textarea', span: 12, rows: 2, placeholder: 'Van de DD, muc tieu, can thiep, danh gia' },
   ]},
 };
 
@@ -414,7 +414,7 @@ const renderField = (field: FieldDef): React.ReactNode => {
 
 const renderSpecialtySection = (specialtyKey: string): React.ReactNode => {
   const config = SPECIALTY_FIELDS[specialtyKey];
-  if (!config) return <Alert title="Vui long chon chuyen khoa" type="info" showIcon />;
+  if (!config) return <Alert title="Vui long chon chuyên khoa" type="info" showIcon />;
   return (
     <>
       <Divider>{config.title}</Divider>
@@ -430,7 +430,7 @@ const renderSpecialtySection = (specialtyKey: string): React.ReactNode => {
 // ===================== Status maps =====================
 
 const statusColors: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'warning', 3: 'success' };
-const statusNames: Record<number, string> = { 0: 'Nhap', 1: 'Dang dieu tri', 2: 'Cho duyet', 3: 'Hoan thanh' };
+const statusNames: Record<number, string> = { 0: 'Nhap', 1: 'Dang điều trị', 2: 'Cho duyet', 3: 'Hoan thanh' };
 
 // ===================== Component =====================
 
@@ -514,11 +514,11 @@ const SpecialtyEMR: React.FC = () => {
     { title: 'STT', key: 'idx', width: 55, render: (_: unknown, __: unknown, i: number) => (currentPage - 1) * pageSize + i + 1 },
     { title: 'Ma BN', dataIndex: 'patientCode', width: 100 },
     { title: 'Ho ten', dataIndex: 'patientName', width: 150 },
-    { title: 'Chuyen khoa', dataIndex: 'specialtyType', width: 130,
+    { title: 'Chuyên khoa', dataIndex: 'specialtyType', width: 130,
       render: (v: string) => { const s = SPECIALTY_TYPES.find(t => t.key === v); return s ? <Tag color="blue">{s.label}</Tag> : v; } },
     { title: 'Ngay tao', dataIndex: 'createdAt', width: 105, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
-    { title: 'BS dieu tri', dataIndex: 'doctorName', width: 130 },
-    { title: 'Trang thai', dataIndex: 'status', width: 100,
+    { title: 'BS điều trị', dataIndex: 'doctorName', width: 130 },
+    { title: 'Trạng thái', dataIndex: 'status', width: 100,
       render: (v: number) => <Tag color={statusColors[v] || 'default'}>{statusNames[v] || 'N/A'}</Tag> },
     { title: 'Thao tac', key: 'actions', width: 180, fixed: 'right' as const,
       render: (_: unknown, rec: SpecialtyRecordDto) => (
@@ -533,7 +533,7 @@ const SpecialtyEMR: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
-      <Title level={4}><MedicineBoxOutlined /> Ho so benh an chuyen khoa</Title>
+      <Title level={4}><MedicineBoxOutlined /> Ho so bệnh án chuyên khoa</Title>
 
       <Card size="small" style={{ marginBottom: 16 }}>
         <Row gutter={[16, 12]} align="bottom">
@@ -544,8 +544,8 @@ const SpecialtyEMR: React.FC = () => {
               onPressEnter={() => handleSearch(1)} allowClear />
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>Chuyen khoa</Text>
-            <Select placeholder="Tat ca chuyen khoa" value={specialtyFilter}
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Chuyên khoa</Text>
+            <Select placeholder="Tat ca chuyên khoa" value={specialtyFilter}
               onChange={v => setSpecialtyFilter(v)} allowClear style={{ width: '100%' }}
               options={SPECIALTY_TYPES.map(s => ({ value: s.key, label: s.label }))} />
           </Col>
@@ -556,8 +556,8 @@ const SpecialtyEMR: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Space>
-              <Button type="primary" icon={<SearchOutlined />} onClick={() => handleSearch(1)}>Tim kiem</Button>
-              <Button icon={<ReloadOutlined />} onClick={() => handleSearch(currentPage)}>Lam moi</Button>
+              <Button type="primary" icon={<SearchOutlined />} onClick={() => handleSearch(1)}>Tìm kiếm</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => handleSearch(currentPage)}>Làm mới</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>Tao moi</Button>
             </Space>
           </Col>
@@ -567,7 +567,7 @@ const SpecialtyEMR: React.FC = () => {
       <Card size="small">
         <Spin spinning={loading}>
           {records.length === 0 && !loading
-            ? <Empty description="Khong co du lieu. Nhan Tim kiem hoac Tao moi de bat dau." />
+            ? <Empty description="Không có du lieu. Nhan Tìm kiếm hoac Tao moi de bat dau." />
             : <Table dataSource={records} columns={columns} rowKey="id" size="small" scroll={{ x: 1000 }}
                 pagination={{ current: currentPage, pageSize, total: totalCount,
                   showTotal: t => `Tong: ${t} ban ghi`, onChange: p => handleSearch(p) }}
@@ -575,29 +575,29 @@ const SpecialtyEMR: React.FC = () => {
         </Spin>
       </Card>
 
-      <Modal title={selectedRecord ? 'Chinh sua ho so chuyen khoa' : 'Tao ho so chuyen khoa moi'}
+      <Modal title={selectedRecord ? 'Chinh sua ho so chuyên khoa' : 'Tao ho so chuyên khoa moi'}
         open={modalOpen} onCancel={() => setModalOpen(false)} width={900} destroyOnHidden
         footer={[
           <Button key="cancel" onClick={() => setModalOpen(false)}>Huy</Button>,
-          <Button key="print" icon={<PrinterOutlined />} onClick={() => selectedRecord ? handleExport(selectedRecord.id, 'pdf') : message.info('Luu truoc khi in')}>In</Button>,
+          <Button key="print" icon={<PrinterOutlined />} onClick={() => selectedRecord ? handleExport(selectedRecord.id, 'pdf') : message.info('Lưu trữoc khi in')}>In</Button>,
           <Button key="save" type="primary" icon={<SaveOutlined />} loading={formLoading} onClick={handleSave}>Luu</Button>,
         ]}>
         <Form form={form} layout="vertical" size="small">
           <Divider>Thong tin chung</Divider>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="patientCode" label="Ma benh nhan" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ma BN" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="patientCode" label="Ma bệnh nhân" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ma BN" /></Form.Item></Col>
             <Col span={8}><Form.Item name="patientName" label="Ho ten" rules={[{ required: true, message: 'Bat buoc' }]}><Input placeholder="Ho ten BN" /></Form.Item></Col>
             <Col span={8}><Form.Item name="createdAt" label="Ngay tao"><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="doctorName" label="BS dieu tri"><Input placeholder="Ten bac si" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="doctorName" label="BS điều trị"><Input placeholder="Ten bác sĩ" /></Form.Item></Col>
             <Col span={8}><Form.Item name="departmentName" label="Khoa/Phong"><Input placeholder="Khoa" /></Form.Item></Col>
             <Col span={8}><Form.Item name="diagnosisIcd" label="ICD-10"><Input placeholder="VD: J18.9" /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
-            <Col span={16}><Form.Item name="diagnosisText" label="Chan doan"><Input placeholder="Mo ta chan doan" /></Form.Item></Col>
+            <Col span={16}><Form.Item name="diagnosisText" label="Chẩn đoán"><Input placeholder="Mô tả chẩn đoán" /></Form.Item></Col>
             <Col span={8}>
-              <Form.Item label="Chuyen khoa">
+              <Form.Item label="Chuyên khoa">
                 <Select value={modalSpecialty} onChange={v => setModalSpecialty(v)}
                   options={SPECIALTY_TYPES.map(s => ({ value: s.key, label: s.label }))} />
               </Form.Item>
@@ -608,16 +608,16 @@ const SpecialtyEMR: React.FC = () => {
       </Modal>
 
       {selectedRecord && !modalOpen && (
-        <Card size="small" style={{ marginTop: 16 }} title="Thong tin benh nhan">
+        <Card size="small" style={{ marginTop: 16 }} title="Thong tin bệnh nhân">
           <Descriptions size="small" column={4}>
             <Descriptions.Item label="Ma BN">{selectedRecord.patientCode}</Descriptions.Item>
             <Descriptions.Item label="Ho ten">{selectedRecord.patientName}</Descriptions.Item>
             <Descriptions.Item label="Gioi tinh">{selectedRecord.gender}</Descriptions.Item>
             <Descriptions.Item label="Ngay sinh">{selectedRecord.dateOfBirth ? dayjs(selectedRecord.dateOfBirth).format('DD/MM/YYYY') : ''}</Descriptions.Item>
-            <Descriptions.Item label="Chuyen khoa">{SPECIALTY_TYPES.find(s => s.key === selectedRecord.specialtyType)?.label}</Descriptions.Item>
-            <Descriptions.Item label="BS dieu tri">{selectedRecord.doctorName}</Descriptions.Item>
-            <Descriptions.Item label="Chan doan">{selectedRecord.diagnosisText}</Descriptions.Item>
-            <Descriptions.Item label="Trang thai"><Tag color={statusColors[selectedRecord.status]}>{statusNames[selectedRecord.status]}</Tag></Descriptions.Item>
+            <Descriptions.Item label="Chuyên khoa">{SPECIALTY_TYPES.find(s => s.key === selectedRecord.specialtyType)?.label}</Descriptions.Item>
+            <Descriptions.Item label="BS điều trị">{selectedRecord.doctorName}</Descriptions.Item>
+            <Descriptions.Item label="Chẩn đoán">{selectedRecord.diagnosisText}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái"><Tag color={statusColors[selectedRecord.status]}>{statusNames[selectedRecord.status]}</Tag></Descriptions.Item>
           </Descriptions>
         </Card>
       )}

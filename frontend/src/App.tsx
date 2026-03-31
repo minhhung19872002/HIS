@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, theme as antdTheme } from 'antd';
+import { ConfigProvider, App as AntdApp, theme as antdTheme } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy } from 'react';
@@ -337,17 +337,19 @@ const ThemedApp: React.FC = () => {
         },
       }}
     >
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <NotificationProvider>
-              <SigningProvider>
-                <AppRoutes />
-              </SigningProvider>
-            </NotificationProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
+      <AntdApp>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <AuthProvider>
+              <NotificationProvider>
+                <SigningProvider>
+                  <AppRoutes />
+                </SigningProvider>
+              </NotificationProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </AntdApp>
     </ConfigProvider>
   );
 };

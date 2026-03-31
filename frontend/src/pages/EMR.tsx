@@ -797,7 +797,13 @@ ${conclusion ? `<div class="section">
     },
     {
       title: 'TT', dataIndex: 'status', key: 'status', width: 100,
-      render: (v: number) => <Tag color={statusColors[v] ?? 'default'}>{statusNames[v] ?? `${v}`}</Tag>,
+      render: (v: number | string, r: ExaminationDto) => {
+        const englishMap: Record<string, string> = { Waiting: 'Chờ khám', InProgress: 'Đang khám', Completed: 'Hoàn thành', WaitingResult: 'Chờ CLS' };
+        if (typeof v === 'string' && englishMap[v]) return <Tag color="processing">{englishMap[v]}</Tag>;
+        if (r.statusName && englishMap[r.statusName]) return <Tag color="processing">{englishMap[r.statusName]}</Tag>;
+        const numV = typeof v === 'number' ? v : Number(v);
+        return <Tag color={statusColors[numV] ?? 'default'}>{statusNames[numV] ?? r.statusName ?? `${v}`}</Tag>;
+      },
     },
     {
       title: 'Ký số', key: 'signed', width: 60, align: 'center' as const,

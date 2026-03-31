@@ -546,6 +546,7 @@ public class HISDbContext : DbContext
     public DbSet<ImmunizationBatch> ImmunizationBatches => Set<ImmunizationBatch>();
     public DbSet<HealthCheckupCampaign> HealthCheckupCampaigns => Set<HealthCheckupCampaign>();
     public DbSet<HealthCheckupRecord> HealthCheckupRecords => Set<HealthCheckupRecord>();
+    public DbSet<CheckupCampaignGroup> CheckupCampaignGroups => Set<CheckupCampaignGroup>();
     public DbSet<DiseaseCase> DiseaseCases => Set<DiseaseCase>();
     public DbSet<ContactTrace> ContactTraces => Set<ContactTrace>();
 

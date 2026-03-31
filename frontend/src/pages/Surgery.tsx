@@ -21,7 +21,6 @@ import {
   Descriptions,
   Alert,
   Divider,
-  Spin,
 } from 'antd';
 import {
   SearchOutlined,
@@ -39,6 +38,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, completeSurgery, searchIcdCodes, searchServices, getSurgeryConsents, saveSurgeryConsent, signConsent, validateConsents, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto, type CompleteSurgeryDto, type IcdCodeDto, type ServiceDto as SurgeryServiceDto, type SurgeryConsentDto, type ConsentValidationResult } from '../api/surgery';
 import { examinationApi } from '../api/examination';
+import type { ExaminationDto } from '../api/examination';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;
@@ -88,22 +88,6 @@ interface OperatingRoom {
   status: number; // 1: Available, 2: InUse, 3: Maintenance, 4: Inactive
   location?: string;
   todaySchedules?: SurgerySchedule[];
-}
-
-interface SurgeryRecord {
-  id: string;
-  requestCode: string;
-  patientName: string;
-  patientCode: string;
-  operatingRoomName: string;
-  scheduledDateTime: string;
-  actualStartTime?: string;
-  actualEndTime?: string;
-  actualDuration?: number;
-  procedurePerformed?: string;
-  surgeonName: string;
-  result?: number; // 1: Success, 2: Complications, 3: Death
-  isApproved: boolean;
 }
 
 const Surgery: React.FC = () => {
@@ -162,7 +146,7 @@ const Surgery: React.FC = () => {
         requestDate: s.createdAt,
         surgeryType: s.surgeryTypeName,
         plannedProcedure: s.surgeryServiceName,
-        requestingDoctorName: s.requestDoctorName || 'N/A',
+        requestingDoctorName: s.requestDoctorName || 'Chưa phân công',
         priority: s.surgeryNature,
         status: s.status,
         preOpDiagnosis: s.preOperativeDiagnosis,
@@ -287,7 +271,7 @@ const Surgery: React.FC = () => {
         pageSize: 20,
       });
       if (response.data?.items) {
-        const options = response.data.items.map((item: any) => ({
+        const options = response.data.items.map((item: ExaminationDto) => ({
           value: item.id,
           label: `${item.patientCode} - ${item.patientName} (${item.id.substring(0, 8)})`,
         }));

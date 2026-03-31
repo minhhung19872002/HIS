@@ -24,7 +24,6 @@ import {
 } from 'antd';
 import {
   ShopOutlined,
-  SearchOutlined,
   ReloadOutlined,
   PlusOutlined,
   DeleteOutlined,
@@ -62,9 +61,9 @@ const { Search } = Input;
 const { RangePicker } = DatePicker;
 
 const PAYMENT_LABELS: Record<number, string> = {
-  0: 'Tien mat',
-  1: 'The',
-  2: 'Chuyen khoan',
+  0: 'Tiền mặt',
+  1: 'Thẻ',
+  2: 'Chuyển khoản',
 };
 
 const PAYMENT_COLORS: Record<number, string> = {
@@ -95,7 +94,6 @@ const HospitalPharmacy: React.FC = () => {
   const [stockTotalCount, setStockTotalCount] = useState(0);
   const [revenue, setRevenue] = useState<PharmacyRevenueDto[]>([]);
   const [activeTab, setActiveTab] = useState('retail');
-  const [keyword, setKeyword] = useState('');
   const [historyKeyword, setHistoryKeyword] = useState('');
   const [stockKeyword, setStockKeyword] = useState('');
   const [reportDateRange, setReportDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -175,7 +173,7 @@ const HospitalPharmacy: React.FC = () => {
         setRevenue(results[3].value || []);
       }
     } catch {
-      message.warning('Khong the tai du lieu nha thuoc');
+      message.warning('Không thể tải dữ liệu nhà thuốc');
     } finally {
       setLoading(false);
     }
@@ -196,7 +194,7 @@ const HospitalPharmacy: React.FC = () => {
       setSearchResults(
         results.map((m) => ({
           value: m.id,
-          label: `${m.medicineName} (${m.unit}) - ${m.unitPrice.toLocaleString()}d - Ton: ${m.stockQuantity}`,
+          label: `${m.medicineName} (${m.unit}) - ${m.unitPrice.toLocaleString()}đ - Tồn: ${m.stockQuantity}`,
           medicine: m,
         })),
       );
@@ -251,7 +249,7 @@ const HospitalPharmacy: React.FC = () => {
 
   const handleSubmitSale = async () => {
     if (cart.length === 0) {
-      message.warning('Vui long them thuoc vao gio hang');
+      message.warning('Vui lòng thêm thuốc vào giỏ hàng');
       return;
     }
     setSubmitting(true);
@@ -268,14 +266,14 @@ const HospitalPharmacy: React.FC = () => {
         })),
       };
       await pharmacyApi.createRetailSale(payload);
-      message.success('Da tao don ban le thanh cong');
+      message.success('Đã tạo đơn bán lẻ thành công');
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
       setDiscount(0);
       fetchData();
     } catch {
-      message.warning('Khong the tao don ban le');
+      message.warning('Không thể tạo đơn bán lẻ');
     } finally {
       setSubmitting(false);
     }
@@ -332,13 +330,13 @@ const HospitalPharmacy: React.FC = () => {
         cardNumber: values.cardNumber,
         notes: values.notes,
       });
-      message.success(editingCustomer ? 'Da cap nhat khach hang' : 'Da them khach hang moi');
+      message.success(editingCustomer ? 'Đã cập nhật khách hàng' : 'Đã thêm khách hàng mới');
       setCustomerModalOpen(false);
       setEditingCustomer(null);
       customerForm.resetFields();
       fetchCustomers();
     } catch {
-      message.warning('Khong the luu khach hang');
+      message.warning('Không thể lưu khách hàng');
     }
   };
 
@@ -347,16 +345,16 @@ const HospitalPharmacy: React.FC = () => {
       const values = await pointsForm.validateFields();
       if (type === 'add') {
         await pharmacyApi.addPoints({ customerId: pointsCustomer!.id, points: values.points, description: values.description });
-        message.success(`Da cong ${values.points} diem`);
+        message.success(`Đã cộng ${values.points} điểm`);
       } else {
         await pharmacyApi.redeemPoints({ customerId: pointsCustomer!.id, points: values.points, description: values.description });
-        message.success(`Da tru ${values.points} diem`);
+        message.success(`Đã trừ ${values.points} điểm`);
       }
       setPointsModalOpen(false);
       pointsForm.resetFields();
       fetchCustomers();
     } catch {
-      message.warning('Khong the xu ly diem');
+      message.warning('Không thể xử lý điểm');
     }
   };
 
@@ -364,12 +362,12 @@ const HospitalPharmacy: React.FC = () => {
     try {
       const values = await shiftForm.validateFields();
       await pharmacyApi.openShift({ openingCash: values.openingCash, notes: values.notes });
-      message.success('Da mo ca lam viec');
+      message.success('Đã mở ca làm việc');
       setOpenShiftModalOpen(false);
       shiftForm.resetFields();
       fetchShifts();
     } catch {
-      message.warning('Khong the mo ca');
+      message.warning('Không thể mở ca');
     }
   };
 
@@ -378,13 +376,13 @@ const HospitalPharmacy: React.FC = () => {
     try {
       const values = await closeShiftForm.validateFields();
       await pharmacyApi.closeShift({ shiftId: closingShift.id, closingCash: values.closingCash, notes: values.notes });
-      message.success('Da dong ca lam viec');
+      message.success('Đã đóng ca làm việc');
       setCloseShiftModalOpen(false);
       setClosingShift(null);
       closeShiftForm.resetFields();
       fetchShifts();
     } catch {
-      message.warning('Khong the dong ca');
+      message.warning('Không thể đóng ca');
     }
   };
 
@@ -401,12 +399,12 @@ const HospitalPharmacy: React.FC = () => {
         humidity: values.humidity,
         actionTaken: values.actionTaken,
       });
-      message.success('Da luu ban ghi GPP');
+      message.success('Đã lưu bản ghi GPP');
       setGppModalOpen(false);
       gppForm.resetFields();
       fetchGppRecords();
     } catch {
-      message.warning('Khong the luu ban ghi GPP');
+      message.warning('Không thể lưu bản ghi GPP');
     }
   };
 
@@ -421,31 +419,31 @@ const HospitalPharmacy: React.FC = () => {
         saleAmount: values.saleAmount,
         commissionRate: values.commissionRate,
       });
-      message.success('Da luu hoa hong');
+      message.success('Đã lưu hoa hồng');
       setCommissionModalOpen(false);
       commissionForm.resetFields();
       fetchCommissions();
     } catch {
-      message.warning('Khong the luu hoa hong');
+      message.warning('Không thể lưu hoa hồng');
     }
   };
 
   const handlePayCommissions = async () => {
-    if (selectedCommissionIds.length === 0) { message.warning('Vui long chon hoa hong can thanh toan'); return; }
+    if (selectedCommissionIds.length === 0) { message.warning('Vui lòng chọn hoa hồng cần thanh toán'); return; }
     try {
       await pharmacyApi.payCommissions(selectedCommissionIds);
-      message.success(`Da thanh toan ${selectedCommissionIds.length} khoan hoa hong`);
+      message.success(`Đã thanh toán ${selectedCommissionIds.length} khoản hoa hồng`);
       setSelectedCommissionIds([]);
       fetchCommissions();
     } catch {
-      message.warning('Khong the thanh toan hoa hong');
+      message.warning('Không thể thanh toán hoa hồng');
     }
   };
 
   // Cart columns
   const cartColumns: ColumnsType<CartItem> = [
-    { title: 'Ten thuoc', dataIndex: 'medicineName', key: 'medicineName', width: 250, ellipsis: true },
-    { title: 'DVT', dataIndex: 'unit', key: 'unit', width: 80 },
+    { title: 'Tên thuốc', dataIndex: 'medicineName', key: 'medicineName', width: 250, ellipsis: true },
+    { title: 'ĐVT', dataIndex: 'unit', key: 'unit', width: 80 },
     {
       title: 'SL',
       dataIndex: 'quantity',
@@ -462,20 +460,20 @@ const HospitalPharmacy: React.FC = () => {
       ),
     },
     {
-      title: 'Don gia',
+      title: 'Đơn giá',
       dataIndex: 'unitPrice',
       key: 'unitPrice',
       width: 120,
       align: 'right',
-      render: (v: number) => v.toLocaleString() + ' d',
+      render: (v: number) => v.toLocaleString() + ' đ',
     },
     {
-      title: 'Thanh tien',
+      title: 'Thành tiền',
       dataIndex: 'amount',
       key: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <strong>{v.toLocaleString()} d</strong>,
+      render: (v: number) => <strong>{v.toLocaleString()} đ</strong>,
     },
     {
       title: '',
@@ -489,16 +487,16 @@ const HospitalPharmacy: React.FC = () => {
 
   // Sales history columns
   const salesColumns: ColumnsType<RetailSaleDto> = [
-    { title: 'Ma don', dataIndex: 'saleCode', key: 'saleCode', width: 130 },
-    { title: 'Khach hang', dataIndex: 'customerName', key: 'customerName', width: 160, render: (v: string) => v || 'Khach le' },
-    { title: 'SDT', dataIndex: 'customerPhone', key: 'customerPhone', width: 120, render: (v: string) => v || '-' },
+    { title: 'Mã đơn', dataIndex: 'saleCode', key: 'saleCode', width: 130 },
+    { title: 'Khách hàng', dataIndex: 'customerName', key: 'customerName', width: 160, render: (v: string) => v || 'Khách lẻ' },
+    { title: 'SĐT', dataIndex: 'customerPhone', key: 'customerPhone', width: 120, render: (v: string) => v || '-' },
     {
-      title: 'Tong tien',
+      title: 'Tổng tiền',
       dataIndex: 'finalAmount',
       key: 'finalAmount',
       width: 130,
       align: 'right',
-      render: (v: number) => (v || 0).toLocaleString() + ' d',
+      render: (v: number) => (v || 0).toLocaleString() + ' đ',
     },
     {
       title: 'PTTT',
@@ -508,14 +506,14 @@ const HospitalPharmacy: React.FC = () => {
       render: (v: number) => <Tag color={PAYMENT_COLORS[v]}>{PAYMENT_LABELS[v] || 'Khac'}</Tag>,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 110,
       render: (s: number) =>
-        s === 0 ? <Tag color="orange">Cho</Tag> :
-        s === 1 ? <Tag color="green">Hoan thanh</Tag> :
-        <Tag color="red">Da huy</Tag>,
+        s === 0 ? <Tag color="orange">Chờ</Tag> :
+        s === 1 ? <Tag color="green">Hoàn thành</Tag> :
+        <Tag color="red">Đã hủy</Tag>,
     },
     {
       title: 'Ngay',
@@ -528,13 +526,13 @@ const HospitalPharmacy: React.FC = () => {
 
   // Stock columns
   const stockColumns: ColumnsType<MedicineSearchResultDto> = [
-    { title: 'Ma thuoc', dataIndex: 'medicineCode', key: 'medicineCode', width: 120 },
-    { title: 'Ten thuoc', dataIndex: 'medicineName', key: 'medicineName', width: 250, ellipsis: true },
-    { title: 'Hoat chat', dataIndex: 'activeIngredient', key: 'activeIngredient', width: 200, ellipsis: true },
-    { title: 'DVT', dataIndex: 'unit', key: 'unit', width: 80 },
-    { title: 'Don gia', dataIndex: 'unitPrice', key: 'unitPrice', width: 120, align: 'right', render: (v: number) => (v || 0).toLocaleString() + ' d' },
+    { title: 'Mã thuốc', dataIndex: 'medicineCode', key: 'medicineCode', width: 120 },
+    { title: 'Tên thuốc', dataIndex: 'medicineName', key: 'medicineName', width: 250, ellipsis: true },
+    { title: 'Hoạt chất', dataIndex: 'activeIngredient', key: 'activeIngredient', width: 200, ellipsis: true },
+    { title: 'ĐVT', dataIndex: 'unit', key: 'unit', width: 80 },
+    { title: 'Đơn giá', dataIndex: 'unitPrice', key: 'unitPrice', width: 120, align: 'right', render: (v: number) => (v || 0).toLocaleString() + ' đ' },
     {
-      title: 'Ton kho',
+      title: 'Tồn kho',
       dataIndex: 'stockQuantity',
       key: 'stockQuantity',
       width: 100,
@@ -545,9 +543,9 @@ const HospitalPharmacy: React.FC = () => {
         </span>
       ),
     },
-    { title: 'So lo', dataIndex: 'batchNumber', key: 'batchNumber', width: 100 },
+    { title: 'Số lô', dataIndex: 'batchNumber', key: 'batchNumber', width: 100 },
     {
-      title: 'Han dung',
+      title: 'Hạn dùng',
       dataIndex: 'expiryDate',
       key: 'expiryDate',
       width: 110,
@@ -562,16 +560,16 @@ const HospitalPharmacy: React.FC = () => {
   // Revenue columns
   const revenueColumns: ColumnsType<PharmacyRevenueDto> = [
     { title: 'Ngay', dataIndex: 'date', key: 'date', width: 120, render: (d: string) => dayjs(d).format('DD/MM/YYYY') },
-    { title: 'So don', dataIndex: 'totalSales', key: 'totalSales', width: 100, align: 'right' },
-    { title: 'Doanh thu', dataIndex: 'totalAmount', key: 'totalAmount', width: 150, align: 'right', render: (v: number) => (v || 0).toLocaleString() + ' d' },
-    { title: 'Chiet khau', dataIndex: 'totalDiscount', key: 'totalDiscount', width: 130, align: 'right', render: (v: number) => (v || 0).toLocaleString() + ' d' },
+    { title: 'Số đơn', dataIndex: 'totalSales', key: 'totalSales', width: 100, align: 'right' },
+    { title: 'Doanh thu', dataIndex: 'totalAmount', key: 'totalAmount', width: 150, align: 'right', render: (v: number) => (v || 0).toLocaleString() + ' đ' },
+    { title: 'Chiết khấu', dataIndex: 'totalDiscount', key: 'totalDiscount', width: 130, align: 'right', render: (v: number) => (v || 0).toLocaleString() + ' đ' },
     {
-      title: 'Thuc thu',
+      title: 'Thực thu',
       dataIndex: 'netRevenue',
       key: 'netRevenue',
       width: 150,
       align: 'right',
-      render: (v: number) => <strong>{(v || 0).toLocaleString()} d</strong>,
+      render: (v: number) => <strong>{(v || 0).toLocaleString()} đ</strong>,
     },
   ];
 
@@ -580,20 +578,20 @@ const HospitalPharmacy: React.FC = () => {
       key: 'retail',
       label: (
         <span>
-          <ShoppingCartOutlined /> Ban le
+          <ShoppingCartOutlined /> Bán lẻ
         </span>
       ),
       children: (
         <>
           <Row gutter={16}>
             <Col xs={24} md={16}>
-              <Card title="Tim thuoc" size="small" style={{ marginBottom: 16 }}>
+              <Card title="Tìm thuốc" size="small" style={{ marginBottom: 16 }}>
                 <AutoComplete
                   style={{ width: '100%' }}
                   options={searchResults}
                   onSearch={handleMedicineSearch}
                   onSelect={handleAddToCart}
-                  placeholder="Nhap ten thuoc de tim kiem..."
+                  placeholder="Nhập tên thuốc để tìm kiếm..."
                 />
               </Card>
               <Table
@@ -603,43 +601,43 @@ const HospitalPharmacy: React.FC = () => {
                 size="small"
                 pagination={false}
                 scroll={{ x: 730 }}
-                locale={{ emptyText: 'Chua co thuoc trong gio hang' }}
+                locale={{ emptyText: 'Chưa có thuốc trong giỏ hàng' }}
               />
             </Col>
             <Col xs={24} md={8}>
-              <Card title="Thong tin don" size="small">
+              <Card title="Thông tin đơn" size="small">
                 <Form layout="vertical">
-                  <Form.Item label="Ten khach hang">
+                  <Form.Item label="Tên khách hàng">
                     <Input
-                      placeholder="Tuy chon"
+                      placeholder="Tùy chọn"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                     />
                   </Form.Item>
-                  <Form.Item label="SDT">
+                  <Form.Item label="SĐT">
                     <Input
-                      placeholder="Tuy chon"
+                      placeholder="Tùy chọn"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                     />
                   </Form.Item>
-                  <Form.Item label="Phuong thuc TT">
+                  <Form.Item label="Phương thức TT">
                     <Select
                       value={paymentMethod}
                       onChange={setPaymentMethod}
                       options={[
-                        { label: 'Tien mat', value: 0 },
-                        { label: 'The', value: 1 },
-                        { label: 'Chuyen khoan', value: 2 },
+                        { label: 'Tiền mặt', value: 0 },
+                        { label: 'Thẻ', value: 1 },
+                        { label: 'Chuyển khoản', value: 2 },
                       ]}
                     />
                   </Form.Item>
                   <Divider />
                   <div style={{ marginBottom: 8 }}>
-                    <Text>Tong tien: </Text>
-                    <Text strong style={{ float: 'right' }}>{cartTotal.toLocaleString()} d</Text>
+                    <Text>Tổng tiền: </Text>
+                    <Text strong style={{ float: 'right' }}>{cartTotal.toLocaleString()} đ</Text>
                   </div>
-                  <Form.Item label="Chiet khau">
+                  <Form.Item label="Chiết khấu">
                     <InputNumber
                       min={0}
                       max={cartTotal}
@@ -650,9 +648,9 @@ const HospitalPharmacy: React.FC = () => {
                     />
                   </Form.Item>
                   <div style={{ marginBottom: 16, fontSize: 18 }}>
-                    <Text strong>Thanh tien: </Text>
+                    <Text strong>Thành tiền: </Text>
                     <Text strong style={{ float: 'right', color: '#1890ff', fontSize: 20 }}>
-                      {finalAmount.toLocaleString()} d
+                      {finalAmount.toLocaleString()} đ
                     </Text>
                   </div>
                   <Button
@@ -664,7 +662,7 @@ const HospitalPharmacy: React.FC = () => {
                     loading={submitting}
                     disabled={cart.length === 0}
                   >
-                    Thanh toan
+                    Thanh toán
                   </Button>
                 </Form>
               </Card>
@@ -675,12 +673,12 @@ const HospitalPharmacy: React.FC = () => {
     },
     {
       key: 'history',
-      label: 'Lich su ban',
+      label: 'Lịch sử bán',
       children: (
         <>
           <div style={{ marginBottom: 16 }}>
             <Search
-              placeholder="Tim don, khach hang, SDT..."
+              placeholder="Tìm đơn, khách hàng, SĐT..."
               onSearch={setHistoryKeyword}
               allowClear
               style={{ width: 300 }}
@@ -698,7 +696,7 @@ const HospitalPharmacy: React.FC = () => {
               pageSize: pagination.pageSize,
               total: salesTotalCount,
               showSizeChanger: true,
-              showTotal: (total) => `Tong ${total} don`,
+              showTotal: (total) => `Tổng ${total} đơn`,
               onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
             }}
           />
@@ -707,12 +705,12 @@ const HospitalPharmacy: React.FC = () => {
     },
     {
       key: 'stock',
-      label: 'Ton kho',
+      label: 'Tồn kho',
       children: (
         <>
           <div style={{ marginBottom: 16 }}>
             <Search
-              placeholder="Tim thuoc, ma thuoc, hoat chat..."
+              placeholder="Tìm thuốc, mã thuốc, hoạt chất..."
               onSearch={setStockKeyword}
               allowClear
               style={{ width: 300 }}
@@ -728,7 +726,7 @@ const HospitalPharmacy: React.FC = () => {
             pagination={{
               total: stockTotalCount,
               showSizeChanger: true,
-              showTotal: (total) => `Tong ${total} mat hang`,
+              showTotal: (total) => `Tổng ${total} mặt hàng`,
             }}
           />
         </>
@@ -738,13 +736,13 @@ const HospitalPharmacy: React.FC = () => {
       key: 'report',
       label: (
         <span>
-          <BarChartOutlined /> Bao cao
+          <BarChartOutlined /> Báo cáo
         </span>
       ),
       children: (
         <>
           <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
-            <Text>Thoi gian:</Text>
+            <Text>Thời gian:</Text>
             <RangePicker
               value={reportDateRange}
               onChange={(dates) => {
@@ -755,7 +753,7 @@ const HospitalPharmacy: React.FC = () => {
               format="DD/MM/YYYY"
             />
             <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-              In bao cao
+              In báo cáo
             </Button>
           </div>
           <Table
@@ -773,11 +771,11 @@ const HospitalPharmacy: React.FC = () => {
               const totalNet = data.reduce((s, r) => s + r.netRevenue, 0);
               return (
                 <Table.Summary.Row>
-                  <Table.Summary.Cell index={0}><strong>Tong cong</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={0}><strong>Tổng cộng</strong></Table.Summary.Cell>
                   <Table.Summary.Cell index={1} align="right"><strong>{totalSales}</strong></Table.Summary.Cell>
-                  <Table.Summary.Cell index={2} align="right"><strong>{totalAmount.toLocaleString()} d</strong></Table.Summary.Cell>
-                  <Table.Summary.Cell index={3} align="right"><strong>{totalDiscount.toLocaleString()} d</strong></Table.Summary.Cell>
-                  <Table.Summary.Cell index={4} align="right"><strong>{totalNet.toLocaleString()} d</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={2} align="right"><strong>{totalAmount.toLocaleString()} đ</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={3} align="right"><strong>{totalDiscount.toLocaleString()} đ</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={4} align="right"><strong>{totalNet.toLocaleString()} đ</strong></Table.Summary.Cell>
                 </Table.Summary.Row>
               );
             }}
@@ -790,14 +788,14 @@ const HospitalPharmacy: React.FC = () => {
       key: 'customers',
       label: (
         <span>
-          <TeamOutlined /> Khach hang
+          <TeamOutlined /> Khách hàng
         </span>
       ),
       children: (
         <>
           <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
             <Search
-              placeholder="Tim khach hang, SDT, the..."
+              placeholder="Tìm khách hàng, SĐT, thẻ..."
               onSearch={(val) => pharmacyApi.getCustomers({ keyword: val || undefined }).then(setCustomers)}
               allowClear
               style={{ width: 300 }}
@@ -814,7 +812,7 @@ const HospitalPharmacy: React.FC = () => {
               ]}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingCustomer(null); customerForm.resetFields(); setCustomerModalOpen(true); }}>
-              Them khach hang
+              Thêm khách hàng
             </Button>
           </div>
           <Table
@@ -823,9 +821,9 @@ const HospitalPharmacy: React.FC = () => {
             size="small"
             scroll={{ x: 1100 }}
             columns={[
-              { title: 'Ma KH', dataIndex: 'customerCode', key: 'customerCode', width: 100 },
-              { title: 'Ho ten', dataIndex: 'fullName', key: 'fullName', width: 180 },
-              { title: 'SDT', dataIndex: 'phone', key: 'phone', width: 120, render: (v: string) => v || '-' },
+              { title: 'Mã KH', dataIndex: 'customerCode', key: 'customerCode', width: 100 },
+              { title: 'Họ tên', dataIndex: 'fullName', key: 'fullName', width: 180 },
+              { title: 'SĐT', dataIndex: 'phone', key: 'phone', width: 120, render: (v: string) => v || '-' },
               {
                 title: 'Loai',
                 dataIndex: 'customerType',
@@ -834,11 +832,11 @@ const HospitalPharmacy: React.FC = () => {
                 render: (v: number) =>
                   v === 2 ? <Tag color="gold">VIP</Tag> :
                   v === 3 ? <Tag color="blue">NV</Tag> :
-                  <Tag>Thuong</Tag>,
+                  <Tag>Thường</Tag>,
               },
-              { title: 'So the', dataIndex: 'cardNumber', key: 'cardNumber', width: 120, render: (v: string) => v || '-' },
+              { title: 'Số thẻ', dataIndex: 'cardNumber', key: 'cardNumber', width: 120, render: (v: string) => v || '-' },
               {
-                title: 'Diem',
+                title: 'Điểm',
                 dataIndex: 'totalPoints',
                 key: 'totalPoints',
                 width: 80,
@@ -846,21 +844,21 @@ const HospitalPharmacy: React.FC = () => {
                 render: (v: number) => <Tag color="green">{v}</Tag>,
               },
               {
-                title: 'Tong mua',
+                title: 'Tổng mua',
                 dataIndex: 'totalPurchaseAmount',
                 key: 'totalPurchaseAmount',
                 width: 130,
                 align: 'right',
-                render: (v: number) => (v || 0).toLocaleString() + ' d',
+                render: (v: number) => (v || 0).toLocaleString() + ' đ',
               },
-              { title: 'So don', dataIndex: 'totalPurchaseCount', key: 'totalPurchaseCount', width: 80, align: 'right' },
+              { title: 'Số đơn', dataIndex: 'totalPurchaseCount', key: 'totalPurchaseCount', width: 80, align: 'right' },
               {
                 title: '',
                 key: 'actions',
                 width: 180,
                 render: (_: unknown, record: PharmacyCustomerDto) => (
                   <Space>
-                    <Tooltip title="Sua">
+                    <Tooltip title="Sửa">
                       <Button size="small" icon={<EditOutlined />} onClick={() => {
                         setEditingCustomer(record);
                         customerForm.setFieldsValue({
@@ -870,7 +868,7 @@ const HospitalPharmacy: React.FC = () => {
                         setCustomerModalOpen(true);
                       }} />
                     </Tooltip>
-                    <Tooltip title="Diem">
+                    <Tooltip title="Điểm">
                       <Button size="small" icon={<GiftOutlined />} onClick={() => { setPointsCustomer(record); pointsForm.resetFields(); setPointsModalOpen(true); }} />
                     </Tooltip>
                   </Space>
@@ -880,7 +878,7 @@ const HospitalPharmacy: React.FC = () => {
           />
           {/* Customer Modal */}
           <Modal
-            title={editingCustomer ? 'Sua khach hang' : 'Them khach hang'}
+            title={editingCustomer ? 'Sửa khách hàng' : 'Thêm khách hàng'}
             open={customerModalOpen}
             onOk={handleSaveCustomer}
             onCancel={() => { setCustomerModalOpen(false); setEditingCustomer(null); }}
@@ -888,12 +886,12 @@ const HospitalPharmacy: React.FC = () => {
             cancelText="Huy"
           >
             <Form form={customerForm} layout="vertical">
-              <Form.Item name="fullName" label="Ho ten" rules={[{ required: true, message: 'Nhap ho ten' }]}>
+              <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
                 <Input />
               </Form.Item>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="phone" label="SDT">
+                  <Form.Item name="phone" label="SĐT">
                     <Input />
                   </Form.Item>
                 </Col>
@@ -905,29 +903,29 @@ const HospitalPharmacy: React.FC = () => {
               </Row>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="customerType" label="Loai KH" initialValue={1}>
-                    <Select options={[{ label: 'Thuong', value: 1 }, { label: 'VIP', value: 2 }, { label: 'Nhan vien', value: 3 }]} />
+                  <Form.Item name="customerType" label="Loại KH" initialValue={1}>
+                    <Select options={[{ label: 'Thường', value: 1 }, { label: 'VIP', value: 2 }, { label: 'Nhân viên', value: 3 }]} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="cardNumber" label="So the">
+                  <Form.Item name="cardNumber" label="Số thẻ">
                     <Input />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="dateOfBirth" label="Ngay sinh">
+                  <Form.Item name="dateOfBirth" label="Ngày sinh">
                     <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="gender" label="Gioi tinh">
+                  <Form.Item name="gender" label="Giới tính">
                     <Select allowClear options={[{ label: 'Nam', value: 1 }, { label: 'Nu', value: 0 }]} />
                   </Form.Item>
                 </Col>
               </Row>
-              <Form.Item name="address" label="Dia chi">
+              <Form.Item name="address" label="Địa chỉ">
                 <Input />
               </Form.Item>
               <Form.Item name="notes" label="Ghi chu">
@@ -937,17 +935,17 @@ const HospitalPharmacy: React.FC = () => {
           </Modal>
           {/* Points Modal */}
           <Modal
-            title={`Quan ly diem - ${pointsCustomer?.fullName || ''} (${pointsCustomer?.totalPoints || 0} diem)`}
+            title={`Quản lý điểm - ${pointsCustomer?.fullName || ''} (${pointsCustomer?.totalPoints || 0} điểm)`}
             open={pointsModalOpen}
             onCancel={() => setPointsModalOpen(false)}
             footer={[
               <Button key="cancel" onClick={() => setPointsModalOpen(false)}>Huy</Button>,
-              <Button key="redeem" icon={<MinusCircleOutlined />} onClick={() => handleAddRedeemPoints('redeem')}>Doi diem</Button>,
-              <Button key="add" type="primary" icon={<GiftOutlined />} onClick={() => handleAddRedeemPoints('add')}>Cong diem</Button>,
+              <Button key="redeem" icon={<MinusCircleOutlined />} onClick={() => handleAddRedeemPoints('redeem')}>Đổi điểm</Button>,
+              <Button key="add" type="primary" icon={<GiftOutlined />} onClick={() => handleAddRedeemPoints('add')}>Cộng điểm</Button>,
             ]}
           >
             <Form form={pointsForm} layout="vertical">
-              <Form.Item name="points" label="So diem" rules={[{ required: true, message: 'Nhap so diem' }]}>
+              <Form.Item name="points" label="Số điểm" rules={[{ required: true, message: 'Nhập số điểm' }]}>
                 <InputNumber min={1} style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name="description" label="Mo ta">
@@ -962,7 +960,7 @@ const HospitalPharmacy: React.FC = () => {
       key: 'shifts',
       label: (
         <span>
-          <ClockCircleOutlined /> Ca lam viec
+          <ClockCircleOutlined /> Ca làm việc
         </span>
       ),
       children: (
@@ -979,25 +977,25 @@ const HospitalPharmacy: React.FC = () => {
             size="small"
             scroll={{ x: 1100 }}
             columns={[
-              { title: 'Ma ca', dataIndex: 'shiftCode', key: 'shiftCode', width: 130 },
-              { title: 'Thu ngan', dataIndex: 'cashierName', key: 'cashierName', width: 150, render: (v: string) => v || '-' },
-              { title: 'Bat dau', dataIndex: 'startTime', key: 'startTime', width: 150, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '-' },
-              { title: 'Ket thuc', dataIndex: 'endTime', key: 'endTime', width: 150, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '-' },
+              { title: 'Mã ca', dataIndex: 'shiftCode', key: 'shiftCode', width: 130 },
+              { title: 'Thu ngân', dataIndex: 'cashierName', key: 'cashierName', width: 150, render: (v: string) => v || '-' },
+              { title: 'Bắt đầu', dataIndex: 'startTime', key: 'startTime', width: 150, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '-' },
+              { title: 'Kết thúc', dataIndex: 'endTime', key: 'endTime', width: 150, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '-' },
               {
-                title: 'Tien dau ca',
+                title: 'Tiền đầu ca',
                 dataIndex: 'openingCash',
                 key: 'openingCash',
                 width: 130,
                 align: 'right',
-                render: (v: number) => (v || 0).toLocaleString() + ' d',
+                render: (v: number) => (v || 0).toLocaleString() + ' đ',
               },
               {
-                title: 'Tien cuoi ca',
+                title: 'Tiền cuối ca',
                 dataIndex: 'closingCash',
                 key: 'closingCash',
                 width: 130,
                 align: 'right',
-                render: (v: number) => (v || 0).toLocaleString() + ' d',
+                render: (v: number) => (v || 0).toLocaleString() + ' đ',
               },
               {
                 title: 'Doanh thu',
@@ -1005,14 +1003,14 @@ const HospitalPharmacy: React.FC = () => {
                 key: 'totalSales',
                 width: 130,
                 align: 'right',
-                render: (v: number) => <strong>{(v || 0).toLocaleString()} d</strong>,
+                render: (v: number) => <strong>{(v || 0).toLocaleString()} đ</strong>,
               },
               {
                 title: 'Trang thai',
                 dataIndex: 'status',
                 key: 'status',
                 width: 100,
-                render: (v: number) => v === 1 ? <Tag color="green">Dang mo</Tag> : <Tag>Da dong</Tag>,
+                render: (v: number) => v === 1 ? <Tag color="green">Đang mở</Tag> : <Tag>Đã đóng</Tag>,
               },
               {
                 title: '',
@@ -1021,7 +1019,7 @@ const HospitalPharmacy: React.FC = () => {
                 render: (_: unknown, record: PharmacyShiftDto) =>
                   record.status === 1 ? (
                     <Button size="small" icon={<CheckOutlined />} onClick={() => { setClosingShift(record); closeShiftForm.resetFields(); setCloseShiftModalOpen(true); }}>
-                      Dong ca
+                      Đóng ca
                     </Button>
                   ) : null,
               },
@@ -1029,7 +1027,7 @@ const HospitalPharmacy: React.FC = () => {
           />
           {/* Open Shift Modal */}
           <Modal
-            title="Mo ca lam viec"
+            title="Mở ca làm việc"
             open={openShiftModalOpen}
             onOk={handleOpenShift}
             onCancel={() => setOpenShiftModalOpen(false)}
@@ -1037,7 +1035,7 @@ const HospitalPharmacy: React.FC = () => {
             cancelText="Huy"
           >
             <Form form={shiftForm} layout="vertical">
-              <Form.Item name="openingCash" label="Tien dau ca" rules={[{ required: true, message: 'Nhap tien dau ca' }]}>
+              <Form.Item name="openingCash" label="Tiền đầu ca" rules={[{ required: true, message: 'Nhập tiền đầu ca' }]}>
                 <InputNumber min={0} style={{ width: '100%' }} formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
               </Form.Item>
               <Form.Item name="notes" label="Ghi chu">
@@ -1047,7 +1045,7 @@ const HospitalPharmacy: React.FC = () => {
           </Modal>
           {/* Close Shift Modal */}
           <Modal
-            title={`Dong ca - ${closingShift?.shiftCode || ''}`}
+            title={`Đóng ca - ${closingShift?.shiftCode || ''}`}
             open={closeShiftModalOpen}
             onOk={handleCloseShift}
             onCancel={() => { setCloseShiftModalOpen(false); setClosingShift(null); }}
@@ -1057,13 +1055,13 @@ const HospitalPharmacy: React.FC = () => {
             {closingShift && (
               <div style={{ marginBottom: 16 }}>
                 <Row gutter={16}>
-                  <Col span={12}><Statistic title="Tien dau ca" value={closingShift.openingCash} suffix="d" /></Col>
-                  <Col span={12}><Statistic title="Doanh thu" value={closingShift.totalSales} suffix="d" /></Col>
+                  <Col span={12}><Statistic title="Tiền đầu ca" value={closingShift.openingCash} suffix="đ" /></Col>
+                  <Col span={12}><Statistic title="Doanh thu" value={closingShift.totalSales} suffix="đ" /></Col>
                 </Row>
               </div>
             )}
             <Form form={closeShiftForm} layout="vertical">
-              <Form.Item name="closingCash" label="Tien cuoi ca (kiem dem)" rules={[{ required: true, message: 'Nhap tien cuoi ca' }]}>
+              <Form.Item name="closingCash" label="Tiền cuối ca (kiểm đếm)" rules={[{ required: true, message: 'Nhập tiền cuối ca' }]}>
                 <InputNumber min={0} style={{ width: '100%' }} formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
               </Form.Item>
               <Form.Item name="notes" label="Ghi chu">
@@ -1078,7 +1076,7 @@ const HospitalPharmacy: React.FC = () => {
       key: 'gpp',
       label: (
         <span>
-          <SafetyOutlined /> So GPP
+          <SafetyOutlined /> Sổ GPP
         </span>
       ),
       children: (
@@ -1091,14 +1089,14 @@ const HospitalPharmacy: React.FC = () => {
               value={gppFilterType}
               onChange={(val) => setGppFilterType(val)}
               options={[
-                { label: 'ADR (Phan ung thuoc)', value: 1 },
-                { label: 'Dinh chi thuoc', value: 2 },
-                { label: 'Nhiet do', value: 3 },
-                { label: 'Do am', value: 4 },
+                { label: 'ADR (Phản ứng thuốc)', value: 1 },
+                { label: 'Đình chỉ thuốc', value: 2 },
+                { label: 'Nhiệt độ', value: 3 },
+                { label: 'Độ ẩm', value: 4 },
               ]}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { gppForm.resetFields(); setGppModalOpen(true); }}>
-              Them ban ghi
+              Thêm bản ghi
             </Button>
             <Button icon={<ReloadOutlined />} onClick={fetchGppRecords}>Lam moi</Button>
           </div>
@@ -1116,27 +1114,27 @@ const HospitalPharmacy: React.FC = () => {
                 render: (v: number) => {
                   const labels: Record<number, { text: string; color: string }> = {
                     1: { text: 'ADR', color: 'red' },
-                    2: { text: 'Dinh chi', color: 'orange' },
-                    3: { text: 'Nhiet do', color: 'blue' },
-                    4: { text: 'Do am', color: 'cyan' },
+                    2: { text: 'Đình chỉ', color: 'orange' },
+                    3: { text: 'Nhiệt độ', color: 'blue' },
+                    4: { text: 'Độ ẩm', color: 'cyan' },
                   };
                   const l = labels[v] || { text: 'Khac', color: 'default' };
                   return <Tag color={l.color}>{l.text}</Tag>;
                 },
               },
               { title: 'Ngay', dataIndex: 'recordDate', key: 'recordDate', width: 120, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-              { title: 'Ten thuoc', dataIndex: 'medicineName', key: 'medicineName', width: 200, ellipsis: true, render: (v: string) => v || '-' },
-              { title: 'So lo', dataIndex: 'batchNumber', key: 'batchNumber', width: 100, render: (v: string) => v || '-' },
-              { title: 'Nhiet do', dataIndex: 'temperature', key: 'temperature', width: 90, align: 'right', render: (v: number) => v != null ? `${v} C` : '-' },
-              { title: 'Do am', dataIndex: 'humidity', key: 'humidity', width: 90, align: 'right', render: (v: number) => v != null ? `${v}%` : '-' },
+              { title: 'Tên thuốc', dataIndex: 'medicineName', key: 'medicineName', width: 200, ellipsis: true, render: (v: string) => v || '-' },
+              { title: 'Số lô', dataIndex: 'batchNumber', key: 'batchNumber', width: 100, render: (v: string) => v || '-' },
+              { title: 'Nhiệt độ', dataIndex: 'temperature', key: 'temperature', width: 90, align: 'right', render: (v: number) => v != null ? `${v} C` : '-' },
+              { title: 'Độ ẩm', dataIndex: 'humidity', key: 'humidity', width: 90, align: 'right', render: (v: number) => v != null ? `${v}%` : '-' },
               { title: 'Mo ta', dataIndex: 'description', key: 'description', width: 250, ellipsis: true },
-              { title: 'Xu ly', dataIndex: 'actionTaken', key: 'actionTaken', width: 200, ellipsis: true, render: (v: string) => v || '-' },
-              { title: 'Nguoi ghi', dataIndex: 'recordedByName', key: 'recordedByName', width: 130, render: (v: string) => v || '-' },
+              { title: 'Xử lý', dataIndex: 'actionTaken', key: 'actionTaken', width: 200, ellipsis: true, render: (v: string) => v || '-' },
+              { title: 'Người ghi', dataIndex: 'recordedByName', key: 'recordedByName', width: 130, render: (v: string) => v || '-' },
             ]}
           />
           {/* GPP Record Modal */}
           <Modal
-            title="Them ban ghi GPP"
+            title="Thêm bản ghi GPP"
             open={gppModalOpen}
             onOk={handleSaveGppRecord}
             onCancel={() => setGppModalOpen(false)}
@@ -1147,12 +1145,12 @@ const HospitalPharmacy: React.FC = () => {
             <Form form={gppForm} layout="vertical">
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="recordType" label="Loai ban ghi" rules={[{ required: true, message: 'Chon loai' }]}>
+                  <Form.Item name="recordType" label="Loại bản ghi" rules={[{ required: true, message: 'Chọn loại' }]}>
                     <Select options={[
-                      { label: 'ADR (Phan ung thuoc)', value: 1 },
-                      { label: 'Dinh chi thuoc', value: 2 },
-                      { label: 'Nhiet do', value: 3 },
-                      { label: 'Do am', value: 4 },
+                      { label: 'ADR (Phản ứng thuốc)', value: 1 },
+                      { label: 'Đình chỉ thuốc', value: 2 },
+                      { label: 'Nhiệt độ', value: 3 },
+                      { label: 'Độ ẩm', value: 4 },
                     ]} />
                   </Form.Item>
                 </Col>
@@ -1164,24 +1162,24 @@ const HospitalPharmacy: React.FC = () => {
               </Row>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="medicineName" label="Ten thuoc">
+                  <Form.Item name="medicineName" label="Tên thuốc">
                     <Input />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="batchNumber" label="So lo">
+                  <Form.Item name="batchNumber" label="Số lô">
                     <Input />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="temperature" label="Nhiet do (C)">
+                  <Form.Item name="temperature" label="Nhiệt độ (C)">
                     <InputNumber style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="humidity" label="Do am (%)">
+                  <Form.Item name="humidity" label="Độ ẩm (%)">
                     <InputNumber min={0} max={100} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
@@ -1189,7 +1187,7 @@ const HospitalPharmacy: React.FC = () => {
               <Form.Item name="description" label="Mo ta">
                 <Input.TextArea rows={2} />
               </Form.Item>
-              <Form.Item name="actionTaken" label="Bien phap xu ly">
+              <Form.Item name="actionTaken" label="Biện pháp xử lý">
                 <Input.TextArea rows={2} />
               </Form.Item>
             </Form>
@@ -1201,14 +1199,14 @@ const HospitalPharmacy: React.FC = () => {
       key: 'commission',
       label: (
         <span>
-          <PercentageOutlined /> Hoa hong
+          <PercentageOutlined /> Hoa hồng
         </span>
       ),
       children: (
         <>
           <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
             <Search
-              placeholder="Tim bac si, thuoc..."
+              placeholder="Tìm bác sĩ, thuốc..."
               onSearch={(val) => pharmacyApi.getCommissions({ keyword: val || undefined }).then(setCommissions)}
               allowClear
               style={{ width: 250 }}
@@ -1219,19 +1217,19 @@ const HospitalPharmacy: React.FC = () => {
               style={{ width: 150 }}
               onChange={(val) => pharmacyApi.getCommissions({ status: val }).then(setCommissions)}
               options={[
-                { label: 'Cho thanh toan', value: 1 },
-                { label: 'Da thanh toan', value: 2 },
+                { label: 'Chờ thanh toán', value: 1 },
+                { label: 'Đã thanh toán', value: 2 },
               ]}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { commissionForm.resetFields(); setCommissionModalOpen(true); }}>
-              Them hoa hong
+              Thêm hoa hồng
             </Button>
             <Button
               icon={<DollarOutlined />}
               disabled={selectedCommissionIds.length === 0}
               onClick={handlePayCommissions}
             >
-              Thanh toan ({selectedCommissionIds.length})
+              Thanh toán ({selectedCommissionIds.length})
             </Button>
           </div>
           <Table
@@ -1245,20 +1243,20 @@ const HospitalPharmacy: React.FC = () => {
               getCheckboxProps: (record: PharmacyCommissionDto) => ({ disabled: record.status === 2 }),
             }}
             columns={[
-              { title: 'Bac si', dataIndex: 'doctorName', key: 'doctorName', width: 160 },
-              { title: 'Ngay ban', dataIndex: 'saleDate', key: 'saleDate', width: 110, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-              { title: 'Thuoc', dataIndex: 'medicineName', key: 'medicineName', width: 200, ellipsis: true },
+              { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctorName', width: 160 },
+              { title: 'Ngày bán', dataIndex: 'saleDate', key: 'saleDate', width: 110, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+              { title: 'Thuốc', dataIndex: 'medicineName', key: 'medicineName', width: 200, ellipsis: true },
               { title: 'SL', dataIndex: 'quantity', key: 'quantity', width: 70, align: 'right' },
               {
-                title: 'Doanh so',
+                title: 'Doanh số',
                 dataIndex: 'saleAmount',
                 key: 'saleAmount',
                 width: 130,
                 align: 'right',
-                render: (v: number) => (v || 0).toLocaleString() + ' d',
+                render: (v: number) => (v || 0).toLocaleString() + ' đ',
               },
               {
-                title: 'Ti le',
+                title: 'Tỉ lệ',
                 dataIndex: 'commissionRate',
                 key: 'commissionRate',
                 width: 80,
@@ -1266,19 +1264,19 @@ const HospitalPharmacy: React.FC = () => {
                 render: (v: number) => `${v}%`,
               },
               {
-                title: 'Hoa hong',
+                title: 'Hoa hồng',
                 dataIndex: 'commissionAmount',
                 key: 'commissionAmount',
                 width: 130,
                 align: 'right',
-                render: (v: number) => <strong>{(v || 0).toLocaleString()} d</strong>,
+                render: (v: number) => <strong>{(v || 0).toLocaleString()} đ</strong>,
               },
               {
                 title: 'Trang thai',
                 dataIndex: 'status',
                 key: 'status',
                 width: 120,
-                render: (v: number) => v === 2 ? <Tag color="green">Da TT</Tag> : <Tag color="orange">Cho TT</Tag>,
+                render: (v: number) => v === 2 ? <Tag color="green">Đã TT</Tag> : <Tag color="orange">Chờ TT</Tag>,
               },
               {
                 title: 'Ngay TT',
@@ -1293,10 +1291,10 @@ const HospitalPharmacy: React.FC = () => {
               const totalComm = data.reduce((s, r) => s + r.commissionAmount, 0);
               return (
                 <Table.Summary.Row>
-                  <Table.Summary.Cell index={0} colSpan={5}><strong>Tong cong</strong></Table.Summary.Cell>
-                  <Table.Summary.Cell index={5} align="right"><strong>{totalSale.toLocaleString()} d</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={0} colSpan={5}><strong>Tổng cộng</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={5} align="right"><strong>{totalSale.toLocaleString()} đ</strong></Table.Summary.Cell>
                   <Table.Summary.Cell index={6} />
-                  <Table.Summary.Cell index={7} align="right"><strong>{totalComm.toLocaleString()} d</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={7} align="right"><strong>{totalComm.toLocaleString()} đ</strong></Table.Summary.Cell>
                   <Table.Summary.Cell index={8} />
                   <Table.Summary.Cell index={9} />
                 </Table.Summary.Row>
@@ -1305,7 +1303,7 @@ const HospitalPharmacy: React.FC = () => {
           />
           {/* Commission Modal */}
           <Modal
-            title="Them hoa hong"
+            title="Thêm hoa hồng"
             open={commissionModalOpen}
             onOk={handleSaveCommission}
             onCancel={() => setCommissionModalOpen(false)}
@@ -1313,34 +1311,34 @@ const HospitalPharmacy: React.FC = () => {
             cancelText="Huy"
           >
             <Form form={commissionForm} layout="vertical">
-              <Form.Item name="doctorName" label="Bac si" rules={[{ required: true, message: 'Nhap ten bac si' }]}>
+              <Form.Item name="doctorName" label="Bác sĩ" rules={[{ required: true, message: 'Nhập tên bác sĩ' }]}>
                 <Input />
               </Form.Item>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="medicineName" label="Thuoc" rules={[{ required: true, message: 'Nhap ten thuoc' }]}>
+                  <Form.Item name="medicineName" label="Thuốc" rules={[{ required: true, message: 'Nhập tên thuốc' }]}>
                     <Input />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="saleDate" label="Ngay ban" rules={[{ required: true, message: 'Chon ngay' }]}>
+                  <Form.Item name="saleDate" label="Ngày bán" rules={[{ required: true, message: 'Chọn ngày' }]}>
                     <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item name="quantity" label="So luong" rules={[{ required: true }]}>
+                  <Form.Item name="quantity" label="Số lượng" rules={[{ required: true }]}>
                     <InputNumber min={0} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="saleAmount" label="Doanh so (d)" rules={[{ required: true }]}>
+                  <Form.Item name="saleAmount" label="Doanh số (đ)" rules={[{ required: true }]}>
                     <InputNumber min={0} style={{ width: '100%' }} formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="commissionRate" label="Ti le (%)" rules={[{ required: true }]}>
+                  <Form.Item name="commissionRate" label="Tỉ lệ (%)" rules={[{ required: true }]}>
                     <InputNumber min={0} max={100} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
@@ -1361,7 +1359,7 @@ const HospitalPharmacy: React.FC = () => {
             <Col>
               <Title level={4} style={{ margin: 0 }}>
                 <ShopOutlined style={{ marginRight: 8 }} />
-                Nha thuoc benh vien
+                Nhà thuốc bệnh viện
               </Title>
             </Col>
             <Col>
@@ -1377,9 +1375,9 @@ const HospitalPharmacy: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Doanh thu hom nay"
+                title="Doanh thu hôm nay"
                 value={dashboard.todayRevenue}
-                suffix="d"
+                suffix="đ"
                 precision={0}
                 prefix={<DollarOutlined />}
                 styles={{ content: { color: '#faad14' } }}
@@ -1389,7 +1387,7 @@ const HospitalPharmacy: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="So don hom nay"
+                title="Số đơn hôm nay"
                 value={dashboard.todaySaleCount}
                 prefix={<ShoppingCartOutlined />}
                 styles={{ content: { color: '#1890ff' } }}
@@ -1399,7 +1397,7 @@ const HospitalPharmacy: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Ton kho canh bao"
+                title="Tồn kho cảnh báo"
                 value={dashboard.lowStockCount}
                 prefix={<ExclamationCircleOutlined />}
                 styles={{ content: { color: dashboard.lowStockCount > 0 ? '#ff4d4f' : '#52c41a' } }}

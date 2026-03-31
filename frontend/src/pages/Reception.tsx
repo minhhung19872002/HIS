@@ -355,7 +355,8 @@ const Reception: React.FC = () => {
       title: 'Số thẻ BHYT',
       dataIndex: 'insuranceNumber',
       key: 'insuranceNumber',
-      width: 140,
+      width: 160,
+      ellipsis: true,
     },
     {
       title: 'Phòng khám',
@@ -980,9 +981,8 @@ const Reception: React.FC = () => {
         <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Tổng BN hôm nay"
+              title={<span><UserOutlined style={{ marginRight: 6 }} />Tổng BN hôm nay</span>}
               value={data.length}
-              prefix={<UserOutlined />}
               styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
@@ -990,9 +990,8 @@ const Reception: React.FC = () => {
         <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Đang chờ khám"
+              title={<span><Badge status="warning" text="" style={{ marginRight: 4 }} />Đang chờ khám</span>}
               value={data.filter(d => d.status === 0).length}
-              prefix={<Badge status="warning" />}
               styles={{ content: { color: '#faad14' } }}
             />
           </Card>
@@ -1000,9 +999,8 @@ const Reception: React.FC = () => {
         <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Đang khám"
+              title={<span><Badge status="processing" text="" style={{ marginRight: 4 }} />Đang khám</span>}
               value={data.filter(d => d.status === 1).length}
-              prefix={<Badge status="processing" />}
               styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
@@ -1010,9 +1008,8 @@ const Reception: React.FC = () => {
         <Col xs={12} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Hoàn thành"
+              title={<span><CheckCircleOutlined style={{ marginRight: 6 }} />Hoàn thành</span>}
               value={data.filter(d => d.status === 3).length}
-              prefix={<CheckCircleOutlined />}
               styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
@@ -1577,7 +1574,8 @@ const Reception: React.FC = () => {
                   placeholder="Chọn phòng khám"
                   loading={loadingRooms}
                   notFoundContent={loadingRooms ? <Spin size="small" /> : 'Không có dữ liệu'}
-                  options={rooms.map(room => ({ value: room.roomId, label: `${room.roomName} - ${room.departmentName}` }))}
+                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
+                  options={rooms.filter(room => room.roomName).map(room => ({ value: room.roomId, label: `${room.roomName} - ${room.departmentName}` }))}
                 />
               </Form.Item>
             </Col>
@@ -1774,8 +1772,11 @@ const Reception: React.FC = () => {
                 </Form.Item>
               </Col>
               <Col span={6}>
-                <Form.Item name="gender" label="Giới tính">
-                  <Input />
+                <Form.Item name="gender" label="Giới tính" rules={[{ required: true, message: 'Chọn giới tính' }]}>
+                  <Select placeholder="Chọn" getPopupContainer={(trigger) => trigger.parentElement || document.body} options={[
+                    { value: 1, label: 'Nam' },
+                    { value: 2, label: 'Nữ' },
+                  ]} />
                 </Form.Item>
               </Col>
             </Row>

@@ -96,6 +96,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Lấy danh sách bệnh nhân trong phòng khám
     /// </summary>
     [HttpGet("room/{roomId}/patients")]
+    [HttpGet("rooms/{roomId}/patients")]
     public async Task<ActionResult<List<RoomPatientListDto>>> GetRoomPatientList(
         Guid roomId,
         [FromQuery] DateTime? date = null,

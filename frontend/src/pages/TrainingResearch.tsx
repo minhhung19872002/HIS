@@ -24,33 +24,33 @@ import type {
 const { TextArea } = Input;
 
 const TRAINING_TYPES: Record<number, { label: string; color: string }> = {
-  1: { label: 'Noi bo', color: 'blue' },
-  2: { label: 'Ben ngoai', color: 'green' },
+  1: { label: 'Nội bộ', color: 'blue' },
+  2: { label: 'Bên ngoài', color: 'green' },
   3: { label: 'CME', color: 'purple' },
-  4: { label: 'Chi dao tuyen', color: 'orange' },
+  4: { label: 'Chỉ đạo tuyến', color: 'orange' },
 };
 
 const CLASS_STATUS: Record<number, { label: string; color: string }> = {
-  1: { label: 'Ke hoach', color: 'default' },
-  2: { label: 'Dang dien ra', color: 'processing' },
-  3: { label: 'Hoan thanh', color: 'success' },
-  4: { label: 'Huy', color: 'error' },
+  1: { label: 'Kế hoạch', color: 'default' },
+  2: { label: 'Đang diễn ra', color: 'processing' },
+  3: { label: 'Hoàn thành', color: 'success' },
+  4: { label: 'Hủy', color: 'error' },
 };
 
-const DIRECTION_TYPES: Record<number, string> = { 1: 'Tuyen tren', 2: 'Tuyen duoi' };
+const DIRECTION_TYPES: Record<number, string> = { 1: 'Tuyến trên', 2: 'Tuyến dưới' };
 const DIRECTION_STATUS: Record<number, { label: string; color: string }> = {
-  1: { label: 'Ke hoach', color: 'default' },
-  2: { label: 'Dang thuc hien', color: 'processing' },
-  3: { label: 'Hoan thanh', color: 'success' },
+  1: { label: 'Kế hoạch', color: 'default' },
+  2: { label: 'Đang thực hiện', color: 'processing' },
+  3: { label: 'Hoàn thành', color: 'success' },
 };
 
-const RESEARCH_LEVELS: Record<number, string> = { 1: 'Cap Quoc gia', 2: 'Cap Bo', 3: 'Cap Co so' };
+const RESEARCH_LEVELS: Record<number, string> = { 1: 'Cấp Quốc gia', 2: 'Cấp Bộ', 3: 'Cấp Cơ sở' };
 const RESEARCH_STATUS: Record<number, { label: string; color: string }> = {
-  1: { label: 'De xuat', color: 'default' },
-  2: { label: 'Duyet', color: 'cyan' },
-  3: { label: 'Dang thuc hien', color: 'processing' },
-  4: { label: 'Hoan thanh', color: 'success' },
-  5: { label: 'Da cong bo', color: 'gold' },
+  1: { label: 'Đề xuất', color: 'default' },
+  2: { label: 'Duyệt', color: 'cyan' },
+  3: { label: 'Đang thực hiện', color: 'processing' },
+  4: { label: 'Hoàn thành', color: 'success' },
+  5: { label: 'Đã công bố', color: 'gold' },
 };
 
 const PIE_COLORS = ['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#eb2f96', '#13c2c2'];
@@ -166,13 +166,13 @@ const TrainingResearch: React.FC = () => {
         endDate: values.endDate?.format('YYYY-MM-DD'),
       };
       await saveTrainingClass(payload, editingClass?.id);
-      message.success(editingClass ? 'Cap nhat lop thanh cong' : 'Tao lop thanh cong');
+      message.success(editingClass ? 'Cập nhật lớp thành công' : 'Tạo lớp thành công');
       setClassModalOpen(false);
       classForm.resetFields();
       setEditingClass(null);
       fetchClasses();
     } catch {
-      message.warning('Vui long dien day du thong tin');
+      message.warning('Vui lòng điền đầy đủ thông tin');
     }
   };
 
@@ -201,13 +201,13 @@ const TrainingResearch: React.FC = () => {
     try {
       const values = await enrollForm.validateFields();
       await enrollStudent({ ...values, classId: selectedClass!.id });
-      message.success('Dang ky hoc vien thanh cong');
+      message.success('Đăng ký học viên thành công');
       setStudentModalOpen(false);
       enrollForm.resetFields();
       const s = await getClassStudents(selectedClass!.id);
       setStudents(s);
     } catch {
-      message.warning('Vui long dien day du thong tin');
+      message.warning('Vui lòng điền đầy đủ thông tin');
     }
   };
 
@@ -218,14 +218,14 @@ const TrainingResearch: React.FC = () => {
         certificateNumber: values.certificateNumber,
         certificateDate: values.certificateDate?.format('YYYY-MM-DD'),
       });
-      message.success('Cap chung chi thanh cong');
+      message.success('Cấp chứng chỉ thành công');
       setCertModalOpen(false);
       certForm.resetFields();
       setCertStudent(null);
       const s = await getClassStudents(selectedClass!.id);
       setStudents(s);
     } catch {
-      message.warning('Vui long dien day du thong tin');
+      message.warning('Vui lòng điền đầy đủ thông tin');
     }
   };
 
@@ -239,13 +239,13 @@ const TrainingResearch: React.FC = () => {
         endDate: values.endDate?.format('YYYY-MM-DD'),
       };
       await saveClinicalDirection(payload, editingDir?.id);
-      message.success(editingDir ? 'Cap nhat thanh cong' : 'Tao moi thanh cong');
+      message.success(editingDir ? 'Cập nhật thành công' : 'Tạo mới thành công');
       setDirModalOpen(false);
       dirForm.resetFields();
       setEditingDir(null);
       fetchDirections();
     } catch {
-      message.warning('Vui long dien day du thong tin');
+      message.warning('Vui lòng điền đầy đủ thông tin');
     }
   };
 
@@ -273,13 +273,13 @@ const TrainingResearch: React.FC = () => {
         endDate: values.endDate?.format('YYYY-MM-DD'),
       };
       await saveResearchProject(payload, editingProj?.id);
-      message.success(editingProj ? 'Cap nhat thanh cong' : 'Tao moi thanh cong');
+      message.success(editingProj ? 'Cập nhật thành công' : 'Tạo mới thành công');
       setProjModalOpen(false);
       projForm.resetFields();
       setEditingProj(null);
       fetchProjects();
     } catch {
-      message.warning('Vui long dien day du thong tin');
+      message.warning('Vui lòng điền đầy đủ thông tin');
     }
   };
 
@@ -299,21 +299,21 @@ const TrainingResearch: React.FC = () => {
 
   // ---- Columns ----
   const classColumns: ColumnsType<TrainingClassDto> = [
-    { title: 'Ma lop', dataIndex: 'classCode', key: 'classCode', width: 100 },
-    { title: 'Ten lop', dataIndex: 'className', key: 'className', ellipsis: true },
+    { title: 'Mã lớp', dataIndex: 'classCode', key: 'classCode', width: 100 },
+    { title: 'Tên lớp', dataIndex: 'className', key: 'className', ellipsis: true },
     {
       title: 'Loai', dataIndex: 'trainingType', key: 'trainingType', width: 120,
       render: (v: number) => <Tag color={TRAINING_TYPES[v]?.color}>{TRAINING_TYPES[v]?.label}</Tag>,
     },
-    { title: 'Bat dau', dataIndex: 'startDate', key: 'startDate', width: 110 },
-    { title: 'Ket thuc', dataIndex: 'endDate', key: 'endDate', width: 110 },
+    { title: 'Bắt đầu', dataIndex: 'startDate', key: 'startDate', width: 110 },
+    { title: 'Kết thúc', dataIndex: 'endDate', key: 'endDate', width: 110 },
     {
-      title: 'Si so', key: 'enrolled', width: 80,
+      title: 'Sĩ số', key: 'enrolled', width: 80,
       render: (_: unknown, r: TrainingClassDto) => `${r.enrolledCount}/${r.maxStudents}`,
     },
-    { title: 'Tin chi', dataIndex: 'creditHours', key: 'creditHours', width: 70 },
+    { title: 'Tín chỉ', dataIndex: 'creditHours', key: 'creditHours', width: 70 },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 120,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 120,
       render: (v: number) => <Badge status={CLASS_STATUS[v]?.color as 'default'} text={CLASS_STATUS[v]?.label} />,
     },
     {
@@ -325,24 +325,24 @@ const TrainingResearch: React.FC = () => {
   ];
 
   const studentColumns: ColumnsType<TrainingStudentDto> = [
-    { title: 'Ho ten', key: 'name', render: (_: unknown, r: TrainingStudentDto) => r.staffName || r.externalName },
+    { title: 'Họ tên', key: 'name', render: (_: unknown, r: TrainingStudentDto) => r.staffName || r.externalName },
     {
       title: 'Loai', dataIndex: 'studentType', key: 'studentType', width: 100,
       render: (v: number) => v === 1 ? 'Noi bo' : v === 2 ? 'Ben ngoai' : 'Thuc tap',
     },
     {
-      title: 'Trang thai', dataIndex: 'attendanceStatus', key: 'attendanceStatus', width: 110,
-      render: (v: number) => <Tag color={v === 3 ? 'green' : v === 4 ? 'red' : 'blue'}>{v === 1 ? 'Da DK' : v === 2 ? 'Dang hoc' : v === 3 ? 'Hoan thanh' : 'Bo hoc'}</Tag>,
+      title: 'Trạng thái', dataIndex: 'attendanceStatus', key: 'attendanceStatus', width: 110,
+      render: (v: number) => <Tag color={v === 3 ? 'green' : v === 4 ? 'red' : 'blue'}>{v === 1 ? 'Đã ĐK' : v === 2 ? 'Đang học' : v === 3 ? 'Hoan thanh' : 'Bỏ học'}</Tag>,
     },
-    { title: 'Diem', dataIndex: 'score', key: 'score', width: 70 },
-    { title: 'So chung chi', dataIndex: 'certificateNumber', key: 'cert', width: 130 },
+    { title: 'Điểm', dataIndex: 'score', key: 'score', width: 70 },
+    { title: 'Số chứng chỉ', dataIndex: 'certificateNumber', key: 'cert', width: 130 },
     {
       title: '', key: 'actions', width: 100,
       render: (_: unknown, r: TrainingStudentDto) => (
         <Space>
           {r.attendanceStatus < 3 && (
-            <Button size="small" onClick={() => updateStudentStatus(r.id, { attendanceStatus: r.attendanceStatus + 1 }).then(() => { message.success('Cap nhat'); handleClassRowClick(selectedClass!); })}>
-              {r.attendanceStatus === 1 ? 'Bat dau' : 'Hoan thanh'}
+            <Button size="small" onClick={() => updateStudentStatus(r.id, { attendanceStatus: r.attendanceStatus + 1 }).then(() => { message.success('Cập nhật'); handleClassRowClick(selectedClass!); })}>
+              {r.attendanceStatus === 1 ? 'Bắt đầu' : 'Hoan thanh'}
             </Button>
           )}
           {r.attendanceStatus === 3 && !r.certificateNumber && (
@@ -360,15 +360,15 @@ const TrainingResearch: React.FC = () => {
       title: 'Loai', dataIndex: 'directionType', key: 'directionType', width: 120,
       render: (v: number) => <Tag color={v === 1 ? 'blue' : 'green'}>{DIRECTION_TYPES[v]}</Tag>,
     },
-    { title: 'Benh vien doi tac', dataIndex: 'partnerHospital', key: 'partner', ellipsis: true },
-    { title: 'Bat dau', dataIndex: 'startDate', key: 'startDate', width: 110 },
-    { title: 'Ket thuc', dataIndex: 'endDate', key: 'endDate', width: 110 },
-    { title: 'Muc tieu', dataIndex: 'objectives', key: 'objectives', ellipsis: true },
+    { title: 'Bệnh viện đối tác', dataIndex: 'partnerHospital', key: 'partner', ellipsis: true },
+    { title: 'Bắt đầu', dataIndex: 'startDate', key: 'startDate', width: 110 },
+    { title: 'Kết thúc', dataIndex: 'endDate', key: 'endDate', width: 110 },
+    { title: 'Mục tiêu', dataIndex: 'objectives', key: 'objectives', ellipsis: true },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 130,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130,
       render: (v: number) => <Badge status={DIRECTION_STATUS[v]?.color as 'default'} text={DIRECTION_STATUS[v]?.label} />,
     },
-    { title: 'BS phu trach', dataIndex: 'responsibleDoctorName', key: 'doctor', width: 150 },
+    { title: 'BS phụ trách', dataIndex: 'responsibleDoctorName', key: 'doctor', width: 150 },
     {
       title: '', key: 'actions', width: 50,
       render: (_: unknown, r: ClinicalDirectionDto) => (
@@ -379,19 +379,19 @@ const TrainingResearch: React.FC = () => {
 
   const projColumns: ColumnsType<ResearchProjectDto> = [
     { title: 'Ma', dataIndex: 'projectCode', key: 'code', width: 100 },
-    { title: 'Ten de tai', dataIndex: 'title', key: 'title', ellipsis: true },
+    { title: 'Tên đề tài', dataIndex: 'title', key: 'title', ellipsis: true },
     {
       title: 'Cap', dataIndex: 'level', key: 'level', width: 120,
       render: (v: number) => RESEARCH_LEVELS[v],
     },
-    { title: 'Chu nhiem', dataIndex: 'principalInvestigatorName', key: 'pi', width: 150 },
-    { title: 'Bat dau', dataIndex: 'startDate', key: 'start', width: 110 },
+    { title: 'Chủ nhiệm', dataIndex: 'principalInvestigatorName', key: 'pi', width: 150 },
+    { title: 'Bắt đầu', dataIndex: 'startDate', key: 'start', width: 110 },
     {
-      title: 'Ngan sach', dataIndex: 'budget', key: 'budget', width: 120,
+      title: 'Ngân sách', dataIndex: 'budget', key: 'budget', width: 120,
       render: (v: number) => v > 0 ? `${(v / 1_000_000).toFixed(0)} trieu` : '-',
     },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 130,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130,
       render: (v: number) => <Tag color={RESEARCH_STATUS[v]?.color}>{RESEARCH_STATUS[v]?.label}</Tag>,
     },
     {
@@ -403,19 +403,19 @@ const TrainingResearch: React.FC = () => {
   ];
 
   const creditColumns: ColumnsType<CreditSummaryDto> = [
-    { title: 'Nhan vien', dataIndex: 'staffName', key: 'name' },
+    { title: 'Nhân viên', dataIndex: 'staffName', key: 'name' },
     { title: 'Khoa', dataIndex: 'departmentName', key: 'dept', width: 150 },
-    { title: 'Tin chi', dataIndex: 'totalCredits', key: 'credits', width: 80 },
-    { title: 'Yeu cau', dataIndex: 'requiredCredits', key: 'required', width: 80 },
+    { title: 'Tín chỉ', dataIndex: 'totalCredits', key: 'credits', width: 80 },
+    { title: 'Yêu cầu', dataIndex: 'requiredCredits', key: 'required', width: 80 },
     {
-      title: 'Tien do', key: 'progress', width: 200,
+      title: 'Tiến độ', key: 'progress', width: 200,
       render: (_: unknown, r: CreditSummaryDto) => (
         <Progress percent={Math.round(r.compliancePercent)} size="small" status={r.isCompliant ? 'success' : 'exception'} />
       ),
     },
     {
-      title: 'Trang thai', key: 'compliant', width: 100,
-      render: (_: unknown, r: CreditSummaryDto) => r.isCompliant ? <Tag color="green">Dat</Tag> : <Tag color="red">Chua dat</Tag>,
+      title: 'Trạng thái', key: 'compliant', width: 100,
+      render: (_: unknown, r: CreditSummaryDto) => r.isCompliant ? <Tag color="green">Đạt</Tag> : <Tag color="red">Chưa đạt</Tag>,
     },
   ];
 
@@ -424,16 +424,16 @@ const TrainingResearch: React.FC = () => {
   const renderClasses = () => (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Select placeholder="Loai dao tao" allowClear style={{ width: 150 }}
+        <Select placeholder="Loại đào tạo" allowClear style={{ width: 150 }}
           onChange={(v) => setClassFilter(f => ({ ...f, type: v }))}
           options={Object.entries(TRAINING_TYPES).map(([k, v]) => ({ value: Number(k), label: v.label }))}
         />
-        <Select placeholder="Trang thai" allowClear style={{ width: 150 }}
+        <Select placeholder="Trạng thái" allowClear style={{ width: 150 }}
           onChange={(v) => setClassFilter(f => ({ ...f, status: v }))}
           options={Object.entries(CLASS_STATUS).map(([k, v]) => ({ value: Number(k), label: v.label }))}
         />
-        <Button icon={<ReloadOutlined />} onClick={fetchClasses}>Lam moi</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => openClassModal()}>Tao lop</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchClasses}>Làm mới</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openClassModal()}>Tạo lớp</Button>
       </Space>
 
       <Row gutter={16}>
@@ -445,8 +445,8 @@ const TrainingResearch: React.FC = () => {
         </Col>
         {selectedClass && (
           <Col span={10}>
-            <Card title={`Hoc vien: ${selectedClass.className}`} size="small"
-              extra={<Button size="small" icon={<PlusOutlined />} onClick={() => setStudentModalOpen(true)}>Them</Button>}>
+            <Card title={`Học viên: ${selectedClass.className}`} size="small"
+              extra={<Button size="small" icon={<PlusOutlined />} onClick={() => setStudentModalOpen(true)}>Thêm</Button>}>
               <Table dataSource={students} columns={studentColumns} rowKey="id" size="small" pagination={false} />
             </Card>
           </Col>
@@ -458,8 +458,8 @@ const TrainingResearch: React.FC = () => {
   const renderDirections = () => (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={fetchDirections}>Lam moi</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => openDirModal()}>Them moi</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchDirections}>Làm mới</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openDirModal()}>Thêm mới</Button>
       </Space>
       <Table dataSource={directions} columns={dirColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
     </div>
@@ -468,16 +468,16 @@ const TrainingResearch: React.FC = () => {
   const renderResearch = () => (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Select placeholder="Cap" allowClear style={{ width: 140 }}
+        <Select placeholder="Cấp" allowClear style={{ width: 140 }}
           onChange={(v) => setProjFilter(f => ({ ...f, level: v }))}
           options={Object.entries(RESEARCH_LEVELS).map(([k, v]) => ({ value: Number(k), label: v }))}
         />
-        <Select placeholder="Trang thai" allowClear style={{ width: 140 }}
+        <Select placeholder="Trạng thái" allowClear style={{ width: 140 }}
           onChange={(v) => setProjFilter(f => ({ ...f, status: v }))}
           options={Object.entries(RESEARCH_STATUS).map(([k, v]) => ({ value: Number(k), label: v.label }))}
         />
-        <Button icon={<ReloadOutlined />} onClick={fetchProjects}>Lam moi</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => openProjModal()}>Them de tai</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchProjects}>Làm mới</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openProjModal()}>Thêm đề tài</Button>
       </Space>
       <Table dataSource={projects} columns={projColumns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
     </div>
@@ -485,7 +485,7 @@ const TrainingResearch: React.FC = () => {
 
   const renderCertificates = () => (
     <div>
-      <Card title="Tong hop tin chi CME theo nhan vien" size="small">
+      <Card title="Tổng hợp tín chỉ CME theo nhân viên" size="small">
         <Table dataSource={creditSummary} columns={creditColumns} rowKey="staffId" size="small" pagination={{ pageSize: 20 }} />
       </Card>
     </div>
@@ -497,12 +497,12 @@ const TrainingResearch: React.FC = () => {
     return (
       <div>
         <Row gutter={[16, 16]}>
-          <Col xs={12} sm={6}><Card><Statistic title="Tong lop" value={dashboard.totalClasses} prefix={<BookOutlined />} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Tổng lớp" value={dashboard.totalClasses} prefix={<BookOutlined />} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Dang dien ra" value={dashboard.activeClasses} prefix={<TeamOutlined />} styles={{ content: { color: '#1890ff' } }} /></Card></Col>
-          <Col xs={12} sm={6}><Card><Statistic title="Hoc vien" value={dashboard.totalStudents} prefix={<TeamOutlined />} /></Card></Col>
-          <Col xs={12} sm={6}><Card><Statistic title="Chung chi cap" value={dashboard.certificatesIssued} prefix={<SafetyCertificateOutlined />} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
-          <Col xs={12} sm={6}><Card><Statistic title="De tai NCKH" value={dashboard.researchProjects} prefix={<ExperimentOutlined />} /></Card></Col>
-          <Col xs={12} sm={6}><Card><Statistic title="Da cong bo" value={dashboard.researchPublished} prefix={<TrophyOutlined />} styles={{ content: { color: '#faad14' } }} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Học viên" value={dashboard.totalStudents} prefix={<TeamOutlined />} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Chứng chỉ cấp" value={dashboard.certificatesIssued} prefix={<SafetyCertificateOutlined />} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Đề tài NCKH" value={dashboard.researchProjects} prefix={<ExperimentOutlined />} /></Card></Col>
+          <Col xs={12} sm={6}><Card><Statistic title="Đã công bố" value={dashboard.researchPublished} prefix={<TrophyOutlined />} styles={{ content: { color: '#faad14' } }} /></Card></Col>
           <Col xs={12} sm={6}><Card><Statistic title="Chi dao tuyen" value={dashboard.clinicalDirections} /></Card></Col>
           <Col xs={12} sm={6}>
             <Card>
@@ -514,7 +514,7 @@ const TrainingResearch: React.FC = () => {
         </Row>
         <Row gutter={16} style={{ marginTop: 16 }}>
           <Col span={12}>
-            <Card title="Lop theo loai dao tao" size="small">
+            <Card title="Lớp theo loại đào tạo" size="small">
               {pieData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
@@ -525,11 +525,11 @@ const TrainingResearch: React.FC = () => {
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
-              ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chua co du lieu</div>}
+              ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chưa có dữ liệu</div>}
             </Card>
           </Col>
           <Col span={12}>
-            <Card title="De tai NCKH theo trang thai" size="small">
+            <Card title="Đề tài NCKH theo trạng thái" size="small">
               {dashboard.projectsByStatus.length > 0 ? (
                 <div style={{ padding: '16px 0' }}>
                   {dashboard.projectsByStatus.map(p => (
@@ -540,7 +540,7 @@ const TrainingResearch: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chua co du lieu</div>}
+              ) : <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Chưa có dữ liệu</div>}
             </Card>
           </Col>
         </Row>
@@ -549,10 +549,10 @@ const TrainingResearch: React.FC = () => {
   };
 
   const tabItems = [
-    { key: 'classes', label: 'Lop dao tao', children: renderClasses() },
-    { key: 'directions', label: 'Chi dao tuyen', children: renderDirections() },
-    { key: 'research', label: 'Nghien cuu KH', children: renderResearch() },
-    { key: 'certificates', label: 'Chung chi', children: renderCertificates() },
+    { key: 'classes', label: 'Lớp đào tạo', children: renderClasses() },
+    { key: 'directions', label: 'Chỉ đạo tuyến', children: renderDirections() },
+    { key: 'research', label: 'Nghiên cứu KH', children: renderResearch() },
+    { key: 'certificates', label: 'Chứng chỉ', children: renderCertificates() },
     { key: 'dashboard', label: 'Dashboard', children: renderDashboard() },
   ];
 
@@ -563,16 +563,16 @@ const TrainingResearch: React.FC = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
         {/* Class Modal */}
-        <Modal title={editingClass ? 'Sua lop dao tao' : 'Tao lop dao tao'} open={classModalOpen}
+        <Modal title={editingClass ? 'Sửa lớp đào tạo' : 'Tạo lớp đào tạo'} open={classModalOpen}
           onOk={handleSaveClass} onCancel={() => { setClassModalOpen(false); setEditingClass(null); classForm.resetFields(); }} width={600}>
           <Form form={classForm} layout="vertical">
             <Row gutter={16}>
-              <Col span={12}><Form.Item name="classCode" label="Ma lop" rules={[{ required: true }]}><Input /></Form.Item></Col>
-              <Col span={12}><Form.Item name="className" label="Ten lop" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="classCode" label="Mã lớp" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="className" label="Tên lớp" rules={[{ required: true }]}><Input /></Form.Item></Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="trainingType" label="Loai dao tao" rules={[{ required: true }]}>
+                <Form.Item name="trainingType" label="Loại đào tạo" rules={[{ required: true }]}>
                   <Select options={Object.entries(TRAINING_TYPES).map(([k, v]) => ({ value: Number(k), label: v.label }))} />
                 </Form.Item>
               </Col>
@@ -583,16 +583,16 @@ const TrainingResearch: React.FC = () => {
               </Col>
             </Row>
             <Row gutter={16}>
-              <Col span={12}><Form.Item name="startDate" label="Ngay bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="endDate" label="Ngay ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="startDate" label="Ngày bắt đầu" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="endDate" label="Ngày kết thúc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
             <Row gutter={16}>
-              <Col span={8}><Form.Item name="maxStudents" label="Si so toi da" initialValue={30}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={8}><Form.Item name="creditHours" label="Tin chi" initialValue={0}><InputNumber min={0} step={0.5} style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={8}><Form.Item name="fee" label="Hoc phi (VND)" initialValue={0}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="maxStudents" label="Sĩ số tối đa" initialValue={30}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="creditHours" label="Tín chỉ" initialValue={0}><InputNumber min={0} step={0.5} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="fee" label="Học phí (VND)" initialValue={0}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
-            <Form.Item name="location" label="Dia diem"><Input /></Form.Item>
-            <Form.Item name="description" label="Mo ta"><TextArea rows={3} /></Form.Item>
+            <Form.Item name="location" label="Địa điểm"><Input /></Form.Item>
+            <Form.Item name="description" label="Mô tả"><TextArea rows={3} /></Form.Item>
           </Form>
         </Modal>
 
@@ -600,11 +600,11 @@ const TrainingResearch: React.FC = () => {
         <Modal title="Them hoc vien" open={studentModalOpen}
           onOk={handleEnroll} onCancel={() => { setStudentModalOpen(false); enrollForm.resetFields(); }}>
           <Form form={enrollForm} layout="vertical">
-            <Form.Item name="studentType" label="Loai hoc vien" initialValue={1} rules={[{ required: true }]}>
-              <Select options={[{ value: 1, label: 'Noi bo' }, { value: 2, label: 'Ben ngoai' }, { value: 3, label: 'Thuc tap sinh' }]} />
+            <Form.Item name="studentType" label="Loại học viên" initialValue={1} rules={[{ required: true }]}>
+              <Select options={[{ value: 1, label: 'Nội bộ' }, { value: 2, label: 'Bên ngoài' }, { value: 3, label: 'Thực tập sinh' }]} />
             </Form.Item>
-            <Form.Item name="externalName" label="Ho ten (hoc vien ben ngoai)"><Input /></Form.Item>
-            <Form.Item name="notes" label="Ghi chu"><TextArea rows={2} /></Form.Item>
+            <Form.Item name="externalName" label="Họ tên (học viên bên ngoài)"><Input /></Form.Item>
+            <Form.Item name="notes" label="Ghi chú"><TextArea rows={2} /></Form.Item>
           </Form>
         </Modal>
 
@@ -612,18 +612,18 @@ const TrainingResearch: React.FC = () => {
         <Modal title="Cap chung chi" open={certModalOpen}
           onOk={handleIssueCert} onCancel={() => { setCertModalOpen(false); setCertStudent(null); certForm.resetFields(); }}>
           <Form form={certForm} layout="vertical">
-            <Form.Item name="certificateNumber" label="So chung chi" rules={[{ required: true }]}><Input /></Form.Item>
-            <Form.Item name="certificateDate" label="Ngay cap"><DatePicker style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="certificateNumber" label="Số chứng chỉ" rules={[{ required: true }]}><Input /></Form.Item>
+            <Form.Item name="certificateDate" label="Ngày cấp"><DatePicker style={{ width: '100%' }} /></Form.Item>
           </Form>
         </Modal>
 
         {/* Direction Modal */}
-        <Modal title={editingDir ? 'Sua chi dao tuyen' : 'Them chi dao tuyen'} open={dirModalOpen}
+        <Modal title={editingDir ? 'Sửa chỉ đạo tuyến' : 'Them chi dao tuyen'} open={dirModalOpen}
           onOk={handleSaveDir} onCancel={() => { setDirModalOpen(false); setEditingDir(null); dirForm.resetFields(); }} width={600}>
           <Form form={dirForm} layout="vertical">
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="directionType" label="Loai" rules={[{ required: true }]}>
+                <Form.Item name="directionType" label="Loại" rules={[{ required: true }]}>
                   <Select options={[{ value: 1, label: 'Tuyen tren' }, { value: 2, label: 'Tuyen duoi' }]} />
                 </Form.Item>
               </Col>
@@ -633,27 +633,27 @@ const TrainingResearch: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="partnerHospital" label="Benh vien doi tac" rules={[{ required: true }]}><Input /></Form.Item>
+            <Form.Item name="partnerHospital" label="Bệnh viện đối tác" rules={[{ required: true }]}><Input /></Form.Item>
             <Row gutter={16}>
-              <Col span={12}><Form.Item name="startDate" label="Bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="endDate" label="Ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="startDate" label="Bắt đầu" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="endDate" label="Kết thúc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
-            <Form.Item name="objectives" label="Muc tieu"><TextArea rows={3} /></Form.Item>
-            <Form.Item name="notes" label="Ghi chu"><TextArea rows={2} /></Form.Item>
+            <Form.Item name="objectives" label="Mục tiêu"><TextArea rows={3} /></Form.Item>
+            <Form.Item name="notes" label="Ghi chú"><TextArea rows={2} /></Form.Item>
           </Form>
         </Modal>
 
         {/* Research Modal */}
-        <Modal title={editingProj ? 'Sua de tai' : 'Them de tai'} open={projModalOpen}
+        <Modal title={editingProj ? 'Sửa đề tài' : 'Thêm đề tài'} open={projModalOpen}
           onOk={handleSaveProj} onCancel={() => { setProjModalOpen(false); setEditingProj(null); projForm.resetFields(); }} width={600}>
           <Form form={projForm} layout="vertical">
             <Row gutter={16}>
-              <Col span={12}><Form.Item name="projectCode" label="Ma de tai" rules={[{ required: true }]}><Input /></Form.Item></Col>
-              <Col span={12}><Form.Item name="title" label="Ten de tai" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="projectCode" label="Mã đề tài" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="title" label="Tên đề tài" rules={[{ required: true }]}><Input /></Form.Item></Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="level" label="Cap" rules={[{ required: true }]}>
+                <Form.Item name="level" label="Cấp" rules={[{ required: true }]}>
                   <Select options={Object.entries(RESEARCH_LEVELS).map(([k, v]) => ({ value: Number(k), label: v }))} />
                 </Form.Item>
               </Col>
@@ -664,13 +664,13 @@ const TrainingResearch: React.FC = () => {
               </Col>
             </Row>
             <Row gutter={16}>
-              <Col span={12}><Form.Item name="startDate" label="Bat dau" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="endDate" label="Ket thuc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="startDate" label="Bắt đầu" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="endDate" label="Kết thúc"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
-            <Form.Item name="budget" label="Ngan sach (VND)" initialValue={0}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="abstract" label="Tom tat"><TextArea rows={3} /></Form.Item>
+            <Form.Item name="budget" label="Ngân sách (VND)" initialValue={0}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="abstract" label="Tóm tắt"><TextArea rows={3} /></Form.Item>
             <Form.Item name="findings" label="Ket qua"><TextArea rows={3} /></Form.Item>
-            <Form.Item name="publicationInfo" label="Thong tin cong bo"><TextArea rows={2} /></Form.Item>
+            <Form.Item name="publicationInfo" label="Thông tin công bố"><TextArea rows={2} /></Form.Item>
           </Form>
         </Modal>
       </div>

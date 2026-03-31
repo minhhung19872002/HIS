@@ -2343,3 +2343,101 @@
 2. Tab Nhac thuoc: MedicineReminder entity + CRUD + toggle active API + PatientPortal tab
 3. Tab Suc khoe: HealthMetric entity + CRUD + trends API + PatientPortal tab voi recharts LineChart
 4. Tab Hoi dap: PatientQuestion entity + create/list API + PatientPortal tab voi status tags
+
+---
+
+## PHAN 20: TTYT KHU VUC DAK MIL - THUE PHAN MEM EMR 2026
+
+> **Chu dau tu**: Trung tam Y te khu vuc Dak Mil
+> **Gia goi thau**: 810.000.000 VND
+> **Thoi gian**: 12 thang
+> **Dia diem**: Xa Thuan An, Tinh Lam Dong
+> **Hinh thuc**: Chao hang canh tranh, 1 giai doan 1 tui ho so
+
+### 1. HIS - Phan mem quan ly benh vien (17 phan he)
+
+| STT | Phan he | So CN | Trang thai | Module hien tai |
+|-----|---------|-------|------------|-----------------|
+| I | Dang ky KCB | 32 | DA CO | Reception.tsx - tiep don, CCCD, barcode, BHYT, sinh tien kham |
+| II | Kham benh | 43 | DA CO | OPD.tsx - kham, ke don, ICD10, tuong tac thuoc, tu truc |
+| III | Noi tru | 66 | DA CO | Inpatient.tsx - y lenh, giuong, phau thuat, hoi chan, tra thuoc |
+| IV | Phau thuat thu thuat | 16 | DA CO | Surgery.tsx - lich PT, to trinh, gây mê, hao phi |
+| V | CLS Chan doan hinh anh | 12 | DA CO | Radiology.tsx - ket qua, duyet, in, khoa so |
+| VI | CLS Xet nghiem | 11 | DA CO | Laboratory.tsx - barcode, ket qua, canh bao bat thuong, kho mau |
+| VII | Quan ly Duoc | 22 | DA CO | Pharmacy.tsx - nhap/xuat kho, tu truc, duyet, in |
+| VIII | Quan ly Vien phi | 23 | DA CO | Billing.tsx - thu chi, tam ung, hoan ung, hoa don, BHYT |
+| IX | Ke hoach Tong hop | 11 | DA CO | MedicalRecordPlanning.tsx - BA, chuyen vien, muon tra BA |
+| X | Ket noi BHYT | 5 | DA CO | Insurance.tsx - tra cuu, thong tuyen, XML 4210 |
+| XI | Quan tri He thong | 14 | DA CO | SystemAdmin.tsx - phan quyen, luu vet, sao luu, thiet lap |
+| XII | Quan ly Danh muc | 91 | DA CO | MasterData.tsx - 91 danh muc (thanh toan, BHYT, khoa phong, PTTT, duoc, hanh chinh) |
+| XIII | Bao cao Thong ke | 40 | DA CO | Reports.tsx - BHYT (C79/C80/16-21), hanh chinh, CLS, duoc |
+| XIV | Lien thong BYT BHXH | 7 | DA CO | HealthExchange.tsx - don thuoc QG, lai xe, XML 4210, chung sinh/tu |
+| XV | Hoa don dien tu | 5 | DA CO | Billing.tsx - lap, xuat, in, day cong, thong ke HDDT |
+| XVI | Hang doi | 11 | DA CO | QueueDisplay.tsx - rut so, goi loa, LCD, TTS tieng Viet |
+| XVII | Kham suc khoe theo doan | 8 | DA XONG | HealthCheckup.tsx - tab "Doan kham" CRUD, nhom, nhap Excel, goi DV, bao cao chi phi |
+
+**HIS: 17/17 DA XONG (100%)**
+
+### 2. EMR - Phan mem quan ly HSBA dien tu (11 phan he)
+
+| STT | Phan he | So CN | Trang thai | Module hien tai |
+|-----|---------|-------|------------|-----------------|
+| I | Quan tri he thong | 5 | DA CO | SystemAdmin.tsx - tai khoan, phan quyen, dang nhap, mat khau, sao luu |
+| II | Quan ly danh muc | 6 nhom | DA CO | MasterData.tsx - nhan vien, dich vu, thuoc, vat tu, HSBA, ky so |
+| III | Quan ly tien su BN | 2 | DA CO | OPD.tsx + EMR.tsx - lich su kham, di ung thuoc, canh bao |
+| IV | So hoa mau HSBA | 15 loai | DA CO | SpecialtyEMRForms1/2.tsx - ngoai khoa, noi khoa, san, nhi, RHM, TMH, YHCT, huyet hoc, ung buou, bong, tam than, da lieu, mat, truyen nhiem, PHCN |
+| V | So hoa giay phieu y | 10 loai | DA CO | EMRPrintTemplates.tsx + EMRNursingPrintTemplates.tsx - to dieu tri, thu phan ung, cham soc, chuc nang song, gay me, PTTT, truyen mau, truyen dich, hoi chan, chuyen da |
+| VI | So hoa phieu duoc | 2 | DA CO | Prescription.tsx + Pharmacy.tsx - don thuoc, cong khai thuoc |
+| VII | Quan ly BS/DS/NVYT | 8 CN | DA CO | HR.tsx - thong tin, hinh anh, chu ky, tim kiem, danh sach |
+| VIII | Quan ly HSBA | 3 nhom | DA CO | EMR.tsx + EmrManagementTabs.tsx - tong hop, soat HSBA, ban giao |
+| IX | Ky so + Luu tru | 8 nhom | DA CO | SigningWorkflow + CentralSigning - ky so HSBA, giay y, giay duoc, trinh ky, sinh trac hoc (PatientSignaturePad), luu tru XML/HL7 |
+| X | Giam dinh BHXH | 2 nhom | DA CO | BhxhAudit.tsx - tai khoan giam dinh, danh sach HSBA, duyet, gui cong |
+| XI | App Bac sy | 4 nhom | MOBILE APP | Responsive web co, native app can phat trien rieng |
+
+**EMR: 10/11 DA CO, 1 MOBILE APP (XI - can phat trien native)**
+
+### 3. PACS - Phan mem quan ly CDHA (72 nhom chuc nang)
+
+| STT | Nhom | So CN | Trang thai |
+|-----|------|-------|------------|
+| A1-11 | PACS Server (luu tru, nen, modality, DICOM) | 88 | DA CO - Orthanc PACS |
+| B1-18 | RIS/PACS Viewer (2D, do, layout, xuat CD/USB) | 144 | DA CO - DicomViewer.tsx + Orthanc |
+| B19-28 | Tim kiem, ket qua, noi soi, loang xuong, chuc nang phoi | 80 | DA CO |
+| B29-51 | Sieu am, CAVI, GPB, video, in dia, chia se, thong ke | 184 | DA CO |
+| B52-72 | GPB nang cao, video capture, CD/DVD, ROI, MPR 3D, mach, TeleRad | ~160 | DA CO |
+
+**PACS: DA CO (Orthanc PACS + DicomViewer.tsx + Radiology.tsx)**
+
+### 4. Canh bao nghiep vu (3.1.9)
+
+| STT | Nhom | So CB | Trang thai |
+|-----|------|-------|------------|
+| I | Canh bao kham benh | 10 | DA CO - BusinessAlertService (drug interaction, allergy, ICD, hoat chat, tuoi, tran) |
+| II | Canh bao noi tru | 14 | DA CO - BusinessAlertService (giuong ghep, qua lieu, ty le, cam theo benh, trung hoat chat, CCHN, han the) |
+| III | Canh bao CDHA | 4 | DA CO - BusinessAlertService (trung gio, qua so ca, thoi gian DV) |
+| IV | Canh bao xet nghiem | 3 | DA CO - BusinessAlertService (qua so ca, thoi gian DV) |
+| V | Canh bao duoc | 1 | DA CO - BusinessAlertService (thuoc sap het han) |
+| VI | Canh bao vien phi | 2 | DA CO - BusinessAlertService (kiem tra truoc thanh toan, gia DV) |
+
+**Canh bao: 34/34 DA CO (56+ rules trong BusinessAlertService)**
+
+### Tong hop NangCap20
+
+| Module | DA CO | CAN BO SUNG | MOBILE | Tong |
+|--------|-------|-------------|--------|------|
+| HIS (17 phan he) | 17 | 0 | 0 | 17 |
+| EMR (11 phan he) | 10 | 0 | 1 | 11 |
+| PACS (~72 nhom) | 72 | 0 | 0 | 72 |
+| Canh bao (34 muc) | 34 | 0 | 0 | 34 |
+| **Tong** | **133** | **0** | **1** | **134** |
+
+### Trang thai: DA THUC HIEN (133/134 software features, 1 mobile app native)
+
+**Feature da bo sung (Session 39 - 2026-03-31):**
+1. XVII. Kham suc khoe theo doan: Tab "Doan kham" trong HealthCheckup.tsx
+   - CRUD dot kham (campaign): ten, cong ty, lien he, loai kham, goi DV, giam gia, trang thai
+   - Quan ly nhom (groups): phan nhom, phan phong kham, theo doi tien do
+   - Import Excel: doc CSV/TSV, phan tich header, tao HealthCheckupRecord tu dong
+   - Bao cao chi phi: tong chi phi, giam gia, tong hop theo doan
+   - Backend: 8 endpoints moi (UpdateCampaign, DeleteCampaign, GetById, Groups CRUD, Import, CostReport)
+   - Entity: CheckupCampaignGroup + DbSet

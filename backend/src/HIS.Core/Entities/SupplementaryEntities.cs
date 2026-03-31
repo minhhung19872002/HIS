@@ -140,6 +140,17 @@ public class HealthCheckupRecord : BaseEntity
     public virtual User? Doctor { get; set; }
 }
 
+public class CheckupCampaignGroup : BaseEntity
+{
+    public Guid CampaignId { get; set; }
+    public string GroupName { get; set; } = string.Empty;
+    public string? RoomAssignment { get; set; }
+    public int TotalMembers { get; set; }
+    public int CompletedMembers { get; set; }
+
+    public virtual HealthCheckupCampaign? Campaign { get; set; }
+}
+
 // ======= Module 5: Epidemiology (Giám sát dịch tễ) =======
 
 public class DiseaseCase : BaseEntity

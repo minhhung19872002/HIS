@@ -94,6 +94,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Lấy danh sách PTTT
     /// </summary>
     [HttpGet]
+    [HttpGet("surgeries")]
     public async Task<ActionResult<PagedResultDto<SurgeryDto>>> GetSurgeries([FromQuery] SurgerySearchDto dto)
     {
         var result = await _surgeryService.GetSurgeriesAsync(dto);

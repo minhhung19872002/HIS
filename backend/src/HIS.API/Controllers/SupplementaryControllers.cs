@@ -416,6 +416,133 @@ public class HealthCheckupController : ControllerBase
         var result = await _service.GetDashboardAsync();
         return Ok(result);
     }
+
+    /// <summary>
+    /// Cập nhật đợt khám sức khỏe
+    /// </summary>
+    [HttpPut("campaigns/{id}")]
+    public async Task<IActionResult> UpdateCampaign(Guid id, [FromBody] CreateCampaignDto dto)
+    {
+        try
+        {
+            var result = await _service.UpdateCampaignAsync(id, dto);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Xóa đợt khám sức khỏe
+    /// </summary>
+    [HttpDelete("campaigns/{id}")]
+    public async Task<IActionResult> DeleteCampaign(Guid id)
+    {
+        try
+        {
+            await _service.DeleteCampaignAsync(id);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy chi tiết đợt khám
+    /// </summary>
+    [HttpGet("campaigns/{id}")]
+    public async Task<IActionResult> GetCampaignById(Guid id)
+    {
+        try
+        {
+            var result = await _service.GetCampaignByIdAsync(id);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách nhóm của đợt khám
+    /// </summary>
+    [HttpGet("campaigns/{campaignId}/groups")]
+    public async Task<IActionResult> GetCampaignGroups(Guid campaignId)
+    {
+        var result = await _service.GetCampaignGroupsAsync(campaignId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo nhóm trong đợt khám
+    /// </summary>
+    [HttpPost("campaigns/{campaignId}/groups")]
+    public async Task<IActionResult> CreateCampaignGroup(Guid campaignId, [FromBody] CreateCampaignGroupDto dto)
+    {
+        try
+        {
+            dto.CampaignId = campaignId;
+            var result = await _service.CreateCampaignGroupAsync(dto);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Xóa nhóm trong đợt khám
+    /// </summary>
+    [HttpDelete("campaigns/{campaignId}/groups/{groupId}")]
+    public async Task<IActionResult> DeleteCampaignGroup(Guid campaignId, Guid groupId)
+    {
+        try
+        {
+            await _service.DeleteCampaignGroupAsync(campaignId, groupId);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Import nhân viên từ Excel vào đợt khám
+    /// </summary>
+    [HttpPost("campaigns/{campaignId}/import")]
+    public async Task<IActionResult> ImportBatchExcel(Guid campaignId, IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Vui lòng chọn file Excel" });
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var result = await _service.ImportBatchExcelAsync(campaignId, stream, file.FileName);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Báo cáo chi phí đợt khám
+    /// </summary>
+    [HttpGet("campaigns/{campaignId}/cost-report")]
+    public async Task<IActionResult> GetCampaignCostReport(Guid campaignId)
+    {
+        var result = await _service.GetCampaignCostReportAsync(campaignId);
+        return Ok(result);
+    }
 }
 
 // ============================================================

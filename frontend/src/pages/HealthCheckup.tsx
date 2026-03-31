@@ -21,6 +21,9 @@ import {
   Divider,
   InputNumber,
   Tabs,
+  Upload,
+  Progress,
+  Badge,
 } from 'antd';
 import {
   FileProtectOutlined,
@@ -35,11 +38,14 @@ import {
   UploadOutlined,
   CalendarOutlined,
   BarChartOutlined,
+  TeamOutlined,
+  FileExcelOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as healthCheckupApi from '../api/healthCheckup';
-import type { HealthCheckup as HealthCheckupType, HealthCheckupStats } from '../api/healthCheckup';
+import type { HealthCheckup as HealthCheckupType, HealthCheckupStats, CheckupCampaign, CampaignGroup } from '../api/healthCheckup';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -98,6 +104,17 @@ const HealthCheckup: React.FC = () => {
   const [formInstance] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [mainTab, setMainTab] = useState('list');
+
+  // Campaign/Group management state
+  const [campaigns, setCampaigns] = useState<CheckupCampaign[]>([]);
+  const [campaignGroups, setCampaignGroups] = useState<CampaignGroup[]>([]);
+  const [selectedCampaign, setSelectedCampaign] = useState<CheckupCampaign | null>(null);
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [campaignFormInstance] = Form.useForm();
+  const [groupFormInstance] = Form.useForm();
+  const [editCampaign, setEditCampaign] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
 
   // Report data - computed from existing data
   const campaignSummary = React.useMemo(() => {
@@ -352,6 +369,231 @@ const HealthCheckup: React.FC = () => {
     },
   ];
 
+  // Campaign management functions
+  const fetchCampaigns = useCallback(async () => {
+    try {
+      const result = await healthCheckupApi.getCampaigns();
+      setCampaigns(result);
+    } catch {
+      console.warn('Failed to fetch campaigns');
+    }
+  }, []);
+
+  const fetchCampaignGroups = useCallback(async (campaignId: string) => {
+    try {
+      const result = await healthCheckupApi.getCampaignGroups(campaignId);
+      setCampaignGroups(result);
+    } catch {
+      console.warn('Failed to fetch campaign groups');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mainTab === 'campaigns') {
+      fetchCampaigns();
+    }
+  }, [mainTab, fetchCampaigns]);
+
+  const handleCreateCampaign = () => {
+    setEditCampaign(false);
+    campaignFormInstance.resetFields();
+    campaignFormInstance.setFieldsValue({ discountPercent: 0, checkupType: 'periodic', startDate: dayjs() });
+    setIsCampaignModalOpen(true);
+  };
+
+  const handleEditCampaign = (record: CheckupCampaign) => {
+    setEditCampaign(true);
+    setSelectedCampaign(record);
+    campaignFormInstance.setFieldsValue({
+      ...record,
+      startDate: record.startDate ? dayjs(record.startDate) : undefined,
+      endDate: record.endDate ? dayjs(record.endDate) : undefined,
+    });
+    setIsCampaignModalOpen(true);
+  };
+
+  const handleSaveCampaign = async () => {
+    try {
+      const values = await campaignFormInstance.validateFields();
+      const payload = {
+        ...values,
+        startDate: values.startDate?.toISOString(),
+        endDate: values.endDate?.toISOString(),
+      };
+      setSaving(true);
+      if (editCampaign && selectedCampaign) {
+        await healthCheckupApi.updateCampaign(selectedCampaign.id, payload);
+        message.success('Cập nhật đợt khám thành công');
+      } else {
+        await healthCheckupApi.createCampaign(payload);
+        message.success('Tạo đợt khám mới thành công');
+      }
+      setIsCampaignModalOpen(false);
+      fetchCampaigns();
+    } catch {
+      message.warning('Vui lòng kiểm tra thông tin');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteCampaign = (record: CheckupCampaign) => {
+    Modal.confirm({
+      title: 'Xóa đợt khám',
+      content: `Xóa đợt khám "${record.campaignName}" của ${record.companyName}?`,
+      okText: 'Xóa',
+      okType: 'danger',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await healthCheckupApi.deleteCampaign(record.id);
+          message.success('Đã xóa đợt khám');
+          fetchCampaigns();
+        } catch {
+          message.warning('Không thể xóa đợt khám');
+        }
+      },
+    });
+  };
+
+  const handleViewCampaignDetail = (record: CheckupCampaign) => {
+    setSelectedCampaign(record);
+    fetchCampaignGroups(record.id);
+  };
+
+  const handleCreateGroup = () => {
+    groupFormInstance.resetFields();
+    setIsGroupModalOpen(true);
+  };
+
+  const handleSaveGroup = async () => {
+    if (!selectedCampaign) return;
+    try {
+      const values = await groupFormInstance.validateFields();
+      await healthCheckupApi.createCampaignGroup(selectedCampaign.id, values);
+      message.success('Tạo nhóm thành công');
+      setIsGroupModalOpen(false);
+      fetchCampaignGroups(selectedCampaign.id);
+      fetchCampaigns();
+    } catch {
+      message.warning('Vui lòng kiểm tra thông tin');
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!selectedCampaign) return;
+    try {
+      await healthCheckupApi.deleteCampaignGroup(selectedCampaign.id, groupId);
+      message.success('Đã xóa nhóm');
+      fetchCampaignGroups(selectedCampaign.id);
+    } catch {
+      message.warning('Không thể xóa nhóm');
+    }
+  };
+
+  const handleImportExcel = async (file: File) => {
+    if (!selectedCampaign) {
+      message.warning('Vui lòng chọn đợt khám trước khi nhập');
+      return;
+    }
+    setImportLoading(true);
+    try {
+      const result = await healthCheckupApi.importBatchExcel(selectedCampaign.id, file);
+      if (result.errorCount > 0) {
+        Modal.info({
+          title: `Nhập ${result.successCount}/${result.totalRows} bản ghi`,
+          content: (
+            <div>
+              <p>Thành công: {result.successCount}, Lỗi: {result.errorCount}</p>
+              {result.errors.length > 0 && (
+                <ul style={{ maxHeight: 200, overflow: 'auto' }}>
+                  {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              )}
+            </div>
+          ),
+        });
+      } else {
+        message.success(`Nhập thành công ${result.successCount} nhân viên từ Excel`);
+      }
+      fetchCampaigns();
+      fetchData();
+    } catch {
+      message.warning('Lỗi khi nhập file Excel. Vui lòng kiểm tra định dạng file.');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const CAMPAIGN_STATUS_MAP: Record<number, { label: string; color: string }> = {
+    0: { label: 'Nháp', color: 'default' },
+    1: { label: 'Đang thực hiện', color: 'processing' },
+    2: { label: 'Hoàn thành', color: 'success' },
+    3: { label: 'Đã hủy', color: 'error' },
+  };
+
+  const campaignColumns: ColumnsType<CheckupCampaign> = [
+    { title: 'Mã đợt', dataIndex: 'campaignCode', key: 'campaignCode', width: 120 },
+    { title: 'Tên đợt khám', dataIndex: 'campaignName', key: 'campaignName', width: 200 },
+    { title: 'Công ty / Đơn vị', dataIndex: 'companyName', key: 'companyName', width: 200 },
+    {
+      title: 'Loại khám', dataIndex: 'checkupType', key: 'checkupType', width: 120,
+      render: (v: string) => CHECKUP_TYPE_LABELS[v] || v,
+    },
+    {
+      title: 'Ngày bắt đầu', dataIndex: 'startDate', key: 'startDate', width: 110,
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
+    },
+    {
+      title: 'Tiến độ', key: 'progress', width: 160,
+      render: (_: unknown, r: CheckupCampaign) => {
+        const pct = r.totalRegistered > 0 ? Math.round(r.totalCompleted / r.totalRegistered * 100) : 0;
+        return (
+          <Space orientation="vertical" size={0}>
+            <Progress percent={pct} size="small" style={{ width: 100 }} />
+            <span style={{ fontSize: 12 }}>{r.totalCompleted}/{r.totalRegistered}</span>
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'Giảm giá', dataIndex: 'discountPercent', key: 'discountPercent', width: 80, align: 'center' as const,
+      render: (v: number) => v > 0 ? <Tag color="blue">{v}%</Tag> : '-',
+    },
+    {
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 120,
+      render: (v: number) => <Tag color={CAMPAIGN_STATUS_MAP[v]?.color}>{CAMPAIGN_STATUS_MAP[v]?.label}</Tag>,
+    },
+    {
+      title: 'Thao tác', key: 'actions', width: 150, fixed: 'right' as const,
+      render: (_: unknown, record: CheckupCampaign) => (
+        <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewCampaignDetail(record)}>Chi tiết</Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEditCampaign(record)} />
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteCampaign(record)} />
+        </Space>
+      ),
+    },
+  ];
+
+  const groupColumns: ColumnsType<CampaignGroup> = [
+    { title: 'Nhóm', dataIndex: 'groupName', key: 'groupName', width: 200 },
+    { title: 'Phòng khám', dataIndex: 'roomAssignment', key: 'roomAssignment', width: 150 },
+    { title: 'Tổng NV', dataIndex: 'totalMembers', key: 'totalMembers', width: 100, align: 'center' as const },
+    {
+      title: 'Đã khám', dataIndex: 'completedMembers', key: 'completedMembers', width: 100, align: 'center' as const,
+      render: (v: number, r: CampaignGroup) => (
+        <span>{v}/{r.totalMembers}</span>
+      ),
+    },
+    {
+      title: '', key: 'action', width: 60,
+      render: (_: unknown, r: CampaignGroup) => (
+        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteGroup(r.id)} />
+      ),
+    },
+  ];
+
   const segmentOptions = [
     { label: 'Tổng quát >= 18', value: 'general_adult' },
     { label: '< 18', value: 'general_child' },
@@ -377,7 +619,20 @@ const HealthCheckup: React.FC = () => {
             </Col>
             <Col>
               <Space>
-                <Button icon={<UploadOutlined />}>Nhập lô</Button>
+                <Upload
+                  accept=".xlsx,.xls"
+                  showUploadList={false}
+                  beforeUpload={(file) => {
+                    if (selectedCampaign) {
+                      handleImportExcel(file);
+                    } else {
+                      message.info('Vui lòng vào tab "Đoàn khám" và chọn đợt khám trước khi nhập Excel');
+                    }
+                    return false;
+                  }}
+                >
+                  <Button icon={<FileExcelOutlined />} loading={importLoading}>Nhập Excel</Button>
+                </Upload>
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
                   Tạo phiếu khám
                 </Button>
@@ -506,6 +761,105 @@ const HealthCheckup: React.FC = () => {
                       })}
                     />
                   </Card>
+                </>
+              ),
+            },
+            {
+              key: 'campaigns',
+              label: <span><TeamOutlined /> Đoàn khám</span>,
+              children: (
+                <>
+                  <Card style={{ marginBottom: 16 }}>
+                    <Row justify="space-between" align="middle">
+                      <Col><Typography.Text strong>Quản lý đợt khám sức khỏe theo đoàn</Typography.Text></Col>
+                      <Col>
+                        <Space>
+                          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateCampaign}>
+                            Tạo đợt khám
+                          </Button>
+                          <Button icon={<ReloadOutlined />} onClick={fetchCampaigns} />
+                        </Space>
+                      </Col>
+                    </Row>
+                  </Card>
+
+                  <Row gutter={16}>
+                    <Col xs={24} lg={selectedCampaign ? 14 : 24}>
+                      <Card>
+                        <Table
+                          dataSource={campaigns}
+                          columns={campaignColumns}
+                          rowKey="id"
+                          size="small"
+                          pagination={{ pageSize: 10 }}
+                          scroll={{ x: 1200 }}
+                          onRow={(record) => ({
+                            onClick: () => handleViewCampaignDetail(record),
+                            style: {
+                              cursor: 'pointer',
+                              background: selectedCampaign?.id === record.id ? '#e6f7ff' : undefined,
+                            },
+                          })}
+                        />
+                      </Card>
+                    </Col>
+
+                    {selectedCampaign && (
+                      <Col xs={24} lg={10}>
+                        <Card
+                          title={
+                            <Space>
+                              <Badge status="processing" />
+                              <span>{selectedCampaign.campaignName}</span>
+                            </Space>
+                          }
+                          extra={
+                            <Button size="small" onClick={() => setSelectedCampaign(null)}>Đóng</Button>
+                          }
+                        >
+                          <Descriptions column={2} size="small" bordered>
+                            <Descriptions.Item label="Công ty">{selectedCampaign.companyName}</Descriptions.Item>
+                            <Descriptions.Item label="Loại khám">{CHECKUP_TYPE_LABELS[selectedCampaign.checkupType] || selectedCampaign.checkupType}</Descriptions.Item>
+                            <Descriptions.Item label="Liên hệ">{selectedCampaign.contactPerson || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="SĐT">{selectedCampaign.contactPhone || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="Giảm giá">{selectedCampaign.discountPercent > 0 ? `${selectedCampaign.discountPercent}%` : 'Không'}</Descriptions.Item>
+                            <Descriptions.Item label="Gói DV">{selectedCampaign.servicePackage || 'Mặc định'}</Descriptions.Item>
+                          </Descriptions>
+
+                          <Divider>Nhóm khám</Divider>
+                          <Space style={{ marginBottom: 12 }}>
+                            <Button size="small" icon={<PlusOutlined />} onClick={handleCreateGroup}>Thêm nhóm</Button>
+                            <Upload
+                              accept=".xlsx,.xls"
+                              showUploadList={false}
+                              beforeUpload={(file) => { handleImportExcel(file); return false; }}
+                            >
+                              <Button size="small" icon={<FileExcelOutlined />} loading={importLoading}>Nhập Excel</Button>
+                            </Upload>
+                          </Space>
+                          <Table
+                            dataSource={campaignGroups}
+                            columns={groupColumns}
+                            rowKey="id"
+                            size="small"
+                            pagination={false}
+                          />
+
+                          {selectedCampaign.totalCost > 0 && (
+                            <>
+                              <Divider>Chi phí</Divider>
+                              <Statistic
+                                title="Tổng chi phí đoàn"
+                                value={selectedCampaign.totalCost}
+                                suffix="đ"
+                                styles={{ content: { color: '#1890ff' } }}
+                              />
+                            </>
+                          )}
+                        </Card>
+                      </Col>
+                    )}
+                  </Row>
                 </>
               ),
             },
@@ -719,6 +1073,119 @@ const HealthCheckup: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
+          </Form>
+        </Modal>
+        {/* Campaign Modal */}
+        <Modal
+          title={editCampaign ? 'Sửa đợt khám' : 'Tạo đợt khám theo đoàn'}
+          open={isCampaignModalOpen}
+          onCancel={() => setIsCampaignModalOpen(false)}
+          onOk={handleSaveCampaign}
+          okText="Lưu"
+          cancelText="Hủy"
+          confirmLoading={saving}
+          width={700}
+          destroyOnHidden
+        >
+          <Form form={campaignFormInstance} layout="vertical">
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="campaignName" label="Tên đợt khám" rules={[{ required: true, message: 'Nhập tên đợt khám' }]}>
+                  <Input placeholder="VD: Đợt khám định kỳ Q1/2026" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="companyName" label="Công ty / Đơn vị" rules={[{ required: true, message: 'Nhập tên công ty' }]}>
+                  <Input placeholder="Tên công ty / đơn vị" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="checkupType" label="Loại khám" rules={[{ required: true }]}>
+                  <Select options={Object.entries(CHECKUP_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="startDate" label="Ngày bắt đầu">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="endDate" label="Ngày kết thúc">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item name="contactPerson" label="Người liên hệ">
+                  <Input placeholder="Họ tên người liên hệ" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="contactPhone" label="Số điện thoại">
+                  <Input placeholder="0xxx xxx xxx" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="discountPercent" label="Giảm giá đoàn (%)">
+                  <InputNumber min={0} max={100} style={{ width: '100%' }} addonAfter="%" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="servicePackage" label="Gói dịch vụ khám">
+                  <Select
+                    placeholder="Chọn gói dịch vụ"
+                    allowClear
+                    options={[
+                      { value: 'basic', label: 'Gói cơ bản (nội, ngoại, TMH, mắt, XN máu, X-quang)' },
+                      { value: 'standard', label: 'Gói tiêu chuẩn (+ RHM, da liễu, siêu âm)' },
+                      { value: 'premium', label: 'Gói nâng cao (+ phụ khoa, tâm thần, điện tim)' },
+                      { value: 'driver', label: 'Gói lái xe (theo QĐ 36)' },
+                      { value: 'custom', label: 'Tùy chỉnh' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="status" label="Trạng thái">
+                  <Select
+                    options={[
+                      { value: 0, label: 'Nháp' },
+                      { value: 1, label: 'Đang thực hiện' },
+                      { value: 2, label: 'Hoàn thành' },
+                      { value: 3, label: 'Đã hủy' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="notes" label="Ghi chú">
+              <Input.TextArea rows={2} placeholder="Ghi chú thêm..." />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Group Modal */}
+        <Modal
+          title="Thêm nhóm khám"
+          open={isGroupModalOpen}
+          onCancel={() => setIsGroupModalOpen(false)}
+          onOk={handleSaveGroup}
+          okText="Lưu"
+          cancelText="Hủy"
+          destroyOnHidden
+        >
+          <Form form={groupFormInstance} layout="vertical">
+            <Form.Item name="groupName" label="Tên nhóm" rules={[{ required: true, message: 'Nhập tên nhóm' }]}>
+              <Input placeholder="VD: Nhóm 1 - Phòng Kế toán" />
+            </Form.Item>
+            <Form.Item name="roomAssignment" label="Phòng khám được phân">
+              <Input placeholder="VD: Phòng khám số 3" />
+            </Form.Item>
           </Form>
         </Modal>
       </div>

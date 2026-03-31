@@ -679,7 +679,7 @@ const Telemedicine: React.FC = () => {
                 <Statistic
                   title="Doanh thu"
                   value={dashboard.totalRevenue}
-                  formatter={(val) => `${Number(val).toLocaleString('vi-VN')}d`}
+                  formatter={(val) => `${Number(val).toLocaleString('vi-VN')}đ`}
                 />
               </Card>
             </Col>
@@ -929,7 +929,7 @@ const Telemedicine: React.FC = () => {
                     </div>
                     <div>
                       <Text type="secondary">Phí:</Text>
-                      <Text style={{ marginLeft: 8 }}>{selectedAppointment.fee?.toLocaleString('vi-VN')}d</Text>
+                      <Text style={{ marginLeft: 8 }}>{selectedAppointment.fee?.toLocaleString('vi-VN')}đ</Text>
                     </div>
                   </Space>
                 </Card>

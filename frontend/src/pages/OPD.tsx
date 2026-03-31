@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
@@ -85,12 +85,16 @@ interface TreatmentOrder {
   serviceId: string;
   serviceCode: string;
   serviceName: string;
+  orderType: number;
   quantity: number;
+  unit?: string;
   unitPrice: number;
   amount: number;
+  instructions?: string;
   paymentSource: number;
   insuranceRatio: number;
   status: number;
+  isSaved?: boolean;
 }
 type Service = ServiceDto;
 
@@ -173,6 +177,7 @@ const OPD: React.FC = () => {
   // State for diagnoses and orders
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
   const [orders, setOrders] = useState<TreatmentOrder[]>([]);
+  const selectedServiceOption = serviceOptions.find((opt) => opt.data.id === selectedServiceId);
 
   // State for modals
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
@@ -292,6 +297,10 @@ const OPD: React.FC = () => {
 
   const handleSelectPatientFromQueue = async (queuePatient: QueuePatient) => {
     try {
+      if (!queuePatient.patientId) {
+        message.warning('Bệnh nhân chưa có mã hồ sơ. Vui lòng kiểm tra lại.');
+        return;
+      }
       const response = await patientApi.getById(queuePatient.patientId);
       if (response.success && response.data) {
         setSelectedPatient(response.data);
@@ -309,6 +318,31 @@ const OPD: React.FC = () => {
           status: queuePatient.status,
         };
         initializeNewExamination(response.data, examInfo);
+        try {
+          const serviceOrdersResponse = await examinationApi.getServiceOrders(queuePatient.examinationId);
+          const existingOrders = serviceOrdersResponse.data || [];
+          setOrders(existingOrders.map((order) => ({
+            id: order.id,
+            serviceId: order.serviceId,
+            serviceCode: order.serviceCode,
+            serviceName: order.serviceName,
+            orderType: order.serviceType || 5,
+            quantity: order.quantity,
+            unit: 'Lần',
+            unitPrice: order.unitPrice,
+            amount: order.totalPrice,
+            instructions: order.statusName
+              ? `Trạng thái: ${order.statusName}`
+              : `Nhóm chỉ định: ${order.serviceType ? getOrderTypeName(order.serviceType) : 'Khác'}`,
+            paymentSource: order.paymentType || 1,
+            insuranceRatio: 0,
+            status: order.status,
+            isSaved: true,
+          })));
+        } catch (error) {
+          console.warn('Error loading service orders:', error);
+          setOrders([]);
+        }
         message.success(`Đã chọn bệnh nhân: ${queuePatient.patientName}`);
 
         // Fetch inherited data from Reception
@@ -324,6 +358,32 @@ const OPD: React.FC = () => {
 
         // NangCap4: fetch deposit balance and debt warnings
         checkPatientFinancials(queuePatient.patientId, queuePatient.examinationId);
+      } else {
+        const fallbackPatient: Patient = {
+          id: queuePatient.patientId,
+          patientCode: queuePatient.patientCode,
+          fullName: queuePatient.patientName,
+          gender: queuePatient.gender || 1,
+          dateOfBirth: '',
+          phoneNumber: '',
+          address: '',
+        };
+        setSelectedPatient(fallbackPatient);
+        const examInfo = {
+          id: queuePatient.examinationId,
+          patientId: queuePatient.patientId,
+          patientCode: queuePatient.patientCode,
+          patientName: queuePatient.patientName,
+          queueNumber: queuePatient.queueNumber,
+          roomId: selectedRoomId,
+          roomName: rooms.find(r => r.id === selectedRoomId)?.name || '',
+          departmentId: rooms.find(r => r.id === selectedRoomId)?.departmentId || '',
+          departmentName: rooms.find(r => r.id === selectedRoomId)?.departmentName || '',
+          status: queuePatient.status,
+        };
+        initializeNewExamination(fallbackPatient, examInfo);
+        setOrders([]);
+        message.info(`Đã chọn bệnh nhân: ${queuePatient.patientName} (dữ liệu cơ bản)`);
       }
     } catch {
       message.warning('Không thể tải thông tin bệnh nhân');
@@ -351,24 +411,8 @@ const OPD: React.FC = () => {
       // Non-critical: billing API may not have data for this patient
     }
 
-    // Check for outstanding debt via billing summary endpoint
-    try {
-      const debtRes = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/billing/patient/${patientId}/summary`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-          },
-        }
-      );
-      if (debtRes.ok) {
-        const data = await debtRes.json();
-        const debt = data?.remainingAmount ?? data?.outstandingDebt ?? 0;
-        setHasOutstandingDebt(debt > 0);
-      }
-    } catch {
-      // Non-critical
-    }
+    // Legacy patient summary route is not exposed by backend.
+    setHasOutstandingDebt(false);
 
     // Check for active (undispensed) medications from previous visits
     try {
@@ -622,7 +666,7 @@ const OPD: React.FC = () => {
       const data = response.data;
       if (data) {
         const options: ServiceOption[] = data.map((service) => ({
-          value: service.id,
+          value: `${service.code} - ${service.name}`,
           label: `${service.code} - ${service.name} (${service.unitPrice.toLocaleString()} đ)`,
           data: service,
         }));
@@ -636,31 +680,70 @@ const OPD: React.FC = () => {
   };
 
   const handleAddOrder = async (serviceId: string, orderType?: number) => {
-    void orderType;
-    const selectedService = serviceOptions.find((opt) => opt.value === serviceId);
+    const selectedService = serviceOptions.find((opt) => opt.data.id === serviceId);
     if (!selectedService) return;
+    const requestedOrderType = orderType ?? 5;
+    const hasExactDuplicate = orders.some((order) =>
+      order.serviceId === selectedService.data.id && order.orderType === requestedOrderType
+    );
+    const hasSameServiceInOtherType = orders.some((order) =>
+      order.serviceId === selectedService.data.id && order.orderType !== requestedOrderType
+    );
 
-    const addOrderToList = () => {
+    if (!examination || examination.id.startsWith('temp-')) {
+      message.warning('Vui lòng chọn bệnh nhân từ danh sách chờ để ghi chỉ định xuống DB');
+      return;
+    }
+
+    if (hasExactDuplicate) {
+      message.warning(`${selectedService.data.code} đã tồn tại trong nhóm ${getOrderTypeName(requestedOrderType)}`);
+      return;
+    }
+
+    const persistOrder = async () => {
+      const primaryDiagnosis = diagnoses.find((d) => d.diagnosisType === 1);
+      const createdResponse = await examinationApi.createServiceOrders({
+        examinationId: examination.id,
+        diagnosisCode: primaryDiagnosis?.icdCode,
+        diagnosisName: primaryDiagnosis?.icdName,
+        autoSelectRoom: false,
+        calculateOptimalPath: false,
+        services: [{
+          serviceId: selectedService.data.id,
+          quantity: 1,
+          paymentType: 1,
+          isPriority: false,
+          isEmergency: false,
+          notes: `${getOrderTypeName(requestedOrderType)} - ${selectedService.data.code} - ${selectedService.data.name}`,
+        }],
+      });
+
+      const createdOrder = createdResponse.data?.[0];
       const newOrder: TreatmentOrder = {
-        id: `temp-${Date.now()}`,
+        id: createdOrder?.id || `temp-${Date.now()}`,
         serviceId: selectedService.data.id,
         serviceName: selectedService.data.name,
         serviceCode: selectedService.data.code,
+        orderType: requestedOrderType,
         quantity: 1,
+        unit: 'Lần',
         unitPrice: selectedService.data.unitPrice,
         amount: selectedService.data.unitPrice,
+        instructions: `Nhóm chỉ định: ${getOrderTypeName(requestedOrderType)}`,
         paymentSource: 1,
         insuranceRatio: 0,
         status: 0,
+        isSaved: true,
       };
       setOrders((prev) => [...prev, newOrder]);
+      setSelectedServiceId('');
       message.success('Đã thêm chỉ định');
     };
 
     // Check for duplicate services
-    if (examination && !examination.id.startsWith('temp-')) {
+    if (examination && !examination.id.startsWith('temp-') && !hasSameServiceInOtherType) {
       try {
-        const allServiceIds = [...orders.map(o => o.serviceId), selectedService.data.id];
+        const allServiceIds = Array.from(new Set([...orders.map((o) => o.serviceId), selectedService.data.id]));
         const response = await examinationApi.checkDuplicateServices(examination.id, allServiceIds);
         const warnings = response.data;
         if (warnings && warnings.length > 0) {
@@ -686,19 +769,37 @@ const OPD: React.FC = () => {
             okText: 'Tiếp tục thêm',
             cancelText: 'Hủy',
             okButtonProps: { disabled: warnings.some(w => w.isBlocking) },
-            onOk: () => addOrderToList(),
+            onOk: () => persistOrder(),
           });
           return;
         }
       } catch {
-        // If duplicate check fails, still allow adding the order
+        // If duplicate check fails, still allow creating the order
       }
     }
 
-    addOrderToList();
+    try {
+      await persistOrder();
+    } catch (error) {
+      console.warn('Error creating service order:', error);
+      message.warning('Không thể thêm chỉ định');
+    }
   };
 
-  const handleRemoveOrder = (index: number) => {
+  const handleRemoveOrder = async (index: number) => {
+    const targetOrder = orders[index];
+    if (!targetOrder) return;
+
+    if (targetOrder.isSaved && examination && !examination.id.startsWith('temp-')) {
+      try {
+        await examinationApi.cancelServiceOrder(targetOrder.id, 'Hủy chỉ định từ màn hình OPD');
+      } catch (error) {
+        console.warn('Error cancelling service order:', error);
+        message.warning('Không thể hủy chỉ định đã lưu');
+        return;
+      }
+    }
+
     const newOrders = orders.filter((_, i) => i !== index);
     setOrders(newOrders);
   };
@@ -1089,14 +1190,15 @@ const OPD: React.FC = () => {
     }
   }, [examination, selectedPatient, examForm]);
 
-  // Auto-save every 30 seconds
+  // Auto-save every 30 seconds (stable ref to avoid re-creating interval)
+  const autoSaveRef = React.useRef(handleAutoSave);
+  autoSaveRef.current = handleAutoSave;
   useEffect(() => {
     const interval = setInterval(() => {
-      handleAutoSave();
+      autoSaveRef.current();
     }, 30000);
-
     return () => clearInterval(interval);
-  }, [handleAutoSave]);
+  }, []);
 
   const handleSave = async () => {
     if (!examination || !selectedPatient) {
@@ -1629,6 +1731,7 @@ const OPD: React.FC = () => {
       title: 'Hướng dẫn',
       dataIndex: 'instructions',
       width: 200,
+      render: (instructions, record) => instructions || `Nhóm chỉ định: ${getOrderTypeName(record.orderType)}`,
     },
     {
       title: 'Thao tác',
@@ -1640,7 +1743,7 @@ const OPD: React.FC = () => {
           danger
           size="small"
           icon={<DeleteOutlined />}
-          onClick={() => handleRemoveOrder(index ?? 0)}
+          onClick={() => { void handleRemoveOrder(index ?? 0); }}
         >
           Xóa
         </Button>
@@ -2535,7 +2638,7 @@ const OPD: React.FC = () => {
                               style={{ width: 400 }}
                               options={serviceOptions}
                               onSearch={handleSearchService}
-                              onSelect={(value: string) => setSelectedServiceId(value)}
+                              onSelect={(_: string, option: ServiceOption) => setSelectedServiceId(option.data.id)}
                               placeholder="Tìm dịch vụ..."
                               notFoundContent={
                                 searchingService ? <Spin size="small" /> : 'Không tìm thấy'
@@ -2599,6 +2702,12 @@ const OPD: React.FC = () => {
                               </Button>
                             </Tooltip>
                           </Space>
+
+                          {selectedServiceOption && (
+                            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                              Đã chọn: {selectedServiceOption.data.code} - {selectedServiceOption.data.name}. Có thể thêm cùng dịch vụ này vào nhiều nhóm khác nhau, nhưng mỗi nhóm chỉ thêm 1 lần.
+                            </Typography.Text>
+                          )}
 
                           <Table
                             columns={orderColumns}

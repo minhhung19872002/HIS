@@ -386,6 +386,52 @@ public class CheckupDashboardDto
     public List<CampaignListDto> RecentCampaigns { get; set; } = new();
 }
 
+// Group management DTOs
+public class CampaignGroupDto
+{
+    public Guid Id { get; set; }
+    public Guid CampaignId { get; set; }
+    public string GroupName { get; set; } = string.Empty;
+    public string? RoomAssignment { get; set; }
+    public int TotalMembers { get; set; }
+    public int CompletedMembers { get; set; }
+}
+
+public class CreateCampaignGroupDto
+{
+    public Guid CampaignId { get; set; }
+    public string GroupName { get; set; } = string.Empty;
+    public string? RoomAssignment { get; set; }
+}
+
+public class BatchImportResultDto
+{
+    public int TotalRows { get; set; }
+    public int SuccessCount { get; set; }
+    public int ErrorCount { get; set; }
+    public List<string> Errors { get; set; } = new();
+}
+
+public class CampaignCostReportDto
+{
+    public Guid CampaignId { get; set; }
+    public string CampaignName { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public int TotalPatients { get; set; }
+    public decimal TotalServiceCost { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal NetAmount { get; set; }
+    public List<CostBreakdownItem> CostBreakdown { get; set; } = new();
+}
+
+public class CostBreakdownItem
+{
+    public string ServiceName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal TotalAmount { get; set; }
+}
+
 // ============================================================
 // Module 5: Epidemiology DTOs
 // ============================================================

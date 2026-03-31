@@ -811,6 +811,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("register")]
+        [HttpPost("account/register")]
         [AllowAnonymous]
         public async Task<ActionResult<PortalAccountDto>> Register([FromBody] RegisterPortalAccountDto dto)
             => Ok(await _service.RegisterAccountAsync(dto));

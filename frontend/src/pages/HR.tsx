@@ -21,7 +21,6 @@ import {
   Badge,
   message,
   Divider,
-  Progress,
   Spin,
   InputNumber,
   Popconfirm,
@@ -37,9 +36,7 @@ import {
   WarningOutlined,
   ScheduleOutlined,
   ReloadOutlined,
-  FileTextOutlined,
   TrophyOutlined,
-  ClockCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   EditOutlined,
@@ -65,12 +62,9 @@ import {
   getStaffContracts,
   saveContract,
   getExpiringContracts,
-  getSalaryHistory,
-  saveSalaryRecord,
   getLeaveRequests,
   createLeaveRequest,
   approveLeave,
-  getLeaveBalance,
   getAttendance,
   recordAttendance,
   getAttendanceSummary,
@@ -96,9 +90,7 @@ import type {
   ShiftDefinitionDto,
   HRCatalogDto,
   StaffContractDto,
-  SalaryRecordDto,
   LeaveRequestDto,
-  LeaveBalanceDto,
   AttendanceRecordDto,
   AttendanceSummaryDto,
   OvertimeRecordDto,
@@ -116,37 +108,37 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const POSITIONS = [
-  { value: 'Doctor', label: 'Bac si' },
-  { value: 'Nurse', label: 'Dieu duong' },
-  { value: 'Technician', label: 'Ky thuat vien' },
-  { value: 'Allied', label: 'Duoc si' },
-  { value: 'Admin', label: 'Hanh chinh' },
-  { value: 'Support', label: 'Ho tro' },
+  { value: 'Doctor', label: 'Bác sĩ' },
+  { value: 'Nurse', label: 'Điều dưỡng' },
+  { value: 'Technician', label: 'Kỹ thuật viên' },
+  { value: 'Allied', label: 'Dược sĩ' },
+  { value: 'Admin', label: 'Hành chính' },
+  { value: 'Support', label: 'Hỗ trợ' },
 ];
 
 const CATALOG_TYPES = [
-  { value: 'Position', label: 'Chuc vu' },
-  { value: 'JobTitle', label: 'Chuc danh' },
-  { value: 'CivilServantRank', label: 'Ngach cong chuc' },
-  { value: 'SalaryGrade', label: 'Bac luong' },
-  { value: 'ContractType', label: 'Loai hop dong' },
-  { value: 'InsuranceType', label: 'Loai bao hiem' },
-  { value: 'EducationLevel', label: 'Trinh do hoc van' },
-  { value: 'AwardType', label: 'Loai khen thuong' },
-  { value: 'DisciplineType', label: 'Loai ky luat' },
-  { value: 'LeaveType', label: 'Loai nghi phep' },
-  { value: 'ShiftType', label: 'Ca truc' },
-  { value: 'CertificateType', label: 'Loai chung chi' },
-  { value: 'Ethnicity', label: 'Dan toc' },
-  { value: 'Religion', label: 'Ton giao' },
-  { value: 'Nationality', label: 'Quoc tich' },
+  { value: 'Position', label: 'Chức vụ' },
+  { value: 'JobTitle', label: 'Chức danh' },
+  { value: 'CivilServantRank', label: 'Ngạch công chức' },
+  { value: 'SalaryGrade', label: 'Bậc lương' },
+  { value: 'ContractType', label: 'Loại hợp đồng' },
+  { value: 'InsuranceType', label: 'Loại bảo hiểm' },
+  { value: 'EducationLevel', label: 'Trình độ học vấn' },
+  { value: 'AwardType', label: 'Loại khen thưởng' },
+  { value: 'DisciplineType', label: 'Loại kỷ luật' },
+  { value: 'LeaveType', label: 'Loại nghỉ phép' },
+  { value: 'ShiftType', label: 'Ca trực' },
+  { value: 'CertificateType', label: 'Loại chứng chỉ' },
+  { value: 'Ethnicity', label: 'Dân tộc' },
+  { value: 'Religion', label: 'Tôn giáo' },
+  { value: 'Nationality', label: 'Quốc tịch' },
 ];
 
 const LEAVE_STATUS_NAMES: Record<number, { color: string; text: string }> = {
-  0: { color: 'gold', text: 'Cho duyet' },
-  1: { color: 'green', text: 'Da duyet' },
-  2: { color: 'red', text: 'Tu choi' },
-  3: { color: 'default', text: 'Da huy' },
+  0: { color: 'gold', text: 'Chờ duyệt' },
+  1: { color: 'green', text: 'Đã duyệt' },
+  2: { color: 'red', text: 'Từ chối' },
+  3: { color: 'default', text: 'Đã hủy' },
 };
 
 const HR: React.FC = () => {
@@ -178,7 +170,6 @@ const HR: React.FC = () => {
   const [contractForm] = Form.useForm();
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestDto[]>([]);
-  const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceDto | null>(null);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [leaveForm] = Form.useForm();
 
@@ -226,13 +217,13 @@ const HR: React.FC = () => {
           setEmployees(staffData as unknown as StaffProfileDto[]);
         }
       } else {
-        message.warning('Khong the tai danh sach nhan vien');
+        message.warning('Không thể tải danh sách nhân viên');
       }
 
       if (results[1].status === 'fulfilled') {
         setDashboard(results[1].value?.data || null);
       } else {
-        message.warning('Khong the tai tong quan nhan su');
+        message.warning('Không thể tải tổng quan nhân sự');
       }
 
       if (results[2].status === 'fulfilled') {
@@ -257,7 +248,7 @@ const HR: React.FC = () => {
         }
       }
     } catch {
-      message.warning('Co loi khi tai du lieu nhan su');
+      message.warning('Có lỗi khi tải dữ liệu nhân sự');
     } finally {
       setLoading(false);
     }
@@ -361,12 +352,12 @@ const HR: React.FC = () => {
 
   const getStatusTag = (status: number) => {
     const config: Record<number, { color: string; text: string }> = {
-      1: { color: 'green', text: 'Dang lam viec' },
-      2: { color: 'orange', text: 'Nghi phep' },
-      3: { color: 'volcano', text: 'Tam ngung' },
-      4: { color: 'red', text: 'Da nghi viec' },
+      1: { color: 'green', text: 'Đang làm việc' },
+      2: { color: 'orange', text: 'Nghỉ phép' },
+      3: { color: 'volcano', text: 'Tạm ngưng' },
+      4: { color: 'red', text: 'Đã nghỉ việc' },
     };
-    const c = config[status] || { color: 'default', text: 'Khong ro' };
+    const c = config[status] || { color: 'default', text: 'Không rõ' };
     return <Tag color={c.color}>{c.text}</Tag>;
   };
 
@@ -394,12 +385,12 @@ const HR: React.FC = () => {
         respectLeaveRequests: true,
         availableStaffIds: [values.employeeId as string],
       });
-      message.success('Da them lich truc');
+      message.success('Đã thêm lịch trực');
       setIsShiftModalOpen(false);
       shiftForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the them lich truc');
+      message.warning('Không thể thêm lịch trực');
     }
   };
 
@@ -416,12 +407,12 @@ const HR: React.FC = () => {
         creditType: 'Category1',
         isOnline: false,
       });
-      message.success('Da dang ky dao tao');
+      message.success('Đã đăng ký đào tạo');
       setIsTrainingModalOpen(false);
       trainingForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the dang ky dao tao');
+      message.warning('Không thể đăng ký đào tạo');
     }
   };
 
@@ -439,12 +430,12 @@ const HR: React.FC = () => {
         specialty: values.specialty as string,
         hireDate: values.hireDate ? dayjs(values.hireDate as string).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
       });
-      message.success('Da them nhan vien moi');
+      message.success('Đã thêm nhân viên mới');
       setIsAddEmployeeModalOpen(false);
       employeeForm.resetFields();
       fetchData();
     } catch {
-      message.warning('Khong the them nhan vien');
+      message.warning('Không thể thêm nhân viên');
     }
   };
 
@@ -459,22 +450,22 @@ const HR: React.FC = () => {
         sortOrder: (values.sortOrder as number) || 0,
         isActive: values.isActive !== false,
       });
-      message.success('Da luu danh muc');
+      message.success('Đã lưu danh mục');
       setIsCatalogModalOpen(false);
       catalogForm.resetFields();
       fetchCatalogs(selectedCatalogType);
     } catch {
-      message.warning('Khong the luu danh muc');
+      message.warning('Không thể lưu danh mục');
     }
   };
 
   const handleDeleteCatalog = async (id: string) => {
     try {
       await deleteCatalog(id);
-      message.success('Da xoa danh muc');
+      message.success('Đã xóa danh mục');
       fetchCatalogs(selectedCatalogType);
     } catch {
-      message.warning('Khong the xoa danh muc');
+      message.warning('Không thể xóa danh mục');
     }
   };
 
@@ -490,12 +481,12 @@ const HR: React.FC = () => {
         terms: values.terms as string | undefined,
         notes: values.notes as string | undefined,
       });
-      message.success('Da luu hop dong');
+      message.success('Đã lưu hợp đồng');
       setIsContractModalOpen(false);
       contractForm.resetFields();
       fetchContracts();
     } catch {
-      message.warning('Khong the luu hop dong');
+      message.warning('Không thể lưu hợp đồng');
     }
   };
 
@@ -511,22 +502,22 @@ const HR: React.FC = () => {
         totalDays,
         reason: values.reason as string | undefined,
       });
-      message.success('Da tao don nghi phep');
+      message.success('Đã tạo đơn nghỉ phép');
       setIsLeaveModalOpen(false);
       leaveForm.resetFields();
       fetchLeave();
     } catch {
-      message.warning('Khong the tao don nghi phep');
+      message.warning('Không thể tạo đơn nghỉ phép');
     }
   };
 
   const handleApproveLeave = async (id: string, approved: boolean) => {
     try {
       await approveLeave(id, approved);
-      message.success(approved ? 'Da duyet don nghi phep' : 'Da tu choi don nghi phep');
+      message.success(approved ? 'Đã duyệt đơn nghỉ phép' : 'Đã từ chối đơn nghỉ phép');
       fetchLeave();
     } catch {
-      message.warning('Khong the xu ly don nghi phep');
+      message.warning('Không thể xử lý đơn nghỉ phép');
     }
   };
 
@@ -542,12 +533,12 @@ const HR: React.FC = () => {
         overtimeHours: (values.overtimeHours as number) || 0,
         status: (values.status as string) || 'Present',
       });
-      message.success('Da ghi nhan cham cong');
+      message.success('Đã ghi nhận chấm công');
       setIsAttendanceModalOpen(false);
       attendanceForm.resetFields();
       fetchAttendance();
     } catch {
-      message.warning('Khong the ghi nhan cham cong');
+      message.warning('Không thể ghi nhận chấm công');
     }
   };
 
@@ -561,22 +552,22 @@ const HR: React.FC = () => {
         hours: (values.hours as number) || 0,
         reason: values.reason as string | undefined,
       });
-      message.success('Da tao yeu cau lam them gio');
+      message.success('Đã tạo yêu cầu làm thêm giờ');
       setIsOvertimeModalOpen(false);
       overtimeForm.resetFields();
       fetchOvertime();
     } catch {
-      message.warning('Khong the tao yeu cau lam them gio');
+      message.warning('Không thể tạo yêu cầu làm thêm giờ');
     }
   };
 
   const handleApproveOvertime = async (id: string, approved: boolean) => {
     try {
       await approveOvertime(id, approved);
-      message.success(approved ? 'Da duyet lam them gio' : 'Da tu choi lam them gio');
+      message.success(approved ? 'Đã duyệt làm thêm giờ' : 'Đã từ chối làm thêm giờ');
       fetchOvertime();
     } catch {
-      message.warning('Khong the xu ly yeu cau');
+      message.warning('Không thể xử lý yêu cầu');
     }
   };
 
@@ -591,12 +582,12 @@ const HR: React.FC = () => {
         description: values.description as string | undefined,
         issuedBy: values.issuedBy as string | undefined,
       });
-      message.success('Da luu khen thuong');
+      message.success('Đã lưu khen thưởng');
       setIsAwardModalOpen(false);
       awardForm.resetFields();
       fetchAwardsDiscipline();
     } catch {
-      message.warning('Khong the luu khen thuong');
+      message.warning('Không thể lưu khen thưởng');
     }
   };
 
@@ -611,12 +602,12 @@ const HR: React.FC = () => {
         decisionNumber: values.decisionNumber as string | undefined,
         description: values.description as string | undefined,
       });
-      message.success('Da luu ky luat');
+      message.success('Đã lưu kỷ luật');
       setIsDisciplineModalOpen(false);
       disciplineForm.resetFields();
       fetchAwardsDiscipline();
     } catch {
-      message.warning('Khong the luu ky luat');
+      message.warning('Không thể lưu kỷ luật');
     }
   };
 
@@ -625,20 +616,20 @@ const HR: React.FC = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     const mainCert = selectedEmployee.certifications?.[0];
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Ho so nhan vien</title>
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Hồ sơ nhân viên</title>
       <style>body{font-family:'Times New Roman',serif;padding:20px;max-width:800px;margin:auto}.header{text-align:center;margin-bottom:20px}.title{font-size:20px;font-weight:bold;margin:20px 0;text-align:center}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #000;padding:8px;text-align:left}th{background:#f0f0f0;width:30%}@media print{body{padding:0}}</style></head><body>
-      <div class="header"><strong>${HOSPITAL_NAME}</strong><br/>Phong To chuc - Nhan su</div>
-      <div class="title">HO SO NHAN VIEN Y TE</div>
-      <table><tr><th>Ma nhan vien</th><td>${selectedEmployee.staffCode}</td></tr>
-      <tr><th>Ho va ten</th><td>${selectedEmployee.fullName}</td></tr>
-      <tr><th>Gioi tinh</th><td>${selectedEmployee.gender === 'Male' ? 'Nam' : selectedEmployee.gender === 'Female' ? 'Nu' : selectedEmployee.gender || '-'}</td></tr>
-      <tr><th>Ngay sinh</th><td>${selectedEmployee.dateOfBirth || '-'}</td></tr>
-      <tr><th>Chuc vu</th><td>${selectedEmployee.positionName || '-'}</td></tr>
+      <div class="header"><strong>${HOSPITAL_NAME}</strong><br/>Phòng Tổ chức - Nhân sự</div>
+      <div class="title">HỒ SƠ NHÂN VIÊN Y TẾ</div>
+      <table><tr><th>Mã nhân viên</th><td>${selectedEmployee.staffCode}</td></tr>
+      <tr><th>Họ và tên</th><td>${selectedEmployee.fullName}</td></tr>
+      <tr><th>Giới tính</th><td>${selectedEmployee.gender === 'Male' ? 'Nam' : selectedEmployee.gender === 'Female' ? 'Nu' : selectedEmployee.gender || '-'}</td></tr>
+      <tr><th>Ngày sinh</th><td>${selectedEmployee.dateOfBirth || '-'}</td></tr>
+      <tr><th>Chức vụ</th><td>${selectedEmployee.positionName || '-'}</td></tr>
       <tr><th>Khoa/Phong</th><td>${selectedEmployee.departmentName}</td></tr>
-      <tr><th>Chuyen khoa</th><td>${selectedEmployee.specialty || '-'}</td></tr>
-      <tr><th>So CCHN</th><td>${mainCert?.licenseNumber || '-'}</td></tr>
-      <tr><th>Ngay vao lam</th><td>${selectedEmployee.hireDate || '-'}</td></tr></table>
-      <div style="margin-top:50px;text-align:right"><p>Ngay ${dayjs().format('DD/MM/YYYY')}</p><p><strong>Truong phong Nhan su</strong></p></div>
+      <tr><th>Chuyên khoa</th><td>${selectedEmployee.specialty || '-'}</td></tr>
+      <tr><th>Số CCHN</th><td>${mainCert?.licenseNumber || '-'}</td></tr>
+      <tr><th>Ngày vào làm</th><td>${selectedEmployee.hireDate || '-'}</td></tr></table>
+      <div style="margin-top:50px;text-align:right"><p>Ngay ${dayjs().format('DD/MM/YYYY')}</p><p><strong>Trưởng phòng Nhân sự</strong></p></div>
       <script>window.onload=function(){window.print()}</script></body></html>`);
     printWindow.document.close();
   };
@@ -647,7 +638,7 @@ const HR: React.FC = () => {
 
   const employeeColumns: ColumnsType<StaffProfileDto> = [
     {
-      title: 'Nhan vien', key: 'employee',
+      title: 'Nhân viên', key: 'employee',
       render: (_, record) => (
         <Space>
           <Avatar icon={<UserOutlined />} src={record.photoUrl} />
@@ -658,10 +649,10 @@ const HR: React.FC = () => {
         </Space>
       ),
     },
-    { title: 'Chuc vu', key: 'position', render: (_, record) => record.positionName || record.staffTypeName || '-' },
-    { title: 'Khoa/Phong', dataIndex: 'departmentName', key: 'departmentName' },
+    { title: 'Chức vụ', key: 'position', render: (_, record) => record.positionName || record.staffTypeName || '-' },
+    { title: 'Khoa/Phòng', dataIndex: 'departmentName', key: 'departmentName' },
     {
-      title: 'So CCHN', key: 'license',
+      title: 'Số CCHN', key: 'license',
       render: (_, record) => {
         const cert = record.certifications?.[0];
         if (!cert) return '-';
@@ -670,37 +661,37 @@ const HR: React.FC = () => {
           <Space orientation="vertical" size={0}>
             <Text>{cert.licenseNumber}</Text>
             {daysUntil <= 90 && daysUntil > 0 && <Tag color="orange" icon={<WarningOutlined />}>Con {daysUntil} ngay</Tag>}
-            {daysUntil <= 0 && <Tag color="red" icon={<WarningOutlined />}>Da het han</Tag>}
+            {daysUntil <= 0 && <Tag color="red" icon={<WarningOutlined />}>Đã hết hạn</Tag>}
           </Space>
         );
       },
     },
-    { title: 'Trang thai', dataIndex: 'employmentStatus', key: 'status', width: 120, render: (status) => getStatusTag(status) },
+    { title: 'Trạng thái', dataIndex: 'employmentStatus', key: 'status', width: 120, render: (status) => getStatusTag(status) },
     {
-      title: 'Thao tac', key: 'action', width: 100,
+      title: 'Thao tác', key: 'action', width: 100,
       render: (_, record) => (
-        <Button size="small" onClick={() => { setSelectedEmployee(record); setIsDetailModalOpen(true); }}>Chi tiet</Button>
+        <Button size="small" onClick={() => { setSelectedEmployee(record); setIsDetailModalOpen(true); }}>Chi tiết</Button>
       ),
     },
   ];
 
   const shiftColumns: ColumnsType<RosterAssignmentDto> = [
-    { title: 'Nhan vien', dataIndex: 'staffName', key: 'staffName' },
+    { title: 'Nhân viên', dataIndex: 'staffName', key: 'staffName' },
     { title: 'Khoa', key: 'department', render: (_, record) => employees.find((e) => e.id === record.staffId)?.departmentName || '-' },
     { title: 'Ngay', dataIndex: 'date', key: 'date', render: (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-' },
     { title: 'Ca', key: 'shiftType', render: (_, record) => getShiftTag(record.shiftName, false, record.isOnCall) },
-    { title: 'Thoi gian', key: 'time', render: (_, record) => `${record.shiftStart || ''} - ${record.shiftEnd || ''}` },
+    { title: 'Thời gian', key: 'time', render: (_, record) => `${record.shiftStart || ''} - ${record.shiftEnd || ''}` },
   ];
 
   const trainingColumns: ColumnsType<CMESummaryDto> = [
-    { title: 'Nhan vien', dataIndex: 'staffName', key: 'staffName' },
-    { title: 'Tong so tiet', key: 'earnedCredits', render: (_, record) => `${record.earnedCredits}/${record.requiredCredits}` },
+    { title: 'Nhân viên', dataIndex: 'staffName', key: 'staffName' },
+    { title: 'Tổng số tiết', key: 'earnedCredits', render: (_, record) => `${record.earnedCredits}/${record.requiredCredits}` },
     { title: 'Loai 1', dataIndex: 'category1Credits', key: 'category1Credits' },
     { title: 'Loai 2', dataIndex: 'category2Credits', key: 'category2Credits' },
-    { title: 'So hoat dong', dataIndex: 'activitiesCount', key: 'activitiesCount' },
+    { title: 'Số hoạt động', dataIndex: 'activitiesCount', key: 'activitiesCount' },
     {
-      title: 'Trang thai', key: 'status',
-      render: (_, record) => record.isCompliant ? <Tag color="green">Du tiet</Tag> : <Tag color="red">Thieu {record.shortfall} tiet</Tag>,
+      title: 'Trạng thái', key: 'status',
+      render: (_, record) => record.isCompliant ? <Tag color="green">Đủ tiết</Tag> : <Tag color="red">Thieu {record.shortfall} tiet</Tag>,
     },
   ];
 
@@ -730,7 +721,7 @@ const HR: React.FC = () => {
   const tabItems = [
     {
       key: 'employees',
-      label: 'Nhan su',
+      label: 'Nhân sự',
       children: (
         <Table
           columns={employeeColumns}
@@ -740,32 +731,32 @@ const HR: React.FC = () => {
             onDoubleClick: () => { setSelectedEmployee(record); setIsDetailModalOpen(true); },
             style: { cursor: 'pointer' },
           })}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tong: ${total} nhan vien` }}
+          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tổng: ${total} nhân viên` }}
         />
       ),
     },
     {
       key: 'catalogs',
-      label: 'Danh muc',
+      label: 'Danh mục',
       children: (
         <>
           <Space style={{ marginBottom: 16 }}>
             <Select value={selectedCatalogType} onChange={setSelectedCatalogType} style={{ width: 220 }} options={CATALOG_TYPES} />
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => { catalogForm.resetFields(); setIsCatalogModalOpen(true); }}>Them moi</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { catalogForm.resetFields(); setIsCatalogModalOpen(true); }}>Thêm mới</Button>
           </Space>
           <Table
             columns={[
               { title: 'Ma', dataIndex: 'code', key: 'code', width: 100 },
               { title: 'Ten', dataIndex: 'name', key: 'name' },
-              { title: 'Mo ta', dataIndex: 'description', key: 'description' },
-              { title: 'Thu tu', dataIndex: 'sortOrder', key: 'sortOrder', width: 80 },
-              { title: 'Trang thai', key: 'isActive', width: 100, render: (_, r: HRCatalogDto) => <Tag color={r.isActive ? 'green' : 'default'}>{r.isActive ? 'Hoat dong' : 'Ngung'}</Tag> },
+              { title: 'Mô tả', dataIndex: 'description', key: 'description' },
+              { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 80 },
+              { title: 'Trạng thái', key: 'isActive', width: 100, render: (_, r: HRCatalogDto) => <Tag color={r.isActive ? 'green' : 'default'}>{r.isActive ? 'Hoạt động' : 'Ngưng'}</Tag> },
               {
-                title: 'Thao tac', key: 'action', width: 120,
+                title: 'Thao tác', key: 'action', width: 120,
                 render: (_, record: HRCatalogDto) => (
                   <Space>
                     <Button size="small" icon={<EditOutlined />} onClick={() => { catalogForm.setFieldsValue(record); setIsCatalogModalOpen(true); }} />
-                    <Popconfirm title="Xoa danh muc nay?" onConfirm={() => handleDeleteCatalog(record.id)}>
+                    <Popconfirm title="Xóa danh mục này?" onConfirm={() => handleDeleteCatalog(record.id)}>
                       <Button size="small" danger icon={<DeleteOutlined />} />
                     </Popconfirm>
                   </Space>
@@ -786,19 +777,19 @@ const HR: React.FC = () => {
       ),
       children: (
         <>
-          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { contractForm.resetFields(); fetchContracts(); setIsContractModalOpen(true); }}>Them hop dong</Button>
+          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { contractForm.resetFields(); fetchContracts(); setIsContractModalOpen(true); }}>Thêm hợp đồng</Button>
           {expiringContractsList.length > 0 && (
-            <Alert title={`${expiringContractsList.length} hop dong sap het han (90 ngay)`} type="warning" showIcon style={{ marginBottom: 16 }} />
+            <Alert title={`${expiringContractsList.length} hợp đồng sắp hết hạn (90 ngay)`} type="warning" showIcon style={{ marginBottom: 16 }} />
           )}
           <Table
             columns={[
-              { title: 'Nhan vien', key: 'staff', render: (_, r: StaffContractDto) => `${r.staffName} (${r.staffCode})` },
-              { title: 'Loai HD', dataIndex: 'contractType', key: 'contractType' },
-              { title: 'So HD', dataIndex: 'contractNumber', key: 'contractNumber' },
-              { title: 'Tu ngay', dataIndex: 'startDate', key: 'startDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-              { title: 'Den ngay', dataIndex: 'endDate', key: 'endDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : 'Vo thoi han' },
+              { title: 'Nhân viên', key: 'staff', render: (_, r: StaffContractDto) => `${r.staffName} (${r.staffCode})` },
+              { title: 'Loại HĐ', dataIndex: 'contractType', key: 'contractType' },
+              { title: 'Số HĐ', dataIndex: 'contractNumber', key: 'contractNumber' },
+              { title: 'Từ ngày', dataIndex: 'startDate', key: 'startDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+              { title: 'Đến ngày', dataIndex: 'endDate', key: 'endDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : 'Vô thời hạn' },
               {
-                title: 'Trang thai', key: 'status',
+                title: 'Trạng thái', key: 'status',
                 render: (_, r: StaffContractDto) => {
                   if (r.daysUntilExpiry != null && r.daysUntilExpiry <= 90 && r.daysUntilExpiry > 0) return <Tag color="orange">Con {r.daysUntilExpiry} ngay</Tag>;
                   return <Tag color={r.status === 0 ? 'green' : r.status === 1 ? 'red' : 'default'}>{r.statusName}</Tag>;
@@ -814,23 +805,23 @@ const HR: React.FC = () => {
     },
     {
       key: 'attendance',
-      label: 'Cham cong',
+      label: 'Chấm công',
       children: (
         <>
-          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { attendanceForm.resetFields(); fetchAttendance(); setIsAttendanceModalOpen(true); }}>Ghi cham cong</Button>
+          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { attendanceForm.resetFields(); fetchAttendance(); setIsAttendanceModalOpen(true); }}>Ghi chấm công</Button>
           <Tabs defaultActiveKey="records" items={[
             {
-              key: 'records', label: 'Chi tiet',
+              key: 'records', label: 'Chi tiết',
               children: (
                 <Table
                   columns={[
-                    { title: 'Nhan vien', key: 'staff', render: (_, r: AttendanceRecordDto) => `${r.staffName} (${r.staffCode})` },
+                    { title: 'Nhân viên', key: 'staff', render: (_, r: AttendanceRecordDto) => `${r.staffName} (${r.staffCode})` },
                     { title: 'Ngay', dataIndex: 'workDate', key: 'workDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
                     { title: 'Ca', dataIndex: 'shiftType', key: 'shiftType' },
-                    { title: 'Gio lam', dataIndex: 'workHours', key: 'workHours' },
-                    { title: 'Tang ca', dataIndex: 'overtimeHours', key: 'overtimeHours' },
+                    { title: 'Giờ làm', dataIndex: 'workHours', key: 'workHours' },
+                    { title: 'Tăng ca', dataIndex: 'overtimeHours', key: 'overtimeHours' },
                     {
-                      title: 'Trang thai', dataIndex: 'status', key: 'status',
+                      title: 'Trạng thái', dataIndex: 'status', key: 'status',
                       render: (s: string) => {
                         const colors: Record<string, string> = { Present: 'green', Absent: 'red', Leave: 'orange', Holiday: 'blue', HalfDay: 'gold' };
                         return <Tag color={colors[s] || 'default'}>{s}</Tag>;
@@ -844,16 +835,16 @@ const HR: React.FC = () => {
               ),
             },
             {
-              key: 'summary', label: 'Tong hop thang',
+              key: 'summary', label: 'Tổng hợp tháng',
               children: (
                 <Table
                   columns={[
-                    { title: 'Nhan vien', key: 'staff', render: (_, r: AttendanceSummaryDto) => `${r.staffName} (${r.staffCode})` },
+                    { title: 'Nhân viên', key: 'staff', render: (_, r: AttendanceSummaryDto) => `${r.staffName} (${r.staffCode})` },
                     { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName' },
-                    { title: 'Ngay cong', dataIndex: 'presentDays', key: 'presentDays' },
-                    { title: 'Vang', dataIndex: 'absentDays', key: 'absentDays' },
-                    { title: 'Phep', dataIndex: 'leaveDays', key: 'leaveDays' },
-                    { title: 'Gio tang ca', dataIndex: 'totalOvertimeHours', key: 'totalOvertimeHours' },
+                    { title: 'Ngày công', dataIndex: 'presentDays', key: 'presentDays' },
+                    { title: 'Vắng', dataIndex: 'absentDays', key: 'absentDays' },
+                    { title: 'Phép', dataIndex: 'leaveDays', key: 'leaveDays' },
+                    { title: 'Giờ tăng ca', dataIndex: 'totalOvertimeHours', key: 'totalOvertimeHours' },
                   ] as ColumnsType<AttendanceSummaryDto>}
                   dataSource={attendanceSummaries}
                   rowKey="staffId"
@@ -867,31 +858,31 @@ const HR: React.FC = () => {
     },
     {
       key: 'leave',
-      label: 'Nghi phep',
+      label: 'Nghỉ phép',
       children: (
         <>
-          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { leaveForm.resetFields(); fetchLeave(); setIsLeaveModalOpen(true); }}>Tao don nghi</Button>
+          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { leaveForm.resetFields(); fetchLeave(); setIsLeaveModalOpen(true); }}>Tạo đơn nghỉ</Button>
           <Table
             columns={[
-              { title: 'Nhan vien', key: 'staff', render: (_, r: LeaveRequestDto) => `${r.staffName} (${r.staffCode})` },
+              { title: 'Nhân viên', key: 'staff', render: (_, r: LeaveRequestDto) => `${r.staffName} (${r.staffCode})` },
               { title: 'Loai', dataIndex: 'leaveType', key: 'leaveType' },
-              { title: 'Tu ngay', dataIndex: 'startDate', key: 'startDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-              { title: 'Den ngay', dataIndex: 'endDate', key: 'endDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-              { title: 'So ngay', dataIndex: 'totalDays', key: 'totalDays' },
-              { title: 'Ly do', dataIndex: 'reason', key: 'reason', ellipsis: true },
+              { title: 'Từ ngày', dataIndex: 'startDate', key: 'startDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+              { title: 'Đến ngày', dataIndex: 'endDate', key: 'endDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+              { title: 'Số ngày', dataIndex: 'totalDays', key: 'totalDays' },
+              { title: 'Lý do', dataIndex: 'reason', key: 'reason', ellipsis: true },
               {
-                title: 'Trang thai', key: 'status',
+                title: 'Trạng thái', key: 'status',
                 render: (_, r: LeaveRequestDto) => {
-                  const s = LEAVE_STATUS_NAMES[r.status] || { color: 'default', text: 'Khong ro' };
+                  const s = LEAVE_STATUS_NAMES[r.status] || { color: 'default', text: 'Không rõ' };
                   return <Tag color={s.color}>{s.text}</Tag>;
                 },
               },
               {
-                title: 'Thao tac', key: 'action', width: 150,
+                title: 'Thao tác', key: 'action', width: 150,
                 render: (_, r: LeaveRequestDto) => r.status === 0 ? (
                   <Space>
-                    <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleApproveLeave(r.id, true)}>Duyet</Button>
-                    <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleApproveLeave(r.id, false)}>Tu choi</Button>
+                    <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleApproveLeave(r.id, true)}>Duyệt</Button>
+                    <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleApproveLeave(r.id, false)}>Từ chối</Button>
                   </Space>
                 ) : null,
               },
@@ -905,29 +896,29 @@ const HR: React.FC = () => {
     },
     {
       key: 'overtime',
-      label: 'Lam them gio',
+      label: 'Làm thêm giờ',
       children: (
         <>
-          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { overtimeForm.resetFields(); fetchOvertime(); setIsOvertimeModalOpen(true); }}>Tao yeu cau</Button>
+          <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => { overtimeForm.resetFields(); fetchOvertime(); setIsOvertimeModalOpen(true); }}>Tạo yêu cầu</Button>
           <Table
             columns={[
-              { title: 'Nhan vien', key: 'staff', render: (_, r: OvertimeRecordDto) => `${r.staffName} (${r.staffCode})` },
+              { title: 'Nhân viên', key: 'staff', render: (_, r: OvertimeRecordDto) => `${r.staffName} (${r.staffCode})` },
               { title: 'Ngay', dataIndex: 'overtimeDate', key: 'overtimeDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-              { title: 'So gio', dataIndex: 'hours', key: 'hours' },
-              { title: 'Ly do', dataIndex: 'reason', key: 'reason', ellipsis: true },
+              { title: 'Số giờ', dataIndex: 'hours', key: 'hours' },
+              { title: 'Lý do', dataIndex: 'reason', key: 'reason', ellipsis: true },
               {
-                title: 'Trang thai', key: 'status',
+                title: 'Trạng thái', key: 'status',
                 render: (_, r: OvertimeRecordDto) => {
                   const colors = ['gold', 'green', 'red'];
                   return <Tag color={colors[r.status] || 'default'}>{r.statusName}</Tag>;
                 },
               },
               {
-                title: 'Thao tac', key: 'action', width: 150,
+                title: 'Thao tác', key: 'action', width: 150,
                 render: (_, r: OvertimeRecordDto) => r.status === 0 ? (
                   <Space>
-                    <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleApproveOvertime(r.id, true)}>Duyet</Button>
-                    <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleApproveOvertime(r.id, false)}>Tu choi</Button>
+                    <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleApproveOvertime(r.id, true)}>Duyệt</Button>
+                    <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleApproveOvertime(r.id, false)}>Từ chối</Button>
                   </Space>
                 ) : null,
               },
@@ -941,25 +932,25 @@ const HR: React.FC = () => {
     },
     {
       key: 'awards',
-      label: 'Khen thuong / Ky luat',
+      label: 'Khen thưởng / Ky luat',
       children: (
         <>
           <Space style={{ marginBottom: 16 }}>
-            <Button type="primary" icon={<TrophyOutlined />} onClick={() => { awardForm.resetFields(); fetchAwardsDiscipline(); setIsAwardModalOpen(true); }}>Them khen thuong</Button>
-            <Button danger icon={<WarningOutlined />} onClick={() => { disciplineForm.resetFields(); fetchAwardsDiscipline(); setIsDisciplineModalOpen(true); }}>Them ky luat</Button>
+            <Button type="primary" icon={<TrophyOutlined />} onClick={() => { awardForm.resetFields(); fetchAwardsDiscipline(); setIsAwardModalOpen(true); }}>Thêm khen thưởng</Button>
+            <Button danger icon={<WarningOutlined />} onClick={() => { disciplineForm.resetFields(); fetchAwardsDiscipline(); setIsDisciplineModalOpen(true); }}>Thêm kỷ luật</Button>
           </Space>
           <Tabs defaultActiveKey="awards" items={[
             {
-              key: 'awards', label: 'Khen thuong',
+              key: 'awards', label: 'Khen thưởng',
               children: (
                 <Table
                   columns={[
-                    { title: 'Nhan vien', key: 'staff', render: (_, r: StaffAwardDto) => `${r.staffName} (${r.staffCode})` },
+                    { title: 'Nhân viên', key: 'staff', render: (_, r: StaffAwardDto) => `${r.staffName} (${r.staffCode})` },
                     { title: 'Loai', dataIndex: 'awardType', key: 'awardType' },
-                    { title: 'Noi dung', dataIndex: 'title', key: 'title' },
+                    { title: 'Nội dung', dataIndex: 'title', key: 'title' },
                     { title: 'Ngay', dataIndex: 'awardDate', key: 'awardDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-                    { title: 'So QD', dataIndex: 'decisionNumber', key: 'decisionNumber' },
-                    { title: 'Co quan', dataIndex: 'issuedBy', key: 'issuedBy' },
+                    { title: 'Số QĐ', dataIndex: 'decisionNumber', key: 'decisionNumber' },
+                    { title: 'Cơ quan', dataIndex: 'issuedBy', key: 'issuedBy' },
                   ] as ColumnsType<StaffAwardDto>}
                   dataSource={awards}
                   rowKey="id"
@@ -968,16 +959,16 @@ const HR: React.FC = () => {
               ),
             },
             {
-              key: 'disciplines', label: 'Ky luat',
+              key: 'disciplines', label: 'Kỷ luật',
               children: (
                 <Table
                   columns={[
-                    { title: 'Nhan vien', key: 'staff', render: (_, r: StaffDisciplineDto) => `${r.staffName} (${r.staffCode})` },
-                    { title: 'Hinh thuc', dataIndex: 'disciplineType', key: 'disciplineType' },
-                    { title: 'Noi dung', dataIndex: 'title', key: 'title' },
+                    { title: 'Nhân viên', key: 'staff', render: (_, r: StaffDisciplineDto) => `${r.staffName} (${r.staffCode})` },
+                    { title: 'Hình thức', dataIndex: 'disciplineType', key: 'disciplineType' },
+                    { title: 'Nội dung', dataIndex: 'title', key: 'title' },
                     { title: 'Ngay', dataIndex: 'disciplineDate', key: 'disciplineDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-                    { title: 'Het han', dataIndex: 'expiryDate', key: 'expiryDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-                    { title: 'Trang thai', key: 'isExpired', render: (_, r: StaffDisciplineDto) => r.isExpired ? <Tag color="green">Da het hieu luc</Tag> : <Tag color="red">Con hieu luc</Tag> },
+                    { title: 'Hết hạn', dataIndex: 'expiryDate', key: 'expiryDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                    { title: 'Trạng thái', key: 'isExpired', render: (_, r: StaffDisciplineDto) => r.isExpired ? <Tag color="green">Đã hết hiệu lực</Tag> : <Tag color="red">Còn hiệu lực</Tag> },
                   ] as ColumnsType<StaffDisciplineDto>}
                   dataSource={disciplines}
                   rowKey="id"
@@ -991,12 +982,12 @@ const HR: React.FC = () => {
     },
     {
       key: 'schedule',
-      label: 'Lich truc',
+      label: 'Lịch trực',
       children: (
         <Row gutter={16}>
           <Col span={16}><Calendar cellRender={dateCellRender} /></Col>
           <Col span={8}>
-            <Card title="Lich truc hom nay" extra={<Button size="small" onClick={() => setIsShiftModalOpen(true)}>Them</Button>}>
+            <Card title="Lịch trực hôm nay" extra={<Button size="small" onClick={() => setIsShiftModalOpen(true)}>Thêm</Button>}>
               <div>
                 {rosterAssignments.filter((s) => s.date && dayjs(s.date).format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD')).map((item) => (
                   <div key={item.id} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
@@ -1004,7 +995,7 @@ const HR: React.FC = () => {
                   </div>
                 ))}
                 {rosterAssignments.filter((s) => s.date && dayjs(s.date).format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD')).length === 0 && (
-                  <Text type="secondary">Khong co lich truc hom nay</Text>
+                  <Text type="secondary">Không có lịch trực hôm nay</Text>
                 )}
               </div>
             </Card>
@@ -1014,7 +1005,7 @@ const HR: React.FC = () => {
     },
     {
       key: 'shifts',
-      label: 'Phan ca',
+      label: 'Phân ca',
       children: (
         <>
           <Button type="primary" icon={<ScheduleOutlined />} style={{ marginBottom: 16 }} onClick={() => setIsShiftModalOpen(true)}>Phan ca moi</Button>
@@ -1024,10 +1015,10 @@ const HR: React.FC = () => {
     },
     {
       key: 'training',
-      label: 'Dao tao',
+      label: 'Đào tạo',
       children: (
         <>
-          <Button type="primary" icon={<BookOutlined />} style={{ marginBottom: 16 }} onClick={() => setIsTrainingModalOpen(true)}>Dang ky dao tao</Button>
+          <Button type="primary" icon={<BookOutlined />} style={{ marginBottom: 16 }} onClick={() => setIsTrainingModalOpen(true)}>Đăng ký đào tạo</Button>
           <Table columns={trainingColumns} dataSource={cmeNonCompliant} rowKey="staffId" pagination={{ pageSize: 10 }} />
         </>
       ),
@@ -1038,11 +1029,11 @@ const HR: React.FC = () => {
       children: (
         <Table
           columns={[
-            { title: 'Nhan vien', dataIndex: 'fullName', key: 'fullName' },
-            { title: 'Chuc vu', key: 'position', render: (_, record: StaffProfileDto) => record.positionName || record.staffTypeName || '-' },
-            { title: 'So CCHN', key: 'licenseNumber', render: (_, record: StaffProfileDto) => record.certifications?.[0]?.licenseNumber || '-' },
+            { title: 'Nhân viên', dataIndex: 'fullName', key: 'fullName' },
+            { title: 'Chức vụ', key: 'position', render: (_, record: StaffProfileDto) => record.positionName || record.staffTypeName || '-' },
+            { title: 'Số CCHN', key: 'licenseNumber', render: (_, record: StaffProfileDto) => record.certifications?.[0]?.licenseNumber || '-' },
             {
-              title: 'Ngay het han', key: 'licenseExpiry',
+              title: 'Ngày hết hạn', key: 'licenseExpiry',
               render: (_, record: StaffProfileDto) => {
                 const cert = record.certifications?.[0];
                 if (!cert?.expiryDate) return '-';
@@ -1059,29 +1050,29 @@ const HR: React.FC = () => {
     },
     {
       key: 'reports',
-      label: 'Bao cao',
+      label: 'Báo cáo',
       children: (
         <>
           <Space style={{ marginBottom: 16 }}>
             <Select value={reportType} onChange={(v) => { setReportType(v); fetchReports(v); }} style={{ width: 250 }}
               options={[
-                { value: 'department', label: 'Nhan su theo phong' },
+                { value: 'department', label: 'Nhân sự theo phòng' },
                 { value: 'attendance', label: 'Bao cao cham cong' },
                 { value: 'leave', label: 'Bao cao nghi phep' },
                 { value: 'overtime', label: 'Bao cao lam them gio' },
                 { value: 'movement', label: 'Bien dong nhan su' },
               ]}
             />
-            <Button icon={<BarChartOutlined />} onClick={() => fetchReports(reportType)}>Xem bao cao</Button>
+            <Button icon={<BarChartOutlined />} onClick={() => fetchReports(reportType)}>Xem báo cáo</Button>
           </Space>
 
           {reportType === 'department' && (
             <Table
               columns={[
-                { title: 'Khoa/Phong', dataIndex: 'departmentName', key: 'departmentName' },
+                { title: 'Khoa/Phòng', dataIndex: 'departmentName', key: 'departmentName' },
                 { title: 'Tong', dataIndex: 'totalStaff', key: 'totalStaff' },
-                { title: 'Bac si', dataIndex: 'doctors', key: 'doctors' },
-                { title: 'Dieu duong', dataIndex: 'nurses', key: 'nurses' },
+                { title: 'Bác sĩ', dataIndex: 'doctors', key: 'doctors' },
+                { title: 'Điều dưỡng', dataIndex: 'nurses', key: 'nurses' },
                 { title: 'KTV', dataIndex: 'technicians', key: 'technicians' },
                 { title: 'Khac', dataIndex: 'others', key: 'others' },
               ] as ColumnsType<StaffByDepartmentReportDto>}
@@ -1162,7 +1153,7 @@ const HR: React.FC = () => {
       <div>
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
           <Title level={4} style={{ margin: 0 }}>Quan ly nhan su y te</Title>
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
         </Space>
 
         {/* Statistics */}
@@ -1216,7 +1207,7 @@ const HR: React.FC = () => {
                     <Descriptions.Item label="Ma NV">{selectedEmployee.staffCode}</Descriptions.Item>
                     <Descriptions.Item label="Trang thai">{getStatusTag(selectedEmployee.employmentStatus)}</Descriptions.Item>
                     <Descriptions.Item label="Ho ten" span={2}>{selectedEmployee.fullName}</Descriptions.Item>
-                    <Descriptions.Item label="Chuc vu">{selectedEmployee.positionName || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Chức vụ">{selectedEmployee.positionName || '-'}</Descriptions.Item>
                     <Descriptions.Item label="Khoa/Phong">{selectedEmployee.departmentName}</Descriptions.Item>
                   </Descriptions>
                 </Col>
@@ -1224,7 +1215,7 @@ const HR: React.FC = () => {
               <Divider>Chung chi hanh nghe</Divider>
               {selectedEmployee.certifications?.length ? selectedEmployee.certifications.map((cert) => (
                 <Descriptions key={cert.id} bordered size="small" column={2} style={{ marginBottom: 8 }}>
-                  <Descriptions.Item label="So CCHN">{cert.licenseNumber}</Descriptions.Item>
+                  <Descriptions.Item label="Số CCHN">{cert.licenseNumber}</Descriptions.Item>
                   <Descriptions.Item label="Het han">{cert.expiryDate || '-'}</Descriptions.Item>
                 </Descriptions>
               )) : <Text type="secondary">Chua co chung chi</Text>}
@@ -1241,7 +1232,7 @@ const HR: React.FC = () => {
             <Form.Item name="description" label="Mo ta"><Input.TextArea rows={2} /></Form.Item>
             <Form.Item name="sortOrder" label="Thu tu" initialValue={0}><InputNumber style={{ width: '100%' }} /></Form.Item>
             <Form.Item name="isActive" label="Trang thai" initialValue={true}>
-              <Select options={[{ value: true, label: 'Hoat dong' }, { value: false, label: 'Ngung' }]} />
+              <Select options={[{ value: true, label: 'Hoạt động' }, { value: false, label: 'Ngưng' }]} />
             </Form.Item>
           </Form>
         </Modal>
@@ -1254,10 +1245,10 @@ const HR: React.FC = () => {
             </Form.Item>
             <Form.Item name="contractType" label="Loai HD" rules={[{ required: true }]}>
               <Select options={[
-                { value: 'Probation', label: 'Thu viec' },
+                { value: 'Probation', label: 'Thử việc' },
                 { value: 'FixedTerm', label: 'Xac dinh thoi han' },
                 { value: 'Indefinite', label: 'Khong xac dinh thoi han' },
-                { value: 'Seasonal', label: 'Thoi vu' },
+                { value: 'Seasonal', label: 'Thời vụ' },
               ]} />
             </Form.Item>
             <Form.Item name="contractNumber" label="So hop dong" rules={[{ required: true }]}><Input /></Form.Item>
@@ -1270,19 +1261,19 @@ const HR: React.FC = () => {
         </Modal>
 
         {/* Leave Modal */}
-        <Modal title="Tao don nghi phep" open={isLeaveModalOpen} onCancel={() => setIsLeaveModalOpen(false)} onOk={() => leaveForm.submit()}>
+        <Modal title="Tạo đơn nghỉ phep" open={isLeaveModalOpen} onCancel={() => setIsLeaveModalOpen(false)} onOk={() => leaveForm.submit()}>
           <Form form={leaveForm} layout="vertical" onFinish={handleCreateLeave}>
             <Form.Item name="staffId" label="Nhan vien" rules={[{ required: true }]}>
               <Select showSearch optionFilterProp="label" options={employees.map((e) => ({ value: e.id, label: `${e.fullName} (${e.staffCode})` }))} />
             </Form.Item>
             <Form.Item name="leaveType" label="Loai nghi" rules={[{ required: true }]}>
               <Select options={[
-                { value: 'Annual', label: 'Phep nam' },
-                { value: 'Sick', label: 'Nghi om' },
-                { value: 'Maternity', label: 'Thai san' },
-                { value: 'Unpaid', label: 'Khong luong' },
-                { value: 'Compassionate', label: 'Viec rieng' },
-                { value: 'Study', label: 'Hoc tap' },
+                { value: 'Annual', label: 'Phép năm' },
+                { value: 'Sick', label: 'Nghỉ ốm' },
+                { value: 'Maternity', label: 'Thai sản' },
+                { value: 'Unpaid', label: 'Không lương' },
+                { value: 'Compassionate', label: 'Việc riêng' },
+                { value: 'Study', label: 'Học tập' },
               ]} />
             </Form.Item>
             <Form.Item name="dates" label="Thoi gian" rules={[{ required: true }]}><RangePicker style={{ width: '100%' }} /></Form.Item>
@@ -1291,7 +1282,7 @@ const HR: React.FC = () => {
         </Modal>
 
         {/* Attendance Modal */}
-        <Modal title="Ghi cham cong" open={isAttendanceModalOpen} onCancel={() => setIsAttendanceModalOpen(false)} onOk={() => attendanceForm.submit()}>
+        <Modal title="Ghi chấm công" open={isAttendanceModalOpen} onCancel={() => setIsAttendanceModalOpen(false)} onOk={() => attendanceForm.submit()}>
           <Form form={attendanceForm} layout="vertical" onFinish={handleRecordAttendance}>
             <Form.Item name="staffId" label="Nhan vien" rules={[{ required: true }]}>
               <Select showSearch optionFilterProp="label" options={employees.map((e) => ({ value: e.id, label: `${e.fullName} (${e.staffCode})` }))} />
@@ -1313,9 +1304,9 @@ const HR: React.FC = () => {
               <Select options={[
                 { value: 'Present', label: 'Co mat' },
                 { value: 'Absent', label: 'Vang' },
-                { value: 'Leave', label: 'Nghi phep' },
-                { value: 'Holiday', label: 'Nghi le' },
-                { value: 'HalfDay', label: 'Nua ngay' },
+                { value: 'Leave', label: 'Nghỉ phép' },
+                { value: 'Holiday', label: 'Nghỉ lễ' },
+                { value: 'HalfDay', label: 'Nửa ngày' },
               ]} />
             </Form.Item>
           </Form>
@@ -1343,8 +1334,8 @@ const HR: React.FC = () => {
               <Select options={[
                 { value: 'LDTT', label: 'Lao dong tien tien' },
                 { value: 'CSTT', label: 'Chien si thi dua co so' },
-                { value: 'BK', label: 'Bang khen' },
-                { value: 'GK', label: 'Giay khen' },
+                { value: 'BK', label: 'Bằng khen' },
+                { value: 'GK', label: 'Giấy khen' },
               ]} />
             </Form.Item>
             <Form.Item name="title" label="Noi dung" rules={[{ required: true }]}><Input /></Form.Item>
@@ -1362,10 +1353,10 @@ const HR: React.FC = () => {
             </Form.Item>
             <Form.Item name="disciplineType" label="Hinh thuc" rules={[{ required: true }]}>
               <Select options={[
-                { value: 'KT', label: 'Khien trach' },
-                { value: 'CN', label: 'Canh cao' },
-                { value: 'CC', label: 'Cach chuc' },
-                { value: 'BV', label: 'Buoc thoi viec' },
+                { value: 'KT', label: 'Khiển trách' },
+                { value: 'CN', label: 'Cảnh cáo' },
+                { value: 'CC', label: 'Cách chức' },
+                { value: 'BV', label: 'Buộc thôi việc' },
               ]} />
             </Form.Item>
             <Form.Item name="title" label="Noi dung" rules={[{ required: true }]}><Input /></Form.Item>
@@ -1400,7 +1391,7 @@ const HR: React.FC = () => {
         </Modal>
 
         {/* Training Modal */}
-        <Modal title="Dang ky dao tao" open={isTrainingModalOpen} onCancel={() => setIsTrainingModalOpen(false)} onOk={() => trainingForm.submit()}>
+        <Modal title="Đăng ký đào tạo" open={isTrainingModalOpen} onCancel={() => setIsTrainingModalOpen(false)} onOk={() => trainingForm.submit()}>
           <Form form={trainingForm} layout="vertical" onFinish={handleAddTraining}>
             <Form.Item name="employeeId" label="Nhan vien" rules={[{ required: true }]}>
               <Select showSearch optionFilterProp="label" options={employees.map((e) => ({ value: e.id, label: `${e.fullName} (${e.staffCode})` }))} />
@@ -1423,26 +1414,26 @@ const HR: React.FC = () => {
         <Modal title="Them nhan vien moi" open={isAddEmployeeModalOpen} onCancel={() => setIsAddEmployeeModalOpen(false)} onOk={() => employeeForm.submit()} width={600}>
           <Form form={employeeForm} layout="vertical" onFinish={handleAddEmployee}>
             <Row gutter={16}>
-              <Col span={12}><Form.Item name="staffCode" label="Ma nhan vien" rules={[{ required: true }]}><Input /></Form.Item></Col>
-              <Col span={12}><Form.Item name="fullName" label="Ho va ten" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="staffCode" label="Mã nhân viên" rules={[{ required: true }]}><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="fullName" label="Họ và tên" rules={[{ required: true }]}><Input /></Form.Item></Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="gender" label="Gioi tinh">
+                <Form.Item name="gender" label="Giới tính">
                   <Select><Select.Option value="Male">Nam</Select.Option><Select.Option value="Female">Nu</Select.Option></Select>
                 </Form.Item>
               </Col>
-              <Col span={12}><Form.Item name="dateOfBirth" label="Ngay sinh"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="dateOfBirth" label="Ngày sinh"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
             <Row gutter={16}>
-              <Col span={12}><Form.Item name="staffType" label="Loai nhan vien" rules={[{ required: true }]}><Select options={POSITIONS} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="specialty" label="Chuyen khoa"><Input /></Form.Item></Col>
+              <Col span={12}><Form.Item name="staffType" label="Loại nhân viên" rules={[{ required: true }]}><Select options={POSITIONS} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="specialty" label="Chuyên khoa"><Input /></Form.Item></Col>
             </Row>
             <Row gutter={16}>
               <Col span={12}><Form.Item name="phone" label="So dien thoai"><Input /></Form.Item></Col>
               <Col span={12}><Form.Item name="email" label="Email"><Input /></Form.Item></Col>
             </Row>
-            <Form.Item name="hireDate" label="Ngay vao lam"><DatePicker style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="hireDate" label="Ngày vào làm"><DatePicker style={{ width: '100%' }} /></Form.Item>
           </Form>
         </Modal>
       </div>

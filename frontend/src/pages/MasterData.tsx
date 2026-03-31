@@ -427,7 +427,7 @@ const MasterData: React.FC = () => {
       onOk: async () => {
         try {
           if (!record.id) {
-            message.warning('KhÃ´ng tÃ¬m tháº¥y Ä‘á»‹nh danh báº£n ghi');
+            message.warning('Không tìm th�¥y Ä‘�‹nh danh b�£n ghi');
             return;
           }
           switch (activeTab) {
@@ -475,6 +475,10 @@ const MasterData: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      const editingDepartmentId =
+        editingRecord && 'departmentId' in editingRecord
+          ? editingRecord.departmentId
+          : undefined;
       switch (activeTab) {
         case 'services':
           await catalogApi.saveParaclinicalService({
@@ -482,10 +486,10 @@ const MasterData: React.FC = () => {
             code: values.code,
             name: values.name,
             serviceType: values.groupName || 'Khám bệnh',
-            departmentId: (editingRecord && 'departmentId' in editingRecord ? editingRecord.departmentId : undefined) || '',
-            bhxhCode: values.bhytCode,
+            departmentId: editingDepartmentId || '00000000-0000-0000-0000-000000000000',
+            bhxhCode: values.bhytCode || '',
             unitPrice: values.price || 0,
-            insurancePrice: values.bhytPrice,
+            insurancePrice: values.bhytPrice || 0,
             isActive: values.isActive !== false,
           });
           break;
@@ -1498,13 +1502,17 @@ const MasterData: React.FC = () => {
                 </Form.Item>
               </Col>
               <Col span={8}>
-                <Form.Item name="groupName" label="Nhóm dịch vụ" rules={[{ required: true }]}>
-                  <Select placeholder="Chọn nhóm">
-                    <Select.Option value="Khám bệnh">Khám bệnh</Select.Option>
-                    <Select.Option value="Xét nghiệm">Xét nghiệm</Select.Option>
-                    <Select.Option value="Chẩn đoán hình ảnh">Chẩn đoán hình ảnh</Select.Option>
-                    <Select.Option value="Phẫu thuật thủ thuật">Phẫu thuật thủ thuật</Select.Option>
-                  </Select>
+                <Form.Item name="groupName" label="Nhóm dịch vụ" rules={[{ required: true, message: 'Chọn nhóm dịch vụ' }]}>
+                  <Select
+                    placeholder="Chọn nhóm"
+                    getPopupContainer={(trigger) => trigger.parentElement || document.body}
+                    options={[
+                      { value: 'Khám bệnh', label: 'Khám bệnh' },
+                      { value: 'Xét nghiệm', label: 'Xét nghiệm' },
+                      { value: 'Chẩn đoán hình ảnh', label: 'Chẩn đoán hình ảnh' },
+                      { value: 'Phẫu thuật thủ thuật', label: 'Phẫu thuật thủ thuật' },
+                    ]}
+                  />
                 </Form.Item>
               </Col>
               <Col span={8}>

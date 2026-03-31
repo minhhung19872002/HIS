@@ -35,7 +35,7 @@ const CouplesTab: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try { setData(await ivfApi.getCouples({ keyword: keyword || undefined })); }
-    catch { message.warning('Khong the tai danh sach cap vo chong'); }
+    catch { message.warning('Không thể tải danh sách cặp vợ chồng'); }
     finally { setLoading(false); }
   }, [keyword]);
 
@@ -45,34 +45,34 @@ const CouplesTab: React.FC = () => {
     try {
       const values = await form.validateFields();
       await ivfApi.saveCouple(values);
-      message.success('Luu thanh cong');
+      message.success('Lưu thành công');
       setModalOpen(false);
       form.resetFields();
       fetchData();
-    } catch { message.warning('Luu that bai'); }
+    } catch { message.warning('Lưu thất bại'); }
   };
 
   const columns: ColumnsType<IvfCouple> = [
-    { title: 'Vo', dataIndex: 'wifeName', key: 'wifeName', render: (v, r) => `${v || ''} (${r.wifeCode || ''})` },
-    { title: 'Chong', dataIndex: 'husbandName', key: 'husbandName', render: (v, r) => `${v || ''} (${r.husbandCode || ''})` },
-    { title: 'Nguyen nhan', dataIndex: 'infertilityCause', key: 'cause', ellipsis: true },
-    { title: 'Thoi gian (thang)', dataIndex: 'infertilityDurationMonths', key: 'duration', width: 130 },
-    { title: 'So chu ky', dataIndex: 'cycleCount', key: 'cycleCount', width: 100 },
+    { title: 'Vợ', dataIndex: 'wifeName', key: 'wifeName', render: (v, r) => `${v || ''} (${r.wifeCode || ''})` },
+    { title: 'Chồng', dataIndex: 'husbandName', key: 'husbandName', render: (v, r) => `${v || ''} (${r.husbandCode || ''})` },
+    { title: 'Nguyên nhân', dataIndex: 'infertilityCause', key: 'cause', ellipsis: true },
+    { title: 'Thời gian (tháng)', dataIndex: 'infertilityDurationMonths', key: 'duration', width: 130 },
+    { title: 'Số chu kỳ', dataIndex: 'cycleCount', key: 'cycleCount', width: 100 },
   ];
 
   return (
     <Spin spinning={loading}>
       <Space style={{ marginBottom: 16 }} wrap>
-        <Search placeholder="Tim kiem..." value={keyword} onChange={e => setKeyword(e.target.value)} onSearch={fetchData} style={{ width: 300 }} enterButton={<SearchOutlined />} />
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
+        <Search placeholder="Tìm kiếm..." value={keyword} onChange={e => setKeyword(e.target.value)} onSearch={fetchData} style={{ width: 300 }} enterButton={<SearchOutlined />} />
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Dang ky cap</Button>
       </Space>
       <Table dataSource={data} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
       <Modal title="Dang ky cap vo chong" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={600}>
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}><Form.Item name="wifePatientId" label="Ma benh nhan (Vo)" rules={[{ required: true }]}><Input placeholder="Patient ID (Vo)" /></Form.Item></Col>
-            <Col span={12}><Form.Item name="husbandPatientId" label="Ma benh nhan (Chong)" rules={[{ required: true }]}><Input placeholder="Patient ID (Chong)" /></Form.Item></Col>
+            <Col span={12}><Form.Item name="wifePatientId" label="Ma bệnh nhân (Vo)" rules={[{ required: true }]}><Input placeholder="Patient ID (Vo)" /></Form.Item></Col>
+            <Col span={12}><Form.Item name="husbandPatientId" label="Ma bệnh nhân (Chong)" rules={[{ required: true }]}><Input placeholder="Patient ID (Chong)" /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}><Form.Item name="infertilityCause" label="Nguyen nhan vo sinh"><Input /></Form.Item></Col>
@@ -123,7 +123,7 @@ const CyclesTab: React.FC = () => {
       values.coupleId = selectedCouple;
       values.startDate = values.startDate?.format?.('YYYY-MM-DD') || values.startDate;
       await ivfApi.saveCycle(values);
-      message.success('Luu chu ky thanh cong');
+      message.success('Luu chu kỳ thanh cong');
       setModalOpen(false);
       form.resetFields();
       ivfApi.getCycles(selectedCouple).then(setCycles);
@@ -131,12 +131,12 @@ const CyclesTab: React.FC = () => {
   };
 
   const columns: ColumnsType<IvfCycle> = [
-    { title: 'Chu ky', dataIndex: 'cycleNumber', key: 'num', width: 80 },
+    { title: 'Chu kỳ', dataIndex: 'cycleNumber', key: 'num', width: 80 },
     { title: 'Ngay bat dau', dataIndex: 'startDate', key: 'start', width: 120 },
-    { title: 'Trang thai', dataIndex: 'status', key: 'status', render: (s, r) => <Tag color={cycleStatusColor[s]}>{r.statusName || s}</Tag> },
-    { title: 'Phac do', dataIndex: 'protocol', key: 'protocol', ellipsis: true },
-    { title: 'Bac si', dataIndex: 'doctorName', key: 'doctor' },
-    { title: 'Phoi', dataIndex: 'embryoCount', key: 'embryo', width: 60 },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (s, r) => <Tag color={cycleStatusColor[s]}>{r.statusName || s}</Tag> },
+    { title: 'Phác đồ', dataIndex: 'protocol', key: 'protocol', ellipsis: true },
+    { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctor' },
+    { title: 'Phôi', dataIndex: 'embryoCount', key: 'embryo', width: 60 },
     { title: 'Chuyen', dataIndex: 'transferCount', key: 'transfer', width: 70 },
   ];
 
@@ -145,16 +145,16 @@ const CyclesTab: React.FC = () => {
       <Space style={{ marginBottom: 16 }} wrap>
         <Select placeholder="Chon cap vo chong" style={{ width: 350 }} value={selectedCouple || undefined} onChange={setSelectedCouple} showSearch optionFilterProp="label"
           options={couples.map(c => ({ value: c.id, label: `${c.wifeName || ''} & ${c.husbandName || ''}` }))} />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }} disabled={!selectedCouple}>Tao chu ky</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }} disabled={!selectedCouple}>Tao chu kỳ</Button>
       </Space>
       <Table dataSource={cycles} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
-      <Modal title="Tao chu ky IVF" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={500}>
+      <Modal title="Tao chu kỳ IVF" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={500}>
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}><Form.Item name="cycleNumber" label="So chu ky" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="cycleNumber" label="So chu kỳ" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={12}><Form.Item name="startDate" label="Ngay bat dau"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
           </Row>
-          <Form.Item name="protocol" label="Phac do"><Input placeholder="VD: Long protocol, Short protocol, Antagonist..." /></Form.Item>
+          <Form.Item name="protocol" label="Phác đồ"><Input placeholder="VD: Long protocol, Short protocol, Antagonist..." /></Form.Item>
           <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
@@ -176,7 +176,7 @@ const EmbryosTab: React.FC = () => {
     if (!cycleId) return;
     setLoading(true);
     try { setEmbryos(await ivfApi.getEmbryos(cycleId)); }
-    catch { message.warning('Khong the tai danh sach phoi'); }
+    catch { message.warning('Khong the tai danh sach phôi'); }
     finally { setLoading(false); }
   }, [cycleId]);
 
@@ -187,7 +187,7 @@ const EmbryosTab: React.FC = () => {
       const values = await form.validateFields();
       values.cycleId = cycleId;
       await ivfApi.saveEmbryo(values);
-      message.success('Luu phoi thanh cong');
+      message.success('Luu phôi thanh cong');
       setModalOpen(false);
       form.resetFields();
       fetchEmbryos();
@@ -199,11 +199,11 @@ const EmbryosTab: React.FC = () => {
       const values = await freezeForm.validateFields();
       values.freezeDate = values.freezeDate?.format?.('YYYY-MM-DD') || values.freezeDate;
       await ivfApi.freezeEmbryo(freezeModal!, values);
-      message.success('Dong lanh thanh cong');
+      message.success('Đông lạnh thanh cong');
       setFreezeModal(null);
       freezeForm.resetFields();
       fetchEmbryos();
-    } catch { message.warning('Dong lanh that bai'); }
+    } catch { message.warning('Đông lạnh that bai'); }
   };
 
   const handleThaw = async (id: string) => {
@@ -215,20 +215,20 @@ const EmbryosTab: React.FC = () => {
   };
 
   const columns: ColumnsType<IvfEmbryo> = [
-    { title: 'Ma phoi', dataIndex: 'embryoCode', key: 'code', width: 100 },
+    { title: 'Ma phôi', dataIndex: 'embryoCode', key: 'code', width: 100 },
     { title: 'D2', dataIndex: 'day2Grade', key: 'd2', width: 60 },
     { title: 'D3', dataIndex: 'day3Grade', key: 'd3', width: 60 },
     { title: 'D5', dataIndex: 'day5Grade', key: 'd5', width: 60 },
     { title: 'D6', dataIndex: 'day6Grade', key: 'd6', width: 60 },
     { title: 'D7', dataIndex: 'day7Grade', key: 'd7', width: 60 },
-    { title: 'Trang thai', dataIndex: 'status', key: 'status', render: (s, r) => <Tag color={embryoStatusColor[s]}>{r.statusName || s}</Tag> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (s, r) => <Tag color={embryoStatusColor[s]}>{r.statusName || s}</Tag> },
     { title: 'Binh', dataIndex: 'tankCode', key: 'tank', width: 80 },
     { title: 'Ong', dataIndex: 'strawCode', key: 'straw', width: 80 },
     {
       title: 'Thao tac', key: 'action', width: 200,
       render: (_, r) => (
         <Space>
-          {r.status === 1 && <Button size="small" onClick={() => { setFreezeModal(r.id); freezeForm.resetFields(); }}>Dong lanh</Button>}
+          {r.status === 1 && <Button size="small" onClick={() => { setFreezeModal(r.id); freezeForm.resetFields(); }}>Đông lạnh</Button>}
           {r.status === 3 && <Button size="small" onClick={() => handleThaw(r.id)}>Ra dong</Button>}
         </Space>
       )
@@ -239,14 +239,14 @@ const EmbryosTab: React.FC = () => {
     <Spin spinning={loading}>
       <Space style={{ marginBottom: 16 }} wrap>
         <Input placeholder="Nhap Cycle ID" value={cycleId} onChange={e => setCycleId(e.target.value)} style={{ width: 320 }} />
-        <Button icon={<SearchOutlined />} onClick={fetchEmbryos}>Tai phoi</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }} disabled={!cycleId}>Them phoi</Button>
+        <Button icon={<SearchOutlined />} onClick={fetchEmbryos}>Tai phôi</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }} disabled={!cycleId}>Them phôi</Button>
       </Space>
       <Table dataSource={embryos} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 20 }} />
-      <Modal title="Them phoi" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={600}>
+      <Modal title="Them phôi" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={600}>
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="embryoCode" label="Ma phoi" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="embryoCode" label="Ma phôi" rules={[{ required: true }]}><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="day2Grade" label="Grade D2"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="day3Grade" label="Grade D3"><Input /></Form.Item></Col>
           </Row>
@@ -258,10 +258,10 @@ const EmbryosTab: React.FC = () => {
           <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
-      <Modal title="Dong lanh phoi" open={!!freezeModal} onOk={handleFreeze} onCancel={() => setFreezeModal(null)} width={500}>
+      <Modal title="Đông lạnh phôi" open={!!freezeModal} onOk={handleFreeze} onCancel={() => setFreezeModal(null)} width={500}>
         <Form form={freezeForm} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}><Form.Item name="freezeDate" label="Ngay dong lanh"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="freezeDate" label="Ngay đông lạnh"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={12}><Form.Item name="strawCode" label="Ma ong"><Input /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
@@ -296,7 +296,7 @@ const CryoTab: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const embryoColumns: ColumnsType<IvfEmbryo> = [
-    { title: 'Ma phoi', dataIndex: 'embryoCode', key: 'code' },
+    { title: 'Ma phôi', dataIndex: 'embryoCode', key: 'code' },
     { title: 'Binh', dataIndex: 'tankCode', key: 'tank' },
     { title: 'Rack', dataIndex: 'rackPosition', key: 'rack' },
     { title: 'Hop', dataIndex: 'boxCode', key: 'box' },
@@ -306,7 +306,7 @@ const CryoTab: React.FC = () => {
 
   const spermColumns: ColumnsType<IvfSpermSample> = [
     { title: 'Ma mau', dataIndex: 'sampleCode', key: 'code' },
-    { title: 'Benh nhan', dataIndex: 'patientName', key: 'patient' },
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patient' },
     { title: 'Binh', dataIndex: 'tankCode', key: 'tank' },
     { title: 'So ong', dataIndex: 'strawCount', key: 'straws' },
     { title: 'Han', dataIndex: 'expiryDate', key: 'expiry', render: v => v ? <Tag color={dayjs(v).isBefore(dayjs()) ? 'error' : dayjs(v).isBefore(dayjs().add(30, 'day')) ? 'warning' : 'default'}>{v}</Tag> : '-' },
@@ -315,9 +315,9 @@ const CryoTab: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ marginBottom: 16 }}>Lam moi</Button>
-      <h4 style={{ marginBottom: 8 }}>Phoi dong lanh</h4>
-      <Table dataSource={frozenEmbryos} columns={embryoColumns} rowKey="id" size="small" pagination={{ pageSize: 10 }} locale={{ emptyText: 'Nhap Cycle ID o tab Phoi de xem phoi dong lanh' }} />
+      <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ marginBottom: 16 }}>Làm mới</Button>
+      <h4 style={{ marginBottom: 8 }}>Phôi đông lạnh</h4>
+      <Table dataSource={frozenEmbryos} columns={embryoColumns} rowKey="id" size="small" pagination={{ pageSize: 10 }} locale={{ emptyText: 'Nhap Cycle ID o tab Phôi de xem phôi đông lạnh' }} />
       <h4 style={{ marginTop: 16, marginBottom: 8 }}>Tinh trung sap het han (90 ngay)</h4>
       <Table dataSource={expiringSperm} columns={spermColumns} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
     </Spin>
@@ -356,29 +356,29 @@ const SpermBankTab: React.FC = () => {
 
   const columns: ColumnsType<IvfSpermSample> = [
     { title: 'Ma mau', dataIndex: 'sampleCode', key: 'code', width: 120 },
-    { title: 'Benh nhan', dataIndex: 'patientName', key: 'patient' },
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patient' },
     { title: 'Ngay thu', dataIndex: 'collectionDate', key: 'date', width: 110 },
     { title: 'V (ml)', dataIndex: 'volume', key: 'vol', width: 70 },
     { title: 'Nong do', dataIndex: 'concentration', key: 'conc', width: 80 },
     { title: 'Di dong %', dataIndex: 'motility', key: 'mot', width: 80 },
     { title: 'Hinh thai %', dataIndex: 'morphology', key: 'morph', width: 80 },
     { title: 'Ong', dataIndex: 'strawCount', key: 'straws', width: 60 },
-    { title: 'Trang thai', dataIndex: 'status', key: 'status', render: (s, r) => <Tag color={spermStatusColor[s]}>{r.statusName || s}</Tag> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (s, r) => <Tag color={spermStatusColor[s]}>{r.statusName || s}</Tag> },
     { title: 'Han', dataIndex: 'expiryDate', key: 'expiry', width: 110 },
   ];
 
   return (
     <Spin spinning={loading}>
       <Space style={{ marginBottom: 16 }} wrap>
-        <Search placeholder="Tim kiem..." value={keyword} onChange={e => setKeyword(e.target.value)} onSearch={fetchData} style={{ width: 300 }} enterButton={<SearchOutlined />} />
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
+        <Search placeholder="Tìm kiếm..." value={keyword} onChange={e => setKeyword(e.target.value)} onSearch={fetchData} style={{ width: 300 }} enterButton={<SearchOutlined />} />
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Them mau</Button>
       </Space>
       <Table dataSource={data} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
       <Modal title="Them mau tinh trung" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={700}>
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}><Form.Item name="patientId" label="Ma benh nhan" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="patientId" label="Ma bệnh nhân" rules={[{ required: true }]}><Input /></Form.Item></Col>
             <Col span={12}><Form.Item name="sampleCode" label="Ma mau" rules={[{ required: true }]}><Input /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
@@ -394,10 +394,10 @@ const SpermBankTab: React.FC = () => {
           <Row gutter={16}>
             <Col span={8}><Form.Item name="tankCode" label="Binh"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="boxCode" label="Hop"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="expiryDate" label="Han su dung"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="expiryDate" label="Han sử dụng"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}><Form.Item name="storageFee" label="Phi luu tru"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="storageFee" label="Phi lưu trữ"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={12}><Form.Item name="notes" label="Ghi chu"><Input /></Form.Item></Col>
           </Row>
         </Form>
@@ -429,19 +429,19 @@ const DashboardTab: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ marginBottom: 16 }}>Lam moi</Button>
+      <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ marginBottom: 16 }}>Làm mới</Button>
       {dashboard && (
         <Row gutter={[16, 16]}>
-          <Col xs={12} sm={8} md={6}><Card><Statistic title="Chu ky dang hoat dong" value={dashboard.activeCycles} prefix={<ClockCircleOutlined />} /></Card></Col>
-          <Col xs={12} sm={8} md={6}><Card><Statistic title="Phoi dong lanh" value={dashboard.frozenEmbryos} valueStyle={{ color: '#1890ff' }} /></Card></Col>
+          <Col xs={12} sm={8} md={6}><Card><Statistic title="Chu kỳ dang hoạt động" value={dashboard.activeCycles} prefix={<ClockCircleOutlined />} /></Card></Col>
+          <Col xs={12} sm={8} md={6}><Card><Statistic title="Phôi đông lạnh" value={dashboard.frozenEmbryos} valueStyle={{ color: '#1890ff' }} /></Card></Col>
           <Col xs={12} sm={8} md={6}><Card><Statistic title="Mau tinh trung" value={dashboard.spermSamples} /></Card></Col>
-          <Col xs={12} sm={8} md={6}><Card><Statistic title="Chuyen phoi thang nay" value={dashboard.transfersThisMonth} /></Card></Col>
+          <Col xs={12} sm={8} md={6}><Card><Statistic title="Chuyen phôi thang nay" value={dashboard.transfersThisMonth} /></Card></Col>
           <Col xs={12} sm={8} md={6}><Card><Statistic title="Ti le thanh cong" value={dashboard.successRate} suffix="%" prefix={dashboard.successRate > 30 ? <CheckCircleOutlined /> : <CloseCircleOutlined />} valueStyle={{ color: dashboard.successRate > 30 ? '#3f8600' : '#cf1322' }} /></Card></Col>
           <Col xs={12} sm={8} md={6}><Card><Statistic title="Tong cap vo chong" value={dashboard.totalCouples} /></Card></Col>
-          <Col xs={12} sm={8} md={6}><Card><Statistic title="Chu ky hoan thanh" value={dashboard.completedCycles} valueStyle={{ color: '#3f8600' }} /></Card></Col>
+          <Col xs={12} sm={8} md={6}><Card><Statistic title="Chu kỳ hoan thanh" value={dashboard.completedCycles} valueStyle={{ color: '#3f8600' }} /></Card></Col>
         </Row>
       )}
-      <h4 style={{ marginTop: 24, marginBottom: 8 }}>Bao cao hoat dong hom nay {report?.date ? `(${report.date})` : ''}</h4>
+      <h4 style={{ marginTop: 24, marginBottom: 8 }}>Báo cáo hoạt động hôm nay {report?.date ? `(${report.date})` : ''}</h4>
       {report && report.items.length > 0 ? (
         <Timeline
           items={report.items.map(item => ({
@@ -452,7 +452,7 @@ const DashboardTab: React.FC = () => {
           }))}
         />
       ) : (
-        <p style={{ color: '#999' }}>Chua co hoat dong nao hom nay</p>
+        <p style={{ color: '#999' }}>Chua co hoạt động nao hôm nay</p>
       )}
       {dashboard && dashboard.successRate > 0 && (
         <div style={{ marginTop: 16 }}>
@@ -470,8 +470,8 @@ const DashboardTab: React.FC = () => {
 const IvfLab: React.FC = () => {
   const tabItems = [
     { key: 'couples', label: 'Cap vo chong', children: <CouplesTab /> },
-    { key: 'cycles', label: 'Chu ky IVF', children: <CyclesTab /> },
-    { key: 'embryos', label: 'Phoi', children: <EmbryosTab /> },
+    { key: 'cycles', label: 'Chu kỳ IVF', children: <CyclesTab /> },
+    { key: 'embryos', label: 'Phôi', children: <EmbryosTab /> },
     { key: 'cryo', label: 'Tru dong', children: <CryoTab /> },
     { key: 'sperm', label: 'Ngan hang tinh trung', children: <SpermBankTab /> },
     { key: 'dashboard', label: 'Dashboard', children: <DashboardTab /> },

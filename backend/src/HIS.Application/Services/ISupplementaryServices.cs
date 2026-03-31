@@ -51,11 +51,22 @@ public interface IHealthCheckupService
 {
     Task<CampaignPagedResult> GetCampaignsAsync(CampaignSearchDto filter);
     Task<CampaignListDto> CreateCampaignAsync(CreateCampaignDto dto);
+    Task<CampaignListDto> UpdateCampaignAsync(Guid id, CreateCampaignDto dto);
+    Task DeleteCampaignAsync(Guid id);
+    Task<CampaignListDto> GetCampaignByIdAsync(Guid id);
     Task<List<CheckupRecordDto>> GetRecordsByCampaignAsync(Guid campaignId);
     Task<CheckupRecordDto> CreateRecordAsync(CreateCheckupRecordDto dto);
     Task<CheckupRecordDto> IssueCertificateAsync(Guid recordId);
     Task<CheckupStatisticsDto> GetStatisticsAsync();
     Task<CheckupDashboardDto> GetDashboardAsync();
+    // Group management
+    Task<List<CampaignGroupDto>> GetCampaignGroupsAsync(Guid campaignId);
+    Task<CampaignGroupDto> CreateCampaignGroupAsync(CreateCampaignGroupDto dto);
+    Task DeleteCampaignGroupAsync(Guid campaignId, Guid groupId);
+    // Excel import
+    Task<BatchImportResultDto> ImportBatchExcelAsync(Guid campaignId, Stream fileStream, string fileName);
+    // Cost report
+    Task<CampaignCostReportDto> GetCampaignCostReportAsync(Guid campaignId);
 }
 
 // ============================================================

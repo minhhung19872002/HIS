@@ -25,21 +25,21 @@ import {
 
 const { Option } = Select;
 
-const TENDER_TYPE: Record<number, string> = { 1: 'Dau thau rong rai', 2: 'Dau thau han che', 3: 'Mua sam truc tiep' };
+const TENDER_TYPE: Record<number, string> = { 1: 'Đấu thầu rộng rãi', 2: 'Đấu thầu hạn chế', 3: 'Mua sắm trực tiếp' };
 const TENDER_STATUS: Record<number, { text: string; color: string }> = {
-  1: { text: 'Nhap', color: 'default' }, 2: { text: 'Da dang', color: 'blue' },
-  3: { text: 'Dang cham', color: 'orange' }, 4: { text: 'Da trao', color: 'green' }, 5: { text: 'Huy', color: 'red' },
+  1: { text: 'Nhập', color: 'default' }, 2: { text: 'Đã đăng', color: 'blue' },
+  3: { text: 'Đang chấm', color: 'orange' }, 4: { text: 'Đã trao', color: 'green' }, 5: { text: 'Hủy', color: 'red' },
 };
 const ASSET_STATUS: Record<number, { text: string; color: string }> = {
-  1: { text: 'Dang dung', color: 'green' }, 2: { text: 'Hong', color: 'red' },
-  3: { text: 'Dang sua', color: 'orange' }, 4: { text: 'Cho thanh ly', color: 'volcano' },
-  5: { text: 'Da thanh ly', color: 'default' }, 6: { text: 'Da chuyen', color: 'purple' },
+  1: { text: 'Đang dùng', color: 'green' }, 2: { text: 'Hỏng', color: 'red' },
+  3: { text: 'Đang sửa', color: 'orange' }, 4: { text: 'Chờ thanh lý', color: 'volcano' },
+  5: { text: 'Đã thanh lý', color: 'default' }, 6: { text: 'Đã chuyển', color: 'purple' },
 };
-const HANDOVER_TYPE: Record<number, string> = { 1: 'Tiep nhan', 2: 'Dieu chuyen', 3: 'Muon', 4: 'Tra' };
-const DISPOSAL_TYPE: Record<number, string> = { 1: 'Thanh ly', 2: 'Dau gia', 3: 'Xoa so' };
+const HANDOVER_TYPE: Record<number, string> = { 1: 'Tiếp nhận', 2: 'Điều chuyển', 3: 'Mượn', 4: 'Trả' };
+const DISPOSAL_TYPE: Record<number, string> = { 1: 'Thanh lý', 2: 'Đấu giá', 3: 'Xoá sổ' };
 const DISPOSAL_STATUS: Record<number, { text: string; color: string }> = {
-  1: { text: 'De xuat', color: 'blue' }, 2: { text: 'Duyet', color: 'orange' },
-  3: { text: 'Hoan thanh', color: 'green' }, 4: { text: 'Tu choi', color: 'red' },
+  1: { text: 'Đề xuất', color: 'blue' }, 2: { text: 'Duyệt', color: 'orange' },
+  3: { text: 'Hoàn thành', color: 'green' }, 4: { text: 'Từ chối', color: 'red' },
 };
 const PIE_COLORS = ['#52c41a', '#ff4d4f', '#faad14', '#ff7a45', '#bfbfbf', '#722ed1'];
 const formatVND = (v: number) => `${(v / 1_000_000).toFixed(1)}M`;
@@ -72,34 +72,34 @@ const AssetsTab = () => {
       const values = await form.validateFields();
       if (values.purchaseDate) values.purchaseDate = values.purchaseDate.toISOString();
       await saveAsset(values);
-      message.success('Luu thanh cong');
+      message.success('Lưu thành công');
       setModalOpen(false); form.resetFields(); fetchData();
     } catch { /* validation */ }
   };
 
   const handleQr = async (id: string) => {
     await generateQrCode(id);
-    message.success('Da tao QR code'); fetchData();
+    message.success('Đã tạo QR code'); fetchData();
   };
 
   const handleViewQr = async (id: string) => {
     const data = await getAssetQrCode(id);
     if (data) { setQrData(data); setQrModalOpen(true); }
-    else { message.warning('Khong lay duoc du lieu QR'); }
+    else { message.warning('Không lấy được dữ liệu QR'); }
   };
 
   const columns: ColumnsType<FixedAssetDto> = [
-    { title: 'Ma TS', dataIndex: 'assetCode', width: 120 },
-    { title: 'Ten tai san', dataIndex: 'assetName', ellipsis: true },
-    { title: 'Khoa/Phong', dataIndex: 'departmentName', width: 150 },
-    { title: 'Nguyen gia', dataIndex: 'originalValue', width: 130, render: (v: number) => v?.toLocaleString('vi-VN') },
-    { title: 'Gia tri con lai', dataIndex: 'currentValue', width: 130, render: (v: number) => v?.toLocaleString('vi-VN') },
-    { title: 'KH/thang', dataIndex: 'monthlyDepreciation', width: 110, render: (v: number) => v?.toLocaleString('vi-VN') },
-    { title: 'Trang thai', dataIndex: 'status', width: 120, render: (s: number) => <Tag color={ASSET_STATUS[s]?.color}>{ASSET_STATUS[s]?.text}</Tag> },
+    { title: 'Mã TS', dataIndex: 'assetCode', width: 120 },
+    { title: 'Tên tài sản', dataIndex: 'assetName', ellipsis: true },
+    { title: 'Khoa/Phòng', dataIndex: 'departmentName', width: 150 },
+    { title: 'Nguyên giá', dataIndex: 'originalValue', width: 130, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Giá trị còn lại', dataIndex: 'currentValue', width: 130, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'KH/tháng', dataIndex: 'monthlyDepreciation', width: 110, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Trạng thái', dataIndex: 'status', width: 120, render: (s: number) => <Tag color={ASSET_STATUS[s]?.color}>{ASSET_STATUS[s]?.text}</Tag> },
     {
       title: '', width: 110, render: (_: unknown, r: FixedAssetDto) => (
         <Space size={4}>
-          <Tooltip title="Tao QR"><Button size="small" icon={<QrcodeOutlined />} onClick={() => handleQr(r.id)} /></Tooltip>
+          <Tooltip title="Tạo QR"><Button size="small" icon={<QrcodeOutlined />} onClick={() => handleQr(r.id)} /></Tooltip>
           <Tooltip title="Xem QR"><Button size="small" icon={<EyeOutlined />} onClick={() => handleViewQr(r.id)} /></Tooltip>
         </Space>
       ),
@@ -109,42 +109,42 @@ const AssetsTab = () => {
   return (
     <>
       <Space style={{ marginBottom: 12 }} wrap>
-        <Input.Search placeholder="Tim kiem..." allowClear onSearch={v => { setKeyword(v); setPage(0); }} style={{ width: 250 }} />
+        <Input.Search placeholder="Tìm kiếm..." allowClear onSearch={v => { setKeyword(v); setPage(0); }} style={{ width: 250 }} />
         <Select placeholder="Trang thai" allowClear style={{ width: 150 }} onChange={v => { setStatusFilter(v); setPage(0); }}>
           {Object.entries(ASSET_STATUS).map(([k, v]) => <Option key={k} value={Number(k)}>{v.text}</Option>)}
         </Select>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Them tai san</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Thêm tài sản</Button>
       </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
-      <Modal title="Tai san co dinh" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={640} destroyOnHidden>
+      <Modal title="Tài sản cố định" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={640} destroyOnHidden>
         <Form form={form} layout="vertical" size="small">
           <Row gutter={12}>
-            <Col span={12}><Form.Item name="assetCode" label="Ma tai san" rules={[{ required: true }]}><Input /></Form.Item></Col>
-            <Col span={12}><Form.Item name="assetName" label="Ten tai san" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="assetCode" label="Mã tài sản" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="assetName" label="Tên tài sản" rules={[{ required: true }]}><Input /></Form.Item></Col>
           </Row>
           <Row gutter={12}>
-            <Col span={8}><Form.Item name="originalValue" label="Nguyen gia"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="usefulLifeMonths" label="Thoi gian SD (thang)"><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="depreciationMethod" label="PP khau hao" initialValue={1}>
-              <Select><Option value={1}>Duong thang</Option><Option value={2}>Giam dan</Option></Select>
+            <Col span={8}><Form.Item name="originalValue" label="Nguyên giá"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="usefulLifeMonths" label="Thời gian SD (tháng)"><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="depreciationMethod" label="PP khấu hao" initialValue={1}>
+              <Select><Option value={1}>Đường thẳng</Option><Option value={2}>Giảm dần</Option></Select>
             </Form.Item></Col>
           </Row>
           <Row gutter={12}>
-            <Col span={12}><Form.Item name="purchaseDate" label="Ngay mua"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={12}><Form.Item name="serialNumber" label="So serial"><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="purchaseDate" label="Ngày mua"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="serialNumber" label="Số serial"><Input /></Form.Item></Col>
           </Row>
           <Row gutter={12}>
-            <Col span={12}><Form.Item name="status" label="Trang thai" initialValue={1}>
+            <Col span={12}><Form.Item name="status" label="Trạng thái" initialValue={1}>
               <Select>{Object.entries(ASSET_STATUS).map(([k, v]) => <Option key={k} value={Number(k)}>{v.text}</Option>)}</Select>
             </Form.Item></Col>
-            <Col span={12}><Form.Item name="locationDescription" label="Vi tri"><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="locationDescription" label="Vị trí"><Input /></Form.Item></Col>
           </Row>
-          <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="notes" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
-      <Modal title="Thong tin QR Code tai san" open={qrModalOpen} onCancel={() => setQrModalOpen(false)} footer={[
+      <Modal title="Thông tin QR Code tài sản" open={qrModalOpen} onCancel={() => setQrModalOpen(false)} footer={[
         <Button key="print" icon={<PrinterOutlined />} onClick={() => {
           const w = window.open('', '_blank');
           if (w && qrData) {
@@ -152,8 +152,8 @@ const AssetsTab = () => {
             w.document.close();
             w.print();
           }
-        }}>In nhan</Button>,
-        <Button key="close" onClick={() => setQrModalOpen(false)}>Dong</Button>,
+        }}>In nhãn</Button>,
+        <Button key="close" onClick={() => setQrModalOpen(false)}>Đóng</Button>,
       ]} width={480}>
         {qrData && (
           <div style={{ textAlign: 'center' }}>
@@ -207,7 +207,7 @@ const TendersTab = () => {
       if (values.publishDate) values.publishDate = values.publishDate.toISOString();
       if (values.closingDate) values.closingDate = values.closingDate.toISOString();
       await saveTender(values);
-      message.success('Luu thanh cong');
+      message.success('Lưu thành công');
       setModalOpen(false); form.resetFields(); fetchData();
     } catch { /* validation */ }
   };
@@ -215,8 +215,8 @@ const TendersTab = () => {
   const handleAward = async (id: string) => {
     try {
       await awardTender({ tenderId: id, winnerSupplierId: '00000000-0000-0000-0000-000000000000' });
-      message.success('Da trao thau'); fetchData();
-    } catch { message.warning('Khong the trao thau'); }
+      message.success('Đã trao thầu'); fetchData();
+    } catch { message.warning('Không thể trao thầu'); }
   };
 
   const openItems = async (tenderId: string) => {
@@ -230,7 +230,7 @@ const TendersTab = () => {
       const values = await itemForm.validateFields();
       values.tenderId = itemsModal;
       await saveTenderItem(values);
-      message.success('Them hang muc thanh cong');
+      message.success('Thêm hạng mục thành công');
       itemForm.resetFields();
       if (itemsModal) openItems(itemsModal);
     } catch { /* validation */ }
@@ -238,16 +238,16 @@ const TendersTab = () => {
 
   const columns: ColumnsType<TenderDto> = [
     { title: 'Ma', dataIndex: 'tenderCode', width: 120 },
-    { title: 'Ten goi thau', dataIndex: 'tenderName', ellipsis: true },
+    { title: 'Tên gói thầu', dataIndex: 'tenderName', ellipsis: true },
     { title: 'Loai', dataIndex: 'tenderType', width: 150, render: (v: number) => TENDER_TYPE[v] },
-    { title: 'Ngan sach', dataIndex: 'budgetAmount', width: 130, render: (v: number) => v?.toLocaleString('vi-VN') },
-    { title: 'Trang thai', dataIndex: 'status', width: 110, render: (s: number) => <Tag color={TENDER_STATUS[s]?.color}>{TENDER_STATUS[s]?.text}</Tag> },
-    { title: 'Hang muc', dataIndex: 'itemCount', width: 90, align: 'center' },
+    { title: 'Ngân sách', dataIndex: 'budgetAmount', width: 130, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Trạng thái', dataIndex: 'status', width: 110, render: (s: number) => <Tag color={TENDER_STATUS[s]?.color}>{TENDER_STATUS[s]?.text}</Tag> },
+    { title: 'Hạng mục', dataIndex: 'itemCount', width: 90, align: 'center' },
     {
       title: '', width: 120, render: (_: unknown, r: TenderDto) => (
         <Space size={4}>
-          <Tooltip title="Hang muc"><Button size="small" icon={<FileTextOutlined />} onClick={() => openItems(r.id)} /></Tooltip>
-          {r.status < 4 && <Tooltip title="Trao thau"><Popconfirm title="Xac nhan trao thau?" onConfirm={() => handleAward(r.id)}><Button size="small" icon={<TrophyOutlined />} /></Popconfirm></Tooltip>}
+          <Tooltip title="Hạng mục"><Button size="small" icon={<FileTextOutlined />} onClick={() => openItems(r.id)} /></Tooltip>
+          {r.status < 4 && <Tooltip title="Trao thầu"><Popconfirm title="Xác nhận trao thầu?" onConfirm={() => handleAward(r.id)}><Button size="small" icon={<TrophyOutlined />} /></Popconfirm></Tooltip>}
         </Space>
       ),
     },
@@ -256,47 +256,47 @@ const TendersTab = () => {
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Them goi thau</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Thêm gói thầu</Button>
       </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
-      <Modal title="Goi thau" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={600} destroyOnHidden>
+      <Modal title="Gói thầu" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} width={600} destroyOnHidden>
         <Form form={form} layout="vertical" size="small">
           <Row gutter={12}>
-            <Col span={12}><Form.Item name="tenderCode" label="Ma goi thau" rules={[{ required: true }]}><Input /></Form.Item></Col>
-            <Col span={12}><Form.Item name="tenderName" label="Ten goi thau" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="tenderCode" label="Mã gói thầu" rules={[{ required: true }]}><Input /></Form.Item></Col>
+            <Col span={12}><Form.Item name="tenderName" label="Tên gói thầu" rules={[{ required: true }]}><Input /></Form.Item></Col>
           </Row>
           <Row gutter={12}>
             <Col span={8}><Form.Item name="tenderType" label="Loai" initialValue={1}>
               <Select>{Object.entries(TENDER_TYPE).map(([k, v]) => <Option key={k} value={Number(k)}>{v}</Option>)}</Select>
             </Form.Item></Col>
-            <Col span={8}><Form.Item name="budgetAmount" label="Ngan sach"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="status" label="Trang thai" initialValue={1}>
+            <Col span={8}><Form.Item name="budgetAmount" label="Ngân sách"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="status" label="Trạng thái" initialValue={1}>
               <Select>{Object.entries(TENDER_STATUS).map(([k, v]) => <Option key={k} value={Number(k)}>{v.text}</Option>)}</Select>
             </Form.Item></Col>
           </Row>
           <Row gutter={12}>
-            <Col span={12}><Form.Item name="publishDate" label="Ngay dang"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={12}><Form.Item name="closingDate" label="Ngay dong"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="publishDate" label="Ngày đăng"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="closingDate" label="Ngày đóng"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
           </Row>
-          <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="notes" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
-      <Modal title="Hang muc goi thau" open={!!itemsModal} onCancel={() => setItemsModal(null)} footer={null} width={700}>
+      <Modal title="Hạng mục gói thầu" open={!!itemsModal} onCancel={() => setItemsModal(null)} footer={null} width={700}>
         <Table dataSource={items} rowKey="id" size="small" pagination={false}
           columns={[
             { title: 'Ten', dataIndex: 'itemName' },
             { title: 'Loai', dataIndex: 'itemType', width: 100, render: (v: number) => v === 1 ? 'TSCD' : v === 2 ? 'CCDC' : 'VT' },
             { title: 'SL', dataIndex: 'quantity', width: 60 },
-            { title: 'Don gia', dataIndex: 'unitPrice', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
+            { title: 'Đơn giá', dataIndex: 'unitPrice', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
           ]} />
         <Card size="small" style={{ marginTop: 12 }} title="Them hang muc">
           <Form form={itemForm} layout="inline" size="small" onFinish={handleSaveItem}>
             <Form.Item name="itemName" rules={[{ required: true }]}><Input placeholder="Ten" /></Form.Item>
             <Form.Item name="itemType" initialValue={1}><Select style={{ width: 100 }}><Option value={1}>TSCD</Option><Option value={2}>CCDC</Option><Option value={3}>VT</Option></Select></Form.Item>
             <Form.Item name="quantity"><InputNumber placeholder="SL" min={1} /></Form.Item>
-            <Form.Item name="unitPrice"><InputNumber placeholder="Don gia" min={0} /></Form.Item>
+            <Form.Item name="unitPrice"><InputNumber placeholder="Đơn giá" min={0} /></Form.Item>
             <Form.Item><Button type="primary" htmlType="submit" icon={<PlusOutlined />}>Them</Button></Form.Item>
           </Form>
         </Card>
@@ -329,27 +329,27 @@ const HandoversTab = () => {
       const values = await form.validateFields();
       if (values.handoverDate) values.handoverDate = values.handoverDate.toISOString();
       await saveHandover(values);
-      message.success('Luu thanh cong');
+      message.success('Lưu thành công');
       setModalOpen(false); form.resetFields(); fetchData();
     } catch { /* validation */ }
   };
 
   const handleConfirm = async (id: string) => {
     await confirmHandover(id);
-    message.success('Da xac nhan'); fetchData();
+    message.success('Đã xác nhận'); fetchData();
   };
 
   const columns: ColumnsType<AssetHandoverDto> = [
-    { title: 'Tai san', dataIndex: 'assetName', ellipsis: true },
-    { title: 'Ma TS', dataIndex: 'assetCode', width: 110 },
+    { title: 'Tài sản', dataIndex: 'assetName', ellipsis: true },
+    { title: 'Mã TS', dataIndex: 'assetCode', width: 110 },
     { title: 'Loai', dataIndex: 'handoverType', width: 110, render: (v: number) => HANDOVER_TYPE[v] },
-    { title: 'Tu khoa', dataIndex: 'fromDepartmentName', width: 150 },
-    { title: 'Den khoa', dataIndex: 'toDepartmentName', width: 150 },
-    { title: 'Ngay BG', dataIndex: 'handoverDate', width: 110, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
+    { title: 'Từ khoa', dataIndex: 'fromDepartmentName', width: 150 },
+    { title: 'Đến khoa', dataIndex: 'toDepartmentName', width: 150 },
+    { title: 'Ngày BG', dataIndex: 'handoverDate', width: 110, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '' },
     { title: 'TT', dataIndex: 'status', width: 100, render: (s: number) => <Tag color={s === 2 ? 'green' : 'blue'}>{s === 2 ? 'Xac nhan' : 'Cho'}</Tag> },
     {
       title: '', width: 80, render: (_: unknown, r: AssetHandoverDto) => r.status === 1 ? (
-        <Popconfirm title="Xac nhan ban giao?" onConfirm={() => handleConfirm(r.id)}>
+        <Popconfirm title="Xác nhận bàn giao?" onConfirm={() => handleConfirm(r.id)}>
           <Button size="small" type="primary" icon={<CheckOutlined />} />
         </Popconfirm>
       ) : null,
@@ -359,19 +359,19 @@ const HandoversTab = () => {
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-        <Button type="primary" icon={<SwapOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Tao ban giao</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
+        <Button type="primary" icon={<SwapOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Tạo bàn giao</Button>
       </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
-      <Modal title="Ban giao tai san" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} destroyOnHidden>
+      <Modal title="Bàn giao tài sản" open={modalOpen} onOk={handleSave} onCancel={() => setModalOpen(false)} destroyOnHidden>
         <Form form={form} layout="vertical" size="small">
-          <Form.Item name="fixedAssetId" label="ID tai san" rules={[{ required: true }]}><Input placeholder="ID tai san" /></Form.Item>
-          <Form.Item name="handoverType" label="Loai ban giao" initialValue={1}>
+          <Form.Item name="fixedAssetId" label="ID tài sản" rules={[{ required: true }]}><Input placeholder="ID tài sản" /></Form.Item>
+          <Form.Item name="handoverType" label="Loại bàn giao" initialValue={1}>
             <Select>{Object.entries(HANDOVER_TYPE).map(([k, v]) => <Option key={k} value={Number(k)}>{v}</Option>)}</Select>
           </Form.Item>
-          <Form.Item name="handoverDate" label="Ngay ban giao"><DatePicker style={{ width: '100%' }} /></Form.Item>
-          <Form.Item name="notes" label="Ghi chu"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="handoverDate" label="Ngày bàn giao"><DatePicker style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="notes" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
     </>
@@ -401,27 +401,27 @@ const DisposalsTab = () => {
     try {
       const values = await form.validateFields();
       await proposeDisposal(values);
-      message.success('Da de xuat thanh ly');
+      message.success('Đã đề xuất thanh lý');
       setModalOpen(false); form.resetFields(); fetchData();
     } catch { /* validation */ }
   };
 
-  const handleApprove = async (id: string) => { await approveDisposal(id); message.success('Da duyet'); fetchData(); };
-  const handleComplete = async (id: string) => { await completeDisposal(id); message.success('Da hoan thanh'); fetchData(); };
+  const handleApprove = async (id: string) => { await approveDisposal(id); message.success('Đã duyệt'); fetchData(); };
+  const handleComplete = async (id: string) => { await completeDisposal(id); message.success('Đã hoàn thành'); fetchData(); };
 
   const columns: ColumnsType<AssetDisposalDto> = [
-    { title: 'Ma TS', dataIndex: 'assetCode', width: 110 },
-    { title: 'Ten tai san', dataIndex: 'assetName', ellipsis: true },
+    { title: 'Mã TS', dataIndex: 'assetCode', width: 110 },
+    { title: 'Tên tài sản', dataIndex: 'assetName', ellipsis: true },
     { title: 'Loai', dataIndex: 'disposalType', width: 100, render: (v: number) => DISPOSAL_TYPE[v] },
-    { title: 'Nguyen gia', dataIndex: 'originalValue', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
-    { title: 'Gia thanh ly', dataIndex: 'disposalValue', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
-    { title: 'Gia tri con lai', dataIndex: 'residualValue', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Nguyên giá', dataIndex: 'originalValue', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Giá thanh lý', dataIndex: 'disposalValue', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Giá trị còn lại', dataIndex: 'residualValue', width: 120, render: (v: number) => v?.toLocaleString('vi-VN') },
     { title: 'TT', dataIndex: 'status', width: 110, render: (s: number) => <Tag color={DISPOSAL_STATUS[s]?.color}>{DISPOSAL_STATUS[s]?.text}</Tag> },
     {
       title: '', width: 100, render: (_: unknown, r: AssetDisposalDto) => (
         <Space size={4}>
-          {r.status === 1 && <Popconfirm title="Duyet thanh ly?" onConfirm={() => handleApprove(r.id)}><Button size="small" icon={<CheckOutlined />} /></Popconfirm>}
-          {r.status === 2 && <Popconfirm title="Hoan thanh?" onConfirm={() => handleComplete(r.id)}><Button size="small" type="primary" icon={<CheckOutlined />} /></Popconfirm>}
+          {r.status === 1 && <Popconfirm title="Duyệt thanh lý?" onConfirm={() => handleApprove(r.id)}><Button size="small" icon={<CheckOutlined />} /></Popconfirm>}
+          {r.status === 2 && <Popconfirm title="Hoàn thành?" onConfirm={() => handleComplete(r.id)}><Button size="small" type="primary" icon={<CheckOutlined />} /></Popconfirm>}
         </Space>
       ),
     },
@@ -430,22 +430,22 @@ const DisposalsTab = () => {
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-        <Button type="primary" icon={<DeleteOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>De xuat thanh ly</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
+        <Button type="primary" icon={<DeleteOutlined />} onClick={() => { form.resetFields(); setModalOpen(true); }}>Đề xuất thanh lý</Button>
       </Space>
       <Table dataSource={data} columns={columns} rowKey="id" loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 15, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
-      <Modal title="De xuat thanh ly" open={modalOpen} onOk={handlePropose} onCancel={() => setModalOpen(false)} destroyOnHidden>
+      <Modal title="Đề xuất thanh lý" open={modalOpen} onOk={handlePropose} onCancel={() => setModalOpen(false)} destroyOnHidden>
         <Form form={form} layout="vertical" size="small">
-          <Form.Item name="fixedAssetId" label="ID tai san" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="disposalType" label="Loai thanh ly" initialValue={1}>
+          <Form.Item name="fixedAssetId" label="ID tài sản" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="disposalType" label="Loại thanh lý" initialValue={1}>
             <Select>{Object.entries(DISPOSAL_TYPE).map(([k, v]) => <Option key={k} value={Number(k)}>{v}</Option>)}</Select>
           </Form.Item>
           <Row gutter={12}>
-            <Col span={12}><Form.Item name="disposalValue" label="Gia thanh ly"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={12}><Form.Item name="residualValue" label="Gia tri con lai"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="disposalValue" label="Giá thanh lý"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="residualValue" label="Giá trị còn lại"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           </Row>
-          <Form.Item name="reason" label="Ly do"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="reason" label="Lý do"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>
     </>
@@ -474,18 +474,18 @@ const DepreciationTab = () => {
   const handleCalculate = async () => {
     try {
       const res = await calculateDepreciation(month, year);
-      message.success(`Tinh khau hao: ${res.processedCount} tai san`);
+      message.success(`Tính khấu hao: ${res.processedCount} tài sản`);
       fetchData();
-    } catch { message.warning('Loi tinh khau hao'); }
+    } catch { message.warning('Lỗi tính khấu hao'); }
   };
 
   const columns: ColumnsType<DepreciationReportDto> = [
-    { title: 'Ma TS', dataIndex: 'assetCode', width: 120 },
-    { title: 'Ten tai san', dataIndex: 'assetName', ellipsis: true },
+    { title: 'Mã TS', dataIndex: 'assetCode', width: 120 },
+    { title: 'Tên tài sản', dataIndex: 'assetName', ellipsis: true },
     { title: 'Thang', dataIndex: 'month', width: 70, render: (m: number, r: DepreciationReportDto) => `${m}/${r.year}` },
-    { title: 'Gia tri dau ky', dataIndex: 'openingValue', width: 140, render: (v: number) => v?.toLocaleString('vi-VN') },
-    { title: 'Khau hao', dataIndex: 'depreciationAmount', width: 130, render: (v: number) => <span style={{ color: '#ff4d4f' }}>{v?.toLocaleString('vi-VN')}</span> },
-    { title: 'Gia tri cuoi ky', dataIndex: 'closingValue', width: 140, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Giá trị đầu kỳ', dataIndex: 'openingValue', width: 140, render: (v: number) => v?.toLocaleString('vi-VN') },
+    { title: 'Khấu hao', dataIndex: 'depreciationAmount', width: 130, render: (v: number) => <span style={{ color: '#ff4d4f' }}>{v?.toLocaleString('vi-VN')}</span> },
+    { title: 'Giá trị cuối kỳ', dataIndex: 'closingValue', width: 140, render: (v: number) => v?.toLocaleString('vi-VN') },
   ];
 
   return (
@@ -495,8 +495,8 @@ const DepreciationTab = () => {
           {Array.from({ length: 12 }, (_, i) => <Option key={i + 1} value={i + 1}>Thang {i + 1}</Option>)}
         </Select>
         <InputNumber value={year} onChange={v => setYear(v || dayjs().year())} min={2020} max={2030} />
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Lam moi</Button>
-        <Button type="primary" icon={<BarChartOutlined />} onClick={handleCalculate}>Tinh khau hao thang {month}/{year}</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
+        <Button type="primary" icon={<BarChartOutlined />} onClick={handleCalculate}>Tính khấu hao thang {month}/{year}</Button>
       </Space>
       <Table dataSource={data} columns={columns} rowKey={r => `${r.fixedAssetId}-${r.month}-${r.year}`} loading={loading} size="small"
         pagination={{ current: page + 1, pageSize: 20, total, onChange: p => setPage(p - 1), showSizeChanger: false }} />
@@ -522,21 +522,21 @@ const DashboardTab = () => {
   return (
     <>
       <Row gutter={[12, 12]}>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="Tong tai san" value={dashboard.totalAssets} /></Card></Col>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="Tong nguyen gia" value={dashboard.totalOriginalValue} formatter={v => formatVND(Number(v))} /></Card></Col>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="Gia tri con lai" value={dashboard.totalCurrentValue} formatter={v => formatVND(Number(v))} /></Card></Col>
-        <Col xs={12} md={6}><Card size="small"><Statistic title="KH/thang" value={dashboard.monthlyDepreciationTotal} formatter={v => formatVND(Number(v))} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
+        <Col xs={12} md={6}><Card size="small"><Statistic title="Tổng tài sản" value={dashboard.totalAssets} /></Card></Col>
+        <Col xs={12} md={6}><Card size="small"><Statistic title="Tổng nguyên giá" value={dashboard.totalOriginalValue} formatter={v => formatVND(Number(v))} /></Card></Col>
+        <Col xs={12} md={6}><Card size="small"><Statistic title="Giá trị còn lại" value={dashboard.totalCurrentValue} formatter={v => formatVND(Number(v))} /></Card></Col>
+        <Col xs={12} md={6}><Card size="small"><Statistic title="KH/tháng" value={dashboard.monthlyDepreciationTotal} formatter={v => formatVND(Number(v))} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
       </Row>
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Dang dung" value={dashboard.inUseCount} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Hong" value={dashboard.brokenCount} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Dang sua" value={dashboard.underRepairCount} valueStyle={{ color: '#faad14' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Cho thanh ly" value={dashboard.pendingDisposalCount} valueStyle={{ color: '#ff7a45' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="BG cho duyet" value={dashboard.pendingHandovers} valueStyle={{ color: '#1890ff' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Goi thau" value={dashboard.activeTenders} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="Đang dùng" value={dashboard.inUseCount} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="Hỏng" value={dashboard.brokenCount} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="Đang sửa" value={dashboard.underRepairCount} valueStyle={{ color: '#faad14' }} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="Chờ thanh lý" value={dashboard.pendingDisposalCount} valueStyle={{ color: '#ff7a45' }} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="BG chờ duyệt" value={dashboard.pendingHandovers} valueStyle={{ color: '#1890ff' }} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="Gói thầu" value={dashboard.activeTenders} /></Card></Col>
       </Row>
       <Card size="small" style={{ marginTop: 12 }}>
-        <Segmented options={[{ label: 'Theo trang thai', value: 'status' }, { label: 'Xu huong KH', value: 'trend' }]} value={chartView} onChange={v => setChartView(String(v))} style={{ marginBottom: 12 }} />
+        <Segmented options={[{ label: 'Theo trạng thái', value: 'status' }, { label: 'Xu hướng KH', value: 'trend' }]} value={chartView} onChange={v => setChartView(String(v))} style={{ marginBottom: 12 }} />
         <div style={{ height: 300 }}>
           {chartView === 'status' ? (
             <ResponsiveContainer>
@@ -562,7 +562,7 @@ const DashboardTab = () => {
                 <XAxis dataKey="month" tickFormatter={(m: number, i: number) => `T${m}/${dashboard.depreciationTrends[i]?.year}`} />
                 <YAxis tickFormatter={(v: number) => formatVND(v)} />
                 <RTooltip formatter={(value) => Number(value ?? 0).toLocaleString('vi-VN')} />
-                <Bar dataKey="amount" fill="#ff4d4f" name="Khau hao" />
+                <Bar dataKey="amount" fill="#ff4d4f" name="Khấu hao" />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -574,8 +574,8 @@ const DashboardTab = () => {
 
 // ============ REPORTS TAB ============
 const REPORT_CATEGORIES: Record<string, string> = {
-  'So sach': 'blue', 'Bien ban': 'green', 'Khau hao': 'orange',
-  'Ke khai': 'purple', 'Tong hop': 'cyan', 'Cong khai': 'magenta',
+  'Sổ sách': 'blue', 'Biên bản': 'green', 'Khấu hao': 'orange',
+  'Kê khai': 'purple', 'Tổng hợp': 'cyan', 'Công khai': 'magenta',
 };
 
 const ReportsTab = () => {
@@ -593,13 +593,13 @@ const ReportsTab = () => {
   }, []);
 
   const handleGenerate = async () => {
-    if (!selectedReport) { message.warning('Vui long chon loai bao cao'); return; }
+    if (!selectedReport) { message.warning('Vui lòng chọn loại báo cáo'); return; }
     setLoading(true);
     try {
       await generateAssetReport(selectedReport, {
         year, month, fromDate, toDate, assetGroupCode,
       });
-    } catch { message.warning('Loi xuat bao cao'); }
+    } catch { message.warning('Lỗi xuất báo cáo'); }
     finally { setLoading(false); }
   };
 
@@ -611,11 +611,11 @@ const ReportsTab = () => {
 
   return (
     <>
-      <Card size="small" style={{ marginBottom: 12 }} title="Bo loc bao cao">
+      <Card size="small" style={{ marginBottom: 12 }} title="Bộ lọc báo cáo">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={8}>
             <Select
-              placeholder="Chon loai bao cao"
+              placeholder="Chọn loại báo cáo"
               value={selectedReport}
               onChange={setSelectedReport}
               style={{ width: '100%' }}
@@ -650,9 +650,9 @@ const ReportsTab = () => {
           </Col>
           <Col xs={24} md={4}>
             <Space>
-              <Input placeholder="Nhom TS" value={assetGroupCode} onChange={e => setAssetGroupCode(e.target.value || undefined)} style={{ width: 120 }} />
+              <Input placeholder="Nhóm TS" value={assetGroupCode} onChange={e => setAssetGroupCode(e.target.value || undefined)} style={{ width: 120 }} />
               <Button type="primary" icon={<PrinterOutlined />} onClick={handleGenerate} loading={loading}>
-                Xuat bao cao
+                Xuất báo cáo
               </Button>
             </Space>
           </Col>
@@ -686,17 +686,17 @@ const AssetManagement = () => {
     <div style={{ padding: 16 }}>
       <h2 style={{ marginBottom: 16 }}>
         <StopOutlined style={{ marginRight: 8 }} />
-        Quan ly Tai san - CCDC
+        Quản lý Tài sản - CCDC
       </h2>
       <Tabs
         defaultActiveKey="assets"
         items={[
-          { key: 'assets', label: 'Tai san', children: <AssetsTab /> },
-          { key: 'tenders', label: 'Dau thau', children: <TendersTab /> },
-          { key: 'handovers', label: 'Ban giao', children: <HandoversTab /> },
-          { key: 'disposals', label: 'Thanh ly', children: <DisposalsTab /> },
-          { key: 'depreciation', label: 'Khau hao', children: <DepreciationTab /> },
-          { key: 'reports', label: 'Bao cao TSCD', children: <ReportsTab /> },
+          { key: 'assets', label: 'Tài sản', children: <AssetsTab /> },
+          { key: 'tenders', label: 'Đấu thầu', children: <TendersTab /> },
+          { key: 'handovers', label: 'Bàn giao', children: <HandoversTab /> },
+          { key: 'disposals', label: 'Thanh lý', children: <DisposalsTab /> },
+          { key: 'depreciation', label: 'Khấu hao', children: <DepreciationTab /> },
+          { key: 'reports', label: 'Báo cáo TSCD', children: <ReportsTab /> },
           { key: 'dashboard', label: 'Dashboard', children: <DashboardTab /> },
         ]}
       />

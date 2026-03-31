@@ -432,10 +432,13 @@ const Inpatient: React.FC = () => {
     },
     {
       title: 'Tuổi',
-      dataIndex: 'age',
       key: 'age',
       width: 60,
-      render: (age) => age || 'N/A',
+      render: (_, record) => {
+        if (record.age) return record.age;
+        if (record.dateOfBirth) return dayjs().diff(dayjs(record.dateOfBirth), 'year');
+        return '-';
+      },
     },
     {
       title: 'Mã HS',
@@ -469,9 +472,9 @@ const Inpatient: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <div>
-          <div>{record.roomName}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.bedName || 'Chưa phân giường'}
+          {record.roomName && <div>{record.roomName}</div>}
+          <Text type={record.bedName ? 'secondary' : 'warning'} style={{ fontSize: 12 }}>
+            {record.bedName || (record.roomName ? 'Chờ phân giường' : 'Chưa phân phòng')}
           </Text>
         </div>
       ),
@@ -501,15 +504,14 @@ const Inpatient: React.FC = () => {
           <Button
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setSelectedAdmission(record);
-              setIsDetailModalOpen(true);
-              // BUG-015: Load sub-data for detail tabs
-              if (record.admissionId) loadDetailSubData(record.admissionId);
-              // NangCap4: check deposit and medication warnings when opening detail
               setDepositWarning(null);
               setActiveMedWarning(null);
               setCurrentSupplyItems('');
+              setIsDetailModalOpen(true);
+              if (record.admissionId) loadDetailSubData(record.admissionId);
               checkDepositBalance(record);
             }}
           >

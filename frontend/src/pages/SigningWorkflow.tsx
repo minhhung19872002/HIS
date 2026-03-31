@@ -24,15 +24,15 @@ import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWor
 const { Title } = Typography;
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  TreatmentSheet: 'Phieu dieu tri',
-  NursingCare: 'Phieu cham soc',
+  TreatmentSheet: 'Phieu điều trị',
+  NursingCare: 'Phieu chăm sóc',
   Prescription: 'Don thuoc',
-  LabReport: 'Ket qua XN',
-  RadiologyReport: 'Ket qua CDHA',
+  LabReport: 'Kết quả XN',
+  RadiologyReport: 'Kết quả CDHA',
   DischargeSummary: 'Giay ra vien',
-  SurgeryRecord: 'Phieu phau thuat',
+  SurgeryRecord: 'Phieu phẫu thuật',
   Consultation: 'Bien ban hoi chan',
-  MedicalRecord: 'Ho so benh an',
+  MedicalRecord: 'Ho so bệnh án',
   Other: 'Khac',
 };
 
@@ -93,7 +93,7 @@ const SigningWorkflow: React.FC = () => {
       if (results[2].status === 'fulfilled') setHistoryData(results[2].value);
       if (results[3].status === 'fulfilled') setStats(results[3].value);
     } catch {
-      message.warning('Khong the tai du lieu trinh ky');
+      message.warning('Khong the tai du lieu trình ký');
     } finally {
       setLoading(false);
     }
@@ -126,7 +126,7 @@ const SigningWorkflow: React.FC = () => {
     }
     const result = await rejectSigningRequest(rejectingId, rejectReason);
     if (result) {
-      message.success('Da tu choi yeu cau');
+      message.success('Da tu choi yêu cầu');
       setRejectModalOpen(false);
       setRejectingId(null);
       setRejectReason('');
@@ -139,7 +139,7 @@ const SigningWorkflow: React.FC = () => {
   const handleCancel = async (id: string) => {
     const result = await cancelSigningRequest(id);
     if (result) {
-      message.success('Da huy yeu cau trinh ky');
+      message.success('Da huy yêu cầu trình ký');
       fetchData();
     } else {
       message.warning('Huy that bai');
@@ -148,7 +148,7 @@ const SigningWorkflow: React.FC = () => {
 
   const handleBatchApprove = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui long chon it nhat 1 yeu cau');
+      message.warning('Vui long chon it nhat 1 yêu cầu');
       return;
     }
     setBatchApproving(true);
@@ -159,7 +159,7 @@ const SigningWorkflow: React.FC = () => {
     }
     setBatchApproving(false);
     if (successCount > 0) {
-      message.success(`Da phe duyet ${successCount}/${selectedRowKeys.length} yeu cau`);
+      message.success(`Da phe duyet ${successCount}/${selectedRowKeys.length} yêu cầu`);
       setSelectedRowKeys([]);
       fetchData();
     } else {
@@ -179,7 +179,7 @@ const SigningWorkflow: React.FC = () => {
 
   const baseColumns: ColumnsType<SigningRequestItem> = [
     {
-      title: 'Loai tai lieu',
+      title: 'Loại tài liệu',
       dataIndex: 'documentType',
       key: 'documentType',
       width: 150,
@@ -196,7 +196,7 @@ const SigningWorkflow: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: 'Benh nhan',
+      title: 'Bệnh nhân',
       dataIndex: 'patientName',
       key: 'patientName',
       width: 150,
@@ -210,7 +210,7 @@ const SigningWorkflow: React.FC = () => {
       render: (name: string) => name || '-',
     },
     {
-      title: 'Ngay gui',
+      title: 'Ngày gửi',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
@@ -221,7 +221,7 @@ const SigningWorkflow: React.FC = () => {
   const pendingColumns: ColumnsType<SigningRequestItem> = [
     ...baseColumns,
     {
-      title: 'Nguoi gui',
+      title: 'Người gửi',
       dataIndex: 'submittedByName',
       key: 'submittedByName',
       width: 150,
@@ -257,7 +257,7 @@ const SigningWorkflow: React.FC = () => {
       width: 150,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -275,7 +275,7 @@ const SigningWorkflow: React.FC = () => {
             Xem
           </Button>
           {record.status === 0 && (
-            <Popconfirm title="Huy yeu cau trinh ky?" onConfirm={() => handleCancel(record.id)} okText="Huy" cancelText="Dong">
+            <Popconfirm title="Huy yêu cầu trình ký?" onConfirm={() => handleCancel(record.id)} okText="Huy" cancelText="Dong">
               <Button size="small" danger icon={<StopOutlined />}>
                 Huy
               </Button>
@@ -289,7 +289,7 @@ const SigningWorkflow: React.FC = () => {
   const historyColumns: ColumnsType<SigningRequestItem> = [
     ...baseColumns,
     {
-      title: 'Nguoi gui',
+      title: 'Người gửi',
       dataIndex: 'submittedByName',
       key: 'submittedByName',
       width: 130,
@@ -301,7 +301,7 @@ const SigningWorkflow: React.FC = () => {
       width: 130,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -360,7 +360,7 @@ const SigningWorkflow: React.FC = () => {
       key: 'pending',
       label: (
         <Badge count={pendingData.length} size="small" offset={[8, 0]}>
-          <span>Cho ky</span>
+          <span>Chờ ký</span>
         </Badge>
       ),
       children: (
@@ -370,7 +370,7 @@ const SigningWorkflow: React.FC = () => {
               type="warning"
               showIcon
               icon={<WarningOutlined />}
-              title={`${overdueItems.length} yeu cau qua han (>48h chua duyet)`}
+              title={`${overdueItems.length} yêu cầu qua han (>48h chua duyet)`}
               style={{ marginBottom: 12 }}
             />
           )}
@@ -379,16 +379,16 @@ const SigningWorkflow: React.FC = () => {
               type="info"
               showIcon
               icon={<AlertOutlined />}
-              title={`${duplicateCount} yeu cau trung lap (cung loai + benh nhan)`}
+              title={`${duplicateCount} yêu cầu trung lap (cung loai + bệnh nhân)`}
               style={{ marginBottom: 12 }}
             />
           )}
           {selectedRowKeys.length > 0 && (
             <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               <TeamOutlined />
-              <span>Da chon {selectedRowKeys.length} yeu cau</span>
+              <span>Da chon {selectedRowKeys.length} yêu cầu</span>
               <Popconfirm
-                title={`Phe duyet ${selectedRowKeys.length} yeu cau cung luc?`}
+                title={`Phe duyet ${selectedRowKeys.length} yêu cầu cung luc?`}
                 onConfirm={handleBatchApprove}
                 okText="Duyet tat ca"
                 cancelText="Huy"
@@ -407,7 +407,7 @@ const SigningWorkflow: React.FC = () => {
             rowKey="id"
             size="small"
             pagination={{ pageSize: 10 }}
-            locale={{ emptyText: 'Khong co yeu cau cho ky' }}
+            locale={{ emptyText: 'Không có yêu cầu chờ ký' }}
             rowClassName={(record) => {
               if (!record.createdAt) return '';
               const age = Date.now() - new Date(record.createdAt).getTime();
@@ -429,7 +429,7 @@ const SigningWorkflow: React.FC = () => {
       key: 'submitted',
       label: (
         <Badge count={submittedData.filter((r) => r.status === 0).length} size="small" offset={[8, 0]}>
-          <span>Da trinh</span>
+          <span>Đã trình</span>
         </Badge>
       ),
       children: (
@@ -439,13 +439,13 @@ const SigningWorkflow: React.FC = () => {
           rowKey="id"
           size="small"
           pagination={{ pageSize: 10 }}
-          locale={{ emptyText: 'Chua co yeu cau nao' }}
+          locale={{ emptyText: 'Chua co yêu cầu nao' }}
         />
       ),
     },
     {
       key: 'history',
-      label: `Da xu ly (${historyData.length})`,
+      label: `Đã xử lý (${historyData.length})`,
 
       children: (
         <Table
@@ -454,13 +454,13 @@ const SigningWorkflow: React.FC = () => {
           rowKey="id"
           size="small"
           pagination={{ pageSize: 10 }}
-          locale={{ emptyText: 'Chua co lich su' }}
+          locale={{ emptyText: 'Chua co lịch sử' }}
         />
       ),
     },
     {
       key: 'stats',
-      label: 'Thong ke',
+      label: 'Thống kê',
       children: (
         <Row gutter={[16, 16]}>
           <Col xs={12} sm={6}>
@@ -490,12 +490,12 @@ const SigningWorkflow: React.FC = () => {
           </Col>
           <Col xs={12} sm={6}>
             <Card>
-              <Statistic title="Gui hom nay" value={stats?.todaySubmitted ?? 0} styles={{ content: { color: '#722ed1' } }} />
+              <Statistic title="Gui hôm nay" value={stats?.todaySubmitted ?? 0} styles={{ content: { color: '#722ed1' } }} />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card>
-              <Statistic title="Duyet hom nay" value={stats?.todayApproved ?? 0} styles={{ content: { color: '#13c2c2' } }} />
+              <Statistic title="Duyet hôm nay" value={stats?.todayApproved ?? 0} styles={{ content: { color: '#13c2c2' } }} />
             </Card>
           </Col>
         </Row>
@@ -507,24 +507,24 @@ const SigningWorkflow: React.FC = () => {
     <Spin spinning={loading}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>
-          <SendOutlined /> Trinh ky
+          <SendOutlined /> Trình ký
         </Title>
         <Space>
           <Input.Search
-            placeholder="Tim kiem..."
+            placeholder="Tìm kiếm..."
             allowClear
             style={{ width: 220 }}
             onSearch={(val) => setSearchKeyword(val)}
           />
           <Select
-            placeholder="Loai tai lieu"
+            placeholder="Loại tài liệu"
             allowClear
             style={{ width: 170 }}
             onChange={(val) => setFilterDocType(val)}
             options={Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
           />
           <Button icon={<ReloadOutlined />} onClick={fetchData}>
-            Lam moi
+            Làm mới
           </Button>
         </Space>
       </div>
@@ -542,17 +542,17 @@ const SigningWorkflow: React.FC = () => {
           <div>
             <Row gutter={[16, 12]}>
               <Col span={12}>
-                <strong>Loai tai lieu:</strong>
+                <strong>Loại tài liệu:</strong>
                 <br />
                 <Tag color="blue">{DOCUMENT_TYPE_LABELS[selectedRequest.documentType] || selectedRequest.documentType}</Tag>
               </Col>
               <Col span={12}>
-                <strong>Trang thai:</strong>
+                <strong>Trạng thái:</strong>
                 <br />
                 <Tag color={STATUS_COLORS[selectedRequest.status]}>{STATUS_LABELS[selectedRequest.status]}</Tag>
               </Col>
               <Col span={12}>
-                <strong>Nguoi gui:</strong>
+                <strong>Người gửi:</strong>
                 <br />
                 {selectedRequest.submittedByName}
               </Col>
@@ -562,7 +562,7 @@ const SigningWorkflow: React.FC = () => {
                 {selectedRequest.assignedToName}
               </Col>
               <Col span={12}>
-                <strong>Benh nhan:</strong>
+                <strong>Bệnh nhân:</strong>
                 <br />
                 {selectedRequest.patientName || '-'}
               </Col>
@@ -572,7 +572,7 @@ const SigningWorkflow: React.FC = () => {
                 {selectedRequest.departmentName || '-'}
               </Col>
               <Col span={12}>
-                <strong>Ngay gui:</strong>
+                <strong>Ngày gửi:</strong>
                 <br />
                 {formatDate(selectedRequest.createdAt)}
               </Col>
@@ -591,7 +591,7 @@ const SigningWorkflow: React.FC = () => {
             </Row>
 
             <div style={{ marginTop: 16 }}>
-              <strong>Noi dung tai lieu:</strong>
+              <strong>Noi dung tài liệu:</strong>
               <div
                 style={{
                   marginTop: 8,
@@ -602,7 +602,7 @@ const SigningWorkflow: React.FC = () => {
                   maxHeight: 400,
                   overflow: 'auto',
                 }}
-                dangerouslySetInnerHTML={{ __html: selectedRequest.documentContent || '<em>Khong co noi dung</em>' }}
+                dangerouslySetInnerHTML={{ __html: selectedRequest.documentContent || '<em>Không có noi dung</em>' }}
               />
             </div>
 
@@ -622,7 +622,7 @@ const SigningWorkflow: React.FC = () => {
 
       {/* Reject reason modal */}
       <Modal
-        title="Tu choi yeu cau trinh ky"
+        title="Tu choi yêu cầu trình ký"
         open={rejectModalOpen}
         onOk={handleRejectConfirm}
         onCancel={() => { setRejectModalOpen(false); setRejectingId(null); setRejectReason(''); }}

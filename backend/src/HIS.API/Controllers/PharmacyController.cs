@@ -726,6 +726,94 @@ public class PharmacyController : ControllerBase
 
     // ==================== 9. Hủy đơn đã phát → hoàn tồn kho ====================
 
+    [HttpGet("clinical-reviews")]
+    public IActionResult GetClinicalReviews()
+    {
+        // Optional feature: keep the endpoint available even if no dedicated review workflow exists yet.
+        return Ok(Array.Empty<object>());
+    }
+
+    [HttpGet("adr-reports")]
+    public async Task<IActionResult> GetAdrReports()
+    {
+        try
+        {
+            var reports = await _context.PharmacyGppRecords
+                .AsNoTracking()
+                .Include(r => r.RecordedBy)
+                .Where(r => !r.IsDeleted && r.RecordType == 1)
+                .OrderByDescending(r => r.RecordDate)
+                .Take(200)
+                .Select(r => new
+                {
+                    id = r.Id.ToString(),
+                    patientName = "",
+                    patientCode = "",
+                    medicationName = r.MedicineName ?? "",
+                    reactionType = r.Description ?? "",
+                    severity = "moderate",
+                    onsetDate = r.RecordDate,
+                    reportedBy = r.RecordedBy != null ? r.RecordedBy.FullName : "",
+                    description = r.Description ?? "",
+                    outcome = r.ActionTaken ?? "",
+                    status = "reported",
+                })
+                .ToListAsync();
+
+            return Ok(reports);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error fetching ADR reports");
+            return Ok(Array.Empty<object>());
+        }
+    }
+
+    [HttpPost("adr-reports")]
+    public async Task<IActionResult> CreateAdrReport([FromBody] CreateAdrReportRequest request)
+    {
+        try
+        {
+            var userIdValue = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            Guid? userId = Guid.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : null;
+
+            var record = new HIS.Core.Entities.PharmacyGppRecord
+            {
+                Id = Guid.NewGuid(),
+                RecordType = 1,
+                RecordDate = DateTime.TryParse(request.OnsetDate, out var onsetDate) ? onsetDate : DateTime.UtcNow,
+                Description = request.Description ?? request.ReactionType,
+                MedicineName = request.MedicationName,
+                ActionTaken = request.Outcome,
+                RecordedById = userId,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            _context.PharmacyGppRecords.Add(record);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                id = record.Id.ToString(),
+                patientName = request.PatientName ?? "",
+                patientCode = request.PatientCode ?? "",
+                medicationName = record.MedicineName ?? "",
+                reactionType = request.ReactionType ?? "",
+                severity = string.IsNullOrWhiteSpace(request.Severity) ? "moderate" : request.Severity,
+                onsetDate = record.RecordDate,
+                reportedBy = User.Identity?.Name ?? "",
+                description = record.Description ?? "",
+                outcome = record.ActionTaken ?? "",
+                status = "reported",
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating ADR report");
+            return StatusCode(500, new { message = "Lá»—i khi táº¡o bÃ¡o cÃ¡o ADR" });
+        }
+    }
+
     [HttpPost("cancel-dispensed/{prescriptionId}")]
     public async Task<IActionResult> CancelDispensedPrescription(Guid prescriptionId, [FromBody] CancelDispenseRequest request)
     {
@@ -789,5 +877,17 @@ public class PharmacyController : ControllerBase
     public class CancelDispenseRequest
     {
         public string? Reason { get; set; }
+    }
+
+    public class CreateAdrReportRequest
+    {
+        public string? PatientName { get; set; }
+        public string? PatientCode { get; set; }
+        public string? MedicationName { get; set; }
+        public string? ReactionType { get; set; }
+        public string? Severity { get; set; }
+        public string? OnsetDate { get; set; }
+        public string? Description { get; set; }
+        public string? Outcome { get; set; }
     }
 }

@@ -17,13 +17,16 @@ namespace HIS.API.Controllers;
 public partial class InpatientCompleteController : ControllerBase
 {
     private readonly IInpatientCompleteService _inpatientService;
+    private readonly ISystemCompleteService _systemService;
     private readonly ILogger<InpatientCompleteController> _logger;
 
     public InpatientCompleteController(
         IInpatientCompleteService inpatientService,
+        ISystemCompleteService systemService,
         ILogger<InpatientCompleteController> logger)
     {
         _inpatientService = inpatientService;
+        _systemService = systemService;
         _logger = logger;
     }
 
@@ -108,6 +111,23 @@ public partial class InpatientCompleteController : ControllerBase
     {
         var result = await _inpatientService.GetInpatientListAsync(searchDto);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Láº¥y danh má»¥c khoa/phoÌ€ng cho cÃ¡c mÃ n hÃ¬nh ná»™i trÃº.
+    /// </summary>
+    [HttpGet("departments")]
+    public async Task<ActionResult<IEnumerable<object>>> GetDepartments()
+    {
+        var departments = await _systemService.GetDepartmentsAsync(isActive: true);
+        return Ok(departments.Select(d => new
+        {
+            id = d.Id,
+            code = d.Code,
+            name = d.Name,
+            departmentType = d.DepartmentType,
+            isActive = d.IsActive,
+        }));
     }
 
     /// <summary>

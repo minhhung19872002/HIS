@@ -51,10 +51,10 @@ const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 
 const TYPE_LABELS: Record<number, string> = {
-  0: 'Kham chua benh',
-  1: 'Dao tao',
-  2: 'Chuyen giao KT',
-  3: 'Ho tro',
+  0: 'Khám chữa bệnh',
+  1: 'Đào tạo',
+  2: 'Chuyển giao KT',
+  3: 'Hỗ trợ',
 };
 
 const TYPE_COLORS: Record<number, string> = {
@@ -65,10 +65,10 @@ const TYPE_COLORS: Record<number, string> = {
 };
 
 const STATUS_LABELS: Record<number, string> = {
-  0: 'Ke hoach',
-  1: 'Dang thuc hien',
-  2: 'Hoan thanh',
-  3: 'Da huy',
+  0: 'Kế hoạch',
+  1: 'Đang thực hiện',
+  2: 'Hoàn thành',
+  3: 'Đã hủy',
 };
 
 const STATUS_COLORS: Record<number, string> = {
@@ -79,12 +79,12 @@ const STATUS_COLORS: Record<number, string> = {
 };
 
 const ACTIVITY_TYPE_LABELS: Record<number, string> = {
-  0: 'Kham benh',
-  1: 'Phau thuat',
-  2: 'Dao tao',
-  3: 'Hoi chan',
-  4: 'Chuyen giao ky thuat',
-  5: 'Ho tro vat tu',
+  0: 'Khám bệnh',
+  1: 'Phẫu thuật',
+  2: 'Đào tạo',
+  3: 'Hội chẩn',
+  4: 'Chuyển giao kỹ thuật',
+  5: 'Hỗ trợ vật tư',
 };
 
 const ACTIVITY_TYPE_COLORS: Record<number, string> = {
@@ -155,7 +155,7 @@ const ClinicalGuidance: React.FC = () => {
         setStats(results[1].value);
       }
     } catch {
-      message.warning('Khong the tai du lieu chi dao tuyen');
+      message.warning('Không thể tải dữ liệu chỉ đạo tuyến');
     } finally {
       setLoading(false);
     }
@@ -173,7 +173,7 @@ const ClinicalGuidance: React.FC = () => {
       const acts = await guidanceApi.getGuidanceActivities(record.id);
       setActivities(acts);
     } catch {
-      message.warning('Khong the tai hoat dong chi dao tuyen');
+      message.warning('Không thể tải hoạt động chỉ đạo tuyến');
     } finally {
       setActivitiesLoading(false);
     }
@@ -208,16 +208,16 @@ const ClinicalGuidance: React.FC = () => {
       };
       if (editingBatch) {
         await guidanceApi.updateGuidanceBatch(editingBatch.id, payload);
-        message.success('Da cap nhat dot chi dao tuyen');
+        message.success('Đã cập nhật đợt chỉ đạo tuyến');
       } else {
         await guidanceApi.createGuidanceBatch(payload);
-        message.success('Da tao dot chi dao tuyen');
+        message.success('Đã tạo đợt chỉ đạo tuyến');
       }
       setIsCreateModalOpen(false);
       fetchData();
     } catch (err: unknown) {
       if (typeof err === 'object' && err !== null && 'errorFields' in err) return;
-      message.warning('Khong the luu dot chi dao tuyen');
+      message.warning('Không thể lưu đợt chỉ đạo tuyến');
     } finally {
       setSaving(false);
     }
@@ -226,10 +226,10 @@ const ClinicalGuidance: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await guidanceApi.deleteGuidanceBatch(id);
-      message.success('Da xoa dot chi dao tuyen');
+      message.success('Đã xóa đợt chỉ đạo tuyến');
       fetchData();
     } catch {
-      message.warning('Khong the xoa dot chi dao tuyen');
+      message.warning('Không thể xóa đợt chỉ đạo tuyến');
     }
   };
 
@@ -242,7 +242,7 @@ const ClinicalGuidance: React.FC = () => {
         ...values,
         activityDate: values.activityDate?.format('YYYY-MM-DD'),
       });
-      message.success('Da them hoat dong');
+      message.success('Đã thêm hoạt động');
       setIsActivityModalOpen(false);
       activityForm.resetFields();
       // Refresh activities
@@ -250,7 +250,7 @@ const ClinicalGuidance: React.FC = () => {
       setActivities(acts);
     } catch (err: unknown) {
       if (typeof err === 'object' && err !== null && 'errorFields' in err) return;
-      message.warning('Khong the them hoat dong');
+      message.warning('Không thể thêm hoạt động');
     } finally {
       setSaving(false);
     }
@@ -258,68 +258,68 @@ const ClinicalGuidance: React.FC = () => {
 
   const columns: ColumnsType<GuidanceBatchDto> = [
     {
-      title: 'Ma dot',
+      title: 'Mã đợt',
       dataIndex: 'batchCode',
       key: 'batchCode',
       width: 120,
     },
     {
-      title: 'Tieu de',
+      title: 'Tiêu đề',
       dataIndex: 'title',
       key: 'title',
       width: 220,
       ellipsis: true,
     },
     {
-      title: 'Co so tuyen duoi',
+      title: 'Cơ sở tuyến dưới',
       dataIndex: 'targetFacility',
       key: 'targetFacility',
       width: 180,
       ellipsis: true,
     },
     {
-      title: 'Loai hinh',
+      title: 'Loại hình',
       dataIndex: 'guidanceType',
       key: 'guidanceType',
       width: 140,
       render: (t: number) => <Tag color={TYPE_COLORS[t]}>{TYPE_LABELS[t] || 'Khac'}</Tag>,
     },
     {
-      title: 'Ngay bat dau',
+      title: 'Ngày bắt đầu',
       dataIndex: 'startDate',
       key: 'startDate',
       width: 110,
       render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Ngay ket thuc',
+      title: 'Ngày kết thúc',
       dataIndex: 'endDate',
       key: 'endDate',
       width: 110,
       render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 130,
       render: (s: number) => <Tag color={STATUS_COLORS[s]}>{STATUS_LABELS[s] || `${s}`}</Tag>,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 150,
       fixed: 'right',
       render: (_: unknown, record: GuidanceBatchDto) => (
         <Space size="small">
-          <Tooltip title="Xem chi tiet">
+          <Tooltip title="Xem chi tiết">
             <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
           </Tooltip>
-          <Tooltip title="Chinh sua">
+          <Tooltip title="Chỉnh sửa">
             <Button size="small" icon={<EditOutlined />} onClick={() => handleOpenCreate(record)} />
           </Tooltip>
           {record.status === 0 && (
-            <Tooltip title="Xoa">
+            <Tooltip title="Xóa">
               <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
             </Tooltip>
           )}
@@ -337,16 +337,16 @@ const ClinicalGuidance: React.FC = () => {
             <Col>
               <Title level={4} style={{ margin: 0 }}>
                 <TeamOutlined style={{ marginRight: 8 }} />
-                Chi dao tuyen
+                Chỉ đạo tuyến
               </Title>
             </Col>
             <Col>
               <Space>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenCreate()}>
-                  Tao dot moi
+                  Tạo đợt mới
                 </Button>
                 <Button icon={<ReloadOutlined />} onClick={fetchData}>
-                  Lam moi
+                  Làm mới
                 </Button>
               </Space>
             </Col>
@@ -378,9 +378,9 @@ const ClinicalGuidance: React.FC = () => {
           <Col xs={24} sm={8}>
             <Card>
               <Statistic
-                title="Tong ngan sach"
+                title="Tổng ngân sách"
                 value={stats.totalBudget}
-                suffix="d"
+                suffix="đ"
                 precision={0}
                 prefix={<DollarOutlined />}
                 styles={{ content: { color: '#faad14' } }}
@@ -394,7 +394,7 @@ const ClinicalGuidance: React.FC = () => {
           <Row gutter={[16, 12]}>
             <Col xs={24} sm={8} md={6}>
               <Search
-                placeholder="Tim kiem dot chi dao, co so..."
+                placeholder="Tìm kiếm đợt chỉ đạo, cơ sở..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onSearch={fetchData}
@@ -404,13 +404,13 @@ const ClinicalGuidance: React.FC = () => {
             </Col>
             <Col xs={12} sm={8} md={4}>
               <Select
-                placeholder="Loai hinh"
+                placeholder="Loại hình"
                 allowClear
                 style={{ width: '100%' }}
                 value={typeFilter}
                 onChange={setTypeFilter}
                 options={[
-                  { value: 0, label: 'Kham chua benh' },
+                  { value: 0, label: 'Khám chữa bệnh' },
                   { value: 1, label: 'Dao tao' },
                   { value: 2, label: 'Chuyen giao KT' },
                   { value: 3, label: 'Ho tro' },
@@ -435,9 +435,9 @@ const ClinicalGuidance: React.FC = () => {
             onChange={(key) => { setActiveTab(key); setPagination({ current: 1, pageSize: 20 }); }}
             items={[
               { key: 'inProgress', label: <span><ClockCircleOutlined /> Dang thuc hien</span> },
-              { key: 'planning', label: 'Ke hoach' },
+              { key: 'planning', label: 'Kế hoạch' },
               { key: 'completed', label: <span><CheckCircleOutlined /> Hoan thanh</span> },
-              { key: 'all', label: `Tat ca (${totalCount})` },
+              { key: 'all', label: `Tất cả (${totalCount})` },
             ]}
           />
           <Table
@@ -464,12 +464,12 @@ const ClinicalGuidance: React.FC = () => {
 
         {/* Create/Edit Modal */}
         <Modal
-          title={editingBatch ? 'Chinh sua dot chi dao tuyen' : 'Tao dot chi dao tuyen'}
+          title={editingBatch ? 'Chỉnh sửa dot chi dao tuyen' : 'Tao dot chi dao tuyen'}
           open={isCreateModalOpen}
           onCancel={() => setIsCreateModalOpen(false)}
           onOk={handleSaveBatch}
-          okText={editingBatch ? 'Cap nhat' : 'Tao moi'}
-          cancelText="Huy"
+          okText={editingBatch ? 'Cập nhật' : 'Tạo mới'}
+          cancelText="Hủy"
           confirmLoading={saving}
           width={700}
           destroyOnHidden
@@ -478,30 +478,30 @@ const ClinicalGuidance: React.FC = () => {
             <Form.Item
               name="title"
               label="Tieu de"
-              rules={[{ required: true, message: 'Vui long nhap tieu de' }]}
+              rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
             >
-              <Input placeholder="VD: Chi dao tuyen TTYT Huyen X Q2/2026" />
+              <Input placeholder="VD: Chỉ đạo tuyến TTYT Huyện X Q2/2026" />
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
                   name="targetFacility"
                   label="Co so tuyen duoi"
-                  rules={[{ required: true, message: 'Vui long nhap co so' }]}
+                  rules={[{ required: true, message: 'Vui lòng nhập cơ sở' }]}
                 >
-                  <Input placeholder="Ten co so y te tuyen duoi" />
+                  <Input placeholder="Tên cơ sở y tế tuyến dưới" />
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item
                   name="guidanceType"
                   label="Loai hinh"
-                  rules={[{ required: true, message: 'Vui long chon loai hinh' }]}
+                  rules={[{ required: true, message: 'Vui lòng chọn loại hình' }]}
                 >
                   <Select
-                    placeholder="Chon loai hinh"
+                    placeholder="Chọn loại hình"
                     options={[
-                      { value: 0, label: 'Kham chua benh' },
+                      { value: 0, label: 'Khám chữa bệnh' },
                       { value: 1, label: 'Dao tao' },
                       { value: 2, label: 'Chuyen giao ky thuat' },
                       { value: 3, label: 'Ho tro vat tu' },
@@ -515,7 +515,7 @@ const ClinicalGuidance: React.FC = () => {
                 <Form.Item
                   name="startDate"
                   label="Ngay bat dau"
-                  rules={[{ required: true, message: 'Vui long chon ngay' }]}
+                  rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
@@ -524,18 +524,18 @@ const ClinicalGuidance: React.FC = () => {
                 <Form.Item
                   name="endDate"
                   label="Ngay ket thuc"
-                  rules={[{ required: true, message: 'Vui long chon ngay' }]}
+                  rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="teamMembers" label="Thanh vien doan">
-              <TextArea rows={2} placeholder="Danh sach thanh vien tham gia..." />
+            <Form.Item name="teamMembers" label="Thành viên đoàn">
+              <TextArea rows={2} placeholder="Danh sách thành viên tham gia..." />
             </Form.Item>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="budget" label="Ngan sach (VND)">
+                <Form.Item name="budget" label="Ngân sách (VND)">
                   <InputNumber
                     min={0}
                     style={{ width: '100%' }}
@@ -545,8 +545,8 @@ const ClinicalGuidance: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="notes" label="Ghi chu">
-              <TextArea rows={2} placeholder="Ghi chu them..." />
+            <Form.Item name="notes" label="Ghi chú">
+              <TextArea rows={2} placeholder="Ghi chú thêm..." />
             </Form.Item>
           </Form>
         </Modal>
@@ -566,7 +566,7 @@ const ClinicalGuidance: React.FC = () => {
           {selectedBatch && (
             <>
               <Descriptions bordered column={2} size="small" style={{ marginBottom: 24 }}>
-                <Descriptions.Item label="Ma dot">{selectedBatch.batchCode}</Descriptions.Item>
+                <Descriptions.Item label="Mã đợt">{selectedBatch.batchCode}</Descriptions.Item>
                 <Descriptions.Item label="Trang thai">
                   <Tag color={STATUS_COLORS[selectedBatch.status]}>{STATUS_LABELS[selectedBatch.status]}</Tag>
                 </Descriptions.Item>
@@ -581,12 +581,12 @@ const ClinicalGuidance: React.FC = () => {
                 <Descriptions.Item label="Ngay ket thuc">
                   {selectedBatch.endDate ? dayjs(selectedBatch.endDate).format('DD/MM/YYYY') : '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Thanh vien" span={2}>{selectedBatch.teamMembers || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Ngan sach">
+                <Descriptions.Item label="Thành viên" span={2}>{selectedBatch.teamMembers || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Ngân sách">
                   {selectedBatch.budget ? selectedBatch.budget.toLocaleString() + ' d' : '-'}
                 </Descriptions.Item>
-                <Descriptions.Item label="So hoat dong">{selectedBatch.activityCount || activities.length}</Descriptions.Item>
-                <Descriptions.Item label="Ghi chu" span={2}>{selectedBatch.notes || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Số hoạt động">{selectedBatch.activityCount || activities.length}</Descriptions.Item>
+                <Descriptions.Item label="Ghi chú" span={2}>{selectedBatch.notes || '-'}</Descriptions.Item>
               </Descriptions>
 
               <Title level={5}>Hoat dong chi dao tuyen</Title>
@@ -603,14 +603,14 @@ const ClinicalGuidance: React.FC = () => {
                             {ACTIVITY_TYPE_LABELS[act.activityType] || 'Khac'}
                           </Tag>
                           <div style={{ marginTop: 4 }}>{act.description}</div>
-                          {act.staffName && <div style={{ color: '#666' }}>Nguoi thuc hien: {act.staffName}</div>}
-                          {act.result && <div style={{ color: '#52c41a' }}>Ket qua: {act.result}</div>}
+                          {act.staffName && <div style={{ color: '#666' }}>Người thực hiện: {act.staffName}</div>}
+                          {act.result && <div style={{ color: '#52c41a' }}>Kết quả: {act.result}</div>}
                         </div>
                       ),
                     }))}
                   />
                 ) : (
-                  <div style={{ textAlign: 'center', color: '#999', padding: 16 }}>Chua co hoat dong nao</div>
+                  <div style={{ textAlign: 'center', color: '#999', padding: 16 }}>Chưa có hoạt động nào</div>
                 )}
               </Spin>
             </>
@@ -624,18 +624,18 @@ const ClinicalGuidance: React.FC = () => {
           onCancel={() => setIsActivityModalOpen(false)}
           onOk={handleAddActivity}
           okText="Them"
-          cancelText="Huy"
+          cancelText="Hủy"
           confirmLoading={saving}
           destroyOnHidden
         >
           <Form form={activityForm} layout="vertical">
             <Form.Item
               name="activityType"
-              label="Loai hoat dong"
-              rules={[{ required: true, message: 'Vui long chon loai' }]}
+              label="Loại hoạt động"
+              rules={[{ required: true, message: 'Vui lòng chọn loại' }]}
             >
               <Select
-                placeholder="Chon loai hoat dong"
+                placeholder="Chọn loại hoạt động"
                 options={[
                   { value: 0, label: 'Kham benh' },
                   { value: 1, label: 'Phau thuat' },
@@ -648,26 +648,26 @@ const ClinicalGuidance: React.FC = () => {
             </Form.Item>
             <Form.Item
               name="activityDate"
-              label="Ngay thuc hien"
-              rules={[{ required: true, message: 'Vui long chon ngay' }]}
+              label="Ngày thực hiện"
+              rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}
             >
               <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
             </Form.Item>
             <Form.Item
               name="description"
-              label="Mo ta hoat dong"
-              rules={[{ required: true, message: 'Vui long nhap mo ta' }]}
+              label="Mô tả hoạt động"
+              rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}
             >
-              <TextArea rows={3} placeholder="Mo ta chi tiet hoat dong..." />
+              <TextArea rows={3} placeholder="Mô tả chi tiết hoạt động..." />
             </Form.Item>
-            <Form.Item name="staffName" label="Nguoi thuc hien">
-              <Input placeholder="Ten bac si / chuyen gia" />
+            <Form.Item name="staffName" label="Người thực hiện">
+              <Input placeholder="Tên bác sĩ / chuyên gia" />
             </Form.Item>
-            <Form.Item name="result" label="Ket qua">
-              <TextArea rows={2} placeholder="Ket qua hoat dong (neu co)..." />
+            <Form.Item name="result" label="Kết quả">
+              <TextArea rows={2} placeholder="Kết quả hoạt động (nếu có)..." />
             </Form.Item>
-            <Form.Item name="notes" label="Ghi chu">
-              <TextArea rows={2} placeholder="Ghi chu them..." />
+            <Form.Item name="notes" label="Ghi chú">
+              <TextArea rows={2} placeholder="Ghi chú thêm..." />
             </Form.Item>
           </Form>
         </Modal>

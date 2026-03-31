@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Input, Button, Table, Tabs, Tag, Modal, message, Spin,
   Row, Col, DatePicker, Select, Statistic, Space, Form, InputNumber,
-  Tooltip, Badge,
+  Badge,
 } from 'antd';
 import {
-  SearchOutlined, ReloadOutlined, FileTextOutlined, SwapOutlined,
+  ReloadOutlined, FileTextOutlined, SwapOutlined,
   BookOutlined, CheckCircleOutlined, SolutionOutlined, CopyOutlined,
   ClockCircleOutlined, WarningOutlined, PlusOutlined,
 } from '@ant-design/icons';
@@ -172,7 +172,7 @@ const HANDOVER_STATUS: Record<number, { label: string; color: string }> = {
 // ---------------------------------------------------------------------------
 
 const MedicalRecordPlanning: React.FC = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [activeTab, setActiveTab] = useState('record-codes');
   const [stats, setStats] = useState<PlanningStats | null>(null);
 
@@ -241,7 +241,7 @@ const MedicalRecordPlanning: React.FC = () => {
       const res = await api.getPlanningStats();
       setStats(res.data);
     } catch {
-      message.warning('Khong the tai thong ke');
+      message.warning('Khong the tai thống kê');
     }
   }, []);
 
@@ -281,7 +281,7 @@ const MedicalRecordPlanning: React.FC = () => {
       setTrTotal(res.data.totalCount || 0);
       setTrPage(page);
     } catch {
-      message.warning('Khong the tai danh sach chuyen vien');
+      message.warning('Khong the tai danh sach chuyển viện');
     } finally {
       setTrLoading(false);
     }
@@ -321,7 +321,7 @@ const MedicalRecordPlanning: React.FC = () => {
       setHoTotal(res.data.totalCount || 0);
       setHoPage(page);
     } catch {
-      message.warning('Khong the tai danh sach ban giao');
+      message.warning('Khong the tai danh sach bàn giao');
     } finally {
       setHoLoading(false);
     }
@@ -342,7 +342,7 @@ const MedicalRecordPlanning: React.FC = () => {
       setOpTotal(res.data.totalCount || 0);
       setOpPage(page);
     } catch {
-      message.warning('Khong the tai danh sach BA ngoai tru');
+      message.warning('Khong the tai danh sach BA ngoại trú');
     } finally {
       setOpLoading(false);
     }
@@ -385,7 +385,7 @@ const MedicalRecordPlanning: React.FC = () => {
 
   const handleAssignCode = async (record: RecordCode) => {
     if (!record.examinationId) {
-      message.warning('Khong co luot kham de cap ma');
+      message.warning('Không có luot kham de cap ma');
       return;
     }
     try {
@@ -400,7 +400,7 @@ const MedicalRecordPlanning: React.FC = () => {
   const handleApproveTransfer = async (record: TransferRecord, approve: boolean) => {
     try {
       await api.approveTransfer({ transferId: record.id, approve });
-      message.success(approve ? 'Duyet chuyen vien thanh cong' : 'Tu choi chuyen vien');
+      message.success(approve ? 'Duyet chuyển viện thanh cong' : 'Tu choi chuyển viện');
       loadTransfers(trPage);
     } catch {
       message.warning('Khong the thuc hien');
@@ -465,7 +465,7 @@ const MedicalRecordPlanning: React.FC = () => {
   const handleApproveHandover = async (record: HandoverRecord, approve: boolean) => {
     try {
       await api.approveHandover({ handoverId: record.id, approve });
-      message.success(approve ? 'Duyet ban giao thanh cong' : 'Tu choi ban giao');
+      message.success(approve ? 'Duyet bàn giao thanh cong' : 'Tu choi bàn giao');
       loadHandover(hoPage);
     } catch {
       message.warning('Khong the thuc hien');
@@ -481,13 +481,13 @@ const MedicalRecordPlanning: React.FC = () => {
     { title: 'Ma BN', dataIndex: 'patientCode', key: 'patientCode', width: 120 },
     { title: 'Ho ten', dataIndex: 'patientName', key: 'patientName', width: 180 },
     { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName', width: 150 },
-    { title: 'Bac si', dataIndex: 'doctorName', key: 'doctorName', width: 150 },
+    { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctorName', width: 150 },
     {
       title: 'Ngay cap', dataIndex: 'assignedDate', key: 'assignedDate', width: 120,
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 100,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 100,
       render: (s: number) => {
         const st = RECORD_CODE_STATUS[s] || RECORD_CODE_STATUS[0];
         return <Tag color={st.color}>{st.label}</Tag>;
@@ -513,13 +513,13 @@ const MedicalRecordPlanning: React.FC = () => {
     { title: 'Den noi', dataIndex: 'toDepartment', key: 'toDepartment', width: 160,
       render: (v: string, r: TransferRecord) => v || r.toHospital || '-',
     },
-    { title: 'Chan doan', dataIndex: 'diagnosis', key: 'diagnosis', width: 200, ellipsis: true },
+    { title: 'Chẩn đoán', dataIndex: 'diagnosis', key: 'diagnosis', width: 200, ellipsis: true },
     {
       title: 'Ngay CV', dataIndex: 'transferDate', key: 'transferDate', width: 120,
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 100,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 100,
       render: (s: number) => {
         const st = TRANSFER_STATUS[s] || TRANSFER_STATUS[0];
         return <Tag color={st.color}>{st.label}</Tag>;
@@ -543,7 +543,7 @@ const MedicalRecordPlanning: React.FC = () => {
   const borrowColumns: ColumnsType<BorrowRecord> = [
     { title: 'Ma phieu', dataIndex: 'borrowCode', key: 'borrowCode', width: 160 },
     { title: 'Ma BA', dataIndex: 'recordCode', key: 'recordCode', width: 140 },
-    { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 160 },
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 160 },
     { title: 'Nguoi muon', dataIndex: 'borrowerName', key: 'borrowerName', width: 150 },
     { title: 'Muc dich', dataIndex: 'purpose', key: 'purpose', width: 180, ellipsis: true },
     {
@@ -560,7 +560,7 @@ const MedicalRecordPlanning: React.FC = () => {
       },
     },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 100,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 100,
       render: (s: number) => {
         const st = BORROW_STATUS[s] || BORROW_STATUS[0];
         return <Tag color={st.color}>{st.label}</Tag>;
@@ -588,11 +588,11 @@ const MedicalRecordPlanning: React.FC = () => {
   const handoverColumns: ColumnsType<HandoverRecord> = [
     { title: 'Ma BG', dataIndex: 'handoverCode', key: 'handoverCode', width: 160 },
     { title: 'Ma BA', dataIndex: 'recordCode', key: 'recordCode', width: 140 },
-    { title: 'Benh nhan', dataIndex: 'patientName', key: 'patientName', width: 160 },
+    { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName', width: 160 },
     { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName', width: 150 },
-    { title: 'Nguoi gui', dataIndex: 'submittedByName', key: 'submittedByName', width: 140 },
+    { title: 'Người gửi', dataIndex: 'submittedByName', key: 'submittedByName', width: 140 },
     {
-      title: 'Ngay gui', dataIndex: 'submittedDate', key: 'submittedDate', width: 110,
+      title: 'Ngày gửi', dataIndex: 'submittedDate', key: 'submittedDate', width: 110,
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
     },
     {
@@ -600,7 +600,7 @@ const MedicalRecordPlanning: React.FC = () => {
       render: (_: unknown, r: HandoverRecord) => `${r.completedForms}/${r.totalForms}`,
     },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 100,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 100,
       render: (s: number) => {
         const st = HANDOVER_STATUS[s] || HANDOVER_STATUS[0];
         return <Tag color={st.color}>{st.label}</Tag>;
@@ -627,15 +627,15 @@ const MedicalRecordPlanning: React.FC = () => {
     { title: 'Ho ten', dataIndex: 'patientName', key: 'patientName', width: 180 },
     { title: 'Gioi tinh', dataIndex: 'gender', key: 'gender', width: 80 },
     { title: 'Khoa', dataIndex: 'departmentName', key: 'departmentName', width: 150 },
-    { title: 'Bac si', dataIndex: 'doctorName', key: 'doctorName', width: 150 },
-    { title: 'Chan doan', dataIndex: 'diagnosis', key: 'diagnosis', width: 200, ellipsis: true },
+    { title: 'Bác sĩ', dataIndex: 'doctorName', key: 'doctorName', width: 150 },
+    { title: 'Chẩn đoán', dataIndex: 'diagnosis', key: 'diagnosis', width: 200, ellipsis: true },
     { title: 'Ma ICD', dataIndex: 'icdCode', key: 'icdCode', width: 100 },
     {
       title: 'Ngay kham', dataIndex: 'examinationDate', key: 'examinationDate', width: 110,
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
     },
     {
-      title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110,
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110,
       render: (_: unknown, r: OutpatientRecord) => <Tag>{r.statusName}</Tag>,
     },
   ];
@@ -643,7 +643,7 @@ const MedicalRecordPlanning: React.FC = () => {
   const attendanceColumns: ColumnsType<DepartmentAttendance> = [
     { title: 'Khoa/Phong', dataIndex: 'departmentName', key: 'departmentName', width: 200 },
     {
-      title: 'Trang thai', key: 'status', width: 120,
+      title: 'Trạng thái', key: 'status', width: 120,
       render: (_: unknown, r: DepartmentAttendance) => (
         r.isCheckedIn
           ? <Tag color="success">Da cham cong</Tag>
@@ -769,7 +769,7 @@ const MedicalRecordPlanning: React.FC = () => {
         <Col xs={24} sm={8} md={4}>
           <Select
             style={{ width: '100%' }}
-            placeholder="Trang thai"
+            placeholder="Trạng thái"
             allowClear
             value={brStatusFilter}
             onChange={(v) => setBrStatusFilter(v)}
@@ -821,7 +821,7 @@ const MedicalRecordPlanning: React.FC = () => {
         <Col xs={24} sm={8} md={4}>
           <Select
             style={{ width: '100%' }}
-            placeholder="Trang thai"
+            placeholder="Trạng thái"
             allowClear
             value={hoStatusFilter}
             onChange={(v) => setHoStatusFilter(v)}
@@ -960,7 +960,7 @@ const MedicalRecordPlanning: React.FC = () => {
             <Col xs={12} sm={8} md={4}>
               <Card size="small">
                 <Statistic
-                  title="Chuyen vien"
+                  title="Chuyển viện"
                   value={stats.totalTransfers}
                   prefix={<SwapOutlined />}
                   styles={{ content: { fontSize: 20 } }}
@@ -990,7 +990,7 @@ const MedicalRecordPlanning: React.FC = () => {
             <Col xs={12} sm={8} md={4}>
               <Card size="small">
                 <Statistic
-                  title="Ban giao"
+                  title="Bàn giao"
                   value={stats.pendingHandovers}
                   prefix={<ClockCircleOutlined />}
                   styles={{ content: { color: '#faad14', fontSize: 20 } }}
@@ -1016,28 +1016,28 @@ const MedicalRecordPlanning: React.FC = () => {
               {
                 key: 'transfers',
                 label: (
-                  <span><SwapOutlined /> Chuyen vien</span>
+                  <span><SwapOutlined /> Chuyển viện</span>
                 ),
                 children: renderTransfers(),
               },
               {
                 key: 'borrowing',
                 label: (
-                  <span><BookOutlined /> Muon tra BA</span>
+                  <span><BookOutlined /> Mượn trả BA</span>
                 ),
                 children: renderBorrowing(),
               },
               {
                 key: 'handover',
                 label: (
-                  <span><SolutionOutlined /> Ban giao BA</span>
+                  <span><SolutionOutlined /> Bàn giao BA</span>
                 ),
                 children: renderHandover(),
               },
               {
                 key: 'outpatient',
                 label: (
-                  <span><CopyOutlined /> BA Ngoai tru</span>
+                  <span><CopyOutlined /> BA Ngoại trú</span>
                 ),
                 children: renderOutpatient(),
               },
@@ -1063,7 +1063,7 @@ const MedicalRecordPlanning: React.FC = () => {
           destroyOnHidden
         >
           <Form form={borrowForm} layout="vertical">
-            <Form.Item name="medicalRecordId" label="Ma ho so benh an" rules={[{ required: true, message: 'Vui long nhap' }]}>
+            <Form.Item name="medicalRecordId" label="Ma ho so bệnh án" rules={[{ required: true, message: 'Vui long nhap' }]}>
               <Input placeholder="Nhap ma ho so BA" />
             </Form.Item>
             <Form.Item name="purpose" label="Muc dich muon">

@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Input, Tag, Row, Col, Select, DatePicker,
   Typography, message, Tabs, Statistic, Spin, Modal, Form, InputNumber,
-  Tooltip, Space, Popconfirm, Progress, Badge,
+  Space, Popconfirm, Progress, Badge,
 } from 'antd';
 import {
-  FileAddOutlined, SearchOutlined, ReloadOutlined, PlusOutlined,
+  FileAddOutlined, ReloadOutlined, PlusOutlined,
   CheckOutlined, DeleteOutlined, ShoppingCartOutlined, BarChartOutlined,
-  ExclamationCircleOutlined, SendOutlined, BulbOutlined, InboxOutlined,
+  ExclamationCircleOutlined, BulbOutlined, InboxOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -20,7 +20,6 @@ import type {
 } from '../api/warehouse';
 
 const { Title, Text } = Typography;
-const { Search } = Input;
 const { RangePicker } = DatePicker;
 
 const Procurement: React.FC = () => {
@@ -47,7 +46,7 @@ const Procurement: React.FC = () => {
       setRequests(res.data || []);
     } catch (err) {
       console.warn('Load procurement requests:', err);
-      message.warning('Khong the tai danh sach de xuat');
+      message.warning('Không thể tải danh sách đề xuất');
     } finally {
       setLoading(false);
     }
@@ -90,9 +89,9 @@ const Procurement: React.FC = () => {
   const handleApprove = async (id: string) => {
     try {
       await warehouseApi.approveProcurementRequest(id);
-      message.success('Da duyet de xuat');
+      message.success('Đã duyệt đề xuất');
       fetchRequests();
-    } catch (err) { console.warn('Approve:', err); message.warning('Loi duyet de xuat'); }
+    } catch (err) { console.warn('Approve:', err); message.warning('Lỗi duyệt đề xuất'); }
   };
 
   // Create request
@@ -109,12 +108,12 @@ const Procurement: React.FC = () => {
         })),
       };
       await warehouseApi.createProcurementRequest(dto);
-      message.success('Da tao de xuat du tru');
+      message.success('Đã tạo đề xuất dự trù');
       setCreateModal(false);
       createForm.resetFields();
       setCartItems([]);
       fetchRequests();
-    } catch (err) { console.warn('Create procurement:', err); message.warning('Loi tao de xuat'); }
+    } catch (err) { console.warn('Create procurement:', err); message.warning('Lỗi tạo đề xuất'); }
   };
 
   // Add suggestion to cart
@@ -128,29 +127,29 @@ const Procurement: React.FC = () => {
       currentStock: item.currentStock,
       requestedQuantity: Math.max(1, (item.maximumStock || item.minimumStock * 2) - item.currentStock),
     }]);
-    message.success(`Da them ${item.itemName}`);
+    message.success(`Đã thêm ${item.itemName}`);
   };
 
   // Status colors
   const statusColors: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'success', 3: 'error' };
-  const statusNames: Record<number, string> = { 0: 'Nhap', 1: 'Cho duyet', 2: 'Da duyet', 3: 'Tu choi' };
+  const statusNames: Record<number, string> = { 0: 'Nhập', 1: 'Chờ duyệt', 2: 'Đã duyệt', 3: 'Từ chối' };
 
   // Request columns
   const requestColumns: ColumnsType<ProcurementRequestDto> = [
-    { title: 'Ma phieu', dataIndex: 'requestCode', key: 'requestCode', width: 140 },
-    { title: 'Ngay tao', dataIndex: 'requestDate', key: 'requestDate', width: 120, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+    { title: 'Mã phiếu', dataIndex: 'requestCode', key: 'requestCode', width: 140 },
+    { title: 'Ngày tạo', dataIndex: 'requestDate', key: 'requestDate', width: 120, render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
     { title: 'Kho', dataIndex: 'warehouseName', key: 'warehouseName', width: 160, ellipsis: true },
-    { title: 'Mo ta', dataIndex: 'description', key: 'description', width: 200, ellipsis: true },
-    { title: 'So mat hang', key: 'itemCount', width: 100, align: 'right', render: (_: unknown, r: ProcurementRequestDto) => r.items?.length || 0 },
-    { title: 'Trang thai', dataIndex: 'status', key: 'status', width: 110, render: (s: number) => <Tag color={statusColors[s]}>{statusNames[s] || 'N/A'}</Tag> },
-    { title: 'Nguoi tao', dataIndex: 'createdByName', key: 'createdByName', width: 150 },
+    { title: 'Mô tả', dataIndex: 'description', key: 'description', width: 200, ellipsis: true },
+    { title: 'Số mặt hàng', key: 'itemCount', width: 100, align: 'right', render: (_: unknown, r: ProcurementRequestDto) => r.items?.length || 0 },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (s: number) => <Tag color={statusColors[s]}>{statusNames[s] || 'N/A'}</Tag> },
+    { title: 'Người tạo', dataIndex: 'createdByName', key: 'createdByName', width: 150 },
     {
       title: '', key: 'action', width: 150, render: (_: unknown, r: ProcurementRequestDto) => (
         <Space>
           <Button size="small" onClick={() => setDetailModal(r)}>Xem</Button>
           {r.status <= 1 && (
-            <Popconfirm title="Duyet de xuat nay?" onConfirm={() => handleApprove(r.id)}>
-              <Button size="small" type="primary" icon={<CheckOutlined />}>Duyet</Button>
+            <Popconfirm title="Duyệt đề xuất này?" onConfirm={() => handleApprove(r.id)}>
+              <Button size="small" type="primary" icon={<CheckOutlined />}>Duyệt</Button>
             </Popconfirm>
           )}
         </Space>
@@ -163,17 +162,17 @@ const Procurement: React.FC = () => {
     { title: 'Ma', dataIndex: 'itemCode', key: 'itemCode', width: 120 },
     { title: 'Ten', dataIndex: 'itemName', key: 'itemName', width: 250, ellipsis: true },
     { title: 'DVT', dataIndex: 'unit', key: 'unit', width: 80 },
-    { title: 'Ton hien tai', dataIndex: 'currentStock', key: 'currentStock', width: 110, align: 'right',
+    { title: 'Tồn hiện tại', dataIndex: 'currentStock', key: 'currentStock', width: 110, align: 'right',
       render: (v: number, r: AutoProcurementSuggestionDto) => (
         <span style={{ color: v <= r.minimumStock ? '#ff4d4f' : undefined, fontWeight: v <= r.minimumStock ? 'bold' : undefined }}>
           {v}
         </span>
       ),
     },
-    { title: 'Ton toi thieu', dataIndex: 'minimumStock', key: 'minimumStock', width: 110, align: 'right' },
-    { title: 'Ton toi da', dataIndex: 'maximumStock', key: 'maximumStock', width: 110, align: 'right' },
-    { title: 'TB thang', dataIndex: 'averageMonthlyUsage', key: 'avgUsage', width: 100, align: 'right', render: (v: number) => v?.toFixed(1) },
-    { title: 'Can nhap', key: 'needed', width: 100, align: 'right',
+    { title: 'Tồn tối thiểu', dataIndex: 'minimumStock', key: 'minimumStock', width: 110, align: 'right' },
+    { title: 'Tồn tối đa', dataIndex: 'maximumStock', key: 'maximumStock', width: 110, align: 'right' },
+    { title: 'TB tháng', dataIndex: 'averageMonthlyUsage', key: 'avgUsage', width: 100, align: 'right', render: (v: number) => v?.toFixed(1) },
+    { title: 'Cần nhập', key: 'needed', width: 100, align: 'right',
       render: (_: unknown, r: AutoProcurementSuggestionDto) => {
         const needed = Math.max(0, (r.maximumStock || r.minimumStock * 2) - r.currentStock);
         return needed > 0 ? <Text type="danger" strong>{needed}</Text> : <Text type="secondary">0</Text>;
@@ -181,7 +180,7 @@ const Procurement: React.FC = () => {
     },
     { title: '', key: 'action', width: 80, render: (_: unknown, r: AutoProcurementSuggestionDto) => (
       <Button size="small" type="link" icon={<PlusOutlined />} onClick={() => addToCart(r)}
-        disabled={!!cartItems.find(c => c.itemId === r.itemId)}>Them</Button>
+        disabled={!!cartItems.find(c => c.itemId === r.itemId)}>Thêm</Button>
     )},
   ];
 
@@ -190,10 +189,10 @@ const Procurement: React.FC = () => {
     { title: 'Ma', dataIndex: 'itemCode', key: 'itemCode', width: 120 },
     { title: 'Ten', dataIndex: 'itemName', key: 'itemName', width: 250 },
     { title: 'DVT', dataIndex: 'unit', key: 'unit', width: 80 },
-    { title: 'Ton hien tai', dataIndex: 'currentStock', key: 'currentStock', width: 110, align: 'right' },
-    { title: 'SL yeu cau', dataIndex: 'requestedQuantity', key: 'requestedQuantity', width: 110, align: 'right' },
-    { title: 'SL duyet', dataIndex: 'approvedQuantity', key: 'approvedQuantity', width: 110, align: 'right' },
-    { title: 'Ghi chu', dataIndex: 'notes', key: 'notes', width: 150 },
+    { title: 'Tồn hiện tại', dataIndex: 'currentStock', key: 'currentStock', width: 110, align: 'right' },
+    { title: 'SL yêu cầu', dataIndex: 'requestedQuantity', key: 'requestedQuantity', width: 110, align: 'right' },
+    { title: 'SL duyệt', dataIndex: 'approvedQuantity', key: 'approvedQuantity', width: 110, align: 'right' },
+    { title: 'Ghi chú', dataIndex: 'notes', key: 'notes', width: 150 },
   ];
 
   // Stats
@@ -204,14 +203,14 @@ const Procurement: React.FC = () => {
   const tabItems = [
     {
       key: 'requests',
-      label: <><FileAddOutlined /> De xuat du tru {pendingCount > 0 && <Badge count={pendingCount} size="small" style={{ marginLeft: 4 }} />}</>,
+      label: <><FileAddOutlined /> Đề xuất dự trù {pendingCount > 0 && <Badge count={pendingCount} size="small" style={{ marginLeft: 4 }} />}</>,
       children: (
         <Spin spinning={loading}>
           <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={6}>
-              <Select placeholder="Trang thai" allowClear style={{ width: '100%' }}
+              <Select placeholder="Trạng thái" allowClear style={{ width: '100%' }}
                 value={statusFilter} onChange={setStatusFilter}
-                options={[{ value: 0, label: 'Nhap' }, { value: 1, label: 'Cho duyet' }, { value: 2, label: 'Da duyet' }, { value: 3, label: 'Tu choi' }]} />
+                options={[{ value: 0, label: 'Nhap' }, { value: 1, label: 'Chờ duyệt' }, { value: 2, label: 'Đã duyệt' }, { value: 3, label: 'Từ chối' }]} />
             </Col>
             <Col xs={24} sm={8}>
               <RangePicker style={{ width: '100%' }} format="DD/MM/YYYY"
@@ -219,15 +218,15 @@ const Procurement: React.FC = () => {
             </Col>
             <Col xs={24} sm={10} style={{ textAlign: 'right' }}>
               <Space>
-                <Button icon={<ReloadOutlined />} onClick={fetchRequests}>Lam moi</Button>
+                <Button icon={<ReloadOutlined />} onClick={fetchRequests}>Làm mới</Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => { setCreateModal(true); setActiveTab('suggestions'); }}>
-                  Tao de xuat
+                  Tạo đề xuất
                 </Button>
               </Space>
             </Col>
           </Row>
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col xs={8}><Card size="small"><Statistic title="Tong de xuat" value={requests.length} prefix={<FileAddOutlined />} /></Card></Col>
+            <Col xs={8}><Card size="small"><Statistic title="Tổng đề xuất" value={requests.length} prefix={<FileAddOutlined />} /></Card></Col>
             <Col xs={8}><Card size="small"><Statistic title="Cho duyet" value={pendingCount} valueStyle={{ color: pendingCount > 0 ? '#faad14' : undefined }} /></Card></Col>
             <Col xs={8}><Card size="small"><Statistic title="Da duyet" value={approvedCount} valueStyle={{ color: '#52c41a' }} /></Card></Col>
           </Row>
@@ -239,21 +238,21 @@ const Procurement: React.FC = () => {
     },
     {
       key: 'suggestions',
-      label: <><BulbOutlined /> Goi y nhap hang {belowMinCount > 0 && <Badge count={belowMinCount} size="small" style={{ marginLeft: 4 }} />}</>,
+      label: <><BulbOutlined /> Gợi ý nhập hàng {belowMinCount > 0 && <Badge count={belowMinCount} size="small" style={{ marginLeft: 4 }} />}</>,
       children: (
         <Spin spinning={suggestionsLoading}>
           <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={8}>
-              <Select placeholder="Chon kho" style={{ width: '100%' }}
+              <Select placeholder="Chọn kho" style={{ width: '100%' }}
                 onChange={(v: string) => fetchSuggestions(v)}
                 options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
             </Col>
             <Col xs={24} sm={16} style={{ textAlign: 'right' }}>
               <Space>
-                <Button icon={<ReloadOutlined />} onClick={() => fetchSuggestions()}>Lam moi</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => fetchSuggestions()}>Làm mới</Button>
                 {cartItems.length > 0 && (
                   <Button type="primary" icon={<ShoppingCartOutlined />} onClick={() => setCreateModal(true)}>
-                    Tao de xuat ({cartItems.length} mat hang)
+                    Tạo đề xuất ({cartItems.length} mặt hàng)
                   </Button>
                 )}
               </Space>
@@ -262,7 +261,7 @@ const Procurement: React.FC = () => {
           {belowMinCount > 0 && (
             <Card size="small" style={{ marginBottom: 16, background: '#fff7e6', borderColor: '#ffd591' }}>
               <ExclamationCircleOutlined style={{ color: '#faad14', marginRight: 8 }} />
-              <Text strong>{belowMinCount} mat hang</Text> duoi dinh muc toi thieu. Can nhap bo sung.
+              <Text strong>{belowMinCount} mặt hàng</Text> dưới định mức tối thiểu. Cần nhập bổ sung.
             </Card>
           )}
           <Table columns={suggestionColumns} dataSource={suggestions} rowKey="itemId" size="small"
@@ -273,12 +272,12 @@ const Procurement: React.FC = () => {
     },
     {
       key: 'summary',
-      label: <><BarChartOutlined /> Tong hop</>,
+      label: <><BarChartOutlined /> Tổng hợp</>,
       children: (
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>
             <Card>
-              <Statistic title="Tong de xuat thang nay" value={requests.filter(r => dayjs(r.requestDate).isSame(dayjs(), 'month')).length} />
+              <Statistic title="Tổng đề xuất tháng này" value={requests.filter(r => dayjs(r.requestDate).isSame(dayjs(), 'month')).length} />
             </Card>
           </Col>
           <Col xs={24} sm={8}>
@@ -288,13 +287,13 @@ const Procurement: React.FC = () => {
           </Col>
           <Col xs={24} sm={8}>
             <Card>
-              <Statistic title="Dang cho xu ly" value={pendingCount} valueStyle={{ color: pendingCount > 0 ? '#faad14' : undefined }} />
+              <Statistic title="Đang chờ xử lý" value={pendingCount} valueStyle={{ color: pendingCount > 0 ? '#faad14' : undefined }} />
             </Card>
           </Col>
           <Col xs={24}>
-            <Card title="Trang thai de xuat" size="small">
+            <Card title="Trạng thái đề xuất" size="small">
               <Row gutter={16}>
-                {[{ label: 'Nhap', status: 0, color: '#d9d9d9' }, { label: 'Cho duyet', status: 1, color: '#1890ff' }, { label: 'Da duyet', status: 2, color: '#52c41a' }, { label: 'Tu choi', status: 3, color: '#ff4d4f' }].map(s => {
+                {[{ label: 'Nhập', status: 0, color: '#d9d9d9' }, { label: 'Chờ duyệt', status: 1, color: '#1890ff' }, { label: 'Đã duyệt', status: 2, color: '#52c41a' }, { label: 'Từ chối', status: 3, color: '#ff4d4f' }].map(s => {
                   const count = requests.filter(r => r.status === s.status).length;
                   const pct = requests.length > 0 ? Math.round(count / requests.length * 100) : 0;
                   return (
@@ -314,18 +313,18 @@ const Procurement: React.FC = () => {
 
   return (
     <div style={{ padding: '16px 24px' }}>
-      <Title level={4}><InboxOutlined /> De xuat - Du tru</Title>
+      <Title level={4}><InboxOutlined /> Đề xuất - Dự trù</Title>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
       {/* Detail Modal */}
-      <Modal title={`Chi tiet de xuat: ${detailModal?.requestCode || ''}`} open={!!detailModal}
+      <Modal title={`Chi tiết đề xuất: ${detailModal?.requestCode || ''}`} open={!!detailModal}
         onCancel={() => setDetailModal(null)} footer={null} width={800}>
         {detailModal && (
           <>
             <Row gutter={16} style={{ marginBottom: 16 }}>
               <Col span={8}><Text type="secondary">Kho:</Text> <Text strong>{detailModal.warehouseName}</Text></Col>
               <Col span={8}><Text type="secondary">Ngay:</Text> <Text>{dayjs(detailModal.requestDate).format('DD/MM/YYYY')}</Text></Col>
-              <Col span={8}><Text type="secondary">Trang thai:</Text> <Tag color={statusColors[detailModal.status]}>{statusNames[detailModal.status]}</Tag></Col>
+              <Col span={8}><Text type="secondary">Trạng thái:</Text> <Tag color={statusColors[detailModal.status]}>{statusNames[detailModal.status]}</Tag></Col>
             </Row>
             {detailModal.description && <Text type="secondary">Mo ta: {detailModal.description}</Text>}
             <Table columns={detailItemColumns} dataSource={detailModal.items} rowKey="id" size="small" pagination={false} style={{ marginTop: 16 }} />
@@ -334,31 +333,31 @@ const Procurement: React.FC = () => {
       </Modal>
 
       {/* Create Modal */}
-      <Modal title="Tao de xuat du tru" open={createModal} onCancel={() => setCreateModal(false)}
-        onOk={handleCreate} okText="Tao de xuat" cancelText="Huy" width={700}
+      <Modal title="Tạo đề xuất dự trù" open={createModal} onCancel={() => setCreateModal(false)}
+        onOk={handleCreate} okText="Tạo đề xuất" cancelText="Huy" width={700}
         okButtonProps={{ disabled: cartItems.length === 0 }}>
         <Form form={createForm} layout="vertical">
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="warehouseId" label="Kho" rules={[{ required: true, message: 'Chon kho' }]}>
-                <Select placeholder="Chon kho" options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
+              <Form.Item name="warehouseId" label="Kho" rules={[{ required: true, message: 'Chọn kho' }]}>
+                <Select placeholder="Chọn kho" options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="description" label="Mo ta">
-                <Input placeholder="Ly do de xuat" />
+                <Input placeholder="Lý do đề xuất" />
               </Form.Item>
             </Col>
           </Row>
         </Form>
-        <Text strong>Mat hang ({cartItems.length}):</Text>
+        <Text strong>Mặt hàng ({cartItems.length}):</Text>
         <Table size="small" dataSource={cartItems} rowKey="itemId" pagination={false} style={{ marginTop: 8 }}
           columns={[
             { title: 'Ma', dataIndex: 'itemCode', width: 100 },
             { title: 'Ten', dataIndex: 'itemName', width: 200, ellipsis: true },
             { title: 'DVT', dataIndex: 'unit', width: 60 },
             { title: 'Ton', dataIndex: 'currentStock', width: 80, align: 'right' },
-            { title: 'SL yeu cau', key: 'qty', width: 120, render: (_: unknown, r: typeof cartItems[0], idx: number) => (
+            { title: 'SL yêu cầu', key: 'qty', width: 120, render: (_: unknown, r: typeof cartItems[0], idx: number) => (
               <InputNumber size="small" min={1} value={r.requestedQuantity} style={{ width: '100%' }}
                 onChange={(v) => { const next = [...cartItems]; next[idx].requestedQuantity = v || 1; setCartItems(next); }} />
             )},
@@ -367,7 +366,7 @@ const Procurement: React.FC = () => {
                 onClick={() => setCartItems(prev => prev.filter((_, i) => i !== idx))} />
             )},
           ]} />
-        {cartItems.length === 0 && <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: 16 }}>Chua co mat hang. Chon tu tab "Goi y nhap hang".</Text>}
+        {cartItems.length === 0 && <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: 16 }}>Chưa có mặt hàng. Chọn từ tab "Gợi ý nhập hàng".</Text>}
       </Modal>
     </div>
   );
