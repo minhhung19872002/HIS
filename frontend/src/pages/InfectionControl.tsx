@@ -42,7 +42,6 @@ import {
   createHAICase,
   investigateHAICase,
   closeHAICase,
-  createIsolationOrder,
   createHandHygieneObservation,
   getOutbreaks,
 } from '../api/infectionControl';
@@ -67,6 +66,7 @@ const INFECTION_TYPES = [
   { value: 'Other', label: 'Khác' },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ISOLATION_TYPES = [
   { value: 'Contact', label: 'Cách ly tiếp xúc' },
   { value: 'Droplet', label: 'Cách ly giọt bắn' },
@@ -89,6 +89,57 @@ const InfectionControl: React.FC = () => {
   const [auditForm] = Form.useForm();
   const [investigationForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+
+  type ReportCaseFormValues = {
+    admissionId?: string;
+    infectionType: string;
+    infectionSite: string;
+    onsetDate?: dayjs.Dayjs;
+    organism?: string;
+    isMDRO?: boolean;
+    mdroType?: string;
+    cultureSource?: string;
+    cultureDate?: dayjs.Dayjs;
+    cultureResult?: string;
+    riskFactors?: string[];
+    deviceAssociated?: boolean;
+    deviceType?: string;
+    deviceDays?: number;
+    surgeryRelated?: boolean;
+    surgeryId?: string;
+    cdcCriteria?: string;
+    severity?: number;
+    notes?: string;
+  };
+
+  type InvestigationFormValues = {
+    status?: number;
+    outcome?: string;
+    statusText?: string;
+    notes?: string;
+    actions?: string[];
+  };
+
+  type AuditFormValues = {
+    departmentId?: string;
+    unitId?: string;
+    auditDate?: dayjs.Dayjs;
+    shift?: string;
+    staffCategory?: string;
+    moment1Before?: number;
+    moment1Correct?: number;
+    moment2Before?: number;
+    moment2Correct?: number;
+    moment3After?: number;
+    moment3Correct?: number;
+    moment4After?: number;
+    moment4Correct?: number;
+    moment5After?: number;
+    moment5Correct?: number;
+    productUsed?: string;
+    gloveUsage?: string;
+    findings?: string;
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -197,7 +248,7 @@ const InfectionControl: React.FC = () => {
     return <Tag color={colors[severity] || 'default'}>{severityName || `Mức ${severity}`}</Tag>;
   };
 
-  const handleReportCase = async (values: any) => {
+  const handleReportCase = async (values: ReportCaseFormValues) => {
     setSubmitting(true);
     try {
       await createHAICase({
@@ -232,7 +283,7 @@ const InfectionControl: React.FC = () => {
     }
   };
 
-  const handleUpdateInvestigation = async (values: any) => {
+  const handleUpdateInvestigation = async (values: InvestigationFormValues) => {
     if (!selectedCase) return;
     setSubmitting(true);
     try {
@@ -254,7 +305,7 @@ const InfectionControl: React.FC = () => {
     }
   };
 
-  const handleCreateAudit = async (values: any) => {
+  const handleCreateAudit = async (values: AuditFormValues) => {
     setSubmitting(true);
     try {
       await createHandHygieneObservation({

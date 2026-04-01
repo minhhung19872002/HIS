@@ -4,8 +4,8 @@ import {
   message, Spin, Statistic, Row, Col, Badge, Tooltip, Alert, Descriptions
 } from 'antd';
 import {
-  DatabaseOutlined, PlusOutlined, ReloadOutlined, SearchOutlined,
-  WarningOutlined, ScanOutlined, DeleteOutlined, ExportOutlined, EyeOutlined
+  DatabaseOutlined, PlusOutlined, ReloadOutlined,
+  WarningOutlined, ScanOutlined, ExportOutlined, EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { SampleStorageRecord, StorageLocation, StorageAlert } from '../api/sampleStorage';
@@ -30,7 +30,7 @@ const SampleStorage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stored');
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState<SampleStorageRecord[]>([]);
-  const [locations, setLocations] = useState<StorageLocation[]>([]);
+  const [, setLocations] = useState<StorageLocation[]>([]);
   const [alerts, setAlerts] = useState<StorageAlert[]>([]);
   const [searchText, setSearchText] = useState('');
   const [storeModalOpen, setStoreModalOpen] = useState(false);

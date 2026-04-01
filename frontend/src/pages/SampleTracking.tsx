@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Space, Modal, Form, Input, Select, Tag, Tabs,
-  message, Spin, Statistic, Row, Col, Badge, Tooltip, Timeline, Descriptions
+  message, Spin, Statistic, Row, Col, Badge, Tooltip, Timeline
 } from 'antd';
 import {
-  AuditOutlined, ReloadOutlined, SearchOutlined, WarningOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, UndoOutlined, ScanOutlined,
-  HistoryOutlined
+  AuditOutlined, ReloadOutlined,
+  CloseCircleOutlined, UndoOutlined, ScanOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { SampleTrackingEvent, SampleRejection, SampleTrackingSummary } from '../api/sampleTracking';

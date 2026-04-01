@@ -22,6 +22,7 @@ npx playwright install chromium
 | `npm run test:debug` | Chay debug mode, dung tung buoc |
 | `npm run test:codegen` | **GHI LAI THAO TAC** - quan trong nhat! |
 | `npm run test:report` | Xem bao cao HTML sau khi test |
+| `npm run cy:run:public-health-regression` | Chay smoke/regression Cypress cho HIV Management va Immunization |
 
 ---
 
@@ -150,6 +151,21 @@ e2e/
 ---
 
 ## 7. Meo Su Dung
+
+### 7.0 Smoke regression cho cac module vua sua
+
+```bash
+npm run cy:run:public-health-regression
+```
+
+Lenh nay chay 2 spec Cypress dung backend that:
+- `cypress/e2e/hiv-management-regression.cy.ts`
+- `cypress/e2e/immunization-regression.cy.ts`
+
+Muc tieu:
+- Khoa lai contract frontend/backend cua 2 module y te cong cong
+- Xac nhan route render duoc voi session admin
+- Xac nhan cac endpoint backend chinh tra `200`
 
 ### 7.1 Debug khi test fail
 

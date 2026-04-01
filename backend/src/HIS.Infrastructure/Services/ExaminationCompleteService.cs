@@ -1,5 +1,7 @@
 using System.Text;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Examination;
 using HIS.Application.Services;
@@ -29,6 +31,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
     private readonly IRepository<Room> _roomRepo;
     private readonly IRepository<User> _userRepo;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ExaminationCompleteService(
         HISDbContext context,
@@ -37,7 +40,8 @@ public class ExaminationCompleteService : IExaminationCompleteService
         IRepository<Examination> examinationRepo,
         IRepository<Room> roomRepo,
         IRepository<User> userRepo,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -46,6 +50,16 @@ public class ExaminationCompleteService : IExaminationCompleteService
         _roomRepo = roomRepo;
         _userRepo = userRepo;
         _unitOfWork = unitOfWork;
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)
+            ?? _httpContextAccessor.HttpContext?.User?.FindFirst("sub")
+            ?? _httpContextAccessor.HttpContext?.User?.FindFirst("id");
+
+        return Guid.TryParse(claim?.Value, out var userId) ? userId : null;
     }
 
     #region 2.1 Waiting Room Display
@@ -1502,6 +1516,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
         var requests = await _context.ServiceRequests
             .Include(r => r.Service)
             .Include(r => r.Room)
+            .Include(r => r.Doctor)
             .Where(r => r.MedicalRecordId == examination.MedicalRecordId)
             .ToListAsync();
 
@@ -1519,7 +1534,13 @@ public class ExaminationCompleteService : IExaminationCompleteService
             TotalPrice = r.TotalPrice,
             RoomId = r.RoomId,
             RoomName = r.Room?.RoomName,
-            Status = r.Status
+            PaymentType = 1,
+            IsPriority = r.IsPriority,
+            IsEmergency = r.IsEmergency,
+            Status = r.Status,
+            OrderNotes = r.Notes ?? r.Note,
+            OrderedById = r.RequestedByUserId ?? r.DoctorId,
+            OrderedByName = r.Doctor?.FullName,
         }).ToList();
     }
 
@@ -1527,6 +1548,11 @@ public class ExaminationCompleteService : IExaminationCompleteService
     {
         var examination = await _examinationRepo.GetByIdAsync(dto.ExaminationId);
         if (examination == null) throw new Exception("Examination not found");
+        var effectiveDoctorId = examination.DoctorId ?? GetCurrentUserId();
+        if (!effectiveDoctorId.HasValue)
+        {
+            throw new Exception("No valid doctor/user is available to create service orders");
+        }
 
         var results = new List<ServiceOrderFullDto>();
 
@@ -1541,6 +1567,7 @@ public class ExaminationCompleteService : IExaminationCompleteService
                 RequestCode = $"CD{DateTime.Now:yyyyMMddHHmmss}",
                 RequestDate = DateTime.Now,
                 MedicalRecordId = examination.MedicalRecordId,
+                ExaminationId = examination.Id,
                 ServiceId = item.ServiceId,
                 Quantity = item.Quantity,
                 UnitPrice = service.UnitPrice,
@@ -1548,12 +1575,12 @@ public class ExaminationCompleteService : IExaminationCompleteService
                 TotalAmount = service.UnitPrice * item.Quantity,
                 InsuranceAmount = 0,
                 PatientAmount = service.UnitPrice * item.Quantity,
-                DoctorId = examination.DoctorId ?? Guid.Empty,
+                DoctorId = effectiveDoctorId.Value,
                 DepartmentId = examination.DepartmentId,
                 RequestType = service.ServiceType,
                 IsEmergency = item.IsEmergency,
                 IsPriority = item.IsPriority,
-                RequestedByUserId = examination.DoctorId,
+                RequestedByUserId = effectiveDoctorId.Value,
                 RoomId = item.RoomId,
                 Status = 0,
                 RequestedDate = DateTime.Now,
@@ -1566,14 +1593,23 @@ public class ExaminationCompleteService : IExaminationCompleteService
             {
                 Id = request.Id,
                 ExaminationId = dto.ExaminationId,
+                OrderDate = request.RequestedDate ?? request.RequestDate,
+                DiagnosisCode = dto.DiagnosisCode,
+                DiagnosisName = dto.DiagnosisName,
                 ServiceId = service.Id,
                 ServiceCode = service.ServiceCode,
                 ServiceName = service.ServiceName,
+                ServiceType = service.ServiceType,
                 Quantity = item.Quantity,
                 UnitPrice = service.UnitPrice,
                 TotalPrice = request.TotalPrice,
+                PaymentType = item.PaymentType,
+                IsPriority = item.IsPriority,
+                IsEmergency = item.IsEmergency,
                 RoomId = item.RoomId,
-                Status = 0
+                Status = 0,
+                OrderNotes = request.Notes,
+                OrderedById = effectiveDoctorId.Value,
             });
         }
 

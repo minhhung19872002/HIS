@@ -49,24 +49,38 @@ describe('Radiology Module', { retries: { runMode: 2, openMode: 0 } }, () => {
   })
 
   describe('USB Token Digital Signature', () => {
-    // USB Token endpoints require physical hardware - check availability first
-    let usbAvailable = false
-
-    before(() => {
+    it('should expose USB Token status without crashing', () => {
       cy.request({
         method: 'GET',
         url: 'http://localhost:5106/api/RISComplete/usb-token/status',
         headers: { 'Authorization': `Bearer ${authToken}` },
         failOnStatusCode: false,
-        timeout: 3000
+        timeout: 10000
       }).then((res) => {
-        usbAvailable = res.status === 200
+        expect(res.status).to.eq(200)
+        expect(res.body).to.have.property('available')
+        expect(res.body).to.have.property('hasValidCertificate')
+        expect(res.body).to.have.property('certificateCount')
+        expect(res.body).to.have.property('message')
+        expect(res.body).to.have.property('certificates')
+        expect(res.body.certificates).to.be.an('array')
       })
     })
 
-    it('should call USB Token sign API successfully', function () {
-      // USB sign endpoint triggers Windows PIN dialog which blocks in headless mode
-      this.skip()
+    it('should list USB Token certificates without server error', () => {
+      cy.request({
+        method: 'GET',
+        url: 'http://localhost:5106/api/RISComplete/usb-token/certificates',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+        failOnStatusCode: false,
+        timeout: 10000
+      }).then((res) => {
+        expect(res.status).to.eq(200)
+        expect(res.body).to.be.an('array')
+      })
+    })
+
+    it('should reject USB Token signing when certificate thumbprint is missing', () => {
       cy.request({
         method: 'POST',
         url: 'http://localhost:5106/api/RISComplete/usb-token/sign',
@@ -76,67 +90,14 @@ describe('Radiology Module', { retries: { runMode: 2, openMode: 0 } }, () => {
         },
         body: {
           reportId: 'test-report-123',
-          certificateThumbprint: '46F732584971C00EDB8FBEDABB2D68133960B322',
           dataToSign: 'Test RIS Report Data for signing'
         },
         failOnStatusCode: false,
-        timeout: 15000
+        timeout: 10000
       }).then((signResponse) => {
-        expect([200, 400, 408, 500]).to.include(signResponse.status)
-      })
-    })
-
-    it('should get USB Token certificates', function () {
-      // USB cert endpoint may trigger Windows crypto dialog which blocks in headless mode
-      this.skip()
-      cy.request({
-        method: 'GET',
-        url: 'http://localhost:5106/api/RISComplete/usb-token/certificates',
-        headers: { 'Authorization': `Bearer ${authToken}` },
-        failOnStatusCode: false,
-        timeout: 15000
-      }).then((certResponse) => {
-        expect([200, 408, 500]).to.include(certResponse.status)
-      })
-    })
-
-    it('should debug frontend API call format', function () {
-      // USB sign endpoint triggers Windows PIN dialog which blocks in headless mode
-      this.skip()
-      const testCases = [
-        {
-          name: 'Standard format',
-          body: {
-            reportId: 'test-report-123',
-            certificateThumbprint: '46F732584971C00EDB8FBEDABB2D68133960B322',
-            dataToSign: 'Test data'
-          }
-        },
-        {
-          name: 'With GUID format reportId',
-          body: {
-            reportId: '550e8400-e29b-41d4-a716-446655440000',
-            certificateThumbprint: '46F732584971C00EDB8FBEDABB2D68133960B322',
-            dataToSign: 'Test data'
-          }
-        }
-      ]
-
-      testCases.forEach((testCase) => {
-        cy.request({
-          method: 'POST',
-          url: 'http://localhost:5106/api/RISComplete/usb-token/sign',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: testCase.body,
-          failOnStatusCode: false,
-          timeout: 15000
-        }).then((res) => {
-          cy.log(`${testCase.name}: Status ${res.status}`)
-          expect([200, 400, 408, 500]).to.include(res.status)
-        })
+        expect(signResponse.status).to.eq(400)
+        expect(signResponse.body).to.have.property('success', false)
+        expect(String(signResponse.body.message || '')).to.include('chứng thư số')
       })
     })
   })

@@ -5,6 +5,8 @@
 
 import { apiClient } from './client';
 
+type BranchPayload = Record<string, unknown>;
+
 // ============================================================================
 // Module 11: Quản lý Tài chính Kế toán - DTOs
 // ============================================================================
@@ -1571,7 +1573,7 @@ export const catalogApi = {
   // Chi nhánh (Branches)
   getBranches: (params?: { keyword?: string; isActive?: boolean }) =>
     apiClient.get('/catalog/branches', { params }),
-  saveBranch: (data: any) =>
+  saveBranch: (data: BranchPayload) =>
     apiClient.post('/catalog/branches', data),
   deleteBranch: (id: string) =>
     apiClient.delete(`/catalog/branches/${id}`),

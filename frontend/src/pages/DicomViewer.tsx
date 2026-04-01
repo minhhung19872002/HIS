@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -13,7 +13,6 @@ import {
   Empty,
   message,
   Tag,
-  Tooltip,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -48,6 +47,11 @@ interface StudyInfo {
   orthancStudyId?: string;
 }
 
+type DicomViewerError = {
+  code?: string;
+  message?: string;
+};
+
 const DicomViewer: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -62,18 +66,8 @@ const DicomViewer: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
-  // Check PACS availability and load study data
-  useEffect(() => {
-    if (!studyInstanceUID) {
-      setError('Thiếu thông tin Study UID');
-      setLoading(false);
-      return;
-    }
 
-    loadStudyData();
-  }, [studyInstanceUID]);
-
-  const loadStudyData = async () => {
+  const loadStudyData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -86,7 +80,7 @@ const DicomViewer: React.FC = () => {
         setSeries(seriesResponse.data);
 
         // Extract study info from first series
-        const firstSeries = seriesResponse.data[0] as any;
+        const firstSeries = seriesResponse.data[0];
         setStudyInfo({
           studyInstanceUID,
           patientName: firstSeries.patientName,
@@ -95,13 +89,13 @@ const DicomViewer: React.FC = () => {
           studyDescription: firstSeries.studyDescription,
           modality: firstSeries.modality,
           seriesCount: seriesResponse.data.length,
-          instanceCount: seriesResponse.data.reduce((sum: number, s: any) => sum + (s.instanceCount || s.numberOfImages || 0), 0),
+          instanceCount: seriesResponse.data.reduce((sum, s) => sum + (s.instanceCount || s.numberOfImages || 0), 0),
           orthancStudyId: firstSeries.orthancStudyId,
         });
 
         // Auto-select first series
         setSelectedSeries(firstSeries);
-        loadImages(firstSeries.seriesInstanceUID);
+        void loadImages(firstSeries.seriesInstanceUID);
       } else {
         // No series found - PACS may not be configured
         setPacsAvailable(false);
@@ -109,7 +103,8 @@ const DicomViewer: React.FC = () => {
           studyInstanceUID,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const viewerError = err as DicomViewerError;
       console.warn('Error loading study:', err);
       setPacsAvailable(false);
       setStudyInfo({
@@ -117,13 +112,25 @@ const DicomViewer: React.FC = () => {
       });
 
       // Check if it's a connection error
-      if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
+      if (viewerError.code === 'ECONNREFUSED' || viewerError.message?.includes('Network Error')) {
         setError('Không thể kết nối đến PACS Server. Vui lòng kiểm tra cấu hình.');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [studyInstanceUID]);
+
+  // Check PACS availability and load study data
+  useEffect(() => {
+    if (!studyInstanceUID) {
+      setError('Thiếu thông tin Study UID');
+      setLoading(false);
+      return;
+    }
+
+    void loadStudyData();
+  }, [studyInstanceUID, loadStudyData]);
+
 
   const loadImages = async (seriesUID: string) => {
     try {
@@ -355,7 +362,7 @@ const DicomViewer: React.FC = () => {
                         </Space>
                       </div>
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        {(s as any).instanceCount || s.numberOfImages || 0} ảnh
+                        {s.instanceCount || s.numberOfImages || 0} ảnh
                       </Text>
                     </div>
                   </div>
@@ -485,3 +492,4 @@ const DicomViewer: React.FC = () => {
 };
 
 export default DicomViewer;
+

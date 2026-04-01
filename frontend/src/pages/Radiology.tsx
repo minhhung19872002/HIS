@@ -1645,12 +1645,6 @@ const Radiology: React.FC = () => {
     transition: 'all 0.3s ease',
   } : {};
 
-  const darkCardStyle: React.CSSProperties = isDarkMode ? {
-    backgroundColor: '#16213e',
-    borderColor: '#0f3460',
-    color: '#e0e0e0',
-  } : {};
-
   return (
     <div style={darkModeStyles} className={isDarkMode ? 'ris-dark-mode' : ''} data-testid="ris-page-container">
       {/* Dark mode style injection */}

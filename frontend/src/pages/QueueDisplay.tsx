@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { publicClient } from '../api/publicClient';
 import { HOSPITAL_NAME } from '../constants/hospital';
@@ -323,7 +323,11 @@ function LabQueueView() {
 // ===================== ROOM QUEUE DISPLAY (original) =====================
 function RoomQueueView() {
   const [searchParams] = useSearchParams();
-  const roomIds = (searchParams.get('rooms') || '').split(',').filter(Boolean);
+  const roomIds = useMemo(
+    () => (searchParams.get('rooms') || '').split(',').filter(Boolean),
+    [searchParams]
+  );
+  const roomIdsKey = roomIds.join(',');
   const queueType = Number(searchParams.get('queueType')) || DEFAULT_QUEUE_TYPE;
 
   const [displayData, setDisplayData] = useState<QueueDisplayDto[]>([]);
@@ -420,7 +424,7 @@ function RoomQueueView() {
     fetchData();
     const interval = setInterval(fetchData, POLL_INTERVAL);
     return () => { active = false; clearInterval(interval); };
-  }, [roomIds.join(','), queueType, handleNewCalls]);
+  }, [roomIds, roomIdsKey, queueType, handleNewCalls]);
 
   // Fullscreen
   const toggleFullscreen = () => {

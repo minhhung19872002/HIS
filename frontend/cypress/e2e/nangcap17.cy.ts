@@ -90,8 +90,8 @@ describe('NangCap17 Features', () => {
     it('has 6 tabs', () => {
       cy.get('.ant-tabs-tab', { timeout: 10000 }).should('have.length', 6);
       cy.contains('.ant-tabs-tab', 'Cap vo chong').should('exist');
-      cy.contains('.ant-tabs-tab', 'Chu ky IVF').should('exist');
-      cy.contains('.ant-tabs-tab', 'Phoi').should('exist');
+      cy.contains('.ant-tabs-tab', 'Chu kỳ IVF').should('exist');
+      cy.contains('.ant-tabs-tab', 'Phôi').should('exist');
       cy.contains('.ant-tabs-tab', 'Tru dong').should('exist');
       cy.contains('.ant-tabs-tab', 'Ngan hang tinh trung').should('exist');
       cy.contains('.ant-tabs-tab', 'Dashboard').should('exist');
@@ -148,13 +148,13 @@ describe('NangCap17 Features', () => {
 
     it('has 7 tabs', () => {
       cy.get('.ant-tabs-tab', { timeout: 10000 }).should('have.length', 7);
-      cy.contains('.ant-tabs-tab', 'Tai san').should('exist');
-      cy.contains('.ant-tabs-tab', 'Dau thau').should('exist');
-      cy.contains('.ant-tabs-tab', 'Ban giao').should('exist');
-      cy.contains('.ant-tabs-tab', 'Thanh ly').should('exist');
-      cy.contains('.ant-tabs-tab', 'Khau hao').should('exist');
+      cy.contains('.ant-tabs-tab', 'Tài sản').should('exist');
+      cy.contains('.ant-tabs-tab', 'Đấu thầu').should('exist');
+      cy.contains('.ant-tabs-tab', 'Bàn giao').should('exist');
+      cy.contains('.ant-tabs-tab', 'Thanh lý').should('exist');
+      cy.contains('.ant-tabs-tab', 'Khấu hao').should('exist');
       cy.contains('.ant-tabs-tab', 'Dashboard').should('exist');
-      cy.contains('.ant-tabs-tab', 'Bao cao TSCD').should('exist');
+      cy.contains('.ant-tabs-tab', 'Báo cáo TSCD').should('exist');
     });
 
     it('asset table renders', () => {
@@ -162,10 +162,10 @@ describe('NangCap17 Features', () => {
     });
 
     it('Tender tab has create button', () => {
-      cy.contains('.ant-tabs-tab', 'Dau thau').click();
+      cy.contains('.ant-tabs-tab', 'Đấu thầu').click();
       cy.get('body', { timeout: 10000 }).then($body => {
         const hasPlusBtn = $body.find('button').filter(function () {
-          return /Tao goi thau|Them|Plus/i.test(this.textContent || '');
+          return /Tạo gói thầu|Thêm gói thầu|Them goi thau|Plus/i.test(this.textContent || '');
         }).length > 0;
         const hasIcon = $body.find('.anticon-plus').length > 0;
         expect(hasPlusBtn || hasIcon).to.be.true;
@@ -178,7 +178,7 @@ describe('NangCap17 Features', () => {
     });
 
     it('Report tab has report type selector', () => {
-      cy.contains('.ant-tabs-tab', 'Bao cao TSCD').click();
+      cy.contains('.ant-tabs-tab', 'Báo cáo TSCD').click();
       cy.get('body', { timeout: 10000 }).then($body => {
         const hasSelect = $body.find('.ant-select').length > 0;
         const hasBtn = $body.find('button').length > 0;
@@ -216,10 +216,10 @@ describe('NangCap17 Features', () => {
 
     it('has 5 tabs', () => {
       cy.get('.ant-tabs-tab', { timeout: 10000 }).should('have.length', 5);
-      cy.contains('.ant-tabs-tab', 'Lop dao tao').should('exist');
-      cy.contains('.ant-tabs-tab', 'Chi dao tuyen').should('exist');
-      cy.contains('.ant-tabs-tab', 'Nghien cuu KH').should('exist');
-      cy.contains('.ant-tabs-tab', 'Chung chi').should('exist');
+      cy.contains('.ant-tabs-tab', 'Lớp đào tạo').should('exist');
+      cy.contains('.ant-tabs-tab', 'Chỉ đạo tuyến').should('exist');
+      cy.contains('.ant-tabs-tab', 'Nghiên cứu KH').should('exist');
+      cy.contains('.ant-tabs-tab', 'Chứng chỉ').should('exist');
       cy.contains('.ant-tabs-tab', 'Dashboard').should('exist');
     });
 
@@ -228,7 +228,7 @@ describe('NangCap17 Features', () => {
     });
 
     it('Research tab is accessible', () => {
-      cy.contains('.ant-tabs-tab', 'Nghien cuu KH').click();
+      cy.contains('.ant-tabs-tab', 'Nghiên cứu KH').click();
       cy.get('.ant-tabs-tabpane-active', { timeout: 10000 }).should('exist');
     });
 
@@ -264,9 +264,9 @@ describe('NangCap17 Features', () => {
       cy.get('.ant-tabs-tab', { timeout: 10000 }).should('have.length', 3);
       cy.get('.ant-tabs-tab').then($tabs => {
         const tabTexts = $tabs.toArray().map(el => el.textContent || '');
-        expect(tabTexts.some(t => t.includes('De xuat du tru'))).to.be.true;
-        expect(tabTexts.some(t => t.includes('Goi y nhap hang'))).to.be.true;
-        expect(tabTexts.some(t => t.includes('Tong hop'))).to.be.true;
+        expect(tabTexts.some(t => t.includes('Đề xuất dự trù'))).to.be.true;
+        expect(tabTexts.some(t => t.includes('Gợi ý nhập hàng'))).to.be.true;
+        expect(tabTexts.some(t => t.includes('Tổng hợp'))).to.be.true;
       });
     });
 
@@ -282,7 +282,7 @@ describe('NangCap17 Features', () => {
     });
 
     it('has create button', () => {
-      cy.get('button', { timeout: 10000 }).contains(/Tao de xuat/i).should('exist');
+      cy.get('button', { timeout: 10000 }).contains(/Tạo đề xuất/i).should('exist');
     });
   });
 
@@ -312,20 +312,20 @@ describe('NangCap17 Features', () => {
       cy.get('.ant-tabs-tab', { timeout: 10000 }).should('have.length.at.least', 7);
       cy.get('.ant-tabs-tab').then($tabs => {
         const tabTexts = $tabs.toArray().map(el => el.textContent || '');
-        expect(tabTexts.some(t => t.includes('Khach hang'))).to.be.true;
-        expect(tabTexts.some(t => t.includes('Ca lam viec'))).to.be.true;
+        expect(tabTexts.some(t => t.includes('Khách hàng'))).to.be.true;
+        expect(tabTexts.some(t => t.includes('Ca làm việc'))).to.be.true;
         expect(tabTexts.some(t => t.includes('GPP'))).to.be.true;
-        expect(tabTexts.some(t => t.includes('Hoa hong'))).to.be.true;
+        expect(tabTexts.some(t => t.includes('Hoa hồng'))).to.be.true;
       });
     });
 
     it('Customer tab is accessible', () => {
-      cy.get('.ant-tabs-tab').contains('Khach hang').click();
+      cy.get('.ant-tabs-tab').contains('Khách hàng').click();
       cy.get('.ant-tabs-tabpane-active', { timeout: 10000 }).should('exist');
     });
 
     it('Shift tab is accessible', () => {
-      cy.get('.ant-tabs-tab').contains('Ca lam viec').click();
+      cy.get('.ant-tabs-tab').contains('Ca làm việc').click();
       cy.get('.ant-tabs-tabpane-active', { timeout: 10000 }).should('exist');
     });
 

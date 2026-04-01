@@ -5,12 +5,12 @@ import {
   Tooltip, Segmented
 } from 'antd';
 import {
-  HeartOutlined, PlusOutlined, ReloadOutlined, SearchOutlined,
+  HeartOutlined, PlusOutlined, ReloadOutlined,
   CheckCircleOutlined, ExperimentOutlined, PrinterOutlined, EyeOutlined,
   UserOutlined, WomanOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { ScreeningRequest, ScreeningResult } from '../api/screening';
+import type { ScreeningRequest } from '../api/screening';
 import * as screeningApi from '../api/screening';
 
 const statusMap: Record<number, { text: string; color: string }> = {
@@ -33,10 +33,8 @@ const Screening: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [resultModalOpen, setResultModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ScreeningRequest | null>(null);
   const [createForm] = Form.useForm();
-  const [resultForm] = Form.useForm();
 
   const fetchData = useCallback(async () => {
     setLoading(true);

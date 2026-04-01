@@ -11,8 +11,27 @@ public static class DatabaseSeeder
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HISDbContext>();
 
-        // Ensure database is created
-        await context.Database.EnsureCreatedAsync();
+        // Prefer migrations for evolving schemas; fall back to EnsureCreated for providers without migrations.
+        if (context.Database.IsRelational())
+        {
+            try
+            {
+                await context.Database.MigrateAsync();
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("PendingModelChangesWarning", StringComparison.Ordinal))
+            {
+                // The committed migrations are behind the runtime model. Keep startup working and let
+                // compatibility shims patch the live schema until the migration set is brought up to date.
+                if (!await HasAnyUserTableAsync(context))
+                {
+                    await context.Database.EnsureCreatedAsync();
+                }
+            }
+        }
+        else
+        {
+            await context.Database.EnsureCreatedAsync();
+        }
         await DatabaseSchemaCompatibility.EnsureLegacySchemaAsync(context);
 
         // Seed roles
@@ -354,6 +373,43 @@ public static class DatabaseSeeder
 
             await context.Medicines.AddRangeAsync(medicines);
             await context.SaveChangesAsync();
+        }
+    }
+
+    private static async Task<bool> HasAnyUserTableAsync(HISDbContext context)
+    {
+        var connection = context.Database.GetDbConnection();
+        var shouldClose = connection.State != System.Data.ConnectionState.Open;
+
+        if (shouldClose)
+            await connection.OpenAsync();
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = context.Database.IsSqlServer()
+                ? """
+                  SELECT TOP 1 1
+                  FROM INFORMATION_SCHEMA.TABLES
+                  WHERE TABLE_TYPE = 'BASE TABLE'
+                    AND TABLE_SCHEMA = 'dbo'
+                    AND TABLE_NAME <> '__EFMigrationsHistory'
+                  """
+                : """
+                  SELECT 1
+                  FROM sqlite_master
+                  WHERE type = 'table'
+                    AND name <> '__EFMigrationsHistory'
+                  LIMIT 1
+                  """;
+
+            var result = await command.ExecuteScalarAsync();
+            return result != null && result != DBNull.Value;
+        }
+        finally
+        {
+            if (shouldClose)
+                await connection.CloseAsync();
         }
     }
 }

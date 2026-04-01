@@ -90,17 +90,19 @@ public class TrainingResearchService : ITrainingResearchService
 
             var skip = filter.PageIndex * filter.PageSize;
 
-            return await query
+            var classes = await query
                 .OrderByDescending(c => c.CreatedAt)
                 .Skip(skip)
                 .Take(filter.PageSize)
-                .Select(c => new TrainingClassListDto
+                .ToListAsync();
+
+            return classes.Select(c => new TrainingClassListDto
                 {
                     Id = c.Id,
                     ClassCode = c.ClassCode,
                     ClassName = c.ClassName,
                     TrainingType = c.TrainingType,
-                    TrainingTypeName = TrainingTypeNames.ContainsKey(c.TrainingType) ? TrainingTypeNames[c.TrainingType] : "",
+                    TrainingTypeName = TrainingTypeNames.GetValueOrDefault(c.TrainingType, ""),
                     StartDate = c.StartDate.ToString("yyyy-MM-dd"),
                     EndDate = c.EndDate.HasValue ? c.EndDate.Value.ToString("yyyy-MM-dd") : null,
                     MaxStudents = c.MaxStudents,
@@ -110,10 +112,10 @@ public class TrainingResearchService : ITrainingResearchService
                     DepartmentName = c.Department != null ? c.Department.DepartmentName : null,
                     CreditHours = c.CreditHours,
                     Status = c.Status,
-                    StatusName = ClassStatusNames.ContainsKey(c.Status) ? ClassStatusNames[c.Status] : "",
+                    StatusName = ClassStatusNames.GetValueOrDefault(c.Status, ""),
                     Fee = c.Fee,
                 })
-                .ToListAsync();
+                .ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -283,25 +285,27 @@ public class TrainingResearchService : ITrainingResearchService
 
             var skip = filter.PageIndex * filter.PageSize;
 
-            return await query
+            var directions = await query
                 .OrderByDescending(d => d.CreatedAt)
                 .Skip(skip)
                 .Take(filter.PageSize)
-                .Select(d => new ClinicalDirectionListDto
+                .ToListAsync();
+
+            return directions.Select(d => new ClinicalDirectionListDto
                 {
                     Id = d.Id,
                     DirectionType = d.DirectionType,
-                    DirectionTypeName = DirectionTypeNames.ContainsKey(d.DirectionType) ? DirectionTypeNames[d.DirectionType] : "",
+                    DirectionTypeName = DirectionTypeNames.GetValueOrDefault(d.DirectionType, ""),
                     PartnerHospital = d.PartnerHospital,
                     StartDate = d.StartDate.ToString("yyyy-MM-dd"),
                     EndDate = d.EndDate.HasValue ? d.EndDate.Value.ToString("yyyy-MM-dd") : null,
                     Objectives = d.Objectives,
                     Status = d.Status,
-                    StatusName = DirectionStatusNames.ContainsKey(d.Status) ? DirectionStatusNames[d.Status] : "",
+                    StatusName = DirectionStatusNames.GetValueOrDefault(d.Status, ""),
                     ResponsibleDoctorName = d.ResponsibleDoctor != null ? d.ResponsibleDoctor.FullName : null,
                     Notes = d.Notes,
                 })
-                .ToListAsync();
+                .ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -394,26 +398,28 @@ public class TrainingResearchService : ITrainingResearchService
 
             var skip = filter.PageIndex * filter.PageSize;
 
-            return await query
+            var projects = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip(skip)
                 .Take(filter.PageSize)
-                .Select(p => new ResearchProjectListDto
+                .ToListAsync();
+
+            return projects.Select(p => new ResearchProjectListDto
                 {
                     Id = p.Id,
                     ProjectCode = p.ProjectCode,
                     Title = p.Title,
                     Level = p.Level,
-                    LevelName = ResearchLevelNames.ContainsKey(p.Level) ? ResearchLevelNames[p.Level] : "",
+                    LevelName = ResearchLevelNames.GetValueOrDefault(p.Level, ""),
                     PrincipalInvestigatorName = p.PrincipalInvestigator != null ? p.PrincipalInvestigator.FullName : null,
                     StartDate = p.StartDate.ToString("yyyy-MM-dd"),
                     EndDate = p.EndDate.HasValue ? p.EndDate.Value.ToString("yyyy-MM-dd") : null,
                     Budget = p.Budget,
                     Status = p.Status,
-                    StatusName = ResearchStatusNames.ContainsKey(p.Status) ? ResearchStatusNames[p.Status] : "",
+                    StatusName = ResearchStatusNames.GetValueOrDefault(p.Status, ""),
                     PublicationInfo = p.PublicationInfo,
                 })
-                .ToListAsync();
+                .ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {

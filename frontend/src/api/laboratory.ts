@@ -96,6 +96,47 @@ export interface ApproveResultRequest {
   notes?: string;
 }
 
+interface RawLabTestItem {
+  id: string;
+  testCode: string;
+  testName: string;
+  testGroup?: string;
+  result?: string | null;
+  unit?: string;
+  referenceRange?: string;
+  normalMin?: number;
+  normalMax?: number;
+  criticalLow?: number;
+  criticalHigh?: number;
+  resultStatus?: number | null;
+  status?: number;
+}
+
+interface RawLabRequest {
+  id: string;
+  orderCode?: string;
+  requestCode?: string;
+  patientId: string;
+  patientCode: string;
+  patientName: string;
+  gender?: string;
+  dateOfBirth?: string;
+  tests?: RawLabTestItem[];
+  isEmergency?: boolean;
+  isPriority?: boolean;
+  orderedAt: string;
+  status?: number;
+  orderDepartmentName?: string;
+  orderDoctorName?: string;
+  sampleBarcode?: string;
+  sampleType?: string;
+  collectedAt?: string;
+  collectorName?: string;
+  analyzer?: string;
+  processingStartTime?: string;
+  completedAt?: string;
+}
+
 // Get all lab requests
 export const getLabRequests = async (params?: {
   status?: number;
@@ -105,7 +146,7 @@ export const getLabRequests = async (params?: {
   search?: string;
 }) => {
   const today = params?.fromDate || new Date().toISOString().split('T')[0];
-  const response = await apiClient.get<any[]>('/LISComplete/orders/pending', {
+  const response = await apiClient.get<RawLabRequest[]>('/LISComplete/orders/pending', {
     params: {
       date: today,
       keyword: params?.search,
@@ -116,7 +157,7 @@ export const getLabRequests = async (params?: {
   });
 
   const data = response.data || [];
-  return data.map((item: any) => ({
+  return data.map((item) => ({
     id: item.id,
     requestCode: item.orderCode || item.requestCode,
     patientId: item.patientId,
@@ -124,8 +165,8 @@ export const getLabRequests = async (params?: {
     patientName: item.patientName,
     gender: item.gender === 'Nam' ? 1 : item.gender === 'Nu' ? 0 : 2,
     dateOfBirth: item.dateOfBirth,
-    requestedTests: item.tests?.map((t: any) => t.testName) || [],
-    tests: item.tests?.map((t: any) => ({
+    requestedTests: item.tests?.map((t) => t.testName) || [],
+    tests: item.tests?.map((t) => ({
       id: t.id,
       testCode: t.testCode,
       testName: t.testName,
@@ -169,7 +210,9 @@ export const collectSample = async (id: string, data: CollectSampleRequest) => {
 };
 
 // Start processing - only update local state (no API call needed)
-export const startProcessing = async (id: string, _data: ProcessSampleRequest) => {
+export const startProcessing = async (_id: string, _data: ProcessSampleRequest) => {
+  void _id;
+  void _data;
   return { success: true, message: 'Đã chuyển sang trạng thái xử lý' };
 };
 

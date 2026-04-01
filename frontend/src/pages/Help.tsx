@@ -25,14 +25,11 @@ import {
   SettingOutlined,
   FileTextOutlined,
   PlayCircleOutlined,
-  BulbOutlined,
   ToolOutlined,
   LinkOutlined,
   HomeOutlined,
-  RightOutlined,
   VideoCameraOutlined,
   DownloadOutlined,
-  ExclamationCircleOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import risApi from '../api/ris';
@@ -62,7 +59,6 @@ const Help: React.FC = () => {
   const [troubleshooting, setTroubleshooting] = useState<TroubleshootingDto[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<HelpArticleDto | null>(null);
-  const [searchKeyword, setSearchKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState<'categories' | 'article' | 'troubleshooting'>('categories');
 
@@ -137,7 +133,6 @@ const Help: React.FC = () => {
 
   // Handle search
   const handleSearch = (value: string) => {
-    setSearchKeyword(value);
     fetchArticles(undefined, value);
   };
 

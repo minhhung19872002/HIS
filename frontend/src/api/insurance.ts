@@ -741,11 +741,11 @@ export const importReconciliationResult = (batchId: string, file: File) => {
 export const getRejectedClaims = (batchId: string) =>
   request.get<RejectedClaimDto[]>(`/insurance/rejected-claims/${batchId}`);
 
-export const processRejectedClaim = (maLk: string, dto: { action: number; notes?: string; updateData?: any }) =>
+export const processRejectedClaim = (maLk: string, dto: { action: number; notes?: string; updateData?: Record<string, unknown> }) =>
   request.post<boolean>(`/insurance/rejected-claims/${maLk}/process`, dto);
 
 export const calculateReconciliationDifference = (batchId: string) =>
-  request.get<{ batchId: string; hospitalAmount: number; insuranceAmount: number; differenceAmount: number; details: any[] }>(`/insurance/reconciliation/difference/${batchId}`);
+  request.get<{ batchId: string; hospitalAmount: number; insuranceAmount: number; differenceAmount: number; details: Record<string, unknown>[] }>(`/insurance/reconciliation/difference/${batchId}`);
 
 // #endregion
 

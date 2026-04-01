@@ -17,6 +17,7 @@
     "cy:open": "cypress open",
     "cy:run": "cypress run",
     "cy:run:headed": "cypress run --headed",
+    "cy:run:public-health-regression": "cypress run --spec \"cypress/e2e/hiv-management-regression.cy.ts,cypress/e2e/immunization-regression.cy.ts\"",
     "cy:component": "cypress open --component"
   },
   "dependencies": {

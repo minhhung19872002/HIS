@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Input, Button, Table, Tabs, Tree, Space, Tag, Modal, message, Spin,
-  Row, Col, DatePicker, Select, Descriptions, Drawer, Badge, Checkbox, Tooltip,
+  Row, Col, DatePicker, Select, Descriptions, Drawer, Badge, Tooltip,
   Result, Statistic, Progress, Typography
 } from 'antd';
 import {
-  SearchOutlined, FileTextOutlined, FolderOutlined, PrinterOutlined,
+  SearchOutlined, FileTextOutlined, FolderOutlined,
   CheckCircleOutlined, ClockCircleOutlined, ExportOutlined, ReloadOutlined,
   AuditOutlined, SwapOutlined, EyeOutlined, FileExcelOutlined, FilePdfOutlined,
   CloudOutlined, CloudDownloadOutlined, DatabaseOutlined, CodeOutlined,
@@ -136,6 +136,26 @@ interface StorageStatus {
   bothStored: number;
 }
 
+type ArchivedRecordsResponse = {
+  items?: ArchivedRecord[];
+  data?: ArchivedRecord[];
+  totalCount?: number;
+  total?: number;
+};
+
+type StorageStatusResponse = {
+  localUsed?: number;
+  localTotal?: number;
+  cloudUsed?: number;
+  cloudTotal?: number;
+  lastSyncDate?: string;
+  syncStatus?: StorageStatus['syncStatus'];
+  totalArchived?: number;
+  localOnly?: number;
+  cloudOnly?: number;
+  bothStored?: number;
+};
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -158,7 +178,7 @@ const MedicalRecordArchive: React.FC = () => {
   const [availabilityLoading, setAvailabilityLoading] = useState(true);
 
   // -- shared
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [stats, setStats] = useState<ArchiveStats>({
     totalRecords: 0, pendingReview: 0, handedOver: 0, approved: 0,
   });
@@ -1566,7 +1586,7 @@ const MedicalRecordArchive: React.FC = () => {
       if (archiveDateRange[1]) params.toDate = archiveDateRange[1].format('YYYY-MM-DD');
 
       const res = await client.get('/archives/archived', { params });
-      const d = res.data as any;
+      const d = res.data as ArchivedRecordsResponse;
       setArchivedRecords(d?.items ?? d?.data ?? []);
       setArchiveTotal(d?.totalCount ?? d?.total ?? 0);
       setArchivePage(page);
@@ -1583,7 +1603,7 @@ const MedicalRecordArchive: React.FC = () => {
   const fetchStorageStatus = useCallback(async () => {
     try {
       const res = await client.get('/archives/storage-status');
-      const d = res.data as any;
+      const d = res.data as StorageStatusResponse;
       if (d) {
         setStorageStatus({
           localUsed: d.localUsed ?? 0,

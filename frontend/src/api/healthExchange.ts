@@ -503,7 +503,7 @@ export interface AuthorityReportDto {
   patientId?: string;
   patientCode?: string;
   patientName?: string;
-  reportContent: { [key: string]: any };
+  reportContent: Record<string, unknown>;
   submittedBy: string;
   submittedByName: string;
   submittedAt?: string;
@@ -521,7 +521,7 @@ export interface CreateAuthorityReportDto {
   reportingPeriodFrom?: string;
   reportingPeriodTo?: string;
   patientId?: string;
-  reportContent: { [key: string]: any };
+  reportContent: Record<string, unknown>;
 }
 
 export interface NotifiableDiseaseReportDto {

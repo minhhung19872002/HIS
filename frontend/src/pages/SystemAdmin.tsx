@@ -106,6 +106,27 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
+type Branch = {
+  id: string;
+  code?: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  description?: string;
+  isHeadquarter?: boolean;
+  isActive?: boolean;
+};
+
+type ApiErrorLike = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  errorFields?: unknown[];
+};
+
 // User Management Interfaces (mapped from API DTOs)
 interface User {
   id: string;
@@ -289,10 +310,10 @@ const SystemAdmin: React.FC = () => {
   const [emrForm] = Form.useForm();
 
   // Branch Management state
-  const [branches, setBranches] = useState<any[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [branchLoading, setBranchLoading] = useState(false);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
-  const [editingBranch, setEditingBranch] = useState<any>(null);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [branchForm] = Form.useForm();
 
   const fetchBranches = useCallback(async () => {
@@ -300,9 +321,10 @@ const SystemAdmin: React.FC = () => {
     try {
       const response = await catalogApi.getBranches();
       setBranches(response.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiError = error as ApiErrorLike;
       console.warn('Fetch branches error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the tai danh sach chi nhanh');
+      message.warning(apiError.response?.data?.message || 'Khong the tai danh sach chi nhanh');
     } finally {
       setBranchLoading(false);
     }
@@ -318,10 +340,11 @@ const SystemAdmin: React.FC = () => {
       setEditingBranch(null);
       branchForm.resetFields();
       fetchBranches();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error: unknown) {
+      const apiError = error as ApiErrorLike;
+      if (apiError.errorFields) return;
       console.warn('Save branch error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the luu chi nhanh');
+      message.warning(apiError.response?.data?.message || 'Khong the luu chi nhanh');
     }
   };
 
@@ -330,9 +353,10 @@ const SystemAdmin: React.FC = () => {
       await catalogApi.deleteBranch(id);
       message.success('Da xoa chi nhanh');
       fetchBranches();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiError = error as ApiErrorLike;
       console.warn('Delete branch error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the xoa chi nhanh');
+      message.warning(apiError.response?.data?.message || 'Khong the xoa chi nhanh');
     }
   };
 
@@ -3713,7 +3737,7 @@ const SystemAdmin: React.FC = () => {
                         title: 'Thao tac',
                         key: 'action',
                         width: 120,
-                        render: (_: any, record: any) => (
+                        render: (_: unknown, record: Branch) => (
                           <Space>
                             <Button size="small" icon={<EditOutlined />} onClick={() => {
                               setEditingBranch(record);
