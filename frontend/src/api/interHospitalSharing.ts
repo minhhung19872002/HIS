@@ -77,7 +77,7 @@ export const getActiveRequests = async () => {
 
 export const getStats = async (): Promise<InterHospitalStats> => {
   try {
-    const response = await apiClient.get<InterHospitalStats>('/inter-hospital/statistics');
+    const response = await apiClient.get<InterHospitalStats>('/inter-hospital/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch inter-hospital statistics');

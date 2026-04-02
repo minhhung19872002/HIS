@@ -4,6 +4,14 @@ describe('NangCap11 - EMR Admin & Signing Workflow Enhancements', () => {
   let token: string;
   let userData: string;
 
+  const normalizeText = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase();
+
   before(() => {
     cy.request({
       method: 'POST',
@@ -213,27 +221,46 @@ describe('NangCap11 - EMR Admin & Signing Workflow Enhancements', () => {
     });
 
     it('should load signing workflow page with title', () => {
-      cy.contains('Trinh ky').should('exist');
+      cy.get('body').should(($body) => {
+        expect(normalizeText($body.text())).to.include('trinh ky');
+      });
     });
 
     it('should have Lam moi button', () => {
-      cy.contains('Lam moi').should('exist');
+      cy.get('button').should(($buttons) => {
+        expect(normalizeText($buttons.text())).to.include('lam moi');
+      });
     });
 
     it('should have workflow tabs', () => {
-      cy.contains('Cho ky').should('exist');
-      cy.contains('Da trinh').should('exist');
-      cy.contains('Da xu ly').should('exist');
-      cy.contains('Thong ke').should('exist');
+      cy.get('.ant-tabs-tab').should(($tabs) => {
+        const text = normalizeText($tabs.text());
+        expect(text).to.include('cho ky');
+        expect(text).to.include('da trinh');
+        expect(text).to.include('da xu ly');
+        expect(text).to.include('thong ke');
+      });
     });
 
     it('should show stats when clicking Thong ke tab', () => {
-      cy.contains('Thong ke').click({ force: true });
+      cy.get('.ant-tabs-tab').then(($tabs) => {
+        const match = Array.from($tabs).find((tab) =>
+          normalizeText(tab.textContent || '').includes('thong ke'),
+        );
+        expect(match, 'statistics tab').to.exist;
+        cy.wrap(match!).click({ force: true });
+      });
       cy.contains('Tong cong').should('exist');
     });
 
     it('should have table in pending tab', () => {
-      cy.contains('Cho ky').click({ force: true });
+      cy.get('.ant-tabs-tab').then(($tabs) => {
+        const match = Array.from($tabs).find((tab) =>
+          normalizeText(tab.textContent || '').includes('cho ky'),
+        );
+        expect(match, 'pending tab').to.exist;
+        cy.wrap(match!).click({ force: true });
+      });
       cy.get('.ant-table').should('exist');
     });
   });

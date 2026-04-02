@@ -71,7 +71,7 @@ export const getExpiringLicenses = async () => {
 
 export const getStats = async (): Promise<PracticeLicenseStats> => {
   try {
-    const response = await apiClient.get<PracticeLicenseStats>('/practice-license/statistics');
+    const response = await apiClient.get<PracticeLicenseStats>('/practice-license/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch practice license statistics');
@@ -80,7 +80,9 @@ export const getStats = async (): Promise<PracticeLicenseStats> => {
 };
 
 export const renewLicense = async (id: string, data: { newExpiryDate: string; renewalNotes?: string }) => {
-  const response = await apiClient.put(`/practice-license/licenses/${id}/renew`, data);
+  const response = await apiClient.put(`/practice-license/licenses/${id}/renew`, null, {
+    params: { newExpiryDate: data.newExpiryDate },
+  });
   return response.data;
 };
 

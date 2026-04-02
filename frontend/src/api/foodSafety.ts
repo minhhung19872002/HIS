@@ -89,6 +89,24 @@ export interface InspectionStats {
   complianceD: number;
 }
 
+interface FoodIncidentStatsResponse {
+  totalIncidents: number;
+  activeInvestigations: number;
+  totalAffected: number;
+  totalHospitalized: number;
+  totalDeaths: number;
+  byMonth: { month: string; count: number; affectedCount: number }[];
+}
+
+interface FoodInspectionStatsResponse {
+  totalInspections: number;
+  scheduledCount: number;
+  completedCount: number;
+  followUpNeededCount: number;
+  averageScore: number;
+  byCompliance: { complianceLevel: string; count: number }[];
+}
+
 // ---- API Functions ----
 
 export const searchIncidents = async (params?: {
@@ -124,8 +142,17 @@ export const updateIncident = async (id: string, data: Partial<FoodSafetyInciden
 
 export const getIncidentStats = async (): Promise<FoodSafetyStats> => {
   try {
-    const response = await apiClient.get<FoodSafetyStats>('/food-safety/incidents/statistics');
-    return response.data;
+    const response = await apiClient.get<FoodIncidentStatsResponse>('/food-safety/incidents/stats');
+    return {
+      totalIncidents: response.data.totalIncidents,
+      activeInvestigations: response.data.activeInvestigations,
+      totalAffected: response.data.totalAffected,
+      facilitiesViolating: 0,
+      avgComplianceScore: 0,
+      incidentsByMonth: response.data.byMonth ?? [],
+      incidentsByType: [],
+      complianceByFacilityType: [],
+    };
   } catch {
     console.warn('Failed to fetch food safety incident statistics');
     return {
@@ -185,8 +212,19 @@ export const updateInspection = async (id: string, data: Partial<FoodInspection>
 
 export const getInspectionStats = async (): Promise<InspectionStats> => {
   try {
-    const response = await apiClient.get<InspectionStats>('/food-safety/inspections/statistics');
-    return response.data;
+    const response = await apiClient.get<FoodInspectionStatsResponse>('/food-safety/inspections/stats');
+    const complianceCounts = Object.fromEntries(
+      (response.data.byCompliance ?? []).map(item => [item.complianceLevel, item.count]),
+    ) as Record<string, number>;
+
+    return {
+      totalInspections: response.data.totalInspections,
+      avgScore: response.data.averageScore,
+      complianceA: complianceCounts.A ?? 0,
+      complianceB: complianceCounts.B ?? 0,
+      complianceC: complianceCounts.C ?? 0,
+      complianceD: complianceCounts.D ?? 0,
+    };
   } catch {
     console.warn('Failed to fetch inspection statistics');
     return {

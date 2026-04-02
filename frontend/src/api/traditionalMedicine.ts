@@ -73,13 +73,16 @@ export const updateTreatment = async (id: string, data: Partial<TraditionalTreat
 };
 
 export const createHerbalPrescription = async (treatmentId: string, data: Partial<HerbalPrescription>) => {
-  const response = await apiClient.post<HerbalPrescription>(`/traditional-medicine/treatments/${treatmentId}/prescriptions`, data);
+  const response = await apiClient.post<HerbalPrescription>('/traditional-medicine/herbal-prescriptions', {
+    treatmentId,
+    ...data,
+  });
   return response.data;
 };
 
 export const getHerbalPrescriptions = async (treatmentId: string) => {
   try {
-    const response = await apiClient.get<HerbalPrescription[]>(`/traditional-medicine/treatments/${treatmentId}/prescriptions`);
+    const response = await apiClient.get<HerbalPrescription[]>(`/traditional-medicine/treatments/${treatmentId}/herbal-prescriptions`);
     return response.data || [];
   } catch {
     console.warn('Failed to fetch herbal prescriptions');
@@ -89,7 +92,7 @@ export const getHerbalPrescriptions = async (treatmentId: string) => {
 
 export const getStats = async (): Promise<TraditionalMedicineStats> => {
   try {
-    const response = await apiClient.get<TraditionalMedicineStats>('/traditional-medicine/statistics');
+    const response = await apiClient.get<TraditionalMedicineStats>('/traditional-medicine/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch traditional medicine statistics');

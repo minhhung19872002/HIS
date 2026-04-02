@@ -33,6 +33,15 @@ function isIgnoredError(msg: string): boolean {
   return IGNORE_PATTERNS.some(p => msg.includes(p));
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
 describe('NangCap7 Features - SpecialtyEMR, Clinical Records, Dashboard, Archive, Backup', () => {
   const API_URL = 'http://localhost:5106/api';
   let token: string;
@@ -71,7 +80,9 @@ describe('NangCap7 Features - SpecialtyEMR, Clinical Records, Dashboard, Archive
     });
 
     it('should load SpecialtyEMR page without errors', () => {
-      cy.contains('Ho so benh an chuyen khoa').should('exist');
+      cy.get('body').should(($body) => {
+        expect(normalizeText($body.text())).to.include('ho so benh an chuyen khoa');
+      });
     });
 
     it('should have search form with keyword input', () => {
@@ -80,8 +91,9 @@ describe('NangCap7 Features - SpecialtyEMR, Clinical Records, Dashboard, Archive
 
     it('should have specialty type select filter', () => {
       cy.get('.ant-select').should('have.length.gte', 1);
-      // The specialty filter select should contain "Tat ca chuyen khoa" placeholder
-      cy.contains('Tat ca chuyen khoa').should('exist');
+      cy.get('body').should(($body) => {
+        expect(normalizeText($body.text())).to.include('tat ca chuyen khoa');
+      });
     });
 
     it('should have date range picker', () => {
@@ -114,18 +126,24 @@ describe('NangCap7 Features - SpecialtyEMR, Clinical Records, Dashboard, Archive
     });
 
     it('should have "Tim kiem" button', () => {
-      cy.contains('button', 'Tim kiem').should('exist');
+      cy.get('button').should(($buttons) => {
+        expect(normalizeText($buttons.text())).to.include('tim kiem');
+      });
     });
 
     it('should have "Lam moi" button', () => {
-      cy.contains('button', 'Lam moi').should('exist');
+      cy.get('button').should(($buttons) => {
+        expect(normalizeText($buttons.text())).to.include('lam moi');
+      });
     });
 
     it('should have "Tao moi" button that opens create modal', () => {
       cy.contains('button', 'Tao moi').should('exist').click();
       // Modal should open
       cy.get('.ant-modal').should('be.visible');
-      cy.contains('Tao ho so chuyen khoa moi').should('exist');
+      cy.get('.ant-modal').should(($modal) => {
+        expect(normalizeText($modal.text())).to.include('tao ho so chuyen khoa moi');
+      });
     });
 
     it('should have create form with required fields', () => {
@@ -133,14 +151,17 @@ describe('NangCap7 Features - SpecialtyEMR, Clinical Records, Dashboard, Archive
       cy.get('.ant-modal').should('be.visible');
       // Check form fields
       cy.get('.ant-modal').within(() => {
-        cy.contains('Ma benh nhan').should('exist');
-        cy.contains('Ho ten').should('exist');
-        cy.contains('Ngay tao').should('exist');
-        cy.contains('BS dieu tri').should('exist');
-        cy.contains('Khoa/Phong').should('exist');
-        cy.contains('ICD-10').should('exist');
-        cy.contains('Chan doan').should('exist');
-        cy.contains('Chuyen khoa').should('exist');
+        cy.get('.ant-form').should(($form) => {
+          const text = normalizeText($form.text());
+          expect(text).to.include('ma benh nhan');
+          expect(text).to.include('ho ten');
+          expect(text).to.include('ngay tao');
+          expect(text).to.include('bs dieu tri');
+          expect(text).to.include('khoa/phong');
+          expect(text).to.include('icd-10');
+          expect(text).to.include('chan doan');
+          expect(text).to.include('chuyen khoa');
+        });
       });
     });
 
@@ -156,7 +177,9 @@ describe('NangCap7 Features - SpecialtyEMR, Clinical Records, Dashboard, Archive
       cy.contains('button', 'Tao moi').click();
       cy.get('.ant-modal').should('be.visible');
       // Default should show Ngoai khoa section
-      cy.get('.ant-modal').contains('Ngoai khoa').should('exist');
+      cy.get('.ant-modal').should(($modal) => {
+        expect(normalizeText($modal.text())).to.include('ngoai khoa');
+      });
     });
 
     it('should close modal when clicking Huy', () => {

@@ -111,6 +111,30 @@ export interface CommunityHealthStats {
   highCvdRiskRate: number;
 }
 
+interface NcdStatsResponse {
+  totalScreenings: number;
+  highRiskCount: number;
+  referredCount: number;
+  hypertensionDetected: number;
+  diabetesDetected: number;
+  averageCVDRisk: number;
+}
+
+const isHighRiskHousehold = (riskLevel: Household['riskLevel']) => {
+  if (typeof riskLevel === 'number') {
+    return riskLevel >= 2;
+  }
+
+  return riskLevel === 'High' || riskLevel === 'VeryHigh';
+};
+
+const isActiveTeam = (status: CommunityTeam['status'] | string) => status === 0 || status === 'active';
+
+const getNcdStatsRaw = async (): Promise<NcdStatsResponse> => {
+  const response = await apiClient.get<NcdStatsResponse>('/community-health/ncd-screenings/stats');
+  return response.data;
+};
+
 // ---- API Functions ----
 
 export const searchHouseholds = async (params?: {
@@ -207,8 +231,36 @@ export const updateTeam = async (id: string, data: Partial<CommunityTeam>) => {
 
 export const getStats = async (): Promise<CommunityHealthStats> => {
   try {
-    const response = await apiClient.get<CommunityHealthStats>('/community-health/statistics');
-    return response.data;
+    const [households, screenings, teams, ncdStats] = await Promise.all([
+      searchHouseholds(),
+      searchNcdScreenings(),
+      searchTeams(),
+      getNcdStatsRaw(),
+    ]);
+
+    const totalMembers = households.reduce((sum, household) => sum + (household.memberCount || 0), 0);
+    const highRiskHouseholds = households.filter(household => isHighRiskHousehold(household.riskLevel)).length;
+    const activeTeams = teams.filter(team => isActiveTeam(team.status)).length;
+    const visitCoverageRate = teams.length
+      ? Math.round(teams.reduce((sum, team) => sum + (team.visitCoverage || 0), 0) / teams.length)
+      : 0;
+
+    return {
+      totalHouseholds: households.length,
+      totalMembers,
+      screeningsThisMonth: ncdStats.totalScreenings ?? screenings.length,
+      highRiskHouseholds,
+      activeTeams,
+      visitCoverageRate,
+      overdueVisits: households.filter(household => household.nextVisitDate && household.lastVisitDate && household.nextVisitDate < household.lastVisitDate).length,
+      ncdScreeningRate: totalMembers ? Number(((ncdStats.totalScreenings / totalMembers) * 100).toFixed(1)) : 0,
+      bpElevatedRate: ncdStats.totalScreenings ? Number(((ncdStats.hypertensionDetected / ncdStats.totalScreenings) * 100).toFixed(1)) : 0,
+      diabetesRate: ncdStats.totalScreenings ? Number(((ncdStats.diabetesDetected / ncdStats.totalScreenings) * 100).toFixed(1)) : 0,
+      overweightRate: screenings.length
+        ? Number(((screenings.filter(screening => (screening.bmi ?? 0) >= 25).length / screenings.length) * 100).toFixed(1))
+        : 0,
+      highCvdRiskRate: ncdStats.averageCVDRisk ?? 0,
+    };
   } catch {
     console.warn('Failed to fetch community health statistics');
     return {
@@ -240,7 +292,7 @@ export const getOverdueVisits = async () => {
 
 export const getHouseholdsByRisk = async (riskLevel: string) => {
   try {
-    const response = await apiClient.get<Household[]>('/community-health/households/by-risk', { params: { riskLevel } });
+    const response = await apiClient.get<Household[]>(`/community-health/households/by-risk/${riskLevel}`);
     return response.data || [];
   } catch {
     console.warn('Failed to fetch households by risk level');

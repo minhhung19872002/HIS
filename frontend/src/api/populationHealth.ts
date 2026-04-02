@@ -62,7 +62,7 @@ export const updateRecord = async (id: string, data: Partial<PopulationRecord>) 
 
 export const getStats = async (): Promise<PopulationStats> => {
   try {
-    const response = await apiClient.get<PopulationStats>('/population-health/statistics');
+    const response = await apiClient.get<PopulationStats>('/population-health/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch population health statistics');
@@ -72,7 +72,7 @@ export const getStats = async (): Promise<PopulationStats> => {
 
 export const getElderlyStats = async (): Promise<ElderlyStats> => {
   try {
-    const response = await apiClient.get<ElderlyStats>('/population-health/elderly-statistics');
+    const response = await apiClient.get<ElderlyStats>('/population-health/elderly/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch elderly statistics');

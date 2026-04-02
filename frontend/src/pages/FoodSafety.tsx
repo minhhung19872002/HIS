@@ -82,7 +82,7 @@ const FoodSafety: React.FC = () => {
   const [incidents, setIncidents] = useState<FoodSafetyIncident[]>([]);
   const [inspections, setInspections] = useState<FoodInspection[]>([]);
   const [stats, setStats] = useState<FoodSafetyStats | null>(null);
-  const [, setInspectionStats] = useState<InspectionStats | null>(null);
+  const [inspectionStats, setInspectionStats] = useState<InspectionStats | null>(null);
   const [samples, setSamples] = useState<FoodSafetySample[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<FoodSafetyIncident | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -392,6 +392,14 @@ const FoodSafety: React.FC = () => {
       )
     : inspections;
 
+  const violatingFacilities = (inspectionStats?.complianceC ?? 0) + (inspectionStats?.complianceD ?? 0);
+  const complianceSummary = [
+    { level: 'A', label: 'Loai A', count: inspectionStats?.complianceA ?? 0, color: 'green' },
+    { level: 'B', label: 'Loai B', count: inspectionStats?.complianceB ?? 0, color: 'blue' },
+    { level: 'C', label: 'Loai C', count: inspectionStats?.complianceC ?? 0, color: 'orange' },
+    { level: 'D', label: 'Loai D', count: inspectionStats?.complianceD ?? 0, color: 'red' },
+  ].filter(item => item.count > 0);
+
   const tabItems = [
     {
       key: 'incidents',
@@ -477,12 +485,12 @@ const FoodSafety: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Card>
-                <Statistic title="Diem tuan thu TB" value={stats?.avgComplianceScore ?? 0} suffix="/100" styles={{ content: { color: '#52c41a' } }} />
+                <Statistic title="Diem tuan thu TB" value={inspectionStats?.avgScore ?? 0} suffix="/100" styles={{ content: { color: '#52c41a' } }} />
               </Card>
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Card>
-                <Statistic title="CS vi pham" value={stats?.facilitiesViolating ?? 0} styles={{ content: { color: '#ff4d4f' } }} />
+                <Statistic title="CS xep loai C/D" value={violatingFacilities} styles={{ content: { color: '#ff4d4f' } }} />
               </Card>
             </Col>
           </Row>
@@ -503,14 +511,14 @@ const FoodSafety: React.FC = () => {
               </Card>
             </Col>
             <Col xs={24} md={12}>
-              <Card title="Tuan thu theo loai co so" size="small">
-                {stats?.complianceByFacilityType?.length ? (
-                  stats.complianceByFacilityType.map(item => (
-                    <div key={item.type} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                      <Text>{item.type}</Text>
+              <Card title="Thong ke xep loai tuan thu" size="small">
+                {complianceSummary.length ? (
+                  complianceSummary.map(item => (
+                    <div key={item.level} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <Text>{item.label}</Text>
                       <Space>
-                        <Text>{item.count} CS</Text>
-                        <Progress percent={Math.round(item.avgScore)} size="small" style={{ width: 100 }} />
+                        <Tag color={item.color}>{item.level}</Tag>
+                        <Text strong>{item.count} CS</Text>
                       </Space>
                     </div>
                   ))
@@ -564,7 +572,7 @@ const FoodSafety: React.FC = () => {
             <Card>
               <Statistic
                 title="Co so vi pham"
-                value={stats?.facilitiesViolating ?? 0}
+                value={violatingFacilities}
                 prefix={<SafetyOutlined />}
                 styles={{ content: { color: '#722ed1' } }}
               />

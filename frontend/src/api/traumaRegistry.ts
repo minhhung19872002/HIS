@@ -74,7 +74,7 @@ export const updateCase = async (id: string, data: Partial<TraumaCase>) => {
 
 export const getStats = async (): Promise<TraumaStats> => {
   try {
-    const response = await apiClient.get<TraumaStats>('/trauma-registry/statistics');
+    const response = await apiClient.get<TraumaStats>('/trauma-registry/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch trauma statistics');

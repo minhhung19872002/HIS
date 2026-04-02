@@ -82,7 +82,10 @@ export const getExaminations = async (caseId: string) => {
 };
 
 export const addExamination = async (caseId: string, data: Partial<ForensicExamination>) => {
-  const response = await apiClient.post<ForensicExamination>(`/forensic/cases/${caseId}/examinations`, data);
+  const response = await apiClient.post<ForensicExamination>('/forensic/examinations', {
+    caseId,
+    ...data,
+  });
   return response.data;
 };
 
@@ -93,7 +96,7 @@ export const approveCase = async (id: string) => {
 
 export const getStats = async (): Promise<ForensicStats> => {
   try {
-    const response = await apiClient.get<ForensicStats>('/forensic/statistics');
+    const response = await apiClient.get<ForensicStats>('/forensic/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch forensic statistics');

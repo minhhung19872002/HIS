@@ -22,7 +22,7 @@ export default defineConfig({
 
   // Reporter - tao bao cao
   reporter: [
-    ['html', { outputFolder: 'playwright-report' }],
+    ['html', { outputFolder: process.env.PLAYWRIGHT_HTML_REPORT || 'playwright-report' }],
     ['list']
   ],
 

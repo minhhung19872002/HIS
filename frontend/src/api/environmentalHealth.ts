@@ -102,7 +102,7 @@ export const createMonitoring = async (data: Partial<MonitoringRecord>) => {
 
 export const getWasteStats = async (): Promise<WasteStats> => {
   try {
-    const response = await apiClient.get<WasteStats>('/environmental-health/waste/statistics');
+    const response = await apiClient.get<WasteStats>('/environmental-health/waste/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch waste statistics');
@@ -112,7 +112,7 @@ export const getWasteStats = async (): Promise<WasteStats> => {
 
 export const getMonitoringStats = async (): Promise<MonitoringStats> => {
   try {
-    const response = await apiClient.get<MonitoringStats>('/environmental-health/monitoring/statistics');
+    const response = await apiClient.get<MonitoringStats>('/environmental-health/monitoring/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch monitoring statistics');

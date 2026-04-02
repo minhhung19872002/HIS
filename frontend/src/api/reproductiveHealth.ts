@@ -101,7 +101,7 @@ export const updateFamilyPlanning = async (id: string, data: Partial<FamilyPlann
 
 export const getStats = async (): Promise<ReproductiveHealthStats> => {
   try {
-    const response = await apiClient.get<ReproductiveHealthStats>('/reproductive-health/statistics');
+    const response = await apiClient.get<ReproductiveHealthStats>('/reproductive-health/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch reproductive health statistics');
@@ -111,7 +111,7 @@ export const getStats = async (): Promise<ReproductiveHealthStats> => {
 
 export const getHighRiskPregnancies = async () => {
   try {
-    const response = await apiClient.get<PrenatalRecord[]>('/reproductive-health/prenatal/high-risk');
+    const response = await apiClient.get<PrenatalRecord[]>('/reproductive-health/high-risk');
     return response.data || [];
   } catch {
     console.warn('Failed to fetch high risk pregnancies');

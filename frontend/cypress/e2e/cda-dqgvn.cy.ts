@@ -1,8 +1,60 @@
 /**
- * Cypress E2E Tests for HL7 CDA Document Generation & DQGVN National Health Data Exchange
+ * Cypress E2E Tests for HL7 CDA Document Generation and DQGVN National Health Data Exchange
  */
 
 let authToken: string;
+
+function h(token: string) {
+  return {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json; charset=utf-8',
+  };
+}
+
+function getActiveExamRoomId() {
+  return cy.request({
+    method: 'GET',
+    url: '/api/examination/rooms/active',
+    headers: h(authToken),
+  }).then((resp) => {
+    expect(resp.status).to.eq(200);
+
+    const rooms = Array.isArray(resp.body) ? resp.body : (resp.body?.data || []);
+    expect(rooms.length, 'active exam rooms').to.be.greaterThan(0);
+
+    return rooms[0].id as string;
+  });
+}
+
+function registerFeePatient(namePrefix: string, gender: number, dateOfBirth: string) {
+  const seed = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const phoneNumber = `09${seed.slice(-8)}`;
+  const identityNumber = seed.padStart(12, '0').slice(-12);
+
+  return getActiveExamRoomId().then((roomId) => {
+    return cy.request({
+      method: 'POST',
+      url: '/api/reception/register/fee',
+      headers: h(authToken),
+      body: {
+        newPatient: {
+          fullName: `${namePrefix} ${seed}`,
+          dateOfBirth,
+          gender,
+          phoneNumber,
+          address: 'Hue',
+          identityNumber,
+        },
+        serviceType: 2,
+        roomId,
+      },
+    }).then((resp) => {
+      expect(resp.status).to.eq(200);
+      expect(resp.body.patientId, 'patientId').to.exist;
+      return resp.body.patientId as string;
+    });
+  });
+}
 
 before(() => {
   cy.request({
@@ -20,7 +72,7 @@ describe('HL7 CDA Document Generation', () => {
       cy.request({
         method: 'GET',
         url: '/api/cda',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         failOnStatusCode: false,
       }).then((resp) => {
         expect(resp.status).to.eq(200);
@@ -35,7 +87,7 @@ describe('HL7 CDA Document Generation', () => {
       cy.request({
         method: 'POST',
         url: '/api/cda/generate',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         body: {},
         failOnStatusCode: false,
       }).then((resp) => {
@@ -47,7 +99,7 @@ describe('HL7 CDA Document Generation', () => {
       cy.request({
         method: 'GET',
         url: '/api/cda/00000000-0000-0000-0000-000000000000',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         failOnStatusCode: false,
       }).then((resp) => {
         expect(resp.status).to.be.oneOf([404, 204, 200]);
@@ -58,7 +110,7 @@ describe('HL7 CDA Document Generation', () => {
       cy.request({
         method: 'GET',
         url: '/api/cda?pageIndex=0&pageSize=10',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
         expect(resp.body.pageSize).to.eq(10);
@@ -69,7 +121,7 @@ describe('HL7 CDA Document Generation', () => {
       cy.request({
         method: 'GET',
         url: '/api/cda?documentType=1',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
         expect(resp.body).to.have.property('items');
@@ -80,7 +132,7 @@ describe('HL7 CDA Document Generation', () => {
       cy.request({
         method: 'GET',
         url: '/api/cda?status=0',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
       });
@@ -90,7 +142,7 @@ describe('HL7 CDA Document Generation', () => {
       cy.request({
         method: 'GET',
         url: '/api/cda?dateFrom=2026-01-01&dateTo=2026-12-31',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
       });
@@ -101,35 +153,19 @@ describe('HL7 CDA Document Generation', () => {
     let patientId: string;
 
     before(() => {
-      cy.request({
-        method: 'POST',
-        url: '/api/reception/register',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: {
-          fullName: 'CDA Test Patient',
-          dateOfBirth: '1985-06-15',
-          gender: 1,
-          phone: '0901234580',
-          address: 'Huế',
-          patientType: 1,
-        },
-        failOnStatusCode: false,
-      }).then((resp) => {
-        if (resp.status === 200 && resp.body.patientId) {
-          patientId = resp.body.patientId;
-        }
+      registerFeePatient('CDA Test Patient', 1, '1985-06-15').then((id) => {
+        patientId = id;
       });
     });
 
-    it('generates DischargeSummary CDA for patient', function () {
-      if (!patientId) this.skip();
+    it('generates DischargeSummary CDA for patient', () => {
       cy.request({
         method: 'POST',
         url: '/api/cda/generate',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         body: {
           documentType: 1,
-          patientId: patientId,
+          patientId,
         },
         failOnStatusCode: false,
       }).then((resp) => {
@@ -143,15 +179,14 @@ describe('HL7 CDA Document Generation', () => {
       });
     });
 
-    it('generates PrescriptionDocument CDA for patient', function () {
-      if (!patientId) this.skip();
+    it('generates PrescriptionDocument CDA for patient', () => {
       cy.request({
         method: 'POST',
         url: '/api/cda/generate',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         body: {
           documentType: 8,
-          patientId: patientId,
+          patientId,
         },
         failOnStatusCode: false,
       }).then((resp) => {
@@ -159,12 +194,11 @@ describe('HL7 CDA Document Generation', () => {
       });
     });
 
-    it('searches CDA documents by patient', function () {
-      if (!patientId) this.skip();
+    it('searches CDA documents by patient', () => {
       cy.request({
         method: 'GET',
         url: `/api/cda?patientId=${patientId}`,
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
         expect(resp.body).to.have.property('items');
@@ -179,7 +213,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/dashboard',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
         expect(resp.body).to.have.property('totalSubmissions');
@@ -201,7 +235,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/submissions',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
         expect(resp.body).to.have.property('items');
@@ -215,7 +249,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/submissions?pageIndex=0&pageSize=5',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
         expect(resp.body.pageSize).to.eq(5);
@@ -226,7 +260,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/submissions?submissionType=1',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
       });
@@ -236,7 +270,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/submissions?status=0',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
       });
@@ -246,7 +280,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/submissions?dateFrom=2026-01-01&dateTo=2026-12-31',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
       });
@@ -256,7 +290,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/submissions/00000000-0000-0000-0000-000000000000',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         failOnStatusCode: false,
       }).then((resp) => {
         expect(resp.status).to.be.oneOf([404, 204, 200]);
@@ -268,32 +302,16 @@ describe('DQGVN National Health Data Exchange', () => {
     let patientId: string;
 
     before(() => {
-      cy.request({
-        method: 'POST',
-        url: '/api/reception/register',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: {
-          fullName: 'DQGVN Test Patient',
-          dateOfBirth: '1990-03-20',
-          gender: 2,
-          phone: '0901234581',
-          address: 'Đà Nẵng',
-          patientType: 1,
-        },
-        failOnStatusCode: false,
-      }).then((resp) => {
-        if (resp.status === 200 && resp.body.patientId) {
-          patientId = resp.body.patientId;
-        }
+      registerFeePatient('DQGVN Test Patient', 2, '1990-03-20').then((id) => {
+        patientId = id;
       });
     });
 
-    it('submits patient demographics to DQGVN', function () {
-      if (!patientId) this.skip();
+    it('submits patient demographics to DQGVN', () => {
       cy.request({
         method: 'POST',
         url: `/api/dqgvn/submit/patient/${patientId}`,
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         failOnStatusCode: false,
       }).then((resp) => {
         expect(resp.status).to.be.oneOf([200, 500]);
@@ -304,13 +322,12 @@ describe('DQGVN National Health Data Exchange', () => {
       });
     });
 
-    it('submits encounter data to DQGVN', function () {
-      if (!patientId) this.skip();
+    it('submits encounter data to DQGVN', () => {
       cy.request({
         method: 'POST',
         url: '/api/dqgvn/submit/encounter',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: { patientId: patientId },
+        headers: h(authToken),
+        body: { patientId },
         failOnStatusCode: false,
       }).then((resp) => {
         expect(resp.status).to.be.oneOf([200, 500]);
@@ -321,12 +338,11 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'POST',
         url: '/api/dqgvn/submit/batch',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         failOnStatusCode: false,
       }).then((resp) => {
         expect(resp.status).to.be.oneOf([200, 500]);
         if (resp.status === 200) {
-          // May return number or object with count
           expect(resp.body).to.not.be.null;
         }
       });
@@ -338,7 +354,7 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'GET',
         url: '/api/dqgvn/config',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
       }).then((resp) => {
         expect(resp.status).to.eq(200);
         expect(resp.body).to.have.property('facilityCode');
@@ -353,11 +369,11 @@ describe('DQGVN National Health Data Exchange', () => {
       cy.request({
         method: 'PUT',
         url: '/api/dqgvn/config',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: h(authToken),
         body: {
           apiBaseUrl: 'https://dqgvn-test.moh.gov.vn/api',
           facilityCode: '46-001',
-          facilityName: 'BV Đại học Y Dược Huế',
+          facilityName: 'BV Dai hoc Y Duoc Hue',
           provinceCode: '46',
           districtCode: '001',
           apiKey: '',

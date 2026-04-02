@@ -22,6 +22,33 @@ function isIgnoredError(msg: string): boolean {
   return IGNORE_PATTERNS.some((pattern) => msg.includes(pattern));
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+function clickTabByNormalizedText(text: string) {
+  cy.get('.ant-tabs-tab').then(($tabs) => {
+    const normalizedTarget = normalizeText(text);
+    const match = Array.from($tabs).find((tab) =>
+      normalizeText(tab.textContent || '').includes(normalizedTarget),
+    );
+
+    expect(match, `tab matching "${text}"`).to.exist;
+    cy.wrap(match!).click({ force: true });
+  });
+}
+
+function expectActiveTabContains(text: string) {
+  cy.get('.ant-tabs-tab-active').should(($tab) => {
+    expect(normalizeText($tab.text())).to.include(normalizeText(text));
+  });
+}
+
 describe('Medical Record Planning Page', () => {
   let token: string;
 
@@ -110,60 +137,60 @@ describe('Medical Record Planning Page', () => {
 
   describe('Transfers Tab (Chuyen vien)', () => {
     it('should switch to transfers tab', () => {
-      cy.get('.ant-tabs-tab').contains('Chuyen vien').click({ force: true });
-      cy.get('.ant-tabs-tab-active').should('contain.text', 'Chuyen vien');
+      clickTabByNormalizedText('chuyen vien');
+      expectActiveTabContains('chuyen vien');
     });
 
     it('should display transfers table', () => {
-      cy.get('.ant-tabs-tab').contains('Chuyen vien').click({ force: true });
+      clickTabByNormalizedText('chuyen vien');
       cy.get('.ant-table').should('exist');
     });
   });
 
   describe('Borrowing Tab (Muon tra)', () => {
     it('should switch to borrowing tab', () => {
-      cy.get('.ant-tabs-tab').contains('Muon tra').click({ force: true });
-      cy.get('.ant-tabs-tab-active').should('contain.text', 'Muon tra');
+      clickTabByNormalizedText('muon tra');
+      expectActiveTabContains('muon tra');
     });
 
     it('should display borrowing table with overdue indicators', () => {
-      cy.get('.ant-tabs-tab').contains('Muon tra').click({ force: true });
+      clickTabByNormalizedText('muon tra');
       cy.get('.ant-table').should('exist');
     });
   });
 
   describe('Handover Tab (Ban giao)', () => {
     it('should switch to handover tab', () => {
-      cy.get('.ant-tabs-tab').contains('Ban giao').click({ force: true });
-      cy.get('.ant-tabs-tab-active').should('contain.text', 'Ban giao');
+      clickTabByNormalizedText('ban giao');
+      expectActiveTabContains('ban giao');
     });
 
     it('should display handover table', () => {
-      cy.get('.ant-tabs-tab').contains('Ban giao').click({ force: true });
+      clickTabByNormalizedText('ban giao');
       cy.get('.ant-table').should('exist');
     });
   });
 
   describe('Outpatient Tab (Ngoai tru)', () => {
     it('should switch to outpatient tab', () => {
-      cy.get('.ant-tabs-tab').contains('Ngoai tru').click({ force: true });
-      cy.get('.ant-tabs-tab-active').should('contain.text', 'Ngoai tru');
+      clickTabByNormalizedText('ngoai tru');
+      expectActiveTabContains('ngoai tru');
     });
 
     it('should display outpatient records table', () => {
-      cy.get('.ant-tabs-tab').contains('Ngoai tru').click({ force: true });
+      clickTabByNormalizedText('ngoai tru');
       cy.get('.ant-table').should('exist');
     });
   });
 
   describe('Attendance Tab (Cham cong)', () => {
     it('should switch to attendance tab', () => {
-      cy.get('.ant-tabs-tab').contains('Cham cong').click({ force: true });
-      cy.get('.ant-tabs-tab-active').should('contain.text', 'Cham cong');
+      clickTabByNormalizedText('cham cong');
+      expectActiveTabContains('cham cong');
     });
 
     it('should display attendance tracking table', () => {
-      cy.get('.ant-tabs-tab').contains('Cham cong').click({ force: true });
+      clickTabByNormalizedText('cham cong');
       cy.get('.ant-table').should('exist');
     });
   });

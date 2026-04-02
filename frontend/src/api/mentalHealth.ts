@@ -74,7 +74,10 @@ export const updateCase = async (id: string, data: Partial<MentalHealthCase>) =>
 };
 
 export const addAssessment = async (caseId: string, data: Partial<MentalHealthAssessment>) => {
-  const response = await apiClient.post<MentalHealthAssessment>(`/mental-health/cases/${caseId}/assessments`, data);
+  const response = await apiClient.post<MentalHealthAssessment>('/mental-health/assessments', {
+    caseId,
+    ...data,
+  });
   return response.data;
 };
 
@@ -90,8 +93,22 @@ export const getAssessments = async (caseId: string) => {
 
 export const getStats = async (): Promise<MentalHealthStats> => {
   try {
-    const response = await apiClient.get<MentalHealthStats>('/mental-health/statistics');
-    return response.data;
+    const response = await apiClient.get<{
+      activeCount?: number;
+      overdueFollowUps?: number;
+      severityBreakdown?: Array<{ severity?: string; count?: number }>;
+    }>('/mental-health/stats');
+    const severityBreakdown = response.data?.severityBreakdown || [];
+    const severeCases = severityBreakdown
+      .filter((item) => item.severity === 'severe')
+      .reduce((sum, item) => sum + (item.count || 0), 0);
+
+    return {
+      activeCases: response.data?.activeCount || 0,
+      severeCases,
+      overdueFollowUps: response.data?.overdueFollowUps || 0,
+      assessmentsThisMonth: 0,
+    };
   } catch {
     console.warn('Failed to fetch mental health statistics');
     return { activeCases: 0, severeCases: 0, overdueFollowUps: 0, assessmentsThisMonth: 0 };
@@ -109,7 +126,13 @@ export const getOverdueFollowUps = async () => {
 };
 
 export const screenDepression = async (data: { patientId: string; answers: number[] }) => {
-  const response = await apiClient.post('/mental-health/screen/phq9', data);
+  const phq9Score = data.answers.reduce((sum, value) => sum + value, 0);
+  const response = await apiClient.post('/mental-health/screen-depression', null, {
+    params: {
+      caseId: data.patientId,
+      phq9Score,
+    },
+  });
   return response.data;
 };
 

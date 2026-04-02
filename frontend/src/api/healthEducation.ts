@@ -88,7 +88,7 @@ export const createMaterial = async (data: Partial<HealthMaterial>) => {
 
 export const getCampaignStats = async (): Promise<CampaignStats> => {
   try {
-    const response = await apiClient.get<CampaignStats>('/health-education/statistics');
+    const response = await apiClient.get<CampaignStats>('/health-education/stats');
     return response.data;
   } catch {
     console.warn('Failed to fetch campaign statistics');

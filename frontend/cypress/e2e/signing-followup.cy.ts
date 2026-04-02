@@ -21,6 +21,15 @@ function isIgnoredError(msg: string): boolean {
   return IGNORE_PATTERNS.some((pattern) => msg.includes(pattern));
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
 describe('Signing Workflow Page', () => {
   let token: string;
 
@@ -60,12 +69,20 @@ describe('Signing Workflow Page', () => {
     });
 
     it('should display page title', () => {
-      cy.get('body').should('contain.text', 'Trinh ky');
+      cy.get('body').should(($body) => {
+        expect(normalizeText($body.text())).to.include('trinh ky');
+      });
     });
 
     it('should display statistics in stats tab', () => {
       // Stats are in the "Thong ke" tab, not on default view
-      cy.get('.ant-tabs-tab').contains('Thong ke').click({ force: true });
+      cy.get('.ant-tabs-tab').then(($tabs) => {
+        const match = Array.from($tabs).find((tab) =>
+          normalizeText(tab.textContent || '').includes('thong ke'),
+        );
+        expect(match, 'statistics tab').to.exist;
+        cy.wrap(match!).click({ force: true });
+      });
       cy.get('.ant-statistic').should('have.length.at.least', 2);
     });
   });

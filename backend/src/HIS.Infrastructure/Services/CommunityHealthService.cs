@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -19,55 +20,62 @@ public class CommunityHealthService : ICommunityHealthService
 
     public async Task<List<HouseholdListDto>> SearchHouseholdsAsync(HouseholdSearchDto? filter = null)
     {
-        var query = _context.HouseholdHealthRecords
-            .Include(h => h.AssignedTeam)
-            .Where(h => !h.IsDeleted)
-            .AsQueryable();
-
-        if (filter != null)
+        try
         {
-            if (!string.IsNullOrEmpty(filter.Keyword))
+            var query = _context.HouseholdHealthRecords
+                .Include(h => h.AssignedTeam)
+                .Where(h => !h.IsDeleted)
+                .AsQueryable();
+
+            if (filter != null)
             {
-                var kw = filter.Keyword.ToLower();
-                query = query.Where(h =>
-                    h.HouseholdCode.ToLower().Contains(kw) ||
-                    (h.HeadOfHousehold != null && h.HeadOfHousehold.ToLower().Contains(kw)) ||
-                    (h.Address != null && h.Address.ToLower().Contains(kw)) ||
-                    (h.PhoneNumber != null && h.PhoneNumber.Contains(kw))
-                );
+                if (!string.IsNullOrEmpty(filter.Keyword))
+                {
+                    var kw = filter.Keyword.ToLower();
+                    query = query.Where(h =>
+                        h.HouseholdCode.ToLower().Contains(kw) ||
+                        (h.HeadOfHousehold != null && h.HeadOfHousehold.ToLower().Contains(kw)) ||
+                        (h.Address != null && h.Address.ToLower().Contains(kw)) ||
+                        (h.PhoneNumber != null && h.PhoneNumber.Contains(kw))
+                    );
+                }
+                if (filter.RiskLevel.HasValue)
+                    query = query.Where(h => h.RiskLevel == filter.RiskLevel.Value);
+                if (!string.IsNullOrEmpty(filter.WardName))
+                    query = query.Where(h => h.WardName == filter.WardName);
+                if (filter.AssignedTeamId.HasValue)
+                    query = query.Where(h => h.AssignedTeamId == filter.AssignedTeamId.Value);
+                if (filter.OverdueVisitOnly == true)
+                    query = query.Where(h => h.NextVisitDate.HasValue && h.NextVisitDate.Value < DateTime.UtcNow);
             }
-            if (filter.RiskLevel.HasValue)
-                query = query.Where(h => h.RiskLevel == filter.RiskLevel.Value);
-            if (!string.IsNullOrEmpty(filter.WardName))
-                query = query.Where(h => h.WardName == filter.WardName);
-            if (filter.AssignedTeamId.HasValue)
-                query = query.Where(h => h.AssignedTeamId == filter.AssignedTeamId.Value);
-            if (filter.OverdueVisitOnly == true)
-                query = query.Where(h => h.NextVisitDate.HasValue && h.NextVisitDate.Value < DateTime.UtcNow);
+
+            var now = DateTime.UtcNow;
+
+            return await query
+                .OrderBy(h => h.HouseholdCode)
+                .Take(200)
+                .Select(h => new HouseholdListDto
+                {
+                    Id = h.Id,
+                    HouseholdCode = h.HouseholdCode,
+                    Address = h.Address,
+                    WardName = h.WardName,
+                    DistrictName = h.DistrictName,
+                    HeadOfHousehold = h.HeadOfHousehold,
+                    PhoneNumber = h.PhoneNumber,
+                    MemberCount = h.MemberCount,
+                    RiskLevel = h.RiskLevel,
+                    AssignedTeamName = h.AssignedTeam != null ? h.AssignedTeam.TeamName : null,
+                    LastVisitDate = h.LastVisitDate.HasValue ? h.LastVisitDate.Value.ToString("yyyy-MM-dd") : null,
+                    NextVisitDate = h.NextVisitDate.HasValue ? h.NextVisitDate.Value.ToString("yyyy-MM-dd") : null,
+                    IsOverdue = h.NextVisitDate.HasValue && h.NextVisitDate.Value < now,
+                })
+                .ToListAsync();
         }
-
-        var now = DateTime.UtcNow;
-
-        return await query
-            .OrderBy(h => h.HouseholdCode)
-            .Take(200)
-            .Select(h => new HouseholdListDto
-            {
-                Id = h.Id,
-                HouseholdCode = h.HouseholdCode,
-                Address = h.Address,
-                WardName = h.WardName,
-                DistrictName = h.DistrictName,
-                HeadOfHousehold = h.HeadOfHousehold,
-                PhoneNumber = h.PhoneNumber,
-                MemberCount = h.MemberCount,
-                RiskLevel = h.RiskLevel,
-                AssignedTeamName = h.AssignedTeam != null ? h.AssignedTeam.TeamName : null,
-                LastVisitDate = h.LastVisitDate.HasValue ? h.LastVisitDate.Value.ToString("yyyy-MM-dd") : null,
-                NextVisitDate = h.NextVisitDate.HasValue ? h.NextVisitDate.Value.ToString("yyyy-MM-dd") : null,
-                IsOverdue = h.NextVisitDate.HasValue && h.NextVisitDate.Value < now,
-            })
-            .ToListAsync();
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<HouseholdListDto>();
+        }
     }
 
     public async Task<HouseholdListDto?> GetHouseholdByIdAsync(Guid id)
@@ -191,84 +199,98 @@ public class CommunityHealthService : ICommunityHealthService
 
     public async Task<List<OverdueVisitDto>> GetOverdueVisitsAsync()
     {
-        var now = DateTime.UtcNow;
-        return await _context.HouseholdHealthRecords
-            .Include(h => h.AssignedTeam)
-            .Where(h => !h.IsDeleted && h.NextVisitDate.HasValue && h.NextVisitDate.Value < now)
-            .OrderBy(h => h.NextVisitDate)
-            .Take(200)
-            .Select(h => new OverdueVisitDto
-            {
-                HouseholdId = h.Id,
-                HouseholdCode = h.HouseholdCode,
-                HeadOfHousehold = h.HeadOfHousehold,
-                Address = h.Address,
-                WardName = h.WardName,
-                RiskLevel = h.RiskLevel,
-                LastVisitDate = h.LastVisitDate.HasValue ? h.LastVisitDate.Value.ToString("yyyy-MM-dd") : null,
-                NextVisitDate = h.NextVisitDate!.Value.ToString("yyyy-MM-dd"),
-                DaysOverdue = (int)(now - h.NextVisitDate!.Value).TotalDays,
-                AssignedTeamName = h.AssignedTeam != null ? h.AssignedTeam.TeamName : null,
-            })
-            .ToListAsync();
+        try
+        {
+            var now = DateTime.UtcNow;
+            return await _context.HouseholdHealthRecords
+                .Include(h => h.AssignedTeam)
+                .Where(h => !h.IsDeleted && h.NextVisitDate.HasValue && h.NextVisitDate.Value < now)
+                .OrderBy(h => h.NextVisitDate)
+                .Take(200)
+                .Select(h => new OverdueVisitDto
+                {
+                    HouseholdId = h.Id,
+                    HouseholdCode = h.HouseholdCode,
+                    HeadOfHousehold = h.HeadOfHousehold,
+                    Address = h.Address,
+                    WardName = h.WardName,
+                    RiskLevel = h.RiskLevel,
+                    LastVisitDate = h.LastVisitDate.HasValue ? h.LastVisitDate.Value.ToString("yyyy-MM-dd") : null,
+                    NextVisitDate = h.NextVisitDate!.Value.ToString("yyyy-MM-dd"),
+                    DaysOverdue = (int)(now - h.NextVisitDate!.Value).TotalDays,
+                    AssignedTeamName = h.AssignedTeam != null ? h.AssignedTeam.TeamName : null,
+                })
+                .ToListAsync();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<OverdueVisitDto>();
+        }
     }
 
     // ==================== NCD Screenings ====================
 
     public async Task<List<NcdScreeningListDto>> SearchNcdScreeningsAsync(NcdScreeningSearchDto? filter = null)
     {
-        var query = _context.NcdScreenings
-            .Include(s => s.Patient)
-            .Where(s => !s.IsDeleted)
-            .AsQueryable();
-
-        if (filter != null)
+        try
         {
-            if (!string.IsNullOrEmpty(filter.Keyword))
-            {
-                var kw = filter.Keyword.ToLower();
-                query = query.Where(s =>
-                    (s.Patient != null && (s.Patient.FullName.ToLower().Contains(kw) || s.Patient.PatientCode.ToLower().Contains(kw))) ||
-                    (s.Diagnosis != null && s.Diagnosis.ToLower().Contains(kw))
-                );
-            }
-            if (filter.PatientId.HasValue)
-                query = query.Where(s => s.PatientId == filter.PatientId.Value);
-            if (!string.IsNullOrEmpty(filter.ScreeningType))
-                query = query.Where(s => s.ScreeningType == filter.ScreeningType);
-            if (filter.RiskLevel.HasValue)
-                query = query.Where(s => s.RiskLevel == filter.RiskLevel.Value);
-            if (filter.ReferredOnly == true)
-                query = query.Where(s => s.ReferredToFacility);
-            if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                query = query.Where(s => s.ScreeningDate >= from);
-            if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                query = query.Where(s => s.ScreeningDate <= to.AddDays(1));
-        }
+            var query = _context.NcdScreenings
+                .Include(s => s.Patient)
+                .Where(s => !s.IsDeleted)
+                .AsQueryable();
 
-        return await query
-            .OrderByDescending(s => s.ScreeningDate)
-            .Take(200)
-            .Select(s => new NcdScreeningListDto
+            if (filter != null)
             {
-                Id = s.Id,
-                PatientId = s.PatientId,
-                PatientName = s.Patient != null ? s.Patient.FullName : null,
-                PatientCode = s.Patient != null ? s.Patient.PatientCode : null,
-                ScreeningDate = s.ScreeningDate.ToString("yyyy-MM-dd"),
-                ScreeningType = s.ScreeningType,
-                SystolicBP = s.SystolicBP,
-                DiastolicBP = s.DiastolicBP,
-                FastingGlucose = s.FastingGlucose,
-                HbA1c = s.HbA1c,
-                BMI = s.BMI,
-                CVDRiskScore = s.CVDRiskScore,
-                RiskLevel = s.RiskLevel,
-                Diagnosis = s.Diagnosis,
-                ReferredToFacility = s.ReferredToFacility,
-                ScreenedBy = s.ScreenedBy,
-            })
-            .ToListAsync();
+                if (!string.IsNullOrEmpty(filter.Keyword))
+                {
+                    var kw = filter.Keyword.ToLower();
+                    query = query.Where(s =>
+                        (s.Patient != null && (s.Patient.FullName.ToLower().Contains(kw) || s.Patient.PatientCode.ToLower().Contains(kw))) ||
+                        (s.Diagnosis != null && s.Diagnosis.ToLower().Contains(kw))
+                    );
+                }
+                if (filter.PatientId.HasValue)
+                    query = query.Where(s => s.PatientId == filter.PatientId.Value);
+                if (!string.IsNullOrEmpty(filter.ScreeningType))
+                    query = query.Where(s => s.ScreeningType == filter.ScreeningType);
+                if (filter.RiskLevel.HasValue)
+                    query = query.Where(s => s.RiskLevel == filter.RiskLevel.Value);
+                if (filter.ReferredOnly == true)
+                    query = query.Where(s => s.ReferredToFacility);
+                if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
+                    query = query.Where(s => s.ScreeningDate >= from);
+                if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
+                    query = query.Where(s => s.ScreeningDate <= to.AddDays(1));
+            }
+
+            return await query
+                .OrderByDescending(s => s.ScreeningDate)
+                .Take(200)
+                .Select(s => new NcdScreeningListDto
+                {
+                    Id = s.Id,
+                    PatientId = s.PatientId,
+                    PatientName = s.Patient != null ? s.Patient.FullName : null,
+                    PatientCode = s.Patient != null ? s.Patient.PatientCode : null,
+                    ScreeningDate = s.ScreeningDate.ToString("yyyy-MM-dd"),
+                    ScreeningType = s.ScreeningType,
+                    SystolicBP = s.SystolicBP,
+                    DiastolicBP = s.DiastolicBP,
+                    FastingGlucose = s.FastingGlucose,
+                    HbA1c = s.HbA1c,
+                    BMI = s.BMI,
+                    CVDRiskScore = s.CVDRiskScore,
+                    RiskLevel = s.RiskLevel,
+                    Diagnosis = s.Diagnosis,
+                    ReferredToFacility = s.ReferredToFacility,
+                    ScreenedBy = s.ScreenedBy,
+                })
+                .ToListAsync();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<NcdScreeningListDto>();
+        }
     }
 
     public async Task<NcdScreeningListDto?> GetNcdScreeningByIdAsync(Guid id)
@@ -408,74 +430,88 @@ public class CommunityHealthService : ICommunityHealthService
 
     public async Task<NcdStatsDto> GetNcdStatsAsync()
     {
-        var screenings = await _context.NcdScreenings
-            .Where(s => !s.IsDeleted)
-            .ToListAsync();
-
-        var hypertension = screenings.Count(s => s.SystolicBP >= 140 || s.DiastolicBP >= 90);
-        var diabetes = screenings.Count(s => s.FastingGlucose >= 7.0m || s.HbA1c >= 6.5m);
-        var cvdScores = screenings.Where(s => s.CVDRiskScore.HasValue).Select(s => (double)s.CVDRiskScore!.Value).ToList();
-
-        return new NcdStatsDto
+        try
         {
-            TotalScreenings = screenings.Count,
-            HighRiskCount = screenings.Count(s => s.RiskLevel >= 2),
-            ReferredCount = screenings.Count(s => s.ReferredToFacility),
-            HypertensionDetected = hypertension,
-            DiabetesDetected = diabetes,
-            AverageCVDRisk = cvdScores.Count > 0 ? Math.Round(cvdScores.Average(), 1) : 0,
-            ByType = screenings
-                .GroupBy(s => s.ScreeningType)
-                .Select(g => new NcdScreeningByTypeDto { ScreeningType = g.Key, Count = g.Count() })
-                .ToList(),
-            ByRisk = screenings
-                .GroupBy(s => s.RiskLevel)
-                .Select(g => new NcdScreeningByRiskDto { RiskLevel = g.Key, Count = g.Count() })
-                .ToList(),
-        };
+            var screenings = await _context.NcdScreenings
+                .Where(s => !s.IsDeleted)
+                .ToListAsync();
+
+            var hypertension = screenings.Count(s => s.SystolicBP >= 140 || s.DiastolicBP >= 90);
+            var diabetes = screenings.Count(s => s.FastingGlucose >= 7.0m || s.HbA1c >= 6.5m);
+            var cvdScores = screenings.Where(s => s.CVDRiskScore.HasValue).Select(s => (double)s.CVDRiskScore!.Value).ToList();
+
+            return new NcdStatsDto
+            {
+                TotalScreenings = screenings.Count,
+                HighRiskCount = screenings.Count(s => s.RiskLevel >= 2),
+                ReferredCount = screenings.Count(s => s.ReferredToFacility),
+                HypertensionDetected = hypertension,
+                DiabetesDetected = diabetes,
+                AverageCVDRisk = cvdScores.Count > 0 ? Math.Round(cvdScores.Average(), 1) : 0,
+                ByType = screenings
+                    .GroupBy(s => s.ScreeningType)
+                    .Select(g => new NcdScreeningByTypeDto { ScreeningType = g.Key, Count = g.Count() })
+                    .ToList(),
+                ByRisk = screenings
+                    .GroupBy(s => s.RiskLevel)
+                    .Select(g => new NcdScreeningByRiskDto { RiskLevel = g.Key, Count = g.Count() })
+                    .ToList(),
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new NcdStatsDto();
+        }
     }
 
     // ==================== Teams ====================
 
     public async Task<List<TeamListDto>> SearchTeamsAsync(TeamSearchDto? filter = null)
     {
-        var query = _context.CommunityHealthTeams
-            .Where(t => !t.IsDeleted)
-            .AsQueryable();
-
-        if (filter != null)
+        try
         {
-            if (!string.IsNullOrEmpty(filter.Keyword))
-            {
-                var kw = filter.Keyword.ToLower();
-                query = query.Where(t =>
-                    t.TeamCode.ToLower().Contains(kw) ||
-                    t.TeamName.ToLower().Contains(kw) ||
-                    (t.LeaderName != null && t.LeaderName.ToLower().Contains(kw))
-                );
-            }
-            if (filter.Status.HasValue)
-                query = query.Where(t => t.Status == filter.Status.Value);
-            if (!string.IsNullOrEmpty(filter.AssignedWard))
-                query = query.Where(t => t.AssignedWard == filter.AssignedWard);
-        }
+            var query = _context.CommunityHealthTeams
+                .Where(t => !t.IsDeleted)
+                .AsQueryable();
 
-        return await query
-            .OrderBy(t => t.TeamCode)
-            .Take(200)
-            .Select(t => new TeamListDto
+            if (filter != null)
             {
-                Id = t.Id,
-                TeamCode = t.TeamCode,
-                TeamName = t.TeamName,
-                LeaderName = t.LeaderName,
-                AssignedWard = t.AssignedWard,
-                MemberCount = t.MemberCount,
-                ActiveHouseholds = t.ActiveHouseholds,
-                Status = t.Status,
-                EstablishedDate = t.EstablishedDate.HasValue ? t.EstablishedDate.Value.ToString("yyyy-MM-dd") : null,
-            })
-            .ToListAsync();
+                if (!string.IsNullOrEmpty(filter.Keyword))
+                {
+                    var kw = filter.Keyword.ToLower();
+                    query = query.Where(t =>
+                        t.TeamCode.ToLower().Contains(kw) ||
+                        t.TeamName.ToLower().Contains(kw) ||
+                        (t.LeaderName != null && t.LeaderName.ToLower().Contains(kw))
+                    );
+                }
+                if (filter.Status.HasValue)
+                    query = query.Where(t => t.Status == filter.Status.Value);
+                if (!string.IsNullOrEmpty(filter.AssignedWard))
+                    query = query.Where(t => t.AssignedWard == filter.AssignedWard);
+            }
+
+            return await query
+                .OrderBy(t => t.TeamCode)
+                .Take(200)
+                .Select(t => new TeamListDto
+                {
+                    Id = t.Id,
+                    TeamCode = t.TeamCode,
+                    TeamName = t.TeamName,
+                    LeaderName = t.LeaderName,
+                    AssignedWard = t.AssignedWard,
+                    MemberCount = t.MemberCount,
+                    ActiveHouseholds = t.ActiveHouseholds,
+                    Status = t.Status,
+                    EstablishedDate = t.EstablishedDate.HasValue ? t.EstablishedDate.Value.ToString("yyyy-MM-dd") : null,
+                })
+                .ToListAsync();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<TeamListDto>();
+        }
     }
 
     public async Task<TeamListDto?> GetTeamByIdAsync(Guid id)

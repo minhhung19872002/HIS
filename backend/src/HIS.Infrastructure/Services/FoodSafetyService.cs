@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -19,54 +20,61 @@ public class FoodSafetyService : IFoodSafetyService
 
     public async Task<List<FoodIncidentListDto>> SearchIncidentsAsync(FoodIncidentSearchDto? filter = null)
     {
-        var query = _context.FoodPoisoningIncidents
-            .Include(i => i.Samples)
-            .Where(i => !i.IsDeleted)
-            .AsQueryable();
-
-        if (filter != null)
+        try
         {
-            if (!string.IsNullOrEmpty(filter.Keyword))
-            {
-                var kw = filter.Keyword.ToLower();
-                query = query.Where(i =>
-                    i.ReportNumber.ToLower().Contains(kw) ||
-                    i.Location.ToLower().Contains(kw) ||
-                    (i.FoodSource != null && i.FoodSource.ToLower().Contains(kw)) ||
-                    (i.SuspectedCause != null && i.SuspectedCause.ToLower().Contains(kw))
-                );
-            }
-            if (filter.InvestigationStatus.HasValue)
-                query = query.Where(i => i.InvestigationStatus == filter.InvestigationStatus.Value);
-            if (filter.SeverityLevel.HasValue)
-                query = query.Where(i => i.SeverityLevel == filter.SeverityLevel.Value);
-            if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                query = query.Where(i => i.IncidentDate >= from);
-            if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                query = query.Where(i => i.IncidentDate <= to.AddDays(1));
-        }
+            var query = _context.FoodPoisoningIncidents
+                .Include(i => i.Samples)
+                .Where(i => !i.IsDeleted)
+                .AsQueryable();
 
-        return await query
-            .OrderByDescending(i => i.IncidentDate)
-            .Take(200)
-            .Select(i => new FoodIncidentListDto
+            if (filter != null)
             {
-                Id = i.Id,
-                ReportNumber = i.ReportNumber,
-                IncidentDate = i.IncidentDate.ToString("yyyy-MM-dd"),
-                Location = i.Location,
-                FoodSource = i.FoodSource,
-                FoodType = i.FoodType,
-                AffectedCount = i.AffectedCount,
-                HospitalizedCount = i.HospitalizedCount,
-                DeathCount = i.DeathCount,
-                SuspectedCause = i.SuspectedCause,
-                InvestigationStatus = i.InvestigationStatus,
-                SeverityLevel = i.SeverityLevel,
-                NotifiedAuthorities = i.NotifiedAuthorities,
-                SampleCount = i.Samples.Count(s => !s.IsDeleted),
-            })
-            .ToListAsync();
+                if (!string.IsNullOrEmpty(filter.Keyword))
+                {
+                    var kw = filter.Keyword.ToLower();
+                    query = query.Where(i =>
+                        i.ReportNumber.ToLower().Contains(kw) ||
+                        i.Location.ToLower().Contains(kw) ||
+                        (i.FoodSource != null && i.FoodSource.ToLower().Contains(kw)) ||
+                        (i.SuspectedCause != null && i.SuspectedCause.ToLower().Contains(kw))
+                    );
+                }
+                if (filter.InvestigationStatus.HasValue)
+                    query = query.Where(i => i.InvestigationStatus == filter.InvestigationStatus.Value);
+                if (filter.SeverityLevel.HasValue)
+                    query = query.Where(i => i.SeverityLevel == filter.SeverityLevel.Value);
+                if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
+                    query = query.Where(i => i.IncidentDate >= from);
+                if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
+                    query = query.Where(i => i.IncidentDate <= to.AddDays(1));
+            }
+
+            return await query
+                .OrderByDescending(i => i.IncidentDate)
+                .Take(200)
+                .Select(i => new FoodIncidentListDto
+                {
+                    Id = i.Id,
+                    ReportNumber = i.ReportNumber,
+                    IncidentDate = i.IncidentDate.ToString("yyyy-MM-dd"),
+                    Location = i.Location,
+                    FoodSource = i.FoodSource,
+                    FoodType = i.FoodType,
+                    AffectedCount = i.AffectedCount,
+                    HospitalizedCount = i.HospitalizedCount,
+                    DeathCount = i.DeathCount,
+                    SuspectedCause = i.SuspectedCause,
+                    InvestigationStatus = i.InvestigationStatus,
+                    SeverityLevel = i.SeverityLevel,
+                    NotifiedAuthorities = i.NotifiedAuthorities,
+                    SampleCount = i.Samples.Count(s => !s.IsDeleted),
+                })
+                .ToListAsync();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<FoodIncidentListDto>();
+        }
     }
 
     public async Task<FoodIncidentListDto?> GetIncidentByIdAsync(Guid id)
@@ -202,37 +210,44 @@ public class FoodSafetyService : IFoodSafetyService
 
     public async Task<FoodIncidentStatsDto> GetIncidentStatsAsync()
     {
-        var incidents = await _context.FoodPoisoningIncidents
-            .Where(i => !i.IsDeleted)
-            .ToListAsync();
-
-        var bySeverity = incidents
-            .GroupBy(i => i.SeverityLevel)
-            .Select(g => new FoodIncidentBySeverityDto { SeverityLevel = g.Key, Count = g.Count() })
-            .ToList();
-
-        var byMonth = incidents
-            .GroupBy(i => i.IncidentDate.ToString("yyyy-MM"))
-            .OrderByDescending(g => g.Key)
-            .Take(12)
-            .Select(g => new FoodIncidentByMonthDto
-            {
-                Month = g.Key,
-                Count = g.Count(),
-                AffectedCount = g.Sum(i => i.AffectedCount),
-            })
-            .ToList();
-
-        return new FoodIncidentStatsDto
+        try
         {
-            TotalIncidents = incidents.Count,
-            ActiveInvestigations = incidents.Count(i => i.InvestigationStatus == 1),
-            TotalAffected = incidents.Sum(i => i.AffectedCount),
-            TotalHospitalized = incidents.Sum(i => i.HospitalizedCount),
-            TotalDeaths = incidents.Sum(i => i.DeathCount),
-            BySeverity = bySeverity,
-            ByMonth = byMonth,
-        };
+            var incidents = await _context.FoodPoisoningIncidents
+                .Where(i => !i.IsDeleted)
+                .ToListAsync();
+
+            var bySeverity = incidents
+                .GroupBy(i => i.SeverityLevel)
+                .Select(g => new FoodIncidentBySeverityDto { SeverityLevel = g.Key, Count = g.Count() })
+                .ToList();
+
+            var byMonth = incidents
+                .GroupBy(i => i.IncidentDate.ToString("yyyy-MM"))
+                .OrderByDescending(g => g.Key)
+                .Take(12)
+                .Select(g => new FoodIncidentByMonthDto
+                {
+                    Month = g.Key,
+                    Count = g.Count(),
+                    AffectedCount = g.Sum(i => i.AffectedCount),
+                })
+                .ToList();
+
+            return new FoodIncidentStatsDto
+            {
+                TotalIncidents = incidents.Count,
+                ActiveInvestigations = incidents.Count(i => i.InvestigationStatus == 1),
+                TotalAffected = incidents.Sum(i => i.AffectedCount),
+                TotalHospitalized = incidents.Sum(i => i.HospitalizedCount),
+                TotalDeaths = incidents.Sum(i => i.DeathCount),
+                BySeverity = bySeverity,
+                ByMonth = byMonth,
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new FoodIncidentStatsDto();
+        }
     }
 
     // ==================== Samples ====================
@@ -283,74 +298,88 @@ public class FoodSafetyService : IFoodSafetyService
 
     public async Task<List<FoodSampleListDto>> GetSamplesByIncidentAsync(Guid incidentId)
     {
-        return await _context.FoodSafetySamples
-            .Where(s => s.IncidentId == incidentId && !s.IsDeleted)
-            .OrderBy(s => s.CollectedAt)
-            .Select(s => new FoodSampleListDto
-            {
-                Id = s.Id,
-                IncidentId = s.IncidentId,
-                SampleType = s.SampleType,
-                SampleCode = s.SampleCode,
-                CollectedAt = s.CollectedAt.ToString("yyyy-MM-ddTHH:mm:ss"),
-                CollectedBy = s.CollectedBy,
-                LabSentAt = s.LabSentAt.HasValue ? s.LabSentAt.Value.ToString("yyyy-MM-ddTHH:mm:ss") : null,
-                LabResult = s.LabResult,
-                LabResultDate = s.LabResultDate.HasValue ? s.LabResultDate.Value.ToString("yyyy-MM-dd") : null,
-                PathogensFound = s.PathogensFound,
-                IsPositive = s.IsPositive,
-            })
-            .ToListAsync();
+        try
+        {
+            return await _context.FoodSafetySamples
+                .Where(s => s.IncidentId == incidentId && !s.IsDeleted)
+                .OrderBy(s => s.CollectedAt)
+                .Select(s => new FoodSampleListDto
+                {
+                    Id = s.Id,
+                    IncidentId = s.IncidentId,
+                    SampleType = s.SampleType,
+                    SampleCode = s.SampleCode,
+                    CollectedAt = s.CollectedAt.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    CollectedBy = s.CollectedBy,
+                    LabSentAt = s.LabSentAt.HasValue ? s.LabSentAt.Value.ToString("yyyy-MM-ddTHH:mm:ss") : null,
+                    LabResult = s.LabResult,
+                    LabResultDate = s.LabResultDate.HasValue ? s.LabResultDate.Value.ToString("yyyy-MM-dd") : null,
+                    PathogensFound = s.PathogensFound,
+                    IsPositive = s.IsPositive,
+                })
+                .ToListAsync();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<FoodSampleListDto>();
+        }
     }
 
     // ==================== Inspections ====================
 
     public async Task<List<FoodInspectionListDto>> SearchInspectionsAsync(FoodInspectionSearchDto? filter = null)
     {
-        var query = _context.FoodEstablishmentInspections
-            .Where(i => !i.IsDeleted)
-            .AsQueryable();
-
-        if (filter != null)
+        try
         {
-            if (!string.IsNullOrEmpty(filter.Keyword))
-            {
-                var kw = filter.Keyword.ToLower();
-                query = query.Where(i =>
-                    i.EstablishmentName.ToLower().Contains(kw) ||
-                    (i.Address != null && i.Address.ToLower().Contains(kw)) ||
-                    (i.LicenseNumber != null && i.LicenseNumber.ToLower().Contains(kw))
-                );
-            }
-            if (filter.Status.HasValue)
-                query = query.Where(i => i.Status == filter.Status.Value);
-            if (!string.IsNullOrEmpty(filter.ComplianceLevel))
-                query = query.Where(i => i.ComplianceLevel == filter.ComplianceLevel);
-            if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-                query = query.Where(i => i.InspectionDate >= from);
-            if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-                query = query.Where(i => i.InspectionDate <= to.AddDays(1));
-        }
+            var query = _context.FoodEstablishmentInspections
+                .Where(i => !i.IsDeleted)
+                .AsQueryable();
 
-        return await query
-            .OrderByDescending(i => i.InspectionDate)
-            .Take(200)
-            .Select(i => new FoodInspectionListDto
+            if (filter != null)
             {
-                Id = i.Id,
-                EstablishmentName = i.EstablishmentName,
-                Address = i.Address,
-                LicenseNumber = i.LicenseNumber,
-                InspectionDate = i.InspectionDate.ToString("yyyy-MM-dd"),
-                InspectorName = i.InspectorName,
-                OverallScore = i.OverallScore,
-                ComplianceLevel = i.ComplianceLevel,
-                ViolationsFound = i.ViolationsFound,
-                CorrectiveDeadline = i.CorrectiveDeadline.HasValue ? i.CorrectiveDeadline.Value.ToString("yyyy-MM-dd") : null,
-                FollowUpDate = i.FollowUpDate.HasValue ? i.FollowUpDate.Value.ToString("yyyy-MM-dd") : null,
-                Status = i.Status,
-            })
-            .ToListAsync();
+                if (!string.IsNullOrEmpty(filter.Keyword))
+                {
+                    var kw = filter.Keyword.ToLower();
+                    query = query.Where(i =>
+                        i.EstablishmentName.ToLower().Contains(kw) ||
+                        (i.Address != null && i.Address.ToLower().Contains(kw)) ||
+                        (i.LicenseNumber != null && i.LicenseNumber.ToLower().Contains(kw))
+                    );
+                }
+                if (filter.Status.HasValue)
+                    query = query.Where(i => i.Status == filter.Status.Value);
+                if (!string.IsNullOrEmpty(filter.ComplianceLevel))
+                    query = query.Where(i => i.ComplianceLevel == filter.ComplianceLevel);
+                if (!string.IsNullOrEmpty(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
+                    query = query.Where(i => i.InspectionDate >= from);
+                if (!string.IsNullOrEmpty(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
+                    query = query.Where(i => i.InspectionDate <= to.AddDays(1));
+            }
+
+            return await query
+                .OrderByDescending(i => i.InspectionDate)
+                .Take(200)
+                .Select(i => new FoodInspectionListDto
+                {
+                    Id = i.Id,
+                    EstablishmentName = i.EstablishmentName,
+                    Address = i.Address,
+                    LicenseNumber = i.LicenseNumber,
+                    InspectionDate = i.InspectionDate.ToString("yyyy-MM-dd"),
+                    InspectorName = i.InspectorName,
+                    OverallScore = i.OverallScore,
+                    ComplianceLevel = i.ComplianceLevel,
+                    ViolationsFound = i.ViolationsFound,
+                    CorrectiveDeadline = i.CorrectiveDeadline.HasValue ? i.CorrectiveDeadline.Value.ToString("yyyy-MM-dd") : null,
+                    FollowUpDate = i.FollowUpDate.HasValue ? i.FollowUpDate.Value.ToString("yyyy-MM-dd") : null,
+                    Status = i.Status,
+                })
+                .ToListAsync();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<FoodInspectionListDto>();
+        }
     }
 
     public async Task<FoodInspectionListDto> CreateInspectionAsync(FoodInspectionCreateDto dto)
@@ -431,24 +460,31 @@ public class FoodSafetyService : IFoodSafetyService
 
     public async Task<FoodInspectionStatsDto> GetInspectionStatsAsync()
     {
-        var inspections = await _context.FoodEstablishmentInspections
-            .Where(i => !i.IsDeleted)
-            .ToListAsync();
-
-        var byCompliance = inspections
-            .GroupBy(i => i.ComplianceLevel)
-            .Select(g => new FoodInspectionByComplianceDto { ComplianceLevel = g.Key, Count = g.Count() })
-            .ToList();
-
-        return new FoodInspectionStatsDto
+        try
         {
-            TotalInspections = inspections.Count,
-            ScheduledCount = inspections.Count(i => i.Status == 0),
-            CompletedCount = inspections.Count(i => i.Status == 2),
-            FollowUpNeededCount = inspections.Count(i => i.Status == 3),
-            AverageScore = inspections.Count > 0 ? Math.Round(inspections.Average(i => i.OverallScore), 1) : 0,
-            ByCompliance = byCompliance,
-        };
+            var inspections = await _context.FoodEstablishmentInspections
+                .Where(i => !i.IsDeleted)
+                .ToListAsync();
+
+            var byCompliance = inspections
+                .GroupBy(i => i.ComplianceLevel)
+                .Select(g => new FoodInspectionByComplianceDto { ComplianceLevel = g.Key, Count = g.Count() })
+                .ToList();
+
+            return new FoodInspectionStatsDto
+            {
+                TotalInspections = inspections.Count,
+                ScheduledCount = inspections.Count(i => i.Status == 0),
+                CompletedCount = inspections.Count(i => i.Status == 2),
+                FollowUpNeededCount = inspections.Count(i => i.Status == 3),
+                AverageScore = inspections.Count > 0 ? Math.Round(inspections.Average(i => i.OverallScore), 1) : 0,
+                ByCompliance = byCompliance,
+            };
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new FoodInspectionStatsDto();
+        }
     }
 
     // ==================== Helpers ====================

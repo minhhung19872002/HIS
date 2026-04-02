@@ -242,7 +242,7 @@ const TraditionalMedicine: React.FC = () => {
             onRow={(record) => ({ onDoubleClick: () => handleViewDetail(record), style: { cursor: 'pointer' } })} />
         </Card>
 
-        <Drawer title="Chi tiết liệu trình YHCT" open={isDetailDrawerOpen} onClose={() => setIsDetailDrawerOpen(false)} width={600}>
+        <Drawer title="Chi tiết liệu trình YHCT" open={isDetailDrawerOpen} onClose={() => setIsDetailDrawerOpen(false)} size="large">
           {selectedTreatment && (
             <>
               <Descriptions column={2} bordered size="small">

@@ -216,7 +216,7 @@ const MentalHealth: React.FC = () => {
             onRow={(record) => ({ onDoubleClick: () => handleViewDetail(record), style: { cursor: 'pointer' } })} />
         </Card>
 
-        <Drawer title="Chi tiết hồ sơ tâm thần" open={isDetailDrawerOpen} onClose={() => setIsDetailDrawerOpen(false)} width={650}>
+        <Drawer title="Chi tiết hồ sơ tâm thần" open={isDetailDrawerOpen} onClose={() => setIsDetailDrawerOpen(false)} size="large">
           {selectedCase && (
             <>
               <Descriptions column={2} bordered size="small">
