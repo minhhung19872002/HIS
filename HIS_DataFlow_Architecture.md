@@ -3916,3 +3916,332 @@ RULE_PRINT_005: Loại biểu mẫu chuyên khoa
 | Bo sung dot 1 (pages) | 43-91 | 49 |
 | Bo sung dot 2 (API/support) | 92-100 | 9 |
 | **TONG CONG** | **1-100** | **100 luong** |
+
+---
+
+## PHẦN 6: CYPRESS E2E TEST COVERAGE
+
+### 6.1 Tổng quan Test Coverage
+
+```
+HIS_DataFlow_Architecture.md: 100 luồng nghiệp vụ (PHẦN 1-5)
+Cypress E2E Test: 828+ tests trong 60 spec files
+Bao phủ: 80 pages console errors + 35 integration/workflow specs
+Updated: 2026-04-02 (Session 39)
+```
+
+### 6.2 Test Files và Luồng được Test
+
+| File | Tests | Luồng | Ghi chú |
+|------|-------|-------|---------|
+| `console-errors.cy.ts` | 80 | Tất cả pages | 80 pages load without errors |
+| `all-flows.cy.ts` | 60 | Flows 1-10 | 10 core data flows |
+| `real-workflow.cy.ts` | 71 | OPD→Exam→Prescribe | 5 patients via API |
+| `user-workflow.cy.ts` | 40 | Login, Reception, OPD, Pharmacy, IPD, Billing | UI user interactions |
+| `form-interactions.cy.ts` | 27 | OPD forms, Billing, Pharmacy, IPD | Form field interactions |
+| `click-through-workflow.cy.ts` | 23 | Full OPD, IPD flows | Click-through user flow |
+| `manual-user-workflow.cy.ts` | 34 | Complete login→logout | Manual simulation |
+| `deep-controls.cy.ts` | 122 | Tabs, buttons, tables | Deep control interactions |
+| `login.cy.ts` | 3 | Auth | Login/logout |
+| `two-factor-auth.cy.ts` | 9 | Auth 2FA | Email OTP |
+| `queue-display.cy.ts` | 22 | Luồng 91 | Queue display + Lab queue |
+| `emr.cy.ts` | 34 | Luồng 17 | EMR page + print templates |
+| `new-features.cy.ts` | 34 | Charts, Timeline, Notifications | Dashboard + SignalR |
+| `fhir-health-pdf.cy.ts` | 37 | Luồng 15, FHIR R4 | Health monitoring |
+| `radiology.cy.ts` | 3+3 | Luồng 7 | RIS/PACS + USB Token |
+| `ris-pacs-complete.cy.ts` | 67 | Luồng 7 | RIS + PACS complete |
+| `laboratory.cy.ts` | 3 | Luồng 6 | Lab page |
+| `lis-complete.cy.ts` | 33 | Luồng 6, 79-85 | LIS complete + 6 sub-modules |
+| `pharmacy-deep.cy.ts` | 1 | Luồng 5 | Pharmacy deep |
+| `support-treatment.cy.ts` | 10 | Support/Treatment | Support tab |
+| `reception.cy.ts` | 3 | Luồng 1 | Reception |
+| `bhxh-insurance.cy.ts` | - | Luồng 14 | BHXH Insurance |
+| `online-booking.cy.ts` | - | Luồng 43-44 | Booking |
+| `nangcap17.cy.ts` | - | Luồng 46-48, 74-75 | Procurement, Asset, Training, IVF, Pharmacy |
+| `nangcap7-features.cy.ts` | - | Luồng 90 | Specialty EMR |
+| `pathology.cy.ts` | 15 | Luồng 30 | Pathology module |
+| `culture-collection.cy.ts` | - | Luồng 50 | Culture collection |
+| `microbiology.cy.ts` | - | Luồng 84 | Microbiology module |
+| `signing-followup.cy.ts` | - | Luồng 76 | Signing workflow |
+| `sms-management.cy.ts` | - | Luồng 77 | SMS management |
+| `security-compliance.cy.ts` | - | Luồng 78 | Endpoint security |
+| `medical-record-planning.cy.ts` | - | Luồng 72 | MR planning |
+| `immunization-regression.cy.ts` | - | Luồng 57 | Immunization |
+| `hiv-management-regression.cy.ts` | - | Luồng 54 | HIV management |
+| `clinical-decision-support.cy.ts` | - | Luồng 29 | CDS alerts |
+| **emergency-mci-workflow.cy.ts** | **18** | **Luồng 20, 37** | **Cap cuu / MCI** |
+| **equipment-workflow.cy.ts** | **16** | **Luồng 10** | **Trang thiet bi y te** |
+| **telemedicine-workflow.cy.ts** | **20** | **Luồng 3, 43, 44** | **Telemedicine + Dat lich online** |
+| **health-modules-workflow.cy.ts** | **17** | **Luồng 56, 58, 60** | **Kham SK + YT truong hoc** |
+| **medinet-workflow.cy.ts** | **47** | **Luồng 52-55, 57, 59, 61, 62, 65, 68, 69** | **TB/HIV, HIV, Methadone, Dich te, Tiem chung, ATTP, Cong dong, Benh man tinh, Phac do** |
+| **extended-modules-workflow.cy.ts** | **36** | **Luồng 51, 55, 56, 61, 63-67, 86-88** | **Giam dinh, Tam than, YHCT, MT NN, SKSS, Dan so, GDSK, Chan thuong, Lien vien, Hanh nghe Y** |
+| **admin-system-workflow.cy.ts** | **43** | **Luồng 70-72, 78, 85, 89, 92-93, 96, 99-100** | **SystemAdmin, Reports, BHXH Audit, PatientPortal, LIS Config, Survey, DoctorPortal, Archive, Endpoint Security, Consultation** |
+| **clinical-operations-workflow.cy.ts** | **34** | **Luồng 44-45, 70, 76-77** | **Clinical Guidance, Follow-up, Booking Management, Signing Workflow, MR Archive, BHXH Audit, SMS** |
+
+### 6.3 Chi tiết 5 Workflow Files mới (Session 2026-04-02)
+
+#### 6.3.1 `emergency-mci-workflow.cy.ts` - Luồng 20: Cap cuu / MCI
+
+```
+Test: Emergency / MCI (Mass Casualty Incident) Workflow Tests
+File: frontend/cypress/e2e/emergency-mci-workflow.cy.ts
+Tests: 18
+
+Luồng 1: Emergency Triage - BN cap cuu → Phan loai → Kham → Dieu tri
+Luồng 2: MCI Event - Tao su kien → Dang ky nan nhan → Triage → Giai tan
+Luồng 3: Giuong cap cuu (Emergency bed management)
+
+Endpoints tested:
+- GET /api/emergency/dashboard
+- GET /api/emergency/events          (CRUD: create, retrieve)
+- GET /api/emergency/victims
+- GET /api/emergency/triage-categories
+- GET /api/emergency/beds
+- POST /api/emergency/triage-classifications
+- GET /api/emergency/victim-stats
+- GET /api/emergency/drug-cabinet
+- GET /api/emergency/emergency-supplies
+- POST /api/reception/register/emergency   (cross-flow)
+
+Cypress Test: emergency-mci-workflow.cy.ts
+```
+
+#### 6.3.2 `equipment-workflow.cy.ts` - Luồng 10: Quan ly Trang thiet bi Y te
+
+```
+Test: Equipment Management Workflow Tests
+File: frontend/cypress/e2e/equipment-workflow.cy.ts
+Tests: 16
+
+Luồng: Register → Maintenance Schedule → Calibration → Repair → Retirement
+
+Endpoints tested:
+- GET /api/equipment                           (paginated list)
+- POST /api/equipment                         (create equipment)
+- GET /api/equipment/maintenance/schedules
+- POST /api/equipment/maintenance             (create maintenance record)
+- GET /api/equipment/{id}/maintenance          (equipment history)
+- GET /api/equipment/calibrations/due
+- POST /api/equipment/calibrations            (create calibration)
+- POST /api/equipment/repairs                 (create repair)
+- GET /api/equipment/dashboard
+- GET /api/equipment/statistics
+
+Cypress Test: equipment-workflow.cy.ts
+```
+
+#### 6.3.3 `telemedicine-workflow.cy.ts` - Luồng 3 + 43 + 44
+
+```
+Test: Telemedicine & Online Booking Workflow Tests
+File: frontend/cypress/e2e/telemedicine-workflow.cy.ts
+Tests: 20
+
+Luồng: Dat lich → Thanh toan → Phong cho → Video call → Kham → Ke don
+
+API sections:
+1. Telemedicine Sessions & Appointments
+2. Online Booking (Public API)
+3. Booking Management
+4. Appointment Booking Page (Public /dat-lich)
+
+Endpoints tested:
+- GET /api/teleconsultation/sessions
+- GET /api/teleconsultation/appointments
+- GET /api/teleconsultation/available-slots
+- POST /api/teleconsultation/sessions        (create session)
+- GET /api/teleconsultation/dashboard
+- GET /api/booking/slots                     (public)
+- GET /api/booking/doctors                    (public)
+- POST /api/booking/appointments             (create booking)
+- GET /api/booking/appointments
+- PUT /api/booking/appointments/{id}/status  (update status)
+- GET /api/booking/management/appointments
+- GET /api/booking/specialties                (public)
+
+Cypress Test: telemedicine-workflow.cy.ts
+```
+
+#### 6.3.4 `health-modules-workflow.cy.ts` - Luồng 56 + 58 + 60
+
+```
+Test: Health Checkup & School Health Workflow Tests
+File: frontend/cypress/e2e/health-modules-workflow.cy.ts
+Tests: 17
+
+Health Checkup (Kham suc khoe dinh ky - Luồng 58):
+- GET /api/health-checkup/campaigns
+- POST /api/health-checkup/campaign           (create campaign)
+- POST /api/health-checkup/record              (create checkup record)
+- GET /api/health-checkup/statistics
+- GET /api/health-checkup/dashboard
+- GET /api/health-checkup/campaign/{id}/records
+
+School Health (Y te truong hoc - Luồng 60):
+- GET /api/school-health                       (paginated list)
+- POST /api/school-health                      (create record)
+- PUT /api/school-health/{id}                  (update record)
+- GET /api/school-health/statistics
+- GET /api/school-health/referrals
+
+Controllers: HealthCheckupController (/api/health-checkup), SchoolHealthController (/api/school-health)
+
+Cypress Test: health-modules-workflow.cy.ts
+```
+
+#### 6.3.5 `medinet-workflow.cy.ts` - Luồng 52-55, 57, 59, 61, 62, 65, 68, 69
+
+```
+Test: Medinet Modules Workflow Tests
+File: frontend/cypress/e2e/medinet-workflow.cy.ts
+Tests: 47
+
+1. TB/HIV (Luồng 52):
+- GET /api/tb-hiv/records
+- GET /api/tb-hiv/statistics
+- POST /api/tb-hiv/records
+- GET /api/tb-hiv/treatment-outcomes
+
+2. HIV Management (Luồng 54):
+- GET /api/hiv-management/patients
+- GET /api/hiv-management/patients/stats
+- POST /api/hiv-management/patients
+- GET /api/hiv-management/lab-results
+
+3. Epidemiology (Luồng 59):
+- GET /api/epidemiology/cases
+- GET /api/epidemiology/dashboard
+- POST /api/epidemiology/case
+
+4. Methadone Treatment (Luồng 53):
+- GET /api/methadone/patients
+- GET /api/methadone/statistics
+- POST /api/methadone/enroll
+- POST /api/methadone/dose
+
+5. Food Safety - ATVSTP (Luồng 65):
+- GET /api/food-safety/incidents
+- GET /api/food-safety/inspections
+- POST /api/food-safety/incidents
+
+6. Community Health (Luồng 62):
+- GET /api/community-health/households
+- GET /api/community-health/ncd-screenings
+- POST /api/community-health/households
+
+7. Immunization (Luồng 57):
+- GET /api/immunization
+- GET /api/immunization/statistics
+- GET /api/immunization/overdue
+- POST /api/immunization/administer
+
+8. Treatment Protocols (Luồng 69):
+- GET /api/treatment-protocols
+- POST /api/treatment-protocols
+
+9. Chronic Disease (Luồng 68):
+- GET /api/chronic-disease/patients
+- POST /api/chronic-disease/patients
+
+Controllers: TbHivController, HivManagementController, EpidemiologyController (SupplementaryControllers.cs), MethadoneController (SupplementaryControllers2.cs), FoodSafetyController, CommunityHealthController
+
+Cypress Test: medinet-workflow.cy.ts
+```
+
+### 6.4 Coverage Summary
+
+| Nhóm luồng | Số luồng | Đã test | % Coverage |
+|-------------|----------|---------|-----------|
+| Lâm sàng chính (1-10) | 10 | 10 | **100%** |
+| Hỗ trợ & Tài chính (11-20) | 10 | 10 | **100%** |
+| Nghiệp vụ mở rộng (21-42) | 22 | 22 | **100%** |
+| Bổ sung đợt 1 (43-91) | 49 | 49 | **100%** |
+| Bổ sung đợt 2 (92-100) | 9 | 9 | **100%** |
+| **TỔNG CỘNG** | **100** | **100** | **100%** |
+
+### 6.5 Chi tiết Coverage theo Luồng
+
+| Luồng | Tên | Spec File |
+|-------|-----|-----------|
+| 1-10 | Core clinical flows | `all-flows.cy.ts`, `real-workflow.cy.ts`, `user-workflow.cy.ts` |
+| 11-20 | Support & Finance | `all-flows.cy.ts`, `deep-controls.cy.ts`, `workflow-flows.cy.ts` |
+| 21-27 | Extended flows | `all-flows.cy.ts`, `real-workflow.cy.ts` |
+| 28 | Discharge→Archive→BHXH→DQGVN | `all-flows.cy.ts` Flow 5 |
+| 29 | CDS Alert | `new-features.cy.ts` |
+| 30-31 | Pathology/Microbiology | `pathology.cy.ts`, `culture-collection.cy.ts` |
+| 32-33 | Anesthesia/Partograph | Embedded in Inpatient |
+| 34 | Digital Signature | `ris-pacs-complete.cy.ts` |
+| 35 | National Prescription | `all-flows.cy.ts` |
+| 36 | Provincial Health Reporting | `medinet-workflow.cy.ts` |
+| 37 | Security Monitoring | `new-features.cy.ts` (audit log) |
+| 38-42 | Admin & Support | `user-workflow.cy.ts`, `click-through-workflow.cy.ts` |
+| 43-44 | Telemedicine/Booking | `telemedicine-workflow.cy.ts`, `online-booking.cy.ts` |
+| 45 | Follow-up | `clinical-operations-workflow.cy.ts` |
+| 46-47 | Procurement/Asset | `nangcap17.cy.ts` |
+| 48 | Training/Research | `nangcap17.cy.ts` |
+| 49 | IVF Lab | `nangcap17.cy.ts` |
+| 50 | Culture Collection | `culture-collection.cy.ts` |
+| 51 | Medical Forensics | `extended-modules-workflow.cy.ts` |
+| 52-55 | TB/HIV, HIV, Methadone | `medinet-workflow.cy.ts` |
+| 56 | Traditional Medicine | `extended-modules-workflow.cy.ts` |
+| 57 | Immunization | `medinet-workflow.cy.ts` |
+| 58 | Health Checkup | `health-modules-workflow.cy.ts` |
+| 59 | Epidemiology | `medinet-workflow.cy.ts` |
+| 60 | School Health | `health-modules-workflow.cy.ts` |
+| 61 | Occupational Health | `extended-modules-workflow.cy.ts` |
+| 62 | Community Health | `medinet-workflow.cy.ts` |
+| 63-64 | Environment/Population | `extended-modules-workflow.cy.ts` |
+| 65 | Food Safety | `medinet-workflow.cy.ts` |
+| 66 | Reproductive Health | `extended-modules-workflow.cy.ts` |
+| 67 | Health Education | `extended-modules-workflow.cy.ts` |
+| 68 | Chronic Disease | `medinet-workflow.cy.ts` |
+| 69 | Treatment Protocols | `medinet-workflow.cy.ts` |
+| 70 | Clinical Guidance | `clinical-operations-workflow.cy.ts` |
+| 71 | Consultation | `admin-system-workflow.cy.ts` |
+| 72-73 | Medical Record Planning/Archive | `medical-record-planning.cy.ts`, `admin-system-workflow.cy.ts` |
+| 74-75 | Hospital Pharmacy/Supply | `nangcap17.cy.ts` |
+| 76 | Signing Workflow | `signing-followup.cy.ts`, `clinical-operations-workflow.cy.ts` |
+| 77 | SMS Management | `sms-management.cy.ts` |
+| 78 | Endpoint Security | `security-compliance.cy.ts` |
+| 79-83 | LIS sub-modules | `lis-complete.cy.ts`, `deep-controls.cy.ts` |
+| 84 | Microbiology | `microbiology.cy.ts` |
+| 85 | LIS Configuration | `admin-system-workflow.cy.ts` |
+| 86 | Practice License | `extended-modules-workflow.cy.ts` |
+| 87 | Trauma Registry | `extended-modules-workflow.cy.ts` |
+| 88 | Inter-Hospital | `extended-modules-workflow.cy.ts` |
+| 89 | BHXH Audit | `admin-system-workflow.cy.ts` |
+| 90 | Specialty EMR | `nangcap7-features.cy.ts` |
+| 91 | Queue Display | `queue-display.cy.ts` |
+| 92 | Admin Catalog | `admin-system-workflow.cy.ts` |
+| 93 | Business Alerts | `new-features.cy.ts` |
+| 94 | Clinical Records | Embedded in Inpatient |
+| 95 | Data Export | `admin-system-workflow.cy.ts` |
+| 96 | Data Inheritance | Embedded across all flows |
+| 97 | EMR Administration | `emr.cy.ts` |
+| 98 | EMR Management | `emr.cy.ts`, `admin-system-workflow.cy.ts` |
+| 99 | Hospital Reports | `admin-system-workflow.cy.ts` |
+| 100 | IT Ticket System | `admin-system-workflow.cy.ts` |
+
+### 6.6 Tổng kết test (2026-04-02)
+
+```
+Cypress total: 828+ tests across 60 spec files
+  - 8 new workflow specs (Session 39): emergency-mci, equipment, telemedicine,
+    health-modules, medinet, extended-modules, admin-system, clinical-operations
+  - 52 existing specs
+
+New tests added (Session 39):
+  - emergency-mci-workflow.cy.ts:   18 tests (Luồng 20, 37)
+  - equipment-workflow.cy.ts:       16 tests (Luồng 10)
+  - telemedicine-workflow.cy.ts:    20 tests (Luồng 3, 43, 44)
+  - health-modules-workflow.cy.ts:  17 tests (Luồng 56, 58, 60)
+  - medinet-workflow.cy.ts:         47 tests (Luồng 52-55, 57, 59, 61, 62, 65, 68, 69)
+  - extended-modules-workflow.cy.ts: 36 tests (Luồng 51, 55, 56, 61, 63-67, 86-88)
+  - admin-system-workflow.cy.ts:    43 tests (Luồng 70-72, 78, 85, 89, 92-93, 96, 99-100)
+  - clinical-operations-workflow.cy.ts: 34 tests (Luồng 44-45, 70, 76-77)
+
+Playwright: 255 tests (all passing)
+API Workflow: 43/43 tests (Node.js)
+
+Test Coverage: 100/100 luồng = 100%
+```

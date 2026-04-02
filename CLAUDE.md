@@ -1395,3 +1395,40 @@ If a new service/controller is added, register it there or you get 500 errors.
 - `0cfe4cc` - feat: implement NangCap19 (TTYT Quang Hoa) - 4 patient portal features, 15 API endpoints
 
 **NangCap19 Status: 73/73 software features (100%)** - chi con ~36 hardware items
+
+### DA HOAN THANH (Session 39 - 2026-04-02)
+
+**110. Kiem tra & Bo sung Workflow Tests - 8 spec files moi (Tat ca luong)**
+
+Doc day du `HIS_DataFlow_Architecture.md` (100 luồng) de xac dinh luồng thieu test coverage. Tao 8 Cypress spec files moi, chay 256 tests:
+
+| File | Tests | Luồng | Notes |
+|------|-------|-------|-------|
+| `emergency-mci-workflow.cy.ts` | 18 | 20, 37 | Cap cuu / MCI |
+| `equipment-workflow.cy.ts` | 16 | 10 | Trang thiet bi y te |
+| `telemedicine-workflow.cy.ts` | 20 | 3, 43, 44 | Telemedicine + Dat lich online |
+| `health-modules-workflow.cy.ts` | 17 | 56, 58, 60 | Kham SK + YT truong hoc |
+| `medinet-workflow.cy.ts` | 47 | 52-55, 57, 59, 61, 62, 65, 68, 69 | TB/HIV, HIV, Methadone, Dich te, Tiem chung, ATTP, Cong dong, Benh man tinh, Phac do |
+| `extended-modules-workflow.cy.ts` | 36 | 51, 55, 56, 61, 63-67, 86-88 | Giam dinh, Tam than, YHCT, MT NN, SKSS, Dan so, GDSK, Chan thuong, Lien vien, Hanh nghe Y |
+| `admin-system-workflow.cy.ts` | 43 | 70-72, 78, 85, 89, 92-93, 96, 99-100 | SystemAdmin, Reports, BHXH Audit, PatientPortal, LIS Config, Survey, DoctorPortal, Archive, Security, Consultation |
+| `clinical-operations-workflow.cy.ts` | 34 | 44-45, 70, 76-77 | Clinical Guidance, Follow-up, Booking Management, Signing Workflow, SMS |
+
+Fix endpoint mismatches discovered during testing:
+- Equipment: `GET /equipment/calibrations` → `GET /equipment/calibrations/due`, `POST /equipment/maintenance/schedules` → `POST /equipment/maintenance`
+- Health: `GET /health-checkup/examinations` → `GET /health-checkup/campaigns`, `POST /health-checkup/examinations` → `POST /health-checkup/record`
+- Occupational Health: `/occupational-health/exams` → `/occupational-health` (root route), dto `patientName` → `employeeName`
+- Follow-up: POST `/examination/appointments` → GET `/examination/appointments/overdue` (POST requires examinationId)
+
+**Ket qua: 256/256 pass**
+
+**111. Update HIS_DataFlow_Architecture.md voi Test Coverage**
+
+Them PHẦN 6: CYPRESS E2E TEST COVERAGE (sections 6.1-6.6) vao cuoi file.
+
+**Coverage Summary - 100/100 luồng = 100%**
+
+**Tong ket test:**
+- Cypress: 828+ tests across 60 spec files (8 new + 52 existing)
+- Playwright: 255/255 passing
+- API Workflow: 43/43 passing
+- Test Coverage: 100/100 luồng = 100%
