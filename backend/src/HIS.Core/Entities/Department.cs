@@ -18,6 +18,10 @@ public class Department : BaseEntity
     public Guid? ParentId { get; set; }
     public virtual Department? Parent { get; set; }
 
+    // Chi nhánh (NangCap21 - HIS đám mây 3 cấp)
+    public Guid? BranchId { get; set; }
+    public virtual HospitalBranch? Branch { get; set; }
+
     // Navigation properties
     public virtual ICollection<Department> Children { get; set; } = new List<Department>();
     public virtual ICollection<User> Users { get; set; } = new List<User>();
@@ -44,6 +48,10 @@ public class Room : BaseEntity
 
     public Guid DepartmentId { get; set; }
     public virtual Department Department { get; set; } = null!;
+
+    // Chi nhánh (NangCap21 - HIS đám mây 3 cấp)
+    public Guid? BranchId { get; set; }
+    public virtual HospitalBranch? Branch { get; set; }
 
     // Navigation properties
     public virtual ICollection<Bed> Beds { get; set; } = new List<Bed>();

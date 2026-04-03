@@ -923,6 +923,10 @@ public class MedicalStaff : BaseEntity
     public virtual User? User { get; set; }
     public virtual Department? PrimaryDepartment { get; set; }
     public virtual Department? SecondaryDepartment { get; set; }
+
+    // Chi nhánh (NangCap21 - HIS đám mây 3 cấp)
+    public Guid? BranchId { get; set; }
+    public virtual HospitalBranch? Branch { get; set; }
     public virtual ICollection<StaffQualification>? Qualifications { get; set; }
     public virtual ICollection<CMERecord>? CMERecords { get; set; }
 }

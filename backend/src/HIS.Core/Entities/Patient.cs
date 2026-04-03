@@ -55,6 +55,10 @@ public class Patient : BaseEntity
     // Ảnh
     public string? PhotoPath { get; set; } // Ảnh chân dung
 
+    // Chi nhánh đăng ký (NangCap21 - HIS đám mây 3 cấp)
+    public Guid? BranchId { get; set; }
+    public virtual HospitalBranch? Branch { get; set; }
+
     // Navigation properties
     public virtual ICollection<MedicalRecord> MedicalRecords { get; set; } = new List<MedicalRecord>();
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();

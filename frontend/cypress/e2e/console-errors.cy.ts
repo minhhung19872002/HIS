@@ -25,6 +25,7 @@ const pages = [
   { route: '/master-data', name: 'Master Data (Danh muc)' },
   { route: '/reports', name: 'Reports (Bao cao)' },
   { route: '/admin', name: 'System Admin (He thong)' },
+  { route: '/dashboard-3cap', name: 'Dashboard 3 Cap (NangCap21)' },
   { route: '/telemedicine', name: 'Telemedicine (Kham tu xa)' },
   { route: '/nutrition', name: 'Nutrition (Dinh duong)' },
   { route: '/infection-control', name: 'Infection Control (KSNK)' },

@@ -29,6 +29,10 @@ public class QueueTicket : BaseEntity
     public Guid? CalledByUserId { get; set; } // Người gọi số
     public virtual User? CalledByUser { get; set; }
 
+    // Chi nhánh (NangCap21 - HIS đám mây 3 cấp)
+    public Guid? BranchId { get; set; }
+    public virtual HospitalBranch? Branch { get; set; }
+
     public string? Notes { get; set; }
 }
 

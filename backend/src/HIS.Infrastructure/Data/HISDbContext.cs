@@ -715,6 +715,32 @@ public class HISDbContext : DbContext
                 entity.Property(p => p.PhoneNumber).HasConversion(encryptedConverter);
                 entity.Property(p => p.Email).HasConversion(encryptedConverter);
                 entity.Property(p => p.InsuranceNumber).HasConversion(encryptedConverter);
+                // NangCap21 - Chi nhánh đăng ký (nullable FK)
+                entity.HasOne(p => p.Branch).WithMany().HasForeignKey(p => p.BranchId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // NangCap21 - QueueTicket chi nhánh
+            modelBuilder.Entity<QueueTicket>(entity =>
+            {
+                entity.HasOne(q => q.Branch).WithMany().HasForeignKey(q => q.BranchId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // NangCap21 - Department chi nhánh
+            modelBuilder.Entity<Department>(entity =>
+            {
+                entity.HasOne(d => d.Branch).WithMany().HasForeignKey(d => d.BranchId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // NangCap21 - Room chi nhánh
+            modelBuilder.Entity<Room>(entity =>
+            {
+                entity.HasOne(r => r.Branch).WithMany().HasForeignKey(r => r.BranchId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // NangCap21 - MedicalStaff chi nhánh
+            modelBuilder.Entity<MedicalStaff>(entity =>
+            {
+                entity.HasOne(m => m.Branch).WithMany().HasForeignKey(m => m.BranchId).OnDelete(DeleteBehavior.SetNull);
             });
         }
 

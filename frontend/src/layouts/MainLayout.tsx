@@ -121,6 +121,11 @@ const MainLayout: React.FC = () => {
       label: 'Tổng quan',
     },
     {
+      key: '/dashboard-3cap',
+      icon: <BankOutlined />,
+      label: 'Dashboard 3 Cấp',
+    },
+    {
       key: 'clinical',
       icon: <TeamOutlined />,
       label: 'Lâm sàng',

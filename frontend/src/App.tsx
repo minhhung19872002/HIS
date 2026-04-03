@@ -14,6 +14,7 @@ import './App.css';
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Dashboard3Cap = lazy(() => import('./pages/Dashboard3Cap'));
 const Reception = lazy(() => import('./pages/Reception'));
 const OPD = lazy(() => import('./pages/OPD'));
 const Inpatient = lazy(() => import('./pages/Inpatient'));
@@ -147,6 +148,7 @@ const AppRoutes: React.FC = () => {
           }
         >
           <Route index element={<Dashboard />} />
+          <Route path="dashboard-3cap" element={<Dashboard3Cap />} />
           <Route path="reception" element={<Reception />} />
           <Route path="patients" element={<Navigate to="/reception" replace />} />
           <Route path="opd" element={<OPD />} />

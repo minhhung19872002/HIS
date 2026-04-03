@@ -57,13 +57,23 @@ public static class DatabaseSchemaCompatibility
                     [UpdatedBy] NVARCHAR(450) NULL,
                     [IsDeleted] BIT NOT NULL CONSTRAINT [DF_HivPatients_IsDeleted] DEFAULT(0),
                     CONSTRAINT [PK_HivPatients] PRIMARY KEY ([Id]),
-                    CONSTRAINT [FK_HivPatients_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients]([Id]) ON DELETE NO ACTION,
-                    CONSTRAINT [FK_HivPatients_MethadonePatients_MethadonePatientId] FOREIGN KEY ([MethadonePatientId]) REFERENCES [dbo].[MethadonePatients]([Id]) ON DELETE NO ACTION
+                    CONSTRAINT [FK_HivPatients_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients]([Id]) ON DELETE NO ACTION
                 );
 
                 CREATE UNIQUE INDEX [IX_HivPatients_HivCode] ON [dbo].[HivPatients]([HivCode]);
                 CREATE INDEX [IX_HivPatients_PatientId] ON [dbo].[HivPatients]([PatientId]);
                 CREATE INDEX [IX_HivPatients_MethadonePatientId] ON [dbo].[HivPatients]([MethadonePatientId]);
+            END
+            """);
+
+        await ExecuteNonQueryAsync(context, """
+            IF OBJECT_ID(N'[dbo].[MethadonePatients]', N'U') IS NOT NULL
+               AND OBJECT_ID(N'[dbo].[HivPatients]', N'U') IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_HivPatients_MethadonePatients_MethadonePatientId')
+            BEGIN
+                ALTER TABLE [dbo].[HivPatients]
+                    ADD CONSTRAINT [FK_HivPatients_MethadonePatients_MethadonePatientId]
+                    FOREIGN KEY ([MethadonePatientId]) REFERENCES [dbo].[MethadonePatients]([Id]) ON DELETE NO ACTION;
             END
             """);
 
