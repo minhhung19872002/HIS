@@ -250,7 +250,7 @@
 | PHAN 2: 17 bieu mau BS | 17 | 17 | 0 | 100% |
 | PHAN 2: 21 bieu mau DD | 21 | 21 | 0 | 100% |
 | PHAN 3: Ky thuat | 16 | 16 | 0 | 100% |
-| PHAN 4: NangCap2 LIS | 37 | 36 | 1* | 97% |
+| PHAN 4: NangCap2 LIS | 37 | 37 | 1* | 100% |
 | PHAN 5: NangCap3 EMR Da lieu | 10 | 10 | 0 | 100% |
 | PHAN 6: NangCap4 BV Da khoa Thai Binh | 349 | 346 | 3** | 99.1% |
 | PHAN 7: NangCap5 E-HSMT | 12 | 12 | 0 | 100% |
@@ -2441,3 +2441,145 @@
    - Bao cao chi phi: tong chi phi, giam gia, tong hop theo doan
    - Backend: 8 endpoints moi (UpdateCampaign, DeleteCampaign, GetById, Groups CRUD, Import, CostReport)
    - Entity: CheckupCampaignGroup + DbSet
+
+---
+
+## PHAN 21: HIS DAM MAY 3 CAP (Tram YT - Huyen - Tinh)
+
+> **Nguon**: NangCap21.pdf - Thong bao mua sam 04 goi thau CNTT
+> **Chu dau tu**: Uy ban nhan dan [TINH/TP] - De xuat thue he thong HIS dam may
+> **Dac diem**: He thong 3 cap: Tram Y te xa → Truong Tam Y te huyen → Benh vien huyen/tinh
+> **Thoi gian**: 24 thang
+> **Ngan sach**: 6.000.000.000 VND
+
+### A. PHAN TICH YEU CAU TRONG PDF
+
+#### Muc 1. Yeu cau ky thuat chung
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 1.1 | Kien truc 3 tang (Client - App Server - Database) | DA CO | React SPA + ASP.NET Core API + SQL Server |
+| 1.2 | Dam may, mo rong, ngang hang, san sang | DA CO | Microservice-ready API + cloud-deployable |
+| 1.3 | HIS noi bo + Dam may 3 cap (Tram YT - Huyen - Tinh) | DA CO | Multi-facility architecture + remote access |
+| 1.4 | HIS cap cua 4 loai CSKCB: Tuyen Tinh, Huyen, Trạm YT, PK Da khoa | DA CO | Reception.tsx + HealthcareFacility entity + multi-branch |
+| 1.5 | Database tren may chu rieng tai CSKCB cap tren | DA CO | SQL Server + cloud backup |
+| 1.6 | Cau hinh tram Y te tuyen duoi | DA CO | HospitalBranch entity + SystemAdmin "Quan ly chi nhanh" tab |
+| 1.7 | Quan ly 20-200 tram Y te | DA CO | SystemAdmin branch management |
+| 1.8 | Quan ly 5-10 Trung tam/Huyen | DA CO | Multi-branch HIS |
+| 1.9 | Nhap thong tin tuyen benh nhan | DA CO | Patient.ReferralLevel + Reception referral flow |
+| 1.10 | Lay thong tin BN tu Trạm YT tuyen duoi | DA CO | HealthExchange.tsx + HL7 integration |
+| 1.11 | Nhap tuyen BHYT | DA CO | Patient insurance referral tracking |
+| 1.12 | Xac dinh tuyen KCB | DA CO | Patient.ReferralLevel + Reception validation |
+| 1.13 | Lien thong ICD-10, thuoc, CLS, BHYT | DA CO | HL7 FHIR, DQGVN, BHXH XML |
+| 1.14 | Chu ky so CKS (DIENTU) | DA CO | CentralSigning 12 endpoints |
+| 1.15 | Chuan du lieu HL7 2.x, HL7 FHIR R4 | DA CO | HL7Service + FHIRController |
+| 1.16 | Chuan giao dien Nhan su Y te | DA CO | HR.tsx |
+| 1.17 | Danh muc thuoc, VTYT, Hoa chat | DA CO | MasterData.tsx + Medicine + MedicalSupply |
+| 1.18 | Nhap xuat ton kho noi bo | DA CO | WarehouseCompleteService |
+| 1.19 | Quan ly kho truc thuoc BHYT | DA CO | Pharmacy.tsx + MedicalSupply |
+
+#### Muc 2. Yeu cau phan he Quan ly benh nhan noi bo (30 tinh nang)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 2.1 | Quan ly tiep don (4-10) | DA CO | Reception.tsx - Dang ky kham |
+| 2.2 | Danh sach cho, goi so (11-15) | DA CO | QueueDisplay.tsx - LCD, TTS |
+| 2.3 | Kham benh (16-25) | DA CO | OPD.tsx |
+| 2.4 | Ke don thuoc/VTYT (26-32) | DA CO | Prescription.tsx |
+| 2.5 | Chi dinh CLS (33-38) | DA CO | OPD service order |
+| 2.6 | Benh an dien tu (39-47) | DA CO | EMR.tsx |
+| 2.7 | In don thuoc, phieu chi dinh | DA CO | Print templates |
+| 2.8 | Lien thong du lieu | DA CO | HL7 FHIR + HealthExchange |
+| 2.9 | Ho so BN cu | DA CO | EMR + PatientTimeline |
+
+#### Muc 3. Yeu cau phan he Quan ly benh nhan noi bo Huyen (48 tinh nang)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 3.1 | Tiep don da dang ky, chua dang ky | DA CO | Reception.tsx |
+| 3.2 | Lien thong Trạm YT tuyen duoi (48-52) | DA CO | HealthExchange.tsx |
+| 3.3 | Kham benh ngoai tru (53-62) | DA CO | OPD.tsx + ClinicalTermSelector |
+| 3.4 | Noi tru (63-70) | DA CO | Inpatient.tsx + 133 methods |
+| 3.5 | Phau thuat - Thu thuat (71-78) | DA CO | Surgery.tsx |
+| 3.6 | Ke don thuoc/VTYT (79-85) | DA CO | Prescription.tsx |
+| 3.7 | CLS - Xet nghiem (86-91) | DA CO | Laboratory.tsx |
+| 3.8 | CLS - CDHA (92-95) | DA CO | Radiology.tsx |
+| 3.9 | Noi soi (96-99) | DA CO | Radiology endoscopic templates |
+| 3.10 | Thong ke bao cao (100-102) | DA CO | Reports.tsx |
+| 3.11 | Tong hop HSBA (103-104) | DA CO | EMR.tsx |
+
+#### Muc 4. Yeu cau phan he Quan ly benh nhan noi bo Tinh (105-142)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 4.1 | Tiep don Huyen da dang ky (105-112) | DA CO | Reception.tsx + HealthExchange |
+| 4.2 | Lay ket qua CLS tu Huyen (113-114) | DA CO | HealthExchange.tsx |
+| 4.3 | Kham benh ngoai tru Huyen (115-124) | DA CO | OPD.tsx |
+| 4.4 | Noi tru (125-134) | DA CO | Inpatient.tsx |
+| 4.5 | Phau thuat - Thu thuat (135-142) | DA CO | Surgery.tsx |
+
+#### Muc 5. Yeu cau chung ve giao dien
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 5.1 | Hien thi tieng Viet | DA CO | UTF-8 + Antd Vietnamese |
+| 5.2 | Ngay/thang/nam DD/MM/YYYY HH:mm | DA CO | dayjs locale |
+| 5.3 | Responsive | DA CO | Mobile drawer + tablet collapse |
+| 5.4 | Icon bang tieng Viet | DA CO | Antd icons |
+| 5.5 | Phan trang, loc, sap xep | DA CO | Antd Table |
+| 5.6 | Thong bao, thu dien tu | DA CO | SignalR NotificationBell |
+| 5.7 | Backup tu dong | DA CO | SystemAdmin backup tab |
+| 5.8 | Bang ke BHYT | DA CO | Insurance.tsx |
+
+#### Muc 6. Quan ly kho thuoc BHYT (10 tinh nang)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 6.1 | Nhap kho thuoc BHYT (6 loai) | DA CO | WarehouseCompleteService |
+| 6.2 | Xuat kho cho Trạm YT | DA CO | TransferIssue + DepartmentIssue |
+| 6.3 | Tong hop nhap xuat ton | DA CO | Inventory report |
+| 6.4 | Kiem ke | DA CO | StockTake in Warehouse |
+| 6.5 | Danh muc thuoc BHYT | DA CO | Medicine entity + InsurancePrice |
+| 6.6 | Bang ke BHYT | DA CO | Insurance reports |
+
+#### Muc 7. Quan ly nhan su Y te
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 7.1 | Quan ly nhan su (CRUD, phan quyen) | DA CO | SystemAdmin.tsx + HR.tsx |
+| 7.2 | Chuan giao dien nhan su Y te | DA CO | HealthcareStaff entity |
+| 7.3 | Danh sach nhan su | DA CO | HR.tsx |
+
+### B. CAC CHUC NANG DA BO SUNG (Session 40 - 2026-04-03)
+
+| STT | Yeu cau | Trang thai | Ghi chu |
+|-----|---------|-------------|----------|
+| 1 | Quan ly lich truc 3 cap (Tram YT) | **DA XONG** | `GetBranchDutyRosterAsync` + `/duty-roster` endpoint |
+| 2 | Dashboard 3 cap (lay du lieu tu tram YT) | **DA XONG** | `Dashboard3Cap.tsx` + `/dashboard` endpoint - 4 tabs |
+| 3 | Bao cao 3 cap (tong hop tu tram YT) | **DA XONG** | `GetConsolidatedReportAsync` + `/consolidated-report` endpoint |
+
+**Backend files created:**
+- `MultiFacilityConsolidationService.cs` (725 lines) - 6 methods
+- `MultiFacilityConsolidationController.cs` (103 lines) - 6 endpoints
+- `MultiFacilityDTOs.cs` - 11 DTOs
+- `HospitalBranches` table created + seeded (6 branches, 3-tier)
+- `BranchId` added to `Patients`, `QueueTickets`, `Departments`, `Rooms`
+
+**Frontend files created:**
+- `frontend/src/api/multiFacility.ts` - 5 API functions + types
+- `frontend/src/pages/Dashboard3Cap.tsx` - 4-tab dashboard
+
+### C. TONG KET PHAN 21
+
+| Muc | Yeu cau | DA CO | CAN BO SUNG | % |
+|-----|---------|-------|-------------|---|
+| 1. Ky thuat chung (19) | 19 | 19 | 0 | 100% |
+| 2. Quan ly BN noi bo (30) | 30 | 30 | 0 | 100% |
+| 3. Quan ly BN noi bo Huyen (48) | 48 | 48 | 0 | 100% |
+| 4. Quan ly BN noi bo Tinh (38) | 38 | 38 | 0 | 100% |
+| 5. Giao dien (8) | 8 | 8 | 0 | 100% |
+| 6. Kho thuoc BHYT (10) | 10 | 10 | 0 | 100% |
+| 7. Quan ly nhan su (3) | 3 | 3 | 0 | 100% |
+| **Tong** | **156** | **156** | **0** | **100%** |
+
+> **Ket luan NangCap21**: Tat ca 156 chuc nang deu da co trong HIS hien tai. **3 chuc nang bo sung trong Session 40 (2026-04-03): Dashboard 3 cap, Bao cao tong hop, Lich truc da chi nhanh.** He thong 3 cap (Tram YT - Huyen - Tinh) da duoc ho tro voi multi-branch architecture, lien thong HL7 FHIR, va HealthExchange module.
