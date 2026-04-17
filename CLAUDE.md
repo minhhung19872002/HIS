@@ -1432,3 +1432,146 @@ Them PHẦN 6: CYPRESS E2E TEST COVERAGE (sections 6.1-6.6) vao cuoi file.
 - Playwright: 255/255 passing
 - API Workflow: 43/43 passing
 - Test Coverage: 100/100 luồng = 100%
+
+---
+
+## Work Log - 2026-04-17 → 18 (Prod deploy hardening)
+
+Backend deployed to **Google Cloud Run** (`his-api`, project `optical-order-478805-k6`,
+region `asia-southeast1`). Frontend on **Vercel** at https://his-psi.vercel.app.
+
+### Deployed fixes (committed to main)
+
+- `af9bd1f` / `5564900` — idempotent schema repair on startup:
+  - `backend/src/HIS.Infrastructure/Data/ProductionSchemaRepairRunner.cs` loads
+    embedded `Data/Scripts/*.sql` (ordered 01→16, each idempotent) + runs a
+    model-driven pass using `context.Database.GenerateCreateScript()` to auto-
+    create any DbSet-backed table missing from the live schema. 4 retry passes;
+    pass ≥1 downgrades `ON DELETE CASCADE` → `NO ACTION`; pass ≥3 strips inline
+    `FOREIGN KEY` constraints so tables create even when FK target is not yet
+    in place.
+  - Final drift against Cloud SQL: **0/370 tables missing**.
+- `af9bd1f` — `AuditLogMiddleware` resolves `IServiceScopeFactory` + opens a
+  fresh scope inside `Task.Run`, fixing `ObjectDisposedException` on every
+  POST/PUT/DELETE.
+- `af9bd1f` — `DigitalSignatureService.GetAvailableCertificatesAsync` short-
+  circuits on non-Windows (Cloud Run = Linux), removes the OpenSsl X509
+  CryptographicException noise.
+- `5564900` — `GET /health/schema-drift` (Admin-only) reports missing tables
+  in one HTTP call; no log mining needed for future drift diagnosis.
+
+### Prod deploy topology
+
+- Docker build context = `backend/`, Dockerfile `backend/src/HIS.API/Dockerfile`.
+- Cloud Build config: `cloudbuild.yaml` at repo root. Submit with
+  `gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=<tag>`.
+- Cloud Run env vars already set: `ConnectionStrings__DefaultConnection` →
+  VPC internal `10.39.0.3`, `CorsOriginsCsv=https://his-psi.vercel.app,...`,
+  `Jwt__Key`, `PACS__Enabled=false`, `HL7__Enabled=false`.
+- Frontend uses `frontend/.env.production` which pins
+  `VITE_API_URL=https://his-api-rm6c6yvoja-as.a.run.app/api` — no Vercel
+  `/api` proxy (the old `api/[...path].js` was deleted).
+- `frontend/playwright.prod.config.ts` + `frontend/e2e-prod/smoke.spec.ts`
+  cover 4 prod smoke tests (API health, login, previously-500 endpoints,
+  24-page route sweep). All pass against live deploy.
+
+### DANG DO / CHUA XONG
+
+**Migrate data from local Docker → Cloud SQL (after Docker restart)**
+
+State at pause: local Docker Desktop's Linux engine backend returned HTTP 500
+on every `docker` call (`dockerDesktopLinuxEngine` pipe). User is restarting
+Docker Desktop. Resume with the plan below once `docker ps` lists
+`his-sqlserver` as Up.
+
+**Why needed:** prod Cloud SQL `HIS` has only master-data seeded by
+`DatabaseSeeder.cs` (Roles, admin user, 8 Departments, Permissions, 6
+Medicines) and an empty transactional tree (Patients, MedicalRecords,
+Examinations, Admissions, ServiceRequests, Prescriptions, etc.). All the
+real data the user wants to see on prod lives in the local Docker DB.
+
+**Plan (in order):**
+
+1. Verify local DB is reachable:
+   ```bash
+   docker ps --filter name=his-sqlserver
+   docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost \
+     -U sa -P "HisDocker2024Pass#" -C -Q "SELECT COUNT(*) FROM HIS.dbo.Patients"
+   ```
+   Record the row counts for Patients / MedicalRecords / Examinations so we
+   can verify the import afterwards.
+
+2. BACKUP inside the container:
+   ```bash
+   docker exec his-sqlserver mkdir -p /var/opt/mssql/backup
+   docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost \
+     -U sa -P "HisDocker2024Pass#" -C -Q \
+     "BACKUP DATABASE HIS TO DISK = N'/var/opt/mssql/backup/HIS.bak' \
+      WITH COMPRESSION, CHECKSUM, INIT, FORMAT"
+   docker cp his-sqlserver:/var/opt/mssql/backup/HIS.bak ./HIS.bak
+   ```
+
+3. Upload to GCS. Reuse the Cloud Build bucket so no extra resource:
+   ```bash
+   gsutil cp ./HIS.bak gs://optical-order-478805-k6_cloudbuild/HIS.bak
+   ```
+
+4. Grant Cloud SQL service account read access on the bucket:
+   ```bash
+   SA=$(gcloud sql instances describe <instance> \
+     --project optical-order-478805-k6 --format="value(serviceAccountEmailAddress)")
+   gsutil iam ch serviceAccount:$SA:objectViewer \
+     gs://optical-order-478805-k6_cloudbuild
+   ```
+   (Get `<instance>` via `gcloud sql instances list --project optical-order-478805-k6`.)
+
+5. Drop the existing Cloud SQL `HIS` DB (only master data — safe to nuke),
+   then import:
+   ```bash
+   gcloud sql databases delete HIS --instance=<instance> \
+     --project optical-order-478805-k6 --quiet
+   gcloud sql databases create HIS --instance=<instance> \
+     --project optical-order-478805-k6
+   gcloud sql import bak <instance> \
+     gs://optical-order-478805-k6_cloudbuild/HIS.bak \
+     --database=HIS --project optical-order-478805-k6 --quiet
+   ```
+
+6. Force Cloud Run to pick up the restored DB by bumping a new revision
+   (connections get recycled):
+   ```bash
+   gcloud run services update his-api --project optical-order-478805-k6 \
+     --region asia-southeast1 --update-env-vars=DB_RESTORED_AT=$(date +%s)
+   ```
+   The `ProductionSchemaRepairRunner` will run once more, confirm 0 drift
+   (all schema already matches because we're restoring the full local DB),
+   and be a no-op.
+
+7. Verify on prod:
+   ```bash
+   curl -s https://his-api-rm6c6yvoja-as.a.run.app/health/schema-drift \
+     -H "Authorization: Bearer $TOKEN" | python -c "import json,sys;print(json.load(sys.stdin)['missingCount'])"
+   # should be 0
+   ```
+   Then visit https://his-psi.vercel.app/reception and confirm the page
+   shows real patients instead of 0 counts.
+
+**Fallback if BAK import rejects the file** (version skew between local mssql
+and Cloud SQL for SQL Server): use data-only scripting via `mssql-scripter`
+or `BCP export` per table → `BULK INSERT` on prod via a temporary connection
+through Cloud SQL Auth Proxy. Heavier, but works when version skew blocks
+direct BAK restore.
+
+**Do NOT seed fake data — user explicitly requires data must come from the
+real local DB, no mock/seed rows.**
+
+### Key URLs / IDs for future sessions
+
+- Cloud Run service URL: https://his-api-rm6c6yvoja-as.a.run.app
+- Alt format: https://his-api-92850107096.asia-southeast1.run.app
+- Vercel URL: https://his-psi.vercel.app
+- Latest Cloud Run revision (as of 2026-04-18): `his-api-00016-zmq`
+- Latest image tag pattern: `asia-southeast1-docker.pkg.dev/optical-order-478805-k6/his/his-api:YYYYMMDD-HHMMSS`
+- Admin login: `admin` / `Admin@123`
+- Cloud SQL DB name: `HIS`, connection string env var
+  `ConnectionStrings__DefaultConnection` on the Cloud Run service.
