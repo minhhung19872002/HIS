@@ -147,3 +147,4 @@ frontend/cypress-batch-results.json
 # Test scripts (local)
 test-ipd-flow.ps1
 test-reception-full.ps1
+.vercel

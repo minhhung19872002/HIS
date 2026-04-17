@@ -16,12 +16,77 @@ public static class DatabaseSchemaCompatibility
         await EnsureStringColumnLengthAsync(context, "Patients", "Email", 450);
         await EnsureStringColumnLengthAsync(context, "Patients", "InsuranceNumber", 450);
 
+        await EnsureNotificationTableAsync(context);
         await EnsureColumnAsync(context, "TeleSessions", "DurationMinutes", "INT NULL");
         await EnsureColumnAsync(context, "TeleSessions", "IsRecorded", "BIT NULL");
         await EnsureColumnAsync(context, "TeleSessions", "ConnectionQuality", "NVARCHAR(MAX) NULL");
         await EnsureColumnAsync(context, "TeleSessions", "CreatedAt", "DATETIME2 NULL");
         await EnsureHivManagementTablesAsync(context);
         await EnsureTrainingResearchTablesAsync(context);
+    }
+
+    private static async Task EnsureNotificationTableAsync(HISDbContext context)
+    {
+        await ExecuteNonQueryAsync(context, """
+            IF OBJECT_ID(N'[dbo].[Notifications]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Notifications]
+                (
+                    [Id] UNIQUEIDENTIFIER NOT NULL CONSTRAINT [PK_Notifications] PRIMARY KEY,
+                    [Title] NVARCHAR(MAX) NOT NULL CONSTRAINT [DF_Notifications_Title] DEFAULT(N''),
+                    [Content] NVARCHAR(MAX) NOT NULL CONSTRAINT [DF_Notifications_Content] DEFAULT(N''),
+                    [NotificationType] NVARCHAR(MAX) NOT NULL CONSTRAINT [DF_Notifications_NotificationType] DEFAULT(N'Info'),
+                    [Module] NVARCHAR(MAX) NULL,
+                    [ActionUrl] NVARCHAR(MAX) NULL,
+                    [TargetUserId] UNIQUEIDENTIFIER NULL,
+                    [TargetRoleId] UNIQUEIDENTIFIER NULL,
+                    [IsRead] BIT NOT NULL CONSTRAINT [DF_Notifications_IsRead] DEFAULT(0),
+                    [ReadAt] DATETIME2 NULL,
+                    [CreatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_Notifications_CreatedAt] DEFAULT(GETDATE()),
+                    [CreatedBy] UNIQUEIDENTIFIER NULL,
+                    [UpdatedAt] DATETIME2 NULL,
+                    [UpdatedBy] UNIQUEIDENTIFIER NULL,
+                    [IsDeleted] BIT NOT NULL CONSTRAINT [DF_Notifications_IsDeleted] DEFAULT(0)
+                );
+            END
+            """);
+
+        await EnsureColumnAsync(context, "Notifications", "Title", "NVARCHAR(MAX) NOT NULL DEFAULT(N'')");
+        await EnsureColumnAsync(context, "Notifications", "Content", "NVARCHAR(MAX) NOT NULL DEFAULT(N'')");
+        await EnsureColumnAsync(context, "Notifications", "NotificationType", "NVARCHAR(MAX) NOT NULL DEFAULT(N'Info')");
+        await EnsureColumnAsync(context, "Notifications", "Module", "NVARCHAR(MAX) NULL");
+        await EnsureColumnAsync(context, "Notifications", "ActionUrl", "NVARCHAR(MAX) NULL");
+        await EnsureColumnAsync(context, "Notifications", "TargetUserId", "UNIQUEIDENTIFIER NULL");
+        await EnsureColumnAsync(context, "Notifications", "TargetRoleId", "UNIQUEIDENTIFIER NULL");
+        await EnsureColumnAsync(context, "Notifications", "IsRead", "BIT NOT NULL DEFAULT(0)");
+        await EnsureColumnAsync(context, "Notifications", "ReadAt", "DATETIME2 NULL");
+        await EnsureColumnAsync(context, "Notifications", "CreatedAt", "DATETIME2 NOT NULL DEFAULT(GETDATE())");
+        await EnsureColumnAsync(context, "Notifications", "CreatedBy", "UNIQUEIDENTIFIER NULL");
+        await EnsureColumnAsync(context, "Notifications", "UpdatedAt", "DATETIME2 NULL");
+        await EnsureColumnAsync(context, "Notifications", "UpdatedBy", "UNIQUEIDENTIFIER NULL");
+        await EnsureColumnAsync(context, "Notifications", "IsDeleted", "BIT NOT NULL DEFAULT(0)");
+
+        await ExecuteNonQueryAsync(context, """
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.indexes
+                WHERE name = N'IX_Notifications_TargetUserId'
+                  AND object_id = OBJECT_ID(N'[dbo].[Notifications]')
+            )
+            BEGIN
+                CREATE INDEX [IX_Notifications_TargetUserId] ON [dbo].[Notifications]([TargetUserId]);
+            END
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.indexes
+                WHERE name = N'IX_Notifications_TargetRoleId'
+                  AND object_id = OBJECT_ID(N'[dbo].[Notifications]')
+            )
+            BEGIN
+                CREATE INDEX [IX_Notifications_TargetRoleId] ON [dbo].[Notifications]([TargetRoleId]);
+            END
+            """);
     }
 
     private static async Task EnsureHivManagementTablesAsync(HISDbContext context)

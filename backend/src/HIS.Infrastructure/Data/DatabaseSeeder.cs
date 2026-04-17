@@ -32,6 +32,8 @@ public static class DatabaseSeeder
         {
             await context.Database.EnsureCreatedAsync();
         }
+
+        await EnsureDataProtectionKeyTableAsync(context);
         await DatabaseSchemaCompatibility.EnsureLegacySchemaAsync(context);
 
         // Seed roles
@@ -374,6 +376,28 @@ public static class DatabaseSeeder
             await context.Medicines.AddRangeAsync(medicines);
             await context.SaveChangesAsync();
         }
+    }
+
+    private static async Task EnsureDataProtectionKeyTableAsync(HISDbContext context)
+    {
+        if (!context.Database.IsSqlServer())
+        {
+            return;
+        }
+
+        await context.Database.ExecuteSqlRawAsync(
+            """
+            IF OBJECT_ID(N'[dbo].[DataProtectionKeys]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[DataProtectionKeys]
+                (
+                    [Id] INT NOT NULL IDENTITY(1,1),
+                    [FriendlyName] NVARCHAR(MAX) NULL,
+                    [Xml] NVARCHAR(MAX) NULL,
+                    CONSTRAINT [PK_DataProtectionKeys] PRIMARY KEY ([Id])
+                );
+            END
+            """);
     }
 
     private static async Task<bool> HasAnyUserTableAsync(HISDbContext context)

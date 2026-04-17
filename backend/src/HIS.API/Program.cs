@@ -3,6 +3,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using HIS.Application;
@@ -31,7 +32,7 @@ builder.Services.AddControllers()
     });
 
 // CORS
-var corsOrigins = builder.Configuration.GetSection("CorsOrigins").Get<string[]>() ?? new[] { "http://localhost:3000" };
+var corsOrigins = GetCorsOrigins(builder.Configuration);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -86,6 +87,16 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // SignalR for real-time notifications
 builder.Services.AddSignalR();
 
@@ -128,8 +139,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // Data Protection for column-level encryption of Patient PII (SEC-02)
 builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(
-        Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys")))
+    .PersistKeysToDbContext<HISDbContext>()
     .SetApplicationName("HIS");
 
 var app = builder.Build();
@@ -147,6 +157,8 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = string.Empty;
     });
 }
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -168,3 +180,21 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<RisChatHub>("/hubs/ris-chat");
 
 app.Run();
+
+static string[] GetCorsOrigins(IConfiguration configuration)
+{
+    var configuredOrigins = configuration.GetSection("CorsOrigins").Get<string[]>() ?? Array.Empty<string>();
+    var inlineOrigins = configuration["CorsOriginsCsv"] ?? configuration["CORS_ORIGINS"] ?? configuration["AllowedOrigins"];
+    var envOrigins = string.IsNullOrWhiteSpace(inlineOrigins)
+        ? Array.Empty<string>()
+        : inlineOrigins.Split(new[] { ',', ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    var mergedOrigins = configuredOrigins
+        .Concat(envOrigins)
+        .Select(origin => origin.Trim())
+        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    return mergedOrigins.Length > 0 ? mergedOrigins : ["http://localhost:3000"];
+}

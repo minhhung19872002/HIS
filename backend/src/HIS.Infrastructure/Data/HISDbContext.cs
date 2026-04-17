@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Linq.Expressions;
@@ -7,7 +8,7 @@ using HIS.Infrastructure.Security;
 
 namespace HIS.Infrastructure.Data;
 
-public class HISDbContext : DbContext
+public partial class HISDbContext : DbContext, IDataProtectionKeyContext
 {
     private readonly IDataProtectionProvider? _dataProtectionProvider;
 

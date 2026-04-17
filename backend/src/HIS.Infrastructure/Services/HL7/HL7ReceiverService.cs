@@ -20,6 +20,7 @@ namespace HIS.Infrastructure.Services.HL7
         private readonly ILogger<HL7ReceiverService> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly HL7Parser _parser;
+        private readonly bool _enabled;
         private readonly int _port;
         private TcpListener _listener;
 
@@ -36,11 +37,18 @@ namespace HIS.Infrastructure.Services.HL7
             _logger = logger;
             _serviceProvider = serviceProvider;
             _parser = new HL7Parser();
+            _enabled = configuration.GetValue<bool>("HL7:Enabled", true);
             _port = configuration.GetValue<int>("HL7:ReceiverPort", 2576);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            if (!_enabled)
+            {
+                _logger.LogInformation("HL7 Receiver Service is disabled by configuration");
+                return;
+            }
+
             _logger.LogInformation("HL7 Receiver Service starting on port {Port}", _port);
 
             try
