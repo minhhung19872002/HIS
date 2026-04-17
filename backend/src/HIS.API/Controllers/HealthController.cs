@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
 using HIS.Infrastructure.Services;
 
@@ -114,6 +115,54 @@ public class HealthController : ControllerBase
                 error = ex.Message
             });
         }
+    }
+
+    /// <summary>
+    /// Schema drift check: reports DbSet types whose backing table is missing in the
+    /// current database, plus any table names the runtime model expects. Admin-only.
+    /// Used for post-deploy verification when endpoints silently return empty data
+    /// because an exception (e.g. "Invalid object name") is being caught upstream.
+    /// </summary>
+    [HttpGet("/health/schema-drift")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetSchemaDrift([FromServices] HIS.Infrastructure.Data.HISDbContext context)
+    {
+        if (!context.Database.IsSqlServer())
+            return Ok(new { isSqlServer = false, missing = Array.Empty<string>() });
+
+        var expected = context.Model.GetEntityTypes()
+            .Select(t => t.GetTableName())
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var connection = context.Database.GetDbConnection();
+        var shouldClose = connection.State != System.Data.ConnectionState.Open;
+        if (shouldClose) await connection.OpenAsync();
+
+        var actual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo'";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                actual.Add(reader.GetString(0));
+        }
+        finally
+        {
+            if (shouldClose) await connection.CloseAsync();
+        }
+
+        var missing = expected.Where(n => !actual.Contains(n!)).OrderBy(n => n).ToList();
+        return Ok(new
+        {
+            timestamp = DateTime.UtcNow,
+            expectedCount = expected.Count,
+            actualCount = actual.Count,
+            missingCount = missing.Count,
+            missing
+        });
     }
 }
 
