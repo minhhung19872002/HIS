@@ -41,6 +41,28 @@ export interface CheckupType {
   name: string;
 }
 
+const normalizeArrayResponse = <T>(payload: unknown): T[] => {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as { items?: unknown; data?: unknown };
+    if (Array.isArray(record.items)) {
+      return record.items as T[];
+    }
+
+    if (record.data && typeof record.data === 'object') {
+      const nested = record.data as { items?: unknown };
+      if (Array.isArray(nested.items)) {
+        return nested.items as T[];
+      }
+    }
+  }
+
+  return [];
+};
+
 // ---- API Functions ----
 
 export const searchHealthCheckups = async (params?: {
@@ -54,7 +76,7 @@ export const searchHealthCheckups = async (params?: {
 }) => {
   try {
     const response = await apiClient.get<HealthCheckup[]>('/health-checkup', { params });
-    return response.data || [];
+    return normalizeArrayResponse<HealthCheckup>(response.data);
   } catch {
     console.warn('Failed to fetch health checkups');
     return [];
@@ -93,7 +115,7 @@ export const getHealthCheckupStats = async (): Promise<HealthCheckupStats> => {
 export const getCheckupTypes = async (): Promise<CheckupType[]> => {
   try {
     const response = await apiClient.get<CheckupType[]>('/health-checkup/types');
-    return response.data || [];
+    return normalizeArrayResponse<CheckupType>(response.data);
   } catch {
     console.warn('Failed to fetch checkup types');
     return [
@@ -154,7 +176,7 @@ export const getCampaigns = async (params?: {
 }): Promise<CheckupCampaign[]> => {
   try {
     const response = await apiClient.get<CheckupCampaign[]>('/health-checkup/campaigns', { params });
-    return response.data || [];
+    return normalizeArrayResponse<CheckupCampaign>(response.data);
   } catch {
     console.warn('Failed to fetch campaigns');
     return [];
@@ -183,7 +205,7 @@ export const deleteCampaign = async (id: string) => {
 export const getCampaignGroups = async (campaignId: string): Promise<CampaignGroup[]> => {
   try {
     const response = await apiClient.get<CampaignGroup[]>(`/health-checkup/campaigns/${campaignId}/groups`);
-    return response.data || [];
+    return normalizeArrayResponse<CampaignGroup>(response.data);
   } catch {
     console.warn('Failed to fetch campaign groups');
     return [];

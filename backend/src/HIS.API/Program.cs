@@ -174,6 +174,7 @@ app.UseAuthorization();
 
 // Audit log middleware (after auth so JWT claims are available)
 app.UseMiddleware<AuditLogMiddleware>();
+app.UseMiddleware<ProductionReadFallbackMiddleware>();
 
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");

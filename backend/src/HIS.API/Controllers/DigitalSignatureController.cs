@@ -340,7 +340,7 @@ public class DigitalSignatureController : ControllerBase
     /// <summary>
     /// Get signatures for a document
     /// </summary>
-    [HttpGet("signatures/{documentId}")]
+    [HttpGet("signatures/{documentId:guid}")]
     public async Task<ActionResult<List<DocumentSignatureDto>>> GetSignatures(Guid documentId)
     {
         var signatures = await _db.DocumentSignatures
