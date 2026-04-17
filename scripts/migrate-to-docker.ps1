@@ -12,6 +12,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "HIS - SQL Server Migration to Docker" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
+$dockerSqlPassword = "HisDocker2024Pass#"
 
 # Step 1: Check Docker Desktop
 Write-Host "[1/6] Checking Docker Desktop..." -ForegroundColor Yellow
@@ -71,7 +72,7 @@ Start-Sleep -Seconds 60
 $maxRetries = 10
 $retryCount = 0
 do {
-    $result = docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -Q "SELECT 1" 2>&1
+    $result = docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $dockerSqlPassword -C -Q "SELECT 1" 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host "SQL Server is ready!" -ForegroundColor Green
         break
@@ -132,7 +133,7 @@ GO
 $restoreQuery | Out-File -FilePath "$BackupPath\restore.sql" -Encoding UTF8
 
 docker cp "$BackupPath\restore.sql" his-sqlserver:/var/opt/mssql/backup/restore.sql
-docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -i /var/opt/mssql/backup/restore.sql
+docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $dockerSqlPassword -C -i /var/opt/mssql/backup/restore.sql
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""
@@ -143,12 +144,12 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Docker SQL Server connection:" -ForegroundColor Cyan
     Write-Host "  Server: localhost,1433" -ForegroundColor White
     Write-Host "  User: sa" -ForegroundColor White
-    Write-Host "  Password: HIS@Docker2024!" -ForegroundColor White
+    Write-Host "  Password: $dockerSqlPassword" -ForegroundColor White
     Write-Host "  Database: HIS" -ForegroundColor White
     Write-Host ""
-    Write-Host "To run API with Docker:" -ForegroundColor Cyan
+    Write-Host "To run API against Docker services:" -ForegroundColor Cyan
     Write-Host "  cd C:\Source\HIS\backend\src\HIS.API" -ForegroundColor White
-    Write-Host "  dotnet run --environment Docker" -ForegroundColor White
+    Write-Host "  dotnet run --launch-profile http" -ForegroundColor White
     Write-Host ""
 }
 else {

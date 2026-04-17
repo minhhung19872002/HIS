@@ -16,6 +16,7 @@ Write-Host "Starting Docker containers..." -ForegroundColor Yellow
 # Go to project root
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
+$dockerSqlPassword = "HisDocker2024Pass#"
 
 # Start containers
 docker-compose up -d
@@ -32,7 +33,7 @@ while (-not $ready -and $attempt -lt $maxAttempts) {
     $attempt++
     Write-Host "  Attempt $attempt/$maxAttempts..." -ForegroundColor Gray
 
-    $result = docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -Q "SELECT 1" 2>$null
+    $result = docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $dockerSqlPassword -C -Q "SELECT 1" 2>$null
 
     if ($LASTEXITCODE -eq 0) {
         $ready = $true
@@ -46,7 +47,7 @@ if ($ready) {
 
     # Run init script
     Write-Host "Running database initialization..." -ForegroundColor Yellow
-    docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -i /docker-entrypoint-initdb.d/01-create-database.sql
+    docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $dockerSqlPassword -C -i /docker-entrypoint-initdb.d/01-create-database.sql
 
     Write-Host ""
     Write-Host "=== Services Ready ===" -ForegroundColor Green
@@ -61,8 +62,7 @@ if ($ready) {
     Write-Host ""
     Write-Host "To start the API:" -ForegroundColor Cyan
     Write-Host "  cd backend/src/HIS.API" -ForegroundColor Gray
-    Write-Host "  set ASPNETCORE_ENVIRONMENT=Docker" -ForegroundColor Gray
-    Write-Host "  dotnet run" -ForegroundColor Gray
+    Write-Host "  dotnet run --launch-profile http" -ForegroundColor Gray
 } else {
     Write-Host "SQL Server failed to start. Check docker logs:" -ForegroundColor Red
     Write-Host "  docker logs his-sqlserver" -ForegroundColor Gray

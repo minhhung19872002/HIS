@@ -11,6 +11,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "HIS - Restore Database to Docker" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
+$dockerSqlPassword = "HisDocker2024Pass#"
 
 # Check if backup file exists
 if (!(Test-Path $BackupFile)) {
@@ -50,7 +51,7 @@ Start-Sleep -Seconds 60
 $maxRetries = 10
 $retryCount = 0
 do {
-    $result = docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -Q "SELECT 1" 2>&1
+    $result = docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $dockerSqlPassword -C -Q "SELECT 1" 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host "SQL Server is ready!" -ForegroundColor Green
         break
@@ -91,7 +92,7 @@ ALTER DATABASE HIS SET MULTI_USER;
 PRINT 'Database restored successfully!';
 "@
 
-docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -Q "$restoreCmd"
+docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $dockerSqlPassword -C -Q "$restoreCmd"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""
@@ -103,11 +104,11 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  Server: localhost,1433" -ForegroundColor White
     Write-Host "  Database: HIS" -ForegroundColor White
     Write-Host "  User: sa" -ForegroundColor White
-    Write-Host "  Password: HIS@Docker2024!" -ForegroundColor White
+    Write-Host "  Password: $dockerSqlPassword" -ForegroundColor White
     Write-Host ""
-    Write-Host "Run API with Docker:" -ForegroundColor Cyan
+    Write-Host "Run API against Docker services:" -ForegroundColor Cyan
     Write-Host "  cd C:\Source\HIS\backend\src\HIS.API" -ForegroundColor White
-    Write-Host "  dotnet run --environment Docker" -ForegroundColor White
+    Write-Host "  dotnet run --launch-profile http" -ForegroundColor White
     Write-Host ""
 }
 else {

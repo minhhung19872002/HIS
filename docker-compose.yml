@@ -6,7 +6,7 @@ services:
     hostname: his-sqlserver
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=HisDocker2024Pass#
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:-HisDocker2024Pass#}
       - MSSQL_PID=Developer
     ports:
       - "1433:1433"
@@ -15,7 +15,7 @@ services:
       - ./docker/sqlserver/init:/docker-entrypoint-initdb.d
       - ./backup:/var/opt/mssql/backup
     healthcheck:
-      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HisDocker2024Pass#" -C -Q "SELECT 1" || exit 1
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "${MSSQL_SA_PASSWORD:-HisDocker2024Pass#}" -C -Q "SELECT 1" || exit 1
       interval: 10s
       timeout: 5s
       retries: 10

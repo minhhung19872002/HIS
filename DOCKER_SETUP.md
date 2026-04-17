@@ -35,7 +35,7 @@ Wait for SQL Server to be ready (about 30 seconds), then run:
 
 ```powershell
 # Initialize the HIS database
-docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -i /docker-entrypoint-initdb.d/01-create-database.sql
+docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HisDocker2024Pass#" -C -i /docker-entrypoint-initdb.d/01-create-database.sql
 ```
 
 ### 4. Run EF Migrations
@@ -49,8 +49,10 @@ dotnet ef database update
 
 ```powershell
 cd C:\Source\HIS\backend\src\HIS.API
-dotnet run --urls "http://localhost:5106"
+dotnet run --launch-profile http
 ```
+
+The default `Development` profile now connects to the Docker services on `localhost` for SQL Server, Redis, and Orthanc.
 
 ### 6. Start Frontend
 
@@ -63,7 +65,7 @@ npm run dev
 
 | Service | Host | Port | Credentials |
 |---------|------|------|-------------|
-| SQL Server | localhost | 1433 | sa / HIS@Docker2024! |
+| SQL Server | localhost | 1433 | sa / HisDocker2024Pass# |
 | Orthanc Web | localhost | 8042 | admin / orthanc |
 | DICOM | localhost | 4242 | - |
 | Redis | localhost | 6379 | - |
@@ -71,7 +73,7 @@ npm run dev
 ## Connection String
 
 ```
-Server=localhost,1433;Database=HIS;User Id=sa;Password=HIS@Docker2024!;TrustServerCertificate=True;MultipleActiveResultSets=true
+Server=localhost,1433;Database=HIS;User Id=sa;Password=HisDocker2024Pass#;TrustServerCertificate=True;MultipleActiveResultSets=true
 ```
 
 ## Useful Commands
@@ -102,11 +104,11 @@ If you have existing data in local SQL Server (localhost\DOTNET), you can migrat
 
 ### Option 1: Automatic Migration Script
 
-powershell
+```powershell
 # Run the migration script
 cd C:\Source\HIS
 .\scripts\migrate-to-docker.ps1
-
+```
 
 This script will:
 1. Backup your local database
@@ -122,25 +124,29 @@ This script will:
    - Save to C:\Source\HIS\backup\HIS.bak
 
 2. **Start Docker containers:**
-   powershell
+   ```powershell
    cd C:\Source\HIS
    docker-compose up -d
    # Wait 60 seconds for SQL Server to start
-   
+   ```
 
 3. **Restore in Docker:**
-   powershell
-   docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -Q "RESTORE DATABASE [HIS] FROM DISK = N'/var/opt/mssql/backup/HIS.bak' WITH MOVE N'HIS' TO N'/var/opt/mssql/data/HIS.mdf', MOVE N'HIS_log' TO N'/var/opt/mssql/data/HIS_log.ldf', REPLACE"
-   
+   ```powershell
+   docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HisDocker2024Pass#" -C -Q "RESTORE DATABASE [HIS] FROM DISK = N'/var/opt/mssql/backup/HIS.bak' WITH MOVE N'HIS' TO N'/var/opt/mssql/data/HIS.mdf', MOVE N'HIS_log' TO N'/var/opt/mssql/data/HIS_log.ldf', REPLACE"
+   ```
 
 ### Running API with Docker Database
 
-powershell
+```powershell
 cd C:\Source\HIS\backend\src\HIS.API
-dotnet run --environment Docker
+dotnet run --launch-profile http
+```
 
+If you specifically want the explicit Docker environment profile instead of the default Development profile, run:
 
-This uses the connection string in appsettings.Docker.json.
+```powershell
+dotnet run --launch-profile Docker
+```
 
 ---
 ## Troubleshooting
@@ -160,6 +166,6 @@ Stop existing services using the same port or change port in docker-compose.yml
 docker-compose down -v
 docker-compose up -d
 # Wait 30 seconds
-docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HIS@Docker2024!" -C -i /docker-entrypoint-initdb.d/01-create-database.sql
+docker exec his-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HisDocker2024Pass#" -C -i /docker-entrypoint-initdb.d/01-create-database.sql
 dotnet ef database update
 ```

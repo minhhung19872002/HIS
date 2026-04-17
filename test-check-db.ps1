@@ -1,4 +1,4 @@
-$connectionString = "Server=localhost\DOTNET;Database=HIS;Trusted_Connection=True;TrustServerCertificate=True"
+$connectionString = "Server=localhost,1433;Database=HIS;User Id=sa;Password=HisDocker2024Pass#;TrustServerCertificate=True"
 
 Write-Host "=== Check Medical Records (Inpatient type) ===" -ForegroundColor Cyan
 $query1 = "SELECT TOP 5 Id, MedicalRecordCode, TreatmentType, Status, AdmissionDate FROM MedicalRecords WHERE TreatmentType = 2 ORDER BY CreatedAt DESC"
