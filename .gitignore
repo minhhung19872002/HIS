@@ -124,6 +124,16 @@ App_Data/
 # Claude Code Settings
 # =========================
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+.playwright-mcp/
+
+# Prod diagnostic artifacts (ad-hoc probes, log exports, playwright reports)
+prod-error-logs*.json
+frontend/prod-endpoint-probe.json
+frontend/prod-route-audit.json
+frontend/playwright-prod-report.json
+frontend/playwright-report/
+frontend/test-results/
 
 # XML exports
 backend/src/HIS.API/exports/
