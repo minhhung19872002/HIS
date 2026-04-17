@@ -98,6 +98,7 @@ import {
 } from '../api/security';
 import * as dataExportApi from '../api/dataExport';
 import * as itTicketApi from '../api/itTicket';
+import { API_ORIGIN } from '../config/api';
 import type { DataStatsDto, ModuleDataCountDto, BackupInfoDto, DataExportResultDto, DataHandoverDto } from '../api/dataExport';
 
 const { Title } = Typography;
@@ -2006,7 +2007,7 @@ const SystemAdmin: React.FC = () => {
 
                   {!healthData && !healthLoading && (
                     <Alert title="Không thể kết nối đến máy chủ" type="warning" showIcon
-                      description={`Vui lòng kiểm tra backend API đang chạy tại ${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5106'}`}
+                      description={`Vui lòng kiểm tra backend API đang chạy tại ${API_ORIGIN || window.location.origin}`}
                     />
                   )}
 

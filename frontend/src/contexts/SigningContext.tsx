@@ -15,6 +15,7 @@ import {
   batchSign as apiBatchSign,
 } from '../api/digitalSignature';
 import * as signalR from '@microsoft/signalr';
+import { REALTIME_ORIGIN } from '../config/api';
 
 interface BatchProgress {
   current: number;
@@ -64,10 +65,9 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const token = localStorage.getItem('token');
     if (!token) return;
-    const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api').replace(/\/api$/, '');
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${apiBase}/hubs/notifications`, {
+      .withUrl(`${REALTIME_ORIGIN}/hubs/notifications`, {
         accessTokenFactory: () => token,
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000])

@@ -2,8 +2,7 @@
  * PDF/HTML print API client
  * Opens backend-generated HTML forms in new browser tabs for printing
  */
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5106/api';
+import { buildApiUrl } from '../config/api';
 
 /**
  * Get the auth token from localStorage
@@ -18,7 +17,7 @@ function getToken(): string | null {
  */
 function buildPrintUrl(path: string): string {
   const token = getToken();
-  const url = `${API_URL}/${path}`;
+  const url = buildApiUrl(path);
   // For authenticated endpoints opened in new tab, we pass token via query
   // The backend should accept both Authorization header and query token
   return token ? `${url}${url.includes('?') ? '&' : '?'}access_token=${token}` : url;

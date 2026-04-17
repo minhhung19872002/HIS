@@ -47,6 +47,7 @@ import type { UploadFile } from 'antd/es/upload';
 import dayjs from 'dayjs';
 import client from '../api/client';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import { buildApiUrl } from '../config/api';
 import { isApiAvailable } from '../utils/apiAvailability';
 
 const { RangePicker } = DatePicker;
@@ -1636,7 +1637,7 @@ const BhxhAudit: React.FC = () => {
                   icon={<EyeOutlined />}
                   onClick={() => {
                     window.open(
-                      `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/bhxh-audit/records/${selectedPortalRecord.id}/pdf`,
+                      buildApiUrl(`/bhxh-audit/records/${selectedPortalRecord.id}/pdf`),
                       '_blank'
                     );
                   }}
@@ -1647,7 +1648,7 @@ const BhxhAudit: React.FC = () => {
                   icon={<DownloadOutlined />}
                   onClick={() => {
                     const link = document.createElement('a');
-                    link.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/bhxh-audit/records/${selectedPortalRecord.id}/pdf`;
+                    link.href = buildApiUrl(`/bhxh-audit/records/${selectedPortalRecord.id}/pdf`);
                     link.download = `HSBA_${selectedPortalRecord.maLk}.pdf`;
                     link.click();
                   }}

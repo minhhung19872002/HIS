@@ -65,6 +65,7 @@ import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
 import { getDepositBalance } from '../api/billing';
+import { buildApiUrl } from '../config/api';
 
 // Type aliases for compatibility
 type QueuePatient = RoomPatientListDto;
@@ -1008,7 +1009,7 @@ const OPD: React.FC = () => {
       }
       // Fetch service orders for that examination
       const ordersRes = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}/examination/${prevExam.examinationId}/supply-orders`,
+        buildApiUrl(`/examination/${prevExam.examinationId}/supply-orders`),
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token') || ''}`,

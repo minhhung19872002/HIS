@@ -1,4 +1,5 @@
 import { HubConnectionBuilder, HubConnection, HubConnectionState, LogLevel } from '@microsoft/signalr';
+import { REALTIME_ORIGIN } from '../config/api';
 
 export interface RisChatMessage {
   senderId: string;
@@ -19,10 +20,9 @@ function getConnection(): HubConnection {
   if (connection) return connection;
 
   const token = localStorage.getItem('token') || '';
-  const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5106').replace(/\/api$/, '');
 
   connection = new HubConnectionBuilder()
-    .withUrl(`${apiBase}/hubs/ris-chat`, { accessTokenFactory: () => token })
+    .withUrl(`${REALTIME_ORIGIN}/hubs/ris-chat`, { accessTokenFactory: () => token })
     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
     .configureLogging(LogLevel.None)
     .build();

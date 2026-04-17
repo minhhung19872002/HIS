@@ -68,6 +68,7 @@ import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheri
 import { patientApi, type Patient } from '../api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import { API_URL } from '../config/api';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -221,7 +222,7 @@ const Inpatient: React.FC = () => {
     if (!admission) return;
     try {
       // Try to fetch previous supply orders via API
-      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
+      const apiUrl = API_URL;
       const token = localStorage.getItem('token');
       const resp = await fetch(
         `${apiUrl}/inpatient/supply-orders/previous?patientId=${admission.patientCode || ''}&excludeAdmissionId=${admission.admissionId || ''}`,
@@ -249,7 +250,7 @@ const Inpatient: React.FC = () => {
   // NangCap4: Check active medications for a patient
   const checkActiveMedications = async (patientId: string) => {
     try {
-      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
+      const apiUrl = API_URL;
       const token = localStorage.getItem('token');
       const resp = await fetch(
         `${apiUrl}/inpatient/prescriptions/active?patientId=${patientId}`,
@@ -275,7 +276,7 @@ const Inpatient: React.FC = () => {
   const checkDepositBalance = async (admission: typeof selectedAdmission) => {
     if (!admission) return;
     try {
-      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api');
+      const apiUrl = API_URL;
       const token = localStorage.getItem('token');
       const resp = await fetch(
         `${apiUrl}/billing/deposit-balance?patientId=${admission.patientCode || ''}&admissionId=${admission.admissionId || ''}`,

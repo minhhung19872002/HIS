@@ -1,3 +1,5 @@
+import { buildApiUrl } from '../config/api';
+
 const availabilityCache = new Map<string, boolean>();
 const knownUnavailable = new Set([
   '/insurance-xml/bhxh-audit/records',
@@ -14,11 +16,10 @@ export async function isApiAvailable(path: string): Promise<boolean> {
     return availabilityCache.get(path) ?? false;
   }
 
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5106/api';
   const token = localStorage.getItem('token');
 
   try {
-    const response = await fetch(`${apiBase}${path}`, {
+    const response = await fetch(buildApiUrl(path), {
       method: 'GET',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });

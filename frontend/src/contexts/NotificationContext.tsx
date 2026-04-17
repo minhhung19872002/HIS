@@ -4,6 +4,7 @@ import { message } from 'antd';
 import { useAuth } from './AuthContext';
 import * as notificationApi from '../api/notification';
 import type { NotificationDto } from '../api/notification';
+import { REALTIME_ORIGIN } from '../config/api';
 
 interface NotificationContextType {
   notifications: NotificationDto[];
@@ -98,9 +99,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     fetchNotifications();
 
     // Build SignalR connection
-    const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5106').replace(/\/api$/, '');
     const connection = new HubConnectionBuilder()
-      .withUrl(`${apiBase}/hubs/notifications`, { accessTokenFactory: () => token })
+      .withUrl(`${REALTIME_ORIGIN}/hubs/notifications`, { accessTokenFactory: () => token })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .configureLogging(LogLevel.None)
       .build();
