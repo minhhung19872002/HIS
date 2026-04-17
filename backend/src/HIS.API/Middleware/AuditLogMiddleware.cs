@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using HIS.Application.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HIS.API.Middleware;
 
@@ -101,11 +102,14 @@ public class AuditLogMiddleware
         // Execute the request first
         await _next(context);
 
-        // Fire-and-forget audit logging after response is sent
+        // Capture state from the request pipeline BEFORE the scope is disposed.
+        // The IAuditLogService depends on a scoped DbContext; resolving it here and using it
+        // inside Task.Run causes ObjectDisposedException once the request scope tears down.
+        // Instead, snapshot the values and open a fresh scope inside the background task.
         try
         {
-            var auditService = context.RequestServices.GetService<IAuditLogService>();
-            if (auditService == null) return;
+            var scopeFactory = context.RequestServices.GetService<IServiceScopeFactory>();
+            if (scopeFactory == null) return;
 
             var userId = context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
                       ?? context.User?.FindFirst("sub")?.Value
@@ -136,6 +140,10 @@ public class AuditLogMiddleware
             {
                 try
                 {
+                    using var scope = scopeFactory.CreateScope();
+                    var auditService = scope.ServiceProvider.GetService<IAuditLogService>();
+                    if (auditService == null) return;
+
                     await auditService.LogAsync(
                         userId,
                         userName,

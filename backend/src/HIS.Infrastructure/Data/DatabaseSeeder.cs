@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using HIS.Core.Entities;
 
 namespace HIS.Infrastructure.Data;
@@ -10,6 +11,8 @@ public static class DatabaseSeeder
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HISDbContext>();
+        var loggerFactory = scope.ServiceProvider.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger("DatabaseSeeder");
 
         // Prefer migrations for evolving schemas; fall back to EnsureCreated for providers without migrations.
         if (context.Database.IsRelational())
@@ -35,6 +38,21 @@ public static class DatabaseSeeder
 
         await EnsureDataProtectionKeyTableAsync(context);
         await DatabaseSchemaCompatibility.EnsureLegacySchemaAsync(context);
+
+        // Run idempotent schema repair scripts bundled as embedded resources. Covers
+        // tables added via ad-hoc scripts/*.sql that were not promoted into migrations,
+        // bringing a freshly-deployed production database up to the runtime model.
+        if (logger != null)
+        {
+            try
+            {
+                await ProductionSchemaRepairRunner.RunAsync(context, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Production schema repair encountered an error; continuing startup.");
+            }
+        }
 
         // Seed roles
         if (!await context.Roles.AnyAsync())

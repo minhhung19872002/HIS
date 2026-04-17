@@ -86,10 +86,15 @@ namespace HIS.Infrastructure.Services
         {
             var certificates = new List<CertificateInfoDto>();
 
+            // Windows-only: USB Token/SmartCard certificates live in the current-user Personal store.
+            // On Linux/containerized deployments there is no such store - return an empty list quietly.
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+            {
+                return Task.FromResult(certificates);
+            }
+
             try
             {
-                // Open the Personal certificate store (CurrentUser\My)
-                // USB Tokens and SmartCards register certificates here
                 using (var store = new X509Store(StoreName.My, StoreLocation.CurrentUser))
                 {
                     store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);

@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\green_checkmark.png" />
+    <EmbeddedResource Include="Data\Scripts\*.sql" />
   </ItemGroup>
 
 </Project>

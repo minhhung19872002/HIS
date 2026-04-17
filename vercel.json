@@ -5,7 +5,7 @@
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
-      "source": "/((?!api(?:/|$)|hubs(?:/|$)).*)",
+      "source": "/((?!assets/|favicon|manifest|robots|sitemap).*)",
       "destination": "/index.html"
     }
   ]
