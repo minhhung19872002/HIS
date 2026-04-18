@@ -68,7 +68,7 @@ public class DailySeedController : ControllerBase
     };
 
     [HttpPost("patients")]
-    public async Task<IActionResult> SeedPatients([FromQuery] int count = 30)
+    public async Task<IActionResult> SeedPatients([FromQuery] int count = 30, [FromQuery] bool purge = false)
     {
         var expectedKey = _config["DailySeed:Key"];
         if (string.IsNullOrWhiteSpace(expectedKey))
@@ -81,10 +81,37 @@ public class DailySeedController : ControllerBase
         if (count < 1 || count > 200)
             return BadRequest(new { error = "count must be 1..200" });
 
-        var today = DateTime.UtcNow.Date;
+        // Use Vietnam local date since clinicians read the app in VN timezone; UTC
+        // "today" would diverge for ~7h each evening and mask seeded rows.
+        TimeZoneInfo vnTz;
+        try { vnTz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh"); }
+        catch { vnTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); }
+        var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTz).Date;
+
+        var seedPrefix = $"BN{today:yyyyMMdd}SEED";
+        if (purge)
+        {
+            var seedPatientIds = await _db.Patients
+                .Where(p => p.PatientCode.StartsWith(seedPrefix))
+                .Select(p => p.Id)
+                .ToListAsync();
+            if (seedPatientIds.Count > 0)
+            {
+                var seedRecords = await _db.MedicalRecords
+                    .Where(m => seedPatientIds.Contains(m.PatientId))
+                    .Select(m => m.Id)
+                    .ToListAsync();
+                _db.Examinations.RemoveRange(_db.Examinations.Where(e => seedRecords.Contains(e.MedicalRecordId)));
+                _db.MedicalRecords.RemoveRange(_db.MedicalRecords.Where(m => seedPatientIds.Contains(m.PatientId)));
+                _db.Patients.RemoveRange(_db.Patients.Where(p => seedPatientIds.Contains(p.Id)));
+                _db.TeleAppointments.RemoveRange(_db.TeleAppointments.Where(t => seedPatientIds.Contains(t.PatientId)));
+                await _db.SaveChangesAsync();
+                _logger.LogInformation("Daily seed purged {N} patients + related for {Date}", seedPatientIds.Count, today);
+            }
+        }
 
         var existingToday = await _db.Patients
-            .Where(p => p.PatientCode.StartsWith($"BN{today:yyyyMMdd}SEED"))
+            .Where(p => p.PatientCode.StartsWith(seedPrefix))
             .CountAsync();
 
         var rooms = await _db.Rooms
@@ -99,7 +126,9 @@ public class DailySeedController : ControllerBase
         var newPatients = new List<Patient>(toCreate);
         var newRecords = new List<MedicalRecord>(toCreate);
         var newExams = new List<Examination>();
-        var now = DateTime.UtcNow;
+        // Store CreatedAt/UpdatedAt as VN wall-clock datetime so `.Date` lines up with
+        // what the frontend (dayjs local) sends as "today". SQL datetime2 is kind-agnostic.
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTz);
 
         var queueByRoom = await _db.Examinations
             .Where(e => e.MedicalRecord.AdmissionDate.Date == today)
@@ -180,7 +209,7 @@ public class DailySeedController : ControllerBase
                 Id = Guid.NewGuid(),
                 MedicalRecordCode = $"HS{today:yyyyMMdd}SEED{idx:D3}",
                 PatientId = patient.Id,
-                AdmissionDate = now,
+                AdmissionDate = today,
                 PatientType = rng.Next(2) == 0 ? 1 : 2, // 1 BHYT, 2 Viện phí
                 TreatmentType = 1, // Ngoại trú
                 InitialDiagnosis = diag.Name,
@@ -218,6 +247,16 @@ public class DailySeedController : ControllerBase
         _db.MedicalRecords.AddRange(newRecords);
         _db.Examinations.AddRange(newExams);
         await _db.SaveChangesAsync();
+
+        // HISDbContext.SaveChangesAsync overrides CreatedAt = DateTime.UtcNow for every
+        // BaseEntity insert. For seed rows we want CreatedAt to match the VN wall-clock
+        // "now" so screens filtering on CreatedAt.Date (e.g. Reception) see today.
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Patients SET CreatedAt = {now}, UpdatedAt = {now} WHERE PatientCode LIKE {seedPrefix + "%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE MedicalRecords SET CreatedAt = {now}, UpdatedAt = {now} WHERE MedicalRecordCode LIKE {"HS" + today.ToString("yyyyMMdd") + "SEED%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Examinations SET CreatedAt = {now}, UpdatedAt = {now} WHERE MedicalRecordId IN (SELECT Id FROM MedicalRecords WHERE MedicalRecordCode LIKE {"HS" + today.ToString("yyyyMMdd") + "SEED%"})");
 
         // Seed ~10 telemedicine appointments for today if none yet
         var newTele = new List<TeleAppointment>();
@@ -261,6 +300,8 @@ public class DailySeedController : ControllerBase
                 }
                 _db.TeleAppointments.AddRange(newTele);
                 await _db.SaveChangesAsync();
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE TeleAppointments SET CreatedAt = {now}, UpdatedAt = {now} WHERE AppointmentCode LIKE {"TELE" + today.ToString("yyyyMMdd") + "SEED%"}");
             }
         }
 
