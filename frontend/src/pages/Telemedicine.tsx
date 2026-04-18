@@ -124,13 +124,31 @@ const Telemedicine: React.FC = () => {
 
       if (results[0].status === 'fulfilled') {
         const data = results[0].value?.data;
-        if (data && data.items) {
-          setAppointments(data.items);
-        } else if (Array.isArray(data)) {
-          setAppointments(data as unknown as TelemedicineAppointmentDto[]);
-        } else {
-          setAppointments([]);
-        }
+        const raw: Array<Record<string, unknown>> = Array.isArray(data)
+          ? (data as Array<Record<string, unknown>>)
+          : ((data as { items?: unknown[] } | undefined)?.items as Array<Record<string, unknown>>) ?? [];
+        // Backend (TeleAppointmentDto) returns appointmentDate / startTime / status (string).
+        // Frontend grid/filters expect scheduledDate / scheduledTime / status (number).
+        const statusMap: Record<string, number> = {
+          Pending: 1, Confirmed: 2, InProgress: 3, Completed: 4, Cancelled: 5,
+        };
+        const normalized = raw.map((a) => {
+          const apptDate = (a.appointmentDate ?? a.scheduledDate) as string | undefined;
+          const startTime = a.startTime as string | undefined;
+          const rawStatus = a.status;
+          const statusNum =
+            typeof rawStatus === 'number'
+              ? rawStatus
+              : statusMap[String(rawStatus)] ?? 1;
+          return {
+            ...a,
+            scheduledDate: apptDate ?? '',
+            scheduledTime:
+              typeof startTime === 'string' ? startTime.substring(0, 5) : String(startTime ?? ''),
+            status: statusNum,
+          } as unknown as TelemedicineAppointmentDto;
+        });
+        setAppointments(normalized);
       } else {
         message.warning('Không thể tải danh sách lịch hẹn');
         setAppointments([]);
