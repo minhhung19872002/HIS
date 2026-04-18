@@ -13,9 +13,9 @@ public class SchoolHealthListDto
     public string? Grade { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public DateTime ExamDate { get; set; }
-    public float? Height { get; set; }
-    public float? Weight { get; set; }
-    public float? BMI { get; set; }
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
+    public double? BMI { get; set; }
     public string? Vision { get; set; }
     public string? Hearing { get; set; }
     public string? DentalStatus { get; set; }
@@ -46,8 +46,8 @@ public class CreateSchoolHealthDto2
     public string? Grade { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public DateTime ScreeningDate { get; set; }
-    public float? Height { get; set; }
-    public float? Weight { get; set; }
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
     public string? Vision { get; set; }
     public string? Hearing { get; set; }
     public string? DentalStatus { get; set; }
@@ -190,7 +190,7 @@ public class MethadoneListDto
     public string PatientName { get; set; } = string.Empty;
     public string? PatientCode { get; set; }
     public DateTime EnrollmentDate { get; set; }
-    public float CurrentDoseMg { get; set; }
+    public double CurrentDoseMg { get; set; }
     public string? Phase { get; set; }
     public int Status { get; set; }
     public string? StatusName { get; set; }
@@ -221,7 +221,7 @@ public class MethadoneDetailDto2
     public string? Address { get; set; }
     public DateTime EnrollmentDate { get; set; }
     public DateTime? DischargeDate { get; set; }
-    public float CurrentDoseMg { get; set; }
+    public double CurrentDoseMg { get; set; }
     public string? Phase { get; set; }
     public int Status { get; set; }
     public string? StatusName { get; set; }
@@ -239,7 +239,7 @@ public class CreateMethadoneDto2
 {
     public Guid PatientId { get; set; }
     public DateTime EnrollmentDate { get; set; }
-    public float CurrentDose { get; set; }
+    public double CurrentDose { get; set; }
     public Guid? CounselorId { get; set; }
     public string? Notes { get; set; }
 }
@@ -249,7 +249,7 @@ public class DoseRecordDto2
     public Guid Id { get; set; }
     public Guid MethadonePatientId { get; set; }
     public DateTime DoseDate { get; set; }
-    public float DoseMg { get; set; }
+    public double DoseMg { get; set; }
     public string? AdministeredBy { get; set; }
     public string? WitnessedBy { get; set; }
     public bool MissedDose { get; set; }
@@ -261,7 +261,7 @@ public class CreateDoseRecordDto
 {
     public Guid MethadonePatientId { get; set; }
     public DateTime DoseDate { get; set; }
-    public float DoseMg { get; set; }
+    public double DoseMg { get; set; }
     public Guid? AdministeredById { get; set; }
     public string? WitnessedBy { get; set; }
     public bool MissedDose { get; set; }
@@ -305,7 +305,7 @@ public class MethadoneDashboardDto2
     public int TotalDropped { get; set; }
     public int DosedToday { get; set; }
     public int MissedToday { get; set; }
-    public float AverageDoseMg { get; set; }
+    public double AverageDoseMg { get; set; }
     public int PositiveUrineThisMonth { get; set; }
     public int TotalUrineThisMonth { get; set; }
     public double PositiveRate { get; set; }
@@ -316,7 +316,7 @@ public class PhaseBreakdownDto2
 {
     public string Phase { get; set; } = string.Empty;
     public int Count { get; set; }
-    public float AverageDoseMg { get; set; }
+    public double AverageDoseMg { get; set; }
 }
 
 public class MethadonePagedResult

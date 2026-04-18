@@ -62,7 +62,7 @@ public class VaccinationRecord : BaseEntity
     public int DoseNumber { get; set; } // 1, 2, 3...
     public string? InjectionSite { get; set; } // Vị trí tiêm
     public string? Route { get; set; } // IM, SC, ID, Oral
-    public float? DoseMl { get; set; }
+    public double? DoseMl { get; set; }
     public string? AdministeredBy { get; set; }
     public string? FacilityName { get; set; }
     public int Status { get; set; } // 0=Scheduled, 1=Completed, 2=Missed, 3=Contraindicated
@@ -148,9 +148,9 @@ public class SchoolHealthExam : BaseEntity
     public DateTime? DateOfBirth { get; set; }
     public string? Gender { get; set; }
     public DateTime ExamDate { get; set; }
-    public float? Height { get; set; }
-    public float? Weight { get; set; }
-    public float? BMI { get; set; }
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
+    public double? BMI { get; set; }
     public string? NutritionStatus { get; set; } // Bình thường, Suy dinh dưỡng, Thừa cân, Béo phì
     public string? VisionLeft { get; set; }
     public string? VisionRight { get; set; }
@@ -208,7 +208,7 @@ public class MethadonePatient : BaseEntity
     public DateTime EnrollmentDate { get; set; }
     public DateTime? DischargeDate { get; set; }
     public string? DischargeReason { get; set; }
-    public float CurrentDoseMg { get; set; }
+    public double CurrentDoseMg { get; set; }
     public string Phase { get; set; } = string.Empty; // Induction, Stabilization, Maintenance, Tapering
     public int Status { get; set; } // 0=Active, 1=Suspended, 2=Discharged, 3=Transferred
     public string? TransferredFrom { get; set; }
@@ -225,7 +225,7 @@ public class MethadoneDosingRecord : BaseEntity
 {
     public Guid MethadonePatientId { get; set; }
     public DateTime DosingDate { get; set; }
-    public float DoseMg { get; set; }
+    public double DoseMg { get; set; }
     public bool Witnessed { get; set; } // Uống trước mặt NV
     public bool TakeHome { get; set; } // Mang về
     public string? AdministeredBy { get; set; }

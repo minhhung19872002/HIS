@@ -175,7 +175,7 @@ public class VaccinationRecordDto
     public int DoseNumber { get; set; }
     public string? InjectionSite { get; set; }
     public string? Route { get; set; }
-    public float? DoseMl { get; set; }
+    public double? DoseMl { get; set; }
     public string? AdministeredBy { get; set; }
     public string? FacilityName { get; set; }
     public int Status { get; set; }
@@ -198,7 +198,7 @@ public class CreateVaccinationRecordDto
     public int DoseNumber { get; set; } = 1;
     public string? InjectionSite { get; set; }
     public string? Route { get; set; }
-    public float? DoseMl { get; set; }
+    public double? DoseMl { get; set; }
     public string? AdministeredBy { get; set; }
     public string? FacilityName { get; set; }
     public string? NextDoseDate { get; set; }
@@ -440,9 +440,9 @@ public class SchoolHealthExamDto
     public string? DateOfBirth { get; set; }
     public string? Gender { get; set; }
     public string ExamDate { get; set; } = string.Empty;
-    public float? Height { get; set; }
-    public float? Weight { get; set; }
-    public float? BMI { get; set; }
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
+    public double? BMI { get; set; }
     public string? NutritionStatus { get; set; }
     public string? VisionLeft { get; set; }
     public string? VisionRight { get; set; }
@@ -479,8 +479,8 @@ public class CreateSchoolHealthExamDto
 public class UpdateSchoolHealthExamDto
 {
     public int? Status { get; set; }
-    public float? Height { get; set; }
-    public float? Weight { get; set; }
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
     public string? NutritionStatus { get; set; }
     public string? VisionLeft { get; set; }
     public string? VisionRight { get; set; }
@@ -647,7 +647,7 @@ public class MethadonePatientDto
     public string EnrollmentDate { get; set; } = string.Empty;
     public string? DischargeDate { get; set; }
     public string? DischargeReason { get; set; }
-    public float CurrentDoseMg { get; set; }
+    public double CurrentDoseMg { get; set; }
     public string Phase { get; set; } = string.Empty;
     public int Status { get; set; }
     public string? TransferredFrom { get; set; }
@@ -664,7 +664,7 @@ public class CreateMethadonePatientDto
     public Guid PatientId { get; set; }
     public string PatientCode { get; set; } = string.Empty;
     public string? EnrollmentDate { get; set; }
-    public float CurrentDoseMg { get; set; }
+    public double CurrentDoseMg { get; set; }
     public string Phase { get; set; } = "Induction";
     public string? TransferredFrom { get; set; }
     public string? Notes { get; set; }
@@ -673,7 +673,7 @@ public class CreateMethadonePatientDto
 public class UpdateMethadonePatientDto
 {
     public int? Status { get; set; }
-    public float? CurrentDoseMg { get; set; }
+    public double? CurrentDoseMg { get; set; }
     public string? Phase { get; set; }
     public string? DischargeDate { get; set; }
     public string? DischargeReason { get; set; }
@@ -686,7 +686,7 @@ public class MethadoneDosingRecordDto
     public Guid Id { get; set; }
     public Guid MethadonePatientId { get; set; }
     public string DosingDate { get; set; } = string.Empty;
-    public float DoseMg { get; set; }
+    public double DoseMg { get; set; }
     public bool Witnessed { get; set; }
     public bool TakeHome { get; set; }
     public string? AdministeredBy { get; set; }
@@ -698,7 +698,7 @@ public class CreateMethadoneDosingDto
 {
     public Guid MethadonePatientId { get; set; }
     public string? DosingDate { get; set; }
-    public float DoseMg { get; set; }
+    public double DoseMg { get; set; }
     public bool Witnessed { get; set; } = true;
     public bool TakeHome { get; set; }
     public string? AdministeredBy { get; set; }
@@ -744,7 +744,7 @@ public class MethadoneStatsDto
     public int SuspendedCount { get; set; }
     public int DischargedCount { get; set; }
     public int TransferredCount { get; set; }
-    public float AverageDoseMg { get; set; }
+    public double AverageDoseMg { get; set; }
     public int MissedDosesToday { get; set; }
     public int PositiveUrineTests { get; set; }
     public List<PhaseBreakdownDto> PhaseBreakdown { get; set; } = new();

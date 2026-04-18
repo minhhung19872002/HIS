@@ -75,10 +75,10 @@ public class SchoolHealthService : ISchoolHealthService
     public async Task<SchoolHealthListDto> CreateAsync(CreateSchoolHealthDto2 dto)
     {
         // Calculate BMI
-        float? bmi = null;
+        double? bmi = null;
         if (dto.Height.HasValue && dto.Weight.HasValue && dto.Height.Value > 0)
         {
-            var heightM = dto.Height.Value / 100f;
+            var heightM = dto.Height.Value / 100.0;
             bmi = dto.Weight.Value / (heightM * heightM);
         }
 
@@ -117,10 +117,10 @@ public class SchoolHealthService : ISchoolHealthService
         var entity = await _context.SchoolHealthExams.FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted)
             ?? throw new InvalidOperationException("School health record not found");
 
-        float? bmi = null;
+        double? bmi = null;
         if (dto.Height.HasValue && dto.Weight.HasValue && dto.Height.Value > 0)
         {
-            var heightM = dto.Height.Value / 100f;
+            var heightM = dto.Height.Value / 100.0;
             bmi = dto.Weight.Value / (heightM * heightM);
         }
 
