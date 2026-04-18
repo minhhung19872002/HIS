@@ -86,16 +86,6 @@ public class DailySeedController : ControllerBase
         var existingToday = await _db.Patients
             .Where(p => p.PatientCode.StartsWith($"BN{today:yyyyMMdd}SEED"))
             .CountAsync();
-        if (existingToday >= count)
-        {
-            return Ok(new
-            {
-                alreadySeeded = true,
-                existingCount = existingToday,
-                requested = count,
-                date = today
-            });
-        }
 
         var rooms = await _db.Rooms
             .Where(r => r.IsActive && r.RoomType == 1)
@@ -105,10 +95,10 @@ public class DailySeedController : ControllerBase
             return StatusCode(503, new { error = "No active examination rooms" });
 
         var rng = new Random(today.DayOfYear);
-        var toCreate = count - existingToday;
+        var toCreate = Math.Max(0, count - existingToday);
         var newPatients = new List<Patient>(toCreate);
         var newRecords = new List<MedicalRecord>(toCreate);
-        var newExams = new List<Examination>(toCreate);
+        var newExams = new List<Examination>();
         var now = DateTime.UtcNow;
 
         var queueByRoom = await _db.Examinations
@@ -116,6 +106,39 @@ public class DailySeedController : ControllerBase
             .GroupBy(e => e.RoomId)
             .Select(g => new { RoomId = g.Key, MaxQ = g.Max(x => (int?)x.QueueNumber) ?? 0 })
             .ToDictionaryAsync(x => x.RoomId, x => x.MaxQ);
+
+        // Backfill Examinations for today's records that already exist but have no exam
+        // (covers prior seed runs that only created Patients + MedicalRecords)
+        var backfillRecords = await _db.MedicalRecords
+            .Where(m => m.AdmissionDate.Date == today
+                && m.RoomId != null
+                && !_db.Examinations.Any(e => e.MedicalRecordId == m.Id))
+            .Select(m => new { m.Id, m.RoomId, m.DepartmentId, m.InitialDiagnosis, m.MainIcdCode })
+            .ToListAsync();
+        foreach (var r in backfillRecords)
+        {
+            var roomId = r.RoomId!.Value;
+            var deptId = r.DepartmentId ?? rooms.FirstOrDefault(x => x.Id == roomId).DepartmentId;
+            if (deptId == Guid.Empty) continue;
+            queueByRoom.TryGetValue(roomId, out var mq);
+            var q = mq + 1;
+            queueByRoom[roomId] = q;
+            newExams.Add(new Examination
+            {
+                Id = Guid.NewGuid(),
+                MedicalRecordId = r.Id,
+                ExaminationType = 1,
+                QueueNumber = q,
+                DepartmentId = deptId,
+                RoomId = roomId,
+                ChiefComplaint = r.InitialDiagnosis,
+                InitialDiagnosis = r.InitialDiagnosis,
+                MainIcdCode = r.MainIcdCode,
+                Status = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
 
         for (int i = 0; i < toCreate; i++)
         {
