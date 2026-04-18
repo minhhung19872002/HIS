@@ -1345,7 +1345,7 @@ const Prescription: React.FC = () => {
               />
             </Form.Item>
 
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Space wrap style={{ width: '100%', justifyContent: 'flex-end', rowGap: 8 }}>
               <Button icon={<SaveOutlined />} onClick={handleSaveDraft}>
                 Lưu nháp
               </Button>

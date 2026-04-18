@@ -108,7 +108,14 @@ public class DailySeedController : ControllerBase
         var toCreate = count - existingToday;
         var newPatients = new List<Patient>(toCreate);
         var newRecords = new List<MedicalRecord>(toCreate);
+        var newExams = new List<Examination>(toCreate);
         var now = DateTime.UtcNow;
+
+        var queueByRoom = await _db.Examinations
+            .Where(e => e.MedicalRecord.AdmissionDate.Date == today)
+            .GroupBy(e => e.RoomId)
+            .Select(g => new { RoomId = g.Key, MaxQ = g.Max(x => (int?)x.QueueNumber) ?? 0 })
+            .ToDictionaryAsync(x => x.RoomId, x => x.MaxQ);
 
         for (int i = 0; i < toCreate; i++)
         {
@@ -162,19 +169,41 @@ public class DailySeedController : ControllerBase
                 UpdatedAt = now
             };
             newRecords.Add(record);
+
+            queueByRoom.TryGetValue(room.Id, out var maxQ);
+            var nextQ = maxQ + 1;
+            queueByRoom[room.Id] = nextQ;
+            var exam = new Examination
+            {
+                Id = Guid.NewGuid(),
+                MedicalRecordId = record.Id,
+                ExaminationType = 1, // Khám chính
+                QueueNumber = nextQ,
+                DepartmentId = room.DepartmentId,
+                RoomId = room.Id,
+                ChiefComplaint = diag.Name,
+                InitialDiagnosis = diag.Name,
+                MainIcdCode = diag.IcdCode,
+                Status = 0, // Chờ khám
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            newExams.Add(exam);
         }
 
         _db.Patients.AddRange(newPatients);
         _db.MedicalRecords.AddRange(newRecords);
+        _db.Examinations.AddRange(newExams);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Daily seed created {Patients} patients + {Records} medical records for {Date}",
-            newPatients.Count, newRecords.Count, today);
+        _logger.LogInformation("Daily seed created {Patients} patients + {Records} records + {Exams} exams for {Date}",
+            newPatients.Count, newRecords.Count, newExams.Count, today);
 
         return Ok(new
         {
             createdPatients = newPatients.Count,
             createdRecords = newRecords.Count,
+            createdExams = newExams.Count,
             date = today,
             totalTodayAfter = existingToday + newPatients.Count
         });
