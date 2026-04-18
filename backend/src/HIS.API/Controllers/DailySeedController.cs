@@ -219,14 +219,61 @@ public class DailySeedController : ControllerBase
         _db.Examinations.AddRange(newExams);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Daily seed created {Patients} patients + {Records} records + {Exams} exams for {Date}",
-            newPatients.Count, newRecords.Count, newExams.Count, today);
+        // Seed ~10 telemedicine appointments for today if none yet
+        var newTele = new List<TeleAppointment>();
+        var teleToday = await _db.TeleAppointments.CountAsync(t => t.AppointmentDate.Date == today);
+        if (teleToday < 10)
+        {
+            var patientIds = await _db.Patients
+                .Where(p => p.PatientCode.StartsWith($"BN{today:yyyyMMdd}SEED"))
+                .Select(p => p.Id)
+                .Take(50)
+                .ToListAsync();
+            var doctorIds = await _db.Users
+                .Where(u => u.IsActive)
+                .Select(u => u.Id)
+                .Take(20)
+                .ToListAsync();
+            var specialityIds = rooms.Select(r => r.DepartmentId).Distinct().ToList();
+
+            if (patientIds.Count > 0 && doctorIds.Count > 0)
+            {
+                var target = 10 - teleToday;
+                for (int i = 0; i < target; i++)
+                {
+                    var slotHour = 8 + (i % 9); // 8:00 → 17:00
+                    var slotMinute = (i * 15) % 60;
+                    newTele.Add(new TeleAppointment
+                    {
+                        Id = Guid.NewGuid(),
+                        AppointmentCode = $"TELE{today:yyyyMMdd}SEED{(teleToday + i + 1):D3}",
+                        PatientId = patientIds[rng.Next(patientIds.Count)],
+                        DoctorId = doctorIds[rng.Next(doctorIds.Count)],
+                        SpecialityId = specialityIds.Count > 0 ? specialityIds[rng.Next(specialityIds.Count)] : null,
+                        AppointmentDate = today,
+                        StartTime = new TimeSpan(slotHour, slotMinute, 0),
+                        DurationMinutes = 15,
+                        Status = i < (target / 2) ? "Pending" : "Confirmed",
+                        ChiefComplaint = Diagnoses[rng.Next(Diagnoses.Length)].Name,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    });
+                }
+                _db.TeleAppointments.AddRange(newTele);
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        _logger.LogInformation(
+            "Daily seed created {Patients} patients + {Records} records + {Exams} exams + {Tele} teleappointments for {Date}",
+            newPatients.Count, newRecords.Count, newExams.Count, newTele.Count, today);
 
         return Ok(new
         {
             createdPatients = newPatients.Count,
             createdRecords = newRecords.Count,
             createdExams = newExams.Count,
+            createdTeleAppointments = newTele.Count,
             date = today,
             totalTodayAfter = existingToday + newPatients.Count
         });

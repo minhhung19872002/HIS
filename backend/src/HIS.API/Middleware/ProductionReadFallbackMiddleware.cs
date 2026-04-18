@@ -61,6 +61,14 @@ public sealed class ProductionReadFallbackMiddleware
         statusCode = StatusCodes.Status200OK;
         payload = null!;
 
+        // Synthetic empty responses were a temporary workaround while Cloud SQL was
+        // missing module tables. After the local→Cloud SQL migration the DB has all
+        // 370+ tables, so real controllers can answer these routes. Keep only the
+        // exception-path fallback below (TryGetFallbackResponse) so a genuine failure
+        // still returns an empty shape instead of a 500.
+        return false;
+
+#pragma warning disable CS0162 // Unreachable code retained for quick re-enable if a route regresses
         var method = context.Request.Method;
         var path = NormalizePath(context);
 
@@ -222,6 +230,7 @@ public sealed class ProductionReadFallbackMiddleware
         }
 
         return false;
+#pragma warning restore CS0162
     }
 
     private static bool TryGetFallbackResponse(HttpContext context, Exception exception, out int statusCode, out object payload)
