@@ -101,10 +101,20 @@ public class DailySeedController : ControllerBase
                     .Where(m => seedPatientIds.Contains(m.PatientId))
                     .Select(m => m.Id)
                     .ToListAsync();
+                // Delete dependents first to honour FK constraints
                 _db.Examinations.RemoveRange(_db.Examinations.Where(e => seedRecords.Contains(e.MedicalRecordId)));
+                _db.Prescriptions.RemoveRange(_db.Prescriptions.Where(p => seedRecords.Contains(p.MedicalRecordId)));
+                _db.LabRequests.RemoveRange(_db.LabRequests.Where(l => l.MedicalRecordId != null && seedRecords.Contains(l.MedicalRecordId.Value)));
+                _db.MedicalRecordArchives.RemoveRange(_db.MedicalRecordArchives.Where(a => seedRecords.Contains(a.MedicalRecordId)));
+                _db.TeleAppointments.RemoveRange(_db.TeleAppointments.Where(t => seedPatientIds.Contains(t.PatientId)));
+                _db.IncidentReports.RemoveRange(_db.IncidentReports.Where(i => i.PatientId != null && seedPatientIds.Contains(i.PatientId.Value)));
+                _db.RehabReferrals.RemoveRange(_db.RehabReferrals.Where(r => seedPatientIds.Contains(r.PatientId)));
+                _db.SigningRequests.RemoveRange(_db.SigningRequests.Where(s => s.PatientId != null && seedPatientIds.Contains(s.PatientId.Value)));
+                _db.SatisfactionSurveyResults.RemoveRange(_db.SatisfactionSurveyResults.Where(s => s.PatientId != null && seedPatientIds.Contains(s.PatientId.Value)));
+                await _db.SaveChangesAsync();
+
                 _db.MedicalRecords.RemoveRange(_db.MedicalRecords.Where(m => seedPatientIds.Contains(m.PatientId)));
                 _db.Patients.RemoveRange(_db.Patients.Where(p => seedPatientIds.Contains(p.Id)));
-                _db.TeleAppointments.RemoveRange(_db.TeleAppointments.Where(t => seedPatientIds.Contains(t.PatientId)));
                 await _db.SaveChangesAsync();
                 _logger.LogInformation("Daily seed purged {N} patients + related for {Date}", seedPatientIds.Count, today);
             }
@@ -505,9 +515,346 @@ public class DailySeedController : ControllerBase
             }
         }
 
+        // ---- Module workflow data (Quality, Rehab, Signing, Survey, Procurement, Archive) ----
+
+        var docIdsAll = await _db.Users.Where(u => u.IsActive).Select(u => u.Id).Take(10).ToListAsync();
+        var deptIdsAll = await _db.Departments.Where(d => d.IsActive).Select(d => d.Id).Take(8).ToListAsync();
+        var todayPatientIds = await _db.Patients
+            .Where(p => p.PatientCode.StartsWith($"BN{today:yyyyMMdd}SEED"))
+            .Select(p => p.Id).Take(30).ToListAsync();
+        var todayRecords = await _db.MedicalRecords
+            .Where(m => m.MedicalRecordCode.StartsWith($"HS{today:yyyyMMdd}SEED"))
+            .Select(m => new { m.Id, m.PatientId, m.DepartmentId, m.MainIcdCode, m.InitialDiagnosis })
+            .Take(30).ToListAsync();
+
+        int newIncidents = 0, newRehab = 0, newSigning = 0, newSurvey = 0, newProc = 0, newArchive = 0;
+
+        // IncidentReport - Quality page
+        if (await _db.IncidentReports.CountAsync(i => i.ReportCode.StartsWith($"INC{today:yyyyMMdd}SEED")) == 0
+            && docIdsAll.Count > 0 && deptIdsAll.Count > 0)
+        {
+            var incTypes = new[] { "Medication", "Fall", "Infection", "Equipment", "Process" };
+            var severity = new[] { "Minor", "Moderate", "Minor", "Near-miss", "Minor" };
+            for (int i = 0; i < 5; i++)
+            {
+                _db.IncidentReports.Add(new IncidentReport
+                {
+                    Id = Guid.NewGuid(),
+                    ReportCode = $"INC{today:yyyyMMdd}SEED{(i + 1):D3}",
+                    IncidentDate = today.AddHours(-i),
+                    ReportDate = today,
+                    ReportedById = docIdsAll[i % docIdsAll.Count],
+                    DepartmentId = deptIdsAll[i % deptIdsAll.Count],
+                    PatientId = todayPatientIds.Count > 0 ? todayPatientIds[i % todayPatientIds.Count] : (Guid?)null,
+                    IncidentType = incTypes[i % incTypes.Length],
+                    Severity = severity[i % severity.Length],
+                    HarmLevel = "None",
+                    Description = $"Báo cáo sự cố thử nghiệm #{i + 1}: {incTypes[i % incTypes.Length]}",
+                    ImmediateActions = "Đã xử lý theo quy trình",
+                    Status = i < 2 ? "Reported" : "UnderInvestigation",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newIncidents++;
+            }
+        }
+
+        // RehabReferral
+        if (await _db.RehabReferrals.CountAsync(r => r.ReferralCode.StartsWith($"REH{today:yyyyMMdd}SEED")) == 0
+            && docIdsAll.Count > 0 && todayPatientIds.Count > 0)
+        {
+            var rehabTypes = new[] { "PT", "OT", "ST" };
+            var rehabDiag = new[] { "Thoái hoá cột sống", "Đột quỵ", "Thoát vị đĩa đệm", "Liệt nửa người", "Viêm khớp" };
+            for (int i = 0; i < 5; i++)
+            {
+                _db.RehabReferrals.Add(new RehabReferral
+                {
+                    Id = Guid.NewGuid(),
+                    ReferralCode = $"REH{today:yyyyMMdd}SEED{(i + 1):D3}",
+                    PatientId = todayPatientIds[i % todayPatientIds.Count],
+                    ReferredById = docIdsAll[i % docIdsAll.Count],
+                    RehabType = rehabTypes[i % rehabTypes.Length],
+                    Diagnosis = rehabDiag[i % rehabDiag.Length],
+                    IcdCode = "M54",
+                    Reason = "Chỉ định phục hồi chức năng sau điều trị cấp",
+                    Goals = "Phục hồi vận động, giảm đau",
+                    Status = i < 2 ? "Pending" : "Accepted",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newRehab++;
+            }
+        }
+
+        // SigningRequest - Signing Workflow page
+        if (await _db.SigningRequests.CountAsync(s => s.DocumentTitle.Contains($"SEED-{today:yyyyMMdd}")) == 0
+            && docIdsAll.Count >= 2)
+        {
+            var docTypes = new[] { "TreatmentSheet", "NursingCare", "Prescription", "LabResult", "DischargeNote" };
+            for (int i = 0; i < 6; i++)
+            {
+                _db.SigningRequests.Add(new SigningRequest
+                {
+                    Id = Guid.NewGuid(),
+                    DocumentType = docTypes[i % docTypes.Length],
+                    DocumentId = Guid.NewGuid(),
+                    DocumentTitle = $"{docTypes[i % docTypes.Length]} SEED-{today:yyyyMMdd}-{(i + 1):D3}",
+                    DocumentContent = $"<p>Nội dung tài liệu cần ký số {i + 1}</p>",
+                    SubmittedById = docIdsAll[i % docIdsAll.Count],
+                    SubmittedByName = "Bác sĩ điều trị",
+                    AssignedToId = docIdsAll[(i + 1) % docIdsAll.Count],
+                    AssignedToName = "Trưởng khoa",
+                    Status = i < 4 ? 0 : 1,
+                    SignedAt = i >= 4 ? now : (DateTime?)null,
+                    PatientId = todayPatientIds.Count > 0 ? todayPatientIds[i % todayPatientIds.Count] : (Guid?)null,
+                    PatientName = "BN thử nghiệm",
+                    DepartmentName = "Nội tổng quát",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newSigning++;
+            }
+        }
+
+        // SatisfactionSurveyResult - page reads this
+        if (await _db.SatisfactionSurveyResults.CountAsync() == 0 && todayPatientIds.Count > 0)
+        {
+            var feedback = new[]
+            {
+                "Bác sĩ tận tình, nhân viên thân thiện",
+                "Thời gian chờ hơi lâu nhưng chất lượng tốt",
+                "Phòng khám sạch sẽ, trang thiết bị hiện đại",
+                "Rất hài lòng với dịch vụ",
+                "Nhân viên hướng dẫn chu đáo",
+                "Giá cả hợp lý, minh bạch",
+                "Cần cải thiện nhà vệ sinh",
+                "Chất lượng điều trị tốt"
+            };
+            for (int i = 0; i < 10; i++)
+            {
+                _db.SatisfactionSurveyResults.Add(new SatisfactionSurveyResult
+                {
+                    Id = Guid.NewGuid(),
+                    TemplateName = i % 3 == 0 ? "Khảo sát ngoại trú" : (i % 3 == 1 ? "Khảo sát nội trú" : "Khảo sát cấp cứu"),
+                    PatientId = todayPatientIds[i % todayPatientIds.Count],
+                    PatientName = $"Bệnh nhân {(i + 1):D3}",
+                    PatientCode = $"BN{today:yyyyMMdd}SEED{((i % todayPatientIds.Count) + 1):D3}",
+                    DepartmentId = deptIdsAll.Count > 0 ? deptIdsAll[i % deptIdsAll.Count] : null,
+                    DepartmentName = "Nội tổng quát",
+                    OverallScore = 4.0 + (i % 2) * 0.5,
+                    Answers = "{\"q1\":5,\"q2\":4,\"q3\":4,\"q4\":5}",
+                    Comment = feedback[i % feedback.Length],
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newSurvey++;
+            }
+        }
+
+        // ProcurementRequest
+        if (await _db.ProcurementRequests.CountAsync(p => p.RequestCode.StartsWith($"PR{today:yyyyMMdd}SEED")) == 0
+            && deptIdsAll.Count > 0 && docIdsAll.Count > 0)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                _db.ProcurementRequests.Add(new ProcurementRequest
+                {
+                    Id = Guid.NewGuid(),
+                    RequestCode = $"PR{today:yyyyMMdd}SEED{(i + 1):D3}",
+                    RequestDate = today,
+                    DepartmentId = deptIdsAll[i % deptIdsAll.Count],
+                    RequestedById = docIdsAll[i % docIdsAll.Count],
+                    Status = i % 4,
+                    TotalAmount = 5_000_000m * (i + 1),
+                    Notes = "Đề xuất mua sắm vật tư/thuốc",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newProc++;
+            }
+        }
+
+        // MedicalRecordArchive
+        if (await _db.MedicalRecordArchives.CountAsync(a => a.ArchiveCode.StartsWith($"ARC{today:yyyyMMdd}SEED")) == 0
+            && todayRecords.Count > 0)
+        {
+            for (int i = 0; i < Math.Min(8, todayRecords.Count); i++)
+            {
+                var r = todayRecords[i];
+                _db.MedicalRecordArchives.Add(new MedicalRecordArchive
+                {
+                    Id = Guid.NewGuid(),
+                    ArchiveCode = $"ARC{today:yyyyMMdd}SEED{(i + 1):D3}",
+                    MedicalRecordId = r.Id,
+                    PatientId = r.PatientId,
+                    DepartmentId = r.DepartmentId,
+                    Diagnosis = r.InitialDiagnosis,
+                    TreatmentResult = "Khỏi",
+                    AdmissionDate = today,
+                    DischargeDate = today,
+                    StorageLocation = "Kho A",
+                    ShelfNumber = $"Kệ {(i / 3) + 1}",
+                    BoxNumber = $"Hộp {i + 1}",
+                    Status = 1,
+                    ArchivedDate = today,
+                    ArchiveYear = today.Year,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newArchive++;
+            }
+        }
+
+        // ---- One-time master data ----
+
+        // HIEConnection
+        int newHie = 0;
+        if (await _db.HIEConnections.CountAsync() == 0)
+        {
+            var conns = new (string name, string type, string url)[]
+            {
+                ("Cổng giám định BHXH", "BHXH", "https://gdbhyt.baohiemxahoi.gov.vn/api"),
+                ("Cổng Bộ Y tế", "BYT", "https://portal.moh.gov.vn/api"),
+                ("Sở Y tế TP.HCM", "SYT", "https://syt.hochiminhcity.gov.vn/api"),
+                ("BV Chợ Rẫy - Liên thông", "Hospital", "https://choray.vn/hie"),
+            };
+            foreach (var (name, type, url) in conns)
+            {
+                _db.HIEConnections.Add(new HIEConnection
+                {
+                    Id = Guid.NewGuid(),
+                    ConnectionName = name,
+                    ConnectionType = type,
+                    EndpointUrl = url,
+                    AuthType = "OAuth2",
+                    ClientId = $"HIS_CLIENT_{type}",
+                    Status = "Active",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newHie++;
+            }
+        }
+
+        // TrainingClass - one time
+        int newTraining = 0;
+        if (await _db.TrainingClasses.CountAsync() == 0 && deptIdsAll.Count > 0)
+        {
+            var classes = new[]
+            {
+                ("Đào tạo hồi sức tim phổi (CPR)", 1, 15m),
+                ("CME - Cập nhật điều trị tiểu đường type 2", 3, 8m),
+                ("Kỹ thuật chăm sóc vết thương", 1, 12m),
+                ("An toàn thuốc và phòng sai sót y khoa", 1, 10m),
+            };
+            for (int i = 0; i < classes.Length; i++)
+            {
+                _db.TrainingClasses.Add(new TrainingClass
+                {
+                    Id = Guid.NewGuid(),
+                    ClassCode = $"TC{today:yyyyMM}{(i + 1):D3}",
+                    ClassName = classes[i].Item1,
+                    TrainingType = classes[i].Item2,
+                    StartDate = today.AddDays(7 + i * 3),
+                    EndDate = today.AddDays(7 + i * 3 + 1),
+                    MaxStudents = 30,
+                    DepartmentId = deptIdsAll[i % deptIdsAll.Count],
+                    InstructorId = docIdsAll.Count > 0 ? docIdsAll[i % docIdsAll.Count] : null,
+                    Description = "Lớp đào tạo theo kế hoạch",
+                    CreditHours = classes[i].Item3,
+                    Status = 1,
+                    Fee = 0,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newTraining++;
+            }
+        }
+
+        // ResearchProject - one time
+        int newResearch = 0;
+        if (await _db.ResearchProjects.CountAsync() == 0)
+        {
+            var projects = new[]
+            {
+                ("Đánh giá hiệu quả phác đồ điều trị viêm phổi cộng đồng", 3),
+                ("Nghiên cứu dịch tễ bệnh đái tháo đường tại địa phương", 2),
+                ("Ứng dụng AI trong chẩn đoán hình ảnh X-quang phổi", 3),
+            };
+            for (int i = 0; i < projects.Length; i++)
+            {
+                _db.ResearchProjects.Add(new ResearchProject
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectCode = $"NCKH{today.Year}{(i + 1):D3}",
+                    Title = projects[i].Item1,
+                    Level = projects[i].Item2,
+                    PrincipalInvestigatorId = docIdsAll.Count > 0 ? docIdsAll[i % docIdsAll.Count] : null,
+                    StartDate = today.AddMonths(-3),
+                    EndDate = today.AddMonths(9),
+                    Budget = 50_000_000m * (i + 1),
+                    Status = i + 1,
+                    Abstract = "Đề tài nghiên cứu khoa học cấp cơ sở",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newResearch++;
+            }
+        }
+
+        // FixedAsset - one time
+        int newAssets = 0;
+        if (await _db.FixedAssets.CountAsync() == 0 && deptIdsAll.Count > 0)
+        {
+            var assets = new[]
+            {
+                ("Xe cứu thương Mercedes Sprinter", 2_800_000_000m, 120),
+                ("Máy phát điện dự phòng 250kVA", 650_000_000m, 180),
+                ("Hệ thống thang máy bệnh nhân", 1_200_000_000m, 240),
+                ("Hệ thống khí y tế trung tâm", 800_000_000m, 240),
+                ("Bàn mổ điện đa năng", 350_000_000m, 120),
+                ("Máy giặt công nghiệp 50kg", 180_000_000m, 120),
+            };
+            for (int i = 0; i < assets.Length; i++)
+            {
+                var price = assets[i].Item2;
+                var months = assets[i].Item3;
+                _db.FixedAssets.Add(new FixedAsset
+                {
+                    Id = Guid.NewGuid(),
+                    AssetCode = $"TS{today.Year}{(i + 1):D4}",
+                    AssetName = assets[i].Item1,
+                    OriginalValue = price,
+                    CurrentValue = price * 0.8m,
+                    PurchaseDate = today.AddYears(-(1 + i % 4)),
+                    DepreciationMethod = 1,
+                    UsefulLifeMonths = months,
+                    MonthlyDepreciation = price / months,
+                    AccumulatedDepreciation = price * 0.2m,
+                    DepartmentId = deptIdsAll[i % deptIdsAll.Count],
+                    LocationDescription = $"Tầng {(i % 5) + 1}",
+                    Status = 1,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newAssets++;
+            }
+        }
+
+        await _db.SaveChangesAsync();
+
+        // Restamp CreatedAt on all newly-seeded rows so date filters match
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE IncidentReports SET CreatedAt = {now}, UpdatedAt = {now} WHERE ReportCode LIKE {"INC" + today.ToString("yyyyMMdd") + "SEED%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE RehabReferrals SET CreatedAt = {now}, UpdatedAt = {now} WHERE ReferralCode LIKE {"REH" + today.ToString("yyyyMMdd") + "SEED%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE SigningRequests SET CreatedAt = {now}, UpdatedAt = {now} WHERE DocumentTitle LIKE {"%SEED-" + today.ToString("yyyyMMdd") + "%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE SatisfactionSurveyResults SET CreatedAt = {now}, UpdatedAt = {now} WHERE PatientCode LIKE {"BN" + today.ToString("yyyyMMdd") + "SEED%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE ProcurementRequests SET CreatedAt = {now}, UpdatedAt = {now} WHERE RequestCode LIKE {"PR" + today.ToString("yyyyMMdd") + "SEED%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE MedicalRecordArchives SET CreatedAt = {now}, UpdatedAt = {now} WHERE ArchiveCode LIKE {"ARC" + today.ToString("yyyyMMdd") + "SEED%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE HIEConnections SET CreatedAt = {now}, UpdatedAt = {now}");
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE TrainingClasses SET CreatedAt = {now}, UpdatedAt = {now} WHERE ClassCode LIKE 'TC%'");
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE ResearchProjects SET CreatedAt = {now}, UpdatedAt = {now} WHERE ProjectCode LIKE 'NCKH%'");
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE FixedAssets SET CreatedAt = {now}, UpdatedAt = {now} WHERE AssetCode LIKE 'TS%'");
+
         _logger.LogInformation(
-            "Daily seed: {P} patients + {R} records + {E} exams + {T} tele + {Rx} rx + {Lab} lab + {Staff} staff + {Eq} equip for {Date}",
-            newPatients.Count, newRecords.Count, newExams.Count, newTele.Count, newRx.Count, newLab.Count, newStaff.Count, newEquip.Count, today);
+            "Daily seed: {P} patients + {R} records + {E} exams + {T} tele + {Rx} rx + {Lab} lab + {Staff} staff + {Eq} equip + {Inc} incidents + {Reh} rehab + {Sign} signing + {Sur} survey + {Proc} proc + {Arc} archive + {Hie} hie + {Tr} training + {Res} research + {As} assets for {Date}",
+            newPatients.Count, newRecords.Count, newExams.Count, newTele.Count, newRx.Count, newLab.Count, newStaff.Count, newEquip.Count,
+            newIncidents, newRehab, newSigning, newSurvey, newProc, newArchive, newHie, newTraining, newResearch, newAssets, today);
 
         return Ok(new
         {
@@ -519,6 +866,16 @@ public class DailySeedController : ControllerBase
             createdLabRequests = newLab.Count,
             createdStaff = newStaff.Count,
             createdEquipment = newEquip.Count,
+            createdIncidents = newIncidents,
+            createdRehab = newRehab,
+            createdSigning = newSigning,
+            createdSurveys = newSurvey,
+            createdProcurement = newProc,
+            createdArchive = newArchive,
+            createdHIE = newHie,
+            createdTraining = newTraining,
+            createdResearch = newResearch,
+            createdAssets = newAssets,
             date = today,
             totalTodayAfter = existingToday + newPatients.Count
         });

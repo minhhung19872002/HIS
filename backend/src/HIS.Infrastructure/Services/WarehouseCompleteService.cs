@@ -1710,7 +1710,39 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<ProcurementRequestDto>> GetProcurementRequestsAsync(Guid? warehouseId, int? status, DateTime? fromDate, DateTime? toDate)
     {
-        return new List<ProcurementRequestDto>();
+        var query = _context.ProcurementRequests
+            .Include(p => p.Department)
+            .Include(p => p.Items)
+            .AsQueryable();
+        if (status.HasValue)
+            query = query.Where(p => p.Status == status.Value);
+        if (fromDate.HasValue)
+            query = query.Where(p => p.RequestDate >= fromDate.Value);
+        if (toDate.HasValue)
+            query = query.Where(p => p.RequestDate <= toDate.Value);
+        var rows = await query.OrderByDescending(p => p.RequestDate).Take(200).ToListAsync();
+        return rows.Select(p => new ProcurementRequestDto
+        {
+            Id = p.Id,
+            RequestCode = p.RequestCode,
+            WarehouseId = warehouseId ?? Guid.Empty,
+            WarehouseName = p.Department?.DepartmentName ?? string.Empty,
+            RequestDate = p.RequestDate,
+            Description = p.Notes,
+            Status = p.Status,
+            Items = p.Items?.Select(i => new ProcurementItemDto
+            {
+                Id = i.Id,
+                ItemId = i.ItemId ?? Guid.Empty,
+                ItemCode = i.ItemCode ?? string.Empty,
+                ItemName = i.ItemName,
+                Unit = i.Unit ?? string.Empty,
+                CurrentStock = i.CurrentStock,
+                MinimumStock = i.MinimumStock,
+                RequestedQuantity = i.RequestedQuantity,
+                Notes = i.Notes
+            }).ToList() ?? new List<ProcurementItemDto>()
+        }).ToList();
     }
 
     public async Task<PagedResultDto<StockDto>> GetStockAsync(StockSearchDto searchDto)
