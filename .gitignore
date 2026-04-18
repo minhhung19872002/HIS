@@ -158,3 +158,6 @@ frontend/cypress-batch-results.json
 test-ipd-flow.ps1
 test-reception-full.ps1
 .vercel
+
+# SQL Server backup dump (local migration artifact)
+*.bak
