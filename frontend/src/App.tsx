@@ -18,6 +18,14 @@ const DashboardV2 = lazy(() => import('./pages-v2/Dashboard'));
 const ReceptionV2 = lazy(() => import('./pages-v2/Reception'));
 const OPDV2 = lazy(() => import('./pages-v2/OPD'));
 const InpatientV2 = lazy(() => import('./pages-v2/Inpatient'));
+const PrescriptionV2 = lazy(() => import('./pages-v2/Prescription'));
+const PharmacyV2 = lazy(() => import('./pages-v2/Pharmacy'));
+const SurgeryV2 = lazy(() => import('./pages-v2/Surgery'));
+const BillingV2 = lazy(() => import('./pages-v2/Billing'));
+const LaboratoryV2 = lazy(() => import('./pages-v2/Laboratory'));
+const RadiologyV2 = lazy(() => import('./pages-v2/Radiology'));
+const BloodBankV2 = lazy(() => import('./pages-v2/BloodBank'));
+const EMRV2 = lazy(() => import('./pages-v2/EMR'));
 const WrapV1 = lazy(() => import('./pages-v2/WrapV1'));
 
 // Lazy-loaded pages for code splitting
@@ -262,16 +270,22 @@ const AppRoutes: React.FC = () => {
           <Route path="reception" element={<ReceptionV2 />} />
           <Route path="opd" element={<OPDV2 />} />
           <Route path="ipd" element={<InpatientV2 />} />
+          <Route path="prescription" element={<PrescriptionV2 />} />
+          <Route path="pharmacy" element={<PharmacyV2 />} />
+          <Route path="surgery" element={<SurgeryV2 />} />
+          <Route path="billing" element={<BillingV2 />} />
+          <Route path="lab" element={<LaboratoryV2 />} />
+          <Route path="radiology" element={<RadiologyV2 />} />
+          <Route path="blood-bank" element={<BloodBankV2 />} />
+          <Route path="emr" element={<EMRV2 />} />
           {/* Remaining pages: v1 content inside v2 shell */}
           <Route path="dashboard-3cap" element={<WrapV1 element={<Dashboard3Cap />} title="Dashboard 3 Cấp" />} />
-          <Route path="prescription" element={<WrapV1 element={<Prescription />} title="Kê đơn" />} />
-          <Route path="surgery" element={<WrapV1 element={<Surgery />} title="Phẫu thuật" />} />
-          <Route path="pharmacy" element={<WrapV1 element={<Pharmacy />} title="Nhà thuốc" />} />
           <Route path="medical-supply" element={<WrapV1 element={<MedicalSupply />} title="Vật tư y tế" />} />
+          {/* The 8 pages above (prescription, pharmacy, surgery, billing, lab, radiology, blood-bank, emr)
+              are handled natively earlier — keep WrapV1 lines only for the rest. */}
           <Route path="follow-up" element={<WrapV1 element={<FollowUp />} title="Tái khám" />} />
           <Route path="booking-management" element={<WrapV1 element={<BookingManagement />} title="Quản lý đặt lịch" />} />
           <Route path="sms-management" element={<WrapV1 element={<SmsManagement />} title="SMS" />} />
-          <Route path="lab" element={<WrapV1 element={<Laboratory />} title="Xét nghiệm" />} />
           <Route path="lab-qc" element={<WrapV1 element={<LabQC />} title="Lab QC" />} />
           <Route path="microbiology" element={<WrapV1 element={<Microbiology />} title="Vi sinh" />} />
           <Route path="culture-collection" element={<WrapV1 element={<CultureCollection />} title="Lưu chủng" />} />
@@ -281,9 +295,6 @@ const AppRoutes: React.FC = () => {
           <Route path="sample-tracking" element={<WrapV1 element={<SampleTracking />} title="Theo dõi mẫu" />} />
           <Route path="pathology" element={<WrapV1 element={<Pathology />} title="Giải phẫu bệnh" />} />
           <Route path="ivf-lab" element={<WrapV1 element={<IvfLab />} title="IVF" />} />
-          <Route path="radiology" element={<WrapV1 element={<Radiology />} title="Chẩn đoán hình ảnh" />} />
-          <Route path="blood-bank" element={<WrapV1 element={<BloodBank />} title="Ngân hàng máu" />} />
-          <Route path="billing" element={<WrapV1 element={<Billing />} title="Thanh toán" />} />
           <Route path="finance" element={<WrapV1 element={<Finance />} title="Tài chính" />} />
           <Route path="insurance" element={<WrapV1 element={<Insurance />} title="Bảo hiểm" />} />
           <Route path="master-data" element={<WrapV1 element={<MasterData />} title="Danh mục" />} />
@@ -302,7 +313,6 @@ const AppRoutes: React.FC = () => {
           <Route path="patient-portal" element={<WrapV1 element={<PatientPortal />} title="Cổng BN" />} />
           <Route path="health-exchange" element={<WrapV1 element={<HealthExchange />} title="HIE" />} />
           <Route path="emergency-disaster" element={<WrapV1 element={<EmergencyDisaster />} title="Cấp cứu / Thảm hoạ" />} />
-          <Route path="emr" element={<WrapV1 element={<EMR />} title="Hồ sơ bệnh án" />} />
           <Route path="consultation" element={<WrapV1 element={<Consultation />} title="Hội chẩn" />} />
           <Route path="help" element={<WrapV1 element={<Help />} title="Trợ giúp" />} />
           <Route path="radiology/viewer" element={<WrapV1 element={<DicomViewer />} title="DICOM Viewer" />} />
