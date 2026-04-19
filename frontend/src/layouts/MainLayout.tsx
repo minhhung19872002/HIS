@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Space, Drawer, Tooltip } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Typography, Space, Drawer, Tooltip, Button } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -385,6 +385,19 @@ const MainLayout: React.FC = () => {
           )}
 
           <Space size={isMobile ? 12 : 20}>
+            <Tooltip title="Thử layout v2 (Terminal) — vẫn dùng cùng dữ liệu">
+              <Button
+                size="small"
+                type="default"
+                onClick={() => {
+                  const current = location.pathname === '/' ? '/dashboard' : location.pathname;
+                  navigate('/v2' + current);
+                }}
+                data-testid="layout-v2-switch"
+              >
+                Layout v2
+              </Button>
+            </Tooltip>
             <Tooltip title={isDark ? 'Chuyển sang sáng' : 'Chuyển sang tối'}>
               <span
                 onClick={toggleTheme}

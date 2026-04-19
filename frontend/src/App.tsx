@@ -12,6 +12,12 @@ import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import './App.css';
 
+// Layout v2 (Terminal) - alternative UI for comparison. Lives under /v2/*
+const TerminalLayout = lazy(() => import('./layouts/terminal/TerminalLayout'));
+const DashboardV2 = lazy(() => import('./pages-v2/Dashboard'));
+const ReceptionV2 = lazy(() => import('./pages-v2/Reception'));
+const OPDV2 = lazy(() => import('./pages-v2/OPD'));
+
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Dashboard3Cap = lazy(() => import('./pages/Dashboard3Cap'));
@@ -235,6 +241,21 @@ const AppRoutes: React.FC = () => {
           <Route path="inpatient" element={<Navigate to="/ipd" replace />} />
           <Route path="laboratory" element={<Navigate to="/lab" replace />} />
           <Route path="system-admin" element={<Navigate to="/admin" replace />} />
+        </Route>
+        {/* Layout v2 (Terminal) — alternative UI for A/B comparison. Shares API + auth. */}
+        <Route
+          path="/v2"
+          element={
+            <ProtectedRoute>
+              <TerminalLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/v2/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardV2 />} />
+          <Route path="reception" element={<ReceptionV2 />} />
+          <Route path="opd" element={<OPDV2 />} />
+          <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
