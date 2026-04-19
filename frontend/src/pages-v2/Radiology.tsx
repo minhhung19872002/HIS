@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getWaitingList } from '../api/ris';
 import type { RadiologyWaitingListDto } from '../api/ris';
 import TermIcon from '../layouts/terminal/Icon';
@@ -20,6 +21,7 @@ const priorityChip = (p: string) => {
 };
 
 const RadiologyV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<RadiologyWaitingListDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -152,8 +154,10 @@ const RadiologyV2: React.FC = () => {
                 <Field label="Khoa chỉ định" value={selected.departmentName} />
                 <Field label="Thời gian chỉ định" value={<span className="mono">{selected.orderTime}</span>} />
                 <div className="row" style={{ gap: 8, marginTop: 6 }}>
-                  <button className="btn primary sm" type="button"><TermIcon name="plus" size={12} />Gọi BN vào</button>
-                  <button className="btn sm" type="button">Xem DICOM</button>
+                  <button className="btn primary sm" type="button" onClick={() => navigate('/radiology')}>
+                    <TermIcon name="plus" size={12} />Gọi BN vào
+                  </button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/radiology/viewer')}>Xem DICOM</button>
                 </div>
               </div>
             )}

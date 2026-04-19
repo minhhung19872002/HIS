@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import * as receptionApi from '../api/reception';
 import type { AdmissionDto } from '../api/reception';
 import TermIcon from '../layouts/terminal/Icon';
@@ -15,6 +16,7 @@ const statusLabel = (s: number) => {
 };
 
 const ReceptionV2: React.FC = () => {
+  const navigate = useNavigate();
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [rows, setRows] = useState<AdmissionDto[]>([]);
   const [keyword, setKeyword] = useState('');
@@ -82,7 +84,7 @@ const ReceptionV2: React.FC = () => {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
-            <button className="btn primary" type="button">
+            <button className="btn primary" type="button" onClick={() => navigate('/reception')}>
               <TermIcon name="plus" size={13} />
               Tiếp nhận BN
             </button>
@@ -193,8 +195,12 @@ const ReceptionV2: React.FC = () => {
                 <Field label="Thời gian vào" value={<span className="mono">{dayjs(selected.admissionDate).format('HH:mm DD/MM')}</span>} />
                 {selected.chiefComplaint && <Field label="Lý do khám" value={selected.chiefComplaint} />}
                 <div className="row" style={{ marginTop: 12, gap: 8 }}>
-                  <button className="btn primary" type="button">Gọi vào khám</button>
-                  <button className="btn" type="button">In phiếu</button>
+                  <button className="btn primary" type="button" onClick={() => navigate('/opd')}>
+                    Gọi vào khám
+                  </button>
+                  <button className="btn" type="button" onClick={() => navigate('/reception')}>
+                    Mở hồ sơ đầy đủ
+                  </button>
                 </div>
               </div>
             )}

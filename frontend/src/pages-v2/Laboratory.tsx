@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import * as labApi from '../api/laboratory';
 import type { LabRequest } from '../api/laboratory';
 import TermIcon from '../layouts/terminal/Icon';
@@ -22,6 +23,7 @@ const priorityChip = (p: number) => {
 };
 
 const LaboratoryV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<LabRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -160,8 +162,10 @@ const LaboratoryV2: React.FC = () => {
                   ) : <div className="muted">—</div>}
                 </div>
                 <div className="row" style={{ gap: 8, marginTop: 6 }}>
-                  <button className="btn primary sm" type="button"><TermIcon name="plus" size={12} />Nhập kết quả</button>
-                  <button className="btn sm" type="button">In phiếu</button>
+                  <button className="btn primary sm" type="button" onClick={() => navigate('/lab')}>
+                    <TermIcon name="plus" size={12} />Nhập kết quả
+                  </button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/lab')}>In phiếu</button>
                 </div>
               </div>
             )}

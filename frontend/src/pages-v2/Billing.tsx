@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import * as billingApi from '../api/billing';
 import type { PatientBillingStatusDto } from '../api/billing';
 import TermIcon from '../layouts/terminal/Icon';
@@ -10,6 +11,7 @@ const paymentChip = (s: number, name: string) => {
 };
 
 const BillingV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<PatientBillingStatusDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -149,8 +151,10 @@ const BillingV2: React.FC = () => {
                 <Row label="Đã thu" value={(selected.paidAmount || 0).toLocaleString('vi-VN') + ' đ'} color="var(--s-ok)" />
                 <Row label="Còn lại" value={(selected.remainingAmount || 0).toLocaleString('vi-VN') + ' đ'} color="var(--s-crit)" strong />
                 <div className="row" style={{ gap: 8, marginTop: 6 }}>
-                  <button className="btn primary sm" type="button"><TermIcon name="receipt" size={12} />Thu tiền</button>
-                  <button className="btn sm" type="button">In hoá đơn</button>
+                  <button className="btn primary sm" type="button" onClick={() => navigate('/billing')}>
+                    <TermIcon name="receipt" size={12} />Thu tiền
+                  </button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/billing')}>In hoá đơn</button>
                 </div>
               </div>
             )}

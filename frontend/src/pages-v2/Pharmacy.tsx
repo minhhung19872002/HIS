@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import * as pharmacyApi from '../api/pharmacy';
 import type { PendingPrescription } from '../api/pharmacy';
 import TermIcon from '../layouts/terminal/Icon';
@@ -16,6 +17,7 @@ const statusChip = (s: PendingPrescription['status']) => {
 };
 
 const PharmacyV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<PendingPrescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -133,7 +135,7 @@ const PharmacyV2: React.FC = () => {
           <div className="panel-h">
             <span className="title">Chi tiết đơn</span>
             <span className="sub">{selected ? selected.prescriptionCode : 'Chọn một đơn'}</span>
-            {selected && <div className="actions"><button className="btn primary sm" type="button"><TermIcon name="plus" size={12} />Cấp phát</button></div>}
+            {selected && <div className="actions"><button className="btn primary sm" type="button" onClick={() => navigate('/pharmacy')}><TermIcon name="plus" size={12} />Cấp phát</button></div>}
           </div>
           <div className="panel-body pad">
             {!selected ? <div className="ph">Chọn đơn thuốc để xem chi tiết</div> : (

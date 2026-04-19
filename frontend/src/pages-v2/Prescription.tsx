@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { searchExaminations } from '../api/examination';
 import type { ExaminationDto } from '../api/examination';
 import TermIcon from '../layouts/terminal/Icon';
 
 const PrescriptionV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<ExaminationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -130,13 +132,15 @@ const PrescriptionV2: React.FC = () => {
                 {selected.diagnosisCode && <Field label="Mã ICD" value={<span className="mono">{selected.diagnosisCode}</span>} />}
                 <Field label="Chẩn đoán" value={selected.diagnosisName || '—'} />
                 <div className="row" style={{ gap: 8, marginTop: 8 }}>
-                  <button className="btn primary sm" type="button"><TermIcon name="plus" size={12} />Kê đơn mới</button>
-                  <button className="btn sm" type="button">Sao đơn trước</button>
-                  <button className="btn sm" type="button">Mẫu</button>
+                  <button className="btn primary sm" type="button" onClick={() => navigate('/prescription')}>
+                    <TermIcon name="plus" size={12} />Kê đơn mới
+                  </button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/prescription')}>Sao đơn trước</button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/prescription')}>Mẫu</button>
                 </div>
                 <div className="hline" style={{ margin: '10px 0' }} />
-                <div className="ph" style={{ padding: 20 }}>
-                  Kê đơn chi tiết: mở trong layout cũ để dùng đầy đủ chức năng (DDI check, tra thuốc, ký số).
+                <div style={{ padding: 12, background: 'var(--d-1)', borderRadius: 6, fontSize: 12, color: 'var(--t-2)' }}>
+                  Nhấn "Kê đơn mới" để mở workflow đầy đủ (chọn thuốc, DDI check, ký số) ở layout 1.
                 </div>
               </div>
             )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import * as examApi from '../api/examination';
 import type { RoomDto, RoomPatientListDto } from '../api/examination';
 import TermIcon from '../layouts/terminal/Icon';
@@ -23,6 +24,7 @@ const statusChip = (s: number) => {
 };
 
 const OPDV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState<RoomDto[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [queue, setQueue] = useState<RoomPatientListDto[]>([]);
@@ -113,11 +115,11 @@ const OPDV2: React.FC = () => {
             {queue.length > 0 && <span className="sub">· {queue.length} bệnh nhân</span>}
           </span>
           <div className="actions">
-            <button className="btn" type="button">
+            <button className="btn" type="button" onClick={() => navigate('/opd')}>
               <TermIcon name="search" size={13} />
               Tìm BN
             </button>
-            <button className="btn primary" type="button">
+            <button className="btn primary" type="button" onClick={() => navigate('/opd')}>
               <TermIcon name="plus" size={13} />
               Gọi số tiếp
             </button>
@@ -227,11 +229,13 @@ const OPDV2: React.FC = () => {
                 <Field label="Chẩn đoán sơ bộ" value={selectedPatient.preliminaryDiagnosis || '—'} />
                 <Field label="CLS" value={`${selectedPatient.completedLabOrders}/${selectedPatient.totalLabOrders} hoàn tất`} />
                 <div className="row" style={{ marginTop: 12, gap: 8 }}>
-                  <button className="btn primary" type="button">
+                  <button className="btn primary" type="button" onClick={() => navigate('/opd')}>
                     <TermIcon name="stethoscope" size={13} />
                     Bắt đầu khám
                   </button>
-                  <button className="btn" type="button">Mở hồ sơ</button>
+                  <button className="btn" type="button" onClick={() => navigate('/emr')}>
+                    Mở hồ sơ
+                  </button>
                 </div>
               </div>
             )}

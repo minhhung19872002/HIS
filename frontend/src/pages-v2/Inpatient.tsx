@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import * as ipdApi from '../api/inpatient';
 import type { InpatientListDto } from '../api/inpatient';
 import TermIcon from '../layouts/terminal/Icon';
@@ -10,6 +11,7 @@ const statusChip = (status: number, name: string) => {
 };
 
 const InpatientV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<InpatientListDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -73,7 +75,7 @@ const InpatientV2: React.FC = () => {
               <option value="3">Đã xuất viện</option>
             </select>
             <input className="input" style={{ width: 240 }} placeholder="Tìm tên / mã BN…" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <button className="btn primary" type="button"><TermIcon name="plus" size={13} />Nhập viện</button>
+            <button className="btn primary" type="button" onClick={() => navigate('/ipd')}><TermIcon name="plus" size={13} />Nhập viện</button>
           </div>
         </div>
         <div className="panel-body">
@@ -182,6 +184,11 @@ const InpatientV2: React.FC = () => {
                   {selected.hasPendingOrders && <span className="chip warn">Chờ y lệnh</span>}
                   {selected.hasPendingLabResults && <span className="chip info">Chờ kết quả CLS</span>}
                   {selected.hasUnclaimedMedicine && <span className="chip mag">Chưa lĩnh thuốc</span>}
+                </div>
+                <div className="row" style={{ gap: 8, marginTop: 10 }}>
+                  <button className="btn primary sm" type="button" onClick={() => navigate('/ipd')}>Mở hồ sơ</button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/emr')}>Xem EMR</button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/billing')}>Thanh toán</button>
                 </div>
               </div>
             )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { getSurgerySchedule } from '../api/surgery';
 import type { SurgeryScheduleDto, SurgeryScheduleItemDto } from '../api/surgery';
 import TermIcon from '../layouts/terminal/Icon';
@@ -10,6 +11,7 @@ const statusChip = (s: number, name: string) => {
 };
 
 const SurgeryV2: React.FC = () => {
+  const navigate = useNavigate();
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [schedules, setSchedules] = useState<SurgeryScheduleDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,8 +152,12 @@ const SurgeryV2: React.FC = () => {
                 <Field label="Phẫu thuật" value={selected.surgeryServiceName} />
                 <Field label="Trạng thái" value={statusChip(selected.status, selected.statusName)} />
                 <div className="row" style={{ gap: 8, marginTop: 6 }}>
-                  <button className="btn primary sm" type="button"><TermIcon name="stethoscope" size={12} />Bắt đầu</button>
-                  <button className="btn sm" type="button">Hoãn/Huỷ</button>
+                  <button className="btn primary sm" type="button" onClick={() => navigate('/surgery')}>
+                    <TermIcon name="stethoscope" size={12} />Bắt đầu
+                  </button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/surgery')}>
+                    Hoãn/Huỷ
+                  </button>
                 </div>
               </div>
             )}

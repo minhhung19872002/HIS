@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { searchExaminations } from '../api/examination';
 import type { ExaminationDto } from '../api/examination';
 import TermIcon from '../layouts/terminal/Icon';
@@ -16,6 +17,7 @@ const statusLabel = (s: number) => {
 };
 
 const EMRV2: React.FC = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<ExaminationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -139,8 +141,10 @@ const EMRV2: React.FC = () => {
                 <Field label="Chẩn đoán" value={selected.diagnosisName || '—'} />
                 <Field label="Trạng thái" value={(() => { const st = statusLabel(selected.status); return <span className={`chip ${st.cls}`}>{st.text}</span>; })()} />
                 <div className="row" style={{ gap: 8, marginTop: 6 }}>
-                  <button className="btn primary sm" type="button"><TermIcon name="layers" size={12} />Xem chi tiết</button>
-                  <button className="btn sm" type="button">In HS</button>
+                  <button className="btn primary sm" type="button" onClick={() => navigate('/emr')}>
+                    <TermIcon name="layers" size={12} />Xem chi tiết
+                  </button>
+                  <button className="btn sm" type="button" onClick={() => navigate('/emr')}>In HS</button>
                 </div>
               </div>
             )}
