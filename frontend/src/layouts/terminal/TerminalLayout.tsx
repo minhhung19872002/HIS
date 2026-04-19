@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
 import { useAuth } from '../../contexts/AuthContext';
 import TermIcon from './Icon';
 import './terminal.css';
+import './terminal-antd.css';
 
 type Route = {
   path: string;
@@ -329,7 +331,132 @@ const TerminalLayout: React.FC = () => {
         <div className="main">
           <CommandBar path={location.pathname} onSwitchLayout={onSwitchLayout} />
           <div className="content">
-            <Outlet />
+            {/* Inside /v2/* all Antd pages inherit the clinical-blue terminal
+                theme tokens: same components, very different look (Inter font,
+                tight radii, #2563eb primary, taut control height). */}
+            <ConfigProvider
+              theme={{
+                token: {
+                  colorPrimary: '#2563eb',
+                  colorInfo: '#0284c7',
+                  colorSuccess: '#16a34a',
+                  colorWarning: '#d97706',
+                  colorError: '#dc2626',
+                  colorText: '#0f172a',
+                  colorTextSecondary: '#334155',
+                  colorTextTertiary: '#64748b',
+                  colorBorder: '#e4e9f0',
+                  colorBorderSecondary: '#edf1f6',
+                  colorBgContainer: '#ffffff',
+                  colorBgLayout: '#f7f9fc',
+                  colorBgElevated: '#ffffff',
+                  colorFillAlter: '#f1f5f9',
+                  colorFillContent: '#f1f5f9',
+                  borderRadius: 6,
+                  borderRadiusLG: 8,
+                  borderRadiusSM: 4,
+                  controlHeight: 34,
+                  controlHeightLG: 40,
+                  controlHeightSM: 26,
+                  fontFamily: 'Inter, "IBM Plex Sans", system-ui, sans-serif',
+                  fontSize: 13,
+                  fontSizeLG: 14,
+                  fontSizeSM: 12,
+                  fontSizeHeading1: 32,
+                  fontSizeHeading2: 26,
+                  fontSizeHeading3: 20,
+                  fontSizeHeading4: 16,
+                  lineHeight: 1.5,
+                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                  boxShadowSecondary: '0 4px 12px rgba(15, 23, 42, 0.08)',
+                  wireframe: false,
+                },
+                components: {
+                  Button: {
+                    primaryShadow: 'none',
+                    defaultShadow: 'none',
+                    dangerShadow: 'none',
+                    fontWeight: 500,
+                  },
+                  Card: {
+                    headerHeight: 44,
+                    headerHeightSM: 36,
+                    paddingLG: 18,
+                  },
+                  Table: {
+                    headerBg: '#f7f9fc',
+                    headerColor: '#64748b',
+                    headerSplitColor: '#e4e9f0',
+                    rowHoverBg: '#f7f9fc',
+                    rowSelectedBg: '#eff5ff',
+                    rowSelectedHoverBg: '#e5edf7',
+                    borderColor: '#f1f4f9',
+                    cellPaddingBlock: 10,
+                    cellPaddingInline: 14,
+                    cellFontSize: 13,
+                  },
+                  Tag: {
+                    defaultBg: '#f1f5f9',
+                    defaultColor: '#334155',
+                  },
+                  Tabs: {
+                    titleFontSize: 13,
+                    horizontalItemGutter: 24,
+                    inkBarColor: '#2563eb',
+                    itemSelectedColor: '#2563eb',
+                    itemActiveColor: '#1d4ed8',
+                    itemHoverColor: '#0f172a',
+                  },
+                  Menu: {
+                    itemBg: 'transparent',
+                    itemColor: '#334155',
+                    itemHoverBg: '#f1f5f9',
+                    itemSelectedBg: '#eff5ff',
+                    itemSelectedColor: '#2563eb',
+                    itemHeight: 36,
+                    itemBorderRadius: 4,
+                  },
+                  Input: {
+                    hoverBorderColor: '#bfd3fa',
+                    activeBorderColor: '#2563eb',
+                    activeShadow: '0 0 0 3px #eff5ff',
+                  },
+                  Select: {
+                    optionSelectedBg: '#eff5ff',
+                    optionSelectedColor: '#2563eb',
+                  },
+                  Statistic: {
+                    titleFontSize: 11,
+                    contentFontSize: 26,
+                  },
+                  Modal: {
+                    titleFontSize: 15,
+                    headerBg: '#ffffff',
+                  },
+                  Descriptions: {
+                    titleColor: '#64748b',
+                    labelBg: '#f7f9fc',
+                  },
+                  Drawer: {
+                    fontSizeLG: 15,
+                  },
+                  Alert: {
+                    defaultPadding: '8px 12px',
+                  },
+                  Segmented: {
+                    itemSelectedBg: '#ffffff',
+                    itemSelectedColor: '#0f172a',
+                    trackBg: '#f7f9fc',
+                  },
+                  Form: {
+                    labelColor: '#64748b',
+                    labelFontSize: 12,
+                  },
+                },
+              }}
+            >
+              <Outlet />
+            </ConfigProvider>
           </div>
         </div>
         <StatusBar path={location.pathname} />

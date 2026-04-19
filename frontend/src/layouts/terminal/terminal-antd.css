@@ -1,0 +1,375 @@
+/* ==========================================================================
+   Terminal-aesthetic Antd overrides
+   -----
+   Scoped under .his-terminal so only /v2/* pages get the aggressive restyle.
+   The v1 layout keeps its own theme untouched. Combined with ConfigProvider
+   tokens this gives the terminal a distinctly different look from v1 while
+   retaining every Antd component's behaviour.
+   ========================================================================== */
+
+/* ---- Typography baseline ---- */
+.his-terminal .ant-layout,
+.his-terminal .ant-layout-content,
+.his-terminal .ant-card,
+.his-terminal .ant-tabs,
+.his-terminal .ant-form,
+.his-terminal .ant-table-wrapper,
+.his-terminal .ant-descriptions,
+.his-terminal .ant-modal-root {
+  font-family: Inter, "IBM Plex Sans", system-ui, sans-serif;
+  letter-spacing: -0.005em;
+}
+
+/* ---- Page page-level layout padding so v1 pages breathe inside the shell ---- */
+.his-terminal .ant-layout {
+  background: #f7f9fc;
+}
+.his-terminal .ant-layout-content,
+.his-terminal .ant-pro-page-container,
+.his-terminal .ant-pro-grid-content {
+  background: transparent !important;
+}
+
+/* ---- Cards: thinner shadow, mono eyebrow style ---- */
+.his-terminal .ant-card {
+  border-radius: 8px;
+  border: 1px solid #e4e9f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.his-terminal .ant-card > .ant-card-head {
+  border-bottom: 1px solid #e4e9f0;
+  padding: 0 16px;
+  min-height: 44px;
+}
+.his-terminal .ant-card-head-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  padding: 12px 0;
+}
+.his-terminal .ant-card-extra {
+  padding: 10px 0;
+}
+.his-terminal .ant-card-body {
+  padding: 18px;
+}
+
+/* ---- Buttons: square-ish, tight weight ---- */
+.his-terminal .ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  height: 34px;
+  padding: 0 14px;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+.his-terminal .ant-btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.his-terminal .ant-btn-lg { height: 40px; padding: 0 18px; font-size: 14px; }
+.his-terminal .ant-btn-primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  font-weight: 600;
+}
+.his-terminal .ant-btn-primary:hover:not(:disabled),
+.his-terminal .ant-btn-primary:focus:not(:disabled) {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+.his-terminal .ant-btn-default {
+  background: #ffffff;
+  border-color: #e4e9f0;
+  color: #0f172a;
+}
+.his-terminal .ant-btn-default:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  border-color: #cbd6e3 !important;
+  color: #0f172a !important;
+}
+
+/* ---- Inputs ---- */
+.his-terminal .ant-input,
+.his-terminal .ant-input-number,
+.his-terminal .ant-picker,
+.his-terminal .ant-select-selector {
+  border-radius: 6px !important;
+  border-color: #cbd6e3 !important;
+  font-size: 13px !important;
+}
+.his-terminal .ant-input:focus,
+.his-terminal .ant-input-focused,
+.his-terminal .ant-picker-focused,
+.his-terminal .ant-select-focused .ant-select-selector {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px #eff5ff !important;
+}
+.his-terminal .ant-form-item-label > label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Tables: sticky uppercase headers + hairline rows ---- */
+.his-terminal .ant-table {
+  font-size: 13px;
+  border-radius: 0;
+}
+.his-terminal .ant-table-thead > tr > th {
+  background: #f7f9fc !important;
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e4e9f0 !important;
+  padding: 10px 14px !important;
+}
+.his-terminal .ant-table-thead > tr > th::before {
+  display: none;
+}
+.his-terminal .ant-table-tbody > tr > td {
+  padding: 10px 14px !important;
+  border-bottom: 1px solid #f1f4f9 !important;
+  color: #0f172a;
+}
+.his-terminal .ant-table-tbody > tr:hover > td,
+.his-terminal .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: #f7f9fc !important;
+}
+.his-terminal .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: #eff5ff !important;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+.his-terminal .ant-pagination {
+  font-size: 12px;
+}
+.his-terminal .ant-pagination .ant-pagination-item,
+.his-terminal .ant-pagination .ant-pagination-item-link {
+  border-radius: 4px;
+  border-color: #e4e9f0;
+  min-width: 28px;
+  height: 28px;
+  line-height: 26px;
+}
+
+/* ---- Tabs: underline style (terminal has no pills) ---- */
+.his-terminal .ant-tabs-nav {
+  background: #ffffff;
+  margin: 0 0 12px 0;
+  padding: 0 12px;
+  border-bottom: 1px solid #e4e9f0;
+}
+.his-terminal .ant-tabs-nav::before {
+  display: none;
+}
+.his-terminal .ant-tabs-tab {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  padding: 10px 14px !important;
+  margin: 0 2px 0 0 !important;
+}
+.his-terminal .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #2563eb !important;
+  font-weight: 600;
+}
+.his-terminal .ant-tabs-ink-bar {
+  background: #2563eb;
+  height: 2px !important;
+}
+
+/* ---- Tags: capsule chip style ---- */
+.his-terminal .ant-tag {
+  border: 0;
+  border-radius: 11px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  height: 22px;
+  line-height: 18px;
+  margin-right: 4px;
+}
+
+/* ---- Modal: tighter header, squared panel ---- */
+.his-terminal .ant-modal .ant-modal-content {
+  border-radius: 10px;
+  padding: 0;
+  overflow: hidden;
+}
+.his-terminal .ant-modal-header {
+  padding: 14px 18px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid #e4e9f0 !important;
+  background: #ffffff !important;
+}
+.his-terminal .ant-modal-title {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}
+.his-terminal .ant-modal-body {
+  padding: 18px !important;
+}
+.his-terminal .ant-modal-footer {
+  padding: 12px 18px !important;
+  margin: 0 !important;
+  border-top: 1px solid #e4e9f0 !important;
+  background: #f7f9fc !important;
+}
+
+/* ---- Drawer ---- */
+.his-terminal .ant-drawer-header {
+  border-bottom: 1px solid #e4e9f0;
+  background: #ffffff;
+  padding: 14px 18px;
+}
+.his-terminal .ant-drawer-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* ---- Statistic: large numeric with mono eyebrow ---- */
+.his-terminal .ant-statistic-title {
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "SF Mono", monospace;
+  margin-bottom: 8px;
+}
+.his-terminal .ant-statistic-content {
+  font-size: 26px !important;
+  font-weight: 600 !important;
+  color: #0f172a;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  font-family: Inter, system-ui, sans-serif;
+}
+.his-terminal .ant-statistic-content-suffix {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* ---- Descriptions (used in many detail pages) ---- */
+.his-terminal .ant-descriptions-item-label {
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Segmented ---- */
+.his-terminal .ant-segmented {
+  background: #f7f9fc;
+  border: 1px solid #e4e9f0;
+  padding: 3px;
+  border-radius: 6px;
+}
+.his-terminal .ant-segmented .ant-segmented-item-selected {
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* ---- Alert ---- */
+.his-terminal .ant-alert {
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.his-terminal .ant-alert-message {
+  font-size: 13px;
+  font-weight: 600;
+}
+.his-terminal .ant-alert-description {
+  font-size: 12px;
+}
+
+/* ---- Menu / Dropdown tweaks ---- */
+.his-terminal .ant-dropdown-menu {
+  border-radius: 6px;
+  padding: 4px;
+  border: 1px solid #e4e9f0;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+.his-terminal .ant-dropdown-menu-item {
+  border-radius: 4px;
+  font-size: 13px;
+  padding: 6px 10px !important;
+}
+
+/* ---- Progress ---- */
+.his-terminal .ant-progress-bg { background-color: #2563eb !important; }
+.his-terminal .ant-progress-text { font-size: 12px; color: #64748b; }
+
+/* ---- Empty state ---- */
+.his-terminal .ant-empty-description {
+  color: #94a3b8;
+  font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Timeline ---- */
+.his-terminal .ant-timeline-item-head {
+  background: #ffffff;
+  border: 2px solid #2563eb;
+}
+
+/* ---- Divider: make inline dividers finer ---- */
+.his-terminal .ant-divider {
+  border-top-color: #e4e9f0;
+  margin: 14px 0;
+}
+
+/* ---- Row / Col gutters should feel tighter ---- */
+.his-terminal .ant-row {
+  margin-bottom: 0;
+}
+
+/* ---- Popover ---- */
+.his-terminal .ant-popover-inner {
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+}
+.his-terminal .ant-popover-title {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid #e4e9f0;
+}
+.his-terminal .ant-popover-inner-content {
+  padding: 12px 14px;
+}
+
+/* ---- Override page page title style (h1..h4 inside content) ---- */
+.his-terminal .content h1,
+.his-terminal .content h2,
+.his-terminal .content h3,
+.his-terminal .content h4 {
+  font-family: Inter, system-ui, sans-serif;
+  letter-spacing: -0.015em;
+  color: #0f172a;
+}
+.his-terminal .content h1 { font-size: 28px; font-weight: 600; }
+.his-terminal .content h2 { font-size: 22px; font-weight: 600; }
+.his-terminal .content h3 { font-size: 18px; font-weight: 600; }
+.his-terminal .content h4 { font-size: 15px; font-weight: 600; }
+
+/* ---- Mono numeric cells: match the Terminal feel ---- */
+.his-terminal .ant-table-tbody > tr > td.ant-table-cell .ant-typography-code,
+.his-terminal .ant-table-tbody > tr > td.ant-table-cell code {
+  font-family: "JetBrains Mono", monospace;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  color: #334155;
+}
