@@ -20,103 +20,147 @@ const ROUTES: Route[] = [
   { path: '/v2/billing', label: 'Thanh toán', icon: 'receipt' },
   { path: '/v2/radiology', label: 'Chẩn đoán hình ảnh', icon: 'scan' },
   { path: '/v2/lab', label: 'Xét nghiệm', icon: 'flask' },
+  { path: '/v2/emr', label: 'Hồ sơ bệnh án', icon: 'layers' },
+  { path: '/v2/admin', label: 'Quản trị', icon: 'settings' },
 ];
 
 const RAIL_GROUPS: Route[][] = [
   [ROUTES[0]],
   [ROUTES[1], ROUTES[2], ROUTES[3], ROUTES[4]],
   [ROUTES[6], ROUTES[7]],
+  [ROUTES[8]],
   [ROUTES[5]],
+  [ROUTES[9]],
 ];
 
-type SubNavItem = { id: string; label: string; tag?: string; live?: boolean };
-type SubNavGroup = { label: string; items: SubNavItem[] };
-type SubNavData = {
-  eyebrow: string;
-  title: string;
-  sub: string;
-  groups: SubNavGroup[];
-};
+// Full module list grouped by domain (shown in the subnav when the current
+// rail button doesn't have a dedicated subnav config below). Every path here
+// corresponds to a real route under /v2/*.
+type ModuleGroup = { label: string; items: { path: string; label: string }[] };
 
-const SUBNAV: Record<string, SubNavData> = {
-  '/v2/dashboard': {
-    eyebrow: 'OVERVIEW',
-    title: 'Tổng quan',
-    sub: 'Ca trực · 07:00 → 15:00',
-    groups: [
-      {
-        label: 'HÔM NAY',
-        items: [
-          { id: 'today', label: 'Dashboard ca trực', tag: 'LIVE', live: true },
-          { id: 'alerts', label: 'Cảnh báo' },
-          { id: 'kpi', label: 'KPI khoa' },
-        ],
-      },
-      {
-        label: 'LỐI TẮT',
-        items: [
-          { id: 'sh-rx', label: 'Đơn thuốc chờ ký' },
-          { id: 'sh-lab', label: 'Kết quả lab mới' },
-        ],
-      },
+const ALL_MODULES: ModuleGroup[] = [
+  {
+    label: 'LÂM SÀNG',
+    items: [
+      { path: '/v2/reception', label: 'Tiếp nhận' },
+      { path: '/v2/opd', label: 'Khám ngoại trú' },
+      { path: '/v2/prescription', label: 'Kê đơn' },
+      { path: '/v2/ipd', label: 'Nội trú' },
+      { path: '/v2/surgery', label: 'Phẫu thuật' },
+      { path: '/v2/consultation', label: 'Hội chẩn' },
+      { path: '/v2/emr', label: 'Hồ sơ bệnh án' },
+      { path: '/v2/specialty-emr', label: 'BA Chuyên khoa' },
+      { path: '/v2/follow-up', label: 'Tái khám' },
+      { path: '/v2/telemedicine', label: 'Telemedicine' },
     ],
   },
-  '/v2/reception': {
-    eyebrow: 'CLINICAL · REG',
-    title: 'Tiếp nhận',
-    sub: 'Quầy · kíp sáng',
-    groups: [
-      {
-        label: 'LUỒNG',
-        items: [
-          { id: 'queue', label: 'Hàng chờ OPD', tag: 'today' },
-          { id: 'new', label: 'Bệnh nhân mới' },
-          { id: 'return', label: 'Tái khám' },
-        ],
-      },
-      {
-        label: 'TRA CỨU',
-        items: [
-          { id: 'lookup', label: 'Tra cứu BHYT' },
-          { id: 'family', label: 'Hộ gia đình' },
-        ],
-      },
+  {
+    label: 'CẬN LÂM SÀNG',
+    items: [
+      { path: '/v2/lab', label: 'Xét nghiệm' },
+      { path: '/v2/lab-qc', label: 'Lab QC' },
+      { path: '/v2/microbiology', label: 'Vi sinh' },
+      { path: '/v2/culture-collection', label: 'Lưu chủng' },
+      { path: '/v2/sample-storage', label: 'Lưu mẫu' },
+      { path: '/v2/screening', label: 'Sàng lọc' },
+      { path: '/v2/reagent-management', label: 'Hoá chất' },
+      { path: '/v2/sample-tracking', label: 'Theo dõi mẫu' },
+      { path: '/v2/pathology', label: 'Giải phẫu bệnh' },
+      { path: '/v2/ivf-lab', label: 'IVF' },
+      { path: '/v2/radiology', label: 'CĐHA' },
+      { path: '/v2/blood-bank', label: 'Ngân hàng máu' },
     ],
   },
-  '/v2/opd': {
-    eyebrow: 'CLINICAL · OPD',
-    title: 'Khám ngoại trú',
-    sub: 'Phòng khám hiện hành',
-    groups: [
-      {
-        label: 'DANH SÁCH',
-        items: [
-          { id: 'mine', label: 'BN của tôi' },
-          { id: 'all', label: 'Toàn khoa' },
-          { id: 'pri', label: 'Ưu tiên' },
-        ],
-      },
-      {
-        label: 'HỒ SƠ',
-        items: [
-          { id: 'cur', label: 'BN đang khám' },
-          { id: 'hist', label: 'Lịch sử hôm nay' },
-        ],
-      },
+  {
+    label: 'NHÀ THUỐC / VẬT TƯ',
+    items: [
+      { path: '/v2/pharmacy', label: 'Nhà thuốc' },
+      { path: '/v2/hospital-pharmacy', label: 'Nhà thuốc BV' },
+      { path: '/v2/medical-supply', label: 'Vật tư y tế' },
+      { path: '/v2/procurement', label: 'Mua sắm' },
     ],
   },
-};
+  {
+    label: 'TÀI CHÍNH / BHYT',
+    items: [
+      { path: '/v2/billing', label: 'Thanh toán' },
+      { path: '/v2/finance', label: 'Tài chính' },
+      { path: '/v2/insurance', label: 'Bảo hiểm' },
+      { path: '/v2/bhxh-audit', label: 'BHXH Audit' },
+    ],
+  },
+  {
+    label: 'Y TẾ CÔNG CỘNG',
+    items: [
+      { path: '/v2/health-checkup', label: 'Khám sức khoẻ' },
+      { path: '/v2/immunization', label: 'Tiêm chủng' },
+      { path: '/v2/epidemiology', label: 'Dịch tễ' },
+      { path: '/v2/school-health', label: 'Y tế học đường' },
+      { path: '/v2/occupational-health', label: 'Y học lao động' },
+      { path: '/v2/community-health', label: 'Y tế cộng đồng' },
+      { path: '/v2/environmental-health', label: 'SK Môi trường' },
+      { path: '/v2/population-health', label: 'SK Dân số' },
+      { path: '/v2/reproductive-health', label: 'SK Sinh sản' },
+      { path: '/v2/health-education', label: 'Giáo dục SK' },
+      { path: '/v2/food-safety', label: 'An toàn thực phẩm' },
+    ],
+  },
+  {
+    label: 'CHƯƠNG TRÌNH',
+    items: [
+      { path: '/v2/chronic-disease', label: 'Bệnh mạn tính' },
+      { path: '/v2/methadone-treatment', label: 'Methadone' },
+      { path: '/v2/tb-hiv', label: 'Lao/HIV' },
+      { path: '/v2/hiv-management', label: 'Quản lý HIV' },
+      { path: '/v2/rehabilitation', label: 'PHCN' },
+      { path: '/v2/nutrition', label: 'Dinh dưỡng' },
+      { path: '/v2/mental-health', label: 'Tâm thần' },
+      { path: '/v2/traditional-medicine', label: 'YHCT' },
+      { path: '/v2/trauma-registry', label: 'Chấn thương' },
+      { path: '/v2/medical-forensics', label: 'Giám định' },
+    ],
+  },
+  {
+    label: 'CHẤT LƯỢNG / CỔNG',
+    items: [
+      { path: '/v2/quality', label: 'Chất lượng' },
+      { path: '/v2/infection-control', label: 'Kiểm soát NK' },
+      { path: '/v2/satisfaction-survey', label: 'Khảo sát' },
+      { path: '/v2/patient-portal', label: 'Cổng BN' },
+      { path: '/v2/doctor-portal', label: 'Cổng BS' },
+      { path: '/v2/emergency-disaster', label: 'Cấp cứu / Thảm hoạ' },
+      { path: '/v2/health-exchange', label: 'HIE' },
+      { path: '/v2/inter-hospital', label: 'Chia sẻ liên viện' },
+    ],
+  },
+  {
+    label: 'QUẢN TRỊ',
+    items: [
+      { path: '/v2/admin', label: 'Quản trị' },
+      { path: '/v2/master-data', label: 'Danh mục' },
+      { path: '/v2/reports', label: 'Báo cáo' },
+      { path: '/v2/dashboard-3cap', label: 'Dashboard 3 cấp' },
+      { path: '/v2/hr', label: 'Nhân sự' },
+      { path: '/v2/equipment', label: 'Trang thiết bị' },
+      { path: '/v2/asset-management', label: 'Tài sản' },
+      { path: '/v2/training-research', label: 'Đào tạo & NCKH' },
+      { path: '/v2/booking-management', label: 'Đặt lịch' },
+      { path: '/v2/sms-management', label: 'SMS' },
+      { path: '/v2/digital-signature', label: 'Ký số' },
+      { path: '/v2/central-signing', label: 'Ký số TT' },
+      { path: '/v2/signing-workflow', label: 'Quy trình ký' },
+      { path: '/v2/endpoint-security', label: 'Bảo mật endpoint' },
+      { path: '/v2/medical-record-archive', label: 'Lưu trữ HS' },
+      { path: '/v2/medical-record-planning', label: 'Lập KH HS' },
+      { path: '/v2/treatment-protocols', label: 'Phác đồ' },
+      { path: '/v2/clinical-guidance', label: 'Hướng dẫn LS' },
+      { path: '/v2/lis-config', label: 'LIS Config' },
+      { path: '/v2/practice-license', label: 'Hành nghề' },
+      { path: '/v2/help', label: 'Trợ giúp' },
+    ],
+  },
+];
 
-const getSubnavFor = (path: string): SubNavData => {
-  const exact = SUBNAV[path];
-  if (exact) return exact;
-  return {
-    eyebrow: 'MODULE',
-    title: path.split('/').pop() || 'HIS',
-    sub: 'Bản xem trước',
-    groups: [],
-  };
-};
 
 const Rail: React.FC<{ path: string; onNav: (p: string) => void }> = ({ path, onNav }) => {
   const isActive = (routePath: string) => path === routePath || path.startsWith(routePath + '/');
@@ -149,41 +193,41 @@ const Rail: React.FC<{ path: string; onNav: (p: string) => void }> = ({ path, on
   );
 };
 
-const SubNav: React.FC<{ path: string }> = ({ path }) => {
-  const data = getSubnavFor(path);
-  return (
-    <nav className="subnav">
-      <div className="subnav-eyebrow">{data.eyebrow}</div>
-      <div className="subnav-title">{data.title}</div>
-      <div className="subnav-sub">{data.sub}</div>
-      {data.groups.map((g, gi) => (
-        <React.Fragment key={gi}>
-          <div className="subnav-group">{g.label}</div>
-          {g.items.map((it) => (
-            <button
-              key={it.id}
-              type="button"
-              className={'subnav-item ' + (it.id === data.groups[0].items[0].id ? 'active' : '')}
-            >
-              <span className="lbl">{it.label}</span>
-              {it.live ? (
-                <span className="dot-live" />
-              ) : it.tag ? (
-                <span className="tag">{it.tag}</span>
-              ) : null}
-            </button>
-          ))}
-        </React.Fragment>
-      ))}
-      <div className="subnav-spacer" />
-      <div className="subnav-card">
-        <div className="lbl">Layout mới</div>
-        <div className="val">v2.0</div>
-        <div className="hint">Mẫu Terminal · so sánh với v1</div>
-      </div>
-    </nav>
-  );
-};
+const SubNav: React.FC<{ path: string; onNav: (p: string) => void }> = ({ path, onNav }) => (
+  <nav className="subnav" style={{ overflowY: 'auto' }}>
+    <div className="subnav-eyebrow">MODULES</div>
+    <div className="subnav-title">HIS System</div>
+    <div className="subnav-sub">Tất cả chức năng</div>
+    <button
+      type="button"
+      className={'subnav-item ' + (path === '/v2/dashboard' ? 'active' : '')}
+      onClick={() => onNav('/v2/dashboard')}
+    >
+      <span className="lbl">Tổng quan</span>
+      <span className="dot-live" />
+    </button>
+    {ALL_MODULES.map((group, gi) => (
+      <React.Fragment key={gi}>
+        <div className="subnav-group">{group.label}</div>
+        {group.items.map((it) => (
+          <button
+            key={it.path}
+            type="button"
+            className={'subnav-item ' + (path === it.path ? 'active' : '')}
+            onClick={() => onNav(it.path)}
+          >
+            <span className="lbl">{it.label}</span>
+          </button>
+        ))}
+      </React.Fragment>
+    ))}
+    <div className="subnav-card" style={{ marginTop: 18 }}>
+      <div className="lbl">Layout mới</div>
+      <div className="val">v2.0</div>
+      <div className="hint">Mẫu Terminal · so sánh với v1</div>
+    </div>
+  </nav>
+);
 
 const CommandBar: React.FC<{ path: string; onSwitchLayout: () => void }> = ({ path, onSwitchLayout }) => {
   const { user } = useAuth();
@@ -281,7 +325,7 @@ const TerminalLayout: React.FC = () => {
     <div className="his-terminal">
       <div className="app">
         <Rail path={location.pathname} onNav={(p) => navigate(p)} />
-        <SubNav path={location.pathname} />
+        <SubNav path={location.pathname} onNav={(p) => navigate(p)} />
         <div className="main">
           <CommandBar path={location.pathname} onSwitchLayout={onSwitchLayout} />
           <div className="content">

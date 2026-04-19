@@ -17,6 +17,8 @@ const TerminalLayout = lazy(() => import('./layouts/terminal/TerminalLayout'));
 const DashboardV2 = lazy(() => import('./pages-v2/Dashboard'));
 const ReceptionV2 = lazy(() => import('./pages-v2/Reception'));
 const OPDV2 = lazy(() => import('./pages-v2/OPD'));
+const InpatientV2 = lazy(() => import('./pages-v2/Inpatient'));
+const WrapV1 = lazy(() => import('./pages-v2/WrapV1'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -242,7 +244,10 @@ const AppRoutes: React.FC = () => {
           <Route path="laboratory" element={<Navigate to="/lab" replace />} />
           <Route path="system-admin" element={<Navigate to="/admin" replace />} />
         </Route>
-        {/* Layout v2 (Terminal) — alternative UI for A/B comparison. Shares API + auth. */}
+        {/* Layout v2 (Terminal) — alternative UI for A/B comparison. Shares API + auth.
+            Hand-ported native pages: Dashboard, Reception, OPD, Inpatient.
+            All other routes reuse the v1 page inside the terminal shell via WrapV1 —
+            this way every menu item works immediately with full backend wiring. */}
         <Route
           path="/v2"
           element={
@@ -252,9 +257,91 @@ const AppRoutes: React.FC = () => {
           }
         >
           <Route index element={<Navigate to="/v2/dashboard" replace />} />
+          {/* Native v2 pages */}
           <Route path="dashboard" element={<DashboardV2 />} />
           <Route path="reception" element={<ReceptionV2 />} />
           <Route path="opd" element={<OPDV2 />} />
+          <Route path="ipd" element={<InpatientV2 />} />
+          {/* Remaining pages: v1 content inside v2 shell */}
+          <Route path="dashboard-3cap" element={<WrapV1 element={<Dashboard3Cap />} title="Dashboard 3 Cấp" />} />
+          <Route path="prescription" element={<WrapV1 element={<Prescription />} title="Kê đơn" />} />
+          <Route path="surgery" element={<WrapV1 element={<Surgery />} title="Phẫu thuật" />} />
+          <Route path="pharmacy" element={<WrapV1 element={<Pharmacy />} title="Nhà thuốc" />} />
+          <Route path="medical-supply" element={<WrapV1 element={<MedicalSupply />} title="Vật tư y tế" />} />
+          <Route path="follow-up" element={<WrapV1 element={<FollowUp />} title="Tái khám" />} />
+          <Route path="booking-management" element={<WrapV1 element={<BookingManagement />} title="Quản lý đặt lịch" />} />
+          <Route path="sms-management" element={<WrapV1 element={<SmsManagement />} title="SMS" />} />
+          <Route path="lab" element={<WrapV1 element={<Laboratory />} title="Xét nghiệm" />} />
+          <Route path="lab-qc" element={<WrapV1 element={<LabQC />} title="Lab QC" />} />
+          <Route path="microbiology" element={<WrapV1 element={<Microbiology />} title="Vi sinh" />} />
+          <Route path="culture-collection" element={<WrapV1 element={<CultureCollection />} title="Lưu chủng" />} />
+          <Route path="sample-storage" element={<WrapV1 element={<SampleStorage />} title="Lưu mẫu" />} />
+          <Route path="screening" element={<WrapV1 element={<Screening />} title="Sàng lọc" />} />
+          <Route path="reagent-management" element={<WrapV1 element={<ReagentManagement />} title="Hoá chất" />} />
+          <Route path="sample-tracking" element={<WrapV1 element={<SampleTracking />} title="Theo dõi mẫu" />} />
+          <Route path="pathology" element={<WrapV1 element={<Pathology />} title="Giải phẫu bệnh" />} />
+          <Route path="ivf-lab" element={<WrapV1 element={<IvfLab />} title="IVF" />} />
+          <Route path="radiology" element={<WrapV1 element={<Radiology />} title="Chẩn đoán hình ảnh" />} />
+          <Route path="blood-bank" element={<WrapV1 element={<BloodBank />} title="Ngân hàng máu" />} />
+          <Route path="billing" element={<WrapV1 element={<Billing />} title="Thanh toán" />} />
+          <Route path="finance" element={<WrapV1 element={<Finance />} title="Tài chính" />} />
+          <Route path="insurance" element={<WrapV1 element={<Insurance />} title="Bảo hiểm" />} />
+          <Route path="master-data" element={<WrapV1 element={<MasterData />} title="Danh mục" />} />
+          <Route path="reports" element={<WrapV1 element={<Reports />} title="Báo cáo" />} />
+          <Route path="admin" element={<WrapV1 element={<SystemAdmin />} title="Quản trị" />} />
+          <Route path="digital-signature" element={<WrapV1 element={<DigitalSignature />} title="Ký số" />} />
+          <Route path="central-signing" element={<WrapV1 element={<CentralSigning />} title="Ký số tập trung" />} />
+          <Route path="settings" element={<Navigate to="/v2/admin" replace />} />
+          <Route path="telemedicine" element={<WrapV1 element={<Telemedicine />} title="Telemedicine" />} />
+          <Route path="nutrition" element={<WrapV1 element={<Nutrition />} title="Dinh dưỡng" />} />
+          <Route path="infection-control" element={<WrapV1 element={<InfectionControl />} title="Kiểm soát nhiễm khuẩn" />} />
+          <Route path="rehabilitation" element={<WrapV1 element={<Rehabilitation />} title="Phục hồi chức năng" />} />
+          <Route path="equipment" element={<WrapV1 element={<Equipment />} title="Trang thiết bị" />} />
+          <Route path="hr" element={<WrapV1 element={<HR />} title="Nhân sự" />} />
+          <Route path="quality" element={<WrapV1 element={<Quality />} title="Chất lượng" />} />
+          <Route path="patient-portal" element={<WrapV1 element={<PatientPortal />} title="Cổng BN" />} />
+          <Route path="health-exchange" element={<WrapV1 element={<HealthExchange />} title="HIE" />} />
+          <Route path="emergency-disaster" element={<WrapV1 element={<EmergencyDisaster />} title="Cấp cứu / Thảm hoạ" />} />
+          <Route path="emr" element={<WrapV1 element={<EMR />} title="Hồ sơ bệnh án" />} />
+          <Route path="consultation" element={<WrapV1 element={<Consultation />} title="Hội chẩn" />} />
+          <Route path="help" element={<WrapV1 element={<Help />} title="Trợ giúp" />} />
+          <Route path="radiology/viewer" element={<WrapV1 element={<DicomViewer />} title="DICOM Viewer" />} />
+          <Route path="medical-record-archive" element={<WrapV1 element={<MedicalRecordArchive />} title="Lưu trữ hồ sơ" />} />
+          <Route path="bhxh-audit" element={<WrapV1 element={<BhxhAudit />} title="BHXH Audit" />} />
+          <Route path="doctor-portal" element={<WrapV1 element={<DoctorPortal />} title="Cổng BS" />} />
+          <Route path="satisfaction-survey" element={<WrapV1 element={<SatisfactionSurvey />} title="Khảo sát" />} />
+          <Route path="lis-config" element={<WrapV1 element={<LISConfig />} title="LIS Config" />} />
+          <Route path="specialty-emr" element={<WrapV1 element={<SpecialtyEMR />} title="BA Chuyên khoa" />} />
+          <Route path="signing-workflow" element={<WrapV1 element={<SigningWorkflow />} title="Quy trình ký" />} />
+          <Route path="medical-record-planning" element={<WrapV1 element={<MedicalRecordPlanning />} title="Lập kế hoạch BA" />} />
+          <Route path="endpoint-security" element={<WrapV1 element={<EndpointSecurity />} title="Bảo mật endpoint" />} />
+          <Route path="treatment-protocols" element={<WrapV1 element={<TreatmentProtocol />} title="Phác đồ" />} />
+          <Route path="chronic-disease" element={<WrapV1 element={<ChronicDisease />} title="Bệnh mạn tính" />} />
+          <Route path="hospital-pharmacy" element={<WrapV1 element={<HospitalPharmacy />} title="Nhà thuốc BV" />} />
+          <Route path="clinical-guidance" element={<WrapV1 element={<ClinicalGuidance />} title="Hướng dẫn lâm sàng" />} />
+          <Route path="tb-hiv" element={<WrapV1 element={<TbHivManagement />} title="Lao/HIV" />} />
+          <Route path="health-checkup" element={<WrapV1 element={<HealthCheckup />} title="Khám sức khoẻ" />} />
+          <Route path="immunization" element={<WrapV1 element={<Immunization />} title="Tiêm chủng" />} />
+          <Route path="epidemiology" element={<WrapV1 element={<Epidemiology />} title="Dịch tễ" />} />
+          <Route path="school-health" element={<WrapV1 element={<SchoolHealth />} title="Y tế học đường" />} />
+          <Route path="occupational-health" element={<WrapV1 element={<OccupationalHealth />} title="Y học lao động" />} />
+          <Route path="methadone-treatment" element={<WrapV1 element={<MethadoneTreatment />} title="Methadone" />} />
+          <Route path="food-safety" element={<WrapV1 element={<FoodSafety />} title="An toàn thực phẩm" />} />
+          <Route path="community-health" element={<WrapV1 element={<CommunityHealth />} title="Y tế cộng đồng" />} />
+          <Route path="hiv-management" element={<WrapV1 element={<HivManagement />} title="Quản lý HIV" />} />
+          <Route path="medical-forensics" element={<WrapV1 element={<MedicalForensics />} title="Giám định" />} />
+          <Route path="traditional-medicine" element={<WrapV1 element={<TraditionalMedicine />} title="YHCT" />} />
+          <Route path="reproductive-health" element={<WrapV1 element={<ReproductiveHealth />} title="SK Sinh sản" />} />
+          <Route path="mental-health" element={<WrapV1 element={<MentalHealth />} title="Tâm thần" />} />
+          <Route path="environmental-health" element={<WrapV1 element={<EnvironmentalHealth />} title="SK Môi trường" />} />
+          <Route path="trauma-registry" element={<WrapV1 element={<TraumaRegistry />} title="Chấn thương" />} />
+          <Route path="population-health" element={<WrapV1 element={<PopulationHealth />} title="SK Dân số" />} />
+          <Route path="health-education" element={<WrapV1 element={<HealthEducation />} title="Giáo dục SK" />} />
+          <Route path="practice-license" element={<WrapV1 element={<PracticeLicense />} title="Hành nghề" />} />
+          <Route path="inter-hospital" element={<WrapV1 element={<InterHospitalSharing />} title="Chia sẻ liên viện" />} />
+          <Route path="asset-management" element={<WrapV1 element={<AssetManagement />} title="Tài sản" />} />
+          <Route path="training-research" element={<WrapV1 element={<TrainingResearch />} title="Đào tạo & NCKH" />} />
+          <Route path="procurement" element={<WrapV1 element={<Procurement />} title="Mua sắm" />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
