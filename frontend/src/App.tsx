@@ -265,19 +265,35 @@ const AppRoutes: React.FC = () => {
           }
         >
           <Route index element={<Navigate to="/v2/dashboard" replace />} />
-          {/* Native v2 pages */}
-          <Route path="dashboard" element={<DashboardV2 />} />
-          <Route path="reception" element={<ReceptionV2 />} />
-          <Route path="opd" element={<OPDV2 />} />
-          <Route path="ipd" element={<InpatientV2 />} />
-          <Route path="prescription" element={<PrescriptionV2 />} />
-          <Route path="pharmacy" element={<PharmacyV2 />} />
-          <Route path="surgery" element={<SurgeryV2 />} />
-          <Route path="billing" element={<BillingV2 />} />
-          <Route path="lab" element={<LaboratoryV2 />} />
-          <Route path="radiology" element={<RadiologyV2 />} />
-          <Route path="blood-bank" element={<BloodBankV2 />} />
-          <Route path="emr" element={<EMRV2 />} />
+          {/* Primary pages: v1 content rendered inside the v2 terminal shell so users
+              get full functionality (all modals, forms, workflows) in the new layout.
+              The hand-ported "native v2" variants remain available under /v2-lite/*
+              for visual comparison only — they are simplified read-only views. */}
+          <Route path="dashboard" element={<WrapV1 element={<Dashboard />} title="Tổng quan" />} />
+          <Route path="reception" element={<WrapV1 element={<Reception />} title="Tiếp nhận" />} />
+          <Route path="opd" element={<WrapV1 element={<OPD />} title="Khám ngoại trú" />} />
+          <Route path="ipd" element={<WrapV1 element={<Inpatient />} title="Nội trú" />} />
+          <Route path="prescription" element={<WrapV1 element={<Prescription />} title="Kê đơn" />} />
+          <Route path="pharmacy" element={<WrapV1 element={<Pharmacy />} title="Nhà thuốc" />} />
+          <Route path="surgery" element={<WrapV1 element={<Surgery />} title="Phẫu thuật" />} />
+          <Route path="billing" element={<WrapV1 element={<Billing />} title="Thanh toán" />} />
+          <Route path="lab" element={<WrapV1 element={<Laboratory />} title="Xét nghiệm" />} />
+          <Route path="radiology" element={<WrapV1 element={<Radiology />} title="Chẩn đoán hình ảnh" />} />
+          <Route path="blood-bank" element={<WrapV1 element={<BloodBank />} title="Ngân hàng máu" />} />
+          <Route path="emr" element={<WrapV1 element={<EMR />} title="Hồ sơ bệnh án" />} />
+          {/* Native-designed Terminal pages available at /v2/lite/* for visual comparison */}
+          <Route path="lite/dashboard" element={<DashboardV2 />} />
+          <Route path="lite/reception" element={<ReceptionV2 />} />
+          <Route path="lite/opd" element={<OPDV2 />} />
+          <Route path="lite/ipd" element={<InpatientV2 />} />
+          <Route path="lite/prescription" element={<PrescriptionV2 />} />
+          <Route path="lite/pharmacy" element={<PharmacyV2 />} />
+          <Route path="lite/surgery" element={<SurgeryV2 />} />
+          <Route path="lite/billing" element={<BillingV2 />} />
+          <Route path="lite/lab" element={<LaboratoryV2 />} />
+          <Route path="lite/radiology" element={<RadiologyV2 />} />
+          <Route path="lite/blood-bank" element={<BloodBankV2 />} />
+          <Route path="lite/emr" element={<EMRV2 />} />
           {/* Remaining pages: v1 content inside v2 shell */}
           <Route path="dashboard-3cap" element={<WrapV1 element={<Dashboard3Cap />} title="Dashboard 3 Cấp" />} />
           <Route path="medical-supply" element={<WrapV1 element={<MedicalSupply />} title="Vật tư y tế" />} />
