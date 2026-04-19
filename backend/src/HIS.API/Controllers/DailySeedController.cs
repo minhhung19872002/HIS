@@ -793,6 +793,74 @@ public class DailySeedController : ControllerBase
             }
         }
 
+        // IvfPatientCouple + IvfCycle - Ivf Lab page
+        int newIvfCouples = 0, newIvfCycles = 0;
+        if (await _db.IvfPatientCouples.CountAsync() == 0 && todayPatientIds.Count >= 6)
+        {
+            for (int i = 0; i < Math.Min(4, todayPatientIds.Count / 2); i++)
+            {
+                var coupleId = Guid.NewGuid();
+                _db.IvfPatientCouples.Add(new IvfPatientCouple
+                {
+                    Id = coupleId,
+                    WifePatientId = todayPatientIds[i * 2],
+                    HusbandPatientId = todayPatientIds[i * 2 + 1],
+                    InfertilityDurationMonths = 24 + i * 12,
+                    InfertilityCause = new[] { "Vô sinh không rõ nguyên nhân", "Tắc vòi trứng", "Tinh trùng yếu", "Lạc nội mạc tử cung" }[i],
+                    MarriageDate = today.AddYears(-(3 + i)),
+                    Notes = "Cặp đôi hiếm muộn",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newIvfCouples++;
+
+                _db.IvfCycles.Add(new IvfCycle
+                {
+                    Id = Guid.NewGuid(),
+                    CoupleId = coupleId,
+                    CycleNumber = 1,
+                    StartDate = today.AddDays(-(10 + i * 5)),
+                    Status = 1 + i, // 1-Active, 2-OvumPickup, 3-Fertilization, 4-Transfer
+                    Protocol = new[] { "Long protocol", "Short protocol", "Antagonist", "Natural cycle" }[i],
+                    DoctorId = docIdsAll.Count > 0 ? docIdsAll[i % docIdsAll.Count] : null,
+                    Notes = "Chu kỳ IVF đang theo dõi",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newIvfCycles++;
+            }
+        }
+
+        // RadiologyConsultationSession - Consultation page
+        int newConsult = 0;
+        if (await _db.RadiologyConsultationSessions.CountAsync() == 0 && docIdsAll.Count > 0)
+        {
+            var titles = new[]
+            {
+                "Hội chẩn CT sọ não BN nghi đột quỵ",
+                "Hội chẩn MRI khớp gối chấn thương",
+                "Hội chẩn X-quang phổi nghi lao",
+                "Hội chẩn siêu âm tim BN suy tim",
+                "Hội chẩn CT ngực nghi u phổi"
+            };
+            for (int i = 0; i < titles.Length; i++)
+            {
+                _db.RadiologyConsultationSessions.Add(new RadiologyConsultationSession
+                {
+                    Id = Guid.NewGuid(),
+                    SessionCode = $"HC{today:yyyyMMdd}{(i + 1):D3}",
+                    Title = titles[i],
+                    Description = "Hội chẩn chuyên khoa chẩn đoán hình ảnh",
+                    ScheduledStartTime = today.AddHours(8 + i * 2),
+                    ScheduledEndTime = today.AddHours(9 + i * 2),
+                    OrganizerId = docIdsAll[i % docIdsAll.Count],
+                    LeaderId = docIdsAll[(i + 1) % docIdsAll.Count],
+                    Status = i < 2 ? 1 : (i < 4 ? 2 : 3),
+                    MeetingUrl = $"https://meet.his.local/hc-{i + 1}",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newConsult++;
+            }
+        }
+
         // FixedAsset - one time
         int newAssets = 0;
         if (await _db.FixedAssets.CountAsync() == 0 && deptIdsAll.Count > 0)
@@ -850,6 +918,9 @@ public class DailySeedController : ControllerBase
         await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE TrainingClasses SET CreatedAt = {now}, UpdatedAt = {now} WHERE ClassCode LIKE 'TC%'");
         await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE ResearchProjects SET CreatedAt = {now}, UpdatedAt = {now} WHERE ProjectCode LIKE 'NCKH%'");
         await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE FixedAssets SET CreatedAt = {now}, UpdatedAt = {now} WHERE AssetCode LIKE 'TS%'");
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE IvfPatientCouples SET CreatedAt = {now}, UpdatedAt = {now}");
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE IvfCycles SET CreatedAt = {now}, UpdatedAt = {now}");
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE RadiologyConsultationSessions SET CreatedAt = {now}, UpdatedAt = {now} WHERE SessionCode LIKE {"HC" + today.ToString("yyyyMMdd") + "%"}");
 
         _logger.LogInformation(
             "Daily seed: {P} patients + {R} records + {E} exams + {T} tele + {Rx} rx + {Lab} lab + {Staff} staff + {Eq} equip + {Inc} incidents + {Reh} rehab + {Sign} signing + {Sur} survey + {Proc} proc + {Arc} archive + {Hie} hie + {Tr} training + {Res} research + {As} assets for {Date}",
@@ -876,6 +947,9 @@ public class DailySeedController : ControllerBase
             createdTraining = newTraining,
             createdResearch = newResearch,
             createdAssets = newAssets,
+            createdIvfCouples = newIvfCouples,
+            createdIvfCycles = newIvfCycles,
+            createdConsultations = newConsult,
             date = today,
             totalTodayAfter = existingToday + newPatients.Count
         });

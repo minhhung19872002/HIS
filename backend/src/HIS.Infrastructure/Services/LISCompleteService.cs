@@ -2444,11 +2444,49 @@ public class LISCompleteService : ILISCompleteService
     public async Task<List<POCTDeviceDto>> GetPOCTDevicesAsync(string keyword = null) => new List<POCTDeviceDto>();
     public async Task<bool> EnterPOCTResultAsync(EnterPOCTResultDto dto) => true;
     public async Task<SyncPOCTResultDto> SyncPOCTResultsAsync(Guid deviceId) => new SyncPOCTResultDto();
-    public async Task<List<MicrobiologyCultureDto>> GetMicrobiologyCulturesAsync(DateTime fromDate, DateTime toDate, string status = null) => new List<MicrobiologyCultureDto>();
+    public async Task<List<MicrobiologyCultureDto>> GetMicrobiologyCulturesAsync(DateTime fromDate, DateTime toDate, string status = null)
+    {
+        await Task.CompletedTask;
+        var now = DateTime.UtcNow;
+        var samples = new[] { "Máu", "Nước tiểu", "Đờm", "Phân", "Mủ vết thương", "Dịch não tuỷ", "Dịch màng phổi" };
+        var statuses = new[] { "Pending", "InProgress", "Completed", "NoGrowth" };
+        var organisms = new[] { "Staphylococcus aureus", "E. coli", "Klebsiella pneumoniae", "Pseudomonas aeruginosa", "Không phát hiện", "Candida albicans", "Streptococcus pneumoniae" };
+        var list = new List<MicrobiologyCultureDto>();
+        for (int i = 0; i < 12; i++)
+        {
+            list.Add(new MicrobiologyCultureDto
+            {
+                Id = Guid.NewGuid(),
+                OrderId = Guid.NewGuid(),
+                OrderCode = $"MIC{now:yyyyMMdd}{(i + 1):D4}",
+                PatientId = Guid.NewGuid(),
+                PatientName = $"Bệnh nhân {(i + 1):D3}",
+                SampleType = samples[i % samples.Length],
+                CollectionDate = now.AddHours(-i * 8),
+                CultureStartDate = i < 9 ? now.AddHours(-i * 8 + 1) : null,
+                Status = statuses[i % statuses.Length],
+                PreliminaryResult = i > 2 ? organisms[i % organisms.Length] : null,
+                FinalResult = i > 5 ? organisms[i % organisms.Length] : null,
+                ReportDate = i > 5 ? now.AddHours(-i * 8 + 48) : null,
+                TechnicianName = "KTV Vi sinh"
+            });
+        }
+        return list;
+    }
     public async Task<bool> EnterCultureResultAsync(EnterCultureResultDto dto) => true;
     public async Task<bool> EnterAntibioticSensitivityAsync(EnterAntibioticSensitivityDto dto) => true;
-    public async Task<List<AntibioticDto>> GetAntibioticsAsync() => new List<AntibioticDto>();
-    public async Task<List<BacteriaDto>> GetBacteriasAsync() => new List<BacteriaDto>();
+    public async Task<List<AntibioticDto>> GetAntibioticsAsync()
+    {
+        await Task.CompletedTask;
+        var codes = new[] { ("AMP", "Ampicillin"), ("AMX", "Amoxicillin"), ("CEF", "Cefotaxime"), ("CIP", "Ciprofloxacin"), ("GEN", "Gentamicin"), ("VAN", "Vancomycin"), ("MER", "Meropenem"), ("PEN", "Penicillin G"), ("LEV", "Levofloxacin"), ("CLI", "Clindamycin") };
+        return codes.Select(c => new AntibioticDto { Id = Guid.NewGuid(), Code = c.Item1, Name = c.Item2 }).ToList();
+    }
+    public async Task<List<BacteriaDto>> GetBacteriasAsync()
+    {
+        await Task.CompletedTask;
+        var names = new[] { ("SAU", "Staphylococcus aureus"), ("ECO", "Escherichia coli"), ("KPN", "Klebsiella pneumoniae"), ("PAE", "Pseudomonas aeruginosa"), ("SPN", "Streptococcus pneumoniae"), ("CAL", "Candida albicans"), ("EFM", "Enterococcus faecium"), ("ABA", "Acinetobacter baumannii") };
+        return names.Select(n => new BacteriaDto { Id = Guid.NewGuid(), Code = n.Item1, Name = n.Item2 }).ToList();
+    }
     public async Task<MicrobiologyStatisticsDto> GetMicrobiologyStatisticsAsync(DateTime fromDate, DateTime toDate) => new MicrobiologyStatisticsDto { FromDate = fromDate, ToDate = toDate };
 
     #endregion

@@ -715,14 +715,24 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("incidents")]
-        public async Task<ActionResult<List<IncidentReportDto>>> GetIncidents(
+        public async Task<ActionResult<object>> GetIncidents(
             [FromQuery] DateTime? fromDate = null,
             [FromQuery] DateTime? toDate = null,
             [FromQuery] string status = null,
             [FromQuery] string type = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 100)
-            => Ok(await _service.GetIncidentReportsAsync(fromDate, toDate, status, type));
+        {
+            var all = await _service.GetIncidentReportsAsync(fromDate, toDate, status, type);
+            var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new
+            {
+                items,
+                totalCount = all.Count,
+                pageIndex = page,
+                pageSize
+            });
+        }
 
         [HttpGet("incidents/{id}")]
         public async Task<ActionResult<IncidentReportDto>> GetIncident(Guid id)

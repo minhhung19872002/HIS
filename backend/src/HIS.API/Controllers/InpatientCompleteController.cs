@@ -1429,6 +1429,53 @@ public partial class InpatientCompleteController
     }
 
     #endregion
+
+    #region Medical Record Archive Summary (dashboard for /medical-record-archive page)
+
+    [HttpGet("medical-record-archive/summary")]
+    public async Task<ActionResult> GetMedicalRecordArchiveSummary()
+    {
+        var db = HttpContext.RequestServices.GetRequiredService<HIS.Infrastructure.Data.HISDbContext>();
+        var total = await db.MedicalRecordArchives.CountAsync();
+        var archived = await db.MedicalRecordArchives.CountAsync(a => a.Status == 1);
+        var borrowing = await db.MedicalRecordArchives.CountAsync(a => a.Status == 2);
+        var currentYear = DateTime.UtcNow.Year;
+        var thisYear = await db.MedicalRecordArchives.CountAsync(a => a.ArchiveYear == currentYear);
+
+        var byLocation = await db.MedicalRecordArchives
+            .Where(a => a.StorageLocation != null)
+            .GroupBy(a => a.StorageLocation)
+            .Select(g => new { location = g.Key, count = g.Count() })
+            .ToListAsync();
+
+        var recent = await db.MedicalRecordArchives
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(10)
+            .Select(a => new
+            {
+                id = a.Id,
+                archiveCode = a.ArchiveCode,
+                diagnosis = a.Diagnosis,
+                storageLocation = a.StorageLocation,
+                shelfNumber = a.ShelfNumber,
+                boxNumber = a.BoxNumber,
+                archivedDate = a.ArchivedDate,
+                status = a.Status
+            })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            totalArchived = total,
+            activeCount = archived,
+            borrowedCount = borrowing,
+            thisYearCount = thisYear,
+            byLocation,
+            recent
+        });
+    }
+
+    #endregion
 }
 
 public class CreateShiftHandoverRequest
