@@ -347,12 +347,48 @@ public class RISCompleteService : IRISCompleteService
 
     public async Task<int> FixDicomStudyUIDsAsync()
     {
-        // Real StudyInstanceUIDs from Orthanc
-        var realUIDs = new[]
+        // Live StudyInstanceUIDs pulled from our Orthanc/R2 PACS. Anything already
+        // holding one of these is considered already-real and is skipped.
+        string[] realUIDs;
+
+        try
         {
-            "1.3.6.1.4.1.44316.6.102.1.2023091384336494.746252101381252750643",
-            "1.2.826.0.1.3680043.8.1055.1.20111103112244831.40200514.30965937"
-        };
+            var pacsBaseUrl = _pacsBaseUrl.TrimEnd('/');
+            var pacsUser = _configuration["PACS:Username"] ?? "admin";
+            var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+
+            using var http = new HttpClient();
+            var authBytes = System.Text.Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+            http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+            http.Timeout = TimeSpan.FromSeconds(20);
+
+            var studiesJson = await http.GetStringAsync($"{pacsBaseUrl}/studies?expand=true");
+            var studies = System.Text.Json.JsonSerializer.Deserialize<List<System.Text.Json.JsonElement>>(studiesJson);
+            var uids = new List<string>();
+            foreach (var s in studies ?? new List<System.Text.Json.JsonElement>())
+            {
+                if (s.TryGetProperty("MainDicomTags", out var tags) &&
+                    tags.TryGetProperty("StudyInstanceUID", out var uid))
+                {
+                    var v = uid.GetString();
+                    if (!string.IsNullOrEmpty(v)) uids.Add(v);
+                }
+            }
+            realUIDs = uids.Count > 0 ? uids.ToArray() : new[]
+            {
+                "1.3.6.1.4.1.5962.1.2.1.20040119072730.12322",
+                "1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463",
+            };
+        }
+        catch
+        {
+            realUIDs = new[]
+            {
+                "1.3.6.1.4.1.5962.1.2.1.20040119072730.12322",
+                "1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463",
+            };
+        }
 
         // Get all DicomStudies that have fake UIDs (ones we generated)
         var dicomStudies = await _context.DicomStudies
@@ -362,7 +398,7 @@ public class RISCompleteService : IRISCompleteService
         int count = 0;
         foreach (var study in dicomStudies)
         {
-            // Assign real UID (alternate between the two)
+            // Assign real UID (round-robin across whatever PACS currently holds)
             study.StudyInstanceUID = realUIDs[count % realUIDs.Length];
             count++;
         }

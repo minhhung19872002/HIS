@@ -528,6 +528,388 @@ public class DailySeedController : ControllerBase
             .Take(30).ToListAsync();
 
         int newIncidents = 0, newRehab = 0, newSigning = 0, newSurvey = 0, newProc = 0, newArchive = 0;
+        int newAdmissions = 0, newDischarges = 0, newReceipts = 0, newSvcRequests = 0,
+            newRadRequests = 0, newSurgRequests = 0, newQueueTickets = 0;
+
+        // ==== Admissions - for Inpatient page + dashboard currentInpatients/todayAdmissions ====
+        var freeBeds = await _db.Beds
+            .Where(b => b.IsActive && b.Status == 0)
+            .Select(b => new { b.Id, b.RoomId })
+            .Take(30).ToListAsync();
+        var inpatientRoomList = await _db.Rooms
+            .Where(r => r.IsActive && r.RoomType == 2)
+            .Select(r => new { r.Id, r.DepartmentId })
+            .ToListAsync();
+        var roomDeptMap = inpatientRoomList.ToDictionary(r => r.Id, r => r.DepartmentId);
+
+        if (await _db.Admissions.CountAsync(a => a.AdmissionDate >= today && a.AdmissionDate < today.AddDays(1)
+                && _db.MedicalRecords.Any(m => m.Id == a.MedicalRecordId && m.MedicalRecordCode.StartsWith($"HS{today:yyyyMMdd}SEED"))) == 0
+            && inpatientRoomList.Count > 0 && docIdsAll.Count > 0 && todayRecords.Count >= 4)
+        {
+            var admitTypes = new[] { 3, 1, 3, 4, 2 };
+            var newAdmsList = new List<Admission>();
+            for (int i = 0; i < Math.Min(8, todayRecords.Count); i++)
+            {
+                var r = todayRecords[i];
+                // Prefer a free bed if available, otherwise pick any inpatient room (bed-less admission)
+                Guid? bedId = null;
+                Guid roomId;
+                Guid deptId;
+                if (i < freeBeds.Count)
+                {
+                    bedId = freeBeds[i].Id;
+                    roomId = freeBeds[i].RoomId;
+                }
+                else
+                {
+                    var room = inpatientRoomList[i % inpatientRoomList.Count];
+                    roomId = room.Id;
+                }
+                if (!roomDeptMap.TryGetValue(roomId, out deptId) || deptId == Guid.Empty)
+                    deptId = r.DepartmentId ?? (deptIdsAll.Count > 0 ? deptIdsAll[0] : Guid.Empty);
+                if (deptId == Guid.Empty) continue;
+
+                newAdmsList.Add(new Admission
+                {
+                    Id = Guid.NewGuid(),
+                    MedicalRecordId = r.Id,
+                    PatientId = r.PatientId,
+                    AdmissionDate = today.AddHours(rng.Next(6, 12)),
+                    AdmissionType = admitTypes[i % admitTypes.Length],
+                    AdmittingDoctorId = docIdsAll[i % docIdsAll.Count],
+                    DepartmentId = deptId,
+                    RoomId = roomId,
+                    BedId = bedId,
+                    Status = 0,
+                    DiagnosisOnAdmission = r.InitialDiagnosis,
+                    ReasonForAdmission = $"Nhập viện điều trị: {r.InitialDiagnosis}",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newAdmissions++;
+            }
+            if (newAdmsList.Count > 0)
+            {
+                _db.Admissions.AddRange(newAdmsList);
+                var mrIds = newAdmsList.Select(a => a.MedicalRecordId).ToHashSet();
+                var mrsToUpdate = await _db.MedicalRecords.Where(m => mrIds.Contains(m.Id)).ToListAsync();
+                foreach (var m in mrsToUpdate) m.TreatmentType = 2;
+                var bedIdsUsed = newAdmsList.Where(a => a.BedId.HasValue).Select(a => a.BedId!.Value).ToHashSet();
+                if (bedIdsUsed.Count > 0)
+                {
+                    var bedsToUpdate = await _db.Beds.Where(b => bedIdsUsed.Contains(b.Id)).ToListAsync();
+                    foreach (var b in bedsToUpdate) b.Status = 1;
+                }
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        // ==== Discharges - turn yesterday's lingering admissions into today's discharges ====
+        if (await _db.Discharges.CountAsync(d => d.DischargeDate >= today && d.DischargeDate < today.AddDays(1)) < 3
+            && docIdsAll.Count > 0)
+        {
+            var candidateAdms = await _db.Admissions
+                .Where(a => a.Status == 0 && a.AdmissionDate < today)
+                .OrderBy(a => a.AdmissionDate)
+                .Take(3)
+                .ToListAsync();
+            foreach (var adm in candidateAdms)
+            {
+                _db.Discharges.Add(new Discharge
+                {
+                    Id = Guid.NewGuid(),
+                    AdmissionId = adm.Id,
+                    DischargeDate = today.AddHours(9 + newDischarges * 2),
+                    DischargeType = 1,
+                    DischargeCondition = 1,
+                    DischargeDiagnosis = adm.DiagnosisOnAdmission,
+                    DischargeInstructions = "Uống thuốc đều, tái khám sau 7 ngày",
+                    FollowUpDate = today.AddDays(7),
+                    DischargedBy = docIdsAll[newDischarges % docIdsAll.Count],
+                    CreatedAt = now, UpdatedAt = now
+                });
+                adm.Status = 2;
+                if (adm.BedId.HasValue)
+                {
+                    var b = await _db.Beds.FirstOrDefaultAsync(x => x.Id == adm.BedId.Value);
+                    if (b != null) b.Status = 0;
+                }
+                newDischarges++;
+            }
+            if (newDischarges > 0) await _db.SaveChangesAsync();
+        }
+
+        // ==== Receipts - today's cashier revenue + service/Rx payments ====
+        var receiptCode = $"PT{today:yyyyMMdd}SEED";
+        if (await _db.Receipts.CountAsync(r => r.ReceiptCode.StartsWith(receiptCode)) == 0
+            && docIdsAll.Count > 0 && todayRecords.Count > 0)
+        {
+            var cashier = docIdsAll[0];
+            var rxForReceipts = await _db.Prescriptions
+                .Where(p => p.PrescriptionCode.StartsWith($"RX{today:yyyyMMdd}SEED"))
+                .Select(p => new { p.MedicalRecordId, p.PatientAmount })
+                .ToListAsync();
+            var rxReceipts = new List<Receipt>();
+            for (int i = 0; i < rxForReceipts.Count; i++)
+            {
+                var mr = todayRecords.FirstOrDefault(r => r.Id == rxForReceipts[i].MedicalRecordId);
+                if (mr == null) continue;
+                rxReceipts.Add(new Receipt
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptCode = $"{receiptCode}RX{(i + 1):D3}",
+                    ReceiptDate = today.AddHours(8 + i),
+                    PatientId = mr.PatientId,
+                    MedicalRecordId = mr.Id,
+                    ReceiptType = 2,
+                    PaymentMethod = 1 + (i % 3),
+                    Amount = rxForReceipts[i].PatientAmount,
+                    Discount = 0,
+                    FinalAmount = rxForReceipts[i].PatientAmount,
+                    Note = "Thanh toán đơn thuốc",
+                    Status = 1,
+                    CashierId = cashier,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newReceipts++;
+            }
+            for (int i = 0; i < Math.Min(8, todayRecords.Count); i++)
+            {
+                var r = todayRecords[i];
+                var amt = 200_000m + (i * 50_000m);
+                rxReceipts.Add(new Receipt
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptCode = $"{receiptCode}SVC{(i + 1):D3}",
+                    ReceiptDate = today.AddHours(9 + i),
+                    PatientId = r.PatientId,
+                    MedicalRecordId = r.Id,
+                    ReceiptType = 2,
+                    PaymentMethod = 1,
+                    Amount = amt,
+                    Discount = 0,
+                    FinalAmount = amt,
+                    Note = "Thanh toán dịch vụ khám bệnh",
+                    Status = 1,
+                    CashierId = cashier,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newReceipts++;
+            }
+            if (rxReceipts.Count > 0)
+            {
+                _db.Receipts.AddRange(rxReceipts);
+                await _db.SaveChangesAsync();
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Receipts SET CreatedAt = {now}, UpdatedAt = {now} WHERE ReceiptCode LIKE {receiptCode + "%"}");
+            }
+        }
+
+        // ==== ServiceRequests + Details - Lab/Radiology/Surgery orders tracked on dashboard ====
+        var svcReqCode = $"SR{today:yyyyMMdd}SEED";
+        if (await _db.ServiceRequests.CountAsync(sr => sr.RequestCode.StartsWith(svcReqCode)) == 0
+            && docIdsAll.Count > 0 && todayRecords.Count > 0)
+        {
+            var labServices = await _db.Services.Where(s => s.IsActive && s.ServiceType == 2).Take(10).ToListAsync();
+            var radServicesDb = await _db.Services.Where(s => s.IsActive && s.ServiceType == 3).Take(8).ToListAsync();
+            var surgServicesDb = await _db.Services.Where(s => s.IsActive && s.ServiceType == 5).Take(3).ToListAsync();
+
+            var toInsert = new List<ServiceRequest>();
+
+            void AddSvc(char tag, int type, List<Service> services, int baseHour)
+            {
+                for (int i = 0; i < services.Count && i < todayRecords.Count; i++)
+                {
+                    var r = todayRecords[i];
+                    var svc = services[i];
+                    var deptId = r.DepartmentId ?? (deptIdsAll.Count > 0 ? deptIdsAll[0] : Guid.Empty);
+                    if (deptId == Guid.Empty) continue;
+                    var sr = new ServiceRequest
+                    {
+                        Id = Guid.NewGuid(),
+                        RequestCode = $"{svcReqCode}{tag}{(i + 1):D3}",
+                        RequestDate = today.AddHours(baseHour + (i % 6)),
+                        MedicalRecordId = r.Id,
+                        DoctorId = docIdsAll[i % docIdsAll.Count],
+                        DepartmentId = deptId,
+                        RequestType = type,
+                        IsPriority = i % 5 == 0,
+                        IsEmergency = false,
+                        Diagnosis = r.InitialDiagnosis,
+                        IcdCode = r.MainIcdCode,
+                        ServiceId = svc.Id,
+                        Quantity = 1,
+                        UnitPrice = svc.UnitPrice,
+                        TotalPrice = svc.UnitPrice,
+                        TotalAmount = svc.UnitPrice,
+                        PatientAmount = svc.UnitPrice,
+                        InsuranceAmount = 0,
+                        Status = i < 3 ? 0 : (i < 6 ? 2 : 3),
+                        IsPaid = i >= 6,
+                        CreatedAt = now, UpdatedAt = now
+                    };
+                    sr.Details.Add(new ServiceRequestDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceRequestId = sr.Id,
+                        ServiceId = svc.Id,
+                        Quantity = 1,
+                        UnitPrice = svc.UnitPrice,
+                        Amount = svc.UnitPrice,
+                        PatientAmount = svc.UnitPrice,
+                        InsuranceAmount = 0,
+                        PatientType = 1,
+                        Status = sr.Status,
+                        CreatedAt = now, UpdatedAt = now
+                    });
+                    toInsert.Add(sr);
+                    newSvcRequests++;
+                }
+            }
+            AddSvc('L', 1, labServices, 8);
+            AddSvc('R', 2, radServicesDb, 9);
+            AddSvc('S', 4, surgServicesDb, 10);
+
+            if (toInsert.Count > 0)
+            {
+                _db.ServiceRequests.AddRange(toInsert);
+                await _db.SaveChangesAsync();
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE ServiceRequests SET CreatedAt = {now}, UpdatedAt = {now} WHERE RequestCode LIKE {svcReqCode + "%"}");
+            }
+        }
+
+        // ==== RadiologyRequests - Radiology page ====
+        var radReqCode = $"RAD{today:yyyyMMdd}SEED";
+        if (await _db.RadiologyRequests.CountAsync(r => r.RequestCode.StartsWith(radReqCode)) == 0
+            && docIdsAll.Count > 0 && todayRecords.Count > 0)
+        {
+            var radSvcs = await _db.Services.Where(s => s.IsActive && s.ServiceType == 3).Take(8).ToListAsync();
+            var bodyParts = new[] { "Ngực", "Bụng", "Đầu", "Chi trên", "Chi dưới", "Cột sống", "Khung chậu", "Tim" };
+            var newRadList = new List<RadiologyRequest>();
+            for (int i = 0; i < Math.Min(8, Math.Min(radSvcs.Count, todayRecords.Count)); i++)
+            {
+                var r = todayRecords[i];
+                var svc = radSvcs[i];
+                newRadList.Add(new RadiologyRequest
+                {
+                    Id = Guid.NewGuid(),
+                    RequestCode = $"{radReqCode}{(i + 1):D3}",
+                    PatientId = r.PatientId,
+                    MedicalRecordId = r.Id,
+                    RequestDate = today.AddHours(8 + i),
+                    ServiceId = svc.Id,
+                    RequestingDoctorId = docIdsAll[i % docIdsAll.Count],
+                    Priority = i % 5 == 0 ? 2 : 1,
+                    Status = i < 3 ? 0 : (i < 5 ? 2 : 4),
+                    ClinicalInfo = r.InitialDiagnosis ?? "Chỉ định theo chỉ định lâm sàng",
+                    BodyPart = bodyParts[i % bodyParts.Length],
+                    Contrast = i % 4 == 0,
+                    PatientType = 1,
+                    TotalAmount = svc.UnitPrice,
+                    InsuranceAmount = 0,
+                    PatientAmount = svc.UnitPrice,
+                    IsPaid = i >= 5,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newRadRequests++;
+            }
+            if (newRadList.Count > 0)
+            {
+                _db.RadiologyRequests.AddRange(newRadList);
+                await _db.SaveChangesAsync();
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE RadiologyRequests SET CreatedAt = {now}, UpdatedAt = {now} WHERE RequestCode LIKE {radReqCode + "%"}");
+            }
+        }
+
+        // ==== SurgeryRequests - Surgery page ====
+        var surgReqCode = $"SURG{today:yyyyMMdd}SEED";
+        if (await _db.SurgeryRequests.CountAsync(s => s.RequestCode.StartsWith(surgReqCode)) == 0
+            && docIdsAll.Count > 0 && todayRecords.Count > 0)
+        {
+            var surgTypes = new[] { "Phẫu thuật nhỏ", "Phẫu thuật trung bình", "Phẫu thuật lớn" };
+            var procedures = new[] { "Cắt ruột thừa", "Mổ thoát vị bẹn", "Thay khớp háng" };
+            var newSurgList = new List<SurgeryRequest>();
+            for (int i = 0; i < Math.Min(3, todayRecords.Count); i++)
+            {
+                var r = todayRecords[i];
+                newSurgList.Add(new SurgeryRequest
+                {
+                    Id = Guid.NewGuid(),
+                    RequestCode = $"{surgReqCode}{(i + 1):D3}",
+                    PatientId = r.PatientId,
+                    MedicalRecordId = r.Id,
+                    RequestDate = today.AddHours(7 + i),
+                    SurgeryType = surgTypes[i % surgTypes.Length],
+                    RequestingDoctorId = docIdsAll[i % docIdsAll.Count],
+                    Priority = i == 0 ? 3 : 1,
+                    Status = i == 0 ? 1 : 0,
+                    PreOpDiagnosis = r.InitialDiagnosis,
+                    PreOpIcdCode = r.MainIcdCode,
+                    PlannedProcedure = procedures[i % procedures.Length],
+                    EstimatedDuration = 60 + (i * 30),
+                    AnesthesiaType = i == 2 ? 1 : 2,
+                    Notes = "Bệnh nhân ổn định, chuẩn bị phẫu thuật",
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newSurgRequests++;
+            }
+            if (newSurgList.Count > 0)
+            {
+                _db.SurgeryRequests.AddRange(newSurgList);
+                await _db.SaveChangesAsync();
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE SurgeryRequests SET CreatedAt = {now}, UpdatedAt = {now} WHERE RequestCode LIKE {surgReqCode + "%"}");
+            }
+        }
+
+        // ==== QueueTickets - reception counters + emergency ====
+        if (await _db.QueueTickets.CountAsync(q => q.IssueDate >= today && q.IssueDate < today.AddDays(1)) < 5
+            && todayRecords.Count > 0)
+        {
+            var newQ = new List<QueueTicket>();
+            for (int i = 0; i < Math.Min(40, todayRecords.Count); i++)
+            {
+                var r = todayRecords[i];
+                newQ.Add(new QueueTicket
+                {
+                    Id = Guid.NewGuid(),
+                    TicketNumber = $"R{(i + 1):D4}",
+                    QueueNumber = i + 1,
+                    IssueDate = today.AddMinutes(i * 5),
+                    QueueType = 1,
+                    Priority = 0,
+                    Status = i < 30 ? 3 : 0,
+                    PatientId = r.PatientId,
+                    MedicalRecordId = r.Id,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newQueueTickets++;
+            }
+            for (int i = 0; i < Math.Min(5, todayPatientIds.Count); i++)
+            {
+                newQ.Add(new QueueTicket
+                {
+                    Id = Guid.NewGuid(),
+                    TicketNumber = $"CC{(i + 1):D3}",
+                    QueueNumber = 900 + i,
+                    IssueDate = today.AddHours(6 + i),
+                    QueueType = 3,
+                    Priority = 2,
+                    Status = 2,
+                    PatientId = todayPatientIds[i],
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newQueueTickets++;
+            }
+            if (newQ.Count > 0)
+            {
+                _db.QueueTickets.AddRange(newQ);
+                await _db.SaveChangesAsync();
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE QueueTickets SET CreatedAt = {now}, UpdatedAt = {now} WHERE IssueDate >= {today} AND IssueDate < {today.AddDays(1)}");
+            }
+        }
 
         // IncidentReport - Quality page
         if (await _db.IncidentReports.CountAsync(i => i.ReportCode.StartsWith($"INC{today:yyyyMMdd}SEED")) == 0
@@ -950,6 +1332,13 @@ public class DailySeedController : ControllerBase
             createdIvfCouples = newIvfCouples,
             createdIvfCycles = newIvfCycles,
             createdConsultations = newConsult,
+            createdAdmissions = newAdmissions,
+            createdDischarges = newDischarges,
+            createdReceipts = newReceipts,
+            createdServiceRequests = newSvcRequests,
+            createdRadiologyRequests = newRadRequests,
+            createdSurgeryRequests = newSurgRequests,
+            createdQueueTickets = newQueueTickets,
             date = today,
             totalTodayAfter = existingToday + newPatients.Count
         });

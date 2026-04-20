@@ -1432,6 +1432,55 @@ public partial class InpatientCompleteController
 
     #region Medical Record Archive Summary (dashboard for /medical-record-archive page)
 
+    [HttpGet("medical-record-archive/list")]
+    public async Task<ActionResult> GetMedicalRecordArchiveList(
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? format = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] int? status = null,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var db = HttpContext.RequestServices.GetRequiredService<HIS.Infrastructure.Data.HISDbContext>();
+        var q = db.MedicalRecordArchives.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            q = q.Where(a => a.ArchiveCode.Contains(keyword) || (a.Diagnosis != null && a.Diagnosis.Contains(keyword)));
+        }
+        if (status.HasValue) q = q.Where(a => a.Status == status.Value);
+        if (fromDate.HasValue) q = q.Where(a => a.ArchivedDate >= fromDate.Value);
+        if (toDate.HasValue) q = q.Where(a => a.ArchivedDate <= toDate.Value);
+
+        var total = await q.CountAsync();
+        var items = await q
+            .OrderByDescending(a => a.CreatedAt)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => new
+            {
+                id = a.Id,
+                archiveCode = a.ArchiveCode,
+                medicalRecordId = a.MedicalRecordId,
+                medicalRecordCode = (string?)null,
+                patientId = a.PatientId,
+                patientName = (string?)null,
+                diagnosis = a.Diagnosis,
+                treatmentResult = a.TreatmentResult,
+                admissionDate = a.AdmissionDate,
+                dischargeDate = a.DischargeDate,
+                storageLocation = a.StorageLocation,
+                shelfNumber = a.ShelfNumber,
+                boxNumber = a.BoxNumber,
+                status = a.Status,
+                archivedDate = a.ArchivedDate,
+                archiveYear = a.ArchiveYear
+            })
+            .ToListAsync();
+
+        return Ok(new { totalCount = total, items });
+    }
+
     [HttpGet("medical-record-archive/summary")]
     public async Task<ActionResult> GetMedicalRecordArchiveSummary()
     {

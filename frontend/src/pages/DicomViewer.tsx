@@ -29,6 +29,17 @@ import {
 } from '@ant-design/icons';
 import risApi from '../api/ris';
 import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
+import { API_ORIGIN } from '../config/api';
+
+// Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
+// Resolve them against the API origin (Cloud Run) so the browser fetches them
+// from the backend instead of the frontend host (Vercel) which has no such route.
+function resolveApiUrl(path: string | undefined | null): string {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  if (!API_ORIGIN) return path;
+  return `${API_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`;
+}
 
 const { Title, Text } = Typography;
 
@@ -138,7 +149,7 @@ const DicomViewer: React.FC = () => {
       setImages(response.data || []);
       // Auto-select first image for large preview
       if (response.data && response.data.length > 0 && response.data[0].imageUrl) {
-        setSelectedImageUrl(response.data[0].imageUrl);
+        setSelectedImageUrl(resolveApiUrl(response.data[0].imageUrl));
       }
     } catch (err) {
       console.warn('Error loading images:', err);
@@ -444,7 +455,7 @@ const DicomViewer: React.FC = () => {
                       hoverable
                       size="small"
                       style={{
-                        border: selectedImageUrl === img.imageUrl ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                        border: selectedImageUrl === resolveApiUrl(img.imageUrl) ? '2px solid #1890ff' : '1px solid #d9d9d9',
                       }}
                       cover={
                         <div
@@ -459,7 +470,7 @@ const DicomViewer: React.FC = () => {
                         >
                           {img.thumbnailUrl ? (
                             <img
-                              src={img.thumbnailUrl}
+                              src={resolveApiUrl(img.thumbnailUrl)}
                               alt={`Frame ${img.instanceNumber || index + 1}`}
                               style={{ maxWidth: '100%', maxHeight: 80, objectFit: 'contain' }}
                             />
@@ -468,7 +479,7 @@ const DicomViewer: React.FC = () => {
                           )}
                         </div>
                       }
-                      onClick={() => setSelectedImageUrl(img.imageUrl || img.thumbnailUrl || '')}
+                      onClick={() => setSelectedImageUrl(resolveApiUrl(img.imageUrl || img.thumbnailUrl || ''))}
                     >
                       <Card.Meta
                         description={

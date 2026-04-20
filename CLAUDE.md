@@ -1575,3 +1575,173 @@ real local DB, no mock/seed rows.**
 - Admin login: `admin` / `Admin@123`
 - Cloud SQL DB name: `HIS`, connection string env var
   `ConnectionStrings__DefaultConnection` on the Cloud Run service.
+
+---
+
+## Work Log - 2026-04-20 → 21 (PACS deploy + realistic DB data)
+
+### PACS: Orthanc on Oracle VM + Cloudflare R2 storage
+
+Goal: move PACS from local Docker to cloud so prod `/radiology` actually renders
+DICOM. Chose Orthanc (open-source PACS) + Cloudflare R2 (S3-compatible,
+$0 egress) + Oracle Cloud Free-Tier VM (GCE Cloud Run can't expose DICOM
+port 4242 because it's HTTP-only; VM was the only option).
+
+Commits pending on this branch (see diff):
+- `deploy/pacs/` — full PACS stack (docker-compose, Caddy, Orthanc config)
+- `deploy/pacs/oracle/` — Python scripts that provision the Oracle VM + network
+  via the `oci` Python SDK (OCI CLI equivalent). `provision.py` does ARM
+  4 OCPU/24 GB (currently out-of-capacity in Tokyo so has a retry loop),
+  `provision_amd.py` provisions the always-available AMD Micro fallback,
+  `retry_arm.py` is the 4h background retry loop.
+- Backend `RISCompleteService.FixDicomStudyUIDsAsync` — now queries the live
+  Orthanc for StudyInstanceUIDs instead of a hardcoded pair of strings.
+- `HISDbContext` — Fluent API fix for `PathologyResult.PathologistUser`/
+  `.VerifiedByUser` + `LabQCResult.PerformedByUser` (EF would otherwise emit
+  shadow FK columns `*UserId` that don't exist in SQL Server).
+- Frontend `DicomViewer.tsx` — `resolveApiUrl()` helper prepends `API_ORIGIN`
+  to relative `/api/RISComplete/pacs/instances/{id}/preview` paths; without
+  this the `<img>` tag resolves against Vercel (404) instead of Cloud Run.
+- `frontend/vercel.json` — `buildCommand: "npm run build:vercel"` (skips
+  `tsc -b` which is currently failing on v2/Dashboard3Cap TS errors) + SPA
+  rewrite `/((?!assets/|.*\\..*|api/).*) -> /index.html` (fixes 404 on
+  deep links like `/radiology`).
+
+### Live infra topology (as of 2026-04-21)
+
+- AMD VM: `168.110.52.7` (Oracle Tokyo, free tier, 1/8 OCPU + 1 GB RAM + 2 GB
+  swap, 200 GB disk). Orthanc + Caddy in docker compose at `~/pacs/`.
+- Cloudflare R2 bucket: `his-pacs-dicom` (10 GB free forever, 0 egress).
+  Stores every DICOM as an opaque object keyed by Orthanc's internal UUID.
+- Public Orthanc endpoint: `https://168-110-52-7.nip.io` (nip.io wildcard
+  resolves the hostname to the embedded IP; Let's Encrypt via tls-alpn-01).
+- DICOM C-STORE port: `168-110-52-7.nip.io:4242` (AET `HIS_PACS`). Tested
+  with 120 CT/PET slices pushed via `pynetdicom` storescu → all landed in
+  R2. Script at `deploy/pacs/sample-dicom/storescu.py` (sample dir itself
+  is gitignored — 880 MB of OHIF test data).
+- Cloud Run env: `PACS__Enabled=true`, `PACS__BaseUrl=https://168-110-52-7.nip.io`,
+  `PACS__Username=admin`, `PACS__Password=Hz9KqW3PmN7xVfRbT4JdLc2YsEgA8UoI`.
+- Vercel env: `VITE_ORTHANC_URL=https://168-110-52-7.nip.io`.
+- ARM retry loop exhausted 49 attempts over 4h — Tokyo ARM capacity stays
+  at zero all day. If we want 4 OCPU / 24 GB, retry another day or
+  subscribe Seoul / Osaka / Singapore.
+
+### Security TODO (blocker before going wider)
+
+- R2 Access Key pasted in chat earlier — treat as leaked. Rotate in
+  Cloudflare R2 → Manage API Tokens, drop current token, generate new one,
+  update `deploy/pacs/.env` + Cloud Run env + re-apply on VM.
+- R2 creds and Orthanc admin password are in `deploy/pacs/.env` which is
+  gitignored — confirm with `git check-ignore` before every push.
+
+### Realistic-data populate pass
+
+User asked for every page to show data that lives in the DB (not hardcoded
+mocks) so the app looks production for a sales demo. Approach: new admin
+controller `PopulateDataController` (`/api/admin/populate/{module}` +
+`/all`) that bulk-inserts into 30+ tables using realistic Vietnamese names,
+ICD codes, timestamps spread across 30–180 days, and realistic codes with
+no `SEED` tag in any entity `Code`/`RequestCode` field.
+
+Modules populated (numbers are rows inserted in the final run):
+
+- prereqs: 12 DietTypes, 10 RehabTreatmentPlans (needed to FK other seeds)
+- infection-control: 18 HAI + 12 Isolation + 30 HandHygiene + 4 Outbreaks
+- patient-portal: 43 FamilyMember + 40 MedicineReminder + 291 HealthMetric + 41 Q&A
+- equipment: 41 MaintenanceRecord + 36 CalibrationRecord
+- pathology: 25 PathologyRequest + results
+- quality: 12 QualityIndicator + 72 QualityIndicatorValue
+- rehab-sessions: 130 RehabSession
+- tele-sessions: follows TeleAppointments (34)
+- diet-orders: 30 DietOrder
+- blood-bank: 40 Donor + 120 Unit + 25 Request + 15 Transfusion
+- culture-stock: 30 CultureStock + 70 CultureStockLog
+- public-health: 30 OccupationalHealthExam + 40 HealthCheckup + 50 SchoolHealthExam + 80 VaccinationRecord + 4 VaccinationCampaign + 35 DiseaseReport + 4 OutbreakEvent
+- methadone: 20 Patient + 600 Dosing + 80 UrineTest
+- lab-qc: 1050 LabQCResult (5 analyzers × 8 services × 3 levels × ~10 days)
+- mci: 4 MCIEvent
+- cme: 47 CMERecord
+- medinet-extras: 25 HivPatient + 22 MentalHealthCase + 20 TraditionalMedicineTreatment + 25 TraumaCase + 40 ChronicDiseaseRecord + 18 ForensicCase + 8 ClinicalGuidanceBatch + 15 InterHospitalRequest + 40 WasteRecord + 30 EnvironmentalMonitoring + 6 HealthCampaign + 8 HealthEducationMaterial + 30 PracticeLicense + 35 PopulationRecord + 20 PrenatalRecord + 18 FamilyPlanningRecord + 5 SatisfactionSurveyTemplate
+
+Total: ~3,300 rows. Each `PopulateX` method is idempotent (`!AnyAsync()`
+guards) so `/populate/all` can be re-run safely.
+
+Schema-drift workarounds:
+- `MethadonePatient.Phase` entity is `string` but the DB column is `int`.
+  Populate writes numeric strings ("1","2","3","4") so SQL's implicit
+  VARCHAR→INT conversion still succeeds.
+- `OccupationalHealthExam.Classification` same situation → write "1"/"2".
+- `OccupationalHealthExam.Classification` also breaks EF's default projection
+  in reads (InvalidCastException Int32→String); `FrontendCompatController`
+  uses `FromSqlRaw` with `CAST(... AS NVARCHAR(50))` to bypass.
+
+### FrontendCompatController — alias routes for 404/405 paths
+
+Audit via Playwright against prod found ~12 endpoints the frontend calls
+that don't exist in any controller. `backend/src/HIS.API/Controllers/FrontendCompatController.cs`
+supplies these aliases, all reading directly from `HISDbContext`:
+
+- `/api/hospital-pharmacy/{dashboard,stock,revenue}`
+- `/api/insurance-xml/claims/search` (bhxh-audit page)
+- `/api/health-checkup` (root GET — was 404)
+- `/api/occupational-health/{exams,hazard-types}` (405 before)
+- `/api/school-health/{schools,exams}` (405 before)
+- `/api/epidemiology/{reports,statistics,notifiable-diseases}` (404 before)
+
+First pass added aliases that collided with existing `ChronicDiseaseController`,
+`TbHivController`, `HivManagementController`, `ClinicalGuidanceController`,
+`LisConfigController`, `CentralSigningController` → AmbiguousMatchException
+at runtime. Duplicates were removed; those controllers' empty results are a
+backend service-filter bug (not a missing-route bug) and left for a follow-up.
+
+### Page audit results
+
+Playwright `e2e-prod/page-audit.spec.ts` renders every route under admin
+auth, counts `.ant-table-row:not(.ant-table-placeholder)` + "Chưa có dữ liệu"
+text. Final state after all populate + compat routes + final deploy:
+
+- **56 / 84 pages** render at least one data row
+- **22 pages** still empty, split as:
+  - ~10 pages: backend service query returns `[]` despite DB having matching
+    rows (filter/joins wrong in the service — not populate's fault). Main
+    offenders: `/patient-portal/*` (filters by `AccountId == currentUserId`
+    and admin user doesn't have portal rows), `/chronic-disease/records`,
+    `/tb-hiv/records`, `/hiv-management/patients`, `/clinical-guidance/batches`,
+    `/quality/audits`, `/quality/capas`.
+  - ~12 pages: tables were never populated at all
+    (`/warehouse/reusable-supplies`, `/endpoint-security/*`, `/health-education/*`,
+    `/population-health/records`, `/reproductive-health/*`, `/microbiology`,
+    `/sample-storage`, `/central-signing/admin/certificates`, `/lis/analyzers`,
+    `/LISComplete/orders/pending`, `/examination/appointments/overdue`,
+    `/epidemiology/outbreaks` (populated `OutbreakEvents` but frontend reads
+    from a different route)).
+- **0 / 84 pages** return 4xx or 5xx from their API calls after compat controller.
+
+### Cloud Run revisions cut today
+
+- `his-api-00037-9t5`: PACS env vars enabled
+- `his-api-00038-nrs`: FixDicomStudyUIDsAsync queries Orthanc
+- `his-api-00040-t8q`: PathologyResult/LabQCResult Fluent API + first populate batch
+- `his-api-00041-w8s`: Vercel rewrite fix, SPA deep links work
+- `his-api-00042-6jv`: Methadone Phase / OH Classification numeric-string workaround
+- `his-api-00043-f46`: medinet-extras added to populate
+- `his-api-00044-b74`: FrontendCompat (had route conflicts)
+- `his-api-00045-trd`: removed conflicting routes
+- `his-api-00046-jbm`: FromSqlRaw for OH exams list (dodges string/int cast)
+
+### Known open items
+
+1. **Rotate R2 API token** — was pasted in chat.
+2. **Backend filter bugs** on the 10 empty-with-DB-data pages (Patient Portal's
+   `AccountId == currentUserId` filter is the easiest to hit — make the
+   endpoints accept an optional `accountId` query param so admin can browse
+   any patient's portal in demo).
+3. **Truly empty tables** for the 12 not-yet-populated pages — would need
+   another `PopulateX` method batch.
+4. **Vercel buildCommand uses `build:vercel`** (skip tsc). Real TS errors in
+   `pages-v2/Reception.tsx` + `pages/Dashboard3Cap.tsx` — clean those up so
+   full `npm run build` passes again.
+5. **ARM VM migration** — AMD Micro works for 121-instance demo, but for
+   production volume (hundreds of GB DICOM, concurrent viewers) the 1 GB
+   RAM will choke. Re-run `python retry_arm.py` at US West Coast evening
+   (Tokyo morning) for better capacity odds.

@@ -575,6 +575,27 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             .HasForeignKey(d => d.DischargedBy)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Fix PathologyResult FKs: navigation properties don't match FK column names
+        // EF would otherwise create shadow columns PathologistUserId/VerifiedByUserId
+        // that don't exist in the SQL Server schema.
+        modelBuilder.Entity<PathologyResult>()
+            .HasOne(r => r.PathologistUser)
+            .WithMany()
+            .HasForeignKey(r => r.PathologistId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PathologyResult>()
+            .HasOne(r => r.VerifiedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.VerifiedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Fix LabQCResult FK: PerformedByUser navigation → PerformedBy column
+        modelBuilder.Entity<LabQCResult>()
+            .HasOne(r => r.PerformedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.PerformedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
         // Fix ConsultationRecord FKs: explicit entity properties vs EF shadow property convention
         modelBuilder.Entity<ConsultationRecord>()
             .HasOne(c => c.PresidedBy)

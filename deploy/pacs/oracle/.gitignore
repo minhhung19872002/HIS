@@ -1,0 +1,7 @@
+his-pacs-vm.key
+his-pacs-vm.key.pub
+*.pem
+state.json
+retry_arm.log
+vm-info.txt
+vm-info-arm.txt

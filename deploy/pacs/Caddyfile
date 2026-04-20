@@ -1,0 +1,25 @@
+{$PACS_DOMAIN} {
+	encode gzip zstd
+
+	# Orthanc REST API + OHIF viewer + DICOMweb
+	reverse_proxy orthanc:8042 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+
+	# CORS for HIS frontend (Vercel)
+	@cors_preflight method OPTIONS
+	header {
+		Access-Control-Allow-Origin "https://his-psi.vercel.app"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+		Access-Control-Allow-Credentials "true"
+	}
+	respond @cors_preflight 204
+
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}

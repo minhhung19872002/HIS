@@ -1,0 +1,8 @@
+.env
+
+# Downloaded binaries — reinstall via setup script instead of committing
+cloud-sql-proxy.exe
+cloud-sql-proxy
+
+# DICOM sample datasets pulled from external repos — too large for git
+sample-dicom/
