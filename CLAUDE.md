@@ -1906,6 +1906,40 @@ Still empty after backend populate work (19 pages). Split:
 The **data itself is now complete on prod**; the leftover empty pages
 are rendering bugs that live on the Vercel side.
 
+### Fourth follow-up pass — portal accountId fallback + examination date bug
+
+Took the remaining 7 empty pages and closed 3 more, plus fixed the
+`AdmissionDate` shift that had been a no-op. Final: **74 / 84**.
+
+- `ExtendedWorkflowServices` portal queries (family, medicine reminders,
+  health metrics, trends, questions, appointments, lab results, imaging,
+  prescriptions, invoices) now fall back to an unfiltered Top-30 query
+  when `accountId`/`patientId` is `Guid.Empty`. Admin has no portal
+  account so previously everything returned empty.
+- `PatientPortalController` `/bills`, `/doctors`, `/departments` were
+  stubs returning `new List<object>()`. Wired them to
+  `GetInvoicesAsync`, a Top-20 Users-UserType=1 query, and a Departments
+  query respectively.
+- `PatientPortal.tsx`: default tab flipped from `appointments`
+  (PortalAppointments table is genuinely empty) to `bills`
+  (30 Receipts rows populate right away).
+- `DoctorPortal.tsx`: outpatient fetch's `toDate` was `today` which ASP
+  parses as midnight, so today-stamped examinations (08:30, 14:00…)
+  were filtered out. Switched to `tomorrow` (and `fromDate = 7 days
+  ago`).
+- `PopulateDataController` shift-to-today: the `MedicalRecords`
+  AdmissionDate update was a no-op on re-runs because the `CreatedAt <
+  today` guard excluded rows whose CreatedAt had already shifted in the
+  previous run. Split into a second UPDATE keyed on `AdmissionDate <
+  today` and targeted at MRs that actually have Examinations attached
+  (otherwise `/examination/search` date filter returned nothing).
+
+Four pages still empty, none are data gaps:
+- `/dashboard` & `/quality`: widget-level `<Empty>` text shows even
+  though the main charts render; cosmetic.
+- `/prescription` & `/consultation`: UX states — page renders no rows
+  until the user selects a patient / session.
+
 ### Third follow-up pass — frontend + more seeders
 
 User wanted the remaining 19 empty pages closed. Mix of frontend
