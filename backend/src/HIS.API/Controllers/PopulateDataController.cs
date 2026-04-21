@@ -3771,6 +3771,63 @@ IF COL_LENGTH('InstalledSoftwareItems','IsDeleted') IS NULL ALTER TABLE Installe
         }
         } catch (Exception ex) { errors["MCIEventsBoost"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
 
+        // MedicalRecordArchives — /medical-record-archive page
+        try {
+        if (!await _db.MedicalRecordArchives.AnyAsync() && ctx.DoctorIds.Count > 0)
+        {
+            var mrs = await _db.MedicalRecords
+                .Where(m => m.DischargeDate != null || m.Status == 2)
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => new { m.Id, m.PatientId, m.DepartmentId, m.MainDiagnosis, m.AdmissionDate, m.DischargeDate, m.CreatedAt })
+                .Take(30)
+                .ToListAsync();
+            if (mrs.Count == 0)
+            {
+                // Fallback: take any 30 medical records
+                mrs = await _db.MedicalRecords
+                    .OrderByDescending(m => m.CreatedAt)
+                    .Select(m => new { m.Id, m.PatientId, m.DepartmentId, m.MainDiagnosis, m.AdmissionDate, m.DischargeDate, m.CreatedAt })
+                    .Take(30)
+                    .ToListAsync();
+            }
+            var locations = new[] { "Kho A tầng 1", "Kho A tầng 2", "Kho B hầm", "Kho trung tâm" };
+            var outcomes = new[] { "Khỏi ra viện", "Đỡ giảm ra viện", "Không thay đổi", "Chuyển viện", "Xin về" };
+            var archives = new List<MedicalRecordArchive>();
+            for (int i = 0; i < mrs.Count; i++)
+            {
+                var mr = mrs[i];
+                var archDate = (mr.DischargeDate ?? mr.CreatedAt).AddDays(rng.Next(1, 30));
+                var status = i % 10 == 9 ? 2 : 1; // 10% on loan
+                archives.Add(new MedicalRecordArchive
+                {
+                    Id = Guid.NewGuid(),
+                    ArchiveCode = NextCode("LT", i + 1, 5),
+                    MedicalRecordId = mr.Id,
+                    PatientId = mr.PatientId,
+                    DepartmentId = mr.DepartmentId,
+                    Diagnosis = mr.MainDiagnosis,
+                    TreatmentResult = outcomes[i % outcomes.Length],
+                    AdmissionDate = mr.AdmissionDate,
+                    DischargeDate = mr.DischargeDate,
+                    StorageLocation = locations[i % locations.Length],
+                    ShelfNumber = $"K{rng.Next(1, 30):D2}",
+                    BoxNumber = $"H{rng.Next(1, 120):D3}",
+                    Status = status,
+                    ArchivedDate = archDate,
+                    ArchivedById = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    ArchiveYear = archDate.Year,
+                    CreatedAt = archDate, UpdatedAt = ctx.Now
+                });
+            }
+            if (archives.Count > 0)
+            {
+                _db.MedicalRecordArchives.AddRange(archives);
+                await _db.SaveChangesAsync();
+                summary["MedicalRecordArchives"] = archives.Count;
+            }
+        }
+        } catch (Exception ex) { errors["MedicalRecordArchives"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
         // Shift-to-today: many list pages (reception queue, OPD, radiology, lab,
         // prescription, service requests) filter `CreatedAt.Date == today`. The
         // restored BAK is past-dated so those pages render empty. Bulk-update a
