@@ -121,8 +121,8 @@ const TbHivManagement: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState('onTreatment');
   const [keyword, setKeyword] = useState('');
-  const [typeFilter, setTypeFilter] = useState<number | undefined>();
-  const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
+  const [typeFilter, setTypeFilter] = useState<string | undefined>();
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20 });
 

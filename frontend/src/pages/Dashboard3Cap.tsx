@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Row, Col, Card, Statistic, Typography, Spin, Tag, message,
-  Select, DatePicker, Tree, Button, Empty, Space, Divider, Badge,
+  Select, TreeSelect, DatePicker, Tree, Button, Empty, Space, Divider, Badge,
   Segmented, Progress, Table, Tooltip
 } from 'antd';
 import {
@@ -104,8 +104,8 @@ export default function Dashboard3Cap() {
         getConsolidatedReport(
           branchId || undefined,
           'patient',
-          new Date(Date.now() - 30 * 86400000),
-          date || new Date()
+          new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10),
+          (date || new Date()).toISOString().slice(0, 10)
         )
       ]);
 
@@ -311,14 +311,13 @@ export default function Dashboard3Cap() {
         </Space>
         <Space>
           {/* Branch selector */}
-          <Select
+          <TreeSelect
             placeholder="Chọn chi nhánh"
             allowClear
             style={{ width: 320 }}
             value={selectedBranchId || undefined}
             onChange={v => setSelectedBranchId(v || null)}
             showSearch
-            optionFilterProp="children"
             treeDefaultExpandAll
             treeNodeFilterProp="title"
             dropdownRender={menu => (
@@ -518,7 +517,7 @@ export default function Dashboard3Cap() {
                             outerRadius={90}
                             paddingAngle={2}
                             dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
                           >
                             {patientTypeData.map((_, index) => (
                               <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
@@ -613,7 +612,7 @@ export default function Dashboard3Cap() {
               <Col xs={24} lg={12}>
                 <Card size="small" title={<Space><MenuOutlined /> Cây chi nhánh (3 cấp)</Space>}>
                   <Tree
-                    showTreeLine
+                    showLine
                     defaultExpandAll
                     treeData={buildTreeData([branchTree])}
                     titleRender={(nodeData: any) => (

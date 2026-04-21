@@ -32,7 +32,8 @@ const RadiologyV2: React.FC = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await getWaitingList(undefined, undefined, undefined);
+        const today = new Date().toISOString().slice(0, 10);
+        const res = await getWaitingList(today, undefined, undefined);
         setRows(res.data || []);
       } finally {
         setLoading(false);

@@ -84,9 +84,9 @@ export interface CreateTbHivFollowUpDto {
 
 export const getTbHivRecords = async (params?: {
   keyword?: string;
-  recordType?: number;
-  treatmentCategory?: number;
-  status?: number;
+  recordType?: string;
+  treatmentCategory?: string;
+  status?: string;
   fromDate?: string;
   toDate?: string;
   page?: number;

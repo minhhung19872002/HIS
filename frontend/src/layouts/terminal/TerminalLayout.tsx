@@ -281,7 +281,7 @@ const CommandBar: React.FC<{ path: string; onSwitchLayout: () => void }> = ({ pa
           <div className="avatar">{initials.slice(0, 2) || 'AD'}</div>
           <div className="who">
             <span className="n">{fullName}</span>
-            <span className="r">{user?.role || 'Admin'}</span>
+            <span className="r">{user?.roles?.[0] || 'Admin'}</span>
           </div>
         </div>
       </div>

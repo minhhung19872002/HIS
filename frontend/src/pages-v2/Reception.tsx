@@ -52,7 +52,7 @@ const ReceptionV2: React.FC = () => {
     if (!kw) { setSearchResults(null); return; }
     setSearching(true);
     try {
-      const res = await receptionApi.searchPatients(kw);
+      const res = await receptionApi.searchPatient(kw);
       setSearchResults(Array.isArray(res.data) ? res.data : []);
     } finally {
       setSearching(false);

@@ -68,7 +68,7 @@ export interface CreateFollowUpDto {
 
 export const getChronicRecords = async (params?: {
   keyword?: string;
-  status?: number;
+  status?: string;
   icdCode?: string;
   departmentId?: string;
   fromDate?: string;
