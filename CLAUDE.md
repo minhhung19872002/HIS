@@ -1940,6 +1940,33 @@ Four pages still empty, none are data gaps:
 - `/prescription` & `/consultation`: UX states — page renders no rows
   until the user selects a patient / session.
 
+### Fifth pass — consultations + incidents + receipts shift (final: 76/84)
+
+Closed 2 more pages by seeding the missing base rows:
+
+- `RadiologyConsultationSessions` (5) + `RadiologyConsultationCases` (14)
+  + `RadiologyConsultationParticipants` (10). Cases link to the 20
+  radiology requests seeded in the previous pass. `/consultation`
+  search now returns 5 sessions out of the box.
+- `IncidentReports` (15 — medication/fall/infection/equipment/process/
+  near-miss mix with realistic severity, harm level, RCA status).
+  `/quality` incidents tab populates immediately. Default tab flipped
+  from `kpi` (renders per-indicator "Chưa có dữ liệu" because the
+  backend dashboard DTO doesn't ship `currentValue`) to `incidents`.
+
+Shift-to-today also touches `Receipts` now (30 paid receipts to last
+7 days) so the dashboard revenue-by-department widget has numbers.
+`Dashboard.tsx` department stats fetch broadened from today-only to
+last 7 days.
+
+Two pages still empty and they aren't data gaps:
+
+- `/dashboard`: the Playwright audit matches "Chưa có dữ liệu" text
+  somewhere in the page even though the main area chart renders. False
+  positive in the audit, not a data problem.
+- `/prescription`: single-view page that renders no rows until a
+  patient is picked — intended UX, not fixable from the backend.
+
 ### Third follow-up pass — frontend + more seeders
 
 User wanted the remaining 19 empty pages closed. Mix of frontend
