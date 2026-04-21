@@ -154,7 +154,7 @@ const Dashboard: React.FC = () => {
             ? depts.map((dep) => ({ departmentName: dep.departmentName ?? 'N/A', count: dep.outpatientCount ?? 0 })).filter((dept) => dept.count > 0)
             : d.outpatientByDepartment ?? [],
           revenueByDepartment: Array.isArray(depts)
-            ? depts.map((dep) => ({ departmentName: dep.departmentName ?? 'N/A', revenue: dep.totalRevenue ?? 0 })).filter((dept) => dept.revenue > 0)
+            ? depts.map((dep) => ({ departmentName: dep.departmentName ?? 'N/A', revenue: (dep as { revenue?: number; totalRevenue?: number }).revenue ?? (dep as { totalRevenue?: number }).totalRevenue ?? 0 })).filter((dept) => dept.revenue > 0)
             : d.revenueByDepartment ?? [],
           serviceStatuses: [
             { name: 'Khám bệnh', icon: <UserOutlined />, done: d.opdCompleted ?? d.todayOutpatients ?? 0, pending: d.opdPending ?? Math.max(0, (d.todayOutpatients ?? 0) - (d.opdCompleted ?? 0)), color: '#1890ff' },
