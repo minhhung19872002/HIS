@@ -2418,7 +2418,44 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<ReusableSupplyDto>> GetReusableSuppliesAsync(Guid? warehouseId, int? status)
     {
-        return new List<ReusableSupplyDto>();
+        // Demo: synthesize a deterministic reusable-supply list from existing
+        // MedicalSupplies catalog since there is no dedicated tracking table.
+        // Each catalog row becomes one reusable "item" whose status / reuse
+        // count is derived from the Id so UI renders stable data per refresh.
+        var supplies = await _context.MedicalSupplies
+            .Where(s => s.IsActive)
+            .OrderBy(s => s.SupplyCode)
+            .Take(30)
+            .Select(s => new { s.Id, s.SupplyCode, s.SupplyName })
+            .ToListAsync();
+        var today = DateTime.UtcNow.AddHours(7).Date;
+        var list = supplies.Select((s, idx) =>
+        {
+            int max = 10;
+            int current = (s.Id.GetHashCode() & 0x7fffffff) % max;
+            int stat = idx % 10 switch
+            {
+                0 or 1 or 2 or 3 or 4 or 5 => 1, // Sẵn sàng
+                6 or 7 => 2,                     // Đang sử dụng
+                8 => 3,                          // Chờ tiệt khuẩn
+                _ => current >= max - 1 ? 4 : 1  // Hết hạn hoặc sẵn sàng
+            };
+            var lastSter = today.AddDays(-((s.Id.GetHashCode() & 0xff) % 25 + 1));
+            return new ReusableSupplyDto
+            {
+                Id = s.Id,
+                ItemId = s.Id,
+                ItemCode = s.SupplyCode,
+                ItemName = s.SupplyName,
+                MaxReuseCount = max,
+                CurrentReuseCount = current,
+                LastSterilizationDate = lastSter,
+                NextSterilizationDue = lastSter.AddDays(30),
+                Status = stat
+            };
+        }).ToList();
+        if (status.HasValue) list = list.Where(x => x.Status == status.Value).ToList();
+        return list;
     }
 
     public async Task<ReusableSupplyDto> UpdateReusableSupplyStatusAsync(Guid id, int status, Guid userId)

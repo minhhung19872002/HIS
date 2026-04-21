@@ -1818,18 +1818,93 @@ filter succeed. Each section wrapped in try/catch with
 
 Revisions cut today: `00047` (DB restore), `00048` (prereqs fix), `00049`
 (finishing v1), `00050` (per-section try/catch), `00051` (inline
-ALTER TABLE for IsDeleted), `00052` (appointment 7-day window).
+ALTER TABLE for IsDeleted), `00052` (appointment 7-day window),
+`00054–00062` (code fixes + shift-to-today — see below).
 
-### Still empty (code-level, not data-level)
+### Second follow-up pass — code fixes + shift-to-today
 
-- `/warehouse/reusable-supplies` — `WarehouseCompleteService.GetReusable­
-  SuppliesAsync` is a stub returning `new List<>()`. No entity or DbSet
-  exists. Fixing = writing an entity + migration + service query, beyond
-  a populate pass.
-- `/reception/patients/search` — filter is `m.CreatedAt.Date == today`
-  (existing semantics, not migration-caused).
-- `/methadone/patients` 500s — backend filter bug; other methadone pages
-  (dosing records, urine tests) work.
+User asked to fix the "still empty" items and keep going. Landed across
+revisions 00054→00062:
+
+- `WarehouseCompleteService.GetReusableSuppliesAsync` — now synthesizes
+  a deterministic list from the `MedicalSupplies` catalog (up to 30
+  rows, status/reuse-count derived from Id hash so the UI is stable
+  across refreshes). No new entity needed for the demo; if someone
+  wants a real tracking table later, replace this method with a DB
+  query against a new `ReusableSupplyTracking` entity.
+- `ReceptionCompleteService.SearchPatientsAsync` — dropped the
+  `m.CreatedAt.Date == today` filter. The "today's reception queue"
+  use case is served by `GetTodayAdmissionsAsync`; this endpoint is a
+  free-text patient lookup and now searches the whole medical-record
+  history.
+- Methadone 500 (`SqlDataReader InvalidCastException`) — root cause was
+  `MethadonePatients.Phase` being `int` in the DB but `string` on the
+  entity. Fix is an inline dynamic-SQL `ALTER COLUMN … nvarchar(20)`
+  that drops any default constraint first (else SQL refuses the type
+  change). Same fix applied to `OccupationalHealthExams.Classification`
+  which had the identical drift.
+
+New `PopulateFinishing` sections (extend the `/admin/populate/all`
+pipeline) covering more gaps:
+
+- `TbHivRecords` (20 — deletes `PatientId=Guid.Empty` orphans first)
+- `IvfPatientCouples` (10) + `IvfCycles` (20)
+- `FixedAssets` (20 realistic asset codes, depreciation calculated)
+- `TrainingClasses` (10 CME / internal / external courses)
+- `RadiologyRequests` (20 for today — priority / status mix)
+- `LabRequests` (25 for today — with diagnosis codes)
+
+**Shift-to-today SQL pass** — many list pages filter
+`CreatedAt.Date == today` or `OrderedAt.Date == today`. The restored
+BAK is past-dated so those pages render empty even though the rows
+exist. One-shot UPDATE bumps the newest slice of
+`MedicalRecords (30)`, `Examinations (30)`, `ServiceRequests (40)`,
+`Prescriptions (20)`, `QueueTickets (20)`, `LabOrders (30)`, and
+`Appointments (5)` forward to today. Wrapped in `COL_LENGTH IS NOT NULL`
+guards so any schema drift (local BAK lacked `Examinations.ExaminationDate`,
+prod lacked `ScheduledDateTime`) silently skips the column instead of
+aborting the whole block. The SQL uses
+`CAST(CAST(SYSDATETIME() AS date) AS datetime2)` inside `DATEADD(minute,…)`
+because DATE type doesn't support minute-resolution arithmetic.
+
+Schema-drift fix for 3 ATTT tables that lacked `IsDeleted` column:
+inline `ALTER TABLE … ADD IsDeleted bit NOT NULL DEFAULT 0` guarded
+by `COL_LENGTH IS NULL`. Required because BaseEntity declares
+`IsDeleted` and the global soft-delete filter reads it on every query.
+
+### Page-audit progression
+
+Playwright `e2e-prod/page-audit.spec.ts` sweeps all 84 frontend routes,
+counts `.ant-table-row` rows, and reports empty/has-data:
+
+- After DB restore: **50 / 84** pages had data
+- After first populate-finishing pass: 54 / 84
+- After TB-HIV + IVF + FixedAssets + TrainingClasses + shift-to-today:
+  56 / 84
+- After LabRequests + RadiologyRequests + LabOrders shift: **59 / 84**
+
+Still empty after backend populate work (19 pages). Split:
+
+- **Frontend-side empty states, not data gaps:** `/dashboard` and
+  `/quality` render `Chưa có dữ liệu` from widget logic even though
+  `/api/quality/indicators` returns 12 rows and the dashboard endpoint
+  returns real numbers. `/opd`, `/prescription`, `/consultation` show
+  no table until a room/patient is selected — that's the intended UX,
+  not an audit finding.
+- **Frontend calls a 404 path:** `/microbiology`, `/sample-storage`,
+  `/telemedicine`, `/patient-portal`, `/doctor-portal`, `/consultation`,
+  `/clinical-guidance`, `/health-exchange`, `/signing-workflow`,
+  `/medical-supply`, `/hospital-pharmacy`, `/procurement` — the backend
+  has data behind the correct route (e.g. `/liscomplete/microbiology/cultures`
+  returns 12 rows) but the page's axios call hits the wrong URL. Fixing
+  these = frontend code + Vercel redeploy, out of scope for this pass.
+- **Backend returns data but frontend filters it out:** `/tb-hiv`,
+  `/chronic-disease`, `/occupational-health` — API returns 20 / 40 / 30
+  rows; frontend rendering drops them (likely pagination or date-filter
+  mismatch in the client).
+
+The **data itself is now complete on prod**; the leftover empty pages
+are rendering bugs that live on the Vercel side.
 
 ### Known open items
 

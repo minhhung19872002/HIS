@@ -242,11 +242,15 @@ public class ReceptionCompleteService : IReceptionCompleteService
         var pattern = $"%{kw}%";
         var today = DateTime.Today;
 
+        // Search across all recent medical records (not just today) so the
+        // reception search bar can find historical patients. The
+        // "today's reception queue" use case is served by
+        // GetTodayAdmissionsAsync; this one is a free-text patient lookup.
         var records = await _context.MedicalRecords
             .Include(m => m.Patient)
             .Include(m => m.Room)
             .ThenInclude(r => r!.Department)
-            .Where(m => m.CreatedAt.Date == today &&
+            .Where(m =>
                 (EF.Functions.Like(m.MedicalRecordCode, pattern) ||
                  EF.Functions.Like(m.Patient!.PatientCode, pattern) ||
                  EF.Functions.Like(m.Patient.FullName, pattern) ||

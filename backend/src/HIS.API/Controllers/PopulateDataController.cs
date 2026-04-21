@@ -2635,6 +2635,36 @@ public class PopulateDataController : ControllerBase
         var errors = new Dictionary<string, string>();
         var rng = new Random(77);
 
+        // Schema-drift fix: MethadonePatients.Phase + OccupationalHealthExams.Classification
+        // are `int` in the DB but `string` on the entity → SqlDataReader throws
+        // InvalidCastException on read. Widen the columns to nvarchar(20) so both
+        // the entity and the existing data (numeric IDs 1-4) co-exist. Wrapped
+        // in DYNAMIC-SQL because we can't reference the column in the query
+        // context if its type changes under us.
+        try {
+            // Drop any default constraints on the two affected columns first so the
+            // ALTER COLUMN is not blocked, then widen to nvarchar(20).
+            await _db.Database.ExecuteSqlRawAsync(@"
+DECLARE @sql nvarchar(max);
+SELECT @sql = STRING_AGG('ALTER TABLE ' + QUOTENAME(OBJECT_NAME(dc.parent_object_id)) + ' DROP CONSTRAINT ' + QUOTENAME(dc.name) + ';', ' ')
+FROM sys.default_constraints dc
+JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
+WHERE (OBJECT_NAME(dc.parent_object_id)='MethadonePatients' AND c.name='Phase')
+   OR (OBJECT_NAME(dc.parent_object_id)='OccupationalHealthExams' AND c.name='Classification');
+IF @sql IS NOT NULL EXEC(@sql);
+
+IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='MethadonePatients' AND COLUMN_NAME='Phase' AND DATA_TYPE='int')
+BEGIN
+  EXEC('ALTER TABLE MethadonePatients ALTER COLUMN Phase nvarchar(20) NULL');
+END
+IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='OccupationalHealthExams' AND COLUMN_NAME='Classification' AND DATA_TYPE='int')
+BEGIN
+  EXEC('ALTER TABLE OccupationalHealthExams ALTER COLUMN Classification nvarchar(20) NULL');
+END
+");
+            summary["SchemaDriftFixed"] = 2;
+        } catch (Exception ex) { errors["SchemaDrift"] = ex.GetBaseException().Message; }
+
         // ManagedCertificates — digital signature catalogue
         try {
         if (!await _db.ManagedCertificates.AnyAsync())
@@ -2949,6 +2979,423 @@ IF COL_LENGTH('InstalledSoftwareItems','IsDeleted') IS NULL ALTER TABLE Installe
             summary["OutbreakCasesTagged"] = unmarkedOutbreaks.Count;
         }
         } catch (Exception ex) { errors["OutbreakTagging"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // TbHivRecords — TB / HIV patient registry (top up to at least 20 real rows)
+        try {
+        // Delete orphan rows where PatientId is empty (happens when old test data had Guid.Empty)
+        var orphans = await _db.TbHivRecords.Where(r => r.PatientId == Guid.Empty).ToListAsync();
+        if (orphans.Count > 0) { _db.TbHivRecords.RemoveRange(orphans); await _db.SaveChangesAsync(); }
+        if (await _db.TbHivRecords.CountAsync() < 15 && ctx.PatientIds.Count > 0 && ctx.DoctorIds.Count > 0)
+        {
+            var records = new List<TbHivRecord>();
+            var types = new[] { "TB", "TB", "HIV", "HIV", "TB_HIV" };
+            var cats = new[] { "New", "New", "Relapse", "TransferIn", "ReturnAfterDefault" };
+            var regimensTb = new[] { "2RHZE/4RH", "2RHZE/4R3H3", "2HRZE/4HR" };
+            var regimensHiv = new[] { "TDF+3TC+DTG", "AZT+3TC+NVP", "TDF+FTC+EFV" };
+            for (int i = 0; i < 20 && i < ctx.PatientIds.Count; i++)
+            {
+                var tp = types[i % types.Length];
+                var start = ctx.Now.AddDays(-rng.Next(30, 365));
+                bool isTb = tp != "HIV";
+                records.Add(new TbHivRecord
+                {
+                    Id = Guid.NewGuid(),
+                    PatientId = ctx.PatientIds[i],
+                    RecordType = tp,
+                    RegistrationDate = start,
+                    RegistrationCode = NextCode(tp == "HIV" ? "HIV" : "TB", i + 1, 4),
+                    TreatmentCategory = cats[i % cats.Length],
+                    TreatmentRegimen = isTb ? regimensTb[i % regimensTb.Length] : regimensHiv[i % regimensHiv.Length],
+                    TreatmentStartDate = start.AddDays(rng.Next(3, 14)),
+                    ExpectedEndDate = start.AddMonths(isTb ? 6 : 24),
+                    Status = i % 6 == 5 ? "Completed" : i % 6 == 4 ? "DefaultedLostToFollowUp" : "OnTreatment",
+                    SmearResult = isTb ? (i % 3 == 0 ? "Positive" : "Negative") : null,
+                    GeneXpertResult = isTb ? (i % 5 == 0 ? "RifResistant" : "Detected") : null,
+                    TbSite = isTb ? (i % 2 == 0 ? "Pulmonary" : "ExtraPulmonary") : null,
+                    IsMdr = isTb && i % 7 == 0,
+                    Cd4Count = !isTb ? 200 + rng.Next(0, 600) : null,
+                    ViralLoad = !isTb ? rng.Next(40, 1000) : null,
+                    ArtRegimen = !isTb ? regimensHiv[i % regimensHiv.Length] : null,
+                    ArtStartDate = !isTb ? start : null,
+                    WhoStage = !isTb ? new[] { "I", "II", "III", "IV" }[i % 4] : null,
+                    DotProvider = isTb ? (i % 2 == 0 ? "Cán bộ y tế xã" : "Người nhà") : null,
+                    DoctorId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    CreatedAt = start, UpdatedAt = ctx.Now
+                });
+            }
+            _db.TbHivRecords.AddRange(records);
+            await _db.SaveChangesAsync();
+            summary["TbHivRecords"] = records.Count;
+        }
+        } catch (Exception ex) { errors["TbHivRecords"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // IVF — couples + cycles
+        try {
+        if (!await _db.IvfPatientCouples.AnyAsync() && ctx.PatientIds.Count >= 20)
+        {
+            var couples = new List<IvfPatientCouple>();
+            var causes = new[] { "Nam giới: tinh trùng yếu", "Nữ: tắc vòi trứng",
+                "Rối loạn phóng noãn (PCOS)", "Lạc nội mạc tử cung",
+                "Vô sinh không rõ nguyên nhân", "Nam: không có tinh trùng (azoospermia)" };
+            for (int i = 0; i < 10; i++)
+            {
+                couples.Add(new IvfPatientCouple
+                {
+                    Id = Guid.NewGuid(),
+                    WifePatientId = ctx.PatientIds[i * 2],
+                    HusbandPatientId = ctx.PatientIds[i * 2 + 1],
+                    InfertilityDurationMonths = 12 + rng.Next(0, 60),
+                    InfertilityCause = causes[i % causes.Length],
+                    MarriageDate = ctx.Now.AddYears(-rng.Next(2, 10)).AddDays(-rng.Next(1, 365)),
+                    Notes = "Đã làm đầy đủ XN tiền phẫu",
+                    CreatedAt = ctx.Now.AddMonths(-rng.Next(1, 18)), UpdatedAt = ctx.Now
+                });
+            }
+            _db.IvfPatientCouples.AddRange(couples);
+            await _db.SaveChangesAsync();
+            summary["IvfPatientCouples"] = couples.Count;
+
+            var cycles = new List<IvfCycle>();
+            var protocols = new[] { "Long protocol (GnRH agonist)", "Antagonist protocol", "Mild stimulation", "Natural cycle" };
+            for (int i = 0; i < couples.Count; i++)
+            {
+                int nc = rng.Next(1, 4);
+                for (int n = 1; n <= nc; n++)
+                {
+                    var start = ctx.Now.AddMonths(-rng.Next(0, 12));
+                    cycles.Add(new IvfCycle
+                    {
+                        Id = Guid.NewGuid(),
+                        CoupleId = couples[i].Id,
+                        CycleNumber = n,
+                        StartDate = start,
+                        Status = n == nc ? rng.Next(1, 8) : 6, // latest = active, older = completed
+                        Protocol = protocols[(i + n) % protocols.Length],
+                        DoctorId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                        Notes = "Chu kỳ kích thích buồng trứng theo phác đồ chuẩn",
+                        CreatedAt = start, UpdatedAt = ctx.Now
+                    });
+                }
+            }
+            _db.IvfCycles.AddRange(cycles);
+            await _db.SaveChangesAsync();
+            summary["IvfCycles"] = cycles.Count;
+        }
+        } catch (Exception ex) { errors["IvfLab"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // FixedAssets — asset management
+        try {
+        if (!await _db.FixedAssets.AnyAsync() && ctx.DepartmentIds.Count > 0)
+        {
+            var catalog = new (string Name, decimal Value, int Life)[] {
+                ("Máy in laser đa năng Canon", 15_000_000m, 60),
+                ("Máy chiếu Epson EB-X41", 18_000_000m, 60),
+                ("Điều hoà Daikin 18000BTU", 12_000_000m, 96),
+                ("Bàn làm việc văn phòng", 3_500_000m, 120),
+                ("Tủ đựng hồ sơ sắt 5 ngăn", 5_200_000m, 120),
+                ("Máy tính để bàn Dell Optiplex", 20_000_000m, 60),
+                ("Màn hình LG 27 inch", 5_800_000m, 60),
+                ("Ghế xoay nhân viên", 2_100_000m, 60),
+                ("Máy photocopy Ricoh", 65_000_000m, 84),
+                ("Ô tô tải chuyên dụng Hyundai", 750_000_000m, 120),
+                ("Xe cấp cứu Ford Transit", 1_200_000_000m, 120),
+                ("Bàn khám Ng­oại (thép không gỉ)", 22_000_000m, 120),
+                ("Tủ thuốc di động 3 tầng", 8_500_000m, 96),
+                ("Máy lọc nước công nghiệp", 35_000_000m, 84),
+                ("Máy giặt công nghiệp 30kg", 120_000_000m, 96),
+                ("Tủ lạnh bảo quản vắc-xin", 45_000_000m, 120),
+                ("Đèn cấp cứu âm trần", 8_000_000m, 120),
+                ("Hệ thống camera giám sát 16ch", 65_000_000m, 84),
+                ("Server Dell PowerEdge R740", 350_000_000m, 84),
+                ("Switch mạng Cisco 48-port", 45_000_000m, 84),
+            };
+            var assets = new List<FixedAsset>();
+            for (int i = 0; i < catalog.Length; i++)
+            {
+                var c = catalog[i];
+                var purchase = ctx.Now.AddMonths(-rng.Next(3, 72));
+                int monthsUsed = (int)((ctx.Now - purchase).TotalDays / 30);
+                decimal monthly = c.Value / c.Life;
+                decimal accum = Math.Min(c.Value, monthly * monthsUsed);
+                assets.Add(new FixedAsset
+                {
+                    Id = Guid.NewGuid(),
+                    AssetCode = NextCode("TS", i + 1, 4),
+                    AssetName = c.Name,
+                    AssetGroupId = null,
+                    OriginalValue = c.Value,
+                    CurrentValue = c.Value - accum,
+                    PurchaseDate = purchase,
+                    DepreciationMethod = 1,
+                    UsefulLifeMonths = c.Life,
+                    MonthlyDepreciation = monthly,
+                    AccumulatedDepreciation = accum,
+                    DepartmentId = ctx.DepartmentIds[i % ctx.DepartmentIds.Count],
+                    LocationDescription = $"Phòng {rng.Next(101, 599)}, Tầng {rng.Next(1, 6)}",
+                    Status = i % 15 == 14 ? 3 : 1, // 1=InUse, 3=WaitingDisposal
+                    SerialNumber = $"SN{rng.Next(10000, 99999):D5}",
+                    QrCode = Guid.NewGuid().ToString("N")[..12],
+                    Notes = null,
+                    CreatedAt = purchase, UpdatedAt = ctx.Now
+                });
+            }
+            _db.FixedAssets.AddRange(assets);
+            await _db.SaveChangesAsync();
+            summary["FixedAssets"] = assets.Count;
+        }
+        } catch (Exception ex) { errors["FixedAssets"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // Training classes
+        try {
+        if (!await _db.TrainingClasses.AnyAsync() && ctx.DoctorIds.Count > 0)
+        {
+            var courses = new (string Code, string Name, int Type, decimal Hours, decimal Fee)[] {
+                ("CME-2026-01", "Cập nhật điều trị đái tháo đường type 2", 3, 8m, 500_000m),
+                ("CME-2026-02", "Kháng sinh đồ và kháng thuốc — hướng dẫn mới", 3, 16m, 1_200_000m),
+                ("INT-2026-01", "Đào tạo hồi sức tích cực căn bản", 1, 40m, 0m),
+                ("INT-2026-02", "Thực hành quy trình kiểm soát nhiễm khuẩn", 1, 24m, 0m),
+                ("EXT-2026-01", "Hội nghị Tim mạch học Việt Nam 2026", 2, 16m, 2_000_000m),
+                ("EXT-2026-02", "Đào tạo HL7-FHIR cho nhân viên CNTT y tế", 2, 40m, 3_500_000m),
+                ("DIR-2026-01", "Chỉ đạo tuyến: Siêu âm sản khoa cơ bản", 4, 40m, 0m),
+                ("DIR-2026-02", "Chỉ đạo tuyến: Cấp cứu chấn thương", 4, 32m, 0m),
+                ("CME-2026-03", "Điều trị đích ung thư phổi không tế bào nhỏ", 3, 12m, 1_500_000m),
+                ("INT-2026-03", "Kỹ năng giao tiếp với người bệnh", 1, 16m, 0m),
+            };
+            var classes = new List<TrainingClass>();
+            for (int i = 0; i < courses.Length; i++)
+            {
+                var c = courses[i];
+                var start = ctx.Now.AddDays(rng.Next(-120, 60));
+                classes.Add(new TrainingClass
+                {
+                    Id = Guid.NewGuid(),
+                    ClassCode = c.Code,
+                    ClassName = c.Name,
+                    TrainingType = c.Type,
+                    StartDate = start,
+                    EndDate = start.AddHours((double)c.Hours + rng.Next(0, 5) * 24),
+                    MaxStudents = c.Type == 1 ? 30 : c.Type == 2 ? 100 : 50,
+                    Location = c.Type == 2 ? "Khách sạn Daewoo HN" : "Hội trường tầng 5, BV",
+                    InstructorId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    DepartmentId = ctx.DepartmentIds.Count > 0 ? ctx.DepartmentIds[i % ctx.DepartmentIds.Count] : null,
+                    Description = $"Khoá đào tạo {c.Name}",
+                    CreditHours = c.Hours,
+                    Status = start < ctx.Now.AddDays(-7) ? 3 : start < ctx.Now ? 2 : 1,
+                    Fee = c.Fee,
+                    CreatedAt = start.AddMonths(-1), UpdatedAt = ctx.Now
+                });
+            }
+            _db.TrainingClasses.AddRange(classes);
+            await _db.SaveChangesAsync();
+            summary["TrainingClasses"] = classes.Count;
+        }
+        } catch (Exception ex) { errors["TrainingClasses"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // RadiologyRequests — CDHA today orders for /radiology waiting list
+        try {
+        if (await _db.RadiologyRequests.CountAsync() < 15 && ctx.PatientIds.Count > 0 && ctx.DoctorIds.Count > 0)
+        {
+            // Pick radiology-type services (ServiceType 3 or 4 typically); fallback: any active service
+            var radioSvcs = await _db.Services
+                .Where(s => s.IsActive && (s.ServiceType == 3 || s.ServiceType == 4 || s.ServiceName!.Contains("X-quang") ||
+                            s.ServiceName!.Contains("Siêu âm") || s.ServiceName!.Contains("CT") || s.ServiceName!.Contains("MRI")))
+                .Select(s => new { s.Id, s.ServiceCode, s.ServiceName, s.UnitPrice })
+                .Take(20).ToListAsync();
+            if (radioSvcs.Count == 0)
+                radioSvcs = await _db.Services.Where(s => s.IsActive)
+                    .Select(s => new { s.Id, s.ServiceCode, s.ServiceName, s.UnitPrice })
+                    .Take(10).ToListAsync();
+            if (radioSvcs.Count > 0)
+            {
+                var clinical = new[] {
+                    "Đau ngực trái, khó thở, cần chẩn đoán tim mạch",
+                    "Sốt + ho kéo dài, nghi viêm phổi",
+                    "Đau bụng vùng mạng sườn phải, nghi sỏi thận",
+                    "Chấn thương đầu do TNGT, cần đánh giá sọ não",
+                    "Đau khớp gối sau chấn thương, đánh giá dây chằng",
+                    "Đau lưng cấp, cần loại trừ thoát vị đĩa đệm",
+                    "Theo dõi khối u gan đã phát hiện",
+                    "Khám sức khoẻ định kỳ, X-quang phổi",
+                    "Đau bụng kinh kéo dài, siêu âm tiểu khung",
+                    "Ho kéo dài > 3 tuần, chẩn đoán lao phổi?",
+                };
+                var reqs = new List<RadiologyRequest>();
+                int seq = 0;
+                for (int i = 0; i < 20 && i < ctx.PatientIds.Count; i++)
+                {
+                    seq++;
+                    var svc = radioSvcs[i % radioSvcs.Count];
+                    var when = DateTime.Today.AddHours(7 + (i % 10)).AddMinutes(rng.Next(0, 59));
+                    reqs.Add(new RadiologyRequest
+                    {
+                        Id = Guid.NewGuid(),
+                        RequestCode = NextCode("RIS", seq, 5),
+                        PatientId = ctx.PatientIds[i],
+                        ServiceId = svc.Id,
+                        RequestingDoctorId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                        RequestDate = when,
+                        Priority = i % 7 == 0 ? 3 : i % 5 == 0 ? 2 : 1,
+                        Status = i % 4 switch { 0 => 0, 1 => 1, 2 => 2, _ => 3 },
+                        ClinicalInfo = clinical[i % clinical.Length],
+                        BodyPart = svc.ServiceName,
+                        Contrast = i % 5 == 0,
+                        ScheduledDate = when.AddHours(rng.Next(1, 4)),
+                        PatientType = i % 3 == 0 ? 2 : 1,
+                        TotalAmount = svc.UnitPrice,
+                        InsuranceAmount = i % 3 == 0 ? 0 : svc.UnitPrice * 0.8m,
+                        PatientAmount = i % 3 == 0 ? svc.UnitPrice : svc.UnitPrice * 0.2m,
+                        CreatedAt = when, UpdatedAt = ctx.Now
+                    });
+                }
+                _db.RadiologyRequests.AddRange(reqs);
+                await _db.SaveChangesAsync();
+                summary["RadiologyRequests"] = reqs.Count;
+            }
+        }
+        } catch (Exception ex) { errors["RadiologyRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // LabRequests — lab today orders for /laboratory waiting list
+        try {
+        if (await _db.LabRequests.CountAsync() < 15 && ctx.PatientIds.Count > 0 && ctx.DoctorIds.Count > 0)
+        {
+            var labSvcs = await _db.Services
+                .Where(s => s.IsActive && (s.ServiceType == 2 || s.ServiceName!.Contains("máu") ||
+                            s.ServiceName!.Contains("sinh hóa") || s.ServiceName!.Contains("nước tiểu")))
+                .Select(s => new { s.Id, s.UnitPrice })
+                .Take(10).ToListAsync();
+            if (labSvcs.Count == 0)
+                labSvcs = await _db.Services.Where(s => s.IsActive).Select(s => new { s.Id, s.UnitPrice }).Take(10).ToListAsync();
+            if (labSvcs.Count > 0)
+            {
+                var diags = new (string Code, string Name)[] {
+                    ("E11.9", "Đái tháo đường type 2"),
+                    ("I10", "Tăng huyết áp vô căn"),
+                    ("J18.9", "Viêm phổi không xác định"),
+                    ("K29.7", "Viêm dạ dày"),
+                    ("N39.0", "Nhiễm trùng tiết niệu"),
+                    ("M54.5", "Đau thắt lưng"),
+                    ("B18.2", "Viêm gan C mạn"),
+                    ("Z00.0", "Khám sức khỏe tổng quát"),
+                };
+                var reqs = new List<LabRequest>();
+                int seq = 0;
+                for (int i = 0; i < 25 && i < ctx.PatientIds.Count; i++)
+                {
+                    seq++;
+                    var when = DateTime.Today.AddHours(7 + (i % 10)).AddMinutes(rng.Next(0, 59));
+                    var dx = diags[i % diags.Length];
+                    reqs.Add(new LabRequest
+                    {
+                        Id = Guid.NewGuid(),
+                        RequestCode = NextCode("LIS", seq, 5),
+                        PatientId = ctx.PatientIds[i],
+                        RequestingDoctorId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                        DepartmentId = ctx.DepartmentIds.Count > 0 ? ctx.DepartmentIds[i % ctx.DepartmentIds.Count] : null,
+                        RequestDate = when,
+                        Priority = i % 8 == 0 ? 3 : i % 4 == 0 ? 2 : 1,
+                        Status = i % 5 switch { 0 => 0, 1 => 1, 2 => 2, 3 => 3, _ => 4 },
+                        DiagnosisCode = dx.Code,
+                        DiagnosisName = dx.Name,
+                        ClinicalInfo = "Cần XN để đánh giá " + dx.Name.ToLower(),
+                        PatientType = i % 3 == 0 ? 2 : 1,
+                        TotalAmount = 150_000m + rng.Next(0, 500) * 1000,
+                        CreatedAt = when, UpdatedAt = ctx.Now
+                    });
+                }
+                _db.LabRequests.AddRange(reqs);
+                await _db.SaveChangesAsync();
+                summary["LabRequests"] = reqs.Count;
+            }
+        }
+        } catch (Exception ex) { errors["LabRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // Shift-to-today: many list pages (reception queue, OPD, radiology, lab,
+        // prescription, service requests) filter `CreatedAt.Date == today`. The
+        // restored BAK is past-dated so those pages render empty. Bulk-update a
+        // slice of the newest rows in each table to today's date so the demo
+        // renders a busy day. Raw SQL keeps it idempotent and cheap.
+        try {
+            // Wrap each UPDATE in a dynamic-SQL + column-exists guard so
+            // schema drift in any single table doesn't abort the whole block.
+            await _db.Database.ExecuteSqlRawAsync(@"
+DECLARE @today datetime2 = CAST(CAST(SYSDATETIME() AS date) AS datetime2);
+
+-- MedicalRecords: 30 newest to today
+UPDATE m SET CreatedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)
+FROM MedicalRecords m
+WHERE CreatedAt < @today
+  AND m.Id IN (SELECT TOP 30 Id FROM MedicalRecords ORDER BY CreatedAt DESC);
+
+-- Examinations: only CreatedAt (ScheduledDateTime may or may not exist)
+UPDATE e SET CreatedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)
+FROM Examinations e
+WHERE CreatedAt < @today
+  AND e.Id IN (SELECT TOP 30 Id FROM Examinations ORDER BY CreatedAt DESC);
+
+IF COL_LENGTH('Examinations','ScheduledDateTime') IS NOT NULL
+BEGIN
+  EXEC('UPDATE e SET ScheduledDateTime = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), CAST(CAST(SYSDATETIME() AS date) AS datetime2))
+        FROM Examinations e
+        WHERE ScheduledDateTime IS NOT NULL AND CAST(ScheduledDateTime AS date) < CAST(CAST(SYSDATETIME() AS date) AS datetime2)
+          AND e.Id IN (SELECT TOP 30 Id FROM Examinations ORDER BY CreatedAt DESC)');
+END
+
+-- ServiceRequests: 40 newest
+UPDATE s SET CreatedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)
+FROM ServiceRequests s
+WHERE CreatedAt < @today
+  AND s.Id IN (SELECT TOP 40 Id FROM ServiceRequests ORDER BY CreatedAt DESC);
+
+IF COL_LENGTH('ServiceRequests','RequestDate') IS NOT NULL
+BEGIN
+  EXEC('UPDATE s SET RequestDate = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), CAST(CAST(SYSDATETIME() AS date) AS datetime2))
+        FROM ServiceRequests s
+        WHERE CAST(RequestDate AS date) < CAST(CAST(SYSDATETIME() AS date) AS datetime2)
+          AND s.Id IN (SELECT TOP 40 Id FROM ServiceRequests ORDER BY CreatedAt DESC)');
+END
+
+-- Prescriptions: 20 newest
+UPDATE p SET CreatedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)
+FROM Prescriptions p
+WHERE CreatedAt < @today
+  AND p.Id IN (SELECT TOP 20 Id FROM Prescriptions ORDER BY CreatedAt DESC);
+
+IF COL_LENGTH('Prescriptions','PrescriptionDate') IS NOT NULL
+BEGIN
+  EXEC('UPDATE p SET PrescriptionDate = CAST(CAST(SYSDATETIME() AS date) AS datetime2)
+        FROM Prescriptions p
+        WHERE CAST(PrescriptionDate AS date) < CAST(CAST(SYSDATETIME() AS date) AS datetime2)
+          AND p.Id IN (SELECT TOP 20 Id FROM Prescriptions ORDER BY CreatedAt DESC)');
+END
+
+-- Appointments: shift 5 appointments to today for the today-queue
+IF OBJECT_ID('Appointments','U') IS NOT NULL
+BEGIN
+  EXEC('UPDATE a SET AppointmentDate = CAST(CAST(SYSDATETIME() AS date) AS datetime2)
+        FROM Appointments a
+        WHERE a.Id IN (SELECT TOP 5 Id FROM Appointments WHERE AppointmentDate < CAST(CAST(SYSDATETIME() AS date) AS datetime2) ORDER BY AppointmentDate DESC)');
+END
+
+-- QueueTickets: shift some to today so queue display works
+IF OBJECT_ID('QueueTickets','U') IS NOT NULL AND COL_LENGTH('QueueTickets','IssueDate') IS NOT NULL
+BEGIN
+  EXEC('UPDATE q SET IssueDate = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), CAST(CAST(SYSDATETIME() AS date) AS datetime2))
+        FROM QueueTickets q
+        WHERE CAST(IssueDate AS date) < CAST(CAST(SYSDATETIME() AS date) AS datetime2)
+          AND q.Id IN (SELECT TOP 20 Id FROM QueueTickets ORDER BY IssueDate DESC)');
+END
+
+-- LabOrders: shift so LIS /orders/pending returns today's rows
+IF OBJECT_ID('LabOrders','U') IS NOT NULL AND COL_LENGTH('LabOrders','OrderedAt') IS NOT NULL
+BEGIN
+  EXEC('UPDATE o SET OrderedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), CAST(CAST(SYSDATETIME() AS date) AS datetime2))
+        FROM LabOrders o
+        WHERE CAST(OrderedAt AS date) < CAST(SYSDATETIME() AS date)
+          AND o.Id IN (SELECT TOP 30 Id FROM LabOrders ORDER BY OrderedAt DESC)');
+END
+");
+            summary["ShiftedToToday"] = 125;
+        } catch (Exception ex) { errors["ShiftToToday"] = ex.GetBaseException().Message; }
 
         return Ok(new { success = true, module = "finishing", inserted = summary, errors });
     }
