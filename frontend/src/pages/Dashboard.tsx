@@ -122,7 +122,12 @@ const Dashboard: React.FC = () => {
     try {
       const [dashRes, deptRes] = await Promise.allSettled([
         statisticsApi.getHospitalDashboard(),
-        statisticsApi.getDepartmentStatistics(dayjs().format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')),
+        // Last 7 days so the bar chart has something to show even if
+        // today's CreatedAt shift didn't cover every department.
+        statisticsApi.getDepartmentStatistics(
+          dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+          dayjs().format('YYYY-MM-DD'),
+        ),
       ]);
 
       const d = dashRes.status === 'fulfilled' ? (dashRes.value.data as HospitalDashboardDto & DashboardApiExtras) : null;

@@ -3487,6 +3487,175 @@ IF COL_LENGTH('InstalledSoftwareItems','IsDeleted') IS NULL ALTER TABLE Installe
         }
         } catch (Exception ex) { errors["SigningRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
 
+        // RadiologyConsultationSessions + Cases — /consultation page
+        try {
+        if (!await _db.RadiologyConsultationSessions.AnyAsync() && ctx.DoctorIds.Count > 0)
+        {
+            var radReqIds = await _db.RadiologyRequests.OrderByDescending(r => r.CreatedAt)
+                .Select(r => r.Id).Take(15).ToListAsync();
+            if (radReqIds.Count > 0)
+            {
+                var sessions = new List<RadiologyConsultationSession>();
+                var titles = new[] {
+                    "Hội chẩn CĐHA - Khối u trung thất",
+                    "Hội chẩn phức tạp CT sọ não",
+                    "Hội chẩn siêu âm tim bệnh nhân suy tim",
+                    "Hội chẩn MRI cột sống cổ - thoát vị đĩa đệm",
+                    "Hội chẩn XN + CĐHA - nghi ngờ ung thư phổi",
+                };
+                for (int i = 0; i < titles.Length; i++)
+                {
+                    var when = ctx.Now.AddDays(-rng.Next(0, 14)).AddHours(-rng.Next(0, 8));
+                    int status = i % 4 switch { 0 => 3, 1 => 2, 2 => 1, _ => 3 };
+                    sessions.Add(new RadiologyConsultationSession
+                    {
+                        Id = Guid.NewGuid(),
+                        SessionCode = NextCode("HC", i + 1, 4),
+                        Title = titles[i],
+                        Description = "Hội chẩn đa chuyên khoa về chẩn đoán hình ảnh",
+                        ScheduledStartTime = when,
+                        ScheduledEndTime = when.AddHours(1),
+                        ActualStartTime = status >= 2 ? when : null,
+                        ActualEndTime = status >= 3 ? when.AddHours(1) : null,
+                        OrganizerId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                        LeaderId = ctx.DoctorIds[(i + 1) % ctx.DoctorIds.Count],
+                        SecretaryId = ctx.NurseIds.Count > 0 ? ctx.NurseIds[i % ctx.NurseIds.Count] : ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                        Status = status,
+                        MeetingUrl = status <= 2 ? $"https://meet.his.local/hc-{i+1}" : null,
+                        Notes = status == 3 ? "Đã họp xong, chờ biên bản kết luận" : null,
+                        CreatedAt = when.AddDays(-1), UpdatedAt = ctx.Now
+                    });
+                }
+                _db.RadiologyConsultationSessions.AddRange(sessions);
+                await _db.SaveChangesAsync();
+                summary["RadiologyConsultationSessions"] = sessions.Count;
+
+                // Seed cases for each session
+                var cases = new List<RadiologyConsultationCase>();
+                var reasons = new[] {
+                    "Hình ảnh khối u trung thất phức tạp, cần ý kiến nhiều chuyên gia",
+                    "Tổn thương sọ não sau chấn thương, cần phân tích kỹ",
+                    "Dị dạng tim mạch cần chuẩn bị phẫu thuật",
+                    "Thoát vị đĩa đệm đa tầng, đánh giá phẫu thuật",
+                    "Nốt mờ phổi nghi ung thư, phân giai đoạn",
+                };
+                int caseSeq = 0;
+                for (int si = 0; si < sessions.Count; si++)
+                {
+                    int numCases = rng.Next(2, 4);
+                    for (int c = 0; c < numCases && caseSeq < radReqIds.Count; c++)
+                    {
+                        int caseStatus = sessions[si].Status >= 3 ? 2 : 0;
+                        cases.Add(new RadiologyConsultationCase
+                        {
+                            Id = Guid.NewGuid(),
+                            SessionId = sessions[si].Id,
+                            RadiologyRequestId = radReqIds[caseSeq % radReqIds.Count],
+                            OrderNumber = c + 1,
+                            Reason = reasons[si % reasons.Length],
+                            PreliminaryDiagnosis = "Chẩn đoán sơ bộ trên hình ảnh",
+                            Status = caseStatus,
+                            Conclusion = caseStatus == 2 ? "Thống nhất chẩn đoán, đề nghị PT" : null,
+                            Recommendation = caseStatus == 2 ? "Hội chẩn PT ngoại khoa trước 48h" : null,
+                            CreatedAt = sessions[si].CreatedAt,
+                            UpdatedAt = ctx.Now
+                        });
+                        caseSeq++;
+                    }
+                }
+                _db.RadiologyConsultationCases.AddRange(cases);
+                await _db.SaveChangesAsync();
+                summary["RadiologyConsultationCases"] = cases.Count;
+
+                // Participants (organizer + leader + secretary + 2 doctors)
+                var participants = new List<RadiologyConsultationParticipant>();
+                foreach (var s in sessions)
+                {
+                    var uids = new[] { s.OrganizerId, s.LeaderId ?? ctx.DoctorIds[0], s.SecretaryId ?? ctx.NurseIds.FirstOrDefault() }
+                        .Where(id => id != Guid.Empty).Distinct().Take(3).ToList();
+                    foreach (var uid in uids)
+                    {
+                        participants.Add(new RadiologyConsultationParticipant
+                        {
+                            Id = Guid.NewGuid(),
+                            SessionId = s.Id,
+                            UserId = uid,
+                            Role = uid == s.LeaderId ? "Leader" : uid == s.SecretaryId ? "Secretary" : "Participant",
+                            Status = s.Status >= 3 ? 4 : s.Status == 2 ? 3 : 1,
+                            InvitedAt = s.CreatedAt,
+                            JoinedAt = s.ActualStartTime,
+                            LeftAt = s.ActualEndTime,
+                            CreatedAt = s.CreatedAt, UpdatedAt = ctx.Now
+                        });
+                    }
+                }
+                if (participants.Count > 0)
+                {
+                    _db.RadiologyConsultationParticipants.AddRange(participants);
+                    await _db.SaveChangesAsync();
+                    summary["RadiologyConsultationParticipants"] = participants.Count;
+                }
+            }
+        }
+        } catch (Exception ex) { errors["RadiologyConsultations"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // IncidentReports — /quality incidents tab
+        try {
+        if (!await _db.IncidentReports.AnyAsync() && ctx.DoctorIds.Count > 0)
+        {
+            var incidents = new (string Type, string Severity, string Harm, string Desc, string Status)[] {
+                ("Medication", "Minor", "None", "Nhầm liều thuốc Paracetamol, phát hiện kịp thời", "Closed"),
+                ("Fall", "Moderate", "Temporary", "Bệnh nhân té ngã khi đi vệ sinh, trầy xước nhẹ", "Closed"),
+                ("Infection", "Major", "Permanent", "Nhiễm khuẩn vết mổ sau PT cắt ruột thừa", "UnderInvestigation"),
+                ("Equipment", "Minor", "None", "Máy đo huyết áp hiển thị sai, đổi máy khác", "Closed"),
+                ("Process", "Near-miss", "None", "Phát hiện nhầm chỉ định XN trước khi lấy mẫu", "RCAComplete"),
+                ("Medication", "Major", "Temporary", "Dị ứng nặng sau tiêm kháng sinh, xử trí kịp thời", "ActionPlan"),
+                ("Fall", "Minor", "None", "BN trượt ngã khi tắm, không thương tích", "Closed"),
+                ("Process", "Moderate", "Temporary", "Chậm chuyển BN cấp cứu lên HSTC", "RCAComplete"),
+                ("Equipment", "Moderate", "None", "Máy thở báo lỗi khi đang sử dụng, chuyển máy dự phòng", "Closed"),
+                ("Other", "Near-miss", "None", "Phát hiện thiếu oxy y tế buồng bệnh trước khi BN vào", "Closed"),
+                ("Medication", "Minor", "None", "Ghi sai tên thuốc trên phiếu ra thuốc, sửa kịp", "Closed"),
+                ("Infection", "Moderate", "Temporary", "Viêm phổi bệnh viện ở BN nằm ICU 10 ngày", "ActionPlan"),
+                ("Fall", "Major", "Temporary", "BN cao tuổi té gãy xương cổ tay", "UnderInvestigation"),
+                ("Process", "Minor", "None", "Quên ghi chép theo dõi dấu hiệu sinh tồn 1 ca", "Closed"),
+                ("Other", "Near-miss", "None", "Phát hiện ống thông NTM lỏng trước khi sử dụng", "Closed"),
+            };
+            var reports = new List<IncidentReport>();
+            for (int i = 0; i < incidents.Length; i++)
+            {
+                var inc = incidents[i];
+                var incDate = ctx.Now.AddDays(-rng.Next(1, 120));
+                reports.Add(new IncidentReport
+                {
+                    Id = Guid.NewGuid(),
+                    ReportCode = NextCode("IC", i + 1, 4),
+                    IncidentDate = incDate,
+                    ReportDate = incDate.AddHours(rng.Next(1, 48)),
+                    ReportedById = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    DepartmentId = ctx.DepartmentIds.Count > 0 ? ctx.DepartmentIds[i % ctx.DepartmentIds.Count] : null,
+                    IncidentType = inc.Type,
+                    Severity = inc.Severity,
+                    HarmLevel = inc.Harm,
+                    Description = inc.Desc,
+                    ImmediateActions = "Xử trí tại chỗ, báo cáo lãnh đạo khoa, theo dõi BN",
+                    Status = inc.Status,
+                    InvestigatorId = inc.Status != "Reported" ? ctx.DoctorIds[(i + 1) % ctx.DoctorIds.Count] : null,
+                    InvestigationStartDate = inc.Status != "Reported" ? incDate.AddDays(1) : null,
+                    InvestigationEndDate = inc.Status == "Closed" ? incDate.AddDays(7) : null,
+                    RootCause = inc.Status == "Closed" || inc.Status == "RCAComplete"
+                        ? "Do thao tác con người, đề xuất đào tạo lại"
+                        : null,
+                    RCAMethod = inc.Status == "RCAComplete" || inc.Status == "Closed" ? "5 Whys" : null,
+                    IsAnonymous = i % 10 == 9,
+                    CreatedAt = incDate.AddHours(rng.Next(1, 24)), UpdatedAt = ctx.Now
+                });
+            }
+            _db.IncidentReports.AddRange(reports);
+            await _db.SaveChangesAsync();
+            summary["IncidentReports"] = reports.Count;
+        }
+        } catch (Exception ex) { errors["IncidentReports"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
         // Shift-to-today: many list pages (reception queue, OPD, radiology, lab,
         // prescription, service requests) filter `CreatedAt.Date == today`. The
         // restored BAK is past-dated so those pages render empty. Bulk-update a
@@ -3587,6 +3756,17 @@ BEGIN
         FROM LabOrders o
         WHERE CAST(OrderedAt AS date) < CAST(SYSDATETIME() AS date)
           AND o.Id IN (SELECT TOP 30 Id FROM LabOrders ORDER BY OrderedAt DESC)');
+END
+
+-- Receipts: shift 30 paid receipts to last 7 days so dashboard revenue-by-department lights up
+IF OBJECT_ID('Receipts','U') IS NOT NULL AND COL_LENGTH('Receipts','ReceiptDate') IS NOT NULL
+BEGIN
+  EXEC('UPDATE r SET
+          CreatedAt = DATEADD(hour, -ABS(CHECKSUM(NEWID()) % 168), CAST(CAST(SYSDATETIME() AS date) AS datetime2)),
+          ReceiptDate = DATEADD(hour, -ABS(CHECKSUM(NEWID()) % 168), CAST(CAST(SYSDATETIME() AS date) AS datetime2))
+        FROM Receipts r
+        WHERE r.Status = 1
+          AND r.Id IN (SELECT TOP 30 Id FROM Receipts WHERE Status = 1 ORDER BY ReceiptDate DESC)');
 END
 ");
             summary["ShiftedToToday"] = 125;

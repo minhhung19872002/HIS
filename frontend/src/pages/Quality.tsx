@@ -741,7 +741,7 @@ const Quality: React.FC = () => {
           }
         >
           <Tabs
-            defaultActiveKey="kpi"
+            defaultActiveKey="incidents"
             items={[
               {
                 key: 'kpi',
