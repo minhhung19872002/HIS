@@ -3656,6 +3656,121 @@ IF COL_LENGTH('InstalledSoftwareItems','IsDeleted') IS NULL ALTER TABLE Installe
         }
         } catch (Exception ex) { errors["IncidentReports"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
 
+        // Boost thin tables so sparse pages (/telemedicine, /emergency-disaster)
+        // go from 4 rows to 20+.
+        try {
+        // TeleAppointments: top up to 25 rows (entity lives in ExtendedWorkflowEntities)
+        var teleCount = await _db.TeleAppointments.CountAsync();
+        if (teleCount < 25 && ctx.PatientIds.Count > 0 && ctx.DoctorIds.Count > 0)
+        {
+            var specCodes = ctx.DepartmentIds.Take(5).ToList();
+            var complaints = new[] {
+                "Đau đầu, chóng mặt, khó ngủ kéo dài 1 tuần",
+                "Ho kéo dài, đờm trắng, không sốt",
+                "Đau bụng vùng thượng vị sau ăn",
+                "Đái tháo đường — xin tư vấn điều chỉnh liều",
+                "Tăng huyết áp — tái khám định kỳ",
+                "Con bị sốt cao 3 ngày, sợ tay chân miệng",
+                "Đau lưng mạn, xin tư vấn vật lý trị liệu",
+                "Đau khớp gối khi đi bộ",
+                "Tiền sử viêm gan B, xin tư vấn theo dõi",
+                "Kiểm tra kết quả xét nghiệm máu tổng quát",
+            };
+            var statuses = new[] { "Completed", "Completed", "Completed", "Confirmed", "Pending", "Cancelled" };
+            var list = new List<TeleAppointment>();
+            int need = 25 - teleCount;
+            for (int i = 0; i < need && i < ctx.PatientIds.Count; i++)
+            {
+                var status = statuses[i % statuses.Length];
+                var apptDate = ctx.Now.AddDays(-rng.Next(1, 25)).Date;
+                var start = new TimeSpan(rng.Next(7, 17), rng.Next(0, 4) * 15, 0);
+                list.Add(new TeleAppointment
+                {
+                    Id = Guid.NewGuid(),
+                    AppointmentCode = NextCode("TELE", teleCount + i + 1, 5),
+                    PatientId = ctx.PatientIds[i % ctx.PatientIds.Count],
+                    DoctorId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    SpecialityId = specCodes.Count > 0 ? specCodes[i % specCodes.Count] : null,
+                    AppointmentDate = apptDate,
+                    StartTime = start,
+                    EndTime = start.Add(TimeSpan.FromMinutes(15 + rng.Next(0, 4) * 5)),
+                    DurationMinutes = 15 + rng.Next(0, 4) * 5,
+                    Status = status,
+                    ChiefComplaint = complaints[i % complaints.Length],
+                    ConfirmedAt = status != "Pending" ? apptDate.AddDays(-1) : null,
+                    CancellationReason = status == "Cancelled" ? "Bệnh nhân báo bận, dời lịch" : null,
+                    CreatedAt = apptDate.AddDays(-2), UpdatedAt = ctx.Now
+                });
+            }
+            if (list.Count > 0)
+            {
+                _db.TeleAppointments.AddRange(list);
+                await _db.SaveChangesAsync();
+                summary["TeleAppointments+"] = list.Count;
+            }
+        }
+        } catch (Exception ex) { errors["TeleAppointmentsBoost"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        try {
+        // MCIEvents: top up to 15 rows
+        var mciCount = await _db.MCIEvents.CountAsync();
+        if (mciCount < 15 && ctx.DoctorIds.Count > 0)
+        {
+            var scenarios = new (string Name, string Type, string Location, string Level, int Victims)[] {
+                ("TNGT xe khách QL1 đoạn Cẩm Mỹ", "Accident", "QL1 KM 1872, Đồng Nai", "Orange", 18),
+                ("Cháy chợ đêm Phan Thiết", "Fire", "Chợ đêm Phan Thiết", "Orange", 12),
+                ("Ngộ độc thực phẩm tập thể tại trường tiểu học", "Chemical", "Trường TH An Phú", "Yellow", 45),
+                ("Sự cố tràn hoá chất nhà máy", "Chemical", "KCN Biên Hoà", "Red", 8),
+                ("Bão số 7 - sập nhà tại huyện ven biển", "NaturalDisaster", "Huyện Long Điền", "Red", 22),
+                ("TNGT xe container - xe máy trên cao tốc", "Accident", "Cao tốc TPHCM-LT", "Yellow", 6),
+                ("Lũ quét Huyện Bắc Trà My", "NaturalDisaster", "Huyện Bắc Trà My", "Red", 35),
+                ("Sập giàn giáo công trình xây dựng", "Accident", "Quận 2, TPHCM", "Orange", 14),
+                ("Ngộ độc CO hầm mỏ", "Chemical", "Mỏ than Cẩm Phả", "Orange", 9),
+                ("Cháy chung cư mini", "Fire", "Quận Thanh Xuân HN", "Red", 28),
+                ("Đâm dao tập thể tại quán nhậu", "Violence", "Quận Tân Bình", "Yellow", 7),
+            };
+            var list = new List<MCIEvent>();
+            int need = Math.Min(scenarios.Length, 15 - mciCount);
+            for (int i = 0; i < need; i++)
+            {
+                var s = scenarios[i];
+                var alert = ctx.Now.AddDays(-rng.Next(1, 120)).AddHours(-rng.Next(0, 23));
+                bool active = i < 2;
+                bool deactivated = !active;
+                list.Add(new MCIEvent
+                {
+                    Id = Guid.NewGuid(),
+                    EventCode = NextCode("MCI", mciCount + i + 1, 4),
+                    EventName = s.Name,
+                    EventType = s.Type,
+                    EventLocation = s.Location,
+                    AlertReceivedAt = alert,
+                    ActivatedAt = alert.AddMinutes(rng.Next(5, 30)),
+                    DeactivatedAt = deactivated ? alert.AddHours(rng.Next(4, 24)) : null,
+                    AlertLevel = s.Level,
+                    EstimatedVictims = s.Victims,
+                    ActualVictims = s.Victims + rng.Next(-3, 4),
+                    Status = deactivated ? "Deactivated" : "Active",
+                    IncidentCommanderId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    BedsActivated = s.Victims,
+                    StaffMobilized = (int)(s.Victims * 1.5),
+                    BloodBankAlerted = s.Level == "Red" || s.Level == "Orange",
+                    ORsCleared = s.Level == "Red",
+                    ReportedToAuthority = true,
+                    ReportedAt = alert.AddHours(1),
+                    AfterActionReport = deactivated ? "AAR đã hoàn tất, rút kinh nghiệm chuyển cấp" : null,
+                    CreatedAt = alert, UpdatedAt = ctx.Now
+                });
+            }
+            if (list.Count > 0)
+            {
+                _db.MCIEvents.AddRange(list);
+                await _db.SaveChangesAsync();
+                summary["MCIEvents+"] = list.Count;
+            }
+        }
+        } catch (Exception ex) { errors["MCIEventsBoost"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
         // Shift-to-today: many list pages (reception queue, OPD, radiology, lab,
         // prescription, service requests) filter `CreatedAt.Date == today`. The
         // restored BAK is past-dated so those pages render empty. Bulk-update a
