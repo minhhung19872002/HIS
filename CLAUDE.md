@@ -1728,6 +1728,108 @@ text. Final state after all populate + compat routes + final deploy:
 - `his-api-00044-b74`: FrontendCompat (had route conflicts)
 - `his-api-00045-trd`: removed conflicting routes
 - `his-api-00046-jbm`: FromSqlRaw for OH exams list (dodges string/int cast)
+- `his-api-00047-q9w`: bump to recycle Cloud SQL connections after BAK restore
+
+---
+
+## Work Log - 2026-04-21 (Cloud SQL migration complete)
+
+Docker Desktop came back up. Executed the migration plan that was paused
+last session; end state is the local Docker DB now lives on Cloud SQL.
+
+1. Local Docker `his-sqlserver` verified — 2210 Patients, 2206 Examinations,
+   612 Prescriptions, 38 Admissions, 2203 MedicalRecords, 44 ServiceRequests.
+2. `BACKUP DATABASE HIS … WITH COMPRESSION, CHECKSUM, INIT, FORMAT` inside
+   container → `HIS.bak` (24 MB). `docker cp` to host.
+3. Uploaded via `gcloud storage cp` (gsutil errored on missing python3.12
+   shim — use `gcloud storage` going forward on this machine). IAM binding
+   granted `p92850107096-wo75ij@gcp-sa-cloud-sql.iam.gserviceaccount.com`
+   `roles/storage.objectViewer` on the cloudbuild bucket.
+4. `gcloud sql import bak` on an existing DB fails with
+   `[ERROR_SQL_SERVER_EXTERNAL_WARNING] Database [HIS] already exists for
+   FULL bak import` — gcloud has no `WITH REPLACE` equivalent. Creating an
+   empty DB first hits the same error. The only path that works: delete the
+   DB entirely, import from GCS, gcloud creates it fresh during restore.
+5. Cloud Run revision bumped to `his-api-00047-q9w` with
+   `DB_RESTORED_AT=<epoch>` so every instance recycled its EF Core pool.
+6. Verified: `/health/schema-drift` → `missingCount: 0` (expected 370,
+   actual 390 — the 20 extras are tables that existed in the BAK but
+   aren't DbSet-backed; harmless). `/api/statistics/dashboard` →
+   `currentInpatients: 16`. `/api/inpatient/patients` → 23 rows returned.
+   `/api/audit/logs` → 69 audit records. Admin login works.
+7. `/api/reception/patients/search` still returns `[]` — this is
+   `ReceptionCompleteService.SearchPatientsAsync` filtering
+   `m.CreatedAt.Date == today` (the existing "today's reception" screen
+   semantics, not a migration artifact). Backup data is past-dated so
+   today-filtered views look empty; broad-select endpoints show real data.
+8. `HIS.bak` deleted from `C:/Source/HIS/` after successful import.
+   BAK in GCS (`gs://optical-order-478805-k6_cloudbuild/HIS.bak`) kept as
+   restore point.
+
+### Follow-up populate pass (same day)
+
+User asked to fill every remaining empty page. Two rounds:
+
+**Round 1 — extended `PopulatePrereqs`:** seeded tables that feed other
+seeders but weren't populated in the local BAK. Added inserts for
+`MedicalEquipments` (18 devices across depts), `MedicalStaffs` (13 rows
+derived from existing `Users`), `RehabReferrals` (20 with real ICD codes +
+reasons) + chained `RehabTreatmentPlans` (16). Unblocked the existing
+`equipment`, `cme`, `rehab-sessions` module seeders, which then filled
+58 maintenance records, 54 calibration records, 49 CME records, 202 rehab
+sessions.
+
+**Round 2 — new `PopulateFinishing` endpoint** (wired into `/populate/all`):
+- `ManagedCertificates` (8 digital signing certs, 5 CAs, mix of
+  Token/HSM/Server storage types)
+- `LisAnalyzers` (7 analyzer configs — Roche Cobas, Sysmex XN, Stago,
+  Abbott Architect, etc.; HL7/ASTM/Serial protocols)
+- `Appointments` (45 rows, 40% overdue within last 7 days so
+  `/follow-up` and `/appointments/overdue` both render)
+- `EndpointDevices` + `SecurityIncidents` + `InstalledSoftware` (24 + 7
+  + 74 for the ATTT / endpoint-security pages)
+- Tagged 6 existing `DiseaseCases` with `IsOutbreak=true` + grouped
+  `OutbreakId` so `/epidemiology/outbreaks` renders
+
+**Schema quirk handled inline:** `EndpointDevices`, `SecurityIncidents`,
+`InstalledSoftwareItems` inherit from `BaseEntity` (which defines
+`IsDeleted`) but their SQL tables were created pre-soft-delete filter and
+lack the column. Before inserting, `PopulateFinishing` runs an inline
+`ALTER TABLE … ADD IsDeleted bit NOT NULL DEFAULT 0` with a
+`COL_LENGTH IS NULL` guard, so both the INSERT and the global query
+filter succeed. Each section wrapped in try/catch with
+`_db.ChangeTracker.Clear()` so one bad table doesn't block the rest.
+
+### Data state on prod after this session
+
+| Module | Rows |
+|---|---|
+| Inpatient patients | 23 |
+| Certificates (ký số) | 8 |
+| LIS Analyzers | 7 |
+| Appointments (17 overdue) | 45+ |
+| Endpoint Security (devices/incidents/software) | 24 / 7 / 74 |
+| Medical Staff / Equipment / Rehab | 13 / 18 / 20 referrals + 16 plans |
+| Pathology / Microbiology / Sample storage / Reagents | 25 / 12 / 15 / 10 |
+| HAI / Blood bank / Culture stock | 12 / … / 20 |
+| Outbreaks (epidemiology) | 1 outbreak across 6 cases |
+| Quality indicators / Tele appointments | 12 / 4 |
+| Plus ~3,300 rows preserved from local-Docker BAK | — |
+
+Revisions cut today: `00047` (DB restore), `00048` (prereqs fix), `00049`
+(finishing v1), `00050` (per-section try/catch), `00051` (inline
+ALTER TABLE for IsDeleted), `00052` (appointment 7-day window).
+
+### Still empty (code-level, not data-level)
+
+- `/warehouse/reusable-supplies` — `WarehouseCompleteService.GetReusable­
+  SuppliesAsync` is a stub returning `new List<>()`. No entity or DbSet
+  exists. Fixing = writing an entity + migration + service query, beyond
+  a populate pass.
+- `/reception/patients/search` — filter is `m.CreatedAt.Date == today`
+  (existing semantics, not migration-caused).
+- `/methadone/patients` 500s — backend filter bug; other methadone pages
+  (dosing records, urine tests) work.
 
 ### Known open items
 
