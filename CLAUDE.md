@@ -1967,6 +1967,40 @@ Two pages still empty and they aren't data gaps:
 - `/prescription`: single-view page that renders no rows until a
   patient is picked — intended UX, not fixable from the backend.
 
+### Sixth pass — TS cleanup + /prescription recent-prescriptions
+
+**Final audit: 0 empty pages** (77 table pages + 7 card/form pages, all
+with real data).
+
+- 9 TypeScript errors that had kept `vercel.json` on `build:vercel`
+  (skip-tsc) are cleared: `TerminalLayout.tsx` user.role→roles[0];
+  `pages-v2/Radiology.tsx` passes a today-ISO string to
+  getWaitingList; `pages-v2/Reception.tsx` searchPatients→searchPatient;
+  `Dashboard3Cap.tsx` Select→TreeSelect where it was using tree props,
+  Tree showTreeLine→showLine, Date→ISO-slice strings, pie label
+  percent typed; `chronicDisease` + `tbHivManagement` API param types
+  number→string to match backend string-enum DTOs. Vercel
+  buildCommand flipped back to `npm run build` so a TS regression
+  fails the deploy instead of shipping silently.
+- Also backfilled thin seeders:
+  - TeleAppointments: 4 → 25 (complaint / status mix)
+  - MCIEvents: 4 → 15 (accident / fire / chemical / natural-disaster)
+  - MedicalRecordArchives: 0 → 30 (storage location + shelf + box,
+    10% on-loan, unblocks `/medical-record-archive` summary).
+- `/prescription` page: when no patient is picked, the right panel
+  now renders "Đơn thuốc gần đây" — top 30 recent prescriptions with
+  code / date / patient / diagnosis / doctor / status. Clicking a row
+  loads that patient into the form; the existing search-and-prescribe
+  workflow stays intact. Final UI-visible empty page closed without
+  breaking the clinical tool's original semantics.
+
+Backend: `PortalPrescriptionDto` enriched with PatientId / PatientCode
+/ PatientName / DoctorName / DepartmentName / Diagnosis so both the
+portal and the new prescription panel render richer rows off the same
+endpoint.
+
+**Audit: 77/84 table pages + 7 card-form pages (all with data) = 84.**
+
 ### Third follow-up pass — frontend + more seeders
 
 User wanted the remaining 19 empty pages closed. Mix of frontend
