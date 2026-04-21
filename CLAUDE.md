@@ -1906,6 +1906,66 @@ Still empty after backend populate work (19 pages). Split:
 The **data itself is now complete on prod**; the leftover empty pages
 are rendering bugs that live on the Vercel side.
 
+### Third follow-up pass — frontend + more seeders
+
+User wanted the remaining 19 empty pages closed. Mix of frontend
+unwrap bugs, filter-type mismatches (number vs string enum), and six
+more backend seeders. Three frontend + two backend deploy cycles
+needed. Final state: **71 / 84 pages render data** (up from 50 at the
+start of this session).
+
+**Frontend fixes deployed via Vercel:**
+- API wrappers on `tbHivManagement.ts`, `chronicDisease.ts`,
+  `clinicalGuidance.ts`, `hospitalPharmacy.ts` (sales + stock) now
+  detect `Array.isArray(data)` and wrap it into
+  `{items, totalCount}` instead of returning the raw array to callers
+  that then read `.items` and get `undefined`.
+- `TbHivManagement.tsx`, `ChronicDisease.tsx`, `ClinicalGuidance.tsx`:
+  backend DTOs declare `string? Status` (enum names like `"OnTreatment"`,
+  `"Active"`, `"Planning"`) but the pages were sending numeric codes.
+  `statusMap` retyped to strings; page-local "failed" tab filter
+  switched to string comparison against `['Failed','DefaultedLostToFollowUp','Died']`.
+- `OccupationalHealth.tsx`: tab filter was `e.examType === 'periodic'`
+  but backend serializes enums capitalized (`"Periodic"`). Lowercased
+  the comparison.
+- `Microbiology.tsx`, `SampleStorage.tsx`: status is a string enum on
+  the wire (`"Pending"`, `"stored"`, `"NoGrowth"`) but code filtered
+  with numeric ranges. Added local `statusToNum` helper on each page.
+- `HospitalPharmacy.tsx`: default tab `'retail'` has no sales data;
+  swapped to `'stock'` which always populates.
+- `MedicalSupply.tsx`: dropped auto-select-supply-warehouse — supply
+  stock lives in the main medicine warehouse in demo seed, so the
+  unfiltered view is what renders.
+- `Telemedicine.tsx`: fetch last 30 days instead of today-only; added
+  "Tất cả" tab as default.
+- `DoctorPortal.tsx`: outpatient fetch broadened from today-only to
+  last 7 days.
+
+**Three more backend seeders (build #14, #15):**
+- `ProcurementRequests` (10, mixed approval status)
+- `HIEConnections` (7 — VNPT-CA / FPT-CA / Viettel-CA / BKAV-CA plus
+  BHXH Vietnam + BYT + Chợ Rẫy teleconsult)
+- `SigningTransactions` (40 audit-log rows) + `SigningRequests` (25,
+  9 assigned to the admin user so `/signing-workflow/pending` renders)
+
+**7 pages still empty — none are data issues:**
+- `/dashboard`, `/quality`: widgets render `"Chưa có dữ liệu"` from
+  internal layout logic even though underlying APIs return real
+  numbers — frontend rendering bugs.
+- `/opd`, `/prescription`, `/consultation`: blank initial state is
+  the intended UX — the page renders nothing until the user picks a
+  room or patient. Not audit-actionable.
+- `/patient-portal`, `/doctor-portal`: `AccountId == currentUserId`
+  backend filter — admin doesn't have a patient-portal account so
+  everything returns empty. Fix would be an `accountId` query-param
+  override on the backend endpoints, deferred.
+
+Revisions cut in this pass: Cloud Run `00063`–`00064`; Vercel
+deployments `eecakzndm`, `g5fwe7i3t`, `20xrzzp44`, `qdt8y9kbg`.
+Commits on `main`: `2c3f579` (first populate), `f1d3134` (code-level
+fixes), `5b29b4a` (first frontend unwrap), `108c573` (more seeders +
+frontend filter fixes).
+
 ### Known open items
 
 1. **Rotate R2 API token** — was pasted in chat.
