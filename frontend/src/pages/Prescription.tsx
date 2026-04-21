@@ -50,6 +50,20 @@ import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import { getPrescriptions as getRecentPrescriptions } from '../api/patientPortal';
+
+interface RecentPrescriptionDto {
+  id: string;
+  prescriptionCode?: string;
+  prescriptionDate: string;
+  patientId?: string;
+  patientCode?: string;
+  patientName?: string;
+  diagnosis?: string;
+  doctorName?: string;
+  departmentName?: string;
+  status: string;
+}
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -226,6 +240,10 @@ const Prescription: React.FC = () => {
   const [templateDiagnosis, setTemplateDiagnosis] = useState('');
   const [prescriptionTemplates, setPrescriptionTemplates] = useState<PrescriptionTemplate[]>([]);
 
+  // Recent prescriptions panel (shown when no patient is picked yet)
+  const [recentPrescriptions, setRecentPrescriptions] = useState<RecentPrescriptionDto[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(false);
+
   // Data inheritance state (OPD → Prescription context)
   const [rxContext, setRxContext] = useState<PrescriptionContextDto | null>(null);
 
@@ -359,6 +377,59 @@ const Prescription: React.FC = () => {
     };
     loadTemplates();
   }, []);
+
+  // Load recent prescriptions on mount — shown when no patient is selected
+  // so the page isn't blank. Clicking a row loads that patient.
+  const fetchRecentPrescriptions = async () => {
+    setLoadingRecent(true);
+    try {
+      const response = await getRecentPrescriptions();
+      const data = (response.data ?? []) as unknown as RecentPrescriptionDto[];
+      setRecentPrescriptions(Array.isArray(data) ? data : []);
+    } catch {
+      console.warn('Could not load recent prescriptions');
+      setRecentPrescriptions([]);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentPrescriptions();
+  }, []);
+
+  const handleSelectRecentPrescription = async (rec: RecentPrescriptionDto) => {
+    if (!rec.patientId) {
+      message.warning('Đơn thuốc này không có mã bệnh nhân');
+      return;
+    }
+    try {
+      setLoadingPatient(true);
+      const response = await patientApi.getById(rec.patientId);
+      const apiPatient = response.data;
+      if (apiPatient) {
+        const p: Patient = {
+          id: apiPatient.id,
+          patientCode: apiPatient.patientCode,
+          fullName: apiPatient.fullName,
+          dateOfBirth: apiPatient.dateOfBirth,
+          gender: apiPatient.gender,
+          phoneNumber: apiPatient.phoneNumber,
+          address: apiPatient.address,
+          allergies: [],
+          currentMedications: [],
+          insuranceNumber: apiPatient.insuranceNumber,
+        };
+        setPatient(p);
+        form.setFieldValue('diagnosis', rec.diagnosis || '');
+        message.success(`Đã chọn bệnh nhân: ${p.fullName}`);
+      }
+    } catch {
+      message.warning('Không thể tải thông tin bệnh nhân');
+    } finally {
+      setLoadingPatient(false);
+    }
+  };
 
   // ==================== HANDLERS ====================
 
@@ -1288,6 +1359,84 @@ const Prescription: React.FC = () => {
                 </Col>
               </Row>
             </Form>
+
+            {/* Recent prescriptions — show only when no patient is picked */}
+            {!patient && (
+              <>
+                <Divider>Đơn thuốc gần đây</Divider>
+                <Alert
+                  title='Chọn một đơn thuốc bên dưới để tải lại bệnh nhân, hoặc nhấn "Tìm bệnh nhân" để kê đơn mới.'
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                />
+                <Table
+                  dataSource={recentPrescriptions}
+                  rowKey="id"
+                  loading={loadingRecent}
+                  size="small"
+                  pagination={{ pageSize: 10 }}
+                  onRow={(record) => ({
+                    onClick: () => handleSelectRecentPrescription(record),
+                    style: { cursor: 'pointer' },
+                  })}
+                  columns={[
+                    {
+                      title: 'Mã đơn',
+                      dataIndex: 'prescriptionCode',
+                      key: 'prescriptionCode',
+                      width: 130,
+                      render: (v: string) => <Text strong>{v || '-'}</Text>,
+                    },
+                    {
+                      title: 'Ngày',
+                      dataIndex: 'prescriptionDate',
+                      key: 'prescriptionDate',
+                      width: 95,
+                      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '-',
+                    },
+                    {
+                      title: 'Bệnh nhân',
+                      key: 'patient',
+                      render: (_: unknown, r: RecentPrescriptionDto) => (
+                        <div>
+                          <div><strong>{r.patientName || '-'}</strong></div>
+                          {r.patientCode && <Text type="secondary" style={{ fontSize: 11 }}>{r.patientCode}</Text>}
+                        </div>
+                      ),
+                    },
+                    {
+                      title: 'Chẩn đoán',
+                      dataIndex: 'diagnosis',
+                      key: 'diagnosis',
+                      ellipsis: true,
+                    },
+                    {
+                      title: 'BS kê',
+                      dataIndex: 'doctorName',
+                      key: 'doctorName',
+                      width: 130,
+                    },
+                    {
+                      title: 'Trạng thái',
+                      dataIndex: 'status',
+                      key: 'status',
+                      width: 130,
+                      render: (v: string) => {
+                        const color = v === 'FullyDispensed' ? 'green'
+                          : v === 'Active' ? 'blue'
+                          : v === 'Expired' ? 'red' : 'default';
+                        const label = v === 'FullyDispensed' ? 'Đã phát đủ'
+                          : v === 'Active' ? 'Đang hiệu lực'
+                          : v === 'Expired' ? 'Hết hạn'
+                          : v === 'Pending' ? 'Chờ duyệt' : v;
+                        return <Tag color={color}>{label}</Tag>;
+                      },
+                    },
+                  ]}
+                />
+              </>
+            )}
 
             <Divider>Danh sách thuốc</Divider>
 

@@ -2346,10 +2346,27 @@ th {{ background: #f0f0f0; text-align: center; }}
 
     public async Task<List<PortalPrescriptionDto>> GetPrescriptionsAsync(Guid patientId, bool activeOnly = true)
     {
-        var query = _context.Prescriptions.Include(x => x.MedicalRecord).AsQueryable();
+        var query = _context.Prescriptions
+            .Include(x => x.MedicalRecord).ThenInclude(m => m!.Patient)
+            .Include(x => x.Doctor)
+            .Include(x => x.Department)
+            .AsQueryable();
         if (patientId != Guid.Empty) query = query.Where(x => x.MedicalRecord!.PatientId == patientId);
         var list = await query.OrderByDescending(x => x.PrescriptionDate).Take(30).ToListAsync();
-        return list.Select(e => new PortalPrescriptionDto { Id = e.Id, PrescriptionDate = e.PrescriptionDate, Status = e.Status == 2 ? "FullyDispensed" : e.Status == 1 ? "Active" : "Pending" }).ToList();
+        return list.Select(e => new PortalPrescriptionDto {
+            Id = e.Id,
+            PrescriptionCode = e.PrescriptionCode ?? "",
+            PrescriptionDate = e.PrescriptionDate,
+            VisitId = e.MedicalRecordId,
+            PatientId = e.MedicalRecord?.PatientId,
+            PatientCode = e.MedicalRecord?.Patient?.PatientCode ?? "",
+            PatientName = e.MedicalRecord?.Patient?.FullName ?? "",
+            Diagnosis = e.Diagnosis ?? "",
+            DoctorName = e.Doctor?.FullName ?? "",
+            DepartmentName = e.Department?.DepartmentName ?? "",
+            Status = e.Status == 2 ? "FullyDispensed" : e.Status == 1 ? "Active" : "Pending",
+            Items = new List<PrescriptionItemDto>()
+        }).ToList();
     }
 
     public async Task<PortalPrescriptionDto> GetPrescriptionAsync(Guid id)
