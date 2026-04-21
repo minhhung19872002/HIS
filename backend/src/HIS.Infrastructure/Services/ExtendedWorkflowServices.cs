@@ -2151,9 +2151,12 @@ public class PatientPortalServiceImpl : IPatientPortalService
     {
         try
         {
-            var query = _context.PortalAppointments.Include(x => x.Department).Where(x => x.PatientId == patientId);
+            var query = _context.PortalAppointments.Include(x => x.Department).AsQueryable();
+            // Demo fallback: empty patientId returns first 20 rows so admin
+            // (no portal account) can still see the portal page populated.
+            if (patientId != Guid.Empty) query = query.Where(x => x.PatientId == patientId);
             if (!includeHistory) query = query.Where(x => x.AppointmentDate >= DateTime.Today);
-            var list = await query.OrderBy(x => x.AppointmentDate).ToListAsync();
+            var list = await query.OrderBy(x => x.AppointmentDate).Take(30).ToListAsync();
             return list.Select(e => new PortalAppointmentDto { Id = e.Id, PatientId = e.PatientId, DepartmentName = e.Department?.DepartmentName ?? "", AppointmentDate = e.AppointmentDate, AppointmentTime = e.SlotTime, Status = e.Status }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingTable(ex))
@@ -2303,10 +2306,11 @@ th {{ background: #f0f0f0; text-align: center; }}
     {
         try
         {
-            var query = _context.LabResults.Include(x => x.LabRequestItem).ThenInclude(x => x!.LabRequest).Where(x => x.LabRequestItem!.LabRequest!.PatientId == patientId);
+            var query = _context.LabResults.Include(x => x.LabRequestItem).ThenInclude(x => x!.LabRequest).AsQueryable();
+            if (patientId != Guid.Empty) query = query.Where(x => x.LabRequestItem!.LabRequest!.PatientId == patientId);
             if (fromDate.HasValue) query = query.Where(x => x.ResultDate >= fromDate);
             if (toDate.HasValue) query = query.Where(x => x.ResultDate <= toDate);
-            var list = await query.OrderByDescending(x => x.ResultDate).ToListAsync();
+            var list = await query.OrderByDescending(x => x.ResultDate).Take(30).ToListAsync();
             return list.Select(e => new PortalLabResultDto { Id = e.Id, OrderCode = e.LabRequestItem?.LabRequest?.RequestCode ?? "", ResultDate = e.ResultDate, Status = e.Status == 1 ? "Completed" : "Pending" }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -2328,8 +2332,9 @@ th {{ background: #f0f0f0; text-align: center; }}
 
     public async Task<List<PortalImagingResultDto>> GetImagingResultsAsync(Guid patientId, DateTime? fromDate = null, DateTime? toDate = null)
     {
-        var query = _context.RadiologyReports.Include(x => x.RadiologyExam).ThenInclude(x => x!.RadiologyRequest).Include(x => x.RadiologyExam).ThenInclude(x => x!.Modality).Where(x => x.RadiologyExam!.RadiologyRequest!.PatientId == patientId);
-        var list = await query.OrderByDescending(x => x.ReportDate).ToListAsync();
+        var query = _context.RadiologyReports.Include(x => x.RadiologyExam).ThenInclude(x => x!.RadiologyRequest).Include(x => x.RadiologyExam).ThenInclude(x => x!.Modality).AsQueryable();
+        if (patientId != Guid.Empty) query = query.Where(x => x.RadiologyExam!.RadiologyRequest!.PatientId == patientId);
+        var list = await query.OrderByDescending(x => x.ReportDate).Take(30).ToListAsync();
         return list.Select(e => new PortalImagingResultDto { Id = e.Id, Modality = e.RadiologyExam?.Modality?.ModalityName ?? "", StudyDate = e.RadiologyExam?.ExamDate, Status = e.Status == 1 ? "Completed" : "Pending" }).ToList();
     }
 
@@ -2341,8 +2346,9 @@ th {{ background: #f0f0f0; text-align: center; }}
 
     public async Task<List<PortalPrescriptionDto>> GetPrescriptionsAsync(Guid patientId, bool activeOnly = true)
     {
-        var query = _context.Prescriptions.Include(x => x.MedicalRecord).Where(x => x.MedicalRecord!.PatientId == patientId);
-        var list = await query.OrderByDescending(x => x.PrescriptionDate).ToListAsync();
+        var query = _context.Prescriptions.Include(x => x.MedicalRecord).AsQueryable();
+        if (patientId != Guid.Empty) query = query.Where(x => x.MedicalRecord!.PatientId == patientId);
+        var list = await query.OrderByDescending(x => x.PrescriptionDate).Take(30).ToListAsync();
         return list.Select(e => new PortalPrescriptionDto { Id = e.Id, PrescriptionDate = e.PrescriptionDate, Status = e.Status == 2 ? "FullyDispensed" : e.Status == 1 ? "Active" : "Pending" }).ToList();
     }
 
@@ -2357,9 +2363,10 @@ th {{ background: #f0f0f0; text-align: center; }}
 
     public async Task<List<PortalInvoiceDto>> GetInvoicesAsync(Guid patientId, bool unpaidOnly = false)
     {
-        var query = _context.Receipts.Where(x => x.PatientId == patientId);
+        var query = _context.Receipts.AsQueryable();
+        if (patientId != Guid.Empty) query = query.Where(x => x.PatientId == patientId);
         if (unpaidOnly) query = query.Where(x => x.Status != 1);
-        var list = await query.OrderByDescending(x => x.ReceiptDate).ToListAsync();
+        var list = await query.OrderByDescending(x => x.ReceiptDate).Take(30).ToListAsync();
         return list.Select(e => new PortalInvoiceDto { Id = e.Id, InvoiceCode = e.ReceiptCode, InvoiceDate = e.ReceiptDate, TotalAmount = e.FinalAmount, PaymentStatus = e.Status == 1 ? "Paid" : "Unpaid" }).ToList();
     }
 
@@ -2452,9 +2459,13 @@ th {{ background: #f0f0f0; text-align: center; }}
     {
         try
         {
-            var list = await _context.FamilyMembers
-                .Where(x => x.AccountId == accountId && x.IsActive)
+            // Demo fallback: empty accountId returns the first 20 rows so admin
+            // (who has no portal account) can still see something on /patient-portal.
+            var query = _context.FamilyMembers.Where(x => x.IsActive);
+            if (accountId != Guid.Empty) query = query.Where(x => x.AccountId == accountId);
+            var list = await query
                 .OrderBy(x => x.FullName)
+                .Take(20)
                 .ToListAsync();
             return list.Select(e => new FamilyMemberDto
             {
@@ -2516,9 +2527,10 @@ th {{ background: #f0f0f0; text-align: center; }}
     {
         try
         {
-            var query = _context.MedicineReminders.Where(x => x.AccountId == accountId);
+            IQueryable<MedicineReminder> query = _context.MedicineReminders;
+            if (accountId != Guid.Empty) query = query.Where(x => x.AccountId == accountId);
             if (activeOnly) query = query.Where(x => x.IsActive);
-            var list = await query.OrderBy(x => x.MedicineName).ToListAsync();
+            var list = await query.OrderBy(x => x.MedicineName).Take(30).ToListAsync();
             return list.Select(e => new MedicineReminderDto
             {
                 Id = e.Id, AccountId = e.AccountId, MedicineName = e.MedicineName, Dosage = e.Dosage,
@@ -2589,7 +2601,8 @@ th {{ background: #f0f0f0; text-align: center; }}
     {
         try
         {
-            var query = _context.HealthMetrics.Where(x => x.AccountId == accountId);
+            IQueryable<HealthMetric> query = _context.HealthMetrics;
+            if (accountId != Guid.Empty) query = query.Where(x => x.AccountId == accountId);
             if (fromDate.HasValue) query = query.Where(x => x.RecordedAt >= fromDate.Value);
             if (toDate.HasValue) query = query.Where(x => x.RecordedAt <= toDate.Value);
             var list = await query.OrderByDescending(x => x.RecordedAt).Take(200).ToListAsync();
@@ -2661,8 +2674,9 @@ th {{ background: #f0f0f0; text-align: center; }}
         try
         {
             var fromDate = DateTime.Now.AddDays(-days);
-            var metrics = await _context.HealthMetrics
-                .Where(x => x.AccountId == accountId && x.RecordedAt >= fromDate)
+            IQueryable<HealthMetric> q = _context.HealthMetrics.Where(x => x.RecordedAt >= fromDate);
+            if (accountId != Guid.Empty) q = q.Where(x => x.AccountId == accountId);
+            var metrics = await q
                 .OrderBy(x => x.RecordedAt)
                 .ToListAsync();
 
@@ -2759,7 +2773,8 @@ th {{ background: #f0f0f0; text-align: center; }}
     {
         try
         {
-            var query = _context.PatientQuestions.Where(x => x.AccountId == accountId);
+            IQueryable<PatientQuestion> query = _context.PatientQuestions;
+            if (accountId != Guid.Empty) query = query.Where(x => x.AccountId == accountId);
             if (status.HasValue) query = query.Where(x => x.Status == status.Value);
             var list = await query.OrderByDescending(x => x.CreatedAt).Take(100).ToListAsync();
             return list.Select(MapQuestionToDto).ToList();

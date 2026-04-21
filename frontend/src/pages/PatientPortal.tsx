@@ -820,7 +820,7 @@ const PatientPortal: React.FC = () => {
         {/* Main Content */}
         <Card>
           <Tabs
-            defaultActiveKey="appointments"
+            defaultActiveKey="bills"
             items={[
               {
                 key: 'appointments',

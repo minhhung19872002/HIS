@@ -3498,11 +3498,28 @@ IF COL_LENGTH('InstalledSoftwareItems','IsDeleted') IS NULL ALTER TABLE Installe
             await _db.Database.ExecuteSqlRawAsync(@"
 DECLARE @today datetime2 = CAST(CAST(SYSDATETIME() AS date) AS datetime2);
 
--- MedicalRecords: 30 newest to today
-UPDATE m SET CreatedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)
+-- MedicalRecords: 30 newest to today (CreatedAt + AdmissionDate because
+-- several search endpoints filter on AdmissionDate, not CreatedAt)
+UPDATE m SET
+    CreatedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)
 FROM MedicalRecords m
 WHERE CreatedAt < @today
   AND m.Id IN (SELECT TOP 30 Id FROM MedicalRecords ORDER BY CreatedAt DESC);
+
+-- Separate update for AdmissionDate so we catch rows whose CreatedAt was
+-- shifted in a previous run but AdmissionDate stayed in the past.
+-- Important: target MedicalRecords that ACTUALLY have Examinations
+-- attached so the /examination/search date filter returns rows.
+UPDATE m SET
+    AdmissionDate = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)
+FROM MedicalRecords m
+WHERE (AdmissionDate IS NOT NULL AND CAST(AdmissionDate AS date) < @today)
+  AND m.Id IN (
+    SELECT TOP 30 e.MedicalRecordId
+    FROM Examinations e
+    WHERE e.MedicalRecordId IS NOT NULL
+    ORDER BY e.CreatedAt DESC
+  );
 
 -- Examinations: only CreatedAt (ScheduledDateTime may or may not exist)
 UPDATE e SET CreatedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), @today)

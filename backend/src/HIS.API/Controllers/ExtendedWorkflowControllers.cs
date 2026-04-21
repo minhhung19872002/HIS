@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Telemedicine;
 using HIS.Application.DTOs.Nutrition;
@@ -814,10 +815,12 @@ namespace HIS.API.Controllers
     public class PatientPortalController : ControllerBase
     {
         private readonly IPatientPortalService _service;
+        private readonly HIS.Infrastructure.Data.HISDbContext _db;
 
-        public PatientPortalController(IPatientPortalService service)
+        public PatientPortalController(IPatientPortalService service, HIS.Infrastructure.Data.HISDbContext db)
         {
             _service = service;
+            _db = db;
         }
 
         [HttpPost("register")]
@@ -833,8 +836,8 @@ namespace HIS.API.Controllers
 
         [HttpGet("bills")]
         [Authorize]
-        public ActionResult GetBills()
-            => Ok(new List<object>());
+        public async Task<ActionResult> GetBills([FromQuery] Guid patientId, [FromQuery] bool unpaidOnly = false)
+            => Ok(await _service.GetInvoicesAsync(patientId, unpaidOnly));
 
         [HttpGet("feedbacks")]
         [Authorize]
@@ -843,21 +846,33 @@ namespace HIS.API.Controllers
 
         [HttpGet("notifications")]
         [Authorize]
-        public ActionResult GetPortalNotifications(
+        public async Task<ActionResult> GetPortalNotifications(
+            [FromQuery] Guid accountId = default,
             [FromQuery] bool unreadOnly = false,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
-            => Ok(new List<object>());
+            => Ok(await _service.GetNotificationsAsync(accountId, unreadOnly));
 
         [HttpGet("doctors")]
         [Authorize]
-        public ActionResult GetDoctors()
-            => Ok(new List<object>());
+        public async Task<ActionResult> GetDoctors()
+        {
+            // Return a small list of doctors so the booking form has options.
+            var users = await _db.Users.Where(u => u.IsActive && u.UserType == 1)
+                .Select(u => new { u.Id, u.FullName, title = u.Title, specialty = u.Specialty })
+                .Take(20).ToListAsync();
+            return Ok(users);
+        }
 
         [HttpGet("departments")]
         [Authorize]
-        public ActionResult GetDepartments()
-            => Ok(new List<object>());
+        public async Task<ActionResult> GetDepartments()
+        {
+            var depts = await _db.Departments.Where(d => d.IsActive)
+                .Select(d => new { d.Id, d.DepartmentCode, d.DepartmentName })
+                .Take(30).ToListAsync();
+            return Ok(depts);
+        }
 
         [HttpGet("appointments")]
         [Authorize]

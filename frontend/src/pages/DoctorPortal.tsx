@@ -92,12 +92,14 @@ const DoctorPortal: React.FC = () => {
   const fetchOutpatients = useCallback(async () => {
     setLoading(true);
     try {
-      const today = dayjs().format('YYYY-MM-DD');
+      // ToDate is parsed as midnight so today's rows (08:30, 14:00…) would
+      // be filtered out — add a day to include them.
+      const toDate = dayjs().add(1, 'day').format('YYYY-MM-DD');
       const fromDate = dayjs().subtract(7, 'day').format('YYYY-MM-DD');
       const res = await examApi.searchExaminations({
         keyword: opdKeyword || undefined,
         fromDate,
-        toDate: today,
+        toDate,
         pageIndex: opdPage,
         pageSize: 20,
       });
