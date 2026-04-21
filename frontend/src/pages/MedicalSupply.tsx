@@ -112,14 +112,11 @@ const MedicalSupply: React.FC = () => {
         setStockTotal(data.totalCount || 0);
       }
       if (results[1].status === 'fulfilled' && results[1].value.data) {
-        // Filter to supply warehouses (type 2, 3)
         const allWarehouses = results[1].value.data;
         setWarehouses(allWarehouses);
-        // Auto-select first supply warehouse
-        if (!selectedWarehouse) {
-          const supplyWh = allWarehouses.find((w: warehouseApi.WarehouseDto) => w.warehouseType === 2 || w.warehouseType === 3);
-          if (supplyWh) setSelectedWarehouse(supplyWh.id);
-        }
+        // Do NOT auto-select a supply warehouse — the current demo has
+        // supply stock scattered across the main medicine warehouse, so
+        // an unfiltered view is what actually renders rows.
       }
       if (results[2].status === 'fulfilled' && results[2].value.data) {
         // Filter receipts for supply items

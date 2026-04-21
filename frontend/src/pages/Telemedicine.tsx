@@ -117,8 +117,9 @@ const Telemedicine: React.FC = () => {
     setLoading(true);
     try {
       const today = dayjs().format('YYYY-MM-DD');
+      const fromDate = dayjs().subtract(30, 'day').format('YYYY-MM-DD');
       const results = await Promise.allSettled([
-        getAppointments({ fromDate: today, toDate: today, pageSize: 200 }),
+        getAppointments({ fromDate, toDate: today, pageSize: 200 }),
         getDashboard(today),
       ]);
 
@@ -722,8 +723,23 @@ const Telemedicine: React.FC = () => {
           />
 
           <Tabs
-            defaultActiveKey="today"
+            defaultActiveKey="all"
             items={[
+              {
+                key: 'all',
+                label: `Tất cả (${appointments.length})`,
+                children: (
+                  <Table
+                    columns={columns}
+                    dataSource={appointments}
+                    rowKey="id"
+                    onRow={(record) => ({
+                      onDoubleClick: () => renderDetailModal(record),
+                      style: { cursor: 'pointer' },
+                    })}
+                  />
+                ),
+              },
               {
                 key: 'today',
                 label: `Hôm nay (${todayAppointments.length})`,

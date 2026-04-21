@@ -93,7 +93,7 @@ const HospitalPharmacy: React.FC = () => {
   const [stock, setStock] = useState<MedicineSearchResultDto[]>([]);
   const [stockTotalCount, setStockTotalCount] = useState(0);
   const [revenue, setRevenue] = useState<PharmacyRevenueDto[]>([]);
-  const [activeTab, setActiveTab] = useState('retail');
+  const [activeTab, setActiveTab] = useState('stock');
   const [historyKeyword, setHistoryKeyword] = useState('');
   const [stockKeyword, setStockKeyword] = useState('');
   const [reportDateRange, setReportDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([

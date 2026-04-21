@@ -3309,6 +3309,184 @@ IF COL_LENGTH('InstalledSoftwareItems','IsDeleted') IS NULL ALTER TABLE Installe
         }
         } catch (Exception ex) { errors["LabRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
 
+        // ProcurementRequests — /procurement page
+        try {
+        if (!await _db.ProcurementRequests.AnyAsync() && ctx.DoctorIds.Count > 0)
+        {
+            var reqs = new List<ProcurementRequest>();
+            var notes = new[] {
+                "Yêu cầu bổ sung thuốc cấp cứu định kỳ quý",
+                "Đề xuất mua vật tư tiêu hao cho phòng mổ",
+                "Bổ sung hoá chất xét nghiệm sinh hoá",
+                "Mua bổ sung găng tay y tế, khẩu trang",
+                "Đề xuất nhập thuốc BHYT thiếu tháng này",
+                "Mua dụng cụ tiệt khuẩn, vật tư buồng bệnh",
+                "Bổ sung phim X-quang, thuốc cản quang",
+                "Mua thay thế pin monitor, cáp ECG",
+                "Yêu cầu mua thêm cồn sát khuẩn 70°",
+                "Đề xuất bổ sung bơm tiêm 5ml, 10ml, kim luồn",
+            };
+            for (int i = 0; i < notes.Length; i++)
+            {
+                int status = i % 5;
+                var requestDate = ctx.Now.AddDays(-rng.Next(1, 90));
+                reqs.Add(new ProcurementRequest
+                {
+                    Id = Guid.NewGuid(),
+                    RequestCode = NextCode("DX", i + 1, 4),
+                    RequestDate = requestDate,
+                    DepartmentId = ctx.DepartmentIds.Count > 0 ? ctx.DepartmentIds[i % ctx.DepartmentIds.Count] : null,
+                    RequestedById = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    Status = status,
+                    TotalAmount = rng.Next(5_000_000, 50_000_000),
+                    Notes = notes[i],
+                    ApprovedById = status >= 2 ? ctx.DoctorIds[(i + 1) % ctx.DoctorIds.Count] : null,
+                    ApprovedDate = status >= 2 ? requestDate.AddDays(rng.Next(1, 5)) : null,
+                    RejectReason = status == 3 ? "Chưa phù hợp với ngân sách quý" : null,
+                    CreatedAt = requestDate, UpdatedAt = ctx.Now
+                });
+            }
+            _db.ProcurementRequests.AddRange(reqs);
+            await _db.SaveChangesAsync();
+            summary["ProcurementRequests"] = reqs.Count;
+        }
+        } catch (Exception ex) { errors["ProcurementRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // HIE Connections — /health-exchange
+        try {
+        if (!await _db.HIEConnections.AnyAsync())
+        {
+            var conns = new (string Name, string Type, string Url, string AuthType, string Status)[] {
+                ("Cổng giám định BHXH Việt Nam", "BHXH", "https://api.bhxh.gov.vn/gd/v2", "Certificate", "Active"),
+                ("Cổng Y tế điện tử - Bộ Y Tế", "BYT", "https://dqgvn.byt.gov.vn/api", "OAuth2", "Active"),
+                ("Sở Y tế TP. Hồ Chí Minh", "SYT", "https://syt.hcm.gov.vn/hie", "APIKey", "Active"),
+                ("Bệnh viện Chợ Rẫy - Chuyển tuyến", "Hospital", "https://choray.hcm.gov.vn/referral-api", "OAuth2", "Active"),
+                ("Bệnh viện Bạch Mai - Hội chẩn", "Hospital", "https://bachmai.vn/tele-api", "OAuth2", "Inactive"),
+                ("Trung tâm Giám định BHXH TP.HCM", "BHXH", "https://bhxh-hcm.gov.vn/gd", "Certificate", "Active"),
+                ("Đơn thuốc điện tử quốc gia", "BYT", "https://donthuocquocgia.kcb.vn/api", "OAuth2", "Active"),
+            };
+            var list = new List<HIEConnection>();
+            for (int i = 0; i < conns.Length; i++)
+            {
+                var c = conns[i];
+                bool active = c.Status == "Active";
+                list.Add(new HIEConnection
+                {
+                    Id = Guid.NewGuid(),
+                    ConnectionName = c.Name,
+                    ConnectionType = c.Type,
+                    EndpointUrl = c.Url,
+                    AuthType = c.AuthType,
+                    ClientId = c.AuthType == "OAuth2" ? $"his-bv-{rng.Next(1000, 9999)}" : null,
+                    ClientSecretEncrypted = c.AuthType == "OAuth2" ? "***encrypted***" : null,
+                    CertificatePath = c.AuthType == "Certificate" ? $"/certs/his-{i+1}.pfx" : null,
+                    Status = c.Status,
+                    LastSuccessfulConnection = active ? ctx.Now.AddHours(-rng.Next(1, 48)) : ctx.Now.AddDays(-rng.Next(7, 90)),
+                    LastFailedConnection = active ? null : ctx.Now.AddHours(-rng.Next(1, 24)),
+                    LastErrorMessage = active ? null : "Connection timeout after 30s",
+                    IsActive = active,
+                    CreatedAt = ctx.Now.AddMonths(-rng.Next(3, 24)),
+                    UpdatedAt = ctx.Now
+                });
+            }
+            _db.HIEConnections.AddRange(list);
+            await _db.SaveChangesAsync();
+            summary["HIEConnections"] = list.Count;
+        }
+        } catch (Exception ex) { errors["HIEConnections"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // SigningTransactions — /signing-workflow, audit log of signing operations
+        try {
+        if (!await _db.SigningTransactions.AnyAsync() && ctx.DoctorIds.Count > 0)
+        {
+            var actions = new[] { "SignPdf", "SignPdfVisible", "SignPdf", "SignHash", "SignXml", "VerifyPdf" };
+            var caProviders = new[] { "VNPT-CA", "FPT-CA", "Viettel-CA", "BKAV-CA" };
+            var list = new List<SigningTransaction>();
+            for (int i = 0; i < 40; i++)
+            {
+                bool success = i % 8 != 7;
+                var when = ctx.Now.AddDays(-rng.Next(0, 30)).AddHours(-rng.Next(0, 23)).AddMinutes(-rng.Next(0, 59));
+                list.Add(new SigningTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
+                    Action = actions[i % actions.Length],
+                    DataType = actions[i % actions.Length].Contains("Pdf") ? "pdf" : actions[i % actions.Length].Contains("Xml") ? "xml" : "hash",
+                    Success = success,
+                    ErrorMessage = success ? null : "USB Token PIN required or cert expired",
+                    CertificateSerial = $"{rng.Next(10000000, 99999999):X8}",
+                    CaProvider = caProviders[i % caProviders.Length],
+                    HashAlgorithm = "SHA-256",
+                    DataSizeBytes = rng.Next(2048, 2048 * 1024),
+                    DurationMs = rng.Next(200, 3500),
+                    IpAddress = $"10.10.{rng.Next(1, 20)}.{rng.Next(10, 250)}",
+                    Timestamp = when,
+                    CreatedAt = when, UpdatedAt = when
+                });
+            }
+            _db.SigningTransactions.AddRange(list);
+            await _db.SaveChangesAsync();
+            summary["SigningTransactions"] = list.Count;
+        }
+        } catch (Exception ex) { errors["SigningTransactions"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
+        // SigningRequests — /signing-workflow pending/submitted/history
+        // One of these must be assigned to the admin user so pending tab renders.
+        try {
+        if (!await _db.SigningRequests.AnyAsync() && ctx.DoctorIds.Count > 0)
+        {
+            // Find the admin user (or first user) to use as AssignedTo / SubmittedBy
+            var adminUser = await _db.Users.FirstOrDefaultAsync(u => u.Username == "admin");
+            var adminId = adminUser?.Id ?? ctx.DoctorIds[0];
+            var adminName = adminUser?.FullName ?? "Administrator";
+            var users = await _db.Users.Where(u => u.IsActive)
+                .Select(u => new { u.Id, u.FullName }).Take(10).ToListAsync();
+
+            var docTypes = new (string Type, string Title)[] {
+                ("Prescription", "Đơn thuốc ngoại trú BN Nguyễn Văn A"),
+                ("TreatmentSheet", "Phiếu điều trị IPD ngày 3 - BN Trần Thị B"),
+                ("NursingCare", "Phiếu chăm sóc điều dưỡng ca đêm"),
+                ("LabResult", "Kết quả xét nghiệm sinh hóa"),
+                ("RadiologyResult", "Kết quả X-quang phổi thẳng"),
+                ("DischargeSummary", "Tóm tắt ra viện BN Lê Văn C"),
+                ("ConsultationMinutes", "Biên bản hội chẩn chuyên khoa"),
+                ("SurgicalConsent", "Cam kết phẫu thuật - nội soi cắt túi mật"),
+                ("Prescription", "Đơn thuốc BHYT dài ngày"),
+                ("TreatmentSheet", "Phiếu điều trị hậu phẫu ngày 1"),
+            };
+            var reqs = new List<SigningRequest>();
+            for (int i = 0; i < 25 && users.Count > 0; i++)
+            {
+                var t = docTypes[i % docTypes.Length];
+                var submitted = users[i % users.Count];
+                // First 8 assigned to admin = pending; rest mixed status
+                var status = i < 8 ? 0 : (i % 4 switch { 0 => 0, 1 => 1, 2 => 2, _ => 3 });
+                var created = ctx.Now.AddDays(-rng.Next(0, 14)).AddHours(-rng.Next(0, 23));
+                reqs.Add(new SigningRequest
+                {
+                    Id = Guid.NewGuid(),
+                    DocumentType = t.Type,
+                    DocumentId = Guid.NewGuid(),
+                    DocumentTitle = t.Title,
+                    DocumentContent = $"Tóm tắt: {t.Title}. Vui lòng ký xác nhận.",
+                    SubmittedById = submitted.Id,
+                    SubmittedByName = submitted.FullName,
+                    AssignedToId = i < 10 ? adminId : users[(i + 1) % users.Count].Id,
+                    AssignedToName = i < 10 ? adminName : users[(i + 1) % users.Count].FullName,
+                    Status = status,
+                    RejectReason = status == 2 ? "Thông tin chưa đầy đủ, cần bổ sung chẩn đoán" : null,
+                    SignedAt = status == 1 ? created.AddHours(rng.Next(1, 12)) : null,
+                    SignatureData = status == 1 ? "{\"cert\":\"VNPT-CA\",\"serial\":\"XYZ1234\"}" : null,
+                    DepartmentName = ctx.DepartmentIds.Count > 0 ? "Khoa Nội tổng hợp" : null,
+                    CreatedAt = created, UpdatedAt = ctx.Now
+                });
+            }
+            _db.SigningRequests.AddRange(reqs);
+            await _db.SaveChangesAsync();
+            summary["SigningRequests"] = reqs.Count;
+        }
+        } catch (Exception ex) { errors["SigningRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+
         // Shift-to-today: many list pages (reception queue, OPD, radiology, lab,
         // prescription, service requests) filter `CreatedAt.Date == today`. The
         // restored BAK is past-dated so those pages render empty. Bulk-update a

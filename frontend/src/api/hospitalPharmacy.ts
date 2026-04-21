@@ -78,8 +78,10 @@ export const getRetailSales = async (params?: {
   pageSize?: number;
 }) => {
   try {
-    const response = await apiClient.get<{ items: RetailSaleDto[]; totalCount: number }>('/hospital-pharmacy/sales', { params });
-    return response.data || { items: [], totalCount: 0 };
+    const response = await apiClient.get<RetailSaleDto[] | { items: RetailSaleDto[]; totalCount: number }>('/hospital-pharmacy/sales', { params });
+    const d = response.data;
+    if (Array.isArray(d)) return { items: d, totalCount: d.length };
+    return d || { items: [], totalCount: 0 };
   } catch {
     console.warn('Failed to fetch retail sales');
     return { items: [], totalCount: 0 };
@@ -114,8 +116,10 @@ export const getPharmacyStock = async (params?: {
   pageSize?: number;
 }) => {
   try {
-    const response = await apiClient.get<{ items: MedicineSearchResultDto[]; totalCount: number }>('/hospital-pharmacy/stock', { params });
-    return response.data || { items: [], totalCount: 0 };
+    const response = await apiClient.get<MedicineSearchResultDto[] | { items: MedicineSearchResultDto[]; totalCount: number }>('/hospital-pharmacy/stock', { params });
+    const d = response.data;
+    if (Array.isArray(d)) return { items: d, totalCount: d.length };
+    return d || { items: [], totalCount: 0 };
   } catch {
     console.warn('Failed to fetch pharmacy stock');
     return { items: [], totalCount: 0 };
