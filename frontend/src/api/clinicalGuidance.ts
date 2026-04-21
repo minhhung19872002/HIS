@@ -62,16 +62,18 @@ export interface CreateGuidanceActivityDto {
 
 export const getGuidanceBatches = async (params?: {
   keyword?: string;
-  status?: number;
-  guidanceType?: number;
+  status?: string;
+  guidanceType?: string;
   fromDate?: string;
   toDate?: string;
   page?: number;
   pageSize?: number;
 }) => {
   try {
-    const response = await apiClient.get<{ items: GuidanceBatchDto[]; totalCount: number }>('/clinical-guidance/batches', { params });
-    return response.data || { items: [], totalCount: 0 };
+    const response = await apiClient.get<GuidanceBatchDto[] | { items: GuidanceBatchDto[]; totalCount: number }>('/clinical-guidance/batches', { params });
+    const d = response.data;
+    if (Array.isArray(d)) return { items: d, totalCount: d.length };
+    return d || { items: [], totalCount: 0 };
   } catch {
     console.warn('Failed to fetch guidance batches');
     return { items: [], totalCount: 0 };

@@ -50,9 +50,22 @@ const Microbiology: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const statusToNum = (s: unknown): number => {
+    if (typeof s === 'number') return s;
+    const map: Record<string, number> = {
+      pending: 0, inprogress: 1, 'in_progress': 1,
+      completed: 2, approved: 2, final: 2,
+      cancelled: 3, canceled: 3, rejected: 3,
+      growth: 4, positive: 4,
+      nogrowth: 5, 'no_growth': 5, negative: 5,
+    };
+    const key = String(s ?? '').toLowerCase().replace(/\s/g, '');
+    return map[key] ?? 0;
+  };
+
   const getFilteredCultures = (statusFilter?: number[]) => {
     if (!statusFilter) return cultures;
-    return cultures.filter(c => statusFilter.includes(c.status));
+    return cultures.filter(c => statusFilter.includes(statusToNum(c.status)));
   };
 
   const handleCreateCulture = async () => {
@@ -128,8 +141,8 @@ const Microbiology: React.FC = () => {
     { title: 'Phương pháp', dataIndex: 'method', key: 'method', width: 100 },
   ];
 
-  const pendingCount = cultures.filter(c => c.status <= 1).length;
-  const growthCount = cultures.filter(c => c.status === 2 || c.status === 4).length;
+  const pendingCount = cultures.filter(c => statusToNum(c.status) <= 1).length;
+  const growthCount = cultures.filter(c => [2, 4].includes(statusToNum(c.status))).length;
 
   const tabItems = [
     { key: 'pending', label: <span><Badge count={pendingCount} size="small" offset={[8, 0]}>Chờ / Đang ủ</Badge></span>,
@@ -158,7 +171,7 @@ const Microbiology: React.FC = () => {
           <Col span={6}><Statistic title="Tổng mẫu" value={cultures.length} prefix={<ExperimentOutlined />} /></Col>
           <Col span={6}><Statistic title="Chờ / Đang ủ" value={pendingCount} styles={{ content: { color: '#1890ff' } }} /></Col>
           <Col span={6}><Statistic title="Phát hiện VK" value={growthCount} styles={{ content: { color: '#fa8c16' } }} prefix={<BugOutlined />} /></Col>
-          <Col span={6}><Statistic title="Hoàn thành" value={cultures.filter(c => c.status >= 3).length} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} /></Col>
+          <Col span={6}><Statistic title="Hoàn thành" value={cultures.filter(c => statusToNum(c.status) >= 2).length} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} /></Col>
         </Row>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </Card>

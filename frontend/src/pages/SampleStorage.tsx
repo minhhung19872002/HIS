@@ -108,7 +108,17 @@ const SampleStorage: React.FC = () => {
     }
   };
 
-  const getFilteredRecords = (statusFilter: number[]) => records.filter(r => statusFilter.includes(r.status));
+  const statusToNum = (s: unknown): number => {
+    if (typeof s === 'number') return s;
+    const map: Record<string, number> = {
+      stored: 0, available: 0, active: 0,
+      retrieved: 1, out: 1, collected: 1,
+      discarded: 2, destroyed: 2, expired: 2,
+      returned: 3,
+    };
+    return map[String(s ?? '').toLowerCase()] ?? 0;
+  };
+  const getFilteredRecords = (statusFilter: number[]) => records.filter(r => statusFilter.includes(statusToNum(r.status)));
 
   const columns = [
     { title: 'Barcode', dataIndex: 'sampleBarcode', key: 'sampleBarcode', width: 120 },

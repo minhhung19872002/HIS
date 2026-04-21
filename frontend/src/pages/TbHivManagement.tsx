@@ -142,10 +142,11 @@ const TbHivManagement: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const statusMap: Record<string, number | undefined> = {
-        onTreatment: 0,
-        completed: 1,
-        failed: undefined, // we filter locally for 2+3
+      // Backend expects string status values (OnTreatment / Completed / …).
+      const statusMap: Record<string, string | undefined> = {
+        onTreatment: 'OnTreatment',
+        completed: 'Completed',
+        failed: undefined, // local filter for Failed/DefaultedLostToFollowUp
         all: undefined,
       };
 
@@ -166,9 +167,11 @@ const TbHivManagement: React.FC = () => {
       if (results[0].status === 'fulfilled') {
         const data = results[0].value;
         let items = data.items || [];
-        // Special filtering for "failed/defaulted" tab
+        // Special filtering for "failed/defaulted" tab — backend Status is a
+        // string enum name, not a numeric code.
         if (activeTab === 'failed') {
-          items = items.filter((r) => r.status === 2 || r.status === 3);
+          const bad = ['Failed', 'DefaultedLostToFollowUp', 'Died'];
+          items = items.filter((r) => bad.includes(String(r.status)));
         }
         setRecords(items);
         setTotalCount(data.totalCount || 0);

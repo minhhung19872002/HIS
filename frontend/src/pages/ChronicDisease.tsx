@@ -108,10 +108,11 @@ const ChronicDisease: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const statusMap: Record<string, number | undefined> = {
-        active: 0,
-        needFollowUp: 1,
-        closed: 2,
+      // Backend expects string status: Active / Remission / Closed / Removed.
+      const statusMap: Record<string, string | undefined> = {
+        active: 'Active',
+        needFollowUp: 'Remission',
+        closed: 'Closed',
         all: undefined,
       };
 

@@ -107,7 +107,7 @@ const ClinicalGuidance: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState('inProgress');
   const [keyword, setKeyword] = useState('');
-  const [typeFilter, setTypeFilter] = useState<number | undefined>();
+  const [typeFilter, setTypeFilter] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20 });
 
@@ -126,10 +126,11 @@ const ClinicalGuidance: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const statusMap: Record<string, number | undefined> = {
-        inProgress: 1,
-        planning: 0,
-        completed: 2,
+      // Backend expects string status: Planning / InProgress / Completed / Cancelled.
+      const statusMap: Record<string, string | undefined> = {
+        inProgress: 'InProgress',
+        planning: 'Planning',
+        completed: 'Completed',
         all: undefined,
       };
 

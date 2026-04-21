@@ -188,8 +188,11 @@ const OccupationalHealth: React.FC = () => {
   };
 
   const filteredExams = exams.filter(e => {
-    if (activeTab === 'periodic') return e.examType === 'periodic';
-    if (activeTab === 'preEmployment') return e.examType === 'preEmployment';
+    // Backend returns capitalized enum names (Periodic / PreEmployment);
+    // lowercase them for comparison so seeded + real data both render.
+    const t = (e.examType || '').toLowerCase();
+    if (activeTab === 'periodic') return t === 'periodic';
+    if (activeTab === 'preEmployment') return t === 'preemployment';
     if (activeTab === 'disease') return e.occupationalDisease;
     return true;
   });

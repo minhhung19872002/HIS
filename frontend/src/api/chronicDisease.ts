@@ -77,8 +77,10 @@ export const getChronicRecords = async (params?: {
   pageSize?: number;
 }) => {
   try {
-    const response = await apiClient.get<{ items: ChronicRecordDto[]; totalCount: number }>('/chronic-disease/records', { params });
-    return response.data || { items: [], totalCount: 0 };
+    const response = await apiClient.get<ChronicRecordDto[] | { items: ChronicRecordDto[]; totalCount: number }>('/chronic-disease/records', { params });
+    const d = response.data;
+    if (Array.isArray(d)) return { items: d, totalCount: d.length };
+    return d || { items: [], totalCount: 0 };
   } catch {
     console.warn('Failed to fetch chronic disease records');
     return { items: [], totalCount: 0 };
