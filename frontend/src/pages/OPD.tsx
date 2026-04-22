@@ -259,12 +259,34 @@ const OPD: React.FC = () => {
   // Clinical template picker (Kết luận khám mẫu)
   const [conclusionTemplatePickerOpen, setConclusionTemplatePickerOpen] = useState(false);
 
+  // F9 — Tai nạn thương tích
+  const [isInjuryModalOpen, setIsInjuryModalOpen] = useState(false);
+  const [injuryForm] = Form.useForm();
+
+  // F11 — Bệnh kèm theo (danh sách)
+  const [comorbidities, setComorbidities] = useState<{ code: string; name: string; note?: string }[]>([]);
+
   // Keyboard shortcuts
   useKeyboardShortcuts([
     { key: 'F2', handler: () => handleSave(), description: 'Lưu khám' },
-    { key: 'F5', handler: () => { loadRooms(); if (selectedRoomId) loadQueue(selectedRoomId); }, description: 'Làm mới' },
-    { key: 'F9', handler: () => setIsPrintModalOpen(true), description: 'In phiếu' },
-    { key: 'F10', handler: () => { if (examination?.id) setIsStockReservationOpen(true); }, description: 'Xuất dự trù thuốc/VTYT (F10)' },
+    { key: 'F3', handler: () => {
+      if (selectedPatient && examination?.id) {
+        window.open(`/prescription?patientId=${selectedPatient.id}&examId=${examination.id}&type=internal`, '_blank');
+      }
+    }, description: 'Toa thuốc BHYT/Thu phí (F3)' },
+    { key: 'F5', handler: () => {
+      if (selectedPatient && examination?.id) {
+        window.open(`/prescription?patientId=${selectedPatient.id}&examId=${examination.id}&type=external`, '_blank');
+      }
+    }, description: 'Toa mua ngoài (F5)' },
+    { key: 'F6', handler: () => {
+      if (selectedPatient && examination?.id) {
+        window.open(`/surgery?patientId=${selectedPatient.id}&examId=${examination.id}`, '_blank');
+      }
+    }, description: 'PTTT (F6)' },
+    { key: 'F9', handler: () => { if (examination?.id) setIsInjuryModalOpen(true); }, description: 'Tai nạn thương tích (F9)' },
+    { key: 'F10', handler: () => { if (examination?.id) setIsStockReservationOpen(true); }, description: 'Xuất dự trù (F10)' },
+    { key: 'F11', handler: () => setActiveTab('diagnosis'), description: 'Bệnh kèm theo (F11)' },
     { key: 'f', ctrl: true, handler: () => document.querySelector<HTMLInputElement>('.ant-input-search input')?.focus(), description: 'Tìm kiếm' },
   ]);
 
@@ -2129,6 +2151,51 @@ const OPD: React.FC = () => {
                   >
                     Giấy nghỉ BHXH
                   </Button>
+                  <Tooltip title="F3: Toa thuốc BHYT / Thu phí (kho dược bệnh viện)">
+                    <Button
+                      icon={<MedicineBoxOutlined />}
+                      onClick={() => {
+                        if (!examination?.id || !selectedPatient) { message.warning('Chọn BN trước'); return; }
+                        window.open(`/prescription?patientId=${selectedPatient.id}&examId=${examination.id}&type=internal`, '_blank');
+                      }}
+                      disabled={!examination?.id}
+                    >
+                      Toa BHYT (F3)
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title="F5: Toa mua ngoài (nhà thuốc)">
+                    <Button
+                      icon={<MedicineBoxOutlined />}
+                      onClick={() => {
+                        if (!examination?.id || !selectedPatient) { message.warning('Chọn BN trước'); return; }
+                        window.open(`/prescription?patientId=${selectedPatient.id}&examId=${examination.id}&type=external`, '_blank');
+                      }}
+                      disabled={!examination?.id}
+                    >
+                      Toa ngoài (F5)
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title="F6: Phẫu thuật / Thủ thuật">
+                    <Button
+                      icon={<ToolOutlined />}
+                      onClick={() => {
+                        if (!examination?.id || !selectedPatient) { message.warning('Chọn BN trước'); return; }
+                        window.open(`/surgery?patientId=${selectedPatient.id}&examId=${examination.id}`, '_blank');
+                      }}
+                      disabled={!examination?.id}
+                    >
+                      PTTT (F6)
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title="F9: Ghi nhận tai nạn / thương tích">
+                    <Button
+                      icon={<WarningOutlined />}
+                      onClick={() => setIsInjuryModalOpen(true)}
+                      disabled={!examination?.id}
+                    >
+                      Tai nạn (F9)
+                    </Button>
+                  </Tooltip>
                   <Button
                     icon={<SwapOutlined />}
                     onClick={handleOpenTransferRoom}
@@ -2737,6 +2804,26 @@ const OPD: React.FC = () => {
                           <Row gutter={16}>
                             <Col span={24}>
                               <Form.Item
+                                label={<strong>Xử trí (chọn 1 hoặc nhiều)</strong>}
+                                name="conclusionType"
+                                initialValue={1}
+                                tooltip="Phương án xử trí sau khi khám — theo MQ Solutions: Cho về / Kê đơn / Hẹn khám lại / Nhập viện / Chuyển viện"
+                              >
+                                <Select
+                                  placeholder="Chọn xử trí"
+                                  options={[
+                                    { value: 1, label: 'Cho về (không điều trị tiếp)' },
+                                    { value: 2, label: 'Kê đơn thuốc' },
+                                    { value: 5, label: 'Hẹn khám lại' },
+                                    { value: 3, label: 'Nhập viện nội trú' },
+                                    { value: 4, label: 'Chuyển viện' },
+                                    { value: 7, label: 'Lập bệnh án ngoại trú (dài hạn)' },
+                                  ]}
+                                />
+                              </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                              <Form.Item
                                 label={
                                   <Space>
                                     <span>Kết luận</span>
@@ -2756,7 +2843,7 @@ const OPD: React.FC = () => {
                             </Col>
                             <Col span={24}>
                               <Form.Item
-                                label="Hướng điều trị"
+                                label="Hướng điều trị / Phương hướng"
                                 name="recommendations"
                               >
                                 <TextArea
@@ -2766,14 +2853,64 @@ const OPD: React.FC = () => {
                               </Form.Item>
                             </Col>
                             <Col span={12}>
-                              <Form.Item label="Ngày tái khám" name="followUpDate">
+                              <Form.Item label="Ngày tái khám (hẹn)" name="followUpDate">
                                 <DatePicker
                                   style={{ width: '100%' }}
                                   format="DD/MM/YYYY"
                                 />
                               </Form.Item>
                             </Col>
+                            <Col span={12}>
+                              <Form.Item label="Ghi chú hẹn" name="followUpNote">
+                                <Input placeholder="VD: Tái khám + xét nghiệm máu" />
+                              </Form.Item>
+                            </Col>
                           </Row>
+
+                          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.conclusionType !== cur.conclusionType}>
+                            {({ getFieldValue }) => {
+                              const ct = getFieldValue('conclusionType');
+                              if (ct === 3) {
+                                return (
+                                  <div style={{ padding: 12, background: '#fff7e6', borderRadius: 4, marginTop: 8 }}>
+                                    <Text strong>Nhập viện nội trú</Text>
+                                    <Row gutter={16} style={{ marginTop: 8 }}>
+                                      <Col span={12}>
+                                        <Form.Item name="admissionDepartmentId" label="Khoa nội trú">
+                                          <Select placeholder="Chọn khoa nội trú" options={[]} />
+                                        </Form.Item>
+                                      </Col>
+                                      <Col span={12}>
+                                        <Form.Item name="admissionReason" label="Lý do nhập viện">
+                                          <Input placeholder="VD: Điều trị viêm phổi cấp" />
+                                        </Form.Item>
+                                      </Col>
+                                    </Row>
+                                  </div>
+                                );
+                              }
+                              if (ct === 4) {
+                                return (
+                                  <div style={{ padding: 12, background: '#fff1f0', borderRadius: 4, marginTop: 8 }}>
+                                    <Text strong>Chuyển viện</Text>
+                                    <Row gutter={16} style={{ marginTop: 8 }}>
+                                      <Col span={12}>
+                                        <Form.Item name="transferToFacility" label="Nơi chuyển đến">
+                                          <Input placeholder="Tên bệnh viện" />
+                                        </Form.Item>
+                                      </Col>
+                                      <Col span={12}>
+                                        <Form.Item name="transferReason" label="Lý do chuyển viện">
+                                          <Input placeholder="Vượt khả năng chuyên môn / theo yêu cầu BN" />
+                                        </Form.Item>
+                                      </Col>
+                                    </Row>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          </Form.Item>
                         </>
                       ),
                     },
@@ -3462,6 +3599,66 @@ const OPD: React.FC = () => {
             label="Lý do chuyển phòng"
           >
             <Input.TextArea rows={2} placeholder="Nhập lý do chuyển phòng (không bắt buộc)..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* F9 — Tai nạn thương tích Modal */}
+      <Modal
+        title={<><WarningOutlined /> Tai nạn / Thương tích (F9)</>}
+        open={isInjuryModalOpen}
+        onOk={async () => {
+          try {
+            const values = await injuryForm.validateFields();
+            examForm.setFieldsValue({
+              injuryType: values.injuryType,
+              injuryCause: values.injuryCause,
+              injuryLocation: values.injuryLocation,
+              injuryTime: values.injuryTime?.toISOString?.(),
+              injuryExternalCause: values.injuryExternalCause,
+            });
+            message.success('Đã ghi nhận thông tin tai nạn. Nhớ bấm Lưu khám.');
+            setIsInjuryModalOpen(false);
+          } catch {/* validation errors already shown */}
+        }}
+        onCancel={() => setIsInjuryModalOpen(false)}
+        width={640}
+        destroyOnHidden
+      >
+        <Form form={injuryForm} layout="vertical">
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="injuryType" label="Loại tai nạn" rules={[{ required: true }]}>
+                <Select
+                  options={[
+                    { value: 1, label: 'Tai nạn giao thông' },
+                    { value: 2, label: 'Tai nạn lao động' },
+                    { value: 3, label: 'Tai nạn sinh hoạt' },
+                    { value: 4, label: 'Bạo lực gia đình' },
+                    { value: 5, label: 'Tai nạn do bỏng' },
+                    { value: 6, label: 'Tai nạn do súc vật cắn' },
+                    { value: 7, label: 'Tai nạn do điện giật' },
+                    { value: 8, label: 'Ngộ độc' },
+                    { value: 9, label: 'Tự gây thương tích' },
+                    { value: 99, label: 'Khác' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="injuryTime" label="Thời gian xảy ra">
+                <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="injuryLocation" label="Nơi xảy ra">
+            <Input placeholder="VD: Quốc lộ 1A, km 15" />
+          </Form.Item>
+          <Form.Item name="injuryCause" label="Nguyên nhân">
+            <Input.TextArea rows={2} placeholder="VD: BN điều khiển xe máy, va chạm với ô tô tải" />
+          </Form.Item>
+          <Form.Item name="injuryExternalCause" label="Mã nguyên nhân ngoài (ICD-10 V00-Y98)">
+            <Input placeholder="VD: V23.4 — Xe máy đụng xe 4 bánh" />
           </Form.Item>
         </Form>
       </Modal>
