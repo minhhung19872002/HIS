@@ -1,10 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
+using HIS.Application.DTOs.Insurance;
 using HIS.Application.DTOs.Reception;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
+using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using iText.IO.Font.Constants;
 using iText.Kernel.Font;
 using iText.Kernel.Pdf;
@@ -34,6 +38,8 @@ public class ReceptionCompleteService : IReceptionCompleteService
     private readonly IRepository<User> _userRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBhxhGatewayClient _bhxhClient;
+    private readonly BhxhGatewayOptions _bhxhOptions;
+    private readonly ILogger<ReceptionCompleteService>? _receptionLogger;
 
     public ReceptionCompleteService(
         HISDbContext context,
@@ -46,8 +52,12 @@ public class ReceptionCompleteService : IReceptionCompleteService
         IRepository<Department> departmentRepo,
         IRepository<User> userRepo,
         IUnitOfWork unitOfWork,
-        IBhxhGatewayClient bhxhClient)
+        IBhxhGatewayClient bhxhClient,
+        IOptions<BhxhGatewayOptions>? bhxhOptions = null,
+        ILogger<ReceptionCompleteService>? logger = null)
     {
+        _bhxhOptions = bhxhOptions?.Value ?? new BhxhGatewayOptions();
+        _receptionLogger = logger;
         _context = context;
         _patientRepo = patientRepo;
         _medicalRecordRepo = medicalRecordRepo;
@@ -586,26 +596,148 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
     public async Task<InsuranceVerificationResultDto> VerifyInsuranceAsync(InsuranceVerificationRequestDto dto)
     {
-        // TODO: Connect to real BHXH gateway
-        // For now, return mock data
-        return new InsuranceVerificationResultDto
+        if (string.IsNullOrWhiteSpace(dto.InsuranceNumber))
         {
-            IsValid = true,
-            InsuranceNumber = dto.InsuranceNumber,
-            PatientName = dto.PatientName,
-            DateOfBirth = dto.DateOfBirth,
-            StartDate = DateTime.Today.AddYears(-1),
-            EndDate = DateTime.Today.AddYears(1),
-            RightRoute = 1, // Dung tuyen
-            PaymentRate = 80
-        };
+            return new InsuranceVerificationResultDto
+            {
+                IsValid = false,
+                InsuranceNumber = dto.InsuranceNumber ?? string.Empty,
+                ErrorMessage = "Số BHYT không được để trống"
+            };
+        }
+
+        // Blacklist check (nội bộ — BN đã bị chặn vì lạm dụng quyền lợi)
+        var blocked = await _context.BlockedInsurances
+            .FirstOrDefaultAsync(b => b.InsuranceNumber == dto.InsuranceNumber && b.IsBlocked);
+
+        // Nhập 15 số thuần → infer nơi KKCB ban đầu từ mã thẻ
+        // Nhập 20 số → có 5 số cuối là mã KKCB, realtime check thông tuyến
+        var rawCard = dto.InsuranceNumber.Trim();
+        var coreCardNumber = rawCard.Length >= 15 ? rawCard.Substring(0, 15) : rawCard;
+        var facilityCodeFromCard = rawCard.Length >= 20 ? rawCard.Substring(15, 5) : null;
+
+        // Dùng mock khi gateway chưa cấu hình (sandbox)
+        if (_bhxhOptions.UseMock || string.IsNullOrWhiteSpace(_bhxhOptions.Username))
+        {
+            return BuildMockInsuranceResult(dto, coreCardNumber, facilityCodeFromCard, blocked);
+        }
+
+        try
+        {
+            var request = new BhxhCardVerifyRequest
+            {
+                MaThe = coreCardNumber,
+                HoTen = dto.PatientName ?? string.Empty,
+                NgaySinh = dto.DateOfBirth ?? default,
+                MaCsKcb = _bhxhOptions.FacilityCode
+            };
+            var response = await _bhxhClient.VerifyCardAsync(request);
+
+            var isOwnFacility = !string.IsNullOrEmpty(response.MaDkbd)
+                && response.MaDkbd.Equals(_bhxhOptions.FacilityCode, StringComparison.OrdinalIgnoreCase);
+            var rightRoute = isOwnFacility ? 1 : (facilityCodeFromCard == null ? 3 : 2);
+
+            return new InsuranceVerificationResultDto
+            {
+                IsValid = response.DuDkKcb,
+                InsuranceNumber = coreCardNumber,
+                PatientName = response.HoTen,
+                DateOfBirth = response.NgaySinh == default ? null : response.NgaySinh,
+                Gender = response.GioiTinh,
+                Address = response.DiaChi,
+                InsuranceCode = response.LoaiThe,
+                StartDate = response.GtTheTu == default ? null : response.GtTheTu,
+                EndDate = response.GtTheDen == default ? null : response.GtTheDen,
+                IsExpired = response.GtTheDen != default && response.GtTheDen < DateTime.Today,
+                FacilityCode = response.MaDkbd,
+                FacilityName = response.TenDkbd,
+                RightRoute = rightRoute,
+                PaymentRate = ParsePaymentRate(response.MucHuong),
+                IsBlacklisted = blocked != null,
+                BlacklistReason = blocked?.ReasonDetail,
+                Warnings = BuildInsuranceWarnings(response, blocked),
+                ErrorMessage = response.DuDkKcb ? null : (response.LyDoKhongDuDk ?? "Thẻ BHYT không đủ điều kiện KCB")
+            };
+        }
+        catch (Exception ex)
+        {
+            _receptionLogger?.LogWarning(ex, "BHXH gateway verify failed for card {Card}", coreCardNumber);
+            return new InsuranceVerificationResultDto
+            {
+                IsValid = false,
+                InsuranceNumber = coreCardNumber,
+                ErrorMessage = "Không kết nối được cổng BHXH: " + ex.Message
+            };
+        }
     }
 
     public async Task<InsuranceVerificationResultDto> VerifyInsuranceByQRAsync(string qrData)
     {
-        // Parse QR data to extract insurance number
-        var insuranceNumber = qrData.Length > 15 ? qrData.Substring(0, 15) : qrData;
+        // QR BHYT chuẩn: chuỗi có tối đa 20 ký tự số. QR CCCD tích hợp BHYT có thêm
+        // phần CCCD nối sau. Parser rút 15-20 số BHYT đầu tiên.
+        var digits = new string((qrData ?? string.Empty).Where(char.IsDigit).ToArray());
+        var insuranceNumber = digits.Length >= 20 ? digits.Substring(0, 20)
+            : digits.Length >= 15 ? digits.Substring(0, 15) : digits;
         return await VerifyInsuranceAsync(new InsuranceVerificationRequestDto { InsuranceNumber = insuranceNumber });
+    }
+
+    private InsuranceVerificationResultDto BuildMockInsuranceResult(
+        InsuranceVerificationRequestDto dto,
+        string coreCardNumber,
+        string? facilityCodeFromCard,
+        BlockedInsurance? blocked)
+    {
+        var rightRoute = facilityCodeFromCard == null ? 3
+            : facilityCodeFromCard.Equals(_bhxhOptions.FacilityCode, StringComparison.OrdinalIgnoreCase) ? 1
+            : 2;
+        return new InsuranceVerificationResultDto
+        {
+            IsValid = blocked == null,
+            InsuranceNumber = coreCardNumber,
+            PatientName = dto.PatientName,
+            DateOfBirth = dto.DateOfBirth,
+            StartDate = DateTime.Today.AddYears(-1),
+            EndDate = DateTime.Today.AddYears(1),
+            FacilityCode = facilityCodeFromCard ?? _bhxhOptions.FacilityCode,
+            FacilityName = facilityCodeFromCard != null ? "Nơi KKCB (mock)" : "Nơi KKCB cùng cơ sở",
+            RightRoute = rightRoute,
+            PaymentRate = 80,
+            IsBlacklisted = blocked != null,
+            BlacklistReason = blocked?.ReasonDetail,
+            Warnings = blocked == null ? new List<string>() : new List<string> { "Bệnh nhân nằm trong danh sách chặn BHYT" }
+        };
+    }
+
+    private static decimal ParsePaymentRate(string mucHuong)
+    {
+        if (string.IsNullOrWhiteSpace(mucHuong)) return 0;
+        if (int.TryParse(new string(mucHuong.Where(char.IsDigit).ToArray()), out var code))
+        {
+            return code switch
+            {
+                1 => 100,
+                2 => 100,
+                3 => 95,
+                4 => 80,
+                5 => 100,
+                _ => 80
+            };
+        }
+        return 80;
+    }
+
+    private static List<string> BuildInsuranceWarnings(BhxhCardVerifyResponse response, BlockedInsurance? blocked)
+    {
+        var warnings = new List<string>();
+        if (response.GtTheDen != default && response.GtTheDen < DateTime.Today.AddDays(30))
+            warnings.Add($"Thẻ BHYT hết hạn {response.GtTheDen:dd/MM/yyyy}");
+        if (response.NgayDu5Nam.HasValue && response.NgayDu5Nam.Value > DateTime.Today)
+            warnings.Add($"Đủ 5 năm liên tục từ {response.NgayDu5Nam.Value:dd/MM/yyyy}");
+        if (response.MienCungCt)
+            warnings.Add("BN thuộc diện miễn cùng chi trả");
+        if (blocked != null)
+            warnings.Add("BN trong danh sách chặn BHYT của cơ sở");
+        return warnings;
     }
 
     public async Task<bool> IsInsuranceBlockedAsync(string insuranceNumber)

@@ -91,12 +91,20 @@ interface InsuranceVerification {
   isValid: boolean;
   patientName?: string;
   dateOfBirth?: string;
+  gender?: number;
+  address?: string;
+  facilityCode?: string;
   facilityName?: string;
   startDate?: string;
   endDate?: string;
   isExpired: boolean;
   isRightRoute: boolean;
+  rightRoute?: number;
+  rightRouteName?: string;
   paymentRate?: number;
+  warnings?: string[];
+  isBlacklisted?: boolean;
+  blacklistReason?: string;
   validationMessage?: string;
 }
 
@@ -930,22 +938,42 @@ const Reception: React.FC = () => {
 
       if (response.data) {
         const result = response.data;
+        const r = result as typeof result & {
+          gender?: number;
+          address?: string;
+          facilityCode?: string;
+          rightRoute?: number;
+          rightRouteName?: string;
+          warnings?: string[];
+          isBlacklisted?: boolean;
+          blacklistReason?: string;
+        };
         const verification: InsuranceVerification = {
           insuranceNumber: result.insuranceNumber,
           isValid: result.isValid,
           patientName: result.patientName,
           dateOfBirth: result.dateOfBirth,
+          gender: r.gender,
+          address: r.address,
+          facilityCode: r.facilityCode,
           facilityName: result.facilityName,
           startDate: result.startDate,
           endDate: result.endDate,
           isExpired: result.isExpired,
-          isRightRoute: result.rightRoute === 1,
+          isRightRoute: (r.rightRoute ?? 0) === 1,
+          rightRoute: r.rightRoute,
+          rightRouteName: r.rightRouteName,
           paymentRate: result.paymentRate,
+          warnings: r.warnings,
+          isBlacklisted: r.isBlacklisted,
+          blacklistReason: r.blacklistReason,
           validationMessage: result.isValid ? 'Thẻ BHYT hợp lệ' : result.errorMessage,
         };
         setInsuranceVerification(verification);
-        if (result.isValid) {
-          message.success('Xác minh thẻ BHYT thành công!');
+        if (r.isBlacklisted) {
+          message.error(`Bệnh nhân trong danh sách chặn BHYT: ${r.blacklistReason || ''}`);
+        } else if (result.isValid) {
+          message.success(`Thẻ BHYT hợp lệ — ${r.rightRouteName || 'Đúng tuyến'}, hưởng ${result.paymentRate}%`);
         } else {
           message.warning(result.errorMessage || 'Thẻ BHYT không hợp lệ');
         }
@@ -1276,9 +1304,11 @@ const Reception: React.FC = () => {
               <Descriptions.Item label="Ngày kết thúc">
                 {insuranceVerification.endDate ? dayjs(insuranceVerification.endDate).format('DD/MM/YYYY') : ''}
               </Descriptions.Item>
-              <Descriptions.Item label="Đúng tuyến">
-                {insuranceVerification.isRightRoute ? (
+              <Descriptions.Item label="Thông tuyến">
+                {insuranceVerification.rightRoute === 1 ? (
                   <Tag color="green">Đúng tuyến</Tag>
+                ) : insuranceVerification.rightRoute === 3 ? (
+                  <Tag color="blue">Thông tuyến</Tag>
                 ) : (
                   <Tag color="orange">Trái tuyến</Tag>
                 )}
@@ -1286,7 +1316,39 @@ const Reception: React.FC = () => {
               <Descriptions.Item label="Tỷ lệ thanh toán">
                 <Text strong style={{ color: '#1890ff' }}>{insuranceVerification.paymentRate}%</Text>
               </Descriptions.Item>
+              {insuranceVerification.address && (
+                <Descriptions.Item label="Địa chỉ" span={2}>
+                  {insuranceVerification.address}
+                </Descriptions.Item>
+              )}
+              {insuranceVerification.facilityCode && (
+                <Descriptions.Item label="Mã CSKCB">
+                  <Text code>{insuranceVerification.facilityCode}</Text>
+                </Descriptions.Item>
+              )}
             </Descriptions>
+            {insuranceVerification.isBlacklisted && (
+              <Alert
+                title="BN trong danh sách chặn BHYT"
+                description={insuranceVerification.blacklistReason || 'Vui lòng kiểm tra quyền lợi BHYT'}
+                type="error"
+                showIcon
+                style={{ marginTop: 12 }}
+              />
+            )}
+            {insuranceVerification.warnings && insuranceVerification.warnings.length > 0 && (
+              <Alert
+                title="Cảnh báo"
+                description={
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {insuranceVerification.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                }
+                type="warning"
+                showIcon
+                style={{ marginTop: 12 }}
+              />
+            )}
             <div style={{ marginTop: 16, textAlign: 'right' }}>
               <Button
                 type="primary"
@@ -1545,10 +1607,14 @@ const Reception: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={10}>
-              <Form.Item name="insuranceNumber" label="Số thẻ BHYT">
+              <Form.Item
+                name="insuranceNumber"
+                label="Số thẻ BHYT"
+                tooltip="Nhập 15 số thẻ BHYT hoặc 20 số (có thêm 5 số mã CSKCB ban đầu) để kiểm tra thông tuyến trực tiếp."
+              >
                 <Input
-                  placeholder="Nhập số thẻ BHYT"
-                  maxLength={15}
+                  placeholder="15 số BHYT hoặc 20 số (kèm 5 số KKCB)"
+                  maxLength={20}
                   onBlur={handleInlineInsuranceVerify}
                 />
               </Form.Item>
