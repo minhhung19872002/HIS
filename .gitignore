@@ -161,3 +161,4 @@ test-reception-full.ps1
 
 # SQL Server backup dump (local migration artifact)
 *.bak
+TaiLieuDoiThu/

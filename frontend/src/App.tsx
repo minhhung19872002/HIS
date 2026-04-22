@@ -38,6 +38,7 @@ const Pharmacy = lazy(() => import('./pages/Pharmacy'));
 const Laboratory = lazy(() => import('./pages/Laboratory'));
 const Radiology = lazy(() => import('./pages/Radiology'));
 const Billing = lazy(() => import('./pages/Billing'));
+const PaymentTransactions = lazy(() => import('./pages/PaymentTransactions'));
 const Prescription = lazy(() => import('./pages/Prescription'));
 const SystemAdmin = lazy(() => import('./pages/SystemAdmin'));
 const Surgery = lazy(() => import('./pages/Surgery'));
@@ -189,6 +190,7 @@ const AppRoutes: React.FC = () => {
           <Route path="radiology" element={<Radiology />} />
           <Route path="blood-bank" element={<BloodBank />} />
           <Route path="billing" element={<Billing />} />
+          <Route path="payment-transactions" element={<PaymentTransactions />} />
           <Route path="finance" element={<Finance />} />
           <Route path="insurance" element={<Insurance />} />
           <Route path="master-data" element={<MasterData />} />

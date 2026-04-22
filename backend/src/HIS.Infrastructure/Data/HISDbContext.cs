@@ -70,6 +70,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<InvoiceSummary> InvoiceSummaries => Set<InvoiceSummary>();
     public DbSet<CashBook> CashBooks => Set<CashBook>();
     public DbSet<ElectronicInvoice> ElectronicInvoices => Set<ElectronicInvoice>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();

@@ -77,6 +77,7 @@ import {
   getOutpatientRevenueReport,
 } from '../api/billing';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
+import PaymentQRModal from '../components/PaymentQRModal';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
 const { Title, Text } = Typography;
@@ -209,6 +210,13 @@ const Billing: React.FC = () => {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [depositModalVisible, setDepositModalVisible] = useState(false);
+  const [qrPaymentContext, setQrPaymentContext] = useState<{
+    patientId: string;
+    patientName?: string;
+    amount: number;
+    orderInfo?: string;
+    orderType?: string;
+  } | null>(null);
   const [refundModalVisible, setRefundModalVisible] = useState(false);
   const [receiptDrawerVisible, setReceiptDrawerVisible] = useState(false);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
@@ -1035,6 +1043,22 @@ const Billing: React.FC = () => {
                       }}
                     >
                       Thanh toán ({selectedServices.length} dịch vụ)
+                    </Button>
+                    <Button
+                      size="large"
+                      disabled={selectedServices.length === 0 || !selectedPatient}
+                      onClick={() => {
+                        if (!selectedPatient) return;
+                        setQrPaymentContext({
+                          patientId: selectedPatient.id,
+                          patientName: selectedPatient.name,
+                          amount: totals.patientAmount,
+                          orderType: 'billing',
+                          orderInfo: `Thanh toan dich vu HIS - ${selectedPatient.name}`,
+                        });
+                      }}
+                    >
+                      Thanh toán QR
                     </Button>
                   </Space>
                 </Col>
@@ -2805,6 +2829,20 @@ const Billing: React.FC = () => {
           </Descriptions>
         )}
       </Modal>
+
+      <PaymentQRModal
+        open={qrPaymentContext !== null}
+        onClose={() => setQrPaymentContext(null)}
+        onSuccess={() => {
+          setQrPaymentContext(null);
+          if (selectedPatient?.code) handleSearchPatient(selectedPatient.code);
+        }}
+        patientId={qrPaymentContext?.patientId ?? ''}
+        patientName={qrPaymentContext?.patientName}
+        amount={qrPaymentContext?.amount ?? 0}
+        orderInfo={qrPaymentContext?.orderInfo}
+        orderType={qrPaymentContext?.orderType}
+      />
     </div>
   );
 };
