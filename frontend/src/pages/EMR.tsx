@@ -1495,6 +1495,7 @@ ${conclusion ? `<div class="section">
                 <Dropdown menu={{ items: [
                   { type: 'group', label: 'Bác sĩ (MS. 04-17)', children: [
                     { key: 'discharge', label: 'MS.04 - Giấy ra viện' },
+                    { key: 'referral', label: 'BV01 - Giấy chuyển viện' },
                     { key: 'preanesthetic', label: 'MS.06 - Khám tiền mê' },
                     { key: 'consent', label: 'MS.07 - Cam kết PT' },
                     { key: 'progress', label: 'MS.08 - Sơ kết 15 ngày' },
@@ -1817,6 +1818,7 @@ ${conclusion ? `<div class="section">
         title={{
           summary: 'Tóm tắt bệnh án (MS.01)', treatment: 'Tờ điều trị (MS.02)', consultation: 'Biên bản hội chẩn (MS.03)',
           nursing: 'Phiếu chăm sóc (MS.05)', discharge: 'Giấy ra viện (MS.04)',
+          referral: 'Giấy chuyển viện (BV01 — 01/BV-01)',
           preanesthetic: 'Khám tiền mê (MS.06)', consent: 'Cam kết PT (MS.07)',
           progress: 'Sơ kết 15 ngày ĐT (MS.08)', counseling: 'Phiếu tư vấn (MS.09)',
           deathreview: 'Kiểm điểm tử vong (MS.10)', finalsummary: 'Tổng kết HSBA (MS.11)',

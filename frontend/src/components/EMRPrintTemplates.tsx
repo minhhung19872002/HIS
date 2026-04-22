@@ -453,6 +453,133 @@ export const DischargeCertificatePrint = forwardRef<HTMLDivElement, DischargeCer
 DischargeCertificatePrint.displayName = 'DischargeCertificatePrint';
 
 // ===========================
+// 4b. GIAY CHUYEN VIEN (Referral / Transfer Certificate — BV01)
+// Mẫu số 01/BV-01 theo TT 14/2014/TT-BYT và 40/2015/TT-BYT
+// ===========================
+export interface ReferralCertificateProps {
+  // Hospital issuing
+  issuingHospitalName?: string;
+  issuingHospitalAddress?: string;
+  issuingHospitalLevel?: string; // Hạng/tuyến
+  // Destination
+  destinationHospital: string;
+  destinationReason?: string; // vượt khả năng / theo yêu cầu
+  // Patient
+  patientName: string;
+  age?: number;
+  gender: number;
+  patientCode?: string;
+  address?: string;
+  ethnicity?: string;
+  occupation?: string;
+  phoneNumber?: string;
+  insuranceNumber?: string;
+  insuranceValidFrom?: string;
+  insuranceValidTo?: string;
+  // Clinical
+  admissionDate?: string;
+  chiefComplaint?: string;
+  medicalHistory?: string;
+  physicalExam?: string;
+  vitalSigns?: string;
+  labResults?: string;
+  imagingResults?: string;
+  diagnosis: string;
+  icdCode?: string;
+  treatmentGiven?: string;
+  patientConditionBeforeTransfer?: string;
+  transportMethod?: string; // xe cứu thương / xe nhà / tự túc
+  accompaniedBy?: string;   // đi cùng BN
+  doctorName?: string;
+  transferDate?: string;
+  stamp?: SignatureStampInfo;
+}
+
+export const ReferralCertificatePrint = forwardRef<HTMLDivElement, ReferralCertificateProps>(
+  (props, ref) => (
+    <div ref={ref} className="emr-print-container">
+      <style>{printStyles}</style>
+      <PrintHeader formNumber="01/BV-01" />
+      <h2>GIẤY CHUYỂN VIỆN</h2>
+
+      <div className="section">
+        <Field label="Kính gửi" value={props.destinationHospital} />
+        <div className="row">
+          <div className="col"><Field label="Họ và tên" value={props.patientName} /></div>
+          <div className="col"><Field label="Tuổi" value={props.age} /></div>
+          <div className="col"><Field label="Giới" value={props.gender === 1 ? 'Nam' : 'Nữ'} /></div>
+        </div>
+        <div className="row">
+          <div className="col"><Field label="Mã BN" value={props.patientCode} /></div>
+          <div className="col"><Field label="Dân tộc" value={props.ethnicity} /></div>
+          <div className="col"><Field label="Nghề nghiệp" value={props.occupation} /></div>
+        </div>
+        <Field label="Địa chỉ" value={props.address} />
+        <div className="row">
+          <div className="col"><Field label="Số thẻ BHYT" value={props.insuranceNumber} /></div>
+          <div className="col"><Field label="Giá trị từ" value={props.insuranceValidFrom ? dayjs(props.insuranceValidFrom).format('DD/MM/YYYY') : undefined} /></div>
+          <div className="col"><Field label="Đến" value={props.insuranceValidTo ? dayjs(props.insuranceValidTo).format('DD/MM/YYYY') : undefined} /></div>
+        </div>
+      </div>
+
+      <div className="section">
+        <Field label="Đã được điều trị, khám và/hoặc điều trị tại" value={props.issuingHospitalName} />
+        <Field label="Địa chỉ" value={props.issuingHospitalAddress} />
+        <div className="row">
+          <div className="col"><Field label="Hạng BV" value={props.issuingHospitalLevel} /></div>
+          <div className="col"><Field label="Từ ngày" value={props.admissionDate ? dayjs(props.admissionDate).format('DD/MM/YYYY') : undefined} /></div>
+          <div className="col"><Field label="Đến ngày" value={props.transferDate ? dayjs(props.transferDate).format('DD/MM/YYYY') : undefined} /></div>
+        </div>
+      </div>
+
+      <div className="section">
+        <h3>TÓM TẮT BỆNH ÁN</h3>
+        <Field label="Dấu hiệu lâm sàng chính" value={props.chiefComplaint} />
+        <Field label="Tiền sử bệnh" value={props.medicalHistory} />
+        <Field label="Khám lâm sàng" value={props.physicalExam} />
+        <Field label="Dấu hiệu sinh tồn" value={props.vitalSigns} />
+        <Field label="Kết quả xét nghiệm" value={props.labResults} />
+        <Field label="Kết quả chẩn đoán hình ảnh" value={props.imagingResults} />
+      </div>
+
+      <div className="section">
+        <h3>CHẨN ĐOÁN</h3>
+        <Field label="Chẩn đoán" value={props.diagnosis} />
+        <Field label="Mã ICD-10" value={props.icdCode} />
+      </div>
+
+      <div className="section">
+        <h3>ĐÃ ĐIỀU TRỊ</h3>
+        <div style={{ minHeight: 60, padding: 4 }}>{props.treatmentGiven ?? '...'}</div>
+      </div>
+
+      <div className="section">
+        <h3>TÌNH TRẠNG BN LÚC CHUYỂN VIỆN</h3>
+        <div style={{ minHeight: 40, padding: 4 }}>{props.patientConditionBeforeTransfer ?? '...'}</div>
+      </div>
+
+      <div className="section">
+        <h3>LÝ DO CHUYỂN VIỆN</h3>
+        <Field label="Lý do" value={props.destinationReason} />
+        <Field label="Chuyển đến" value={props.destinationHospital} />
+        <div className="row">
+          <div className="col"><Field label="Phương tiện vận chuyển" value={props.transportMethod} /></div>
+          <div className="col"><Field label="Người đi cùng" value={props.accompaniedBy} /></div>
+        </div>
+      </div>
+
+      <SignatureBlock
+        leftTitle="BÁC SĨ KHÁM/ĐIỀU TRỊ"
+        rightTitle="GIÁM ĐỐC / PHÓ GIÁM ĐỐC BỆNH VIỆN"
+        date={props.transferDate ? new Date(props.transferDate) : new Date()}
+        rightStamp={props.stamp}
+      />
+    </div>
+  )
+);
+ReferralCertificatePrint.displayName = 'ReferralCertificatePrint';
+
+// ===========================
 // 5. PHIEU CHAM SOC (Nursing Care Sheet)
 // ===========================
 interface NursingCarePrintProps {

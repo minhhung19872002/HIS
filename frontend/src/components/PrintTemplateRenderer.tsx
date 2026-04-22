@@ -18,6 +18,7 @@ async function loadTemplate(printType: string): Promise<React.ComponentType<any>
     case 'consultation': return (await import('./EMRPrintTemplates')).ConsultationPrint;
     case 'nursing': return (await import('./EMRPrintTemplates')).NursingCarePrint;
     case 'discharge': return (await import('./EMRPrintTemplates')).DischargeCertificatePrint;
+    case 'referral': return (await import('./EMRPrintTemplates')).ReferralCertificatePrint;
     case 'preanesthetic': return (await import('./EMRPrintTemplates')).PreAnestheticExamPrint;
     case 'consent': return (await import('./EMRPrintTemplates')).SurgeryConsentPrint;
     case 'progress': return (await import('./EMRPrintTemplates')).TreatmentProgressNotePrint;
@@ -165,6 +166,39 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
       doctorName=""
       dischargeCondition=""
       daysOfStay={0}
+    />;
+  }
+  // Referral (BV01) - destructure patient + clinical props
+  if (printType === 'referral' && record?.patient) {
+    const p = record.patient;
+    const e = (record as any).examination ?? {};
+    return <Component ref={printRef}
+      destinationHospital={e.referralDestination ?? ''}
+      destinationReason={e.referralReason}
+      patientName={p.fullName ?? ''}
+      patientCode={p.patientCode ?? ''}
+      gender={p.gender ?? 1}
+      age={p.age ?? 0}
+      address={p.address}
+      ethnicity={p.ethnicity}
+      occupation={p.occupation}
+      phoneNumber={p.phoneNumber}
+      insuranceNumber={p.insuranceNumber}
+      insuranceValidFrom={p.insuranceValidFrom}
+      insuranceValidTo={p.insuranceValidTo}
+      admissionDate={(record as any).admissionDate}
+      chiefComplaint={e.chiefComplaint}
+      medicalHistory={e.medicalHistory}
+      physicalExam={e.physicalExam}
+      vitalSigns={e.vitalSigns}
+      labResults={e.labResults}
+      imagingResults={e.imagingResults}
+      diagnosis={e.mainDiagnosis ?? (record as any).mainDiagnosis ?? ''}
+      icdCode={e.mainIcdCode ?? (record as any).mainIcdCode}
+      treatmentGiven={e.treatmentPlan}
+      patientConditionBeforeTransfer={e.conclusion}
+      doctorName={e.doctorName}
+      transferDate={new Date().toISOString()}
     />;
   }
   // Surgery consent needs destructured patient props
