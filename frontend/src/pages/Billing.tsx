@@ -81,6 +81,8 @@ import PaymentQRModal from '../components/PaymentQRModal';
 import ReassignObjectModal from '../components/ReassignObjectModal';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import ApplyDiscountModal from '../components/ApplyDiscountModal';
+import PartialRefundModal from '../components/PartialRefundModal';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -220,6 +222,8 @@ const Billing: React.FC = () => {
     orderType?: string;
   } | null>(null);
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
+  const [discountModalState, setDiscountModalState] = useState<{ invoiceId: string; amount: number; patientName?: string } | null>(null);
+  const [partialRefundState, setPartialRefundState] = useState<{ patientId: string; patientName?: string; paymentId?: string } | null>(null);
   const [refundModalVisible, setRefundModalVisible] = useState(false);
   const [receiptDrawerVisible, setReceiptDrawerVisible] = useState(false);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
@@ -1073,6 +1077,35 @@ const Billing: React.FC = () => {
                       onClick={() => setReassignModalOpen(true)}
                     >
                       Sửa đối tượng
+                    </Button>
+                    <Button
+                      size="large"
+                      disabled={!selectedPatient || totals.patientAmount === 0}
+                      onClick={() => {
+                        if (!selectedPatient) return;
+                        // invoiceId fallback: dùng service đầu tiên hoặc patientId
+                        const invoiceId = unpaidServices[0]?.id || selectedPatient.id;
+                        setDiscountModalState({
+                          invoiceId,
+                          amount: totals.patientAmount,
+                          patientName: selectedPatient.name,
+                        });
+                      }}
+                    >
+                      Miễn giảm
+                    </Button>
+                    <Button
+                      size="large"
+                      disabled={!selectedPatient}
+                      onClick={() => {
+                        if (!selectedPatient) return;
+                        setPartialRefundState({
+                          patientId: selectedPatient.id,
+                          patientName: selectedPatient.name,
+                        });
+                      }}
+                    >
+                      Hoàn trả chi tiết
                     </Button>
                   </Space>
                 </Col>
@@ -2863,6 +2896,28 @@ const Billing: React.FC = () => {
         onClose={() => setReassignModalOpen(false)}
         patientId={selectedPatient?.id ?? ''}
         patientName={selectedPatient?.name}
+        onSuccess={() => {
+          if (selectedPatient?.code) handleSearchPatient(selectedPatient.code);
+        }}
+      />
+
+      <ApplyDiscountModal
+        open={discountModalState !== null}
+        onClose={() => setDiscountModalState(null)}
+        invoiceId={discountModalState?.invoiceId ?? ''}
+        totalAmount={discountModalState?.amount ?? 0}
+        patientName={discountModalState?.patientName}
+        onSuccess={() => {
+          if (selectedPatient?.code) handleSearchPatient(selectedPatient.code);
+        }}
+      />
+
+      <PartialRefundModal
+        open={partialRefundState !== null}
+        onClose={() => setPartialRefundState(null)}
+        patientId={partialRefundState?.patientId ?? ''}
+        patientName={partialRefundState?.patientName}
+        originalPaymentId={partialRefundState?.paymentId}
         onSuccess={() => {
           if (selectedPatient?.code) handleSearchPatient(selectedPatient.code);
         }}

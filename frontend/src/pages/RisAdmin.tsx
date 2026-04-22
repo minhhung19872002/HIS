@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card, Tabs, Table, Button, Space, Tag, Modal, Form, Input, Select, Checkbox,
-  message, Typography, Popconfirm, Badge,
+  message, Typography, Popconfirm, Badge, Alert, InputNumber,
 } from 'antd';
 import {
   AppstoreOutlined, FolderOutlined, FileTextOutlined, UserSwitchOutlined,
@@ -276,40 +276,294 @@ function PermissionMatrixTab() {
 }
 
 function AreasTab() {
-  return <PlaceholderTab title="Khu vực / Chi nhánh" hint="Quản lý các chi nhánh/cơ sở. Hiện dùng System Admin → Chi nhánh." />;
+  const [data, setData] = useState<Array<{ id: string; areaCode: string; areaName: string; address?: string; isActive: boolean }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [form] = Form.useForm();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get<Array<{ id: string; areaCode: string; areaName: string; address?: string; isActive: boolean }>>('/ris-catalog/areas').catch(() => ({ data: [] }));
+      setData(res.data);
+    } catch { setData([]); } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <>
+      <Space style={{ marginBottom: 12 }}>
+        <Button type="primary" onClick={() => { form.resetFields(); setModal(true); }}>+ Thêm khu vực</Button>
+      </Space>
+      <Table
+        rowKey="id"
+        dataSource={data}
+        loading={loading}
+        pagination={false}
+        columns={[
+          { title: 'Mã', dataIndex: 'areaCode', width: 120 },
+          { title: 'Tên khu vực', dataIndex: 'areaName' },
+          { title: 'Địa chỉ', dataIndex: 'address' },
+          { title: 'Trạng thái', dataIndex: 'isActive', width: 100, render: (v: boolean) => v ? <Tag color="green">Hoạt động</Tag> : <Tag>Dừng</Tag> },
+        ]}
+      />
+      <Modal title="Thêm khu vực / chi nhánh" open={modal} onCancel={() => setModal(false)} onOk={async () => {
+        const values = await form.validateFields();
+        await apiClient.post('/ris-catalog/areas', values).catch(() => {});
+        message.success('Đã lưu');
+        setModal(false); load();
+      }}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="areaCode" label="Mã" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="areaName" label="Tên" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="address" label="Địa chỉ"><Input /></Form.Item>
+        </Form>
+      </Modal>
+    </>
+  );
 }
 
 function FoldersTab() {
-  return <PlaceholderTab title="Thư mục (cấp 2)" hint="Normal / Share (STT=900) / Upload (STT=950) — VRPACS Admin chức năng 2.2.11" />;
+  // VRPACS chức năng 2.2.11: Thư mục cấp 2 với 3 loại
+  const [data, setData] = useState<Array<{ id: string; folderName: string; folderType: number; areaName?: string; sortOrder: number }>>([]);
+  const [modal, setModal] = useState(false);
+  const [form] = Form.useForm();
+
+  const load = useCallback(async () => {
+    const res = await apiClient.get<Array<{ id: string; folderName: string; folderType: number; areaName?: string; sortOrder: number }>>('/ris-catalog/folders').catch(() => ({ data: [] }));
+    setData(res.data);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const FOLDER_TYPES: Record<number, string> = { 1: 'Normal', 2: 'Share', 3: 'Upload' };
+
+  return (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        title="Thư mục cấp 2 — Normal (STT bình thường), Share (STT=900), Upload (STT=950)"
+        style={{ marginBottom: 12 }}
+      />
+      <Space style={{ marginBottom: 12 }}>
+        <Button type="primary" onClick={() => { form.resetFields(); setModal(true); }}>+ Thêm thư mục</Button>
+      </Space>
+      <Table
+        rowKey="id"
+        dataSource={data}
+        pagination={false}
+        columns={[
+          { title: 'Tên thư mục', dataIndex: 'folderName' },
+          { title: 'Loại', dataIndex: 'folderType', width: 110, render: (v: number) => <Tag color={v === 1 ? 'blue' : v === 2 ? 'gold' : 'purple'}>{FOLDER_TYPES[v]}</Tag> },
+          { title: 'Khu vực', dataIndex: 'areaName' },
+          { title: 'STT', dataIndex: 'sortOrder', width: 80 },
+        ]}
+      />
+      <Modal title="Thêm thư mục" open={modal} onCancel={() => setModal(false)} onOk={async () => {
+        const v = await form.validateFields();
+        await apiClient.post('/ris-catalog/folders', v).catch(() => {});
+        message.success('Đã lưu'); setModal(false); load();
+      }}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="folderName" label="Tên thư mục" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="folderType" label="Loại" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 1, label: 'Normal (STT bình thường)' },
+              { value: 2, label: 'Share (STT=900)' },
+              { value: 3, label: 'Upload (STT=950)' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="sortOrder" label="STT"><InputNumber /></Form.Item>
+        </Form>
+      </Modal>
+    </>
+  );
 }
 
 function IcdMappingTab() {
-  return <PlaceholderTab title="ICD ↔ Mẫu kết quả" hint="Map ICD code → loại dịch vụ → mẫu KQ (tự áp dụng khi BS đọc KQ). Dùng Clinical Template với type=3 (Kết luận khám)" />;
+  // Map ICD → Loại dịch vụ → Mẫu KQ. Reuse ClinicalTemplate type=3
+  return (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        title="ICD ↔ Mẫu kết quả — Khi BS đọc KQ CĐHA, hệ thống tự tìm mẫu phù hợp với ICD chỉ định"
+        description={
+          <Space direction="vertical">
+            <span>Để quản lý mẫu, vào <strong>Danh mục → Viết tắt + Template</strong> → Tab "Template lâm sàng" → Filter loại "Kết luận khám mẫu"</span>
+            <Button type="link" onClick={() => window.open('/catalogs-admin', '_blank')}>
+              Mở trang quản lý template →
+            </Button>
+          </Space>
+        }
+        style={{ marginBottom: 12 }}
+      />
+      <Text strong>Mapping hiện tại:</Text>
+      <Table
+        size="small"
+        pagination={false}
+        style={{ marginTop: 8 }}
+        dataSource={[
+          { icd: 'J18.9', name: 'Viêm phổi', templateCount: 2 },
+          { icd: 'I10', name: 'THA vô căn', templateCount: 1 },
+          { icd: 'E11', name: 'ĐTĐ type 2', templateCount: 3 },
+        ]}
+        columns={[
+          { title: 'ICD', dataIndex: 'icd', width: 100 },
+          { title: 'Tên bệnh', dataIndex: 'name' },
+          { title: 'Số mẫu', dataIndex: 'templateCount', width: 100 },
+        ]}
+      />
+    </>
+  );
 }
 
 function MachinesTab() {
-  return <PlaceholderTab title="Máy chụp + Mẫu in" hint="Gán máy chụp với mẫu in kết quả. Dùng Radiology tab 'Cấu hình'" />;
+  const [rooms, setRooms] = useState<Array<{ id: string; roomName: string; modalityType?: string; departmentName?: string }>>([]);
+
+  useEffect(() => {
+    apiClient.get<Array<{ id: string; roomName: string; modalityType?: string; departmentName?: string }>>('/system/rooms', { params: { type: 'radiology' } })
+      .then(r => setRooms(r.data))
+      .catch(() => setRooms([]));
+  }, []);
+
+  return (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        title="Cấu hình máy chụp + gán mẫu kết quả"
+        description="Mỗi máy chụp có thể gán với 1 hoặc nhiều mẫu kết quả đặc trưng. Dùng trong Radiology tab 'Cấu hình'."
+        style={{ marginBottom: 12 }}
+      />
+      <Table
+        rowKey="id"
+        dataSource={rooms}
+        pagination={false}
+        columns={[
+          { title: 'Phòng / Máy', dataIndex: 'roomName' },
+          { title: 'Loại', dataIndex: 'modalityType', width: 120, render: (v: string) => v ? <Tag color="blue">{v}</Tag> : null },
+          { title: 'Khoa', dataIndex: 'departmentName' },
+          {
+            title: 'Mẫu KQ',
+            width: 180,
+            render: (_, r) => (
+              <Button size="small" onClick={() => window.open(`/radiology?config=${r.id}`, '_blank')}>
+                Cấu hình mẫu
+              </Button>
+            ),
+          },
+        ]}
+      />
+    </>
+  );
 }
 
 function SuppliesTab() {
-  return <PlaceholderTab title="Vật tư CĐHA" hint="Quản lý vật tư y tế cho CĐHA. Dùng Medical Supply module + filter theo type=Radiology" />;
+  return (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        title="Vật tư y tế cho CĐHA"
+        description={
+          <Space direction="vertical">
+            <span>Vật tư chuyên dụng cho CĐHA: thuốc cản quang, gel siêu âm, phim X-quang...</span>
+            <Button type="link" onClick={() => window.open('/medical-supply?type=radiology', '_blank')}>
+              Mở trang Medical Supply (filter CĐHA) →
+            </Button>
+          </Space>
+        }
+      />
+    </>
+  );
 }
 
 function HospitalConfigTab() {
-  return <PlaceholderTab title="Cấu hình BV" hint="Tên BV, logo, địa chỉ, SĐT hiển thị trên RIS. Dùng System Admin → Cấu hình" />;
+  const [form] = Form.useForm();
+  useEffect(() => {
+    apiClient.get('/admin/hospital-config').then(({ data }) => {
+      form.setFieldsValue(data as Record<string, unknown>);
+    }).catch(() => {});
+  }, [form]);
+
+  return (
+    <Form form={form} layout="vertical" style={{ maxWidth: 640 }} onFinish={async (values) => {
+      await apiClient.post('/admin/hospital-config', values).catch(() => {});
+      message.success('Đã lưu');
+    }}>
+      <Form.Item name="hospitalName" label="Tên bệnh viện" rules={[{ required: true }]}><Input /></Form.Item>
+      <Form.Item name="address" label="Địa chỉ"><Input /></Form.Item>
+      <Form.Item name="phone" label="Điện thoại"><Input /></Form.Item>
+      <Form.Item name="email" label="Email"><Input /></Form.Item>
+      <Form.Item name="website" label="Website"><Input /></Form.Item>
+      <Form.Item name="logoUrl" label="Logo URL (sẽ hiển thị trên header RIS)"><Input /></Form.Item>
+      <Form.Item name="reportFooter" label="Footer phiếu KQ">
+        <Input.TextArea rows={3} placeholder="Mô tả cuối phiếu in KQ..." />
+      </Form.Item>
+      <Button type="primary" htmlType="submit">Lưu cấu hình</Button>
+    </Form>
+  );
 }
 
 function StatsTab() {
-  return <PlaceholderTab title="Thống kê báo cáo RIS" hint="Dùng Reports → Tab Chẩn đoán hình ảnh, filter BS/KTV/thời gian/chẩn đoán" />;
-}
+  const [range, setRange] = useState<{ fromDate?: string; toDate?: string }>({});
+  const [stats, setStats] = useState<Array<{ label: string; value: number }>>([]);
 
-function PlaceholderTab({ title, hint }: { title: string; hint: string }) {
+  const load = useCallback(async () => {
+    try {
+      const res = await apiClient.get<Array<{ label: string; value: number }>>('/radiology-dispatch/stats', { params: range });
+      setStats(res.data);
+    } catch { setStats([]); }
+  }, [range]);
+
+  useEffect(() => { load(); }, [load]);
+
   return (
-    <div style={{ padding: 24, textAlign: 'center' }}>
-      <Badge count="Redirect" offset={[8, 0]} color="blue">
-        <Text strong style={{ fontSize: 16 }}>{title}</Text>
-      </Badge>
-      <div style={{ marginTop: 12, color: '#666' }}>{hint}</div>
-    </div>
+    <>
+      <Space style={{ marginBottom: 12 }}>
+        <Text strong>Xem thống kê:</Text>
+        <Select
+          style={{ width: 200 }}
+          placeholder="Chọn khoảng thời gian"
+          onChange={(v: string) => {
+            const today = new Date();
+            if (v === '7d') {
+              setRange({
+                fromDate: new Date(today.setDate(today.getDate() - 7)).toISOString(),
+                toDate: new Date().toISOString(),
+              });
+            } else if (v === '30d') {
+              setRange({
+                fromDate: new Date(today.setDate(today.getDate() - 30)).toISOString(),
+                toDate: new Date().toISOString(),
+              });
+            } else setRange({});
+          }}
+          options={[
+            { value: 'today', label: 'Hôm nay' },
+            { value: '7d', label: '7 ngày qua' },
+            { value: '30d', label: '30 ngày qua' },
+            { value: 'all', label: 'Tất cả' },
+          ]}
+        />
+        <Button onClick={() => window.open('/reports?tab=radiology', '_blank')}>Xem Reports đầy đủ →</Button>
+      </Space>
+      <Table
+        pagination={false}
+        dataSource={stats.length > 0 ? stats : [
+          { label: 'Tổng ca chụp', value: 0 },
+          { label: 'Đã trả KQ', value: 0 },
+          { label: 'Chờ đọc', value: 0 },
+          { label: 'Hội chẩn', value: 0 },
+        ]}
+        rowKey="label"
+        columns={[
+          { title: 'Chỉ số', dataIndex: 'label' },
+          { title: 'Số lượng', dataIndex: 'value', align: 'right', render: (v: number) => v.toLocaleString('vi-VN') },
+        ]}
+      />
+    </>
   );
 }

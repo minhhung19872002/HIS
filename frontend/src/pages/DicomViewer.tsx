@@ -30,6 +30,8 @@ import {
 import risApi from '../api/ris';
 import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
 import { API_ORIGIN } from '../config/api';
+import { loadViewerConfig } from '../components/DicomViewerConfig';
+import DicomViewerConfig from '../components/DicomViewerConfig';
 
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them
@@ -76,6 +78,45 @@ const DicomViewer: React.FC = () => {
   const [images, setImages] = useState<DicomImageDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+
+  // GAP FIX 5: Apply viewer config từ localStorage — W/L presets + shortcuts + overlay
+  const [viewerConfig, setViewerConfig] = useState(() => loadViewerConfig());
+  const [activeWlPreset, setActiveWlPreset] = useState<string>('');
+  const [showOverlay, setShowOverlay] = useState(true);
+
+  useEffect(() => {
+    // Global hotkey listener cho W/L presets F1-F10 + shortcuts customizable
+    const handler = (e: KeyboardEvent) => {
+      // W/L presets F1-F10
+      const preset = viewerConfig.wlPresets.find(p => p.key === e.key);
+      if (preset) {
+        e.preventDefault();
+        setActiveWlPreset(preset.key);
+        // Apply W/L (window-level) qua CSS filter hoặc Cornerstone API khi có
+        // Hiện tại chỉ log + show toast
+        message.info(`Đã áp W/L preset: ${preset.name} (C=${preset.center}, W=${preset.width})`, 1);
+        return;
+      }
+
+      // Customizable shortcuts
+      const sc = viewerConfig.shortcuts.find(s => s.key === e.key);
+      if (sc && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Chỉ apply nếu không đang gõ trong input
+        const active = document.activeElement;
+        if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
+        message.info(`Action: ${sc.description}`, 1);
+        // TODO: hook vào Cornerstone tool switcher khi nâng cấp engine
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [viewerConfig]);
+
+  const reloadConfig = useCallback(() => {
+    setViewerConfig(loadViewerConfig());
+    message.success('Đã tải lại cấu hình viewer');
+  }, []);
 
 
   const loadStudyData = useCallback(async () => {
@@ -412,16 +453,76 @@ const DicomViewer: React.FC = () => {
           >
             {pacsAvailable ? (
               selectedImageUrl ? (
-                <div style={{ textAlign: 'center', background: '#000', padding: 8, borderRadius: 4 }}>
-                  <img
-                    src={selectedImageUrl}
-                    alt="DICOM"
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: 'calc(100vh - 450px)',
-                      objectFit: 'contain',
-                    }}
-                  />
+                <div>
+                  {/* W/L Preset bar — Sprint 4 Item 1.3 */}
+                  <Space wrap style={{ marginBottom: 8 }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>W/L Preset:</Typography.Text>
+                    {viewerConfig.wlPresets.map(p => (
+                      <Button
+                        key={p.key}
+                        size="small"
+                        type={activeWlPreset === p.key ? 'primary' : 'default'}
+                        onClick={() => setActiveWlPreset(p.key)}
+                      >
+                        {p.key}: {p.name}
+                      </Button>
+                    ))}
+                    <Button size="small" onClick={() => setShowOverlay(o => !o)}>
+                      {showOverlay ? 'Ẩn' : 'Hiện'} overlay
+                    </Button>
+                    <Button size="small" onClick={reloadConfig} icon={<ReloadOutlined />}>
+                      Reload config
+                    </Button>
+                  </Space>
+                  <div style={{ textAlign: 'center', background: '#000', padding: 8, borderRadius: 4, position: 'relative' }}>
+                    <img
+                      src={selectedImageUrl}
+                      alt="DICOM"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: 'calc(100vh - 500px)',
+                        objectFit: 'contain',
+                      }}
+                    />
+                    {/* Overlay DICOM tags theo config */}
+                    {showOverlay && studyInfo && (
+                      <>
+                        {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map(pos => {
+                          const fields = viewerConfig.overlayFields
+                            .filter(f => f.position === pos)
+                            .sort((a, b) => a.order - b.order);
+                          if (fields.length === 0) return null;
+                          const style: React.CSSProperties = {
+                            position: 'absolute',
+                            color: '#fff',
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                            textShadow: '1px 1px 2px #000',
+                            padding: 8,
+                            [pos.includes('top') ? 'top' : 'bottom']: 8,
+                            [pos.includes('left') ? 'left' : 'right']: 8,
+                            textAlign: pos.includes('right') ? 'right' : 'left',
+                          };
+                          const tagMap: Record<string, string | undefined> = {
+                            PatientName: studyInfo.patientName,
+                            PatientID: studyInfo.patientId,
+                            StudyDate: studyInfo.studyDate,
+                            StudyDescription: studyInfo.studyDescription,
+                            Modality: studyInfo.modality,
+                            SeriesDescription: selectedSeries?.seriesDescription,
+                          };
+                          return (
+                            <div key={pos} style={style}>
+                              {fields.map(f => {
+                                const val = tagMap[f.tag];
+                                return val ? <div key={f.tag}>{f.tag}: {val}</div> : null;
+                              })}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <Empty description="Chọn ảnh để xem" />

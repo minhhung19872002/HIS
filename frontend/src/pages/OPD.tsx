@@ -286,7 +286,7 @@ const OPD: React.FC = () => {
     }, description: 'PTTT (F6)' },
     { key: 'F9', handler: () => { if (examination?.id) setIsInjuryModalOpen(true); }, description: 'Tai nạn thương tích (F9)' },
     { key: 'F10', handler: () => { if (examination?.id) setIsStockReservationOpen(true); }, description: 'Xuất dự trù (F10)' },
-    { key: 'F11', handler: () => setActiveTab('diagnosis'), description: 'Bệnh kèm theo (F11)' },
+    { key: 'F11', handler: () => setActiveTab('comorbidities'), description: 'Bệnh kèm theo (F11)' },
     { key: 'f', ctrl: true, handler: () => document.querySelector<HTMLInputElement>('.ant-input-search input')?.focus(), description: 'Tìm kiếm' },
   ]);
 
@@ -2570,6 +2570,135 @@ const OPD: React.FC = () => {
                             </Form.Item>
                           </Col>
                         </Row>
+                      ),
+                    },
+                    {
+                      key: 'allergies',
+                      label: (
+                        <span>
+                          <WarningOutlined /> Dị ứng
+                        </span>
+                      ),
+                      children: (
+                        <>
+                          <Alert
+                            title="Dị ứng thuốc / thực phẩm"
+                            description="Ghi nhận các loại dị ứng để hệ thống kiểm tra tương kỵ khi kê đơn. Click 'Thêm dị ứng' để thêm từng mục."
+                            type="warning"
+                            showIcon
+                            style={{ marginBottom: 12 }}
+                          />
+                          <Row gutter={16}>
+                            <Col span={12}>
+                              <Form.Item label="Dị ứng thuốc" name={['medicalHistory', 'drugAllergies']}>
+                                <TextArea
+                                  rows={3}
+                                  placeholder="VD: Penicillin (nổi mày đay), Sulfamide (shock phản vệ)"
+                                />
+                              </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                              <Form.Item label="Dị ứng thức ăn" name={['medicalHistory', 'foodAllergies']}>
+                                <TextArea
+                                  rows={3}
+                                  placeholder="VD: Hải sản, đậu phộng"
+                                />
+                              </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                              <Form.Item label="Mức độ + Phản ứng" name={['medicalHistory', 'allergyReaction']}>
+                                <TextArea
+                                  rows={2}
+                                  placeholder="VD: Độ 1-4, biểu hiện: mày đay, khó thở, shock..."
+                                />
+                              </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                              <Form.Item label="Ghi chú dị ứng khác" name={['medicalHistory', 'allergies']}>
+                                <TextArea rows={2} placeholder="Dị ứng khác..." />
+                              </Form.Item>
+                            </Col>
+                          </Row>
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'comorbidities',
+                      label: (
+                        <span>
+                          <OrderedListOutlined /> Bệnh kèm theo (F11)
+                        </span>
+                      ),
+                      children: (
+                        <>
+                          <Alert
+                            title="Bệnh kèm theo / Tiền sử bệnh"
+                            description="Ghi các bệnh lý đồng mắc (đái tháo đường, THA, hen, tim mạch...) để hệ thống tính tương kỵ + chống chỉ định."
+                            type="info"
+                            showIcon
+                            style={{ marginBottom: 12 }}
+                          />
+                          <Space style={{ marginBottom: 12 }} wrap>
+                            <Input
+                              placeholder="Mã ICD hoặc tên bệnh"
+                              style={{ width: 280 }}
+                              id="comorbidity-code-input"
+                            />
+                            <Input
+                              placeholder="Ghi chú (tùy chọn)"
+                              style={{ width: 280 }}
+                              id="comorbidity-note-input"
+                            />
+                            <Button
+                              type="primary"
+                              icon={<PlusOutlined />}
+                              onClick={() => {
+                                const codeEl = document.getElementById('comorbidity-code-input') as HTMLInputElement;
+                                const noteEl = document.getElementById('comorbidity-note-input') as HTMLInputElement;
+                                if (codeEl?.value) {
+                                  setComorbidities(prev => [...prev, {
+                                    code: codeEl.value,
+                                    name: codeEl.value,
+                                    note: noteEl?.value,
+                                  }]);
+                                  codeEl.value = '';
+                                  if (noteEl) noteEl.value = '';
+                                }
+                              }}
+                            >
+                              Thêm
+                            </Button>
+                          </Space>
+                          <Table<{ code: string; name: string; note?: string }>
+                            rowKey={(_, idx) => String(idx)}
+                            dataSource={comorbidities}
+                            pagination={false}
+                            size="small"
+                            columns={[
+                              { title: 'Mã ICD / Tên', dataIndex: 'code' },
+                              { title: 'Ghi chú', dataIndex: 'note' },
+                              {
+                                title: '',
+                                width: 60,
+                                render: (_, _r, idx) => (
+                                  <Button
+                                    size="small"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => setComorbidities(prev => prev.filter((_, i) => i !== idx))}
+                                  />
+                                ),
+                              },
+                            ]}
+                          />
+                          <Form.Item
+                            label="Tiền sử bệnh tổng hợp (mô tả)"
+                            name={['medicalHistory', 'comorbidityNote']}
+                            style={{ marginTop: 16 }}
+                          >
+                            <TextArea rows={3} placeholder="Mô tả tổng hợp tiền sử bệnh nếu cần..." />
+                          </Form.Item>
+                        </>
                       ),
                     },
                     {

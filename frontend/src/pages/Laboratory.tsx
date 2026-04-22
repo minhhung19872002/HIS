@@ -40,6 +40,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import laboratoryApi from '../api/laboratory';
 import type { LabRequest, TestResult, TestParameter } from '../api/laboratory';
+import SampleSequenceToolbar from '../components/SampleSequenceToolbar';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signature';
 import { useSigningContext } from '../contexts/SigningContext';
@@ -1345,6 +1346,17 @@ const Laboratory: React.FC = () => {
       >
         {selectedRequest && (
           <>
+            <div style={{ marginBottom: 16, padding: 12, background: '#f0f5ff', borderRadius: 4 }}>
+              <SampleSequenceToolbar
+                serviceRequestDetailId={selectedRequest.id}
+                patientId={selectedRequest.patientId}
+                existingBarcode={selectedRequest.sampleBarcode}
+                onUpdated={(barcode) => {
+                  // Update local state
+                  setSelectedRequest((prev) => prev ? { ...prev, sampleBarcode: barcode } : prev);
+                }}
+              />
+            </div>
             <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
               <Descriptions.Item label="Mã phiếu">{selectedRequest.requestCode}</Descriptions.Item>
               <Descriptions.Item label="Mã BN">{selectedRequest.patientCode}</Descriptions.Item>
