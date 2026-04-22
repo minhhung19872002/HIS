@@ -98,5 +98,17 @@ public class ServiceRequestDetail : BaseEntity
     public DateTime? SampleCollectedAt { get; set; }
     public string? SampleBarcode { get; set; }
 
+    // N1.16+17: Tách Collect vs Receive + KTV vs Reviewer
+    public Guid? CollectedByUserId { get; set; } // Người lấy mẫu
+    public Guid? ReceivedByUserId { get; set; }  // LIS nhận mẫu
+    public DateTime? ReceivedAt { get; set; }
+    /// <summary>0 = chưa nhận, 1 = đã nhận, 2 = từ chối</summary>
+    public int ReceiveStatus { get; set; }
+    public string? RejectReason { get; set; }
+    public Guid? TechnicianUserId { get; set; }  // KTV thực hiện XN
+    public DateTime? TechnicianRunAt { get; set; }
+    public Guid? ReviewerUserId { get; set; }    // Người duyệt (phải khác KTV)
+    public DateTime? ReviewedAt { get; set; }
+
     public string? Note { get; set; }
 }

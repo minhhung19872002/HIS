@@ -100,7 +100,7 @@ const MainLayout: React.FC = () => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
       clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/observation-stay', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
-      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin'],
+      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/sample-receive', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin'],
       support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/inpatient-dispensing', '/stock-report', '/medical-supply', '/office-supply-approval', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/payment-transactions', '/payment-reports', '/service-requeue', '/receipt-book-admin', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/employee-profile', '/quality'],
@@ -161,6 +161,7 @@ const MainLayout: React.FC = () => {
         { key: '/screening', icon: <FilterOutlined />, label: 'Sàng lọc SS/TS' },
         { key: '/sample-storage', icon: <DatabaseOutlined />, label: 'Lưu trữ mẫu' },
         { key: '/sample-tracking', icon: <NodeIndexOutlined />, label: 'Theo dõi mẫu' },
+        { key: '/sample-receive', icon: <CheckSquareOutlined />, label: 'Nhận mẫu + Duyệt KQ' },
         { key: '/reagent-management', icon: <MedicineBoxOutlined />, label: 'Hóa chất XN' },
         { key: '/radiology', icon: <ScanOutlined />, label: 'CĐHA' },
         { key: '/radiology-ops', icon: <ScanOutlined />, label: 'CĐHA Chỉ định thêm / Xuất thuốc' },
