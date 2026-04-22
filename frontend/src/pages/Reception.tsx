@@ -431,17 +431,57 @@ const Reception: React.FC = () => {
 
       // Prepare registration DTO based on patient type
       const patientType = values.patientType;
+      const extraRoomIds: string[] = values.extraRoomIds || [];
 
-      if (patientType === 1 && values.insuranceNumber) {
-        // BHYT registration
+      // Multi-room registration (chỉ áp dụng cho thu phí/dịch vụ)
+      if (extraRoomIds.length > 0 && patientType !== 1) {
+        const { registerMultipleRooms } = await import('../api/multiSpecialtyExam');
+        const allRoomIds = [values.roomId, ...extraRoomIds].filter(Boolean);
+        if (!values.patientId) {
+          // Cần tạo patient trước khi đăng ký multi-room. Fall back to single-room registration
+          // với fee API (API này sẽ tạo patient + examination đầu tiên).
+          const dto: receptionApi.FeeRegistrationDto = {
+            newPatient: {
+              fullName: values.fullName,
+              gender: values.gender,
+              dateOfBirth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : undefined,
+              phoneNumber: values.phoneNumber,
+              address: values.address,
+              identityNumber: values.identityNumber,
+            },
+            serviceType: patientType === 2 ? 2 : 3,
+            roomId: values.roomId,
+          };
+          const firstResp = await receptionApi.registerFeePatient(dto);
+          const createdPatientId = (firstResp?.data as { patientId?: string })?.patientId;
+          if (createdPatientId && extraRoomIds.length > 0) {
+            await registerMultipleRooms({
+              patientId: createdPatientId,
+              patientType: dto.serviceType,
+              roomIds: extraRoomIds,
+              chiefComplaint: values.chiefComplaint,
+            });
+          }
+        } else {
+          await registerMultipleRooms({
+            patientId: values.patientId,
+            patientType,
+            roomIds: allRoomIds,
+            insuranceNumber: values.insuranceNumber,
+            chiefComplaint: values.chiefComplaint,
+          });
+        }
+        message.success(`Đã đăng ký BN với ${allRoomIds.length} phòng khám`);
+      } else if (patientType === 1 && values.insuranceNumber) {
+        // BHYT registration (không hỗ trợ multi-room theo quy định)
         const dto: receptionApi.InsuranceRegistrationDto = {
           insuranceNumber: values.insuranceNumber,
           roomId: values.roomId,
           identityNumber: values.identityNumber,
         };
         await receptionApi.registerInsurancePatient(dto);
+        message.success('Đăng ký khám BHYT thành công!');
       } else {
-        // Fee/Service registration
         const dto: receptionApi.FeeRegistrationDto = {
           newPatient: {
             fullName: values.fullName,
@@ -451,16 +491,15 @@ const Reception: React.FC = () => {
             address: values.address,
             identityNumber: values.identityNumber,
           },
-          serviceType: patientType === 2 ? 2 : 3, // 2: Viện phí, 3: Dịch vụ
+          serviceType: patientType === 2 ? 2 : 3,
           roomId: values.roomId,
         };
         await receptionApi.registerFeePatient(dto);
+        message.success('Đăng ký khám thành công!');
       }
 
-      message.success('Đăng ký khám thành công!');
       setIsModalOpen(false);
       form.resetFields();
-      // Refresh data
       fetchRooms();
       fetchAdmissions();
     } catch (error) {
@@ -1646,6 +1685,30 @@ const Reception: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.patientType !== cur.patientType || prev.roomId !== cur.roomId}>
+            {({ getFieldValue }) => {
+              const pt = getFieldValue('patientType');
+              if (pt === 1) return null;
+              const primaryRoom = getFieldValue('roomId');
+              return (
+                <Form.Item
+                  name="extraRoomIds"
+                  label="Đăng ký thêm phòng khám (chỉ thu phí/dịch vụ)"
+                  tooltip="BN thu phí có thể đăng ký nhiều phòng khám cùng lúc. Không áp dụng cho BHYT."
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="Chọn thêm phòng khám khác (không bắt buộc)"
+                    loading={loadingRooms}
+                    options={rooms
+                      .filter(r => r.roomName && r.roomId !== primaryRoom)
+                      .map(r => ({ value: r.roomId, label: `${r.roomName} - ${r.departmentName}` }))}
+                  />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
 
           {/* Inline insurance verification result */}
           {inlineVerifyStatus === 'valid' && inlineCardVerification && (() => {

@@ -576,6 +576,14 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             .HasForeignKey(d => d.DischargedBy)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Examination self-ref: ParentExaminationId is FK to another Examination
+        // (used for "Khám thêm chuyên khoa khác" multi-specialty workflow)
+        modelBuilder.Entity<Examination>()
+            .HasOne(e => e.ParentExamination)
+            .WithMany()
+            .HasForeignKey(e => e.ParentExaminationId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         // Fix PathologyResult FKs: navigation properties don't match FK column names
         // EF would otherwise create shadow columns PathologistUserId/VerifiedByUserId
         // that don't exist in the SQL Server schema.

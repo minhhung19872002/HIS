@@ -53,6 +53,7 @@ public static class DependencyInjection
         // Phân hệ 10: Thu ngân (Billing)
         services.AddScoped<IBillingCompleteService, BillingCompleteService>();
         services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
+        services.AddScoped<IMultiSpecialtyExamService, MultiSpecialtyExamService>();
 
         // Phân hệ 6: Phẫu thuật Thủ thuật (Surgery)
         services.AddScoped<ISurgeryCompleteService, SurgeryCompleteService>();

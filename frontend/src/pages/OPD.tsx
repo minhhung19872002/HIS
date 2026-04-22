@@ -43,6 +43,7 @@ import {
   ToolOutlined,
   CalendarOutlined,
   SwapOutlined,
+  PlusCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -237,6 +238,11 @@ const OPD: React.FC = () => {
   const [isTransferRoomModalOpen, setIsTransferRoomModalOpen] = useState(false);
   const [transferRoomForm] = Form.useForm();
   const [transferringRoom, setTransferringRoom] = useState(false);
+
+  // Add follow-up specialty modal (Khám thêm CK khác)
+  const [isAddSpecialtyModalOpen, setIsAddSpecialtyModalOpen] = useState(false);
+  const [addSpecialtyForm] = Form.useForm();
+  const [addingSpecialty, setAddingSpecialty] = useState(false);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -1356,6 +1362,38 @@ const OPD: React.FC = () => {
     setIsTransferRoomModalOpen(true);
   };
 
+  const handleOpenAddSpecialty = () => {
+    if (!examination?.id) {
+      message.warning('Vui lòng chọn bệnh nhân');
+      return;
+    }
+    addSpecialtyForm.resetFields();
+    setIsAddSpecialtyModalOpen(true);
+  };
+
+  const handleAddSpecialtySubmit = async () => {
+    try {
+      const values = await addSpecialtyForm.validateFields();
+      setAddingSpecialty(true);
+      const { addFollowUpSpecialty } = await import('../api/multiSpecialtyExam');
+      const result = await addFollowUpSpecialty({
+        parentExaminationId: examination!.id,
+        roomId: values.roomId,
+        reason: values.reason,
+      });
+      message.success(
+        `Đã tạo phiên khám CK khác - Phòng ${result.roomName}, STT ${result.queueNumber}`);
+      setIsAddSpecialtyModalOpen(false);
+      if (selectedRoomId) loadQueue(selectedRoomId);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      console.warn('Add specialty error:', error);
+      message.error(err?.response?.data?.message || 'Không thêm được phiên khám CK khác');
+    } finally {
+      setAddingSpecialty(false);
+    }
+  };
+
   const handleTransferRoomSubmit = async () => {
     try {
       const values = await transferRoomForm.validateFields();
@@ -2077,6 +2115,13 @@ const OPD: React.FC = () => {
                     disabled={!examination?.id}
                   >
                     Chuyển phòng
+                  </Button>
+                  <Button
+                    icon={<PlusCircleOutlined />}
+                    onClick={handleOpenAddSpecialty}
+                    disabled={!examination?.id}
+                  >
+                    Khám thêm CK khác
                   </Button>
                 </Space>
               }
@@ -3311,6 +3356,61 @@ const OPD: React.FC = () => {
           >
             <Input.TextArea rows={2} placeholder="Nhập lý do chuyển phòng (không bắt buộc)..." />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Add Follow-up Specialty Modal */}
+      <Modal
+        title={<><PlusCircleOutlined /> Khám thêm chuyên khoa khác</>}
+        open={isAddSpecialtyModalOpen}
+        onOk={handleAddSpecialtySubmit}
+        onCancel={() => setIsAddSpecialtyModalOpen(false)}
+        okText="Tạo phiên khám mới"
+        cancelText="Hủy"
+        confirmLoading={addingSpecialty}
+        width={500}
+        destroyOnHidden
+      >
+        {selectedPatient && (
+          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 4 }}>
+            <Text strong>Bệnh nhân: </Text>
+            <Text>{selectedPatient.fullName}</Text>
+            <br />
+            <Text type="secondary">
+              Phiên khám hiện tại: {rooms.find(r => r.id === selectedRoomId)?.name}
+              {' — '}
+              Phiên khám mới sẽ liên kết với phiên này (chuỗi khám chuyên khoa).
+            </Text>
+          </div>
+        )}
+        <Form form={addSpecialtyForm} layout="vertical">
+          <Form.Item
+            name="roomId"
+            label="Phòng khám chuyên khoa khác"
+            rules={[{ required: true, message: 'Vui lòng chọn phòng khám' }]}
+          >
+            <Select
+              placeholder="Chọn phòng khám chuyên khoa"
+              showSearch
+              optionFilterProp="label"
+              options={rooms
+                .filter(r => r.id !== selectedRoomId)
+                .map(r => ({ value: r.id, label: `${r.name} - ${r.departmentName || ''}` }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="reason"
+            label="Lý do khám thêm"
+          >
+            <Input.TextArea rows={2} placeholder="Lý do chỉ định khám thêm CK khác..." />
+          </Form.Item>
+          <Alert
+            message="BHYT lưu ý"
+            description="Bệnh nhân BHYT: chỉ phiên khám cuối cùng (được hoàn tất sau cùng) mới được in bảng kê tổng hợp chi phí."
+            type="info"
+            showIcon
+            style={{ marginTop: 8 }}
+          />
         </Form>
       </Modal>
     </div>

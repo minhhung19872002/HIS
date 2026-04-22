@@ -69,6 +69,21 @@ public class Examination : BaseEntity
 
     public int ExaminationType { get; set; } // 1-Khám chính, 2-Khám thêm, 3-Khám kết hợp
     public int QueueNumber { get; set; } // Số thứ tự
+
+    /// <summary>
+    /// Khám thêm CK khác: ParentExaminationId trỏ về phiên khám chính cùng ngày.
+    /// Quy tắc BHYT: chỉ phiên cuối cùng (nơi bệnh nhân hoàn tất) được in bảng kê tổng hợp.
+    /// </summary>
+    public Guid? ParentExaminationId { get; set; }
+    public virtual Examination? ParentExamination { get; set; }
+
+    /// <summary>
+    /// Đã in chi phí (bảng kê) — sau khi in không sửa được phiên khám nữa;
+    /// cần gọi CancelPrintBill trước khi chỉnh sửa.
+    /// </summary>
+    public bool IsBillPrinted { get; set; }
+    public DateTime? BillPrintedAt { get; set; }
+    public Guid? BillPrintedBy { get; set; }
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
 
