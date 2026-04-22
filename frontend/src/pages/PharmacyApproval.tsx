@@ -3,7 +3,8 @@ import {
   Card, Table, Tag, Space, Select, DatePicker, Button, Input, Modal, Form,
   InputNumber, message, Tabs, Alert, Badge, Popconfirm, Drawer, Checkbox,
 } from 'antd';
-import { ReloadOutlined, CheckCircleOutlined, UndoOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckCircleOutlined, UndoOutlined, ExclamationCircleOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { exportToExcel, formatVnd, formatDateTime } from '../utils/excelExport';
 import type { Dayjs } from 'dayjs';
 import {
   searchApprovals,
@@ -195,7 +196,32 @@ export default function PharmacyApproval() {
         />
       )}
 
-      <Card title="Phê duyệt cấp phát kho Dược" extra={<Button icon={<ReloadOutlined />} onClick={refresh}>Làm mới</Button>}>
+      <Card title="Phê duyệt cấp phát kho Dược" extra={
+        <Space>
+          <Button
+            icon={<FileExcelOutlined />}
+            onClick={() => exportToExcel(
+              items as unknown as Array<Record<string, unknown>>,
+              [
+                { header: 'Mã phiếu', key: 'approvalCode', width: 22 },
+                { header: 'Loại', key: 'approvalTypeName', width: 26 },
+                { header: 'Khoa/Phòng', key: 'fromDepartmentName', width: 20 },
+                { header: 'Kho nhận', key: 'toWarehouseName', width: 20 },
+                { header: 'BN', key: 'patientName' },
+                { header: 'Tổng tiền', key: 'totalAmount', format: formatVnd, width: 15 },
+                { header: 'Trạng thái', key: 'statusText', width: 14 },
+                { header: 'Ngày', key: 'requestDate', format: formatDateTime, width: 20 },
+              ],
+              `duyet-cap-duoc-${new Date().toISOString().split('T')[0]}`,
+              'Phê duyệt',
+            )}
+            disabled={items.length === 0}
+          >
+            Xuất Excel
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={refresh}>Làm mới</Button>
+        </Space>
+      }>
         <Space style={{ marginBottom: 16 }} wrap>
           <Input
             placeholder="Tìm theo mã phiếu, ghi chú, tên BN"

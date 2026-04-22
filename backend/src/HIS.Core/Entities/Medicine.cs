@@ -76,8 +76,14 @@ public class MedicalSupply : BaseEntity
     public string? SupplyCodeBYT { get; set; }
     public string? RegistrationNumber { get; set; }
 
-    public int SupplyType { get; set; } // 1-Vật tư tiêu hao, 2-Vật tư thay thế, 3-Hóa chất
+    public int SupplyType { get; set; } // 1-Vật tư tiêu hao, 2-Vật tư thay thế, 3-Hóa chất, 4-VPP (văn phòng phẩm), 5-TTB VPP (trang thiết bị VPP)
     public string? SupplyGroupCode { get; set; }
+
+    /// <summary>
+    /// Sprint 6 Item 2.14: phân biệt medical supply vs office supply.
+    /// True = vật tư y tế (mặc định), False = VPP/TTB văn phòng (quản lý riêng).
+    /// </summary>
+    public bool IsMedical { get; set; } = true;
 
     public string? Unit { get; set; }
     public string? Specification { get; set; } // Quy cách

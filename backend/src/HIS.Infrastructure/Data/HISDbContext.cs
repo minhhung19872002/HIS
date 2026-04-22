@@ -84,6 +84,18 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ConsultationParticipant> ConsultationParticipants => Set<ConsultationParticipant>();
     public DbSet<NonDicomStudy> NonDicomStudies => Set<NonDicomStudy>();
     public DbSet<NonDicomImage> NonDicomImages => Set<NonDicomImage>();
+    public DbSet<EmployeeAsset> EmployeeAssets => Set<EmployeeAsset>();
+    public DbSet<EmployeeAllowance> EmployeeAllowances => Set<EmployeeAllowance>();
+    public DbSet<EmployeeCareerHistory> EmployeeCareerHistories => Set<EmployeeCareerHistory>();
+    public DbSet<EmployeeEducation> EmployeeEducations => Set<EmployeeEducation>();
+    public DbSet<EmployeeFamily> EmployeeFamilies => Set<EmployeeFamily>();
+    public DbSet<EmployeeRewardDiscipline> EmployeeRewardDisciplines => Set<EmployeeRewardDiscipline>();
+    public DbSet<EmployeeBankAccount> EmployeeBankAccounts => Set<EmployeeBankAccount>();
+    public DbSet<EmployeeContract> EmployeeContracts => Set<EmployeeContract>();
+    public DbSet<EmployeeInsuranceInfo> EmployeeInsuranceInfos => Set<EmployeeInsuranceInfo>();
+    public DbSet<LabBook> LabBooks => Set<LabBook>();
+    public DbSet<LabBookGroup> LabBookGroups => Set<LabBookGroup>();
+    public DbSet<LabChemical> LabChemicals => Set<LabChemical>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();

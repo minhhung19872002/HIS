@@ -119,13 +119,43 @@ public class InvoiceSummary : BaseEntity
 }
 
 /// <summary>
-/// Sổ thu tiền - CashBook
+/// Sổ thu tiền - CashBook — Sprint 6 Item 2.10.
+/// Chuẩn MQ Solutions: mỗi người thu có 2 quyển sổ:
+/// - Sổ viện phí (BookCode = tên không dấu, VD: "nguyenthianh")
+/// - Sổ tạm ứng (BookCode = tên không dấu + "_TU", VD: "nguyenthianh_TU")
 /// </summary>
 public class CashBook : BaseEntity
 {
     public string BookCode { get; set; } = string.Empty;
     public string BookName { get; set; } = string.Empty;
-    public int BookType { get; set; } // 1-Thu tiền, 2-Tạm ứng
+    public int BookType { get; set; } // 1-Thu tiền (viện phí), 2-Tạm ứng
+
+    /// <summary>Số từ (VD: 1)</summary>
+    public int StartNumber { get; set; }
+
+    /// <summary>Số đến (VD: 999999)</summary>
+    public int EndNumber { get; set; } = 999999;
+
+    /// <summary>Số biên lai hiện tại (auto-increment khi thu)</summary>
+    public int CurrentNumber { get; set; }
+
+    /// <summary>
+    /// Loại sử dụng / mục đích:
+    /// - "TU" = Tạm ứng
+    /// - "THANH_TOAN_VIEN_PHI" = Thanh toán viện phí
+    /// - "THU_VIEN_PHI_KHOA_CHUYEN" = Thu viện phí khoa chuyển
+    /// </summary>
+    public string? UsageCategory { get; set; }
+
+    /// <summary>Lý do thu chuẩn hóa — ghi lên biên lai in</summary>
+    public string? DefaultReason { get; set; }
+
+    /// <summary>Có đang dùng không — MQ "Đang dùng" checkbox</summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>Áp dụng cho "Khám bệnh" không (chọn trong MQ)</summary>
+    public bool AppliesToExamination { get; set; } = true;
+
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
 

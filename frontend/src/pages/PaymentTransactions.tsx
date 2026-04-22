@@ -3,7 +3,8 @@ import {
   Card, Table, Tag, Space, Input, Select, DatePicker, Button, Statistic,
   Row, Col, Modal, Form, InputNumber, message,
 } from 'antd';
-import { ReloadOutlined, RollbackOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RollbackOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { exportToExcel, formatVnd, formatDateTime } from '../utils/excelExport';
 import type { Dayjs } from 'dayjs';
 import {
   searchTransactions,
@@ -121,7 +122,32 @@ export default function PaymentTransactions() {
 
       <Card
         title="Quản lý giao dịch thanh toán"
-        extra={<Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>}
+        extra={
+          <Space>
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={() => exportToExcel(
+                items as unknown as Array<Record<string, unknown>>,
+                [
+                  { header: 'Mã GD', key: 'txnRef', width: 22 },
+                  { header: 'Cổng', key: 'provider', width: 10 },
+                  { header: 'BN', key: 'patientName' },
+                  { header: 'Nội dung', key: 'orderInfo', width: 30 },
+                  { header: 'Số tiền', key: 'amount', format: formatVnd, width: 15 },
+                  { header: 'Trạng thái', key: 'statusText', width: 15 },
+                  { header: 'Ngân hàng', key: 'bankCode', width: 12 },
+                  { header: 'Thời gian', key: 'createdAt', format: formatDateTime, width: 20 },
+                ],
+                `giao-dich-thanh-toan-${new Date().toISOString().split('T')[0]}`,
+                'Giao dịch',
+              )}
+              disabled={items.length === 0}
+            >
+              Xuất Excel
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>
+          </Space>
+        }
       >
         <Space style={{ marginBottom: 16 }} wrap>
           <Input

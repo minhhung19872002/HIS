@@ -11,8 +11,9 @@ import {
 } from 'antd';
 import {
   VideoCameraOutlined, PlayCircleOutlined, StopOutlined, LinkOutlined,
-  ReloadOutlined, PlusOutlined, TeamOutlined, CopyOutlined,
+  ReloadOutlined, PlusOutlined, TeamOutlined, CopyOutlined, FileExcelOutlined,
 } from '@ant-design/icons';
+import { exportToExcel, formatDateTime } from '../utils/excelExport';
 import dayjs, { type Dayjs } from 'dayjs';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
@@ -148,6 +149,25 @@ export default function VideoConsultation() {
         }
         extra={
           <Space>
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={() => exportToExcel(
+                rooms as unknown as Array<Record<string, unknown>>,
+                [
+                  { header: 'Tên phòng', key: 'title', width: 30 },
+                  { header: 'Loại', key: 'roomType', format: (v) => (['', 'CĐHA', 'Nội trú', 'Tử vong', 'Tuyến trên', 'Giảng dạy'][v as number] || '') },
+                  { header: 'BN', key: 'patientName' },
+                  { header: 'Host', key: 'hostName' },
+                  { header: 'Lịch', key: 'scheduledAt', format: formatDateTime, width: 18 },
+                  { header: 'Trạng thái', key: 'statusText', width: 14 },
+                ],
+                `hoi-chan-video-${new Date().toISOString().split('T')[0]}`,
+                'Phòng hội chẩn',
+              )}
+              disabled={rooms.length === 0}
+            >
+              Xuất Excel
+            </Button>
             <Button icon={<ReloadOutlined />} onClick={load}>Làm mới</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => {
               createForm.resetFields();
