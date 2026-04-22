@@ -54,6 +54,7 @@ const OfficeSupplyApproval = lazy(() => import('./pages/OfficeSupplyApproval'));
 const ReceiptBookAdmin = lazy(() => import('./pages/ReceiptBookAdmin'));
 const RadiologyOps = lazy(() => import('./pages/RadiologyOps'));
 const SampleReceive = lazy(() => import('./pages/SampleReceive'));
+const BhxhConfig = lazy(() => import('./pages/BhxhConfig'));
 const PublicStudyViewer = lazy(() => import('./pages/PublicStudyViewer'));
 const RisDispatcher = lazy(() => import('./pages/RisDispatcher'));
 const RisAdmin = lazy(() => import('./pages/RisAdmin'));
@@ -211,6 +212,7 @@ const AppRoutes: React.FC = () => {
           <Route path="receipt-book-admin" element={<ReceiptBookAdmin />} />
           <Route path="radiology-ops" element={<RadiologyOps />} />
           <Route path="sample-receive" element={<SampleReceive />} />
+          <Route path="bhxh-config" element={<BhxhConfig />} />
           <Route path="medical-supply" element={<MedicalSupply />} />
           <Route path="follow-up" element={<FollowUp />} />
           <Route path="booking-management" element={<BookingManagement />} />
