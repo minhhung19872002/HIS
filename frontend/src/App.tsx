@@ -48,6 +48,7 @@ const RisAdmin = lazy(() => import('./pages/RisAdmin'));
 const VideoConsultation = lazy(() => import('./pages/VideoConsultation'));
 const NonDicomCapture = lazy(() => import('./pages/NonDicomCapture'));
 const MobileHome = lazy(() => import('./pages/MobileHome'));
+const CatalogsAdmin = lazy(() => import('./pages/CatalogsAdmin'));
 const Prescription = lazy(() => import('./pages/Prescription'));
 const SystemAdmin = lazy(() => import('./pages/SystemAdmin'));
 const Surgery = lazy(() => import('./pages/Surgery'));
@@ -206,6 +207,7 @@ const AppRoutes: React.FC = () => {
           <Route path="video-consultation" element={<VideoConsultation />} />
           <Route path="non-dicom-capture" element={<NonDicomCapture />} />
           <Route path="mobile" element={<MobileHome />} />
+          <Route path="catalogs-admin" element={<CatalogsAdmin />} />
           <Route path="blood-bank" element={<BloodBank />} />
           <Route path="billing" element={<Billing />} />
           <Route path="payment-transactions" element={<PaymentTransactions />} />
