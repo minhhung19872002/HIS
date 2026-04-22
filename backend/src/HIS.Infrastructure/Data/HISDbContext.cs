@@ -71,6 +71,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<CashBook> CashBooks => Set<CashBook>();
     public DbSet<ElectronicInvoice> ElectronicInvoices => Set<ElectronicInvoice>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+    public DbSet<PharmacyApproval> PharmacyApprovals => Set<PharmacyApproval>();
+    public DbSet<PharmacyApprovalItem> PharmacyApprovalItems => Set<PharmacyApprovalItem>();
+    public DbSet<PharmacyApprovalLog> PharmacyApprovalLogs => Set<PharmacyApprovalLog>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();

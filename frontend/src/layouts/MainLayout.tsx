@@ -100,7 +100,7 @@ const MainLayout: React.FC = () => {
     const groupMap: Record<string, string[]> = {
       clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
       paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/consultation', '/blood-bank', '/pathology', '/lis-config'],
-      support: ['/pharmacy', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
+      support: ['/pharmacy', '/pharmacy-approval', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/payment-transactions', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/quality'],
       integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance'],
@@ -174,6 +174,7 @@ const MainLayout: React.FC = () => {
       label: 'Hỗ trợ điều trị',
       children: [
         { key: '/pharmacy', icon: <MedicineBoxOutlined />, label: 'Nhà thuốc' },
+        { key: '/pharmacy-approval', icon: <MedicineBoxOutlined />, label: 'Duyệt cấp Dược' },
         { key: '/hospital-pharmacy', icon: <ShopOutlined />, label: 'Nhà thuốc BV' },
         { key: '/medical-supply', icon: <ToolOutlined />, label: 'Vật tư Y tế' },
         { key: '/nutrition', icon: <CoffeeOutlined />, label: 'Dinh dưỡng' },
