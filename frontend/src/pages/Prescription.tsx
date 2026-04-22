@@ -23,6 +23,7 @@ import {
   Drawer,
   Spin,
   Tooltip,
+  Radio,
 } from 'antd';
 import {
   PlusOutlined,
@@ -38,6 +39,7 @@ import {
   InfoCircleOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -217,6 +219,15 @@ const formatDosage = (dosage: DosageInstruction): string => {
 const Prescription: React.FC = () => {
   const [form] = Form.useForm();
   const [medicineForm] = Form.useForm();
+
+  // Đọc tham số URL: ?type=internal|external, ?patientId, ?examId
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const urlPrescriptionType = urlParams.get('type') === 'external' ? 2 : 1;
+  // Sprint 3: 1 = Toa BHYT/Thu phí (kho dược BV), 2 = Toa mua ngoài (nhà thuốc ngoài)
+  const [prescriptionType, setPrescriptionType] = useState<1 | 2>(urlPrescriptionType as 1 | 2);
+  // Khoa dùng 2 kho (YHCT): popup chọn kho thuốc vs kho dược liệu khi kê đơn F3
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string | undefined>();
+
   // State
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loadingPatient, setLoadingPatient] = useState(false);
@@ -678,7 +689,8 @@ const Prescription: React.FC = () => {
       const diagnosis = form.getFieldValue('diagnosis');
       const dto = {
         examinationId: '',
-        prescriptionType: 1,
+        prescriptionType,
+        warehouseId: selectedWarehouseId,
         diagnosisName: diagnosis,
         totalDays: Math.max(...prescriptionItems.map(i => i.duration), 0),
         items: prescriptionItems.map(item => ({
@@ -731,7 +743,8 @@ const Prescription: React.FC = () => {
 
       const dto = {
         examinationId: '',
-        prescriptionType: 1,
+        prescriptionType,
+        warehouseId: selectedWarehouseId,
         diagnosisName: diagnosis,
         totalDays: Math.max(...prescriptionItems.map(i => i.duration), 0),
         items: prescriptionItems.map(item => ({
@@ -935,7 +948,8 @@ const Prescription: React.FC = () => {
           const diagnosis = form.getFieldValue('diagnosis');
           const dto = {
             examinationId: '',
-            prescriptionType: 1,
+            prescriptionType,
+            warehouseId: selectedWarehouseId,
             diagnosisName: diagnosis,
             totalDays: Math.max(...prescriptionItems.map(i => i.duration), 0),
             items: prescriptionItems.map(item => ({
@@ -1078,10 +1092,55 @@ const Prescription: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Kê đơn thuốc</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <Space>
+          <Title level={4} style={{ margin: 0 }}>Kê đơn thuốc</Title>
+          <Radio.Group
+            value={prescriptionType}
+            onChange={(e) => setPrescriptionType(e.target.value)}
+            optionType="button"
+            buttonStyle="solid"
+          >
+            <Radio.Button value={1}>
+              <Space size={4}>
+                <MedicineBoxOutlined />
+                Toa BHYT/Thu phí (F3)
+              </Space>
+            </Radio.Button>
+            <Radio.Button value={2}>
+              <Space size={4}>
+                <ShopOutlined />
+                Toa mua ngoài (F5)
+              </Space>
+            </Radio.Button>
+          </Radio.Group>
+          {prescriptionType === 1 && (
+            <Select
+              placeholder="Chọn kho (bắt buộc cho khoa YHCT)"
+              value={selectedWarehouseId}
+              onChange={setSelectedWarehouseId}
+              allowClear
+              style={{ width: 240 }}
+              options={[
+                { value: 'yhct-thuoc', label: 'Kho thuốc YHCT' },
+                { value: 'yhct-duoclieu', label: 'Kho dược liệu' },
+                { value: 'ngoaitru', label: 'Kho ngoại trú' },
+                { value: 'noitru', label: 'Kho nội trú' },
+              ]}
+            />
+          )}
+        </Space>
         <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} size="small">Làm mới</Button>
       </div>
+
+      {prescriptionType === 2 && (
+        <Alert
+          title="Toa mua ngoài: BN tự mua thuốc ở nhà thuốc tư nhân. Hệ thống chỉ lưu lại danh sách thuốc ghi nhận, không xuất kho bệnh viện."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <Row gutter={16}>
         {/* LEFT PANEL - Patient Info */}
