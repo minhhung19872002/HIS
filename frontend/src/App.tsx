@@ -42,6 +42,9 @@ const Billing = lazy(() => import('./pages/Billing'));
 const PaymentTransactions = lazy(() => import('./pages/PaymentTransactions'));
 const PharmacyApproval = lazy(() => import('./pages/PharmacyApproval'));
 const DispensingCounter = lazy(() => import('./pages/DispensingCounter'));
+const PublicStudyViewer = lazy(() => import('./pages/PublicStudyViewer'));
+const RisDispatcher = lazy(() => import('./pages/RisDispatcher'));
+const RisAdmin = lazy(() => import('./pages/RisAdmin'));
 const Prescription = lazy(() => import('./pages/Prescription'));
 const SystemAdmin = lazy(() => import('./pages/SystemAdmin'));
 const Surgery = lazy(() => import('./pages/Surgery'));
@@ -156,6 +159,7 @@ const AppRoutes: React.FC = () => {
       <Routes>
         <Route path="/queue-display" element={<QueueDisplay />} />
         <Route path="/dat-lich" element={<AppointmentBooking />} />
+        <Route path="/shared/:token" element={<PublicStudyViewer />} />
         <Route
           path="/login"
           element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
@@ -194,6 +198,8 @@ const AppRoutes: React.FC = () => {
           <Route path="pathology" element={<Pathology />} />
           <Route path="ivf-lab" element={<IvfLab />} />
           <Route path="radiology" element={<Radiology />} />
+          <Route path="ris-dispatcher" element={<RisDispatcher />} />
+          <Route path="ris-admin" element={<RisAdmin />} />
           <Route path="blood-bank" element={<BloodBank />} />
           <Route path="billing" element={<Billing />} />
           <Route path="payment-transactions" element={<PaymentTransactions />} />

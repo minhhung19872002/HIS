@@ -77,6 +77,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ClinicalTemplate> ClinicalTemplates => Set<ClinicalTemplate>();
     public DbSet<Abbreviation> Abbreviations => Set<Abbreviation>();
     public DbSet<PatientFlag> PatientFlags => Set<PatientFlag>();
+    public DbSet<StudyShareLink> StudyShareLinks => Set<StudyShareLink>();
+    public DbSet<RadiologyPermission> RadiologyPermissions => Set<RadiologyPermission>();
+    public DbSet<RadiologyDispatch> RadiologyDispatches => Set<RadiologyDispatch>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();

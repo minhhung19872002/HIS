@@ -59,6 +59,7 @@ import {
   EditOutlined,
   PlusOutlined,
   GlobalOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -75,6 +76,8 @@ import type {
   RisChatMessageDto,
 } from '../api/ris';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
+import ShareStudyModal from '../components/ShareStudyModal';
+import DicomViewerConfig from '../components/DicomViewerConfig';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -115,8 +118,10 @@ type RadiologyWaitingListItem = RadiologyWaitingListDto & {
   doctorName?: string;
   modalityName?: string;
   studyInstanceUID?: string;
+  orthancStudyId?: string;
   hasImages?: boolean;
   gender?: string | number;
+  patientId?: string;
 };
 
 // Interfaces
@@ -140,7 +145,9 @@ interface RadiologyRequest {
   clinicalInfo?: string;
   modalityName?: string;
   studyInstanceUID?: string; // DICOM Study Instance UID
+  orthancStudyId?: string; // Orthanc internal UUID for sharing
   hasImages?: boolean; // True if DICOM images available
+  patientId?: string; // For sharing context
   // Report and signature fields
   description?: string;
   conclusion?: string;
@@ -195,6 +202,12 @@ interface RadiologyReport {
 
 const Radiology: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending');
+  const [shareStudyContext, setShareStudyContext] = useState<{
+    studyInstanceUID: string;
+    orthancStudyId?: string;
+    patientId?: string;
+  } | null>(null);
+  const [viewerConfigOpen, setViewerConfigOpen] = useState(false);
   const [radiologyRequests, setRadiologyRequests] = useState<RadiologyRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<RadiologyRequest | null>(null);
   const [selectedExam, setSelectedExam] = useState<RadiologyExam | null>(null);
@@ -1489,6 +1502,21 @@ const Radiology: React.FC = () => {
             </Tooltip>
           )}
           {record.studyInstanceUID && (
+            <Tooltip title="Chia sẻ ca chụp qua QR/link với password">
+              <Button
+                size="small"
+                icon={<ShareAltOutlined />}
+                onClick={() => setShareStudyContext({
+                  studyInstanceUID: record.studyInstanceUID!,
+                  orthancStudyId: record.orthancStudyId,
+                  patientId: record.patientId,
+                })}
+              >
+                Chia sẻ
+              </Button>
+            </Tooltip>
+          )}
+          {record.studyInstanceUID && (
             <Tooltip title="Gui DICOM den Remote PACS">
               <Button
                 size="small"
@@ -2493,6 +2521,15 @@ const Radiology: React.FC = () => {
                         }}>Quản lý</Button>}
                       >
                         <p>Quản lý bộ từ viết tắt để tự động mở rộng khi nhập kết quả.</p>
+                      </Card>
+                    </Col>
+                    <Col span={8}>
+                      <Card
+                        title="Cấu hình PACS Viewer"
+                        size="small"
+                        extra={<Button type="link" size="small" onClick={() => setViewerConfigOpen(true)}>Cấu hình</Button>}
+                      >
+                        <p>W/L presets F1-F10, phím tắt, overlay DICOM tags, layout mặc định, chọn công cụ hiển thị — lưu localStorage per user.</p>
                       </Card>
                     </Col>
                     <Col span={8}>
@@ -3512,6 +3549,18 @@ const Radiology: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Share Study Modal */}
+      <ShareStudyModal
+        open={shareStudyContext !== null}
+        onClose={() => setShareStudyContext(null)}
+        studyInstanceUID={shareStudyContext?.studyInstanceUID || ''}
+        orthancStudyId={shareStudyContext?.orthancStudyId}
+        patientId={shareStudyContext?.patientId}
+      />
+
+      {/* PACS Viewer Config */}
+      <DicomViewerConfig open={viewerConfigOpen} onClose={() => setViewerConfigOpen(false)} />
     </div>
   );
 };
