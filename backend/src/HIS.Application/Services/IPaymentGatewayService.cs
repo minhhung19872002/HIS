@@ -17,6 +17,10 @@ public interface IPaymentGatewayService
 
     Task<PaymentTransactionDto?> HandleVnPayReturnAsync(Dictionary<string, string> queryParams);
 
+    Task<VnPayIpnResultDto> HandleMoMoIpnAsync(Dictionary<string, object> body);
+
+    Task<VnPayIpnResultDto> HandleZaloPayCallbackAsync(Dictionary<string, object> body);
+
     Task<PaymentTransactionDto?> GetTransactionByRefAsync(string txnRef);
 
     Task<PaymentTransactionDto?> GetTransactionByIdAsync(Guid id);

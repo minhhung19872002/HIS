@@ -54,6 +54,22 @@ public class PaymentGatewayController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("momo/ipn")]
+    [AllowAnonymous]
+    public async Task<IActionResult> MoMoIpn([FromBody] Dictionary<string, object> body)
+    {
+        var result = await _service.HandleMoMoIpnAsync(body);
+        return Ok(result);
+    }
+
+    [HttpPost("zalopay/callback")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ZaloPayCallback([FromBody] Dictionary<string, object> body)
+    {
+        var result = await _service.HandleZaloPayCallbackAsync(body);
+        return Ok(new { return_code = result.RspCode == "00" ? 1 : -1, return_message = result.Message });
+    }
+
     [HttpGet("transactions/{id:guid}")]
     [Authorize]
     public async Task<ActionResult<PaymentTransactionDto>> GetById(Guid id)

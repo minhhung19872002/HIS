@@ -240,23 +240,241 @@ public class PaymentGatewayService : IPaymentGatewayService
 
     #endregion
 
-    #region MoMo / ZaloPay (stub — triển khai tối giản để smoke test)
+    #region MoMo (v2 signature HMAC-SHA256)
 
     private string BuildMoMoUrl(PaymentTransaction txn, CreatePaymentUrlDto dto)
     {
         var cfg = _config.GetSection("PaymentGateway:MoMo");
+        var partnerCode = cfg["PartnerCode"] ?? "MOMOSANDBOX";
+        var accessKey = cfg["AccessKey"] ?? "F8BBA842ECF85";
+        var secretKey = cfg["SecretKey"] ?? "K951B6PE1waDMi640xX08PD3vg6EkVlz";
         var endpoint = cfg["Endpoint"] ?? "https://test-payment.momo.vn/v2/gateway/api/create";
-        return $"{endpoint}?orderId={txn.TxnRef}&amount={txn.Amount}";
+        var returnUrl = cfg["ReturnUrl"] ?? "http://localhost:3001/payment/momo-return";
+        var ipnUrl = cfg["IpnUrl"] ?? "http://localhost:5106/api/payment/momo/ipn";
+
+        var requestId = Guid.NewGuid().ToString();
+        var orderInfo = SanitizeOrderInfo(txn.OrderInfo);
+        var amount = ((long)txn.Amount).ToString();
+        var requestType = "captureWallet";
+        var extraData = "";
+
+        // rawSignature theo MoMo v2 spec
+        var rawSignature = $"accessKey={accessKey}&amount={amount}&extraData={extraData}" +
+                          $"&ipnUrl={ipnUrl}&orderId={txn.TxnRef}&orderInfo={orderInfo}" +
+                          $"&partnerCode={partnerCode}&redirectUrl={returnUrl}" +
+                          $"&requestId={requestId}&requestType={requestType}";
+        var signature = HmacSha256(secretKey, rawSignature);
+
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            partnerCode,
+            partnerName = "HIS Hospital",
+            storeId = "HIS",
+            requestId,
+            amount,
+            orderId = txn.TxnRef,
+            orderInfo,
+            redirectUrl = returnUrl,
+            ipnUrl,
+            lang = "vi",
+            extraData,
+            requestType,
+            signature,
+        });
+
+        txn.RequestRaw = payload;
+
+        // Gọi MoMo API đồng bộ để lấy payUrl
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        var resp = http.PostAsync(endpoint, new StringContent(payload, Encoding.UTF8, "application/json"))
+            .GetAwaiter().GetResult();
+        var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        txn.ResponseRaw = body;
+
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("payUrl", out var payUrl))
+                return payUrl.GetString() ?? endpoint;
+        }
+        catch { /* swallow — return fallback URL */ }
+        return endpoint;
     }
+
+    public async Task<VnPayIpnResultDto> HandleMoMoIpnAsync(Dictionary<string, object> body)
+    {
+        var cfg = _config.GetSection("PaymentGateway:MoMo");
+        var accessKey = cfg["AccessKey"] ?? "F8BBA842ECF85";
+        var secretKey = cfg["SecretKey"] ?? "K951B6PE1waDMi640xX08PD3vg6EkVlz";
+
+        var orderId = body.GetValueOrDefault("orderId")?.ToString();
+        var signature = body.GetValueOrDefault("signature")?.ToString();
+        var resultCode = body.GetValueOrDefault("resultCode")?.ToString();
+        var amount = body.GetValueOrDefault("amount")?.ToString();
+        var transId = body.GetValueOrDefault("transId")?.ToString();
+
+        if (string.IsNullOrEmpty(orderId)) return new VnPayIpnResultDto { RspCode = "99", Message = "orderId required" };
+
+        var txn = await _db.PaymentTransactions.FirstOrDefaultAsync(t => t.TxnRef == orderId);
+        if (txn == null) return new VnPayIpnResultDto { RspCode = "01", Message = "Order not found" };
+
+        // Verify signature
+        var partnerCode = body.GetValueOrDefault("partnerCode")?.ToString() ?? "";
+        var requestId = body.GetValueOrDefault("requestId")?.ToString() ?? "";
+        var orderInfo = body.GetValueOrDefault("orderInfo")?.ToString() ?? "";
+        var orderType = body.GetValueOrDefault("orderType")?.ToString() ?? "";
+        var payType = body.GetValueOrDefault("payType")?.ToString() ?? "";
+        var responseTime = body.GetValueOrDefault("responseTime")?.ToString() ?? "";
+        var extraData = body.GetValueOrDefault("extraData")?.ToString() ?? "";
+        var message = body.GetValueOrDefault("message")?.ToString() ?? "";
+
+        var rawSignature = $"accessKey={accessKey}&amount={amount}&extraData={extraData}" +
+                          $"&message={message}&orderId={orderId}&orderInfo={orderInfo}" +
+                          $"&orderType={orderType}&partnerCode={partnerCode}" +
+                          $"&payType={payType}&requestId={requestId}&responseTime={responseTime}" +
+                          $"&resultCode={resultCode}&transId={transId}";
+        var computed = HmacSha256(secretKey, rawSignature);
+        if (computed != signature)
+        {
+            _logger.LogWarning("MoMo IPN invalid signature for {OrderId}", orderId);
+            return new VnPayIpnResultDto { RspCode = "97", Message = "Invalid signature" };
+        }
+
+        if (txn.Status == 1) return new VnPayIpnResultDto { RspCode = "02", Message = "Already confirmed" };
+
+        txn.GatewayTxnRef = transId;
+        txn.ResponseCode = int.TryParse(resultCode, out var rc) ? rc : null;
+        txn.ResponseMessage = message;
+        txn.IpnRaw = System.Text.Json.JsonSerializer.Serialize(body);
+
+        if (resultCode == "0")
+        {
+            txn.Status = 1;
+            txn.CompletedAt = DateTime.UtcNow;
+            txn.PayDate = DateTime.UtcNow;
+            await LinkReceiptAsync(txn);
+        }
+        else
+        {
+            txn.Status = 2;
+        }
+        txn.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return new VnPayIpnResultDto { RspCode = "00", Message = "Confirm Success" };
+    }
+
+    #endregion
+
+    #region ZaloPay (HMAC-SHA256 v2)
 
     private string BuildZaloPayUrl(PaymentTransaction txn, CreatePaymentUrlDto dto)
     {
         var cfg = _config.GetSection("PaymentGateway:ZaloPay");
+        var appId = cfg["AppId"] ?? "2553";
+        var key1 = cfg["Key1"] ?? "PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL";
         var endpoint = cfg["Endpoint"] ?? "https://sb-openapi.zalopay.vn/v2/create";
-        return $"{endpoint}?app_trans_id={txn.TxnRef}&amount={txn.Amount}";
+        var callbackUrl = cfg["CallbackUrl"] ?? "http://localhost:5106/api/payment/zalopay/callback";
+
+        // app_trans_id format: yyMMdd_xxxxxx (ZaloPay required)
+        var tzVn = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tzVn);
+        var appTransId = $"{nowVn:yyMMdd}_{txn.TxnRef[^6..]}";
+
+        var embedData = System.Text.Json.JsonSerializer.Serialize(new { redirecturl = dto.OrderInfo ?? "HIS" });
+        var item = "[]";
+        var amount = ((long)txn.Amount).ToString();
+        var appUser = txn.PatientId.ToString();
+        var appTime = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds().ToString();
+        var description = SanitizeOrderInfo(txn.OrderInfo);
+
+        // MAC: app_id|app_trans_id|app_user|amount|app_time|embed_data|item
+        var rawSignature = $"{appId}|{appTransId}|{appUser}|{amount}|{appTime}|{embedData}|{item}";
+        var mac = HmacSha256(key1, rawSignature);
+
+        var formData = new Dictionary<string, string>
+        {
+            ["app_id"] = appId,
+            ["app_user"] = appUser,
+            ["app_time"] = appTime,
+            ["amount"] = amount,
+            ["app_trans_id"] = appTransId,
+            ["embed_data"] = embedData,
+            ["item"] = item,
+            ["description"] = description,
+            ["bank_code"] = "",
+            ["callback_url"] = callbackUrl,
+            ["mac"] = mac,
+        };
+        txn.RequestRaw = string.Join("&", formData.Select(kv => $"{kv.Key}={kv.Value}"));
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        var resp = http.PostAsync(endpoint, new FormUrlEncodedContent(formData))
+            .GetAwaiter().GetResult();
+        var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        txn.ResponseRaw = body;
+
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("order_url", out var orderUrl))
+                return orderUrl.GetString() ?? endpoint;
+        }
+        catch { /* fallback */ }
+        return endpoint;
+    }
+
+    public async Task<VnPayIpnResultDto> HandleZaloPayCallbackAsync(Dictionary<string, object> body)
+    {
+        var cfg = _config.GetSection("PaymentGateway:ZaloPay");
+        var key2 = cfg["Key2"] ?? "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz";
+
+        var data = body.GetValueOrDefault("data")?.ToString();
+        var mac = body.GetValueOrDefault("mac")?.ToString();
+        if (string.IsNullOrEmpty(data) || string.IsNullOrEmpty(mac))
+            return new VnPayIpnResultDto { RspCode = "99", Message = "data/mac required" };
+
+        var computed = HmacSha256(key2, data);
+        if (computed != mac)
+        {
+            _logger.LogWarning("ZaloPay callback invalid MAC");
+            return new VnPayIpnResultDto { RspCode = "97", Message = "Invalid MAC" };
+        }
+
+        var dataJson = System.Text.Json.JsonDocument.Parse(data);
+        var appTransId = dataJson.RootElement.GetProperty("app_trans_id").GetString();
+        var zpTransId = dataJson.RootElement.GetProperty("zp_trans_id").GetInt64().ToString();
+
+        // app_trans_id format: yyMMdd_xxxxxx → match txn via last 6 chars against our TxnRef
+        if (string.IsNullOrEmpty(appTransId)) return new VnPayIpnResultDto { RspCode = "01", Message = "Not found" };
+        var suffix = appTransId.Split('_').LastOrDefault();
+        if (suffix == null) return new VnPayIpnResultDto { RspCode = "01", Message = "Invalid format" };
+
+        var txn = await _db.PaymentTransactions.FirstOrDefaultAsync(t => t.TxnRef.EndsWith(suffix));
+        if (txn == null) return new VnPayIpnResultDto { RspCode = "01", Message = "Order not found" };
+        if (txn.Status == 1) return new VnPayIpnResultDto { RspCode = "02", Message = "Already confirmed" };
+
+        txn.GatewayTxnRef = zpTransId;
+        txn.IpnRaw = System.Text.Json.JsonSerializer.Serialize(body);
+        txn.Status = 1;
+        txn.CompletedAt = DateTime.UtcNow;
+        txn.PayDate = DateTime.UtcNow;
+        txn.UpdatedAt = DateTime.UtcNow;
+
+        await LinkReceiptAsync(txn);
+        await _db.SaveChangesAsync();
+        return new VnPayIpnResultDto { RspCode = "00", Message = "Confirm Success" };
     }
 
     #endregion
+
+    private static string HmacSha256(string key, string data)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(key));
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
+        var sb = new StringBuilder(hash.Length * 2);
+        foreach (var b in hash) sb.Append(b.ToString("x2"));
+        return sb.ToString();
+    }
 
     #region Query / Search / Refund
 
@@ -443,7 +661,89 @@ public class PaymentGatewayService : IPaymentGatewayService
                 if (invoice.RemainingAmount <= 0) invoice.Status = 1;
             }
         }
+
+        // N1.01 — Auto-issue E-invoice (HDDT) sau payment success
+        await AutoIssueElectronicInvoiceAsync(txn, receipt);
     }
+
+    private async Task AutoIssueElectronicInvoiceAsync(PaymentTransaction txn, Receipt receipt)
+    {
+        try
+        {
+            var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == txn.PatientId);
+            if (patient == null) return;
+
+            // Sinh mã HĐĐT chuẩn theo pattern nhà cung cấp (VNInvoice/Misa)
+            var year = DateTime.Now.Year.ToString("yy");
+            var lastInvoice = await _db.ElectronicInvoices
+                .Where(i => i.InvoiceSeries.StartsWith(year))
+                .OrderByDescending(i => i.InvoiceNumber)
+                .FirstOrDefaultAsync();
+            var nextNo = 1;
+            if (lastInvoice != null && int.TryParse(lastInvoice.InvoiceNumber, out var n)) nextNo = n + 1;
+
+            // Items JSON: 1 dòng tổng hợp (có thể bổ sung chi tiết từ InvoiceSummary sau)
+            var itemsJson = System.Text.Json.JsonSerializer.Serialize(new[]
+            {
+                new
+                {
+                    name = txn.OrderInfo,
+                    unit = "Lượt",
+                    qty = 1,
+                    price = (double)(txn.Amount / 1.08m),
+                    amount = (double)(txn.Amount / 1.08m),
+                    vatRate = 8,
+                    vatAmount = (double)(txn.Amount - txn.Amount / 1.08m),
+                }
+            });
+
+            var vatRate = 8m;
+            var subTotal = Math.Round(txn.Amount / (1 + vatRate / 100), 0);
+            var vatAmount = txn.Amount - subTotal;
+
+            var eInvoice = new ElectronicInvoice
+            {
+                Id = Guid.NewGuid(),
+                InvoiceSeries = $"{year}HIS",
+                InvoiceNumber = nextNo.ToString("D7"),
+                InvoiceDate = DateTime.Now,
+                InvoiceSummaryId = txn.InvoiceSummaryId,
+                PatientId = txn.PatientId,
+                MedicalRecordId = txn.MedicalRecordId,
+                PatientName = patient.FullName ?? "N/A",
+                PatientAddress = patient.Address,
+                BuyerName = patient.FullName,
+                PaymentMethod = MapProviderToInvoicePaymentMethod(txn.Provider),
+                SubTotal = subTotal,
+                VatRate = vatRate,
+                VatAmount = vatAmount,
+                TotalAmount = txn.Amount,
+                DiscountAmount = 0,
+                ItemsJson = itemsJson,
+                Status = 1, // Issued
+                ProviderName = "HIS-Auto",
+                ProviderInvoiceId = $"AUTO-{txn.TxnRef}",
+                LookupCode = txn.TxnRef[^8..].ToUpper(),
+                LookupUrl = $"/tra-cuu-hddt/{txn.TxnRef}",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = txn.CreatedBy
+            };
+            _db.ElectronicInvoices.Add(eInvoice);
+            _logger.LogInformation("Auto-issued e-invoice {Series}-{No} for txn {TxnRef}",
+                eInvoice.InvoiceSeries, eInvoice.InvoiceNumber, txn.TxnRef);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to auto-issue e-invoice for txn {TxnRef}", txn.TxnRef);
+        }
+    }
+
+    private static string MapProviderToInvoicePaymentMethod(string provider) => provider switch
+    {
+        "vnpay" => "CK",
+        "momo" or "zalopay" => "CK",
+        _ => "TM"
+    };
 
     private static int MapProviderToPaymentMethod(string provider) => provider switch
     {
