@@ -51,6 +51,7 @@ const ServiceRequeue = lazy(() => import('./pages/ServiceRequeue'));
 const LisCatalogAdmin = lazy(() => import('./pages/LisCatalogAdmin'));
 const RisCatalogAdmin = lazy(() => import('./pages/RisCatalogAdmin'));
 const OfficeSupplyApproval = lazy(() => import('./pages/OfficeSupplyApproval'));
+const ReceiptBookAdmin = lazy(() => import('./pages/ReceiptBookAdmin'));
 const PublicStudyViewer = lazy(() => import('./pages/PublicStudyViewer'));
 const RisDispatcher = lazy(() => import('./pages/RisDispatcher'));
 const RisAdmin = lazy(() => import('./pages/RisAdmin'));
@@ -205,6 +206,7 @@ const AppRoutes: React.FC = () => {
           <Route path="lis-catalog-admin" element={<LisCatalogAdmin />} />
           <Route path="ris-catalog-admin" element={<RisCatalogAdmin />} />
           <Route path="office-supply-approval" element={<OfficeSupplyApproval />} />
+          <Route path="receipt-book-admin" element={<ReceiptBookAdmin />} />
           <Route path="medical-supply" element={<MedicalSupply />} />
           <Route path="follow-up" element={<FollowUp />} />
           <Route path="booking-management" element={<BookingManagement />} />

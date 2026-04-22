@@ -418,6 +418,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<RadiologyProtocol> RadiologyProtocols => Set<RadiologyProtocol>();
     public DbSet<RadiologyReportTemplate> RadiologyReportTemplates => Set<RadiologyReportTemplate>();
 
+    // N1.13: Receipt book (sổ biên lai khai báo)
+    public DbSet<ReceiptBook> ReceiptBooks => Set<ReceiptBook>();
+
     // Luồng 19: Health Information Exchange
     public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();
     public DbSet<InsuranceXMLSubmission> InsuranceXMLSubmissions => Set<InsuranceXMLSubmission>();
