@@ -413,6 +413,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<LabOrganism> LabOrganisms => Set<LabOrganism>();
     public DbSet<LabAntibiotic> LabAntibiotics => Set<LabAntibiotic>();
 
+    // N1.11: Radiology master catalog
+    public DbSet<RadiologyBodyPart> RadiologyBodyParts => Set<RadiologyBodyPart>();
+    public DbSet<RadiologyProtocol> RadiologyProtocols => Set<RadiologyProtocol>();
+    public DbSet<RadiologyReportTemplate> RadiologyReportTemplates => Set<RadiologyReportTemplate>();
+
     // Luồng 19: Health Information Exchange
     public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();
     public DbSet<InsuranceXMLSubmission> InsuranceXMLSubmissions => Set<InsuranceXMLSubmission>();
