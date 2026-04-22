@@ -55,6 +55,7 @@ import {
   MoonOutlined,
   RedoOutlined,
   ApiOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -101,7 +102,7 @@ const MainLayout: React.FC = () => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
       clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/observation-stay', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
-      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/sample-receive', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin'],
+      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/sample-receive', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/consultation-register', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin'],
       support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/inpatient-dispensing', '/stock-report', '/medical-supply', '/office-supply-approval', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/payment-transactions', '/payment-reports', '/service-requeue', '/receipt-book-admin', '/finance', '/insurance', '/bhxh-audit', '/bhxh-config'],
       management: ['/infection-control', '/equipment', '/hr', '/employee-profile', '/quality'],
@@ -169,6 +170,7 @@ const MainLayout: React.FC = () => {
         { key: '/ris-dispatcher', icon: <ScanOutlined />, label: 'RIS Điều phối' },
         { key: '/ris-admin', icon: <ScanOutlined />, label: 'RIS Admin' },
         { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
+        { key: '/consultation-register', icon: <BookOutlined />, label: 'Sổ hội chẩn' },
         { key: '/video-consultation', icon: <TeamOutlined />, label: 'Hội chẩn Video' },
         { key: '/non-dicom-capture', icon: <ScanOutlined />, label: 'NON-DICOM Capture' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
