@@ -1800,8 +1800,167 @@ const Reception: React.FC = () => {
             </div>
           )}
 
-          <Form.Item name="address" label="Địa chỉ">
-            <Input.TextArea rows={2} placeholder="Nhập địa chỉ" />
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="occupation" label="Nghề nghiệp">
+                <Input placeholder="VD: Kỹ sư, công nhân, học sinh..." />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="ethnicity" label="Dân tộc" initialValue="Kinh">
+                <Select
+                  showSearch
+                  placeholder="Chọn dân tộc"
+                  options={[
+                    { value: 'Kinh', label: 'Kinh' },
+                    { value: 'Tày', label: 'Tày' },
+                    { value: 'Thái', label: 'Thái' },
+                    { value: 'Mường', label: 'Mường' },
+                    { value: 'Khmer', label: 'Khmer' },
+                    { value: 'Hoa', label: 'Hoa' },
+                    { value: 'Nùng', label: 'Nùng' },
+                    { value: 'H\'mông', label: 'H\'mông' },
+                    { value: 'Dao', label: 'Dao' },
+                    { value: 'Gia Rai', label: 'Gia Rai' },
+                    { value: 'Ê Đê', label: 'Ê Đê' },
+                    { value: 'Ba Na', label: 'Ba Na' },
+                    { value: 'Xơ Đăng', label: 'Xơ Đăng' },
+                    { value: 'Sán Chay', label: 'Sán Chay' },
+                    { value: 'Cơ Ho', label: 'Cơ Ho' },
+                    { value: 'Chăm', label: 'Chăm' },
+                    { value: 'Nước ngoài', label: 'Nước ngoài' },
+                    { value: 'Khác', label: 'Khác' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="nationality" label="Quốc tịch" initialValue="Việt Nam">
+                <Input placeholder="Mặc định: Việt Nam" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item name="address" label="Địa chỉ chi tiết (số nhà, đường)">
+            <Input placeholder="VD: 123 Trần Hưng Đạo" />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="wardAddress" label="Phường/Xã">
+                <Input placeholder="Phường/Xã" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="districtAddress" label="Quận/Huyện">
+                <Input placeholder="Quận/Huyện" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="provinceAddress" label="Tỉnh/Thành phố">
+                <Input placeholder="Tỉnh/Thành phố" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.patientType !== cur.patientType}>
+            {({ getFieldValue }) =>
+              getFieldValue('patientType') === 1 ? (
+                <div style={{ padding: 12, background: '#f6ffed', borderRadius: 4, marginBottom: 12 }}>
+                  <Text strong>Thông tin chuyển tuyến BHYT</Text>
+                  <Row gutter={16} style={{ marginTop: 8 }}>
+                    <Col span={8}>
+                      <Form.Item name="referralFacilityCode" label="Nơi chuyển đến (mã CSKCB)">
+                        <Input placeholder="VD: 79002" maxLength={10} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name="referralDiagnosis" label="Chẩn đoán chuyển tuyến">
+                        <Input placeholder="Chẩn đoán kèm giấy chuyển" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={4}>
+                      <Form.Item name="hasReferralPaper" label="Có giấy chuyển" valuePropName="checked">
+                        <Select options={[
+                          { value: true, label: 'Có' },
+                          { value: false, label: 'Không' },
+                        ]} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={4}>
+                      <Form.Item name="routeType" label="Tuyến">
+                        <Select options={[
+                          { value: 1, label: 'Đúng tuyến' },
+                          { value: 2, label: 'Trái tuyến' },
+                          { value: 3, label: 'Thông tuyến' },
+                        ]} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+              ) : null
+            }
+          </Form.Item>
+
+          <details style={{ marginBottom: 12 }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 500 }}>+ Thông tin bổ sung (VAT, BHXH, người thân)</summary>
+            <div style={{ padding: 12, background: '#fafafa', borderRadius: 4, marginTop: 8 }}>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="taxCode" label="MST (xuất HĐ điện tử)">
+                    <Input placeholder="Mã số thuế người mua" maxLength={14} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="socialInsuranceNumber" label="Số sổ BHXH">
+                    <Input placeholder="10 chữ số" maxLength={10} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="vaccinationBook" label="Số sổ tiêm ngừa (VAT)">
+                    <Input placeholder="Số sổ tiêm ngừa" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="relativeName" label="Người thân (tên)">
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="relativeRelation" label="Quan hệ">
+                    <Select
+                      options={[
+                        { value: 'Vợ', label: 'Vợ' },
+                        { value: 'Chồng', label: 'Chồng' },
+                        { value: 'Con', label: 'Con' },
+                        { value: 'Bố', label: 'Bố' },
+                        { value: 'Mẹ', label: 'Mẹ' },
+                        { value: 'Anh/Chị/Em', label: 'Anh/Chị/Em' },
+                        { value: 'Khác', label: 'Khác' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="relativePhone" label="SĐT người thân">
+                    <Input />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="recordNumber" label="Số hồ sơ (STT đánh tay)">
+                    <Input placeholder="STT hồ sơ" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+          </details>
+
+          <Form.Item name="chiefComplaint" label="Lý do khám / triệu chứng">
+            <Input.TextArea rows={2} placeholder="BN tự mô tả triệu chứng (không bắt buộc)" />
           </Form.Item>
         </Form>
       </Modal>
