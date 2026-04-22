@@ -68,6 +68,9 @@ import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
 import StockReservationModal from '../components/StockReservationModal';
+import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
+import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
+import PatientFlagBanner from '../components/PatientFlagBanner';
 import { getDepositBalance } from '../api/billing';
 import { buildApiUrl } from '../config/api';
 
@@ -252,6 +255,9 @@ const OPD: React.FC = () => {
 
   // Undo workflow state (cancel bill print / cancel completion)
   const [undoMenuOpen, setUndoMenuOpen] = useState(false);
+
+  // Clinical template picker (Kết luận khám mẫu)
+  const [conclusionTemplatePickerOpen, setConclusionTemplatePickerOpen] = useState(false);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -1879,6 +1885,10 @@ const OPD: React.FC = () => {
               {selectedPatient && (
                 <>
                   <Divider style={{ margin: '12px 0' }} />
+                  <PatientFlagBanner
+                    patientId={selectedPatient.id}
+                    patientName={selectedPatient.fullName}
+                  />
                   <Descriptions column={1} size="small" bordered>
                     <Descriptions.Item label="Mã BN">
                       <strong>{selectedPatient.patientCode}</strong>
@@ -2726,11 +2736,22 @@ const OPD: React.FC = () => {
 
                           <Row gutter={16}>
                             <Col span={24}>
-                              <Form.Item label="Kết luận" name="conclusion">
-                                <TextArea
-                                  rows={3}
-                                  placeholder="Nhập kết luận..."
-                                />
+                              <Form.Item
+                                label={
+                                  <Space>
+                                    <span>Kết luận</span>
+                                    <Button
+                                      size="small"
+                                      type="link"
+                                      onClick={() => setConclusionTemplatePickerOpen(true)}
+                                    >
+                                      Chọn mẫu
+                                    </Button>
+                                  </Space>
+                                }
+                                name="conclusion"
+                              >
+                                <TextArea rows={3} placeholder="Nhập kết luận..." />
                               </Form.Item>
                             </Col>
                             <Col span={24}>
@@ -3444,6 +3465,21 @@ const OPD: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Conclusion Template Picker */}
+      <ClinicalTemplatePicker
+        open={conclusionTemplatePickerOpen}
+        onClose={() => setConclusionTemplatePickerOpen(false)}
+        templateType={TEMPLATE_TYPES.KET_LUAN_KHAM}
+        icdCode={examForm.getFieldValue(['diagnosis', 'mainIcdCode'])}
+        onPick={(t) => {
+          const current = examForm.getFieldValue('conclusion') || '';
+          examForm.setFieldsValue({
+            conclusion: current ? `${current}\n${t.content}` : t.content,
+          });
+          message.success(`Đã chèn mẫu: ${t.templateName}`);
+        }}
+      />
 
       {/* F10 Stock Reservation Modal */}
       <StockReservationModal

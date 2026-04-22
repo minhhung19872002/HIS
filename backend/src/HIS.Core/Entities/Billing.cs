@@ -21,6 +21,24 @@ public class Receipt : BaseEntity
     public decimal Discount { get; set; }
     public decimal FinalAmount { get; set; }
 
+    /// <summary>
+    /// Lý do giảm giá chuẩn hóa:
+    /// 0 = Không giảm
+    /// 1 = BHBL (Bảo hiểm bảo lãnh ngoài BHYT — PJICO, Bảo Việt...)
+    /// 2 = Nhân viên bệnh viện
+    /// 3 = Người nhà nhân viên
+    /// 4 = Giám đốc duyệt miễn
+    /// 5 = Cơ quan bảo lãnh
+    /// 6 = Khác (ghi trong DiscountNote)
+    /// </summary>
+    public int DiscountReasonCode { get; set; }
+    public string? DiscountNote { get; set; }
+
+    /// <summary>User ID của người duyệt giảm (GĐ, trưởng phòng TCKT, cơ quan bảo lãnh)</summary>
+    public Guid? DiscountApprovedBy { get; set; }
+    public virtual User? DiscountApprovedByUser { get; set; }
+    public DateTime? DiscountApprovedAt { get; set; }
+
     public string? Note { get; set; }
     public int Status { get; set; } // 1-Đã thu, 2-Đã hủy
 

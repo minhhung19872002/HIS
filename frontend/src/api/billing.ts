@@ -418,6 +418,15 @@ export interface CreateRefundDto {
   bankAccount?: string;
   bankName?: string;
   reason: string;
+  /** Sprint 3 Item 2.5: hoàn trả chi tiết. Bỏ trống = hoàn toàn bộ. */
+  items?: RefundItemDto[];
+}
+
+export interface RefundItemDto {
+  itemId: string;
+  itemType: 'service' | 'medicine' | 'receipt-detail';
+  refundAmount: number;
+  reason?: string;
 }
 
 export interface ApproveRefundDto {
@@ -454,6 +463,10 @@ export interface ApplyDiscountDto {
   discountPercent?: number;
   discountAmount?: number;
   discountReason?: string;
+  /** Sprint 3 Item 2.4: standardized reason code 0-6 */
+  discountReasonCode?: number;
+  /** Sprint 3 Item 2.4: note khi reason=6 */
+  discountNote?: string;
   serviceDiscounts?: ServiceDiscountDto[];
   approverId?: string;
 }

@@ -780,6 +780,40 @@ public class BillingCompleteService : IBillingCompleteService
             throw new Exception("Cần chỉ định phiếu tạm ứng hoặc phiếu thanh toán gốc");
         }
 
+        // Sprint 3 Item 2.5: partial refund validation
+        if (dto.Items is { Count: > 0 })
+        {
+            var sumItems = dto.Items.Sum(i => i.RefundAmount);
+            if (Math.Abs(sumItems - dto.RefundAmount) > 0.01m)
+                throw new InvalidOperationException(
+                    $"Tổng hoàn chi tiết ({sumItems:N0}đ) không khớp với tổng yêu cầu hoàn ({dto.RefundAmount:N0}đ)");
+
+            foreach (var item in dto.Items)
+            {
+                if (item.ItemType == "service")
+                {
+                    var sr = await _context.ServiceRequestDetails
+                        .Include(d => d.ServiceRequest)
+                        .FirstOrDefaultAsync(d => d.Id == item.ItemId);
+                    if (sr == null) throw new Exception($"Dịch vụ {item.ItemId} không tồn tại");
+                    // BHYT không cho hoàn chi tiết CLS đã có kết quả
+                    if (sr.PatientType == 1 && !string.IsNullOrWhiteSpace(sr.Result))
+                        throw new InvalidOperationException(
+                            $"BHYT: không thể hoàn chi tiết CLS đã có kết quả ({sr.ServiceRequest.RequestCode}). Phải hủy KQ trước.");
+                }
+                else if (item.ItemType == "medicine")
+                {
+                    var pd = await _context.PrescriptionDetails
+                        .Include(d => d.Prescription)
+                        .FirstOrDefaultAsync(d => d.Id == item.ItemId);
+                    if (pd == null) throw new Exception($"Thuốc {item.ItemId} không tồn tại");
+                    if (pd.PatientType == 1)
+                        throw new InvalidOperationException(
+                            "BHYT: không thể hoàn chi tiết thuốc. Phải hoàn trả toàn bộ toa.");
+                }
+            }
+        }
+
         // Create refund receipt
         var receipt = new Receipt
         {
@@ -794,7 +828,9 @@ public class BillingCompleteService : IBillingCompleteService
             FinalAmount = dto.RefundAmount,
             Status = 0, // Chờ duyệt
             CashierId = userId,
-            Note = dto.Reason,
+            Note = dto.Items is { Count: > 0 }
+                ? $"{dto.Reason} | Hoàn chi tiết {dto.Items.Count} mục"
+                : dto.Reason,
             CreatedAt = DateTime.Now,
             CreatedBy = userId.ToString()
         };
@@ -1109,7 +1145,23 @@ public class BillingCompleteService : IBillingCompleteService
             discountAmount = dto.DiscountAmount.Value;
         }
 
+        // Sprint 3 Item 2.4: validate lý do chuẩn hóa + ngưỡng duyệt
+        if (discountAmount > 0)
+        {
+            if (!dto.DiscountReasonCode.HasValue || dto.DiscountReasonCode == 0)
+                throw new InvalidOperationException("Bắt buộc chọn lý do giảm giá");
+            if (dto.DiscountReasonCode == 6 && string.IsNullOrWhiteSpace(dto.DiscountNote))
+                throw new InvalidOperationException("Chọn 'Khác' phải ghi rõ lý do trong ghi chú");
+            if (discountAmount >= 500_000m && !dto.ApproverId.HasValue)
+                throw new InvalidOperationException(
+                    "Giảm giá từ 500,000đ trở lên phải có người duyệt (trưởng phòng TCKT hoặc GĐ)");
+            if (discountAmount >= 5_000_000m && dto.DiscountReasonCode != 4)
+                throw new InvalidOperationException(
+                    "Giảm giá từ 5,000,000đ trở lên phải chọn lý do 'Giám đốc duyệt miễn'");
+        }
+
         invoice.DiscountAmount = discountAmount;
+        invoice.DiscountReason = dto.DiscountReason;
         invoice.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
 

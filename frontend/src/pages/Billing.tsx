@@ -79,6 +79,7 @@ import {
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import PaymentQRModal from '../components/PaymentQRModal';
 import ReassignObjectModal from '../components/ReassignObjectModal';
+import PatientFlagBanner from '../components/PatientFlagBanner';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
 const { Title, Text } = Typography;
@@ -939,6 +940,10 @@ const Billing: React.FC = () => {
 
       {selectedPatient && (
         <>
+          <PatientFlagBanner
+            patientId={selectedPatient.id}
+            patientName={selectedPatient.name}
+          />
           <BusinessAlertPanel
             patientId={selectedPatient.id}
             module="Billing"

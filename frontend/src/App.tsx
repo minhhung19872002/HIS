@@ -6,6 +6,7 @@ import { Suspense, lazy } from 'react';
 import { Spin } from 'antd';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { useGlobalAbbreviationExpander } from './hooks/useAbbreviationExpander';
 import { SigningProvider } from './contexts/SigningContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import MainLayout from './layouts/MainLayout';
@@ -147,6 +148,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  useGlobalAbbreviationExpander();
 
   return (
     <Suspense fallback={<PageLoader />}>

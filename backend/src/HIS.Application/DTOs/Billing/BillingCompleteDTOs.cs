@@ -476,6 +476,15 @@ public class ApplyDiscountDto
     public decimal? DiscountAmount { get; set; }
     public string? DiscountReason { get; set; }
 
+    /// <summary>
+    /// Sprint 3 Item 2.4: Lý do chuẩn hóa (0=không, 1=BHBL, 2=NV, 3=NgườiNhà,
+    /// 4=GĐduyệtMiễn, 5=CQBảoLãnh, 6=Khác)
+    /// </summary>
+    public int? DiscountReasonCode { get; set; }
+
+    /// <summary>Ghi chú khi reason = 6 (Khác)</summary>
+    public string? DiscountNote { get; set; }
+
     // Miễn giảm theo từng dịch vụ
     public List<ServiceDiscountDto>? ServiceDiscounts { get; set; }
 
@@ -593,6 +602,24 @@ public class CreateRefundDto
     public string? BankAccount { get; set; }
     public string? BankName { get; set; }
     public string Reason { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sprint 3 Item 2.5: Hoàn trả chi tiết. Nếu có items → hoàn từng dòng cụ thể.
+    /// Bỏ trống → hoàn trả toàn bộ như cũ.
+    /// </summary>
+    public List<RefundItemDto>? Items { get; set; }
+}
+
+public class RefundItemDto
+{
+    /// <summary>ReceiptDetail.Id hoặc ServiceRequestDetail.Id hoặc PrescriptionDetail.Id</summary>
+    public Guid ItemId { get; set; }
+
+    /// <summary>"service" | "medicine" | "receipt-detail"</summary>
+    public string ItemType { get; set; } = "service";
+
+    public decimal RefundAmount { get; set; }
+    public string? Reason { get; set; }
 }
 
 /// <summary>

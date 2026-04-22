@@ -56,6 +56,8 @@ public static class DependencyInjection
         services.AddScoped<IMultiSpecialtyExamService, MultiSpecialtyExamService>();
         services.AddScoped<IPharmacyApprovalService, PharmacyApprovalService>();
         services.AddScoped<IReassignObjectService, ReassignObjectService>();
+        services.AddScoped<IClinicalTemplateService, ClinicalTemplateService>();
+        services.AddScoped<IAbbreviationService, AbbreviationService>();
 
         // Phân hệ 6: Phẫu thuật Thủ thuật (Surgery)
         services.AddScoped<ISurgeryCompleteService, SurgeryCompleteService>();

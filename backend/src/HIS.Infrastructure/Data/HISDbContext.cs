@@ -74,6 +74,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<PharmacyApproval> PharmacyApprovals => Set<PharmacyApproval>();
     public DbSet<PharmacyApprovalItem> PharmacyApprovalItems => Set<PharmacyApprovalItem>();
     public DbSet<PharmacyApprovalLog> PharmacyApprovalLogs => Set<PharmacyApprovalLog>();
+    public DbSet<ClinicalTemplate> ClinicalTemplates => Set<ClinicalTemplate>();
+    public DbSet<Abbreviation> Abbreviations => Set<Abbreviation>();
+    public DbSet<PatientFlag> PatientFlags => Set<PatientFlag>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();
