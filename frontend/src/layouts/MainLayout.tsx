@@ -100,7 +100,7 @@ const MainLayout: React.FC = () => {
     const groupMap: Record<string, string[]> = {
       clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
       paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config'],
-      support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
+      support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/payment-transactions', '/payment-reports', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/employee-profile', '/quality'],
       integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance'],
@@ -180,6 +180,7 @@ const MainLayout: React.FC = () => {
         { key: '/pharmacy', icon: <MedicineBoxOutlined />, label: 'Nhà thuốc' },
         { key: '/dispensing-counter', icon: <MedicineBoxOutlined />, label: 'Quầy phát thuốc' },
         { key: '/pharmacy-approval', icon: <MedicineBoxOutlined />, label: 'Duyệt cấp Dược' },
+        { key: '/clinical-pharmacy-check', icon: <MedicineBoxOutlined />, label: 'KT Dược lâm sàng' },
         { key: '/hospital-pharmacy', icon: <ShopOutlined />, label: 'Nhà thuốc BV' },
         { key: '/medical-supply', icon: <ToolOutlined />, label: 'Vật tư Y tế' },
         { key: '/nutrition', icon: <CoffeeOutlined />, label: 'Dinh dưỡng' },
