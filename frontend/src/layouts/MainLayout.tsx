@@ -98,7 +98,7 @@ const MainLayout: React.FC = () => {
   const getOpenKeys = (): string[] => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
-      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
+      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/observation-stay', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
       paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config'],
       support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/inpatient-dispensing', '/stock-report', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/payment-transactions', '/payment-reports', '/finance', '/insurance', '/bhxh-audit'],
@@ -135,6 +135,7 @@ const MainLayout: React.FC = () => {
         { key: '/telemedicine', icon: <VideoCameraOutlined />, label: 'Khám từ xa' },
         { key: '/prescription', icon: <FileTextOutlined />, label: 'Kê đơn' },
         { key: '/ipd', icon: <HomeOutlined />, label: 'Nội trú' },
+        { key: '/observation-stay', icon: <HomeOutlined />, label: 'Phòng lưu' },
         { key: '/surgery', icon: <HeartOutlined />, label: 'Phẫu thuật' },
         { key: '/emr', icon: <FolderOpenOutlined />, label: 'Hồ sơ BA (EMR)' },
         { key: '/specialty-emr', icon: <FolderOpenOutlined />, label: 'BA Chuyên khoa' },

@@ -404,6 +404,10 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<HealthMetric> HealthMetrics => Set<HealthMetric>();
     public DbSet<PatientQuestion> PatientQuestions => Set<PatientQuestion>();
 
+    // N1.07: Phòng lưu / Observation
+    public DbSet<ObservationStay> ObservationStays => Set<ObservationStay>();
+    public DbSet<ObservationVital> ObservationVitals => Set<ObservationVital>();
+
     // Luồng 19: Health Information Exchange
     public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();
     public DbSet<InsuranceXMLSubmission> InsuranceXMLSubmissions => Set<InsuranceXMLSubmission>();
