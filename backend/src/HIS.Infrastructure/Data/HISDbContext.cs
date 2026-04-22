@@ -408,6 +408,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ObservationStay> ObservationStays => Set<ObservationStay>();
     public DbSet<ObservationVital> ObservationVitals => Set<ObservationVital>();
 
+    // N1.10: LIS master catalog
+    public DbSet<LabMeasurementUnit> LabMeasurementUnits => Set<LabMeasurementUnit>();
+    public DbSet<LabOrganism> LabOrganisms => Set<LabOrganism>();
+    public DbSet<LabAntibiotic> LabAntibiotics => Set<LabAntibiotic>();
+
     // Luồng 19: Health Information Exchange
     public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();
     public DbSet<InsuranceXMLSubmission> InsuranceXMLSubmissions => Set<InsuranceXMLSubmission>();

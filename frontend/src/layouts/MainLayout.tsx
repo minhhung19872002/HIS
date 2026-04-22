@@ -100,7 +100,7 @@ const MainLayout: React.FC = () => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
       clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/observation-stay', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
-      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config'],
+      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin'],
       support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/inpatient-dispensing', '/stock-report', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/payment-transactions', '/payment-reports', '/service-requeue', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/employee-profile', '/quality'],
@@ -172,6 +172,7 @@ const MainLayout: React.FC = () => {
         { key: '/pathology', icon: <FileSearchOutlined />, label: 'Giải phẫu bệnh' },
         { key: '/ivf-lab', icon: <ExperimentOutlined />, label: 'Phòng Lab IVF' },
         { key: '/lis-config', icon: <SettingOutlined />, label: 'Cấu hình LIS' },
+        { key: '/lis-catalog-admin', icon: <ExperimentOutlined />, label: 'LIS Danh mục' },
       ],
     },
     {

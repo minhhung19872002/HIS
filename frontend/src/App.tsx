@@ -48,6 +48,7 @@ const InpatientDispensing = lazy(() => import('./pages/InpatientDispensing'));
 const StockReport = lazy(() => import('./pages/StockReport'));
 const ObservationStay = lazy(() => import('./pages/ObservationStay'));
 const ServiceRequeue = lazy(() => import('./pages/ServiceRequeue'));
+const LisCatalogAdmin = lazy(() => import('./pages/LisCatalogAdmin'));
 const PublicStudyViewer = lazy(() => import('./pages/PublicStudyViewer'));
 const RisDispatcher = lazy(() => import('./pages/RisDispatcher'));
 const RisAdmin = lazy(() => import('./pages/RisAdmin'));
@@ -199,6 +200,7 @@ const AppRoutes: React.FC = () => {
           <Route path="stock-report" element={<StockReport />} />
           <Route path="observation-stay" element={<ObservationStay />} />
           <Route path="service-requeue" element={<ServiceRequeue />} />
+          <Route path="lis-catalog-admin" element={<LisCatalogAdmin />} />
           <Route path="medical-supply" element={<MedicalSupply />} />
           <Route path="follow-up" element={<FollowUp />} />
           <Route path="booking-management" element={<BookingManagement />} />
