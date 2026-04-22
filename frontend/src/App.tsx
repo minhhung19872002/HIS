@@ -45,6 +45,7 @@ const PharmacyApproval = lazy(() => import('./pages/PharmacyApproval'));
 const DispensingCounter = lazy(() => import('./pages/DispensingCounter'));
 const ClinicalPharmacyCheck = lazy(() => import('./pages/ClinicalPharmacyCheck'));
 const InpatientDispensing = lazy(() => import('./pages/InpatientDispensing'));
+const StockReport = lazy(() => import('./pages/StockReport'));
 const PublicStudyViewer = lazy(() => import('./pages/PublicStudyViewer'));
 const RisDispatcher = lazy(() => import('./pages/RisDispatcher'));
 const RisAdmin = lazy(() => import('./pages/RisAdmin'));
@@ -193,6 +194,7 @@ const AppRoutes: React.FC = () => {
           <Route path="dispensing-counter" element={<DispensingCounter />} />
           <Route path="clinical-pharmacy-check" element={<ClinicalPharmacyCheck />} />
           <Route path="inpatient-dispensing" element={<InpatientDispensing />} />
+          <Route path="stock-report" element={<StockReport />} />
           <Route path="medical-supply" element={<MedicalSupply />} />
           <Route path="follow-up" element={<FollowUp />} />
           <Route path="booking-management" element={<BookingManagement />} />
