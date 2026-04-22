@@ -2077,3 +2077,132 @@ frontend filter fixes).
    production volume (hundreds of GB DICOM, concurrent viewers) the 1 GB
    RAM will choke. Re-run `python retry_arm.py` at US West Coast evening
    (Tokyo morning) for better capacity odds.
+
+---
+
+## Work Log - 2026-04-22 (Tuần 1 Nhóm 1 — Competitor parity items N1.04–N1.20)
+
+User priority đã chốt 3 phase: **Tuần 1** = fill 20 items Nhóm 1 (CRUD admin
+pages + báo cáo); **Tuần 2-3** = Nhóm 2 (PACS viewer MPR/3D upgrade + Jibri
+recording); **Tháng sau** = hardware pilots (fingerprint, smart card). Tuần 1
+đã hoàn tất **20/20** trong session này.
+
+### Pattern đã dùng cho mọi item
+
+1. Entity mới (nếu cần) trong `backend/src/HIS.Core/Entities/*.cs`
+2. DbSet registration trong `HISDbContext.cs`
+3. Idempotent SQL migration `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql`
+   — `IF NOT EXISTS` + `COL_LENGTH IS NULL` guards; wildcard
+   `<EmbeddedResource Include="Data\Scripts\*.sql" />` tự pick up
+4. Controller mới trong `backend/src/HIS.API/Controllers/*Controller.cs`
+   — dùng `HISDbContext` trực tiếp (inject qua ctor), không service layer
+5. Frontend page mới `frontend/src/pages/*.tsx`
+6. Route mới trong `App.tsx` + menu item trong `MainLayout.tsx`
+   (cả `getOpenKeys` groupMap lẫn `menuItems`)
+7. `dotnet build --nologo` → 0 errors, `npm run build` → 0 errors
+8. Commit với format `feat(N1.NN): <title>` + Co-Authored-By footer,
+   push origin main
+
+### Items hoàn tất (N1.01–N1.03 từ session trước)
+
+| Item | Feature | Commit | Key files |
+|---|---|---|---|
+| N1.01 | E-invoice auto-issue sau payment success | earlier | `PaymentGatewayService.cs` AutoIssueElectronicInvoiceAsync |
+| N1.02 | MoMo v2 HMAC-SHA256 + ZaloPay app_trans_id MAC + IPN | earlier | `PaymentGatewayService.cs` BuildMoMoUrl/BuildZaloPayUrl + controllers |
+| N1.03 | 7 báo cáo thanh toán | earlier | `PaymentReportsController.cs` + `PaymentReports.tsx` (7 tabs) |
+
+### Items hoàn tất session này
+
+| Item | Feature | Commit | Key files |
+|---|---|---|---|
+| N1.04 | Kiểm tra dược lâm sàng | `0099eb3` | `ClinicalPharmacyController.cs` + `ClinicalPharmacyCheck.tsx` |
+| N1.05 | Phát thuốc nội trú theo khoa | `d93bab2` | `InpatientDispensingController.cs` + `InpatientDispensing.tsx` |
+| N1.06 | Báo cáo tồn kho (4 view) | `218cc79` | `StockReportController.cs` + `StockReport.tsx` |
+| N1.07 | Phòng lưu / Observation short-stay | `21f83cd` | Entity `ObservationStay.cs` + script 32 + `ObservationStay.tsx` |
+| N1.08 | BV01 giấy chuyển viện (MS 01/BV-01) | `523b921` | `EMRPrintTemplates.tsx` `ReferralCertificatePrint` + wire vào EMR dropdown |
+| N1.09 | Cho lại CLS sau hoàn hoá đơn | `adbda21` | `ServiceRefundController.cs` + `ServiceRequeue.tsx` |
+| N1.10 | LIS admin CRUD 6 danh mục | `d9b12c9` | Entity `LabMasterCatalog.cs` (3 entities mới) + script 33 + `LisCatalogController.cs` + `LisCatalogAdmin.tsx` |
+| N1.11 | CĐHA admin danh mục (4 tab) | `e56304d` | Entity `RadiologyMasterCatalog.cs` + script 34 + `RisCatalogController.cs` + `RisCatalogAdmin.tsx` |
+| N1.12 | VPP / TTB VP approval workflow | `8195850` | `OfficeSupplyController.cs` (reuses PharmacyApproval + MedicalSupply.IsMedical=false) + `OfficeSupplyApproval.tsx` |
+| N1.13 | Sổ biên lai khai báo admin | `daebbdc` | Entity `ReceiptBook.cs` + script 35 + `ReceiptBookController.cs` + `ReceiptBookAdmin.tsx` |
+| N1.14+15 | Chỉ định thêm + Xuất thuốc phòng CĐHA | `4a43f11` | `RadiologyOperationsController.cs` + `RadiologyOps.tsx` |
+| N1.16+17 | Sample Receive split + KTV vs Reviewer (4-eyes) | `bedec80` | Thêm 9 cột vào `ServiceRequestDetail` (script 36) + `SampleReceiveController.cs` + `SampleReceive.tsx` |
+| N1.18 | Result color theo reference range | `4f7c0b1` | `LabResultEvaluationController.cs` (pure evaluator) + `<LabResultValue>` component |
+| N1.19 | BHXH real gateway config + test tools | `62b3fd6` | `BhxhConfigController.cs` (test-connection/test-auth/test-submit-xml) + `BhxhConfig.tsx`. Config lưu SystemConfig với prefix "BHXH." |
+| N1.20 | Sổ hội chẩn + trích biên bản BBHC | `5cef42f` | `ConsultationRegisterController.cs` (đọc existing ConsultationRecord) + `ConsultationRegister.tsx` in MS.03/BV |
+
+### Chi tiết những điểm hay gặp / pitfalls
+
+- **Antd v6 Divider**: dùng `titlePlacement="start"` thay `orientation="left"`
+  (hay gặp TS2322 khi copy code cũ).
+- **JSX namespace**: `verbatimModuleSyntax: true` → không dùng trực tiếp
+  `JSX.Element` nữa; cần `React.ReactElement` + `import React` explicit.
+- **systemApi export**: `frontend/src/api/system.ts` export default object có
+  nested `catalog` key → gọi `systemApi.catalog.getDepartments()` chứ không
+  phải named export `getDepartments`.
+- **ServiceRequest → Patient**: path là `ServiceRequest → MedicalRecord →
+  Patient`, không phải `ServiceRequest → Patient`. Cần `.Include(r =>
+  r.MedicalRecord).ThenInclude(m => m.Patient)`.
+- **Examination → Patient**: cũng đi qua `Examination → MedicalRecord →
+  Patient`. Examination không có `ExaminationCode`, dùng
+  `MedicalRecord.MedicalRecordCode` khi cần mã hồ sơ.
+- **ExportReceipt**: `PrescriptionId` nullable → dùng được cho batch dispensing
+  (1 receipt nhiều prescription, note chứa list ID). `ToDepartmentId` dành cho
+  khoa nhận.
+- **PharmacyApproval infrastructure**: `Items` dùng chung cho Medicine lẫn
+  Supply (2 nullable FK). N1.12 VPP reuse hoàn toàn bằng cách filter supplies
+  `IsMedical=false` + `ApprovalType=4`.
+- **Role naming convention**: Admin, Accountant, Pharmacist, PharmacyHead,
+  WarehouseManager, WarehouseStaff, LabManager, LabReceptionist, LabReviewer,
+  Technician, Radiologist, RadiologyManager, InsuranceManager, Nurse, Doctor.
+- **Optional params sau required trong controller method**: `[FromQuery] int?
+  days = 90, [FromQuery] Guid? warehouseId` sẽ báo CS1737. Phải đẩy optional
+  với default xuống sau optional không default.
+- **IHttpClientFactory**: đã registered sẵn trong
+  `Infrastructure/DependencyInjection.cs` line 175 — dùng ngay.
+
+### Cần làm tiếp (roadmap đã chốt)
+
+**Tuần 2-3 — Nhóm 2** (hardware-heavy, nhiều việc hơn Tuần 1):
+
+1. **PACS viewer MPR / 3D / Mammography upgrade** — hiện đang dùng OHIF/
+   Cornerstone2D đơn giản. Cần nâng lên Cornerstone3D để có:
+   - MPR (multi-planar reconstruction) — xem axial/sagittal/coronal cùng lúc
+   - Volume rendering 3D cho CT/MRI
+   - Mammography specific (CC/MLO pair, magnify, inversion)
+   - Đối thủ VRPACS dùng engine riêng; Cornerstone3D là option FOSS tương đương
+   - Code hiện: `frontend/src/pages/DicomViewer.tsx` (OHIF embed)
+   - Tracking: vẫn đang có Orthanc + R2 storage — viewer là frontend work only
+2. **Jibri video consultation recording** — hiện Telemedicine dùng public
+   meet.jit.si không record được. Cần self-host Jitsi + Jibri (record service)
+   để lưu phiên tư vấn vào storage.
+   - Docker compose jitsi-meet + jibri trên Oracle VM hoặc thêm VM mới
+   - Backend lưu metadata file path, frontend có player
+   - Code hiện: `frontend/src/pages/Telemedicine.tsx` + `VideoConsultation.tsx`
+
+**Tháng sau — Nhóm 3** (hardware pilots):
+
+1. **Fingerprint reader pilot** — cho chấm công HR. Chưa có code; cần chọn
+   SDK (Futronic / ZKTeco / SecuGen) và làm web bridge service.
+2. **Smart card writer pilot** — ghi dữ liệu BN lên thẻ thông minh BHYT gen mới.
+3. **USB Token Pkcs11Interop** — đã có trong wishlist từ lâu, cho phép ký số
+   PDF bằng PIN programmatic không cần Windows popup dialog. Session 8-9 đã
+   revert PIN hack; implement proper Pkcs11Interop sau.
+
+### Quick reference cho session tới
+
+- Git: 15 commits mới trên `main`, cần pull trước khi làm: `git pull`
+- Số migration script mới nhất: `36_sample_receive_roles.sql` → next = 37
+- Route frontend mới đã thêm vào `App.tsx`:
+  `clinical-pharmacy-check, inpatient-dispensing, stock-report,
+  observation-stay, service-requeue, lis-catalog-admin, ris-catalog-admin,
+  office-supply-approval, receipt-book-admin, radiology-ops, sample-receive,
+  bhxh-config, consultation-register`
+- Menu group locations (getOpenKeys + menuItems):
+  - `clinical` → observation-stay
+  - `paraclinical` → lis-catalog-admin, ris-catalog-admin, radiology-ops,
+    sample-receive, consultation-register
+  - `support` → clinical-pharmacy-check, inpatient-dispensing, stock-report,
+    office-supply-approval
+  - `finance` → service-requeue, receipt-book-admin, bhxh-config
+
