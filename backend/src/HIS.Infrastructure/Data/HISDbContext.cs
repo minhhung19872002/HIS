@@ -80,6 +80,10 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<StudyShareLink> StudyShareLinks => Set<StudyShareLink>();
     public DbSet<RadiologyPermission> RadiologyPermissions => Set<RadiologyPermission>();
     public DbSet<RadiologyDispatch> RadiologyDispatches => Set<RadiologyDispatch>();
+    public DbSet<ConsultationRoom> ConsultationRooms => Set<ConsultationRoom>();
+    public DbSet<ConsultationParticipant> ConsultationParticipants => Set<ConsultationParticipant>();
+    public DbSet<NonDicomStudy> NonDicomStudies => Set<NonDicomStudy>();
+    public DbSet<NonDicomImage> NonDicomImages => Set<NonDicomImage>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();

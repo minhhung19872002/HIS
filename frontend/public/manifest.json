@@ -1,0 +1,41 @@
+{
+  "name": "HIS — Hệ thống bệnh viện",
+  "short_name": "HIS",
+  "description": "Hospital Information System — clinical workflow for doctors, nurses, reception, pharmacy",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1890ff",
+  "background_color": "#ffffff",
+  "lang": "vi-VN",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Hồ sơ bệnh án",
+      "short_name": "EMR",
+      "url": "/emr",
+      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Phòng khám",
+      "short_name": "OPD",
+      "url": "/opd",
+      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Nội trú",
+      "short_name": "IPD",
+      "url": "/inpatient",
+      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+    }
+  ]
+}

@@ -99,7 +99,7 @@ const MainLayout: React.FC = () => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
       clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
-      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/ris-dispatcher', '/ris-admin', '/consultation', '/blood-bank', '/pathology', '/lis-config'],
+      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/reagent-management', '/radiology', '/ris-dispatcher', '/ris-admin', '/consultation', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config'],
       support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/medical-supply', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
       finance: ['/billing', '/payment-transactions', '/finance', '/insurance', '/bhxh-audit'],
       management: ['/infection-control', '/equipment', '/hr', '/quality'],
@@ -164,6 +164,8 @@ const MainLayout: React.FC = () => {
         { key: '/ris-dispatcher', icon: <ScanOutlined />, label: 'RIS Điều phối' },
         { key: '/ris-admin', icon: <ScanOutlined />, label: 'RIS Admin' },
         { key: '/consultation', icon: <TeamOutlined />, label: 'Hội chẩn' },
+        { key: '/video-consultation', icon: <TeamOutlined />, label: 'Hội chẩn Video' },
+        { key: '/non-dicom-capture', icon: <ScanOutlined />, label: 'NON-DICOM Capture' },
         { key: '/blood-bank', icon: <HeartOutlined />, label: 'Ngân hàng máu' },
         { key: '/pathology', icon: <FileSearchOutlined />, label: 'Giải phẫu bệnh' },
         { key: '/ivf-lab', icon: <ExperimentOutlined />, label: 'Phòng Lab IVF' },
