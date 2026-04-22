@@ -22,6 +22,7 @@ import {
   Alert,
   Tooltip,
   Select,
+  Dropdown,
 } from 'antd';
 import {
   SaveOutlined,
@@ -44,6 +45,7 @@ import {
   CalendarOutlined,
   SwapOutlined,
   PlusCircleOutlined,
+  UndoOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -65,6 +67,7 @@ import cdsApi from '../api/clinicalDecisionSupport';
 import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
+import StockReservationModal from '../components/StockReservationModal';
 import { getDepositBalance } from '../api/billing';
 import { buildApiUrl } from '../config/api';
 
@@ -244,11 +247,18 @@ const OPD: React.FC = () => {
   const [addSpecialtyForm] = Form.useForm();
   const [addingSpecialty, setAddingSpecialty] = useState(false);
 
+  // F10 Stock reservation modal
+  const [isStockReservationOpen, setIsStockReservationOpen] = useState(false);
+
+  // Undo workflow state (cancel bill print / cancel completion)
+  const [undoMenuOpen, setUndoMenuOpen] = useState(false);
+
   // Keyboard shortcuts
   useKeyboardShortcuts([
     { key: 'F2', handler: () => handleSave(), description: 'Lưu khám' },
     { key: 'F5', handler: () => { loadRooms(); if (selectedRoomId) loadQueue(selectedRoomId); }, description: 'Làm mới' },
     { key: 'F9', handler: () => setIsPrintModalOpen(true), description: 'In phiếu' },
+    { key: 'F10', handler: () => { if (examination?.id) setIsStockReservationOpen(true); }, description: 'Xuất dự trù thuốc/VTYT (F10)' },
     { key: 'f', ctrl: true, handler: () => document.querySelector<HTMLInputElement>('.ant-input-search input')?.focus(), description: 'Tìm kiếm' },
   ]);
 
@@ -2123,6 +2133,82 @@ const OPD: React.FC = () => {
                   >
                     Khám thêm CK khác
                   </Button>
+                  <Button
+                    icon={<MedicineBoxOutlined />}
+                    onClick={() => setIsStockReservationOpen(true)}
+                    disabled={!examination?.id}
+                  >
+                    Xuất dự trù (F10)
+                  </Button>
+                  <Dropdown
+                    menu={{
+                      items: [
+                        {
+                          key: 'print-bill',
+                          label: 'In chi phí (bảng kê)',
+                          onClick: async () => {
+                            if (!examination?.id) return;
+                            try {
+                              const { printBill } = await import('../api/multiSpecialtyExam');
+                              await printBill(examination.id);
+                              message.success('Đã in chi phí');
+                            } catch (e: unknown) {
+                              const err = e as { response?: { data?: { message?: string } } };
+                              message.error(err?.response?.data?.message || 'Không in được');
+                            }
+                          },
+                        },
+                        { type: 'divider' },
+                        {
+                          key: 'cancel-bill',
+                          label: 'Hủy in chi phí',
+                          danger: true,
+                          onClick: async () => {
+                            if (!examination?.id) return;
+                            try {
+                              const { cancelPrintBill } = await import('../api/multiSpecialtyExam');
+                              await cancelPrintBill(examination.id);
+                              message.success('Đã hủy in chi phí');
+                            } catch (e: unknown) {
+                              const err = e as { response?: { data?: { message?: string } } };
+                              message.error(err?.response?.data?.message || 'Hủy thất bại');
+                            }
+                          },
+                        },
+                        {
+                          key: 'cancel-completion',
+                          label: 'Hủy hoàn tất (trả về Đang khám)',
+                          danger: true,
+                          onClick: async () => {
+                            if (!examination?.id) return;
+                            Modal.confirm({
+                              title: 'Xác nhận hủy hoàn tất?',
+                              content: 'Phiên khám sẽ trở về trạng thái Đang khám. Cần hủy in chi phí trước nếu có.',
+                              okText: 'Hủy hoàn tất',
+                              okButtonProps: { danger: true },
+                              onOk: async () => {
+                                try {
+                                  const { cancelCompletion } = await import('../api/multiSpecialtyExam');
+                                  await cancelCompletion(examination.id);
+                                  message.success('Đã hủy hoàn tất');
+                                  if (selectedRoomId) loadQueue(selectedRoomId);
+                                } catch (e: unknown) {
+                                  const err = e as { response?: { data?: { message?: string } } };
+                                  message.error(err?.response?.data?.message || 'Hủy thất bại');
+                                }
+                              },
+                            });
+                          },
+                        },
+                      ],
+                    }}
+                    open={undoMenuOpen}
+                    onOpenChange={setUndoMenuOpen}
+                  >
+                    <Button icon={<UndoOutlined />} disabled={!examination?.id}>
+                      Nghiệp vụ
+                    </Button>
+                  </Dropdown>
                 </Space>
               }
             >
@@ -3358,6 +3444,17 @@ const OPD: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* F10 Stock Reservation Modal */}
+      <StockReservationModal
+        open={isStockReservationOpen}
+        onClose={() => setIsStockReservationOpen(false)}
+        patientId={selectedPatient?.id || ''}
+        patientName={selectedPatient?.fullName}
+        medicalRecordId={examination?.medicalRecordId}
+        departmentId={rooms.find(r => r.id === selectedRoomId)?.departmentId}
+        defaultType={2}
+      />
 
       {/* Add Follow-up Specialty Modal */}
       <Modal

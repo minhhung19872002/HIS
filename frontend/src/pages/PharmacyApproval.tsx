@@ -311,37 +311,55 @@ export default function PharmacyApproval() {
             style={{ marginBottom: 12 }}
           />
           <Form.List name="items">
-            {(fields) => (
-              <Table
-                dataSource={fields.map(f => ({ ...f, ...detail?.items.find(i => i.id === approveForm.getFieldValue(['items', f.name, 'itemId'])) } as object))}
-                rowKey="key"
-                pagination={false}
-                columns={[
-                  { title: 'Thuốc/VTYT', render: (_, row: PharmacyApprovalItemDto) => row.medicineName || row.supplyName },
-                  { title: 'Yêu cầu', dataIndex: 'requestedQuantity', width: 100, align: 'right' },
-                  { title: 'Lô', dataIndex: 'batchNumber', width: 120 },
-                  { title: 'HSD', dataIndex: 'expiryDate', width: 110, render: (v: string) => v ? new Date(v).toLocaleDateString('vi-VN') : '' },
-                  {
-                    title: 'Duyệt',
-                    width: 120,
-                    render: (_, _row, idx) => (
-                      <Form.Item noStyle name={[idx, 'approvedQuantity']}>
-                        <InputNumber min={0} />
-                      </Form.Item>
-                    ),
-                  },
-                  {
-                    title: 'Bỏ',
-                    width: 60,
-                    render: (_, _row, idx) => (
-                      <Form.Item noStyle name={[idx, 'isExcluded']} valuePropName="checked">
-                        <Checkbox />
-                      </Form.Item>
-                    ),
-                  },
-                ]}
-              />
-            )}
+            {(fields) => {
+              type RowRender = PharmacyApprovalItemDto & { __fieldIndex: number };
+              const rows: RowRender[] = fields.map(f => {
+                const itemId = approveForm.getFieldValue(['items', f.name, 'itemId']);
+                const item = detail?.items.find(i => i.id === itemId);
+                return {
+                  ...(item || {
+                    id: itemId || `row-${f.name}`,
+                    requestedQuantity: 0,
+                    approvedQuantity: 0,
+                    unitPrice: 0,
+                    amount: 0,
+                    isExcluded: false,
+                  }),
+                  __fieldIndex: f.name,
+                } as RowRender;
+              });
+              return (
+                <Table<RowRender>
+                  dataSource={rows}
+                  rowKey="id"
+                  pagination={false}
+                  columns={[
+                    { title: 'Thuốc/VTYT', render: (_, row) => row.medicineName || row.supplyName },
+                    { title: 'Yêu cầu', dataIndex: 'requestedQuantity', width: 100, align: 'right' },
+                    { title: 'Lô', dataIndex: 'batchNumber', width: 120 },
+                    { title: 'HSD', dataIndex: 'expiryDate', width: 110, render: (v: string) => v ? new Date(v).toLocaleDateString('vi-VN') : '' },
+                    {
+                      title: 'Duyệt',
+                      width: 120,
+                      render: (_, row) => (
+                        <Form.Item noStyle name={[row.__fieldIndex, 'approvedQuantity']}>
+                          <InputNumber min={0} />
+                        </Form.Item>
+                      ),
+                    },
+                    {
+                      title: 'Bỏ',
+                      width: 60,
+                      render: (_, row) => (
+                        <Form.Item noStyle name={[row.__fieldIndex, 'isExcluded']} valuePropName="checked">
+                          <Checkbox />
+                        </Form.Item>
+                      ),
+                    },
+                  ]}
+                />
+              );
+            }}
           </Form.List>
           <Form.Item name="note" label="Ghi chú" style={{ marginTop: 16 }}>
             <Input.TextArea rows={2} />

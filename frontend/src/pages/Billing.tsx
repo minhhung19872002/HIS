@@ -78,6 +78,7 @@ import {
 } from '../api/billing';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import PaymentQRModal from '../components/PaymentQRModal';
+import ReassignObjectModal from '../components/ReassignObjectModal';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 
 const { Title, Text } = Typography;
@@ -217,6 +218,7 @@ const Billing: React.FC = () => {
     orderInfo?: string;
     orderType?: string;
   } | null>(null);
+  const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [refundModalVisible, setRefundModalVisible] = useState(false);
   const [receiptDrawerVisible, setReceiptDrawerVisible] = useState(false);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
@@ -1059,6 +1061,13 @@ const Billing: React.FC = () => {
                       }}
                     >
                       Thanh toán QR
+                    </Button>
+                    <Button
+                      size="large"
+                      disabled={!selectedPatient}
+                      onClick={() => setReassignModalOpen(true)}
+                    >
+                      Sửa đối tượng
                     </Button>
                   </Space>
                 </Col>
@@ -2842,6 +2851,16 @@ const Billing: React.FC = () => {
         amount={qrPaymentContext?.amount ?? 0}
         orderInfo={qrPaymentContext?.orderInfo}
         orderType={qrPaymentContext?.orderType}
+      />
+
+      <ReassignObjectModal
+        open={reassignModalOpen}
+        onClose={() => setReassignModalOpen(false)}
+        patientId={selectedPatient?.id ?? ''}
+        patientName={selectedPatient?.name}
+        onSuccess={() => {
+          if (selectedPatient?.code) handleSearchPatient(selectedPatient.code);
+        }}
       />
     </div>
   );
