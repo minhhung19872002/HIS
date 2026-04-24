@@ -80,6 +80,7 @@ export interface WardColorConfigDto {
 
 export interface InpatientListDto {
   admissionId: string;
+  patientId: string;
   medicalRecordCode: string;
   patientCode: string;
   patientName: string;

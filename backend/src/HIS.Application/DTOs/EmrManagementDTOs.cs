@@ -123,6 +123,13 @@ public class PatientSignatureDto
     public string? VerificationCode { get; set; }
     public bool IsVerified { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    // QW3.9: Proxy signer (ký thay người thân)
+    public bool IsProxySignature { get; set; }
+    public string? ProxySignerName { get; set; }
+    public string? ProxySignerCccd { get; set; }
+    public string? ProxySignerRelation { get; set; }
+    public string? ProxyReason { get; set; }
 }
 
 public class CreatePatientSignatureDto
@@ -133,6 +140,13 @@ public class CreatePatientSignatureDto
     public string SignatureData { get; set; } = string.Empty;
     public string? DeviceInfo { get; set; }
     public string? IpAddress { get; set; }
+
+    // QW3.9: Proxy signer
+    public bool IsProxySignature { get; set; }
+    public string? ProxySignerName { get; set; }
+    public string? ProxySignerCccd { get; set; }
+    public string? ProxySignerRelation { get; set; }
+    public string? ProxyReason { get; set; }
 }
 
 // ============ DocumentLock (B.1.11) ============

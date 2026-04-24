@@ -40,6 +40,44 @@ import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery,
 import { examinationApi } from '../api/examination';
 import type { ExaminationDto } from '../api/examination';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import SurgeryDrawingPad from '../components/SurgeryDrawingPad';
+
+/**
+ * Antd Form-compatible wrapper. Accepts `value` (base64) + `onChange` props
+ * so `<Form.Item name="diagramImage">` works seamlessly.
+ */
+function SurgeryDiagramField({ value, onChange }: { value?: string | null; onChange?: (v: string) => void }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div>
+      {value ? (
+        <div style={{ marginBottom: 8 }}>
+          <img src={value} alt="Sơ đồ PTTT" style={{ maxWidth: 400, border: '1px solid #d9d9d9', borderRadius: 4 }} />
+        </div>
+      ) : (
+        <div style={{ marginBottom: 8, color: '#999', fontStyle: 'italic' }}>Chưa có sơ đồ</div>
+      )}
+      <Button size="small" onClick={() => setOpen(true)}>{value ? 'Vẽ lại' : 'Vẽ sơ đồ'}</Button>
+      {open && (
+        <Modal
+          open
+          onCancel={() => setOpen(false)}
+          footer={null}
+          width={700}
+          title="Vẽ sơ đồ phẫu thuật"
+          destroyOnClose
+        >
+          <SurgeryDrawingPad
+            initialImage={value ?? undefined}
+            width={620}
+            height={380}
+            onSave={(b64) => { onChange?.(b64); setOpen(false); }}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -1889,6 +1927,10 @@ const Surgery: React.FC = () => {
           <Divider><strong>Trình tự phẫu thuật</strong></Divider>
           <Form.Item label="Mô tả trình tự phẫu thuật/thủ thuật" name="surgeryDescription">
             <TextArea rows={6} placeholder="Mô tả chi tiết các bước phẫu thuật..." />
+          </Form.Item>
+
+          <Form.Item label="Sơ đồ phẫu thuật (M3.5)" name="diagramImage" extra="Vẽ tay trực tiếp — BS minh họa vị trí vết mổ, thủ thuật, tổn thương">
+            <SurgeryDiagramField />
           </Form.Item>
 
           <Divider><strong>Thông tin hậu phẫu</strong></Divider>

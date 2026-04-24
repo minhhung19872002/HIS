@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card, Row, Col, Select, DatePicker, Button, Table, Tag, Space,
   Input, Badge, message, Checkbox, Typography, Drawer, List, Divider,
@@ -167,6 +168,7 @@ export default function DispensingCounter() {
 
   return (
     <div>
+      <PharmacyExpiryBanner asModalOnFirstVisit sessionKey="pharmacy-module-expiry-shown" />
       <div style={{ marginBottom: 16 }}>
         <Row gutter={16} align="middle">
           <Col>

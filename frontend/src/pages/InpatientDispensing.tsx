@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card, Button, Space, Table, Tag, Select, message, Modal, Typography, Alert, Input, Divider,
 } from 'antd';
@@ -147,6 +148,7 @@ export default function InpatientDispensing() {
 
   return (
     <div>
+      <PharmacyExpiryBanner asModalOnFirstVisit sessionKey="pharmacy-module-expiry-shown" />
       <Card title={<Space><MedicineBoxOutlined /> Phát thuốc nội trú theo khoa (N1.05)</Space>}
         extra={<Button icon={<ReloadOutlined />} onClick={loadPending} loading={loading}>Làm mới</Button>}>
         <Space wrap style={{ marginBottom: 16 }}>

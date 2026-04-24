@@ -53,6 +53,7 @@ import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import { getPrescriptions as getRecentPrescriptions } from '../api/patientPortal';
+import PatientFlagBanner from '../components/PatientFlagBanner';
 
 interface RecentPrescriptionDto {
   id: string;
@@ -1157,6 +1158,7 @@ const Prescription: React.FC = () => {
           >
             {patient ? (
               <>
+                <PatientFlagBanner patientId={patient.id} patientName={patient.fullName} />
                 <Descriptions column={1} size="small" bordered>
                   <Descriptions.Item label="Mã BN">
                     <strong>{patient.patientCode}</strong>

@@ -468,6 +468,11 @@ public interface IReceptionCompleteService
     /// </summary>
     Task<byte[]> PrintQueueTicketAsync(Guid ticketId);
 
+    /// <summary>
+    /// In nhãn mã vạch Code128 (60mm x 30mm) dán lên HSBA giấy — NangCap18.
+    /// </summary>
+    Task<byte[]> PrintMedicalRecordBarcodeAsync(Guid medicalRecordId);
+
     #endregion
 
     #region 1.16 Thu tiền khám bệnh

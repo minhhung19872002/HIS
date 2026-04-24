@@ -1,7 +1,7 @@
 // HIS PWA Service Worker — Sprint 5 Item 2.19
 // Network-first for API, cache-first for static assets.
 
-const CACHE_NAME = 'his-pwa-v1';
+const CACHE_NAME = 'his-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

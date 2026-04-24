@@ -95,6 +95,14 @@ public class PatientSignature : BaseEntity
     public string? IpAddress { get; set; } // Dia chi IP
     public string? VerificationCode { get; set; } // Ma xac thuc
     public bool IsVerified { get; set; } // Da xac thuc
+
+    // QW3.9: Ký thay người thân khi BN không tự ký được (hôn mê, sơ sinh, cao tuổi).
+    // Khi có giá trị → SignatureData là chữ ký của người thân chứ không phải BN.
+    public bool IsProxySignature { get; set; }
+    public string? ProxySignerName { get; set; }
+    public string? ProxySignerCccd { get; set; }
+    public string? ProxySignerRelation { get; set; } // "Con", "Chồng/Vợ", "Anh/Chị/Em", "Cha/Mẹ", ...
+    public string? ProxyReason { get; set; } // Lý do ký thay
 }
 
 /// <summary>

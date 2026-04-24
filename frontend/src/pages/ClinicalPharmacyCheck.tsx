@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card, Input, Button, Space, Row, Col, Descriptions, Table, Tag, Alert,
   Statistic, Typography, Divider, message,
@@ -81,6 +82,7 @@ export default function ClinicalPharmacyCheck() {
 
   return (
     <div>
+      <PharmacyExpiryBanner />
       <Card title={<Space><MedicineBoxOutlined /> Kiểm tra dược lâm sàng</Space>}>
         <Input.Search
           placeholder="Nhập mã BN, CCCD, SĐT, tên BN..."

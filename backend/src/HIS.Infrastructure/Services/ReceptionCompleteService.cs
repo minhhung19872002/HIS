@@ -14,6 +14,8 @@ using iText.Kernel.Font;
 using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Properties;
+using iText.Barcodes;
+using IxPageSize = iText.Kernel.Geom.PageSize;
 using QueueDailyStatisticsDto = HIS.Application.DTOs.Reception.QueueDailyStatisticsDto;
 using AverageWaitingTimeDto = HIS.Application.DTOs.Reception.AverageWaitingTimeDto;
 using QueueReportRequestDto = HIS.Application.DTOs.Reception.QueueReportRequestDto;
@@ -2611,6 +2613,86 @@ public class ReceptionCompleteService : IReceptionCompleteService
         }
 
         return BuildSimplePdf("PHIẾU SỐ THỨ TỰ", fields, details);
+    }
+
+    /// <summary>
+    /// In nhãn mã vạch Code128 để dán lên HSBA giấy (NangCap18 Mù Cang Chải).
+    /// Kích thước nhãn: 60mm x 30mm (chuẩn máy in Zebra ZD230 / Brother QL-800).
+    /// </summary>
+    public async Task<byte[]> PrintMedicalRecordBarcodeAsync(Guid medicalRecordId)
+    {
+        // Accept either a MedicalRecord ID, or an Examination ID and resolve
+        // to its parent MR — caller pages sometimes only have one or the other.
+        var mr = await _context.MedicalRecords
+            .Include(m => m.Patient)
+            .Include(m => m.Department)
+            .FirstOrDefaultAsync(m => m.Id == medicalRecordId);
+
+        if (mr == null)
+        {
+            var exam = await _context.Examinations
+                .Include(e => e.MedicalRecord!).ThenInclude(m => m.Patient)
+                .Include(e => e.MedicalRecord!).ThenInclude(m => m.Department)
+                .FirstOrDefaultAsync(e => e.Id == medicalRecordId);
+            mr = exam?.MedicalRecord;
+        }
+
+        if (mr == null) return Array.Empty<byte>();
+
+        using var memoryStream = new MemoryStream();
+        using var writer = new PdfWriter(memoryStream);
+        using var pdf = new PdfDocument(writer);
+
+        // Label size: 60mm x 30mm => ~170pt x 85pt (1mm ≈ 2.83pt)
+        var labelSize = new IxPageSize(170, 85);
+        pdf.SetDefaultPageSize(labelSize);
+        using var document = new Document(pdf);
+        document.SetMargins(4, 6, 4, 6);
+
+        var bold = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+        var regular = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+
+        // Line 1: MR code (large bold)
+        document.Add(new iText.Layout.Element.Paragraph(mr.MedicalRecordCode ?? "-")
+            .SetFont(bold)
+            .SetFontSize(11)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(1));
+
+        // Line 2: patient name + DOB (truncate to 28 chars so it fits)
+        var dobStr = mr.Patient?.DateOfBirth?.ToString("dd/MM/yyyy") ?? "";
+        var name = mr.Patient?.FullName ?? "-";
+        if (name.Length > 24) name = name.Substring(0, 24) + "…";
+        var infoLine = string.IsNullOrEmpty(dobStr) ? name : $"{name} {dobStr}";
+        document.Add(new iText.Layout.Element.Paragraph(infoLine)
+            .SetFont(regular)
+            .SetFontSize(7)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginBottom(1));
+
+        // Barcode: Code128 encoding the MR code
+        var barcode = new Barcode128(pdf);
+        barcode.SetCode(mr.MedicalRecordCode ?? "-");
+        barcode.SetFont(regular);
+        barcode.SetSize(6f);
+        barcode.SetBarHeight(22f);
+        barcode.SetCodeType(Barcode128.CODE128);
+        var barcodeImage = new iText.Layout.Element.Image(barcode.CreateFormXObject(pdf))
+            .SetHorizontalAlignment(HorizontalAlignment.CENTER)
+            .SetMarginTop(1);
+        document.Add(barcodeImage);
+
+        // Line 3: department + print date (small)
+        var dept = mr.Department?.DepartmentName ?? "-";
+        var printedAt = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+        document.Add(new iText.Layout.Element.Paragraph($"{dept} · {printedAt}")
+            .SetFont(regular)
+            .SetFontSize(6)
+            .SetTextAlignment(TextAlignment.CENTER)
+            .SetMarginTop(1));
+
+        document.Close();
+        return memoryStream.ToArray();
     }
 
     #endregion

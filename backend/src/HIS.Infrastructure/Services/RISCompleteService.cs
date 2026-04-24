@@ -1326,7 +1326,7 @@ public class RISCompleteService : IRISCompleteService
                                     SeriesInstanceUID = seriesInstanceUID,
                                     InstanceNumber = idx++,
                                     ThumbnailUrl = $"/api/RISComplete/pacs/instances/{instId}/preview",
-                                    ImageUrl = $"/api/RISComplete/pacs/instances/{instId}/preview",
+                                    ImageUrl = $"/api/RISComplete/pacs/instances/{instId}/rendered?width=1024",
                                     WadoUrl = $"/api/RISComplete/pacs/instances/{instId}/file"
                                 });
                             }
@@ -1358,7 +1358,7 @@ public class RISCompleteService : IRISCompleteService
                 SeriesInstanceUID = seriesInstanceUID,
                 InstanceNumber = i,
                 ThumbnailUrl = $"/api/RISComplete/pacs/instances/{study.Id}/preview",
-                ImageUrl = $"/api/RISComplete/pacs/instances/{study.Id}/preview",
+                ImageUrl = $"/api/RISComplete/pacs/instances/{study.Id}/rendered?width=1024",
                 WadoUrl = ""
             });
         }

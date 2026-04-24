@@ -21,4 +21,7 @@
     <ProjectReference Include="..\HIS.Infrastructure\HIS.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- wwwroot\ai-models\*.onnx is auto-included via default Content items; see
+       HIS.API\wwwroot\ai-models\chestxray_densenet121_nih14.onnx. -->
+
 </Project>

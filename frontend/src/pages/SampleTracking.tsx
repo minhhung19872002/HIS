@@ -11,6 +11,82 @@ import dayjs from 'dayjs';
 import type { SampleTrackingEvent, SampleRejection, SampleTrackingSummary } from '../api/sampleTracking';
 import * as trackingApi from '../api/sampleTracking';
 import BarcodeScanner from '../components/BarcodeScanner';
+import { DatePicker, Collapse } from 'antd';
+import { getSampleBatches, type SampleBatchDto, type SampleBatchItemDto } from '../api/sampleBatch';
+import { useMemo as useMemoHook } from 'react';
+
+/** M3.13 — Tab hiển thị lấy mẫu chia theo đợt sáng/chiều/tối/cấp cứu. */
+function SampleBatchesTab() {
+  const [date, setDate] = useState<dayjs.Dayjs>(dayjs());
+  const [batches, setBatches] = useState<SampleBatchDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await getSampleBatches(date.toISOString());
+      setBatches(r.batches);
+      setTotal(r.total);
+    } catch {
+      setBatches([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [date]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const columns = useMemoHook(() => [
+    { title: 'Giờ', dataIndex: 'collectedAt', width: 80,
+      render: (v: string) => dayjs(v).format('HH:mm') },
+    { title: 'Barcode', dataIndex: 'sampleBarcode', width: 140,
+      render: (v: string) => v ? <Tag color="geekblue">{v}</Tag> : '-' },
+    { title: 'Xét nghiệm', dataIndex: 'testName' },
+    { title: 'BN', dataIndex: 'patientName',
+      render: (_: unknown, row: SampleBatchItemDto) =>
+        <span><strong>{row.patientCode}</strong> · {row.patientName}</span> },
+    { title: 'Loại mẫu', dataIndex: 'sampleType', width: 100 },
+    { title: 'KTV', dataIndex: 'collectorName', width: 140,
+      render: (v: string) => v ?? '-' },
+    { title: 'Ưu tiên', dataIndex: 'priority', width: 100, align: 'center' as const,
+      render: (p: number) =>
+        p === 3 ? <Tag color="red">Cấp cứu</Tag>
+        : p === 2 ? <Tag color="orange">Ưu tiên</Tag>
+        : <Tag>Thường</Tag> },
+  ], []);
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space>
+        <DatePicker value={date} onChange={(d) => d && setDate(d)} format="DD/MM/YYYY" allowClear={false} />
+        <Button size="small" onClick={load} loading={loading}>Tải</Button>
+        <Tag color="blue">Tổng {total} mẫu</Tag>
+      </Space>
+      <Collapse
+        defaultActiveKey={batches.filter(b => b.count > 0).map(b => b.batchName)}
+        items={batches.map((b) => ({
+          key: b.batchName,
+          label: (
+            <span>
+              <strong>{b.batchName}</strong>
+              <Tag color={b.count > 0 ? 'blue' : 'default'} style={{ marginLeft: 8 }}>{b.count} mẫu</Tag>
+            </span>
+          ),
+          children: (
+            <Table
+              rowKey="id"
+              size="small"
+              dataSource={b.items}
+              columns={columns}
+              pagination={false}
+            />
+          ),
+        }))}
+      />
+    </Space>
+  );
+}
 
 const eventTypeMap: Record<string, { text: string; color: string }> = {
   collected: { text: 'Lấy mẫu', color: 'blue' },
@@ -147,6 +223,8 @@ const SampleTracking: React.FC = () => {
   const tabItems = [
     { key: 'rejections', label: <span><Badge count={activeRejections} size="small" offset={[8, 0]}><CloseCircleOutlined /> Từ chối mẫu</Badge></span>,
       children: <Table columns={rejectionColumns} dataSource={rejections} rowKey="id" size="small" pagination={{ pageSize: 15 }} /> },
+    { key: 'batches', label: <span><AuditOutlined /> Theo đợt</span>,
+      children: <SampleBatchesTab /> },
     { key: 'stats', label: <span><AuditOutlined /> Thống kê</span>,
       children: summary ? (
         <Row gutter={[16, 16]}>

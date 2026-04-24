@@ -1201,6 +1201,26 @@ public class ReceptionCompleteController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// NangCap18: In nhãn mã vạch Code128 (60mm x 30mm) dán lên HSBA giấy.
+    /// </summary>
+    [HttpGet("print/medical-record-barcode/{medicalRecordId}")]
+    public async Task<IActionResult> PrintMedicalRecordBarcode(Guid medicalRecordId)
+    {
+        try
+        {
+            var data = await _receptionService.PrintMedicalRecordBarcodeAsync(medicalRecordId);
+            if (data.Length == 0)
+                return NotFound(new { message = "Không tìm thấy hồ sơ bệnh án" });
+            return File(data, "application/pdf", $"BarcodeHSBA_{medicalRecordId}.pdf");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error printing MR barcode label");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     #endregion
 
     #region 1.16 Thu tiền khám bệnh

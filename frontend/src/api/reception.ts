@@ -806,6 +806,12 @@ export const printQueueTicket = (ticketId: string) =>
     responseType: 'blob'
   });
 
+/** NangCap18: print Code128 barcode label (60x30mm) for MR paper folder. */
+export const printMedicalRecordBarcode = (medicalRecordId: string) =>
+  api.get(`/reception/print/medical-record-barcode/${medicalRecordId}`, {
+    responseType: 'blob'
+  });
+
 // #endregion
 
 // #region 1.16 Thu tiền

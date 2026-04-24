@@ -68,6 +68,7 @@ import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheri
 import { patientApi, type Patient } from '../api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import PatientFlagBanner from '../components/PatientFlagBanner';
 import { API_URL } from '../config/api';
 
 const { Title, Text } = Typography;
@@ -2223,6 +2224,10 @@ const Inpatient: React.FC = () => {
       >
         {selectedAdmission && (
           <div>
+            <PatientFlagBanner
+              patientId={selectedAdmission.patientId}
+              patientName={selectedAdmission.patientName}
+            />
             <BusinessAlertPanel
               patientId={selectedAdmission.patientCode}
               admissionId={selectedAdmission.admissionId}

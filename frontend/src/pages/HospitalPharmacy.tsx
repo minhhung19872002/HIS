@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card,
   Table,
@@ -1353,6 +1354,7 @@ const HospitalPharmacy: React.FC = () => {
   return (
     <Spin spinning={loading && sales.length === 0 && stock.length === 0}>
       <div>
+        <PharmacyExpiryBanner asModalOnFirstVisit sessionKey="pharmacy-module-expiry-shown" />
         {/* Header */}
         <Card style={{ marginBottom: 16 }}>
           <Row justify="space-between" align="middle">

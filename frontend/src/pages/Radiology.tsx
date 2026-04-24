@@ -60,6 +60,7 @@ import {
   PlusOutlined,
   GlobalOutlined,
   ShareAltOutlined,
+  VideoCameraOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -245,6 +246,9 @@ const Radiology: React.FC = () => {
   const [integrationLogs, setIntegrationLogs] = useState<IntegrationLogDto[]>([]);
   const [integrationLogStats, setIntegrationLogStats] = useState<{ totalMessages: number; successCount: number; failedCount: number; averageResponseTimeMs: number } | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
+
+  // A2: Live consultation room detection — mark worklist rows with LIVE badge
+  const [liveStudyUIDs, setLiveStudyUIDs] = useState<Set<string>>(new Set());
 
   // ===== Feature: Dark/Light Theme Toggle (NangCap15) =====
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -950,6 +954,24 @@ const Radiology: React.FC = () => {
     }
   }, [activeTab, resultTemplates.length]);
 
+  // A2: Poll for live consultation rooms every 30s so worklist badges stay fresh.
+  useEffect(() => {
+    let cancelled = false;
+    const loadLive = async () => {
+      try {
+        const { searchRooms } = await import('../api/videoConsultation');
+        const rooms = await searchRooms({ status: 1 });
+        if (cancelled) return;
+        const uids = new Set<string>();
+        rooms.forEach((r) => { if (r.studyInstanceUID) uids.add(r.studyInstanceUID); });
+        setLiveStudyUIDs(uids);
+      } catch { /* ignore */ }
+    };
+    loadLive();
+    const id = window.setInterval(loadLive, 30000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+
   // Get priority badge
   const getPriorityBadge = (priority: number) => {
     switch (priority) {
@@ -1236,8 +1258,17 @@ const Radiology: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'statusCode',
       key: 'statusCode',
-      width: 140,
-      render: (statusCode) => getStatusTag(statusCode),
+      width: 160,
+      render: (statusCode, row) => (
+        <Space size={4} wrap>
+          {getStatusTag(statusCode)}
+          {row.studyInstanceUID && liveStudyUIDs.has(row.studyInstanceUID) && (
+            <Tag color="red" icon={<VideoCameraOutlined />} data-testid="rad-live-badge">
+              LIVE
+            </Tag>
+          )}
+        </Space>
+      ),
     },
     {
       title: 'Thao tác',

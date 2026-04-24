@@ -610,6 +610,49 @@ namespace HIS.API.Controllers
         }
 
         /// <summary>
+        /// Proxy Orthanc rendered image — full-resolution PNG, dùng cho main viewer
+        /// và AI inference. Default 1024px width (config via ?width=).
+        /// </summary>
+        [HttpGet("pacs/instances/{instanceId}/rendered")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetInstanceRendered(string instanceId, [FromQuery] int width = 1024)
+        {
+            var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
+            var pacsUser = _configuration["PACS:Username"] ?? "admin";
+            var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+            if (width <= 0 || width > 4096) width = 1024;
+
+            try
+            {
+                using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                var authBytes = System.Text.Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+                var url = $"{pacsBaseUrl}/instances/{instanceId}/rendered?width={width}";
+                var response = await httpClient.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsByteArrayAsync();
+                    var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
+                    return File(content, contentType);
+                }
+                // Fallback to preview nếu rendered không hỗ trợ (VD old Orthanc)
+                var fallback = await httpClient.GetAsync($"{pacsBaseUrl}/instances/{instanceId}/preview");
+                if (fallback.IsSuccessStatusCode)
+                {
+                    var content = await fallback.Content.ReadAsByteArrayAsync();
+                    return File(content, "image/png");
+                }
+                return NotFound();
+            }
+            catch
+            {
+                return StatusCode(502, "Cannot connect to PACS server");
+            }
+        }
+
+        /// <summary>
         /// Proxy Orthanc instance file download (avoid CORS)
         /// </summary>
         [HttpGet("pacs/instances/{instanceId}/file")]

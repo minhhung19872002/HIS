@@ -46,6 +46,7 @@ import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signat
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
+import LabCancelChainMenu from '../components/LabCancelChainMenu';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -1008,7 +1009,7 @@ const Laboratory: React.FC = () => {
     {
       title: 'Thao tác',
       key: 'action',
-      width: 250,
+      width: 340,
       fixed: 'right',
       render: (_, record) => (
         <Space>
@@ -1021,6 +1022,13 @@ const Laboratory: React.FC = () => {
             >
               Duyệt
             </Button>
+          )}
+          {record.status >= 1 && (
+            <LabCancelChainMenu
+              labRequestItemId={record.id}
+              currentStatus={record.status === 2 ? 4 : record.status === 1 ? 3 : record.status}
+              onChanged={() => { fetchLabRequests(); fetchTestResults(); }}
+            />
           )}
           {record.status === 2 && (
             <>

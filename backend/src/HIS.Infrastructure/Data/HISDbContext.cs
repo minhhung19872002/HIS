@@ -455,6 +455,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<EmrSpine> EmrSpines => Set<EmrSpine>();
     public DbSet<EmrSpineSection> EmrSpineSections => Set<EmrSpineSection>();
     public DbSet<PatientSignature> PatientSignatures => Set<PatientSignature>();
+    public DbSet<AiLabelingResult> AiLabelingResults => Set<AiLabelingResult>();
     public DbSet<DocumentLock> DocumentLocks => Set<DocumentLock>();
     public DbSet<EmrDataTag> EmrDataTags => Set<EmrDataTag>();
     public DbSet<EmrImage> EmrImages => Set<EmrImage>();

@@ -72,6 +72,7 @@ const Finance = lazy(() => import('./pages/Finance'));
 const Insurance = lazy(() => import('./pages/Insurance'));
 const MasterData = lazy(() => import('./pages/MasterData'));
 const Reports = lazy(() => import('./pages/Reports'));
+const WorkloadReport = lazy(() => import('./pages/WorkloadReport'));
 const Telemedicine = lazy(() => import('./pages/Telemedicine'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
 const InfectionControl = lazy(() => import('./pages/InfectionControl'));
@@ -215,6 +216,7 @@ const AppRoutes: React.FC = () => {
           <Route path="sample-receive" element={<SampleReceive />} />
           <Route path="bhxh-config" element={<BhxhConfig />} />
           <Route path="consultation-register" element={<ConsultationRegister />} />
+          <Route path="workload-report" element={<WorkloadReport />} />
           <Route path="medical-supply" element={<MedicalSupply />} />
           <Route path="follow-up" element={<FollowUp />} />
           <Route path="booking-management" element={<BookingManagement />} />

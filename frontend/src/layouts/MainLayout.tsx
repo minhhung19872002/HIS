@@ -109,7 +109,7 @@ const MainLayout: React.FC = () => {
       integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance'],
       publicHealth: ['/health-checkup', '/immunization', '/epidemiology', '/school-health', '/occupational-health', '/methadone-treatment', '/food-safety', '/community-health', '/hiv-management'],
       medinetYtcc: ['/medical-forensics', '/traditional-medicine', '/reproductive-health', '/mental-health', '/environmental-health', '/trauma-registry', '/population-health', '/health-education', '/practice-license', '/inter-hospital'],
-      system: ['/master-data', '/catalogs-admin', '/reports', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
+      system: ['/master-data', '/catalogs-admin', '/reports', '/workload-report', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
     };
     for (const [group, routes] of Object.entries(groupMap)) {
       if (routes.includes(path)) return [group];
@@ -281,6 +281,7 @@ const MainLayout: React.FC = () => {
         { key: '/master-data', icon: <DatabaseOutlined />, label: 'Danh mục' },
         { key: '/catalogs-admin', icon: <DatabaseOutlined />, label: 'Viết tắt + Template' },
         { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
+        { key: '/workload-report', icon: <TeamOutlined />, label: 'Workload BS/KTV' },
         { key: '/admin', icon: <SettingOutlined />, label: 'Quản trị' },
         { key: '/digital-signature', icon: <SafetyCertificateOutlined />, label: 'Chữ ký số' },
         { key: '/central-signing', icon: <SafetyCertificateOutlined />, label: 'Ký số tập trung' },

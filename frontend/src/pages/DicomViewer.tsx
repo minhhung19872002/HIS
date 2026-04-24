@@ -13,6 +13,7 @@ import {
   Empty,
   message,
   Tag,
+  Modal,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -26,9 +27,16 @@ import {
   LinkOutlined,
   ExclamationCircleOutlined,
   ExportOutlined,
+  VideoCameraOutlined,
+  AppstoreOutlined,
+  DiffOutlined,
+  BlockOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import risApi from '../api/ris';
 import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
+import { createRoom, searchRooms, joinRoom } from '../api/videoConsultation';
+import AiLabelingModal from '../components/AiLabelingModal';
 import { API_ORIGIN } from '../config/api';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import DicomViewerConfig from '../components/DicomViewerConfig';
@@ -83,6 +91,21 @@ const DicomViewer: React.FC = () => {
   const [viewerConfig, setViewerConfig] = useState(() => loadViewerConfig());
   const [activeWlPreset, setActiveWlPreset] = useState<string>('');
   const [showOverlay, setShowOverlay] = useState(true);
+
+  // A1: Embedded OHIF iframe mode — MPR, 3D volume, MIP, Mamo sẵn có trong Orthanc plugin
+  const [embedOhif, setEmbedOhif] = useState(false);
+
+  // A2: Video conference integration
+  const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
+  const [creatingRoom, setCreatingRoom] = useState(false);
+
+  // QW3.3: Compare 2 studies side-by-side
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareUid, setCompareUid] = useState<string>('');
+  const [patientStudies, setPatientStudies] = useState<Array<{ studyInstanceUID: string; studyDate?: string; modality?: string; serviceName?: string }>>([]);
+
+  // AI Labeling
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     // Global hotkey listener cho W/L presets F1-F10 + shortcuts customizable
@@ -210,6 +233,91 @@ const DicomViewer: React.FC = () => {
     window.open(ohifUrl, '_blank');
   };
 
+  // A1: Embed OHIF Viewer inline — gives access to MPR 4-quadrant, 3D volume,
+  // MIP presets, Mammography layout, Compare studies... all built-in to OHIF 3.x
+  // which ships inside Orthanc's OHIF plugin.
+  const ohifEmbedUrl = `${ORTHANC_BASE}/ohif/viewer?StudyInstanceUIDs=${studyInstanceUID}`;
+
+  // QW3.3: Load patient's other studies when Compare modal opens
+  const openCompareModal = useCallback(async () => {
+    setCompareOpen(true);
+    if (!studyInfo?.patientId) return;
+    try {
+      const resp = await risApi.getPatientRadiologyHistory(studyInfo.patientId);
+      const raw = (resp?.data ?? []) as unknown as Array<Record<string, unknown>>;
+      const list = raw
+        .filter((r) => typeof r.studyInstanceUID === 'string' && r.studyInstanceUID !== studyInstanceUID)
+        .map((r) => ({
+          studyInstanceUID: String(r.studyInstanceUID ?? ''),
+          studyDate: r.studyDate as string | undefined,
+          modality: r.modality as string | undefined,
+          serviceName: r.serviceName as string | undefined,
+        }));
+      setPatientStudies(list);
+    } catch { /* ignore */ }
+  }, [studyInfo, studyInstanceUID]);
+
+  const handleCompare = useCallback(() => {
+    if (!compareUid.trim()) {
+      message.warning('Nhập hoặc chọn Study UID để so sánh');
+      return;
+    }
+    // OHIF hỗ trợ multi-study qua comma-separated StudyInstanceUIDs
+    const url = `${ORTHANC_BASE}/ohif/viewer?StudyInstanceUIDs=${studyInstanceUID},${compareUid.trim()}`;
+    window.open(url, '_blank', 'noopener');
+    setCompareOpen(false);
+  }, [compareUid, studyInstanceUID]);
+
+  // QW3.12: Dual monitor — open a cloned viewer on monitor 2
+  const handleOpenDualMonitor = useCallback(() => {
+    const features = 'width=1400,height=900,resizable=yes,scrollbars=yes';
+    // Open same page on another window; user drag to monitor 2.
+    // Add ?dual=1 so window title indicates it's the secondary view.
+    window.open(`${window.location.pathname}${window.location.search}&dual=1`, 'his-dual-viewer', features);
+  }, []);
+
+  // A2: Check if a live consultation room already exists for this study on mount,
+  // so the button can offer Join instead of Create.
+  useEffect(() => {
+    if (!studyInstanceUID) return;
+    searchRooms({ status: 1 })
+      .then((rooms) => {
+        const live = rooms.find((r) => r.studyInstanceUID === studyInstanceUID);
+        if (live) setLiveRoomId(live.id);
+      })
+      .catch(() => {});
+  }, [studyInstanceUID]);
+
+  const handleVideoConference = useCallback(async () => {
+    if (!studyInstanceUID) return;
+    setCreatingRoom(true);
+    try {
+      if (liveRoomId) {
+        // Join existing live room
+        const info = await joinRoom(liveRoomId, 'Người dùng HIS');
+        window.open(info.jitsiUrl, '_blank', 'noopener,width=1200,height=800');
+      } else {
+        // Create + auto-start a new room tied to this study
+        const room = await createRoom({
+          title: `Hội chẩn ca chụp ${studyInstanceUID.slice(-12)}`,
+          roomType: 1, // CĐHA
+          studyInstanceUID,
+          patientId: studyInfo?.patientId ? undefined : undefined,
+          isRecorded: false,
+        });
+        setLiveRoomId(room.id);
+        const info = await joinRoom(room.id, 'Người dùng HIS');
+        window.open(info.jitsiUrl, '_blank', 'noopener,width=1200,height=800');
+        message.success('Đã tạo phòng hội chẩn cho ca chụp này');
+      }
+    } catch (err) {
+      console.warn('video conference error:', err);
+      message.error('Không mở được phòng hội chẩn');
+    } finally {
+      setCreatingRoom(false);
+    }
+  }, [studyInstanceUID, liveRoomId, studyInfo]);
+
   const handleOpenOrthancExplorer = () => {
     window.open(`${ORTHANC_BASE}/ui/app/#/filtered-studies?StudyInstanceUID=${studyInstanceUID}`, '_blank');
   };
@@ -283,8 +391,48 @@ const DicomViewer: React.FC = () => {
             </Button>
             {pacsAvailable && (
               <>
-                <Button type="primary" icon={<ExpandOutlined />} onClick={handleOpenOHIF}>
-                  Mở OHIF Viewer
+                <Button
+                  type={embedOhif ? 'default' : 'primary'}
+                  icon={<AppstoreOutlined />}
+                  onClick={() => setEmbedOhif((v) => !v)}
+                  data-testid="dicom-mpr-3d-btn"
+                >
+                  {embedOhif ? 'Ẩn MPR/3D' : 'MPR / 3D / Mamo'}
+                </Button>
+                <Button
+                  icon={<RobotOutlined />}
+                  onClick={() => setAiOpen(true)}
+                  disabled={!selectedImageUrl}
+                  data-testid="dicom-ai-btn"
+                >
+                  Phân tích AI
+                </Button>
+                <Button
+                  type={liveRoomId ? 'primary' : 'default'}
+                  danger={!!liveRoomId}
+                  icon={<VideoCameraOutlined />}
+                  onClick={handleVideoConference}
+                  loading={creatingRoom}
+                  data-testid="dicom-video-conf-btn"
+                >
+                  {liveRoomId ? 'Tham gia hội chẩn (LIVE)' : 'Hội chẩn video'}
+                </Button>
+                <Button
+                  icon={<DiffOutlined />}
+                  onClick={openCompareModal}
+                  data-testid="dicom-compare-btn"
+                >
+                  So sánh
+                </Button>
+                <Button
+                  icon={<BlockOutlined />}
+                  onClick={handleOpenDualMonitor}
+                  data-testid="dicom-dual-monitor-btn"
+                >
+                  Tách màn hình
+                </Button>
+                <Button icon={<ExpandOutlined />} onClick={handleOpenOHIF}>
+                  Mở OHIF tab mới
                 </Button>
                 <Button icon={<LinkOutlined />} onClick={handleOpenOrthancExplorer}>
                   Orthanc Explorer
@@ -378,6 +526,38 @@ const DicomViewer: React.FC = () => {
           </Descriptions.Item>
         </Descriptions>
       </Card>
+
+      {/* A1: Embedded OHIF iframe — MPR 4-quadrant, 3D volume, MIP, Mamography, Compare studies */}
+      {embedOhif && pacsAvailable && (
+        <Card
+          title={
+            <Space>
+              <AppstoreOutlined />
+              MPR / 3D / MIP / Mamography Viewer (OHIF)
+            </Space>
+          }
+          extra={
+            <Space>
+              <Button size="small" icon={<ExpandOutlined />} onClick={handleOpenOHIF}>
+                Mở tab mới
+              </Button>
+              <Button size="small" onClick={() => setEmbedOhif(false)}>
+                Đóng
+              </Button>
+            </Space>
+          }
+          style={{ marginBottom: 16 }}
+          styles={{ body: { padding: 0, height: '75vh' } }}
+        >
+          <iframe
+            title="OHIF MPR 3D Viewer"
+            src={ohifEmbedUrl}
+            style={{ width: '100%', height: '100%', border: 0 }}
+            allow="fullscreen"
+            data-testid="dicom-ohif-iframe"
+          />
+        </Card>
+      )}
 
       {/* Main Content */}
       <Row gutter={16}>
@@ -599,6 +779,76 @@ const DicomViewer: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* QW3.3: Compare 2 studies modal */}
+      <Modal
+        title={<Space><DiffOutlined /> So sánh 2 ca chụp</Space>}
+        open={compareOpen}
+        onCancel={() => setCompareOpen(false)}
+        onOk={handleCompare}
+        okText="Mở OHIF so sánh"
+        cancelText="Hủy"
+        width={700}
+        data-testid="dicom-compare-modal"
+      >
+        <Alert
+          type="info"
+          showIcon
+          title="Chọn ca chụp cũ của cùng BN (hoặc dán Study UID) để mở trong OHIF side-by-side."
+          style={{ marginBottom: 12 }}
+        />
+        <div style={{ marginBottom: 8 }}>
+          <strong>Ca chụp hiện tại:</strong>
+          <div><Text code>{studyInstanceUID}</Text></div>
+        </div>
+        {patientStudies.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <strong>Ca chụp trước của BN:</strong>
+            <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4, padding: 8, marginTop: 4 }}>
+              {patientStudies.map((s) => (
+                <div
+                  key={s.studyInstanceUID}
+                  onClick={() => setCompareUid(s.studyInstanceUID)}
+                  style={{
+                    padding: 8,
+                    cursor: 'pointer',
+                    backgroundColor: compareUid === s.studyInstanceUID ? '#e6f4ff' : 'transparent',
+                    borderBottom: '1px solid #f0f0f0',
+                  }}
+                >
+                  <div>
+                    {s.modality && <Tag color="blue">{s.modality}</Tag>}
+                    {s.serviceName}
+                    {s.studyDate && <span style={{ marginLeft: 8, color: '#999' }}>{s.studyDate}</span>}
+                  </div>
+                  <Text code style={{ fontSize: 11 }}>{s.studyInstanceUID}</Text>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div>
+          <strong>Hoặc dán Study UID:</strong>
+          <input
+            type="text"
+            value={compareUid}
+            onChange={(e) => setCompareUid(e.target.value)}
+            placeholder="1.2.840.113619.2.55..."
+            style={{ width: '100%', padding: 6, marginTop: 4, border: '1px solid #d9d9d9', borderRadius: 4, fontFamily: 'monospace', fontSize: 12 }}
+          />
+        </div>
+      </Modal>
+
+      {/* AI Labeling */}
+      {selectedImageUrl && (
+        <AiLabelingModal
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          studyInstanceUID={studyInstanceUID}
+          previewUrl={selectedImageUrl}
+          patientId={studyInfo?.patientId}
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card,
   Table,
@@ -1968,6 +1969,7 @@ const Pharmacy: React.FC = () => {
 
   return (
     <div>
+      <PharmacyExpiryBanner asModalOnFirstVisit sessionKey="pharmacy-module-expiry-shown" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Quản lý nhà thuốc</Title>
         <Button icon={<ReloadOutlined />} onClick={() => fetchData()} size="small">Làm mới</Button>

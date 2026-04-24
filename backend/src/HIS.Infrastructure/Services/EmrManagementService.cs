@@ -556,6 +556,12 @@ public class EmrManagementService : IEmrManagementService
             IpAddress = dto.IpAddress ?? _http.HttpContext?.Connection.RemoteIpAddress?.ToString(),
             VerificationCode = verificationCode,
             IsVerified = false,
+            // QW3.9
+            IsProxySignature = dto.IsProxySignature,
+            ProxySignerName = dto.ProxySignerName,
+            ProxySignerCccd = dto.ProxySignerCccd,
+            ProxySignerRelation = dto.ProxySignerRelation,
+            ProxyReason = dto.ProxyReason,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId
         };
@@ -575,6 +581,11 @@ public class EmrManagementService : IEmrManagementService
             IpAddress = entity.IpAddress,
             VerificationCode = entity.VerificationCode,
             IsVerified = entity.IsVerified,
+            IsProxySignature = entity.IsProxySignature,
+            ProxySignerName = entity.ProxySignerName,
+            ProxySignerCccd = entity.ProxySignerCccd,
+            ProxySignerRelation = entity.ProxySignerRelation,
+            ProxyReason = entity.ProxyReason,
             CreatedAt = entity.CreatedAt
         };
     }

@@ -71,6 +71,8 @@ import StockReservationModal from '../components/StockReservationModal';
 import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
 import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
 import PatientFlagBanner from '../components/PatientFlagBanner';
+import DoctorLicenseBanner from '../components/DoctorLicenseBanner';
+import type { LicenseStatusDto } from '../api/doctorLicense';
 import { getDepositBalance } from '../api/billing';
 import { buildApiUrl } from '../config/api';
 
@@ -165,6 +167,7 @@ const OPD: React.FC = () => {
   const [queueList, setQueueList] = useState<QueuePatient[]>([]);
   const [loadingQueue, setLoadingQueue] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatusDto | null>(null);
 
   // State for examination
   const [examination, setExamination] = useState<Examination | null>(null);
@@ -1251,6 +1254,12 @@ const OPD: React.FC = () => {
       return;
     }
 
+    // NangCap18: chặn lưu phiên khám nếu BS không có CCHN hợp lệ.
+    if (licenseStatus && !licenseStatus.isValid) {
+      message.error(`Không thể lưu khám: ${licenseStatus.message}`);
+      return;
+    }
+
     // Skip if temporary examination (not yet registered in backend)
     if (examination.id.startsWith('temp-')) {
       message.warning('Bệnh nhân chưa được đăng ký khám. Vui lòng chọn từ danh sách chờ.');
@@ -1871,6 +1880,7 @@ const OPD: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      <DoctorLicenseBanner onStatus={setLicenseStatus} />
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col>
           <Title level={4}>Khám bệnh ngoại trú</Title>

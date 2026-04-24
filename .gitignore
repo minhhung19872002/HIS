@@ -162,3 +162,11 @@ test-reception-full.ps1
 # SQL Server backup dump (local migration artifact)
 *.bak
 TaiLieuDoiThu/
+
+# Large ONNX model files (>50MB GH warns, >100MB blocks).
+# Keep 28MB DenseNet121 committed (default); ship ResNet50-512 via R2 or
+# regenerate via scripts/convert_xray_model.py when needed.
+backend/src/HIS.API/wwwroot/ai-models/chestxray_resnet50_res512_all.onnx
+
+# GCP deploy env snapshot contains prod secrets (SQL pwd, JWT key, PACS pwd)
+deploy/gcp-migration/

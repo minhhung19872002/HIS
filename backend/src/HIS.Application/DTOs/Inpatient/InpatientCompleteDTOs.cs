@@ -130,6 +130,7 @@ public class WardColorConfigDto
 public class InpatientListDto
 {
     public Guid AdmissionId { get; set; }
+    public Guid PatientId { get; set; }
     public string MedicalRecordCode { get; set; } = string.Empty;
     public string PatientCode { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;

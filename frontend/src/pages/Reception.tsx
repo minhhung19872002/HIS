@@ -1464,6 +1464,23 @@ const Reception: React.FC = () => {
         open={isDetailModalOpen}
         onCancel={() => setIsDetailModalOpen(false)}
         footer={[
+          <Button
+            key="barcode"
+            icon={<BarcodeOutlined />}
+            onClick={async () => {
+              if (!selectedRecord) return;
+              try {
+                const res = await receptionApi.printMedicalRecordBarcode(selectedRecord.id);
+                const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                window.open(url, '_blank');
+                setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+              } catch {
+                message.error('Không in được nhãn mã vạch');
+              }
+            }}
+          >
+            In nhãn mã vạch
+          </Button>,
           <Button key="history" icon={<HistoryOutlined />} onClick={() => {
             setIsDetailModalOpen(false);
             setIsHistoryModalOpen(true);

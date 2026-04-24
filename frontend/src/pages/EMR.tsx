@@ -42,6 +42,7 @@ import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSi
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures, getSignaturesBatch } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
+import PatientFlagBanner from '../components/PatientFlagBanner';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -916,6 +917,9 @@ ${conclusion ? `<div class="section">
 
     return (
       <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+        {patient?.id && (
+          <PatientFlagBanner patientId={patient.id} patientName={patient.fullName} />
+        )}
         {/* Patient Info */}
         <Card size="small" title={<><UserOutlined /> Thông tin bệnh nhân</>} style={{ marginBottom: 12 }}>
           <Descriptions size="small" column={3}>

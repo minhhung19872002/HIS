@@ -304,6 +304,7 @@ public class InpatientCompleteService : IInpatientCompleteService
                     .Select(a => a.Id)
                     .FirstOrDefault(),
                 MedicalRecordCode = m.MedicalRecordCode,
+                PatientId = m.Patient.Id,
                 PatientCode = m.Patient.PatientCode,
                 PatientName = m.Patient.FullName,
                 Gender = m.Patient.Gender,
