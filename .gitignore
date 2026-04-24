@@ -163,10 +163,10 @@ test-reception-full.ps1
 *.bak
 TaiLieuDoiThu/
 
-# Large ONNX model files (>50MB GH warns, >100MB blocks).
-# Keep 28MB DenseNet121 committed (default); ship ResNet50-512 via R2 or
-# regenerate via scripts/convert_xray_model.py when needed.
-backend/src/HIS.API/wwwroot/ai-models/chestxray_resnet50_res512_all.onnx
+# Large ONNX model files: 28MB DenseNet + 90MB ResNet50 both shipped in
+# image so /api/ai-labeling/model endpoint can serve either without R2.
+# GitHub accepts up to 100MB per file (warns >50MB, allows <100MB).
+# Regenerate via scripts/convert_xray_model.py if you need more variants.
 
 # GCP deploy env snapshot contains prod secrets (SQL pwd, JWT key, PACS pwd)
 deploy/gcp-migration/
