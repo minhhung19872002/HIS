@@ -846,8 +846,17 @@ const Radiology: React.FC = () => {
   // Fetch radiology data from API
   const fetchRadiologyData = async () => {
     try {
-      const today = dayjs().format('YYYY-MM-DD');
-      const response = await risApi.getWaitingList(today);
+      // Backend /waiting-list filters RequestDate.Date == date strictly.
+      // Demo DB may have past-dated data → call last 7 days in parallel and merge
+      // so /radiology always shows something instead of "no data".
+      const daysBack = 7;
+      const responses = await Promise.all(
+        Array.from({ length: daysBack }, (_, i) =>
+          risApi.getWaitingList(dayjs().subtract(i, 'day').format('YYYY-MM-DD')).catch(() => null)
+        )
+      );
+      const merged = responses.flatMap((r) => r?.data ?? []);
+      const response = { data: merged };
       if (response && response.data) {
         // Map API data to local RadiologyRequest format
         // Status from API (Vietnamese): 'Cho thuc hien', 'Da hen', 'Dang thuc hien', 'Da thuc hien', 'Da tra ket qua', 'Da duyet', 'Da huy'
