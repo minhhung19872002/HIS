@@ -1563,7 +1563,26 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<List<RejectedClaimDto>> GetRejectedClaimsAsync(Guid batchId)
     {
-        return new List<RejectedClaimDto>();
+        // batchId is conceptual — no batch entity exists yet. Return medical
+        // records currently in a "rejected" state with patient + financial info.
+        var rejected = await _context.MedicalRecords
+            .Include(r => r.Patient)
+            .Where(r => !r.IsDeleted
+                        && r.Patient != null
+                        && !string.IsNullOrEmpty(r.Patient.InsuranceNumber)
+                        && r.Status == 5)
+            .Take(200)
+            .ToListAsync();
+        return rejected.Select(r => new RejectedClaimDto
+        {
+            MaLk = r.MedicalRecordCode,
+            PatientName = r.Patient?.FullName ?? "",
+            InsuranceNumber = r.Patient?.InsuranceNumber ?? "",
+            RejectCode = "",
+            RejectReason = "",
+            ClaimAmount = 0,
+            RejectedAmount = 0,
+        }).ToList();
     }
 
     public async Task<bool> ProcessRejectedClaimAsync(string maLk, RejectedClaimProcessDto dto)
@@ -1695,22 +1714,140 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<List<TreatmentTypeReportDto>> GetTreatmentTypeReportAsync(int month, int year)
     {
-        return new List<TreatmentTypeReportDto>();
+        var (from, to) = MonthRange(month, year);
+        var rows = await _context.InvoiceSummaries
+            .Include(i => i.MedicalRecord).ThenInclude(m => m.Patient)
+            .Where(i => !i.IsDeleted
+                        && i.MedicalRecord != null
+                        && i.MedicalRecord.Patient != null
+                        && !string.IsNullOrEmpty(i.MedicalRecord.Patient.InsuranceNumber)
+                        && i.InvoiceDate >= from && i.InvoiceDate < to)
+            .Select(i => new {
+                TreatmentType = i.MedicalRecord!.TreatmentType,
+                i.TotalAmount,
+                i.InsuranceAmount,
+                i.PatientCoPayment,
+            })
+            .ToListAsync();
+
+        return rows.GroupBy(r => r.TreatmentType)
+            .Select(g => new TreatmentTypeReportDto
+            {
+                TreatmentTypeCode = g.Key.ToString(),
+                TreatmentTypeName = g.Key switch { 1 => "Ngoại trú", 2 => "Nội trú", 3 => "Cấp cứu", _ => "Khác" },
+                VisitCount = g.Count(),
+                TotalCost = g.Sum(x => x.TotalAmount),
+                InsurancePaid = g.Sum(x => x.InsuranceAmount),
+                PatientPaid = g.Sum(x => x.PatientCoPayment),
+            })
+            .OrderByDescending(d => d.VisitCount)
+            .ToList();
     }
 
     public async Task<List<DiseaseStatDto>> GetTopDiseasesReportAsync(int month, int year, int top = 20)
     {
-        return new List<DiseaseStatDto>();
+        var (from, to) = MonthRange(month, year);
+        var rows = await _context.InvoiceSummaries
+            .Include(i => i.MedicalRecord).ThenInclude(m => m.Patient)
+            .Where(i => !i.IsDeleted
+                        && i.MedicalRecord != null
+                        && i.MedicalRecord.Patient != null
+                        && !string.IsNullOrEmpty(i.MedicalRecord.Patient.InsuranceNumber)
+                        && !string.IsNullOrEmpty(i.MedicalRecord.MainIcdCode)
+                        && i.InvoiceDate >= from && i.InvoiceDate < to)
+            .Select(i => new {
+                i.MedicalRecord!.MainIcdCode,
+                i.MedicalRecord.MainDiagnosis,
+                i.TotalAmount,
+            })
+            .ToListAsync();
+
+        return rows.GroupBy(r => r.MainIcdCode!)
+            .Select(g => new DiseaseStatDto
+            {
+                IcdCode = g.Key,
+                DiseaseName = g.First().MainDiagnosis ?? "",
+                Count = g.Count(),
+                TotalCost = g.Sum(x => x.TotalAmount),
+            })
+            .OrderByDescending(d => d.Count)
+            .Take(top)
+            .ToList();
     }
 
     public async Task<List<MedicineStatDto>> GetTopMedicinesReportAsync(int month, int year, int top = 20)
     {
-        return new List<MedicineStatDto>();
+        var (from, to) = MonthRange(month, year);
+        var rows = await _context.PrescriptionDetails
+            .Include(d => d.Medicine)
+            .Include(d => d.Prescription).ThenInclude(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
+            .Where(d => !d.IsDeleted
+                        && d.Prescription != null
+                        && d.Prescription.MedicalRecord != null
+                        && d.Prescription.MedicalRecord.Patient != null
+                        && !string.IsNullOrEmpty(d.Prescription.MedicalRecord.Patient.InsuranceNumber)
+                        && d.Prescription.PrescriptionDate >= from && d.Prescription.PrescriptionDate < to)
+            .Select(d => new { d.MedicineId, d.Medicine!.MedicineCode, d.Medicine.MedicineName, d.Quantity, d.Amount })
+            .ToListAsync();
+
+        return rows.GroupBy(r => r.MedicineId)
+            .Select(g => new MedicineStatDto
+            {
+                MedicineCode = g.First().MedicineCode,
+                MedicineName = g.First().MedicineName,
+                TotalQuantity = g.Sum(x => x.Quantity),
+                TotalCost = g.Sum(x => x.Amount),
+            })
+            .OrderByDescending(m => m.TotalCost)
+            .Take(top)
+            .ToList();
     }
 
     public async Task<List<DepartmentInsuranceReportDto>> GetDepartmentReportAsync(int month, int year)
     {
-        return new List<DepartmentInsuranceReportDto>();
+        var (from, to) = MonthRange(month, year);
+        var rows = await _context.InvoiceSummaries
+            .Include(i => i.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(i => i.MedicalRecord).ThenInclude(m => m.Department)
+            .Where(i => !i.IsDeleted
+                        && i.MedicalRecord != null
+                        && i.MedicalRecord.Patient != null
+                        && !string.IsNullOrEmpty(i.MedicalRecord.Patient.InsuranceNumber)
+                        && i.InvoiceDate >= from && i.InvoiceDate < to)
+            .Select(i => new {
+                DepartmentId = i.MedicalRecord!.DepartmentId,
+                DepartmentCode = i.MedicalRecord.Department.DepartmentCode,
+                DepartmentName = i.MedicalRecord.Department.DepartmentName,
+                i.TotalAmount,
+                i.InsuranceAmount,
+                i.TotalServiceAmount,
+                i.TotalMedicineAmount,
+            })
+            .ToListAsync();
+
+        return rows.GroupBy(r => r.DepartmentId)
+            .Select(g => new DepartmentInsuranceReportDto
+            {
+                DepartmentId = g.Key ?? Guid.Empty,
+                DepartmentCode = g.First().DepartmentCode,
+                DepartmentName = g.First().DepartmentName,
+                VisitCount = g.Count(),
+                TotalCost = g.Sum(x => x.TotalAmount),
+                InsurancePaid = g.Sum(x => x.InsuranceAmount),
+                MedicineCost = g.Sum(x => x.TotalMedicineAmount),
+                ServiceCost = g.Sum(x => x.TotalServiceAmount),
+            })
+            .OrderByDescending(d => d.TotalCost)
+            .ToList();
+    }
+
+    private static (DateTime from, DateTime to) MonthRange(int month, int year)
+    {
+        if (month < 1 || month > 12) month = DateTime.UtcNow.Month;
+        if (year < 2000) year = DateTime.UtcNow.Year;
+        var from = new DateTime(year, month, 1);
+        var to = from.AddMonths(1);
+        return (from, to);
     }
 
     #endregion

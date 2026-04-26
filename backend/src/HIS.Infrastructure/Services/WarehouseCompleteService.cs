@@ -1196,7 +1196,38 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<DispenseOutpatientDto>> GetPendingOutpatientPrescriptionsAsync(Guid warehouseId, DateTime date)
     {
-        return new List<DispenseOutpatientDto>();
+        var d = date.Date;
+        var dNext = d.AddDays(1);
+        var prescriptions = await _context.Prescriptions
+            .Include(p => p.MedicalRecord)
+                .ThenInclude(m => m.Patient)
+            .Include(p => p.Doctor)
+            .Include(p => p.Details)
+            .Where(p => !p.IsDeleted
+                        && !p.IsDispensed
+                        && p.Status != 4 // not cancelled
+                        && p.PrescriptionType == 1 // ngoại trú
+                        && (warehouseId == Guid.Empty || p.WarehouseId == warehouseId)
+                        && p.PrescriptionDate >= d && p.PrescriptionDate < dNext)
+            .OrderBy(p => p.PrescriptionDate)
+            .ToListAsync();
+
+        return prescriptions.Select(p => new DispenseOutpatientDto
+        {
+            PrescriptionId = p.Id,
+            PrescriptionCode = p.PrescriptionCode,
+            PrescriptionDate = p.PrescriptionDate,
+            PatientCode = p.MedicalRecord?.Patient?.PatientCode ?? "",
+            PatientName = p.MedicalRecord?.Patient?.FullName ?? "",
+            IsInsurance = !string.IsNullOrEmpty(p.MedicalRecord?.Patient?.InsuranceNumber),
+            DoctorName = p.Doctor?.FullName,
+            Diagnosis = p.DiagnosisName ?? p.Diagnosis,
+            Items = new List<DispenseItemDto>(),
+            TotalAmount = p.TotalAmount,
+            InsuranceAmount = p.InsuranceAmount,
+            PatientPayAmount = p.PatientAmount,
+            Status = p.Status,
+        }).ToList();
     }
 
     public async Task<byte[]> PrintSaleInvoiceAsync(Guid saleId)
@@ -1803,12 +1834,118 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<StockDto>> GetStockWarningsAsync(Guid warehouseId)
     {
-        return new List<StockDto>();
+        // Items where current quantity ≤ MinimumQuantity threshold
+        var thresholds = await _context.StockThresholds
+            .Where(t => t.IsActive && (warehouseId == Guid.Empty || t.WarehouseId == warehouseId || t.WarehouseId == null))
+            .ToListAsync();
+        if (thresholds.Count == 0) return new List<StockDto>();
+
+        var medicineIds = thresholds.Select(t => t.MedicineId).ToHashSet();
+        var inventory = await _context.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Warehouse)
+            .Where(i => i.MedicineId.HasValue
+                        && medicineIds.Contains(i.MedicineId.Value)
+                        && (warehouseId == Guid.Empty || i.WarehouseId == warehouseId)
+                        && !i.IsDeleted)
+            .ToListAsync();
+
+        // Aggregate per medicine+warehouse so multi-batch sums correctly
+        var grouped = inventory
+            .GroupBy(i => new { i.MedicineId, i.WarehouseId })
+            .Select(g => new { Key = g.Key, Quantity = g.Sum(x => x.Quantity), Sample = g.First() })
+            .ToList();
+
+        var warnings = new List<StockDto>();
+        foreach (var g in grouped)
+        {
+            var threshold = thresholds.FirstOrDefault(t => t.MedicineId == g.Key.MedicineId
+                && (t.WarehouseId == null || t.WarehouseId == g.Key.WarehouseId));
+            if (threshold == null) continue;
+            if (g.Quantity > threshold.MinimumQuantity) continue;
+            warnings.Add(new StockDto
+            {
+                Id = g.Sample.Id,
+                WarehouseId = g.Key.WarehouseId,
+                ItemId = g.Sample.MedicineId ?? Guid.Empty,
+                ItemCode = g.Sample.Medicine?.MedicineCode ?? "",
+                ItemName = g.Sample.Medicine?.MedicineName ?? "",
+                ItemType = 1,
+                Unit = g.Sample.Medicine?.Unit ?? "",
+                BatchNumber = g.Sample.BatchNumber,
+                ExpiryDate = g.Sample.ExpiryDate,
+                Quantity = g.Quantity,
+                ReservedQuantity = g.Sample.ReservedQuantity,
+                UnitPrice = g.Sample.UnitPrice,
+            });
+        }
+        return warnings.OrderBy(w => w.Quantity).ToList();
     }
 
     public async Task<List<ExpiryWarningDto>> GetExpiryWarningsAsync(Guid? warehouseId, int monthsAhead)
     {
-        return new List<ExpiryWarningDto>();
+        if (monthsAhead < 1) monthsAhead = 3;
+        var horizon = DateTime.UtcNow.Date.AddMonths(monthsAhead);
+        try
+        {
+            // Project explicitly to avoid pulling all Supply columns (schema drift
+            // on MedicalSupplies in the demo DB). Medicine is loaded via join to
+            // get code/name; Supply name resolved separately for any rows that
+            // reference it.
+            var query = _context.InventoryItems
+                .Where(i => i.ExpiryDate.HasValue
+                            && i.ExpiryDate.Value <= horizon
+                            && i.Quantity > 0
+                            && !i.IsDeleted);
+            if (warehouseId.HasValue) query = query.Where(i => i.WarehouseId == warehouseId.Value);
+
+            var rows = await query
+                .OrderBy(i => i.ExpiryDate)
+                .Take(200)
+                .Select(i => new {
+                    i.Id,
+                    i.MedicineId,
+                    i.SupplyId,
+                    i.WarehouseId,
+                    i.BatchNumber,
+                    i.ExpiryDate,
+                    i.Quantity,
+                    i.UnitPrice,
+                    MedicineCode = i.Medicine != null ? i.Medicine.MedicineCode : null,
+                    MedicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                    MedicineUnit = i.Medicine != null ? i.Medicine.Unit : null,
+                    WarehouseName = i.Warehouse != null ? i.Warehouse.WarehouseName : null,
+                })
+                .ToListAsync();
+
+            var today = DateTime.UtcNow.Date;
+            return rows.Select(i =>
+            {
+                var days = i.ExpiryDate!.Value.Date.Subtract(today).Days;
+                int level = days < 30 ? 1 : days < 60 ? 2 : 3;
+                return new ExpiryWarningDto
+                {
+                    StockId = i.Id,
+                    ItemId = i.MedicineId ?? i.SupplyId ?? Guid.Empty,
+                    ItemCode = i.MedicineCode ?? "",
+                    ItemName = i.MedicineName ?? "(Vật tư)",
+                    Unit = i.MedicineUnit ?? "",
+                    BatchNumber = i.BatchNumber,
+                    ExpiryDate = i.ExpiryDate.Value,
+                    DaysToExpiry = days,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    TotalValue = i.Quantity * i.UnitPrice,
+                    WarehouseName = i.WarehouseName ?? "",
+                    WarningLevel = level,
+                };
+            }).ToList();
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            // Schema drift fallback
+            return new List<ExpiryWarningDto>();
+        }
     }
 
     public async Task<List<BatchInfoDto>> GetBatchInfoAsync(Guid? warehouseId, Guid? itemId)
