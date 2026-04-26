@@ -51,6 +51,16 @@ const DoctorPortalV2 = lazy(() => import('./pages-v2/DoctorPortal'));
 const HospitalPharmacyV2 = lazy(() => import('./pages-v2/HospitalPharmacy'));
 const ProcurementV2 = lazy(() => import('./pages-v2/Procurement'));
 const MedicalSupplyV2 = lazy(() => import('./pages-v2/MedicalSupply'));
+const TraumaRegistryV2 = lazy(() => import('./pages-v2/TraumaRegistry'));
+const HealthEducationV2 = lazy(() => import('./pages-v2/HealthEducation'));
+const PopulationHealthV2 = lazy(() => import('./pages-v2/PopulationHealth'));
+const EnvironmentalHealthV2 = lazy(() => import('./pages-v2/EnvironmentalHealth'));
+const PracticeLicenseV2 = lazy(() => import('./pages-v2/PracticeLicense'));
+const MicrobiologyV2 = lazy(() => import('./pages-v2/Microbiology'));
+const ReproductiveHealthV2 = lazy(() => import('./pages-v2/ReproductiveHealth'));
+const LabQCV2 = lazy(() => import('./pages-v2/LabQC'));
+const ScreeningV2 = lazy(() => import('./pages-v2/Screening'));
+const TraditionalMedicineV2 = lazy(() => import('./pages-v2/TraditionalMedicine'));
 const WrapV1 = lazy(() => import('./pages-v2/WrapV1'));
 
 // Lazy-loaded pages for code splitting
@@ -381,11 +391,11 @@ const AppRoutes: React.FC = () => {
           <Route path="follow-up" element={<FollowUpV2 />} />
           <Route path="booking-management" element={<WrapV1 element={<BookingManagement />} title="Quản lý đặt lịch" />} />
           <Route path="sms-management" element={<SmsManagementV2 />} />
-          <Route path="lab-qc" element={<WrapV1 element={<LabQC />} title="Lab QC" />} />
-          <Route path="microbiology" element={<WrapV1 element={<Microbiology />} title="Vi sinh" />} />
+          <Route path="lab-qc" element={<LabQCV2 />} />
+          <Route path="microbiology" element={<MicrobiologyV2 />} />
           <Route path="culture-collection" element={<WrapV1 element={<CultureCollection />} title="Lưu chủng" />} />
           <Route path="sample-storage" element={<WrapV1 element={<SampleStorage />} title="Lưu mẫu" />} />
-          <Route path="screening" element={<WrapV1 element={<Screening />} title="Sàng lọc" />} />
+          <Route path="screening" element={<ScreeningV2 />} />
           <Route path="reagent-management" element={<WrapV1 element={<ReagentManagement />} title="Hoá chất" />} />
           <Route path="sample-tracking" element={<WrapV1 element={<SampleTracking />} title="Theo dõi mẫu" />} />
           <Route path="pathology" element={<PathologyV2 />} />
@@ -424,7 +434,7 @@ const AppRoutes: React.FC = () => {
           <Route path="chronic-disease" element={<ChronicDiseaseV2 />} />
           <Route path="hospital-pharmacy" element={<HospitalPharmacyV2 />} />
           <Route path="clinical-guidance" element={<WrapV1 element={<ClinicalGuidance />} title="Hướng dẫn lâm sàng" />} />
-          <Route path="tb-hiv" element={<WrapV1 element={<TbHivManagement />} title="Lao/HIV" />} />
+          <Route path="tb-hiv" element={<TbHivManagementV2 />} />
           <Route path="health-checkup" element={<WrapV1 element={<HealthCheckup />} title="Khám sức khoẻ" />} />
           <Route path="immunization" element={<WrapV1 element={<Immunization />} title="Tiêm chủng" />} />
           <Route path="epidemiology" element={<WrapV1 element={<Epidemiology />} title="Dịch tễ" />} />
@@ -435,14 +445,14 @@ const AppRoutes: React.FC = () => {
           <Route path="community-health" element={<WrapV1 element={<CommunityHealth />} title="Y tế cộng đồng" />} />
           <Route path="hiv-management" element={<HivManagementV2 />} />
           <Route path="medical-forensics" element={<WrapV1 element={<MedicalForensics />} title="Giám định" />} />
-          <Route path="traditional-medicine" element={<WrapV1 element={<TraditionalMedicine />} title="YHCT" />} />
-          <Route path="reproductive-health" element={<WrapV1 element={<ReproductiveHealth />} title="SK Sinh sản" />} />
+          <Route path="traditional-medicine" element={<TraditionalMedicineV2 />} />
+          <Route path="reproductive-health" element={<ReproductiveHealthV2 />} />
           <Route path="mental-health" element={<MentalHealthV2 />} />
-          <Route path="environmental-health" element={<WrapV1 element={<EnvironmentalHealth />} title="SK Môi trường" />} />
-          <Route path="trauma-registry" element={<WrapV1 element={<TraumaRegistry />} title="Chấn thương" />} />
-          <Route path="population-health" element={<WrapV1 element={<PopulationHealth />} title="SK Dân số" />} />
-          <Route path="health-education" element={<WrapV1 element={<HealthEducation />} title="Giáo dục SK" />} />
-          <Route path="practice-license" element={<WrapV1 element={<PracticeLicense />} title="Hành nghề" />} />
+          <Route path="environmental-health" element={<EnvironmentalHealthV2 />} />
+          <Route path="trauma-registry" element={<TraumaRegistryV2 />} />
+          <Route path="population-health" element={<PopulationHealthV2 />} />
+          <Route path="health-education" element={<HealthEducationV2 />} />
+          <Route path="practice-license" element={<PracticeLicenseV2 />} />
           <Route path="inter-hospital" element={<WrapV1 element={<InterHospitalSharing />} title="Chia sẻ liên viện" />} />
           <Route path="asset-management" element={<WrapV1 element={<AssetManagement />} title="Tài sản" />} />
           <Route path="training-research" element={<WrapV1 element={<TrainingResearch />} title="Đào tạo & NCKH" />} />

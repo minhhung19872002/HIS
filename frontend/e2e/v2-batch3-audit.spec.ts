@@ -1,0 +1,46 @@
+import { test, expect } from '@playwright/test';
+
+const ROUTES = [
+  '/v2/trauma-registry', '/v2/health-education', '/v2/population-health',
+  '/v2/environmental-health', '/v2/practice-license', '/v2/microbiology',
+  '/v2/reproductive-health', '/v2/lab-qc', '/v2/screening',
+  '/v2/traditional-medicine',
+];
+
+test.beforeEach(async ({ page, context }) => {
+  const resp = await page.request.post('http://localhost:5106/api/auth/login', {
+    data: { username: 'admin', password: 'Admin@123' }, failOnStatusCode: false,
+  });
+  if (resp.ok()) {
+    const data = await resp.json();
+    const token = data?.data?.token;
+    if (token) {
+      await context.addInitScript((t: string) => {
+        window.localStorage.setItem('token', t);
+        window.localStorage.setItem('user', JSON.stringify({
+          id: '9e5309dc-ecf9-4d48-9a09-224cd15347b1', username: 'admin', fullName: 'Admin', roles: ['Admin'], permissions: ['*'],
+        }));
+      }, token);
+    }
+  }
+});
+
+const IGNORE = [/Download the React DevTools/, /\[antd:/, /SignalR/i, /WebSocket/, /\[HMR\]/, /\[vite\]/, /negotiate.*401/];
+
+for (const path of ROUTES) {
+  test(`audit ${path}`, async ({ page }) => {
+    const errs: string[] = [];
+    page.on('pageerror', (e) => errs.push(e.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') {
+        const t = m.text();
+        if (!IGNORE.some((p) => p.test(t))) errs.push(t);
+      }
+    });
+    await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(2000);
+    if (errs.length) console.log(`✗ ${path}: ${errs.slice(0, 2).join(' | ')}`);
+    else console.log(`✓ ${path}`);
+    expect(errs).toHaveLength(0);
+  });
+}
