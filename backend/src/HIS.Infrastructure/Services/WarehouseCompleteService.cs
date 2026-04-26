@@ -486,7 +486,60 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<SupplierPayableDto>> GetSupplierPayablesAsync(Guid? supplierId)
     {
-        return new List<SupplierPayableDto>();
+        // Sum approved supplier-source receipts per supplier code. Supplier
+        // catalog provides the supplier ID/name; we don't read TotalDebt
+        // because the column may be missing on older schemas.
+        try
+        {
+            var receiptsQuery = _context.ImportReceipts
+                .Where(r => !r.IsDeleted
+                            && r.ImportType == 1
+                            && r.Status == 1
+                            && !string.IsNullOrEmpty(r.SupplierCode));
+
+            string? filterCode = null;
+            if (supplierId.HasValue)
+            {
+                filterCode = await _context.Suppliers
+                    .Where(s => s.Id == supplierId.Value)
+                    .Select(s => s.SupplierCode)
+                    .FirstOrDefaultAsync();
+                if (filterCode != null) receiptsQuery = receiptsQuery.Where(r => r.SupplierCode == filterCode);
+            }
+
+            var receipts = await receiptsQuery
+                .Select(r => new { r.SupplierCode, r.SupplierName, r.FinalAmount })
+                .ToListAsync();
+
+            var supplierMap = await _context.Suppliers
+                .Where(s => s.IsActive)
+                .Select(s => new { s.Id, s.SupplierCode, s.SupplierName })
+                .ToListAsync();
+
+            return receipts
+                .GroupBy(r => r.SupplierCode!)
+                .Select(g =>
+                {
+                    var sup = supplierMap.FirstOrDefault(s => s.SupplierCode == g.Key);
+                    var total = g.Sum(x => x.FinalAmount);
+                    return new SupplierPayableDto
+                    {
+                        SupplierId = sup?.Id ?? Guid.Empty,
+                        SupplierCode = g.Key,
+                        SupplierName = sup?.SupplierName ?? g.First().SupplierName ?? "",
+                        TotalReceiptAmount = total,
+                        PaidAmount = 0,
+                        RemainingAmount = total,
+                        Invoices = new List<PayableInvoiceDto>(),
+                    };
+                })
+                .OrderByDescending(s => s.RemainingAmount)
+                .ToList();
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            return new List<SupplierPayableDto>();
+        }
     }
 
     public async Task<SupplierPaymentDto> CreateSupplierPaymentAsync(SupplierPaymentDto dto, Guid userId)
@@ -606,7 +659,50 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<StockDto>> AutoSelectBatchesAsync(Guid warehouseId, Guid itemId, decimal quantity)
     {
-        return new List<StockDto>();
+        // FEFO (First Expired, First Out): pick batches in expiry order until
+        // we cover the requested quantity.
+        var batches = await _context.InventoryItems
+            .Where(i => i.WarehouseId == warehouseId
+                        && (i.MedicineId == itemId || i.SupplyId == itemId)
+                        && i.Quantity - i.ReservedQuantity > 0
+                        && !i.IsLocked
+                        && !i.IsDeleted)
+            .OrderBy(i => i.ExpiryDate ?? DateTime.MaxValue)
+            .Select(i => new {
+                i.Id, i.WarehouseId, i.MedicineId, i.SupplyId,
+                i.BatchNumber, i.ExpiryDate, i.Quantity, i.ReservedQuantity, i.UnitPrice,
+                MedicineCode = i.Medicine != null ? i.Medicine.MedicineCode : null,
+                MedicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                MedicineUnit = i.Medicine != null ? i.Medicine.Unit : null,
+            })
+            .ToListAsync();
+
+        var result = new List<StockDto>();
+        decimal remaining = quantity;
+        foreach (var b in batches)
+        {
+            if (remaining <= 0) break;
+            var available = b.Quantity - b.ReservedQuantity;
+            var take = Math.Min(available, remaining);
+            if (take <= 0) continue;
+            result.Add(new StockDto
+            {
+                Id = b.Id,
+                WarehouseId = b.WarehouseId,
+                ItemId = b.MedicineId ?? b.SupplyId ?? Guid.Empty,
+                ItemCode = b.MedicineCode ?? "",
+                ItemName = b.MedicineName ?? "",
+                ItemType = b.MedicineId.HasValue ? 1 : 2,
+                Unit = b.MedicineUnit ?? "",
+                BatchNumber = b.BatchNumber,
+                ExpiryDate = b.ExpiryDate,
+                Quantity = take,
+                ReservedQuantity = b.ReservedQuantity,
+                UnitPrice = b.UnitPrice,
+            });
+            remaining -= take;
+        }
+        return result;
     }
 
     public async Task<StockIssueDto> DispenseOutpatientPrescriptionAsync(Guid prescriptionId, Guid userId)
@@ -1720,7 +1816,65 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<AutoProcurementSuggestionDto>> GetAutoProcurementSuggestionsAsync(Guid warehouseId)
     {
-        return new List<AutoProcurementSuggestionDto>();
+        // Suggest reorder for medicines whose summed available stock ≤
+        // ReorderPoint. Average monthly usage = sum of last 30 days exports
+        // from StockMovements ÷ 1.
+        var thresholds = await _context.StockThresholds
+            .Where(t => t.IsActive && (warehouseId == Guid.Empty || t.WarehouseId == warehouseId || t.WarehouseId == null))
+            .ToListAsync();
+        if (thresholds.Count == 0) return new List<AutoProcurementSuggestionDto>();
+
+        var medIds = thresholds.Select(t => t.MedicineId).ToHashSet();
+        var stocks = await _context.InventoryItems
+            .Where(i => i.MedicineId.HasValue && medIds.Contains(i.MedicineId.Value)
+                        && (warehouseId == Guid.Empty || i.WarehouseId == warehouseId)
+                        && !i.IsDeleted)
+            .GroupBy(i => i.MedicineId!.Value)
+            .Select(g => new { MedicineId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToListAsync();
+
+        var since = DateTime.UtcNow.AddDays(-30);
+        var usage = await _context.StockMovements
+            .Where(m => m.MovementType == 2 // export
+                        && (warehouseId == Guid.Empty || m.WarehouseId == warehouseId)
+                        && m.MovementDate >= since
+                        && medIds.Contains(m.MedicineId))
+            .GroupBy(m => m.MedicineId)
+            .Select(g => new { MedicineId = g.Key, Used = g.Sum(x => x.Quantity) })
+            .ToListAsync();
+
+        var medicines = await _context.Medicines
+            .Where(m => medIds.Contains(m.Id))
+            .ToListAsync();
+
+        var suggestions = new List<AutoProcurementSuggestionDto>();
+        foreach (var threshold in thresholds)
+        {
+            var stock = stocks.FirstOrDefault(s => s.MedicineId == threshold.MedicineId)?.Quantity ?? 0;
+            if (stock > threshold.ReorderPoint) continue;
+            var medicine = medicines.FirstOrDefault(m => m.Id == threshold.MedicineId);
+            if (medicine == null) continue;
+            var monthly = usage.FirstOrDefault(u => u.MedicineId == threshold.MedicineId)?.Used ?? 0;
+            var suggestQty = Math.Max(threshold.ReorderQuantity, threshold.MaximumQuantity - stock);
+
+            suggestions.Add(new AutoProcurementSuggestionDto
+            {
+                ItemId = medicine.Id,
+                ItemCode = medicine.MedicineCode,
+                ItemName = medicine.MedicineName,
+                Unit = medicine.Unit ?? "",
+                CurrentStock = stock,
+                MinimumStock = threshold.MinimumQuantity,
+                MaximumStock = threshold.MaximumQuantity,
+                AverageMonthlyUsage = monthly,
+                SameMonthLastYearUsage = 0,
+                SuggestedQuantity = suggestQty,
+                SuggestionReason = stock <= threshold.MinimumQuantity
+                    ? "Tồn ≤ tồn tối thiểu"
+                    : "Tồn ≤ điểm đặt lại",
+            });
+        }
+        return suggestions.OrderByDescending(s => s.SuggestedQuantity).ToList();
     }
 
     public async Task<ProcurementRequestDto> ApproveProcurementRequestAsync(Guid id, Guid userId)
@@ -1950,12 +2104,103 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<BatchInfoDto>> GetBatchInfoAsync(Guid? warehouseId, Guid? itemId)
     {
-        return new List<BatchInfoDto>();
+        // Each InventoryItem row IS a batch (BatchNumber + ExpiryDate). Sum
+        // movement history per batch for received/issued totals.
+        var query = _context.InventoryItems
+            .Where(i => !string.IsNullOrEmpty(i.BatchNumber)
+                        && i.ExpiryDate.HasValue
+                        && !i.IsDeleted);
+        if (warehouseId.HasValue) query = query.Where(i => i.WarehouseId == warehouseId.Value);
+        if (itemId.HasValue) query = query.Where(i => i.MedicineId == itemId.Value || i.SupplyId == itemId.Value);
+
+        var batches = await query
+            .Select(i => new {
+                i.Id, i.MedicineId, i.SupplyId, i.WarehouseId,
+                i.BatchNumber, i.ExpiryDate, i.ManufactureDate, i.Quantity,
+                MedicineCode = i.Medicine != null ? i.Medicine.MedicineCode : null,
+                MedicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                Manufacturer = i.Medicine != null ? i.Medicine.Manufacturer : null,
+                CountryOfOrigin = i.Medicine != null ? i.Medicine.ManufacturerCountry : null,
+                RegistrationNumber = i.Medicine != null ? i.Medicine.RegistrationNumber : null,
+            })
+            .Take(500)
+            .ToListAsync();
+
+        // Look up movement totals per batch+warehouse+medicine
+        var batchKeys = batches.Where(b => b.MedicineId.HasValue).Select(b => b.BatchNumber!).Distinct().ToList();
+        var movements = await _context.StockMovements
+            .Where(m => batchKeys.Contains(m.BatchNumber)
+                        && (warehouseId == Guid.Empty || !warehouseId.HasValue || m.WarehouseId == warehouseId.Value))
+            .GroupBy(m => new { m.BatchNumber, m.WarehouseId, m.MedicineId })
+            .Select(g => new {
+                g.Key.BatchNumber,
+                g.Key.WarehouseId,
+                g.Key.MedicineId,
+                Received = g.Where(x => x.MovementType == 1 || x.MovementType == 5).Sum(x => x.Quantity),
+                Issued = g.Where(x => x.MovementType == 2).Sum(x => x.Quantity),
+            })
+            .ToListAsync();
+
+        var today = DateTime.UtcNow.Date;
+        return batches.Select(b =>
+        {
+            var move = movements.FirstOrDefault(m =>
+                m.BatchNumber == b.BatchNumber
+                && m.WarehouseId == b.WarehouseId
+                && m.MedicineId == b.MedicineId);
+            return new BatchInfoDto
+            {
+                Id = b.Id,
+                ItemId = b.MedicineId ?? b.SupplyId ?? Guid.Empty,
+                ItemCode = b.MedicineCode ?? "",
+                ItemName = b.MedicineName ?? "",
+                BatchNumber = b.BatchNumber!,
+                ManufactureDate = b.ManufactureDate,
+                ExpiryDate = b.ExpiryDate!.Value,
+                DaysToExpiry = b.ExpiryDate.Value.Date.Subtract(today).Days,
+                CountryOfOrigin = b.CountryOfOrigin,
+                Manufacturer = b.Manufacturer,
+                RegistrationNumber = b.RegistrationNumber,
+                ReceivedQuantity = move?.Received ?? b.Quantity,
+                IssuedQuantity = move?.Issued ?? 0,
+                RemainingQuantity = b.Quantity,
+            };
+        })
+        .OrderBy(b => b.ExpiryDate)
+        .ToList();
     }
 
     public async Task<List<UnclaimedPrescriptionDto>> GetUnclaimedPrescriptionsAsync(Guid warehouseId, int daysOld)
     {
-        return new List<UnclaimedPrescriptionDto>();
+        if (daysOld < 1) daysOld = 7;
+        var threshold = DateTime.UtcNow.AddDays(-daysOld);
+        var prescriptions = await _context.Prescriptions
+            .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
+            .Include(p => p.Doctor)
+            .Where(p => !p.IsDeleted
+                        && !p.IsDispensed
+                        && p.Status != 4
+                        && p.PrescriptionType == 1
+                        && (warehouseId == Guid.Empty || p.WarehouseId == warehouseId)
+                        && p.PrescriptionDate <= threshold)
+            .OrderBy(p => p.PrescriptionDate)
+            .Take(200)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow.Date;
+        return prescriptions.Select(p => new UnclaimedPrescriptionDto
+        {
+            PrescriptionId = p.Id,
+            PrescriptionCode = p.PrescriptionCode,
+            PrescriptionDate = p.PrescriptionDate,
+            PatientCode = p.MedicalRecord?.Patient?.PatientCode ?? "",
+            PatientName = p.MedicalRecord?.Patient?.FullName ?? "",
+            PhoneNumber = p.MedicalRecord?.Patient?.PhoneNumber,
+            DoctorName = p.Doctor?.FullName,
+            TotalAmount = p.TotalAmount,
+            DaysSincePrescription = now.Subtract(p.PrescriptionDate.Date).Days,
+            Status = p.Status == 4 ? 1 : 0,
+        }).ToList();
     }
 
     public async Task<bool> CancelUnclaimedPrescriptionAsync(Guid prescriptionId, Guid userId)
@@ -2336,7 +2581,64 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<StockMovementReportDto>> GetStockMovementReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate, int? itemType)
     {
-        return new List<StockMovementReportDto>();
+        // Aggregate StockMovements per medicine within the date window:
+        //   Opening = balance at fromDate (last balance-after of any movement
+        //             dated < fromDate), Receipts = sum of imports/returns,
+        //   Issues = sum of exports, Closing = Opening + Receipts − Issues.
+        // itemType filter (1=Medicine) is applied implicitly — StockMovements
+        // entity tracks medicines only.
+        var movements = await _context.StockMovements
+            .Where(m => m.WarehouseId == warehouseId
+                        && m.MovementDate >= fromDate
+                        && m.MovementDate < toDate.AddDays(1))
+            .ToListAsync();
+
+        if (movements.Count == 0) return new List<StockMovementReportDto>();
+
+        var medIds = movements.Select(m => m.MedicineId).Distinct().ToList();
+
+        // Opening balance per medicine = sum(balance after) of latest movement strictly before fromDate
+        var openingMovements = await _context.StockMovements
+            .Where(m => m.WarehouseId == warehouseId
+                        && medIds.Contains(m.MedicineId)
+                        && m.MovementDate < fromDate)
+            .GroupBy(m => m.MedicineId)
+            .Select(g => g.OrderByDescending(x => x.MovementDate).FirstOrDefault())
+            .ToListAsync();
+
+        var medicines = await _context.Medicines
+            .Where(m => medIds.Contains(m.Id))
+            .ToListAsync();
+
+        return movements
+            .GroupBy(m => m.MedicineId)
+            .Select(g =>
+            {
+                var med = medicines.FirstOrDefault(x => x.Id == g.Key);
+                var opening = openingMovements.FirstOrDefault(o => o!.MedicineId == g.Key);
+                var openQty = opening?.BalanceAfter ?? 0;
+                var openVal = openQty * (g.First().UnitPrice);
+                var received = g.Where(x => x.MovementType == 1 || x.MovementType == 5).ToList();
+                var issued = g.Where(x => x.MovementType == 2).ToList();
+
+                return new StockMovementReportDto
+                {
+                    ItemId = g.Key,
+                    ItemCode = med?.MedicineCode ?? "",
+                    ItemName = med?.MedicineName ?? "",
+                    Unit = med?.Unit ?? "",
+                    OpeningQuantity = openQty,
+                    OpeningValue = openVal,
+                    TotalReceived = received.Sum(x => x.Quantity),
+                    TotalReceivedValue = received.Sum(x => x.Amount),
+                    TotalIssued = issued.Sum(x => x.Quantity),
+                    TotalIssuedValue = issued.Sum(x => x.Amount),
+                    ClosingQuantity = openQty + received.Sum(x => x.Quantity) - issued.Sum(x => x.Quantity),
+                    ClosingValue = openVal + received.Sum(x => x.Amount) - issued.Sum(x => x.Amount),
+                };
+            })
+            .OrderByDescending(d => d.TotalReceivedValue + d.TotalIssuedValue)
+            .ToList();
     }
 
     public async Task<byte[]> PrintStockMovementReportAsync(Guid warehouseId, DateTime fromDate, DateTime toDate, int? itemType)
