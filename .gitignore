@@ -170,3 +170,16 @@ TaiLieuDoiThu/
 
 # GCP deploy env snapshot contains prod secrets (SQL pwd, JWT key, PACS pwd)
 deploy/gcp-migration/
+
+# =========================
+# Local-only working files (ad-hoc screenshots, scratch state, design dumps)
+# =========================
+# Scratch/handoff dirs at repo root
+tmp/
+backend/test-results/
+
+# Ad-hoc screenshots dropped at repo root (design comparisons, debug captures)
+/*.png
+
+# Local browser/auth state dumps
+localstorage.json
