@@ -2206,3 +2206,220 @@ recording); **Tháng sau** = hardware pilots (fingerprint, smart card). Tuần 1
     office-supply-approval
   - `finance` → service-requeue, receipt-book-admin, bhxh-config
 
+---
+
+## Work Log - 2026-04-26 (v2 native page conversion + backend stub fill)
+
+Session goal: convert every page rendered via `WrapV1` inside `/v2/*` to a
+real native v2 component, and fill in every backend service stub the v2
+pages reach. Done in incremental commits with audit-pass between batches.
+
+### Backend — 35 service stubs replaced with real EF queries
+
+**Pattern**: each stub previously returned `new List<>()`. Replaced with
+EF Core query against existing entities (or new entities where the model
+was missing). Several use `try/catch (SqlException)` so stale schema
+columns (e.g. drifted `MedicalSupplies` / `Suppliers.TotalDebt`) fall
+back to `[]` instead of 500-ing the whole page.
+
+`BillingCompleteService` (7):
+SearchInvoicesAsync, GetCashBooksAsync, GetCashBookUsersAsync,
+GetPatientDepositsAsync, GetDiscountHistoryAsync, GetUnpaidServicesAsync,
+GetUnpaidMedicinesAsync. SearchInvoicesAsync ToDate now treats the date
+as inclusive end-of-day so 09:00-stamped invoices match a midnight-strict
+date input.
+
+`ExaminationCompleteService` (5):
+GetRecentIcdCodesAsync, CheckDuplicateServicesAsync,
+ValidateServiceOrdersAsync, GetServicePackagesAsync,
+ApplyServicePackageAsync. Service-package methods need new entities
+`ServicePackage` + `ServicePackageItem`.
+
+`LISCompleteService` (2): GetPatientSamplesAsync,
+GetPendingWorklistsAsync.
+
+`WarehouseCompleteService` (10):
+GetExpiryWarningsAsync (drift-tolerant Select projection),
+GetStockWarningsAsync (joins StockThreshold), GetSupplierPayablesAsync
+(joins Suppliers + ImportReceipts), AutoSelectBatchesAsync (FEFO picker),
+GetAutoProcurementSuggestionsAsync, GetBatchInfoAsync,
+GetUnclaimedPrescriptionsAsync, GetStockMovementReportAsync,
+GetPendingOutpatientPrescriptionsAsync; plus the 4 needing new entities:
+GetConsignmentStockAsync, GetIUMedicinesAsync, GetSplitableItemsAsync,
+GetProfitMarginConfigsAsync.
+
+`InsuranceXmlService` (9):
+GetRejectedClaimsAsync, GetTreatmentTypeReportAsync,
+GetTopDiseasesReportAsync, GetTopMedicinesReportAsync,
+GetDepartmentReportAsync (4 BHYT reports use InvoiceSummaries +
+MedicalRecord + Patient.InsuranceNumber filter),
+ValidateBhytPrescriptionAsync, ValidateBhytServiceOrderAsync,
+GetValidIcdCodesAsync, GetInsuranceLogsAsync.
+
+**8 new entities + tables (script `39_extended_entities.sql`)**:
+- `ConsignmentStock` — supplier-consignment lots
+- `IUMedicineConfig` — IU/mL conversion for insulin etc.
+- `SplitablePackageConfig` — pharmacy split-package mapping
+- `ProfitMarginConfig` — pricing margin tier config
+- `ServicePackage` + `ServicePackageItem` — health-checkup service packages
+- `InsuranceActivityLog` — BHXH gateway audit trail
+- `IcdInsuranceMap` — BHYT-eligible ICD lookup; seeds top 500 active
+  IcdCodes as covered with restriction-level "Toàn dân"
+
+**Schema-repair note**: `05_emr_admin.sql` was missing `IF NOT EXISTS`
+guards on 3 indexes. Fixed; now backend startup is clean.
+
+**Other backend wiring**:
+- Login token nesting: `auth/login` returns `{success, message, data:{token,...}}` —
+  callers must read `data.token`, not `token`.
+- Container is UTC; SYSDATETIME() in SQL Server inside Docker returns
+  UTC. Host (.NET) uses host local time. When shifting rows "to today",
+  use explicit Vietnam date string (`'2026-04-26'`) not `SYSDATETIME()`.
+
+**`PopulateData` shift-to-today block** does not currently include
+`SurgerySchedules` or `InvoiceSummaries`. To hydrate v2 pages with
+today's data, run these one-shot SQL updates:
+
+```sql
+DECLARE @today datetime2 = CAST(CAST(SYSDATETIME() AS date) AS datetime2);
+UPDATE SurgerySchedules SET ScheduledDate = @today,
+  ScheduledDateTime = DATEADD(hour, DATEPART(hour, ScheduledDateTime),
+                       DATEADD(minute, DATEPART(minute, ScheduledDateTime), @today));
+-- And shift 25 InvoiceSummaries to past 7 days for Billing demo
+```
+
+### Frontend — 55 native v2 pages live, 27 still WrapV1
+
+**Reusable helper** `frontend/src/pages-v2/_GenericListPage.tsx` (125
+lines) provides the standard 3-panel layout: search + table + KPI strip
++ detail. Each new v2 page is now ~70-100 lines. Helper takes a
+`columns: ColumnDef<T>[]`, `stats: StatDef[]`, `detailFields` array, and
+list-load callbacks.
+
+**Native v2 pages (55):**
+
+Core (18 — original Tier B):
+Dashboard, Reception, OPD, Inpatient, Prescription, Pharmacy, Surgery,
+Billing, Laboratory, Radiology, BloodBank, EMR, Consultation, FollowUp,
+Pathology, Insurance, Reports, MasterData
+
+User-crafted custom (2): EmergencyDisaster (581 lines, triage flow +
+drawer), HR (535 lines, shift rota grid + swap requests).
+
+Templated batch 1 (8 priority): SystemAdmin, Quality, Equipment,
+ChronicDisease, HivManagement, TbHivManagement, MentalHealth, +
+Telemedicine, SmsManagement, SigningWorkflow, PatientPortal, DoctorPortal,
+HospitalPharmacy, Procurement, MedicalSupply.
+
+Templated batch 2 (10 specialty): TraumaRegistry, HealthEducation,
+PopulationHealth, EnvironmentalHealth, PracticeLicense, Microbiology,
+ReproductiveHealth, LabQC, Screening, TraditionalMedicine.
+
+Templated batch 3 (10 admin/clinical): EndpointSecurity,
+ReagentManagement, SampleStorage, SampleTracking, InterHospitalSharing,
+ClinicalGuidance, MedicalForensics, OccupationalHealth,
+MethadoneTreatment, Immunization.
+
+**Reports.tsx redesign** (user/linter): comprehensive KPI dashboard
+with 4 categories (operational/clinical/financial/regulatory), period
+selector (day/week/month/year), 18 standard report definitions,
+companion `reports-v2.css`.
+
+### CAN LAM TIEP — 27 pages remaining
+
+**11 pages — SKIP (custom UI / legacy / niche)**:
+DigitalSignature, CentralSigning (signing UIs); DicomViewer (image
+viewer); Help (static); Dashboard3Cap (variant); BhxhAudit (1667-line
+audit UI); Finance (1079-line dashboard); HealthExchange (1935 lines —
+very complex); MedicalRecordArchive (2136 lines — heavy archive);
+SatisfactionSurvey (787 lines — custom survey UI); SpecialtyEMR (628
+lines — EMR variant). These keep `WrapV1` (v1 component inside v2
+shell).
+
+**16 pages — CAN CONVERT (next session)**:
+AssetManagement, BookingManagement, CommunityHealth, CultureCollection,
+Epidemiology, FoodSafety, HealthCheckup, InfectionControl, IvfLab,
+LISConfig, MedicalRecordPlanning, Nutrition, Rehabilitation,
+SchoolHealth, TrainingResearch, TreatmentProtocol.
+
+For each: read v1 page header to find `from '../api/X'` import, find
+the main `searchX`/`getX` list function, find the row DTO, then write
+~80-line v2 file using `_GenericListPage`. Add `lazy(() =>
+import('./pages-v2/X'))` near the top of `App.tsx`, swap the matching
+`<Route ... element={<WrapV1 ...>}>` block. `tsc --noEmit` should
+remain clean. Add a Playwright spec like `e2e/v2-batch5-audit.spec.ts`
+to verify each route renders without page errors / API 4xx-5xx.
+
+### Backend stubs still left (2 — need new entities)
+- `ExaminationCompleteService.GetHistoryImagingImagesAsync` — needs
+  per-order image table (DICOM history attachments)
+- `LISCompleteService.GetLabTestNormsAsync` — needs `LabTestNorm`
+  entity with reference ranges per test+age+gender
+
+### Migration scripts — next number
+`backend/src/HIS.Infrastructure/Data/Scripts/` last = `39_extended_entities.sql`.
+Next script = `40_*.sql`.
+
+### Branch state
+9 commits ahead of `origin/main` not yet pushed:
+
+```
+185ecf8 feat(v2): wire 18 native pages to backend + Tier B redesign
+9c5988b feat(backend): implement 12 service stubs with real EF queries
+e9c5722 feat(backend): implement 8 more service stubs (warehouse + insurance)
+0a209a5 feat: warehouse stubs (6) + Reports v2 redesign
+4576234 feat(backend): 8 new entities + tables + implement final 9 stubs
+6e1129a feat(v2): convert 17 priority pages to native v2 (Tier B+)
+418c782 feat(v2): convert 10 specialty pages + GenericListPage helper
+7b23032 feat(v2): convert 10 more clinical/admin pages
++ this CLAUDE.md update
+```
+
+### Verification commands
+
+```bash
+cd /c/Source/HIS/frontend
+node ./node_modules/typescript/bin/tsc --noEmit                       # 0 errors
+npx playwright test e2e/v2-pages-audit.spec.ts e2e/v2-batch-audit.spec.ts \
+  e2e/v2-batch3-audit.spec.ts e2e/v2-batch4-audit.spec.ts \
+  e2e/v2-extra-audit.spec.ts --workers=4                              # all PASS
+```
+
+Backend smoke (after `dotnet run` in `backend/src/HIS.API`):
+```bash
+TOKEN=$(curl -s -X POST http://localhost:5106/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Admin@123"}' \
+  | python -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:5106/api/insurance/catalog/valid-icd-codes?keyword=I10
+```
+
+### Pitfalls (specific to this session)
+
+- **`getStock` from `../api/warehouse`**: takes `{ keyword, itemType, page,
+  pageSize }` (page-based). MedicalSupply v2 filters `itemType: 2`.
+- **TbHivManagement route**: actual path is `tb-hiv` not
+  `tb-hiv-management`. Sed pattern needed adjustment.
+- **`Suppliers.TotalDebt`**: column missing in some demo DBs. Wrap
+  queries that read it in `try/catch (SqlException)`.
+- **`MedicalSupplies` schema drift**: 8 columns (`InsurancePaymentRate,
+  IsInsuranceCovered, IsReusable, ManufacturerCountry,
+  RegistrationNumber, SupplyCodeBYT, SupplyGroupCode, SupplyType`)
+  missing in older DBs. `Include(i => i.Supply)` triggers projection of
+  all columns → 500. Use explicit `.Select(i => new { i.X, i.Y, ... })`
+  to dodge.
+- **`Patient.InsuranceNumber`**: most patients have `NULL`. To
+  populate BHYT reports for demo, manually `UPDATE Patients SET
+  InsuranceNumber = 'DN404…'` for 30 random patients that have
+  InvoiceSummaries in target month.
+- **Helper component `_GenericListPage<T>` **: T must extend `{ id:
+  string }`. Returns 3-panel layout. Use generic-typed wrapper:
+  `<GenericListPage<MyDto> ... />`.
+- **Lazy imports + route swap script**: route paths often differ from
+  component name (e.g., `tb-hiv` vs `TbHivManagement`). Always
+  `grep "WrapV1.*<ComponentName "` before sed-swapping to confirm path.
+- **Reports.tsx import**: needs `import './reports-v2.css'` (not
+  `Reports.css`). The file exists; just verify with `ls
+  src/pages-v2/reports-v2.css` if Vite 500's.
+
