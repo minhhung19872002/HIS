@@ -48,6 +48,9 @@ type NewReportForm = {
   emails?: string;
 };
 
+type DashboardPayload = Partial<HospitalDashboardDto> & Record<string, unknown>;
+type DashboardTrendPoint = Record<string, unknown>;
+
 const REPORT_CATEGORIES: ReportCategory[] = [
   { id: 'operational', label: 'Vận hành', icon: 'chart', color: '#2563eb', softColor: '#eff6ff' },
   { id: 'clinical', label: 'Lâm sàng', icon: 'stethoscope', color: '#0f766e', softColor: '#ecfeff' },
@@ -126,6 +129,47 @@ function parseNumber(value: unknown): number | null {
 function numberOrFallback(value: unknown, fallback = 0): number {
   const normalized = parseNumber(value);
   return normalized ?? fallback;
+}
+
+function readDashboardNumber(payload: DashboardPayload | null, keys: string[]): number | null {
+  if (!payload) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = parseNumber(payload[key]);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function readDashboardTrends(payload: DashboardPayload | null): DashboardTrendPoint[] {
+  if (!payload || !Array.isArray(payload.trends)) {
+    return [];
+  }
+
+  return payload.trends.filter((item): item is DashboardTrendPoint => !!item && typeof item === 'object');
+}
+
+function calculateTrendChange(points: DashboardTrendPoint[], key: string): number | null {
+  if (points.length < 2) {
+    return null;
+  }
+
+  const current = parseNumber(points[points.length - 1]?.[key]);
+  const previous = parseNumber(points[points.length - 2]?.[key]);
+  if (current === null || previous === null) {
+    return null;
+  }
+
+  if (previous === 0) {
+    return current === 0 ? 0 : 100;
+  }
+
+  return Number((((current - previous) / previous) * 100).toFixed(1));
 }
 
 function formatCompactCurrency(value: number): string {
@@ -259,19 +303,29 @@ const ReportsV2: React.FC = () => {
     return report.category === activeCategory && (!search || haystack.includes(search.toLowerCase()));
   });
 
-  const outpatientCount = numberOrFallback(dashboard?.outpatientCount);
-  const emergencyCount = numberOrFallback(dashboard?.emergencyCount);
-  const outpatientChange = parseNumber(dashboard?.outpatientChange);
-  const totalRevenue = parseNumber(dashboard?.totalRevenue);
-  const revenueChange = parseNumber(dashboard?.revenueChange);
-  const bedOccupancyRate = parseNumber(dashboard?.bedOccupancyRate);
-  const inpatientChange = parseNumber(dashboard?.inpatientChange);
-  const surgeryCount = parseNumber(dashboard?.surgeryCount);
-  const surgeryChange = parseNumber(dashboard?.surgeryChange);
-  const averageStayDays = parseNumber(dashboard?.averageStayDays);
+  const dashboardData = dashboard as DashboardPayload | null;
+  const dashboardTrends = readDashboardTrends(dashboardData);
+  const outpatientCount = readDashboardNumber(dashboardData, ['outpatientCount', 'todayOutpatients']);
+  const emergencyCount = readDashboardNumber(dashboardData, ['emergencyCount', 'todayEmergencies']);
+  const outpatientChange = readDashboardNumber(dashboardData, ['outpatientChange']) ?? calculateTrendChange(dashboardTrends, 'outpatients');
+  const totalRevenue = readDashboardNumber(dashboardData, ['totalRevenue', 'todayRevenue']);
+  const revenueChange = readDashboardNumber(dashboardData, ['revenueChange']) ?? calculateTrendChange(dashboardTrends, 'revenue');
+  const currentInpatients = readDashboardNumber(dashboardData, ['currentInpatients', 'inpatientCount']);
+  const availableBeds = readDashboardNumber(dashboardData, ['availableBeds']);
+  const bedOccupancyRate = readDashboardNumber(dashboardData, ['bedOccupancyRate'])
+    ?? (currentInpatients !== null && availableBeds !== null && currentInpatients + availableBeds > 0
+      ? Number(((currentInpatients / (currentInpatients + availableBeds)) * 100).toFixed(1))
+      : null);
+  const inpatientChange = readDashboardNumber(dashboardData, ['inpatientChange']) ?? calculateTrendChange(dashboardTrends, 'admissions');
+  const surgeryCount = readDashboardNumber(dashboardData, ['surgeryCount', 'todaySurgeries']);
+  const surgeryChange = readDashboardNumber(dashboardData, ['surgeryChange']);
+  const averageStayDays = readDashboardNumber(dashboardData, ['averageStayDays']);
+  const bhytRevenue = readDashboardNumber(dashboardData, ['revenueBHYT']);
+  const visitTotal = [outpatientCount ?? 0, emergencyCount ?? 0].reduce((sum, value) => sum + value, 0);
+  const hasLiveVisitData = outpatientCount !== null || emergencyCount !== null;
 
   const derivedKpis = {
-    visits: dashboard ? outpatientCount + emergencyCount : FALLBACK_KPI.visits,
+    visits: hasLiveVisitData ? visitTotal : FALLBACK_KPI.visits,
     visitsTrend: outpatientChange ?? FALLBACK_KPI.visitsTrend,
     revenue: totalRevenue ?? FALLBACK_KPI.revenue,
     revenueTrend: revenueChange ?? FALLBACK_KPI.revenueTrend,
@@ -285,7 +339,7 @@ const ReportsV2: React.FC = () => {
     averageStayTrend: averageStayDays !== null ? -Math.max(0.1, Number((averageStayDays * 0.06).toFixed(2))) : FALLBACK_KPI.averageStayTrend,
     mortality: FALLBACK_KPI.mortality,
     mortalityTrend: FALLBACK_KPI.mortalityTrend,
-    bhytClaim: totalRevenue !== null ? totalRevenue * 0.65 : FALLBACK_KPI.bhytClaim,
+    bhytClaim: bhytRevenue ?? (totalRevenue !== null ? totalRevenue * 0.65 : FALLBACK_KPI.bhytClaim),
     bhytClaimTrend: revenueChange !== null ? Number((revenueChange * 0.8).toFixed(1)) : FALLBACK_KPI.bhytClaimTrend,
   };
 
@@ -309,7 +363,9 @@ const ReportsV2: React.FC = () => {
   ];
 
   const selectedCategory = REPORT_CATEGORIES.find((category) => category.id === activeCategory) ?? REPORT_CATEGORIES[0];
-  const topDepartments = mapTopDepartments(dashboard?.revenueByDepartment);
+  const topDepartments = mapTopDepartments(Array.isArray(dashboardData?.revenueByDepartment)
+    ? dashboardData.revenueByDepartment as DepartmentRevenueDto[]
+    : undefined);
 
   const reportSeries = selectedReport ? buildSeries(selectedReport.id) : [];
   const reportSeriesMax = reportSeries.length ? Math.max(...reportSeries) : 1;
