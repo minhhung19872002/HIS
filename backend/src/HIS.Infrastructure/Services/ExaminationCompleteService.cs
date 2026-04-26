@@ -1382,7 +1382,41 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<List<IcdCodeFullDto>> GetRecentIcdCodesAsync(Guid doctorId, int limit = 20)
     {
-        return new List<IcdCodeFullDto>();
+        // Most-recent distinct ICD codes used by this doctor in their last
+        // examinations (across last 90 days).
+        var since = DateTime.UtcNow.AddDays(-90);
+        var recentCodes = await _context.Examinations
+            .Where(e => e.DoctorId == doctorId
+                        && !string.IsNullOrEmpty(e.MainIcdCode)
+                        && e.CreatedAt >= since
+                        && !e.IsDeleted)
+            .OrderByDescending(e => e.CreatedAt)
+            .Select(e => e.MainIcdCode!)
+            .Distinct()
+            .Take(limit)
+            .ToListAsync();
+        if (recentCodes.Count == 0) return new List<IcdCodeFullDto>();
+
+        var icdRows = await _context.IcdCodes
+            .Where(c => recentCodes.Contains(c.Code) && !c.IsDeleted)
+            .ToListAsync();
+
+        // Preserve order by recent usage
+        return recentCodes
+            .Select(code => icdRows.FirstOrDefault(c => c.Code == code))
+            .Where(c => c != null)
+            .Select(c => new IcdCodeFullDto
+            {
+                Code = c!.Code,
+                Name = c.Name,
+                EnglishName = c.NameEnglish,
+                IcdType = 1,
+                ChapterCode = c.ChapterCode,
+                ChapterName = c.ChapterName,
+                IsActive = c.IsActive,
+                RequiresExternalCause = false,
+            })
+            .ToList();
     }
 
     public async Task<List<IcdCodeFullDto>> SearchExternalCauseCodesAsync(string keyword)
@@ -1799,12 +1833,48 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<List<ServiceOrderWarningDto>> CheckDuplicateServicesAsync(Guid examinationId, List<Guid> serviceIds)
     {
-        return new List<ServiceOrderWarningDto>();
+        if (serviceIds == null || serviceIds.Count == 0) return new List<ServiceOrderWarningDto>();
+
+        var exam = await _context.Examinations
+            .FirstOrDefaultAsync(e => e.Id == examinationId && !e.IsDeleted);
+        if (exam == null) return new List<ServiceOrderWarningDto>();
+
+        var today = DateTime.UtcNow.Date;
+        var existing = await _context.ServiceRequests
+            .Include(r => r.Details).ThenInclude(d => d.Service)
+            .Where(r => r.MedicalRecordId == exam.MedicalRecordId
+                        && !r.IsDeleted
+                        && r.Status != 4 // not cancelled
+                        && r.RequestDate >= today.AddDays(-1))
+            .ToListAsync();
+
+        var warnings = new List<ServiceOrderWarningDto>();
+        foreach (var sid in serviceIds.Distinct())
+        {
+            var dup = existing
+                .SelectMany(r => r.Details ?? new List<ServiceRequestDetail>())
+                .Where(d => d.ServiceId == sid)
+                .OrderByDescending(d => d.CreatedAt)
+                .FirstOrDefault();
+            if (dup != null)
+            {
+                warnings.Add(new ServiceOrderWarningDto
+                {
+                    WarningType = 1,
+                    Message = $"Dịch vụ {dup.Service?.ServiceName ?? sid.ToString()} đã được chỉ định trong ngày",
+                    IsBlocking = false,
+                    RelatedServiceId = sid,
+                    LastOrderDate = dup.CreatedAt,
+                });
+            }
+        }
+        return warnings;
     }
 
     public async Task<List<ServiceOrderWarningDto>> ValidateServiceOrdersAsync(Guid examinationId, List<Guid> serviceIds)
     {
-        return new List<ServiceOrderWarningDto>();
+        // Validation = duplicates + any future rules. For now, reuse duplicate check.
+        return await CheckDuplicateServicesAsync(examinationId, serviceIds);
     }
 
     public async Task<List<RoomDto>> GetServiceRoomsAsync(Guid serviceId)

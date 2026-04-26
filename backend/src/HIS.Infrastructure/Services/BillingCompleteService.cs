@@ -103,7 +103,30 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<List<CashBookDto>> GetCashBooksAsync(int? bookType, Guid? departmentId)
     {
-        return new List<CashBookDto>();
+        var query = _context.CashBooks
+            .Include(b => b.Cashier)
+            .Where(b => !b.IsDeleted);
+        if (bookType.HasValue) query = query.Where(b => b.BookType == bookType.Value);
+
+        var books = await query.OrderByDescending(b => b.CreatedAt).ToListAsync();
+        return books.Select(b => new CashBookDto
+        {
+            Id = b.Id,
+            Code = b.BookCode,
+            Name = b.BookName,
+            BookType = b.BookType,
+            BookTypeName = b.BookType switch { 1 => "Sổ thu tiền", 2 => "Sổ tạm ứng", 3 => "Sổ hoàn ứng", _ => "Khác" },
+            ReceiptPrefix = null,
+            CurrentNumber = b.CurrentNumber,
+            MaxNumber = b.EndNumber,
+            OpeningBalance = b.OpeningBalance,
+            CurrentBalance = b.ClosingBalance,
+            Status = b.IsClosed ? 3 : 1,
+            StatusName = b.IsClosed ? "Đã đóng" : "Đang mở",
+            CreatedAt = b.CreatedAt,
+            CreatedBy = b.CreatedBy,
+            ClosedAt = b.EndDate,
+        }).ToList();
     }
 
     public async Task<CashBookDto?> GetCashBookByIdAsync(Guid id)
@@ -189,7 +212,25 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<List<CashBookUserDto>> GetCashBookUsersAsync(Guid cashBookId)
     {
-        return new List<CashBookUserDto>();
+        // No CashBookPermission table — return the book's owner (Cashier) as the
+        // sole authorised user.
+        var book = await _context.CashBooks
+            .Include(b => b.Cashier)
+            .FirstOrDefaultAsync(b => b.Id == cashBookId && !b.IsDeleted);
+        if (book?.Cashier == null) return new List<CashBookUserDto>();
+        return new List<CashBookUserDto>
+        {
+            new CashBookUserDto
+            {
+                UserId = book.Cashier.Id,
+                UserCode = book.Cashier.UserCode ?? book.Cashier.Username,
+                UserName = book.Cashier.FullName,
+                Permission = 4,
+                PermissionName = "Quản lý",
+                AssignedAt = book.CreatedAt,
+                AssignedBy = book.CreatedBy,
+            },
+        };
     }
 
     #endregion
@@ -531,7 +572,36 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<List<DepositDto>> GetPatientDepositsAsync(Guid patientId, int? status)
     {
-        return new List<DepositDto>();
+        var query = _context.Deposits
+            .Include(d => d.Patient)
+            .Include(d => d.MedicalRecord)
+            .Include(d => d.ReceivedBy)
+            .Where(d => d.PatientId == patientId && !d.IsDeleted);
+        if (status.HasValue) query = query.Where(d => d.Status == status.Value);
+
+        var rows = await query.OrderByDescending(d => d.ReceiptDate).ToListAsync();
+        return rows.Select(d => new DepositDto
+        {
+            Id = d.Id,
+            ReceiptCode = d.ReceiptNumber,
+            PatientId = d.PatientId ?? patientId,
+            PatientCode = d.Patient?.PatientCode ?? "",
+            PatientName = d.Patient?.FullName ?? "",
+            MedicalRecordId = d.MedicalRecordId,
+            MedicalRecordCode = d.MedicalRecord?.MedicalRecordCode,
+            DepositType = 1,
+            DepositTypeName = "Tạm ứng",
+            DepositSource = 1,
+            DepositSourceName = "Thu ngân",
+            Amount = d.Amount,
+            UsedAmount = d.UsedAmount,
+            RemainingAmount = d.RemainingAmount,
+            PaymentMethod = d.PaymentMethod,
+            PaymentMethodName = d.PaymentMethod switch { 1 => "Tiền mặt", 2 => "Chuyển khoản", 3 => "Thẻ", 4 => "QR", _ => "Khác" },
+            TransactionNumber = d.TransactionReference,
+            CashierId = d.ReceivedByUserId,
+            CashierName = d.ReceivedBy?.FullName ?? "",
+        }).ToList();
     }
 
     public async Task<bool> CancelDepositAsync(Guid depositId, string reason, Guid userId)
@@ -1221,7 +1291,30 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<List<DiscountHistoryDto>> GetDiscountHistoryAsync(Guid invoiceId)
     {
-        return new List<DiscountHistoryDto>();
+        // No separate discount-history table — derive from InvoiceSummary's
+        // own discount fields (one entry per invoice if discount applied).
+        var inv = await _context.InvoiceSummaries
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && !i.IsDeleted);
+        if (inv == null || inv.DiscountAmount <= 0) return new List<DiscountHistoryDto>();
+        return new List<DiscountHistoryDto>
+        {
+            new DiscountHistoryDto
+            {
+                Id = inv.Id,
+                InvoiceId = inv.Id,
+                InvoiceCode = inv.InvoiceCode,
+                DiscountScope = 1,
+                DiscountType = 1,
+                DiscountPercent = inv.TotalAmount > 0 ? Math.Round(inv.DiscountAmount / inv.TotalAmount * 100, 2) : 0,
+                DiscountAmount = inv.DiscountAmount,
+                Reason = inv.DiscountReason,
+                CreatedBy = Guid.Empty,
+                CreatedByName = inv.CreatedBy ?? "",
+                CreatedAt = inv.CreatedAt,
+                ApprovedBy = inv.ApprovedBy,
+                ApprovedAt = inv.ApprovedAt,
+            },
+        };
     }
 
     public async Task<bool> CancelDiscountAsync(Guid discountId, string reason, Guid userId)
@@ -1466,12 +1559,111 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<List<UnpaidServiceItemDto>> GetUnpaidServicesAsync(Guid patientId)
     {
-        return new List<UnpaidServiceItemDto>();
+        // Find patient's medical records, then any unpaid service-request details
+        var requests = await _context.ServiceRequests
+            .Include(r => r.Department)
+            .Include(r => r.ExecuteDepartment)
+            .Include(r => r.Service)
+            .Include(r => r.Details).ThenInclude(d => d.Service)
+            .Include(r => r.MedicalRecord)
+            .Where(r => !r.IsDeleted
+                        && !r.IsPaid
+                        && r.Status != 4 // not cancelled
+                        && r.MedicalRecord.PatientId == patientId)
+            .OrderByDescending(r => r.RequestDate)
+            .ToListAsync();
+
+        var result = new List<UnpaidServiceItemDto>();
+        foreach (var r in requests)
+        {
+            // Prefer detail rows; fall back to header if no details
+            if (r.Details != null && r.Details.Count > 0)
+            {
+                foreach (var d in r.Details)
+                {
+                    result.Add(new UnpaidServiceItemDto
+                    {
+                        Id = d.Id,
+                        ServiceId = d.ServiceId,
+                        ServiceCode = d.Service?.ServiceCode ?? "",
+                        ServiceName = d.Service?.ServiceName ?? "",
+                        ServiceGroup = "",
+                        OrderDepartmentId = r.DepartmentId,
+                        OrderDepartmentName = r.Department?.DepartmentName,
+                        ExecuteDepartmentId = r.ExecuteDepartmentId,
+                        ExecuteDepartmentName = r.ExecuteDepartment?.DepartmentName,
+                        Quantity = d.Quantity,
+                        UnitPrice = d.UnitPrice,
+                        Amount = d.Amount,
+                        PaymentObject = d.PatientType,
+                        InsuranceRate = d.InsurancePaymentRate,
+                        InsuranceAmount = d.InsuranceAmount,
+                        PatientAmount = d.PatientAmount,
+                        OrderedAt = r.RequestDate,
+                        ExecutedAt = d.ResultDate,
+                    });
+                }
+            }
+            else
+            {
+                result.Add(new UnpaidServiceItemDto
+                {
+                    Id = r.Id,
+                    ServiceId = r.ServiceId ?? Guid.Empty,
+                    ServiceCode = r.Service?.ServiceCode ?? "",
+                    ServiceName = r.Service?.ServiceName ?? "",
+                    OrderDepartmentId = r.DepartmentId,
+                    OrderDepartmentName = r.Department?.DepartmentName,
+                    ExecuteDepartmentId = r.ExecuteDepartmentId,
+                    ExecuteDepartmentName = r.ExecuteDepartment?.DepartmentName,
+                    Quantity = r.Quantity,
+                    UnitPrice = r.UnitPrice,
+                    Amount = r.TotalAmount,
+                    InsuranceAmount = r.InsuranceAmount,
+                    PatientAmount = r.PatientAmount,
+                    OrderedAt = r.RequestDate,
+                });
+            }
+        }
+        return result;
     }
 
     public async Task<List<UnpaidMedicineItemDto>> GetUnpaidMedicinesAsync(Guid patientId)
     {
-        return new List<UnpaidMedicineItemDto>();
+        var prescriptions = await _context.Prescriptions
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .Include(p => p.MedicalRecord)
+            .Where(p => !p.IsDeleted
+                        && !p.IsDispensed
+                        && p.Status != 4 // not cancelled
+                        && p.MedicalRecord.PatientId == patientId)
+            .OrderByDescending(p => p.PrescriptionDate)
+            .ToListAsync();
+
+        var result = new List<UnpaidMedicineItemDto>();
+        foreach (var p in prescriptions)
+        {
+            foreach (var d in p.Details ?? new List<PrescriptionDetail>())
+            {
+                result.Add(new UnpaidMedicineItemDto
+                {
+                    Id = d.Id,
+                    MedicineId = d.MedicineId,
+                    MedicineCode = d.Medicine?.MedicineCode ?? "",
+                    MedicineName = d.Medicine?.MedicineName ?? "",
+                    ActiveIngredient = d.Medicine?.ActiveIngredient,
+                    Unit = d.Unit ?? d.Medicine?.Unit ?? "",
+                    Quantity = d.Quantity,
+                    UnitPrice = d.UnitPrice,
+                    Amount = d.Amount,
+                    InsuranceAmount = d.InsuranceAmount,
+                    PatientAmount = d.PatientAmount,
+                    PrescribedAt = p.PrescriptionDate,
+                    DispensedAt = p.DispensedAt,
+                });
+            }
+        }
+        return result;
     }
 
     #endregion

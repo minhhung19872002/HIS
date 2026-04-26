@@ -348,7 +348,47 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<SampleCollectionItemDto>> GetPatientSamplesAsync(Guid patientId, Guid visitId)
     {
-        return new List<SampleCollectionItemDto>();
+        // visitId is the medical record id
+        var requests = await _context.LabRequests
+            .Include(r => r.Patient)
+            .Include(r => r.MedicalRecord)
+                .ThenInclude(m => m!.Department)
+            .Where(r => r.PatientId == patientId
+                        && (visitId == Guid.Empty || r.MedicalRecordId == visitId)
+                        && !r.IsDeleted
+                        && r.Status <= 2) // Pending / Collected / Processing
+            .OrderByDescending(r => r.RequestDate)
+            .ToListAsync();
+
+        var result = new List<SampleCollectionItemDto>();
+        var seq = 1;
+        foreach (var r in requests)
+        {
+            result.Add(new SampleCollectionItemDto
+            {
+                Id = r.Id,
+                LabOrderId = r.Id,
+                OrderCode = r.RequestCode,
+                PatientId = r.PatientId,
+                PatientCode = r.Patient?.PatientCode ?? "",
+                PatientName = r.Patient?.FullName ?? "",
+                DateOfBirth = r.Patient?.DateOfBirth,
+                Gender = r.Patient?.Gender == 1 ? "Nam" : r.Patient?.Gender == 2 ? "Nữ" : null,
+                MedicalRecordId = r.MedicalRecordId ?? Guid.Empty,
+                PatientType = r.MedicalRecord?.TreatmentType ?? r.PatientType,
+                DepartmentName = r.MedicalRecord?.Department?.DepartmentName,
+                BedCode = null,
+                QueueNumber = seq++,
+                Tests = new List<LabTestItemDto>(),
+                RequiredSamples = new List<SampleTypeDto>(),
+                Status = r.Status switch { 0 => 1, 1 => 2, 2 => 3, _ => 1 },
+                StatusName = r.Status switch { 0 => "Chờ lấy mẫu", 1 => "Đã lấy mẫu", 2 => "Đã tiếp nhận", _ => "Khác" },
+                IsPriority = r.Priority >= 2,
+                IsEmergency = r.Priority >= 3,
+                OrderedAt = r.RequestDate,
+            });
+        }
+        return result;
     }
 
     public async Task<CollectSampleResultDto> CollectSampleAsync(CollectSampleDto dto)
@@ -2201,7 +2241,40 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<WorklistDto>> GetPendingWorklistsAsync(Guid? analyzerId = null)
     {
-        return new List<WorklistDto>();
+        // A worklist groups pending lab requests by analyzer. Without an
+        // explicit analyzer→test mapping at request-level, we return one
+        // worklist per active analyzer with all currently-pending samples.
+        var analyzers = await _context.LabAnalyzers
+            .Where(a => a.IsActive && (!analyzerId.HasValue || a.Id == analyzerId.Value))
+            .ToListAsync();
+        if (analyzers.Count == 0) return new List<WorklistDto>();
+
+        var pendingRequests = await _context.LabRequests
+            .Include(r => r.Patient)
+            .Include(r => r.Items)
+            .Where(r => !r.IsDeleted
+                        && r.Status >= 1 // sample collected
+                        && r.Status < 3) // not completed
+            .OrderBy(r => r.RequestDate)
+            .Take(200)
+            .ToListAsync();
+
+        var items = pendingRequests.Select(r => new WorklistItemDto
+        {
+            SampleId = r.RequestCode,
+            PatientId = r.Patient?.PatientCode ?? "",
+            PatientName = r.Patient?.FullName ?? "",
+            DateOfBirth = r.Patient?.DateOfBirth,
+            Gender = r.Patient?.Gender == 1 ? "Nam" : r.Patient?.Gender == 2 ? "Nữ" : null,
+            TestCodes = r.Items?.Select(i => i.TestCode).Where(c => !string.IsNullOrEmpty(c)).ToList() ?? new List<string>(),
+            IsPriority = r.Priority >= 2,
+        }).ToList();
+
+        return analyzers.Select(a => new WorklistDto
+        {
+            AnalyzerId = a.Id,
+            Items = items,
+        }).ToList();
     }
 
 
