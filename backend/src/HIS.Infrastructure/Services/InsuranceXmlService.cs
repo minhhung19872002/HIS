@@ -1279,12 +1279,113 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<List<PrescriptionValidationError>> ValidateBhytPrescriptionAsync(Guid prescriptionId)
     {
-        return new List<PrescriptionValidationError>();
+        // Validation rules: missing diagnosis, BHYT-restricted med without
+        // matching diagnosis, expired BHYT card, missing required fields.
+        // Without a separate medicine-restriction table we only flag the
+        // structural issues we can detect.
+        var errors = new List<PrescriptionValidationError>();
+        var rx = await _context.Prescriptions
+            .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(p => p.Details).ThenInclude(d => d.Medicine)
+            .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
+        if (rx == null) return errors;
+
+        if (string.IsNullOrEmpty(rx.MedicalRecord?.Patient?.InsuranceNumber))
+        {
+            errors.Add(new PrescriptionValidationError
+            {
+                ErrorCode = "BHYT_MISSING_CARD",
+                MedicineCode = "",
+                MedicineName = "",
+                Message = "Bệnh nhân chưa có thông tin BHYT",
+                IsBlocking = true,
+            });
+            return errors;
+        }
+        if (string.IsNullOrEmpty(rx.IcdCode) && string.IsNullOrEmpty(rx.DiagnosisCode))
+        {
+            errors.Add(new PrescriptionValidationError
+            {
+                ErrorCode = "BHYT_MISSING_ICD",
+                MedicineCode = "",
+                MedicineName = "",
+                Message = "Đơn thuốc chưa có mã ICD chẩn đoán",
+                IsBlocking = true,
+            });
+        }
+        if (rx.MedicalRecord?.Patient?.InsuranceExpireDate < DateTime.UtcNow)
+        {
+            errors.Add(new PrescriptionValidationError
+            {
+                ErrorCode = "BHYT_EXPIRED",
+                MedicineCode = "",
+                MedicineName = "",
+                Message = "Thẻ BHYT đã hết hạn",
+                IsBlocking = true,
+            });
+        }
+        foreach (var item in rx.Details ?? new List<PrescriptionDetail>())
+        {
+            if (item.Quantity <= 0)
+            {
+                errors.Add(new PrescriptionValidationError
+                {
+                    ErrorCode = "BHYT_INVALID_QTY",
+                    MedicineCode = item.Medicine?.MedicineCode ?? "",
+                    MedicineName = item.Medicine?.MedicineName ?? "",
+                    Message = "Số lượng không hợp lệ",
+                    IsBlocking = true,
+                });
+            }
+            if (string.IsNullOrEmpty(item.Medicine?.RegistrationNumber))
+            {
+                errors.Add(new PrescriptionValidationError
+                {
+                    ErrorCode = "BHYT_NO_VISA",
+                    MedicineCode = item.Medicine?.MedicineCode ?? "",
+                    MedicineName = item.Medicine?.MedicineName ?? "",
+                    Message = "Thuốc không có số đăng ký lưu hành",
+                    IsBlocking = false,
+                });
+            }
+        }
+        return errors;
     }
 
     public async Task<List<ServiceValidationError>> ValidateBhytServiceOrderAsync(Guid serviceOrderId)
     {
-        return new List<ServiceValidationError>();
+        var errors = new List<ServiceValidationError>();
+        var sr = await _context.ServiceRequests
+            .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(r => r.Service)
+            .Include(r => r.Details).ThenInclude(d => d.Service)
+            .FirstOrDefaultAsync(r => r.Id == serviceOrderId && !r.IsDeleted);
+        if (sr == null) return errors;
+
+        if (string.IsNullOrEmpty(sr.MedicalRecord?.Patient?.InsuranceNumber))
+        {
+            errors.Add(new ServiceValidationError
+            {
+                ErrorCode = "BHYT_MISSING_CARD",
+                ServiceCode = sr.Service?.ServiceCode ?? "",
+                ServiceName = sr.Service?.ServiceName ?? "",
+                Message = "Bệnh nhân chưa có thông tin BHYT",
+                IsBlocking = true,
+            });
+            return errors;
+        }
+        if (string.IsNullOrEmpty(sr.IcdCode))
+        {
+            errors.Add(new ServiceValidationError
+            {
+                ErrorCode = "BHYT_MISSING_ICD",
+                ServiceCode = sr.Service?.ServiceCode ?? "",
+                ServiceName = sr.Service?.ServiceName ?? "",
+                Message = "Phiếu chỉ định chưa có mã ICD",
+                IsBlocking = true,
+            });
+        }
+        return errors;
     }
 
     public async Task<CostCeilingCheckResult> CheckCostCeilingAsync(string maLk)
@@ -1949,7 +2050,22 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<List<IcdInsuranceMapDto>> GetValidIcdCodesAsync(string? keyword = null)
     {
-        return new List<IcdInsuranceMapDto>();
+        var query = _context.IcdInsuranceMaps
+            .Where(m => !m.IsDeleted && m.IsActive && m.IsCovered
+                        && (m.EffectiveTo == null || m.EffectiveTo >= DateTime.UtcNow));
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var k = keyword.Trim();
+            query = query.Where(m => m.IcdCode.Contains(k) || m.IcdName.Contains(k));
+        }
+        var rows = await query.OrderBy(m => m.IcdCode).Take(500).ToListAsync();
+        return rows.Select(m => new IcdInsuranceMapDto
+        {
+            IcdCode = m.IcdCode,
+            IcdName = m.IcdName,
+            IsValidForOutpatient = true,
+            IsValidForInpatient = true,
+        }).ToList();
     }
 
     #endregion
@@ -2125,7 +2241,25 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<List<InsuranceActivityLogDto>> GetInsuranceLogsAsync(string? maLk = null, DateTime? fromDate = null, DateTime? toDate = null)
     {
-        return new List<InsuranceActivityLogDto>();
+        var query = _context.InsuranceActivityLogs.Where(l => !l.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(maLk)) query = query.Where(l => l.MaLk == maLk);
+        if (fromDate.HasValue) query = query.Where(l => l.ActivityTime >= fromDate.Value);
+        if (toDate.HasValue) query = query.Where(l => l.ActivityTime < toDate.Value.Date.AddDays(1));
+
+        var rows = await query
+            .OrderByDescending(l => l.ActivityTime)
+            .Take(200)
+            .ToListAsync();
+
+        return rows.Select(l => new InsuranceActivityLogDto
+        {
+            Id = l.Id,
+            MaLk = l.MaLk,
+            Action = l.ActivityType,
+            Description = l.Description,
+            UserName = l.UserName,
+            Timestamp = l.ActivityTime,
+        }).ToList();
     }
 
     #endregion

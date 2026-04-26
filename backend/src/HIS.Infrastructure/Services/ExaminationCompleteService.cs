@@ -1823,12 +1823,58 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<List<ServicePackageDto>> GetServicePackagesAsync()
     {
-        return new List<ServicePackageDto>();
+        var packages = await _context.ServicePackages
+            .Include(p => p.Items).ThenInclude(it => it.Service)
+            .Where(p => !p.IsDeleted && p.IsActive
+                        && (p.EffectiveTo == null || p.EffectiveTo >= DateTime.UtcNow))
+            .OrderBy(p => p.PackageName)
+            .ToListAsync();
+
+        return packages.Select(p => new ServicePackageDto
+        {
+            Id = p.Id,
+            PackageCode = p.PackageCode,
+            PackageName = p.PackageName,
+            PackagePrice = p.FinalPrice > 0 ? p.FinalPrice : p.TotalPrice,
+            Services = (p.Items ?? new List<ServicePackageItem>())
+                .Select(it => new ServicePackageItemDto
+                {
+                    ServiceId = it.ServiceId,
+                    ServiceCode = it.Service?.ServiceCode ?? "",
+                    ServiceName = it.Service?.ServiceName ?? "",
+                    Quantity = it.Quantity,
+                    UnitPrice = it.UnitPrice,
+                }).ToList(),
+        }).ToList();
     }
 
     public async Task<List<ServiceOrderFullDto>> ApplyServicePackageAsync(Guid examinationId, Guid packageId)
     {
-        return new List<ServiceOrderFullDto>();
+        // "Apply" = synthesize ServiceOrderFullDto rows for each item in the
+        // package so the frontend can stage them into the examination's
+        // pending orders without inserting into ServiceRequests yet.
+        var package = await _context.ServicePackages
+            .Include(p => p.Items).ThenInclude(it => it.Service)
+            .FirstOrDefaultAsync(p => p.Id == packageId && !p.IsDeleted && p.IsActive);
+        if (package == null || package.Items == null || package.Items.Count == 0)
+            return new List<ServiceOrderFullDto>();
+
+        var exam = await _context.Examinations
+            .FirstOrDefaultAsync(e => e.Id == examinationId && !e.IsDeleted);
+        if (exam == null) return new List<ServiceOrderFullDto>();
+
+        return package.Items.Select(it => new ServiceOrderFullDto
+        {
+            Id = Guid.Empty,
+            ExaminationId = examinationId,
+            ServiceId = it.ServiceId,
+            ServiceCode = it.Service?.ServiceCode ?? "",
+            ServiceName = it.Service?.ServiceName ?? "",
+            Quantity = it.Quantity,
+            UnitPrice = it.UnitPrice,
+            TotalPrice = it.UnitPrice * it.Quantity,
+            Status = 0,
+        }).ToList();
     }
 
     public async Task<List<ServiceOrderWarningDto>> CheckDuplicateServicesAsync(Guid examinationId, List<Guid> serviceIds)

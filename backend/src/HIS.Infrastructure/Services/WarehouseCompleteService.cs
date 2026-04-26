@@ -2925,7 +2925,44 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<ConsignmentStockDto>> GetConsignmentStockAsync(Guid? warehouseId, Guid? supplierId)
     {
-        return new List<ConsignmentStockDto>();
+        var query = _context.ConsignmentStocks
+            .Where(c => !c.IsDeleted);
+        if (warehouseId.HasValue) query = query.Where(c => c.WarehouseId == warehouseId.Value);
+        if (supplierId.HasValue) query = query.Where(c => c.SupplierId == supplierId.Value);
+
+        var rows = await query
+            .Select(c => new {
+                c.Id, c.SupplierId, c.WarehouseId, c.MedicineId, c.SupplyId,
+                c.BatchNumber, c.ExpiryDate, c.Quantity, c.UsedQuantity,
+                c.ConsignmentDate, c.ExpirationDate,
+                SupplierName = c.Supplier != null ? c.Supplier.SupplierName : null,
+                WarehouseName = c.Warehouse != null ? c.Warehouse.WarehouseName : null,
+                MedicineCode = c.Medicine != null ? c.Medicine.MedicineCode : null,
+                MedicineName = c.Medicine != null ? c.Medicine.MedicineName : null,
+                MedicineUnit = c.Medicine != null ? c.Medicine.Unit : null,
+            })
+            .OrderByDescending(c => c.ConsignmentDate)
+            .Take(200)
+            .ToListAsync();
+
+        return rows.Select(r => new ConsignmentStockDto
+        {
+            Id = r.Id,
+            SupplierId = r.SupplierId,
+            SupplierName = r.SupplierName ?? "",
+            WarehouseId = r.WarehouseId,
+            WarehouseName = r.WarehouseName ?? "",
+            ItemId = r.MedicineId ?? r.SupplyId ?? Guid.Empty,
+            ItemCode = r.MedicineCode ?? "",
+            ItemName = r.MedicineName ?? "",
+            Unit = r.MedicineUnit ?? "",
+            BatchNumber = r.BatchNumber,
+            ExpiryDate = r.ExpiryDate,
+            Quantity = r.Quantity,
+            UsedQuantity = r.UsedQuantity,
+            ConsignmentDate = r.ConsignmentDate,
+            ExpirationDate = r.ExpirationDate,
+        }).ToList();
     }
 
     public async Task<ConsignmentStockDto> RecordConsignmentUsageAsync(Guid consignmentId, decimal quantity, Guid userId)
@@ -2942,7 +2979,35 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<IUMedicineDto>> GetIUMedicinesAsync(Guid? warehouseId)
     {
-        return new List<IUMedicineDto>();
+        var configs = await _context.IUMedicineConfigs
+            .Where(c => !c.IsDeleted && c.IsActive)
+            .Select(c => new {
+                c.MedicineId, c.BaseUnit, c.IUPerBaseUnit,
+                MedicineCode = c.Medicine != null ? c.Medicine.MedicineCode : null,
+                MedicineName = c.Medicine != null ? c.Medicine.MedicineName : null,
+            })
+            .ToListAsync();
+        if (configs.Count == 0) return new List<IUMedicineDto>();
+
+        var medIds = configs.Select(c => c.MedicineId).ToHashSet();
+        var stocks = await _context.InventoryItems
+            .Where(i => i.MedicineId.HasValue && medIds.Contains(i.MedicineId.Value)
+                        && (warehouseId == null || warehouseId == Guid.Empty || i.WarehouseId == warehouseId.Value)
+                        && !i.IsDeleted)
+            .GroupBy(i => i.MedicineId!.Value)
+            .Select(g => new { MedicineId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToListAsync();
+
+        return configs.Select(c => new IUMedicineDto
+        {
+            ItemId = c.MedicineId,
+            ItemCode = c.MedicineCode ?? "",
+            ItemName = c.MedicineName ?? "",
+            BaseUnit = c.BaseUnit,
+            IUPerBaseUnit = c.IUPerBaseUnit,
+            CurrentStockInBaseUnit = stocks.FirstOrDefault(s => s.MedicineId == c.MedicineId)?.Quantity ?? 0,
+            CurrentStockInIU = (stocks.FirstOrDefault(s => s.MedicineId == c.MedicineId)?.Quantity ?? 0) * c.IUPerBaseUnit,
+        }).ToList();
     }
 
     public async Task<decimal> ConvertIUToBaseUnitAsync(Guid itemId, decimal iuQuantity)
@@ -2952,7 +3017,44 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<SplitIssueDto>> GetSplitableItemsAsync(Guid warehouseId)
     {
-        return new List<SplitIssueDto>();
+        var configs = await _context.SplitablePackageConfigs
+            .Where(c => !c.IsDeleted && c.IsActive)
+            .Select(c => new {
+                c.MedicineId, c.SupplyId, c.PackageUnit, c.SplitUnit,
+                c.QuantityPerPackage, c.PackagePricePerUnit,
+                MedicineCode = c.Medicine != null ? c.Medicine.MedicineCode : null,
+                MedicineName = c.Medicine != null ? c.Medicine.MedicineName : null,
+            })
+            .ToListAsync();
+        if (configs.Count == 0) return new List<SplitIssueDto>();
+
+        var medIds = configs.Where(c => c.MedicineId.HasValue).Select(c => c.MedicineId!.Value).ToHashSet();
+        var stocks = await _context.InventoryItems
+            .Where(i => i.MedicineId.HasValue && medIds.Contains(i.MedicineId.Value)
+                        && (warehouseId == Guid.Empty || i.WarehouseId == warehouseId)
+                        && !i.IsDeleted)
+            .GroupBy(i => i.MedicineId!.Value)
+            .Select(g => new { MedicineId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToListAsync();
+
+        return configs.Select(c =>
+        {
+            var packageStock = c.MedicineId.HasValue
+                ? (stocks.FirstOrDefault(s => s.MedicineId == c.MedicineId)?.Quantity ?? 0)
+                : 0;
+            return new SplitIssueDto
+            {
+                ItemId = c.MedicineId ?? c.SupplyId ?? Guid.Empty,
+                ItemCode = c.MedicineCode ?? "",
+                ItemName = c.MedicineName ?? "",
+                PackageUnit = c.PackageUnit,
+                SplitUnit = c.SplitUnit,
+                QuantityPerPackage = c.QuantityPerPackage,
+                PackagePricePerUnit = c.PackagePricePerUnit,
+                CurrentPackageStock = packageStock,
+                CurrentSplitStock = packageStock * c.QuantityPerPackage,
+            };
+        }).ToList();
     }
 
     public async Task<bool> SplitPackageAsync(Guid warehouseId, Guid itemId, decimal packageQuantity, Guid userId)
@@ -2963,7 +3065,22 @@ public class WarehouseCompleteService : IWarehouseCompleteService
 
     public async Task<List<ProfitMarginConfigDto>> GetProfitMarginConfigsAsync(Guid warehouseId)
     {
-        return new List<ProfitMarginConfigDto>();
+        var configs = await _context.ProfitMarginConfigs
+            .Where(c => !c.IsDeleted && c.IsActive
+                        && (warehouseId == Guid.Empty || c.WarehouseId == warehouseId || c.WarehouseId == null))
+            .OrderBy(c => c.MinPriceFrom)
+            .ToListAsync();
+
+        return configs.Select(c => new ProfitMarginConfigDto
+        {
+            Id = c.Id,
+            WarehouseId = c.WarehouseId ?? Guid.Empty,
+            ItemGroupName = c.MedicineGroupCode ?? c.SupplyGroupCode,
+            ProfitMarginPercent = c.MarginPercent,
+            MinPrice = c.MinPriceFrom == 0 ? null : c.MinPriceFrom,
+            MaxPrice = c.MinPriceTo == 0 ? null : c.MinPriceTo,
+            IsActive = c.IsActive,
+        }).ToList();
     }
 
     public async Task<ProfitMarginConfigDto> UpdateProfitMarginConfigAsync(ProfitMarginConfigDto dto, Guid userId)

@@ -165,6 +165,20 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<District> Districts => Set<District>();
     public DbSet<Ward> Wards => Set<Ward>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+
+    // Warehouse extensions (consignment, IU mapping, splitable, profit margin)
+    public DbSet<ConsignmentStock> ConsignmentStocks => Set<ConsignmentStock>();
+    public DbSet<IUMedicineConfig> IUMedicineConfigs => Set<IUMedicineConfig>();
+    public DbSet<SplitablePackageConfig> SplitablePackageConfigs => Set<SplitablePackageConfig>();
+    public DbSet<ProfitMarginConfig> ProfitMarginConfigs => Set<ProfitMarginConfig>();
+
+    // Service packages (gói khám)
+    public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();
+    public DbSet<ServicePackageItem> ServicePackageItems => Set<ServicePackageItem>();
+
+    // Insurance extensions
+    public DbSet<InsuranceActivityLog> InsuranceActivityLogs => Set<InsuranceActivityLog>();
+    public DbSet<IcdInsuranceMap> IcdInsuranceMaps => Set<IcdInsuranceMap>();
     public DbSet<ClinicalTerm> ClinicalTerms => Set<ClinicalTerm>();
     public DbSet<SnomedIcdMapping> SnomedIcdMappings => Set<SnomedIcdMapping>();
     public DbSet<Occupation> Occupations => Set<Occupation>();
