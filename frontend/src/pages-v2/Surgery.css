@@ -1,0 +1,230 @@
+/* ============================================
+   Surgery (OR) page — copied verbatim from
+   design/his/project/OR.html (lines 856-1080)
+   ============================================ */
+
+/* ============ MODULE CSS ============ */
+/* ============ OR SCHEDULING ============ */
+.or-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+.or-top {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.or-kpi {
+  padding: 10px;
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+.or-kpi .l { font-family: var(--font-mono); font-size: var(--fs-xxs); text-transform: uppercase; color: var(--t-2); letter-spacing: 0.06em; }
+.or-kpi .v { font-size: 20px; font-weight: 600; color: var(--t-0); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.or-kpi.live .v { color: var(--s-crit);}
+.or-kpi.warn .v { color: var(--s-warn);}
+.or-kpi.ok .v { color: var(--s-ok);}
+.or-kpi .v .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor; display: inline-block; margin-right: 6px;
+  animation: pulse 1.5s infinite;
+}
+
+.or-body {
+  flex: 1; min-height: 0; overflow: auto;
+  background: var(--d-1);
+  padding: 14px;
+}
+
+.or-day-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  margin-bottom: 10px;
+}
+.or-day-bar .date { font-size: 17px; font-weight: 600; color: var(--t-0); }
+.or-day-bar .date small { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--t-2); text-transform: uppercase; margin-left: 8px; letter-spacing: 0.05em;}
+.or-day-bar button {
+  height: 30px; padding: 0 10px;
+  background: #fff; border: 1px solid var(--line);
+  font-size: var(--fs-sm); font-weight: 500;
+  border-radius: var(--r-2); cursor: pointer;
+}
+.or-day-bar button.p { background: var(--a-cy); border-color: var(--a-cy); color: #fff;}
+
+/* Gantt / Timeline grid */
+.or-gantt {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+}
+.or-rooms-col {
+  border-right: 1px solid var(--line);
+}
+.or-col-h {
+  height: 44px;
+  padding: 8px 12px;
+  background: var(--d-1);
+  border-bottom: 2px solid var(--line);
+  font-family: var(--font-mono); font-size: var(--fs-xxs);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--t-2);
+  display: flex; align-items: center;
+  font-weight: 600;
+}
+
+.or-room-row {
+  height: 72px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-hair);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.or-room-row:last-child { border-bottom: 0; }
+.or-room-name { font-weight: 600; color: var(--t-0); font-size: var(--fs-md); display: flex; align-items: center; gap: 6px;}
+.or-room-name .state {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block;
+}
+.or-room-name .state.live { background: var(--s-crit); animation: pulse 1.5s infinite;}
+.or-room-name .state.ready { background: var(--s-ok); }
+.or-room-name .state.clean { background: var(--a-cy); }
+.or-room-name .state.off { background: var(--t-3); }
+.or-room-spec { font-size: var(--fs-xs); color: var(--t-2); margin-top: 2px;}
+.or-room-util {
+  margin-top: 4px;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--t-2);
+}
+
+.or-tl-wrap {
+  overflow-x: auto;
+  position: relative;
+}
+.or-tl-col-h {
+  height: 44px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  border-bottom: 2px solid var(--line);
+  background: var(--d-1);
+  min-width: 1200px;
+}
+.or-tl-tick {
+  border-right: 1px solid var(--line-hair);
+  padding: 8px 8px;
+  font-family: var(--font-mono); font-size: var(--fs-xxs);
+  color: var(--t-2);
+  display: flex; align-items: center;
+  letter-spacing: 0.04em;
+}
+.or-tl-tick.now { background: var(--a-cy-bg); color: var(--a-cy); font-weight: 700;}
+
+.or-tl-row {
+  height: 72px;
+  border-bottom: 1px solid var(--line-hair);
+  position: relative;
+  min-width: 1200px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(100% / 12 - 1px),
+      var(--line-hair) calc(100% / 12 - 1px),
+      var(--line-hair) calc(100% / 12)
+    );
+}
+.or-tl-row:last-child { border-bottom: 0;}
+.or-now-line {
+  position: absolute; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--s-crit);
+  z-index: 5;
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.5);
+}
+.or-now-line::after {
+  content: "10:24";
+  position: absolute; top: 0; left: 100%;
+  background: var(--s-crit); color: #fff;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  padding: 2px 4px;
+  margin-left: 2px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.or-slot {
+  position: absolute; top: 6px; bottom: 6px;
+  border-radius: var(--r-2);
+  padding: 4px 8px 4px 10px;
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  cursor: pointer;
+  border-left: 3px solid;
+  display: flex; flex-direction: column; justify-content: center;
+  transition: transform 0.15s;
+}
+.or-slot:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
+.or-slot.done { background: #f0fdf4; border-color: var(--s-ok); color: #134e34;}
+.or-slot.running { background: var(--s-crit-bg); border-color: var(--s-crit); color: #78181a; animation: critBlinkOR 2s infinite;}
+.or-slot.sched { background: var(--a-cy-bg); border-color: var(--a-cy); color: #0e3a4a;}
+.or-slot.prep { background: var(--s-warn-bg); border-color: var(--s-warn); color: #78350f;}
+.or-slot.cleanup { background: #eff6ff; border-color: var(--a-cy); color: var(--a-cy); font-style: italic;}
+.or-slot.break { background: #f1f5f9; border-color: var(--t-3); color: var(--t-2);}
+.or-slot .t { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.02em; margin-bottom: 2px;}
+.or-slot .op { font-weight: 600; color: inherit; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;}
+.or-slot .pt { font-size: 10px; opacity: 0.85; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;}
+
+@keyframes critBlinkOR {
+  0%, 100% { box-shadow: none;}
+  50% { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25);}
+}
+
+/* Quick surgeons roster */
+.or-surgeons {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  margin-top: 12px;
+}
+.or-surgeon-col {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+.or-surgeon-h {
+  padding: 10px 12px;
+  background: var(--d-1);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm); font-weight: 600;
+  display: flex; justify-content: space-between;
+}
+.or-surgeon-h .n { color: var(--t-2); font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;}
+
+.or-surgeon-row {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-hair);
+  display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center;
+  font-size: var(--fs-sm);
+}
+.or-surgeon-row:last-child { border-bottom: 0; }
+.or-surgeon-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--a-cy-bg); color: var(--a-cy);
+  display: grid; place-items: center;
+  font-weight: 600;
+}
+.or-surgeon-nm { font-weight: 500; color: var(--t-0); }
+.or-surgeon-sub { font-size: var(--fs-xs); color: var(--t-2); font-family: var(--font-mono); margin-top: 2px;}
+.or-surgeon-stat {
+  padding: 2px 6px; border-radius: var(--r-1);
+  font-family: var(--font-mono); font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.or-surgeon-stat.or { background: var(--s-crit-bg); color: var(--s-crit);}
+.or-surgeon-stat.free { background: var(--s-ok-bg); color: var(--s-ok);}
+.or-surgeon-stat.opd { background: var(--a-cy-bg); color: var(--a-cy);}
+.or-surgeon-stat.break { background: var(--d-3); color: var(--t-2);}
+

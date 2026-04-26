@@ -1375,12 +1375,92 @@ public class BillingCompleteService : IBillingCompleteService
 
     public async Task<PagedResultDto<InvoiceDto>> SearchInvoicesAsync(InvoiceSearchDto dto)
     {
+        var page = dto.Page > 0 ? dto.Page : 1;
+        var pageSize = dto.PageSize > 0 ? dto.PageSize : 50;
+
+        var query = _context.InvoiceSummaries
+            .Include(i => i.MedicalRecord)
+                .ThenInclude(m => m.Patient)
+            .Include(i => i.MedicalRecord)
+                .ThenInclude(m => m.Department)
+            .Where(i => !i.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(dto.Keyword))
+        {
+            var k = dto.Keyword.Trim();
+            query = query.Where(i =>
+                i.InvoiceCode.Contains(k)
+                || (i.MedicalRecord != null && i.MedicalRecord.Patient != null &&
+                    (i.MedicalRecord.Patient.FullName.Contains(k)
+                     || i.MedicalRecord.Patient.PatientCode.Contains(k))));
+        }
+        if (dto.PatientId.HasValue)
+            query = query.Where(i => i.MedicalRecord != null && i.MedicalRecord.PatientId == dto.PatientId.Value);
+        if (dto.DepartmentId.HasValue)
+            query = query.Where(i => i.MedicalRecord != null && i.MedicalRecord.DepartmentId == dto.DepartmentId.Value);
+        if (dto.PaymentStatus.HasValue)
+            query = query.Where(i => i.Status == dto.PaymentStatus.Value);
+        if (dto.FromDate.HasValue)
+            query = query.Where(i => i.InvoiceDate >= dto.FromDate.Value);
+        if (dto.ToDate.HasValue)
+            query = query.Where(i => i.InvoiceDate < dto.ToDate.Value.Date.AddDays(1));
+
+        var totalCount = await query.CountAsync();
+        var rows = await query
+            .OrderByDescending(i => i.InvoiceDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = rows.Select(i => new InvoiceDto
+        {
+            Id = i.Id,
+            InvoiceCode = i.InvoiceCode,
+            PatientId = i.MedicalRecord?.PatientId ?? Guid.Empty,
+            PatientCode = i.MedicalRecord?.Patient?.PatientCode ?? "",
+            PatientName = i.MedicalRecord?.Patient?.FullName ?? "",
+            PhoneNumber = i.MedicalRecord?.Patient?.PhoneNumber,
+            Address = i.MedicalRecord?.Patient?.Address,
+            InsuranceCardNumber = i.MedicalRecord?.Patient?.InsuranceNumber,
+            MedicalRecordId = i.MedicalRecordId,
+            MedicalRecordCode = i.MedicalRecord?.MedicalRecordCode ?? "",
+            PatientType = i.MedicalRecord?.TreatmentType ?? 1,
+            PatientTypeName = (i.MedicalRecord?.TreatmentType ?? 1) == 2 ? "Nội trú" : "Ngoại trú",
+            DepartmentId = i.MedicalRecord?.DepartmentId,
+            DepartmentName = i.MedicalRecord?.Department?.DepartmentName,
+            ServiceItems = new List<InvoiceServiceItemDto>(),
+            MedicineItems = new List<InvoiceMedicineItemDto>(),
+            SupplyItems = new List<InvoiceSupplyItemDto>(),
+            BedItems = new List<InvoiceBedItemDto>(),
+            ServiceTotal = i.TotalServiceAmount,
+            MedicineTotal = i.TotalMedicineAmount,
+            SupplyTotal = i.TotalSupplyAmount,
+            BedTotal = i.TotalBedAmount,
+            SubTotal = i.TotalAmount,
+            InsuranceAmount = i.InsuranceAmount,
+            DiscountAmount = i.DiscountAmount,
+            DiscountReason = i.DiscountReason,
+            SurchargeAmount = 0,
+            TotalAmount = i.TotalAmount,
+            PaidAmount = i.PaidAmount,
+            RemainingAmount = i.RemainingAmount,
+            PaymentStatus = i.Status,
+            PaymentStatusName = i.Status switch { 0 => "Chưa thanh toán", 1 => "Đã thanh toán", 2 => "Đã quyết toán", _ => "Khác" },
+            ApprovalStatus = i.IsApprovedByAccountant ? 1 : 0,
+            ApprovalStatusName = i.IsApprovedByAccountant ? "Đã duyệt KT" : "Chưa duyệt",
+            ApprovedAt = i.ApprovedAt,
+            ApprovedBy = i.ApprovedBy,
+            IsLocked = false,
+            CreatedAt = i.CreatedAt,
+            UpdatedAt = i.UpdatedAt,
+        }).ToList();
+
         return new PagedResultDto<InvoiceDto>
         {
-            Items = new List<InvoiceDto>(),
-            TotalCount = 0,
-            Page = 1,
-            PageSize = 50
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
         };
     }
 

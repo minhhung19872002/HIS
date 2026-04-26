@@ -373,3 +373,130 @@
   font-size: 12px;
   color: #334155;
 }
+
+/* ---- Radio.Button (used as tab-pills in Prescription etc) ---- */
+.his-terminal .ant-radio-group .ant-radio-button-wrapper {
+  height: 32px;
+  line-height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  background: #ffffff;
+  border-color: #e4e9f0;
+}
+.his-terminal .ant-radio-group .ant-radio-button-wrapper:hover {
+  color: #0f172a;
+}
+.his-terminal .ant-radio-group .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background: #eff5ff !important;
+  border-color: #bfd3fa !important;
+  color: #2563eb !important;
+  font-weight: 600;
+  box-shadow: none !important;
+}
+.his-terminal .ant-radio-group .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled)::before {
+  background: #bfd3fa !important;
+}
+.his-terminal .ant-radio-group .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover {
+  color: #1d4ed8 !important;
+}
+
+/* ---- Input.Search with big blue button — tighten + flatten ---- */
+.his-terminal .ant-input-search .ant-input-search-button {
+  height: 34px;
+  border-radius: 0 6px 6px 0;
+  font-weight: 500;
+  font-size: 13px;
+}
+.his-terminal .ant-input-group-addon .ant-btn-primary {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* ---- Page title cluster at top of v1 pages (h2 + ribbon) ---- */
+.his-terminal .ant-page-header,
+.his-terminal .ant-pro-page-header {
+  padding: 12px 18px !important;
+  background: #ffffff;
+  border: 1px solid #e4e9f0;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.his-terminal .ant-page-header-heading-title {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}
+
+/* ---- Empty state: match terminal's monospace ghost look ---- */
+.his-terminal .ant-empty {
+  padding: 20px 0;
+}
+.his-terminal .ant-empty-image {
+  height: 48px !important;
+  opacity: 0.6;
+}
+
+/* ---- Space / divider dots ---- */
+.his-terminal .ant-space-item { line-height: 1; }
+
+/* ---- Badge ribbon on cards ---- */
+.his-terminal .ant-badge-status-dot { width: 6px; height: 6px; }
+.his-terminal .ant-badge-status-text { font-size: 11px; color: #64748b; }
+
+/* ---- Switch ---- */
+.his-terminal .ant-switch-checked { background: #2563eb; }
+
+/* ---- Checkbox / Radio tight alignment ---- */
+.his-terminal .ant-checkbox-wrapper,
+.his-terminal .ant-radio-wrapper {
+  font-size: 12px;
+  color: #334155;
+}
+
+/* ---- Typography.Title inside content: flatter ---- */
+.his-terminal .ant-typography.ant-typography-h1,
+.his-terminal h1.ant-typography { font-size: 22px !important; margin-bottom: 12px !important; }
+.his-terminal .ant-typography.ant-typography-h2,
+.his-terminal h2.ant-typography { font-size: 18px !important; margin-bottom: 10px !important; }
+.his-terminal .ant-typography.ant-typography-h3,
+.his-terminal h3.ant-typography { font-size: 15px !important; margin-bottom: 8px !important; }
+.his-terminal .ant-typography.ant-typography-h4,
+.his-terminal h4.ant-typography { font-size: 13px !important; margin-bottom: 6px !important; }
+
+/* ---- Collapse / panels ---- */
+.his-terminal .ant-collapse {
+  border: 1px solid #e4e9f0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+.his-terminal .ant-collapse-header {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 10px 14px !important;
+}
+
+/* ---- Spin ---- */
+.his-terminal .ant-spin-dot-item { background: #2563eb; }
+
+/* ---- List items inside cards (medication lists, search results) ---- */
+.his-terminal .ant-list-item {
+  padding: 10px 14px !important;
+  border-bottom: 1px solid #f1f4f9;
+}
+.his-terminal .ant-list-item-meta-title {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 2px !important;
+}
+.his-terminal .ant-list-item-meta-description {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* ---- Avatar ---- */
+.his-terminal .ant-avatar { border-radius: 6px; }
+
+/* ---- Popconfirm buttons ---- */
+.his-terminal .ant-popover-buttons .ant-btn-sm { height: 24px; padding: 0 8px; font-size: 11px; }

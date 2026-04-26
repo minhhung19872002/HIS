@@ -1,0 +1,11 @@
+/* Intentionally empty — all dashboard styles now live verbatim in
+   layouts/terminal/terminal.css (copied from design Dashboard.html).
+   Kept as import target for backwards compatibility. */
+
+/* === page wrapper === */
+.dash-root {
+  padding: 14px 16px 0;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}

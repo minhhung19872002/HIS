@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp, theme as antdTheme } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import './App.css';
 
 // Layout v2 (Terminal) - alternative UI for comparison. Lives under /v2/*
 const TerminalLayout = lazy(() => import('./layouts/terminal/TerminalLayout'));
+const ModuleIndex = lazy(() => import('./pages-v2/ModuleIndex'));
 const DashboardV2 = lazy(() => import('./pages-v2/Dashboard'));
 const ReceptionV2 = lazy(() => import('./pages-v2/Reception'));
 const OPDV2 = lazy(() => import('./pages-v2/OPD'));
@@ -27,6 +28,12 @@ const LaboratoryV2 = lazy(() => import('./pages-v2/Laboratory'));
 const RadiologyV2 = lazy(() => import('./pages-v2/Radiology'));
 const BloodBankV2 = lazy(() => import('./pages-v2/BloodBank'));
 const EMRV2 = lazy(() => import('./pages-v2/EMR'));
+const ConsultationV2 = lazy(() => import('./pages-v2/Consultation'));
+const FollowUpV2 = lazy(() => import('./pages-v2/FollowUp'));
+const PathologyV2 = lazy(() => import('./pages-v2/Pathology'));
+const InsuranceV2 = lazy(() => import('./pages-v2/Insurance'));
+const ReportsV2 = lazy(() => import('./pages-v2/Reports'));
+const MasterDataV2 = lazy(() => import('./pages-v2/MasterData'));
 const WrapV1 = lazy(() => import('./pages-v2/WrapV1'));
 
 // Lazy-loaded pages for code splitting
@@ -307,34 +314,35 @@ const AppRoutes: React.FC = () => {
           <Route path="system-admin" element={<Navigate to="/admin" replace />} />
         </Route>
         {/* Layout v2 (Terminal) — alternative UI for A/B comparison. Shares API + auth.
-            Hand-ported native pages: Dashboard, Reception, OPD, Inpatient.
-            All other routes reuse the v1 page inside the terminal shell via WrapV1 —
-            this way every menu item works immediately with full backend wiring. */}
+            /v2 itself is a standalone 16-module cover page (ModuleIndex) with no chrome.
+            /v2/* routes render inside TerminalLayout — the nested pathless route is what
+            gives ModuleIndex a bare page while keeping every child wrapped in the shell. */}
         <Route
           path="/v2"
           element={
             <ProtectedRoute>
-              <TerminalLayout />
+              <Outlet />
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/v2/dashboard" replace />} />
+          <Route index element={<ModuleIndex />} />
+          <Route element={<TerminalLayout />}>
           {/* Primary pages: v1 content rendered inside the v2 terminal shell so users
               get full functionality (all modals, forms, workflows) in the new layout.
               The hand-ported "native v2" variants remain available under /v2-lite/*
               for visual comparison only — they are simplified read-only views. */}
-          <Route path="dashboard" element={<WrapV1 element={<Dashboard />} title="Tổng quan" />} />
-          <Route path="reception" element={<WrapV1 element={<Reception />} title="Tiếp nhận" />} />
-          <Route path="opd" element={<WrapV1 element={<OPD />} title="Khám ngoại trú" />} />
-          <Route path="ipd" element={<WrapV1 element={<Inpatient />} title="Nội trú" />} />
-          <Route path="prescription" element={<WrapV1 element={<Prescription />} title="Kê đơn" />} />
-          <Route path="pharmacy" element={<WrapV1 element={<Pharmacy />} title="Nhà thuốc" />} />
-          <Route path="surgery" element={<WrapV1 element={<Surgery />} title="Phẫu thuật" />} />
-          <Route path="billing" element={<WrapV1 element={<Billing />} title="Thanh toán" />} />
-          <Route path="lab" element={<WrapV1 element={<Laboratory />} title="Xét nghiệm" />} />
-          <Route path="radiology" element={<WrapV1 element={<Radiology />} title="Chẩn đoán hình ảnh" />} />
-          <Route path="blood-bank" element={<WrapV1 element={<BloodBank />} title="Ngân hàng máu" />} />
-          <Route path="emr" element={<WrapV1 element={<EMR />} title="Hồ sơ bệnh án" />} />
+          <Route path="dashboard" element={<DashboardV2 />} />
+          <Route path="reception" element={<ReceptionV2 />} />
+          <Route path="opd" element={<OPDV2 />} />
+          <Route path="ipd" element={<InpatientV2 />} />
+          <Route path="prescription" element={<PrescriptionV2 />} />
+          <Route path="pharmacy" element={<PharmacyV2 />} />
+          <Route path="surgery" element={<SurgeryV2 />} />
+          <Route path="billing" element={<BillingV2 />} />
+          <Route path="lab" element={<LaboratoryV2 />} />
+          <Route path="radiology" element={<RadiologyV2 />} />
+          <Route path="blood-bank" element={<BloodBankV2 />} />
+          <Route path="emr" element={<EMRV2 />} />
           {/* Native-designed Terminal pages available at /v2/lite/* for visual comparison */}
           <Route path="lite/dashboard" element={<DashboardV2 />} />
           <Route path="lite/reception" element={<ReceptionV2 />} />
@@ -353,7 +361,7 @@ const AppRoutes: React.FC = () => {
           <Route path="medical-supply" element={<WrapV1 element={<MedicalSupply />} title="Vật tư y tế" />} />
           {/* The 8 pages above (prescription, pharmacy, surgery, billing, lab, radiology, blood-bank, emr)
               are handled natively earlier — keep WrapV1 lines only for the rest. */}
-          <Route path="follow-up" element={<WrapV1 element={<FollowUp />} title="Tái khám" />} />
+          <Route path="follow-up" element={<FollowUpV2 />} />
           <Route path="booking-management" element={<WrapV1 element={<BookingManagement />} title="Quản lý đặt lịch" />} />
           <Route path="sms-management" element={<WrapV1 element={<SmsManagement />} title="SMS" />} />
           <Route path="lab-qc" element={<WrapV1 element={<LabQC />} title="Lab QC" />} />
@@ -363,12 +371,12 @@ const AppRoutes: React.FC = () => {
           <Route path="screening" element={<WrapV1 element={<Screening />} title="Sàng lọc" />} />
           <Route path="reagent-management" element={<WrapV1 element={<ReagentManagement />} title="Hoá chất" />} />
           <Route path="sample-tracking" element={<WrapV1 element={<SampleTracking />} title="Theo dõi mẫu" />} />
-          <Route path="pathology" element={<WrapV1 element={<Pathology />} title="Giải phẫu bệnh" />} />
+          <Route path="pathology" element={<PathologyV2 />} />
           <Route path="ivf-lab" element={<WrapV1 element={<IvfLab />} title="IVF" />} />
           <Route path="finance" element={<WrapV1 element={<Finance />} title="Tài chính" />} />
-          <Route path="insurance" element={<WrapV1 element={<Insurance />} title="Bảo hiểm" />} />
-          <Route path="master-data" element={<WrapV1 element={<MasterData />} title="Danh mục" />} />
-          <Route path="reports" element={<WrapV1 element={<Reports />} title="Báo cáo" />} />
+          <Route path="insurance" element={<InsuranceV2 />} />
+          <Route path="master-data" element={<MasterDataV2 />} />
+          <Route path="reports" element={<ReportsV2 />} />
           <Route path="admin" element={<WrapV1 element={<SystemAdmin />} title="Quản trị" />} />
           <Route path="digital-signature" element={<WrapV1 element={<DigitalSignature />} title="Ký số" />} />
           <Route path="central-signing" element={<WrapV1 element={<CentralSigning />} title="Ký số tập trung" />} />
@@ -383,7 +391,7 @@ const AppRoutes: React.FC = () => {
           <Route path="patient-portal" element={<WrapV1 element={<PatientPortal />} title="Cổng BN" />} />
           <Route path="health-exchange" element={<WrapV1 element={<HealthExchange />} title="HIE" />} />
           <Route path="emergency-disaster" element={<WrapV1 element={<EmergencyDisaster />} title="Cấp cứu / Thảm hoạ" />} />
-          <Route path="consultation" element={<WrapV1 element={<Consultation />} title="Hội chẩn" />} />
+          <Route path="consultation" element={<ConsultationV2 />} />
           <Route path="help" element={<WrapV1 element={<Help />} title="Trợ giúp" />} />
           <Route path="radiology/viewer" element={<WrapV1 element={<DicomViewer />} title="DICOM Viewer" />} />
           <Route path="medical-record-archive" element={<WrapV1 element={<MedicalRecordArchive />} title="Lưu trữ hồ sơ" />} />
@@ -423,6 +431,7 @@ const AppRoutes: React.FC = () => {
           <Route path="training-research" element={<WrapV1 element={<TrainingResearch />} title="Đào tạo & NCKH" />} />
           <Route path="procurement" element={<WrapV1 element={<Procurement />} title="Mua sắm" />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

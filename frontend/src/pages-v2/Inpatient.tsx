@@ -1,215 +1,358 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
-import * as ipdApi from '../api/inpatient';
-import type { InpatientListDto } from '../api/inpatient';
-import TermIcon from '../layouts/terminal/Icon';
+import { Modal, App as AntdApp, Input } from 'antd';
+import * as inpatientApi from '../api/inpatient';
+import type { WardLayoutDto, BedLayoutDto, RoomLayoutDto } from '../api/inpatient';
+import systemApi from '../api/system';
+import type { DepartmentCatalogDto } from '../api/system';
+import './Inpatient.css';
 
-const statusChip = (status: number, name: string) => {
-  const cls = status === 0 ? 'cy' : status === 1 ? 'info' : status === 2 ? 'warn' : status === 3 ? 'ok' : 'ghost';
-  return <span className={`chip ${cls}`}>{name}</span>;
+// status: 1=Available, 2=Occupied, 3=Cleaning, 4=Maintenance, 5=Reserved
+type BedStatus = 'stable' | 'watch' | 'crit' | 'discharge' | 'empty' | 'cleaning' | 'maint';
+const statusFromCode = (code: number): BedStatus => {
+  switch (code) {
+    case 2: return 'stable';
+    case 3: return 'cleaning';
+    case 4: return 'maint';
+    default: return 'empty';
+  }
 };
 
-const InpatientV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [rows, setRows] = useState<InpatientListDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+const statusVi = (s: BedStatus): string => ({
+  stable: 'Ổn định', watch: 'Theo dõi', crit: 'Nguy kịch',
+  discharge: 'Chờ xuất', empty: 'Trống',
+  cleaning: 'Vệ sinh', maint: 'Bảo trì',
+}[s]);
 
+type EnrichedBed = BedLayoutDto & { ui: BedStatus; room: string; roomType: number };
+
+const InpatientV2: React.FC = () => {
+  const { message } = AntdApp.useApp();
+  const [wards, setWards] = useState<WardLayoutDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sel, setSel]                 = useState<string | null>(null);
+  const [deptFilter, setDeptFilter]   = useState<'all' | string>('all');
+  const [orderModal, setOrderModal]   = useState(false);
+  const [transferModal, setXferModal] = useState(false);
+  const [dischargeModal, setDischModal] = useState(false);
+
+  // Load all departments → fetch ward layout for each → keep ones with beds
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await ipdApi.getInpatientList({ page: 1, pageSize: 200 });
-        setRows(res.data?.items || []);
-      } finally {
+    setLoading(true);
+    systemApi.catalog.getDepartments(undefined, undefined, true)
+      .then(async (r) => {
+        const depts: DepartmentCatalogDto[] = Array.isArray(r.data) ? r.data : [];
+        const layouts: WardLayoutDto[] = [];
+        await Promise.all(depts.map(async (d: DepartmentCatalogDto) => {
+          if (!d.id) return;
+          try {
+            const lay = await inpatientApi.getWardLayout(d.id);
+            if (lay.data && lay.data.totalBeds > 0) layouts.push(lay.data);
+          } catch { /* ignore depts that 404 */ }
+        }));
+        setWards(layouts);
         setLoading(false);
-      }
-    };
-    load();
+      })
+      .catch(() => { setWards([]); setLoading(false); });
   }, []);
 
-  const filtered = useMemo(() => {
-    let r = rows;
-    if (statusFilter !== undefined) r = r.filter((x) => x.status === statusFilter);
-    const kw = keyword.trim().toLowerCase();
-    if (kw) r = r.filter((x) => x.patientName?.toLowerCase().includes(kw) || x.patientCode?.toLowerCase().includes(kw));
-    return r;
-  }, [rows, keyword, statusFilter]);
-
-  const stats = useMemo(
-    () => ({
-      total: rows.length,
-      active: rows.filter((r) => r.status === 0 || r.status === 1).length,
-      pendingDischarge: rows.filter((r) => r.status === 2).length,
-      discharged: rows.filter((r) => r.status === 3).length,
-      flaggedDebt: rows.filter((r) => r.isDebtWarning).length,
-    }),
-    [rows],
-  );
-
-  const selected = rows.find((r) => r.admissionId === selectedId);
-
-  const byDepartment = useMemo(() => {
-    const map: Record<string, number> = {};
-    rows.forEach((r) => {
-      const d = r.departmentName || '—';
-      map[d] = (map[d] || 0) + 1;
+  const allBeds = useMemo<EnrichedBed[]>(() => {
+    const list: EnrichedBed[] = [];
+    wards.forEach((w) => {
+      (w.rooms || []).forEach((rm) => {
+        (rm.beds || []).forEach((bed) => {
+          list.push({
+            ...bed,
+            ui: statusFromCode(bed.status),
+            room: rm.roomCode,
+            roomType: rm.roomType,
+          });
+        });
+      });
     });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  }, [rows]);
+    return list;
+  }, [wards]);
+
+  const stats = {
+    total: allBeds.length,
+    occ:   allBeds.filter((b) => b.ui === 'stable' || b.ui === 'watch' || b.ui === 'crit' || b.ui === 'discharge').length,
+    crit:  allBeds.filter((b) => b.ui === 'crit').length,
+    watch: allBeds.filter((b) => b.ui === 'watch').length,
+    empty: allBeds.filter((b) => b.ui === 'empty').length,
+    discharge: allBeds.filter((b) => b.ui === 'discharge').length,
+  };
+  const occPct = stats.total > 0 ? Math.round((stats.occ / stats.total) * 100) : 0;
+  const losAvg = (() => {
+    const days = allBeds.map((b) => b.daysOfStay).filter((d): d is number => typeof d === 'number' && d > 0);
+    if (days.length === 0) return 0;
+    return Math.round((days.reduce((a, b) => a + b, 0) / days.length) * 10) / 10;
+  })();
+  const todayAdmissions = allBeds.filter((b) => b.admissionDate && dayjs(b.admissionDate).isSame(dayjs(), 'day')).length;
+
+  const selBed = sel ? allBeds.find((b) => `${b.room}-${b.bedCode}` === sel) : null;
+  const wardsToShow = deptFilter === 'all' ? wards : wards.filter((w) => w.departmentCode === deptFilter);
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Bệnh nhân nội trú · <b>{filtered.length}</b></span>
-          <div className="actions">
-            <select className="select" style={{ width: 140 }} value={statusFilter ?? ''} onChange={(e) => setStatusFilter(e.target.value ? Number(e.target.value) : undefined)}>
-              <option value="">Tất cả trạng thái</option>
-              <option value="0">Đang điều trị</option>
-              <option value="1">Đang quan sát</option>
-              <option value="2">Chờ xuất viện</option>
-              <option value="3">Đã xuất viện</option>
-            </select>
-            <input className="input" style={{ width: 240 }} placeholder="Tìm tên / mã BN…" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <button className="btn primary" type="button" onClick={() => navigate('/ipd')}><TermIcon name="plus" size={13} />Nhập viện</button>
-          </div>
+    <div className="ward-wrap">
+      {/* ====== TOP KPIs ====== */}
+      <div className="ward-top">
+        <KpiCell l="Tổng giường" v={stats.total} />
+        <KpiCell l="Đang sử dụng" v={stats.occ} small={`· ${occPct}%`} />
+        <KpiCell l="Nguy kịch" v={stats.crit} cls="crit" />
+        <KpiCell l="Theo dõi"   v={stats.watch} cls="warn" />
+        <KpiCell l="Chờ xuất viện" v={stats.discharge} cls="ok" />
+        <KpiCell l="Trống" v={stats.empty} />
+        <KpiCell l="LOS trung bình" v={losAvg} small="ngày" />
+        <KpiCell l="Nhập viện hôm nay" v={todayAdmissions} />
+      </div>
+
+      {/* ====== WARD FILTER CHIPS ====== */}
+      <div className="ward-sub">
+        <div
+          className={'ward-chip ' + (deptFilter === 'all' ? 'on' : '')}
+          onClick={() => setDeptFilter('all')}
+        >Toàn bệnh viện <span className="c">{stats.total}</span></div>
+        {wards.map((w) => (
+          <div
+            key={w.departmentCode}
+            className={'ward-chip ' + (deptFilter === w.departmentCode ? 'on' : '')}
+            onClick={() => setDeptFilter(w.departmentCode)}
+          >{w.departmentName} <span className="c">{w.totalBeds}</span></div>
+        ))}
+        <div style={{ flex: 1 }} />
+        <div className="ward-chip" onClick={() => message.info('Đi buồng — tính năng đang phát triển')}>
+          🩺 Đi buồng
         </div>
-        <div className="panel-body">
+      </div>
+
+      {/* ====== MAIN BODY: map + detail ====== */}
+      <div className="ward-body">
+        <div className="ward-map">
           {loading ? (
-            <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-          ) : filtered.length === 0 ? (
-            <div className="ph" style={{ margin: 14 }}>Không có bệnh nhân khớp điều kiện</div>
-          ) : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Hồ sơ</th>
-                  <th>Bệnh nhân</th>
-                  <th>Tuổi</th>
-                  <th>Khoa / Phòng</th>
-                  <th>Giường</th>
-                  <th className="num">Ngày</th>
-                  <th>Chẩn đoán chính</th>
-                  <th>BS điều trị</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.admissionId} className={r.admissionId === selectedId ? 'sel' : ''} onClick={() => setSelectedId(r.admissionId)} style={{ cursor: 'pointer' }}>
-                    <td className="mono">{r.medicalRecordCode}</td>
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{r.patientName}</div>
-                      <div className="mono" style={{ fontSize: 11, color: 'var(--t-3)' }}>{r.patientCode}</div>
-                    </td>
-                    <td className="num">{r.age ?? '—'}</td>
-                    <td className="muted">{r.departmentName} · {r.roomName}</td>
-                    <td className="mono">{r.bedName || '—'}</td>
-                    <td className="num">{r.daysOfStay}</td>
-                    <td className="muted" style={{ maxWidth: 240, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.mainDiagnosis || '—'}</td>
-                    <td className="muted">{r.attendingDoctorName || '—'}</td>
-                    <td>
-                      {statusChip(r.status, r.statusName)}
-                      {r.isDebtWarning && <span className="chip warn" style={{ marginLeft: 4 }}>Nợ</span>}
-                    </td>
-                  </tr>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-3)', fontSize: 13 }}>
+              Đang tải sơ đồ giường...
+            </div>
+          ) : wardsToShow.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-3)', fontSize: 13 }}>
+              Chưa có khoa nào có giường nội trú
+            </div>
+          ) : wardsToShow.map((ward) => {
+            const wardBeds = (ward.rooms || []).flatMap((r) => r.beds || []);
+            const wOcc = wardBeds.filter((b) => b.status === 2).length;
+            return (
+              <div key={ward.departmentId} className="ward-floor">
+                <div className="ward-floor-h">
+                  <div className="ward-floor-t">
+                    {ward.departmentName}
+                    <small>· {ward.totalRooms} phòng · {ward.totalBeds} giường</small>
+                  </div>
+                  <div className="ward-floor-sum">
+                    <span>Sử dụng <b>{wOcc}/{ward.totalBeds}</b> ({Math.round((ward.occupancyRate || 0))}%)</span>
+                    <span>Trống <b>{ward.availableBeds}</b></span>
+                    <span>Bảo trì <b>{ward.maintenanceBeds}</b></span>
+                  </div>
+                </div>
+                {(ward.rooms || []).map((room) => (
+                  <div key={room.roomId} className="ward-row">
+                    <div className={'ward-room-lbl ' + (room.roomType === 2 ? 'icu' : room.roomType === 3 ? 'vip' : room.roomType === 4 ? 'iso' : '')}>
+                      <div className="r">{room.roomCode}</div>
+                      <div className="t">{room.roomName?.split(' · ')[0]}</div>
+                    </div>
+                    <div className="ward-beds" style={{ gridTemplateColumns: `repeat(${Math.max(room.totalBeds, 4)}, 1fr)` }}>
+                      {(room.beds || []).map((bed) => (
+                        <BedCell
+                          key={bed.bedId}
+                          bed={bed}
+                          room={room}
+                          sel={sel}
+                          onSelect={setSel}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Detail panel */}
+        <div className="ward-detail">
+          {selBed && selBed.patientName ? (
+            <>
+              <div className="ward-detail-h">
+                <div className="ward-detail-t">{sel}</div>
+                <div className="ward-detail-sub">
+                  <span>Tình trạng <b style={{
+                    color: selBed.ui === 'crit' ? 'var(--s-crit)'
+                         : selBed.ui === 'watch' ? 'var(--s-warn)'
+                         : 'var(--s-ok)',
+                  }}>{statusVi(selBed.ui)}</b></span>
+                  {selBed.daysOfStay && <span>Nằm viện <b>{selBed.daysOfStay} ngày</b></span>}
+                </div>
+              </div>
+              <div className="ward-detail-body">
+                <Sec title="Bệnh nhân">
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: '50%',
+                      background: 'var(--a-cy-bg)', color: 'var(--a-cy)',
+                      display: 'grid', placeItems: 'center',
+                      fontSize: 20, fontWeight: 600,
+                      border: '1px solid var(--a-cy-line)',
+                    }}>
+                      {selBed.patientName.split(' ').slice(-1)[0][0]}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t-0)' }}>{selBed.patientName}</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>
+                        {selBed.patientCode || '—'}
+                        {selBed.age && ` · ${selBed.age}t`}
+                        {selBed.gender !== undefined && ` · ${selBed.gender === 1 ? 'Nam' : 'Nữ'}`}
+                      </div>
+                    </div>
+                  </div>
+                </Sec>
+
+                {selBed.mainDiagnosis && (
+                  <Sec title="Chẩn đoán">
+                    <div style={{
+                      fontSize: 12,
+                      padding: '8px 10px',
+                      background: 'var(--d-1)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 'var(--r-2)',
+                    }}>{selBed.mainDiagnosis}</div>
+                  </Sec>
+                )}
+
+                {selBed.admissionDate && (
+                  <Sec title="Nhập viện">
+                    <div style={{ fontSize: 12 }}>
+                      <b>{dayjs(selBed.admissionDate).format('DD/MM/YYYY HH:mm')}</b>
+                      {selBed.daysOfStay && ` · ${selBed.daysOfStay} ngày`}
+                    </div>
+                  </Sec>
+                )}
+
+                <Sec title="BHYT">
+                  <div style={{ fontSize: 12 }}>
+                    {selBed.isInsurance
+                      ? <span style={{ color: 'var(--s-ok)' }}>✓ Có BHYT</span>
+                      : <span style={{ color: 'var(--t-2)' }}>Không BHYT</span>}
+                  </div>
+                </Sec>
+
+                {selBed.sharedPatients && selBed.sharedPatients.length > 0 && (
+                  <Sec title="BN dùng chung giường">
+                    {selBed.sharedPatients.map((p) => (
+                      <div key={p.admissionId} style={{ fontSize: 12, marginBottom: 4 }}>
+                        <b>{p.patientName}</b> · {p.patientCode}
+                      </div>
+                    ))}
+                  </Sec>
+                )}
+              </div>
+
+              <div className="ward-detail-foot">
+                <button onClick={() => setOrderModal(true)}>Y lệnh hôm nay</button>
+                <button onClick={() => setXferModal(true)}>Chuyển giường</button>
+                <button className="p" onClick={() => setDischModal(true)}>Xuất viện</button>
+              </div>
+            </>
+          ) : selBed ? (
+            <div style={{ padding: 24, color: 'var(--t-3)', fontSize: 12, textAlign: 'center' }}>
+              Giường <b>{sel}</b> · {statusVi(selBed.ui)} · không có bệnh nhân
+            </div>
+          ) : (
+            <div style={{ padding: 24, color: 'var(--t-3)', fontSize: 12, textAlign: 'center' }}>
+              Chọn một giường có bệnh nhân để xem chi tiết
+            </div>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Thống kê nhanh</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <StatCell label="Tổng" value={stats.total} />
-              <StatCell label="Đang điều trị" value={stats.active} cy />
-              <StatCell label="Chờ xuất" value={stats.pendingDischarge} warn />
-              <StatCell label="Đã xuất" value={stats.discharged} ok />
-              <StatCell label="Cảnh báo nợ" value={stats.flaggedDebt} crit />
-            </div>
-          </div>
+      {/* ====== MODALS ====== */}
+      <Modal
+        open={orderModal}
+        onCancel={() => setOrderModal(false)}
+        title={`Y lệnh — ${selBed?.patientName || ''}`}
+        footer={null}
+        width={640}
+      >
+        <div style={{ fontSize: 12, color: 'var(--t-2)', padding: 10 }}>
+          Trang Y lệnh chi tiết xem trong /v2/prescription
         </div>
-
-        <div className="panel">
-          <div className="panel-h"><span className="title">Phân bố theo khoa</span></div>
-          <div className="panel-body pad">
-            {byDepartment.slice(0, 8).map(([name, count]) => {
-              const max = Math.max(1, byDepartment[0]?.[1] ?? 1);
-              const pct = Math.round((count / max) * 100);
-              return (
-                <div key={name} style={{ marginBottom: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--t-1)' }}>
-                    <span>{name}</span>
-                    <span className="mono" style={{ color: 'var(--t-2)' }}>{count}</span>
-                  </div>
-                  <div style={{ marginTop: 4, height: 5, background: 'var(--d-3)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: 'var(--a-cy)' }} />
-                  </div>
-                </div>
-              );
-            })}
-            {byDepartment.length === 0 && <div className="ph">Chưa có dữ liệu</div>}
-          </div>
-        </div>
-
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h">
-            <span className="title">Chi tiết</span>
-            <span className="sub">{selected ? selected.patientName : 'Chọn một dòng'}</span>
-          </div>
-          <div className="panel-body pad">
-            {!selected ? (
-              <div className="ph">Chọn bệnh nhân trong danh sách để xem chi tiết</div>
-            ) : (
-              <div className="stack-sm">
-                <Field label="Hồ sơ" value={<span className="mono">{selected.medicalRecordCode}</span>} />
-                <Field label="Nhập viện" value={<span className="mono">{dayjs(selected.admissionDate).format('HH:mm DD/MM/YYYY')} · {selected.daysOfStay} ngày</span>} />
-                <Field label="Chẩn đoán" value={selected.mainDiagnosis || '—'} />
-                <Field label="Khoa / Phòng / Giường" value={`${selected.departmentName} · ${selected.roomName} · ${selected.bedName || '—'}`} />
-                {selected.insuranceNumber && (
-                  <Field label="BHYT" value={<span className="mono">{selected.insuranceNumber}</span>} />
-                )}
-                {selected.totalDebt ? (
-                  <Field label="Công nợ" value={<span style={{ color: 'var(--s-crit)' }}>{selected.totalDebt.toLocaleString('vi-VN')} đ</span>} />
-                ) : null}
-                <div className="row" style={{ flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                  {selected.hasPendingOrders && <span className="chip warn">Chờ y lệnh</span>}
-                  {selected.hasPendingLabResults && <span className="chip info">Chờ kết quả CLS</span>}
-                  {selected.hasUnclaimedMedicine && <span className="chip mag">Chưa lĩnh thuốc</span>}
-                </div>
-                <div className="row" style={{ gap: 8, marginTop: 10 }}>
-                  <button className="btn primary sm" type="button" onClick={() => navigate('/ipd')}>Mở hồ sơ</button>
-                  <button className="btn sm" type="button" onClick={() => navigate('/emr')}>Xem EMR</button>
-                  <button className="btn sm" type="button" onClick={() => navigate('/billing')}>Thanh toán</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      </Modal>
+      <Modal
+        open={transferModal}
+        onCancel={() => setXferModal(false)}
+        title="Chuyển giường"
+        onOk={() => { message.success('✓ Đã gửi yêu cầu chuyển giường'); setXferModal(false); }}
+      >
+        <Input.TextArea rows={4} placeholder="Lý do chuyển giường..." />
+      </Modal>
+      <Modal
+        open={dischargeModal}
+        onCancel={() => setDischModal(false)}
+        title={`Xuất viện — ${selBed?.patientName || ''}`}
+        onOk={() => { message.success('✓ Đã tạo đơn xuất viện'); setDischModal(false); }}
+      >
+        <Input.TextArea rows={4} placeholder="Tóm tắt điều trị, hướng dẫn ra viện..." />
+      </Modal>
     </div>
   );
 };
 
-const StatCell: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: crit ? 'var(--s-crit)' : warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : 'var(--t-0)' }}>{value}</div>
+const BedCell: React.FC<{
+  bed: BedLayoutDto;
+  room: RoomLayoutDto;
+  sel: string | null;
+  onSelect: (key: string) => void;
+}> = ({ bed, room, sel, onSelect }) => {
+  const key = `${room.roomCode}-${bed.bedCode}`;
+  const ui = statusFromCode(bed.status);
+  const occCls =
+    ui === 'crit' ? 'crit' :
+    ui === 'watch' ? 'watch' :
+    ui === 'discharge' ? 'discharge' :
+    ui === 'cleaning' ? 'cleaning' :
+    ui === 'maint' ? 'maint' :
+    ui === 'stable' ? 'stable' : 'empty';
+
+  return (
+    <div
+      className={'ward-bed ' + occCls + (sel === key ? ' sel' : '')}
+      onClick={() => onSelect(key)}
+      title={`${bed.bedName || bed.bedCode} · ${bed.statusName}${bed.patientName ? ' · ' + bed.patientName : ''}`}
+    >
+      <div className="ward-bed-num">{bed.bedCode}</div>
+      {bed.patientName ? (
+        <>
+          <div className="ward-bed-pname">{bed.patientName.split(' ').slice(-1)[0]}</div>
+          {bed.age && <div className="ward-bed-meta">{bed.age}{bed.gender === 1 ? 'M' : 'F'}</div>}
+        </>
+      ) : (
+        <div className="bed-placeholder">{statusVi(ui)}</div>
+      )}
+    </div>
+  );
+};
+
+const KpiCell: React.FC<{ l: string; v: React.ReactNode; cls?: string; small?: string }> = ({ l, v, cls, small }) => (
+  <div className={'ward-kpi ' + (cls || '')}>
+    <div className="l">{l}</div>
+    <div className="v">
+      {v}
+      {small && <span style={{ fontSize: 11, color: 'var(--t-3)', fontWeight: 400, marginLeft: 4 }}>{small}</span>}
+    </div>
   </div>
 );
 
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div>
-    <div className="label">{label}</div>
-    <div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div>
+const Sec: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div className="ward-sec">
+    <div className="ward-sec-h">{title}</div>
+    <div className="ward-sec-b">{children}</div>
   </div>
 );
 

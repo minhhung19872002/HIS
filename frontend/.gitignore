@@ -29,3 +29,5 @@ cypress/screenshots
 cypress/downloads
 
 .vercel
+public/__design/
+e2e/design-diff/__snapshots__/

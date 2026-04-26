@@ -1,0 +1,266 @@
+/* ============================================
+   Radiology (RIS) page — copied verbatim from
+   design/his/project/RIS.html (lines 855-1115)
+   ============================================ */
+
+
+/* ============ MODULE CSS ============ */
+/* ============ RIS / PACS ============ */
+.ris-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; background: #0a0b0d; }
+
+.ris-top {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 10px;
+  padding: 10px 14px;
+  background: #141619;
+  border-bottom: 1px solid #1f2328;
+  align-items: center;
+}
+.ris-top .ris-pinfo { color: #e8ecef; font-size: var(--fs-sm);}
+.ris-top .ris-pinfo b { color: #fff; font-size: 15px;}
+.ris-top .ris-pinfo .meta { color: #9aa4ad; font-family: var(--font-mono); font-size: var(--fs-xs); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap;}
+.ris-top .ris-pinfo .meta .dark-val { color: #e8ecef; font-family: var(--font-sans); font-weight: 500;}
+
+.ris-top-act { display: flex; gap: 6px;}
+.ris-top-act button {
+  background: #1f2328; color: #e8ecef; border: 1px solid #2a3038;
+  padding: 0 12px; height: 30px;
+  font-size: var(--fs-xs); font-family: var(--font-sans); font-weight: 500;
+  border-radius: var(--r-2); cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+}
+.ris-top-act button:hover { background: #2a3038; }
+.ris-top-act button.p { background: var(--a-cy); border-color: var(--a-cy); color: #fff; }
+
+.ris-body {
+  display: grid; grid-template-columns: 240px 1fr 340px;
+  flex: 1; min-height: 0;
+}
+
+/* Study list */
+.ris-studies {
+  background: #141619;
+  border-right: 1px solid #1f2328;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.ris-studies-h {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1f2328;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-mono); font-size: var(--fs-xxs);
+  color: #9aa4ad; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ris-studies-h .n { color: var(--a-cy); font-weight: 600; }
+.ris-studies-list { flex: 1; overflow-y: auto; }
+.ris-study {
+  padding: 10px 12px;
+  border-bottom: 1px solid #1f2328;
+  cursor: pointer;
+  display: grid; grid-template-columns: 52px 1fr; gap: 10px;
+}
+.ris-study:hover { background: #1a1d21; }
+.ris-study.sel { background: #14262f; box-shadow: inset 3px 0 0 var(--a-cy); }
+.ris-study-thumb {
+  width: 52px; height: 52px;
+  background: #000;
+  border: 1px solid #2a3038;
+  border-radius: var(--r-1);
+  display: grid; place-items: center;
+  color: #3a4048; font-family: var(--font-mono); font-size: 9px;
+  overflow: hidden;
+  position: relative;
+}
+.ris-study-thumb.xray { background: radial-gradient(ellipse at 50% 55%, #555 20%, #1a1a1a 55%, #000 100%); }
+.ris-study-thumb.ct { background: linear-gradient(135deg, #222 0%, #888 50%, #111 100%); }
+.ris-study-thumb.mri { background: linear-gradient(180deg, #030610 0%, #1f4a6b 50%, #030610 100%); }
+.ris-study-thumb.us { background: radial-gradient(ellipse at 50% 80%, #8ec5ff 0%, #2f5a88 40%, #000 80%); }
+.ris-study-title { color: #e8ecef; font-size: var(--fs-sm); font-weight: 500; }
+.ris-study-meta { color: #9aa4ad; font-family: var(--font-mono); font-size: 10px; margin-top: 3px; line-height: 1.5; }
+.ris-study-stat {
+  display: inline-block; padding: 1px 5px; border-radius: var(--r-1);
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.04em;
+  margin-top: 3px;
+}
+.ris-study-stat.read { background: #0f3028; color: #4ade80; }
+.ris-study-stat.pending { background: #3d2a0a; color: #fbbf24; }
+.ris-study-stat.in-progress { background: #0e2a3d; color: #60a5fa; }
+
+/* Viewer */
+.ris-viewer {
+  background: #000;
+  display: grid; grid-template-rows: 28px 1fr 30px;
+  overflow: hidden;
+}
+.ris-viewer-tools {
+  background: #141619;
+  border-bottom: 1px solid #1f2328;
+  display: flex; gap: 0;
+  align-items: center;
+  padding: 0 8px;
+}
+.ris-tool {
+  width: 32px; height: 28px;
+  display: grid; place-items: center;
+  color: #9aa4ad; font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer;
+  border-right: 1px solid #1f2328;
+}
+.ris-tool:hover { background: #1f2328; color: #e8ecef;}
+.ris-tool.on { background: var(--a-cy); color: #fff;}
+.ris-tool-sep { width: 1px; height: 18px; background: #2a3038; margin: 0 6px; }
+.ris-tool-lbl { color: #9aa4ad; font-family: var(--font-mono); font-size: var(--fs-xxs); margin: 0 6px 0 3px; text-transform: uppercase; letter-spacing: 0.05em;}
+
+.ris-canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  display: grid; place-items: center;
+}
+.ris-canvas {
+  position: relative;
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  overflow: hidden;
+}
+
+/* Fake chest X-ray */
+.xray-img {
+  width: 76%; max-width: 560px; aspect-ratio: 1/1.1;
+  position: relative;
+  background:
+    radial-gradient(ellipse 26% 36% at 38% 52%, rgba(10,10,10,0.95) 0%, transparent 60%),
+    radial-gradient(ellipse 26% 36% at 62% 52%, rgba(10,10,10,0.95) 0%, transparent 60%),
+    radial-gradient(ellipse 14% 22% at 50% 62%, rgba(200,200,200,0.6) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 80% at 50% 50%, #cfcfcf 0%, #888 30%, #2a2a2a 55%, #050505 90%),
+    #000;
+  border: 1px solid #2a3038;
+}
+.xray-img::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, transparent 48%, rgba(0,0,0,0.3) 49%, transparent 51%),
+    repeating-linear-gradient(85deg, transparent 0, transparent 22px, rgba(255,255,255,0.04) 23px, rgba(255,255,255,0.04) 24px);
+  pointer-events: none;
+}
+/* Measurement annotation */
+.xray-img::after {
+  content: "14.2 cm";
+  position: absolute; top: 48%; left: 30%;
+  color: #ff6;
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid #ff6;
+  border-radius: 2px;
+}
+
+.ris-annot {
+  position: absolute;
+  pointer-events: none;
+}
+.ris-annot svg { display: block; }
+.ris-annot-label {
+  position: absolute;
+  color: #ff6; font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 5px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid #ff6;
+  white-space: nowrap;
+}
+
+/* HUD overlays on image */
+.ris-hud {
+  position: absolute;
+  color: #0af;
+  font-family: var(--font-mono); font-size: 10px;
+  line-height: 1.5;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8);
+  pointer-events: none;
+}
+.ris-hud.tl { top: 10px; left: 10px; }
+.ris-hud.tr { top: 10px; right: 10px; text-align: right;}
+.ris-hud.bl { bottom: 10px; left: 10px; }
+.ris-hud.br { bottom: 10px; right: 10px; text-align: right;}
+.ris-hud b { color: #fff; font-weight: 500;}
+
+.ris-orient {
+  position: absolute;
+  color: #0af;
+  font-family: var(--font-mono); font-size: 14px; font-weight: 700;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8);
+  pointer-events: none;
+}
+.ris-orient.t { top: 50%; left: 10px; transform: translateY(-50%);}
+.ris-orient.b { top: 50%; right: 10px; transform: translateY(-50%);}
+
+.ris-viewer-foot {
+  background: #141619;
+  border-top: 1px solid #1f2328;
+  display: flex; align-items: center; padding: 0 10px;
+  color: #9aa4ad; font-family: var(--font-mono); font-size: var(--fs-xxs);
+  gap: 14px;
+}
+.ris-viewer-foot .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--s-ok); display: inline-block; margin-right: 4px;}
+.ris-viewer-foot b { color: #e8ecef; font-family: var(--font-sans); font-weight: 500;}
+
+/* Report panel */
+.ris-report {
+  background: #141619;
+  border-left: 1px solid #1f2328;
+  color: #e8ecef;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.ris-report-tabs {
+  display: flex;
+  border-bottom: 1px solid #1f2328;
+  background: #0f1114;
+}
+.ris-report-tab {
+  padding: 8px 14px;
+  font-size: var(--fs-xs); font-weight: 500;
+  color: #9aa4ad;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.ris-report-tab.on { color: #e8ecef; border-bottom-color: var(--a-cy); background: #141619;}
+
+.ris-report-body { flex: 1; overflow-y: auto; padding: 14px; font-size: var(--fs-sm); line-height: 1.6;}
+
+.ris-report-sect { margin-bottom: 14px;}
+.ris-report-sect .h {
+  font-family: var(--font-mono); font-size: var(--fs-xxs);
+  color: var(--a-cy);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 4px; font-weight: 600;
+}
+.ris-report-sect .b { color: #cfd4d8; }
+.ris-report-sect .b b { color: #fff; font-weight: 600; }
+
+.ris-report-foot {
+  padding: 12px 14px;
+  background: #0f1114;
+  border-top: 1px solid #1f2328;
+  display: flex; gap: 6px; flex-direction: column;
+}
+.ris-sign-row { display: flex; gap: 10px; align-items: center; }
+.ris-sign-ava {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--a-cy); color: #fff;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
+}
+.ris-sign-dr { font-size: var(--fs-sm);}
+.ris-sign-dr b { color: #e8ecef; display: block;}
+.ris-sign-dr span { color: #9aa4ad; font-family: var(--font-mono); font-size: 10px;}
+
+.ris-btn-row { display: flex; gap: 6px; margin-top: 4px;}
+.ris-btn-row button {
+  flex: 1; height: 30px;
+  background: #2a3038; color: #e8ecef; border: 1px solid #3a4048;
+  font-size: var(--fs-xs); font-weight: 500;
+  border-radius: var(--r-2); cursor: pointer;
+}
+.ris-btn-row button.p {
+  background: var(--a-cy); border-color: var(--a-cy); color: #fff;
+}

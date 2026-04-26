@@ -152,6 +152,72 @@ export const TermIcon: React.FC<Props> = ({ name, size = 16, stroke = 1.6, class
           <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
       );
+    case 'shield':
+      return (
+        <svg {...props}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+    case 'pill':
+      return (
+        <svg {...props}>
+          <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+          <path d="m8.5 8.5 7 7" />
+        </svg>
+      );
+    case 'folder':
+      return (
+        <svg {...props}>
+          <path d="M4 19a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v2" />
+          <path d="m2 13 1.2 6.4A2 2 0 0 0 5.2 21h13.6a2 2 0 0 0 2-1.6L22 13H2z" />
+        </svg>
+      );
+    case 'chart':
+      return (
+        <svg {...props}>
+          <path d="M3 3v18h18" />
+          <path d="m7 14 4-4 3 3 5-6" />
+        </svg>
+      );
+    case 'cloud':
+      return (
+        <svg {...props}>
+          <path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 1 1 0 9z" />
+        </svg>
+      );
+    case 'users':
+      return (
+        <svg {...props}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case 'refresh':
+      return (
+        <svg {...props}>
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" />
+        </svg>
+      );
+    case 'external':
+      return (
+        <svg {...props}>
+          <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        </svg>
+      );
+    case 'info':
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4M12 8h.01" />
+        </svg>
+      );
+    case 'check':
+      return (
+        <svg {...props}>
+          <path d="m5 12 5 5 10-11" />
+        </svg>
+      );
     default:
       return null;
   }

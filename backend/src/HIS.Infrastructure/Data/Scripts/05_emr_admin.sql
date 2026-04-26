@@ -40,6 +40,7 @@ CREATE TABLE EmrDocumentAttachments (
     UpdatedBy NVARCHAR(450) NULL,
     IsDeleted BIT NOT NULL DEFAULT 0
 );
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_EmrDocumentAttachments_MedicalRecordId' AND object_id = OBJECT_ID('EmrDocumentAttachments'))
 CREATE INDEX IX_EmrDocumentAttachments_MedicalRecordId ON EmrDocumentAttachments(MedicalRecordId);
 
 -- 3. EmrPrintLogs (Nhat ky in an)
@@ -62,6 +63,7 @@ CREATE TABLE EmrPrintLogs (
     UpdatedBy NVARCHAR(450) NULL,
     IsDeleted BIT NOT NULL DEFAULT 0
 );
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_EmrPrintLogs_MedicalRecordId' AND object_id = OBJECT_ID('EmrPrintLogs'))
 CREATE INDEX IX_EmrPrintLogs_MedicalRecordId ON EmrPrintLogs(MedicalRecordId);
 
 -- 4. EmrSignerCatalogs (Danh muc nguoi ky)
@@ -153,6 +155,7 @@ CREATE TABLE EmrDocumentTypes (
     UpdatedBy NVARCHAR(450) NULL,
     IsDeleted BIT NOT NULL DEFAULT 0
 );
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_EmrDocumentTypes_GroupId' AND object_id = OBJECT_ID('EmrDocumentTypes'))
 CREATE INDEX IX_EmrDocumentTypes_GroupId ON EmrDocumentTypes(GroupId);
 
 -- ============ SEED: 31 Vo benh an theo TT 32/2023/TT-BYT ============
