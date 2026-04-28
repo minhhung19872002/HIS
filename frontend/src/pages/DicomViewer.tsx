@@ -41,6 +41,7 @@ import { API_ORIGIN } from '../config/api';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import DicomViewerConfig from '../components/DicomViewerConfig';
 import CornerstoneViewer, { type CornerstoneViewerHandle } from '../components/CornerstoneViewer';
+import MprViewer from '../components/MprViewer';
 
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them
@@ -95,6 +96,8 @@ const DicomViewer: React.FC = () => {
 
   // A1: Embedded OHIF iframe mode — MPR, 3D volume, MIP, Mamo sẵn có trong Orthanc plugin
   const [embedOhif, setEmbedOhif] = useState(false);
+  // Phase 2: Native MPR/3D rendering via Cornerstone3D VolumeViewports
+  const [useNativeMpr, setUseNativeMpr] = useState(false);
 
   // A2: Video conference integration
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
@@ -414,12 +417,21 @@ const DicomViewer: React.FC = () => {
             {pacsAvailable && (
               <>
                 <Button
-                  type={embedOhif ? 'default' : 'primary'}
+                  type={useNativeMpr ? 'primary' : 'default'}
                   icon={<AppstoreOutlined />}
-                  onClick={() => setEmbedOhif((v) => !v)}
+                  onClick={() => { setUseNativeMpr((v) => !v); if (!useNativeMpr) setEmbedOhif(false); }}
+                  data-testid="dicom-native-mpr-btn"
+                  disabled={!pacsAvailable}
+                >
+                  {useNativeMpr ? 'Ẩn MPR Native' : 'MPR / 3D Native'}
+                </Button>
+                <Button
+                  type={embedOhif ? 'primary' : 'default'}
+                  icon={<AppstoreOutlined />}
+                  onClick={() => { setEmbedOhif((v) => !v); if (!embedOhif) setUseNativeMpr(false); }}
                   data-testid="dicom-mpr-3d-btn"
                 >
-                  {embedOhif ? 'Ẩn MPR/3D' : 'MPR / 3D / Mamo'}
+                  {embedOhif ? 'Ẩn OHIF' : 'MPR / 3D / Mamo (OHIF)'}
                 </Button>
                 <Button
                   icon={<RobotOutlined />}
@@ -548,6 +560,18 @@ const DicomViewer: React.FC = () => {
           </Descriptions.Item>
         </Descriptions>
       </Card>
+
+      {/* Phase 2: Native MPR/3D viewport (4-quadrant axial/sagittal/coronal + VR) */}
+      {useNativeMpr && pacsAvailable && cornerstoneImageIds.length > 0 && (
+        <Card
+          title={<Space><AppstoreOutlined /> MPR / 3D Native Viewer (Cornerstone3D)</Space>}
+          extra={<Button size="small" onClick={() => setUseNativeMpr(false)}>Đóng</Button>}
+          style={{ marginBottom: 16 }}
+          styles={{ body: { padding: 8 } }}
+        >
+          <MprViewer imageIds={cornerstoneImageIds} height="70vh" />
+        </Card>
+      )}
 
       {/* A1: Embedded OHIF iframe — MPR 4-quadrant, 3D volume, MIP, Mamography, Compare studies */}
       {embedOhif && pacsAvailable && (
