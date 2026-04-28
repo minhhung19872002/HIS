@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -40,6 +40,7 @@ import AiLabelingModal from '../components/AiLabelingModal';
 import { API_ORIGIN } from '../config/api';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import DicomViewerConfig from '../components/DicomViewerConfig';
+import CornerstoneViewer, { type CornerstoneViewerHandle } from '../components/CornerstoneViewer';
 
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them
@@ -107,6 +108,25 @@ const DicomViewer: React.FC = () => {
   // AI Labeling
   const [aiOpen, setAiOpen] = useState(false);
 
+  // Cornerstone3D viewer toggle + handle for tool/preset commands
+  const [useCs, setUseCs] = useState(true); // default to native renderer
+  const csRef = useRef<CornerstoneViewerHandle>(null);
+
+  // Build wadouri:URL list from images (raw DICOM proxy through backend)
+  // Backend endpoint /pacs/instances/{id}/file streams raw DICOM bytes.
+  // imageUrl pattern is `/api/RISComplete/pacs/instances/{instanceId}/preview` —
+  // swap /preview → /file to point at raw DICOM. Cornerstone needs `wadouri:` prefix.
+  const cornerstoneImageIds = React.useMemo(() => {
+    return images
+      .map((img) => {
+        const raw = img.wadoUrl || img.imageUrl?.replace(/\/preview(\?.*)?$/, '/file') || '';
+        if (!raw) return '';
+        const abs = resolveApiUrl(raw);
+        return abs ? `wadouri:${abs}` : '';
+      })
+      .filter(Boolean);
+  }, [images]);
+
   useEffect(() => {
     // Global hotkey listener cho W/L presets F1-F10 + shortcuts customizable
     const handler = (e: KeyboardEvent) => {
@@ -115,8 +135,8 @@ const DicomViewer: React.FC = () => {
       if (preset) {
         e.preventDefault();
         setActiveWlPreset(preset.key);
-        // Apply W/L (window-level) qua CSS filter hoặc Cornerstone API khi có
-        // Hiện tại chỉ log + show toast
+        // Apply W/L via Cornerstone3D viewport API
+        csRef.current?.applyWlPreset(preset);
         message.info(`Đã áp W/L preset: ${preset.name} (C=${preset.center}, W=${preset.width})`, 1);
         return;
       }
@@ -634,7 +654,7 @@ const DicomViewer: React.FC = () => {
             {pacsAvailable ? (
               selectedImageUrl ? (
                 <div>
-                  {/* W/L Preset bar — Sprint 4 Item 1.3 */}
+                  {/* W/L Preset bar + viewer-mode toggle */}
                   <Space wrap style={{ marginBottom: 8 }}>
                     <Typography.Text type="secondary" style={{ fontSize: 11 }}>W/L Preset:</Typography.Text>
                     {viewerConfig.wlPresets.map(p => (
@@ -642,7 +662,7 @@ const DicomViewer: React.FC = () => {
                         key={p.key}
                         size="small"
                         type={activeWlPreset === p.key ? 'primary' : 'default'}
-                        onClick={() => setActiveWlPreset(p.key)}
+                        onClick={() => { setActiveWlPreset(p.key); csRef.current?.applyWlPreset(p); }}
                       >
                         {p.key}: {p.name}
                       </Button>
@@ -653,7 +673,63 @@ const DicomViewer: React.FC = () => {
                     <Button size="small" onClick={reloadConfig} icon={<ReloadOutlined />}>
                       Reload config
                     </Button>
+                    <Button
+                      size="small"
+                      type={useCs ? 'primary' : 'default'}
+                      onClick={() => setUseCs((v) => !v)}
+                      data-testid="dicom-cs-toggle"
+                    >
+                      {useCs ? 'Native DICOM' : 'PNG preview'}
+                    </Button>
                   </Space>
+                  {useCs && cornerstoneImageIds.length > 0 ? (
+                    <div style={{ position: 'relative' }}>
+                      <CornerstoneViewer
+                        ref={csRef}
+                        imageIds={cornerstoneImageIds}
+                        initialIndex={Math.max(0, images.findIndex((i) => resolveApiUrl(i.imageUrl || '') === selectedImageUrl))}
+                        height="calc(100vh - 460px)"
+                      />
+                      {/* Overlay DICOM tags theo config */}
+                      {showOverlay && studyInfo && (
+                        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                          {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map(pos => {
+                            const fields = viewerConfig.overlayFields
+                              .filter(f => f.position === pos)
+                              .sort((a, b) => a.order - b.order);
+                            if (fields.length === 0) return null;
+                            const style: React.CSSProperties = {
+                              position: 'absolute',
+                              color: '#fff',
+                              fontFamily: 'monospace',
+                              fontSize: 11,
+                              textShadow: '1px 1px 2px #000',
+                              padding: 8,
+                              [pos.includes('top') ? 'top' : 'bottom']: 8,
+                              [pos.includes('left') ? 'left' : 'right']: 8,
+                              textAlign: pos.includes('right') ? 'right' : 'left',
+                            };
+                            const tagMap: Record<string, string | undefined> = {
+                              PatientName: studyInfo.patientName,
+                              PatientID: studyInfo.patientId,
+                              StudyDate: studyInfo.studyDate,
+                              StudyDescription: studyInfo.studyDescription,
+                              Modality: studyInfo.modality,
+                              SeriesDescription: selectedSeries?.seriesDescription,
+                            };
+                            return (
+                              <div key={pos} style={style}>
+                                {fields.map(f => {
+                                  const val = tagMap[f.tag];
+                                  return val ? <div key={f.tag}>{f.tag}: {val}</div> : null;
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <div style={{ textAlign: 'center', background: '#000', padding: 8, borderRadius: 4, position: 'relative' }}>
                     <img
                       src={selectedImageUrl}
@@ -703,6 +779,7 @@ const DicomViewer: React.FC = () => {
                       </>
                     )}
                   </div>
+                  )}
                 </div>
               ) : (
                 <Empty description="Chọn ảnh để xem" />

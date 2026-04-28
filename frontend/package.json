@@ -23,6 +23,9 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
+    "@cornerstonejs/core": "^3.33.5",
+    "@cornerstonejs/dicom-image-loader": "^3.33.5",
+    "@cornerstonejs/tools": "^3.33.5",
     "@microsoft/signalr": "^10.0.0",
     "@tanstack/react-query": "^5.90.20",
     "antd": "^6.2.2",

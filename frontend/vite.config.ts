@@ -10,6 +10,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Cornerstone3D's dicom-image-loader spawns Web Workers and dynamic-imports
+  // WASM codecs — Vite's default `iife` worker format breaks code-splitting.
+  // ES module workers are supported in all modern browsers we target.
+  worker: { format: 'es' },
+  optimizeDeps: {
+    exclude: [
+      '@cornerstonejs/dicom-image-loader',
+      '@cornerstonejs/codec-charls',
+      '@cornerstonejs/codec-libjpeg-turbo-8bit',
+      '@cornerstonejs/codec-openjpeg',
+      '@cornerstonejs/codec-openjph',
+    ],
+  },
   build: {
     rollupOptions: {
       output: {
@@ -20,6 +33,12 @@ export default defineConfig({
           'vendor-signalr': ['@microsoft/signalr'],
           'vendor-utils': ['axios', 'dayjs', '@tanstack/react-query'],
           'vendor-qrcode': ['html5-qrcode'],
+          'vendor-cornerstone': [
+            '@cornerstonejs/core',
+            '@cornerstonejs/tools',
+            '@cornerstonejs/dicom-image-loader',
+            'dicom-parser',
+          ],
         },
       },
     },
