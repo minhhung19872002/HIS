@@ -18,7 +18,7 @@ const HealthEducationV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchCampaigns({ keyword });
+      const r: any = await searchCampaigns({ keyword });
       const list = (r?.items || (Array.isArray(r) ? r : [])) as HealthCampaign[];
       setItems(list);
       if (list.length > 0 && !sel) setSel(list[0]);

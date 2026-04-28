@@ -17,7 +17,7 @@ const EnvironmentalHealthV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchWasteRecords({ keyword });
+      const r: any = await searchWasteRecords({ keyword });
       const list = (r?.items || (Array.isArray(r) ? r : [])) as WasteRecord[];
       setItems(list);
       if (list.length > 0 && !sel) setSel(list[0]);

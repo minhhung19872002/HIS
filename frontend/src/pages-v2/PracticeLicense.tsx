@@ -22,7 +22,7 @@ const PracticeLicenseV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchLicenses({ keyword });
+      const r: any = await searchLicenses({ keyword });
       const list = (r?.items || (Array.isArray(r) ? r : [])) as PracticeLicense[];
       setItems(list);
       if (list.length > 0 && !sel) setSel(list[0]);

@@ -13,7 +13,7 @@ const EndpointSecurityV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await getDevices(keyword || undefined);
+      const r: any = await getDevices(keyword || undefined);
       const list = (r?.data?.items || (Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []))) as EndpointDeviceDto[];
       setItems(list);
       if (list.length > 0 && !sel) setSel(list[0]);

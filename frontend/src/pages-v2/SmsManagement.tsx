@@ -38,7 +38,7 @@ const SmsManagementV2: React.FC = () => {
         if (list.length > 0 && !sel) setSel(list[0]);
       }
       if (r2.status === 'fulfilled') setBalance(r2.value.data);
-      if (r3.status === 'fulfilled') setStats(r3.value.data as typeof stats);
+      if (r3.status === 'fulfilled') setStats(r3.value.data as unknown as typeof stats);
     } finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);

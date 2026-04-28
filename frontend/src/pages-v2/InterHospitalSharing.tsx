@@ -25,7 +25,7 @@ const InterHospitalSharingV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchRequests({ keyword });
+      const r: any = await searchRequests({ keyword });
       const list = (r?.items || (Array.isArray(r) ? r : [])) as InterHospitalRequest[];
       setItems(list);
       if (list.length > 0 && !sel) setSel(list[0]);

@@ -96,7 +96,7 @@ const HospitalPharmacyV2: React.FC = () => {
               <Stat label="Đã bán" value={String(local.completed)} ok />
               <Stat label="Doanh thu" value={`${Math.round(local.revenue / 1_000_000)}M₫`} cy />
               <Stat label="Đã hủy" value={String(local.cancelled)} crit />
-              {dash?.totalSalesToday !== undefined && <Stat label="Hôm nay" value={String(dash.totalSalesToday)} ok />}
+              {dash?.todaySaleCount !== undefined && <Stat label="Hôm nay" value={String(dash.todaySaleCount)} ok />}
             </div>
           </div>
         </div>

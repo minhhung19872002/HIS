@@ -18,7 +18,7 @@ const PopulationHealthV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchRecords({ keyword });
+      const r: any = await searchRecords({ keyword });
       const list = (r?.items || (Array.isArray(r) ? r : [])) as PopulationRecord[];
       setItems(list);
       if (list.length > 0 && !sel) setSel(list[0]);

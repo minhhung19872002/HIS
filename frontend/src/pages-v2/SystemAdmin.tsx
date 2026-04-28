@@ -115,7 +115,7 @@ const SystemAdminV2: React.FC = () => {
                         <td className="mono">{u.username}</td>
                         <td style={{ fontWeight: 500 }}>{u.fullName}</td>
                         <td className="muted">{u.departmentName || '—'}</td>
-                        <td className="muted">{u.roles?.map((r) => r.roleName).join(', ') || '—'}</td>
+                        <td className="muted">{u.roles?.map((r) => r.name).join(', ') || '—'}</td>
                         <td className="muted">{u.email || '—'}</td>
                         <td className="mono">{u.lastLoginDate ? dayjs(u.lastLoginDate).format('DD/MM HH:mm') : '—'}</td>
                         <td>
@@ -136,8 +136,8 @@ const SystemAdminV2: React.FC = () => {
                   <tbody>
                     {roles.map((r) => (
                       <tr key={r.id}>
-                        <td className="mono">{r.roleName}</td>
-                        <td style={{ fontWeight: 500 }}>{r.roleName}</td>
+                        <td className="mono">{r.code}</td>
+                        <td style={{ fontWeight: 500 }}>{r.name}</td>
                         <td className="muted">{r.description || '—'}</td>
                         <td>{r.isActive ? <span className="chip ok">Hoạt động</span> : <span className="chip ghost">Tạm dừng</span>}</td>
                       </tr>
@@ -154,13 +154,13 @@ const SystemAdminV2: React.FC = () => {
                     {audit.map((a) => (
                       <tr key={a.id}>
                         <td className="mono">{dayjs(a.timestamp).format('DD/MM HH:mm:ss')}</td>
-                        <td>{a.userFullName || a.username || '—'}</td>
+                        <td>{a.userFullName || a.userName || '—'}</td>
                         <td className="muted">{a.module || '—'}</td>
                         <td className="muted">{a.action}</td>
                         <td className="muted" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {a.entityType ? `${a.entityType} ${a.entityId?.toString().slice(0, 8)}` : '—'}
                         </td>
-                        <td className="mono"><span className={'chip ' + (a.responseStatusCode >= 400 ? 'crit' : a.responseStatusCode >= 300 ? 'warn' : 'ok')}>{a.responseStatusCode}</span></td>
+                        <td className="mono"><span className={'chip ' + ((a.responseStatusCode ?? 0) >= 400 ? 'crit' : (a.responseStatusCode ?? 0) >= 300 ? 'warn' : 'ok')}>{a.responseStatusCode ?? '—'}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -198,7 +198,7 @@ const SystemAdminV2: React.FC = () => {
                   <Field label="SĐT" value={selUser.phoneNumber || '—'} />
                   <Field label="Mã NV" value={selUser.employeeCode || '—'} />
                   <Field label="Khoa" value={selUser.departmentName || '—'} />
-                  <Field label="Vai trò" value={selUser.roles?.map((r) => r.roleName).join(', ') || '—'} />
+                  <Field label="Vai trò" value={selUser.roles?.map((r) => r.name).join(', ') || '—'} />
                   <Field label="Đăng nhập gần nhất" value={selUser.lastLoginDate ? <span className="mono">{dayjs(selUser.lastLoginDate).format('DD/MM/YYYY HH:mm')}</span> : '—'} />
                   <Field label="IP đăng nhập" value={selUser.lastLoginIP ? <span className="mono">{selUser.lastLoginIP}</span> : '—'} />
                 </div>

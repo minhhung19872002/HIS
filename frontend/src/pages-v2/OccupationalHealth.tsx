@@ -21,7 +21,7 @@ const OccupationalHealthV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchOccExams({ keyword });
+      const r: any = await searchOccExams({ keyword });
       const list = (r?.items || (Array.isArray(r) ? r : [])) as OccExam[];
       setItems(list);
       if (list.length > 0 && !sel) setSel(list[0]);

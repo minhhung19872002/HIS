@@ -25,7 +25,7 @@ const HivManagementV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchPatients({ keyword });
+      const r: any = await searchPatients({ keyword });
       const list = Array.isArray(r) ? r : (r?.items || []);
       setItems(list as HivPatient[]);
       if (list.length > 0 && !sel) setSel(list[0] as HivPatient);
