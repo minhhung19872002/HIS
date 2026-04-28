@@ -114,12 +114,14 @@ const DicomViewer: React.FC = () => {
 
   // Build wadouri:URL list from images (raw DICOM proxy through backend)
   // Backend endpoint /pacs/instances/{id}/file streams raw DICOM bytes.
-  // imageUrl pattern is `/api/RISComplete/pacs/instances/{instanceId}/preview` —
-  // swap /preview → /file to point at raw DICOM. Cornerstone needs `wadouri:` prefix.
+  // imageUrl pattern is `/api/RISComplete/pacs/instances/{instanceId}/(preview|rendered)?...` —
+  // swap to /file to point at raw DICOM. Cornerstone needs `wadouri:` prefix.
   const cornerstoneImageIds = React.useMemo(() => {
     return images
       .map((img) => {
-        const raw = img.wadoUrl || img.imageUrl?.replace(/\/preview(\?.*)?$/, '/file') || '';
+        const raw = img.wadoUrl
+          || img.imageUrl?.replace(/\/(?:preview|rendered)(\?.*)?$/, '/file')
+          || '';
         if (!raw) return '';
         const abs = resolveApiUrl(raw);
         return abs ? `wadouri:${abs}` : '';
