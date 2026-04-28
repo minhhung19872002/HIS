@@ -294,8 +294,17 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
     {
         try
         {
-            var list = await _context.DietOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).Include(x => x.DietType).Where(x => x.Status == "Active").ToListAsync();
-            return list.Select(e => new DietOrderDto { Id = e.Id, AdmissionId = e.AdmissionId, PatientName = e.Admission?.Patient?.FullName ?? "", DietTypeName = e.DietType?.Name ?? "", Status = e.Status }).ToList();
+            var query = _context.DietOrders
+                .Include(x => x.Admission).ThenInclude(x => x!.Patient)
+                .Include(x => x.Admission).ThenInclude(x => x!.Department)
+                .Include(x => x.Admission).ThenInclude(x => x!.Bed)
+                .Include(x => x.DietType)
+                .Include(x => x.OrderedBy)
+                .Where(x => x.Status == "Active");
+            if (departmentId.HasValue)
+                query = query.Where(x => x.Admission!.DepartmentId == departmentId.Value);
+            var list = await query.OrderByDescending(x => x.CreatedAt).Take(200).ToListAsync();
+            return list.Select(MapDietOrderDto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -305,10 +314,47 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
 
     public async Task<DietOrderDto> GetDietOrderAsync(Guid id)
     {
-        var e = await _context.DietOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).Include(x => x.DietType).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.DietOrders
+            .Include(x => x.Admission).ThenInclude(x => x!.Patient)
+            .Include(x => x.Admission).ThenInclude(x => x!.Department)
+            .Include(x => x.Admission).ThenInclude(x => x!.Bed)
+            .Include(x => x.DietType)
+            .Include(x => x.OrderedBy)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return null!;
-        return new DietOrderDto { Id = e.Id, AdmissionId = e.AdmissionId, PatientName = e.Admission?.Patient?.FullName ?? "", DietTypeName = e.DietType?.Name ?? "", Status = e.Status };
+        return MapDietOrderDto(e);
     }
+
+    private static DietOrderDto MapDietOrderDto(DietOrder e) => new()
+    {
+        Id = e.Id,
+        OrderCode = e.OrderCode ?? string.Empty,
+        AdmissionId = e.AdmissionId,
+        PatientId = e.PatientId,
+        PatientName = e.Admission?.Patient?.FullName ?? "",
+        DepartmentName = e.Admission?.Department?.DepartmentName ?? "",
+        BedNumber = e.Admission?.Bed?.BedName ?? e.Admission?.Bed?.BedCode ?? "",
+        DietTypeId = e.DietTypeId,
+        DietTypeCode = e.DietType?.Code ?? "",
+        DietTypeName = e.DietType?.Name ?? "",
+        DietCategory = e.DietType?.Category ?? "",
+        Texture = e.TextureModification ?? "",
+        Consistency = e.FluidConsistency ?? "",
+        CalorieLevel = e.TargetCalories,
+        ProteinLevel = e.TargetProtein,
+        Allergies = SplitCsv(e.Allergies),
+        Dislikes = SplitCsv(e.FoodPreferences),
+        SpecialInstructions = e.SpecialInstructions ?? "",
+        FeedingRoute = "Oral",
+        Status = e.Status ?? "",
+        StartDate = e.StartDate,
+        EndDate = e.EndDate,
+        OrderedBy = e.OrderedBy?.FullName ?? "",
+        OrderedAt = e.CreatedAt,
+    };
+
+    private static List<string> SplitCsv(string? s)
+        => string.IsNullOrWhiteSpace(s) ? new List<string>() : s.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToList();
 
     public async Task<DietOrderDto> CreateDietOrderAsync(CreateDietOrderDto dto)
     {
@@ -417,15 +463,33 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<List<HAIDto>> GetActiveHAICasesAsync(string? infectionType = null, Guid? departmentId = null)
     {
-        var query = _context.HAICases.Include(x => x.Admission).ThenInclude(x => x!.Patient).Where(x => x.Status != "Resolved");
-        if (!string.IsNullOrEmpty(infectionType)) query = query.Where(x => x.InfectionType == infectionType);
-        var list = await query.ToListAsync();
-        return list.Select(MapToHAIDto).ToList();
+        try
+        {
+            var query = _context.HAICases
+                .Include(x => x.Admission).ThenInclude(x => x!.Patient)
+                .Include(x => x.Admission).ThenInclude(x => x!.Department)
+                .Include(x => x.Admission).ThenInclude(x => x!.Bed)
+                .Include(x => x.ReportedBy)
+                .Where(x => x.Status != "Resolved");
+            if (!string.IsNullOrEmpty(infectionType)) query = query.Where(x => x.InfectionType == infectionType);
+            if (departmentId.HasValue) query = query.Where(x => x.Admission!.DepartmentId == departmentId.Value);
+            var list = await query.OrderByDescending(x => x.OnsetDate).Take(200).ToListAsync();
+            return list.Select(MapToHAIDto).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<HAIDto>();
+        }
     }
 
     public async Task<HAIDto> GetHAICaseAsync(Guid id)
     {
-        var e = await _context.HAICases.Include(x => x.Admission).ThenInclude(x => x!.Patient).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.HAICases
+            .Include(x => x.Admission).ThenInclude(x => x!.Patient)
+            .Include(x => x.Admission).ThenInclude(x => x!.Department)
+            .Include(x => x.Admission).ThenInclude(x => x!.Bed)
+            .Include(x => x.ReportedBy)
+            .FirstOrDefaultAsync(x => x.Id == id);
         return e == null ? null! : MapToHAIDto(e);
     }
 
@@ -618,9 +682,35 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     private static HAIDto MapToHAIDto(HAICase e) => new()
     {
-        Id = e.Id, CaseCode = e.CaseCode, AdmissionId = e.AdmissionId, PatientName = e.Admission?.Patient?.FullName ?? "",
-        InfectionType = e.InfectionType, InfectionSite = e.InfectionSite, OnsetDate = e.OnsetDate,
-        Organism = e.Organism ?? "", IsMDRO = e.IsMDRO, Status = e.Status
+        Id = e.Id,
+        CaseCode = e.CaseCode,
+        AdmissionId = e.AdmissionId,
+        PatientId = e.PatientId,
+        PatientName = e.Admission?.Patient?.FullName ?? "",
+        PatientCode = e.Admission?.Patient?.PatientCode ?? "",
+        DepartmentName = e.Admission?.Department?.DepartmentName ?? "",
+        BedNumber = e.Admission?.Bed?.BedName ?? e.Admission?.Bed?.BedCode ?? "",
+        InfectionType = e.InfectionType,
+        InfectionSite = e.InfectionSite,
+        OnsetDate = e.OnsetDate,
+        DiagnosisDate = e.ConfirmedDate,
+        DaysSinceAdmission = e.Admission != null ? Math.Max(0, (int)(e.OnsetDate - e.Admission.AdmissionDate).TotalDays) : 0,
+        HasCentralLine = e.IsDeviceAssociated && e.DeviceType == "Central Line",
+        CentralLineDays = e.IsDeviceAssociated && e.DeviceType == "Central Line" ? e.DeviceDays : null,
+        HasUrinaryCatheter = e.IsDeviceAssociated && e.DeviceType == "Urinary Catheter",
+        CatheterDays = e.IsDeviceAssociated && e.DeviceType == "Urinary Catheter" ? e.DeviceDays : null,
+        OnVentilator = e.IsDeviceAssociated && e.DeviceType == "Ventilator",
+        VentilatorDays = e.IsDeviceAssociated && e.DeviceType == "Ventilator" ? e.DeviceDays : null,
+        Organism = e.Organism ?? "",
+        IsMDRO = e.IsMDRO,
+        ResistancePattern = e.ResistancePattern ?? "",
+        IsOutbreakRelated = e.OutbreakId.HasValue,
+        OutbreakId = e.OutbreakId,
+        Status = e.Status,
+        ResolvedDate = e.ResolvedDate,
+        Outcome = e.Outcome ?? "",
+        ReportedBy = e.ReportedBy?.FullName ?? "",
+        ReportedAt = e.CreatedAt,
     };
 }
 #endregion
@@ -633,15 +723,63 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<List<RehabReferralDto>> GetPendingReferralsAsync()
     {
-        var list = await _context.RehabReferrals.Include(x => x.Patient).Include(x => x.ReferredBy).Where(x => x.Status == "Pending").ToListAsync();
-        return list.Select(e => new RehabReferralDto { Id = e.Id, ReferralCode = e.ReferralCode, PatientId = e.PatientId, PatientName = e.Patient?.FullName ?? "", RehabType = e.RehabType, PrimaryDiagnosis = e.Diagnosis, Status = e.Status }).ToList();
+        try
+        {
+            var list = await _context.RehabReferrals
+                .Include(x => x.Patient)
+                .Include(x => x.ReferredBy)
+                .Include(x => x.Admission).ThenInclude(a => a!.Department)
+                .Where(x => x.Status == "Pending" || x.Status == "Accepted")
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(200)
+                .ToListAsync();
+            return list.Select(MapRehabReferralDto).ToList();
+        }
+        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
+        {
+            return new List<RehabReferralDto>();
+        }
     }
 
     public async Task<RehabReferralDto> GetReferralAsync(Guid id)
     {
-        var e = await _context.RehabReferrals.Include(x => x.Patient).Include(x => x.ReferredBy).FirstOrDefaultAsync(x => x.Id == id);
+        var e = await _context.RehabReferrals
+            .Include(x => x.Patient)
+            .Include(x => x.ReferredBy)
+            .Include(x => x.Admission).ThenInclude(a => a!.Department)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return null!;
-        return new RehabReferralDto { Id = e.Id, ReferralCode = e.ReferralCode, PatientId = e.PatientId, PatientName = e.Patient?.FullName ?? "", RehabType = e.RehabType, PrimaryDiagnosis = e.Diagnosis, RehabGoals = e.Reason, Status = e.Status };
+        return MapRehabReferralDto(e);
+    }
+
+    private static RehabReferralDto MapRehabReferralDto(RehabReferral e)
+    {
+        var p = e.Patient;
+        var age = p?.DateOfBirth.HasValue == true ? Math.Max(0, DateTime.Today.Year - p.DateOfBirth.Value.Year) : 0;
+        return new RehabReferralDto
+        {
+            Id = e.Id,
+            ReferralCode = e.ReferralCode,
+            PatientId = e.PatientId,
+            PatientName = p?.FullName ?? "",
+            PatientCode = p?.PatientCode ?? "",
+            PatientAge = age,
+            PatientGender = p?.Gender == 1 ? "Nam" : (p?.Gender == 2 ? "Nữ" : ""),
+            AdmissionId = e.AdmissionId,
+            VisitId = e.ExaminationId,
+            SourceDepartment = e.Admission?.Department?.DepartmentName ?? "",
+            ReferringDoctor = e.ReferredBy?.FullName ?? "",
+            PrimaryDiagnosis = e.Diagnosis,
+            DiagnosisICD = e.IcdCode ?? "",
+            Precautions = e.Precautions ?? "",
+            RehabType = e.RehabType,
+            RehabGoals = e.Goals ?? e.Reason,
+            SpecificRequests = e.Reason,
+            Urgency = "Routine",
+            Status = e.Status,
+            ReferralDate = e.CreatedAt,
+            AcceptedDate = e.AcceptedDate,
+        };
     }
 
     public async Task<RehabReferralDto> CreateReferralAsync(CreateRehabReferralDto dto)

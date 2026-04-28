@@ -2423,3 +2423,169 @@ curl -s -H "Authorization: Bearer $TOKEN" \
   `Reports.css`). The file exists; just verify with `ls
   src/pages-v2/reports-v2.css` if Vite 500's.
 
+---
+
+## Work Log - 2026-04-27 (v2 native conversion — final 16 pages)
+
+Closed the 16 remaining `WrapV1` lines in `App.tsx` so every `/v2/*`
+route the user can reach has a hand-built v2 page. Same templated
+recipe as the previous session (`_GenericListPage<T>` helper, ~80
+lines per file).
+
+### Pages converted (16, all `frontend/src/pages-v2/*.tsx`)
+
+- AssetManagement (`getAssets` + `getAssetDashboard`, 6 cols)
+- BookingManagement (`getBookings` + `getBookingStats`)
+- CommunityHealth (`searchHouseholds` + `getStats`)
+- CultureCollection (`getCultureStocks` + `getCultureStockStats`)
+- Epidemiology (`searchDiseaseReports` + `getEpiStats`)
+- FoodSafety (`searchIncidents` + `getIncidentStats`)
+- HealthCheckup (`searchHealthCheckups` + `getHealthCheckupStats`)
+- InfectionControl (`getHAICases` paged response)
+- IvfLab (`getCouples` + `getIvfDashboard`)
+- LISConfig (`getAnalyzers` + `getLabconnectStatus`, client-side keyword filter)
+- MedicalRecordPlanning (`getRecordCodes`, paged inline DTO)
+- Nutrition (`getDietOrders` paged)
+- Rehabilitation (`getReferrals` paged)
+- SchoolHealth (`searchSchoolExams` + `getSchoolStats`)
+- TrainingResearch (`getTrainingClasses` + `getTrainingDashboard`)
+- TreatmentProtocol (`searchProtocols` paged)
+
+### Wiring
+
+- 16 lazy imports added to `App.tsx` (block right above `WrapV1`).
+- Each `<Route ... element={<WrapV1 ... />}>` swapped for the new V2
+  component. `grep WrapV1` against the 16 component names — 0 matches.
+
+### Verification
+
+- `node ./node_modules/typescript/bin/tsc --noEmit` → EXIT 0 (the only
+  check that's actually clean — see below).
+- `tsc -b` (the project-references build) still has ~25 pre-existing
+  errors in v2 files I did not touch (HivManagement,
+  EnvironmentalHealth, Immunization, HospitalPharmacy, SystemAdmin,
+  …). Same tech debt the prior session flagged. None of the 16 new
+  files contribute errors.
+- `npm run build` runs `tsc -b && vite build` so it fails on those
+  pre-existing errors.
+- `npm run build:vercel` (skip-tsc) → built in 24.5s, all chunks
+  emitted. This is what Vercel actually runs in prod, so the deploy
+  is unaffected.
+
+### Pitfalls hit this pass
+
+- `_GenericListPage` `StatDef.tone` only allows `'crit' | 'warn' |
+  'ok' | 'cy' | undefined`. `'ghost' as const` will compile clean
+  under `tsc --noEmit` but trip `tsc -b` strictness. Use `undefined`
+  for "no tone" instead.
+- For the paged-response APIs (HAICases, DietOrders, RehabReferrals,
+  TrainingClasses, TreatmentProtocols, RecordCodes), the wrapper
+  returns the raw axios `AxiosResponse`, so the v2 page reads
+  `r.data?.items`, not `r.items`.
+- For APIs whose wrappers already return the unwrapped array
+  (Microbiology, CultureStock, Households, DiseaseReports,
+  Incidents, SchoolExams, IVFCouples, TrainingClasses), call them
+  directly and use the result.
+- `LISConfig` doesn't have a server-side keyword search — client-side
+  filter on `name | model | manufacturer` keeps the panel UX
+  consistent.
+- `MedicalRecordPlanning` API uses raw `client.get` returning untyped
+  `AxiosResponse`. Cast `r.data as { items?: T[] }` to satisfy
+  `tsc`.
+
+### Remaining v2 `WrapV1` lines (kept on purpose)
+
+Same 11 as the previous session noted (DigitalSignature,
+CentralSigning, DicomViewer, Help, Dashboard3Cap, BhxhAudit,
+Finance, HealthExchange, MedicalRecordArchive, SatisfactionSurvey,
+SpecialtyEMR). These are heavy custom UIs / signing widgets / 1k+
+line legacy pages — not worth a templated v2 swap.
+
+### Files touched
+
+- 16 new files under `frontend/src/pages-v2/`
+- `frontend/src/App.tsx` — 16 lazy imports + 16 route element swaps
+
+### Backend — endpoint audit + DTO enrichment for the 3 v2 pages with mismatch
+
+After the v2 swap, audited all 28 backend endpoints the new pages call.
+**26 already query EF Core / DB and return real data**:
+- `AssetManagementService` (assets + dashboard)
+- `BookingManagementService` (bookings + stats)
+- `CommunityHealthService` (households + ncd-screenings/stats + teams)
+- `CultureStockService` (list + statistics)
+- `FrontendCompatController` direct EF queries for `/epidemiology/reports`,
+  `/epidemiology/statistics`, `/health-checkup`, `/school-health/exams`
+- `FoodSafetyService` (incidents + stats)
+- `IvfLabService` (couples + dashboard)
+- `LisConfigService` (analyzers + labconnect status)
+- `MedicalRecordPlanningService` (record-codes)
+- `PublicHealthService` (school-health + healthcheckup statistics)
+- `TrainingResearchService` (classes + dashboard)
+- `TreatmentProtocolService` (search)
+
+**3 had thin DTO mappers** — only ~5 fields per row out of ~25–50 expected.
+Enriched all three in `HIS.Infrastructure/Services/ExtendedWorkflowServices.cs`:
+
+- **DietOrder mapper** (`GetActiveDietOrdersAsync` / `GetDietOrderAsync`) —
+  added `Include` for `Admission.Department` + `Admission.Bed` + `OrderedBy`.
+  New `MapDietOrderDto` populates 22 fields (orderCode, departmentName,
+  bedNumber, dietTypeCode/Category, texture, calorieLevel, allergies as
+  `List<string>`, startDate/endDate, orderedBy name, etc.). Wrapped in the
+  existing `ExtendedWorkflowSqlGuard` try/catch + `Take(200)` cap +
+  `OrderByDescending(CreatedAt)`.
+- **HAI mapper** (`GetActiveHAICasesAsync` / `MapToHAIDto`) — added
+  `Include` for `Admission.Department` + `Bed` + `ReportedBy`. Maps 22
+  fields including `daysSinceAdmission` (computed), device-association
+  break-out (centralLine / urinaryCatheter / ventilator with day counts),
+  outbreak linkage, severity, status timestamps. Same SqlGuard + Take(200).
+- **RehabReferral mapper** (`GetPendingReferralsAsync` / `GetReferralAsync`)
+  — accepts both `Pending` AND `Accepted` (was only Pending), added
+  `Include` for `Admission.Department`. New `MapRehabReferralDto`
+  populates 18 fields including computed age, gender label,
+  sourceDepartment, referringDoctor, ICD code, goals, urgency.
+
+### Frontend — tolerance for shape + field-name mismatch (3 pages)
+
+Backend returns `List<X>` for these three endpoints, not the
+`PagedResultDto<X>` the frontend `nutrition.ts` / `infectionControl.ts` /
+`rehabilitation.ts` API types declare. Also the backend DTOs use slightly
+different field names than the frontend type definitions
+(`PrimaryDiagnosis` vs `diagnosis`, `SourceDepartment` vs
+`referringDepartmentName`, `CalorieLevel` vs `energyKcal`, etc. — the
+frontend type files predate the actual backend mappers).
+
+Rewrote the three v2 pages to:
+1. Detect response shape — `Array.isArray(body) ? body : body?.items || []`.
+   Same one-liner used in the existing `getCultureStocks` and
+   `healthCheckup.ts` `normalizeArrayResponse`.
+2. Use a loose local `Row` type that accepts both naming conventions
+   (e.g. `r.diagnosis || r.primaryDiagnosis`,
+   `r.energyKcal ?? r.calorieLevel`, `r.referringDepartmentName ||
+   r.sourceDepartment`). Pages render whichever field the backend
+   actually populates.
+3. Convert numeric `priority` (frontend type) ↔ `urgency` string
+   (backend) bidirectionally for the urgency chip on Rehabilitation.
+4. Status / severity chips key off both numeric and string statuses
+   (`Active` / `Pending` / `Confirmed` / `Suspected` / etc.).
+
+### Verification
+
+- `cd backend && dotnet build HIS.sln` → 0 errors (warnings unchanged).
+- `cd frontend && tsc --noEmit` → EXIT 0.
+- `npm run build:vercel` (Vercel prod build path) → 15.4s, success.
+- `npm run build` (`tsc -b && vite build`) still has the same ~25
+  pre-existing TS errors flagged in the prior session (HivManagement,
+  EnvironmentalHealth, Immunization, HospitalPharmacy, SystemAdmin,
+  Quality, …). None come from the 16 new pages or the 3 just-rewritten
+  pages.
+
+### Files touched (backend pass)
+
+- `backend/src/HIS.Infrastructure/Services/ExtendedWorkflowServices.cs`
+  — 3 method bodies + 3 mapper helpers (`MapDietOrderDto`,
+  `MapToHAIDto`, `MapRehabReferralDto`); added `SplitCsv` utility.
+- `frontend/src/pages-v2/Nutrition.tsx`
+- `frontend/src/pages-v2/InfectionControl.tsx`
+- `frontend/src/pages-v2/Rehabilitation.tsx`
+
