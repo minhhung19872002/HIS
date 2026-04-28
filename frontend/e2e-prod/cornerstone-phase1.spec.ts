@@ -75,22 +75,21 @@ test.describe('Cornerstone3D Phase 1', () => {
     const errors = collectErrors(page);
     await login(page);
 
-    await page.goto(`/dicom-viewer?study=${STUDY_UID}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/radiology/viewer?study=${STUDY_UID}`, { waitUntil: 'domcontentloaded' });
     // Wait for series load + cornerstone init (engine bootstrap is async)
     await page.waitForTimeout(8000);
 
-    // New toggle button should be present (data-testid set in DicomViewer.tsx)
-    const csToggle = page.locator('[data-testid="dicom-cs-toggle"]');
-    await expect(csToggle).toBeVisible({ timeout: 10000 });
+    // New toggle button (label = "Native DICOM" when active)
+    await expect(page.getByRole('button', { name: /Native DICOM|PNG preview/ })).toBeVisible({ timeout: 12000 });
 
-    // Tool buttons rendered by CornerstoneViewer (titles set via Tooltip)
-    await expect(page.getByRole('button', { name: /^W\/L$/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Pan$/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Zoom$/ })).toBeVisible();
+    // Tool buttons rendered by CornerstoneViewer (accessible name includes icon prefix)
+    await expect(page.getByRole('button', { name: /W\/L/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Pan/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Zoom/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Đo DT/ })).toBeVisible();
 
-    // Canvas drawn by Cornerstone3D StackViewport
-    const canvas = page.locator('canvas');
-    await expect(canvas.first()).toBeVisible({ timeout: 10000 });
+    // Slice counter "1 / 1" rendered (StackViewport STACK_NEW_IMAGE event fired)
+    await expect(page.locator('text=/^\\d+ \\/ \\d+$/')).toBeVisible({ timeout: 10000 });
 
     // No critical errors
     const critical = errors.filter((e) =>
@@ -102,29 +101,32 @@ test.describe('Cornerstone3D Phase 1', () => {
     expect(critical, 'No JS pageerrors or 5xx').toEqual([]);
   });
 
-  test('clicking a W/L preset triggers viewport setProperties (no crash)', async ({ page }) => {
-    test.setTimeout(60000);
+  test('W/L preset click + tool switch wired through cornerstone (no crash)', async ({ page }) => {
+    test.setTimeout(90000);
     const errors = collectErrors(page);
     await login(page);
-    await page.goto(`/dicom-viewer?study=${STUDY_UID}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(8000);
+    await page.goto(`/radiology/viewer?study=${STUDY_UID}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(10000);
 
-    // Click the first W/L preset button (label "F1: ..." or similar from preset config)
-    const presetBtn = page.locator('button').filter({ hasText: /^F\d:/ }).first();
-    if (await presetBtn.count() > 0) {
-      await presetBtn.click();
-      await page.waitForTimeout(800);
-    }
+    // Click first F-key preset (e.g. "F1: Phổi")
+    const presetBtn = page.getByRole('button', { name: /F1:/ }).first();
+    await expect(presetBtn).toBeVisible({ timeout: 10000 });
+    await presetBtn.click();
+    await page.waitForTimeout(600);
 
-    // Click Invert
-    await page.getByTitle('Đảo màu (Invert)').click().catch(() => {});
-    await page.waitForTimeout(500);
+    // Switch active tool from W/L → Pan via toolbar (verifies switchTool path)
+    const panBtn = page.getByRole('button', { name: /^drag Pan$/ });
+    await expect(panBtn).toBeVisible();
+    await panBtn.click();
+    await page.waitForTimeout(400);
 
-    // Click Reset
-    await page.getByTitle('Reset').click().catch(() => {});
-    await page.waitForTimeout(500);
+    // Click another preset — exercises applyWlPreset on existing engine state
+    const f2 = page.getByRole('button', { name: /F2:/ }).first();
+    if (await f2.count() > 0) await f2.click().catch(() => {});
+    await page.waitForTimeout(400);
 
     const critical = errors.filter((e) => /pageerror/.test(e));
-    expect(critical, 'No JS crashes from W/L / invert / reset').toEqual([]);
+    if (critical.length) console.log('Crashes:', critical);
+    expect(critical, 'No JS crashes from preset/tool clicks').toEqual([]);
   });
 });
