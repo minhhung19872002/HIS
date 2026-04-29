@@ -1567,14 +1567,22 @@ real local DB, no mock/seed rows.**
 
 ### Key URLs / IDs for future sessions
 
-- Cloud Run service URL: https://his-api-rm6c6yvoja-as.a.run.app
-- Alt format: https://his-api-92850107096.asia-southeast1.run.app
+- Cloud Run service URL: https://his-api-694913628964.asia-southeast1.run.app
+  (older format `his-api-rm6c6yvoja-as.a.run.app` no longer resolves;
+  project number `694913628964` is the live one as of 2026-04-29.)
 - Vercel URL: https://his-psi.vercel.app
-- Latest Cloud Run revision (as of 2026-04-18): `his-api-00016-zmq`
-- Latest image tag pattern: `asia-southeast1-docker.pkg.dev/optical-order-478805-k6/his/his-api:YYYYMMDD-HHMMSS`
+- Latest image tag pattern:
+  `asia-southeast1-docker.pkg.dev/project-4d4a3f8e-d582-4536-97f/his/his-api:YYYYMMDD-HHMMSS`
 - Admin login: `admin` / `Admin@123`
 - Cloud SQL DB name: `HIS`, connection string env var
   `ConnectionStrings__DefaultConnection` on the Cloud Run service.
+
+**GCP project rename (2026-04-29).** Project ID migrated from
+`optical-order-478805-k6` → `project-4d4a3f8e-d582-4536-97f`. All
+historical references in this file point to the old ID; substitute
+the new one for any future `gcloud --project=...` calls. Account:
+`minhhung19872004@gmail.com`. Older work-log entries kept verbatim
+as a snapshot — do not retroactively rewrite the project ID in them.
 
 ---
 
