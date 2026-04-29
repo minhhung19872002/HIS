@@ -1,0 +1,267 @@
+/* ============ INVENTORY / KHO ============ */
+.iv-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+.iv-top {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.iv-top .title { font-size: 17px; font-weight: 600; color: var(--t-0); }
+.iv-top .title small { color: var(--t-2); font-weight: 400; font-size: 12px; margin-left: 10px; font-family: var(--font-mono);}
+
+.iv-kpis {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px;
+  background: var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.iv-kpi {
+  padding: 10px 14px; background: #fff;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.iv-kpi:hover { background: var(--d-1);}
+.iv-kpi.active { background: var(--a-cy-bg);}
+.iv-kpi.active::before {
+  content:""; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--a-cy);
+}
+.iv-kpi .l { font-family: var(--font-mono); font-size: var(--fs-xxs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--t-2); font-weight: 600;}
+.iv-kpi .v { font-size: 22px; font-weight: 700; color: var(--t-0); font-variant-numeric: tabular-nums; margin-top: 3px; line-height: 1.1;}
+.iv-kpi .v small { font-size: 11px; color: var(--t-2); font-weight: 400; margin-left: 3px;}
+.iv-kpi.crit .v { color: var(--s-crit);}
+.iv-kpi.warn .v { color: var(--s-warn);}
+.iv-kpi.ok .v { color: var(--s-ok);}
+.iv-kpi .s { font-size: 10px; color: var(--t-2); margin-top: 2px; font-family: var(--font-mono);}
+
+.iv-body {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: grid; grid-template-columns: 240px 1fr 360px;
+}
+
+/* Left side — categories */
+.iv-cats {
+  border-right: 1px solid var(--line);
+  background: #fff;
+  overflow-y: auto;
+}
+.iv-cat-h {
+  padding: 10px 14px;
+  font-family: var(--font-mono); font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--t-2); font-weight: 600;
+  background: var(--d-1);
+  border-bottom: 1px solid var(--line);
+}
+.iv-cat {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-hair);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  position: relative;
+  font-size: var(--fs-sm);
+}
+.iv-cat:hover { background: var(--d-1);}
+.iv-cat.a { background: var(--a-cy-bg); }
+.iv-cat.a::before {
+  content:""; position: absolute; left: 0; top: 4px; bottom: 4px;
+  width: 3px; background: var(--a-cy); border-radius: 0 3px 3px 0;
+}
+.iv-cat .ic {
+  width: 22px; height: 22px; border-radius: var(--r-2);
+  display: grid; place-items: center;
+  background: var(--d-3); color: var(--t-1);
+  font-size: 12px; flex-shrink: 0;
+}
+.iv-cat.a .ic { background: var(--a-cy-bg); color: var(--a-cy);}
+.iv-cat .nm { color: var(--t-0); font-weight: 500; flex: 1;}
+.iv-cat .cnt { font-family: var(--font-mono); font-size: 10px; color: var(--t-2);}
+.iv-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;}
+.iv-cat .dot.crit { background: var(--s-crit); animation: pulse 1.5s infinite;}
+.iv-cat .dot.warn { background: var(--s-warn);}
+
+/* Center — items table */
+.iv-main {
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
+.iv-filters {
+  padding: 10px 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  display: flex; gap: 8px; align-items: center;
+}
+.iv-search {
+  flex: 1;
+  height: 30px; padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  font-size: var(--fs-sm);
+  background: var(--d-1);
+}
+.iv-filters .seg { display: flex; background: var(--d-3); padding: 2px; border-radius: var(--r-2);}
+.iv-filters .seg button {
+  height: 26px; padding: 0 10px;
+  font-size: 11px; font-weight: 500;
+  color: var(--t-2); border-radius: var(--r-1);
+}
+.iv-filters .seg button.a { background: #fff; color: var(--t-0); box-shadow: 0 1px 2px rgba(15,23,42,0.06);}
+
+.iv-tbl-wrap { flex: 1; overflow: auto; background: #fff;}
+.iv-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm);}
+.iv-tbl thead {
+  position: sticky; top: 0; z-index: 2;
+}
+.iv-tbl thead th {
+  background: var(--d-1);
+  padding: 8px 10px; text-align: left;
+  font-family: var(--font-mono); font-size: var(--fs-xxs);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--t-2); font-weight: 600;
+  border-bottom: 2px solid var(--line);
+  white-space: nowrap;
+}
+.iv-tbl thead th.num { text-align: right;}
+.iv-tbl tbody td {
+  padding: 10px; border-bottom: 1px solid var(--line-hair);
+  color: var(--t-0); vertical-align: middle;
+}
+.iv-tbl tbody tr { cursor: pointer;}
+.iv-tbl tbody tr:hover td { background: var(--d-1);}
+.iv-tbl tbody tr.sel td { background: var(--a-cy-bg); box-shadow: inset 3px 0 0 var(--a-cy);}
+.iv-tbl tbody td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums;}
+
+.iv-tbl .code {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--t-2); letter-spacing: 0.02em;
+  margin-bottom: 2px;
+}
+.iv-tbl .nm { font-weight: 500; color: var(--t-0); line-height: 1.3;}
+.iv-tbl .sub { font-size: 10px; color: var(--t-2); margin-top: 2px; font-family: var(--font-mono);}
+.iv-tbl .stk {
+  display: flex; align-items: center; gap: 6px; justify-content: flex-end;
+}
+.iv-tbl .stk .val { font-weight: 700; font-family: var(--font-mono);}
+.iv-tbl .stk-bar {
+  width: 60px; height: 5px; background: var(--d-3); border-radius: 3px; overflow: hidden;
+}
+.iv-tbl .stk-bar .f { height: 100%; border-radius: 3px;}
+.iv-tbl .stk.ok .val { color: var(--s-ok);}
+.iv-tbl .stk.ok .f { background: var(--s-ok);}
+.iv-tbl .stk.warn .val { color: var(--s-warn);}
+.iv-tbl .stk.warn .f { background: var(--s-warn);}
+.iv-tbl .stk.crit .val { color: var(--s-crit);}
+.iv-tbl .stk.crit .f { background: var(--s-crit);}
+
+.iv-flag {
+  padding: 2px 6px; border-radius: var(--r-1);
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.iv-flag.ok { background: var(--s-ok-bg); color: var(--s-ok);}
+.iv-flag.warn { background: var(--s-warn-bg); color: var(--s-warn);}
+.iv-flag.crit { background: var(--s-crit-bg); color: var(--s-crit);}
+.iv-flag.exp { background: var(--s-mag-bg); color: var(--s-mag);}
+
+/* Right side — detail */
+.iv-det {
+  border-left: 1px solid var(--line);
+  background: #fff;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.iv-det-h {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+}
+.iv-det-h .code {
+  font-family: var(--font-mono); font-size: 10px; color: var(--t-2);
+  letter-spacing: 0.02em; margin-bottom: 4px;
+}
+.iv-det-h .nm { font-size: 16px; font-weight: 600; color: var(--t-0); line-height: 1.3;}
+.iv-det-h .sub { font-size: 11px; color: var(--t-2); margin-top: 4px; font-family: var(--font-mono);}
+
+.iv-det-sec {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-hair);
+}
+.iv-det-sec .hh {
+  font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--t-2); font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.iv-det-row {
+  display: grid; grid-template-columns: 100px 1fr;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  padding: 3px 0;
+}
+.iv-det-row .k { color: var(--t-2);}
+.iv-det-row .v { color: var(--t-0); font-weight: 500;}
+.iv-det-row .v.mono { font-family: var(--font-mono); font-size: 11px;}
+
+/* Stock level gauge */
+.iv-gauge {
+  padding: 10px 0;
+}
+.iv-gauge .row { display: flex; justify-content: space-between; font-size: 11px; color: var(--t-2); font-family: var(--font-mono); margin-bottom: 6px;}
+.iv-gauge .bar {
+  height: 10px; background: var(--d-3); border-radius: 5px; position: relative; overflow: hidden;
+}
+.iv-gauge .bar .f {
+  height: 100%; background: var(--s-ok);
+  border-radius: 5px;
+}
+.iv-gauge .bar.warn .f { background: var(--s-warn);}
+.iv-gauge .bar.crit .f { background: var(--s-crit);}
+.iv-gauge .thr {
+  position: absolute; top: -3px; bottom: -3px;
+  width: 2px; background: var(--s-crit);
+}
+.iv-gauge .thr.warn { background: var(--s-warn);}
+.iv-gauge .bar-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--t-3); font-family: var(--font-mono); margin-top: 4px;}
+
+/* Batches */
+.iv-batch {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  margin-bottom: 6px;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
+}
+.iv-batch.exp { border-color: #fecaca; background: var(--s-crit-bg);}
+.iv-batch.near { border-color: #fed7aa; background: var(--s-warn-bg);}
+.iv-batch .b-lot { font-family: var(--font-mono); font-size: 11px; color: var(--t-1); font-weight: 600;}
+.iv-batch .b-dt { font-family: var(--font-mono); font-size: 10px; color: var(--t-2); margin-top: 2px;}
+.iv-batch .b-qty { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--t-0); text-align: right;}
+.iv-batch .b-qty .sub { display: block; font-size: 10px; color: var(--t-2); font-weight: 400; margin-top: 1px;}
+
+/* Consumption sparkline */
+.iv-consume-chart { width: 100%; height: 60px;}
+.iv-consume-chart .line { stroke: var(--a-cy); stroke-width: 1.8; fill: none;}
+.iv-consume-chart .area { fill: var(--a-cy); opacity: 0.1;}
+.iv-consume-chart .dot { fill: var(--a-cy);}
+
+/* Action buttons stack */
+.iv-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px;}
+.iv-actions button {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: #fff; color: var(--t-0);
+  font-size: var(--fs-sm); font-weight: 500;
+  text-align: left;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.iv-actions button:hover { background: var(--d-3);}
+.iv-actions button.p { background: var(--a-cy); color: #fff; border-color: var(--a-cy);}
+.iv-actions button.p:hover { background: var(--a-cy-dim);}
+.iv-actions button.crit { background: var(--s-crit-bg); color: var(--s-crit); border-color: #fecaca;}
+.iv-actions button .ic { font-size: 14px;}
+.iv-actions button .k { font-family: var(--font-mono); font-size: 9px; color: var(--t-2); margin-top: 2px;}
+.iv-actions button.p .k { color: rgba(255,255,255,0.7);}
+.iv-actions button.crit .k { color: var(--s-crit); opacity: 0.7;}

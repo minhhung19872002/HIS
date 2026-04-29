@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<title>Trang thiết bị y tế — HIS Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="his-shell.css"/>
+<link rel="stylesheet" href="his-module.css"/>
+
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="his-data.js"></script>
+<script type="text/babel" data-presets="react" src="his-chrome.jsx"></script>
+<script type="text/babel" data-presets="react">
+
+const { useState: uEquipMod_s } = React;
+const EquipMod = () => {
+  const kpis = [{"lbl":"Thiết bị trong BV","val":"1,842"},{"lbl":"Đang sử dụng","val":"1,412"},{"lbl":"Bảo trì hôm nay","val":"18"},{"lbl":"Hỏng / Chờ sửa","val":"24","tone":"crit"},{"lbl":"Kiểm định tới hạn 30d","val":"42","tone":"warn"}];
+  const tabs = [{"id":"all","label":"Tất cả"},{"id":"imag","label":"Hình ảnh","n":84},{"id":"lab","label":"Xét nghiệm","n":128},{"id":"icu","label":"HSTC / cấp cứu","n":218},{"id":"or","label":"Phẫu thuật","n":98},{"id":"dwn","label":"Hỏng/chờ sửa","n":24}];
+  const cols = [{"k":"code","label":"Mã TB","cls":"id"},{"k":"nm","label":"Tên thiết bị","cls":"nm"},{"k":"dept","label":"Khoa/vị trí"},{"k":"make","label":"Hãng/Model"},{"k":"age","label":"Tuổi","cls":"num"},{"k":"last","label":"KĐ gần nhất","cls":"id"},{"k":"st","label":"Trạng thái","kind":"stat"}];
+  const rows = [{"_tab":"imag","code":"CT-001","nm":"CT-scan 128 lát","dept":"K. CĐHA · Phòng CT","make":"Siemens SOMATOM","age":"4.2 năm","last":"15/09/2026","st":"ĐANG DÙNG","stTone":"ok"},{"_tab":"imag","code":"MRI-001","nm":"MRI 1.5T","dept":"K. CĐHA · Phòng MRI","make":"GE SIGNA","age":"6.0 năm","last":"22/08/2026","st":"ĐANG DÙNG","stTone":"ok"},{"_tab":"imag","code":"USG-014","nm":"Máy siêu âm Doppler","dept":"K. Sản","make":"Samsung HS70","age":"2.1 năm","last":"08/10/2026","st":"ĐANG DÙNG","stTone":"ok"},{"_tab":"lab","code":"LAB-HTH-01","nm":"Máy huyết học 6 lớp","dept":"K. Xét nghiệm","make":"Sysmex XN-1000","age":"1.8 năm","last":"12/10/2026","st":"ĐANG DÙNG","stTone":"ok"},{"_tab":"lab","code":"LAB-SH-02","nm":"Máy sinh hoá tự động","dept":"K. Xét nghiệm","make":"Roche Cobas c311","age":"3.2 năm","last":"20/10/2026","st":"ĐANG DÙNG","stTone":"ok"},{"_tab":"icu","code":"MON-HS-012","nm":"Monitor đa thông số","dept":"HSTC · GB-05","make":"Mindray uMEC12","age":"2.8 năm","last":"05/09/2026","st":"ĐANG DÙNG","stTone":"ok"},{"_tab":"icu","code":"VEN-HS-004","nm":"Máy thở thể tích","dept":"HSTC · GB-02","make":"Dräger Evita V300","age":"5.1 năm","last":"01/10/2026","st":"BẢO TRÌ","stTone":"info"},{"_tab":"or","code":"ANES-OR-01","nm":"Máy gây mê hồi sức","dept":"OR1","make":"GE Aisys CS2","age":"3.8 năm","last":"18/09/2026","st":"ĐANG DÙNG","stTone":"ok"},{"_tab":"dwn","code":"VEN-HS-005","nm":"Máy thở thể tích","dept":"HSTC · kho","make":"Puritan Bennett 840","age":"8.2 năm","last":"—","st":"HỎNG · CHỜ SỬA","stTone":"crit"},{"_tab":"dwn","code":"USG-005","nm":"Siêu âm tim Doppler","dept":"Tim mạch · kho","make":"Philips HD11XE","age":"9.5 năm","last":"—","st":"CHỜ THANH LÝ","stTone":"ghost"}];
+  const act  = [{"label":"+ Thêm TB","cls":"p","toast":"Mở form thêm TB"},{"label":"🔧 Phiếu bảo trì","toast":"Tạo phiếu bảo trì"},{"label":"📊 Lịch kiểm định","toast":"Xem lịch kiểm định"}];
+  const side = {"titleKey":"nm","subKey":"dept","kvs":[{"lbl":"Mã TB","k":"code","mono":true},{"lbl":"Hãng/Model","k":"make"},{"lbl":"Tuổi","k":"age"},{"lbl":"KĐ gần nhất","k":"last","mono":true},{"lbl":"Trạng thái","k":"st"}],"cards":[{"title":"Lịch bảo trì định kỳ","items":[{"l":"Bảo trì nhỏ (q)","v":"15/12/2026"},{"l":"Bảo trì lớn (year)","v":"15/09/2027"},{"l":"Kiểm định (year)","v":"15/09/2027"},{"l":"Hợp đồng BD","v":"Còn 184 ngày"}]},{"title":"Lịch sử sự cố","items":[{"l":"Lỗi cảm biến","v":"12/2024"},{"l":"Thay đèn tia X","v":"06/2025"},{"l":"Nâng cấp FW","v":"08/2026"}]}],"actions":[{"label":"📄 Hồ sơ TB","cls":"p","toast":"Mở hồ sơ $NM"},{"label":"🔧 Báo hỏng","cls":"crit","toast":"Báo hỏng $NM","tone":"warn"},{"label":"📅 Đặt lịch BD","toast":"Lịch BD $NM"},{"label":"📤 Chuyển khoa","toast":"Chuyển TB $NM"}]};
+  const [tab, setTab] = uEquipMod_s("all");
+  const [sel, setSel] = uEquipMod_s(0);
+  const filtered = tab === "all" ? rows : rows.filter(r => r._tab === tab);
+  const cur = filtered[sel] || filtered[0] || {};
+  return (
+    <div className="mod-wrap">
+      {kpis.length > 0 && (
+        <div className="mod-strip">
+          {kpis.map((k,i) => (
+            <div key={i} className={"mod-strip-cell " + (k.tone || "")}>
+              <div className="lbl">{k.lbl}</div>
+              <div className="val">{k.val}{k.sub && <small>{k.sub}</small>}</div>
+              {k.delta && <div className="delta" style={{color: k.dir==="up"?"var(--s-ok)":k.dir==="down"?"var(--s-crit)":"var(--t-2)"}}>{k.dir==="up"?"↗":k.dir==="down"?"↘":"·"} {k.delta}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className={"mod-body " + (side ? "cols-2" : "")}>
+        <div className="mod-pane">
+          <div className="mod-toolbar">
+            <h3>Quản lý trang thiết bị y tế · QCVN 70 / IEC 62353</h3>
+            {tabs.length > 0 && (
+              <div className="mod-seg">
+                {tabs.map(t => (
+                  <button key={t.id} className={"mod-seg-i " + (tab===t.id?"on":"")} onClick={() => { setTab(t.id); setSel(0); }}>
+                    {t.label}{t.n != null && <span className="n">{t.n}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="spacer"/>
+            {act.map((a,i) => (
+              <button key={i} className={"mod-btn " + (a.cls || "")} onClick={() => HUI.toast(a.toast, {tone: a.tone || "info"})}>{a.label}</button>
+            ))}
+          </div>
+          <div className="mod-tbl-wrap">
+            <table className="mod-tbl">
+              <thead><tr>{cols.map((c,i) => <th key={i} className={c.cls||""}>{c.label}</th>)}</tr></thead>
+              <tbody>
+                {filtered.map((r,i) => (
+                  <tr key={i} className={sel===i?"sel":""} onClick={() => setSel(i)}>
+                    {cols.map((c,j) => {
+                      const v = r[c.k];
+                      return (
+                        <td key={j} className={c.cls || c.kind || ""}>
+                          {c.kind === "stat" && <span className={"mod-stat " + (r[c.k+"Tone"] || "ghost")}>{v}</span>}
+                          {c.kind === "badge" && <span className={"mod-badge " + (r[c.k+"Tone"] || "")}>{v}</span>}
+                          {c.kind === "bar" && (
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{flex:1,maxWidth:100,height:6,background:"var(--d-3)",borderRadius:3,overflow:"hidden"}}>
+                                <div style={{height:"100%",width:v+"%",background:v>=90?"var(--s-crit)":v>=75?"var(--s-warn)":"var(--s-ok)"}}/>
+                              </div>
+                              <span style={{fontFamily:"var(--font-mono)",fontSize:11}}>{v}%</span>
+                            </div>
+                          )}
+                          {!c.kind && (v != null ? v : <span style={{color:"var(--t-3)"}}>—</span>)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+                {filtered.length === 0 && <tr><td colSpan={cols.length}><div className="mod-empty">Không có dữ liệu.</div></td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {side && (
+          <aside className="mod-side">
+            <div className="mod-side-h">
+              <div className="t">{cur[side.titleKey] || side.emptyTitle || "Chọn một dòng"}</div>
+              <div className="s">{cur[side.subKey] || ""}</div>
+            </div>
+            <div className="mod-side-b">
+              {side.kvs && (
+                <div className="mod-card">
+                  <div className="mod-card-h">{side.kvsTitle || "Chi tiết"}</div>
+                  <div className="mod-card-b">
+                    {side.kvs.map((k,i) => (
+                      <div key={i} className="mod-kv">
+                        <div className="k">{k.lbl}</div>
+                        <div className={"v " + (k.mono ? "mono" : "")}>{cur[k.k] != null ? cur[k.k] : "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {side.cards && side.cards.map((card, i) => (
+                <div key={i} className="mod-card">
+                  <div className="mod-card-h">{card.title}{card.count && <span className="n">{card.count}</span>}</div>
+                  <div className={"mod-card-b"}>
+                    {card.items && card.items.map((it, j) => (
+                      <div key={j} style={{padding:"7px 0",borderBottom:"1px solid var(--line-hair)",fontSize:12, display:"flex",justifyContent:"space-between",gap:10}}>
+                        <span style={{color:"var(--t-1)"}}>{it.l}</span>
+                        <span style={{color:"var(--t-0)",fontWeight:500,fontFamily:it.mono?"var(--font-mono)":"inherit",fontSize:it.mono?11:12}}>{it.v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {side.actions && (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:12}}>
+                  {side.actions.map((a,i) => (
+                    <button key={i} className={"mod-btn " + (a.cls || "")} onClick={() => HUI.toast((a.toast||"").replace("$NM", cur[side.titleKey]||"—"), {tone:a.tone||"info"})}>{a.label}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+};
+window.EquipMod = EquipMod;
+
+</script>
+<script type="text/babel" data-presets="react">
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <HisShell route="equipment" crumb={["Kiểm soát NK","Thiết bị y tế"]}>
+    <EquipMod/>
+  </HisShell>
+);
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"/><title>Cấp cứu thảm hoạ — HIS Terminal</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="his-shell.css"/><link rel="stylesheet" href="his-module.css"/></head><body><div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="his-data.js"></script>
+<script type="text/babel" data-presets="react" src="his-chrome.jsx"></script>
+<script type="text/babel" data-presets="react">
+const { useState: uEmergencyDisasterMod_s } = React;
+const EmergencyDisasterMod = () => {
+  const kpis=[{"lbl":"Sự cố đang XL","val":"0","tone":"ok"},{"lbl":"MCI ready","val":"READY","tone":"ok"},{"lbl":"Giường ER dự phòng","val":"8"},{"lbl":"Diễn tập gần nhất","val":"Q2/2026"}],tabs=[],cols=[{"k":"code","label":"Mã","cls":"id"},{"k":"evt","label":"Sự kiện","cls":"nm"},{"k":"date","label":"Ngày"},{"k":"cas","label":"Nạn nhân","cls":"num"},{"k":"st","label":"TT","kind":"stat"}],rows=[{"code":"MCI-24-01","evt":"Tai nạn xe khách · 28 ng","date":"14/03/2026","cas":28,"st":"ĐÃ XỬ LÝ","stTone":"ok"},{"code":"DT-24-02","evt":"Bão Yagi · ngập lụt","date":"09/2024","cas":184,"st":"ĐÃ XỬ LÝ","stTone":"ok"}],act=[];
+  const [tab,setTab]=uEmergencyDisasterMod_s("all");
+  const [sel,setSel]=uEmergencyDisasterMod_s(0);
+  const filtered = tab==="all"?rows:rows.filter(r=>r._tab===tab);
+  return (<div className="mod-wrap">
+    {kpis.length>0 && (<div className="mod-strip">{kpis.map((k,i)=>(<div key={i} className={"mod-strip-cell "+(k.tone||"")}><div className="lbl">{k.lbl}</div><div className="val">{k.val}{k.sub && <small>{k.sub}</small>}</div></div>))}</div>)}
+    <div className="mod-body"><div className="mod-pane">
+      <div className="mod-toolbar"><h3>Điều phối cấp cứu thảm hoạ · 115, MCI, thiên tai</h3>{tabs.length>0 && (<div className="mod-seg">{tabs.map(t=>(<button key={t.id} className={"mod-seg-i "+(tab===t.id?"on":"")} onClick={()=>{setTab(t.id);setSel(0);}}>{t.label}{t.n!=null && <span className="n">{t.n}</span>}</button>))}</div>)}<div className="spacer"/>{act.map((a,i)=>(<button key={i} className={"mod-btn "+(a.cls||"")} onClick={()=>HUI.toast(a.toast,{tone:a.tone||"info"})}>{a.label}</button>))}</div>
+      <div className="mod-tbl-wrap"><table className="mod-tbl"><thead><tr>{cols.map((c,i)=><th key={i} className={c.cls||""}>{c.label}</th>)}</tr></thead><tbody>
+        {filtered.map((r,i)=>(<tr key={i} className={sel===i?"sel":""} onClick={()=>setSel(i)}>{cols.map((c,j)=>{const v=r[c.k];return(<td key={j} className={c.cls||c.kind||""}>{c.kind==="stat"&&<span className={"mod-stat "+(r[c.k+"Tone"]||"ghost")}>{v}</span>}{c.kind==="badge"&&<span className={"mod-badge "+(r[c.k+"Tone"]||"")}>{v}</span>}{!c.kind&&(v!=null?v:<span style={{color:"var(--t-3)"}}>—</span>)}</td>);})}</tr>))}
+      </tbody></table></div>
+    </div></div>
+  </div>);
+};
+window.EmergencyDisasterMod = EmergencyDisasterMod;</script>
+<script type="text/babel" data-presets="react">ReactDOM.createRoot(document.getElementById("root")).render(<HisShell route="emergency-disaster" crumb={["Liên thông","Cấp cứu / thảm hoạ"]}><EmergencyDisasterMod/></HisShell>);</script>
+</body></html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"/><title>Dashboard 3 Cấp — HIS Terminal</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="his-shell.css"/><link rel="stylesheet" href="his-module.css"/></head><body><div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="his-data.js"></script>
+<script type="text/babel" data-presets="react" src="his-chrome.jsx"></script>
+<script type="text/babel" data-presets="react">
+const { useState: uDashboard3CapMod_s } = React;
+const Dashboard3CapMod = () => {
+  const kpis=[{"lbl":"Giường kế hoạch","val":"820"},{"lbl":"Công suất sử dụng","val":"92%","tone":"warn"},{"lbl":"BN nội trú","val":"482"},{"lbl":"Doanh thu T10","val":"38.4 tỷ"}],tabs=[{"id":"byt","label":"BYT"},{"id":"syt","label":"SYT Hưng Yên"},{"id":"bv","label":"BV Đa khoa HY"}],cols=[{"k":"code","label":"Chỉ tiêu","cls":"id"},{"k":"nm","label":"Tên","cls":"nm"},{"k":"val","label":"Giá trị","cls":"num"},{"k":"tgt","label":"Mục tiêu"},{"k":"st","label":"TT","kind":"stat"}],rows=[{"_tab":"bv","code":"CS.01","nm":"Công suất giường","val":"92%","tgt":"85-95%","st":"ĐẠT","stTone":"ok"},{"_tab":"bv","code":"CS.02","nm":"Thời gian nằm TB","val":"5.8 ngày","tgt":"6.0","st":"ĐẠT","stTone":"ok"},{"_tab":"syt","code":"SYT.01","nm":"Tỷ lệ BA điện tử","val":"98%","tgt":"≥95%","st":"ĐẠT","stTone":"ok"},{"_tab":"byt","code":"BYT.01","nm":"Mức hài lòng BN","val":"4.6/5","tgt":"≥4.0","st":"ĐẠT","stTone":"ok"}],act=[];
+  const [tab,setTab]=uDashboard3CapMod_s("byt");
+  const [sel,setSel]=uDashboard3CapMod_s(0);
+  const filtered = tab==="all"?rows:rows.filter(r=>r._tab===tab);
+  return (<div className="mod-wrap">
+    {kpis.length>0 && (<div className="mod-strip">{kpis.map((k,i)=>(<div key={i} className={"mod-strip-cell "+(k.tone||"")}><div className="lbl">{k.lbl}</div><div className="val">{k.val}{k.sub && <small>{k.sub}</small>}</div></div>))}</div>)}
+    <div className="mod-body"><div className="mod-pane">
+      <div className="mod-toolbar"><h3>Dashboard 3 cấp · BYT → Sở YT → Bệnh viện</h3>{tabs.length>0 && (<div className="mod-seg">{tabs.map(t=>(<button key={t.id} className={"mod-seg-i "+(tab===t.id?"on":"")} onClick={()=>{setTab(t.id);setSel(0);}}>{t.label}</button>))}</div>)}<div className="spacer"/>{act.map((a,i)=>(<button key={i} className={"mod-btn "+(a.cls||"")} onClick={()=>HUI.toast(a.toast,{tone:a.tone||"info"})}>{a.label}</button>))}</div>
+      <div className="mod-tbl-wrap"><table className="mod-tbl"><thead><tr>{cols.map((c,i)=><th key={i} className={c.cls||""}>{c.label}</th>)}</tr></thead><tbody>
+        {filtered.map((r,i)=>(<tr key={i} className={sel===i?"sel":""} onClick={()=>setSel(i)}>{cols.map((c,j)=>{const v=r[c.k];return(<td key={j} className={c.cls||c.kind||""}>{c.kind==="stat"&&<span className={"mod-stat "+(r[c.k+"Tone"]||"ghost")}>{v}</span>}{c.kind==="badge"&&<span className={"mod-badge "+(r[c.k+"Tone"]||"")}>{v}</span>}{!c.kind&&(v!=null?v:<span style={{color:"var(--t-3)"}}>—</span>)}</td>);})}</tr>))}
+      </tbody></table></div>
+    </div></div>
+  </div>);
+};
+window.Dashboard3CapMod = Dashboard3CapMod;</script>
+<script type="text/babel" data-presets="react">ReactDOM.createRoot(document.getElementById("root")).render(<HisShell route="dashboard-3cap" crumb={["Tổng quan","Dashboard 3 Cấp"]}><Dashboard3CapMod/></HisShell>);</script>
+</body></html>

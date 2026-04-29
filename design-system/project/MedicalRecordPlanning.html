@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<title>Kế hoạch TH — HIS Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="his-shell.css"/>
+<link rel="stylesheet" href="his-module.css"/>
+
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="his-data.js"></script>
+<script type="text/babel" data-presets="react" src="his-chrome.jsx"></script>
+<script type="text/babel" data-presets="react">
+
+const { useState: uMRPMod_s } = React;
+const MRPMod = () => {
+  const kpis = [{"lbl":"BN toàn viện","val":"478","sub":"hôm nay"},{"lbl":"Công suất giường","val":"78%","tone":"ok"},{"lbl":"Chờ điều phối","val":"6","tone":"warn","delta":"chuyển khoa","dir":"flat"},{"lbl":"Phản ánh chờ xử lý","val":"3","tone":"crit"},{"lbl":"Báo cáo BYT tới hạn","val":"2","sub":"tuần này"}];
+  const tabs = [{"id":"all","label":"Tất cả"},{"id":"tf","label":"Điều phối BN","n":6},{"id":"kpi","label":"Chỉ số BV","n":12},{"id":"fb","label":"Phản ánh","n":3},{"id":"rpt","label":"Báo cáo BYT","n":8}];
+  const cols = [{"k":"code","label":"Mã","cls":"id"},{"k":"title","label":"Nội dung","cls":"nm"},{"k":"type","label":"Loại","kind":"badge"},{"k":"dept","label":"Khoa/Phòng"},{"k":"due","label":"Hạn","cls":"id"},{"k":"pic","label":"Phụ trách"},{"k":"st","label":"Trạng thái","kind":"stat"}];
+  const rows = [{"_tab":"tf","code":"TF-241024-01","title":"Chuyển BN ICU · nội tim → HSTC","type":"Điều phối","typeTone":"info","dept":"Nội TM → HSTC","due":"Hôm nay 16:00","pic":"ĐD. Nguyễn H","st":"CHỜ XÁC NHẬN","stTone":"warn"},{"_tab":"tf","code":"TF-241024-02","title":"Mời hội chẩn ngoại · BN ung thư phổi","type":"Điều phối","typeTone":"info","dept":"Nội Hô hấp","due":"24/10 15:30","pic":"BS. L.Tuấn","st":"CHỜ PHÊ DUYỆT","stTone":"warn"},{"_tab":"kpi","code":"KPI-2410","title":"Báo cáo công suất giường tháng 10","type":"Chỉ số","typeTone":"info","dept":"Toàn viện","due":"31/10","pic":"P.KHTH","st":"ĐANG LẬP","stTone":"info"},{"_tab":"kpi","code":"KPI-T3-24","title":"Kiểm tra quy chuẩn BA · quý 3","type":"Chất lượng","typeTone":"mag","dept":"TMH, Sản, Nội","due":"30/10","pic":"P.KHTH","st":"ĐÃ HOÀN THÀNH","stTone":"ok"},{"_tab":"fb","code":"FB-24-128","title":"BN phàn nàn thời gian chờ OPD > 2h","type":"Phản ánh","typeTone":"crit","dept":"OPD khoa Nội","due":"Trong 24h","pic":"P.KHTH","st":"KHẨN","stTone":"crit","date":"24/10 08:30"},{"_tab":"fb","code":"FB-24-127","title":"Sai thông tin BHYT khi thanh toán","type":"Phản ánh","typeTone":"warn","dept":"Viện phí","due":"Trong 24h","pic":"TP. Viện phí","st":"ĐANG XỬ LÝ","stTone":"warn"},{"_tab":"rpt","code":"BC-BYT-38","title":"Báo cáo công suất giường / T3-2026","type":"BYT","typeTone":"mag","dept":"P.KHTH","due":"30/10","pic":"P.KHTH","st":"ĐANG LẬP","stTone":"info"},{"_tab":"rpt","code":"BC-BYT-39","title":"Báo cáo công tác kiểm soát NK","type":"BYT","typeTone":"mag","dept":"Kiểm soát NK","due":"05/11","pic":"BS. Nga","st":"CHƯA BẮT ĐẦU","stTone":"ghost"}];
+  const act  = [{"label":"+ Tạo nhiệm vụ","cls":"p","toast":"Mở form tạo nhiệm vụ KHTH"},{"label":"📊 Dashboard BV","toast":"Mở Dashboard KHTH"},{"label":"📤 Báo cáo BYT","toast":"Mở trình báo cáo BYT"}];
+  const side = {"titleKey":"title","subKey":"dept","kvs":[{"lbl":"Loại nhiệm vụ","k":"type"},{"lbl":"Hạn","k":"due","mono":true},{"lbl":"Phụ trách","k":"pic"},{"lbl":"Trạng thái","k":"st"}],"cards":[{"title":"Nhật ký xử lý","items":[{"l":"Tạo nhiệm vụ","v":"24/10 08:30","mono":true},{"l":"Giao cho KHTH","v":"24/10 09:12","mono":true},{"l":"Liên hệ khoa","v":"24/10 10:05","mono":true},{"l":"Phản hồi","v":"Chờ","mono":true}]}],"actions":[{"label":"👁 Chi tiết","cls":"p","toast":"Mở chi tiết $NM"},{"label":"📞 Gọi khoa","toast":"Gọi khoa phụ trách"},{"label":"✓ Hoàn tất","cls":"ok","toast":"Đánh dấu $NM hoàn tất","tone":"ok"},{"label":"↗ Chuyển tiếp","toast":"Chuyển tiếp $NM"}]};
+  const extra = null;
+  const [tab, setTab] = uMRPMod_s("all");
+  const [sel, setSel] = uMRPMod_s(0);
+
+  const filtered = tab === "all" ? rows : rows.filter(r => r._tab === tab);
+  const cur = filtered[sel] || filtered[0] || {};
+
+  return (
+    <div className="mod-wrap">
+      {kpis.length > 0 && (
+        <div className="mod-strip">
+          {kpis.map((k,i) => (
+            <div key={i} className={"mod-strip-cell " + (k.tone || "")}>
+              <div className="lbl">{k.lbl}</div>
+              <div className="val">{k.val}{k.sub && <small>{k.sub}</small>}</div>
+              {k.delta && <div className="delta" style={{color: k.dir==="up"?"var(--s-ok)":k.dir==="down"?"var(--s-crit)":"var(--t-2)"}}>{k.dir==="up"?"↗":k.dir==="down"?"↘":"·"} {k.delta}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className={"mod-body " + (side ? "cols-2" : "")}>
+        <div className="mod-pane">
+          <div className="mod-toolbar">
+            <h3>Phòng Kế hoạch Tổng hợp · điều phối & giám sát</h3>
+            {tabs.length > 0 && (
+              <div className="mod-seg">
+                {tabs.map(t => (
+                  <button key={t.id} className={"mod-seg-i " + (tab===t.id?"on":"")} onClick={() => { setTab(t.id); setSel(0); }}>
+                    {t.label}{t.n != null && <span className="n">{t.n}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="spacer"/>
+            {act.map((a,i) => (
+              <button key={i} className={"mod-btn " + (a.cls || "")} onClick={() => HUI.toast(a.toast, {tone: a.tone || "info"})}>{a.label}</button>
+            ))}
+          </div>
+          <div className="mod-tbl-wrap">
+            <table className="mod-tbl">
+              <thead><tr>{cols.map((c,i) => <th key={i} className={c.cls||""}>{c.label}</th>)}</tr></thead>
+              <tbody>
+                {filtered.map((r,i) => (
+                  <tr key={i} className={sel===i?"sel":""} onClick={() => setSel(i)}>
+                    {cols.map((c,j) => {
+                      const v = r[c.k];
+                      return (
+                        <td key={j} className={c.cls || c.kind || ""}>
+                          {c.kind === "stat" && <span className={"mod-stat " + (r[c.k+"Tone"] || "ghost")}>{v}</span>}
+                          {c.kind === "badge" && <span className={"mod-badge " + (r[c.k+"Tone"] || "")}>{v}</span>}
+                          {c.kind === "bar" && (
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{flex:1,maxWidth:100,height:6,background:"var(--d-3)",borderRadius:3,overflow:"hidden"}}>
+                                <div style={{height:"100%",width:v+"%",background:v>=90?"var(--s-crit)":v>=75?"var(--s-warn)":"var(--s-ok)"}}/>
+                              </div>
+                              <span style={{fontFamily:"var(--font-mono)",fontSize:11}}>{v}%</span>
+                            </div>
+                          )}
+                          {!c.kind && (v != null ? v : <span style={{color:"var(--t-3)"}}>—</span>)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+                {filtered.length === 0 && <tr><td colSpan={cols.length}><div className="mod-empty">Không có dữ liệu trong tab này.</div></td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {side && (
+          <aside className="mod-side">
+            <div className="mod-side-h">
+              <div className="t">{cur[side.titleKey] || side.emptyTitle || "Chọn một dòng"}</div>
+              <div className="s">{cur[side.subKey] || side.emptySub || ""}</div>
+            </div>
+            <div className="mod-side-b">
+              {side.kvs && (
+                <div className="mod-card">
+                  <div className="mod-card-h">{side.kvsTitle || "Chi tiết"}</div>
+                  <div className="mod-card-b">
+                    {side.kvs.map((k,i) => (
+                      <div key={i} className="mod-kv">
+                        <div className="k">{k.lbl}</div>
+                        <div className={"v " + (k.mono ? "mono" : "")}>{cur[k.k] != null ? cur[k.k] : "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {side.cards && side.cards.map((card, i) => (
+                <div key={i} className="mod-card">
+                  <div className="mod-card-h">{card.title}{card.count && <span className="n">{card.count}</span>}</div>
+                  <div className={"mod-card-b"}>
+                    {card.items && card.items.map((it, j) => (
+                      <div key={j} style={{padding:"7px 0",borderBottom:"1px solid var(--line-hair)",fontSize:12, display:"flex",justifyContent:"space-between",gap:10}}>
+                        <span style={{color:"var(--t-1)"}}>{it.l}</span>
+                        <span style={{color:"var(--t-0)",fontWeight:500,fontFamily:it.mono?"var(--font-mono)":"inherit",fontSize:it.mono?11:12}}>{it.v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {side.actions && (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:12}}>
+                  {side.actions.map((a,i) => (
+                    <button key={i} className={"mod-btn " + (a.cls || "")} onClick={() => HUI.toast((a.toast||"").replace("$NM", cur[side.titleKey]||"—"), {tone:a.tone||"info"})}>{a.label}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+};
+window.MRPMod = MRPMod;
+
+</script>
+<script type="text/babel" data-presets="react">
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <HisShell route="medical-record-planning" crumb={["Lâm sàng","Kế hoạch Tổng hợp"]}>
+    <MRPMod/>
+  </HisShell>
+);
+</script>
+</body>
+</html>

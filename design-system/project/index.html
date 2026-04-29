@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<title>HIS Terminal — Chỉ mục</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="his-shell.css"/>
+<style>
+  .idx-wrap { max-width: 1200px; margin: 40px auto; padding: 0 32px; }
+  .idx-head { display: flex; align-items: center; gap: 20px; margin-bottom: 32px; }
+  .idx-mark { width: 56px; height: 56px; border-radius: 12px; background: #2563eb; color: #fff; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 18px; }
+  .idx-title { font-size: 24px; font-weight: 600; color: #0f172a; letter-spacing: -0.02em; }
+  .idx-sub { font-size: 13px; color: #64748b; font-family: var(--font-mono); }
+  .idx-meta { margin-left: auto; text-align: right; font-size: 11px; color: #64748b; font-family: var(--font-mono); line-height: 1.5; }
+  .idx-meta b { color: #0f172a; font-weight: 600; }
+
+  .idx-intro {
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 13px;
+    color: #334155;
+    margin-bottom: 28px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .idx-intro .badge { width: 28px; height: 28px; border-radius: 6px; background: var(--s-info-bg); color: var(--s-info); display: grid; place-items: center; flex-shrink: 0; }
+
+  .idx-sec-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #64748b; margin: 28px 0 12px; font-weight: 600; }
+
+  .idx-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .idx-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: all 0.12s;
+    color: inherit;
+    position: relative;
+    min-height: 120px;
+  }
+  .idx-card:hover { border-color: var(--a-cy-line); box-shadow: 0 2px 8px rgba(37,99,235,0.08); transform: translateY(-1px); }
+  .idx-card .top { display: flex; align-items: center; justify-content: space-between; }
+  .idx-card .ic { width: 32px; height: 32px; border-radius: 6px; background: var(--a-cy-bg); color: var(--a-cy); display: grid; place-items: center; }
+  .idx-card .hot { background: var(--s-crit); color: #fff; font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+  .idx-card .nm { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .idx-card .ds { font-size: 11px; color: #64748b; font-family: var(--font-mono); }
+  .idx-card .tag { position: absolute; top: 10px; right: 12px; font-family: var(--font-mono); font-size: 9px; color: #94a3b8; letter-spacing: 0.05em; }
+
+  .idx-card.er .ic { background: var(--s-crit-bg); color: var(--s-crit); }
+  .idx-card.or .ic { background: var(--s-mag-bg); color: var(--s-mag); }
+  .idx-card.lab .ic { background: var(--s-warn-bg); color: var(--s-warn); }
+  .idx-card.admin .ic { background: #f1f5f9; color: #64748b; }
+</style>
+</head>
+<body>
+
+<div class="idx-wrap">
+  <div class="idx-head">
+    <div class="idx-mark">HIS</div>
+    <div>
+      <div class="idx-title">HIS Terminal — Bệnh viện Đa khoa tỉnh Hưng Yên</div>
+      <div class="idx-sub">v4.2.1 · Hệ thống Thông tin Y tế tích hợp · Tuyến tỉnh Hạng I</div>
+    </div>
+    <div class="idx-meta">
+      <div>Hôm nay · <b>Thứ Bảy, 18/10/2026</b></div>
+      <div>Ca sáng · 07:00 → 15:00</div>
+      <div>Phiên: <b>BS. Nguyễn Hoài Linh</b></div>
+    </div>
+  </div>
+
+  <div class="idx-intro">
+    <div class="badge">ℹ</div>
+    <div>
+      <b style="color:#0f172a">Chỉ mục các mô-đun.</b> Mỗi thẻ mở một mô-đun độc lập trong giao diện chung (sidebar trái + thanh lệnh trên). Hệ thống dùng context bệnh nhân chung — chọn BN ở một module sẽ ghim trên thanh ticker khi sang module khác. Dữ liệu demo đồng bộ qua <code style="font-family:var(--font-mono);color:#2563eb">his-data.js</code>.
+    </div>
+  </div>
+
+  <div class="idx-sec-title">Tiếp nhận · Lâm sàng</div>
+  <div class="idx-grid">
+    <a href="Dashboard.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div></div>
+      <div class="tag">01</div>
+      <div class="nm">Tổng quan</div>
+      <div class="ds">KPI ngày · Lưu lượng · Cảnh báo</div>
+    </a>
+    <a href="Reception.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div></div>
+      <div class="tag">02</div>
+      <div class="nm">Tiếp đón · Check-in</div>
+      <div class="ds">Đăng ký · BHYT · Phát số</div>
+    </a>
+    <a href="OPD.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 3v5a4 4 0 0 0 8 0V3M8 13v3a4 4 0 0 0 8 0v-1"/><circle cx="18" cy="10" r="2"/></svg></div><div class="hot">8</div></div>
+      <div class="tag">03</div>
+      <div class="nm">Khám bệnh (OPD)</div>
+      <div class="ds">Phòng khám · Kê đơn · Chỉ định</div>
+    </a>
+    <a href="ER.html" class="idx-card er">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h10v10H3zM13 10h5l3 4v3h-8"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M8 10v3M6.5 11.5h3"/></svg></div><div class="hot">6</div></div>
+      <div class="tag">04</div>
+      <div class="nm">Cấp cứu · Triage</div>
+      <div class="ds">ESI 1–5 · Hồi sức · Theo dõi</div>
+    </a>
+  </div>
+
+  <div class="idx-sec-title">Hồ sơ bệnh nhân</div>
+  <div class="idx-grid">
+    <a href="Patients.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div></div>
+      <div class="tag">05</div>
+      <div class="nm">Danh sách · Tìm kiếm</div>
+      <div class="ds">BN nội/ngoại trú · Lịch sử</div>
+    </a>
+    <a href="EMR.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v2"/><path d="m2 13 1.2 6.4A2 2 0 0 0 5.2 21h13.6a2 2 0 0 0 2-1.6L22 13H2z"/></svg></div></div>
+      <div class="tag">06</div>
+      <div class="nm">Bệnh án điện tử (EMR)</div>
+      <div class="ds">SOAP · Vitals · Thuốc · Diễn biến</div>
+    </a>
+    <a href="Ward.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20"/><circle cx="7" cy="12" r="2"/></svg></div></div>
+      <div class="tag">07</div>
+      <div class="nm">Nội trú · Bed map</div>
+      <div class="ds">4 khoa · 34 giường · ICU</div>
+    </a>
+    <a href="OR.html" class="idx-card or">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m14 4 6 6-9 9-4-1-1-4 8-10z"/><path d="m11 8 5 5"/></svg></div></div>
+      <div class="tag">08</div>
+      <div class="nm">Phòng mổ · Lịch OR</div>
+      <div class="ds">4 phòng · Gantt · Pre-op</div>
+    </a>
+  </div>
+
+  <div class="idx-sec-title">Cận lâm sàng · Dược</div>
+  <div class="idx-grid">
+    <a href="LIS.html" class="idx-card lab">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2v7.5L4.5 18A2 2 0 0 0 6 21h12a2 2 0 0 0 1.5-3L14 9.5V2"/><path d="M9 2h6M7 14h10"/></svg></div><div class="hot">3</div></div>
+      <div class="tag">09</div>
+      <div class="nm">Xét nghiệm (LIS)</div>
+      <div class="ds">Worklist · Máy PT · Kết quả</div>
+    </a>
+    <a href="RIS.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></div></div>
+      <div class="tag">10</div>
+      <div class="nm">Chẩn đoán hình ảnh</div>
+      <div class="ds">RIS · PACS · CT/MRI/US/CR</div>
+    </a>
+    <a href="Pharmacy.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg></div></div>
+      <div class="tag">11</div>
+      <div class="nm">Dược · Kê đơn</div>
+      <div class="ds">Rx pending · Cấp phát · TT52</div>
+    </a>
+    <a href="Inventory.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg></div></div>
+      <div class="tag">12</div>
+      <div class="nm">Kho thuốc · Vật tư</div>
+      <div class="ds">Tồn · Hạn dùng · Đặt hàng</div>
+    </a>
+  </div>
+
+  <div class="idx-sec-title">Tài chính · Quản trị</div>
+  <div class="idx-grid">
+    <a href="Billing.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2v20l2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2V2l-2 2-2-2-2 2-2-2-2 2-2-2-2 2-2-2Z"/><path d="M8 7h8M8 11h8"/></svg></div><div class="hot">3</div></div>
+      <div class="tag">13</div>
+      <div class="nm">Viện phí · BHYT</div>
+      <div class="ds">Hóa đơn · Giám định · Thu ngân</div>
+    </a>
+    <a href="Schedule.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div></div>
+      <div class="tag">14</div>
+      <div class="nm">Lịch trực · Nhân sự</div>
+      <div class="ds">Rota tuần · Ca trực · Phân công</div>
+    </a>
+    <a href="Reports.html" class="idx-card">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg></div></div>
+      <div class="tag">15</div>
+      <div class="nm">Báo cáo · Dashboard KPI</div>
+      <div class="ds">Bộ Y tế · Quản trị · Khoa</div>
+    </a>
+    <a href="Admin.html" class="idx-card admin">
+      <div class="top"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div></div>
+      <div class="tag">16</div>
+      <div class="nm">Hệ thống · Quản trị</div>
+      <div class="ds">Người dùng · Vai trò · Cấu hình</div>
+    </a>
+  </div>
+
+  <div style="margin-top:48px; padding-top:20px; border-top: 1px solid var(--line); display:flex; justify-content:space-between; font-family: var(--font-mono); font-size:10px; color:#94a3b8;">
+    <div>© 2026 · HIS Terminal v4.2.1 · BVĐK Hưng Yên</div>
+    <div>BYT-HIS-CERT-2024/1847 · ICD-10 · HL7 FHIR R4 · DICOM 3.0</div>
+  </div>
+</div>
+
+</body>
+</html>

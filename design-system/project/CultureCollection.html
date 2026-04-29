@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"/><title>Lưu chủng — HIS Terminal</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="his-shell.css"/><link rel="stylesheet" href="his-module.css"/></head><body><div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="his-data.js"></script>
+<script type="text/babel" data-presets="react" src="his-chrome.jsx"></script>
+<script type="text/babel" data-presets="react">
+const { useState: uCultureCollectionMod_s } = React;
+const CultureCollectionMod = () => {
+  const kpis=[{"lbl":"Tổng chủng","val":"1,842"},{"lbl":"Tủ -80°C","val":"3","sub":"tủ"},{"lbl":"Chờ cấp lại","val":"14"},{"lbl":"Tiêu huỷ QH","val":"42"}],tabs=[],cols=[{"k":"code","label":"Mã chủng","cls":"id"},{"k":"org","label":"Chủng"},{"k":"src","label":"Nguồn"},{"k":"tube","label":"Tube","cls":"id"},{"k":"shelf","label":"Vị trí"},{"k":"date","label":"Ngày lưu","cls":"id"},{"k":"st","label":"TT","kind":"stat"}],rows=[{"code":"CC-01842","org":"E. coli ATCC 25922","src":"Ref QC","tube":"T-1842-A","shelf":"Tủ 1 · R2C4","date":"18/10/2024","st":"LƯU TRỮ","stTone":"ok"},{"code":"CC-01841","org":"S. aureus MRSA","src":"BN-0444","tube":"T-1841-A","shelf":"Tủ 2 · R5C2","date":"14/10/2024","st":"LƯU TRỮ","stTone":"ok"},{"code":"CC-01828","org":"K. pneumoniae ESBL","src":"BN-0888","tube":"T-1828-B","shelf":"Tủ 2 · R3C1","date":"06/10/2024","st":"CẤP LẠI","stTone":"warn"}],act=[{"label":"+ Lưu chủng","cls":"p","toast":"Lưu chủng mới"},{"label":"📤 Xuất sử dụng","toast":"Xuất chủng sử dụng"}];
+  const side=null;
+  const [tab,setTab]=uCultureCollectionMod_s("all");
+  const [sel,setSel]=uCultureCollectionMod_s(0);
+  const filtered = tab==="all"?rows:rows.filter(r=>r._tab===tab);
+  const cur = filtered[sel] || filtered[0] || {};
+  return (<div className="mod-wrap">
+    {kpis.length>0 && (<div className="mod-strip">{kpis.map((k,i)=>(<div key={i} className={"mod-strip-cell "+(k.tone||"")}><div className="lbl">{k.lbl}</div><div className="val">{k.val}{k.sub && <small>{k.sub}</small>}</div></div>))}</div>)}
+    <div className={"mod-body "+(side?"cols-2":"")}><div className="mod-pane">
+      <div className="mod-toolbar"><h3>Bộ sưu tập chủng vi sinh — lưu trữ & sao lưu</h3>{tabs.length>0 && (<div className="mod-seg">{tabs.map(t=>(<button key={t.id} className={"mod-seg-i "+(tab===t.id?"on":"")} onClick={()=>{setTab(t.id);setSel(0);}}>{t.label}</button>))}</div>)}<div className="spacer"/>{act.map((a,i)=>(<button key={i} className={"mod-btn "+(a.cls||"")} onClick={()=>HUI.toast(a.toast,{tone:a.tone||"info"})}>{a.label}</button>))}</div>
+      <div className="mod-tbl-wrap"><table className="mod-tbl"><thead><tr>{cols.map((c,i)=><th key={i} className={c.cls||""}>{c.label}</th>)}</tr></thead><tbody>
+        {filtered.map((r,i)=>(<tr key={i} className={sel===i?"sel":""} onClick={()=>setSel(i)}>{cols.map((c,j)=>{const v=r[c.k];return(<td key={j} className={c.cls||c.kind||""}>{c.kind==="stat"&&<span className={"mod-stat "+(r[c.k+"Tone"]||"ghost")}>{v}</span>}{c.kind==="badge"&&<span className={"mod-badge "+(r[c.k+"Tone"]||"")}>{v}</span>}{!c.kind&&(v!=null?v:<span style={{color:"var(--t-3)"}}>—</span>)}</td>);})}</tr>))}
+      </tbody></table></div>
+    </div></div>
+  </div>);
+};
+window.CultureCollectionMod=CultureCollectionMod;</script>
+<script type="text/babel" data-presets="react">ReactDOM.createRoot(document.getElementById("root")).render(<HisShell route="culture-collection" crumb={["Cận lâm sàng","Lưu chủng vi sinh"]}><CultureCollectionMod/></HisShell>);</script>
+</body></html>

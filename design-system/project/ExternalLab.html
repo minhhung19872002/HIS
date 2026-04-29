@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<title>XN bên ngoài — HIS Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="his-shell.css"/>
+<link rel="stylesheet" href="his-module.css"/>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="his-data.js"></script>
+<script type="text/babel" data-presets="react" src="his-chrome.jsx"></script>
+<script type="text/babel" data-presets="react">
+
+const { useState: uExtLabMod_s } = React;
+const ExtLabMod = () => {
+  const kpis = [{"lbl":"Mẫu gửi T10","val":"2,842"},{"lbl":"Chờ trả kết quả","val":"184","tone":"warn"},{"lbl":"Đã nhận hôm nay","val":"42"},{"lbl":"Quá hạn","val":"4","tone":"crit"}];
+  const tabs = [{"id":"all","label":"Tất cả"},{"id":"out","label":"Gửi đi","n":48},{"id":"back","label":"Chờ về","n":184},{"id":"done","label":"Đã về","n":2610},{"id":"over","label":"Quá hạn","n":4}];
+  const cols = [{"k":"code","label":"Mã gửi","cls":"id"},{"k":"pt","label":"Bệnh nhân","cls":"nm"},{"k":"test","label":"Xét nghiệm"},{"k":"lab","label":"Đối tác","kind":"badge"},{"k":"sent","label":"Gửi","cls":"id"},{"k":"due","label":"Hạn trả","cls":"id"},{"k":"st","label":"Trạng thái","kind":"stat"}];
+  const rows = [{"_tab":"out","code":"EX-241024-28","pt":"Nguyễn T. Mai · BN-0812","test":"Giải phẫu bệnh U vú","lab":"Medlatec","labTone":"info","sent":"24/10 09:12","due":"27/10","st":"GỬI ĐI","stTone":"info"},{"_tab":"out","code":"EX-241024-27","pt":"Trần V. Kế · BN-0666","test":"Gene NIPT mở rộng","lab":"Vinmec","labTone":"mag","sent":"24/10 08:20","due":"31/10","st":"GỬI ĐI","stTone":"info"},{"_tab":"back","code":"EX-241022-14","pt":"Lê V. Hòa · BN-0945","test":"Sinh thiết tuyến giáp","lab":"Medlatec","labTone":"info","sent":"22/10","due":"25/10","st":"CHỜ VỀ","stTone":"warn"},{"_tab":"back","code":"EX-241021-08","pt":"Phạm T. Lan · BN-0702","test":"Gene BRCA1/2","lab":"BioMedical","labTone":"ok","sent":"21/10","due":"04/11","st":"CHỜ VỀ","stTone":"warn"},{"_tab":"done","code":"EX-241018-04","pt":"Vũ M. Tuấn · BN-0945","test":"ANA + ENA Profile","lab":"Medlatec","labTone":"info","sent":"18/10","due":"22/10","st":"ĐÃ VỀ","stTone":"ok"},{"_tab":"over","code":"EX-241015-02","pt":"Hoàng V. Nam · BN-0533","test":"Giải phẫu bệnh","lab":"Medlatec","labTone":"info","sent":"15/10","due":"18/10","st":"QUÁ HẠN 6 NGÀY","stTone":"crit"}];
+  const act  = [{"label":"+ Gửi mẫu mới","cls":"p","toast":"Mở form gửi mẫu"},{"label":"🔍 Tra cứu","toast":"Tra kết quả theo barcode"}];
+  const side = {"titleKey":"pt","subKey":"test","kvs":[{"lbl":"Mã gửi","k":"code","mono":true},{"lbl":"Đối tác","k":"lab"},{"lbl":"Gửi","k":"sent","mono":true},{"lbl":"Hạn trả","k":"due","mono":true},{"lbl":"Trạng thái","k":"st"}],"cards":[{"title":"Nhật ký vận chuyển","items":[{"l":"Nhận mẫu","v":"24/10 09:00"},{"l":"Giao shipper","v":"24/10 09:12"},{"l":"Đến phòng XN","v":"24/10 11:42"},{"l":"Đang chạy","v":"—"}]}],"actions":[{"label":"📄 Phiếu","cls":"p","toast":"Xem phiếu $NM"},{"label":"📞 Đối tác","toast":"Liên hệ đối tác · $NM"},{"label":"🔁 Gửi lại","toast":"Gửi lại $NM"}]};
+  const [tab, setTab] = uExtLabMod_s("all");
+  const [sel, setSel] = uExtLabMod_s(0);
+  const filtered = tab === "all" ? rows : rows.filter(r => r._tab === tab);
+  const cur = filtered[sel] || filtered[0] || {};
+  return (
+    <div className="mod-wrap">
+      {kpis.length > 0 && (
+        <div className="mod-strip">
+          {kpis.map((k,i) => (
+            <div key={i} className={"mod-strip-cell " + (k.tone || "")}>
+              <div className="lbl">{k.lbl}</div>
+              <div className="val">{k.val}{k.sub && <small>{k.sub}</small>}</div>
+              {k.delta && <div className="delta" style={{color: k.dir==="up"?"var(--s-ok)":k.dir==="down"?"var(--s-crit)":"var(--t-2)"}}>{k.dir==="up"?"↗":k.dir==="down"?"↘":"·"} {k.delta}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className={"mod-body " + (side ? "cols-2" : "")}>
+        <div className="mod-pane">
+          <div className="mod-toolbar">
+            <h3>Gửi mẫu & nhận kết quả từ phòng XN ngoài · 3 đối tác</h3>
+            {tabs.length > 0 && (<div className="mod-seg">{tabs.map(t => (<button key={t.id} className={"mod-seg-i " + (tab===t.id?"on":"")} onClick={() => { setTab(t.id); setSel(0); }}>{t.label}{t.n != null && <span className="n">{t.n}</span>}</button>))}</div>)}
+            <div className="spacer"/>
+            {act.map((a,i) => (<button key={i} className={"mod-btn " + (a.cls || "")} onClick={() => HUI.toast(a.toast, {tone: a.tone || "info"})}>{a.label}</button>))}
+          </div>
+          <div className="mod-tbl-wrap">
+            <table className="mod-tbl">
+              <thead><tr>{cols.map((c,i) => <th key={i} className={c.cls||""}>{c.label}</th>)}</tr></thead>
+              <tbody>
+                {filtered.map((r,i) => (
+                  <tr key={i} className={sel===i?"sel":""} onClick={() => setSel(i)}>
+                    {cols.map((c,j) => {
+                      const v = r[c.k];
+                      return (<td key={j} className={c.cls || c.kind || ""}>
+                        {c.kind === "stat" && <span className={"mod-stat " + (r[c.k+"Tone"] || "ghost")}>{v}</span>}
+                        {c.kind === "badge" && <span className={"mod-badge " + (r[c.k+"Tone"] || "")}>{v}</span>}
+                        {c.kind === "bar" && (<div style={{display:"flex",alignItems:"center",gap:8}}><div style={{flex:1,maxWidth:100,height:6,background:"var(--d-3)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:v+"%",background:v>=90?"var(--s-crit)":v>=75?"var(--s-warn)":"var(--s-ok)"}}/></div><span style={{fontFamily:"var(--font-mono)",fontSize:11}}>{v}%</span></div>)}
+                        {!c.kind && (v != null ? v : <span style={{color:"var(--t-3)"}}>—</span>)}
+                      </td>);
+                    })}
+                  </tr>
+                ))}
+                {filtered.length === 0 && <tr><td colSpan={cols.length}><div className="mod-empty">Không có dữ liệu.</div></td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {side && (
+          <aside className="mod-side">
+            <div className="mod-side-h"><div className="t">{cur[side.titleKey] || "Chọn dòng"}</div><div className="s">{cur[side.subKey] || ""}</div></div>
+            <div className="mod-side-b">
+              {side.kvs && (<div className="mod-card"><div className="mod-card-h">{side.kvsTitle || "Chi tiết"}</div><div className="mod-card-b">{side.kvs.map((k,i) => (<div key={i} className="mod-kv"><div className="k">{k.lbl}</div><div className={"v " + (k.mono ? "mono" : "")}>{cur[k.k] != null ? cur[k.k] : "—"}</div></div>))}</div></div>)}
+              {side.cards && side.cards.map((card, i) => (<div key={i} className="mod-card"><div className="mod-card-h">{card.title}</div><div className="mod-card-b">{card.items.map((it, j) => (<div key={j} style={{padding:"7px 0",borderBottom:"1px solid var(--line-hair)",fontSize:12, display:"flex",justifyContent:"space-between",gap:10}}><span style={{color:"var(--t-1)"}}>{it.l}</span><span style={{color:"var(--t-0)",fontWeight:500,fontFamily:it.mono?"var(--font-mono)":"inherit",fontSize:it.mono?11:12}}>{it.v}</span></div>))}</div></div>))}
+              {side.actions && (<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:12}}>{side.actions.map((a,i) => (<button key={i} className={"mod-btn " + (a.cls || "")} onClick={() => HUI.toast((a.toast||"").replace("$NM", cur[side.titleKey]||"—"), {tone:a.tone||"info"})}>{a.label}</button>))}</div>)}
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+};
+window.ExtLabMod = ExtLabMod;
+
+</script>
+<script type="text/babel" data-presets="react">
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <HisShell route="external-lab" crumb={["Tích hợp","Lab bên ngoài"]}>
+    <ExtLabMod/>
+  </HisShell>
+);
+</script>
+</body>
+</html>

@@ -183,3 +183,7 @@ backend/test-results/
 
 # Local browser/auth state dumps
 localstorage.json
+
+# Design pack — large prototypes from Claude Design (claude.ai/design)
+# Keep README + key v2 sources; ignore chat transcripts (4MB) and unused HTML files.
+design-system/chats/

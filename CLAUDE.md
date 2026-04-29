@@ -2874,3 +2874,163 @@ Two new specs verifying both phases against the live deployment
   smoke suite against prod (~3 min for both, mostly waiting on
   volume.load).
 
+
+---
+
+## Work Log - 2026-04-29 (Jitsi self-host + Mammography Phase 3 + design pack landed)
+
+Big day. Three work streams completed; one big audit-only finding.
+
+### Done
+- **Cleanup pending items** (commit `4def0de`): Cloud Run URL refresh
+  in 4 e2e-prod specs, patient-portal `Guid.Empty` fallback (3
+  service methods so admin sees data), `GetHistoryImagingImagesAsync`
+  walks RadiologyRequest/Exam → DicomStudies (with
+  ServiceRequestDetail fallback), `GetLabTestNormsAsync`/`Update`
+  full impl + new `LabTestNorm` entity + DbSet + idempotent script
+  `40_lab_test_norms.sql`. Verified live on prod.
+- **Cornerstone3D Phase 3 — Mammography 2x2** (commit `b49da09`):
+  `MammoViewer.tsx` 4-quadrant native viewer (RCC/LCC top, RMLO/LMLO
+  bottom, hanging protocol auto-arrange via DICOM tags + instance-order
+  fallback), Magnify toggle, Invert all, True-Size (PixelSpacing),
+  Fit, Reset. Backend `DicomImageDto` extended with
+  `Laterality`/`ViewPosition`/`Modality`/`PixelSpacing`;
+  `RISCompleteService.GetImagesAsync` pulls per-instance tags via
+  Orthanc `/tags?simplify` (gated to MG modality OR ≤16 instances).
+  Smoke spec `cornerstone-phase3.spec.ts` 3/3 pass on prod
+  revision `his-api-00020-lvq`.
+- **Self-hosted Jitsi-meet** (commits `78ab1d5`, `a15b3e3`,
+  `afd5f70`): 2nd Oracle AMD Micro VM at **161.33.180.17**
+  (`his-jitsi-vm-amd`, free tier, 1 GB RAM + 2 GB swap). Jitsi-meet
+  stable-9646 stack via Docker Compose; Let's Encrypt cert via
+  acme.sh standalone (real email `minhhung19872002@gmail.com` —
+  ZeroSSL rejected `.local` TLDs). HTTPS up at
+  https://161-33-180-17.nip.io. Backend
+  `VideoConsultationController.BuildJitsiUrl` now reads
+  `Jitsi:BaseUrl` from configuration / `Jitsi__BaseUrl` env var
+  (default falls back to `meet.jit.si`). Cloud Run revision
+  `his-api-00020-lvq` deployed with the env override; verified
+  POST `/api/video-consultation` returns
+  `jitsiUrl: https://161-33-180-17.nip.io/his-260429-...`.
+- **GCP project rename note** (commit `afd5f70`): Project ID
+  migrated from `optical-order-478805-k6` →
+  `project-4d4a3f8e-d582-4536-97f`. Account
+  `minhhung19872004@gmail.com`. Cloud Run URL number `694913628964`
+  (older `rm6c6yvoja` host doesn't resolve).
+
+### Discovered + Pending: design system audit
+
+User pointed at the Claude Design handoff bundle and asked us to
+adopt it as the canonical design for v2 conversions:
+
+- Bundle URL:
+  https://api.anthropic.com/v1/design/h/AEyR4lf-eh09bLCoem0WlQ
+  (`open_file=Reports+v2.html` was the user's primary file).
+- Saved to repo at **`design-system/`** (README + project sources).
+  `chats/` directory gitignored (4 MB transcript noise).
+
+**Two-tier design system in the pack:**
+
+1. **Foundation** — `his-shell.css` defines `.panel`,
+   `.panel-h`, `.panel-body`, `.tbl`, `.btn`, `.chip`, `.kpi`,
+   `.dash-*`, `.mono`, `.spacer`, plus tokens
+   (`--bg-1`, `--bg-2`, `--line`, `--line-soft`, `--t-0`–`--t-3`,
+   `--d-1`, `--a-cy-text`, `--a-em-text`, `--a-or-text`,
+   `--a-mg-text`, `--a-rd-text`, `--s-crit`, `--font-mono`,
+   `--font-sans`). **Already ported to frontend** at
+   `frontend/src/layouts/terminal/terminal.css` (948 lines).
+2. **v2 module overlay** — `mod-appt-booking.css` (692 lines)
+   defines `.ab-kpis`, `.ab-kpi`, `.ab-toptabs`, `.ab-stab`,
+   `.ab-search`, `.ab-sel`, `.ab-tbl-wrap`, `.ab-tbl`,
+   `.ab-toolbar`, `.ab-btn`, `.ab-stat`, `.ab-dot`, `.ab-iconbtn`.
+   **NOT ported.** Pages built without these classes look like
+   the old "panel" foundation (still on-brand) but lack the
+   richer KPI/tab/toolbar idiom.
+
+**v2 page kit** — `mod-v2-kit.jsx` (205 lines) provides the
+canonical React components used across every v2 module:
+`KpiStrip`, `TopTabs`, `StatusTabs`, `SearchBox`, `Filter`,
+`DataTable`, `Pager`, `StatusBadge`, `ActBtn`, `DrSec`, `DrField`,
+plus helpers `fmtVNDg`, `fmtHMg`, `fmtDMYg`, `fmtDTg`. Also wraps
+`HUI.drawer/modal/toast/confirm` for popups. **NOT ported** —
+existing v2 pages either use Antd primitives directly or the
+hand-rolled `_GenericListPage` helper.
+
+**Audit of existing 60+ v2 pages:**
+
+| Group | Count | Design conformance |
+|---|---|---|
+| Tier B bespoke (Dashboard, Reception, OPD, Inpatient, Pharmacy, Surgery, Billing, Laboratory, Radiology, BloodBank, EMR, Consultation, FollowUp, Pathology, Insurance, Reports, MasterData) | 17 | ✅ Foundation panels + tokens; **not** ab-* — close but not pixel-equivalent |
+| `Reports.tsx` (Session 26 redesign + `reports-v2.css`) | 1 | ✅ Closest match to design pack `Reports v2.html` (own CSS file uses tokens correctly). Treat as canonical example for next conversions. |
+| Templated `_GenericListPage` (AssetManagement, Equipment, Quality, ChronicDisease, etc.) | 33 | ❌ Generic 2-panel layout; needs upgrade |
+| WrapV1 (still wrapping v1 pages) | 12 | — not converted at all |
+
+**5 stub pages I tried to add this morning** (Finance,
+HealthExchange, MedicalRecordArchive, BhxhAudit, SatisfactionSurvey)
+**were deleted** before commit — they used `_GenericListPage` and
+didn't match the design. Redo using `reports-v2.css`-style bespoke
+layouts.
+
+### Plan for next session: design migration
+
+**Phase A — Port the v2 kit (foundational, ~2 h)**
+
+1. Copy `design-system/project/mod-appt-booking.css` →
+   `frontend/src/layouts/terminal/ab-module.css`. Import via
+   `TerminalLayout.tsx`.
+2. Port `mod-v2-kit.jsx` to typed React TS at
+   `frontend/src/pages-v2/_v2kit.tsx`. Keep API the same:
+   `<KpiStrip>`, `<TopTabs>`, `<StatusTabs>`, `<DataTable>`,
+   `<DrSec>`, `<DrField>`, `<StatusBadge>`. Replace `HUI.*` calls
+   with Antd `Drawer`/`Modal`/`message` since frontend already
+   uses Antd.
+3. Add helper exports `fmtVNDg`, `fmtHMg`, etc.
+
+**Phase B — 6 high-priority v2 pages with bespoke design (~6–9 h)**
+
+Use `Reports.tsx` + `reports-v2.css` as the canonical example.
+For each page, look at the matching `mod-*-v2.jsx` in
+`design-system/project/` first to crib the layout:
+
+1. **Finance** → cribs from `Billing v2.html` /
+   `mod-billing-v2.jsx`. KPI strip (Tổng thu / BHYT / Bệnh nhân /
+   Lợi nhuận), 7-day sparkline, top-revenue table, top-cost
+   table, drill-down drawer per service.
+2. **HealthExchange** → bespoke. KPI (active/error/total),
+   connections grid (BHXH, MOH, Lab cards), recent sync log
+   panel, alert panel.
+3. **MedicalRecordArchive** → bespoke. KPI (storage
+   used/cloud/local), recent archives table, expiring-soon
+   panel, audit log.
+4. **BhxhAudit** → cribs from `Reports v2.html` (also financial).
+   KPI (total / pending / approved / rejected), audit cycle flow
+   (chờ → duyệt → trả), top-issues panel.
+5. **SatisfactionSurvey** → bespoke. KPI (avg score / response
+   count), 30-day score trend, dept bar chart, recent feedback.
+6. **SpecialtyEMR** → bespoke. KPI by specialty, recent EMR list,
+   missing-fields warnings.
+
+**Phase C — 33 templated pages → bespoke (~30+ h, low priority)**
+
+These already function, just don't have the polished v2 design.
+Decide priority later — likely batch by user demand (which pages
+get heavy daily use).
+
+### File pointers for next session
+
+- Design pack: `design-system/README.md`,
+  `design-system/project/Reports v2.html`,
+  `design-system/project/mod-reports-v2.jsx`,
+  `design-system/project/mod-v2-kit.jsx`,
+  `design-system/project/mod-appt-booking.css`,
+  `design-system/project/his-shell.css`.
+- Canonical frontend example:
+  `frontend/src/pages-v2/Reports.tsx` (834 lines) +
+  `frontend/src/pages-v2/reports-v2.css`.
+- Foundation CSS already in repo:
+  `frontend/src/layouts/terminal/terminal.css` (mostly identical
+  to `his-shell.css`).
+- 12 routes still on `WrapV1` listed at App.tsx ~line 412–460
+  (dashboard-3cap, finance, digital-signature, central-signing,
+  health-exchange, help, radiology/viewer, medical-record-archive,
+  bhxh-audit, satisfaction-survey, specialty-emr).

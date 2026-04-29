@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"/><title>Quản lý tài chính — HIS Terminal</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="his-shell.css"/><link rel="stylesheet" href="his-module.css"/></head><body><div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="his-data.js"></script>
+<script type="text/babel" data-presets="react" src="his-chrome.jsx"></script>
+<script type="text/babel" data-presets="react">
+const { useState: uFinanceMod_s } = React;
+const FinanceMod = () => {
+  const kpis=[{"lbl":"Doanh thu T10","val":"38.4","sub":"tỷ","tone":"ok"},{"lbl":"Chi phí T10","val":"32.8","sub":"tỷ"},{"lbl":"Công nợ BHXH","val":"18.4","sub":"tỷ","tone":"warn"},{"lbl":"Quỹ lương T10","val":"8.2","sub":"tỷ"}],tabs=[{"id":"rev","label":"Doanh thu"},{"id":"cost","label":"Chi phí"},{"id":"ap","label":"Công nợ phải trả"},{"id":"ar","label":"Công nợ phải thu"}],cols=[{"k":"code","label":"Mã sổ","cls":"id"},{"k":"nm","label":"Nội dung","cls":"nm"},{"k":"src","label":"Nguồn"},{"k":"amt","label":"Số tiền","cls":"num"},{"k":"date","label":"Ngày","cls":"id"},{"k":"st","label":"TT","kind":"stat"}],rows=[{"_tab":"rev","code":"DT-T10-01","nm":"Viện phí thu trực tiếp","src":"BN","amt":"12.4 tỷ","date":"T10/2026","st":"ĐÃ THU","stTone":"ok"},{"_tab":"rev","code":"DT-T10-02","nm":"BHYT thanh toán","src":"BHXH","amt":"24.2 tỷ","date":"T10/2026","st":"ĐÃ DUYỆT 18tỷ","stTone":"warn"},{"_tab":"cost","code":"CP-T10-01","nm":"Lương & phụ cấp","src":"Nguồn ngân sách","amt":"8.2 tỷ","date":"T10/2026","st":"ĐÃ CHI","stTone":"ok"},{"_tab":"ap","code":"NT-T10-14","nm":"Công ty dược XYZ","src":"Hợp đồng #482","amt":"2.4 tỷ","date":"Hạn 30/10","st":"CHỜ TT","stTone":"warn"}],act=[{"label":"📊 Báo cáo TC","cls":"p","toast":"Xuất BC tài chính T10"}];
+  const side=null;
+  const [tab,setTab]=uFinanceMod_s("rev");
+  const [sel,setSel]=uFinanceMod_s(0);
+  const filtered = tab==="all"?rows:rows.filter(r=>r._tab===tab);
+  const cur = filtered[sel] || filtered[0] || {};
+  return (<div className="mod-wrap">
+    {kpis.length>0 && (<div className="mod-strip">{kpis.map((k,i)=>(<div key={i} className={"mod-strip-cell "+(k.tone||"")}><div className="lbl">{k.lbl}</div><div className="val">{k.val}{k.sub && <small>{k.sub}</small>}</div></div>))}</div>)}
+    <div className={"mod-body "+(side?"cols-2":"")}><div className="mod-pane">
+      <div className="mod-toolbar"><h3>Sổ tổng hợp tài chính — doanh thu, chi phí, nguồn vốn</h3>{tabs.length>0 && (<div className="mod-seg">{tabs.map(t=>(<button key={t.id} className={"mod-seg-i "+(tab===t.id?"on":"")} onClick={()=>{setTab(t.id);setSel(0);}}>{t.label}</button>))}</div>)}<div className="spacer"/>{act.map((a,i)=>(<button key={i} className={"mod-btn "+(a.cls||"")} onClick={()=>HUI.toast(a.toast,{tone:a.tone||"info"})}>{a.label}</button>))}</div>
+      <div className="mod-tbl-wrap"><table className="mod-tbl"><thead><tr>{cols.map((c,i)=><th key={i} className={c.cls||""}>{c.label}</th>)}</tr></thead><tbody>
+        {filtered.map((r,i)=>(<tr key={i} className={sel===i?"sel":""} onClick={()=>setSel(i)}>{cols.map((c,j)=>{const v=r[c.k];return(<td key={j} className={c.cls||c.kind||""}>{c.kind==="stat"&&<span className={"mod-stat "+(r[c.k+"Tone"]||"ghost")}>{v}</span>}{c.kind==="badge"&&<span className={"mod-badge "+(r[c.k+"Tone"]||"")}>{v}</span>}{!c.kind&&(v!=null?v:<span style={{color:"var(--t-3)"}}>—</span>)}</td>);})}</tr>))}
+      </tbody></table></div>
+    </div></div>
+  </div>);
+};
+window.FinanceMod=FinanceMod;</script>
+<script type="text/babel" data-presets="react">ReactDOM.createRoot(document.getElementById("root")).render(<HisShell route="finance" crumb={["Tài chính","Quản lý tài chính"]}><FinanceMod/></HisShell>);</script>
+</body></html>

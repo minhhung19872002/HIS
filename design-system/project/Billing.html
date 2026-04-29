@@ -1,0 +1,3333 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<title>Thu ngân — HIS Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   HIS Terminal — Shared Chrome
+   ============================================ */
+
+:root {
+  --font-sans: "Inter", "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  --d-0: #ffffff;
+  --d-1: #f7f9fc;
+  --d-2: #ffffff;
+  --d-3: #f1f5f9;
+  --d-4: #e5edf7;
+  --d-5: #cbd6e3;
+
+  --line: #e4e9f0;
+  --line-soft: #edf1f6;
+  --line-hair: #f1f4f9;
+
+  --t-0: #0f172a;
+  --t-1: #334155;
+  --t-2: #64748b;
+  --t-3: #94a3b8;
+  --t-4: #cbd5e1;
+
+  --a-cy: #2563eb;
+  --a-cy-dim: #1d4ed8;
+  --a-cy-bg: #eff5ff;
+  --a-cy-line: #bfd3fa;
+
+  --s-crit: #dc2626;
+  --s-crit-bg: #fef2f2;
+  --s-warn: #d97706;
+  --s-warn-bg: #fffbeb;
+  --s-ok:   #16a34a;
+  --s-ok-bg: #f0fdf4;
+  --s-info: #0284c7;
+  --s-info-bg: #f0f9ff;
+  --s-mag:  #7c3aed;
+  --s-mag-bg: #f5f3ff;
+
+  --r-1: 3px;
+  --r-2: 6px;
+  --r-3: 8px;
+  --r-4: 12px;
+
+  --row-h: 40px;
+  --ctl-h: 32px;
+  --fs-xxs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --fs-xl: 20px;
+}
+
+* { box-sizing: border-box; }
+html, body, #root {
+  margin: 0; height: 100%;
+  background: var(--d-1);
+  color: var(--t-0);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; padding: 0; }
+input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; outline: none; }
+a { color: inherit; text-decoration: none; }
+
+.mono { font-family: var(--font-mono); font-feature-settings: "tnum", "zero"; letter-spacing: -0.01em; }
+.tab-num { font-variant-numeric: tabular-nums; }
+.up { text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ============== APP SHELL ============== */
+.his-app {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  grid-template-rows: 44px 32px 1fr 26px;
+  height: 100vh;
+  min-width: 1280px;
+  overflow: hidden;
+  position: relative;
+}
+.his-app.has-pinned {
+  grid-template-columns: 64px 240px 1fr;
+}
+.his-app.has-pinned .his-topbar,
+.his-app.has-pinned .his-ticker,
+.his-app.has-pinned .his-main { grid-column: 3; }
+.his-app.has-pinned .his-flyout.pinned {
+  position: static;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  box-shadow: none;
+  border-right: 1px solid var(--line);
+}
+html, body { min-width: 1280px; }
+.his-rail    { grid-column: 1; grid-row: 1 / -1; }
+.his-topbar  { grid-column: 2; grid-row: 1; }
+.his-ticker  { grid-column: 2; grid-row: 2; }
+.his-main    { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.his-status  { grid-column: 1 / -1; grid-row: 4; }
+
+/* ============== RAIL ============== */
+.his-rail {
+  background: #ffffff;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 0 6px;
+  gap: 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.his-rail::-webkit-scrollbar { width: 4px; }
+.his-rail::-webkit-scrollbar-thumb { background: var(--d-3); border-radius: 2px; }
+.his-rail::-webkit-scrollbar-track { background: transparent; }
+.his-rail-mark {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--a-cy);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  letter-spacing: 0;
+}
+.his-rail-item {
+  width: 48px; padding: 6px 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  color: var(--t-2);
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: center;
+}
+.his-rail-item:hover { color: var(--t-0); background: var(--d-3); }
+.his-rail-item.active {
+  color: var(--a-cy);
+  background: var(--a-cy-bg);
+}
+.his-rail-item.pinned {
+  color: var(--a-cy);
+  background: var(--a-cy-bg);
+}
+.his-rail-item.pinned:not(.active)::before {
+  content: "";
+  position: absolute; left: -10px; top: 10px; bottom: 10px;
+  width: 2px; background: var(--a-cy); border-radius: 1px;
+  opacity: 0.5;
+}
+.his-rail-item.active::before {
+  content: "";
+  position: absolute; left: -10px; top: 10px; bottom: 10px;
+  width: 2px; background: var(--a-cy); border-radius: 1px;
+}
+.his-rail-item .lbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+.his-rail-item .hot {
+  position: absolute; top: 2px; right: 4px;
+  min-width: 16px; height: 14px; padding: 0 4px;
+  background: var(--s-crit); color: #fff;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+.his-rail-div {
+  width: 28px; height: 1px;
+  background: var(--line);
+  margin: 8px 0;
+}
+.his-rail-spacer { flex: 1; }
+
+/* ============== FLYOUT (group submenu) ============== */
+.his-flyout {
+  position: absolute;
+  left: 64px;
+  top: 0;
+  bottom: 26px;
+  width: 240px;
+  background: #ffffff;
+  border-right: 1px solid var(--line);
+  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.08);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  animation: flyoutIn 0.12s ease-out;
+}
+@keyframes flyoutIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.his-flyout-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1, #f8fafc);
+}
+.his-flyout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--t-0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.his-flyout-title .count {
+  font-size: 10px;
+  color: var(--t-3);
+  background: var(--d-2, #eef2f7);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.his-flyout-actions { display: flex; gap: 2px; }
+.his-flyout-pin, .his-flyout-close {
+  width: 22px; height: 22px;
+  border: 0; background: transparent;
+  color: var(--t-3);
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  display: grid; place-items: center;
+}
+.his-flyout-pin:hover, .his-flyout-close:hover { background: var(--d-3); color: var(--t-0); }
+.his-flyout-pin.on { color: var(--a-cy); }
+.his-flyout-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  scrollbar-width: thin;
+}
+.his-flyout-body::-webkit-scrollbar { width: 4px; }
+.his-flyout-body::-webkit-scrollbar-thumb { background: var(--d-3); border-radius: 2px; }
+.his-flyout-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  color: var(--t-1);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  border-left: 2px solid transparent;
+}
+.his-flyout-item:hover { background: var(--d-3); color: var(--t-0); }
+.his-flyout-item.active {
+  color: var(--a-cy);
+  background: var(--a-cy-bg);
+  border-left-color: var(--a-cy);
+  font-weight: 500;
+}
+.his-flyout-item .lbl { flex: 1; }
+.his-flyout-item .hot {
+  min-width: 18px; height: 16px; padding: 0 5px;
+  background: var(--s-crit); color: #fff;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700;
+  border-radius: 8px;
+  display: grid; place-items: center;
+}
+
+/* ============== TOPBAR ============== */
+.his-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 12px;
+}
+.his-tb-crumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  color: var(--t-2);
+  min-width: 0;
+}
+.his-tb-crumb .here { color: var(--t-0); font-weight: 600; }
+.his-tb-crumb .slash { color: var(--t-4); }
+.his-tb-crumb .hosp {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--t-0);
+  font-weight: 600;
+  font-size: 13px;
+}
+.his-tb-crumb .hosp::after { content: ""; width: 1px; height: 14px; background: var(--line); margin-left: 8px; }
+
+.his-cmd {
+  flex: 1; max-width: 480px;
+  height: 28px;
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  display: flex; align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  color: var(--t-2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.his-cmd:hover { border-color: var(--a-cy-line); background: #fff; }
+.his-cmd .prompt { color: var(--a-cy); font-family: var(--font-mono); font-weight: 600; }
+.his-cmd .hint { flex: 1; color: var(--t-3); }
+.his-cmd kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--t-2);
+  border-radius: 3px;
+}
+
+.his-tb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.his-chip-shift {
+  height: 24px; padding: 0 8px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10px;
+  background: var(--s-ok-bg); border: 1px solid #bbf7d0;
+  border-radius: 3px;
+  color: #15803d;
+  font-weight: 600;
+}
+.his-chip-shift .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--s-ok); }
+
+.his-clock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--t-1);
+  font-weight: 500;
+  padding: 0 4px;
+}
+.his-clock .d { color: var(--t-3); font-size: 10px; }
+
+.his-tb-btn {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  color: var(--t-2);
+  border-radius: var(--r-2);
+  position: relative;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.his-tb-btn:hover { color: var(--t-0); background: var(--d-3); }
+.his-tb-btn .dot-alert {
+  position: absolute; top: 4px; right: 4px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--s-crit);
+  border: 1.5px solid #fff;
+}
+
+.his-user {
+  display: flex; align-items: center; gap: 8px;
+  padding: 2px 8px 2px 2px;
+  border-radius: var(--r-2);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.his-user:hover { border-color: var(--line); background: var(--d-3); }
+.his-user .avatar {
+  width: 26px; height: 26px; border-radius: 4px;
+  background: var(--a-cy);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700;
+}
+.his-user .who { display: flex; flex-direction: column; line-height: 1.15; }
+.his-user .who .n { font-size: 12px; color: var(--t-0); font-weight: 600; }
+.his-user .who .r { font-size: 10px; color: var(--t-2); font-family: var(--font-mono); }
+
+/* ============== TICKER ============== */
+.his-ticker {
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  position: relative;
+}
+.his-ticker-head {
+  flex-shrink: 0;
+  padding: 0 10px;
+  height: 100%;
+  display: flex; align-items: center; gap: 6px;
+  background: #020617;
+  color: #f8fafc;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border-right: 1px solid #1e293b;
+}
+.his-ticker-head .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--s-ok);
+  animation: his-pulse 1.6s ease-in-out infinite;
+}
+@keyframes his-pulse { 50% { opacity: 0.4; } }
+.his-ticker-scroll {
+  flex: 1;
+  display: flex; align-items: center; gap: 28px;
+  animation: his-ticker-run 60s linear infinite;
+  white-space: nowrap;
+  padding-left: 16px;
+}
+@keyframes his-ticker-run {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.his-ticker-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: #94a3b8;
+}
+.his-ticker-item b {
+  color: #f8fafc;
+  font-weight: 600;
+}
+.his-ticker-item.up b    { color: #4ade80; }
+.his-ticker-item.down b  { color: #f87171; }
+.his-ticker-item.warn b  { color: #fbbf24; }
+
+/* Patient context pill (bolted onto ticker left) */
+.his-patient-pill {
+  flex-shrink: 0;
+  height: 24px;
+  margin: 0 8px;
+  padding: 0 10px 0 6px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  display: inline-flex; align-items: center; gap: 8px;
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+.his-patient-pill:hover { background: #334155; }
+.his-patient-pill .tk {
+  padding: 1px 5px;
+  background: var(--a-cy);
+  color: #fff;
+  border-radius: 2px;
+  font-weight: 600;
+}
+.his-patient-pill .nm { color: #f8fafc; font-weight: 600; }
+.his-patient-pill .id { color: #94a3b8; }
+.his-patient-pill .x { color: #64748b; cursor: pointer; }
+.his-patient-pill .x:hover { color: #f87171; }
+
+/* ============== STATUS BAR ============== */
+.his-status {
+  background: #0f172a;
+  color: #cbd5e1;
+  border-top: 1px solid #1e293b;
+  display: flex; align-items: center;
+  padding: 0 12px;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+.his-status .seg { display: inline-flex; align-items: center; gap: 5px; }
+.his-status .seg b { color: #f8fafc; font-weight: 600; }
+.his-status .seg.ok b { color: #4ade80; }
+.his-status .seg.warn b { color: #fbbf24; }
+.his-status .sep { width: 1px; height: 12px; background: #1e293b; }
+.his-status .spacer { flex: 1; }
+.his-status kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  min-width: 14px;
+  text-align: center;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  border-radius: 2px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
+/* ============== CONTENT ============== */
+.his-content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--d-1);
+}
+
+/* ============== COMMAND PALETTE ============== */
+.his-cmdk-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 12vh;
+  z-index: 1000;
+  animation: his-f 0.12s ease;
+}
+.his-cmdk {
+  width: 560px; max-width: 92vw;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  animation: his-p 0.14s ease;
+}
+.his-cmdk-in {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+}
+.his-cmdk-in .prompt {
+  color: var(--a-cy);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.his-cmdk-in input {
+  flex: 1;
+  border: 0;
+  font-size: 15px;
+  background: transparent;
+}
+.his-cmdk-in kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  color: var(--t-2);
+  border-radius: 3px;
+}
+.his-cmdk-body {
+  max-height: 50vh;
+  overflow: auto;
+  padding: 4px 0;
+}
+.his-cmdk-sec {
+  padding: 10px 16px 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--t-3);
+}
+.his-cmdk-row {
+  padding: 8px 16px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--t-1);
+}
+.his-cmdk-row:hover, .his-cmdk-row.active {
+  background: var(--a-cy-bg);
+  color: var(--a-cy);
+}
+.his-cmdk-row .lbl { flex: 1; }
+.his-cmdk-row .sub { color: var(--t-3); font-size: 11px; font-family: var(--font-mono); }
+.his-cmdk-row .ico { color: var(--t-3); }
+.his-cmdk-row:hover .ico, .his-cmdk-row.active .ico { color: var(--a-cy); }
+.his-cmdk-ft {
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--d-1);
+  display: flex; gap: 14px;
+  font-size: 10px;
+  color: var(--t-3);
+  font-family: var(--font-mono);
+}
+@keyframes his-f { from { opacity: 0; } to { opacity: 1; } }
+@keyframes his-p { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+/* ============== SHARED COMPONENTS (panel, btn, tbl, chip) ============== */
+.panel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  display: flex; flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.panel-h {
+  height: 40px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+.panel-h .title {
+  font-size: 12px;
+  color: var(--t-0);
+  font-weight: 600;
+}
+.panel-h .title b { color: var(--a-cy); font-weight: 700; }
+.panel-h .sub { font-size: 11px; color: var(--t-2); font-family: var(--font-mono); }
+.panel-h .actions { margin-left: auto; display: flex; gap: 6px; }
+.panel-body { flex: 1; overflow: auto; min-height: 0; }
+.panel-body.pad { padding: 14px; }
+
+.btn {
+  height: var(--ctl-h);
+  padding: 0 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  color: var(--t-0);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--d-3); border-color: var(--d-5); }
+.btn.primary { background: var(--a-cy); color: #fff; border-color: var(--a-cy); font-weight: 600; }
+.btn.primary:hover { background: var(--a-cy-dim); border-color: var(--a-cy-dim); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--t-1); }
+.btn.ghost:hover { background: var(--d-3); color: var(--t-0); }
+.btn.danger { color: var(--s-crit); border-color: var(--line); }
+.btn.danger:hover { background: var(--s-crit-bg); border-color: #fecaca; }
+.btn.icon { padding: 0; width: var(--ctl-h); justify-content: center; }
+.btn.sm { height: 24px; font-size: 11px; padding: 0 8px; }
+
+.input, .select {
+  height: var(--ctl-h);
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1px solid var(--d-5);
+  border-radius: var(--r-2);
+  color: var(--t-0);
+  font-size: 12px;
+  width: 100%;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.input:focus, .select:focus {
+  border-color: var(--a-cy);
+  box-shadow: 0 0 0 3px var(--a-cy-bg);
+}
+.input::placeholder { color: var(--t-3); }
+.select { appearance: none; padding-right: 26px; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3.5 5 7l4-3.5' fill='none' stroke='%2364748b' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; background-size: 9px; }
+textarea.input { height: auto; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+
+.label {
+  font-size: 10px;
+  color: var(--t-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 5px;
+  display: block;
+  font-family: var(--font-mono);
+}
+
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 20px; padding: 0 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--d-3);
+  color: var(--t-1);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+}
+.chip.crit { background: var(--s-crit-bg); color: var(--s-crit); }
+.chip.warn { background: var(--s-warn-bg); color: var(--s-warn); }
+.chip.ok { background: var(--s-ok-bg); color: #15803d; }
+.chip.info { background: var(--s-info-bg); color: var(--s-info); }
+.chip.mag { background: var(--s-mag-bg); color: var(--s-mag); }
+.chip.cy { background: var(--a-cy-bg); color: var(--a-cy); }
+.chip.ghost { background: transparent; border: 1px solid var(--line); color: var(--t-2); }
+.chip.solid-cy { background: var(--a-cy); color: #fff; }
+
+.dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--t-3);
+  vertical-align: middle;
+}
+.dot.crit { background: var(--s-crit); }
+.dot.warn { background: var(--s-warn); }
+.dot.ok { background: var(--s-ok); }
+.dot.info { background: var(--s-info); }
+.dot.cy { background: var(--a-cy); }
+.dot.pulse { animation: his-pulse 1.6s ease-in-out infinite; }
+
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--t-2);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  background: var(--d-1);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.tbl th.num { text-align: right; }
+.tbl td {
+  padding: 0 12px;
+  height: 36px;
+  border-bottom: 1px solid var(--line-hair);
+  color: var(--t-0);
+  white-space: nowrap;
+}
+.tbl td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tbl td.mono { font-family: var(--font-mono); font-size: 11px; color: var(--t-1); }
+.tbl tr:hover td { background: var(--d-1); }
+.tbl tr.sel td { background: var(--a-cy-bg); box-shadow: inset 3px 0 0 var(--a-cy); }
+.tbl tr.sel:hover td { background: var(--a-cy-bg); }
+.tbl .muted { color: var(--t-2); }
+.tbl .dim { color: var(--t-3); }
+
+.seg {
+  display: inline-flex;
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: 2px;
+  height: var(--ctl-h);
+}
+.seg button {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--t-2);
+  border-radius: 3px;
+}
+.seg button.active {
+  background: #fff;
+  color: var(--t-0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  font-weight: 600;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  padding: 0 14px;
+  height: 40px;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.tabs .tab {
+  padding: 0 12px;
+  height: 38px;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t-2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tabs .tab:hover { color: var(--t-0); }
+.tabs .tab.active { color: var(--a-cy); border-bottom-color: var(--a-cy); font-weight: 600; }
+.tabs .tab .n {
+  color: var(--t-3);
+  font-size: 10px;
+  background: var(--d-3);
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+}
+.tabs .tab.active .n { background: var(--a-cy-bg); color: var(--a-cy); }
+
+/* Utility */
+.row { display: flex; align-items: center; gap: 8px; }
+.col { display: flex; flex-direction: column; }
+.stack-sm > * + * { margin-top: 8px; }
+.stack > * + * { margin-top: 12px; }
+.spacer { flex: 1; }
+.hline { height: 1px; background: var(--line); }
+.vline { width: 1px; background: var(--line); align-self: stretch; }
+.ph {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 10px, rgba(148, 163, 184, 0.08) 10px 11px),
+    var(--d-1);
+  border: 1px dashed var(--d-5);
+  border-radius: var(--r-2);
+  display: grid; place-items: center;
+  color: var(--t-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+  padding: 14px;
+}
+.chart-grid {
+  background:
+    linear-gradient(var(--line-soft) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px) 0 0 / 44px 100%,
+    #ffffff;
+  position: relative;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: padding-box; border: 2px solid transparent; }
+
+kbd {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  min-width: 14px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  color: var(--t-1);
+  line-height: 1.2;
+}
+
+/* ============ MODULE CSS ============ */
+/* ============ BILLING ============ */
+.bill-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+.bill-top {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.bill-kpi {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--d-1);
+}
+.bill-kpi .l { font-family: var(--font-mono); font-size: var(--fs-xxs); text-transform: uppercase; color: var(--t-2); letter-spacing: 0.06em; }
+.bill-kpi .v { font-size: 20px; font-weight: 600; color: var(--t-0); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.bill-kpi .v small { font-size: 12px; color: var(--t-3); font-weight: 400; margin-left: 3px;}
+.bill-kpi .s { font-family: var(--font-mono); font-size: 10px; color: var(--s-ok); margin-top: 2px;}
+.bill-kpi .s.crit { color: var(--s-crit); }
+
+.bill-body {
+  display: grid;
+  grid-template-columns: 320px 1fr 380px;
+  flex: 1; min-height: 0;
+}
+
+/* Invoice list */
+.bill-list {
+  background: #fff;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.bill-list-h {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex; gap: 6px; align-items: center;
+}
+.bill-seg {
+  display: flex; border: 1px solid var(--line); border-radius: var(--r-2); overflow: hidden;
+}
+.bill-seg-i {
+  padding: 4px 10px; font-family: var(--font-mono); font-size: var(--fs-xxs);
+  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;
+  color: var(--t-2); cursor: pointer;
+  border-right: 1px solid var(--line);
+}
+.bill-seg-i:last-child { border-right: 0; }
+.bill-seg-i.on { background: var(--a-cy-bg); color: var(--a-cy); }
+
+.bill-list-body { flex: 1; overflow-y: auto; }
+.bill-inv {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-hair);
+  cursor: pointer;
+}
+.bill-inv:hover { background: var(--d-1); }
+.bill-inv.sel { background: var(--a-cy-bg); box-shadow: inset 3px 0 0 var(--a-cy);}
+.bill-inv-row1 { display: flex; justify-content: space-between; align-items: center;}
+.bill-inv-id { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--a-cy); font-weight: 600;}
+.bill-inv-stat {
+  padding: 1px 6px; border-radius: var(--r-1);
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.04em;
+}
+.bill-inv-stat.draft { background: var(--d-3); color: var(--t-2); }
+.bill-inv-stat.pend { background: var(--s-warn-bg); color: var(--s-warn); }
+.bill-inv-stat.paid { background: var(--s-ok-bg); color: var(--s-ok); }
+.bill-inv-stat.bhyt-pend { background: #ffe4c4; color: #9a3412; }
+.bill-inv-pt { font-size: var(--fs-sm); font-weight: 500; color: var(--t-0); margin-top: 4px;}
+.bill-inv-meta { font-family: var(--font-mono); font-size: 10px; color: var(--t-2); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap;}
+.bill-inv-amt { font-family: var(--font-mono); font-weight: 600; text-align: right; margin-top: 4px; font-variant-numeric: tabular-nums;}
+.bill-inv-amt .pay { color: var(--s-ok); font-size: var(--fs-xs);}
+
+/* Invoice detail */
+.bill-detail {
+  background: var(--d-1);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.bill-detail-h {
+  padding: 14px 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+}
+.bill-detail-tit { font-size: 22px; font-weight: 600; color: var(--t-0); letter-spacing: -0.01em;}
+.bill-detail-sub { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--t-2); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap;}
+.bill-detail-sub b { color: var(--t-0); font-family: var(--font-sans); font-weight: 500;}
+
+.bill-detail-body { flex: 1; overflow-y: auto; padding: 14px; }
+
+.bill-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.bill-card-h {
+  padding: 8px 14px;
+  background: var(--d-1);
+  border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: var(--fs-sm); font-weight: 600;
+}
+.bill-card-h .n {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--t-2);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.bill-card .t {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.bill-line {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--line-hair);
+  display: grid;
+  grid-template-columns: 90px 1fr 60px 60px 100px 100px 100px;
+  gap: 8px; align-items: center;
+  font-size: var(--fs-sm);
+}
+.bill-line:last-child { border-bottom: 0; }
+.bill-line-head {
+  background: var(--d-1); font-family: var(--font-mono); font-size: var(--fs-xxs);
+  text-transform: uppercase; color: var(--t-2); letter-spacing: 0.05em;
+  font-weight: 500;
+  padding: 8px 14px;
+}
+.bill-line .code { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--a-cy);}
+.bill-line .nm { font-weight: 500; color: var(--t-0);}
+.bill-line .nm small { font-size: var(--fs-xs); color: var(--t-2); font-weight: 400; display: block; margin-top: 1px;}
+.bill-line .num { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums;}
+.bill-line .pay-ok { color: var(--s-ok); }
+.bill-line .pay-no { color: var(--t-3); }
+
+/* Right pane - payment + BHYT */
+.bill-pay {
+  background: #fff;
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.bill-pay-h {
+  padding: 12px 14px;
+  background: var(--d-1);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm); font-weight: 600;
+}
+
+.bill-pay-body { flex: 1; overflow-y: auto; padding: 14px; }
+
+.bill-summary {
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.bill-sum-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0;
+  font-size: var(--fs-sm);
+}
+.bill-sum-row .l { color: var(--t-2); font-family: var(--font-mono); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em;}
+.bill-sum-row .v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500;}
+.bill-sum-row.ded { color: var(--s-ok);}
+.bill-sum-row.ded .v { color: var(--s-ok);}
+.bill-sum-row.sep {
+  border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px;
+}
+.bill-sum-row.tot .l { font-size: 14px; color: var(--t-0); font-family: var(--font-sans); font-weight: 600;}
+.bill-sum-row.tot .v { font-size: 22px; color: var(--t-0); font-weight: 700;}
+
+.bhyt-card {
+  background: linear-gradient(135deg, #fff 0%, #e6f3ff 100%);
+  border: 1px solid var(--a-cy-line);
+  border-radius: var(--r-3);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.bhyt-card .h {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.bhyt-card .h .t {
+  font-family: var(--font-mono); font-size: var(--fs-xs);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--a-cy); font-weight: 700;
+}
+.bhyt-card .num {
+  font-family: var(--font-mono); font-size: 17px; font-weight: 600; color: var(--t-0);
+  letter-spacing: 0.04em;
+}
+.bhyt-card .meta {
+  font-family: var(--font-mono); font-size: 10px; color: var(--t-2); margin-top: 4px;
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.bhyt-card .meta b { color: var(--t-0); font-family: var(--font-sans); font-weight: 500;}
+.bhyt-card .v-ok {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding: 6px 10px;
+  background: var(--s-ok-bg);
+  border-radius: var(--r-2);
+  color: var(--s-ok); font-weight: 600; font-size: var(--fs-sm);
+}
+
+.pay-method {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.pay-tile {
+  padding: 10px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--t-2);
+}
+.pay-tile.on {
+  border-color: var(--a-cy);
+  background: var(--a-cy-bg);
+  color: var(--a-cy);
+  font-weight: 600;
+}
+.pay-tile .ic { font-size: 20px; }
+
+.bill-pay-foot {
+  border-top: 1px solid var(--line);
+  padding: 12px 14px;
+  background: var(--d-1);
+}
+.bill-pay-foot button {
+  width: 100%; height: 44px;
+  background: var(--s-ok); color: #fff;
+  border: 0;
+  border-radius: var(--r-2);
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+}
+.bill-pay-foot button:hover { background: #0f7a44; }
+.bill-pay-foot .sec-row { display: flex; gap: 6px; margin-top: 6px;}
+.bill-pay-foot .sec-row button {
+  background: #fff; color: var(--t-1);
+  border: 1px solid var(--line);
+  font-size: var(--fs-sm); font-weight: 500;
+  height: 32px;
+}
+</style>
+<style>
+/* ============ HUI INJECTED ============ */
+/* ============================================
+   HIS Terminal — Shared Interactive UI
+   Modals · Drawers · Toasts · Form primitives
+   ============================================ */
+
+#hui-root { position: fixed; inset: 0; pointer-events: none; z-index: 500; }
+#hui-root > * { pointer-events: auto; }
+
+.hui-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  animation: hui-fade .12s forwards ease-out;
+  z-index: 510;
+}
+@keyframes hui-fade { from {opacity:0} to {opacity:1} }
+@keyframes hui-slide-r { from { transform: translateX(40px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes hui-pop { from { transform: translateY(8px) scale(.985); opacity: 0 } to { transform: none; opacity: 1 } }
+
+/* ============ MODAL ============ */
+.hui-modal-wrap {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  padding: 40px 20px;
+  z-index: 520;
+  pointer-events: none;
+}
+.hui-modal-wrap > * { pointer-events: auto; }
+.hui-modal {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  box-shadow: 0 24px 48px -12px rgba(15,23,42,.24), 0 2px 6px rgba(15,23,42,.06);
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 80px);
+  /* animation removed */
+  overflow: hidden;
+  width: 100%;
+}
+.hui-size-sm { max-width: 420px; }
+.hui-size-md { max-width: 620px; }
+.hui-size-lg { max-width: 880px; }
+.hui-size-xl { max-width: 1160px; }
+.hui-tone-danger .hui-modal-h { background: var(--s-crit-bg); }
+.hui-tone-danger .hui-modal-h .tt { color: var(--s-crit); }
+
+.hui-modal-h {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-modal-h .t { flex: 1; min-width: 0; }
+.hui-modal-h .tt { font-size: 15px; font-weight: 650; color: var(--t-0); letter-spacing: -0.01em; }
+.hui-modal-h .sub { font-size: 11.5px; color: var(--t-2); margin-top: 2px; }
+.hui-modal-b {
+  padding: 18px;
+  overflow: auto;
+  flex: 1;
+  font-size: 13px;
+  color: var(--t-1);
+}
+.hui-modal-b.no-scroll { overflow: visible; }
+.hui-modal.dense .hui-modal-b { padding: 0; }
+.hui-modal-f {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-modal-f > .spacer { flex: 1; }
+
+.hui-x {
+  width: 26px; height: 26px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: var(--r-2);
+  display: grid; place-items: center;
+  cursor: pointer; color: var(--t-2);
+  transition: all .1s;
+}
+.hui-x:hover { background: var(--d-3); color: var(--t-0); border-color: var(--t-3); }
+
+.hui-confirm-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--t-1);
+}
+.hui-confirm-body b { color: var(--t-0); }
+
+/* ============ DRAWER ============ */
+.hui-drawer-wrap {
+  position: fixed;
+  right: 0; top: 74px; bottom: 28px;
+  z-index: 520;
+  /* animation removed */
+}
+.hui-drawer {
+  background: #fff;
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px -12px rgba(15,23,42,.18);
+  height: 100%;
+  display: flex; flex-direction: column;
+  max-width: 95vw;
+}
+.hui-drawer-h {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-drawer-h .t { flex: 1; min-width: 0; }
+.hui-drawer-h .tt { font-size: 15px; font-weight: 650; color: var(--t-0); }
+.hui-drawer-h .sub { font-size: 11.5px; color: var(--t-2); margin-top: 2px; }
+.hui-drawer-tabs {
+  display: flex; gap: 2px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-drawer-tabs button {
+  background: transparent; border: none;
+  padding: 10px 12px;
+  font-size: 12px; font-weight: 500;
+  color: var(--t-2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.hui-drawer-tabs button.on { color: var(--a-cy); border-bottom-color: var(--a-cy); }
+.hui-drawer-tabs button .n {
+  background: var(--d-3); color: var(--t-1);
+  padding: 1px 6px; border-radius: 10px;
+  font-size: 10px; font-weight: 600;
+}
+.hui-drawer-tabs button.on .n { background: var(--a-cy-bg); color: var(--a-cy); }
+.hui-drawer-b {
+  flex: 1; overflow: auto;
+  padding: 16px 18px;
+  font-size: 13px;
+}
+.hui-drawer-f {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--d-1);
+}
+
+/* ============ BUTTONS ============ */
+.hui-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--t-1);
+  font-family: inherit;
+  font-size: 12.5px; font-weight: 500;
+  padding: 0 12px;
+  height: 32px;
+  border-radius: var(--r-2);
+  cursor: pointer;
+  transition: all .1s;
+  white-space: nowrap;
+}
+.hui-btn:hover { background: var(--d-3); border-color: var(--t-3); color: var(--t-0); }
+.hui-btn-sm { height: 26px; padding: 0 9px; font-size: 11.5px; }
+.hui-btn-lg { height: 38px; padding: 0 16px; font-size: 13px; }
+
+.hui-btn-primary { background: var(--a-cy); border-color: var(--a-cy); color: #fff; }
+.hui-btn-primary:hover { background: var(--a-cy-dim); border-color: var(--a-cy-dim); color: #fff; }
+
+.hui-btn-danger { background: var(--s-crit); border-color: var(--s-crit); color: #fff; }
+.hui-btn-danger:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+
+.hui-btn-soft { background: var(--a-cy-bg); border-color: var(--a-cy-line); color: var(--a-cy); }
+.hui-btn-soft:hover { background: #dbe9fe; color: var(--a-cy-dim); }
+
+.hui-btn-ghost { background: #fff; }
+.hui-btn-ghost:hover { background: var(--d-3); }
+
+.hui-btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* ============ FORM FIELDS ============ */
+.hui-field { display: flex; flex-direction: column; gap: 5px; }
+.hui-lbl {
+  font-size: 11px; font-weight: 600;
+  color: var(--t-1); text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.hui-lbl .req { color: var(--s-crit); font-style: normal; margin-left: 3px; }
+.hui-hint { font-size: 11px; color: var(--t-2); }
+.hui-err { font-size: 11px; color: var(--s-crit); }
+.hui-span-2 { grid-column: span 2; }
+.hui-span-3 { grid-column: span 3; }
+.hui-span-full { grid-column: 1 / -1; }
+
+.hui-row { display: grid; }
+
+.hui-inp-wrap { position: relative; display: flex; align-items: center; }
+.hui-inp-wrap .pre, .hui-inp-wrap .suf {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  color: var(--t-3);
+  pointer-events: none;
+  display: flex; align-items: center;
+}
+.hui-inp-wrap .pre { left: 9px; }
+.hui-inp-wrap .suf { right: 9px; font-size: 11px; }
+.hui-inp-wrap:has(.pre) .hui-inp { padding-left: 30px; }
+.hui-inp-wrap:has(.suf) .hui-inp { padding-right: 30px; }
+
+.hui-inp {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: 0 10px;
+  font: inherit; font-size: 13px;
+  color: var(--t-0);
+  background: #fff;
+  transition: border .1s, box-shadow .1s;
+}
+.hui-inp:focus {
+  outline: none;
+  border-color: var(--a-cy);
+  box-shadow: 0 0 0 3px var(--a-cy-bg);
+}
+.hui-ta { min-height: 80px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+.hui-sel { appearance: none; padding-right: 28px; cursor: pointer; }
+
+.hui-chk {
+  display: inline-flex; align-items: center; gap: 8px;
+  cursor: pointer; font-size: 12.5px; color: var(--t-1);
+}
+.hui-chk input { display: none; }
+.hui-chk .box {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+  display: grid; place-items: center;
+  color: transparent;
+  transition: all .1s;
+}
+.hui-chk input:checked + .box { background: var(--a-cy); border-color: var(--a-cy); color: #fff; }
+
+.hui-radio-g { display: flex; flex-direction: column; gap: 6px; }
+.hui-radio {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  transition: all .1s;
+}
+.hui-radio:hover { border-color: var(--t-3); background: var(--d-1); }
+.hui-radio.on { border-color: var(--a-cy); background: var(--a-cy-bg); }
+.hui-radio input { display: none; }
+.hui-radio .dot {
+  width: 16px; height: 16px; flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--t-3);
+  background: #fff;
+  margin-top: 1px;
+  position: relative;
+}
+.hui-radio.on .dot { border-color: var(--a-cy); }
+.hui-radio.on .dot::after {
+  content: ""; position: absolute; inset: 3px;
+  background: var(--a-cy); border-radius: 50%;
+}
+.hui-radio .t { display: flex; flex-direction: column; gap: 2px; }
+.hui-radio .t b { font-size: 12.5px; font-weight: 600; color: var(--t-0); }
+.hui-radio .t i { font-size: 11.5px; font-style: normal; color: var(--t-2); }
+
+/* ============ TOASTS ============ */
+.hui-toasts {
+  position: fixed; bottom: 44px; right: 20px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 600;
+  pointer-events: none;
+}
+.hui-toast {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--t-0);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--r-2);
+  font-size: 12.5px; font-weight: 500;
+  box-shadow: 0 8px 16px rgba(15,23,42,.2);
+  animation: hui-pop .16s ease-out;
+  pointer-events: auto;
+}
+.hui-toast.hui-tone-ok { background: #166534; }
+.hui-toast.hui-tone-err { background: var(--s-crit); }
+.hui-toast.hui-tone-warn { background: #b45309; }
+.hui-toast.hui-tone-info { background: var(--a-cy-dim); }
+
+/* ============ reusable blocks inside modals ============ */
+.hui-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.hui-section:last-child { border-bottom: none; }
+.hui-section-t {
+  font-size: 10.5px; font-weight: 700;
+  color: var(--t-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.hui-kv { display: grid; grid-template-columns: 120px 1fr; row-gap: 8px; column-gap: 12px; font-size: 12.5px; }
+.hui-kv .k { color: var(--t-2); font-size: 11.5px; }
+.hui-kv .v { color: var(--t-0); font-weight: 500; }
+
+.hui-callout {
+  display: flex; gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-2);
+  border: 1px solid;
+  font-size: 12px; line-height: 1.5;
+}
+.hui-callout.info { background: var(--s-info-bg); border-color: #bae6fd; color: #075985; }
+.hui-callout.warn { background: var(--s-warn-bg); border-color: #fcd34d; color: #92400e; }
+.hui-callout.crit { background: var(--s-crit-bg); border-color: #fecaca; color: #991b1b; }
+.hui-callout.ok   { background: var(--s-ok-bg); border-color: #bbf7d0; color: #166534; }
+
+.hui-list-sel {
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  max-height: 260px;
+  overflow: auto;
+}
+.hui-list-sel > .row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line-hair);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.hui-list-sel > .row:last-child { border-bottom: none; }
+.hui-list-sel > .row:hover { background: var(--d-1); }
+.hui-list-sel > .row.on { background: var(--a-cy-bg); color: var(--a-cy-dim); }
+.hui-list-sel > .row .meta { margin-left: auto; color: var(--t-2); font-size: 11.5px; }
+
+.hui-timeline {
+  position: relative;
+  padding-left: 22px;
+}
+.hui-timeline::before {
+  content: ""; position: absolute; left: 7px; top: 4px; bottom: 4px;
+  width: 2px; background: var(--line);
+}
+.hui-timeline .ev {
+  position: relative;
+  padding: 8px 0 14px;
+  font-size: 12px;
+}
+.hui-timeline .ev::before {
+  content: ""; position: absolute; left: -22px; top: 12px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--a-cy);
+  box-shadow: 0 0 0 3px var(--a-cy-bg);
+}
+.hui-timeline .ev.warn::before { border-color: var(--s-warn); box-shadow: 0 0 0 3px var(--s-warn-bg); }
+.hui-timeline .ev.crit::before { border-color: var(--s-crit); box-shadow: 0 0 0 3px var(--s-crit-bg); }
+.hui-timeline .ev.ok::before   { border-color: var(--s-ok);   box-shadow: 0 0 0 3px var(--s-ok-bg); }
+.hui-timeline .ev .ts { color: var(--t-2); font-size: 11px; font-family: var(--font-mono); }
+.hui-timeline .ev .msg { color: var(--t-0); margin-top: 2px; }
+.hui-timeline .ev .who { color: var(--t-2); font-size: 11.5px; margin-top: 2px; }
+
+.hui-grid-info {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.hui-grid-info .c {
+  padding: 10px 12px;
+  background: var(--d-1);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-2);
+}
+.hui-grid-info .c .k { font-size: 10.5px; color: var(--t-2); text-transform: uppercase; letter-spacing: .04em; }
+.hui-grid-info .c .v { font-size: 15px; font-weight: 650; color: var(--t-0); margin-top: 3px; letter-spacing: -0.01em; }
+.hui-grid-info .c .s { font-size: 11px; color: var(--t-2); margin-top: 1px; }
+
+.hui-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.hui-tbl th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 10.5px;
+  color: var(--t-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-tbl td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line-hair);
+  color: var(--t-1);
+}
+.hui-tbl tr:hover td { background: var(--d-1); }
+
+.hui-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10.5px; font-weight: 600;
+  background: var(--d-3); color: var(--t-1);
+}
+.hui-badge.ok   { background: var(--s-ok-bg);   color: #166534; }
+.hui-badge.warn { background: var(--s-warn-bg); color: #92400e; }
+.hui-badge.crit { background: var(--s-crit-bg); color: #991b1b; }
+.hui-badge.info { background: var(--s-info-bg); color: #075985; }
+.hui-badge.mag  { background: var(--s-mag-bg);  color: #6d28d9; }
+
+.hui-tabs-pill {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: 2px;
+  background: var(--d-1);
+}
+.hui-tabs-pill button {
+  background: transparent; border: none;
+  padding: 5px 11px;
+  font-size: 11.5px; font-weight: 500;
+  color: var(--t-2); cursor: pointer;
+  border-radius: 4px;
+  font-family: inherit;
+}
+.hui-tabs-pill button.on { background: #fff; color: var(--t-0); box-shadow: 0 1px 2px rgba(15,23,42,.08); }
+
+.hui-stepper {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.hui-stepper .step {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--t-3);
+}
+.hui-stepper .step .n {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--d-3); color: var(--t-2);
+  display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 700;
+}
+.hui-stepper .step.on { color: var(--t-0); }
+.hui-stepper .step.on .n { background: var(--a-cy); color: #fff; }
+.hui-stepper .step.done { color: var(--s-ok); }
+.hui-stepper .step.done .n { background: var(--s-ok); color: #fff; }
+.hui-stepper .sep {
+  width: 28px; height: 1px; background: var(--line);
+}
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script>// ============================================
+// HIS Terminal — Shared Seed Data
+// Single source of truth for all modules.
+// ============================================
+window.HIS = (function(){
+
+const HOSPITAL = {
+  name: "BVĐK Tỉnh Hưng Yên",
+  code: "01-001-HY",
+  tier: "Tuyến tỉnh (Hạng I)",
+  date: "Thứ Bảy, 18/10/2026",
+  shift: "Ca sáng · 07:00 → 15:00",
+};
+
+// ============== STAFF ==============
+const staff = [
+  { id: "BS01", name: "TS.BS Nguyễn Hoài Linh", role: "Trưởng khoa Nội",  dept: "Nội TQ",   onDuty: true,  phone: "0912 111 222" },
+  { id: "BS02", name: "BS. Phạm Thu Hà",        role: "Bác sĩ Sản",       dept: "Sản PK",   onDuty: true,  phone: "0912 222 333" },
+  { id: "BS03", name: "TS.BS Trần Văn Khải",    role: "Trưởng khoa Ngoại",dept: "Ngoại CT", onDuty: true,  phone: "0912 333 444" },
+  { id: "BS04", name: "BS. Lê Thanh Minh",      role: "Bác sĩ Mắt",       dept: "Mắt",      onDuty: true,  phone: "0912 444 555" },
+  { id: "BS05", name: "BS. Vũ Ngọc Đạt",        role: "Chẩn đoán hình ảnh",dept: "CĐHA",    onDuty: false, phone: "0912 555 666" },
+  { id: "DD01", name: "ĐD. Nguyễn Thu Trang",   role: "Điều dưỡng trưởng", dept: "Nội A",   onDuty: true,  phone: "0913 111 222" },
+  { id: "DD02", name: "ĐD. Trần Mai Anh",       role: "Điều dưỡng",        dept: "Nội A",   onDuty: true,  phone: "0913 222 333" },
+  { id: "DD03", name: "ĐD. Phạm Thị Lan",       role: "Điều dưỡng",        dept: "Cấp cứu", onDuty: true,  phone: "0913 333 444" },
+  { id: "KTV01", name: "KTV. Đỗ Quang Tuấn",    role: "KTV Xét nghiệm",    dept: "LIS",     onDuty: true,  phone: "0914 111 222" },
+  { id: "KTV02", name: "KTV. Hoàng Văn Nam",    role: "KTV CĐHA",          dept: "CĐHA",    onDuty: true,  phone: "0914 222 333" },
+  { id: "DS01", name: "DS. Nguyễn Thị Hương",   role: "Dược sĩ lâm sàng",  dept: "Dược",    onDuty: true,  phone: "0915 111 222" },
+  { id: "TN01", name: "Trần Thị Liên",           role: "Thu ngân",          dept: "Tài vụ",  onDuty: true,  phone: "0916 111 222" },
+];
+const staffById = (id) => staff.find(s => s.id === id);
+
+const currentUser = { id: "BS01", name: "BS. Linh", role: "Khoa Nội · P.201", avatar: "L" };
+
+// ============== PATIENTS ==============
+// Expanded - now with TT52 Rx, ICD10 history, admin address new/old, vitals time-series
+const patients = [
+  { id: "BN-00142", name: "Nguyễn Văn An",    age: 54, gender: "M", phone: "0912 345 678", bhyt: "HN4 5 08 1234567", bhytClass: "HN4", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: ["Penicillin"], bloodType: "O+",
+    address:    { new: "P. Lê Hồng Phong, TP. Hưng Yên, T. Hưng Yên", old: "P. Lê Hồng Phong, TP. Hưng Yên, T. Hưng Yên" },
+    icdHist: ["I10", "E11.9"], dob: "12/03/1971", job: "Công nhân" },
+  { id: "BN-00189", name: "Trần Thị Bình",    age: 32, gender: "F", phone: "0987 654 321", bhyt: "HN3 5 08 9876543", bhytClass: "HN3", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: [], bloodType: "A+",
+    address:    { new: "X. Trưng Trắc, H. Văn Lâm, T. Hưng Yên", old: "X. Ngọc Lâm, H. Mỹ Hào, T. Hưng Yên" },
+    icdHist: ["O09.9"], dob: "08/07/1993", job: "Giáo viên" },
+  { id: "BN-00201", name: "Lê Hoàng Cường",   age: 67, gender: "M", phone: "0901 223 344", bhyt: "HN2 5 08 1122334", bhytClass: "HN2", insuredBy: "HT",  bhytExp: "30/06/2026", allergy: ["Aspirin","Sulfa"], bloodType: "B+",
+    address:    { new: "P. Hiến Nam, TP. Hưng Yên, T. Hưng Yên", old: "P. Hiến Nam, TP. Hưng Yên, T. Hưng Yên" },
+    icdHist: ["I25.9", "I50.9", "E78.5"], dob: "15/11/1958", job: "Hưu trí" },
+  { id: "BN-00223", name: "Phạm Minh Dũng",   age: 45, gender: "M", phone: "0933 445 566", bhyt: "—",              bhytClass: null,  insuredBy: null,  bhytExp: null, allergy: [], bloodType: "AB+",
+    address:    { new: "P. Quang Trung, TP. Hưng Yên, T. Hưng Yên", old: "P. Quang Trung, TP. Hưng Yên, T. Hưng Yên" },
+    icdHist: [], dob: "22/05/1980", job: "Kinh doanh" },
+  { id: "BN-00256", name: "Hoàng Thị Em",     age: 28, gender: "F", phone: "0977 889 900", bhyt: "HN1 5 08 3344556", bhytClass: "HN1", insuredBy: "TB",  bhytExp: "31/12/2026", allergy: [], bloodType: "O-",
+    address:    { new: "X. Yên Phú, H. Yên Mỹ, T. Hưng Yên", old: "X. Yên Phú, H. Yên Mỹ, T. Hưng Yên" },
+    icdHist: ["J06.9"], dob: "02/10/1997", job: "Công nhân" },
+  { id: "BN-00278", name: "Vũ Thanh Phong",   age: 71, gender: "M", phone: "0944 556 677", bhyt: "HN5 5 08 5566778", bhytClass: "HN5", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: ["Iodine"], bloodType: "A-",
+    address:    { new: "X. Liên Nghĩa, H. Văn Giang, T. Hưng Yên", old: "X. Liên Nghĩa, H. Văn Giang, T. Hưng Yên" },
+    icdHist: ["E11.9", "E78.5", "I10"], dob: "30/01/1954", job: "Hưu trí" },
+  { id: "BN-00301", name: "Đặng Thu Giang",   age: 38, gender: "F", phone: "0966 778 899", bhyt: "—",              bhytClass: null,  insuredBy: null,  bhytExp: null, allergy: [], bloodType: "B-",
+    address:    { new: "P. An Tảo, TP. Hưng Yên, T. Hưng Yên", old: "P. An Tảo, TP. Hưng Yên, T. Hưng Yên" },
+    icdHist: ["R05"], dob: "11/09/1987", job: "Văn phòng" },
+  { id: "BN-00312", name: "Bùi Quang Huy",    age: 52, gender: "M", phone: "0955 889 977", bhyt: "HN2 5 08 7788997", bhytClass: "HN2", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: [], bloodType: "O+",
+    address:    { new: "X. Nhân Quyền, H. Bình Giang, T. Hưng Yên", old: "X. Nhân Quyền, H. Bình Giang, T. Hải Dương" },
+    icdHist: ["M54.5"], dob: "14/04/1973", job: "Lái xe" },
+  // IPD patients
+  { id: "BN-00088", name: "Phạm Văn Khánh",   age: 62, gender: "M", phone: "0987 001 122", bhyt: "HN2 5 08 8801122", bhytClass: "HN2", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: [], bloodType: "B+",
+    address:    { new: "X. Dị Sử, H. Mỹ Hào, T. Hưng Yên", old: "X. Dị Sử, H. Mỹ Hào, T. Hưng Yên" },
+    icdHist: ["J18.9", "J44.1"], dob: "03/02/1963", job: "Hưu trí" },
+  { id: "BN-00102", name: "Nguyễn Thị Mây",   age: 74, gender: "F", phone: "0987 002 233", bhyt: "HN5 5 08 1002233", bhytClass: "HN5", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: ["Penicillin"], bloodType: "A+",
+    address:    { new: "P. Lam Sơn, TP. Hưng Yên, T. Hưng Yên", old: "P. Lam Sơn, TP. Hưng Yên, T. Hưng Yên" },
+    icdHist: ["J44.1", "J44.0", "I50.9"], dob: "18/06/1951", job: "Hưu trí" },
+  { id: "BN-00141", name: "Đặng Thị Lý",      age: 68, gender: "F", phone: "0987 003 344", bhyt: "HN2 5 08 1003344", bhytClass: "HN2", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: [], bloodType: "O+",
+    address:    { new: "X. Ngọc Long, H. Yên Mỹ, T. Hưng Yên", old: "X. Ngọc Long, H. Yên Mỹ, T. Hưng Yên" },
+    icdHist: ["I63.9", "I10"], dob: "04/03/1957", job: "Nội trợ" },
+  { id: "BN-00168", name: "Trần Văn Quân",    age: 48, gender: "M", phone: "0987 004 455", bhyt: "HN4 5 08 1004455", bhytClass: "HN4", insuredBy: "HT",  bhytExp: "31/12/2026", allergy: [], bloodType: "O+",
+    address:    { new: "X. Tân Quang, H. Văn Lâm, T. Hưng Yên", old: "X. Tân Quang, H. Văn Lâm, T. Hưng Yên" },
+    icdHist: ["S72.0"], dob: "21/08/1977", job: "Công nhân" },
+  { id: "BN-00173", name: "Lê Minh Ron",      age: 55, gender: "M", phone: "0987 005 566", bhyt: "—",              bhytClass: null,  insuredBy: null,  bhytExp: null, allergy: [], bloodType: "A+",
+    address:    { new: "P. Minh Khai, TP. Hưng Yên, T. Hưng Yên", old: "P. Minh Khai, TP. Hưng Yên, T. Hưng Yên" },
+    icdHist: ["K80.2"], dob: "02/12/1970", job: "Kinh doanh" },
+];
+const patientById = (id) => patients.find(p => p.id === id) || patients[0];
+
+// ============== OPD QUEUE ==============
+const queue = [
+  { pid: "BN-00142", token: "A012", arrived: "07:42", priority: "normal", status: "waiting",      reason: "Đau thượng vị 3 ngày",      room: "P.201", dept: "Nội TQ",  vitals: { bp: "138/92", hr: 84, temp: 37.2, spo2: 98 } },
+  { pid: "BN-00189", token: "A013", arrived: "07:55", priority: "normal", status: "in-progress",  reason: "Khám thai 28 tuần",          room: "P.205", dept: "Sản PK",  vitals: { bp: "118/76", hr: 78, temp: 36.8, spo2: 99 } },
+  { pid: "BN-00201", token: "A014", arrived: "08:02", priority: "urgent", status: "waiting",      reason: "Khó thở, đau ngực trái",     room: "P.201", dept: "Nội TQ",  vitals: { bp: "162/98", hr: 102, temp: 37.0, spo2: 94 } },
+  { pid: "BN-00223", token: "A015", arrived: "08:10", priority: "normal", status: "waiting",      reason: "Tái khám THA",                room: "P.201", dept: "Nội TQ",  vitals: { bp: "142/88", hr: 76, temp: 36.7, spo2: 98 } },
+  { pid: "BN-00256", token: "A016", arrived: "08:18", priority: "normal", status: "labs",         reason: "Chóng mặt, buồn nôn",        room: "P.201", dept: "Nội TQ",  vitals: { bp: "108/68", hr: 88, temp: 37.1, spo2: 99 } },
+  { pid: "BN-00278", token: "A017", arrived: "08:25", priority: "normal", status: "waiting",      reason: "Đái tháo đường - tái khám",  room: "P.201", dept: "Nội TQ",  vitals: { bp: "134/82", hr: 72, temp: 36.6, spo2: 97 } },
+  { pid: "BN-00301", token: "A018", arrived: "08:33", priority: "normal", status: "imaging",      reason: "Ho kéo dài 2 tuần",          room: "P.201", dept: "Nội TQ",  vitals: { bp: "122/78", hr: 80, temp: 37.4, spo2: 97 } },
+  { pid: "BN-00312", token: "A019", arrived: "08:40", priority: "normal", status: "waiting",      reason: "Đau lưng mạn",                room: "P.305", dept: "Ngoại CT",vitals: { bp: "128/84", hr: 74, temp: 36.8, spo2: 98 } },
+];
+
+// ============== WARDS / BEDS ==============
+const wards = [
+  { id: "W-I", name: "Khoa Nội A", shortName: "Nội A", head: "BS01",
+    rooms: [
+      { id: "P.301", beds: [
+        { n: "301-1", patient: { id: "BN-00088" }, status: "occupied", severity: "stable",     los: 3, admit: "15/10" },
+        { n: "301-2", patient: null, status: "free",     severity: null, los: 0, admit: null },
+        { n: "301-3", patient: { id: "BN-00102" }, status: "occupied", severity: "critical",   los: 5, admit: "13/10" },
+        { n: "301-4", patient: null, status: "cleaning", severity: null, los: 0, admit: null },
+      ]},
+      { id: "P.302", beds: [
+        { n: "302-1", patient: { id: "BN-00115" }, status: "occupied", severity: "monitoring", los: 2, admit: "16/10" },
+        { n: "302-2", patient: { id: "BN-00121" }, status: "occupied", severity: "stable",     los: 7, admit: "11/10" },
+        { n: "302-3", patient: null, status: "free",     severity: null, los: 0, admit: null },
+        { n: "302-4", patient: { id: "BN-00133" }, status: "occupied", severity: "stable",     los: 1, admit: "17/10" },
+      ]},
+      { id: "P.303", beds: [
+        { n: "303-1", patient: { id: "BN-00141" }, status: "occupied", severity: "monitoring", los: 4, admit: "14/10" },
+        { n: "303-2", patient: null, status: "reserved", severity: null, los: 0, admit: null },
+        { n: "303-3", patient: { id: "BN-00145" }, status: "occupied", severity: "stable",     los: 2, admit: "16/10" },
+        { n: "303-4", patient: { id: "BN-00159" }, status: "occupied", severity: "critical",   los: 3, admit: "15/10" },
+      ]},
+    ]},
+  { id: "W-N", name: "Khoa Ngoại chấn thương", shortName: "Ngoại CT", head: "BS03",
+    rooms: [
+      { id: "P.501", beds: [
+        { n: "501-1", patient: { id: "BN-00162" }, status: "occupied", severity: "stable", los: 1, admit: "17/10" },
+        { n: "501-2", patient: null, status: "free", severity: null, los: 0, admit: null },
+        { n: "501-3", patient: { id: "BN-00168" }, status: "occupied", severity: "monitoring", los: 4, admit: "14/10" },
+        { n: "501-4", patient: null, status: "free", severity: null, los: 0, admit: null },
+      ]},
+      { id: "P.502", beds: [
+        { n: "502-1", patient: { id: "BN-00173" }, status: "occupied", severity: "stable", los: 0, admit: "18/10" },
+        { n: "502-2", patient: { id: "BN-00179" }, status: "occupied", severity: "stable", los: 2, admit: "16/10" },
+        { n: "502-3", patient: null, status: "cleaning", severity: null, los: 0, admit: null },
+        { n: "502-4", patient: null, status: "free", severity: null, los: 0, admit: null },
+      ]},
+    ]},
+  { id: "W-S", name: "Khoa Sản", shortName: "Sản", head: "BS02",
+    rooms: [
+      { id: "P.701", beds: [
+        { n: "701-1", patient: { id: "BN-00188" }, status: "occupied", severity: "stable", los: 1, admit: "17/10" },
+        { n: "701-2", patient: { id: "BN-00195" }, status: "occupied", severity: "stable", los: 2, admit: "16/10" },
+        { n: "701-3", patient: null, status: "free", severity: null, los: 0, admit: null },
+        { n: "701-4", patient: null, status: "free", severity: null, los: 0, admit: null },
+      ]},
+    ]},
+  { id: "W-CC", name: "Khoa Hồi sức tích cực (ICU)", shortName: "ICU", head: "BS03",
+    rooms: [
+      { id: "ICU-1", beds: [
+        { n: "ICU1-1", patient: { id: "BN-00102" }, status: "occupied", severity: "critical", los: 2, admit: "16/10" },
+        { n: "ICU1-2", patient: { id: "BN-00159" }, status: "occupied", severity: "critical", los: 1, admit: "17/10" },
+        { n: "ICU1-3", patient: null, status: "reserved", severity: null, los: 0, admit: null },
+        { n: "ICU1-4", patient: null, status: "free", severity: null, los: 0, admit: null },
+      ]},
+    ]},
+];
+// Fill extra display names for IPD beds so the map prints something sensible
+const bedPatientNames = {
+  "BN-00115": { name: "Lê Văn Tiến", dx: "ĐTĐ type 2 biến chứng" },
+  "BN-00121": { name: "Trần Thị Hậu", dx: "Suy tim NYHA III" },
+  "BN-00133": { name: "Vũ Văn Dũng",  dx: "Viêm dạ dày cấp" },
+  "BN-00145": { name: "Hoàng Văn Nam",dx: "Tăng HA độ 3" },
+  "BN-00159": { name: "Bùi Thị Oanh", dx: "Viêm tụy cấp" },
+  "BN-00162": { name: "Phạm Ngọc Pha",dx: "Hậu phẫu ruột thừa" },
+  "BN-00179": { name: "Đỗ Văn Sơn",   dx: "Thoát vị bẹn P" },
+  "BN-00188": { name: "Nguyễn Thị Uyên", dx: "Hậu sản thường" },
+  "BN-00195": { name: "Phạm Thị Vân", dx: "Hậu mổ đẻ" },
+};
+const bedPatientResolve = (bedPatient) => {
+  if (!bedPatient) return null;
+  const full = patientById(bedPatient.id);
+  if (full) return { id: full.id, name: full.name, dx: full.icdHist[0] || "—" };
+  const extra = bedPatientNames[bedPatient.id];
+  if (extra) return { id: bedPatient.id, name: extra.name, dx: extra.dx };
+  return { id: bedPatient.id, name: "—", dx: "—" };
+};
+
+// ============== OR ==============
+const orRooms = ["OR-1","OR-2","OR-3","OR-4"];
+const orSchedule = [
+  { or: "OR-1", start: "07:30", end: "09:30", pid: "BN-00168", proc: "Kết hợp xương đùi P", procCode: "43.1", surgeon: "BS03", anesth: "BS05", status: "done",        pre: "ASA II" },
+  { or: "OR-1", start: "10:00", end: "12:00", pid: "BN-00173", proc: "Cắt túi mật nội soi", procCode: "51.23", surgeon: "BS03", anesth: "BS05", status: "in-progress", pre: "ASA II" },
+  { or: "OR-1", start: "13:30", end: "15:00", pid: "BN-00179", proc: "Mổ thoát vị bẹn P",   procCode: "53.04", surgeon: "BS03", anesth: "BS05", status: "scheduled",   pre: "ASA I" },
+  { or: "OR-2", start: "08:00", end: "10:30", pid: "BN-00195", proc: "Mổ đẻ chủ động",       procCode: "74.1",  surgeon: "BS02", anesth: "BS05", status: "done",        pre: "ASA II" },
+  { or: "OR-2", start: "11:00", end: "12:30", pid: "BN-00211", proc: "Mổ u xơ tử cung",      procCode: "68.29", surgeon: "BS02", anesth: "BS05", status: "scheduled",   pre: "ASA II" },
+  { or: "OR-3", start: "07:30", end: "10:00", pid: "BN-00220", proc: "Phaco 2 mắt · IOL",    procCode: "13.41", surgeon: "BS04", anesth: "BS05", status: "done",        pre: "ASA I" },
+  { or: "OR-3", start: "10:30", end: "11:30", pid: "BN-00229", proc: "Phaco P · IOL",        procCode: "13.41", surgeon: "BS04", anesth: "BS05", status: "in-progress", pre: "ASA I" },
+  { or: "OR-4", start: "09:00", end: "13:00", pid: "BN-00234", proc: "Thay khớp háng P",     procCode: "81.51", surgeon: "BS03", anesth: "BS05", status: "scheduled",   pre: "ASA III" },
+  { or: "OR-4", start: "14:00", end: "15:30", pid: "BN-00241", proc: "Nội soi khớp gối T",   procCode: "80.86", surgeon: "BS03", anesth: "BS05", status: "scheduled",   pre: "ASA II" },
+];
+
+// ============== LAB ==============
+const labs = [
+  { id: "XN-2026-4419", pid: "BN-00201", panel: "Sinh hoá máu + Troponin I", ward: "OPD",  priority: "STAT",    collected: "08:20", analyzer: "Cobas 8000", status: "running",  tat: "30p", abnormal: 2, orderedBy: "BS01" },
+  { id: "XN-2026-4418", pid: "BN-00142", panel: "CTM + CRP",                  ward: "OPD",  priority: "Routine", collected: "08:05", analyzer: "XN-550",     status: "verified", tat: "—",   abnormal: 1, orderedBy: "BS01" },
+  { id: "XN-2026-4417", pid: "BN-00256", panel: "Beta-hCG định lượng",        ward: "OPD",  priority: "Routine", collected: "07:58", analyzer: "Cobas 6000", status: "running",  tat: "1h",  abnormal: 0, orderedBy: "BS01" },
+  { id: "XN-2026-4416", pid: "BN-00278", panel: "HbA1c + Glucose + Lipid",    ward: "OPD",  priority: "Routine", collected: "07:40", analyzer: "Cobas 6000", status: "verified", tat: "—",   abnormal: 2, orderedBy: "BS01" },
+  { id: "XN-2026-4415", pid: "BN-00189", panel: "TPTNT + Cấy NT",              ward: "OPD",  priority: "Routine", collected: "07:22", analyzer: "Urisys",     status: "verified", tat: "—",   abnormal: 0, orderedBy: "BS02" },
+  { id: "XN-2026-4414", pid: "BN-00088", panel: "Khí máu động mạch",           ward: "ICU",  priority: "STAT",    collected: "07:00", analyzer: "Radiometer", status: "verified", tat: "—",   abnormal: 1, orderedBy: "BS01" },
+  { id: "XN-2026-4413", pid: "BN-00301", panel: "AFP + CEA + CA 19-9",         ward: "OPD",  priority: "Routine", collected: "06:40", analyzer: "Cobas 8000", status: "pending",  tat: "4h",  abnormal: 0, orderedBy: "BS01" },
+  { id: "XN-2026-4412", pid: "BN-00102", panel: "Đông máu PT/APTT/INR",        ward: "IPD",  priority: "Routine", collected: "06:30", analyzer: "Sysmex CS",  status: "verified", tat: "—",   abnormal: 1, orderedBy: "BS01" },
+  { id: "XN-2026-4411", pid: "BN-00141", panel: "Troponin I lặp (3h)",         ward: "IPD",  priority: "STAT",    collected: "06:00", analyzer: "Cobas 8000", status: "verified", tat: "—",   abnormal: 1, orderedBy: "BS01" },
+  { id: "XN-2026-4410", pid: "BN-00159", panel: "Amylase + Lipase + CRP",      ward: "ICU",  priority: "STAT",    collected: "05:40", analyzer: "Cobas 6000", status: "verified", tat: "—",   abnormal: 2, orderedBy: "BS01" },
+];
+
+// Lab result rows for one detail example (XN-2026-4419 — Troponin case)
+const labRows = {
+  "XN-2026-4419": [
+    { name: "Glucose",     value: "8.2",   unit: "mmol/L", ref: "3.9 - 5.6",   flag: "H" },
+    { name: "Ure",         value: "5.1",   unit: "mmol/L", ref: "2.5 - 7.5",   flag: "" },
+    { name: "Creatinine",  value: "92",    unit: "µmol/L", ref: "62 - 106",    flag: "" },
+    { name: "AST (SGOT)",  value: "28",    unit: "U/L",    ref: "< 37",        flag: "" },
+    { name: "ALT (SGPT)",  value: "31",    unit: "U/L",    ref: "< 41",        flag: "" },
+    { name: "Natri",       value: "138",   unit: "mmol/L", ref: "135 - 145",   flag: "" },
+    { name: "Kali",        value: "4.2",   unit: "mmol/L", ref: "3.5 - 5.0",   flag: "" },
+    { name: "Troponin I",  value: "0.82",  unit: "ng/mL",  ref: "< 0.04",      flag: "HH" },
+    { name: "CK-MB",       value: "38",    unit: "U/L",    ref: "< 25",        flag: "H" },
+    { name: "NT-proBNP",   value: "124",   unit: "pg/mL",  ref: "< 125",       flag: "" },
+  ],
+};
+
+// ============== RIS / PACS ==============
+const studies = [
+  { id: "ACC-88712", pid: "BN-00201", modality: "CT",   body: "Ngực - cản quang",     ordered: "08:14", priority: "STAT",    status: "in-progress", refDr: "BS01", tech: "KTV02" },
+  { id: "ACC-88711", pid: "BN-00088", modality: "CR",   body: "X-quang ngực PA",      ordered: "07:52", priority: "Routine", status: "completed",   refDr: "BS01", tech: "KTV02" },
+  { id: "ACC-88710", pid: "BN-00189", modality: "US",   body: "Siêu âm sản",          ordered: "07:45", priority: "Routine", status: "reported",    refDr: "BS02", tech: "KTV02" },
+  { id: "ACC-88709", pid: "BN-00102", modality: "CT",   body: "CT Ngực HRCT",         ordered: "07:10", priority: "Routine", status: "reported",    refDr: "BS01", tech: "KTV02" },
+  { id: "ACC-88708", pid: "BN-00133", modality: "MRI",  body: "Cộng hưởng từ ổ bụng", ordered: "06:55", priority: "Routine", status: "scheduled",   refDr: "BS05", tech: "KTV02" },
+  { id: "ACC-88707", pid: "BN-00141", modality: "MRI",  body: "MRI sọ não",           ordered: "06:30", priority: "STAT",    status: "completed",   refDr: "BS01", tech: "KTV02" },
+  { id: "ACC-88706", pid: "BN-00145", modality: "CR",   body: "X-quang cột sống TL",  ordered: "06:15", priority: "Routine", status: "reported",    refDr: "BS03", tech: "KTV02" },
+  { id: "ACC-88705", pid: "BN-00301", modality: "CR",   body: "X-quang ngực PA",      ordered: "06:00", priority: "Routine", status: "reported",    refDr: "BS01", tech: "KTV02" },
+];
+
+// ============== INVOICES / BILLING ==============
+const invoices = [
+  { id: "HD-2026-00872", pid: "BN-00142", date: "18/10", items: 8,  total: 2_340_000,  paid: 0,          status: "unpaid",  kind: "OPD",     bhytPct: 80 },
+  { id: "HD-2026-00871", pid: "BN-00189", date: "18/10", items: 3,  total: 680_000,    paid: 680_000,    status: "paid",    kind: "OPD",     bhytPct: 80 },
+  { id: "HD-2026-00870", pid: "BN-00088", date: "18/10", items: 22, total: 12_480_000, paid: 8_000_000,  status: "partial", kind: "IPD",     bhytPct: 80 },
+  { id: "HD-2026-00869", pid: "BN-00173", date: "17/10", items: 14, total: 18_960_000, paid: 0,          status: "unpaid",  kind: "Surgery", bhytPct: 0 },
+  { id: "HD-2026-00868", pid: "BN-00278", date: "17/10", items: 5,  total: 1_240_000,  paid: 1_240_000,  status: "paid",    kind: "OPD",     bhytPct: 80 },
+  { id: "HD-2026-00867", pid: "BN-00102", date: "17/10", items: 18, total: 7_650_000,  paid: 7_650_000,  status: "paid",    kind: "IPD",     bhytPct: 100 },
+  { id: "HD-2026-00866", pid: "BN-00256", date: "16/10", items: 6,  total: 2_100_000,  paid: 0,          status: "unpaid",  kind: "OPD",     bhytPct: 100 },
+  { id: "HD-2026-00865", pid: "BN-00301", date: "16/10", items: 4,  total: 950_000,    paid: 950_000,    status: "paid",    kind: "OPD",     bhytPct: 0 },
+  { id: "HD-2026-00864", pid: "BN-00201", date: "16/10", items: 11, total: 4_320_000,  paid: 3_000_000,  status: "partial", kind: "OPD",     bhytPct: 95 },
+  { id: "HD-2026-00863", pid: "BN-00312", date: "15/10", items: 7,  total: 1_820_000,  paid: 1_820_000,  status: "paid",    kind: "OPD",     bhytPct: 80 },
+];
+
+const invoiceLines = {
+  "HD-2026-00872": [
+    { type: "KB",  code: "17.0120.0001", name: "Khám bệnh (Hạng I)",       qty: 1,  price: 42_100,  },
+    { type: "XN",  code: "23.0501.1701", name: "Tổng phân tích tế bào máu",qty: 1,  price: 82_400,  },
+    { type: "XN",  code: "23.0501.1830", name: "CRP định lượng",            qty: 1,  price: 64_500,  },
+    { type: "XN",  code: "23.0501.1410", name: "Glucose máu",               qty: 1,  price: 21_500,  },
+    { type: "CĐHA",code: "24.0001.0001", name: "Siêu âm ổ bụng tổng quát", qty: 1,  price: 43_900,  },
+    { type: "THUỐC",code:"VN-20145-15",  name: "Omeprazol 20mg",            qty: 14, price: 4_500,   },
+    { type: "THUỐC",code:"VN-19872-22",  name: "Domperidon 10mg",           qty: 21, price: 2_800,   },
+    { type: "THUỐC",code:"VN-18442-08",  name: "Magnesi-Al hydroxyd",       qty: 42, price: 38_500,  },
+  ],
+};
+
+// ============== PHARMACY / RX ==============
+// Thông tư 52 style order items
+const rxPending = [
+  { id: "RX-2026-3340", pid: "BN-00189", bsId: "BS02", createdAt: "08:45", items: [
+    { code: "VN-14220-12", drug: "Acid folic 5mg",               dose: "1v × 1/ngày",  route: "uống", duration: "30 ngày", qty: 30, price: 2_200 },
+    { code: "VN-13200-09", drug: "Calcium-D 500mg/200IU",         dose: "1v × 2/ngày",  route: "uống", duration: "30 ngày", qty: 60, price: 3_400 },
+  ], status: "pending" },
+  { id: "RX-2026-3339", pid: "BN-00278", bsId: "BS01", createdAt: "08:32", items: [
+    { code: "VN-11720-16", drug: "Metformin 500mg",               dose: "1v × 2/ngày",  route: "uống", duration: "30 ngày", qty: 60, price: 1_800 },
+    { code: "VN-12345-08", drug: "Gliclazide MR 30mg",            dose: "1v × 1/ngày",  route: "uống", duration: "30 ngày", qty: 30, price: 5_200 },
+    { code: "VN-13301-22", drug: "Atorvastatin 20mg",             dose: "1v × 1 (tối)", route: "uống", duration: "30 ngày", qty: 30, price: 3_800 },
+    { code: "VN-12800-04", drug: "Aspirin 81mg",                   dose: "1v × 1/ngày",  route: "uống", duration: "30 ngày", qty: 30, price: 1_200 },
+  ], status: "pending" },
+  { id: "RX-2026-3338", pid: "BN-00142", bsId: "BS01", createdAt: "08:18", items: [
+    { code: "VN-20145-15", drug: "Omeprazol 20mg",                dose: "1v × 1 (sáng)",route: "uống", duration: "14 ngày", qty: 14, price: 4_500 },
+    { code: "VN-19872-22", drug: "Domperidon 10mg",                dose: "1v × 3/ngày",  route: "uống", duration: "7 ngày",  qty: 21, price: 2_800 },
+    { code: "VN-18442-08", drug: "Magnesi-Al hydroxyd 400/400",    dose: "2v × 3/ngày",  route: "uống", duration: "7 ngày",  qty: 42, price: 38_500 },
+  ], status: "dispensing" },
+  { id: "RX-2026-3337", pid: "BN-00312", bsId: "BS03", createdAt: "07:55", items: [
+    { code: "VN-15332-19", drug: "Meloxicam 7.5mg",               dose: "1v × 2/ngày",  route: "uống", duration: "7 ngày",  qty: 14, price: 4_200 },
+    { code: "VN-16201-11", drug: "Paracetamol 500mg",              dose: "1v × 3/ngày",  route: "uống", duration: "5 ngày",  qty: 15, price: 450 },
+    { code: "VN-18500-02", drug: "Tolperison 50mg",                dose: "1v × 2/ngày",  route: "uống", duration: "10 ngày", qty: 20, price: 3_300 },
+  ], status: "dispensed" },
+  { id: "RX-2026-3336", pid: "BN-00301", bsId: "BS01", createdAt: "07:32", items: [
+    { code: "VN-19500-07", drug: "Dextromethorphan 15mg",         dose: "1v × 3/ngày",  route: "uống", duration: "5 ngày", qty: 15, price: 1_200 },
+    { code: "VN-17210-14", drug: "Loratadin 10mg",                 dose: "1v × 1/ngày",  route: "uống", duration: "5 ngày", qty: 5,  price: 2_800 },
+  ], status: "dispensed" },
+];
+
+// ============== INVENTORY ==============
+const inventory = [
+  { id: "VN-14220-12", name: "Acid folic 5mg",              kind: "Thuốc",  unit: "viên", stock: 4_820,  reorder: 2_000,  lot: "LOT-2411A", exp: "10/2027", supplier: "Traphaco" },
+  { id: "VN-13200-09", name: "Calcium-D 500mg/200IU",        kind: "Thuốc",  unit: "viên", stock: 2_410,  reorder: 3_000,  lot: "LOT-2503B", exp: "07/2028", supplier: "DHG" },
+  { id: "VN-11720-16", name: "Metformin 500mg",               kind: "Thuốc",  unit: "viên", stock: 12_800, reorder: 5_000,  lot: "LOT-2502C", exp: "03/2028", supplier: "Boston" },
+  { id: "VN-12345-08", name: "Gliclazide MR 30mg",            kind: "Thuốc",  unit: "viên", stock: 1_220,  reorder: 1_500,  lot: "LOT-2501D", exp: "05/2027", supplier: "Servier" },
+  { id: "VN-13301-22", name: "Atorvastatin 20mg",             kind: "Thuốc",  unit: "viên", stock: 6_200,  reorder: 2_000,  lot: "LOT-2411E", exp: "01/2028", supplier: "Pfizer" },
+  { id: "VN-20145-15", name: "Omeprazol 20mg",                kind: "Thuốc",  unit: "viên", stock: 580,    reorder: 2_000,  lot: "LOT-2410F", exp: "02/2027", supplier: "Stada" },
+  { id: "VN-19872-22", name: "Domperidon 10mg",                kind: "Thuốc",  unit: "viên", stock: 3_120,  reorder: 1_000,  lot: "LOT-2503G", exp: "09/2027", supplier: "DHG" },
+  { id: "VN-18442-08", name: "Magnesi-Al hydroxyd 400/400",    kind: "Thuốc",  unit: "gói",  stock: 980,    reorder: 500,    lot: "LOT-2412H", exp: "08/2027", supplier: "Traphaco" },
+  { id: "VN-15332-19", name: "Meloxicam 7.5mg",               kind: "Thuốc",  unit: "viên", stock: 2_600,  reorder: 1_000,  lot: "LOT-2502I", exp: "06/2027", supplier: "Stella" },
+  { id: "VN-16201-11", name: "Paracetamol 500mg",              kind: "Thuốc",  unit: "viên", stock: 48_200, reorder: 20_000, lot: "LOT-2503J", exp: "11/2028", supplier: "DHG" },
+  { id: "VT-GĂNG-001",  name: "Găng tay cao su vô trùng (đôi)", kind: "Vật tư", unit: "đôi",  stock: 12_400, reorder: 5_000,  lot: "LOT-2502K", exp: "—",       supplier: "VNR" },
+  { id: "VT-KIM-007",   name: "Kim luồn 20G",                    kind: "Vật tư", unit: "chiếc",stock: 380,    reorder: 1_000,  lot: "LOT-2502L", exp: "—",       supplier: "B.Braun" },
+  { id: "VT-BĂNG-003",  name: "Băng gạc vô trùng 10×10cm",       kind: "Vật tư", unit: "gói",  stock: 2_800,  reorder: 1_000,  lot: "LOT-2501M", exp: "—",       supplier: "VNR" },
+];
+
+// ============== ER TRIAGE ==============
+const erQueue = [
+  { id: "CC-2026-0812", pid: "BN-00201", arrived: "06:48", ess: "ESI-2", complaint: "Đau ngực trái lan vai, khó thở",     room: "CC-1", nurse: "DD03", doctor: "BS01", status: "active",    vitals: { bp: "162/98", hr: 102, rr: 22, temp: 37.0, spo2: 94 } },
+  { id: "CC-2026-0813", pid: "BN-00159", arrived: "05:21", ess: "ESI-1", complaint: "Hôn mê, đau bụng dữ dội - nghi viêm tụy", room: "CC-Hồi sức", nurse: "DD03", doctor: "BS01", status: "resuscitation", vitals: { bp: "88/56", hr: 128, rr: 28, temp: 38.2, spo2: 91 } },
+  { id: "CC-2026-0814", pid: "BN-00414", arrived: "07:02", ess: "ESI-3", complaint: "Té ngã - chấn thương đầu nhẹ",        room: "CC-2", nurse: "DD03", doctor: null,   status: "waiting",   vitals: { bp: "128/82", hr: 88,  rr: 18, temp: 36.8, spo2: 98 } },
+  { id: "CC-2026-0815", pid: "BN-00415", arrived: "07:45", ess: "ESI-3", complaint: "Sốt cao 39°C, trẻ 3 tuổi",              room: "CC-Nhi", nurse: "DD03", doctor: null,   status: "waiting",   vitals: { bp: "—",      hr: 140, rr: 32, temp: 39.1, spo2: 97 } },
+  { id: "CC-2026-0816", pid: "BN-00416", arrived: "08:12", ess: "ESI-4", complaint: "Đau răng hàm dưới",                      room: "—",    nurse: "DD03", doctor: null,   status: "waiting",   vitals: { bp: "126/80", hr: 80,  rr: 16, temp: 36.7, spo2: 99 } },
+  { id: "CC-2026-0817", pid: "BN-00417", arrived: "08:30", ess: "ESI-2", complaint: "Co giật toàn thể 2 phút - sau cơn tỉnh", room: "CC-1", nurse: "DD03", doctor: null,   status: "triaging",  vitals: { bp: "142/90", hr: 108, rr: 20, temp: 37.4, spo2: 96 } },
+];
+
+// ============== APPOINTMENTS ==============
+const appointments = [
+  { time: "09:00", pid: "BN-00312", dept: "Ngoại CT", reason: "Tái khám đau lưng",    doctor: "BS03", status: "confirmed" },
+  { time: "09:30", pid: "BN-00278", dept: "Nội TQ",   reason: "Tái khám ĐTĐ",          doctor: "BS01", status: "confirmed" },
+  { time: "10:00", pid: "BN-00189", dept: "Sản PK",   reason: "Khám thai 32w",        doctor: "BS02", status: "confirmed" },
+  { time: "10:30", pid: "BN-00256", dept: "Sản PK",   reason: "Test thai",             doctor: "BS02", status: "confirmed" },
+  { time: "11:00", pid: "BN-00201", dept: "Nội TQ",   reason: "Tái khám THA",          doctor: "BS01", status: "confirmed" },
+  { time: "13:30", pid: "BN-00142", dept: "Nội TQ",   reason: "Kết quả xét nghiệm",   doctor: "BS01", status: "tentative" },
+  { time: "14:00", pid: "BN-00301", dept: "Nội TQ",   reason: "X-quang + tái khám",   doctor: "BS01", status: "confirmed" },
+  { time: "14:30", pid: "BN-00223", dept: "Tim mạch", reason: "Siêu âm tim",           doctor: "BS01", status: "confirmed" },
+];
+
+// ============== TICKER KPIs (shown top) ==============
+const ticker = [
+  { label: "OPD HÔM NAY",   val: "187",   unit: "BN", cls: "up" },
+  { label: "NỘI TRÚ",        val: "47/60", unit: "", cls: "warn" },
+  { label: "ICU",            val: "2/4",   unit: "", cls: "up" },
+  { label: "OR ĐANG MỔ",    val: "2",     unit: "/4", cls: "up" },
+  { label: "CC",             val: "6",     unit: "BN", cls: "warn" },
+  { label: "LAB CHỜ",       val: "3",     unit: "XN", cls: "" },
+  { label: "CĐHA CHỜ",      val: "2",     unit: "",   cls: "" },
+  { label: "HD CHƯA THU",  val: "3",     unit: "",   cls: "down" },
+  { label: "DT/NGÀY",       val: "124.8", unit: "TR", cls: "up" },
+  { label: "BHYT GIÁM ĐỊNH", val: "98.2",  unit: "%",  cls: "up" },
+  { label: "KHO HẾT",       val: "2",     unit: "SKU",cls: "down" },
+  { label: "SẮP HẾT HẠN",   val: "5",     unit: "SKU",cls: "warn" },
+];
+
+// ============== REPORTS / KPI ==============
+const reports = {
+  daily: [
+    { k: "Lượt khám OPD", v: 187, delta: "+12%", spark: [150,162,170,168,175,182,187] },
+    { k: "Bệnh nhân nội trú", v: 47, delta: "+2", spark: [42,43,45,44,46,45,47] },
+    { k: "Ca phẫu thuật", v: 9, delta: "+1", spark: [6,7,8,8,7,8,9] },
+    { k: "Doanh thu (triệu ₫)", v: 124.8, delta: "+8.4%", spark: [98,108,112,105,118,116,124.8] },
+    { k: "Thời gian chờ TB (phút)", v: 18, delta: "-3", spark: [24,22,21,19,20,21,18] },
+    { k: "BHYT giám định OK", v: 98.2, delta: "+0.4%", spark: [96,97,97.5,97,97.8,98,98.2] },
+  ],
+};
+
+module_exports = undefined;
+
+return {
+  HOSPITAL, currentUser,
+  staff, staffById,
+  patients, patientById,
+  queue, wards, bedPatientResolve,
+  orRooms, orSchedule,
+  labs, labRows,
+  studies,
+  invoices, invoiceLines,
+  rxPending,
+  inventory,
+  erQueue,
+  appointments,
+  ticker,
+  reports,
+};
+})();
+
+// ============== Clock / mini helpers ==============
+window.HIS_UTIL = {
+  money: (n) => n.toLocaleString("vi-VN"),
+  moneyShort: (n) => {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + " tr";
+    if (n >= 1_000) return (n / 1_000).toFixed(0) + "k";
+    return String(n);
+  },
+  sevLabel: (s) => ({ stable: "ỔN ĐỊNH", monitoring: "THEO DÕI", critical: "NGUY KỊCH" }[s] || "—"),
+  sevChip: (s) => ({ stable: "ok", monitoring: "warn", critical: "crit" }[s] || "ghost"),
+  sevColor: (s) => ({ stable: "var(--s-ok)", monitoring: "var(--s-warn)", critical: "var(--s-crit)" }[s] || "var(--t-4)"),
+  statusChip: (s) => ({ waiting: "ghost", "in-progress": "cy", labs: "warn", imaging: "mag", done: "ok" }[s] || "ghost"),
+  statusLabel: (s) => ({ waiting: "CHỜ", "in-progress": "KHÁM", labs: "CHỜ XN", imaging: "CHỜ CĐHA", done: "XONG" }[s] || s.toUpperCase()),
+  essChip: (e) => ({ "ESI-1": "crit", "ESI-2": "crit", "ESI-3": "warn", "ESI-4": "info", "ESI-5": "ghost" }[e] || "ghost"),
+};</script>
+<script type="text/babel" data-presets="react">// HIS Terminal — icon set (1.5px stroke, lucide-style)
+// All icons are 16px by default, currentColor stroke.
+const HIS_ICONS = (() => {
+  const mk = (paths, fill = false) => ({ size = 16, ...rest } = {}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill ? "currentColor" : "none"}
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...rest}>
+      {paths}
+    </svg>
+  );
+
+  return {
+    // Navigation
+    grid: mk(<>
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </>),
+    reception: mk(<>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+      <path d="M19 8v-3M17.5 6.5h3"/>
+    </>),
+    stethoscope: mk(<>
+      <path d="M4 3v5a4 4 0 0 0 8 0V3M8 13v3a4 4 0 0 0 8 0v-1"/>
+      <circle cx="18" cy="10" r="2"/>
+    </>),
+    users: mk(<>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+    </>),
+    folder: mk(<>
+      <path d="M4 19a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v2"/>
+      <path d="m2 13 1.2 6.4A2 2 0 0 0 5.2 21h13.6a2 2 0 0 0 2-1.6L22 13H2z"/>
+    </>),
+    flask: mk(<>
+      <path d="M10 2v7.5L4.5 18A2 2 0 0 0 6 21h12a2 2 0 0 0 1.5-3L14 9.5V2"/>
+      <path d="M9 2h6M7 14h10"/>
+    </>),
+    scan: mk(<>
+      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+      <path d="M7 12h10"/>
+    </>),
+    pill: mk(<>
+      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>
+      <path d="m8.5 8.5 7 7"/>
+    </>),
+    receipt: mk(<>
+      <path d="M4 2v20l2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2V2l-2 2-2-2-2 2-2-2-2 2-2-2-2 2-2-2Z"/>
+      <path d="M8 7h8M8 11h8M8 15h5"/>
+    </>),
+    bed: mk(<>
+      <path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20"/>
+      <circle cx="7" cy="12" r="2"/>
+    </>),
+    ambulance: mk(<>
+      <path d="M10 17h4M2 17h1M21 17h1"/>
+      <path d="M3 7h10v10H3zM13 10h5l3 4v3h-8"/>
+      <circle cx="7" cy="17" r="2"/>
+      <circle cx="17" cy="17" r="2"/>
+      <path d="M8 10v3M6.5 11.5h3"/>
+    </>),
+    scalpel: mk(<>
+      <path d="m14 4 6 6-9 9-4-1-1-4 8-10z"/>
+      <path d="m11 8 5 5"/>
+    </>),
+    calendar: mk(<>
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <path d="M16 2v4M8 2v4M3 10h18"/>
+    </>),
+    chart: mk(<>
+      <path d="M3 3v18h18"/>
+      <path d="m7 14 4-4 3 3 5-6"/>
+    </>),
+    box: mk(<>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>
+    </>),
+    settings: mk(<>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </>),
+    // Misc
+    search: mk(<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>),
+    bell: mk(<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>),
+    plus: mk(<><path d="M12 5v14M5 12h14"/></>),
+    check: mk(<><path d="m5 12 5 5 10-11"/></>),
+    x: mk(<><path d="M18 6 6 18M6 6l12 12"/></>),
+    chevronR: mk(<><path d="m9 18 6-6-6-6"/></>),
+    chevronD: mk(<><path d="m6 9 6 6 6-6"/></>),
+    arrowR: mk(<><path d="M5 12h14M13 5l7 7-7 7"/></>),
+    filter: mk(<><path d="M22 3H2l8 9.5V21l4-2v-6.5z"/></>),
+    download: mk(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></>),
+    print: mk(<><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></>),
+    alert: mk(<><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></>),
+    warn: mk(<><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></>),
+    info: mk(<><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></>),
+    heart: mk(<><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></>),
+    activity: mk(<><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>),
+    droplet: mk(<><path d="M12 2.69 5.64 9.05a9 9 0 1 0 12.72 0z"/></>),
+    microscope: mk(<>
+      <path d="M6 18h8M3 22h18M14 22a7 7 0 1 0 0-14h-1"/>
+      <path d="M9 14h2M8 6h4M12 2v6"/>
+      <path d="M8 6v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V6"/>
+    </>),
+    clipboard: mk(<>
+      <rect x="8" y="2" width="8" height="4" rx="1"/>
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+      <path d="M9 12h6M9 16h4"/>
+    </>),
+    shield: mk(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></>),
+    phone: mk(<><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></>),
+    eye: mk(<><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>),
+    clock: mk(<><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></>),
+    refresh: mk(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/></>),
+    more: mk(<><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/></>),
+    menu: mk(<><path d="M3 6h18M3 12h18M3 18h18"/></>),
+    pencil: mk(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></>),
+    trash: mk(<><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>),
+    logout: mk(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></>),
+    home: mk(<><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></>),
+    external: mk(<><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></>),
+    lock: mk(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>),
+    dna: mk(<>
+      <path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M2 9c6.667 6 13.333 0 20 6"/>
+      <path d="m17 6-3 3M10 15l-3 3M13 12l-2 2M16 9l-2 2M8 15l-2 2"/>
+    </>),
+    cloud: mk(<>
+      <path d="M17.5 19a4.5 4.5 0 1 0-1.42-8.77A7 7 0 1 0 3 14.55 4 4 0 0 0 6.5 19h11z"/>
+    </>),
+    // Modality badges for RIS
+    ct: mk(<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="5"/><path d="M12 7v10M7 12h10"/></>),
+    xray: mk(<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 6v12M9 9l6 6M15 9l-6 6"/></>),
+  };
+})();
+
+window.HIS_ICONS = HIS_ICONS;
+
+// Icon sugar: <Ico name="grid" size={18}/>
+const Ico = ({ name, size = 16, ...rest }) => {
+  const C = HIS_ICONS[name];
+  if (!C) return <span style={{display:"inline-block",width:size,height:size}}/>;
+  return C({ size, ...rest });
+};
+window.Ico = Ico;</script>
+<script type="text/babel" data-presets="react">
+// HIS Terminal — shared chrome (rail + topbar + ticker + status bar)
+// Use: <HisShell route="dashboard" crumb={["Tổng quan"]}> ...content... </HisShell>
+const { useState: useS, useEffect: useE, useMemo: useM, useRef: useR, useCallback: useCB } = React;
+
+// ============== ROUTES (87 pages, 11 groups) ==============
+// Each leaf: { id, href, label, hot? }
+// id is used for active-state detection; href is the .html filename we'll render.
+const HIS_GROUPS = [
+  {
+    id: "overview",
+    label: "Tổng quan",
+    short: "TỔNG",
+    icon: "grid",
+    items: [
+      { id: "dashboard",      href: "Dashboard.html",        label: "Tổng quan" },
+      { id: "dashboard-3cap", href: "Dashboard3Cap.html",    label: "Dashboard 3 Cấp" },
+      { id: "queue-display",  href: "QueueDisplay.html",     label: "Màn hình xếp hàng" },
+    ],
+  },
+  {
+    id: "clinical",
+    label: "Lâm sàng",
+    short: "LS",
+    icon: "stethoscope",
+    hot: 8,
+    items: [
+      { id: "reception",               href: "Reception.html",             label: "Tiếp đón" },
+      { id: "opd",                     href: "OPD.html",                   label: "Khám bệnh", hot: 8 },
+      { id: "telemedicine",            href: "Telemedicine.html",          label: "Khám từ xa" },
+      { id: "prescription",            href: "Prescription.html",          label: "Kê đơn" },
+      { id: "ipd",                     href: "Ward.html",                  label: "Nội trú" },
+      { id: "er",                      href: "ER.html",                    label: "Cấp cứu", hot: 6 },
+      { id: "or",                      href: "OR.html",                    label: "Phẫu thuật" },
+      { id: "emr",                     href: "EMR.html",                   label: "Hồ sơ BA (EMR)" },
+      { id: "specialty-emr",           href: "SpecialtyEMR.html",          label: "BA chuyên khoa" },
+      { id: "medical-record-archive",  href: "MedicalRecordArchive.html",  label: "Lưu trữ HSBA" },
+      { id: "medical-record-planning", href: "MedicalRecordPlanning.html", label: "Kế hoạch TH" },
+      { id: "follow-up",               href: "FollowUp.html",              label: "Tái khám" },
+      { id: "booking-management",      href: "BookingManagement.html",     label: "Quản lý đặt lịch" },
+      { id: "appointment-booking",     href: "AppointmentBooking.html",    label: "Đặt lịch hẹn" },
+      { id: "treatment-protocols",     href: "TreatmentProtocol.html",     label: "Phác đồ điều trị" },
+      { id: "chronic-disease",         href: "ChronicDisease.html",        label: "Bệnh mạn tính" },
+      { id: "tb-hiv",                  href: "TbHivManagement.html",       label: "Quản lý Lao/HIV" },
+      { id: "consultation",            href: "Consultation.html",          label: "Hội chẩn" },
+      { id: "doctor-portal",           href: "DoctorPortal.html",          label: "Cổng bác sĩ" },
+    ],
+  },
+  {
+    id: "paraclinical",
+    label: "Cận lâm sàng",
+    short: "CLS",
+    icon: "flask",
+    hot: 3,
+    items: [
+      { id: "lis",                href: "LIS.html",               label: "Xét nghiệm", hot: 3 },
+      { id: "lab-qc",             href: "LabQC.html",             label: "QC Kiểm định" },
+      { id: "microbiology",       href: "Microbiology.html",      label: "Vi sinh" },
+      { id: "culture-collection", href: "CultureCollection.html", label: "Lưu chủng vi sinh" },
+      { id: "screening",          href: "Screening.html",         label: "Sàng lọc sơ sinh" },
+      { id: "sample-storage",     href: "SampleStorage.html",     label: "Lưu trữ mẫu" },
+      { id: "sample-tracking",    href: "SampleTracking.html",    label: "Theo dõi mẫu" },
+      { id: "reagent-management", href: "ReagentManagement.html", label: "Hoá chất XN" },
+      { id: "lis-config",         href: "LISConfig.html",         label: "Cấu hình LIS" },
+      { id: "ris",                href: "RIS.html",               label: "Chẩn đoán HA" },
+      { id: "dicom-viewer",       href: "DicomViewer.html",       label: "DICOM Viewer" },
+      { id: "pathology",          href: "Pathology.html",         label: "Giải phẫu bệnh" },
+      { id: "ivf-lab",            href: "IvfLab.html",            label: "Phòng Lab IVF" },
+      { id: "blood-bank",         href: "BloodBank.html",         label: "Ngân hàng máu" },
+    ],
+  },
+  {
+    id: "support",
+    label: "Hỗ trợ điều trị",
+    short: "HTĐT",
+    icon: "pill",
+    items: [
+      { id: "pharmacy",          href: "Pharmacy.html",         label: "Nhà thuốc" },
+      { id: "hospital-pharmacy", href: "HospitalPharmacy.html", label: "Nhà thuốc bệnh viện" },
+      { id: "medical-supply",    href: "MedicalSupply.html",    label: "Vật tư y tế" },
+      { id: "inventory",         href: "Inventory.html",        label: "Kho tổng" },
+      { id: "nutrition",         href: "Nutrition.html",        label: "Dinh dưỡng" },
+      { id: "rehabilitation",    href: "Rehabilitation.html",   label: "VLTL / PHCN" },
+      { id: "traditional-medicine", href: "TraditionalMedicine.html", label: "Y học cổ truyền" },
+    ],
+  },
+  {
+    id: "finance",
+    label: "Tài chính",
+    short: "TC",
+    icon: "receipt",
+    hot: 3,
+    items: [
+      { id: "billing",     href: "Billing.html",     label: "Viện phí", hot: 3 },
+      { id: "finance",     href: "Finance.html",     label: "Quản lý tài chính" },
+      { id: "insurance",   href: "Insurance.html",   label: "Giám định BHYT" },
+      { id: "bhxh-audit",  href: "BhxhAudit.html",   label: "BHXH kiểm tra" },
+      { id: "procurement", href: "Procurement.html", label: "Đề xuất - Dự trù" },
+    ],
+  },
+  {
+    id: "records",
+    label: "Hồ sơ & Ký số",
+    short: "HS",
+    icon: "folder",
+    items: [
+      { id: "digital-signature", href: "DigitalSignature.html", label: "Chữ ký số" },
+      { id: "central-signing",   href: "CentralSigning.html",   label: "Ký số tập trung" },
+      { id: "signing-workflow",  href: "SigningWorkflow.html",  label: "Quy trình ký" },
+      { id: "master-data",       href: "MasterData.html",       label: "Danh mục" },
+    ],
+  },
+  {
+    id: "management",
+    label: "Quản trị & Vận hành",
+    short: "QT",
+    icon: "settings",
+    items: [
+      { id: "admin",             href: "Admin.html",             label: "Quản trị hệ thống" },
+      { id: "hr",                href: "HR.html",                label: "Nhân sự" },
+      { id: "schedule",          href: "Rota.html",              label: "Lịch trực" },
+      { id: "quality",           href: "Quality.html",           label: "Chất lượng BV" },
+      { id: "equipment",         href: "Equipment.html",         label: "Thiết bị y tế" },
+      { id: "asset-management",  href: "AssetManagement.html",   label: "Tài sản - CCDC" },
+      { id: "infection-control", href: "InfectionControl.html",  label: "Kiểm soát nhiễm khuẩn" },
+      { id: "training-research", href: "TrainingResearch.html",  label: "Đào tạo - NCKH" },
+      { id: "practice-license",  href: "PracticeLicense.html",   label: "Chứng chỉ hành nghề" },
+      { id: "endpoint-security", href: "EndpointSecurity.html",  label: "An toàn thông tin" },
+      { id: "reports",           href: "Reports.html",           label: "Báo cáo" },
+    ],
+  },
+  {
+    id: "integration",
+    label: "Liên thông",
+    short: "LT",
+    icon: "cloud",
+    items: [
+      { id: "health-exchange",      href: "HealthExchange.html",     label: "Liên thông y tế HIE" },
+      { id: "inter-hospital",       href: "InterHospitalSharing.html", label: "Chia sẻ liên viện" },
+      { id: "emergency-disaster",   href: "EmergencyDisaster.html",  label: "Cấp cứu / thảm hoạ" },
+      { id: "clinical-guidance",    href: "ClinicalGuidance.html",   label: "Chỉ đạo tuyến" },
+      { id: "sms-management",       href: "SmsManagement.html",      label: "SMS Gateway" },
+    ],
+  },
+  {
+    id: "public-health",
+    label: "Y tế công cộng",
+    short: "YTCC",
+    icon: "shield",
+    items: [
+      { id: "health-checkup",       href: "HealthCheckup.html",      label: "Khám sức khoẻ" },
+      { id: "immunization",         href: "Immunization.html",       label: "Tiêm chủng" },
+      { id: "epidemiology",         href: "Epidemiology.html",       label: "Giám sát dịch tễ" },
+      { id: "school-health",        href: "SchoolHealth.html",       label: "Y tế trường học" },
+      { id: "occupational-health",  href: "OccupationalHealth.html", label: "SK nghề nghiệp" },
+      { id: "methadone-treatment",  href: "MethadoneTreatment.html", label: "Điều trị Methadone" },
+      { id: "food-safety",          href: "FoodSafety.html",         label: "ATVSTP" },
+      { id: "community-health",     href: "CommunityHealth.html",    label: "SK cộng đồng" },
+      { id: "hiv-management",       href: "HivManagement.html",      label: "Quản lý HIV" },
+      { id: "health-education",     href: "HealthEducation.html",    label: "Truyền thông GDSK" },
+      { id: "environmental-health", href: "EnvironmentalHealth.html", label: "Môi trường y tế" },
+      { id: "population-health",    href: "PopulationHealth.html",   label: "Dân số KHHGĐ" },
+      { id: "reproductive-health",  href: "ReproductiveHealth.html", label: "SK sinh sản" },
+      { id: "mental-health",        href: "MentalHealth.html",       label: "SK tâm thần" },
+      { id: "trauma-registry",      href: "TraumaRegistry.html",     label: "Sổ chấn thương" },
+      { id: "medical-forensics",    href: "MedicalForensics.html",   label: "Giám định y khoa" },
+    ],
+  },
+  {
+    id: "portals",
+    label: "Cổng & Dịch vụ",
+    short: "CỔNG",
+    icon: "users",
+    items: [
+      { id: "patient-portal",       href: "PatientPortal.html",      label: "Cổng bệnh nhân" },
+      { id: "satisfaction-survey",  href: "SatisfactionSurvey.html", label: "Khảo sát hài lòng" },
+      { id: "help",                 href: "Help.html",               label: "Trợ giúp" },
+      { id: "patients",             href: "Patients.html",           label: "Hồ sơ BN (cũ)" },
+    ],
+  },
+];
+
+// Flatten for lookups
+const HIS_ROUTES = HIS_GROUPS.flatMap(g => g.items.map(it => ({ ...it, groupId: g.id, icon: g.icon })));
+window.HIS_ROUTES = HIS_ROUTES;
+window.HIS_GROUPS = HIS_GROUPS;
+
+// Helper: find group containing a route id
+const groupOf = (routeId) => HIS_GROUPS.find(g => g.items.some(it => it.id === routeId));
+
+// ============== RAIL (group-level) ==============
+const Rail = ({ active, onHoverGroup, onLeaveGroup, pinnedGroup }) => {
+  const activeGroupId = groupOf(active)?.id;
+  return (
+    <aside className="his-rail">
+      <a href="index.html" className="his-rail-mark" title="HIS Terminal">HIS</a>
+      {HIS_GROUPS.map(g => {
+        const isActive = g.id === activeGroupId;
+        const isPinned = g.id === pinnedGroup;
+        return (
+          <button
+            key={g.id}
+            className={"his-rail-item " + (isActive ? "active " : "") + (isPinned ? "pinned" : "")}
+            title={g.label}
+            onMouseEnter={() => onHoverGroup(g.id)}
+            onClick={() => onHoverGroup(g.id, true)}
+          >
+            <Ico name={g.icon} size={18}/>
+            {g.hot && <span className="hot">{g.hot}</span>}
+            <span className="lbl">{g.short}</span>
+          </button>
+        );
+      })}
+      <div className="his-rail-spacer"/>
+    </aside>
+  );
+};
+
+// ============== FLYOUT (group submenu) ==============
+const Flyout = ({ groupId, active, onClose, pinned, onTogglePin }) => {
+  const g = HIS_GROUPS.find(x => x.id === groupId);
+  if (!g) return null;
+  return (
+    <div
+      className={"his-flyout " + (pinned ? "pinned" : "")}
+      onMouseLeave={() => { if (!pinned) onClose(); }}
+    >
+      <div className="his-flyout-head">
+        <div className="his-flyout-title">
+          <Ico name={g.icon} size={14}/>
+          <span>{g.label}</span>
+          <span className="count">{g.items.length}</span>
+        </div>
+        <div className="his-flyout-actions">
+          <button
+            className={"his-flyout-pin " + (pinned ? "on" : "")}
+            onClick={onTogglePin}
+            title={pinned ? "Bỏ ghim" : "Ghim menu"}
+          >
+            {pinned ? "◉" : "◯"}
+          </button>
+          {!pinned && <button className="his-flyout-close" onClick={onClose} title="Đóng">×</button>}
+        </div>
+      </div>
+      <div className="his-flyout-body">
+        {g.items.map(it => (
+          <a
+            key={it.id}
+            href={it.href}
+            className={"his-flyout-item " + (it.id === active ? "active" : "")}
+          >
+            <span className="lbl">{it.label}</span>
+            {it.hot && <span className="hot">{it.hot}</span>}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============== TOPBAR ==============
+const useClock = () => {
+  const [now, setNow] = useS(new Date());
+  useE(() => {
+    const i = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(i);
+  }, []);
+  return now;
+};
+
+const Topbar = ({ crumb = [], onCmdK, patient, onClearPatient }) => {
+  const now = useClock();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const me = HIS.currentUser;
+
+  return (
+    <header className="his-topbar">
+      <div className="his-tb-crumb">
+        <span className="hosp"><Ico name="shield" size={14}/> BVĐK HƯNG YÊN</span>
+        {crumb.map((c, i) => (
+          <React.Fragment key={i}>
+            <span className="slash">/</span>
+            <span className={i === crumb.length - 1 ? "here" : ""}>{c}</span>
+          </React.Fragment>
+        ))}
+      </div>
+      <div className="his-cmd" onClick={onCmdK}>
+        <span className="prompt">❯</span>
+        <span className="hint">Tìm BN, XN, HĐ, thuốc, phòng… (mã, tên, SĐT)</span>
+        <kbd>⌘</kbd><kbd>K</kbd>
+      </div>
+      <div className="his-tb-right">
+        <div className="his-chip-shift"><span className="dot"/>CA SÁNG · {hh}:{mm}</div>
+        <button className="his-tb-btn" title="Giao ca" onClick={() => window.__shellPopups && window.__shellPopups.openHandoff()}><Ico name="refresh" size={15}/></button>
+        <button className="his-tb-btn" title="Trợ giúp" onClick={() => window.__shellPopups && window.__shellPopups.openHelp()}><Ico name="info" size={15}/></button>
+        <button className="his-tb-btn" title="Thông báo" onClick={() => window.__shellPopups && window.__shellPopups.openNotifications()}>
+          <Ico name="bell" size={15}/>
+          <span className="dot-alert"/>
+        </button>
+        <div className="his-clock">
+          <div>{hh}:{mm}</div>
+          <div className="d">18/10 · T7</div>
+        </div>
+        <div className="his-user" title="Tài khoản" onClick={() => window.__shellPopups && window.__shellPopups.openUser()} style={{cursor:"pointer"}}>
+          <div className="avatar">{me.avatar}</div>
+          <div className="who">
+            <span className="n">{me.name}</span>
+            <span className="r">{me.role}</span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+// ============== TICKER ==============
+const Ticker = ({ patient, onClearPatient }) => (
+  <div className="his-ticker">
+    <div className="his-ticker-head"><span className="dot"/>LIVE · HIS.HY</div>
+    {patient && (
+      <div className="his-patient-pill" title="Bệnh nhân đang chọn">
+        <span className="tk">BN</span>
+        <span className="nm">{patient.name}</span>
+        <span className="id">{patient.id} · {patient.age}T · {patient.gender === "M" ? "Nam" : "Nữ"}</span>
+        <span className="x" onClick={onClearPatient}>×</span>
+      </div>
+    )}
+    <div className="his-ticker-scroll">
+      {[...HIS.ticker, ...HIS.ticker].map((t, i) => (
+        <span key={i} className={"his-ticker-item " + (t.cls || "")}>
+          <span>{t.label}</span>
+          <b>{t.val}{t.unit && <span style={{color:"#64748b",fontWeight:400}}> {t.unit}</span>}</b>
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
+// ============== STATUS BAR ==============
+const StatusBar = ({ active }) => {
+  const here = HIS_ROUTES.find(r => r.id === active);
+  return (
+    <footer className="his-status">
+      <span className="seg ok"><span className="dot ok" style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:"#4ade80"}}/><b>HIS 4.2.1</b></span>
+      <span className="sep"/>
+      <span className="seg">MODULE: <b>{(here?.label || "—").toUpperCase()}</b></span>
+      <span className="sep"/>
+      <span className="seg ok">BHYT: <b>OK</b></span>
+      <span className="sep"/>
+      <span className="seg ok">HL7: <b>2.5</b></span>
+      <span className="sep"/>
+      <span className="seg ok">PACS: <b>CONNECT</b></span>
+      <span className="sep"/>
+      <span className="seg warn">ĐỒNG BỘ BYT: <b>15p TRƯỚC</b></span>
+      <span className="spacer"/>
+      <span className="seg"><kbd>F1</kbd> Trợ giúp</span>
+      <span className="seg"><kbd>⌘</kbd><kbd>K</kbd> Lệnh</span>
+      <span className="seg"><kbd>F2</kbd> Lưu</span>
+      <span className="seg"><kbd>Esc</kbd> Hủy</span>
+    </footer>
+  );
+};
+
+// ============== CMD-K PALETTE ==============
+const CmdK = ({ open, onClose }) => {
+  const [q, setQ] = useS("");
+  const inputRef = useR(null);
+  useE(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+  useE(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    if (open) window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+  if (!open) return null;
+
+  const matches = HIS_ROUTES.filter(r => !q || r.label.toLowerCase().includes(q.toLowerCase())).slice(0, 12);
+  const patientMatches = q.length >= 2
+    ? HIS.patients.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) || p.id.toLowerCase().includes(q.toLowerCase())).slice(0, 4)
+    : [];
+
+  return (
+    <div className="his-cmdk-backdrop" onClick={onClose}>
+      <div className="his-cmdk" onClick={(e) => e.stopPropagation()}>
+        <div className="his-cmdk-in">
+          <span className="prompt">❯</span>
+          <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm module, bệnh nhân, hành động…"/>
+          <kbd>ESC</kbd>
+        </div>
+        <div className="his-cmdk-body">
+          {patientMatches.length > 0 && <>
+            <div className="his-cmdk-sec">Bệnh nhân</div>
+            {patientMatches.map(p => (
+              <a key={p.id} href={`EMR.html?pid=${p.id}`} className="his-cmdk-row">
+                <span className="ico"><Ico name="users" size={15}/></span>
+                <span className="lbl">{p.name}</span>
+                <span className="sub">{p.id} · {p.age}T</span>
+              </a>
+            ))}
+          </>}
+          <div className="his-cmdk-sec">Mô-đun ({HIS_ROUTES.length} trang)</div>
+          {matches.map(r => (
+            <a key={r.id} href={r.href} className="his-cmdk-row">
+              <span className="ico"><Ico name={r.icon} size={15}/></span>
+              <span className="lbl">{r.label}</span>
+              <span className="sub">{r.href}</span>
+            </a>
+          ))}
+        </div>
+        <div className="his-cmdk-ft">
+          <span>↑↓ chọn</span>
+          <span>↵ mở</span>
+          <span>ESC đóng</span>
+          <span style={{marginLeft:"auto"}}>HIS · {HIS_ROUTES.length} trang</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============== SHELL ==============
+const HisShell = ({ route, crumb = [], children }) => {
+  const [cmdKOpen, setCmdKOpen] = useS(false);
+  const [patient, setPatient] = useS(null);
+  const [flyoutGroup, setFlyoutGroup] = useS(null);
+  const [pinnedGroup, setPinnedGroup] = useS(() => {
+    // Pin no longer persists across pages — keeps the flyout from eating
+    // 240px of horizontal space on every load.
+    try { localStorage.removeItem("his.pinnedGroup"); } catch {}
+    return null;
+  });
+  const hoverTimer = useR(null);
+
+  useE(() => {
+    const stored = localStorage.getItem("his.patient");
+    if (stored) {
+      const p = HIS.patientById(stored);
+      if (p) setPatient(p);
+    }
+    const params = new URLSearchParams(location.search);
+    const pid = params.get("pid");
+    if (pid) {
+      const p = HIS.patientById(pid);
+      if (p) { setPatient(p); localStorage.setItem("his.patient", pid); }
+    }
+  }, []);
+
+  useE(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdKOpen(v => !v);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  const clearPatient = () => { setPatient(null); localStorage.removeItem("his.patient"); };
+
+  const handleHoverGroup = (gid, isClick = false) => {
+    clearTimeout(hoverTimer.current);
+    if (isClick) {
+      // Click toggles pin
+      if (pinnedGroup === gid) {
+        setPinnedGroup(null);
+        setFlyoutGroup(null);
+        try { localStorage.removeItem("his.pinnedGroup"); } catch {}
+      } else {
+        setPinnedGroup(gid);
+        setFlyoutGroup(gid);
+        try { localStorage.setItem("his.pinnedGroup", gid); } catch {}
+      }
+    } else {
+      setFlyoutGroup(gid);
+    }
+  };
+
+  const handleLeaveFlyout = () => {
+    hoverTimer.current = setTimeout(() => {
+      if (!pinnedGroup) setFlyoutGroup(null);
+    }, 120);
+  };
+
+  const togglePin = () => {
+    if (pinnedGroup === flyoutGroup) {
+      setPinnedGroup(null);
+      try { localStorage.removeItem("his.pinnedGroup"); } catch {}
+    } else {
+      setPinnedGroup(flyoutGroup);
+      try { localStorage.setItem("his.pinnedGroup", flyoutGroup); } catch {}
+    }
+  };
+
+  // Show flyout either on hover OR when pinned
+  const activeFlyout = flyoutGroup || pinnedGroup;
+
+  return (
+    <div className={"his-app " + (pinnedGroup ? "has-pinned" : "")}>
+      <Rail
+        active={route}
+        onHoverGroup={handleHoverGroup}
+        onLeaveGroup={handleLeaveFlyout}
+        pinnedGroup={pinnedGroup}
+      />
+      {activeFlyout && (
+        <Flyout
+          groupId={activeFlyout}
+          active={route}
+          onClose={handleLeaveFlyout}
+          pinned={pinnedGroup === activeFlyout}
+          onTogglePin={togglePin}
+        />
+      )}
+      <Topbar crumb={crumb} onCmdK={() => setCmdKOpen(true)} patient={patient} onClearPatient={clearPatient}/>
+      <Ticker patient={patient} onClearPatient={clearPatient}/>
+      <main className="his-main">{children}</main>
+      <StatusBar active={route}/>
+      <CmdK open={cmdKOpen} onClose={() => setCmdKOpen(false)}/>
+    </div>
+  );
+};
+
+window.HisShell = HisShell;
+
+// ============== SHARED SHELL POPUPS (bell · help · handoff · user) ==============
+window.__shellPopups = {
+  openNotifications: () => {
+    const items = [
+      { t: "crit", dt: "vừa xong", msg: "BN-00201 · Troponin I = 0.82 ng/mL (×20 ref)" },
+      { t: "warn", dt: "2 phút", msg: "OR-3 chuẩn bị sẵn sàng cho Cắt ruột thừa nội soi" },
+      { t: "info", dt: "5 phút", msg: "Kết quả huyết học BN-00159 đã có" },
+      { t: "warn", dt: "8 phút", msg: "KHO DƯỢC · Omeprazol 20mg dưới ngưỡng" },
+      { t: "info", dt: "12 phút", msg: "Họp giao ban 14:30 · phòng 201" },
+      { t: "ok",   dt: "1 giờ", msg: "Backup DB hoàn tất · 4.2 GB" },
+    ];
+    HUI.drawer((cx) => (
+      <HUI.Drawer title="Thông báo" sub={`${items.length} chưa đọc`} width={420} onClose={cx}
+        footer={<HUI.Btn variant="primary" onClick={() => { HUI.toast("Đã đánh dấu tất cả là đã đọc", {tone:"ok"}); cx(); }}>Đánh dấu đã đọc</HUI.Btn>}>
+        <div style={{padding:"4px 0"}}>
+          {items.map((a,i) => (
+            <div key={i} className={"alert-row " + a.t}>
+              <div className="alert-dt mono">{a.dt}</div>
+              <div className="alert-bd"><div className="alert-msg">{a.msg}</div></div>
+            </div>
+          ))}
+        </div>
+      </HUI.Drawer>
+    ));
+  },
+
+  openHelp: () => {
+    HUI.open((cx) => (
+      <HUI.Modal title="Phím tắt & trợ giúp" size="md" onClose={cx}
+        footer={<HUI.Btn variant="primary" onClick={cx}>Đã hiểu</HUI.Btn>}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,fontSize:12}}>
+          <div>
+            <div style={{fontFamily:"var(--font-mono)",fontSize:10,color:"#64748b",letterSpacing:"0.06em",marginBottom:6}}>ĐIỀU HƯỚNG</div>
+            {[["⌘K","Tìm kiếm tổng"],["Alt+1..9","Chuyển khoa"],["Esc","Đóng popup"],["/","Focus tìm kiếm"]].map(([k,v]) => (
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #f1f5f9"}}><kbd style={{fontFamily:"var(--font-mono)",fontSize:11,background:"#f1f5f9",padding:"1px 6px",borderRadius:3}}>{k}</kbd><span>{v}</span></div>
+            ))}
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--font-mono)",fontSize:10,color:"#64748b",letterSpacing:"0.06em",marginBottom:6}}>THAO TÁC</div>
+            {[["Ctrl+S","Lưu"],["Ctrl+Enter","Ký & duyệt"],["Ctrl+P","In"],["Ctrl+N","Tạo mới"]].map(([k,v]) => (
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #f1f5f9"}}><kbd style={{fontFamily:"var(--font-mono)",fontSize:11,background:"#f1f5f9",padding:"1px 6px",borderRadius:3}}>{k}</kbd><span>{v}</span></div>
+            ))}
+          </div>
+        </div>
+        <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid #e4e9f0",fontSize:11,color:"#64748b"}}>
+          <b style={{color:"#0f172a"}}>HIS Terminal v3</b> · © 2026 BVĐK Hưng Yên · Hotline hỗ trợ <b className="mono" style={{color:"#2563eb"}}>0221-3.848.xxx</b>
+        </div>
+      </HUI.Modal>
+    ));
+  },
+
+  openHandoff: () => {
+    HUI.open((cx) => (
+      <HUI.Modal title="Giao ca · Sáng → Chiều" sub="14:00 · 22/10/2026" size="md" onClose={cx}
+        footer={<>
+          <HUI.Btn variant="ghost" onClick={cx}>Hủy</HUI.Btn>
+          <HUI.Btn variant="primary" icon="check" onClick={() => { HUI.toast("Đã xác nhận giao ca · ký điện tử", {tone:"ok"}); cx(); }}>Ký & xác nhận</HUI.Btn>
+        </>}>
+        <div style={{marginBottom:12,padding:"10px 12px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,fontSize:12,color:"#a16207"}}>
+          <b>3 BN nặng cần bàn giao</b> · BN-00201 (STEMI), BN-00067 (sốc NK), BN-00088 (suy hô hấp)
+        </div>
+        <HUI.Field label="Ghi chú giao ca" required>
+          <HUI.Textarea rows={4} defaultValue="BN-00201 đã dùng Heparin 5000 UI · theo dõi APTT 4h. BN-00067 duy trì Noradrenalin 0.1 mcg/kg/ph. BN-00088 SpO₂ 94-96% dưới NIV."/>
+        </HUI.Field>
+        <HUI.Field label="Người nhận ca">
+          <HUI.Select options={["BS. Nguyễn Thị Lan","BS. Phạm Thị Mai","BS. Trần Văn Hải"]}/>
+        </HUI.Field>
+      </HUI.Modal>
+    ));
+  },
+
+  openUser: () => {
+    HUI.open((cx) => (
+      <HUI.Modal title="Tài khoản" size="sm" onClose={cx}
+        footer={<>
+          <HUI.Btn variant="ghost" onClick={() => { HUI.toast("Đã đăng xuất (mô phỏng)", {tone:"info"}); cx(); }}>Đăng xuất</HUI.Btn>
+          <HUI.Btn variant="primary" onClick={cx}>Đóng</HUI.Btn>
+        </>}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+          <div style={{width:44,height:44,borderRadius:6,background:"#2563eb",color:"#fff",display:"grid",placeItems:"center",fontSize:16,fontWeight:700}}>TH</div>
+          <div>
+            <div style={{fontSize:14,fontWeight:600}}>BS. Trần Thị Hoa</div>
+            <div style={{fontSize:11,color:"#64748b",fontFamily:"var(--font-mono)"}}>BS.CKI · Nội Tim mạch · EMP-00142</div>
+          </div>
+        </div>
+        <div style={{display:"grid",gap:2,fontSize:13}}>
+          {[
+            ["Đổi mật khẩu","lock"],
+            ["Chứng chỉ & chữ ký số","shield"],
+            ["Lịch trực cá nhân","calendar"],
+            ["Cài đặt thông báo","bell"],
+          ].map(([t,ic]) => (
+            <div key={t} onClick={() => { HUI.toast(`Mở: ${t}`, {tone:"info"}); cx(); }} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:4,cursor:"pointer",color:"#334155"}} onMouseEnter={e=>e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+              <Ico name={ic} size={14}/><span>{t}</span>
+            </div>
+          ))}
+        </div>
+      </HUI.Modal>
+    ));
+  },
+};
+
+</script>
+<script type="text/babel" data-presets="react">// HIS Billing — Invoicing + BHYT claims
+const { useState: useBS } = React;
+
+const BillingModule = () => {
+  const invoices = [
+    {id:"HD-2026-4018", pid:"BN-00201", dt:"hôm nay 11:30", kind:"OPD", stat:"pend", total:1842000, bhyt:1473600, pay:368400, ward:"OPD-03"},
+    {id:"HD-2026-4017", pid:"BN-00142", dt:"hôm nay 11:12", kind:"OPD", stat:"paid", total:486000, bhyt:388800, pay:0, ward:"OPD-01"},
+    {id:"HD-2026-4016", pid:"BN-00256", dt:"hôm nay 10:48", kind:"OPD", stat:"bhyt-pend", total:1240000, bhyt:1240000, pay:0, ward:"OPD-05"},
+    {id:"HD-2026-4015", pid:"BN-00189", dt:"hôm nay 10:15", kind:"OPD", stat:"paid", total:324000, bhyt:259200, pay:64800, ward:"OPD-02"},
+    {id:"HD-2026-4014", pid:"BN-00234", dt:"hôm nay 09:50", kind:"IPD", stat:"draft", total:8420000, bhyt:6736000, pay:1684000, ward:"Nội A.205"},
+    {id:"HD-2026-4013", pid:"BN-00278", dt:"hôm nay 09:22", kind:"CC", stat:"bhyt-pend", total:4680000, bhyt:4680000, pay:0, ward:"Cấp cứu"},
+    {id:"HD-2026-4012", pid:"BN-00166", dt:"hôm nay 08:58", kind:"OPD", stat:"paid", total:218000, bhyt:174400, pay:43600, ward:"OPD-04"},
+  ];
+  const [sel, setSel] = useBS("HD-2026-4018");
+  const [tab, setTab] = useBS("all");
+  const [pay, setPay] = useBS("bank");
+
+  const counts = {
+    all: invoices.length,
+    draft: invoices.filter(x=>x.stat==="draft").length,
+    pend: invoices.filter(x=>x.stat==="pend").length,
+    paid: invoices.filter(x=>x.stat==="paid").length,
+    bhyt: invoices.filter(x=>x.stat==="bhyt-pend").length,
+  };
+  const filtered = tab==="all" ? invoices
+                  : tab==="bhyt" ? invoices.filter(x=>x.stat==="bhyt-pend")
+                  : invoices.filter(x=>x.stat===tab);
+
+  const inv = invoices.find(x => x.id === sel);
+  const p = HIS.patientById(inv.pid);
+
+  // Line items for selected invoice
+  const lines = {
+    kham: [
+      {code:"KB-001", nm:"Khám nội tổng quát", sub:"BS. Nguyễn Linh · 08:55", qty:1, price:38700, bhyt:"100%", bhytAmt:38700, pay:0},
+    ],
+    xn: [
+      {code:"XN-3012", nm:"Tổng phân tích máu 18 TS", sub:"XN-2026-4419 · Cobas 8000", qty:1, price:72000, bhyt:"100%", bhytAmt:72000, pay:0},
+      {code:"XN-3045", nm:"Sinh hoá máu 10 TS", sub:"Glu, Cre, AST, ALT, BUN...", qty:1, price:156000, bhyt:"100%", bhytAmt:156000, pay:0},
+      {code:"XN-3301", nm:"Troponin I định lượng", sub:"Kết quả: 0.82 ng/mL · HH", qty:1, price:224000, bhyt:"80%", bhytAmt:179200, pay:44800},
+      {code:"XN-3102", nm:"CK-MB định lượng", sub:"Kết quả: 38 U/L · H", qty:1, price:98000, bhyt:"80%", bhytAmt:78400, pay:19600},
+    ],
+    cdha: [
+      {code:"CD-2001", nm:"Chụp XQ ngực thẳng (CR)", sub:"IMG-2026-1188 · CĐHA", qty:1, price:48000, bhyt:"100%", bhytAmt:48000, pay:0},
+      {code:"CD-4010", nm:"Điện tim 12 đạo trình", sub:"ECG-2026-1982", qty:1, price:28000, bhyt:"100%", bhytAmt:28000, pay:0},
+    ],
+    thuoc: [
+      {code:"VN-12800-04", nm:"Aspirin 81mg", sub:"30 viên · đủ 30 ngày", qty:30, price:42000, bhyt:"80%", bhytAmt:33600, pay:8400},
+      {code:"VN-13301-22", nm:"Atorvastatin 20mg", sub:"30 viên · đủ 30 ngày", qty:30, price:72000, bhyt:"80%", bhytAmt:57600, pay:14400},
+      {code:"VN-16800-11", nm:"Bisoprolol 2.5mg", sub:"30 viên · đủ 30 ngày", qty:30, price:48000, bhyt:"80%", bhytAmt:38400, pay:9600},
+      {code:"VN-11720-16", nm:"Metformin 500mg", sub:"60 viên · đủ 30 ngày", qty:60, price:24000, bhyt:"80%", bhytAmt:19200, pay:4800},
+    ],
+    dv: [
+      {code:"DV-501", nm:"Giường khám cấp cứu (2h)", sub:"08:45 – 10:35", qty:1, price:168000, bhyt:"80%", bhytAmt:134400, pay:33600},
+      {code:"DV-108", nm:"Vật tư y tế tiêu hao", sub:"kim tiêm, bông, gạc, nước muối", qty:1, price:36000, bhyt:"80%", bhytAmt:28800, pay:7200},
+    ],
+  };
+  const allLines = [...lines.kham, ...lines.xn, ...lines.cdha, ...lines.thuoc, ...lines.dv];
+  const total = allLines.reduce((s,x)=>s + x.price*x.qty, 0);
+  const bhytAmt = allLines.reduce((s,x)=>s + x.bhytAmt*x.qty, 0);
+  const payAmt = allLines.reduce((s,x)=>s + x.pay*x.qty, 0);
+
+  const renderSection = (title, list, cnt, subtotal) => (
+    <div className="bill-card">
+      <div className="bill-card-h">
+        <span>{title} <span className="n">· {list.length} dòng</span></span>
+        <span className="t">{subtotal.toLocaleString("vi-VN")} ₫</span>
+      </div>
+      <div className="bill-line bill-line-head">
+        <span>Mã</span>
+        <span>Nội dung</span>
+        <span style={{textAlign:"right"}}>SL</span>
+        <span style={{textAlign:"right"}}>BHYT</span>
+        <span style={{textAlign:"right"}}>Đơn giá</span>
+        <span style={{textAlign:"right"}}>BHYT trả</span>
+        <span style={{textAlign:"right"}}>BN trả</span>
+      </div>
+      {list.map((l,i) => (
+        <div key={i} className="bill-line">
+          <span className="code">{l.code}</span>
+          <span>
+            <span className="nm">{l.nm}</span>
+            <small>{l.sub}</small>
+          </span>
+          <span className="num">{l.qty}</span>
+          <span className="num pay-ok">{l.bhyt}</span>
+          <span className="num">{(l.price*l.qty).toLocaleString("vi-VN")}</span>
+          <span className="num pay-ok">{(l.bhytAmt*l.qty).toLocaleString("vi-VN")}</span>
+          <span className={"num " + (l.pay===0?"pay-no":"")}>{(l.pay*l.qty).toLocaleString("vi-VN")}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="bill-wrap">
+      <div className="bill-top">
+        <div className="bill-kpi"><div className="l">Hoá đơn hôm nay</div><div className="v">218</div><div className="s">+12 vs hôm qua</div></div>
+        <div className="bill-kpi"><div className="l">Doanh thu</div><div className="v">412<small>M₫</small></div><div className="s">tiến độ 82%</div></div>
+        <div className="bill-kpi"><div className="l">BHYT (thanh toán)</div><div className="v">284<small>M₫</small></div><div className="s">68.9%</div></div>
+        <div className="bill-kpi"><div className="l">Chờ duyệt BHYT</div><div className="v" style={{color:"var(--s-warn)"}}>38<small>M₫</small></div><div className="s crit">8 HS lệch mã</div></div>
+        <div className="bill-kpi"><div className="l">Công nợ BN</div><div className="v">4.2<small>M₫</small></div><div className="s crit">3 quá hạn</div></div>
+        <div className="bill-kpi"><div className="l">Thu ngân đang mở</div><div className="v">4<small>/6</small></div><div className="s">quầy 1–3, 5</div></div>
+      </div>
+
+      <div className="bill-body">
+        {/* Invoice list */}
+        <div className="bill-list">
+          <div className="bill-list-h">
+            <div className="bill-seg">
+              <div className={"bill-seg-i " + (tab==="all"?"on":"")} onClick={()=>setTab("all")}>Tất cả</div>
+              <div className={"bill-seg-i " + (tab==="draft"?"on":"")} onClick={()=>setTab("draft")}>Nháp {counts.draft}</div>
+              <div className={"bill-seg-i " + (tab==="pend"?"on":"")} onClick={()=>setTab("pend")}>Chờ TT {counts.pend}</div>
+              <div className={"bill-seg-i " + (tab==="bhyt"?"on":"")} onClick={()=>setTab("bhyt")}>BHYT {counts.bhyt}</div>
+              <div className={"bill-seg-i " + (tab==="paid"?"on":"")} onClick={()=>setTab("paid")}>Đã TT {counts.paid}</div>
+            </div>
+          </div>
+          <div className="bill-list-body">
+            {filtered.map(x => {
+              const xp = HIS.patientById(x.pid);
+              const stLbl = {draft:"NHÁP",pend:"CHỜ TT",paid:"✓ ĐÃ TT","bhyt-pend":"CHỜ BHYT"}[x.stat];
+              return (
+                <div key={x.id} className={"bill-inv " + (sel===x.id?"sel":"")} onClick={()=>setSel(x.id)}>
+                  <div className="bill-inv-row1">
+                    <span className="bill-inv-id">{x.id}</span>
+                    <span className={"bill-inv-stat " + x.stat}>{stLbl}</span>
+                  </div>
+                  <div className="bill-inv-pt">{xp.name}</div>
+                  <div className="bill-inv-meta">
+                    <span>BN <b>{x.pid}</b></span>
+                    <span>{x.dt}</span>
+                    <span>{x.kind}</span>
+                    <span>{x.ward}</span>
+                    <span>BHYT <b>{xp.bhytClass}</b></span>
+                  </div>
+                  <div className="bill-inv-amt">
+                    {x.total.toLocaleString("vi-VN")} ₫
+                    {x.pay > 0 && <div className="pay">BN trả: {x.pay.toLocaleString("vi-VN")} ₫</div>}
+                    {x.pay === 0 && x.stat !== "draft" && <div className="pay">BHYT 100%</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Invoice detail */}
+        <div className="bill-detail">
+          <div className="bill-detail-h">
+            <div>
+              <div className="bill-detail-tit">{inv.id}</div>
+              <div className="bill-detail-sub">
+                <span>Xuất <b>{inv.dt}</b></span>
+                <span>·</span>
+                <span>Thu ngân <b>Nguyễn T. Mai (Q.02)</b></span>
+                <span>·</span>
+                <span>Kỳ VT <b>2026-10</b></span>
+                <span>·</span>
+                <span>Đợt XML <b>#42</b></span>
+              </div>
+              <div style={{marginTop:10, display:"flex", gap:14, alignItems:"center"}}>
+                <div style={{width:44,height:44,borderRadius:"50%",background:"var(--a-cy-bg)",color:"var(--a-cy)",display:"grid",placeItems:"center",fontWeight:600,fontSize:20,border:"1px solid var(--a-cy-line)"}}>
+                  {p.name.split(" ").slice(-1)[0][0]}
+                </div>
+                <div>
+                  <div style={{fontSize:16, fontWeight:600, color:"var(--t-0)"}}>{p.name}</div>
+                  <div style={{fontFamily:"var(--font-mono)", fontSize:"var(--fs-xs)", color:"var(--t-2)", marginTop:2, display:"flex", gap:10}}>
+                    <span><b style={{color:"var(--t-0)", fontFamily:"var(--font-sans)"}}>{p.id}</b></span>
+                    <span>{p.age}t · {p.gender==="M"?"Nam":"Nữ"}</span>
+                    <span>CCCD {p.cccd}</span>
+                    <span>SĐT {p.phone}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex", gap:6}}>
+              <button className="opd-btn-sec" onClick={() => HUI.toast(`⎙ Đang in hóa đơn ${inv.id} · 2 liên (BN + lưu quầy)`, {tone:"info"})}>⎙ In hóa đơn</button>
+              <button className="opd-btn-sec" onClick={() => {
+                HUI.open((cx) => (
+                  <HUI.Modal title="Gửi hóa đơn qua email" sub={`${inv.id} · ${p.name}`} size="sm" onClose={cx}
+                    footer={<><HUI.Btn variant="ghost" onClick={cx}>Hủy</HUI.Btn><HUI.Btn variant="primary" icon="check" onClick={() => { HUI.toast("✉ Đã gửi email + Zalo hóa đơn điện tử", {tone:"ok"}); cx(); }}>Gửi</HUI.Btn></>}>
+                    <HUI.Field label="Email nhận" required><HUI.Input defaultValue="hoangcuong58@gmail.com"/></HUI.Field>
+                    <HUI.Field label="Gửi kèm"><HUI.Chk label="Hóa đơn điện tử (XML ký số)" defaultChecked={true}/><HUI.Chk label="Báo cáo BHYT đã thử tục" defaultChecked={true}/><HUI.Chk label="Toa thuốc (nếu có)" defaultChecked={false}/></HUI.Field>
+                    <HUI.Field label="Gửi qua Zalo kèm theo"><HUI.Chk label={`SĐT ${p.phone}`} defaultChecked={true}/></HUI.Field>
+                  </HUI.Modal>
+                ));
+              }}>✉ Gửi email</button>
+              <button className="opd-btn-sec" onClick={() => HUI.toast(`📋 Đã sao chép mã ${inv.id} vào clipboard`, {tone:"ok"})}>📋 Sao chép</button>
+              <button className="opd-btn-sec" onClick={() => {
+                HUI.drawer((cx) => (
+                  <HUI.Drawer title="Tùy chọn khác" sub={inv.id} width={380} onClose={cx}>
+                    <div style={{padding:"4px 0"}}>
+                      {[
+                        ["refresh","Làm mới dữ liệu từ EMR"],
+                        ["download","Tải XML BHYT"],
+                        ["folder","Xem lịch sử chỉnh sửa"],
+                        ["shield","Xem audit log"],
+                        ["x","Hủy hóa đơn (cần quản lý duyệt)"],
+                      ].map(([ic,t]) => (
+                        <div key={t} onClick={() => { HUI.toast(t, {tone:"info"}); cx(); }} style={{padding:"10px 16px",borderBottom:"1px solid var(--line)",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13}} onMouseOver={e=>e.currentTarget.style.background="var(--d-1)"} onMouseOut={e=>e.currentTarget.style.background="transparent"}>
+                          <Ico name={ic} size={14}/>
+                          <span>{t}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </HUI.Drawer>
+                ));
+              }}>⋯</button>
+            </div>
+          </div>
+
+          <div className="bill-detail-body">
+            {renderSection("1. Công khám", lines.kham, 1, lines.kham.reduce((s,x)=>s+x.price*x.qty, 0))}
+            {renderSection("2. Xét nghiệm", lines.xn, lines.xn.length, lines.xn.reduce((s,x)=>s+x.price*x.qty, 0))}
+            {renderSection("3. Chẩn đoán hình ảnh + TDCN", lines.cdha, 2, lines.cdha.reduce((s,x)=>s+x.price*x.qty, 0))}
+            {renderSection("4. Thuốc theo đơn", lines.thuoc, lines.thuoc.length, lines.thuoc.reduce((s,x)=>s+x.price*x.qty, 0))}
+            {renderSection("5. Dịch vụ khác · VTYT", lines.dv, lines.dv.length, lines.dv.reduce((s,x)=>s+x.price*x.qty, 0))}
+          </div>
+        </div>
+
+        {/* Payment */}
+        <div className="bill-pay">
+          <div className="bill-pay-h">Thanh toán</div>
+          <div className="bill-pay-body">
+            <div className="bhyt-card">
+              <div className="h">
+                <span className="t">BHYT · {p.bhytClass} · Hạng I</span>
+                <span className="bill-inv-stat paid">✓ XÁC THỰC</span>
+              </div>
+              <div className="num">{p.bhyt}</div>
+              <div className="meta">
+                <span>Nơi ĐKKCB: <b>BVĐK HY</b></span>
+                <span>Hiệu lực: <b>31/12/2026</b></span>
+                <span>Mức <b>80%</b></span>
+              </div>
+              <div className="v-ok">
+                <Ico name="check" size={14}/>
+                Kết nối Cổng BHXH · phản hồi 0.8s · OK
+              </div>
+            </div>
+
+            <div className="bill-summary">
+              <div className="bill-sum-row"><span className="l">Tổng chi phí</span><span className="v">{total.toLocaleString("vi-VN")} ₫</span></div>
+              <div className="bill-sum-row"><span className="l">+ VAT 5% (DV ngoài)</span><span className="v">0 ₫</span></div>
+              <div className="bill-sum-row ded"><span className="l">− BHYT 80% chi trả</span><span className="v">− {bhytAmt.toLocaleString("vi-VN")} ₫</span></div>
+              <div className="bill-sum-row ded"><span className="l">− Miễn giảm (KM 65+)</span><span className="v">− 0 ₫</span></div>
+              <div className="bill-sum-row sep tot"><span className="l">BN phải trả</span><span className="v">{payAmt.toLocaleString("vi-VN")} ₫</span></div>
+            </div>
+
+            <div style={{fontFamily:"var(--font-mono)", fontSize:"var(--fs-xxs)", textTransform:"uppercase", color:"var(--t-2)", letterSpacing:"0.08em", marginBottom:8, fontWeight:600}}>Phương thức</div>
+            <div className="pay-method">
+              <div className={"pay-tile " + (pay==="cash"?"on":"")} onClick={()=>setPay("cash")}>
+                <span className="ic">💵</span>
+                Tiền mặt
+              </div>
+              <div className={"pay-tile " + (pay==="bank"?"on":"")} onClick={()=>setPay("bank")}>
+                <span className="ic">💳</span>
+                Thẻ ATM/POS
+              </div>
+              <div className={"pay-tile " + (pay==="qr"?"on":"")} onClick={()=>setPay("qr")}>
+                <span className="ic">◱</span>
+                QR VietQR
+              </div>
+              <div className={"pay-tile " + (pay==="ewallet"?"on":"")} onClick={()=>setPay("ewallet")}>
+                <span className="ic">◯</span>
+                Momo / ZaloPay
+              </div>
+            </div>
+
+            <div style={{marginTop:14, padding:"10px", background:"var(--d-1)", border:"1px solid var(--line)", borderRadius:"var(--r-2)"}}>
+              <div style={{fontFamily:"var(--font-mono)",fontSize:"var(--fs-xxs)",color:"var(--t-2)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Gửi hóa đơn điện tử</div>
+              <div style={{fontSize:"var(--fs-sm)",color:"var(--t-0)",marginBottom:2}}>hoangcuong58@gmail.com</div>
+              <div style={{fontFamily:"var(--font-mono)",fontSize:"var(--fs-xs)",color:"var(--a-cy)"}}>0901 223 344 · Zalo</div>
+            </div>
+          </div>
+
+          <div className="bill-pay-foot">
+            <button onClick={() => HUI.confirm({
+              title: `Xác nhận thanh toán ${payAmt.toLocaleString("vi-VN")}₫?`,
+              body: <div><p><b>{inv.id}</b> · {p.name}</p><p style={{marginTop:8,color:"var(--t-2)",fontSize:12}}>Phương thức: <b>{ {cash:"Tiền mặt",bank:"Thẻ ATM/POS",qr:"QR VietQR",ewallet:"Ví điện tử"}[pay] }</b>. Hóa đơn sẽ: (1) Gửi lên TCT · lấy mã CQT, (2) Phát hóa đơn điện tử cho BN, (3) Đóng sổ hóa đơn không thể chỉnh sửa.</p></div>,
+              confirmText: "XÁC NHẬN THU",
+              onConfirm: () => HUI.toast(`✓ Đã thu ${payAmt.toLocaleString("vi-VN")}₫ · mã CQT: C26-${Date.now().toString().slice(-8)} · đã gửi HDĐT`, {tone:"ok", duration: 4000})
+            })}>✓ Xác nhận thanh toán · {payAmt.toLocaleString("vi-VN")} ₫ (F10)</button>
+            <div className="sec-row">
+              <button onClick={() => HUI.toast("✓ Đã lưu nháp · hệ thống tự lưu mỗi 30s", {tone:"info"})}>Lưu nháp</button>
+              <button onClick={() => {
+                HUI.open((cx) => (
+                  <HUI.Modal title="Hoãn thanh toán" sub={`${inv.id} · ${p.name}`} size="sm" onClose={cx}
+                    footer={<><HUI.Btn variant="ghost" onClick={cx}>Hủy</HUI.Btn><HUI.Btn variant="primary" icon="check" onClick={() => { HUI.toast("⏰ Đã hoãn thanh toán · tạo phiếu nợ", {tone:"info"}); cx(); }}>Tạo phiếu nợ</HUI.Btn></>}>
+                    <HUI.Field label="Lý do" required><HUI.Select options={["BN không đủ tiền","Chờ người nhà đến thanh toán","Tranh chấp thanh toán BHYT","Yêu cầu xem xét miễn giảm"]}/></HUI.Field>
+                    <HUI.Field label="Hạn thanh toán"><HUI.Input type="date" defaultValue="2026-10-29"/></HUI.Field>
+                    <HUI.Field label="Ghi chú"><HUI.Textarea rows={2}/></HUI.Field>
+                  </HUI.Modal>
+                ));
+              }}>Hoãn</button>
+              <button onClick={() => {
+                HUI.open((cx) => (
+                  <HUI.Modal title="Tách hóa đơn" sub={inv.id} size="md" onClose={cx}
+                    footer={<><HUI.Btn variant="ghost" onClick={cx}>Hủy</HUI.Btn><HUI.Btn variant="primary" icon="check" onClick={() => { HUI.toast("✓ Đã tách 2 hóa đơn · HD-A và HD-B", {tone:"ok"}); cx(); }}>Tách</HUI.Btn></>}>
+                    <p style={{marginBottom:12,color:"var(--t-2)",fontSize:13}}>Tách dịch vụ trong hóa đơn thành nhiều hóa đơn độc lập (VD: BHYT + tự chi trả).</p>
+                    <HUI.Field label="Phương thức tách"><HUI.Radio name="split" value="bhyt" options={[
+                      {value:"bhyt",label:"Tách BHYT / tự chi trả",sub:"Phần BHYT gửi giao định · phần BN tự trả xuất riêng"},
+                      {value:"service",label:"Tách theo dịch vụ",sub:"Khám bệnh · XN · Thuốc · Vật tư"},
+                      {value:"custom",label:"Tùy chỉnh"}
+                    ]}/></HUI.Field>
+                  </HUI.Modal>
+                ));
+              }}>Tách hóa đơn</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+window.BillingModule = BillingModule;</script>
+<script type="text/babel" data-presets="react">
+// ============ HUI INJECTED ============
+// HIS Terminal — shared interactive UI (modals, drawers, confirms, toasts)
+// Exposes: HUI.open(content), HUI.drawer(content), HUI.confirm(...), HUI.toast(...)
+// Inside modals: <HUI.Modal title size footer onClose>..</HUI.Modal>, <HUI.Drawer>..</HUI.Drawer>
+// Form primitives: <HUI.Field>, <HUI.Row>, <HUI.Btn>, <HUI.Input>, <HUI.Select>, <HUI.Textarea>
+// Renders to #hui-root (auto-inserted). All state-managed globally via window.__HUI_STATE.
+
+(() => {
+  const { useState: _uS, useEffect: _uE, useMemo: _uM, useRef: _uR } = React;
+
+  // ========= store =========
+  const state = {
+    stack: [],          // [{id, kind:'modal'|'drawer', node, onClose}]
+    toasts: [],
+    listeners: new Set(),
+  };
+  window.__HUI_STATE = state;
+
+  const emit = () => state.listeners.forEach(fn => fn());
+  const sub = (fn) => { state.listeners.add(fn); return () => state.listeners.delete(fn); };
+
+  let nextId = 1;
+  const push = (kind, node, onClose) => {
+    const id = "h" + (nextId++);
+    state.stack.push({ id, kind, node, onClose });
+    emit();
+    return id;
+  };
+  const close = (id) => {
+    const it = state.stack.find(x => x.id === id);
+    if (!it) return;
+    state.stack = state.stack.filter(x => x.id !== id);
+    if (it.onClose) it.onClose();
+    emit();
+  };
+  const closeTop = () => {
+    if (state.stack.length) close(state.stack[state.stack.length - 1].id);
+  };
+  const closeAll = () => { state.stack = []; emit(); };
+
+  // ========= primitives =========
+  const Btn = ({ variant = "ghost", size = "md", icon, children, ...rest }) => {
+    const cls = `hui-btn hui-btn-${variant} hui-btn-${size}`;
+    return (
+      <button className={cls} {...rest}>
+        {icon && <Ico name={icon} size={size === "sm" ? 12 : 14}/>}
+        {children}
+      </button>
+    );
+  };
+
+  const Field = ({ label, hint, required, error, children, span = 1 }) => (
+    <label className={`hui-field hui-span-${span}`}>
+      {label && <span className="hui-lbl">{label}{required && <i className="req">*</i>}</span>}
+      {children}
+      {hint && !error && <span className="hui-hint">{hint}</span>}
+      {error && <span className="hui-err">{error}</span>}
+    </label>
+  );
+
+  const Row = ({ cols = 2, children, gap = 10 }) => (
+    <div className="hui-row" style={{gridTemplateColumns:`repeat(${cols}, 1fr)`, gap}}>{children}</div>
+  );
+
+  const Input = React.forwardRef(({ icon, suffix, ...p }, ref) => (
+    <div className="hui-inp-wrap">
+      {icon && <span className="pre"><Ico name={icon} size={13}/></span>}
+      <input ref={ref} className="hui-inp" {...p}/>
+      {suffix && <span className="suf">{suffix}</span>}
+    </div>
+  ));
+
+  const Select = ({ options = [], ...p }) => (
+    <div className="hui-inp-wrap">
+      <select className="hui-inp hui-sel" {...p}>
+        {options.map((o, i) => typeof o === "string"
+          ? <option key={i} value={o}>{o}</option>
+          : <option key={i} value={o.value}>{o.label}</option>)}
+      </select>
+      <span className="suf"><Ico name="chev-d" size={12}/></span>
+    </div>
+  );
+
+  const Textarea = (p) => <textarea className="hui-inp hui-ta" {...p}/>;
+
+  const Chk = ({ label, checked, onChange, hint }) => (
+    <label className="hui-chk">
+      <input type="checkbox" checked={!!checked} onChange={e => onChange && onChange(e.target.checked)}/>
+      <span className="box"><Ico name="check" size={10}/></span>
+      <span className="t">{label}{hint && <i className="hui-hint" style={{marginLeft:6}}>{hint}</i>}</span>
+    </label>
+  );
+
+  const Radio = ({ options = [], value, onChange, name }) => (
+    <div className="hui-radio-g">
+      {options.map(o => {
+        const v = typeof o === "string" ? o : o.value;
+        const lbl = typeof o === "string" ? o : o.label;
+        const sub = typeof o === "object" ? o.sub : null;
+        return (
+          <label key={v} className={`hui-radio ${value === v ? "on" : ""}`}>
+            <input type="radio" name={name} value={v} checked={value === v} onChange={() => onChange && onChange(v)}/>
+            <span className="dot"/>
+            <span className="t">
+              <b>{lbl}</b>
+              {sub && <i>{sub}</i>}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+
+  // ========= Modal shell (used inside open()) =========
+  const Modal = ({ title, sub, size = "md", footer, tone, children, onClose, dense, scroll = true }) => (
+    <div className={`hui-modal hui-size-${size} ${tone ? "hui-tone-" + tone : ""} ${dense ? "dense" : ""}`}>
+      <header className="hui-modal-h">
+        <div className="t">
+          <div className="tt">{title}</div>
+          {sub && <div className="sub">{sub}</div>}
+        </div>
+        <button className="hui-x" onClick={onClose} title="Đóng (Esc)">
+          <Ico name="x" size={14}/>
+        </button>
+      </header>
+      <div className={"hui-modal-b" + (scroll ? "" : " no-scroll")}>{children}</div>
+      {footer && <footer className="hui-modal-f">{footer}</footer>}
+    </div>
+  );
+
+  // ========= Drawer shell =========
+  const Drawer = ({ title, sub, width = 560, footer, children, onClose, tabs, activeTab, onTab }) => (
+    <div className="hui-drawer" style={{width}}>
+      <header className="hui-drawer-h">
+        <div className="t">
+          <div className="tt">{title}</div>
+          {sub && <div className="sub">{sub}</div>}
+        </div>
+        <button className="hui-x" onClick={onClose}><Ico name="x" size={14}/></button>
+      </header>
+      {tabs && (
+        <nav className="hui-drawer-tabs">
+          {tabs.map(t => (
+            <button key={t.id} className={activeTab === t.id ? "on" : ""} onClick={() => onTab && onTab(t.id)}>
+              {t.label}{t.count != null && <span className="n">{t.count}</span>}
+            </button>
+          ))}
+        </nav>
+      )}
+      <div className="hui-drawer-b">{children}</div>
+      {footer && <footer className="hui-drawer-f">{footer}</footer>}
+    </div>
+  );
+
+  // ========= open() / drawer() / confirm() / toast() =========
+  // Wrapper FC so hooks inside renderFn are legal
+  const RenderHost = ({ rf, cx }) => rf(cx);
+
+  const open = (renderFn) => {
+    const id = push("modal", null, null);
+    const item = state.stack.find(x => x.id === id);
+    const cx = () => close(id);
+    item.node = <RenderHost rf={renderFn} cx={cx}/>;
+    emit();
+    return cx;
+  };
+
+  const drawer = (renderFn) => {
+    const id = push("drawer", null, null);
+    const item = state.stack.find(x => x.id === id);
+    const cx = () => close(id);
+    item.node = <RenderHost rf={renderFn} cx={cx}/>;
+    emit();
+    return cx;
+  };
+
+  const confirm = ({ title, body, danger, confirmText = "Xác nhận", cancelText = "Hủy", onConfirm }) => {
+    open((cx) => (
+      <Modal title={title} size="sm" tone={danger ? "danger" : null} onClose={cx}
+        footer={<>
+          <Btn variant="ghost" onClick={cx}>{cancelText}</Btn>
+          <Btn variant={danger ? "danger" : "primary"} onClick={() => { onConfirm && onConfirm(); cx(); }}>{confirmText}</Btn>
+        </>}>
+        <div className="hui-confirm-body">{body}</div>
+      </Modal>
+    ));
+  };
+
+  const toast = (msg, { tone = "ok", duration = 2600 } = {}) => {
+    const id = "t" + (nextId++);
+    state.toasts.push({ id, msg, tone });
+    emit();
+    setTimeout(() => {
+      state.toasts = state.toasts.filter(t => t.id !== id);
+      emit();
+    }, duration);
+  };
+
+  // ========= root renderer =========
+  const Root = () => {
+    const [, force] = _uS(0);
+    _uE(() => sub(() => force(n => n + 1)), []);
+    _uE(() => {
+      const h = (e) => {
+        if (e.key === "Escape" && state.stack.length) {
+          e.preventDefault();
+          closeTop();
+        }
+      };
+      window.addEventListener("keydown", h);
+      return () => window.removeEventListener("keydown", h);
+    }, []);
+
+    const modals = state.stack.filter(x => x.kind === "modal");
+    const drawers = state.stack.filter(x => x.kind === "drawer");
+    const hasOverlay = state.stack.length > 0;
+
+    return (
+      <>
+        {hasOverlay && <div className="hui-backdrop" onClick={closeTop}/>}
+        {drawers.map(d => (
+          <div key={d.id} className="hui-drawer-wrap" onClick={e => e.stopPropagation()}>
+            {d.node}
+          </div>
+        ))}
+        {modals.map(m => (
+          <div key={m.id} className="hui-modal-wrap" onClick={e => e.stopPropagation()}>
+            {m.node}
+          </div>
+        ))}
+        <div className="hui-toasts">
+          {state.toasts.map(t => (
+            <div key={t.id} className={`hui-toast hui-tone-${t.tone}`}>
+              <Ico name={t.tone === "err" ? "alert" : t.tone === "warn" ? "alert" : "check"} size={13}/>
+              <span>{t.msg}</span>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
+
+  // mount root
+  const mount = () => {
+    let el = document.getElementById("hui-root");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "hui-root";
+      document.body.appendChild(el);
+    }
+    ReactDOM.createRoot(el).render(<Root/>);
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mount);
+  } else {
+    mount();
+  }
+
+  // ========= export =========
+  window.HUI = {
+    open, drawer, confirm, toast, closeAll, closeTop,
+    Modal, Drawer, Btn, Field, Row, Input, Select, Textarea, Chk, Radio,
+  };
+})();
+
+</script>
+
+<script type="text/babel" data-presets="react">
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <HisShell route="bill" crumb={["Thu ngân","HD-2026-4018"]}>
+    <BillingModule/>
+  </HisShell>
+);
+</script>
+</body>
+</html>
