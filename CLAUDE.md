@@ -3034,3 +3034,109 @@ get heavy daily use).
   (dashboard-3cap, finance, digital-signature, central-signing,
   health-exchange, help, radiology/viewer, medical-record-archive,
   bhxh-audit, satisfaction-survey, specialty-emr).
+
+---
+
+## Work Log - 2026-04-30 (Design pack adoption — Phase A + B)
+
+User pulled the bundle from claude.ai/design (saved into
+`design-system/` yesterday) and asked us to actually use it for the
+six remaining `WrapV1` routes. Two-phase migration landed today.
+
+### Phase A — port the v2 kit (commit `4314b2d`)
+
+- `frontend/src/layouts/terminal/ab-module.css` — verbatim copy of
+  `design-system/project/mod-appt-booking.css` (692 lines). Imported
+  globally in `TerminalLayout.tsx` after `terminal.css` /
+  `his-shell.css` so the `.ab-*` classes can layer on top of the
+  Foundation tokens.
+- `frontend/src/pages-v2/_v2kit.tsx` (~330 lines) — typed React port
+  of `design-system/project/mod-v2-kit.jsx`. Components ship the same
+  API as the prototype: `KpiStrip`, `TopTabs`, `StatusTabs`,
+  `SearchBox`, `Filter`, `DataTable<T>` (typed with generics),
+  `Pager`, `StatusBadge`, `ActBtn`, `DrSec`, `DrField`. Imperative
+  `HUI.drawer` / `HUI.modal` calls replaced with declarative
+  `<DrawerShell>` / `<ModalShell>` Antd wrappers — caller manages
+  open state via React state. Helper exports `fmtVNDg`, `fmtHMg`,
+  `fmtDMYg`, `fmtDTg`, `tk`/`ti`/`tw`/`te`, `cf`. Re-exports `Ico`
+  so consumers don't need to dig into `../layouts/terminal/Icon`.
+
+### Phase B — 6 bespoke v2 pages (commit `ed61fd1`)
+
+| File | Source API | Pattern |
+|---|---|---|
+| `pages-v2/Finance.tsx` | `financeApi.getRevenueByService` | KPI 6-card · service group filter · profit-margin drawer |
+| `pages-v2/HealthExchange.tsx` | `getConnections()` | StatusTabs active/inactive/error · endpoint+protocol drawer |
+| `pages-v2/MedicalRecordArchive.tsx` | `GET /inpatient/medical-record-archive/list` | StatusTabs verified/unverified · cloud-vs-local KPI |
+| `pages-v2/BhxhAudit.tsx` | `GET /bhxh-audit/records` | StatusTabs pending/approved/rejected · financial breakdown drawer |
+| `pages-v2/SatisfactionSurvey.tsx` | `GET /satisfaction-survey/results` | StatusTabs ≥4/=3/≤2 · top-5 dept bars · NPS-like KPI |
+| `pages-v2/SpecialtyEMR.tsx` | `GET /specialty-emr/search?pageIndex=0&pageSize=200` | StatusTabs draft/active/closed · top-5 specialty grid |
+
+App.tsx: 6 lazy imports added (`FinanceV2`, `HealthExchangeV2`, ...);
+the matching `<Route ... element={<WrapV1 ...>}>` lines under `/v2/*`
+swapped to point at the new components. The non-/v2 routes (line
+313+ — `/finance`, `/health-exchange`, etc.) still point at the
+original v1 pages, so those imports must stay.
+
+`Icon.tsx`: bulk added 25+ icons referenced across the prototype
+JSXs but missing from `TermIcon` — `download`, `eye`, `print`,
+`send`, `play`, `edit`, `trash`, `more`, `filter`, `dollar`,
+`cash`, `activity`, `calendar`, `clock`, `user`, `heart`,
+`chevronR/L/D`, `card`, `qr`, `mail`, `phone`, `lock`,
+`archive`, `star`, `message-square`, `thermometer`, `file-text`.
+Each is a tiny stroked SVG matching feather-icon proportions.
+
+### Verified
+
+- `tsc --noEmit` 0 errors
+- `npm run build` 27.19 s
+- All 6 routes lazy-load cleanly in dev (manual sanity)
+
+Vercel auto-deploys on push, so the live site picks up the new
+pages without action on our side.
+
+### Cosmetic finding for next session
+
+`Icon.tsx` was already over 220 lines before today's bulk add and
+is now ~340 lines of switch cases. Leave it for now — perfectly
+functional, just unwieldy. If we touch it again, consider moving
+to a lookup table keyed by icon name with a single `<svg>` template.
+
+### Phase C — what's left (low priority, deferred)
+
+Per the audit in `## Work Log - 2026-04-29`, **33 templated v2
+pages** still use the generic `_GenericListPage` helper instead of
+the bespoke ab-* layout. Examples: AssetManagement, Equipment,
+Quality, ChronicDisease, Telemedicine, SmsManagement,
+TbHivManagement, SystemAdmin, etc. Each works correctly today; the
+gap is purely visual polish. Three options when we come back:
+
+1. **Don't bother** — the templated layout is functional and
+   on-brand. Reserve effort for new features.
+2. **Convert by user demand** — when user reports "this page feels
+   ugly/cramped" for a specific module, do that one bespoke. ~30
+   minutes per page using the Phase B recipe (read v1 → identify
+   API + DTO → write ~250-line v2 file using `_v2kit` primitives).
+3. **Bulk batch** — ~16-20 hours of work for all 33. Would need
+   the user to be confident the design language is the right
+   long-term direction first.
+
+If we go down route 2 or 3, the recipe is captured in any of the
+six Phase B files (Finance.tsx is the cleanest example — read it
+top to bottom before starting a new conversion).
+
+### Other items still on the roadmap (for context)
+
+- **ARM A1 retry loop** — running on `retry_arm_jibri.py`,
+  ~24 h cap. Tokyo capacity still tight. When provisioned, set up
+  Jibri (recording) + reconfigure Jitsi to use it. Until then,
+  Jitsi self-host at `https://161-33-180-17.nip.io` works for live
+  consultations, just no recording.
+- **USB Token Pkcs11Interop** — biggest remaining feature item
+  (~2 days). Not blocked by anything except hardware-on-hand for
+  final test. Could start coding any time.
+- **Group 3 hardware pilots** — fingerprint reader + smart card
+  writer. Need real devices + vendor SDKs first.
+- **CDN** — user explicitly skipped (see chat in this session). If
+  performance ever bites, Cloudflare in front of the PACS Orthanc
+  VM is the highest-ROI option.
