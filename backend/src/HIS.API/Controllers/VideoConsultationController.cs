@@ -18,7 +18,16 @@ namespace HIS.API.Controllers;
 public class VideoConsultationController : ControllerBase
 {
     private readonly HISDbContext _db;
-    public VideoConsultationController(HISDbContext db) { _db = db; }
+    private readonly IConfiguration _config;
+    public VideoConsultationController(HISDbContext db, IConfiguration config)
+    {
+        _db = db;
+        _config = config;
+    }
+
+    private string JitsiBaseUrl =>
+        (_config["Jitsi:BaseUrl"] ?? Environment.GetEnvironmentVariable("JITSI_BASE_URL")
+            ?? "https://meet.jit.si").TrimEnd('/');
 
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
@@ -63,9 +72,9 @@ public class VideoConsultationController : ControllerBase
         string? ConclusionNote,
         DateTime CreatedAt);
 
-    private static string BuildJitsiUrl(string roomName) => $"https://meet.jit.si/{roomName}";
+    private string BuildJitsiUrl(string roomName) => $"{JitsiBaseUrl}/{roomName}";
 
-    private static RoomDto ToDto(ConsultationRoom r, string? patientName = null, string? hostName = null)
+    private RoomDto ToDto(ConsultationRoom r, string? patientName = null, string? hostName = null)
         => new(
             r.Id, r.RoomName, r.Title, r.RoomType,
             r.StudyInstanceUID, r.PatientId, patientName,
