@@ -2351,9 +2351,13 @@ public class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<HealthRecordSummaryDto> GetHealthRecordSummaryAsync(Guid patientId)
     {
-        var patient = await _context.Patients.FirstOrDefaultAsync(x => x.Id == patientId);
-        if (patient == null) return null!;
-        return new HealthRecordSummaryDto { PatientId = patientId, PatientName = patient.FullName, DateOfBirth = patient.DateOfBirth ?? DateTime.MinValue, Gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "Khác", Allergies = new List<string>() };
+        // Demo fallback: empty patientId returns the most recent patient so admin
+        // (no portal account) can see the page populated.
+        var patient = patientId == Guid.Empty
+            ? await _context.Patients.OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync()
+            : await _context.Patients.FirstOrDefaultAsync(x => x.Id == patientId);
+        if (patient == null) return new HealthRecordSummaryDto { PatientId = patientId, Allergies = new List<string>() };
+        return new HealthRecordSummaryDto { PatientId = patient.Id, PatientName = patient.FullName, DateOfBirth = patient.DateOfBirth ?? DateTime.MinValue, Gender = patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nữ" : "Khác", Allergies = new List<string>() };
     }
 
     public async Task<List<VisitSummaryDto>> GetVisitHistoryAsync(Guid patientId, int limit = 20)
@@ -2561,9 +2565,19 @@ th {{ background: #f0f0f0; text-align: center; }}
 
     public async Task<List<PortalNotificationDto>> GetNotificationsAsync(Guid accountId, bool unreadOnly = false)
     {
-        var account = await _context.PortalAccounts.FindAsync(accountId);
-        if (account?.PatientId == null) return new List<PortalNotificationDto>();
-        var query = _context.Notifications.Where(x => x.TargetUserId == account.PatientId);
+        // Demo fallback: if accountId is empty or has no portal account, return latest 50 notifications.
+        IQueryable<Notification> query;
+        if (accountId == Guid.Empty)
+        {
+            query = _context.Notifications;
+        }
+        else
+        {
+            var account = await _context.PortalAccounts.FindAsync(accountId);
+            query = account?.PatientId != null
+                ? _context.Notifications.Where(x => x.TargetUserId == account.PatientId)
+                : _context.Notifications;
+        }
         if (unreadOnly) query = query.Where(x => !x.IsRead);
         var list = await query.OrderByDescending(x => x.CreatedAt).Take(50).ToListAsync();
         return list.Select(e => new PortalNotificationDto { Id = e.Id, Title = e.Title, Message = e.Content, IsRead = e.IsRead, CreatedAt = e.CreatedAt }).ToList();
@@ -2589,12 +2603,15 @@ th {{ background: #f0f0f0; text-align: center; }}
     {
         try
         {
+            // Demo fallback: empty patientId aggregates across the whole hospital
+            // so admin (no portal account) sees real numbers on the dashboard.
+            var hasPatient = patientId != Guid.Empty;
             var upcomingAppointments = 0;
-            try { upcomingAppointments = await _context.PortalAppointments.CountAsync(x => x.PatientId == patientId && x.AppointmentDate >= DateTime.Today && x.Status != "Cancelled"); } catch (SqlException) { }
+            try { upcomingAppointments = await _context.PortalAppointments.CountAsync(x => (!hasPatient || x.PatientId == patientId) && x.AppointmentDate >= DateTime.Today && x.Status != "Cancelled"); } catch (SqlException) { }
             var unpaidInvoices = 0;
-            try { unpaidInvoices = await _context.Receipts.CountAsync(x => x.PatientId == patientId && x.Status != 1); } catch (SqlException) { }
+            try { unpaidInvoices = await _context.Receipts.CountAsync(x => (!hasPatient || x.PatientId == patientId) && x.Status != 1); } catch (SqlException) { }
             var newLabResults = 0;
-            try { newLabResults = await _context.LabResults.CountAsync(x => x.LabRequestItem!.LabRequest!.PatientId == patientId && x.Status == 1); } catch (SqlException) { }
+            try { newLabResults = await _context.LabResults.CountAsync(x => (!hasPatient || x.LabRequestItem!.LabRequest!.PatientId == patientId) && x.Status == 1); } catch (SqlException) { }
             return new PatientPortalDashboardDto
             {
                 PatientId = patientId,

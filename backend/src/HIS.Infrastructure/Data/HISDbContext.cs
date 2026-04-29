@@ -214,6 +214,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<LabTubeType> LabTubeTypes => Set<LabTubeType>();
     public DbSet<LabQCResult> LabQCResults => Set<LabQCResult>();
     public DbSet<LabConclusionTemplate> LabConclusionTemplates => Set<LabConclusionTemplate>();
+    public DbSet<LabTestNorm> LabTestNorms => Set<LabTestNorm>();
 
     // Chẩn đoán hình ảnh (RIS/PACS)
     public DbSet<RadiologyRequest> RadiologyRequests => Set<RadiologyRequest>();

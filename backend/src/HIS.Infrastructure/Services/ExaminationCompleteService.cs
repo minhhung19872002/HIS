@@ -923,7 +923,47 @@ public class ExaminationCompleteService : IExaminationCompleteService
 
     public async Task<List<string>> GetHistoryImagingImagesAsync(Guid orderId)
     {
-        return new List<string>();
+        // Walk: RadiologyRequest -> Exams -> DicomStudies -> preview URLs.
+        // orderId may be either a RadiologyRequest.Id, RadiologyExam.Id, or
+        // ServiceRequestDetail.Id pointing at a radiology service. Try each.
+        var studyUids = await _context.DicomStudies
+            .Where(s => s.RadiologyExam != null
+                && (s.RadiologyExamId == orderId
+                    || s.RadiologyExam.RadiologyRequestId == orderId))
+            .Select(s => s.StudyInstanceUID)
+            .Where(u => !string.IsNullOrEmpty(u))
+            .Distinct()
+            .ToListAsync();
+
+        if (studyUids.Count == 0)
+        {
+            // Fallback: order may be a ServiceRequestDetail tied to the same patient/service;
+            // find the matching radiology request by ServiceId + MedicalRecord linkage.
+            var detail = await _context.ServiceRequestDetails
+                .Include(d => d.ServiceRequest)
+                .FirstOrDefaultAsync(d => d.Id == orderId);
+            if (detail?.ServiceRequest != null)
+            {
+                studyUids = await _context.DicomStudies
+                    .Where(s => s.RadiologyExam != null
+                        && s.RadiologyExam.RadiologyRequest != null
+                        && s.RadiologyExam.RadiologyRequest.MedicalRecordId == detail.ServiceRequest.MedicalRecordId
+                        && s.RadiologyExam.RadiologyRequest.ServiceId == detail.ServiceId)
+                    .Select(s => s.StudyInstanceUID)
+                    .Where(u => !string.IsNullOrEmpty(u))
+                    .Distinct()
+                    .ToListAsync();
+            }
+        }
+
+        if (studyUids.Count == 0) return new List<string>();
+
+        // Return wado-uri style paths the frontend already proxies via
+        // /api/RISComplete/pacs/studies/{studyInstanceUID}/preview-instances.
+        // The viewer page builds preview URLs by appending /pacs/instances/{id}/preview.
+        return studyUids
+            .Select(uid => $"/api/RISComplete/pacs/studies/{uid}")
+            .ToList();
     }
 
     public async Task<TreatmentSheetDto> CreateTreatmentSheetAsync(TreatmentSheetDto dto)

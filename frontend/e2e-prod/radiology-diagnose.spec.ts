@@ -17,7 +17,7 @@ test('diagnose /radiology errors on prod', async ({ page }) => {
     }
   });
 
-  const loginResp = await fetch('https://his-api-rm6c6yvoja-as.a.run.app/api/auth/login', {
+  const loginResp = await fetch('https://his-api-694913628964.asia-southeast1.run.app/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: 'admin', password: 'Admin@123' }),

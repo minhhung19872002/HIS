@@ -312,6 +312,23 @@ public class LabQCResult : BaseEntity
 }
 
 /// <summary>
+/// Định mức vật tư/hoá chất cho 1 lần thực hiện xét nghiệm
+/// </summary>
+public class LabTestNorm : BaseEntity
+{
+    public Guid TestId { get; set; }                  // Service.Id (xét nghiệm)
+    public Guid SupplyId { get; set; }                // MedicalSupply.Id (vật tư)
+    public decimal Quantity { get; set; }             // Số lượng tiêu hao mỗi lần chạy
+    public string Unit { get; set; } = string.Empty;  // Đơn vị (ml, ống, test, ...)
+    public bool IsActive { get; set; } = true;
+    public string? Notes { get; set; }
+
+    // Navigation
+    public virtual Service? Service { get; set; }
+    public virtual MedicalSupply? Supply { get; set; }
+}
+
+/// <summary>
 /// Mẫu kết luận xét nghiệm
 /// </summary>
 public class LabConclusionTemplate : BaseEntity

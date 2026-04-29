@@ -8,7 +8,7 @@ import { test, expect, Page, ConsoleMessage } from '@playwright/test';
  * These tests intentionally avoid destructive actions (no create/delete).
  */
 
-const BACKEND_API = process.env.PROD_API_URL || 'https://his-api-rm6c6yvoja-as.a.run.app/api';
+const BACKEND_API = process.env.PROD_API_URL || 'https://his-api-694913628964.asia-southeast1.run.app/api';
 
 const ROUTES = [
   '/',

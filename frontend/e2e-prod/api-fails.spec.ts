@@ -17,7 +17,7 @@ const PAGES_WITH_FAILS = [
 test.setTimeout(900000);
 
 test('record failing API calls per page', async ({ page, request }) => {
-  const loginResp = await request.post('https://his-api-rm6c6yvoja-as.a.run.app/api/auth/login', {
+  const loginResp = await request.post('https://his-api-694913628964.asia-southeast1.run.app/api/auth/login', {
     data: { username: 'admin', password: 'Admin@123' },
   });
   const d = await loginResp.json();

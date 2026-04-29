@@ -1696,11 +1696,99 @@ public class LISCompleteService : ILISCompleteService
 
     public async Task<List<LabTestNormDto>> GetLabTestNormsAsync(Guid testId)
     {
-        return new List<LabTestNormDto>();
+        try
+        {
+            var query = _context.LabTestNorms
+                .Where(n => n.IsActive && !n.IsDeleted);
+            if (testId != Guid.Empty) query = query.Where(n => n.TestId == testId);
+
+            var norms = await query
+                .Join(_context.Services, n => n.TestId, s => s.Id, (n, s) => new { n, s })
+                .Join(_context.MedicalSupplies, x => x.n.SupplyId, sp => sp.Id, (x, sp) => new { x.n, x.s, sp })
+                .Select(x => new {
+                    x.n.Id, x.n.TestId,
+                    TestCode = x.s.ServiceCode, TestName = x.s.ServiceName,
+                    SupplyId = x.sp.Id, SupplyCode = x.sp.SupplyCode, SupplyName = x.sp.SupplyName,
+                    Unit = x.n.Unit, Quantity = x.n.Quantity,
+                    UnitPrice = x.sp.UnitPrice
+                })
+                .ToListAsync();
+
+            return norms
+                .GroupBy(x => new { x.TestId, x.TestCode, x.TestName })
+                .Select(g => new LabTestNormDto
+                {
+                    Id = g.First().Id,
+                    TestId = g.Key.TestId,
+                    TestCode = g.Key.TestCode ?? string.Empty,
+                    TestName = g.Key.TestName ?? string.Empty,
+                    Supplies = g.Select(x => new LabTestNormItemDto
+                    {
+                        SupplyId = x.SupplyId,
+                        SupplyCode = x.SupplyCode ?? string.Empty,
+                        SupplyName = x.SupplyName ?? string.Empty,
+                        Unit = x.Unit ?? string.Empty,
+                        Quantity = x.Quantity,
+                        UnitPrice = x.UnitPrice,
+                        Amount = x.Quantity * x.UnitPrice
+                    }).ToList(),
+                    TotalCost = g.Sum(x => x.Quantity * x.UnitPrice)
+                })
+                .ToList();
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            // Table may not exist on demo DBs that haven't run the latest schema-repair pass.
+            return new List<LabTestNormDto>();
+        }
     }
 
     public async Task<bool> UpdateLabTestNormsAsync(Guid testId, List<UpdateLabTestNormDto> norms)
     {
+        var existing = await _context.LabTestNorms
+            .Where(n => n.TestId == testId && !n.IsDeleted)
+            .ToListAsync();
+        var keepIds = new HashSet<Guid>();
+
+        foreach (var dto in norms)
+        {
+            LabTestNorm? entity = null;
+            if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
+                entity = existing.FirstOrDefault(e => e.Id == dto.Id.Value);
+
+            if (entity == null)
+            {
+                entity = new LabTestNorm
+                {
+                    Id = Guid.NewGuid(),
+                    TestId = testId,
+                    SupplyId = dto.ReagentId,
+                    Quantity = dto.Quantity,
+                    Unit = dto.Unit ?? string.Empty,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+                _context.LabTestNorms.Add(entity);
+            }
+            else
+            {
+                entity.SupplyId = dto.ReagentId;
+                entity.Quantity = dto.Quantity;
+                entity.Unit = dto.Unit ?? string.Empty;
+                entity.UpdatedAt = DateTime.Now;
+            }
+            keepIds.Add(entity.Id);
+        }
+
+        // Soft-delete rows that were removed in the update payload.
+        foreach (var stale in existing.Where(e => !keepIds.Contains(e.Id)))
+        {
+            stale.IsDeleted = true;
+            stale.IsActive = false;
+            stale.UpdatedAt = DateTime.Now;
+        }
+
+        await _context.SaveChangesAsync();
         return true;
     }
 

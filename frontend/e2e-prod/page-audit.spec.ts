@@ -35,7 +35,7 @@ test.setTimeout(1800000); // 30min — 84 pages × ~15s each
 
 test('audit all pages for empty state + errors', async ({ page, request }) => {
   // API login -> inject token
-  const loginResp = await request.post('https://his-api-rm6c6yvoja-as.a.run.app/api/auth/login', {
+  const loginResp = await request.post('https://his-api-694913628964.asia-southeast1.run.app/api/auth/login', {
     data: { username: 'admin', password: 'Admin@123' },
   });
   const loginData = await loginResp.json();
