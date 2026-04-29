@@ -87,6 +87,13 @@ const RehabilitationV2 = lazy(() => import('./pages-v2/Rehabilitation'));
 const SchoolHealthV2 = lazy(() => import('./pages-v2/SchoolHealth'));
 const TrainingResearchV2 = lazy(() => import('./pages-v2/TrainingResearch'));
 const TreatmentProtocolV2 = lazy(() => import('./pages-v2/TreatmentProtocol'));
+// Phase B v2 redesigns (ab-* design pack)
+const FinanceV2 = lazy(() => import('./pages-v2/Finance'));
+const HealthExchangeV2 = lazy(() => import('./pages-v2/HealthExchange'));
+const MedicalRecordArchiveV2 = lazy(() => import('./pages-v2/MedicalRecordArchive'));
+const BhxhAuditV2 = lazy(() => import('./pages-v2/BhxhAudit'));
+const SatisfactionSurveyV2 = lazy(() => import('./pages-v2/SatisfactionSurvey'));
+const SpecialtyEMRV2 = lazy(() => import('./pages-v2/SpecialtyEMR'));
 const WrapV1 = lazy(() => import('./pages-v2/WrapV1'));
 
 // Lazy-loaded pages for code splitting
@@ -426,7 +433,7 @@ const AppRoutes: React.FC = () => {
           <Route path="sample-tracking" element={<SampleTrackingV2 />} />
           <Route path="pathology" element={<PathologyV2 />} />
           <Route path="ivf-lab" element={<IvfLabV2 />} />
-          <Route path="finance" element={<WrapV1 element={<Finance />} title="Tài chính" />} />
+          <Route path="finance" element={<FinanceV2 />} />
           <Route path="insurance" element={<InsuranceV2 />} />
           <Route path="master-data" element={<MasterDataV2 />} />
           <Route path="reports" element={<ReportsV2 />} />
@@ -442,17 +449,17 @@ const AppRoutes: React.FC = () => {
           <Route path="hr" element={<HRV2 />} />
           <Route path="quality" element={<QualityV2 />} />
           <Route path="patient-portal" element={<PatientPortalV2 />} />
-          <Route path="health-exchange" element={<WrapV1 element={<HealthExchange />} title="HIE" />} />
+          <Route path="health-exchange" element={<HealthExchangeV2 />} />
           <Route path="emergency-disaster" element={<EmergencyDisasterV2 />} />
           <Route path="consultation" element={<ConsultationV2 />} />
           <Route path="help" element={<WrapV1 element={<Help />} title="Trợ giúp" />} />
           <Route path="radiology/viewer" element={<WrapV1 element={<DicomViewer />} title="DICOM Viewer" />} />
-          <Route path="medical-record-archive" element={<WrapV1 element={<MedicalRecordArchive />} title="Lưu trữ hồ sơ" />} />
-          <Route path="bhxh-audit" element={<WrapV1 element={<BhxhAudit />} title="BHXH Audit" />} />
+          <Route path="medical-record-archive" element={<MedicalRecordArchiveV2 />} />
+          <Route path="bhxh-audit" element={<BhxhAuditV2 />} />
           <Route path="doctor-portal" element={<DoctorPortalV2 />} />
-          <Route path="satisfaction-survey" element={<WrapV1 element={<SatisfactionSurvey />} title="Khảo sát" />} />
+          <Route path="satisfaction-survey" element={<SatisfactionSurveyV2 />} />
           <Route path="lis-config" element={<LISConfigV2 />} />
-          <Route path="specialty-emr" element={<WrapV1 element={<SpecialtyEMR />} title="BA Chuyên khoa" />} />
+          <Route path="specialty-emr" element={<SpecialtyEMRV2 />} />
           <Route path="signing-workflow" element={<SigningWorkflowV2 />} />
           <Route path="medical-record-planning" element={<MedicalRecordPlanningV2 />} />
           <Route path="endpoint-security" element={<EndpointSecurityV2 />} />
