@@ -8,6 +8,7 @@ import { HOSPITAL_NAME } from '../../constants/hospital';
 import './terminal.css';
 import './terminal-antd.css';
 import './his-shell.css';
+import './ab-module.css';
 
 /* ==========================================================================
    10 route groups — ported from design/his-shell.jsx HIS_GROUPS.
