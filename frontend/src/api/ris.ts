@@ -183,6 +183,12 @@ export interface DicomImageDto {
   thumbnailUrl?: string;
   imageUrl?: string;
   wadoUrl?: string;
+
+  // Mammo hanging-protocol metadata
+  laterality?: string;       // 'L' | 'R' | 'B'
+  viewPosition?: string;     // 'CC' | 'MLO' | 'ML' | 'LM' | ...
+  modality?: string;         // 'MG', 'CT', 'MR', ...
+  pixelSpacing?: number;     // mm/pixel
 }
 
 export interface SendModalityWorklistDto {

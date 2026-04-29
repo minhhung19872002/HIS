@@ -42,6 +42,7 @@ import { loadViewerConfig } from '../components/DicomViewerConfig';
 import DicomViewerConfig from '../components/DicomViewerConfig';
 import CornerstoneViewer, { type CornerstoneViewerHandle } from '../components/CornerstoneViewer';
 import MprViewer from '../components/MprViewer';
+import MammoViewer, { type MammoImage } from '../components/MammoViewer';
 
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them
@@ -98,6 +99,8 @@ const DicomViewer: React.FC = () => {
   const [embedOhif, setEmbedOhif] = useState(false);
   // Phase 2: Native MPR/3D rendering via Cornerstone3D VolumeViewports
   const [useNativeMpr, setUseNativeMpr] = useState(false);
+  // Phase 3: Native Mammography 2x2 hanging-protocol viewer
+  const [useMammo, setUseMammo] = useState(false);
 
   // A2: Video conference integration
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
@@ -131,6 +134,33 @@ const DicomViewer: React.FC = () => {
       })
       .filter(Boolean);
   }, [images]);
+
+  // Phase 3: build mammo image list with hanging-protocol metadata
+  const mammoImages: MammoImage[] = React.useMemo(() => {
+    return images
+      .map((img) => {
+        const raw = img.wadoUrl
+          || img.imageUrl?.replace(/\/(?:preview|rendered)(\?.*)?$/, '/file')
+          || '';
+        if (!raw) return null;
+        const abs = resolveApiUrl(raw);
+        if (!abs) return null;
+        return {
+          imageId: `wadouri:${abs}`,
+          laterality: img.laterality,
+          viewPosition: img.viewPosition,
+          pixelSpacing: img.pixelSpacing,
+          instanceNumber: img.instanceNumber,
+        } as MammoImage;
+      })
+      .filter((x): x is MammoImage => x !== null);
+  }, [images]);
+
+  // Detect mammography study so we can highlight/auto-suggest the mammo button
+  const isMammoStudy = React.useMemo(() => {
+    if (studyInfo?.modality === 'MG') return true;
+    return images.some((img) => img.modality === 'MG' || !!img.viewPosition);
+  }, [images, studyInfo]);
 
   useEffect(() => {
     // Global hotkey listener cho W/L presets F1-F10 + shortcuts customizable
@@ -419,11 +449,26 @@ const DicomViewer: React.FC = () => {
                 <Button
                   type={useNativeMpr ? 'primary' : 'default'}
                   icon={<AppstoreOutlined />}
-                  onClick={() => { setUseNativeMpr((v) => !v); if (!useNativeMpr) setEmbedOhif(false); }}
+                  onClick={() => {
+                    setUseNativeMpr((v) => !v);
+                    if (!useNativeMpr) { setEmbedOhif(false); setUseMammo(false); }
+                  }}
                   data-testid="dicom-native-mpr-btn"
                   disabled={!pacsAvailable}
                 >
                   {useNativeMpr ? 'Ẩn MPR Native' : 'MPR / 3D Native'}
+                </Button>
+                <Button
+                  type={useMammo ? 'primary' : (isMammoStudy ? 'dashed' : 'default')}
+                  icon={<AppstoreOutlined />}
+                  onClick={() => {
+                    setUseMammo((v) => !v);
+                    if (!useMammo) { setEmbedOhif(false); setUseNativeMpr(false); }
+                  }}
+                  data-testid="dicom-mammo-btn"
+                  disabled={!pacsAvailable || mammoImages.length === 0}
+                >
+                  {useMammo ? 'Ẩn Mammography' : 'Mammography 2x2'}
                 </Button>
                 <Button
                   type={embedOhif ? 'primary' : 'default'}
@@ -570,6 +615,19 @@ const DicomViewer: React.FC = () => {
           styles={{ body: { padding: 8 } }}
         >
           <MprViewer imageIds={cornerstoneImageIds} height="70vh" />
+        </Card>
+      )}
+
+      {/* Phase 3: Native Mammography 2x2 hanging-protocol viewer */}
+      {useMammo && pacsAvailable && mammoImages.length > 0 && (
+        <Card
+          title={<Space><AppstoreOutlined /> Mammography 2x2 (CC + MLO) — Native Cornerstone3D</Space>}
+          extra={<Button size="small" onClick={() => setUseMammo(false)}>Đóng</Button>}
+          style={{ marginBottom: 16 }}
+          styles={{ body: { padding: 8 } }}
+          data-testid="dicom-mammo-card"
+        >
+          <MammoViewer images={mammoImages} height="78vh" />
         </Card>
       )}
 

@@ -195,6 +195,12 @@ namespace HIS.Application.DTOs.Radiology
         public string ThumbnailUrl { get; set; }
         public string ImageUrl { get; set; }
         public string WadoUrl { get; set; }
+
+        // Mammography hanging-protocol metadata (DICOM tags 0020,0062 + 0018,5101)
+        public string? Laterality { get; set; }      // "L", "R", "B" (both)
+        public string? ViewPosition { get; set; }    // "CC", "MLO", "ML", "LM", ...
+        public string? Modality { get; set; }        // "MG", "CT", "MR", ...
+        public decimal? PixelSpacing { get; set; }   // mm/pixel — for true-size zoom
     }
 
     /// <summary>

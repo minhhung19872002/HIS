@@ -1306,6 +1306,22 @@ public class RISCompleteService : IRISCompleteService
                     var seriesIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(await findResp.Content.ReadAsStringAsync());
                     if (seriesIds != null && seriesIds.Count > 0)
                     {
+                        // Pull series-level metadata once to know Modality (cheap)
+                        string? seriesModality = null;
+                        try
+                        {
+                            var seriesResp = await httpClient.GetAsync($"{pacsBaseUrl}/series/{seriesIds[0]}");
+                            if (seriesResp.IsSuccessStatusCode)
+                            {
+                                var serJson = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                                    await seriesResp.Content.ReadAsStringAsync());
+                                if (serJson.TryGetProperty("MainDicomTags", out var sTags) &&
+                                    sTags.TryGetProperty("Modality", out var modProp))
+                                    seriesModality = modProp.GetString();
+                            }
+                        }
+                        catch { /* best effort */ }
+
                         var instResp = await httpClient.GetAsync($"{pacsBaseUrl}/series/{seriesIds[0]}/instances");
                         if (instResp.IsSuccessStatusCode)
                         {
@@ -1314,11 +1330,51 @@ public class RISCompleteService : IRISCompleteService
 
                             var result = new List<DicomImageDto>();
                             int idx = 1;
+                            // For mammography (≤16 instances typical), fetch per-instance laterality/viewPosition.
+                            // For larger CT/MR series, skip the extra round-trips.
+                            bool fetchExtraTags = seriesModality == "MG" || (instances?.Count ?? 0) <= 16;
+
                             foreach (var inst in instances ?? new List<System.Text.Json.JsonElement>())
                             {
                                 var instId = inst.TryGetProperty("ID", out var iid) ? iid.GetString() ?? "" : "";
                                 var tags = inst.GetProperty("MainDicomTags");
                                 var sopUID = tags.TryGetProperty("SOPInstanceUID", out var sop) ? sop.GetString() ?? "" : "";
+
+                                string? laterality = null;
+                                string? viewPosition = null;
+                                decimal? pixelSpacing = null;
+
+                                if (fetchExtraTags && !string.IsNullOrEmpty(instId))
+                                {
+                                    try
+                                    {
+                                        var tagsResp = await httpClient.GetAsync($"{pacsBaseUrl}/instances/{instId}/tags?simplify");
+                                        if (tagsResp.IsSuccessStatusCode)
+                                        {
+                                            var tagsObj = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                                                await tagsResp.Content.ReadAsStringAsync());
+                                            if (tagsObj.TryGetProperty("ImageLaterality", out var latProp))
+                                                laterality = latProp.GetString();
+                                            if (laterality == null && tagsObj.TryGetProperty("Laterality", out var lat2))
+                                                laterality = lat2.GetString();
+                                            if (tagsObj.TryGetProperty("ViewPosition", out var vpProp))
+                                                viewPosition = vpProp.GetString();
+                                            if (tagsObj.TryGetProperty("PixelSpacing", out var psProp))
+                                            {
+                                                var psStr = psProp.GetString();
+                                                if (!string.IsNullOrEmpty(psStr))
+                                                {
+                                                    var parts = psStr.Split('\\', '/', ',');
+                                                    if (parts.Length > 0 && decimal.TryParse(parts[0],
+                                                        System.Globalization.NumberStyles.Float,
+                                                        System.Globalization.CultureInfo.InvariantCulture, out var ps))
+                                                        pixelSpacing = ps;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch { /* best effort per instance */ }
+                                }
 
                                 result.Add(new DicomImageDto
                                 {
@@ -1327,7 +1383,11 @@ public class RISCompleteService : IRISCompleteService
                                     InstanceNumber = idx++,
                                     ThumbnailUrl = $"/api/RISComplete/pacs/instances/{instId}/preview",
                                     ImageUrl = $"/api/RISComplete/pacs/instances/{instId}/rendered?width=1024",
-                                    WadoUrl = $"/api/RISComplete/pacs/instances/{instId}/file"
+                                    WadoUrl = $"/api/RISComplete/pacs/instances/{instId}/file",
+                                    Laterality = laterality,
+                                    ViewPosition = viewPosition,
+                                    Modality = seriesModality,
+                                    PixelSpacing = pixelSpacing,
                                 });
                             }
                             if (result.Count > 0) return result;
