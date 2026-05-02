@@ -121,6 +121,13 @@ const SampleReceiveV2 = lazy(() => import('./pages-v2/SampleReceive'));
 const RadiologyOpsV2 = lazy(() => import('./pages-v2/RadiologyOps'));
 const RisDispatcherV2 = lazy(() => import('./pages-v2/RisDispatcher'));
 const RisAdminV2 = lazy(() => import('./pages-v2/RisAdmin'));
+// Batch 10: System + Misc
+const ConsultationRegisterV2 = lazy(() => import('./pages-v2/ConsultationRegister'));
+const WorkloadReportV2 = lazy(() => import('./pages-v2/WorkloadReport'));
+const CatalogsAdminV2 = lazy(() => import('./pages-v2/CatalogsAdmin'));
+const EmployeeProfileV2 = lazy(() => import('./pages-v2/EmployeeProfile'));
+const NonDicomCaptureV2 = lazy(() => import('./pages-v2/NonDicomCapture'));
+const VideoConsultationV2 = lazy(() => import('./pages-v2/VideoConsultation'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -535,6 +542,13 @@ const AppRoutes: React.FC = () => {
           <Route path="radiology-ops" element={<RadiologyOpsV2 />} />
           <Route path="ris-dispatcher" element={<RisDispatcherV2 />} />
           <Route path="ris-admin" element={<RisAdminV2 />} />
+          {/* Batch 10: System + Misc */}
+          <Route path="consultation-register" element={<ConsultationRegisterV2 />} />
+          <Route path="workload-report" element={<WorkloadReportV2 />} />
+          <Route path="catalogs-admin" element={<CatalogsAdminV2 />} />
+          <Route path="employee-profile" element={<EmployeeProfileV2 />} />
+          <Route path="non-dicom-capture" element={<NonDicomCaptureV2 />} />
+          <Route path="video-consultation" element={<VideoConsultationV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>

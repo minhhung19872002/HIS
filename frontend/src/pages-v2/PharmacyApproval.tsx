@@ -349,10 +349,13 @@ const PharmacyApprovalV2: React.FC = () => {
                 <td className="mono">{e.batchNumber}</td>
                 <td className="mono">{e.expiryDate ? dayjs(e.expiryDate).format('DD/MM/YYYY') : '—'}</td>
                 <td>
-                  {e.severity === 'expired' ? <StatusBadge tone="crit" dot>Đã hết hạn</StatusBadge>
-                    : e.daysUntilExpiry <= 7 ? <StatusBadge tone="crit" dot>{e.daysUntilExpiry}d</StatusBadge>
-                    : e.daysUntilExpiry <= 30 ? <StatusBadge tone="warn" dot>{e.daysUntilExpiry}d</StatusBadge>
-                    : <span>{e.daysUntilExpiry}d</span>}
+                  {(() => {
+                    const d = e.daysUntilExpiry ?? 0;
+                    if (e.severity === 'expired') return <StatusBadge tone="crit" dot>Đã hết hạn</StatusBadge>;
+                    if (d <= 7) return <StatusBadge tone="crit" dot>{d}d</StatusBadge>;
+                    if (d <= 30) return <StatusBadge tone="warn" dot>{d}d</StatusBadge>;
+                    return <span>{d}d</span>;
+                  })()}
                 </td>
                 <td className="mono">{e.quantity}</td>
                 <td>{e.warehouseName}</td>
