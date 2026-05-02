@@ -107,6 +107,13 @@ const ClinicalPharmacyCheckV2 = lazy(() => import('./pages-v2/ClinicalPharmacyCh
 const InpatientDispensingV2 = lazy(() => import('./pages-v2/InpatientDispensing'));
 const StockReportV2 = lazy(() => import('./pages-v2/StockReport'));
 const OfficeSupplyApprovalV2 = lazy(() => import('./pages-v2/OfficeSupplyApproval'));
+// Batch 8: Workflow + Finance
+const ReceiptBookAdminV2 = lazy(() => import('./pages-v2/ReceiptBookAdmin'));
+const ObservationStayV2 = lazy(() => import('./pages-v2/ObservationStay'));
+const ServiceRequeueV2 = lazy(() => import('./pages-v2/ServiceRequeue'));
+const BhxhConfigV2 = lazy(() => import('./pages-v2/BhxhConfig'));
+const PaymentReportsV2 = lazy(() => import('./pages-v2/PaymentReports'));
+const PaymentTransactionsV2 = lazy(() => import('./pages-v2/PaymentTransactions'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -507,6 +514,13 @@ const AppRoutes: React.FC = () => {
           <Route path="inpatient-dispensing" element={<InpatientDispensingV2 />} />
           <Route path="stock-report" element={<StockReportV2 />} />
           <Route path="office-supply-approval" element={<OfficeSupplyApprovalV2 />} />
+          {/* Batch 8: Workflow + Finance */}
+          <Route path="receipt-book-admin" element={<ReceiptBookAdminV2 />} />
+          <Route path="observation-stay" element={<ObservationStayV2 />} />
+          <Route path="service-requeue" element={<ServiceRequeueV2 />} />
+          <Route path="bhxh-config" element={<BhxhConfigV2 />} />
+          <Route path="payment-reports" element={<PaymentReportsV2 />} />
+          <Route path="payment-transactions" element={<PaymentTransactionsV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>
