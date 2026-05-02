@@ -100,6 +100,13 @@ const Dashboard3CapV2 = lazy(() => import('./pages-v2/Dashboard3Cap'));
 const DigitalSignatureV2 = lazy(() => import('./pages-v2/DigitalSignature'));
 const CentralSigningV2 = lazy(() => import('./pages-v2/CentralSigning'));
 const DicomViewerV2 = lazy(() => import('./pages-v2/DicomViewer'));
+// Batch 7: Pharmacy/Stock admin (v1-only routes converted to v2)
+const PharmacyApprovalV2 = lazy(() => import('./pages-v2/PharmacyApproval'));
+const DispensingCounterV2 = lazy(() => import('./pages-v2/DispensingCounter'));
+const ClinicalPharmacyCheckV2 = lazy(() => import('./pages-v2/ClinicalPharmacyCheck'));
+const InpatientDispensingV2 = lazy(() => import('./pages-v2/InpatientDispensing'));
+const StockReportV2 = lazy(() => import('./pages-v2/StockReport'));
+const OfficeSupplyApprovalV2 = lazy(() => import('./pages-v2/OfficeSupplyApproval'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -493,6 +500,13 @@ const AppRoutes: React.FC = () => {
           <Route path="asset-management" element={<AssetManagementV2 />} />
           <Route path="training-research" element={<TrainingResearchV2 />} />
           <Route path="procurement" element={<ProcurementV2 />} />
+          {/* Batch 7: Pharmacy/Stock admin */}
+          <Route path="pharmacy-approval" element={<PharmacyApprovalV2 />} />
+          <Route path="dispensing-counter" element={<DispensingCounterV2 />} />
+          <Route path="clinical-pharmacy-check" element={<ClinicalPharmacyCheckV2 />} />
+          <Route path="inpatient-dispensing" element={<InpatientDispensingV2 />} />
+          <Route path="stock-report" element={<StockReportV2 />} />
+          <Route path="office-supply-approval" element={<OfficeSupplyApprovalV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>
