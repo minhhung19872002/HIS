@@ -114,6 +114,13 @@ const ServiceRequeueV2 = lazy(() => import('./pages-v2/ServiceRequeue'));
 const BhxhConfigV2 = lazy(() => import('./pages-v2/BhxhConfig'));
 const PaymentReportsV2 = lazy(() => import('./pages-v2/PaymentReports'));
 const PaymentTransactionsV2 = lazy(() => import('./pages-v2/PaymentTransactions'));
+// Batch 9: LIS/RIS admin
+const LisCatalogAdminV2 = lazy(() => import('./pages-v2/LisCatalogAdmin'));
+const RisCatalogAdminV2 = lazy(() => import('./pages-v2/RisCatalogAdmin'));
+const SampleReceiveV2 = lazy(() => import('./pages-v2/SampleReceive'));
+const RadiologyOpsV2 = lazy(() => import('./pages-v2/RadiologyOps'));
+const RisDispatcherV2 = lazy(() => import('./pages-v2/RisDispatcher'));
+const RisAdminV2 = lazy(() => import('./pages-v2/RisAdmin'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -521,6 +528,13 @@ const AppRoutes: React.FC = () => {
           <Route path="bhxh-config" element={<BhxhConfigV2 />} />
           <Route path="payment-reports" element={<PaymentReportsV2 />} />
           <Route path="payment-transactions" element={<PaymentTransactionsV2 />} />
+          {/* Batch 9: LIS/RIS admin */}
+          <Route path="lis-catalog-admin" element={<LisCatalogAdminV2 />} />
+          <Route path="ris-catalog-admin" element={<RisCatalogAdminV2 />} />
+          <Route path="sample-receive" element={<SampleReceiveV2 />} />
+          <Route path="radiology-ops" element={<RadiologyOpsV2 />} />
+          <Route path="ris-dispatcher" element={<RisDispatcherV2 />} />
+          <Route path="ris-admin" element={<RisAdminV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>
