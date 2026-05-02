@@ -94,7 +94,12 @@ const MedicalRecordArchiveV2 = lazy(() => import('./pages-v2/MedicalRecordArchiv
 const BhxhAuditV2 = lazy(() => import('./pages-v2/BhxhAudit'));
 const SatisfactionSurveyV2 = lazy(() => import('./pages-v2/SatisfactionSurvey'));
 const SpecialtyEMRV2 = lazy(() => import('./pages-v2/SpecialtyEMR'));
-const WrapV1 = lazy(() => import('./pages-v2/WrapV1'));
+// Final 5 v2 native pages
+const HelpV2 = lazy(() => import('./pages-v2/Help'));
+const Dashboard3CapV2 = lazy(() => import('./pages-v2/Dashboard3Cap'));
+const DigitalSignatureV2 = lazy(() => import('./pages-v2/DigitalSignature'));
+const CentralSigningV2 = lazy(() => import('./pages-v2/CentralSigning'));
+const DicomViewerV2 = lazy(() => import('./pages-v2/DicomViewer'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -416,11 +421,9 @@ const AppRoutes: React.FC = () => {
           <Route path="lite/radiology" element={<RadiologyV2 />} />
           <Route path="lite/blood-bank" element={<BloodBankV2 />} />
           <Route path="lite/emr" element={<EMRV2 />} />
-          {/* Remaining pages: v1 content inside v2 shell */}
-          <Route path="dashboard-3cap" element={<WrapV1 element={<Dashboard3Cap />} title="Dashboard 3 Cấp" />} />
+          {/* All v2 routes now native — no more WrapV1 wrapping. */}
+          <Route path="dashboard-3cap" element={<Dashboard3CapV2 />} />
           <Route path="medical-supply" element={<MedicalSupplyV2 />} />
-          {/* The 8 pages above (prescription, pharmacy, surgery, billing, lab, radiology, blood-bank, emr)
-              are handled natively earlier — keep WrapV1 lines only for the rest. */}
           <Route path="follow-up" element={<FollowUpV2 />} />
           <Route path="booking-management" element={<BookingManagementV2 />} />
           <Route path="sms-management" element={<SmsManagementV2 />} />
@@ -438,8 +441,8 @@ const AppRoutes: React.FC = () => {
           <Route path="master-data" element={<MasterDataV2 />} />
           <Route path="reports" element={<ReportsV2 />} />
           <Route path="admin" element={<SystemAdminV2 />} />
-          <Route path="digital-signature" element={<WrapV1 element={<DigitalSignature />} title="Ký số" />} />
-          <Route path="central-signing" element={<WrapV1 element={<CentralSigning />} title="Ký số tập trung" />} />
+          <Route path="digital-signature" element={<DigitalSignatureV2 />} />
+          <Route path="central-signing" element={<CentralSigningV2 />} />
           <Route path="settings" element={<Navigate to="/v2/admin" replace />} />
           <Route path="telemedicine" element={<TelemedicineV2 />} />
           <Route path="nutrition" element={<NutritionV2 />} />
@@ -452,8 +455,8 @@ const AppRoutes: React.FC = () => {
           <Route path="health-exchange" element={<HealthExchangeV2 />} />
           <Route path="emergency-disaster" element={<EmergencyDisasterV2 />} />
           <Route path="consultation" element={<ConsultationV2 />} />
-          <Route path="help" element={<WrapV1 element={<Help />} title="Trợ giúp" />} />
-          <Route path="radiology/viewer" element={<WrapV1 element={<DicomViewer />} title="DICOM Viewer" />} />
+          <Route path="help" element={<HelpV2 />} />
+          <Route path="radiology/viewer" element={<DicomViewerV2 />} />
           <Route path="medical-record-archive" element={<MedicalRecordArchiveV2 />} />
           <Route path="bhxh-audit" element={<BhxhAuditV2 />} />
           <Route path="doctor-portal" element={<DoctorPortalV2 />} />
