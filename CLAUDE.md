@@ -3140,3 +3140,190 @@ top to bottom before starting a new conversion).
 - **CDN** — user explicitly skipped (see chat in this session). If
   performance ever bites, Cloudflare in front of the PACS Orthanc
   VM is the highest-ROI option.
+
+---
+
+## Work Log - 2026-05-02 (v2 layer complete — every v1 route mirrored)
+
+Massive session: drained the entire Phase C deferral and shipped
+v2 mirrors for every v1 route. **12 commits, ~12k LOC added, zero
+backend changes** (everything reuses `src/api/*` from v1).
+
+### Done
+
+**Phase C bulk — 36 templated pages → bespoke ab-*** (commits
+`a1cc680..fcb1432`, 6 batches × 6 pages):
+- Batch 1 (LIS/Lab): LabQC, Microbiology, Screening,
+  ReagentManagement, SampleStorage, SampleTracking
+- Batch 2 (Public Health): SchoolHealth, Epidemiology, FoodSafety,
+  OccupationalHealth, EnvironmentalHealth, PopulationHealth
+- Batch 3 (Specialty): TraditionalMedicine, ReproductiveHealth,
+  MedicalForensics, IvfLab, TraumaRegistry, Immunization
+- Batch 4 (Workflow/Admin): AssetManagement, BookingManagement,
+  ClinicalGuidance, EndpointSecurity, MedicalRecordPlanning,
+  PracticeLicense
+- Batch 5 (Hospital Ops): Nutrition, Rehabilitation,
+  InfectionControl, HealthCheckup, HealthEducation, CommunityHealth
+- Batch 6 (Special Programs): CultureCollection, MethadoneTreatment,
+  InterHospitalSharing, LISConfig, TreatmentProtocol,
+  TrainingResearch
+
+These all previously imported `_GenericListPage` (templated 2-panel
+helper that didn't match the design pack). Replaced with bespoke
+ab-* layouts using `KpiStrip + StatusTabs + DataTable + DrawerShell`.
+
+**Final-5 WrapV1 → native** (commit `f8501dd`):
+- Help (TopTabs articles/categories/troubleshooting)
+- Dashboard3Cap (TopTabs + recharts + branch tree)
+- DigitalSignature (TopTabs pending/tokens/certs + PIN modal)
+- CentralSigning (TopTabs certs/transactions/config)
+- DicomViewer (passthrough — full-bleed viewer keeps own chrome)
+
+After this commit `WrapV1` lazy import was removed from `App.tsx`
+since no route needed it anymore.
+
+**24 v1-only pages → v2** (commits `e3f82a2..9fbbf13`, batches
+7-10): every v1 route under `MainLayout` now has a v2 mirror under
+`TerminalLayout`. Total v2 routes: 97 → 121.
+- Batch 7 (Pharmacy/Stock): pharmacy-approval, dispensing-counter,
+  clinical-pharmacy-check, inpatient-dispensing, stock-report,
+  office-supply-approval
+- Batch 8 (Workflow + Finance): receipt-book-admin, observation-stay,
+  service-requeue, bhxh-config, payment-reports, payment-transactions
+- Batch 9 (LIS/RIS admin): lis-catalog-admin, ris-catalog-admin,
+  sample-receive, radiology-ops, ris-dispatcher, ris-admin
+- Batch 10 (System + Misc): consultation-register, workload-report,
+  catalogs-admin, employee-profile, non-dicom-capture,
+  video-consultation
+
+Of these, 5 shipped initially as **passthrough wrappers** (just
+`<V1 />`) because of complexity — RisAdmin (8 sub-tabs),
+CatalogsAdmin (multi-tab admin), EmployeeProfile (9 HR tabs),
+NonDicomCapture (full-bleed media), VideoConsultation (Jitsi UI).
+
+**Passthrough wrappers → bespoke ab-*** (commit `6d673df`): user
+asked "viết bespoke cho từng trang sao thì cứ convert qua cho đúng
+design là được", so all 5 got proper ab-* versions:
+- CatalogsAdmin: TopTabs (Abbr/Templates) + dual CRUD modals
+- RisAdmin: TopTabs (8 sub-tabs) — permission matrix with 4-eyes
+  role templates, areas, folders, ICD-template, machines, supplies,
+  hospital config, stats
+- EmployeeProfile: user-selector + TopTabs (9 HR sub-tabs) + shared
+  `GenericCrudTab` ab-* helper inside the file
+- NonDicomCapture: study list + create modal + camera/recording
+  capture modal (snapshot/video/upload/external-file) + study-detail
+  drawer with grid view
+- VideoConsultation: StatusTabs + create-room modal with Jitsi URL +
+  QR code modal + end/cancel/join actions + participants drawer
+
+After this, **0 passthrough wrappers remain** in `src/pages-v2/`.
+Every v2 route is now native ab-* design.
+
+### v2 layer state at end of session
+
+- 121 v2 routes, all native bespoke (was 97 native + 24 v1-only =
+  121 total now)
+- 0 routes use `_GenericListPage` anymore
+- 0 routes use `WrapV1` anymore (the helper file still exists in
+  `pages-v2/WrapV1.tsx` but is unreferenced — left for future
+  exploratory v1→v2 work)
+
+### Verification
+
+- `tsc --noEmit` clean after every batch
+- `npm run build` (which runs `tsc -b && vite build`) → 31.33s on
+  the final commit, all chunks emitted
+- Chunks > 500 KB warning is the same Antd + Cornerstone3D chunks
+  we already accept; nothing new from this session crosses that bar
+
+### Pitfalls hit (don't redo next time)
+
+- **`_GenericListPage` helper still exists** at
+  `pages-v2/_GenericListPage.tsx` — it's used by zero pages now,
+  but I left it because deleting it surfaces no benefit and would
+  break the pattern documented in `_v2kit.tsx`'s JSDoc that says
+  "if you find yourself converting a page from `_GenericListPage`,
+  the upgrade path is…". If someone wants a fast templated start
+  in the future, the helper is still there.
+- **`PharmacyApproval daysUntilExpiry` was undefined** in v2 file
+  on first build (TS18048). Fixed with an IIFE inside the cell
+  render — `daysUntilExpiry` from `ExpiringMedicineDto` is
+  optional, so always nullish-coalesce before doing comparisons.
+- **`destroyOnHidden` in Antd v6 vs `destroyOnClose`** — when
+  copying v1 patterns, watch for the renamed prop. v2 modal/drawer
+  uses `destroyOnHidden` per the existing migration note in this
+  file.
+- **`_v2kit` `Filter` component takes `options: { v, l }[]`** not
+  `{ value, label }[]`. Several v2 pages I copied from v1's
+  `<Select options={...}>` failed to render because the prop name
+  is different. Map at the boundary.
+- **`tsc -b` strictness vs `tsc --noEmit`**: a few times
+  `tsc --noEmit` passed but `tsc -b` (used by Vercel) caught
+  stricter errors (e.g., `'ghost' as const` not in `KpiTone`
+  enum). When in doubt, run `npm run build` not just `tsc --noEmit`.
+
+### Branch state at end of session
+
+12 commits ahead of `origin/main` — **NOT pushed** (user said
+"đừng push" early in the session and never said to push at the
+end). Just `git push origin main` whenever ready.
+
+```
+6d673df feat(v2): convert 5 passthrough wrappers to bespoke ab-* native
+9fbbf13 feat(v2): add 6 system+misc pages (Batch 10) — final batch
+7cb2b21 feat(v2): add 6 LIS/RIS admin pages (Batch 9)
+e396c4e feat(v2): add 6 workflow/finance pages (Batch 8)
+e3f82a2 feat(v2): add 6 pharmacy/stock admin pages (Batch 7)
+f8501dd feat(v2): convert final 5 pages — eliminate WrapV1 wrapper
+fcb1432 feat(v2): redesign 6 special-program pages with ab-* design pack (Batch 6)
+9ebcb87 feat(v2): redesign 6 hospital ops pages with ab-* design pack (Batch 5)
+477734b feat(v2): redesign 6 workflow/admin pages with ab-* design pack (Batch 4)
+e219f41 feat(v2): redesign 6 specialty clinical pages with ab-* design pack (Batch 3)
+786d1c2 feat(v2): redesign 6 public-health pages with ab-* design pack (Batch 2)
+a1cc680 feat(v2): redesign 6 LIS/Lab pages with ab-* design pack (Batch 1)
+```
+
+### Tomorrow / pending
+
+The roadmap items that survived this session (all unchanged from
+the 2026-04-30 entry):
+- **USB Token Pkcs11Interop** — still the biggest unblocked feature
+  on the list. ~2 days.
+- **Jibri ARM retry loop** — still waiting on Tokyo ARM capacity.
+- **Group 3 hardware pilots** — fingerprint + smart card. Hardware
+  TBD.
+- **CDN** — user keeps it skipped.
+
+New things this session opened up:
+- **Smoke test 121 v2 routes** — pages exist now, backend was running
+  in background (id `b6lkdln3o`) at session end. Worth `npm run dev`
+  and clicking through each new route once to catch runtime issues
+  TS won't see (e.g., axios shape mismatches the loose typing of
+  some passthroughs hides).
+- **Push the 12 commits** when ready. Vercel auto-deploys on push,
+  so this triggers a prod refresh of all 41 + 24 + 5 = 70 v2 page
+  files at once.
+- **Consider deleting `pages-v2/WrapV1.tsx`** — the file is
+  orphaned (no imports anywhere). Same for
+  `pages-v2/_GenericListPage.tsx`. Both fine to delete; left for a
+  later cleanup pass.
+
+### Key files / quick reference for next session
+
+- v2 kit: `frontend/src/pages-v2/_v2kit.tsx` — `KpiStrip`,
+  `TopTabs`, `StatusTabs`, `DataTable`, `DrawerShell`, `ModalShell`,
+  `Filter`, `SearchBox`, `ActBtn`, `StatusBadge`, `Pager`, helpers
+  (`tk/ti/tw/cf` for toast/confirm)
+- ab-* CSS: `frontend/src/layouts/terminal/ab-module.css` (canonical
+  port of `design-system/project/mod-appt-booking.css`)
+- Recipe for converting more pages: read any of the 35 newly
+  bespoke files in `pages-v2/` (Finance.tsx and SchoolHealth.tsx
+  are the cleanest examples). The pattern is:
+  1. Read v1 → identify API functions, state, filters, actions
+  2. Copy data layer 1:1 to new v2 file (same `useState`,
+     `useEffect`, `useCallback`)
+  3. Replace JSX render with `<KpiStrip /> + <TopTabs> +
+     <DataTable /> + <DrawerShell>` instead of `<Card><Table>`
+  4. Wire route in `App.tsx`: `lazy import` + `<Route element=...>`
+- Backend port: `http://localhost:5106` (was running in background
+  `b6lkdln3o` at session end; may need restart in next session)
