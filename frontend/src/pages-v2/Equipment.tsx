@@ -1,128 +1,193 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { App as AntdApp } from 'antd';
 import { getEquipment } from '../api/equipment';
 import type { EquipmentDto } from '../api/equipment';
+import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: string }> = {
-  1: { text: 'Hoạt động', cls: 'ok' },
-  2: { text: 'Bảo trì', cls: 'warn' },
-  3: { text: 'Hỏng', cls: 'crit' },
-  4: { text: 'Thanh lý', cls: 'ghost' },
-};
+/* Trang thiết bị y tế v2 */
+
+type StatusKey = 'operational' | 'maintenance' | 'broken' | 'decommissioned';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'operational',    l: 'Hoạt động',    tone: 'ok' },
+  { v: 'maintenance',    l: 'Bảo trì',      tone: 'warn' },
+  { v: 'broken',         l: 'Hỏng',         tone: 'crit' },
+  { v: 'decommissioned', l: 'Thanh lý',     tone: 'info' },
+];
+const statusKey = (s: number): StatusKey =>
+  s === 2 ? 'maintenance' : s === 3 ? 'broken' : s === 4 ? 'decommissioned' : 'operational';
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+const fmtVND = (n?: number) => n != null ? `${n.toLocaleString('vi-VN')} ₫` : '—';
 
 const EquipmentV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<EquipmentDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [sel, setSel] = useState<EquipmentDto | null>(null);
+  const { message } = AntdApp.useApp();
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r = await getEquipment({ keyword, page: 1, pageSize: 100 } as Parameters<typeof getEquipment>[0]);
-      const list = (r.data?.items || []) as EquipmentDto[];
-      setItems(list);
-      if (list.length > 0 && !sel) setSel(list[0]);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const today = dayjs();
-  const stats = useMemo(() => ({
-    total: items.length,
-    operational: items.filter((i) => i.operationalStatus === 1).length,
-    maint: items.filter((i) => i.operationalStatus === 2).length,
-    expiringMaint: items.filter((i) => i.nextMaintenanceDate && dayjs(i.nextMaintenanceDate).diff(today, 'day') < 30).length,
-  }), [items, today]);
+  const columns: ColumnDef<EquipmentDto>[] = [
+    { key: 'code', label: 'Mã TB', mono: true, width: 130, render: (r) => r.equipmentCode },
+    {
+      key: 'name', label: 'Tên / Hãng',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.name}</b>
+          <i>{r.manufacturer} · {r.model}</i>
+        </div>
+      ),
+    },
+    { key: 'cat', label: 'Loại', width: 140, render: (r) => r.categoryName || r.category },
+    { key: 'serial', label: 'Serial', mono: true, width: 130, render: (r) => r.serialNumber },
+    {
+      key: 'risk', label: 'Risk', width: 80,
+      render: (r) => <span className={`chip ${r.riskClass === 'III' ? 'crit' : r.riskClass === 'II' ? 'warn' : 'info'}`}>{r.riskClass}</span>,
+    },
+    {
+      key: 'dept', label: 'Khoa · Phòng',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.departmentName}</b>
+          <i>{r.roomName || r.locationName || '—'}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'maint', label: 'Bảo trì kế tiếp', mono: true, width: 130,
+      render: (r) => {
+        if (!r.nextMaintenanceDate) return '—';
+        const days = dayjs(r.nextMaintenanceDate).diff(dayjs(), 'day');
+        const color = days < 0 ? 'var(--s-crit)' : days < 30 ? 'var(--s-warn)' : 'var(--t-1)';
+        return <span style={{ color }}>{fmtDMY(r.nextMaintenanceDate)}</span>;
+      },
+    },
+    {
+      key: 'warranty', label: 'Bảo hành', mono: true, width: 110,
+      render: (r) => {
+        if (!r.warrantyExpiry) return '—';
+        const days = dayjs(r.warrantyExpiry).diff(dayjs(), 'day');
+        return days < 0
+          ? <span className="chip crit">Hết</span>
+          : days < 90
+            ? <span className="chip warn">{fmtDMY(r.warrantyExpiry)}</span>
+            : <span style={{ color: 'var(--t-1)' }}>{fmtDMY(r.warrantyExpiry)}</span>;
+      },
+    },
+    {
+      key: 'status', label: 'TT', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.operationalStatus);
+        return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{r.operationalStatusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Trang thiết bị · <b>{items.length}</b></span>
-          <div className="actions">
-            <input className="input" style={{ width: 220 }} placeholder="Tìm theo mã / tên / model..." value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load(); }} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/equipment')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
+    <SimpleV2Page<EquipmentDto>
+      title="Trang thiết bị y tế"
+      load={async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = await getEquipment({ page: 1, pageSize: 200 } as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return ((r as any)?.data?.items || []) as EquipmentDto[];
+      }}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm mã TB / tên / model / serial…"
+      searchOf={(r) => `${r.equipmentCode} ${r.name} ${r.model} ${r.serialNumber} ${r.manufacturer}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.operationalStatus)}
+      filters={[{
+        key: 'risk', placeholder: '▾ Risk class',
+        options: [{ v: 'I', l: 'Class I' }, { v: 'II', l: 'Class II' }, { v: 'III', l: 'Class III' }],
+        valueOf: (r) => r.riskClass,
+      }]}
+      kpis={(rows) => {
+        const today = dayjs();
+        const operational = rows.filter((r) => r.operationalStatus === 1).length;
+        const maint = rows.filter((r) => r.operationalStatus === 2).length;
+        const broken = rows.filter((r) => r.operationalStatus === 3).length;
+        const overdueMaint = rows.filter((r) => r.nextMaintenanceDate && dayjs(r.nextMaintenanceDate).isBefore(today, 'day')).length;
+        const expiringWarranty = rows.filter((r) => r.warrantyExpiry && dayjs(r.warrantyExpiry).diff(today, 'day') < 90 && dayjs(r.warrantyExpiry).diff(today, 'day') >= 0).length;
+        const expiredWarranty = rows.filter((r) => r.warrantyExpiry && dayjs(r.warrantyExpiry).isBefore(today, 'day')).length;
+        return [
+          { lbl: 'Tổng TB', val: rows.length },
+          { lbl: 'Hoạt động', val: operational, sub: rows.length > 0 ? `${Math.round(operational / rows.length * 100)}%` : '—', tone: 'ok' },
+          { lbl: 'Bảo trì', val: maint, tone: 'warn' },
+          { lbl: 'Hỏng', val: broken, tone: 'crit' },
+          { lbl: 'Quá hạn BT', val: overdueMaint, tone: 'crit' },
+          { lbl: 'Hết BH', val: expiredWarranty, sub: `+${expiringWarranty} sắp hết`, tone: 'warn' },
+        ];
+      }}
+      rowActions={(r) => (
+        <div className="ab-actions">
+          <ActBtn ic="eye" title="Chi tiết" onClick={() => message.info(`Chi tiết ${r.equipmentCode}`)} />
+          <ActBtn ic="check" title="Lên lịch bảo trì" onClick={() => message.success('Đã lên lịch BT')} />
         </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có thiết bị</div> : (
-              <table className="tbl">
-                <thead><tr><th>Mã TB</th><th>Tên</th><th>Hãng / Model</th><th>Khoa</th><th>S/N</th><th>BD tiếp theo</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {items.map((i) => {
-                    const st = STATUS_LABEL[i.operationalStatus] || { text: i.operationalStatusName, cls: 'ghost' };
-                    const overdueMaint = i.nextMaintenanceDate && dayjs(i.nextMaintenanceDate).isBefore(today, 'day');
-                    return (
-                      <tr key={i.id} className={sel?.id === i.id ? 'sel' : ''} onClick={() => setSel(i)} style={{ cursor: 'pointer' }}>
-                        <td className="mono">{i.equipmentCode}</td>
-                        <td style={{ fontWeight: 500 }}>{i.name}</td>
-                        <td className="muted">{i.manufacturer} / {i.model}</td>
-                        <td className="muted">{i.departmentName}</td>
-                        <td className="mono">{i.serialNumber}</td>
-                        <td className="mono" style={{ color: overdueMaint ? 'var(--s-crit)' : undefined }}>{i.nextMaintenanceDate ? dayjs(i.nextMaintenanceDate).format('DD/MM/YYYY') : '—'}</td>
-                        <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng TB" value={stats.total} />
-              <Stat label="Hoạt động" value={stats.operational} ok />
-              <Stat label="Đang bảo trì" value={stats.maint} warn />
-              <Stat label="BD trong 30d" value={stats.expiringMaint} cy />
-            </div>
-          </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Chi tiết TB</span><span className="sub">{sel?.name || 'Chọn TB'}</span></div>
-          <div className="panel-body pad">
-            {!sel ? <div className="ph">Chọn thiết bị</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{sel.equipmentCode}</span>} />
-                <Field label="Tên" value={sel.name} />
-                <Field label="Hãng / Model" value={`${sel.manufacturer} / ${sel.model}`} />
-                <Field label="Serial" value={<span className="mono">{sel.serialNumber}</span>} />
-                <Field label="Khoa" value={sel.departmentName} />
-                <Field label="Phòng" value={sel.roomName || '—'} />
-                <Field label="Risk class" value={sel.riskClassName || sel.riskClass} />
-                <Field label="Mua" value={sel.purchaseDate ? dayjs(sel.purchaseDate).format('DD/MM/YYYY') : '—'} />
-                <Field label="Hết bảo hành" value={sel.warrantyExpiry ? dayjs(sel.warrantyExpiry).format('DD/MM/YYYY') : '—'} />
-                <Field label="BT lần cuối" value={sel.lastMaintenanceDate ? dayjs(sel.lastMaintenanceDate).format('DD/MM/YYYY') : '—'} />
-                <Field label="BT tiếp theo" value={sel.nextMaintenanceDate ? <span className="mono">{dayjs(sel.nextMaintenanceDate).format('DD/MM/YYYY')}</span> : '—'} />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+      )}
+      drawer={(r) => <EquipmentDrawerBody r={r} />}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.equipmentCode}</span>
+          <span style={{ fontSize: 14 }}>{r.name}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.manufacturer} · ${r.model} · ${r.departmentName}`}
+    />
   );
 };
 
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
+const EquipmentDrawerBody: React.FC<{ r: EquipmentDto }> = ({ r }) => (
+  <>
+    <div className="rec-section">
+      <h5><TermIcon name="activity" size={11} /> THIẾT BỊ</h5>
+      <div className="rec-kv">
+        <span>Mã TB</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.equipmentCode}</span>
+        <span>Tên</span><b>{r.name}</b>
+        {r.nameEnglish && (<><span>Tên EN</span><span>{r.nameEnglish}</span></>)}
+        <span>Loại</span><span>{r.categoryName || r.category}</span>
+        <span>Hãng / Model</span><b>{r.manufacturer} · {r.model}</b>
+        <span>Serial</span><span className="mono">{r.serialNumber}</span>
+        {r.assetNumber && (<><span>Mã tài sản</span><span className="mono">{r.assetNumber}</span></>)}
+        <span>Risk class</span>
+        <span><span className={`chip ${r.riskClass === 'III' ? 'crit' : r.riskClass === 'II' ? 'warn' : 'info'}`}>{r.riskClassName || r.riskClass}</span></span>
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="user" size={11} /> VỊ TRÍ</h5>
+      <div className="rec-kv">
+        <span>Khoa</span><b>{r.departmentName}</b>
+        {r.roomName && (<><span>Phòng</span><span>{r.roomName}</span></>)}
+        {r.locationName && (<><span>Vị trí</span><span>{r.locationName}</span></>)}
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="dollar" size={11} /> MUA SẮM</h5>
+      <div className="rec-kv">
+        <span>Ngày mua</span><span>{fmtDMY(r.purchaseDate)}</span>
+        <span>Giá mua</span><b className="mono">{fmtVND(r.purchasePrice)}</b>
+        {r.supplier && (<><span>Nhà cung cấp</span><span>{r.supplier}</span></>)}
+        {r.purchaseOrderNumber && (<><span>Số PO</span><span className="mono">{r.purchaseOrderNumber}</span></>)}
+        {r.expectedLifeYears && (<><span>Tuổi thọ dự kiến</span><span>{r.expectedLifeYears} năm</span></>)}
+        {r.currentValue != null && (<><span>Giá trị hiện tại</span><b className="mono">{fmtVND(r.currentValue)}</b></>)}
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="check" size={11} /> BẢO HÀNH & BẢO TRÌ</h5>
+      <div className="rec-kv">
+        <span>Hết bảo hành</span><span>{fmtDMY(r.warrantyExpiry)}</span>
+        <span>BT lần cuối</span><span>{fmtDMY(r.lastMaintenanceDate)}</span>
+        <span>BT kế tiếp</span>
+        <b style={{ color: r.nextMaintenanceDate && dayjs(r.nextMaintenanceDate).isBefore(dayjs(), 'day') ? 'var(--s-crit)' : 'var(--t-0)' }}>{fmtDMY(r.nextMaintenanceDate)}</b>
+        {r.lastCalibrationDate && (<><span>Hiệu chuẩn lần cuối</span><span>{fmtDMY(r.lastCalibrationDate)}</span></>)}
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="info" size={11} /> CHỨNG NHẬN</h5>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {r.fdaClearance && <span className="chip ok">FDA: {r.fdaClearance}</span>}
+        {r.ceMarking && <span className="chip ok">CE Marking</span>}
+        {!r.fdaClearance && !r.ceMarking && <span style={{ color: 'var(--t-3)' }}>Chưa có chứng nhận</span>}
+      </div>
+    </div>
+  </>
 );
 
 export default EquipmentV2;

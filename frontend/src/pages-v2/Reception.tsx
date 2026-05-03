@@ -58,6 +58,8 @@ type RawRow = AdmissionDto & {
   yearOfBirth?: number;
   patientTypeName?: string;
   ticketId?: string;
+  admissionType?: string;
+  admissionCode?: string;
 };
 
 const statusKey = (row: RawRow): StatusKey => {

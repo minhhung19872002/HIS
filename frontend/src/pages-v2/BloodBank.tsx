@@ -49,10 +49,10 @@ const BloodBankV2: React.FC = () => {
     Promise.allSettled([
       getBloodStock(),
       getExpiringBloodBags(7),
-      getIssueRequests(undefined, dayjs().subtract(60, 'day').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')),
+      getIssueRequests(dayjs().subtract(60, 'day').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')),
     ]).then(([s, e, r]) => {
       if (s.status === 'fulfilled') setStock((s.value.data || []) as BloodStockDto[]);
-      if (e.status === 'fulfilled') setExpiring((e.value.data || []) as BloodBagDto[]);
+      if (e.status === 'fulfilled') setExpiring((e.value.data || []) as unknown as BloodBagDto[]);
       if (r.status === 'fulfilled') setRequests((r.value.data || []) as BloodIssueRequestDto[]);
       setLoading(false);
     });

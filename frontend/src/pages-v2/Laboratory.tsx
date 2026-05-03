@@ -135,7 +135,11 @@ const LaboratoryV2: React.FC = () => {
 
   const onCollect = async (r: LabRequest) => {
     try {
-      await labApi.collectSample(r.id, { collectionTime: new Date().toISOString() });
+      await labApi.collectSample(r.id, {
+        sampleType: 'Blood',
+        collectionTime: new Date().toISOString(),
+        collectorName: 'NV thu mẫu',
+      });
       message.success(`Đã ghi nhận lấy mẫu · ${r.requestCode}`);
       reload();
     } catch {
