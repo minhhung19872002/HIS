@@ -436,3 +436,155 @@ export const cf = (
 
 // Re-export Icon for consumers so they don't need the layout import
 export { default as Ico } from '../layouts/terminal/Icon';
+
+// ─────────────────────────── SimpleV2Page helper ───────────────────────────
+//
+// Templated single-list v2 page used across ~15 specialty modules
+// (ChronicDisease, HivManagement, MentalHealth, Immunization, …) where the
+// shape is always: KPI strip + filter toolbar + StatusTabs + DataTable +
+// detail Drawer. Pages with custom layouts (HR roster, Emergency triage,
+// Equipment maintenance) hand-build instead.
+//
+// Pages provide a synchronous loader that returns rows + KPI metadata,
+// columns, drawer renderer, and optional status tabs.
+
+import TermIconCmp from '../layouts/terminal/Icon';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+export interface SimpleV2PageProps<T> {
+  title: string;                                                   // Page title (for plus button)
+  load: () => Promise<T[]>;                                        // Async data loader
+  rowKey: (row: T) => string;
+  columns: ColumnDef<T>[];
+  searchPlaceholder?: string;
+  searchOf?: (row: T) => string;                                   // string used for substring match
+  statusTabs?: StatusTab<string>[];                                // optional status tabs
+  statusOf?: (row: T) => string;                                   // map row → tab key
+  filters?: { key: string; placeholder: string; options: { v: string; l: string }[]; valueOf: (row: T) => string }[];
+  kpis: (rows: T[]) => KpiItem[];
+  pageSize?: number;
+  rowActions?: (row: T, reload: () => void) => React.ReactNode;
+  drawer?: (row: T) => React.ReactNode;
+  drawerTitle?: (row: T) => React.ReactNode;
+  drawerSub?: (row: T) => string;
+  toolbarRight?: React.ReactNode;
+  emptyMessage?: string;
+}
+
+export function SimpleV2Page<T>({
+  title, load, rowKey, columns,
+  searchPlaceholder = 'Tìm kiếm…', searchOf,
+  statusTabs, statusOf,
+  filters = [],
+  kpis,
+  pageSize = 16,
+  rowActions, drawer, drawerTitle, drawerSub,
+  toolbarRight,
+  emptyMessage,
+}: SimpleV2PageProps<T>) {
+  const [rows, setRows] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stab, setStab] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(0);
+  const [detail, setDetail] = useState<T | null>(null);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    load().then((data) => setRows(Array.isArray(data) ? data : []))
+      .catch(() => setRows([])).finally(() => setLoading(false));
+  }, [load]);
+  useEffect(() => { reload(); }, [reload]);
+
+  const counts = useMemo(() => {
+    if (!statusTabs || !statusOf) return { all: rows.length };
+    const c: Record<string, number> = { all: rows.length };
+    statusTabs.forEach((s) => { c[s.v] = rows.filter((r) => statusOf(r) === s.v).length; });
+    return c;
+  }, [rows, statusTabs, statusOf]);
+
+  const filtered = useMemo(() => rows.filter((r) => {
+    if (statusTabs && statusOf && stab !== 'all' && statusOf(r) !== stab) return false;
+    for (const f of filters) {
+      const v = filterValues[f.key];
+      if (v && f.valueOf(r) !== v) return false;
+    }
+    if (search.trim() && searchOf) {
+      const q = search.toLowerCase();
+      if (!searchOf(r).toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [rows, stab, statusTabs, statusOf, filters, filterValues, search, searchOf]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+  return (
+    <div className="ab">
+      <KpiStrip items={kpis(rows)} />
+
+      <div className="ab-tools">
+        {searchOf && (
+          <SearchBox value={search} onChange={setSearch} placeholder={searchPlaceholder} />
+        )}
+        {filters.map((f) => (
+          <Filter
+            key={f.key}
+            value={filterValues[f.key] || ''}
+            onChange={(v) => setFilterValues({ ...filterValues, [f.key]: v })}
+            options={f.options}
+            placeholder={f.placeholder}
+          />
+        ))}
+        <button type="button" className="ab-btn ghost" onClick={() => {
+          setSearch(''); setFilterValues({}); setStab('all'); setPage(0);
+        }}>
+          <TermIconCmp name="refresh" size={12} /> Bỏ lọc
+        </button>
+        <span className="spacer" />
+        <button type="button" className="ab-btn ghost" onClick={reload}>
+          <TermIconCmp name="refresh" size={12} /> Làm mới
+        </button>
+        {toolbarRight}
+      </div>
+
+      {statusTabs && (
+        <StatusTabs<string>
+          value={stab}
+          onChange={setStab}
+          tabs={statusTabs}
+          counts={counts}
+        />
+      )}
+
+      <DataTable<T>
+        columns={columns}
+        data={paged}
+        rowKey={rowKey}
+        onRowClick={drawer ? (r) => setDetail(r) : undefined}
+        actions={rowActions ? (r) => rowActions(r, reload) : undefined}
+        empty={loading ? 'Đang tải…' : (
+          <div className="ab-empty">
+            <TermIconCmp name="search" size={20} />
+            <div>{emptyMessage || `Không có ${title.toLowerCase()} nào`}</div>
+          </div>
+        )}
+      />
+
+      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={pageSize} />
+
+      {drawer && (
+        <DrawerShell
+          open={!!detail}
+          onClose={() => setDetail(null)}
+          title={detail ? (drawerTitle ? drawerTitle(detail) : title) : ''}
+          sub={detail && drawerSub ? drawerSub(detail) : ''}
+          size="lg"
+        >
+          {detail && drawer(detail)}
+        </DrawerShell>
+      )}
+    </div>
+  );
+}

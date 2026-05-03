@@ -724,6 +724,148 @@
 .rec-token.norm { background: var(--a-cy); }
 .rec-token.done { background: var(--t-3); }
 
+/* ─── Reception drawer sections ─── */
+.rec-section {
+  padding: 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.rec-section:last-child { border-bottom: 0; }
+.rec-section h5 {
+  margin: 0 0 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--t-2); text-transform: uppercase;
+  display: flex; align-items: center; gap: 6px;
+}
+.rec-section h5 .ico { color: var(--a-cy); }
+
+.rec-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rec-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.rec-kv { display: grid; grid-template-columns: 100px 1fr; row-gap: 6px; font-size: 12px; }
+.rec-kv > span:nth-child(odd) { color: var(--t-2); }
+
+/* Status banner inside drawer */
+.rec-status-banner {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.rec-status-banner.ok   { background: #f0fdf4; }
+.rec-status-banner.warn { background: #fffbeb; }
+.rec-status-banner.info { background: #eff6ff; }
+.rec-status-banner.crit { background: #fef2f2; }
+
+/* BHYT verification card */
+.rec-bhyt-card {
+  border: 1.5px solid #bbf7d0;
+  background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.rec-bhyt-card.invalid {
+  border-color: #fecaca;
+  background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+}
+.rec-bhyt-card.invalid .rec-bhyt-icon { background: var(--s-crit); }
+.rec-bhyt-icon {
+  width: 44px; height: 44px;
+  background: #16a34a; color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.rec-bhyt-num {
+  font-family: var(--font-mono);
+  font-size: 16px; font-weight: 700;
+  color: var(--t-0);
+  letter-spacing: 0.4px;
+}
+.rec-bhyt-meta {
+  display: flex; gap: 14px;
+  font-size: 11.5px; color: var(--t-2);
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+.rec-bhyt-meta b { color: var(--t-0); font-weight: 600; }
+
+/* Audit timeline */
+.rec-tline { padding: 6px 14px; }
+.rec-tline-it {
+  display: grid;
+  grid-template-columns: 70px 14px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.rec-tline-it:last-child { border-bottom: 0; }
+.rec-tline-it .tm {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--t-2);
+}
+.rec-tline-it .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--a-cy);
+  margin-top: 5px; justify-self: center;
+}
+.rec-tline-it .dot.ok   { background: #16a34a; }
+.rec-tline-it .dot.warn { background: #d97706; }
+.rec-tline-it .dot.crit { background: var(--s-crit); }
+.rec-tline-it .dot.off  { background: var(--t-3); }
+.rec-tline-it .dot.mag  { background: var(--s-mag, #c026d3); }
+.rec-tline-it b   { font-weight: 600; color: var(--t-0); display: block; font-size: 12px; }
+.rec-tline-it i   { font-style: normal; color: var(--t-2); font-size: 11.5px; }
+
+/* Avatar small */
+.rec-av {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--a-cy-bg); color: var(--a-cy);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Drawer tabs (sub-navigation inside drawer body) */
+.rec-drawer-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+.rec-drawer-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--t-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+.rec-drawer-tabs button.on {
+  color: var(--a-cy);
+  border-bottom-color: var(--a-cy);
+  font-weight: 600;
+}
+.rec-drawer-tabs button:hover:not(.on) { color: var(--t-0); }
+.rec-drawer-tabs button i {
+  font-style: normal;
+  background: var(--d-3);
+  color: var(--t-2);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+}
+.rec-drawer-tabs button.on i { background: var(--a-cy-bg); color: var(--a-cy); }
+
 /* Responsive collapse */
 @media (max-width: 1280px) {
   .ab-kpis { grid-template-columns: repeat(3, 1fr); }
