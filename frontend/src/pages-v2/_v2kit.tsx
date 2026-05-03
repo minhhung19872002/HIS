@@ -17,9 +17,9 @@
  *   declarative idiom better than the imperative `cx => ...` callback.
  * - All components are typed.
  *
- * If you find yourself converting a page from `_GenericListPage`, the
- * upgrade path is: import these components, keep the same data + API
- * calls, render them in this layout instead.
+ * If you're writing a new v2 page, import these components, wire your
+ * data + API calls, and render them in this layout — KpiStrip + TopTabs
+ * + DataTable + DrawerShell is the standard 4-piece composition.
  */
 import React from 'react';
 import { Drawer, Modal, message } from 'antd';

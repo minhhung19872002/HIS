@@ -449,7 +449,7 @@ const AppRoutes: React.FC = () => {
           <Route path="lite/radiology" element={<RadiologyV2 />} />
           <Route path="lite/blood-bank" element={<BloodBankV2 />} />
           <Route path="lite/emr" element={<EMRV2 />} />
-          {/* All v2 routes now native — no more WrapV1 wrapping. */}
+          {/* All v2 routes are native bespoke ab-* design — no v1 fallback. */}
           <Route path="dashboard-3cap" element={<Dashboard3CapV2 />} />
           <Route path="medical-supply" element={<MedicalSupplyV2 />} />
           <Route path="follow-up" element={<FollowUpV2 />} />
