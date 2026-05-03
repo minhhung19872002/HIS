@@ -215,35 +215,88 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
         return records.Select(m => {
             var ticket = ticketLookup.GetValueOrDefault(new { PatientId = (Guid?)m.PatientId, RoomId = m.RoomId });
-            return new AdmissionDto
-            {
-                Id = m.Id,
-                AdmissionCode = m.MedicalRecordCode,
-                PatientId = m.PatientId,
-                PatientCode = m.Patient?.PatientCode ?? "",
-                PatientName = m.Patient?.FullName ?? "",
-                DateOfBirth = m.Patient?.DateOfBirth,
-                YearOfBirth = m.Patient?.YearOfBirth,
-                Gender = m.Patient?.Gender == 1 ? "Nam" : m.Patient?.Gender == 2 ? "Nữ" : "Khác",
-                Address = m.Patient?.Address,
-                PhoneNumber = m.Patient?.PhoneNumber,
-                IdentityNumber = m.Patient?.IdentityNumber,
-                InsuranceNumber = m.Patient?.InsuranceNumber,
-                InsuranceFacilityName = m.Patient?.InsuranceFacilityName,
-                AdmissionDate = m.CreatedAt,
-                DepartmentId = m.DepartmentId ?? m.Room?.DepartmentId ?? Guid.Empty,
-                DepartmentName = m.Room?.Department?.DepartmentName,
-                RoomId = m.RoomId,
-                RoomName = m.Room?.RoomName,
-                Status = m.Status == 0 ? "Waiting" : m.Status == 1 ? "InProgress" : m.Status == 2 ? "WaitingResult" : "Completed",
-                IsEmergency = m.TreatmentType == 3,
-                IsPriority = m.TreatmentType == 3,
-                QueueNumber = ticket?.QueueNumber ?? 0,
-                QueueCode = ticket?.TicketNumber ?? "",
-                Priority = m.TreatmentType == 3 ? 1 : 0,
-                Notes = m.DischargeNote ?? ""
-            };
+            return BuildAdmissionDto(m, ticket);
         }).ToList();
+    }
+
+    private static AdmissionDto BuildAdmissionDto(MedicalRecord m, QueueTicket? ticket)
+    {
+        var dob = m.Patient?.DateOfBirth;
+        var yob = m.Patient?.YearOfBirth;
+        int? age = null;
+        if (dob.HasValue)
+        {
+            var today = DateTime.Today;
+            var a = today.Year - dob.Value.Year;
+            if (dob.Value.Date > today.AddYears(-a)) a--;
+            age = a;
+        }
+        else if (yob.HasValue && yob.Value > 1900 && yob.Value <= DateTime.Today.Year)
+        {
+            age = DateTime.Today.Year - yob.Value;
+        }
+
+        var hasValidInsurance = !string.IsNullOrWhiteSpace(m.Patient?.InsuranceNumber);
+        var statusLabel = m.Status switch { 0 => "Waiting", 1 => "InProgress", 2 => "WaitingResult", _ => "Completed" };
+        var statusVi    = m.Status switch { 0 => "Chờ tiếp đón", 1 => "Đang khám", 2 => "Chờ kết quả", _ => "Hoàn thành" };
+        var treatmentVi = m.TreatmentType switch
+        {
+            1 => "Khám BHYT",
+            2 => "Khám dịch vụ",
+            3 => "Cấp cứu",
+            4 => "Khám theo yêu cầu",
+            _ => "Khám thường",
+        };
+        var patientTypeVi = m.PatientType switch
+        {
+            1 => "BHYT",
+            2 => "Viện phí",
+            3 => "Dịch vụ",
+            _ => "Khác",
+        };
+        var priority = m.TreatmentType == 3 ? 1 : (ticket?.Priority ?? 0);
+        var priorityVi = priority switch { 1 => "Cấp cứu", 2 => "Ưu tiên", _ => "Thường" };
+
+        return new AdmissionDto
+        {
+            Id = m.Id,
+            AdmissionCode = m.MedicalRecordCode,
+            PatientId = m.PatientId,
+            PatientCode = m.Patient?.PatientCode ?? "",
+            PatientName = m.Patient?.FullName ?? "",
+            DateOfBirth = dob,
+            YearOfBirth = yob,
+            Age = age ?? 0,
+            Gender = m.Patient?.Gender == 1 ? "Nam" : m.Patient?.Gender == 2 ? "Nữ" : "Khác",
+            GenderName = m.Patient?.Gender == 1 ? "Nam" : m.Patient?.Gender == 2 ? "Nữ" : "Khác",
+            Address = m.Patient?.Address,
+            PhoneNumber = m.Patient?.PhoneNumber,
+            IdentityNumber = m.Patient?.IdentityNumber,
+            InsuranceNumber = m.Patient?.InsuranceNumber,
+            InsuranceFacilityName = m.Patient?.InsuranceFacilityName,
+            IsInsuranceValid = hasValidInsurance,
+            AdmissionDate = m.AdmissionDate != default ? m.AdmissionDate : m.CreatedAt,
+            DepartmentId = m.DepartmentId ?? m.Room?.DepartmentId ?? Guid.Empty,
+            DepartmentName = m.Room?.Department?.DepartmentName,
+            RoomId = m.RoomId,
+            RoomName = m.Room?.RoomName,
+            Status = statusLabel,
+            StatusName = statusVi,
+            PatientType = m.PatientType,
+            PatientTypeName = patientTypeVi,
+            TreatmentType = m.TreatmentType,
+            TreatmentTypeName = treatmentVi,
+            ChiefComplaint = m.InitialDiagnosis,
+            DoctorName = null,
+            IsEmergency = m.TreatmentType == 3,
+            IsPriority = m.TreatmentType == 3 || priority == 2,
+            QueueNumber = ticket?.QueueNumber ?? 0,
+            QueueCode = ticket?.TicketNumber ?? "",
+            TicketId = ticket?.Id,
+            Priority = priority,
+            PriorityName = priorityVi,
+            Notes = m.DischargeNote ?? ""
+        };
     }
 
     public async Task<List<AdmissionDto>> SearchPatientsAsync(string keyword)
@@ -284,34 +337,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
         return records.Select(m => {
             var ticket = ticketLookup.GetValueOrDefault(new { PatientId = (Guid?)m.PatientId, RoomId = m.RoomId });
-            return new AdmissionDto
-            {
-                Id = m.Id,
-                AdmissionCode = m.MedicalRecordCode,
-                PatientId = m.PatientId,
-                PatientCode = m.Patient?.PatientCode ?? "",
-                PatientName = m.Patient?.FullName ?? "",
-                DateOfBirth = m.Patient?.DateOfBirth,
-                YearOfBirth = m.Patient?.YearOfBirth,
-                Gender = m.Patient?.Gender == 1 ? "Nam" : m.Patient?.Gender == 2 ? "Nữ" : "Khác",
-                Address = m.Patient?.Address,
-                PhoneNumber = m.Patient?.PhoneNumber,
-                IdentityNumber = m.Patient?.IdentityNumber,
-                InsuranceNumber = m.Patient?.InsuranceNumber,
-                InsuranceFacilityName = m.Patient?.InsuranceFacilityName,
-                AdmissionDate = m.CreatedAt,
-                DepartmentId = m.DepartmentId ?? m.Room?.DepartmentId ?? Guid.Empty,
-                DepartmentName = m.Room?.Department?.DepartmentName,
-                RoomId = m.RoomId,
-                RoomName = m.Room?.RoomName,
-                Status = m.Status == 0 ? "Waiting" : m.Status == 1 ? "InProgress" : m.Status == 2 ? "WaitingResult" : "Completed",
-                IsEmergency = m.TreatmentType == 3,
-                IsPriority = m.TreatmentType == 3,
-                QueueNumber = ticket?.QueueNumber ?? 0,
-                QueueCode = ticket?.TicketNumber ?? "",
-                Priority = m.TreatmentType == 3 ? 1 : 0,
-                Notes = m.DischargeNote ?? ""
-            };
+            return BuildAdmissionDto(m, ticket);
         }).ToList();
     }
 
@@ -441,6 +467,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
         nextTicket.Status = 1; // Calling
         nextTicket.CalledTime = DateTime.Now;
         nextTicket.CalledByUserId = userId;
+        await SyncMedicalRecordStatusAsync(nextTicket, mrStatus: 1); // InProgress on the MR side
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -455,6 +482,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
         ticket.Status = 1; // Calling
         ticket.CalledTime = DateTime.Now;
         ticket.CalledByUserId = userId;
+        await SyncMedicalRecordStatusAsync(ticket, mrStatus: 1); // InProgress on the MR side
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -481,6 +509,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
         ticket.Status = 4; // Skipped
         ticket.Notes = reason;
+        await SyncMedicalRecordStatusAsync(ticket, mrStatus: 0); // back to waiting (no-show)
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -493,6 +522,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
         if (ticket == null) throw new Exception("Ticket not found");
 
         ticket.Status = 2; // Serving
+        await SyncMedicalRecordStatusAsync(ticket, mrStatus: 1); // InProgress
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -506,10 +536,25 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
         ticket.Status = 3; // Completed
         ticket.CompletedTime = DateTime.Now;
+        await SyncMedicalRecordStatusAsync(ticket, mrStatus: 3); // Completed
 
         await _unitOfWork.SaveChangesAsync();
 
         return (await GetQueueTicketByIdAsync(ticketId))!;
+    }
+
+    /// <summary>
+    /// Keep MedicalRecord.Status in sync with QueueTicket.Status so the
+    /// reception list (which reads from MedicalRecord) reflects the
+    /// latest queue action without a separate write from the controller.
+    /// </summary>
+    private async Task SyncMedicalRecordStatusAsync(QueueTicket ticket, int mrStatus)
+    {
+        if (ticket.MedicalRecordId.HasValue)
+        {
+            var mr = await _context.MedicalRecords.FindAsync(ticket.MedicalRecordId.Value);
+            if (mr != null) mr.Status = mrStatus;
+        }
     }
 
     public async Task<List<QueueTicketDto>> GetWaitingListAsync(Guid roomId, int queueType, DateTime date)
@@ -3088,19 +3133,26 @@ public class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<(int Total, int Waiting, int InProgress, int WaitingResult, int Completed, int DoingLab, int InsuranceCount)> GetRoomStatsAsync(Guid roomId, DateTime date)
     {
-        var examinations = await _context.Examinations
-            .Include(e => e.MedicalRecord)
-            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate.Date == date.Date)
+        // Source of truth for "patients in room today" is MedicalRecord, not
+        // Examination. A reception flow creates an MR and assigns it to a
+        // room before any examination row exists; the OPD page later spawns
+        // Examinations only when the doctor opens the encounter.
+        // Status mapping aligns with MedicalRecord.Status:
+        //   0=Waiting (chờ tiếp đón) | 1=InProgress (đang khám)
+        //   2=WaitingResult (chờ kết quả CLS) | 3=Completed (hoàn thành)
+        var records = await _context.MedicalRecords
+            .Where(m => m.RoomId == roomId && m.AdmissionDate.Date == date.Date)
+            .Select(m => new { m.Status, m.PatientType })
             .ToListAsync();
 
         return (
-            Total: examinations.Count,
-            Waiting: examinations.Count(e => e.Status == 0),
-            InProgress: examinations.Count(e => e.Status == 1),
-            WaitingResult: examinations.Count(e => e.Status == 2 || e.Status == 3),
-            Completed: examinations.Count(e => e.Status == 4),
-            DoingLab: examinations.Count(e => e.Status == 2),
-            InsuranceCount: examinations.Count(e => e.MedicalRecord.PatientType == 1)
+            Total: records.Count,
+            Waiting: records.Count(m => m.Status == 0),
+            InProgress: records.Count(m => m.Status == 1),
+            WaitingResult: records.Count(m => m.Status == 2),
+            Completed: records.Count(m => m.Status == 3),
+            DoingLab: records.Count(m => m.Status == 2),
+            InsuranceCount: records.Count(m => m.PatientType == 1)
         );
     }
 

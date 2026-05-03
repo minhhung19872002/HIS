@@ -147,12 +147,15 @@ namespace HIS.Application.DTOs
         public string PatientName { get; set; }
         public DateTime? DateOfBirth { get; set; }
         public int? YearOfBirth { get; set; }
+        public int Age { get; set; }
         public string Gender { get; set; }
+        public string GenderName { get; set; }
         public string Address { get; set; }
         public string PhoneNumber { get; set; }
         public string IdentityNumber { get; set; }
         public string InsuranceNumber { get; set; }
         public string InsuranceFacilityName { get; set; }
+        public bool IsInsuranceValid { get; set; }
         public DateTime AdmissionDate { get; set; }
         public Guid DepartmentId { get; set; }
         public string DepartmentName { get; set; }
@@ -160,6 +163,10 @@ namespace HIS.Application.DTOs
         public string RoomName { get; set; }
         public Guid? BedId { get; set; }
         public string BedName { get; set; }
+        public int PatientType { get; set; }
+        public string PatientTypeName { get; set; }
+        public int TreatmentType { get; set; }
+        public string TreatmentTypeName { get; set; }
         public string AdmissionType { get; set; }
         public string AdmissionSource { get; set; }
         public string ChiefComplaint { get; set; }
@@ -168,13 +175,16 @@ namespace HIS.Application.DTOs
         public string AttendingDoctorName { get; set; }
         public string DoctorName { get; set; }
         public string Status { get; set; }
+        public string StatusName { get; set; }
         public DateTime CreatedDate { get; set; }
         // Queue properties for MappingProfile
         public bool IsEmergency { get; set; }
         public bool IsPriority { get; set; }
         public int QueueNumber { get; set; }
         public string QueueCode { get; set; }
+        public Guid? TicketId { get; set; }
         public int Priority { get; set; }
+        public string PriorityName { get; set; }
         public DateTime? CalledAt { get; set; }
         public DateTime? StartedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
