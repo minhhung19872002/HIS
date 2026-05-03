@@ -3327,3 +3327,170 @@ New things this session opened up:
   4. Wire route in `App.tsx`: `lazy import` + `<Route element=...>`
 - Backend port: `http://localhost:5106` (was running in background
   `b6lkdln3o` at session end; may need restart in next session)
+
+---
+
+## Work Log - 2026-05-03 (v2 design pack adoption — 4 phases, 38+ pages redesigned)
+
+Resumed from prior session. Pulled fresh design bundle from
+`https://api.anthropic.com/v1/design/h/E8NxJ4TNRMfNRSTFDEKU5Q` and
+applied it to v2 layer in 4 phases.
+
+### Done
+
+**Phase 0 — design pack ingestion + foundation upgrade (commits
+`70e30a9`, `cfcc7ff`):**
+- Saved bundle to `design-system/project/` (Reception v2.html,
+  Screening v2.html, etc. + `mod-v2-kit.jsx` + ab-* CSS)
+- New helper `SimpleV2Page<T>` in `frontend/src/pages-v2/_v2kit.tsx`
+  (~330 → ~590 LOC). Props: `title, load, rowKey, columns,
+  searchPlaceholder, searchOf, statusTabs, statusOf, filters, kpis,
+  pageSize, rowActions, drawer, drawerTitle, drawerSub, toolbarRight`.
+  Internal state for rows/loading/stab/search/filterValues/page/detail.
+  Renders KpiStrip + ab-tools toolbar + StatusTabs + DataTable + Pager
+  + DrawerShell. Use this for any list-style v2 page going forward —
+  ~70-100 LOC per page vs. 250+ for full bespoke.
+- New CSS: `.ab-stack`, `.ab-tools`, `.rec-token` (4 tones),
+  `.rec-section/h5`, `.rec-kv` (110px label grid), `.rec-status-banner`,
+  `.rec-bhyt-card`, `.rec-bhyt-icon`, `.rec-bhyt-num`, `.rec-bhyt-meta`,
+  `.rec-tline`, `.rec-tline-it` (5 dot tones), `.rec-av`,
+  `.rec-drawer-tabs`. Added 150 lines to `ab-module.css`.
+
+**Phase 1 — Reception bespoke (commits `cfcc7ff`, `994f2ea`):**
+- Reception.tsx rewritten per Reception v2.html: 3-tab drawer
+  (Thông tin / Lịch sử thao tác / Phiên liên quan), bespoke layout
+  (not SimpleV2Page — needs rich detail UI).
+- Backend `AdmissionDto` enriched in
+  `backend/src/HIS.Application/DTOs/Common/MissingDTOs.cs`:
+  added `Age`, `GenderName`, `IsInsuranceValid`, `PatientType`,
+  `PatientTypeName`, `TreatmentType`, `TreatmentTypeName`,
+  `StatusName`, `TicketId`, `PriorityName`.
+- `ReceptionCompleteService.cs`: new `BuildAdmissionDto` helper (DOB
+  → age, int → Vietnamese label); new `SyncMedicalRecordStatusAsync`
+  called from CallNext/CallSpecific/Skip/StartServing/Complete to keep
+  MR.Status in sync with QueueTicket; `GetRoomStatsAsync` rewritten
+  to query MedicalRecords (was querying empty Examinations table).
+- Cleanup script `scripts/cleanup_encrypted_patient_data.sql` —
+  NULL out 1256 encrypted phones / 1054 CCCDs / normalize 179
+  gender / backfill 243 YearOfBirth.
+- Seed script `scripts/seed_today_reception.sql` — 30 fresh patients
+  + 30 MR + 30 QueueTickets stamped today, idempotent via marker
+  `seed_today_reception`.
+
+**Phase 2 — 17 specialty pages via SimpleV2Page (commit `1f5fe9e`):**
+Pages: Telemedicine, SmsManagement, SigningWorkflow, PatientPortal,
+DoctorPortal, HospitalPharmacy, Procurement, MedicalSupply,
+TraumaRegistry, HealthEducation, PopulationHealth, EnvironmentalHealth,
+PracticeLicense, Microbiology, ReproductiveHealth, LabQC, Screening,
+TraditionalMedicine. Each ~70-100 LOC.
+
+Seed scripts (commit `3406514`):
+- `scripts/seed_phase2_pages.sql` (initial)
+- `scripts/seed_phase2_fix.sql` (re-seed Quality + Portal nvarchar)
+- `scripts/fix_phase2_columns.sql` (ALTER QualityIndicators +
+  PortalAppointments CreatedBy → nvarchar(450))
+
+**Phase 3 — 7 Tier B complex pages bespoke (commit `1f5fe9e`):**
+Surgery, Pharmacy, Inpatient, Billing, EMR, OPD, Prescription. Hand-
+written rec-* drawers + custom KPIs/columns specific to each domain.
+
+**Phase 4 — final 6 pages (commit `5b40720`, today):**
+- Equipment refactored to `SimpleV2Page<EquipmentDto>` (~175 LOC):
+  6 KPIs, 4 status tabs (operational/maintenance/broken/decommissioned
+  mapped from operationalStatus 1-4), 9-col DataTable (code, name+mfr,
+  category, serial, risk chip, dept+room, nextMaintenance with color
+  by days, warranty chip, status), 5-section drawer (thiết bị / vị trí
+  / mua sắm / bảo hành / chứng nhận FDA-CE).
+- HR (535 LOC, shift-roster grid) + EmergencyDisaster (581 LOC, triage
+  flow) — kept custom CSS classes (`hr-v2-*`, `er-v2-*`). Non-list UI
+  doesn't fit SimpleV2Page; both already terminal-style.
+- Nutrition + InfectionControl + Rehabilitation already use _v2kit
+  primitives — no refactor needed.
+- 3 pre-existing TS errors blocking `npm run build` cleared:
+  - `BloodBank.tsx`: `getIssueRequests` arg order was `(undefined,
+    fromDate, toDate)` but signature is `(fromDate, toDate,
+    departmentId?, status?)`. Also cast `expiring` via `unknown` to
+    `BloodBagDto[]` (DTO mismatch).
+  - `Laboratory.tsx`: `collectSample` requires `sampleType` +
+    `collectorName` (was only sending `collectionTime`).
+  - `Reception.tsx`: added `admissionType` + `admissionCode` to
+    `RawRow` type.
+
+### Verification
+- `npm run build` → 30s, clean
+- Smoke test 6 Phase 4 routes → 6/6 pass (`e2e/v2-full-smoke.spec.ts`)
+- TS clean from `cd frontend && tsc --noEmit`
+
+### Branch state
+1 commit ahead of `origin/main`, NOT pushed. Working tree clean
+except this CLAUDE.md update.
+
+Today's commits (4 to push when ready):
+```
+5b40720 feat(v2): Phase 4 — Equipment refactor + clear pre-existing TS errors
+3406514 test(v2): drawer regression spec + Phase 2 seed scripts
+1f5fe9e feat(v2): redesign 30 pages to claude.ai/design v2 spec
+70e30a9 feat(v2 kit): SimpleV2Page helper + drawer rec-* CSS
+994f2ea fix(reception): enrich AdmissionDto + sync MR status with QueueTicket
+cfcc7ff feat(v2 reception): rewrite per latest design pack — 3 tabs
+```
+
+### Pitfalls hit (don't redo)
+- **`tsc --noEmit` from wrong cwd**: must run from
+  `C:/Source/HIS/frontend`, not `C:/Source/HIS`. The 0-error result
+  is a lie if cwd is wrong.
+- **`tsc -b` (Vercel build) is stricter than `tsc --noEmit`**:
+  errors in BloodBank/Laboratory/Reception slipped past `--noEmit`
+  in earlier sessions but block `npm run build`. Always run
+  `npm run build` before committing.
+- **`vercel.json` uses `npm run build` directly** — TS regressions
+  fail the deploy. No `build:vercel` skip-tsc fallback anymore.
+- **SQL CreatedBy uniqueidentifier vs nvarchar**: Quality +
+  PortalAppointments tables had `CreatedBy uniqueidentifier`;
+  seed scripts that pass `nvarchar` marker fail with cast error.
+  ALTER both columns to `nvarchar(450)` first.
+- **OccupationalHealth/VaccinationRecords 500 "Data is Null"**:
+  entity has non-nullable EmployeeName/CompanyName/VaccineName but
+  seed only inserted minimal cols. Re-seed with full ~17 columns.
+- **PortalAppointments returns []**: backend filters
+  `AccountId == currentUserId`. Admin has no portal account →
+  empty. Known issue, deferred (the
+  `Guid.Empty` fallback added 2026-04-29 only covers some endpoints).
+- **Frontend MR.id vs ticketId**: 400 errors on
+  start-serving/skip/complete — backend now exposes `TicketId` on
+  `AdmissionDto`, frontend uses `r.ticketId`.
+
+### CAN LAM TIEP (mai)
+
+**Sẵn sàng push 6 commits hôm nay** — `git push origin main`. Vercel
+auto-deploys, test live https://his-psi.vercel.app sau khi deploy
+xong.
+
+**Nice-to-have nếu có thời gian:**
+1. **Smoke test toàn bộ 121 v2 routes** — bake xem có route nào
+   500/404 sau khi đổi data layer (Reception/Equipment chắc chắn
+   OK, nhưng các page Phase 2/3 chỉ tested theo lô).
+2. **Patient-portal `Guid.Empty` fallback** — extend the 2026-04-29
+   fix to remaining endpoints (~5 chỗ vẫn filter
+   `AccountId == currentUserId` cứng).
+3. **Cleanup orphan `WrapV1.tsx` + `_GenericListPage.tsx`** — cả 2
+   không còn imported, an toàn xóa.
+4. **USB Token Pkcs11Interop** — biggest unblocked feature item,
+   ~2 ngày work. Cần hardware-on-hand cho final test.
+5. **Jibri ARM retry loop** — vẫn chờ Tokyo ARM capacity.
+
+**Quick reference:**
+- Helper component: `frontend/src/pages-v2/_v2kit.tsx`
+  `SimpleV2Page<T>` (line ~440)
+- Drawer CSS: `frontend/src/layouts/terminal/ab-module.css`
+  `.rec-section`, `.rec-kv`, `.rec-status-banner`, `.rec-bhyt-card`,
+  `.rec-tline`
+- Recipe for porting 1 more page (~30 min):
+  1. Read v1 + identify `getX/searchX` API + DTO
+  2. Define `StatusKey` + `STATUS_TABS` + `statusKey()` mapper
+  3. Define `columns: ColumnDef<T>[]`
+  4. Wrap in `<SimpleV2Page<T> title=... load=... columns=... />`
+  5. Drawer body uses `.rec-section` + `.rec-kv` grid
+  6. Verify smoke test passes
+- Backend port `5106`, frontend dev `3001`. Backend was running in
+  background `b6lkdln3o` at session end (may need restart).
