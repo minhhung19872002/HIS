@@ -1,138 +1,147 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
-import { searchCases, getStats } from '../api/mentalHealth';
-import type { MentalHealthCase, MentalHealthStats } from '../api/mentalHealth';
+import { searchCases } from '../api/mentalHealth';
+import type { MentalHealthCase } from '../api/mentalHealth';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
+type StatusKey = 'active' | 'stable' | 'remission' | 'discharged';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'active',     l: 'Đang điều trị', tone: 'warn' },
+  { v: 'stable',     l: 'Ổn định',       tone: 'ok' },
+  { v: 'remission',  l: 'Thuyên giảm',   tone: 'ok' },
+  { v: 'discharged', l: 'Đã xuất viện',  tone: 'info' },
+];
+const statusKey = (s: number): StatusKey => {
+  if (s === 1) return 'stable';
+  if (s === 2) return 'remission';
+  if (s === 3) return 'discharged';
+  return 'active';
+};
 const TYPE_LABEL: Record<string, string> = {
   schizophrenia: 'Tâm thần phân liệt',
   depression: 'Trầm cảm',
   anxiety: 'Lo âu',
-  bipolar: 'RL lưỡng cực',
+  bipolar: 'Rối loạn lưỡng cực',
   ptsd: 'PTSD',
-  substance: 'Lệ thuộc chất',
+  substance: 'Lạm dụng chất',
 };
-const SEVERITY: Record<string, { text: string; cls: string }> = {
-  mild: { text: 'Nhẹ', cls: 'ok' },
-  moderate: { text: 'TB', cls: 'warn' },
-  severe: { text: 'Nặng', cls: 'crit' },
-};
-const STATUS_LABEL: Record<number, string> = { 0: 'Đang điều trị', 1: 'Ổn định', 2: 'Thuyên giảm', 3: 'Đã xuất viện' };
+const SEVERITY_TONE: Record<string, 'ok' | 'warn' | 'crit'> = { mild: 'ok', moderate: 'warn', severe: 'crit' };
+const SEVERITY_LABEL: Record<string, string> = { mild: 'Nhẹ', moderate: 'TB', severe: 'Nặng' };
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const MentalHealthV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<MentalHealthCase[]>([]);
-  const [stats, setStats] = useState<MentalHealthStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [sel, setSel] = useState<MentalHealthCase | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r: any = await searchCases({ keyword });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as MentalHealthCase[];
-      setItems(list);
-      if (list.length > 0 && !sel) setSel(list[0]);
-      const s = await getStats().catch(() => null);
-      setStats(s);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const local = useMemo(() => ({
-    total: items.length,
-    severe: items.filter((c) => c.severity === 'severe').length,
-    overdue: items.filter((c) => c.nextFollowUpDate && dayjs(c.nextFollowUpDate).isBefore(dayjs(), 'day')).length,
-    poorAdherence: items.filter((c) => c.adherenceLevel === 'poor').length,
-  }), [items]);
+  const columns: ColumnDef<MentalHealthCase>[] = [
+    { key: 'code', label: 'Mã ca', mono: true, width: 130, render: (r) => r.caseCode },
+    {
+      key: 'patient', label: 'Bệnh nhân',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'type', label: 'Loại bệnh', width: 180,
+      render: (r) => <span className="chip info">{TYPE_LABEL[r.caseType] || r.caseType}</span>,
+    },
+    { key: 'dx', label: 'Chẩn đoán', render: (r) => r.diagnosis },
+    {
+      key: 'severity', label: 'Mức độ', width: 90,
+      render: (r) => <span className={`chip ${SEVERITY_TONE[r.severity] || 'info'}`}>{SEVERITY_LABEL[r.severity] || r.severity}</span>,
+    },
+    {
+      key: 'adherence', label: 'Tuân thủ', width: 100,
+      render: (r) => <span className={`chip ${r.adherenceLevel === 'good' ? 'ok' : r.adherenceLevel === 'moderate' ? 'warn' : 'crit'}`}>{r.adherenceLevel}</span>,
+    },
+    { key: 'doctor', label: 'BS Tâm thần', width: 200, render: (r) => r.psychiatristName || '—' },
+    { key: 'next', label: 'Hẹn tiếp', mono: true, width: 100, render: (r) => fmtDMY(r.nextFollowUpDate) },
+    {
+      key: 'status', label: 'TT', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.status);
+        return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Sức khỏe tâm thần · <b>{items.length}</b></span>
-          <div className="actions">
-            <input className="input" style={{ width: 200 }} placeholder="Tìm BN / mã ca..." value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load(); }} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/mental-health')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Không có ca</div> : (
-              <table className="tbl">
-                <thead><tr><th>Mã ca</th><th>BN</th><th>Loại</th><th>Mức độ</th><th>BS</th><th>Tái khám</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {items.map((c) => {
-                    const sev = SEVERITY[c.severity] || { text: '—', cls: 'ghost' };
-                    const overdue = c.nextFollowUpDate && dayjs(c.nextFollowUpDate).isBefore(dayjs(), 'day');
-                    return (
-                      <tr key={c.id} className={sel?.id === c.id ? 'sel' : ''} onClick={() => setSel(c)} style={{ cursor: 'pointer' }}>
-                        <td className="mono">{c.caseCode}</td>
-                        <td><div style={{ fontWeight: 500 }}>{c.patientName}</div><div className="mono" style={{ fontSize: 11, color: 'var(--t-3)' }}>{c.patientCode}</div></td>
-                        <td className="muted">{TYPE_LABEL[c.caseType] || c.caseType}</td>
-                        <td><span className={`chip ${sev.cls}`}>{sev.text}</span></td>
-                        <td className="muted">{c.psychiatristName}</td>
-                        <td className="mono" style={{ color: overdue ? 'var(--s-crit)' : undefined }}>{c.nextFollowUpDate ? dayjs(c.nextFollowUpDate).format('DD/MM/YYYY') : '—'}</td>
-                        <td className="muted">{STATUS_LABEL[c.status] || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng ca" value={local.total} />
-              <Stat label="Nặng" value={local.severe} crit />
-              <Stat label="Quá hạn TK" value={local.overdue} warn />
-              <Stat label="Adh. kém" value={local.poorAdherence} crit />
-              {stats && <Stat label="Đánh giá tháng" value={stats.assessmentsThisMonth} cy />}
+    <SimpleV2Page<MentalHealthCase>
+      title="Ca tâm thần"
+      load={() => searchCases()}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm BN / mã / chẩn đoán…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.caseCode} ${r.diagnosis}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      filters={[
+        {
+          key: 'severity', placeholder: '▾ Mức độ',
+          options: [{ v: 'mild', l: 'Nhẹ' }, { v: 'moderate', l: 'TB' }, { v: 'severe', l: 'Nặng' }],
+          valueOf: (r) => r.severity,
+        },
+      ]}
+      kpis={(rows) => {
+        const severe = rows.filter((r) => r.severity === 'severe').length;
+        const poor = rows.filter((r) => r.adherenceLevel === 'poor').length;
+        const remission = rows.filter((r) => r.status === 2).length;
+        return [
+          { lbl: 'Tổng ca', val: rows.length, sub: 'tất cả' },
+          { lbl: 'Đang ĐT', val: rows.filter((r) => r.status === 0).length, tone: 'warn' },
+          { lbl: 'Nặng', val: severe, sub: 'cần ưu tiên', tone: 'crit' },
+          { lbl: 'Tuân thủ kém', val: poor, sub: 'cần tư vấn', tone: 'crit' },
+          { lbl: 'Thuyên giảm', val: remission, tone: 'ok' },
+          { lbl: 'Ổn định', val: rows.filter((r) => r.status === 1).length, tone: 'ok' },
+        ];
+      }}
+      drawer={(r) => (
+        <>
+          <div className="rec-section">
+            <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
+            <div className="rec-kv">
+              <span>Họ tên</span><b>{r.patientName}</b>
+              <span>Mã BN</span><span className="mono">{r.patientCode}</span>
+              <span>Mã ca</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.caseCode}</span>
             </div>
           </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Chi tiết ca</span><span className="sub">{sel?.patientName || 'Chọn ca'}</span></div>
-          <div className="panel-body pad">
-            {!sel ? <div className="ph">Chọn ca</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{sel.caseCode}</span>} />
-                <Field label="BN" value={`${sel.patientName} · ${sel.patientCode}`} />
-                <Field label="Loại" value={TYPE_LABEL[sel.caseType] || sel.caseType} />
-                <Field label="Chẩn đoán" value={sel.diagnosis} />
-                <Field label="Mức độ" value={SEVERITY[sel.severity]?.text || '—'} />
-                <Field label="Bắt đầu" value={dayjs(sel.startDate).format('DD/MM/YYYY')} />
-                <Field label="BS điều trị" value={sel.psychiatristName} />
-                <Field label="Thuốc" value={sel.medications || '—'} />
-                <Field label="Adherence" value={sel.adherenceLevel} />
-                <Field label="Đánh giá cuối" value={sel.lastAssessmentDate ? dayjs(sel.lastAssessmentDate).format('DD/MM/YYYY') : '—'} />
-              </div>
-            )}
+          <div className="rec-section">
+            <h5><TermIcon name="stethoscope" size={11} /> CHẨN ĐOÁN & ĐIỀU TRỊ</h5>
+            <div className="rec-kv">
+              <span>Loại bệnh</span><b>{TYPE_LABEL[r.caseType] || r.caseType}</b>
+              <span>Chẩn đoán</span><span>{r.diagnosis}</span>
+              <span>Mức độ</span><span className={`chip ${SEVERITY_TONE[r.severity]}`}>{SEVERITY_LABEL[r.severity]}</span>
+              <span>BS Tâm thần</span><span>{r.psychiatristName}</span>
+              <span>Bắt đầu</span><span>{fmtDMY(r.startDate)}</span>
+              <span>Đánh giá gần nhất</span><span>{fmtDMY(r.lastAssessmentDate)}</span>
+              <span>Hẹn tiếp</span><span>{fmtDMY(r.nextFollowUpDate)}</span>
+              <span>Tuân thủ</span><span className={`chip ${r.adherenceLevel === 'good' ? 'ok' : 'warn'}`}>{r.adherenceLevel}</span>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+          {r.medications && (
+            <div className="rec-section">
+              <h5><TermIcon name="flask" size={11} /> THUỐC ĐIỀU TRỊ</h5>
+              <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.medications}</div>
+            </div>
+          )}
+          {r.notes && (
+            <div className="rec-section">
+              <h5><TermIcon name="info" size={11} /> GHI CHÚ</h5>
+              <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.notes}</div>
+            </div>
+          )}
+        </>
+      )}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.caseCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${TYPE_LABEL[r.caseType]} · ${SEVERITY_LABEL[r.severity]}`}
+    />
   );
 };
-
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
 
 export default MentalHealthV2;

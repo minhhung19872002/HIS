@@ -2,34 +2,74 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as risApi from '../api/ris';
-import type { RadiologyOrderDto, RadiologyOrderItemDto, RadiologyResultDto } from '../api/ris';
-import './Radiology.css';
+import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto } from '../api/ris';
+import {
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
+  StatusBadge, ActBtn, DrawerShell,
+  type ColumnDef, type StatusTab,
+} from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 
-// service-type → modality + thumb class
-function modalityOf(item?: RadiologyOrderItemDto): { type: 'CR' | 'CT' | 'US' | 'MRI' | 'OTHER'; thumb: string } {
-  const t = (item?.serviceType || '').toUpperCase();
-  if (t.includes('CT'))   return { type: 'CT',  thumb: 'ct' };
-  if (t.includes('MRI'))  return { type: 'MRI', thumb: 'mri' };
-  if (t.includes('US') || t.includes('SIEU AM') || t.includes('SIÊU')) return { type: 'US', thumb: 'us' };
-  if (t.includes('XQ') || t.includes('X-QUANG') || t.includes('XQUANG')) return { type: 'CR', thumb: 'xray' };
-  return { type: 'OTHER', thumb: 'xray' };
-}
+/* ────────────────────────────────────────────────────────────
+   RIS v2 — port of design-system-v2/his/project/RIS v2.html
+   ──────────────────────────────────────────────────────────── */
 
-function statusOfOrder(o: RadiologyOrderDto): 'in-progress' | 'read' | 'pending' {
-  const s = (o.status || '').toLowerCase();
-  if (s.includes('read') || s.includes('xong') || s.includes('approve') || s.includes('duyệt')) return 'read';
-  if (s.includes('progress') || s.includes('chạy') || s.includes('đang')) return 'in-progress';
-  return 'pending';
-}
+type StatusKey = 'scheduled' | 'imaging' | 'reading' | 'reported' | 'cancelled';
+
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'scheduled', l: 'Đã lên lịch',  tone: 'info' },
+  { v: 'imaging',   l: 'Đang chụp',    tone: 'warn' },
+  { v: 'reading',   l: 'Chờ đọc phim', tone: 'warn' },
+  { v: 'reported',  l: 'Đã đọc',       tone: 'ok' },
+  { v: 'cancelled', l: 'Hủy',          tone: 'crit' },
+];
+
+const MODALITIES: { v: string; l: string; color: string }[] = [
+  { v: 'XR',  l: 'X-Quang',       color: '#0891b2' },
+  { v: 'CT',  l: 'CT-Scanner',    color: '#7c3aed' },
+  { v: 'MRI', l: 'Cộng hưởng từ', color: '#db2777' },
+  { v: 'US',  l: 'Siêu âm',       color: '#16a34a' },
+  { v: 'MAM', l: 'Nhũ ảnh',       color: '#ea580c' },
+];
+
+const detectModality = (item?: RadiologyOrderItemDto): { v: string; color: string } => {
+  const t = (item?.serviceType || item?.serviceCode || '').toUpperCase();
+  if (t.includes('CT'))   return { v: 'CT',  color: '#7c3aed' };
+  if (t.includes('MRI'))  return { v: 'MRI', color: '#db2777' };
+  if (t.includes('US') || t.includes('SIEU') || t.includes('SIÊU')) return { v: 'US', color: '#16a34a' };
+  if (t.includes('MAM')) return { v: 'MAM', color: '#ea580c' };
+  return { v: 'XR', color: '#0891b2' };
+};
+
+const statusKey = (s: string): StatusKey => {
+  const x = (s || '').toLowerCase();
+  if (x.includes('cancel') || x.includes('hủy')) return 'cancelled';
+  if (x.includes('read') || x.includes('xong') || x.includes('approve') || x.includes('duyệt') || x.includes('reported')) return 'reported';
+  if (x.includes('reading') || x.includes('chờ đọc')) return 'reading';
+  if (x.includes('imaging') || x.includes('progress') || x.includes('chạy') || x.includes('đang')) return 'imaging';
+  return 'scheduled';
+};
+const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
+
+const fmtHM = (iso?: string) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
 const RadiologyV2: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const [orders, setOrders] = useState<RadiologyOrderDto[]>([]);
+  const [rows, setRows] = useState<RadiologyOrderDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sel, setSel] = useState<string>('');
-  const [tab, setTab] = useState<'report' | 'prior' | 'order'>('report');
+  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [fMod, setFMod] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [detail, setDetail] = useState<RadiologyOrderDto | null>(null);
   const [result, setResult] = useState<RadiologyResultDto | null>(null);
   const [date, setDate] = useState(() => dayjs());
+  const PAGE_SIZE = 18;
 
   const reload = () => {
     setLoading(true);
@@ -37,286 +77,312 @@ const RadiologyV2: React.FC = () => {
       date.subtract(7, 'day').format('YYYY-MM-DD'),
       date.format('YYYY-MM-DD'),
     )
-      .then((r) => {
-        const data = Array.isArray(r.data) ? r.data : [];
-        setOrders(data);
-        if (data.length > 0 && !sel) setSel(data[0].id);
-      })
-      .catch(() => setOrders([]))
+      .then((r) => setRows(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setRows([]))
       .finally(() => setLoading(false));
   };
   useEffect(reload, [date]);
 
-  // Load full result when selection changes
+  // Load full result when drawer opens
   useEffect(() => {
     setResult(null);
-    if (!sel) return;
-    const order = orders.find((o) => o.id === sel);
-    const firstItem = order?.items?.[0];
+    if (!detail) return;
+    const firstItem = detail.items?.[0];
     if (!firstItem?.hasResult) return;
     risApi.getRadiologyResult(firstItem.id)
       .then((r) => setResult(r.data || null))
       .catch(() => setResult(null));
-  }, [sel, orders]);
+  }, [detail]);
 
-  const order = useMemo(() => orders.find((o) => o.id === sel) || orders[0], [orders, sel]);
-  const firstItem = order?.items?.[0];
-  const mod = modalityOf(firstItem);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: rows.length };
+    STATUS_TABS.forEach((s) => {
+      c[s.v] = rows.filter((r) => statusKey(r.status) === s.v).length;
+    });
+    return c;
+  }, [rows]);
 
-  // KPIs
-  const todayOrders = orders.filter((o) => dayjs(o.orderDate).isSame(date, 'day'));
-  const reading     = orders.filter((o) => statusOfOrder(o) === 'in-progress').length;
-  const read        = orders.filter((o) => statusOfOrder(o) === 'read').length;
-  const pending     = orders.filter((o) => statusOfOrder(o) === 'pending').length;
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (stab !== 'all' && statusKey(r.status) !== stab) return false;
+      if (fMod) {
+        const m = detectModality(r.items?.[0]);
+        if (m.v !== fMod) return false;
+      }
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [r.patientName, r.patientCode, r.orderCode, r.diagnosis,
+          ...(r.items || []).map((i) => i.serviceName)].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [rows, stab, fMod, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const kpis = useMemo(() => {
+    const reading  = rows.filter((r) => statusKey(r.status) === 'reading').length;
+    const reported = rows.filter((r) => statusKey(r.status) === 'reported').length;
+    const imaging  = rows.filter((r) => statusKey(r.status) === 'imaging').length;
+    const ctScans  = rows.filter((r) => detectModality(r.items?.[0]).v === 'CT').length;
+    return {
+      total: rows.length,
+      reading,
+      reported,
+      imaging,
+      ctScans,
+      modalities: MODALITIES.length,
+    };
+  }, [rows]);
+
+  const columns: ColumnDef<RadiologyOrderDto>[] = [
+    { key: 'code', label: 'Mã RIS', width: 130, mono: true, render: (r) => r.orderCode },
+    { key: 'time', label: 'Giờ', mono: true, width: 70, render: (r) => fmtHM(r.orderDate) },
+    {
+      key: 'patient', label: 'Bệnh nhân',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode} · {r.age || '—'}t · {r.gender || '—'}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'mod', label: 'Modality', width: 80,
+      render: (r) => {
+        const m = detectModality(r.items?.[0]);
+        return (
+          <span style={{
+            display: 'inline-block', padding: '2px 8px',
+            background: m.color, color: '#fff', borderRadius: 3,
+            fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
+          }}>{m.v}</span>
+        );
+      },
+    },
+    {
+      key: 'proc', label: 'Kỹ thuật',
+      render: (r) => {
+        const items = r.items || [];
+        const first = items[0];
+        return (
+          <div className="cell-2l">
+            <b>{first?.serviceName || '—'}</b>
+            <i className="mono">{first?.serviceCode || ''}{items.length > 1 && ` +${items.length - 1}`}</i>
+          </div>
+        );
+      },
+    },
+    { key: 'reason', label: 'Lý do CĐ', render: (r) => r.diagnosis || r.clinicalInfo || '—' },
+    { key: 'doctor', label: 'BS chỉ định', width: 150, render: (r) => r.orderDoctorName || '—' },
+    {
+      key: 'status', label: 'Trạng thái', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.status);
+        return <StatusBadge tone={statusTone(sk)} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
+
+  const onPrint = () => message.success('Đã gửi máy in');
+  const onViewer = (r: RadiologyOrderDto) => {
+    const firstItem = r.items?.[0];
+    if (!firstItem) { message.warning('Không có ảnh DICOM'); return; }
+    message.info('Mở DICOM Viewer (TODO)');
+  };
 
   return (
-    <div className="ris-wrap">
-      {/* ===== TOP BAR ===== */}
-      <div className="ris-top">
-        <div className="ris-pinfo">
-          <b>{order?.patientName || 'Chọn study'}</b> · {firstItem?.serviceName || '—'}
-          <div className="meta">
-            {order && (
-              <>
-                <span>BN <span className="dark-val">{order.patientCode}</span></span>
-                {order.age && <span>{order.age}t · {order.gender || '?'}</span>}
-                <span>Order <span className="dark-val">{order.orderCode}</span></span>
-                <span>Modality <span className="dark-val">{mod.type}</span></span>
-                <span>Items <span className="dark-val">{order.items?.length || 0}</span></span>
-                {order.orderDoctorName && <span>Chỉ định: {order.orderDoctorName}</span>}
-                {order.departmentName && <span>{order.departmentName}</span>}
-              </>
+    <div className="ab">
+      <KpiStrip
+        items={[
+          { lbl: 'Tổng ca', val: kpis.total, sub: 'gần đây' },
+          { lbl: 'Chờ đọc phim', val: kpis.reading, sub: 'backlog', tone: 'warn' },
+          {
+            lbl: 'Đã có KQ', val: kpis.reported,
+            sub: kpis.total > 0 ? `${Math.round(kpis.reported / kpis.total * 100)}%` : '—',
+            tone: 'ok',
+          },
+          { lbl: 'Đang chụp', val: kpis.imaging, sub: 'tại các phòng', tone: 'warn' },
+          { lbl: 'CT/MRI', val: kpis.ctScans, sub: 'cần chuẩn bị', tone: 'info' },
+          { lbl: 'Modality', val: kpis.modalities, sub: 'loại máy' },
+        ]}
+      />
+
+      <div className="ab-tools">
+        <SearchBox
+          value={search}
+          onChange={setSearch}
+          placeholder="Tìm BN, mã RIS, kỹ thuật, chẩn đoán…"
+        />
+        <Filter
+          value={fMod} onChange={setFMod}
+          options={MODALITIES.map((m) => ({ v: m.v, l: `${m.v} · ${m.l}` }))}
+          placeholder="▾ Modality"
+        />
+        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setFMod(''); setStab('all'); }}>
+          <TermIcon name="refresh" size={12} /> Bỏ lọc
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => setDate(date.subtract(1, 'day'))}>
+          <TermIcon name="chevronL" size={12} />
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => setDate(dayjs())}>Hôm nay</button>
+        <button type="button" className="ab-btn ghost" onClick={() => setDate(date.add(1, 'day'))}>
+          <TermIcon name="chevronR" size={12} />
+        </button>
+        <span className="spacer" />
+        <button type="button" className="ab-btn ghost" onClick={reload}>
+          <TermIcon name="refresh" size={12} /> Làm mới
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: DICOM Worklist')}>
+          <TermIcon name="image" size={12} /> DICOM
+        </button>
+        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo chỉ định CĐHA')}>
+          <TermIcon name="plus" size={12} /> Chỉ định <kbd>F2</kbd>
+        </button>
+      </div>
+
+      <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
+
+      <DataTable<RadiologyOrderDto>
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        onRowClick={(r) => setDetail(r)}
+        actions={(r) => (
+          <div className="ab-actions">
+            {r.items?.[0]?.hasResult && (
+              <ActBtn ic="eye" title="Xem KQ" onClick={() => setDetail(r)} />
             )}
+            {r.items?.[0]?.hasImages && (
+              <ActBtn ic="image" title="Xem ảnh DICOM" onClick={() => onViewer(r)} />
+            )}
+            <ActBtn ic="print" title="In phiếu" onClick={onPrint} />
           </div>
-        </div>
-        <div className="ris-top-act">
-          <button onClick={() => message.info('⬇ Đang đóng gói DICOM')} disabled={!order}>⬇ Tải DICOM</button>
-          <button onClick={() => message.info('⎙ Đã gửi lệnh in phim')} disabled={!order}>⎙ In phim</button>
-          <button onClick={() => message.success('📧 Đã gửi link PACS tới BS')} disabled={!order}>📧 Gửi BS</button>
-        </div>
-        <div className="ris-top-act">
-          <button className="p" onClick={reload}>⟳ Làm mới</button>
-        </div>
-      </div>
+        )}
+        empty={loading ? 'Đang tải…' : (
+          <div className="ab-empty">
+            <TermIcon name="search" size={20} />
+            <div>Không có ca CĐHA nào</div>
+          </div>
+        )}
+      />
 
-      <div className="ris-body">
-        {/* ===== WORKLIST ===== */}
-        <div className="ris-studies">
-          <div className="ris-studies-h">
-            <span>Worklist · {date.isSame(dayjs(), 'day') ? 'hôm nay' : date.format('DD/MM')}</span>
-            <span className="n">
-              {todayOrders.length} hôm nay · {orders.length} 7 ngày
+      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+
+      <DrawerShell
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.orderCode}</span>
+              <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
-          </div>
-          <div className="ris-studies-list">
-            {loading ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#9aa4ad', textAlign: 'center' }}>
-                Đang tải...
-              </div>
-            ) : orders.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#9aa4ad', textAlign: 'center' }}>
-                Chưa có chỉ định CĐHA
-              </div>
-            ) : orders.map((x) => {
-              const st = statusOfOrder(x);
-              const item = x.items?.[0];
-              const m = modalityOf(item);
-              return (
-                <div
-                  key={x.id}
-                  className={'ris-study ' + (sel === x.id ? 'sel' : '')}
-                  onClick={() => setSel(x.id)}
-                >
-                  <div className={'ris-study-thumb ' + m.thumb}>{m.type}</div>
-                  <div>
-                    <div className="ris-study-title">{x.patientName}</div>
-                    <div className="ris-study-meta">
-                      {item?.serviceName || '—'}<br />
-                      {dayjs(x.orderDate).format('DD/MM HH:mm')} · {x.items?.length || 0} dịch vụ
-                    </div>
-                    <span className={'ris-study-stat ' + st}>
-                      {st === 'read' ? '✓ ĐÃ ĐỌC' : st === 'in-progress' ? '● ĐANG ĐỌC' : '○ CHỜ'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ===== VIEWER (placeholder canvas) ===== */}
-        <div className="ris-viewer">
-          <div className="ris-viewer-tools">
-            <div className="ris-tool-lbl">Dựng</div>
-            <div className="ris-tool on" title="Pan">✥</div>
-            <div className="ris-tool" title="Zoom">⌕</div>
-            <div className="ris-tool" title="W/L">◐</div>
-            <div className="ris-tool" title="Xoay">↻</div>
-            <div className="ris-tool-sep" />
-            <div className="ris-tool-lbl">Đo</div>
-            <div className="ris-tool" title="Đo dài">│─│</div>
-            <div className="ris-tool" title="Góc">∠</div>
-            <div className="ris-tool" title="ROI">◯</div>
-            <div className="ris-tool" title="Ghi chú">A</div>
-            <div className="ris-tool-sep" />
-            <div className="ris-tool-lbl">Layout</div>
-            <div className="ris-tool on" title="1x1">▫</div>
-            <div className="ris-tool" title="2x1">▫▫</div>
-            <div className="ris-tool" title="2x2">⊞</div>
-            <div style={{ flex: 1 }} />
-            <div className="ris-tool-lbl">Items</div>
-            <div style={{ color: '#e8ecef', fontFamily: 'var(--font-mono)', fontSize: 11, padding: '0 8px' }}>
-              {order?.items?.length || 0}
-            </div>
-          </div>
-
-          <div className="ris-canvas-wrap">
-            <div className="ris-canvas">
-              {!order ? (
-                <div style={{ color: '#9aa4ad', fontSize: 13 }}>
-                  Chọn study trong worklist
-                </div>
-              ) : !firstItem?.hasImages ? (
-                <div style={{ color: '#9aa4ad', fontSize: 13 }}>
-                  Chưa có ảnh DICOM gắn cho study này
-                </div>
-              ) : (
-                <>
-                  <div className="ris-hud tl">
-                    <b>BV</b><br />
-                    {order.patientName}<br />
-                    {order.patientCode} · {order.gender || '?'} · {order.age || '?'}Y
-                  </div>
-                  <div className="ris-hud tr">
-                    {firstItem.serviceName}<br />
-                    {dayjs(order.orderDate).format('DD/MM HH:mm')}<br />
-                    Acc# {order.orderCode}
-                  </div>
-                  <div className="ris-hud bl">
-                    {firstItem.startTime ? `Bắt đầu ${dayjs(firstItem.startTime).format('HH:mm')}` : ''}<br />
-                    {firstItem.endTime ? `Kết thúc ${dayjs(firstItem.endTime).format('HH:mm')}` : ''}
-                  </div>
-                  <div className="ris-hud br">
-                    Item 1 / {order.items.length}
-                  </div>
-                  <div className="ris-orient t">R</div>
-                  <div className="ris-orient b">L</div>
-                  <div className={mod.type === 'CR' ? 'xray-img' : 'xray-img'} />
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="ris-viewer-foot">
-            <span><span className="dot" /> <b>PACS</b></span>
-            <span>{result?.dicomStudyUID || 'No DICOM UID'}</span>
-            <span style={{ marginLeft: 'auto' }}>RIS · {orders.length} pending</span>
-          </div>
-        </div>
-
-        {/* ===== REPORT ===== */}
-        <div className="ris-report">
-          <div className="ris-report-tabs">
-            <div className={'ris-report-tab ' + (tab === 'report' ? 'on' : '')} onClick={() => setTab('report')}>Báo cáo</div>
-            <div className={'ris-report-tab ' + (tab === 'prior' ? 'on' : '')} onClick={() => setTab('prior')}>So sánh</div>
-            <div className={'ris-report-tab ' + (tab === 'order' ? 'on' : '')} onClick={() => setTab('order')}>Chỉ định</div>
-          </div>
-
-          {tab === 'report' && (
-            <div className="ris-report-body">
-              {!order ? (
-                <div style={{ color: '#9aa4ad', fontSize: 12, textAlign: 'center', padding: 20 }}>
-                  Chọn một study
-                </div>
-              ) : !result ? (
-                <div style={{ color: '#9aa4ad', fontSize: 12, textAlign: 'center', padding: 20 }}>
-                  Chưa có báo cáo cho study này
-                </div>
-              ) : (
-                <>
-                  {result.description && (
-                    <div className="ris-report-sect">
-                      <div className="h">Mô tả</div>
-                      <div className="b" style={{ whiteSpace: 'pre-wrap' }}>{result.description}</div>
-                    </div>
-                  )}
-                  {result.conclusion && (
-                    <div className="ris-report-sect">
-                      <div className="h">Kết luận</div>
-                      <div className="b" style={{ whiteSpace: 'pre-wrap' }}>{result.conclusion}</div>
-                    </div>
-                  )}
-                  {result.note && (
-                    <div className="ris-report-sect">
-                      <div className="h">Ghi chú</div>
-                      <div className="b" style={{ whiteSpace: 'pre-wrap' }}>{result.note}</div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {tab === 'prior' && (
-            <div className="ris-report-body">
-              <div style={{
-                color: '#9aa4ad', fontFamily: 'var(--font-mono)',
-                fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em',
-                marginBottom: 10,
-              }}>Study trước của BN</div>
-              <div style={{ color: '#9aa4ad', fontSize: 12, textAlign: 'center', padding: 12 }}>
-                Cần thêm API patient-history để hiển thị
-              </div>
-            </div>
-          )}
-
-          {tab === 'order' && order && (
-            <div className="ris-report-body">
-              <Sect h="Bác sĩ chỉ định" b={<><b>{order.orderDoctorName}</b> · {order.departmentName}</>} />
-              <Sect h="Thời gian" b={`Chỉ định ${dayjs(order.orderDate).format('DD/MM HH:mm')}`} />
-              {order.diagnosis && <Sect h="Chẩn đoán" b={order.diagnosis} />}
-              {order.clinicalInfo && <Sect h="Thông tin lâm sàng" b={order.clinicalInfo} />}
-              <Sect h="Dịch vụ" b={
-                <>
-                  {(order.items || []).map((it) => (
-                    <div key={it.id} style={{ marginBottom: 4 }}>
-                      <b>{it.serviceCode}</b> · {it.serviceName} · {it.price.toLocaleString('vi-VN')}₫
-                    </div>
-                  ))}
-                </>
-              } />
-            </div>
-          )}
-
-          <div className="ris-report-foot">
-            <div className="ris-sign-row">
-              <div className="ris-sign-ava">{result?.doctorName?.split(' ').slice(-1)[0]?.[0] || '?'}</div>
-              <div className="ris-sign-dr">
-                <b>{result?.doctorName || result?.technicianName || 'Chưa ký'}</b>
-                <span>{result?.approvedTime ? dayjs(result.approvedTime).format('DD/MM HH:mm') : '—'} · {result?.approvalStatus || 'Chưa duyệt'}</span>
-              </div>
-            </div>
-            <div className="ris-btn-row">
-              <button onClick={() => message.info('✓ Đã lưu nháp')} disabled={!order}>Lưu nháp</button>
-              <button onClick={() => message.success('📧 Đã gửi BS')} disabled={!order}>Gửi BS</button>
-              <button
-                className="p"
-                onClick={() => message.success(`✓ Báo cáo ${order?.orderCode || ''} đã ký`)}
-                disabled={!order}
-              >✓ Ký</button>
-            </div>
-          </div>
-        </div>
-      </div>
+          : ''}
+        sub={detail
+          ? `${detail.patientCode} · ${detail.departmentName || '—'} · ${fmtDT(detail.orderDate)}`
+          : ''}
+        size="lg"
+        footer={detail ? (
+          <>
+            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <span style={{ flex: 1 }} />
+            <button type="button" className="ab-btn" onClick={onPrint}>
+              <TermIcon name="print" size={12} /> In phiếu
+            </button>
+            {detail.items?.[0]?.hasImages && (
+              <button type="button" className="ab-btn primary" onClick={() => onViewer(detail)}>
+                <TermIcon name="image" size={12} /> Xem ảnh DICOM
+              </button>
+            )}
+          </>
+        ) : null}
+      >
+        {detail && <RadiologyDrawerBody r={detail} result={result} />}
+      </DrawerShell>
     </div>
   );
 };
 
-const Sect: React.FC<{ h: string; b: React.ReactNode }> = ({ h, b }) => (
-  <div className="ris-report-sect">
-    <div className="h">{h}</div>
-    <div className="b">{b}</div>
-  </div>
-);
+const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyResultDto | null }> = ({ r, result }) => {
+  const sk = statusKey(r.status);
+  const tone = statusTone(sk);
+  const lbl = STATUS_TABS.find((t) => t.v === sk)?.l || '';
+  const m = detectModality(r.items?.[0]);
+
+  return (
+    <>
+      <div className="rec-section">
+        <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
+        <div className={`rec-status-banner ${tone}`}>
+          <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
+          <span style={{
+            padding: '2px 8px', background: m.color, color: '#fff',
+            borderRadius: 3, fontSize: 11, fontWeight: 700,
+            fontFamily: 'var(--font-mono)',
+          }}>{m.v}</span>
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
+        <div className="rec-kv">
+          <span>Họ tên</span><b>{r.patientName}</b>
+          <span>Mã BN</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.patientCode}</span>
+          <span>Tuổi · Giới</span><span>{r.age || '—'} tuổi · {r.gender || '—'}</span>
+          <span>BS chỉ định</span><span>{r.orderDoctorName || '—'}</span>
+          {r.diagnosis && (<><span>Chẩn đoán</span><span>{r.diagnosis}</span></>)}
+          {r.clinicalInfo && (<><span>Lâm sàng</span><span>{r.clinicalInfo}</span></>)}
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="image" size={11} /> KỸ THUẬT CĐHA ({r.items?.length || 0})</h5>
+        {(r.items || []).map((it) => (
+          <div key={it.id} style={{
+            padding: '10px 0', borderBottom: '1px solid var(--line-soft)',
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, fontSize: 12.5,
+          }}>
+            <div>
+              <b style={{ color: 'var(--t-0)' }}>{it.serviceName}</b>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>
+                <span className="mono">{it.serviceCode}</span>
+                {it.startTime && <> · Bắt đầu {fmtHM(it.startTime)}</>}
+                {it.endTime && <> · Xong {fmtHM(it.endTime)}</>}
+                {it.technicianName && <> · KTV {it.technicianName}</>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {it.hasResult && <span className="chip ok">KQ</span>}
+              {it.hasImages && <span className="chip info">DICOM</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {result && (
+        <div className="rec-section">
+          <h5><TermIcon name="file-text" size={11} /> BÁO CÁO ĐỌC PHIM</h5>
+          <div style={{
+            padding: 14, background: 'var(--d-1)',
+            border: '1px solid var(--line)', borderRadius: 6,
+            fontSize: 13, lineHeight: 1.6, color: 'var(--t-1)',
+            whiteSpace: 'pre-wrap',
+          }}>
+            {result.description && (<><b>Mô tả:</b> {result.description}<br /><br /></>)}
+            {result.conclusion && (<><b>Kết luận:</b> {result.conclusion}</>)}
+            {!result.description && !result.conclusion && <span style={{ color: 'var(--t-3)' }}>Chưa có nội dung báo cáo</span>}
+          </div>
+          {result.approvedBy && (
+            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t-2)' }}>
+              {result.approvedBy} · {fmtDT(result.approvedTime)}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
 
 export default RadiologyV2;

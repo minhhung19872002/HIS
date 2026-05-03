@@ -1,173 +1,255 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { App as AntdApp } from 'antd';
 import { searchInsuranceClaims } from '../api/insurance';
 import type { InsuranceClaimSummaryDto } from '../api/insurance';
+import {
+  KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
+  StatusBadge, ActBtn, DrawerShell,
+  type ColumnDef, type StatusTab,
+} from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: 'warn' | 'cy' | 'ok' | 'ghost' | 'crit' }> = {
-  0: { text: 'Nháp', cls: 'ghost' },
-  1: { text: 'Chờ gửi', cls: 'warn' },
-  2: { text: 'Đã gửi', cls: 'cy' },
-  3: { text: 'Duyệt', cls: 'ok' },
-  4: { text: 'Từ chối', cls: 'crit' },
-};
+/* BHYT v2 — claims management */
 
-const fmtVnd = (n: number) => n.toLocaleString('vi-VN');
+type StatusKey = 'draft' | 'pending' | 'submitted' | 'approved' | 'rejected';
+
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'draft',     l: 'Nháp',     tone: 'info' },
+  { v: 'pending',   l: 'Chờ gửi',  tone: 'warn' },
+  { v: 'submitted', l: 'Đã gửi',   tone: 'warn' },
+  { v: 'approved',  l: 'Đã duyệt', tone: 'ok' },
+  { v: 'rejected',  l: 'Từ chối',  tone: 'crit' },
+];
+const statusKey = (s: number): StatusKey => {
+  if (s === 4) return 'rejected';
+  if (s === 3) return 'approved';
+  if (s === 2) return 'submitted';
+  if (s === 1) return 'pending';
+  return 'draft';
+};
+const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 
 const InsuranceV2: React.FC = () => {
-  const [items, setItems] = useState<InsuranceClaimSummaryDto[]>([]);
+  const { message } = AntdApp.useApp();
+  const [rows, setRows] = useState<InsuranceClaimSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [fromDate, setFromDate] = useState(dayjs().subtract(30, 'day').format('YYYY-MM-DD'));
-  const [toDate, setToDate] = useState(dayjs().format('YYYY-MM-DD'));
-  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
-  const [selected, setSelected] = useState<InsuranceClaimSummaryDto | null>(null);
+  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [detail, setDetail] = useState<InsuranceClaimSummaryDto | null>(null);
+  const PAGE_SIZE = 16;
 
-  const load = async () => {
+  const reload = () => {
     setLoading(true);
-    try {
-      const r = await searchInsuranceClaims({
-        keyword: keyword || undefined, fromDate, toDate, status: statusFilter,
-        pageNumber: 1, pageSize: 200,
-      });
-      const data = Array.isArray(r.data?.items) ? r.data.items : [];
-      setItems(data);
-      if (data.length > 0 && !selected) setSelected(data[0]);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
+    searchInsuranceClaims({
+      fromDate: dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
+      toDate:   dayjs().format('YYYY-MM-DD'),
+      pageNumber: 1, pageSize: 200,
+    }).then((r) => setRows(Array.isArray(r.data?.items) ? r.data.items : []))
+      .catch(() => setRows([])).finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(reload, []);
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    draft: items.filter((c) => c.status === 0 || c.status === 1).length,
-    submitted: items.filter((c) => c.status === 2).length,
-    approved: items.filter((c) => c.status === 3).length,
-    rejected: items.filter((c) => c.status === 4).length,
-    totalBhytAmount: items.reduce((s, c) => s + (c.insuranceAmount || 0), 0),
-  }), [items]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: rows.length };
+    STATUS_TABS.forEach((s) => { c[s.v] = rows.filter((r) => statusKey(r.status) === s.v).length; });
+    return c;
+  }, [rows]);
+
+  const filtered = useMemo(() => rows.filter((r) => {
+    if (stab !== 'all' && statusKey(r.status) !== stab) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hay = [r.maLk, r.patientName, r.patientCode, r.insuranceNumber, r.diagnosisName]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }), [rows, stab, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const kpis = useMemo(() => {
+    const totalAmount = rows.reduce((s, r) => s + (r.totalAmount || 0), 0);
+    const insuranceAmount = rows.reduce((s, r) => s + (r.insuranceAmount || 0), 0);
+    const approvalRate = rows.length > 0
+      ? Math.round(rows.filter((r) => r.status === 3).length / rows.length * 100)
+      : 0;
+    return {
+      total: rows.length,
+      pending: (counts.pending || 0) + (counts.submitted || 0),
+      approved: counts.approved || 0,
+      rejected: counts.rejected || 0,
+      totalAmount,
+      insuranceAmount,
+      approvalRate,
+    };
+  }, [rows, counts]);
+
+  const columns: ColumnDef<InsuranceClaimSummaryDto>[] = [
+    { key: 'maLk', label: 'Mã LK', mono: true, width: 130, render: (r) => r.maLk },
+    {
+      key: 'patient', label: 'Bệnh nhân',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode}</i>
+        </div>
+      ),
+    },
+    { key: 'bhyt', label: 'Số thẻ BHYT', mono: true, width: 160, render: (r) => r.insuranceNumber },
+    {
+      key: 'dx', label: 'Chẩn đoán',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.diagnosisName}</b>
+          <i className="mono">{r.diagnosisCode}</i>
+        </div>
+      ),
+    },
+    { key: 'admit', label: 'Vào viện', mono: true, width: 100, render: (r) => fmtDMY(r.admissionDate) },
+    { key: 'discharge', label: 'Ra viện', mono: true, width: 100, render: (r) => fmtDMY(r.dischargeDate) },
+    { key: 'amount', label: 'Tổng tiền', mono: true, width: 120, render: (r) => fmtVND(r.totalAmount) },
+    { key: 'bhyt-amount', label: 'BHYT chi trả', mono: true, width: 120, render: (r) => fmtVND(r.insuranceAmount) },
+    {
+      key: 'status', label: 'TT', width: 120,
+      render: (r) => {
+        const sk = statusKey(r.status);
+        return <StatusBadge tone={statusTone(sk)} dot>{r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Hồ sơ BHYT · <b>{items.length}</b></span>
-          <div className="actions">
-            <input type="date" className="input" style={{ width: 130 }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-            <input type="date" className="input" style={{ width: 130 }} value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            <select className="select" style={{ width: 110 }} value={statusFilter ?? ''} onChange={(e) => setStatusFilter(e.target.value === '' ? undefined : Number(e.target.value))}>
-              <option value="">Tất cả</option>
-              <option value="0">Nháp</option>
-              <option value="1">Chờ gửi</option>
-              <option value="2">Đã gửi</option>
-              <option value="3">Duyệt</option>
-              <option value="4">Từ chối</option>
-            </select>
-            <input className="input" style={{ width: 200 }} placeholder="Tìm BN / mã LK..." value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có hồ sơ BHYT</div>
-            : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Mã LK</th>
-                  <th>Bệnh nhân</th>
-                  <th>Số BHYT</th>
-                  <th>Vào viện</th>
-                  <th>CĐ chính</th>
-                  <th className="num">Tổng (₫)</th>
-                  <th className="num">BHYT (₫)</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((c) => {
-                  const st = STATUS_LABEL[c.status] || { text: c.statusName, cls: 'ghost' as const };
-                  return (
-                    <tr key={c.id} className={selected?.id === c.id ? 'sel' : ''} onClick={() => setSelected(c)} style={{ cursor: 'pointer' }}>
-                      <td className="mono">{c.maLk}</td>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{c.patientName}</div>
-                        <div className="mono" style={{ fontSize: 11, color: 'var(--t-3)' }}>{c.patientCode}</div>
-                      </td>
-                      <td className="mono">{c.insuranceNumber}</td>
-                      <td className="mono">{dayjs(c.admissionDate).format('DD/MM HH:mm')}</td>
-                      <td className="muted" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span className="mono" style={{ color: 'var(--a-cy)' }}>{c.diagnosisCode}</span> {c.diagnosisName}
-                      </td>
-                      <td className="num mono">{fmtVnd(c.totalAmount)}</td>
-                      <td className="num mono" style={{ color: 'var(--s-ok)' }}>{fmtVnd(c.insuranceAmount)}</td>
-                      <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+    <div className="ab">
+      <KpiStrip
+        items={[
+          { lbl: 'Tổng hồ sơ', val: kpis.total, sub: '60 ngày' },
+          { lbl: 'Chờ duyệt', val: kpis.pending, sub: 'đã gửi BHXH', tone: 'warn' },
+          { lbl: 'Đã duyệt', val: kpis.approved, sub: `${kpis.approvalRate}% pass`, tone: 'ok' },
+          { lbl: 'Từ chối', val: kpis.rejected, sub: 'cần sửa', tone: 'crit' },
+          { lbl: 'Tổng tiền', val: Math.round(kpis.totalAmount / 1_000_000), unit: 'tr', sub: 'VND' },
+          { lbl: 'BHYT chi trả', val: Math.round(kpis.insuranceAmount / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' },
+        ]}
+      />
+
+      <div className="ab-tools">
+        <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mã LK / số thẻ BHYT / CĐ…" />
+        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+          <TermIcon name="refresh" size={12} /> Bỏ lọc
+        </button>
+        <span className="spacer" />
+        <button type="button" className="ab-btn ghost" onClick={reload}>
+          <TermIcon name="refresh" size={12} /> Làm mới
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: Validate XML')}>
+          <TermIcon name="check" size={12} /> Validate XML
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
+          <TermIcon name="download" size={12} /> Xuất XML
+        </button>
+        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Gửi cổng BHXH')}>
+          <TermIcon name="send" size={12} /> Gửi BHXH
+        </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng HS" value={String(stats.total)} />
-              <Stat label="Chờ gửi" value={String(stats.draft)} warn />
-              <Stat label="Đã gửi" value={String(stats.submitted)} cy />
-              <Stat label="Đã duyệt" value={String(stats.approved)} ok />
-              <Stat label="Từ chối" value={String(stats.rejected)} crit />
-              <Stat label="BHYT (M₫)" value={fmtVnd(Math.round(stats.totalBhytAmount / 1_000_000))} />
-            </div>
-          </div>
-        </div>
+      <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
 
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h">
-            <span className="title">Chi tiết hồ sơ</span>
-            <span className="sub">{selected ? selected.patientName : 'Chọn hồ sơ'}</span>
+      <DataTable<InsuranceClaimSummaryDto>
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        onRowClick={(r) => setDetail(r)}
+        actions={(r) => (
+          <div className="ab-actions">
+            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
+            <ActBtn ic="print" title="In phiếu BHYT" onClick={() => message.success('Đã gửi máy in')} />
           </div>
-          <div className="panel-body pad">
-            {!selected ? <div className="ph">Chọn hồ sơ để xem chi tiết</div> : (
-              <div className="stack-sm">
-                <Field label="Mã LK" value={<span className="mono">{selected.maLk}</span>} />
-                <Field label="BN" value={`${selected.patientName} · ${selected.patientCode}`} />
-                <Field label="BHYT" value={<span className="mono">{selected.insuranceNumber}</span>} />
-                <Field label="Vào viện" value={<span className="mono">{dayjs(selected.admissionDate).format('DD/MM/YYYY HH:mm')}</span>} />
-                {selected.dischargeDate && <Field label="Ra viện" value={<span className="mono">{dayjs(selected.dischargeDate).format('DD/MM/YYYY HH:mm')}</span>} />}
-                <Field label="CĐ chính" value={<><span className="mono" style={{ color: 'var(--a-cy)' }}>{selected.diagnosisCode}</span> {selected.diagnosisName}</>} />
-                <Field label="Tổng" value={<span className="mono">{fmtVnd(selected.totalAmount)} ₫</span>} />
-                <Field label="BHYT chi trả" value={<span className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVnd(selected.insuranceAmount)} ₫</span>} />
-                <Field label="Cùng chi trả" value={<span className="mono">{fmtVnd(selected.coPayAmount)} ₫</span>} />
-                <Field label="BN tự trả" value={<span className="mono">{fmtVnd(selected.patientAmount)} ₫</span>} />
-                <Field label="Trạng thái" value={(() => { const st = STATUS_LABEL[selected.status] || { text: selected.statusName, cls: 'ghost' as const }; return <span className={`chip ${st.cls}`}>{st.text}</span>; })()} />
-                {selected.submitDate && <Field label="Ngày gửi" value={<span className="mono">{dayjs(selected.submitDate).format('DD/MM/YYYY HH:mm')}</span>} />}
-                {selected.rejectReason && <Field label="Lý do từ chối" value={<span style={{ color: 'var(--s-crit)' }}>{selected.rejectReason}</span>} />}
-              </div>
-            )}
+        )}
+        empty={loading ? 'Đang tải…' : (
+          <div className="ab-empty">
+            <TermIcon name="search" size={20} />
+            <div>Không có hồ sơ BHYT nào</div>
           </div>
-        </div>
-      </div>
+        )}
+      />
+
+      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+
+      <DrawerShell
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.maLk}</span>
+              <span style={{ fontSize: 14 }}>{detail.patientName}</span>
+            </span>
+          : ''}
+        sub={detail ? `${detail.patientCode} · ${fmtDMY(detail.admissionDate)}` : ''}
+        size="lg"
+      >
+        {detail && <InsuranceDrawerBody r={detail} />}
+      </DrawerShell>
     </div>
   );
 };
 
-const Stat: React.FC<{ label: string; value: string; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
+const InsuranceDrawerBody: React.FC<{ r: InsuranceClaimSummaryDto }> = ({ r }) => {
+  const sk = statusKey(r.status);
+  const tone = statusTone(sk);
+  const lbl = r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l || '';
+  return (
+    <>
+      <div className="rec-section">
+        <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
+        <div className={`rec-status-banner ${tone}`}>
+          <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
+          {r.submitDate && <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Gửi {fmtDMY(r.submitDate)}</span>}
+        </div>
+      </div>
 
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
+      <div className="rec-section">
+        <h5><TermIcon name="user" size={11} /> BỆNH NHÂN & THẺ BHYT</h5>
+        <div className="rec-kv">
+          <span>Họ tên</span><b>{r.patientName}</b>
+          <span>Mã BN</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.patientCode}</span>
+          <span>Số thẻ BHYT</span><span className="mono">{r.insuranceNumber}</span>
+          <span>Mã LK</span><span className="mono">{r.maLk}</span>
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="stethoscope" size={11} /> CHẨN ĐOÁN</h5>
+        <div className="rec-kv">
+          <span>Mã ICD</span><b className="mono">{r.diagnosisCode}</b>
+          <span>Tên</span><span>{r.diagnosisName}</span>
+          <span>Vào viện</span><span className="mono">{fmtDMY(r.admissionDate)}</span>
+          <span>Ra viện</span><span className="mono">{fmtDMY(r.dischargeDate)}</span>
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="dollar" size={11} /> CHI PHÍ</h5>
+        <div className="rec-kv">
+          <span>Tổng tiền</span><b className="mono">{fmtVND(r.totalAmount)}</b>
+          <span>BHYT chi trả</span><b className="mono" style={{ color: '#15803d' }}>{fmtVND(r.insuranceAmount)}</b>
+          <span>BN đồng chi trả</span><b className="mono">{fmtVND(r.coPayAmount)}</b>
+          <span>BN tự trả</span><b className="mono" style={{ color: 'var(--s-warn)' }}>{fmtVND(r.patientAmount)}</b>
+        </div>
+      </div>
+
+      {r.rejectReason && (
+        <div className="rec-section">
+          <h5><TermIcon name="alert" size={11} /> LÝ DO TỪ CHỐI</h5>
+          <div style={{ fontSize: 12.5, color: 'var(--s-crit)', whiteSpace: 'pre-wrap' }}>{r.rejectReason}</div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default InsuranceV2;

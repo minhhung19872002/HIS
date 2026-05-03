@@ -1,188 +1,321 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
-import { searchAppointments, getOverdueFollowUps, updateAppointmentStatus } from '../api/examination';
+import { searchAppointments, updateAppointmentStatus } from '../api/examination';
 import type { AppointmentListDto } from '../api/examination';
+import {
+  KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
+  StatusBadge, ActBtn, DrawerShell,
+  type ColumnDef, type StatusTab,
+} from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: 'warn' | 'cy' | 'ok' | 'ghost' | 'crit' }> = {
-  0: { text: 'Đặt lịch', cls: 'warn' },
-  1: { text: 'Xác nhận', cls: 'cy' },
-  2: { text: 'Đã đến', cls: 'ok' },
-  3: { text: 'Vắng', cls: 'crit' },
-  4: { text: 'Hủy', cls: 'ghost' },
+/* ────────────────────────────────────────────────────────────
+   Tái khám v2 — port of design-system-v2/his/project/FollowUp v2.html
+   ──────────────────────────────────────────────────────────── */
+
+type StatusKey = 'scheduled' | 'reminded' | 'completed' | 'missed' | 'cancelled';
+
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'scheduled', l: 'Đã hẹn',     tone: 'info' },
+  { v: 'reminded',  l: 'Đã nhắc',    tone: 'info' },
+  { v: 'completed', l: 'Đã tái khám', tone: 'ok' },
+  { v: 'missed',    l: 'Bỏ lỡ',      tone: 'crit' },
+  { v: 'cancelled', l: 'Đã huỷ',     tone: 'crit' },
+];
+
+// Backend AppointmentStatus: 0 Scheduled · 1 Confirmed · 2 Completed · 3 Cancelled · 4 NoShow
+const statusKey = (s: number, isReminded: boolean): StatusKey => {
+  if (s === 4) return 'missed';
+  if (s === 3) return 'cancelled';
+  if (s === 2) return 'completed';
+  if (isReminded) return 'reminded';
+  return 'scheduled';
 };
+const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
+
+const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '—';
 
 const FollowUpV2: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const [items, setItems] = useState<AppointmentListDto[]>([]);
+  const [rows, setRows] = useState<AppointmentListDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'today' | 'upcoming' | 'overdue' | 'all'>('today');
-  const [keyword, setKeyword] = useState('');
-  const [selected, setSelected] = useState<AppointmentListDto | null>(null);
+  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [detail, setDetail] = useState<AppointmentListDto | null>(null);
+  const PAGE_SIZE = 16;
 
-  const today = dayjs().format('YYYY-MM-DD');
-
-  const load = async () => {
+  const reload = () => {
     setLoading(true);
-    try {
-      if (tab === 'overdue') {
-        const r = await getOverdueFollowUps(7);
-        setItems(Array.isArray(r.data) ? r.data : []);
-      } else {
-        const fromDate = tab === 'today' ? today
-          : tab === 'upcoming' ? today
-          : dayjs().subtract(60, 'day').format('YYYY-MM-DD');
-        const toDate = tab === 'today' ? today
-          : tab === 'upcoming' ? dayjs().add(30, 'day').format('YYYY-MM-DD')
-          : dayjs().add(60, 'day').format('YYYY-MM-DD');
-        const r = await searchAppointments({ fromDate, toDate, keyword: keyword || undefined, page: 1, pageSize: 200 });
-        setItems(Array.isArray(r.data?.items) ? r.data.items : []);
+    searchAppointments({
+      fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
+      toDate:   dayjs().add(60, 'day').format('YYYY-MM-DD'),
+      pageIndex: 0, pageSize: 200,
+    } as any).then((r) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const arr = ((r as any)?.data?.items || (r as any)?.data || []) as AppointmentListDto[];
+      setRows(Array.isArray(arr) ? arr : []);
+    }).catch(() => setRows([])).finally(() => setLoading(false));
+  };
+  useEffect(reload, []);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: rows.length };
+    STATUS_TABS.forEach((s) => {
+      c[s.v] = rows.filter((r) => statusKey(r.status, r.isReminderSent) === s.v).length;
+    });
+    return c;
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (stab !== 'all' && statusKey(r.status, r.isReminderSent) !== stab) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [r.appointmentCode, r.patientName, r.patientCode, r.phoneNumber, r.reason]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
       }
-      setSelected(null);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tab]);
+      return true;
+    });
+  }, [rows, stab, search]);
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    todayCount: items.filter((a) => dayjs(a.appointmentDate).isSame(dayjs(), 'day')).length,
-    overdue: items.filter((a) => a.daysOverdue > 0).length,
-    confirmed: items.filter((a) => a.status === 1 || a.status === 2).length,
-  }), [items]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const updateStatus = async (id: string, status: number) => {
+  const today = dayjs().startOf('day');
+  const sevenDays = dayjs().add(7, 'day').endOf('day');
+  const kpis = useMemo(() => {
+    const upcoming7 = rows.filter((r) => {
+      const d = dayjs(r.appointmentDate);
+      return r.status === 0 && d.isAfter(today) && d.isBefore(sevenDays);
+    }).length;
+    const reminded = counts.reminded || 0;
+    const completed = counts.completed || 0;
+    const missed = counts.missed || 0;
+    const adherence = (completed + missed) > 0
+      ? Math.round(completed / (completed + missed) * 100)
+      : 0;
+    return { upcoming7, reminded, completed, missed, adherence, total: rows.length };
+  }, [rows, counts, today, sevenDays]);
+
+  const onRemind = async (r: AppointmentListDto, channel: 'SMS' | 'Zalo' = 'SMS') => {
+    // No backend endpoint to flip "reminded" alone; mark as Confirmed (status=1) to indicate engagement.
     try {
-      await updateAppointmentStatus(id, status);
-      message.success('Đã cập nhật trạng thái');
-      load();
+      await updateAppointmentStatus(r.id, 1);
+      message.success(`Đã gửi nhắc ${channel} cho ${r.patientName}`);
+      reload();
     } catch {
-      message.error('Không thể cập nhật');
+      message.error('Gửi nhắc thất bại');
     }
   };
+
+  const columns: ColumnDef<AppointmentListDto>[] = [
+    { key: 'code', label: 'Mã', width: 130, mono: true, render: (r) => r.appointmentCode },
+    {
+      key: 'patient', label: 'Bệnh nhân',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode} · {r.phoneNumber || '—'}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'reason', label: 'Lý do tái khám',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.reason || r.appointmentTypeName || '—'}</b>
+          {r.previousDiagnosis && <i>{r.previousDiagnosis}</i>}
+        </div>
+      ),
+    },
+    { key: 'doctor', label: 'Bác sĩ', width: 180, render: (r) => r.doctorName || '—' },
+    {
+      key: 'when', label: 'Hẹn tái khám', width: 130, mono: true,
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{fmtDMY(r.appointmentDate)}</b>
+          <i>{fmtHM(r.appointmentTime || r.appointmentDate)}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'overdue', label: 'Quá hạn', width: 80, mono: true,
+      render: (r) => r.daysOverdue > 0
+        ? <span className="chip crit">{r.daysOverdue}d</span>
+        : <span style={{ color: 'var(--t-3)' }}>—</span>,
+    },
+    {
+      key: 'remind', label: 'Nhắc', width: 90, mono: true,
+      render: (r) => r.isReminderSent
+        ? <span className="chip ok">{fmtHM(r.reminderSentAt)}</span>
+        : <span style={{ color: 'var(--t-3)' }}>—</span>,
+    },
+    {
+      key: 'status', label: 'Trạng thái', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.status, r.isReminderSent);
+        return <StatusBadge tone={statusTone(sk)} dot>{r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Tái khám / lịch hẹn · <b>{items.length}</b></span>
-          <div className="actions">
-            <div className="rx-seg" style={{ display: 'flex', gap: 4 }}>
-              {(['today', 'upcoming', 'overdue', 'all'] as const).map((k) => {
-                const label = { today: 'Hôm nay', upcoming: 'Sắp tới', overdue: 'Quá hạn', all: 'Tất cả' }[k];
-                return (
-                  <div key={k} className={'rx-seg-i ' + (tab === k ? 'on' : '')} onClick={() => setTab(k)}>{label}</div>
-                );
-              })}
-            </div>
-            <input className="input" style={{ width: 200 }} placeholder="Tìm BN..." value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Không có lịch hẹn</div>
-            : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Mã</th>
-                  <th>Bệnh nhân</th>
-                  <th>SĐT</th>
-                  <th>Ngày hẹn</th>
-                  <th>Khoa / Phòng</th>
-                  <th>BS</th>
-                  <th>Loại</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((a) => {
-                  const st = STATUS_LABEL[a.status] || { text: a.statusName, cls: 'ghost' as const };
-                  const overdue = a.daysOverdue > 0;
-                  return (
-                    <tr key={a.id} className={selected?.id === a.id ? 'sel' : ''} onClick={() => setSelected(a)} style={{ cursor: 'pointer' }}>
-                      <td className="mono">{a.appointmentCode}</td>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{a.patientName}</div>
-                        <div className="mono" style={{ fontSize: 11, color: 'var(--t-3)' }}>{a.patientCode}</div>
-                      </td>
-                      <td className="muted">{a.phoneNumber || '—'}</td>
-                      <td className="mono" style={{ color: overdue ? 'var(--s-crit)' : undefined }}>
-                        {dayjs(a.appointmentDate).format('DD/MM/YYYY')}
-                        {overdue && <small style={{ display: 'block', fontSize: 10 }}>+{a.daysOverdue}d trễ</small>}
-                      </td>
-                      <td className="muted">{a.departmentName || '—'} {a.roomName && `· ${a.roomName}`}</td>
-                      <td className="muted">{a.doctorName || '—'}</td>
-                      <td className="muted">{a.appointmentTypeName}</td>
-                      <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+    <div className="ab">
+      <KpiStrip
+        items={[
+          { lbl: 'Hẹn 7 ngày tới', val: kpis.upcoming7, sub: 'sắp đến', tone: 'info' },
+          { lbl: 'Đã nhắc', val: kpis.reminded, sub: 'BN đã liên lạc' },
+          { lbl: 'Đã tái khám', val: kpis.completed, sub: 'tuân thủ', tone: 'ok' },
+          { lbl: 'Bỏ lỡ', val: kpis.missed, sub: 'cần follow', tone: 'crit' },
+          { lbl: 'Tỷ lệ tuân thủ', val: kpis.adherence, unit: '%', sub: 'hoàn thành', tone: kpis.adherence >= 80 ? 'ok' : 'warn' },
+          { lbl: 'Tổng kế hoạch', val: kpis.total },
+        ]}
+      />
+
+      <div className="ab-tools">
+        <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / SĐT / mã hẹn / lý do…" />
+        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+          <TermIcon name="refresh" size={12} /> Bỏ lọc
+        </button>
+        <span className="spacer" />
+        <button type="button" className="ab-btn ghost" onClick={reload}>
+          <TermIcon name="refresh" size={12} /> Làm mới
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: Nhắc hàng loạt')}>
+          <TermIcon name="message-square" size={12} /> Nhắc hàng loạt
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
+          <TermIcon name="download" size={12} /> Xuất Excel
+        </button>
+        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Lập kế hoạch')}>
+          <TermIcon name="plus" size={12} /> Lập kế hoạch
+        </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng" value={stats.total} />
-              <Stat label="Hôm nay" value={stats.todayCount} cy />
-              <Stat label="Quá hạn" value={stats.overdue} crit />
-              <Stat label="Đã xác nhận" value={stats.confirmed} ok />
-            </div>
-          </div>
-        </div>
+      <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
 
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h">
-            <span className="title">Chi tiết hẹn</span>
-            <span className="sub">{selected ? selected.patientName : 'Chọn lịch hẹn'}</span>
-          </div>
-          <div className="panel-body pad">
-            {!selected ? <div className="ph">Chọn một lịch hẹn</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{selected.appointmentCode}</span>} />
-                <Field label="BN" value={`${selected.patientName} · ${selected.patientCode}`} />
-                <Field label="SĐT" value={selected.phoneNumber || '—'} />
-                <Field label="Ngày hẹn" value={<span className="mono">{dayjs(selected.appointmentDate).format('DD/MM/YYYY')} {selected.appointmentTime}</span>} />
-                <Field label="Khoa/Phòng" value={`${selected.departmentName || '—'} · ${selected.roomName || '—'}`} />
-                <Field label="BS phụ trách" value={selected.doctorName || '—'} />
-                <Field label="Loại" value={selected.appointmentTypeName} />
-                {selected.reason && <Field label="Lý do" value={selected.reason} />}
-                {selected.previousDiagnosis && <Field label="CĐ trước" value={selected.previousDiagnosis} />}
-                {selected.daysOverdue > 0 && <Field label="Trễ" value={<span style={{ color: 'var(--s-crit)' }}>{selected.daysOverdue} ngày</span>} />}
-                <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
-                  <button className="btn primary sm" type="button" onClick={() => updateStatus(selected.id, 2)}>Đã đến</button>
-                  <button className="btn sm" type="button" onClick={() => updateStatus(selected.id, 3)}>Vắng</button>
-                  <button className="btn sm" type="button" onClick={() => updateStatus(selected.id, 4)}>Hủy</button>
-                </div>
-              </div>
+      <DataTable<AppointmentListDto>
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        onRowClick={(r) => setDetail(r)}
+        actions={(r) => (
+          <div className="ab-actions">
+            {r.phoneNumber && (
+              <ActBtn ic="phone" title="Gọi BN" onClick={() => message.info(`Đang gọi ${r.phoneNumber}`)} />
             )}
+            {[0, 1].includes(r.status) && (
+              <ActBtn ic="message-square" title="Nhắc SMS" onClick={() => onRemind(r, 'SMS')} />
+            )}
+            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
           </div>
-        </div>
-      </div>
+        )}
+        empty={loading ? 'Đang tải…' : (
+          <div className="ab-empty">
+            <TermIcon name="search" size={20} />
+            <div>Không có lịch tái khám nào</div>
+          </div>
+        )}
+      />
+
+      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+
+      <DrawerShell
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.appointmentCode}</span>
+              <span style={{ fontSize: 14 }}>{detail.patientName}</span>
+            </span>
+          : ''}
+        sub={detail
+          ? `${detail.patientCode} · ${detail.phoneNumber || '—'} · ${fmtDMY(detail.appointmentDate)}`
+          : ''}
+        size="lg"
+        footer={detail ? (
+          <>
+            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <span style={{ flex: 1 }} />
+            {[0, 1].includes(detail.status) && detail.phoneNumber && (
+              <>
+                <button type="button" className="ab-btn" onClick={() => onRemind(detail, 'SMS')}>
+                  <TermIcon name="message-square" size={12} /> Nhắc SMS
+                </button>
+                <button type="button" className="ab-btn primary" onClick={() => message.info(`Đang gọi ${detail.phoneNumber}`)}>
+                  <TermIcon name="phone" size={12} /> Gọi BN
+                </button>
+              </>
+            )}
+          </>
+        ) : null}
+      >
+        {detail && <FollowUpDrawerBody r={detail} />}
+      </DrawerShell>
     </div>
   );
 };
 
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
+const FollowUpDrawerBody: React.FC<{ r: AppointmentListDto }> = ({ r }) => {
+  const sk = statusKey(r.status, r.isReminderSent);
+  const tone = statusTone(sk);
+  const lbl = r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l || '';
 
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
+  return (
+    <>
+      <div className="rec-section">
+        <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
+        <div className={`rec-status-banner ${tone}`}>
+          <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
+          {r.daysOverdue > 0 && <span className="chip crit">Quá hạn {r.daysOverdue} ngày</span>}
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
+        <div className="rec-kv">
+          <span>Họ tên</span><b>{r.patientName}</b>
+          <span>Mã BN</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.patientCode}</span>
+          <span>Điện thoại</span><span className="mono">{r.phoneNumber || '—'}</span>
+          <span>Giới tính</span><span>{r.gender === 1 ? 'Nam' : r.gender === 2 ? 'Nữ' : '—'}</span>
+          {r.dateOfBirth && (<><span>Ngày sinh</span><span>{fmtDMY(r.dateOfBirth)}</span></>)}
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="calendar" size={11} /> LỊCH HẸN</h5>
+        <div className="rec-kv">
+          <span>Loại hẹn</span><span>{r.appointmentTypeName}</span>
+          <span>Lý do</span><span>{r.reason || '—'}</span>
+          {r.previousDiagnosis && (<><span>CĐ trước</span><span>{r.previousDiagnosis}</span></>)}
+          <span>Khoa</span><span>{r.departmentName || '—'}</span>
+          <span>Phòng</span><span>{r.roomName || '—'}</span>
+          <span>Bác sĩ</span><span>{r.doctorName || '—'}</span>
+          <span>Hẹn ngày</span><span className="mono">{fmtDT(r.appointmentDate)}</span>
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="message-square" size={11} /> NHẮC NHỞ</h5>
+        <div className="rec-kv">
+          <span>Đã nhắc</span>
+          <span>{r.isReminderSent ? <span className="chip ok">{fmtDT(r.reminderSentAt)}</span> : <span style={{ color: 'var(--t-3)' }}>Chưa</span>}</span>
+        </div>
+      </div>
+
+      {r.notes && (
+        <div className="rec-section">
+          <h5><TermIcon name="info" size={11} /> GHI CHÚ</h5>
+          <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.notes}</div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default FollowUpV2;

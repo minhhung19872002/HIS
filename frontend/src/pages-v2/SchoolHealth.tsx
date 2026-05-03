@@ -1,217 +1,132 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { searchSchoolExams, getSchoolStats } from '../api/schoolHealth';
-import type { SchoolExam, SchoolStats } from '../api/schoolHealth';
-import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
-} from './_v2kit';
+import { searchSchoolExams } from '../api/schoolHealth';
+import type { SchoolExam } from '../api/schoolHealth';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, string> = { 0: 'Chờ', 1: 'Hoàn tất', 2: 'Cần theo dõi' };
-
-type SKey = 'pending' | 'done' | 'follow';
-const STATUS_TABS = [
-  { v: 'pending' as SKey, l: 'Chờ',          tone: 'warn' as const },
-  { v: 'done' as SKey,    l: 'Hoàn tất',     tone: 'ok' as const },
-  { v: 'follow' as SKey,  l: 'Cần theo dõi', tone: 'info' as const },
+type StatusKey = 'pending' | 'completed' | 'needsFollowUp';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'pending',         l: 'Chờ khám',     tone: 'info' },
+  { v: 'completed',       l: 'Đã khám',      tone: 'ok' },
+  { v: 'needsFollowUp',   l: 'Cần theo dõi', tone: 'warn' },
 ];
-
-const sKey = (n: number): SKey => n === 0 ? 'pending' : n === 1 ? 'done' : 'follow';
-
-const NUTRITION: Record<string, { l: string; tone: 'ok' | 'info' | 'warn' | 'crit' }> = {
-  normal:      { l: 'Bình thường', tone: 'ok' },
-  underweight: { l: 'Thiếu cân',   tone: 'warn' },
-  overweight:  { l: 'Thừa cân',    tone: 'warn' },
-  obese:       { l: 'Béo phì',     tone: 'crit' },
-  stunted:     { l: 'Còi cọc',     tone: 'crit' },
+const statusKey = (s: number): StatusKey => s === 1 ? 'completed' : s === 2 ? 'needsFollowUp' : 'pending';
+const NUTRITION_TONE: Record<string, 'ok' | 'warn' | 'crit'> = {
+  normal: 'ok', underweight: 'warn', overweight: 'warn', obese: 'crit', stunted: 'crit',
 };
-
-const PER = 18;
+const NUTRITION_LABEL: Record<string, string> = {
+  normal: 'Bình thường', underweight: 'Suy DD', overweight: 'Thừa cân', obese: 'Béo phì', stunted: 'Thấp còi',
+};
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const SchoolHealthV2: React.FC = () => {
-  const [items, setItems] = useState<SchoolExam[]>([]);
-  const [stats, setStats] = useState<SchoolStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
-  const [fSchool, setFSchool] = useState('');
-  const [fGrade, setFGrade] = useState('');
-  const [page, setPage] = useState(0);
-  const [sel, setSel] = useState<SchoolExam | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [list, s] = await Promise.all([searchSchoolExams({ keyword: search }), getSchoolStats()]);
-      setItems(list);
-      setStats(s);
-    } catch { ti('Không tải được dữ liệu y tế học đường'); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const schools = useMemo(() => {
-    const set = new Set(items.map((r) => r.schoolName).filter(Boolean));
-    return Array.from(set).map((v) => ({ v, l: v }));
-  }, [items]);
-  const grades = useMemo(() => {
-    const set = new Set(items.map((r) => r.grade).filter(Boolean));
-    return Array.from(set).map((v) => ({ v, l: `Khối ${v}` }));
-  }, [items]);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
-
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return items.filter((r) => {
-      if (stab !== 'all' && sKey(r.status) !== stab) return false;
-      if (fSchool && r.schoolName !== fSchool) return false;
-      if (fGrade && r.grade !== fGrade) return false;
-      if (!k) return true;
-      return [r.studentName, r.studentCode, r.schoolName, r.className]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [items, search, stab, fSchool, fGrade]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
-
-  const flagCount = (r: SchoolExam) =>
-    (r.visionFlag ? 1 : 0) + (r.hearingFlag ? 1 : 0) + (r.dentalFlag ? 1 : 0) + (r.scoliosisFlag ? 1 : 0);
-
-  const cols: ColumnDef<SchoolExam>[] = [
-    { key: 'code', label: 'Mã HS', code: true, render: (r) => r.studentCode },
-    { key: 'name', label: 'Học sinh', render: (r) => (
-      <div>
-        <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.studentName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nữ'} · {dayjs(r.dateOfBirth).format('DD/MM/YYYY')}</div>
+  const columns: ColumnDef<SchoolExam>[] = [
+    { key: 'student', label: 'Học sinh', render: (r) => (
+      <div className="cell-2l">
+        <b>{r.studentName}</b>
+        <i className="mono">{r.studentCode} · {r.gender === 1 ? 'Nam' : 'Nữ'}</i>
       </div>
-    ) },
-    { key: 'sch', label: 'Trường / Lớp', render: (r) => (
-      <div>
-        <div>{r.schoolName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.grade} · {r.className}</div>
+    )},
+    { key: 'school', label: 'Trường · Lớp', render: (r) => (
+      <div className="cell-2l"><b>{r.schoolName}</b><i>{r.grade} · {r.className} · {r.academicYear}</i></div>
+    )},
+    { key: 'bmi', label: 'BMI', mono: true, width: 130, render: (r) =>
+      <span style={{ color: r.bmi >= 25 ? 'var(--s-warn)' : r.bmi < 18 ? 'var(--s-warn)' : 'var(--t-1)' }}>
+        {r.bmi?.toFixed(1)} ({r.height}/{r.weight}kg)
+      </span>
+    },
+    { key: 'nutrition', label: 'Dinh dưỡng', width: 130, render: (r) =>
+      <span className={`chip ${NUTRITION_TONE[r.nutritionStatus] || 'info'}`}>{NUTRITION_LABEL[r.nutritionStatus] || r.nutritionStatus}</span>
+    },
+    { key: 'flags', label: 'Phát hiện', width: 200, render: (r) => (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {r.visionFlag && <span className="chip warn">Mắt</span>}
+        {r.hearingFlag && <span className="chip warn">Tai</span>}
+        {r.dentalFlag && <span className="chip warn">Răng</span>}
+        {r.scoliosisFlag && <span className="chip crit">Cong vẹo</span>}
+        {!r.visionFlag && !r.hearingFlag && !r.dentalFlag && !r.scoliosisFlag &&
+          <span style={{ color: 'var(--t-3)' }}>—</span>}
       </div>
-    ) },
-    { key: 'date', label: 'Ngày khám', mono: true, render: (r) => dayjs(r.examDate).format('DD/MM/YYYY') },
-    { key: 'bmi', label: 'BMI', mono: true, render: (r) => r.bmi.toFixed(1) },
-    { key: 'nut', label: 'Dinh dưỡng', render: (r) => {
-      const n = NUTRITION[r.nutritionStatus];
-      return n ? <StatusBadge tone={n.tone}>{n.l}</StatusBadge> : <span style={{ color: 'var(--t-2)' }}>{r.nutritionStatus}</span>;
-    } },
-    { key: 'flag', label: 'Cờ', render: (r) => {
-      const c = flagCount(r);
-      if (!c) return <span style={{ color: 'var(--t-2)' }}>—</span>;
-      return <span style={{ color: 'var(--a-or-text)', fontWeight: 600 }}>{c}</span>;
-    } },
-    { key: 'st', label: 'Trạng thái', render: (r) => {
-      const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
-      return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
-    } },
+    )},
+    { key: 'date', label: 'Ngày khám', mono: true, width: 100, render: (r) => fmtDMY(r.examDate) },
+    { key: 'status', label: 'TT', width: 130, render: (r) => {
+      const sk = statusKey(r.status);
+      return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+    }},
   ];
 
-  const actions = (r: SchoolExam) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="print" title="In phiếu" onClick={() => tk(`Đã in phiếu ${r.studentCode}`)} />
-    </div>
-  );
-
   return (
-    <div className="ab">
-      <KpiStrip items={[
-        { lbl: 'Trường khám', val: stats?.schoolsExamined ?? 0, sub: 'tổng số' },
-        { lbl: 'HS đã khám', val: stats?.studentsExamined ?? items.length, sub: 'tổng số', tone: 'info' },
-        { lbl: 'Hoàn tất', val: `${(stats?.completionRate ?? 0).toFixed(1)}`, unit: '%', sub: 'tỷ lệ', tone: 'ok' },
-        { lbl: 'Cần theo dõi', val: stats?.needsFollowUp ?? counts.follow ?? 0, sub: 'có vấn đề', tone: 'warn' },
-      ]} />
-
-      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-          placeholder="Tìm tên / mã HS / trường…" />
-        <Filter value={fSchool} onChange={setFSchool} options={schools} placeholder="▾ Trường" />
-        <Filter value={fGrade} onChange={setFGrade} options={grades} placeholder="▾ Khối" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFSchool(''); setFGrade(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
-        <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở khám hàng loạt')}>
-          <Ico name="plus" size={12} /> Khám lớp
-        </button>
-      </div>
-
-      <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
-
-      <DataTable<SchoolExam>
-        columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có học sinh nào'}
-      />
-      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
-
-      <DrawerShell
-        open={!!sel}
-        onClose={() => setSel(null)}
-        size="lg"
-        title={sel ? sel.studentName : ''}
-        sub={sel ? `${sel.studentCode} · ${sel.schoolName}` : ''}
-        footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in phiếu khám')}>
-            <Ico name="print" size={12} /> In phiếu
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
-            <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
-        </>}
-      >
-        {sel && <>
-          <DrSec title="Học sinh">
-            <DrField lbl="Mã HS"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.studentCode}</span></DrField>
-            <DrField lbl="Họ tên">{sel.studentName}</DrField>
-            <DrField lbl="Giới tính">{sel.gender === 1 ? 'Nam' : 'Nữ'}</DrField>
-            <DrField lbl="Ngày sinh">{dayjs(sel.dateOfBirth).format('DD/MM/YYYY')}</DrField>
-          </DrSec>
-          <DrSec title="Trường lớp">
-            <DrField lbl="Trường">{sel.schoolName} ({sel.schoolCode})</DrField>
-            <DrField lbl="Khối · Lớp">{sel.grade} · {sel.className}</DrField>
-            <DrField lbl="Năm học">{sel.academicYear}</DrField>
-          </DrSec>
-          <DrSec title="Thể chất">
-            <DrField lbl="Ngày khám">{dayjs(sel.examDate).format('DD/MM/YYYY')}</DrField>
-            <DrField lbl="BS khám">{sel.examDoctor}</DrField>
-            <DrField lbl="Cao · Cân"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.height} cm · {sel.weight} kg</span></DrField>
-            <DrField lbl="BMI"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.bmi.toFixed(1)}</span></DrField>
-            <DrField lbl="Dinh dưỡng">
-              {NUTRITION[sel.nutritionStatus] ? (
-                <StatusBadge tone={NUTRITION[sel.nutritionStatus].tone}>{NUTRITION[sel.nutritionStatus].l}</StatusBadge>
-              ) : sel.nutritionStatus}
-            </DrField>
-          </DrSec>
-          <DrSec title="Khám chuyên khoa">
-            <DrField lbl="Thị lực"><span style={{ fontFamily: 'var(--font-mono)' }}>L: {sel.visionLeft} · R: {sel.visionRight}</span></DrField>
-            <DrField lbl="Mắt">{sel.visionFlag ? <StatusBadge tone="warn" dot>Cần khám lại</StatusBadge> : <StatusBadge tone="ok" dot>Bình thường</StatusBadge>}</DrField>
-            <DrField lbl="Tai">{sel.hearingFlag ? <StatusBadge tone="warn" dot>Cần khám lại</StatusBadge> : <StatusBadge tone="ok" dot>Bình thường</StatusBadge>}</DrField>
-            <DrField lbl="Răng">{sel.dentalFlag ? <StatusBadge tone="warn" dot>Cần khám lại</StatusBadge> : <StatusBadge tone="ok" dot>Bình thường</StatusBadge>}</DrField>
-            <DrField lbl="Cong vẹo CS">{sel.scoliosisFlag ? <StatusBadge tone="warn" dot>Cần khám lại</StatusBadge> : <StatusBadge tone="ok" dot>Bình thường</StatusBadge>}</DrField>
-          </DrSec>
-          {(sel.conclusion || sel.recommendations) && (
-            <DrSec title="Kết luận">
-              {sel.conclusion && <DrField lbl="Kết luận">{sel.conclusion}</DrField>}
-              {sel.recommendations && <DrField lbl="Khuyến nghị">{sel.recommendations}</DrField>}
-            </DrSec>
+    <SimpleV2Page<SchoolExam>
+      title="Khám sức khỏe học đường"
+      load={() => searchSchoolExams()}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm HS / mã / trường / lớp…"
+      searchOf={(r) => `${r.studentName} ${r.studentCode} ${r.schoolName} ${r.className}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      kpis={(rows) => {
+        const followup = rows.filter((r) => r.status === 2).length;
+        const flagged = rows.filter((r) => r.visionFlag || r.hearingFlag || r.dentalFlag || r.scoliosisFlag).length;
+        const malnutrition = rows.filter((r) => r.nutritionStatus !== 'normal').length;
+        const schools = new Set(rows.map((r) => r.schoolName)).size;
+        return [
+          { lbl: 'Tổng HS', val: rows.length },
+          { lbl: 'Đã khám', val: rows.filter((r) => r.status === 1).length, tone: 'ok' },
+          { lbl: 'Cần TD', val: followup, tone: 'warn' },
+          { lbl: 'Có vấn đề', val: flagged, tone: 'warn' },
+          { lbl: 'DD bất thường', val: malnutrition, tone: 'warn' },
+          { lbl: 'Trường khám', val: schools },
+        ];
+      }}
+      drawer={(r) => (
+        <>
+          <div className="rec-section">
+            <h5><TermIcon name="user" size={11} /> HỌC SINH</h5>
+            <div className="rec-kv">
+              <span>Họ tên</span><b>{r.studentName}</b>
+              <span>Mã HS</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.studentCode}</span>
+              <span>Giới tính</span><span>{r.gender === 1 ? 'Nam' : 'Nữ'}</span>
+              <span>Ngày sinh</span><span>{fmtDMY(r.dateOfBirth)}</span>
+              <span>Trường</span><b>{r.schoolName}</b>
+              <span>Lớp</span><span>{r.grade} · {r.className} · {r.academicYear}</span>
+            </div>
+          </div>
+          <div className="rec-section">
+            <h5><TermIcon name="activity" size={11} /> NHÂN TRẮC</h5>
+            <div className="rec-kv">
+              <span>Cao</span><b>{r.height} cm</b>
+              <span>Cân</span><b>{r.weight} kg</b>
+              <span>BMI</span><b>{r.bmi?.toFixed(1)}</b>
+              <span>Dinh dưỡng</span><span className={`chip ${NUTRITION_TONE[r.nutritionStatus]}`}>{NUTRITION_LABEL[r.nutritionStatus]}</span>
+            </div>
+          </div>
+          <div className="rec-section">
+            <h5><TermIcon name="flask" size={11} /> KHÁM CHUYÊN KHOA</h5>
+            <div className="rec-kv">
+              <span>Thị lực</span><span>L: {r.visionLeft} · R: {r.visionRight} {r.visionFlag && <span className="chip warn">Bất thường</span>}</span>
+              <span>Thính lực</span><span>{r.hearingFlag ? <span className="chip warn">Bất thường</span> : 'Bình thường'}</span>
+              <span>Răng miệng</span><span>{r.dentalFlag ? <span className="chip warn">Bất thường</span> : 'Bình thường'}</span>
+              <span>Cong vẹo CS</span><span>{r.scoliosisFlag ? <span className="chip crit">Có</span> : 'Không'}</span>
+            </div>
+          </div>
+          {r.recommendations && (
+            <div className="rec-section">
+              <h5><TermIcon name="info" size={11} /> KHUYẾN NGHỊ</h5>
+              <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.recommendations}</div>
+            </div>
           )}
-        </>}
-      </DrawerShell>
-    </div>
+        </>
+      )}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.studentCode}</span>
+          <span style={{ fontSize: 14 }}>{r.studentName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.schoolName} · ${r.grade}-${r.className}`}
+    />
   );
 };
 

@@ -1,430 +1,234 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
-import * as billingApi from '../api/billing';
+import { searchInvoices } from '../api/billing';
 import type { InvoiceDto } from '../api/billing';
-import './Billing.css';
+import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 
-const PAY_STATUS_LABEL: Record<number, string> = {
-  0: 'CHƯA TT',
-  1: 'ĐÃ TT',
-  2: 'QUYẾT TOÁN',
-  3: 'ĐÃ HỦY',
-};
+/* Viện phí v2 — port of Billing v2.html */
 
-const APPROVAL_LABEL: Record<number, string> = {
-  0: 'CHỜ DUYỆT',
-  1: 'ĐÃ DUYỆT',
-  2: 'TẠM KHÓA',
-};
+type StatusKey = 'unpaid' | 'partial' | 'paid' | 'voided';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'unpaid',  l: 'Chưa thu',     tone: 'warn' },
+  { v: 'partial', l: 'Một phần',     tone: 'warn' },
+  { v: 'paid',    l: 'Đã thu',       tone: 'ok' },
+  { v: 'voided',  l: 'Hủy',          tone: 'crit' },
+];
+// paymentStatus: 0=Chưa, 1=Một phần, 2=Đã, 3=Hủy
+const statusKey = (s: number): StatusKey =>
+  s === 1 ? 'partial' : s === 2 ? 'paid' : s === 3 ? 'voided' : 'unpaid';
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
+
+const KIND_LABEL: Record<number, string> = { 1: 'Ngoại trú', 2: 'Nội trú' };
 
 const BillingV2: React.FC = () => {
-  const { message, modal } = AntdApp.useApp();
-  const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [sel, setSel]           = useState<string>('');
-  const [tab, setTab]           = useState<'all' | 'unpaid' | 'paid' | 'pending-approval'>('all');
-  const [search, setSearch]     = useState('');
-  const [pay, setPay]           = useState<'cash' | 'bank' | 'qr' | 'ewallet'>('bank');
-  const [detail, setDetail]     = useState<InvoiceDto | null>(null);
+  const { message } = AntdApp.useApp();
 
-  // Load last 30 days of invoices
-  const reload = () => {
-    setLoading(true);
-    billingApi.searchInvoices({
-      fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-      toDate: dayjs().format('YYYY-MM-DD'),
-      page: 1,
-      pageSize: 200,
-    })
-      .then((r) => {
-        const data = r.data;
-        const items = Array.isArray(data?.items) ? data.items : [];
-        setInvoices(items);
-        if (items.length > 0 && !sel) setSel(items[0].id);
-      })
-      .catch(() => setInvoices([]))
-      .finally(() => setLoading(false));
-  };
-  useEffect(reload, []);
-
-  // Fetch full detail (with line items) when selection changes
-  useEffect(() => {
-    if (!sel) { setDetail(null); return; }
-    const stub = invoices.find((i) => i.id === sel);
-    setDetail(stub || null);
-    // get full breakdown via per-record endpoint if available
-    if (stub?.medicalRecordId) {
-      billingApi.getPatientInvoice(stub.medicalRecordId)
-        .then((r) => { if (r.data) setDetail(r.data); })
-        .catch(() => {});
-    }
-  }, [sel, invoices]);
-
-  const counts = useMemo(() => ({
-    all: invoices.length,
-    unpaid: invoices.filter((i) => i.paymentStatus === 0).length,
-    paid:   invoices.filter((i) => i.paymentStatus === 1 || i.paymentStatus === 2).length,
-    pendingApproval: invoices.filter((i) => i.approvalStatus === 0).length,
-  }), [invoices]);
-
-  const filtered = useMemo(() => {
-    let src = invoices;
-    if (tab === 'unpaid')           src = src.filter((i) => i.paymentStatus === 0);
-    else if (tab === 'paid')        src = src.filter((i) => i.paymentStatus === 1 || i.paymentStatus === 2);
-    else if (tab === 'pending-approval') src = src.filter((i) => i.approvalStatus === 0);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      src = src.filter((i) =>
-        i.invoiceCode.toLowerCase().includes(q)
-        || i.patientName.toLowerCase().includes(q)
-        || i.patientCode.toLowerCase().includes(q),
-      );
-    }
-    return src;
-  }, [invoices, tab, search]);
-
-  // KPIs
-  const todayInvoices = invoices.filter((i) => dayjs(i.createdAt).isSame(dayjs(), 'day'));
-  const todayRevenue  = todayInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
-  const todayBhyt     = todayInvoices.reduce((s, i) => s + (i.insuranceAmount || 0), 0);
-  const todayPending  = invoices.filter((i) => i.paymentStatus === 0).reduce((s, i) => s + (i.remainingAmount || 0), 0);
-  const debtAmount    = invoices.filter((i) => i.paymentStatus === 0 && (i.remainingAmount || 0) > 0).reduce((s, i) => s + (i.remainingAmount || 0), 0);
-
-  const inv = detail;
-  const total   = inv?.totalAmount ?? 0;
-  const bhytAmt = inv?.insuranceAmount ?? 0;
-  const payAmt  = inv?.remainingAmount ?? Math.max(0, total - bhytAmt);
-
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
-
-  const handlePayment = async () => {
-    if (!inv) return;
-    try {
-      await billingApi.createPayment({
-        invoiceId: inv.id,
-        amount: payAmt,
-        receivedAmount: payAmt,
-        paymentMethod: pay === 'cash' ? 1 : pay === 'bank' ? 2 : pay === 'qr' ? 3 : 4,
-      });
-      message.success(`✓ Đã thu ${fmt(payAmt)}₫ · ${inv.invoiceCode}`);
-      reload();
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } };
-      message.error(err.response?.data?.message || 'Không thể thu tiền');
-    }
-  };
+  const columns: ColumnDef<InvoiceDto>[] = [
+    {
+      key: 'code', label: 'Mã HĐ', mono: true, width: 150,
+      render: (r) => (
+        <span>
+          {r.invoiceCode}
+          {r.insuranceCardNumber && (
+            <span style={{
+              marginLeft: 6, padding: '1px 5px',
+              background: 'var(--a-cy-bg, #cffafe)', color: 'var(--a-cy, #0e7490)',
+              border: '1px solid #67e8f9', borderRadius: 3,
+              fontSize: 9, fontWeight: 700,
+            }}>BHYT {r.insuranceRate || 0}%</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'patient', label: 'Bệnh nhân',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode}{r.gender ? ` · ${r.gender}` : ''}</i>
+        </div>
+      ),
+    },
+    { key: 'mr', label: 'Hồ sơ', mono: true, width: 130, render: (r) => r.medicalRecordCode },
+    {
+      key: 'kind', label: 'Loại', width: 110,
+      render: (r) => <span className="chip info">{r.patientTypeName || KIND_LABEL[r.patientType]}</span>,
+    },
+    { key: 'subTotal', label: 'Tổng', mono: true, width: 130, render: (r) => fmtVND(r.subTotal) },
+    {
+      key: 'bhyt', label: 'BHYT chi trả', mono: true, width: 130,
+      render: (r) => r.insuranceAmount > 0
+        ? <span style={{ color: 'var(--a-cy)' }}>{fmtVND(r.insuranceAmount)}</span>
+        : <span style={{ color: 'var(--t-3)' }}>—</span>,
+    },
+    {
+      key: 'patientPay', label: 'BN trả', mono: true, width: 130,
+      render: (r) => <b>{fmtVND(r.totalAmount)}</b>,
+    },
+    {
+      key: 'paid', label: 'Đã thu', mono: true, width: 130,
+      render: (r) => r.paidAmount > 0 ? <span style={{ color: '#15803d' }}>{fmtVND(r.paidAmount)}</span> : <span style={{ color: 'var(--t-3)' }}>—</span>,
+    },
+    {
+      key: 'remain', label: 'Còn lại', mono: true, width: 130,
+      render: (r) => r.remainingAmount > 0 ? <span style={{ color: 'var(--s-warn)' }}>{fmtVND(r.remainingAmount)}</span> : '—',
+    },
+    {
+      key: 'status', label: 'TT', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.paymentStatus);
+        return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{r.paymentStatusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div className="bill-wrap">
-      {/* ====== TOP KPIs ====== */}
-      <div className="bill-top">
-        <BKpi l="Hoá đơn hôm nay" v={todayInvoices.length} sub={`${fmt(invoices.length)} 30 ngày`} />
-        <BKpi l="Doanh thu hôm nay" v={<>{fmt(Math.round(todayRevenue / 1_000_000))}<small>M₫</small></>} sub={`${fmt(Math.round(todayRevenue / 1000))}k`} />
-        <BKpi l="BHYT chi trả" v={<>{fmt(Math.round(todayBhyt / 1_000_000))}<small>M₫</small></>} sub={todayRevenue > 0 ? `${Math.round((todayBhyt / todayRevenue) * 100)}%` : '—'} />
-        <BKpi l="Chờ thanh toán" v={<span style={{ color: 'var(--s-warn)' }}>{counts.unpaid}</span>} sub={`${fmt(Math.round(todayPending / 1_000_000))}M₫`} subCrit={counts.unpaid > 0} />
-        <BKpi l="Chờ duyệt KT" v={counts.pendingApproval} sub="HS" />
-        <BKpi l="Công nợ BN" v={<>{fmt(Math.round(debtAmount / 1_000_000))}<small>M₫</small></>} sub={debtAmount > 0 ? 'có nợ' : 'không nợ'} subCrit={debtAmount > 0} />
-      </div>
-
-      <div className="bill-body">
-        {/* ====== LEFT: invoice list ====== */}
-        <div className="bill-list">
-          <div className="bill-list-h">
-            <div className="bill-seg">
-              {([
-                { k: 'all',              l: `Tất cả ${counts.all}` },
-                { k: 'unpaid',           l: `Chưa TT ${counts.unpaid}` },
-                { k: 'paid',             l: `Đã TT ${counts.paid}` },
-                { k: 'pending-approval', l: `Chờ duyệt ${counts.pendingApproval}` },
-              ] as const).map((t) => (
-                <div key={t.k} className={'bill-seg-i ' + (tab === t.k ? 'on' : '')} onClick={() => setTab(t.k)}>
-                  {t.l}
-                </div>
-              ))}
-            </div>
-            <input
-              type="text" placeholder="Tìm mã HĐ / BN..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                marginLeft: 8, height: 26, padding: '0 8px',
-                fontSize: 12, border: '1px solid var(--line)',
-                borderRadius: 'var(--r-2)', flex: '0 0 180px',
-              }}
-            />
-          </div>
-          <div className="bill-list-body">
-            {loading ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                Đang tải...
-              </div>
-            ) : filtered.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                {invoices.length === 0
-                  ? 'Chưa có hóa đơn nào trong 30 ngày'
-                  : 'Không có hóa đơn ở bộ lọc này'}
-              </div>
-            ) : filtered.map((x) => {
-              const stKey = x.paymentStatus === 0 ? 'pend' : x.paymentStatus === 1 ? 'paid' : x.paymentStatus === 2 ? 'paid' : 'draft';
-              return (
-                <div
-                  key={x.id}
-                  className={'bill-inv ' + (sel === x.id ? 'sel' : '')}
-                  onClick={() => setSel(x.id)}
-                >
-                  <div className="bill-inv-row1">
-                    <span className="bill-inv-id">{x.invoiceCode}</span>
-                    <span className={'bill-inv-stat ' + stKey}>{PAY_STATUS_LABEL[x.paymentStatus] || '-'}</span>
-                  </div>
-                  <div className="bill-inv-pt">{x.patientName}</div>
-                  <div className="bill-inv-meta">
-                    <span>BN <b>{x.patientCode}</b></span>
-                    <span>{dayjs(x.createdAt).format('DD/MM HH:mm')}</span>
-                    <span>{x.patientTypeName || (x.patientType === 2 ? 'IPD' : 'OPD')}</span>
-                    {x.departmentName && <span>{x.departmentName}</span>}
-                    {x.insuranceCardNumber && <span>BHYT</span>}
-                  </div>
-                  <div className="bill-inv-amt">
-                    {fmt(x.totalAmount || 0)} ₫
-                    {x.remainingAmount > 0 && <div className="pay">BN trả: {fmt(x.remainingAmount)} ₫</div>}
-                    {x.remainingAmount === 0 && x.paymentStatus !== 0 && <div className="pay">Đã thanh toán</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+    <SimpleV2Page<InvoiceDto>
+      title="Hóa đơn viện phí"
+      load={async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = await searchInvoices({ pageIndex: 0, pageSize: 200 } as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return ((r as any)?.data?.items || []) as InvoiceDto[];
+      }}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm BN / mã HĐ / hồ sơ…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.invoiceCode} ${r.medicalRecordCode}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.paymentStatus)}
+      filters={[{
+        key: 'kind', placeholder: '▾ Loại HĐ',
+        options: Object.entries(KIND_LABEL).map(([v, l]) => ({ v, l })),
+        valueOf: (r) => String(r.patientType),
+      }]}
+      pageSize={18}
+      kpis={(rows) => {
+        const today = dayjs().startOf('day');
+        const todayCount = rows.filter((r) => dayjs(r.createdAt).isSame(today, 'day')).length;
+        const pending = rows.filter((r) => r.paymentStatus === 0 || r.paymentStatus === 1).length;
+        const paid = rows.filter((r) => r.paymentStatus === 2).length;
+        const totalRevenue = rows.filter((r) => r.paymentStatus === 2).reduce((s, r) => s + r.paidAmount, 0);
+        const totalBhyt = rows.reduce((s, r) => s + (r.insuranceAmount || 0), 0);
+        const totalDebt = rows.reduce((s, r) => s + (r.remainingAmount || 0), 0);
+        return [
+          { lbl: 'HĐ hôm nay', val: todayCount, sub: 'tạo mới' },
+          { lbl: 'Chờ thu', val: pending, sub: 'công nợ', tone: 'warn' },
+          { lbl: 'Đã thu', val: paid, sub: rows.length > 0 ? `${Math.round(paid / rows.length * 100)}%` : '—', tone: 'ok' },
+          { lbl: 'Doanh thu', val: Math.round(totalRevenue / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' },
+          { lbl: 'BHYT', val: Math.round(totalBhyt / 1_000_000), unit: 'tr', sub: 'VND' },
+          { lbl: 'Tổng nợ', val: Math.round(totalDebt / 1_000_000), unit: 'tr', sub: 'VND', tone: 'crit' },
+        ];
+      }}
+      rowActions={(r) => (
+        <div className="ab-actions">
+          {(r.paymentStatus === 0 || r.paymentStatus === 1) && (
+            <ActBtn ic="dollar" title="Thu tiền" onClick={() => message.info(`TODO: Thu tiền ${r.invoiceCode}`)} />
+          )}
+          <ActBtn ic="print" title="In HĐ" onClick={() => message.success('Đã in hóa đơn')} />
         </div>
+      )}
+      drawer={(r) => <BillingDrawerBody r={r} />}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.invoiceCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.patientTypeName || '—'} · ${fmtDMY(r.createdAt)}`}
+      toolbarRight={
+        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo HĐ mới')}>
+          <TermIcon name="plus" size={12} /> Tạo HĐ
+        </button>
+      }
+    />
+  );
+};
 
-        {/* ====== MIDDLE: invoice detail ====== */}
-        <div className="bill-detail">
-          {!inv ? (
-            <div style={{ padding: 24, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-              Chọn một hoá đơn trong danh sách
+const BillingDrawerBody: React.FC<{ r: InvoiceDto }> = ({ r }) => (
+  <>
+    <div className="rec-section">
+      <h5><TermIcon name="user" size={11} /> THÔNG TIN HÓA ĐƠN</h5>
+      <div className="rec-kv">
+        <span>Mã HĐ</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.invoiceCode}</span>
+        <span>Bệnh nhân</span><b>{r.patientName} · {r.patientCode}</b>
+        <span>Hồ sơ</span><span className="mono">{r.medicalRecordCode}</span>
+        <span>Loại</span><span>{r.patientTypeName}</span>
+        {r.departmentName && (<><span>Khoa</span><span>{r.departmentName}</span></>)}
+        {r.insuranceCardNumber && (
+          <>
+            <span>Số BHYT</span><span className="mono">{r.insuranceCardNumber}</span>
+            <span>Mức BHYT</span><span><span className="chip ok">{r.insuranceRate}%</span></span>
+          </>
+        )}
+        <span>Ngày HĐ</span><span>{fmtDMY(r.createdAt)}</span>
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="dollar" size={11} /> TỔNG HỢP CHI PHÍ</h5>
+      <div className="rec-kv">
+        <span>Tiền dịch vụ</span><span className="mono">{fmtVND(r.serviceTotal)}</span>
+        <span>Tiền thuốc</span><span className="mono">{fmtVND(r.medicineTotal)}</span>
+        <span>Vật tư</span><span className="mono">{fmtVND(r.supplyTotal)}</span>
+        {r.bedTotal > 0 && (<><span>Tiền giường</span><span className="mono">{fmtVND(r.bedTotal)}</span></>)}
+        <span>Tổng phụ</span><b className="mono">{fmtVND(r.subTotal)}</b>
+        {r.insuranceAmount > 0 && (
+          <><span>BHYT chi trả</span><b className="mono" style={{ color: 'var(--a-cy)' }}>−{fmtVND(r.insuranceAmount)}</b></>
+        )}
+        {r.discountAmount > 0 && (
+          <><span>Giảm giá</span><span className="mono">−{fmtVND(r.discountAmount)}</span></>
+        )}
+        {r.surchargeAmount > 0 && (
+          <><span>Phụ phí</span><span className="mono">+{fmtVND(r.surchargeAmount)}</span></>
+        )}
+        <span>BN phải trả</span><b className="mono" style={{ fontSize: 14 }}>{fmtVND(r.totalAmount)}</b>
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="check" size={11} /> THANH TOÁN</h5>
+      <div className="rec-kv">
+        <span>Đã thu</span><b className="mono" style={{ color: '#15803d' }}>{fmtVND(r.paidAmount)}</b>
+        <span>Còn lại</span>
+        <b className="mono" style={{ color: r.remainingAmount > 0 ? 'var(--s-warn)' : '#15803d' }}>{fmtVND(r.remainingAmount)}</b>
+        <span>Trạng thái TT</span>
+        <span><span className={`chip ${r.paymentStatus === 2 ? 'ok' : 'warn'}`}>{r.paymentStatusName}</span></span>
+        <span>Trạng thái duyệt</span>
+        <span><span className={`chip ${r.approvalStatus === 1 ? 'ok' : 'warn'}`}>{r.approvalStatusName}</span></span>
+        {r.isLocked && (<><span>Đã khóa</span><b style={{ color: 'var(--s-crit)' }}>{r.lockReason || 'Yes'}</b></>)}
+      </div>
+    </div>
+    {r.serviceItems && r.serviceItems.length > 0 && (
+      <div className="rec-section">
+        <h5><TermIcon name="activity" size={11} /> DỊCH VỤ ({r.serviceItems.length})</h5>
+        <div style={{ fontSize: 12.5 }}>
+          {r.serviceItems.slice(0, 8).map((it) => (
+            <div key={it.id} style={{
+              padding: '8px 0', borderBottom: '1px solid var(--line-soft)',
+              display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center',
+            }}>
+              <div>
+                <b style={{ color: 'var(--t-0)' }}>{it.serviceName}</b>
+                <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                  <span className="mono">{it.serviceCode}</span>
+                  {it.serviceGroup && ` · ${it.serviceGroup}`}
+                </div>
+              </div>
+              <span className="mono">{it.quantity}×</span>
+              <b className="mono">{fmtVND(it.amount)}</b>
             </div>
-          ) : (
-            <>
-              <div className="bill-detail-h">
-                <div>
-                  <div className="bill-detail-tit">{inv.invoiceCode}</div>
-                  <div className="bill-detail-sub">
-                    <span>Ngày <b>{dayjs(inv.createdAt).format('DD/MM/YYYY HH:mm')}</b></span>
-                    <span>·</span>
-                    <span>HSBA <b>{inv.medicalRecordCode}</b></span>
-                    {inv.departmentName && <><span>·</span><span>Khoa <b>{inv.departmentName}</b></span></>}
-                    <span>·</span>
-                    <span>{APPROVAL_LABEL[inv.approvalStatus] || '—'}</span>
-                  </div>
-                  <div style={{ marginTop: 10, display: 'flex', gap: 14, alignItems: 'center' }}>
-                    <div style={{
-                      width: 44, height: 44, borderRadius: '50%',
-                      background: 'var(--a-cy-bg)', color: 'var(--a-cy)',
-                      display: 'grid', placeItems: 'center',
-                      fontWeight: 600, fontSize: 20,
-                      border: '1px solid var(--a-cy-line)',
-                    }}>
-                      {(inv.patientName || '?').split(' ').slice(-1)[0][0]}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t-0)' }}>{inv.patientName}</div>
-                      <div style={{
-                        fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)',
-                        marginTop: 2, display: 'flex', gap: 10,
-                      }}>
-                        <span><b style={{ color: 'var(--t-0)', fontFamily: 'var(--font-sans)' }}>{inv.patientCode}</b></span>
-                        {inv.gender && <span>{inv.gender === 'Nam' ? 'Nam' : 'Nữ'}</span>}
-                        {inv.phoneNumber && <span>SĐT {inv.phoneNumber}</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button className="opd-btn-sec" onClick={() => message.info(`⎙ In hóa đơn ${inv.invoiceCode}`)}>⎙ In hóa đơn</button>
-                  <button className="opd-btn-sec" onClick={() => message.success('✉ Đã gửi HDĐT')}>✉ Gửi HDĐT</button>
-                  <button className="opd-btn-sec" onClick={reload}>⟳ Làm mới</button>
-                </div>
-              </div>
-
-              <div className="bill-detail-body">
-                {renderSection('1. Dịch vụ', inv.serviceItems || [], 'service')}
-                {renderSection('2. Thuốc theo đơn', inv.medicineItems || [], 'medicine')}
-                {renderSection('3. Vật tư', inv.supplyItems || [], 'supply')}
-                {renderSection('4. Giường', inv.bedItems || [], 'bed')}
-                {(inv.serviceItems?.length || 0) +
-                 (inv.medicineItems?.length || 0) +
-                 (inv.supplyItems?.length || 0) +
-                 (inv.bedItems?.length || 0) === 0 && (
-                  <div style={{ padding: 24, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                    Hoá đơn không có dòng chi tiết — chỉ tổng hợp.
-                  </div>
-                )}
-              </div>
-            </>
+          ))}
+          {r.serviceItems.length > 8 && (
+            <div style={{ padding: '8px 0', textAlign: 'center', color: 'var(--t-2)', fontSize: 11.5 }}>
+              … và {r.serviceItems.length - 8} dịch vụ khác
+            </div>
           )}
         </div>
-
-        {/* ====== RIGHT: payment ====== */}
-        <div className="bill-pay">
-          <div className="bill-pay-h">Thanh toán</div>
-          <div className="bill-pay-body">
-            {inv?.insuranceCardNumber ? (
-              <div className="bhyt-card">
-                <div className="h">
-                  <span className="t">BHYT</span>
-                  <span className="bill-inv-stat paid">✓ Có thẻ</span>
-                </div>
-                <div className="num">{inv.insuranceCardNumber}</div>
-                <div className="meta">
-                  {inv.insuranceCardPlace && <span>Nơi ĐKKCB: <b>{inv.insuranceCardPlace}</b></span>}
-                  {typeof inv.insuranceRate === 'number' && <span>Mức <b>{inv.insuranceRate}%</b></span>}
-                </div>
-              </div>
-            ) : (
-              <div style={{
-                padding: '10px 12px', border: '1px dashed var(--line)',
-                borderRadius: 'var(--r-2)', color: 'var(--t-2)',
-                fontSize: 12, background: 'var(--d-1)', marginBottom: 12,
-              }}>
-                Không có BHYT · thu phí dịch vụ 100%
-              </div>
-            )}
-
-            <div className="bill-summary">
-              <div className="bill-sum-row">
-                <span className="l">Tổng chi phí</span>
-                <span className="v">{fmt(total)} ₫</span>
-              </div>
-              {inv?.discountAmount ? (
-                <div className="bill-sum-row ded">
-                  <span className="l">− Giảm</span>
-                  <span className="v">− {fmt(inv.discountAmount)} ₫</span>
-                </div>
-              ) : null}
-              <div className="bill-sum-row ded">
-                <span className="l">− BHYT chi trả</span>
-                <span className="v">− {fmt(bhytAmt)} ₫</span>
-              </div>
-              {inv?.paidAmount ? (
-                <div className="bill-sum-row ded">
-                  <span className="l">− Đã nộp</span>
-                  <span className="v">− {fmt(inv.paidAmount)} ₫</span>
-                </div>
-              ) : null}
-              <div className="bill-sum-row sep tot">
-                <span className="l">BN phải trả</span>
-                <span className="v">{fmt(payAmt)} ₫</span>
-              </div>
-            </div>
-
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              textTransform: 'uppercase', color: 'var(--t-2)',
-              letterSpacing: '0.08em', marginBottom: 8, fontWeight: 600,
-            }}>Phương thức</div>
-            <div className="pay-method">
-              {([
-                { k: 'cash' as const,    ic: '💵', l: 'Tiền mặt'       },
-                { k: 'bank' as const,    ic: '💳', l: 'Thẻ ATM/POS'    },
-                { k: 'qr' as const,      ic: '◱', l: 'QR VietQR'      },
-                { k: 'ewallet' as const, ic: '◯', l: 'Momo / ZaloPay' },
-              ]).map((m) => (
-                <div
-                  key={m.k}
-                  className={'pay-tile ' + (pay === m.k ? 'on' : '')}
-                  onClick={() => setPay(m.k)}
-                >
-                  <span className="ic">{m.ic}</span>
-                  {m.l}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bill-pay-foot">
-            <button
-              disabled={!inv || payAmt <= 0}
-              onClick={() => {
-                if (!inv) return;
-                modal.confirm({
-                  title: `Xác nhận thanh toán ${fmt(payAmt)}₫?`,
-                  content: `${inv.invoiceCode} · ${inv.patientName}. Phương thức: ${ { cash: 'Tiền mặt', bank: 'Thẻ ATM/POS', qr: 'QR VietQR', ewallet: 'Ví điện tử' }[pay] }.`,
-                  okText: 'XÁC NHẬN THU',
-                  cancelText: 'Hủy',
-                  onOk: handlePayment,
-                });
-              }}
-            >✓ Thanh toán {payAmt > 0 ? fmt(payAmt) + ' ₫' : ''} (F10)</button>
-            <div className="sec-row">
-              <button onClick={() => message.info('Chưa hỗ trợ lưu nháp')}>Lưu nháp</button>
-              <button onClick={() => message.info('Chưa hỗ trợ hoãn')}>Hoãn</button>
-              <button onClick={() => message.info('Chưa hỗ trợ tách HĐ')}>Tách HĐ</button>
-            </div>
-          </div>
-        </div>
       </div>
-    </div>
-  );
-};
-
-type LineKind = 'service' | 'medicine' | 'supply' | 'bed';
-type AnyLine = {
-  serviceName?: string; medicineName?: string; supplyName?: string;
-  serviceCode?: string; medicineCode?: string; supplyCode?: string;
-  quantity?: number;
-  unitPrice?: number; price?: number; amount?: number;
-  insuranceRate?: number; insuranceAmount?: number;
-  patientAmount?: number;
-};
-
-function renderSection(title: string, list: AnyLine[], kind: LineKind) {
-  if (!list || list.length === 0) return null;
-  const subtotal = list.reduce((s, x) => s + (x.amount || (x.unitPrice ?? x.price ?? 0) * (x.quantity ?? 1)), 0);
-  return (
-    <div className="bill-card" key={title}>
-      <div className="bill-card-h">
-        <span>{title} <span className="n">· {list.length} dòng</span></span>
-        <span className="t">{subtotal.toLocaleString('vi-VN')} ₫</span>
-      </div>
-      <div className="bill-line bill-line-head">
-        <span>Mã</span>
-        <span>Nội dung</span>
-        <span style={{ textAlign: 'right' }}>SL</span>
-        <span style={{ textAlign: 'right' }}>BHYT %</span>
-        <span style={{ textAlign: 'right' }}>Đơn giá</span>
-        <span style={{ textAlign: 'right' }}>BHYT trả</span>
-        <span style={{ textAlign: 'right' }}>BN trả</span>
-      </div>
-      {list.map((l, i) => {
-        const code = l.serviceCode || l.medicineCode || l.supplyCode || `${kind}-${i + 1}`;
-        const name = l.serviceName || l.medicineName || l.supplyName || '—';
-        const qty  = l.quantity ?? 1;
-        const price = l.unitPrice ?? l.price ?? 0;
-        const amount = l.amount ?? price * qty;
-        const insRate = l.insuranceRate ?? 0;
-        const insAmt = l.insuranceAmount ?? 0;
-        const pay = l.patientAmount ?? Math.max(0, amount - insAmt);
-        return (
-          <div key={i} className="bill-line">
-            <span className="code">{code}</span>
-            <span><span className="nm">{name}</span></span>
-            <span className="num">{qty}</span>
-            <span className="num pay-ok">{insRate}%</span>
-            <span className="num">{amount.toLocaleString('vi-VN')}</span>
-            <span className="num pay-ok">{insAmt.toLocaleString('vi-VN')}</span>
-            <span className={'num ' + (pay === 0 ? 'pay-no' : '')}>{pay.toLocaleString('vi-VN')}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-const BKpi: React.FC<{ l: string; v: React.ReactNode; sub?: string; subCrit?: boolean }> = ({ l, v, sub, subCrit }) => (
-  <div className="bill-kpi">
-    <div className="l">{l}</div>
-    <div className="v">{v}</div>
-    {sub && <div className={'s ' + (subCrit ? 'crit' : '')}>{sub}</div>}
-  </div>
+    )}
+  </>
 );
 
 export default BillingV2;

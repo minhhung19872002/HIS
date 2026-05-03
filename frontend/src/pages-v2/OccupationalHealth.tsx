@@ -1,231 +1,138 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
 import { searchOccExams } from '../api/occupationalHealth';
 import type { OccExam } from '../api/occupationalHealth';
-import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
-} from './_v2kit';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, string> = {
-  0: 'Chờ', 1: 'Đang khám', 2: 'Xong', 3: 'Đã chứng nhận',
-};
-
-type SKey = 'pending' | 'progress' | 'done' | 'certified';
-const STATUS_TABS = [
-  { v: 'pending' as SKey,   l: 'Chờ',           tone: 'warn' as const },
-  { v: 'progress' as SKey,  l: 'Đang khám',     tone: 'info' as const },
-  { v: 'done' as SKey,      l: 'Xong',          tone: 'info' as const },
-  { v: 'certified' as SKey, l: 'Đã chứng nhận', tone: 'ok' as const },
+type StatusKey = 'pending' | 'inProgress' | 'completed' | 'certified';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'pending',    l: 'Chờ khám',  tone: 'info' },
+  { v: 'inProgress', l: 'Đang khám', tone: 'warn' },
+  { v: 'completed',  l: 'Hoàn tất',  tone: 'ok' },
+  { v: 'certified',  l: 'Đã cấp GCN', tone: 'ok' },
 ];
-
-const sKey = (n: number): SKey =>
-  n === 0 ? 'pending' : n === 1 ? 'progress' : n === 2 ? 'done' : 'certified';
-
-const classifyTone = (c: string): 'ok' | 'warn' | 'crit' | 'info' => {
-  const k = (c || '').toLowerCase();
-  if (k === 'pass' || k === '1') return 'ok';
-  if (k === 'restricted' || k === '2') return 'warn';
-  if (k === 'fail' || k === '3' || k === '4') return 'crit';
-  return 'info';
+const statusKey = (s: number): StatusKey => s === 1 ? 'inProgress' : s === 2 ? 'completed' : s === 3 ? 'certified' : 'pending';
+const TYPE_LABEL: Record<string, string> = {
+  periodic: 'Định kỳ', preEmployment: 'Trước tuyển', postExposure: 'Sau phơi nhiễm',
 };
-const classifyLabel = (c: string): string => {
-  const k = (c || '').toLowerCase();
-  if (k === 'pass' || k === '1') return 'Đạt';
-  if (k === 'restricted' || k === '2') return 'Hạn chế';
-  if (k === 'fail' || k === '3') return 'Không đạt';
-  return c || '—';
-};
-
-const PER = 18;
+const CLASS_TONE: Record<string, 'ok' | 'warn' | 'crit'> = { pass: 'ok', restricted: 'warn', fail: 'crit' };
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const OccupationalHealthV2: React.FC = () => {
-  const [items, setItems] = useState<OccExam[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
-  const [fComp, setFComp] = useState('');
-  const [fHaz, setFHaz] = useState('');
-  const [page, setPage] = useState(0);
-  const [sel, setSel] = useState<OccExam | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchOccExams({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as OccExam[];
-      setItems(list);
-    } catch { ti('Không tải được dữ liệu khám SK nghề nghiệp'); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const companies = useMemo(() => {
-    const set = new Set(items.map((r) => r.companyName).filter(Boolean));
-    return Array.from(set).map((v) => ({ v, l: v }));
-  }, [items]);
-  const hazards = useMemo(() => {
-    const set = new Set(items.flatMap((r) => r.hazardTypes || []).filter(Boolean));
-    return Array.from(set).map((v) => ({ v, l: v }));
-  }, [items]);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
-
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return items.filter((r) => {
-      if (stab !== 'all' && sKey(r.status) !== stab) return false;
-      if (fComp && r.companyName !== fComp) return false;
-      if (fHaz && !(r.hazardTypes || []).includes(fHaz)) return false;
-      if (!k) return true;
-      return [r.patientName, r.patientCode, r.examCode, r.companyName, r.occupation]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [items, search, stab, fComp, fHaz]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
-
-  const cols: ColumnDef<OccExam>[] = [
-    { key: 'code', label: 'Mã KS', code: true, render: (r) => r.examCode },
-    { key: 'pt', label: 'Người LĐ', render: (r) => (
-      <div>
-        <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nữ'} · {r.patientCode}</div>
-      </div>
-    ) },
-    { key: 'comp', label: 'Công ty', render: (r) => (
-      <div>
-        <div>{r.companyName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.department}</div>
-      </div>
-    ) },
-    { key: 'occ', label: 'Nghề', render: (r) => r.occupation },
-    { key: 'years', label: 'Năm TX', mono: true, render: (r) => r.yearsOfExposure || 0 },
-    { key: 'haz', label: 'Yếu tố', render: (r) => r.hazardTypes?.length
-      ? <span style={{ fontSize: 11, color: 'var(--a-or-text)' }}>{r.hazardTypes.join(', ')}</span>
-      : <span style={{ color: 'var(--t-2)' }}>—</span>
+  const columns: ColumnDef<OccExam>[] = [
+    { key: 'code', label: 'Mã khám', mono: true, width: 130, render: (r) => r.examCode },
+    { key: 'patient', label: 'Người lao động', render: (r) => (
+      <div className="cell-2l"><b>{r.patientName}</b><i className="mono">{r.patientCode} · {r.gender === 1 ? 'Nam' : 'Nữ'}</i></div>
+    )},
+    { key: 'company', label: 'Công ty / Bộ phận', render: (r) => (
+      <div className="cell-2l"><b>{r.companyName}</b><i>{r.department} · {r.occupation}</i></div>
+    )},
+    { key: 'type', label: 'Loại khám', width: 130, render: (r) =>
+      <span className="chip info">{TYPE_LABEL[r.examType] || r.examType}</span>
     },
-    { key: 'date', label: 'Ngày khám', mono: true, render: (r) => dayjs(r.examDate).format('DD/MM/YYYY') },
-    { key: 'cls', label: 'Phân loại', render: (r) => (
-      <StatusBadge tone={classifyTone(r.classification)} dot>{classifyLabel(r.classification)}</StatusBadge>
-    ) },
-    { key: 'st', label: 'Trạng thái', render: (r) => {
-      const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
-      return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
-    } },
+    { key: 'hazards', label: 'Yếu tố nguy cơ', width: 180, render: (r) => (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {(r.hazardTypes || []).slice(0, 3).map((h) => <span key={h} className="chip warn">{h}</span>)}
+        {(r.hazardTypes || []).length > 3 && <span style={{ color: 'var(--t-3)' }}>+{r.hazardTypes.length - 3}</span>}
+      </div>
+    )},
+    { key: 'date', label: 'Ngày khám', mono: true, width: 100, render: (r) => fmtDMY(r.examDate) },
+    { key: 'class', label: 'Phân loại', width: 110, render: (r) =>
+      r.classification ? <span className={`chip ${CLASS_TONE[r.classification] || 'info'}`}>{r.classification}</span> : '—'
+    },
+    { key: 'status', label: 'TT', width: 130, render: (r) => {
+      const sk = statusKey(r.status);
+      return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+    }},
   ];
 
-  const actions = (r: OccExam) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="print" title="In phiếu" onClick={() => tk(`Đã in ${r.examCode}`)} />
-    </div>
-  );
-
-  const diseaseCount = items.filter((e) => e.occupationalDisease).length;
-
   return (
-    <div className="ab">
-      <KpiStrip items={[
-        { lbl: 'Tổng khám', val: items.length, sub: 'tất cả' },
-        { lbl: 'Đã chứng nhận', val: counts.certified || 0, sub: `${Math.round(((counts.certified || 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
-        { lbl: 'Bệnh nghề nghiệp', val: diseaseCount, sub: 'phát hiện', tone: 'crit' },
-        { lbl: 'Hạn chế làm việc', val: items.filter((e) => classifyTone(e.classification) === 'warn').length, sub: 'cần điều chuyển', tone: 'warn' },
-      ]} />
-
-      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-          placeholder="Tìm tên / mã / công ty / nghề…" />
-        <Filter value={fComp} onChange={setFComp} options={companies} placeholder="▾ Công ty" />
-        <Filter value={fHaz} onChange={setFHaz} options={hazards} placeholder="▾ Yếu tố nguy cơ" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFComp(''); setFHaz(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
-        <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở khám hàng loạt')}>
-          <Ico name="plus" size={12} /> Khám hợp đồng
-        </button>
-      </div>
-
-      <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
-
-      <DataTable<OccExam>
-        columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có hồ sơ khám'}
-      />
-      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
-
-      <DrawerShell
-        open={!!sel}
-        onClose={() => setSel(null)}
-        size="lg"
-        title={sel ? sel.patientName : ''}
-        sub={sel ? `${sel.examCode} · ${sel.companyName}` : ''}
-        footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in chứng nhận')}>
-            <Ico name="print" size={12} /> In chứng nhận
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
-            <Ico name="edit" size={12} /> Cập nhật
-          </button>
-        </>}
-      >
-        {sel && <>
-          <DrSec title="Người lao động">
-            <DrField lbl="Mã KS"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.examCode}</span></DrField>
-            <DrField lbl="Họ tên">{sel.patientName} · {sel.patientCode}</DrField>
-            <DrField lbl="Giới tính">{sel.gender === 1 ? 'Nam' : 'Nữ'}</DrField>
-            <DrField lbl="Ngày sinh">{dayjs(sel.dateOfBirth).format('DD/MM/YYYY')}</DrField>
-          </DrSec>
-          <DrSec title="Công việc">
-            <DrField lbl="Công ty">{sel.companyName} ({sel.companyCode})</DrField>
-            <DrField lbl="Khoa/Phòng">{sel.department}</DrField>
-            <DrField lbl="Nghề/Vị trí">{sel.occupation}</DrField>
-            <DrField lbl="Năm tiếp xúc"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.yearsOfExposure}</span></DrField>
-            <DrField lbl="Yếu tố nguy cơ">{sel.hazardTypes?.join(', ') || '—'}</DrField>
-          </DrSec>
-          <DrSec title="Khám">
-            <DrField lbl="Loại khám">{sel.examType}</DrField>
-            <DrField lbl="Ngày khám">{dayjs(sel.examDate).format('DD/MM/YYYY')}</DrField>
-            <DrField lbl="BS khám">{sel.examDoctor}</DrField>
-            {sel.spirometryResult && <DrField lbl="HH ký">{sel.spirometryResult}</DrField>}
-            {sel.audiometryResult && <DrField lbl="Thính lực">{sel.audiometryResult}</DrField>}
-            {sel.bloodLeadLevel !== undefined && <DrField lbl="Chì máu"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.bloodLeadLevel} µg/dL</span></DrField>}
-            {sel.visionResult && <DrField lbl="Thị lực">{sel.visionResult}</DrField>}
-            {sel.xrayResult && <DrField lbl="X-quang">{sel.xrayResult}</DrField>}
-          </DrSec>
-          <DrSec title="Kết luận">
-            <DrField lbl="Phân loại">
-              <StatusBadge tone={classifyTone(sel.classification)} dot>{classifyLabel(sel.classification)}</StatusBadge>
-            </DrField>
-            {sel.occupationalDisease && (
-              <DrField lbl="Bệnh nghề nghiệp">
-                <span style={{ color: 'var(--a-rd-text)', fontWeight: 600 }}>{sel.occupationalDisease}</span>
-              </DrField>
-            )}
-            {sel.conclusion && <DrField lbl="Kết luận">{sel.conclusion}</DrField>}
-            {sel.recommendations && <DrField lbl="Khuyến nghị">{sel.recommendations}</DrField>}
-            <DrField lbl="Trạng thái">
-              <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>
-                {STATUS_LABEL[sel.status] || '—'}
-              </StatusBadge>
-            </DrField>
-          </DrSec>
-        </>}
-      </DrawerShell>
-    </div>
+    <SimpleV2Page<OccExam>
+      title="Khám sức khỏe nghề nghiệp"
+      load={() => searchOccExams()}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm tên / mã / công ty…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.examCode} ${r.companyName} ${r.occupation}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      filters={[{
+        key: 'type', placeholder: '▾ Loại khám',
+        options: Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })),
+        valueOf: (r) => r.examType,
+      }]}
+      kpis={(rows) => {
+        const disease = rows.filter((r) => r.occupationalDisease).length;
+        const restricted = rows.filter((r) => r.classification === 'restricted' || r.classification === 'fail').length;
+        const companies = new Set(rows.map((r) => r.companyName)).size;
+        return [
+          { lbl: 'Tổng khám', val: rows.length },
+          { lbl: 'Đang khám', val: rows.filter((r) => r.status === 1).length, tone: 'warn' },
+          { lbl: 'Cần TD', val: restricted, tone: 'warn' },
+          { lbl: 'Bệnh NN', val: disease, sub: 'phát hiện', tone: 'crit' },
+          { lbl: 'Đã cấp GCN', val: rows.filter((r) => r.status === 3).length, tone: 'ok' },
+          { lbl: 'Số đơn vị', val: companies },
+        ];
+      }}
+      drawer={(r) => (
+        <>
+          <div className="rec-section">
+            <h5><TermIcon name="user" size={11} /> NGƯỜI LAO ĐỘNG</h5>
+            <div className="rec-kv">
+              <span>Họ tên</span><b>{r.patientName}</b>
+              <span>Mã</span><span className="mono">{r.patientCode}</span>
+              <span>Mã khám</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.examCode}</span>
+              <span>Giới tính</span><span>{r.gender === 1 ? 'Nam' : 'Nữ'}</span>
+              <span>Ngày sinh</span><span>{fmtDMY(r.dateOfBirth)}</span>
+            </div>
+          </div>
+          <div className="rec-section">
+            <h5><TermIcon name="activity" size={11} /> ĐƠN VỊ / NGHỀ NGHIỆP</h5>
+            <div className="rec-kv">
+              <span>Công ty</span><b>{r.companyName}</b>
+              <span>Mã CT</span><span className="mono">{r.companyCode}</span>
+              <span>Bộ phận</span><span>{r.department}</span>
+              <span>Nghề nghiệp</span><span>{r.occupation}</span>
+              <span>Số năm phơi nhiễm</span><b>{r.yearsOfExposure} năm</b>
+            </div>
+          </div>
+          <div className="rec-section">
+            <h5><TermIcon name="alert" size={11} /> YẾU TỐ NGUY CƠ</h5>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {(r.hazardTypes || []).map((h) => <span key={h} className="chip warn">{h}</span>)}
+              {(r.hazardTypes || []).length === 0 && <span style={{ color: 'var(--t-3)' }}>Không có</span>}
+            </div>
+          </div>
+          <div className="rec-section">
+            <h5><TermIcon name="flask" size={11} /> KẾT QUẢ KHÁM</h5>
+            <div className="rec-kv">
+              <span>Loại khám</span><b>{TYPE_LABEL[r.examType]}</b>
+              <span>Ngày khám</span><span>{fmtDMY(r.examDate)}</span>
+              <span>BS khám</span><span>{r.examDoctor}</span>
+              {r.spirometryResult && (<><span>Hô hấp ký</span><span>{r.spirometryResult}</span></>)}
+              {r.audiometryResult && (<><span>Thính lực</span><span>{r.audiometryResult}</span></>)}
+              {r.bloodLeadLevel && (<><span>Chì máu</span><span>{r.bloodLeadLevel} µg/dL</span></>)}
+              {r.classification && (<><span>Phân loại SK</span><span className={`chip ${CLASS_TONE[r.classification]}`}>{r.classification}</span></>)}
+              {r.occupationalDisease && (<><span>Bệnh NN</span><b style={{ color: 'var(--s-crit)' }}>{r.occupationalDisease}</b></>)}
+            </div>
+          </div>
+          {r.recommendations && (
+            <div className="rec-section">
+              <h5><TermIcon name="info" size={11} /> KHUYẾN NGHỊ</h5>
+              <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.recommendations}</div>
+            </div>
+          )}
+        </>
+      )}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.examCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.companyName} · ${r.occupation}`}
+    />
   );
 };
 

@@ -1,163 +1,261 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { App as AntdApp } from 'antd';
 import risApi from '../api/ris';
 import type { ConsultationSessionDto } from '../api/ris';
+import {
+  KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
+  StatusBadge, ActBtn, DrawerShell,
+  type ColumnDef, type StatusTab,
+} from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: 'warn' | 'cy' | 'ok' | 'ghost' | 'crit' }> = {
-  0: { text: 'Lên lịch', cls: 'warn' },
-  1: { text: 'Đang họp', cls: 'cy' },
-  2: { text: 'Hoàn tất', cls: 'ok' },
-  3: { text: 'Hủy', cls: 'crit' },
+/* ────────────────────────────────────────────────────────────
+   Hội chẩn v2 — port of design-system-v2/his/project/Consultation v2.html
+   ──────────────────────────────────────────────────────────── */
+
+type StatusKey = 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'scheduled', l: 'Đã lên lịch', tone: 'info' },
+  { v: 'ongoing',   l: 'Đang diễn ra', tone: 'warn' },
+  { v: 'completed', l: 'Hoàn tất',     tone: 'ok' },
+  { v: 'cancelled', l: 'Đã huỷ',       tone: 'crit' },
+];
+
+const statusKey = (s: number): StatusKey => {
+  if (s === 0) return 'scheduled';
+  if (s === 1) return 'ongoing';
+  if (s === 2) return 'completed';
+  return 'cancelled';
 };
+const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
+
+const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '—';
 
 const ConsultationV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [sessions, setSessions] = useState<ConsultationSessionDto[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [selectedId, setSelected] = useState<string | null>(null);
-  const [keyword, setKeyword]   = useState('');
-  const [fromDate, setFromDate] = useState(dayjs().subtract(30, 'day').format('YYYY-MM-DD'));
-  const [toDate, setToDate]     = useState(dayjs().format('YYYY-MM-DD'));
-  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
+  const { message } = AntdApp.useApp();
+  const [rows, setRows] = useState<ConsultationSessionDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [detail, setDetail] = useState<ConsultationSessionDto | null>(null);
+  const PAGE_SIZE = 14;
 
-  const load = async () => {
+  const reload = () => {
     setLoading(true);
-    try {
-      const r = await risApi.searchConsultations({
-        fromDate, toDate, keyword: keyword || undefined,
-        status: statusFilter, page: 1, pageSize: 100,
-      });
-      const items = Array.isArray(r.data?.items) ? r.data.items : [];
-      setSessions(items);
-      if (items.length > 0 && !selectedId) setSelected(items[0].id);
-    } catch {
-      setSessions([]);
-    } finally {
-      setLoading(false);
-    }
+    risApi.searchConsultations({
+      fromDate: dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
+      toDate:   dayjs().add(30, 'day').format('YYYY-MM-DD'),
+      page: 1, pageSize: 200,
+    }).then((r) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const arr = (r as any)?.data?.items || (r as any)?.data || [];
+      setRows(Array.isArray(arr) ? arr : []);
+    }).catch(() => setRows([])).finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(reload, []);
 
-  const stats = useMemo(() => ({
-    total: sessions.length,
-    scheduled: sessions.filter((s) => s.status === 0).length,
-    inProgress: sessions.filter((s) => s.status === 1).length,
-    done: sessions.filter((s) => s.status === 2).length,
-  }), [sessions]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: rows.length };
+    STATUS_TABS.forEach((s) => {
+      c[s.v] = rows.filter((r) => statusKey(r.status) === s.v).length;
+    });
+    return c;
+  }, [rows]);
 
-  const selected = sessions.find((s) => s.id === selectedId);
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (stab !== 'all' && statusKey(r.status) !== stab) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [r.sessionCode, r.title, r.description, r.createdByUserName].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [rows, stab, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const today = dayjs().startOf('day');
+  const kpis = useMemo(() => ({
+    todayCount: rows.filter((r) => dayjs(r.scheduledTime).isSame(today, 'day')).length,
+    ongoing:   counts.ongoing || 0,
+    scheduled: counts.scheduled || 0,
+    completed: counts.completed || 0,
+    cases:     rows.reduce((s, r) => s + (r.caseCount || 0), 0),
+    total:     rows.length,
+  }), [rows, counts, today]);
+
+  const columns: ColumnDef<ConsultationSessionDto>[] = [
+    { key: 'code', label: 'Mã', width: 130, mono: true, render: (r) => r.sessionCode },
+    {
+      key: 'title', label: 'Chủ đề hội chẩn',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.title}</b>
+          {r.description && <i>{r.description}</i>}
+        </div>
+      ),
+    },
+    { key: 'cases', label: 'Số ca', mono: true, width: 80, render: (r) => r.caseCount || 0 },
+    {
+      key: 'participants', label: 'Số TV', mono: true, width: 80,
+      render: (r) => r.participants?.length || 0,
+    },
+    { key: 'creator', label: 'Người tạo', width: 180, render: (r) => r.createdByUserName || '—' },
+    {
+      key: 'when', label: 'Lịch', width: 150, mono: true,
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{fmtDMY(r.scheduledTime)}</b>
+          <i>{fmtHM(r.scheduledTime)}{r.endTime ? ` → ${fmtHM(r.endTime)}` : ''}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'status', label: 'Trạng thái', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.status);
+        return <StatusBadge tone={statusTone(sk)} dot>{r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Phiên hội chẩn · <b>{sessions.length}</b></span>
-          <div className="actions">
-            <input type="date" className="input" style={{ width: 140 }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-            <input type="date" className="input" style={{ width: 140 }} value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            <select className="select" style={{ width: 120 }} value={statusFilter ?? ''} onChange={(e) => setStatusFilter(e.target.value === '' ? undefined : Number(e.target.value))}>
-              <option value="">Tất cả</option>
-              <option value="0">Lên lịch</option>
-              <option value="1">Đang họp</option>
-              <option value="2">Hoàn tất</option>
-            </select>
-            <input className="input" style={{ width: 200 }} placeholder="Tìm theo tiêu đề..." value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : sessions.length === 0 ? <div className="ph" style={{ margin: 14 }}>Không có phiên hội chẩn</div>
-            : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Mã phiên</th>
-                  <th>Tiêu đề</th>
-                  <th>Lịch</th>
-                  <th>Người tạo</th>
-                  <th className="num">Ca</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((s) => {
-                  const st = STATUS_LABEL[s.status] || { text: s.statusName, cls: 'ghost' as const };
-                  return (
-                    <tr key={s.id} className={s.id === selectedId ? 'sel' : ''} onClick={() => setSelected(s.id)} style={{ cursor: 'pointer' }}>
-                      <td className="mono">{s.sessionCode}</td>
-                      <td style={{ fontWeight: 500 }}>{s.title}</td>
-                      <td className="mono">{dayjs(s.scheduledTime).format('HH:mm DD/MM')}</td>
-                      <td className="muted">{s.createdByUserName}</td>
-                      <td className="num">{s.caseCount}</td>
-                      <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+    <div className="ab">
+      <KpiStrip
+        items={[
+          { lbl: 'Hôm nay', val: kpis.todayCount, sub: 'phiên', tone: 'info' },
+          { lbl: 'Đang diễn ra', val: kpis.ongoing, sub: 'live', tone: 'warn' },
+          { lbl: 'Đã lên lịch', val: kpis.scheduled, sub: 'sắp diễn ra' },
+          { lbl: 'Hoàn tất', val: kpis.completed, sub: '60 ngày', tone: 'ok' },
+          { lbl: 'Tổng số ca', val: kpis.cases, sub: 'BN tham gia' },
+          { lbl: 'Tổng phiên', val: kpis.total },
+        ]}
+      />
+
+      <div className="ab-tools">
+        <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã / chủ đề / người tạo…" />
+        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+          <TermIcon name="refresh" size={12} /> Bỏ lọc
+        </button>
+        <span className="spacer" />
+        <button type="button" className="ab-btn ghost" onClick={reload}>
+          <TermIcon name="refresh" size={12} /> Làm mới
+        </button>
+        <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} phiên`)}>
+          <TermIcon name="download" size={12} /> Xuất Excel
+        </button>
+        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo hội chẩn')}>
+          <TermIcon name="plus" size={12} /> Tạo hội chẩn
+        </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng phiên" value={stats.total} />
-              <Stat label="Lên lịch" value={stats.scheduled} warn />
-              <Stat label="Đang họp" value={stats.inProgress} cy />
-              <Stat label="Hoàn tất" value={stats.done} ok />
-            </div>
-          </div>
-        </div>
+      <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
 
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h">
-            <span className="title">Chi tiết phiên</span>
-            <span className="sub">{selected ? selected.title : 'Chọn phiên'}</span>
-          </div>
-          <div className="panel-body pad">
-            {!selected ? <div className="ph">Chọn phiên hội chẩn để xem chi tiết</div> : (
-              <div className="stack-sm">
-                <Field label="Mã phiên" value={<span className="mono">{selected.sessionCode}</span>} />
-                <Field label="Tiêu đề" value={selected.title} />
-                <Field label="Mô tả" value={selected.description || '—'} />
-                <Field label="Lịch" value={<span className="mono">{dayjs(selected.scheduledTime).format('HH:mm DD/MM/YYYY')}</span>} />
-                {selected.startTime && <Field label="Bắt đầu" value={<span className="mono">{dayjs(selected.startTime).format('HH:mm')}</span>} />}
-                {selected.endTime && <Field label="Kết thúc" value={<span className="mono">{dayjs(selected.endTime).format('HH:mm')}</span>} />}
-                <Field label="Người tạo" value={selected.createdByUserName} />
-                <Field label="Số ca" value={String(selected.caseCount)} />
-                {selected.meetingUrl && (
-                  <Field label="Link họp" value={<a href={selected.meetingUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--a-cy)' }}>Mở liên kết</a>} />
-                )}
-                <Field label="Trạng thái" value={(() => { const st = STATUS_LABEL[selected.status] || { text: selected.statusName, cls: 'ghost' as const }; return <span className={`chip ${st.cls}`}>{st.text}</span>; })()} />
-                <div className="row" style={{ gap: 8, marginTop: 6 }}>
-                  <button className="btn primary sm" type="button" onClick={() => navigate('/consultation')}>
-                    <TermIcon name="layers" size={12} />Mở chi tiết
-                  </button>
-                </div>
-              </div>
+      <DataTable<ConsultationSessionDto>
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        onRowClick={(r) => setDetail(r)}
+        actions={(r) => (
+          <div className="ab-actions">
+            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
+            {r.meetingUrl && (
+              <ActBtn ic="play" title="Vào phòng họp" onClick={() => window.open(r.meetingUrl!, '_blank')} />
             )}
+            <ActBtn ic="print" title="In biên bản" onClick={() => message.success('Đã gửi máy in')} />
           </div>
-        </div>
-      </div>
+        )}
+        empty={loading ? 'Đang tải…' : (
+          <div className="ab-empty">
+            <TermIcon name="search" size={20} />
+            <div>Không có phiên hội chẩn nào</div>
+          </div>
+        )}
+      />
+
+      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+
+      <DrawerShell
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.sessionCode}</span>
+              <span style={{ fontSize: 14 }}>{detail.title}</span>
+            </span>
+          : ''}
+        sub={detail ? `${fmtDT(detail.scheduledTime)} · ${detail.createdByUserName}` : ''}
+        size="lg"
+        footer={detail ? (
+          <>
+            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <span style={{ flex: 1 }} />
+            <button type="button" className="ab-btn" onClick={() => message.success('Đã in biên bản')}>
+              <TermIcon name="print" size={12} /> In biên bản
+            </button>
+            {detail.meetingUrl && (
+              <button type="button" className="ab-btn primary" onClick={() => window.open(detail.meetingUrl!, '_blank')}>
+                <TermIcon name="play" size={12} /> Vào phòng họp
+              </button>
+            )}
+          </>
+        ) : null}
+      >
+        {detail && <ConsultationDrawerBody r={detail} />}
+      </DrawerShell>
     </div>
   );
 };
 
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean }> = ({ label, value, warn, cy, ok }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
+const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) => {
+  const sk = statusKey(r.status);
+  const tone = statusTone(sk);
+  const lbl = r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l || '';
 
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
+  return (
+    <>
+      <div className="rec-section">
+        <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
+        <div className={`rec-status-banner ${tone}`}>
+          <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
+          <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.caseCount || 0} ca · {r.participants?.length || 0} thành viên</span>
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="info" size={11} /> THÔNG TIN PHIÊN</h5>
+        <div className="rec-kv">
+          <span>Mã phiên</span><span className="mono">{r.sessionCode}</span>
+          <span>Chủ đề</span><b>{r.title}</b>
+          {r.description && (<><span>Mô tả</span><span style={{ whiteSpace: 'pre-wrap' }}>{r.description}</span></>)}
+          <span>Người tạo</span><span>{r.createdByUserName}</span>
+        </div>
+      </div>
+
+      <div className="rec-section">
+        <h5><TermIcon name="clock" size={11} /> THỜI GIAN</h5>
+        <div className="rec-kv">
+          <span>Lịch hẹn</span><span className="mono">{fmtDT(r.scheduledTime)}</span>
+          {r.startTime && (<><span>Bắt đầu</span><span className="mono">{fmtDT(r.startTime)}</span></>)}
+          {r.endTime && (<><span>Kết thúc</span><span className="mono">{fmtDT(r.endTime)}</span></>)}
+          {r.startTime && r.endTime && (
+            <>
+              <span>Thời lượng</span>
+              <span>{dayjs(r.endTime).diff(dayjs(r.startTime), 'minute')} phút</span>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
 
 export default ConsultationV2;

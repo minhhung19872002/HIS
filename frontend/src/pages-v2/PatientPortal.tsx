@@ -1,132 +1,114 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
-import { getMyAppointments, getAccount } from '../api/patientPortal';
-import type { OnlineAppointmentDto, PatientAccountDto } from '../api/patientPortal';
+import { getMyAppointments } from '../api/patientPortal';
+import type { OnlineAppointmentDto } from '../api/patientPortal';
+import { SimpleV2Page, StatusBadge, type ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: string }> = {
-  1: { text: 'Đã yêu cầu', cls: 'warn' },
-  2: { text: 'Xác nhận', cls: 'cy' },
-  3: { text: 'Đã đến', cls: 'ok' },
-  4: { text: 'Hoàn thành', cls: 'ok' },
-  5: { text: 'Đã hủy', cls: 'crit' },
-  6: { text: 'Vắng', cls: 'crit' },
+const fmtDT = (d?: string, t?: string) => {
+  if (!d) return '—';
+  return `${dayjs(d).format('DD/MM/YYYY')}${t ? ` ${t.slice(0, 5)}` : ''}`;
 };
 
 const PatientPortalV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<OnlineAppointmentDto[]>([]);
-  const [account, setAccount] = useState<PatientAccountDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [sel, setSel] = useState<OnlineAppointmentDto | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [r1, r2] = await Promise.allSettled([
-        getMyAppointments(undefined,
-          dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-          dayjs().add(30, 'day').format('YYYY-MM-DD')),
-        getAccount(),
-      ]);
-      if (r1.status === 'fulfilled') {
-        const list = (Array.isArray(r1.value.data) ? r1.value.data : []) as OnlineAppointmentDto[];
-        setItems(list);
-        if (list.length > 0 && !sel) setSel(list[0]);
-      }
-      if (r2.status === 'fulfilled') setAccount(r2.value.data);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const stats = useMemo(() => ({
-    total: items.length,
-    upcoming: items.filter((a) => a.scheduledDate && dayjs(a.scheduledDate).isAfter(dayjs())).length,
-    completed: items.filter((a) => a.status === 4).length,
-    cancelled: items.filter((a) => a.status === 5 || a.status === 6).length,
-  }), [items]);
+  const columns: ColumnDef<OnlineAppointmentDto>[] = [
+    { key: 'code', label: 'Mã hẹn', mono: true, width: 130, render: (r) => r.appointmentCode },
+    { key: 'patient', label: 'Bệnh nhân', render: (r) => (
+      <div className="cell-2l">
+        <b>{r.patientName}</b>
+        <i>{r.appointmentTypeName}{r.isFirstVisit ? ' · BN mới' : ''}</i>
+      </div>
+    )},
+    { key: 'dept', label: 'Khoa · BS', render: (r) => (
+      <div className="cell-2l"><b>{r.departmentName}</b><i>{r.doctorName || 'Chưa chọn'}</i></div>
+    )},
+    { key: 'preferred', label: 'Hẹn mong muốn', mono: true, width: 130, render: (r) => fmtDT(r.preferredDate, r.preferredTime) },
+    { key: 'scheduled', label: 'Đã xếp', mono: true, width: 130, render: (r) => fmtDT(r.scheduledDate, r.scheduledTime) },
+    { key: 'fee', label: 'Phí dự kiến', mono: true, width: 110, render: (r) => r.estimatedFee ? `${r.estimatedFee.toLocaleString('vi-VN')} ₫` : '—' },
+    { key: 'paid', label: 'Thanh toán', width: 110, render: (r) =>
+      r.paymentStatus === 1 ? <span className="chip ok">Đã trả</span> : <span className="chip warn">Chưa</span>
+    },
+    { key: 'status', label: 'TT', width: 130, render: (r) =>
+      <StatusBadge tone="info" dot>{r.paymentStatusName || 'Đã đặt'}</StatusBadge>
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Cổng bệnh nhân · <b>{items.length}</b></span>
-          <div className="actions">
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="refresh" size={13} />Làm mới</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/patient-portal')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có cuộc hẹn online</div> : (
-              <table className="tbl">
-                <thead><tr><th>Mã</th><th>BN</th><th>Khoa</th><th>BS</th><th>Ngày</th><th>Loại</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {items.map((a) => {
-                    const st = STATUS_LABEL[a.status] || { text: a.statusName, cls: 'ghost' };
-                    return (
-                      <tr key={a.id} className={sel?.id === a.id ? 'sel' : ''} onClick={() => setSel(a)} style={{ cursor: 'pointer' }}>
-                        <td className="mono">{a.appointmentCode}</td>
-                        <td style={{ fontWeight: 500 }}>{a.patientName}</td>
-                        <td className="muted">{a.departmentName}</td>
-                        <td className="muted">{a.doctorName || '—'}</td>
-                        <td className="mono">{a.scheduledDate ? dayjs(a.scheduledDate).format('DD/MM') : dayjs(a.preferredDate).format('DD/MM')} {a.scheduledTime || a.preferredTime}</td>
-                        <td className="muted">{a.appointmentTypeName}</td>
-                        <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng" value={stats.total} />
-              <Stat label="Sắp tới" value={stats.upcoming} cy />
-              <Stat label="Hoàn thành" value={stats.completed} ok />
-              <Stat label="Đã hủy" value={stats.cancelled} crit />
+    <SimpleV2Page<OnlineAppointmentDto>
+      title="Cổng bệnh nhân"
+      load={async () => (await getMyAppointments(undefined,
+        dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
+        dayjs().add(60, 'day').format('YYYY-MM-DD'),
+      )).data}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm tên BN / mã hẹn…"
+      searchOf={(r) => `${r.patientName} ${r.appointmentCode} ${r.departmentName} ${r.doctorName || ''}`}
+      kpis={(rows) => {
+        const today = dayjs().startOf('day');
+        const upcoming = rows.filter((r) => r.scheduledDate && dayjs(r.scheduledDate).isAfter(today)).length;
+        const tele = rows.filter((r) => r.appointmentType === 'Telemedicine').length;
+        const paid = rows.filter((r) => r.paymentStatus === 1).length;
+        return [
+          { lbl: 'Tổng đặt', val: rows.length },
+          { lbl: 'Sắp đến', val: upcoming, tone: 'info' },
+          { lbl: 'Telemedicine', val: tele, sub: 'khám từ xa' },
+          { lbl: 'Đã thanh toán', val: paid, tone: 'ok' },
+          { lbl: 'BN mới', val: rows.filter((r) => r.isFirstVisit).length },
+          { lbl: 'BHYT', val: rows.filter((r) => r.insuranceUsed).length, sub: 'sử dụng' },
+        ];
+      }}
+      drawer={(r) => (
+        <>
+          <div className="rec-section">
+            <h5><TermIcon name="user" size={11} /> CUỘC HẸN</h5>
+            <div className="rec-kv">
+              <span>Mã hẹn</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.appointmentCode}</span>
+              <span>Bệnh nhân</span><b>{r.patientName}</b>
+              <span>Loại</span><span>{r.appointmentTypeName}</span>
+              <span>Khoa</span><span>{r.departmentName}</span>
+              <span>Bác sĩ</span><span>{r.doctorName || 'Chưa chọn'}</span>
+              {r.specialtyName && (<><span>Chuyên khoa</span><span>{r.specialtyName}</span></>)}
             </div>
           </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Tài khoản</span></div>
-          <div className="panel-body pad">
-            {!account ? <div className="ph">Chưa có thông tin tài khoản</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{account.accountCode}</span>} />
-                <Field label="Họ tên" value={account.fullName} />
-                <Field label="SĐT" value={account.phone} />
-                {account.email && <Field label="Email" value={account.email} />}
-                <Field label="BN liên kết" value={account.patientCode || '—'} />
-                <Field label="Đăng nhập gần nhất" value={account.lastLoginAt ? <span className="mono">{dayjs(account.lastLoginAt).format('DD/MM/YYYY HH:mm')}</span> : '—'} />
-                <Field label="Số lần đăng nhập" value={String(account.loginCount)} />
-                <Field label="Trạng thái" value={<span className="chip">{account.accountStatusName}</span>} />
-              </div>
-            )}
+          <div className="rec-section">
+            <h5><TermIcon name="calendar" size={11} /> THỜI GIAN</h5>
+            <div className="rec-kv">
+              <span>Hẹn mong muốn</span><span>{fmtDT(r.preferredDate, r.preferredTime)}</span>
+              <span>Đã xếp</span><span>{fmtDT(r.scheduledDate, r.scheduledTime)}</span>
+              {r.estimatedDuration && (<><span>Thời lượng</span><span>{r.estimatedDuration} phút</span></>)}
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+          {r.chiefComplaint && (
+            <div className="rec-section">
+              <h5><TermIcon name="info" size={11} /> LÝ DO KHÁM</h5>
+              <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.chiefComplaint}</div>
+              {r.symptoms && r.symptoms.length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {r.symptoms.map((s, i) => <span key={i} className="chip warn">{s}</span>)}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="rec-section">
+            <h5><TermIcon name="dollar" size={11} /> THANH TOÁN</h5>
+            <div className="rec-kv">
+              <span>Phí dự kiến</span><b className="mono">{r.estimatedFee ? `${r.estimatedFee.toLocaleString('vi-VN')} ₫` : '—'}</b>
+              <span>BHYT</span><span>{r.insuranceUsed ? <span className="chip ok">Có sử dụng</span> : 'Không'}</span>
+              <span>Trạng thái TT</span><span className={`chip ${r.paymentStatus === 1 ? 'ok' : 'warn'}`}>{r.paymentStatusName}</span>
+            </div>
+          </div>
+        </>
+      )}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.appointmentCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.appointmentTypeName} · ${r.departmentName}`}
+    />
   );
 };
-
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
 
 export default PatientPortalV2;

@@ -1,196 +1,110 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
 import { searchCases } from '../api/forensic';
 import type { ForensicCase } from '../api/forensic';
-import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
-} from './_v2kit';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 
-const TYPE_LABEL: Record<string, string> = {
-  disability: 'Giám định KT', driver: 'Lái xe', employment: 'Việc làm',
-  insurance: 'Bảo hiểm', court: 'Toà án',
-};
-
-type SKey = 'pending' | 'examining' | 'completed' | 'approved';
-const STATUS_TABS = [
-  { v: 'pending' as SKey,   l: 'Chờ',          tone: 'warn' as const },
-  { v: 'examining' as SKey, l: 'Đang khám',    tone: 'info' as const },
-  { v: 'completed' as SKey, l: 'Xong',         tone: 'info' as const },
-  { v: 'approved' as SKey,  l: 'Đã duyệt',     tone: 'ok' as const },
+type StatusKey = 'pending' | 'examining' | 'completed' | 'approved';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'pending',   l: 'Chờ giám định', tone: 'warn' },
+  { v: 'examining', l: 'Đang giám định', tone: 'warn' },
+  { v: 'completed', l: 'Hoàn tất',      tone: 'ok' },
+  { v: 'approved',  l: 'Đã duyệt',      tone: 'ok' },
 ];
-
-const sKey = (n: number): SKey => n === 0 ? 'pending' : n === 1 ? 'examining' : n === 2 ? 'completed' : 'approved';
-
-const PER = 18;
+const statusKey = (s: number): StatusKey => s === 0 ? 'pending' : s === 1 ? 'examining' : s === 2 ? 'completed' : 'approved';
+const TYPE_LABEL: Record<string, string> = {
+  disability: 'Tỉ lệ tổn thương', driver: 'Lái xe', employment: 'Tuyển dụng', insurance: 'Bảo hiểm', court: 'Tố tụng',
+};
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const MedicalForensicsV2: React.FC = () => {
-  const [items, setItems] = useState<ForensicCase[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<SKey | 'all'>('all');
-  const [fType, setFType] = useState('');
-  const [page, setPage] = useState(0);
-  const [sel, setSel] = useState<ForensicCase | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchCases({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as ForensicCase[];
-      setItems(list);
-    } catch { ti('Không tải được ca giám định'); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
-
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return items.filter((r) => {
-      if (stab !== 'all' && sKey(r.status) !== stab) return false;
-      if (fType && r.caseType !== fType) return false;
-      if (!k) return true;
-      return [r.patientName, r.patientCode, r.caseCode, r.requestingOrganization]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [items, search, stab, fType]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
-  const paged = filtered.slice(page * PER, (page + 1) * PER);
-
-  const cols: ColumnDef<ForensicCase>[] = [
-    { key: 'code', label: 'Mã ca', code: true, render: (r) => r.caseCode },
-    { key: 'pt', label: 'Bệnh nhân', render: (r) => (
-      <div>
-        <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
-      </div>
-    ) },
-    { key: 'type', label: 'Loại', render: (r) => (
-      <StatusBadge tone="info">{TYPE_LABEL[r.caseType] || r.caseType}</StatusBadge>
-    ) },
-    { key: 'org', label: 'Cơ quan YC', render: (r) => <span style={{ fontSize: 12 }}>{r.requestingOrganization}</span> },
-    { key: 'pct', label: '% mất KN', mono: true, render: (r) => r.disabilityPercent !== undefined
-      ? <span style={{ fontWeight: 600, color: r.disabilityPercent >= 81 ? 'var(--a-rd-text)' : r.disabilityPercent >= 61 ? 'var(--a-or-text)' : undefined }}>
-          {r.disabilityPercent}%
-        </span>
-      : '—'
-    },
-    { key: 'exam', label: 'BS giám định', render: (r) => r.examinerName || '—' },
-    { key: 'date', label: 'Ngày YC', mono: true, render: (r) => dayjs(r.requestDate).format('DD/MM/YYYY') },
-    { key: 'st', label: 'Trạng thái', render: (r) => {
-      const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
-      return <StatusBadge tone={t?.tone || 'info'} dot>{t?.l || '—'}</StatusBadge>;
-    } },
+  const columns: ColumnDef<ForensicCase>[] = [
+    { key: 'code', label: 'Mã GĐ', mono: true, width: 130, render: (r) => r.caseCode },
+    { key: 'patient', label: 'Đối tượng', render: (r) => (
+      <div className="cell-2l"><b>{r.patientName}</b><i className="mono">{r.patientCode}</i></div>
+    )},
+    { key: 'type', label: 'Loại', width: 160, render: (r) => <span className="chip info">{TYPE_LABEL[r.caseType] || r.caseType}</span> },
+    { key: 'org', label: 'Tổ chức yêu cầu', render: (r) => r.requestingOrganization },
+    { key: 'purpose', label: 'Mục đích', render: (r) => r.purpose },
+    { key: 'date', label: 'Ngày YC', mono: true, width: 100, render: (r) => fmtDMY(r.requestDate) },
+    { key: 'pct', label: 'Tỉ lệ', mono: true, width: 80, render: (r) => r.disabilityPercent != null ? `${r.disabilityPercent}%` : '—' },
+    { key: 'examiner', label: 'BS giám định', width: 180, render: (r) => r.examinerName || '—' },
+    { key: 'status', label: 'TT', width: 130, render: (r) => {
+      const sk = statusKey(r.status);
+      return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+    }},
   ];
 
-  const actions = (r: ForensicCase) => (
-    <div className="ab-actions">
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {r.status === 2 && (
-        <ActBtn ic="check" title="Duyệt kết luận" onClick={() => tk(`Duyệt ${r.caseCode}`)} />
-      )}
-    </div>
-  );
-
   return (
-    <div className="ab">
-      <KpiStrip items={[
-        { lbl: 'Tổng ca', val: items.length, sub: 'tất cả' },
-        { lbl: 'Chờ khám', val: counts.pending || 0, sub: 'cần xếp lịch', tone: 'warn' },
-        { lbl: 'Đang khám', val: counts.examining || 0, sub: 'đang xử lý', tone: 'info' },
-        { lbl: 'Đã duyệt', val: counts.approved || 0, sub: `${Math.round(((counts.approved || 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
-      ]} />
-
-      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-          placeholder="Tìm BN / mã ca / cơ quan…" />
-        <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại giám định" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
-        <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở ca giám định mới')}>
-          <Ico name="plus" size={12} /> Ca mới
-        </button>
-      </div>
-
-      <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
-
-      <DataTable<ForensicCase>
-        columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có ca giám định'}
-      />
-      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
-
-      <DrawerShell
-        open={!!sel}
-        onClose={() => setSel(null)}
-        size="lg"
-        title={sel ? `Ca ${sel.caseCode}` : ''}
-        sub={sel ? `${sel.patientName} · ${TYPE_LABEL[sel.caseType] || sel.caseType}` : ''}
-        footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in biên bản')}>
-            <Ico name="print" size={12} /> In biên bản
-          </button>
-          {sel && sel.status === 2 && (
-            <button type="button" className="ab-btn primary" onClick={() => { tk('Đã duyệt'); setSel(null); }}>
-              <Ico name="check" size={12} /> Duyệt
-            </button>
+    <SimpleV2Page<ForensicCase>
+      title="Hồ sơ giám định pháp y"
+      load={() => searchCases()}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm tên / mã / tổ chức / mục đích…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.caseCode} ${r.requestingOrganization} ${r.purpose}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      filters={[{
+        key: 'type', placeholder: '▾ Loại',
+        options: Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })),
+        valueOf: (r) => r.caseType,
+      }]}
+      kpis={(rows) => [
+        { lbl: 'Tổng HS', val: rows.length },
+        { lbl: 'Chờ GĐ', val: rows.filter((r) => r.status === 0).length, tone: 'warn' },
+        { lbl: 'Đang GĐ', val: rows.filter((r) => r.status === 1).length, tone: 'warn' },
+        { lbl: 'Hoàn tất', val: rows.filter((r) => r.status === 2).length, tone: 'ok' },
+        { lbl: 'Đã duyệt', val: rows.filter((r) => r.status === 3).length, tone: 'ok' },
+        { lbl: 'TB tổn thương', val: rows.filter((r) => r.disabilityPercent).length > 0
+          ? Math.round(rows.reduce((s, r) => s + (r.disabilityPercent || 0), 0) / rows.filter((r) => r.disabilityPercent).length)
+          : 0, unit: '%' },
+      ]}
+      drawer={(r) => (
+        <>
+          <div className="rec-section">
+            <h5><TermIcon name="user" size={11} /> ĐỐI TƯỢNG</h5>
+            <div className="rec-kv">
+              <span>Họ tên</span><b>{r.patientName}</b>
+              <span>Mã</span><span className="mono">{r.patientCode}</span>
+              <span>Mã GĐ</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.caseCode}</span>
+            </div>
+          </div>
+          <div className="rec-section">
+            <h5><TermIcon name="file-text" size={11} /> YÊU CẦU GIÁM ĐỊNH</h5>
+            <div className="rec-kv">
+              <span>Loại</span><b>{TYPE_LABEL[r.caseType]}</b>
+              <span>Tổ chức YC</span><span>{r.requestingOrganization}</span>
+              <span>Mục đích</span><span>{r.purpose}</span>
+              <span>Ngày YC</span><span>{fmtDMY(r.requestDate)}</span>
+            </div>
+          </div>
+          <div className="rec-section">
+            <h5><TermIcon name="check" size={11} /> KẾT QUẢ</h5>
+            <div className="rec-kv">
+              <span>BS giám định</span><span>{r.examinerName || '—'}</span>
+              {r.disabilityPercent != null && (<><span>Tỉ lệ tổn thương</span><b>{r.disabilityPercent}%</b></>)}
+              {r.conclusion && (<><span>Kết luận</span><span>{r.conclusion}</span></>)}
+              {r.approvedBy && (<><span>Người duyệt</span><span>{r.approvedBy} · {fmtDMY(r.approvedAt)}</span></>)}
+            </div>
+          </div>
+          {r.notes && (
+            <div className="rec-section">
+              <h5><TermIcon name="info" size={11} /> GHI CHÚ</h5>
+              <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.notes}</div>
+            </div>
           )}
-        </>}
-      >
-        {sel && <>
-          <DrSec title="Yêu cầu giám định">
-            <DrField lbl="Mã ca"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.caseCode}</span></DrField>
-            <DrField lbl="Loại">{TYPE_LABEL[sel.caseType] || sel.caseType}</DrField>
-            <DrField lbl="Cơ quan YC">{sel.requestingOrganization}</DrField>
-            <DrField lbl="Mục đích">{sel.purpose}</DrField>
-            <DrField lbl="Ngày YC">{dayjs(sel.requestDate).format('DD/MM/YYYY')}</DrField>
-          </DrSec>
-          <DrSec title="Đối tượng">
-            <DrField lbl="Họ tên">{sel.patientName}</DrField>
-            <DrField lbl="Mã BN"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.patientCode}</span></DrField>
-          </DrSec>
-          <DrSec title="Kết quả">
-            {sel.examinerName && <DrField lbl="BS giám định">{sel.examinerName}</DrField>}
-            {sel.disabilityPercent !== undefined && (
-              <DrField lbl="% mất KN">
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600,
-                  color: sel.disabilityPercent >= 81 ? 'var(--a-rd-text)' : sel.disabilityPercent >= 61 ? 'var(--a-or-text)' : undefined }}>
-                  {sel.disabilityPercent}%
-                </span>
-              </DrField>
-            )}
-            {sel.conclusion && <DrField lbl="Kết luận">{sel.conclusion}</DrField>}
-            {sel.approvedBy && (
-              <DrField lbl="Duyệt bởi">{sel.approvedBy} {sel.approvedAt && `(${dayjs(sel.approvedAt).format('DD/MM/YYYY')})`}</DrField>
-            )}
-            <DrField lbl="Trạng thái">
-              <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>
-                {STATUS_TABS.find((x) => x.v === sKey(sel.status))?.l || '—'}
-              </StatusBadge>
-            </DrField>
-            {sel.notes && <DrField lbl="Ghi chú">{sel.notes}</DrField>}
-          </DrSec>
-        </>}
-      </DrawerShell>
-    </div>
+        </>
+      )}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.caseCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${TYPE_LABEL[r.caseType]} · ${r.requestingOrganization}`}
+    />
   );
 };
 

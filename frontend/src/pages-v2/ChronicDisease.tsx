@@ -1,132 +1,137 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
-import { getChronicRecords, getChronicStatistics } from '../api/chronicDisease';
-import type { ChronicRecordDto, ChronicStatisticsDto } from '../api/chronicDisease';
+import { getChronicRecords } from '../api/chronicDisease';
+import type { ChronicRecordDto } from '../api/chronicDisease';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: string }> = {
-  0: { text: 'Đang điều trị', cls: 'cy' },
-  1: { text: 'Cần tái khám', cls: 'warn' },
-  2: { text: 'Đã đóng', cls: 'ok' },
-  3: { text: 'Đã loại', cls: 'ghost' },
+type StatusKey = 'active' | 'followup' | 'closed' | 'removed';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'active',   l: 'Đang điều trị', tone: 'ok' },
+  { v: 'followup', l: 'Cần tái khám',  tone: 'warn' },
+  { v: 'closed',   l: 'Đã đóng',       tone: 'info' },
+  { v: 'removed',  l: 'Đã loại',       tone: 'crit' },
+];
+const statusKey = (s: number): StatusKey => {
+  if (s === 1) return 'followup';
+  if (s === 2) return 'closed';
+  if (s === 3) return 'removed';
+  return 'active';
 };
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const ChronicDiseaseV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<ChronicRecordDto[]>([]);
-  const [stats, setStats] = useState<ChronicStatisticsDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [sel, setSel] = useState<ChronicRecordDto | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r = await getChronicRecords({ keyword });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as ChronicRecordDto[];
-      setItems(list);
-      if (list.length > 0 && !sel) setSel(list[0]);
-      const s = await getChronicStatistics().catch(() => null);
-      setStats(s);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const local = useMemo(() => ({
-    total: items.length,
-    needFollowUp: items.filter((r) => r.status === 1).length,
-    overdue: items.filter((r) => r.nextFollowUpDate && dayjs(r.nextFollowUpDate).isBefore(dayjs(), 'day')).length,
-    closed: items.filter((r) => r.status === 2 || r.status === 3).length,
-  }), [items]);
+  const columns: ColumnDef<ChronicRecordDto>[] = [
+    {
+      key: 'patient', label: 'Bệnh nhân',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode}{r.phoneNumber ? ` · ${r.phoneNumber}` : ''}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'dx', label: 'ICD · Bệnh',
+      render: (r) => (
+        <div className="cell-2l">
+          <b className="mono" style={{ color: 'var(--a-cy)' }}>{r.icdCode}</b>
+          <i>{r.icdName}</i>
+        </div>
+      ),
+    },
+    { key: 'dxDate', label: 'Ngày CĐ', mono: true, width: 100, render: (r) => fmtDMY(r.diagnosisDate) },
+    { key: 'doctor', label: 'BS phụ trách', width: 200, render: (r) => r.doctorName || '—' },
+    { key: 'cycle', label: 'Chu kỳ', mono: true, width: 90, render: (r) => `${r.followUpIntervalDays}d` },
+    {
+      key: 'next', label: 'Tái khám tiếp', mono: true, width: 110,
+      render: (r) => {
+        if (!r.nextFollowUpDate) return '—';
+        const days = dayjs(r.nextFollowUpDate).diff(dayjs(), 'day');
+        const overdue = days < 0;
+        return <span style={{ color: overdue ? 'var(--s-crit)' : days <= 7 ? 'var(--s-warn)' : 'var(--t-1)' }}>{fmtDMY(r.nextFollowUpDate)}</span>;
+      },
+    },
+    {
+      key: 'status', label: 'TT', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.status);
+        return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Bệnh mạn tính · <b>{items.length}</b></span>
-          <div className="actions">
-            <input className="input" style={{ width: 200 }} placeholder="Tìm BN / ICD..." value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load(); }} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/chronic-disease')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có hồ sơ</div> : (
-              <table className="tbl">
-                <thead><tr><th>BN</th><th>ICD</th><th>Tên bệnh</th><th>BS</th><th>Tái khám</th><th>Tần suất</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {items.map((i) => {
-                    const st = STATUS_LABEL[i.status] || { text: '—', cls: 'ghost' };
-                    const overdue = i.nextFollowUpDate && dayjs(i.nextFollowUpDate).isBefore(dayjs(), 'day');
-                    return (
-                      <tr key={i.id} className={sel?.id === i.id ? 'sel' : ''} onClick={() => setSel(i)} style={{ cursor: 'pointer' }}>
-                        <td>
-                          <div style={{ fontWeight: 500 }}>{i.patientName}</div>
-                          <div className="mono" style={{ fontSize: 11, color: 'var(--t-3)' }}>{i.patientCode}</div>
-                        </td>
-                        <td className="mono" style={{ color: 'var(--a-cy)' }}>{i.icdCode}</td>
-                        <td className="muted">{i.icdName}</td>
-                        <td className="muted">{i.doctorName || '—'}</td>
-                        <td className="mono" style={{ color: overdue ? 'var(--s-crit)' : undefined }}>{i.nextFollowUpDate ? dayjs(i.nextFollowUpDate).format('DD/MM/YYYY') : '—'}</td>
-                        <td className="mono">{i.followUpIntervalDays}d</td>
-                        <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng" value={local.total} />
-              <Stat label="Cần tái khám" value={local.needFollowUp} warn />
-              <Stat label="Quá hạn" value={local.overdue} crit />
-              <Stat label="Đã đóng" value={local.closed} ok />
-              {stats && <Stat label="Mới tháng này" value={stats.newThisMonth} cy />}
-            </div>
-          </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Chi tiết HS</span><span className="sub">{sel?.patientName || 'Chọn HS'}</span></div>
-          <div className="panel-body pad">
-            {!sel ? <div className="ph">Chọn hồ sơ</div> : (
-              <div className="stack-sm">
-                <Field label="BN" value={`${sel.patientName} · ${sel.patientCode}`} />
-                <Field label="SĐT" value={sel.phoneNumber || '—'} />
-                <Field label="ICD" value={<><span className="mono" style={{ color: 'var(--a-cy)' }}>{sel.icdCode}</span> {sel.icdName}</>} />
-                <Field label="Ngày chẩn đoán" value={dayjs(sel.diagnosisDate).format('DD/MM/YYYY')} />
-                <Field label="BS phụ trách" value={sel.doctorName || '—'} />
-                <Field label="Khoa" value={sel.departmentName || '—'} />
-                <Field label="Chu kỳ tái khám" value={`${sel.followUpIntervalDays} ngày`} />
-                <Field label="Tái khám tiếp theo" value={sel.nextFollowUpDate ? <span className="mono">{dayjs(sel.nextFollowUpDate).format('DD/MM/YYYY')}</span> : '—'} />
-                {sel.notes && <Field label="Ghi chú" value={sel.notes} />}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    <SimpleV2Page<ChronicRecordDto>
+      title="Bệnh mạn tính"
+      load={async () => (await getChronicRecords({ pageSize: 200 })).items}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm tên BN / mã / ICD / bệnh…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.icdCode} ${r.icdName}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      kpis={(rows) => {
+        const overdue = rows.filter((r) => r.nextFollowUpDate && dayjs(r.nextFollowUpDate).isBefore(dayjs(), 'day')).length;
+        const due7 = rows.filter((r) => r.nextFollowUpDate && dayjs(r.nextFollowUpDate).diff(dayjs(), 'day') <= 7 && dayjs(r.nextFollowUpDate).diff(dayjs(), 'day') >= 0).length;
+        const closed = rows.filter((r) => r.status === 2 || r.status === 3).length;
+        const newThisMonth = rows.filter((r) => dayjs(r.diagnosisDate).isAfter(dayjs().startOf('month'))).length;
+        return [
+          { lbl: 'Tổng HS', val: rows.length, sub: 'tất cả' },
+          { lbl: 'Cần tái khám', val: rows.filter((r) => r.status === 1).length, sub: 'sắp đến', tone: 'warn' },
+          { lbl: 'Quá hạn', val: overdue, sub: 'cần liên hệ', tone: 'crit' },
+          { lbl: '7 ngày tới', val: due7, sub: 'tái khám', tone: 'info' },
+          { lbl: 'Mới tháng', val: newThisMonth, tone: 'ok' },
+          { lbl: 'Đã đóng', val: closed, sub: 'kết thúc' },
+        ];
+      }}
+      drawer={(r) => <ChronicDrawerBody r={r} />}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.icdCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.icdName} · CĐ ${fmtDMY(r.diagnosisDate)}`}
+    />
   );
 };
 
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
+const ChronicDrawerBody: React.FC<{ r: ChronicRecordDto }> = ({ r }) => (
+  <>
+    <div className="rec-section">
+      <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
+      <div className="rec-kv">
+        <span>Họ tên</span><b>{r.patientName}</b>
+        <span>Mã BN</span><span className="mono">{r.patientCode}</span>
+        {r.phoneNumber && (<><span>Điện thoại</span><span className="mono">{r.phoneNumber}</span></>)}
+        {r.dateOfBirth && (<><span>Ngày sinh</span><span>{fmtDMY(r.dateOfBirth)}</span></>)}
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="stethoscope" size={11} /> CHẨN ĐOÁN</h5>
+      <div className="rec-kv">
+        <span>ICD</span><b className="mono" style={{ color: 'var(--a-cy)' }}>{r.icdCode}</b>
+        <span>Tên bệnh</span><span>{r.icdName}</span>
+        <span>Ngày CĐ</span><span>{fmtDMY(r.diagnosisDate)}</span>
+        <span>BS phụ trách</span><span>{r.doctorName || '—'}</span>
+        <span>Khoa</span><span>{r.departmentName || '—'}</span>
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="calendar" size={11} /> THEO DÕI</h5>
+      <div className="rec-kv">
+        <span>Chu kỳ</span><b>{r.followUpIntervalDays} ngày</b>
+        <span>Tái khám tiếp</span><span className="mono">{fmtDMY(r.nextFollowUpDate)}</span>
+      </div>
+    </div>
+    {r.notes && (
+      <div className="rec-section">
+        <h5><TermIcon name="info" size={11} /> GHI CHÚ</h5>
+        <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.notes}</div>
+      </div>
+    )}
+  </>
 );
 
 export default ChronicDiseaseV2;

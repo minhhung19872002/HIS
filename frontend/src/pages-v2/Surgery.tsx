@@ -1,328 +1,228 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as surgeryApi from '../api/surgery';
-import type { OperatingRoomDto, SurgeryScheduleDto, SurgeryScheduleItemDto } from '../api/surgery';
-import './Surgery.css';
+import type { SurgeryDto } from '../api/surgery';
+import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 
-type SlotStat = 'done' | 'running' | 'sched' | 'prep' | 'cleanup' | 'break' | 'cancel';
+/* Phẫu thuật v2 — port of OR v2.html */
 
-const START = 6;
-const END   = 19;
-const SPAN  = END - START;
-
-const pct = (h: number) => ((h - START) / SPAN) * 100;
-const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
-
-// Map backend status (0=Scheduled, 1=InProgress, 2=Completed, 3=Cancelled) to slot CSS class
-const statusToSlotStat = (status: number): SlotStat => {
-  switch (status) {
-    case 1: return 'running';
-    case 2: return 'done';
-    case 3: return 'cancel';
-    default: return 'sched';
-  }
-};
-
-// Map operating room status to UI state (1=Available, 2=InUse, 3=Cleaning, 4=Maintenance/Off)
-const roomStateClass = (status: number, hasRunning: boolean): 'live' | 'ready' | 'clean' | 'off' => {
-  if (status === 4 || status === 0) return 'off';
-  if (hasRunning) return 'live';
-  if (status === 3) return 'clean';
-  return 'ready';
-};
+type StatusKey = 'scheduled' | 'preop' | 'ongoing' | 'recovery' | 'completed' | 'cancelled';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'scheduled', l: 'Đã lên lịch', tone: 'info' },
+  { v: 'preop',     l: 'Tiền phẫu',   tone: 'warn' },
+  { v: 'ongoing',   l: 'Đang mổ',     tone: 'crit' },
+  { v: 'recovery',  l: 'Hồi tỉnh',    tone: 'warn' },
+  { v: 'completed', l: 'Hoàn tất',    tone: 'ok' },
+  { v: 'cancelled', l: 'Hủy',         tone: 'crit' },
+];
+// Backend Status: 0 Pending/Scheduled · 1 Preop · 2 Ongoing · 3 Recovery · 4 Completed · 5 Cancelled
+const statusKey = (s: number): StatusKey =>
+  s === 1 ? 'preop' : s === 2 ? 'ongoing' : s === 3 ? 'recovery' : s === 4 ? 'completed' : s === 5 ? 'cancelled' : 'scheduled';
+const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
 const SurgeryV2: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const [, setSelSlot] = useState<string | null>(null);
-  const [rooms, setRooms]       = useState<OperatingRoomDto[]>([]);
-  const [schedule, setSchedule] = useState<SurgeryScheduleDto[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [date, setDate]         = useState(() => dayjs());
+  // Refresh closure for action buttons (SimpleV2Page passes reload to actions)
+  const [reloadVer, setReloadVer] = useState(0);
 
-  useEffect(() => {
-    setLoading(true);
-    Promise.allSettled([
-      surgeryApi.getOperatingRooms(),
-      surgeryApi.getSurgerySchedule(date.format('YYYY-MM-DD')),
-    ]).then(([r, s]) => {
-      if (r.status === 'fulfilled') setRooms(Array.isArray(r.value.data) ? r.value.data : []);
-      if (s.status === 'fulfilled') setSchedule(Array.isArray(s.value.data) ? s.value.data : []);
-      setLoading(false);
-    });
-  }, [date]);
+  const onCancel = async (r: SurgeryDto, reload: () => void) => {
+    try {
+      await surgeryApi.cancelSurgery(r.id, 'Hủy từ giao diện quản trị');
+      message.warning(`Đã hủy ca · ${r.surgeryCode}`);
+      reload();
+    } catch {
+      message.error('Hủy thất bại');
+    }
+  };
 
-  // Index schedule by operating room id
-  const scheduleByRoom = useMemo(() => {
-    const m = new Map<string, SurgeryScheduleItemDto[]>();
-    schedule.forEach((s) => m.set(s.operatingRoomId, s.surgeries || []));
-    return m;
-  }, [schedule]);
-
-  // Merged room rows with their slots, util, state
-  const roomsWithSlots = useMemo(() => {
-    return rooms.map((r) => {
-      const items = scheduleByRoom.get(r.id) || [];
-      const totalMin = items
-        .filter((it) => it.status !== 3) // exclude cancelled
-        .reduce((a, it) => a + (it.estimatedDuration || 0), 0);
-      const util = Math.min(100, Math.round((totalMin / (SPAN * 60)) * 100));
-      const hasRunning = items.some((it) => it.status === 1);
-      return {
-        ...r,
-        slots: items,
-        util,
-        state: roomStateClass(r.status, hasRunning),
-      };
-    });
-  }, [rooms, scheduleByRoom]);
-
-  // KPIs derived from schedule
-  const kpis = useMemo(() => {
-    const all = schedule.flatMap((s) => s.surgeries || []);
-    const running = all.filter((x) => x.status === 1).length;
-    const done    = all.filter((x) => x.status === 2).length;
-    const planned = all.filter((x) => x.status === 0).length;
-    const cancelled = all.filter((x) => x.status === 3).length;
-    const totalMin = all
-      .filter((x) => x.status !== 3)
-      .reduce((a, x) => a + (x.estimatedDuration || 0), 0);
-    const utilAvg = rooms.length > 0
-      ? Math.round((totalMin / (rooms.length * SPAN * 60)) * 100)
-      : 0;
-    return { running, done, planned, cancelled, utilAvg };
-  }, [schedule, rooms]);
-
-  // Surgeons working today: unique surgeon names from schedule
-  const surgeons = useMemo(() => {
-    const map = new Map<string, { rooms: Set<string>; current?: string; next?: string }>();
-    schedule.forEach((s) => {
-      (s.surgeries || []).forEach((it) => {
-        if (!it.surgeonName) return;
-        const ent = map.get(it.surgeonName) || { rooms: new Set(), current: undefined, next: undefined };
-        ent.rooms.add(s.operatingRoomName);
-        if (it.status === 1 && !ent.current) ent.current = `${s.operatingRoomName} · ${it.surgeryServiceName}`;
-        else if (it.status === 0 && !ent.next) ent.next = `${dayjs(it.scheduledTime).format('HH:mm')} ${it.surgeryServiceName}`;
-        map.set(it.surgeonName, ent);
-      });
-    });
-    return Array.from(map, ([nm, info]) => ({
-      nm,
-      stat: info.current ? 'or' as const : 'free' as const,
-      room: Array.from(info.rooms)[0] || '—',
-      next: info.current || info.next || 'Rảnh',
-    }));
-  }, [schedule]);
-
-  // Anesthesiologists from schedule (may be sparse)
-  const anesthetists = useMemo(() => {
-    const map = new Map<string, { rooms: Set<string>; running: boolean }>();
-    schedule.forEach((s) => {
-      (s.surgeries || []).forEach((it) => {
-        if (!it.anesthesiologistName) return;
-        const ent = map.get(it.anesthesiologistName) || { rooms: new Set(), running: false };
-        ent.rooms.add(s.operatingRoomName);
-        if (it.status === 1) ent.running = true;
-        map.set(it.anesthesiologistName, ent);
-      });
-    });
-    return Array.from(map, ([nm, info]) => ({
-      nm,
-      stat: info.running ? 'or' as const : 'free' as const,
-      room: Array.from(info.rooms)[0] || '—',
-    }));
-  }, [schedule]);
-
-  const nowHour = dayjs().hour() + dayjs().minute() / 60;
+  const columns: ColumnDef<SurgeryDto>[] = [
+    {
+      key: 'time', label: 'Giờ mổ', mono: true, width: 80,
+      render: (r) => <b>{fmtHM(r.scheduledDate || r.startTime)}</b>,
+    },
+    { key: 'code', label: 'Mã CM', mono: true, width: 130, render: (r) => r.surgeryCode },
+    { key: 'room', label: 'Phòng', mono: true, width: 110, render: (r) => r.operatingRoomName || '—' },
+    {
+      key: 'patient', label: 'Bệnh nhân',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.patientName}</b>
+          <i className="mono">{r.patientCode} · {r.gender || '—'}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'proc', label: 'Phẫu thuật',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.surgeryServiceName}</b>
+          <i className="mono">{r.surgeryServiceCode} · {r.surgeryNatureName}</i>
+        </div>
+      ),
+    },
+    { key: 'surgeon', label: 'BS chính', width: 200, render: (r) => r.requestDoctorName || '—' },
+    { key: 'anesth', label: 'GMHS', width: 150, render: (r) => r.anesthesiaTypeName || '—' },
+    {
+      key: 'class', label: 'Loại', mono: true, width: 90,
+      render: (r) => (
+        <span style={{
+          display: 'inline-block', padding: '2px 6px',
+          background: r.surgeryClass === 1 ? 'var(--s-crit-bg, #fee2e2)' : 'var(--d-1)',
+          border: '1px solid var(--line)', borderRadius: 3,
+          fontSize: 11, fontWeight: 600,
+        }}>{r.surgeryClassName || `L${r.surgeryClass}`}</span>
+      ),
+    },
+    {
+      key: 'duration', label: 'Dự kiến', mono: true, width: 80,
+      render: (r) => r.durationMinutes ? `${r.durationMinutes}p` : '—',
+    },
+    {
+      key: 'status', label: 'Trạng thái', width: 130,
+      render: (r) => {
+        const sk = statusKey(r.status);
+        return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div className="or-wrap">
-      {/* ====== TOP KPIs ====== */}
-      <div className="or-top">
-        <div className="or-kpi live">
-          <div className="l">Đang mổ</div>
-          <div className="v"><span className="dot" />{kpis.running}</div>
+    <SimpleV2Page<SurgeryDto>
+      key={reloadVer}
+      title="Ca mổ"
+      load={async () => {
+        const r = await surgeryApi.getSurgeries({
+          fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+          toDate:   dayjs().add(7, 'day').format('YYYY-MM-DD'),
+          pageIndex: 0, pageSize: 200,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return ((r as any)?.data?.items || []) as SurgeryDto[];
+      }}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm BN / mã ca / tên phẫu thuật…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.surgeryCode} ${r.surgeryServiceName}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      pageSize={18}
+      kpis={(rows) => {
+        const today = dayjs().startOf('day');
+        const todayCount = rows.filter((r) => r.scheduledDate && dayjs(r.scheduledDate).isSame(today, 'day')).length;
+        const ongoing = rows.filter((r) => r.status === 2).length;
+        const completed = rows.filter((r) => r.status === 4).length;
+        const cancelled = rows.filter((r) => r.status === 5).length;
+        const emergency = rows.filter((r) => r.surgeryNature === 1).length;
+        const avgDur = rows.filter((r) => r.durationMinutes).length > 0
+          ? Math.round(rows.reduce((s, r) => s + (r.durationMinutes || 0), 0) / rows.filter((r) => r.durationMinutes).length)
+          : 0;
+        return [
+          { lbl: 'Ca hôm nay', val: todayCount, sub: 'lịch mổ', tone: 'info' },
+          { lbl: 'Đang mổ', val: ongoing, sub: 'live', tone: 'crit' },
+          { lbl: 'Hoàn tất', val: completed, sub: 'tuần qua', tone: 'ok' },
+          { lbl: 'Hủy', val: cancelled, tone: 'warn' },
+          { lbl: 'Cấp cứu', val: emergency, tone: 'crit' },
+          { lbl: 'TB mỗi ca', val: avgDur, unit: 'p' },
+        ];
+      }}
+      rowActions={(r, reload) => (
+        <div className="ab-actions">
+          <ActBtn ic="eye" title="Hồ sơ ca mổ" onClick={() => { /* drawer auto-opens via row click */ }} />
+          {r.status !== 5 && r.status !== 4 && (
+            <ActBtn ic="x" title="Hủy ca" onClick={() => { void onCancel(r, reload); setReloadVer((v) => v + 1); }} tone="crit" />
+          )}
         </div>
-        <div className="or-kpi">
-          <div className="l">Trong kế hoạch</div>
-          <div className="v">{kpis.planned}</div>
-        </div>
-        <div className="or-kpi ok">
-          <div className="l">Đã xong</div>
-          <div className="v">{kpis.done}</div>
-        </div>
-        <div className="or-kpi warn">
-          <div className="l">Đã hủy</div>
-          <div className="v">{kpis.cancelled}</div>
-        </div>
-        <div className="or-kpi">
-          <div className="l">Công suất TB</div>
-          <div className="v">{kpis.utilAvg}%</div>
-        </div>
-        <div className="or-kpi">
-          <div className="l">Phòng mổ</div>
-          <div className="v">{rooms.filter((r) => r.isActive).length} / {rooms.length}</div>
-        </div>
-      </div>
-
-      <div className="or-body">
-        {/* ====== DAY BAR ====== */}
-        <div className="or-day-bar">
-          <button onClick={() => setDate(date.subtract(1, 'day'))}>←</button>
-          <div className="date">
-            {date.format('dddd, DD/MM/YYYY')}
-            {date.isSame(dayjs(), 'day') && <small>hôm nay</small>}
-          </div>
-          <button onClick={() => setDate(date.add(1, 'day'))}>→</button>
-          <button onClick={() => setDate(dayjs())}>Hôm nay</button>
-          <div style={{ flex: 1 }} />
-          <div style={{
-            display: 'flex', gap: 14,
-            fontFamily: 'var(--font-mono)', fontSize: 11,
-            color: 'var(--t-2)', letterSpacing: '0.04em',
-          }}>
-            <LegendSw color="#f0fdf4" border="var(--s-ok)"   label="Đã xong" />
-            <LegendSw color="var(--s-crit-bg)" border="var(--s-crit)" label="Đang mổ" />
-            <LegendSw color="var(--a-cy-bg)"   border="var(--a-cy)"   label="Lịch" />
-            <LegendSw color="var(--s-warn-bg)" border="var(--s-warn)" label="Đã hủy" />
-          </div>
-          <button className="p" onClick={() => message.success('✓ Đã mở form đặt lịch mổ')}>+ Đặt mổ mới</button>
-        </div>
-
-        {/* ====== GANTT ====== */}
-        <div className="or-gantt">
-          <div className="or-rooms-col">
-            <div className="or-col-h">Phòng mổ</div>
-            {loading ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                Đang tải...
-              </div>
-            ) : roomsWithSlots.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                Chưa có phòng mổ
-              </div>
-            ) : roomsWithSlots.map((r) => (
-              <div key={r.id} className="or-room-row">
-                <div className="or-room-name">
-                  <span className={'state ' + r.state} />
-                  {r.code}
-                </div>
-                <div className="or-room-spec">{r.specialtyName || r.roomTypeName || r.name}</div>
-                <div className="or-room-util">
-                  {r.state === 'off' ? 'Đóng · bảo trì' : `Sử dụng: ${r.util}%`}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="or-tl-wrap">
-            <div className="or-tl-col-h">
-              {Array.from({ length: SPAN + 1 }, (_, i) => (
-                <div
-                  key={i}
-                  className={'or-tl-tick ' + (Math.floor(nowHour) === START + i ? 'now' : '')}
-                >
-                  {String(START + i).padStart(2, '0')}:00
-                </div>
-              ))}
-            </div>
-            {roomsWithSlots.map((r) => (
-              <div key={r.id} className="or-tl-row">
-                {r.slots.map((s, i) => {
-                  if (!s.scheduledTime) return null;
-                  const start = dayjs(s.scheduledTime);
-                  const startH = start.hour() + start.minute() / 60;
-                  const durH = (s.estimatedDuration || 60) / 60;
-                  if (startH + durH < START || startH > END) return null;
-                  const stat = statusToSlotStat(s.status);
-                  return (
-                    <div
-                      key={i}
-                      className={'or-slot ' + stat}
-                      style={{ left: `${pct(startH)}%`, width: `${(durH / SPAN) * 100}%` }}
-                      onClick={() => {
-                        setSelSlot(`${r.id}-${i}`);
-                        message.info(`${s.surgeryServiceName} · ${s.patientName} · ${s.surgeonName || '—'}`);
-                      }}
-                    >
-                      <div className="t">{hhmm(startH)}–{hhmm(startH + durH)} · {durH.toFixed(1)}h</div>
-                      <div className="op">{s.surgeryServiceName}</div>
-                      {s.patientName && <div className="pt">{s.patientName} · {s.surgeonName || '—'}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-            {date.isSame(dayjs(), 'day') && (
-              <div className="or-now-line" style={{ left: `${pct(nowHour)}%` }} />
-            )}
-          </div>
-        </div>
-
-        {/* ====== SURGEONS + GAS ====== */}
-        <div className="or-surgeons">
-          <div className="or-surgeon-col">
-            <div className="or-surgeon-h">
-              <span>Phẫu thuật viên</span>
-              <span className="n">{surgeons.length} · ca ngày</span>
-            </div>
-            {surgeons.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                Chưa có PTV trong lịch hôm nay
-              </div>
-            ) : surgeons.map((s) => (
-              <div key={s.nm} className="or-surgeon-row">
-                <div className="or-surgeon-avatar">{s.nm.split(' ').slice(-1)[0]?.[0] || '?'}</div>
-                <div>
-                  <div className="or-surgeon-nm">{s.nm}</div>
-                  <div className="or-surgeon-sub">{s.next}</div>
-                </div>
-                <span className={'or-surgeon-stat ' + s.stat}>
-                  {s.stat === 'or' ? '● ' + s.room : 'RẢNH'}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="or-surgeon-col">
-            <div className="or-surgeon-h">
-              <span>Bác sĩ gây mê</span>
-              <span className="n">{anesthetists.length} · ca ngày</span>
-            </div>
-            {anesthetists.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                Chưa có dữ liệu BS gây mê
-              </div>
-            ) : anesthetists.map((s) => (
-              <div key={s.nm} className="or-surgeon-row">
-                <div
-                  className="or-surgeon-avatar"
-                  style={{ background: 'var(--s-mag-bg)', color: 'var(--s-mag)' }}
-                >{s.nm.split(' ').slice(-1)[0]?.[0] || '?'}</div>
-                <div>
-                  <div className="or-surgeon-nm">{s.nm}</div>
-                  <div className="or-surgeon-sub">{s.room}</div>
-                </div>
-                <span className={'or-surgeon-stat ' + s.stat}>
-                  {s.stat === 'or' ? '● ' + s.room : 'RẢNH'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+      )}
+      drawer={(r) => <SurgeryDrawerBody r={r} />}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.surgeryCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.surgeryServiceName} · ${fmtDT(r.scheduledDate)}`}
+    />
   );
 };
 
-const LegendSw: React.FC<{ color: string; border: string; label: string }> = ({ color, border, label }) => (
-  <span>
-    <span style={{
-      display: 'inline-block', width: 12, height: 12,
-      background: color, border: `1px solid ${border}`,
-      borderLeft: `3px solid ${border}`, borderRadius: 2,
-      marginRight: 4, verticalAlign: 'middle',
-    }} />
-    {label}
-  </span>
+const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => (
+  <>
+    <div className="rec-section">
+      <h5><TermIcon name="user" size={11} /> BỆNH NHÂN & CHẨN ĐOÁN</h5>
+      <div className="rec-kv">
+        <span>Họ tên</span><b>{r.patientName}</b>
+        <span>Mã BN / Giới</span><span className="mono">{r.patientCode} · {r.gender || '—'}</span>
+        <span>Hồ sơ</span><span className="mono">{r.medicalRecordCode}</span>
+        {r.preOperativeDiagnosis && (<><span>CĐ trước mổ</span><span>{r.preOperativeDiagnosis} ({r.preOperativeIcdCode || '—'})</span></>)}
+        {r.postOperativeDiagnosis && (<><span>CĐ sau mổ</span><span>{r.postOperativeDiagnosis} ({r.postOperativeIcdCode || '—'})</span></>)}
+      </div>
+    </div>
+    <div className="rec-section">
+      <h5><TermIcon name="activity" size={11} /> PHẪU THUẬT</h5>
+      <div className="rec-kv">
+        <span>Tên phẫu thuật</span><b>{r.surgeryServiceName}</b>
+        <span>Mã DV</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.surgeryServiceCode}</span>
+        <span>Loại / Tính chất</span>
+        <span>
+          <span className="chip info">{r.surgeryClassName}</span>
+          &nbsp;<span className={`chip ${r.surgeryNature === 1 ? 'crit' : 'info'}`}>{r.surgeryNatureName}</span>
+        </span>
+        <span>Phòng / Giờ</span><span>{r.operatingRoomName || '—'} · {fmtDT(r.scheduledDate)}</span>
+        {r.durationMinutes && (<><span>Dự kiến</span><span>{r.durationMinutes} phút</span></>)}
+        <span>Phương pháp vô cảm</span><span>{r.anesthesiaTypeName}</span>
+        {r.surgeryMethod && (<><span>Phương pháp PT</span><span>{r.surgeryMethod}</span></>)}
+      </div>
+    </div>
+    {r.teamMembers && r.teamMembers.length > 0 && (
+      <div className="rec-section">
+        <h5><TermIcon name="users" size={11} /> EKIP PHẪU THUẬT ({r.teamMembers.length})</h5>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {r.teamMembers.map((m, i) => <span key={i} className="chip info">{(m as any).fullName || (m as any).userName || `TV ${i + 1}`}</span>)}
+        </div>
+      </div>
+    )}
+    {(r.startTime || r.endTime) && (
+      <div className="rec-section">
+        <h5><TermIcon name="clock" size={11} /> THỜI GIAN THỰC TẾ</h5>
+        <div className="rec-kv">
+          {r.startTime && (<><span>Bắt đầu</span><span className="mono">{fmtDT(r.startTime)}</span></>)}
+          {r.endTime && (<><span>Kết thúc</span><span className="mono">{fmtDT(r.endTime)}</span></>)}
+          {r.startTime && r.endTime && (
+            <>
+              <span>Thực tế</span>
+              <b>{dayjs(r.endTime).diff(dayjs(r.startTime), 'minute')} phút</b>
+            </>
+          )}
+        </div>
+      </div>
+    )}
+    {(r.description || r.conclusion) && (
+      <div className="rec-section">
+        <h5><TermIcon name="file-text" size={11} /> NỘI DUNG / KẾT LUẬN</h5>
+        {r.description && (<div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 8 }}><b>Mô tả:</b> {r.description}</div>)}
+        {r.conclusion && (<div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}><b>Kết luận:</b> {r.conclusion}</div>)}
+      </div>
+    )}
+    {r.complications && (
+      <div className="rec-section">
+        <h5><TermIcon name="alert" size={11} /> BIẾN CHỨNG</h5>
+        <div style={{ fontSize: 12.5, color: 'var(--s-crit)', whiteSpace: 'pre-wrap' }}>{r.complications}</div>
+      </div>
+    )}
+    <div className="rec-section">
+      <h5><TermIcon name="dollar" size={11} /> CHI PHÍ</h5>
+      <div className="rec-kv">
+        <span>Phí dịch vụ</span><b className="mono">{(r.serviceCost || 0).toLocaleString('vi-VN')} ₫</b>
+        <span>Tiền thuốc</span><b className="mono">{(r.medicineCost || 0).toLocaleString('vi-VN')} ₫</b>
+      </div>
+    </div>
+  </>
 );
 
 export default SurgeryV2;

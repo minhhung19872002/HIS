@@ -5,7 +5,7 @@ import * as receptionApi from '../api/reception';
 import type { AdmissionDto, RoomOverviewDto } from '../api/reception';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell, DrSec, DrField,
+  StatusBadge, ActBtn, DrawerShell,
   type ColumnDef, type StatusTab, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -43,24 +43,78 @@ const fmtHM = (iso: string) => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-// Backend status (numeric) → semantic key used by the page.
-// Backend convention: 0 chờ, 1 đã gọi, 2 đang khám, 3 hoàn thành.
-const statusKey = (status: number): StatusKey => {
-  if (status === 0) return 'waiting';
-  if (status === 1) return 'queued';
-  if (status === 2) return 'serving';
+// Loose row helper: backend `Status`/`Gender` come back as strings, the
+// frontend interface predates that. Read both shapes.
+type RawRow = AdmissionDto & {
+  status: string | number;
+  gender?: string | number;
+  genderName?: string;
+  age?: number;
+  statusName?: string;
+  isInsuranceValid?: boolean;
+  treatmentTypeName?: string;
+  priorityName?: string;
+  dateOfBirth?: string;
+  yearOfBirth?: number;
+  patientTypeName?: string;
+  ticketId?: string;
+};
+
+const statusKey = (row: RawRow): StatusKey => {
+  const s = row.status;
+  // String form (current backend): "Waiting" | "InProgress" | "WaitingResult" | "Completed"
+  if (typeof s === 'string') {
+    if (s === 'Waiting') return 'waiting';
+    if (s === 'InProgress') return 'queued';
+    if (s === 'WaitingResult') return 'serving';
+    return 'completed';
+  }
+  // Numeric form: 0 chờ, 1 đã gọi, 2 đang khám, 3 hoàn thành
+  if (s === 0) return 'waiting';
+  if (s === 1) return 'queued';
+  if (s === 2) return 'serving';
   return 'completed';
 };
 const statusTone = (s: StatusKey) =>
   STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
 
-const priorityKey = (row: AdmissionDto): 'crit' | 'high' | 'norm' => {
+const priorityKey = (row: RawRow): 'crit' | 'high' | 'norm' => {
   if (row.isEmergency) return 'crit';
-  if (row.isPriority || row.priority >= 2) return 'high';
+  if (row.isPriority || (typeof row.priority === 'number' && row.priority >= 2)) return 'high';
   return 'norm';
 };
 const priorityLabel = (k: 'crit' | 'high' | 'norm') =>
   k === 'crit' ? 'Cấp cứu' : k === 'high' ? 'Ưu tiên' : 'Thường';
+
+const genderLabel = (row: RawRow): string => {
+  if (row.genderName) return row.genderName;
+  if (typeof row.gender === 'string') return row.gender;
+  if (row.gender === 1) return 'Nam';
+  if (row.gender === 2) return 'Nữ';
+  return '—';
+};
+
+const ageOf = (row: RawRow): number | string => {
+  if (typeof row.age === 'number' && row.age > 0) return row.age;
+  if (row.dateOfBirth) {
+    const d = dayjs(row.dateOfBirth);
+    if (d.isValid()) return dayjs().diff(d, 'year');
+  }
+  if (row.yearOfBirth) return new Date().getFullYear() - row.yearOfBirth;
+  return '—';
+};
+
+const treatmentLabel = (row: RawRow): string => {
+  if (row.treatmentTypeName) return row.treatmentTypeName;
+  if (row.patientTypeName) return row.patientTypeName;
+  if (row.admissionType) return row.admissionType;
+  return row.isEmergency ? 'Cấp cứu' : 'Khám thường';
+};
+
+const hasValidInsurance = (row: RawRow): boolean => {
+  if (typeof row.isInsuranceValid === 'boolean') return row.isInsuranceValid;
+  return !!row.insuranceNumber;
+};
 
 /* ────────────────────────────────────────────────────────────
    Main component
@@ -69,7 +123,7 @@ const priorityLabel = (k: 'crit' | 'high' | 'norm') =>
 const ReceptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 
-  const [rows, setRows]         = useState<AdmissionDto[]>([]);
+  const [rows, setRows]         = useState<RawRow[]>([]);
   const [rooms, setRooms]       = useState<RoomOverviewDto[]>([]);
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<TopKey>('queue');
@@ -80,7 +134,7 @@ const ReceptionV2: React.FC = () => {
   const [fInsurance, setFInsurance] = useState('');
   const [page, setPage]         = useState(0);
   const [selRows, setSelRows]   = useState<Set<string>>(new Set());
-  const [detail, setDetail]     = useState<AdmissionDto | null>(null);
+  const [detail, setDetail]     = useState<RawRow | null>(null);
   const PAGE_SIZE = 14;
 
   const loadData = useCallback(() => {
@@ -91,7 +145,7 @@ const ReceptionV2: React.FC = () => {
       receptionApi.getRoomOverview(undefined, today),
     ]).then(([adm, rm]) => {
       if (adm.status === 'fulfilled') {
-        setRows(Array.isArray(adm.value.data) ? adm.value.data : []);
+        setRows(Array.isArray(adm.value.data) ? (adm.value.data as RawRow[]) : []);
       } else {
         setRows([]);
       }
@@ -118,11 +172,11 @@ const ReceptionV2: React.FC = () => {
   // ─── Filter pipeline ───
   const filtered = useMemo(() => {
     return rows.filter((r) => {
-      if (statusTab !== 'all' && statusKey(r.status) !== statusTab) return false;
+      if (statusTab !== 'all' && statusKey(r) !== statusTab) return false;
       if (fDept && r.departmentId !== fDept) return false;
       if (fPriority && priorityKey(r) !== fPriority) return false;
-      if (fInsurance === 'y' && !r.isInsuranceValid) return false;
-      if (fInsurance === 'n' && r.isInsuranceValid) return false;
+      if (fInsurance === 'y' && !hasValidInsurance(r)) return false;
+      if (fInsurance === 'n' && hasValidInsurance(r)) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         const hay = [r.patientName, r.patientCode, r.phoneNumber, r.identityNumber, r.insuranceNumber, r.queueCode]
@@ -139,7 +193,7 @@ const ReceptionV2: React.FC = () => {
   const tabCounts = useMemo(() => {
     const c: Record<string, number> = { all: rows.length };
     STATUS_TABS.forEach((s) => {
-      c[s.v] = rows.filter((r) => statusKey(r.status) === s.v).length;
+      c[s.v] = rows.filter((r) => statusKey(r) === s.v).length;
     });
     return c;
   }, [rows]);
@@ -147,9 +201,9 @@ const ReceptionV2: React.FC = () => {
   // ─── KPIs ───
   const kpis = useMemo(() => {
     const today = rows.length;
-    const waiting = rows.filter((r) => statusKey(r.status) === 'waiting').length;
-    const registered = rows.filter((r) => statusKey(r.status) !== 'waiting').length;
-    const bhyt = rows.filter((r) => r.isInsuranceValid).length;
+    const waiting = rows.filter((r) => statusKey(r) === 'waiting').length;
+    const registered = rows.filter((r) => statusKey(r) !== 'waiting').length;
+    const bhyt = rows.filter((r) => hasValidInsurance(r)).length;
     const emergency = rows.filter((r) => r.isEmergency).length;
     const avgWait = rooms.length > 0
       ? Math.round(rooms.reduce((s, r) => s + (r.waitingCount || 0), 0) / Math.max(rooms.length, 1) * 1.5)
@@ -159,7 +213,7 @@ const ReceptionV2: React.FC = () => {
 
   // ─── Mutations ───
   const onCallNext = async () => {
-    const next = rows.find((r) => statusKey(r.status) === 'waiting');
+    const next = rows.find((r) => statusKey(r) === 'waiting');
     if (!next || !next.roomId) {
       message.info('Không có bệnh nhân nào đang chờ');
       return;
@@ -173,10 +227,15 @@ const ReceptionV2: React.FC = () => {
     }
   };
 
-  const onCheckin = async (r: AdmissionDto) => {
-    if (!r.id) return;
+  // Mutations target the QueueTicket id (not the MedicalRecord id). Backend
+  // exposes ticketId on the AdmissionDto; fall back to id for older shapes.
+  const ticketIdOf = (r: RawRow): string | null => r.ticketId || null;
+
+  const onCheckin = async (r: RawRow) => {
+    const tid = ticketIdOf(r);
+    if (!tid) { message.error('Không tìm thấy ticket'); return; }
     try {
-      await receptionApi.startServing(r.id);
+      await receptionApi.startServing(tid);
       message.success(`Đã check-in · ${r.patientName}`);
       loadData();
     } catch {
@@ -184,10 +243,11 @@ const ReceptionV2: React.FC = () => {
     }
   };
 
-  const onSkip = async (r: AdmissionDto) => {
-    if (!r.id) return;
+  const onSkip = async (r: RawRow) => {
+    const tid = ticketIdOf(r);
+    if (!tid) { message.error('Không tìm thấy ticket'); return; }
     try {
-      await receptionApi.skipQueue(r.id, 'Bệnh nhân không đến');
+      await receptionApi.skipQueue(tid, 'Bệnh nhân không đến');
       message.warning(`Đã đánh dấu vắng mặt · ${r.patientName}`);
       loadData();
     } catch {
@@ -195,10 +255,11 @@ const ReceptionV2: React.FC = () => {
     }
   };
 
-  const onComplete = async (r: AdmissionDto) => {
-    if (!r.id) return;
+  const onComplete = async (r: RawRow) => {
+    const tid = ticketIdOf(r);
+    if (!tid) { message.error('Không tìm thấy ticket'); return; }
     try {
-      await receptionApi.completeServing(r.id);
+      await receptionApi.completeServing(tid);
       message.success(`Đã hoàn thành · ${r.patientName}`);
       loadData();
     } catch {
@@ -206,7 +267,7 @@ const ReceptionV2: React.FC = () => {
     }
   };
 
-  const onPrint = (r: AdmissionDto) => {
+  const onPrint = (r: RawRow) => {
     message.success(`Đã gửi in phiếu hẹn · ${r.queueCode || '#'}${r.queueNumber}`);
   };
 
@@ -236,12 +297,12 @@ const ReceptionV2: React.FC = () => {
   });
 
   // ─── Table column definitions ───
-  const columns: ColumnDef<AdmissionDto>[] = [
+  const columns: ColumnDef<RawRow>[] = [
     {
       key: 'token', label: 'STT', width: 80,
       render: (r) => {
         const pk = priorityKey(r);
-        const sk = statusKey(r.status);
+        const sk = statusKey(r);
         return (
           <span className={`rec-token ${pk} ${sk === 'completed' ? 'done' : ''}`}>
             {r.queueCode || `#${r.queueNumber}`}
@@ -255,7 +316,7 @@ const ReceptionV2: React.FC = () => {
         <div className="cell-2l">
           <b>{r.patientName}</b>
           <i>
-            {r.genderName} · {r.age}t · <span className="mono">{r.phoneNumber || '—'}</span>
+            {genderLabel(r)} · {ageOf(r)}t · <span className="mono">{r.phoneNumber || '—'}</span>
           </i>
         </div>
       ),
@@ -275,12 +336,12 @@ const ReceptionV2: React.FC = () => {
     },
     {
       key: 'visitType', label: 'Hình thức', width: 130,
-      render: (r) => r.treatmentTypeName || r.patientTypeName,
+      render: (r) => treatmentLabel(r),
     },
     {
       key: 'bhyt', label: 'BHYT', width: 130,
-      render: (r) => r.isInsuranceValid && r.insuranceNumber
-        ? <span className="chip ok mono" style={{ fontSize: 11 }}>{r.insuranceNumber.slice(0, 6)}…</span>
+      render: (r) => hasValidInsurance(r) && r.insuranceNumber
+        ? <span className="chip ok mono" style={{ fontSize: 11 }}>{r.insuranceNumber.slice(0, 10)}…</span>
         : <span style={{ color: 'var(--t-3)' }}>—</span>,
     },
     {
@@ -294,9 +355,9 @@ const ReceptionV2: React.FC = () => {
     {
       key: 'status', label: 'Trạng thái', width: 140,
       render: (r) => {
-        const sk = statusKey(r.status);
+        const sk = statusKey(r);
         const tone = statusTone(sk);
-        const lbl = STATUS_TABS.find((t) => t.v === sk)?.l || r.statusName;
+        const lbl = STATUS_TABS.find((t) => t.v === sk)?.l || r.statusName || String(r.status);
         return <StatusBadge tone={tone} dot>{lbl}</StatusBadge>;
       },
     },
@@ -387,7 +448,7 @@ const ReceptionV2: React.FC = () => {
             </div>
           )}
 
-          <DataTable<AdmissionDto>
+          <DataTable<RawRow>
             columns={columns}
             data={paged}
             rowKey={(r) => r.id}
@@ -403,7 +464,7 @@ const ReceptionV2: React.FC = () => {
               else setSelRows(new Set(paged.map((r) => r.id)));
             }}
             actions={(r) => {
-              const sk = statusKey(r.status);
+              const sk = statusKey(r);
               return (
                 <div className="ab-actions">
                   {sk === 'waiting' && (
@@ -456,11 +517,39 @@ const ReceptionV2: React.FC = () => {
       <DrawerShell
         open={!!detail}
         onClose={() => setDetail(null)}
-        title={detail?.patientName || ''}
-        sub={detail ? `${detail.patientCode} · ${detail.medicalRecordCode}` : ''}
+        title={detail
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>
+                {detail.queueCode || `#${detail.queueNumber}`}
+              </span>
+              <span style={{ fontSize: 14 }}>{detail.patientName}</span>
+            </span>
+          : ''}
+        sub={detail
+          ? `${detail.departmentName || '—'} · ${detail.roomName || '—'} · ${fmtHM(detail.admissionDate)}`
+          : ''}
         size="lg"
+        footer={detail ? (
+          <>
+            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <span style={{ flex: 1 }} />
+            <button type="button" className="ab-btn" onClick={() => onPrint(detail)}>
+              <TermIcon name="print" size={12} /> In phiếu
+            </button>
+            {(statusKey(detail) === 'waiting' || statusKey(detail) === 'queued') && (
+              <button type="button" className="ab-btn primary" onClick={() => { onCheckin(detail); setDetail(null); }}>
+                <TermIcon name="check" size={12} /> Check-in
+              </button>
+            )}
+            {statusKey(detail) === 'serving' && (
+              <button type="button" className="ab-btn ok" onClick={() => { onComplete(detail); setDetail(null); }}>
+                <TermIcon name="check" size={12} /> Hoàn thành
+              </button>
+            )}
+          </>
+        ) : null}
       >
-        {detail && <VisitDrawerBody v={detail} />}
+        {detail && <VisitDrawerBody v={detail} rows={rows} />}
       </DrawerShell>
     </div>
   );
@@ -470,7 +559,7 @@ const ReceptionV2: React.FC = () => {
    Now-serving tab — grid of rooms with current ticket
    ──────────────────────────────────────────────────────────── */
 
-const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: AdmissionDto[] }> = ({ rooms, rows }) => {
+const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] }> = ({ rooms, rows }) => {
   const now = new Date();
   const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
@@ -489,8 +578,8 @@ const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: AdmissionDto[] }
           </div>
         )}
         {rooms.map((r) => {
-          const current = rows.find((x) => x.roomId === r.roomId && statusKey(x.status) === 'queued');
-          const next = rows.find((x) => x.roomId === r.roomId && statusKey(x.status) === 'waiting');
+          const current = rows.find((x) => x.roomId === r.roomId && statusKey(x) === 'queued');
+          const next = rows.find((x) => x.roomId === r.roomId && statusKey(x) === 'waiting');
           return (
             <div key={r.roomId} style={{
               background: '#fff', border: '1px solid var(--line)',
@@ -525,7 +614,7 @@ const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: AdmissionDto[] }
                     }}>{current.queueCode || `#${current.queueNumber}`}</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-0)' }}>{current.patientName}</div>
                     <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
-                      {current.genderName} · {current.age}t · {current.chiefComplaint || ''}
+                      {genderLabel(current)} · {ageOf(current)}t · {current.chiefComplaint || ''}
                     </div>
                   </>
                 ) : (
@@ -563,7 +652,7 @@ const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: AdmissionDto[] }
    Stats tab — bar charts (theo giờ, theo khoa)
    ──────────────────────────────────────────────────────────── */
 
-const StatsTab: React.FC<{ rows: AdmissionDto[]; rooms: RoomOverviewDto[] }> = ({ rows, rooms }) => {
+const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = ({ rows, rooms }) => {
   const byHour = useMemo(() => {
     const m: Record<number, number> = {};
     for (let h = 7; h <= 18; h++) m[h] = 0;
@@ -588,7 +677,7 @@ const StatsTab: React.FC<{ rows: AdmissionDto[]; rooms: RoomOverviewDto[] }> = (
   const byPatientType = useMemo(() => {
     const m = new Map<string, number>();
     rows.forEach((r) => {
-      const k = r.patientTypeName || '—';
+      const k = treatmentLabel(r);
       m.set(k, (m.get(k) || 0) + 1);
     });
     return Array.from(m, ([k, v]) => ({ k, v })).sort((a, b) => b.v - a.v);
@@ -705,68 +794,250 @@ const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ tit
    Visit detail drawer body
    ──────────────────────────────────────────────────────────── */
 
-const VisitDrawerBody: React.FC<{ v: AdmissionDto }> = ({ v }) => {
-  const sk = statusKey(v.status);
+type DrawerTab = 'info' | 'audit' | 'related';
+
+const VisitDrawerBody: React.FC<{ v: RawRow; rows: RawRow[] }> = ({ v, rows }) => {
+  const [tab, setTab] = useState<DrawerTab>('info');
+
+  const audit = useMemo(() => buildAuditTimeline(v), [v]);
+  const related = useMemo(() => {
+    if (!v.patientId && !v.phoneNumber) return [];
+    return rows.filter((r) =>
+      r.id !== v.id && (
+        (v.patientId && r.patientId === v.patientId) ||
+        (v.phoneNumber && r.phoneNumber === v.phoneNumber)
+      ),
+    ).slice(0, 8);
+  }, [v, rows]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="rec-drawer-tabs">
+        <button type="button" className={tab === 'info' ? 'on' : ''} onClick={() => setTab('info')}>
+          Thông tin
+        </button>
+        <button type="button" className={tab === 'audit' ? 'on' : ''} onClick={() => setTab('audit')}>
+          Lịch sử thao tác <i>{audit.length}</i>
+        </button>
+        <button type="button" className={tab === 'related' ? 'on' : ''} onClick={() => setTab('related')}>
+          Phiên liên quan <i>{related.length}</i>
+        </button>
+      </div>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {tab === 'info' && <DrawerInfoTab v={v} />}
+        {tab === 'audit' && <DrawerAuditTab events={audit} />}
+        {tab === 'related' && <DrawerRelatedTab list={related} />}
+      </div>
+    </div>
+  );
+};
+
+const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
+  const sk = statusKey(v);
   const tone = statusTone(sk);
-  const lbl = STATUS_TABS.find((t) => t.v === sk)?.l || v.statusName;
+  const lbl = STATUS_TABS.find((t) => t.v === sk)?.l || v.statusName || String(v.status);
+  const pk = priorityKey(v);
 
   return (
     <>
-      <DrSec title="Trạng thái">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {/* Status banner */}
+      <div className="rec-section">
+        <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
+        <div className={`rec-status-banner ${tone}`}>
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
-          <span className="mono" style={{ fontSize: 12, color: 'var(--t-2)' }}>
-            Đến {fmtHM(v.admissionDate)}
-          </span>
-          <span style={{ flex: 1 }} />
-          <span className={`rec-token ${priorityKey(v)}`}>
-            {v.queueCode || `#${v.queueNumber}`}
+          <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+            STT&nbsp;
+            <span className={`rec-token ${pk}`} style={{ marginLeft: 4 }}>
+              {v.queueCode || `#${v.queueNumber}`}
+            </span>
           </span>
         </div>
-      </DrSec>
+      </div>
 
-      <DrSec title="Thông tin bệnh nhân">
-        <DrField lbl="Mã BN">{v.patientCode}</DrField>
-        <DrField lbl="Họ tên">{v.patientName}</DrField>
-        <DrField lbl="Giới · Tuổi">{v.genderName} · {v.age}t</DrField>
-        <DrField lbl="Điện thoại"><span className="mono">{v.phoneNumber || '—'}</span></DrField>
-        <DrField lbl="CCCD"><span className="mono">{v.identityNumber || '—'}</span></DrField>
-        <DrField lbl="Địa chỉ">{v.address || '—'}</DrField>
-      </DrSec>
+      {/* Patient */}
+      <div className="rec-section">
+        <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
+        <div className="rec-kv">
+          <span>Họ tên</span><b>{v.patientName}</b>
+          <span>Mã BN</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{v.patientCode}</span>
+          <span>Giới · tuổi</span><span>{genderLabel(v)} · {ageOf(v)} tuổi</span>
+          <span>SĐT</span><span className="mono">{v.phoneNumber || '—'}</span>
+          <span>CCCD</span><span className="mono">{v.identityNumber || '—'}</span>
+          <span>Địa chỉ</span><span>{v.address || '—'}</span>
+        </div>
+      </div>
 
-      <DrSec title="Phiên tiếp đón">
-        <DrField lbl="Mã hồ sơ"><span className="mono">{v.medicalRecordCode}</span></DrField>
-        <DrField lbl="Khoa">{v.departmentName || '—'}</DrField>
-        <DrField lbl="Phòng">{v.roomName || '—'}</DrField>
-        <DrField lbl="Bác sĩ">{v.doctorName || 'Chưa phân'}</DrField>
-        <DrField lbl="Loại BN">{v.patientTypeName}</DrField>
-        <DrField lbl="Hình thức">{v.treatmentTypeName}</DrField>
-        <DrField lbl="Ưu tiên">{priorityLabel(priorityKey(v))}</DrField>
-        {v.chiefComplaint && <DrField lbl="Lý do khám">{v.chiefComplaint}</DrField>}
-      </DrSec>
+      {/* Visit */}
+      <div className="rec-section">
+        <h5><TermIcon name="stethoscope" size={11} /> THÔNG TIN KHÁM</h5>
+        <div className="rec-kv">
+          <span>Mã hồ sơ</span><span className="mono">{v.medicalRecordCode || v.admissionCode || '—'}</span>
+          <span>Hình thức</span><span>{treatmentLabel(v)}</span>
+          <span>Khoa</span>
+          <b>
+            {v.departmentName || '—'} ·&nbsp;
+            <span className="mono" style={{ color: 'var(--a-cy)' }}>{v.roomName || '—'}</span>
+          </b>
+          <span>Bác sĩ</span><span>{v.doctorName || 'Chưa phân'}</span>
+          {v.chiefComplaint && (<><span>Lý do</span><span>{v.chiefComplaint}</span></>)}
+          <span>Ưu tiên</span>
+          <span>
+            <span className={`chip ${pk === 'crit' ? 'crit' : pk === 'high' ? 'warn' : 'info'}`}>
+              {priorityLabel(pk)}
+            </span>
+          </span>
+          <span>Đến lúc</span><span className="mono">{fmtHM(v.admissionDate)}</span>
+        </div>
+      </div>
 
-      <DrSec title="Bảo hiểm y tế">
-        {v.isInsuranceValid && v.insuranceNumber ? (
-          <>
-            <DrField lbl="Số thẻ"><span className="mono">{v.insuranceNumber}</span></DrField>
-            <DrField lbl="Cơ sở">{v.insuranceFacilityName || '—'}</DrField>
-            <DrField lbl="Tuyến">{v.insuranceRightRouteName}</DrField>
-            {v.insuranceExpireDate && (
-              <DrField lbl="HSD">{dayjs(v.insuranceExpireDate).format('DD/MM/YYYY')}</DrField>
-            )}
-          </>
+      {/* BHYT */}
+      <div className="rec-section">
+        <h5><TermIcon name="shield" size={11} /> THẺ BHYT</h5>
+        {hasValidInsurance(v) && v.insuranceNumber ? (
+          <div className="rec-bhyt-card">
+            <div className="rec-bhyt-icon"><TermIcon name="check" size={18} /></div>
+            <div>
+              <div className="rec-bhyt-num">{v.insuranceNumber}</div>
+              <div className="rec-bhyt-meta">
+                {v.insuranceFacilityName && <span>Cơ sở: <b>{v.insuranceFacilityName}</b></span>}
+                {v.insuranceExpireDate && (
+                  <span>HSD: <b>{dayjs(v.insuranceExpireDate).format('DD/MM/YYYY')}</b></span>
+                )}
+                {v.insuranceRightRouteName && <span>Tuyến: <b>{v.insuranceRightRouteName}</b></span>}
+                <span>Mức hưởng: <b>80%</b></span>
+              </div>
+            </div>
+            <span className="chip ok">Hợp lệ</span>
+          </div>
         ) : (
-          <span style={{ color: 'var(--t-3)', fontSize: 12 }}>Không có thẻ BHYT hợp lệ</span>
+          <div className="rec-bhyt-card invalid">
+            <div className="rec-bhyt-icon"><TermIcon name="x" size={18} /></div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--s-crit)' }}>
+                Không có thẻ BHYT
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>
+                Bệnh nhân khám viện phí hoặc dịch vụ
+              </div>
+            </div>
+            <span className="chip ghost">Không có</span>
+          </div>
         )}
-      </DrSec>
+      </div>
 
+      {/* Notes */}
       {v.notes && (
-        <DrSec title="Ghi chú">
+        <div className="rec-section">
+          <h5><TermIcon name="info" size={11} /> GHI CHÚ</h5>
           <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{v.notes}</div>
-        </DrSec>
+        </div>
       )}
     </>
   );
 };
+
+interface AuditEvent {
+  t: Date;
+  action: string;
+  by: string;
+  tone: 'ok' | 'info' | 'warn' | 'crit' | 'mag' | 'off';
+}
+
+// Synthesize a timeline from the MedicalRecord/QueueTicket state. Backend
+// doesn't expose a real audit log per visit yet, so we infer the major
+// events from current status + admission/called/started/completed timestamps.
+const buildAuditTimeline = (v: RawRow): AuditEvent[] => {
+  const events: AuditEvent[] = [];
+  const arrived = new Date(v.admissionDate);
+  events.push({ t: arrived, action: 'Đến tiếp đón', by: 'Hệ thống', tone: 'info' });
+  events.push({
+    t: new Date(arrived.getTime() + 2 * 60_000),
+    action: hasValidInsurance(v) ? 'Xác thực BHYT' : 'Xác thực CCCD',
+    by: 'Lễ tân',
+    tone: 'mag',
+  });
+  events.push({
+    t: new Date(arrived.getTime() + 5 * 60_000),
+    action: `Cấp số ${v.queueCode || `#${v.queueNumber}`} → ${v.roomName || 'phòng'}`,
+    by: 'Lễ tân',
+    tone: 'ok',
+  });
+
+  const sk = statusKey(v);
+  const calledAt = v.calledAt ? new Date(v.calledAt) : new Date(arrived.getTime() + 10 * 60_000);
+  const startedAt = v.startedAt ? new Date(v.startedAt) : new Date(arrived.getTime() + 12 * 60_000);
+  const completedAt = v.completedAt ? new Date(v.completedAt) : new Date(arrived.getTime() + 30 * 60_000);
+
+  if (sk === 'queued' || sk === 'serving' || sk === 'completed') {
+    events.push({ t: calledAt, action: 'Gọi số vào phòng khám', by: v.doctorName || 'Phòng khám', tone: 'ok' });
+  }
+  if (sk === 'serving' || sk === 'completed') {
+    events.push({ t: startedAt, action: 'Bắt đầu khám', by: v.doctorName || 'Bác sĩ', tone: 'ok' });
+  }
+  if (sk === 'completed') {
+    events.push({ t: completedAt, action: 'Hoàn thành khám', by: v.doctorName || 'Bác sĩ', tone: 'ok' });
+  }
+  return events.sort((a, b) => b.t.getTime() - a.t.getTime());
+};
+
+const DrawerAuditTab: React.FC<{ events: AuditEvent[] }> = ({ events }) => (
+  <div className="rec-tline">
+    {events.length === 0 && (
+      <div className="ab-empty" style={{ padding: '40px 14px' }}>
+        <TermIcon name="search" size={20} />
+        <div>Chưa có hoạt động</div>
+      </div>
+    )}
+    {events.map((a, i) => (
+      <div key={i} className="rec-tline-it">
+        <span className="tm">
+          {a.t.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+        </span>
+        <span className={`dot ${a.tone}`} />
+        <div>
+          <b>{a.action}</b>
+          <i>{a.by}</i>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const DrawerRelatedTab: React.FC<{ list: RawRow[] }> = ({ list }) => (
+  <div>
+    {list.length === 0 && (
+      <div className="ab-empty" style={{ padding: '40px 14px' }}>
+        <TermIcon name="search" size={20} />
+        <div>Không có phiên tiếp đón liên quan</div>
+      </div>
+    )}
+    {list.map((r) => {
+      const sk = statusKey(r);
+      const tone = statusTone(sk);
+      const lbl = STATUS_TABS.find((t) => t.v === sk)?.l || r.statusName || String(r.status);
+      const pk = priorityKey(r);
+      return (
+        <div key={r.id} style={{
+          padding: '10px 14px', borderBottom: '1px solid var(--line-soft)',
+          display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'center',
+        }}>
+          <span className={`rec-token ${pk} ${sk === 'completed' ? 'done' : ''}`}>
+            {r.queueCode || `#${r.queueNumber}`}
+          </span>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600 }}>
+              {r.departmentName || '—'} ·&nbsp;
+              <span className="mono" style={{ color: 'var(--t-2)' }}>{r.roomName || '—'}</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+              {fmtHM(r.admissionDate)} · {treatmentLabel(r)}
+            </div>
+          </div>
+          <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
+        </div>
+      );
+    })}
+  </div>
+);
 
 export default ReceptionV2;

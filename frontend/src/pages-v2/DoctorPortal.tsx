@@ -1,132 +1,125 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import { searchExaminations } from '../api/examination';
 import type { ExaminationDto } from '../api/examination';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: string }> = {
-  0: { text: 'Chờ khám', cls: 'warn' },
-  1: { text: 'Đang khám', cls: 'cy' },
-  2: { text: 'Chờ CLS', cls: 'warn' },
-  3: { text: 'Chờ kết luận', cls: 'cy' },
-  4: { text: 'Hoàn tất', cls: 'ok' },
-};
+type StatusKey = 'waiting' | 'inProgress' | 'waitingResult' | 'concluding' | 'completed';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'waiting',       l: 'Chờ khám',     tone: 'info' },
+  { v: 'inProgress',    l: 'Đang khám',    tone: 'warn' },
+  { v: 'waitingResult', l: 'Chờ CLS',      tone: 'warn' },
+  { v: 'concluding',    l: 'Chờ kết luận', tone: 'warn' },
+  { v: 'completed',     l: 'Hoàn tất',     tone: 'ok' },
+];
+const statusKey = (s: number): StatusKey =>
+  s === 1 ? 'inProgress' : s === 2 ? 'waitingResult' : s === 3 ? 'concluding' : s === 4 ? 'completed' : 'waiting';
+const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const DoctorPortalV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<ExaminationDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [sel, setSel] = useState<ExaminationDto | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r = await searchExaminations({
-        keyword: keyword || '',
-        fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
-        toDate: dayjs().add(1, 'day').format('YYYY-MM-DD'),
-        status: '',
-        pageIndex: 1, pageSize: 100,
-      });
-      const list = (r.data?.items || []) as ExaminationDto[];
-      setItems(list);
-      if (list.length > 0 && !sel) setSel(list[0]);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const stats = useMemo(() => ({
-    today: items.filter((e) => dayjs(e.examinationDate).isSame(dayjs(), 'day')).length,
-    waiting: items.filter((e) => e.status === 0).length,
-    inProgress: items.filter((e) => e.status === 1).length,
-    done: items.filter((e) => e.status === 4).length,
-  }), [items]);
+  const columns: ColumnDef<ExaminationDto>[] = [
+    { key: 'queue', label: 'STT', mono: true, width: 80, render: (r) =>
+      <span className="chip cy">{r.queueNumber}</span>
+    },
+    { key: 'patient', label: 'Bệnh nhân', render: (r) => (
+      <div className="cell-2l">
+        <b>{r.patientName}</b>
+        <i className="mono">{r.patientCode}</i>
+      </div>
+    )},
+    { key: 'room', label: 'Phòng khám', render: (r) => r.roomName || '—' },
+    { key: 'time', label: 'Giờ khám', mono: true, width: 100, render: (r) => fmtHM(r.examinationDate) },
+    { key: 'date', label: 'Ngày', mono: true, width: 100, render: (r) => fmtDMY(r.examinationDate) },
+    { key: 'doctor', label: 'Bác sĩ', width: 200, render: (r) => r.doctorName || 'Chưa phân' },
+    { key: 'dx', label: 'Chẩn đoán', render: (r) =>
+      r.diagnosisName ? (
+        <div className="cell-2l">
+          <b>{r.diagnosisName}</b>
+          <i className="mono">{r.diagnosisCode}</i>
+        </div>
+      ) : <span style={{ color: 'var(--t-3)' }}>Chưa CĐ</span>
+    },
+    { key: 'status', label: 'TT', width: 130, render: (r) => {
+      const sk = statusKey(r.status);
+      return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+    }},
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Cổng bác sĩ · <b>{items.length}</b></span>
-          <div className="actions">
-            <input className="input" style={{ width: 200 }} placeholder="Tìm BN..." value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load(); }} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/doctor-portal')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có ca khám</div> : (
-              <table className="tbl">
-                <thead><tr><th>BN</th><th>Phòng</th><th>BS</th><th>Chẩn đoán</th><th>Giờ khám</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {items.map((e) => {
-                    const st = STATUS_LABEL[e.status] || { text: '—', cls: 'ghost' };
-                    return (
-                      <tr key={e.id} className={sel?.id === e.id ? 'sel' : ''} onClick={() => setSel(e)} style={{ cursor: 'pointer' }}>
-                        <td><div style={{ fontWeight: 500 }}>{e.patientName}</div><div className="mono" style={{ fontSize: 11, color: 'var(--t-3)' }}>{e.patientCode}</div></td>
-                        <td className="muted">{e.roomName || '—'}</td>
-                        <td className="muted">{e.doctorName || '—'}</td>
-                        <td className="muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {e.diagnosisCode && <span className="mono" style={{ color: 'var(--a-cy)', marginRight: 6 }}>{e.diagnosisCode}</span>}
-                          {e.diagnosisName || '—'}
-                        </td>
-                        <td className="mono">{dayjs(e.examinationDate).format('DD/MM HH:mm')}</td>
-                        <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Hôm nay" value={stats.today} cy />
-              <Stat label="Chờ khám" value={stats.waiting} warn />
-              <Stat label="Đang khám" value={stats.inProgress} cy />
-              <Stat label="Hoàn tất" value={stats.done} ok />
+    <SimpleV2Page<ExaminationDto>
+      title="Cổng bác sĩ"
+      load={async () => {
+        const r = await searchExaminations({
+          fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+          toDate:   dayjs().add(1, 'day').format('YYYY-MM-DD'),
+          pageIndex: 1, pageSize: 200,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return ((r as any)?.data?.items || (r as any)?.data || []) as ExaminationDto[];
+      }}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm BN / mã / chẩn đoán…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.diagnosisName || ''} ${r.diagnosisCode || ''}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      kpis={(rows) => {
+        const today = dayjs().startOf('day');
+        const todayCount = rows.filter((r) => dayjs(r.examinationDate).isSame(today, 'day')).length;
+        const completed = rows.filter((r) => r.status === 4).length;
+        const inProgress = rows.filter((r) => r.status === 1).length;
+        const withDx = rows.filter((r) => r.diagnosisCode).length;
+        return [
+          { lbl: 'Hôm nay', val: todayCount, sub: 'lượt khám', tone: 'info' },
+          { lbl: 'Đang khám', val: inProgress, tone: 'warn' },
+          { lbl: 'Chờ CLS/KL', val: rows.filter((r) => r.status === 2 || r.status === 3).length, tone: 'warn' },
+          { lbl: 'Hoàn tất', val: completed, tone: 'ok' },
+          { lbl: 'Có chẩn đoán', val: withDx, sub: 'đã ICD', tone: 'ok' },
+          { lbl: 'Tổng cộng', val: rows.length, sub: '7 ngày' },
+        ];
+      }}
+      drawer={(r) => (
+        <>
+          <div className="rec-section">
+            <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
+            <div className="rec-kv">
+              <span>Họ tên</span><b>{r.patientName}</b>
+              <span>Mã BN</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.patientCode}</span>
+              <span>STT</span><span><span className="chip cy mono">{r.queueNumber}</span></span>
             </div>
           </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Chi tiết khám</span><span className="sub">{sel?.patientName || 'Chọn'}</span></div>
-          <div className="panel-body pad">
-            {!sel ? <div className="ph">Chọn ca</div> : (
-              <div className="stack-sm">
-                <Field label="BN" value={`${sel.patientName} · ${sel.patientCode}`} />
-                <Field label="Giờ khám" value={<span className="mono">{dayjs(sel.examinationDate).format('DD/MM/YYYY HH:mm')}</span>} />
-                <Field label="Phòng" value={sel.roomName || '—'} />
-                <Field label="BS" value={sel.doctorName || '—'} />
-                <Field label="STT" value={String(sel.queueNumber || '—')} />
-                {sel.diagnosisCode && <Field label="ICD" value={<span className="mono">{sel.diagnosisCode}</span>} />}
-                <Field label="Chẩn đoán" value={sel.diagnosisName || '—'} />
-                <Field label="Trạng thái" value={<span className={'chip ' + (STATUS_LABEL[sel.status]?.cls || 'ghost')}>{STATUS_LABEL[sel.status]?.text || '—'}</span>} />
-              </div>
-            )}
+          <div className="rec-section">
+            <h5><TermIcon name="stethoscope" size={11} /> KHÁM</h5>
+            <div className="rec-kv">
+              <span>Phòng</span><b>{r.roomName || '—'}</b>
+              <span>Bác sĩ</span><span>{r.doctorName || 'Chưa phân'}</span>
+              <span>Ngày khám</span><span>{fmtDMY(r.examinationDate)}</span>
+              <span>Giờ khám</span><span>{fmtHM(r.examinationDate)}</span>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+          {r.diagnosisCode && (
+            <div className="rec-section">
+              <h5><TermIcon name="file-text" size={11} /> CHẨN ĐOÁN</h5>
+              <div className="rec-kv">
+                <span>Mã ICD</span><b className="mono">{r.diagnosisCode}</b>
+                <span>Tên</span><span>{r.diagnosisName}</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.patientCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${r.roomName || '—'} · STT ${r.queueNumber}`}
+    />
   );
 };
-
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean }> = ({ label, value, warn, cy, ok }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
 
 export default DoctorPortalV2;

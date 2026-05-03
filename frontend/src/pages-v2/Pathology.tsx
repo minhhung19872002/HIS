@@ -1,181 +1,118 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import dayjs from 'dayjs';
-import { getPathologyRequests, getPathologyStatistics } from '../api/pathology';
-import type { PathologyRequest, PathologyStats } from '../api/pathology';
+import { getPathologyRequests } from '../api/pathology';
+import type { PathologyRequest } from '../api/pathology';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const STATUS_LABEL: Record<number, { text: string; cls: 'warn' | 'cy' | 'mag' | 'ok' | 'ghost' }> = {
-  0: { text: 'Chờ mô tả', cls: 'warn' },
-  1: { text: 'Đại thể', cls: 'cy' },
-  2: { text: 'Vi thể', cls: 'mag' },
-  3: { text: 'Hoàn tất', cls: 'cy' },
-  4: { text: 'Đã duyệt', cls: 'ok' },
-};
-
+type StatusKey = 'pending' | 'grossing' | 'processing' | 'completed' | 'verified';
+const STATUS_TABS: StatusTab<StatusKey>[] = [
+  { v: 'pending',    l: 'Chờ nhận mẫu', tone: 'info' },
+  { v: 'grossing',   l: 'Cắt đại thể',  tone: 'warn' },
+  { v: 'processing', l: 'Xử lý mô',      tone: 'warn' },
+  { v: 'completed',  l: 'Hoàn tất',     tone: 'ok' },
+  { v: 'verified',   l: 'Đã duyệt',     tone: 'ok' },
+];
+const statusKey = (s: number): StatusKey => s === 1 ? 'grossing' : s === 2 ? 'processing' : s === 3 ? 'completed' : s === 4 ? 'verified' : 'pending';
 const SPECIMEN_LABEL: Record<string, string> = {
-  biopsy: 'Sinh thiết',
-  cytology: 'Tế bào học',
-  pap: 'PAP',
-  frozenSection: 'Cắt lạnh',
+  biopsy: 'Sinh thiết', cytology: 'Tế bào học', pap: 'Pap', frozenSection: 'Cắt lạnh',
 };
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const PathologyV2: React.FC = () => {
-  const [items, setItems] = useState<PathologyRequest[]>([]);
-  const [stats, setStats] = useState<PathologyStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
-  const [specimenFilter, setSpecimenFilter] = useState<string>('');
-  const [selected, setSelected] = useState<PathologyRequest | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [reqs, st] = await Promise.all([
-        getPathologyRequests({
-          keyword: keyword || undefined,
-          status: statusFilter,
-          specimenType: specimenFilter || undefined,
-        }),
-        getPathologyStatistics().catch(() => null),
-      ]);
-      setItems(reqs);
-      setStats(st);
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  const localStats = useMemo(() => ({
-    total: items.length,
-    pending: items.filter((r) => r.status <= 1).length,
-    inProgress: items.filter((r) => r.status === 2).length,
-    completed: items.filter((r) => r.status >= 3).length,
-    urgent: items.filter((r) => r.priority === 'urgent').length,
-  }), [items]);
+  const columns: ColumnDef<PathologyRequest>[] = [
+    { key: 'code', label: 'Mã GPB', mono: true, width: 130, render: (r) => r.requestCode },
+    { key: 'patient', label: 'Bệnh nhân', render: (r) => (
+      <div className="cell-2l"><b>{r.patientName}</b><i className="mono">{r.patientCode}</i></div>
+    )},
+    { key: 'specimen', label: 'Bệnh phẩm', render: (r) => (
+      <div className="cell-2l">
+        <b>{SPECIMEN_LABEL[r.specimenType] || r.specimenType}</b>
+        <i>{r.specimenSite}</i>
+      </div>
+    )},
+    { key: 'dx', label: 'CĐ lâm sàng', render: (r) => r.clinicalDiagnosis },
+    { key: 'doctor', label: 'BS chỉ định', width: 200, render: (r) => r.requestingDoctor || '—' },
+    { key: 'date', label: 'Ngày YC', mono: true, width: 100, render: (r) => fmtDMY(r.requestDate) },
+    { key: 'priority', label: 'Ưu tiên', width: 90, render: (r) =>
+      <span className={`chip ${r.priority === 'urgent' ? 'crit' : 'info'}`}>{r.priority === 'urgent' ? 'Khẩn' : 'Thường'}</span>
+    },
+    { key: 'status', label: 'TT', width: 130, render: (r) => {
+      const sk = statusKey(r.status);
+      return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
+    }},
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Giải phẫu bệnh · <b>{items.length}</b></span>
-          <div className="actions">
-            <select className="select" style={{ width: 130 }} value={statusFilter ?? ''} onChange={(e) => setStatusFilter(e.target.value === '' ? undefined : Number(e.target.value))}>
-              <option value="">Tất cả TT</option>
-              <option value="0">Chờ mô tả</option>
-              <option value="1">Đại thể</option>
-              <option value="2">Vi thể</option>
-              <option value="3">Hoàn tất</option>
-              <option value="4">Đã duyệt</option>
-            </select>
-            <select className="select" style={{ width: 130 }} value={specimenFilter} onChange={(e) => setSpecimenFilter(e.target.value)}>
-              <option value="">Tất cả loại</option>
-              <option value="biopsy">Sinh thiết</option>
-              <option value="cytology">Tế bào học</option>
-              <option value="pap">PAP</option>
-              <option value="frozenSection">Cắt lạnh</option>
-            </select>
-            <input className="input" style={{ width: 200 }} placeholder="Tìm BN / mã yêu cầu..." value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có yêu cầu GPB</div>
-            : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Mã YC</th>
-                  <th>Bệnh nhân</th>
-                  <th>Ngày YC</th>
-                  <th>Loại</th>
-                  <th>Vị trí lấy</th>
-                  <th>Chẩn đoán LS</th>
-                  <th>BS YC</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => {
-                  const st = STATUS_LABEL[r.status] || { text: '—', cls: 'ghost' as const };
-                  return (
-                    <tr key={r.id} className={selected?.id === r.id ? 'sel' : ''} onClick={() => setSelected(r)} style={{ cursor: 'pointer' }}>
-                      <td className="mono">{r.requestCode}</td>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{r.patientName}</div>
-                        <div className="mono" style={{ fontSize: 11, color: 'var(--t-3)' }}>{r.patientCode}</div>
-                      </td>
-                      <td className="mono">{dayjs(r.requestDate).format('DD/MM HH:mm')}</td>
-                      <td className="muted">{SPECIMEN_LABEL[r.specimenType] || r.specimenType}</td>
-                      <td className="muted">{r.specimenSite}</td>
-                      <td className="muted" style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.clinicalDiagnosis}</td>
-                      <td className="muted">{r.requestingDoctor}</td>
-                      <td>
-                        <span className={`chip ${st.cls}`}>{st.text}</span>
-                        {r.priority === 'urgent' && <span className="chip crit" style={{ marginLeft: 4 }}>KHẨN</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng YC" value={localStats.total} />
-              <Stat label="Khẩn" value={localStats.urgent} crit />
-              <Stat label="Chờ mô tả" value={localStats.pending} warn />
-              <Stat label="Vi thể" value={localStats.inProgress} cy />
-              <Stat label="Hoàn tất" value={localStats.completed} ok />
-              {stats && <Stat label="TAT TB (ngày)" value={stats.avgTurnaroundDays} />}
+    <SimpleV2Page<PathologyRequest>
+      title="Phiếu giải phẫu bệnh"
+      load={async () => {
+        const r = await getPathologyRequests();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return Array.isArray(r) ? r : ((r as any)?.items || []);
+      }}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm BN / mã GPB / chẩn đoán…"
+      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.requestCode} ${r.clinicalDiagnosis}`}
+      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
+      statusOf={(r) => statusKey(r.status)}
+      filters={[{
+        key: 'specimen', placeholder: '▾ Loại mẫu',
+        options: Object.entries(SPECIMEN_LABEL).map(([v, l]) => ({ v, l })),
+        valueOf: (r) => r.specimenType,
+      }]}
+      kpis={(rows) => {
+        const urgent = rows.filter((r) => r.priority === 'urgent').length;
+        return [
+          { lbl: 'Tổng phiếu', val: rows.length },
+          { lbl: 'Chờ nhận', val: rows.filter((r) => r.status === 0).length, tone: 'info' },
+          { lbl: 'Đang xử lý', val: rows.filter((r) => r.status >= 1 && r.status <= 2).length, tone: 'warn' },
+          { lbl: 'Hoàn tất', val: rows.filter((r) => r.status === 3).length, tone: 'ok' },
+          { lbl: 'Đã duyệt', val: rows.filter((r) => r.status === 4).length, tone: 'ok' },
+          { lbl: 'Khẩn', val: urgent, tone: urgent > 0 ? 'crit' : 'ok' },
+        ];
+      }}
+      drawer={(r) => (
+        <>
+          <div className="rec-section">
+            <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
+            <div className="rec-kv">
+              <span>Họ tên</span><b>{r.patientName}</b>
+              <span>Mã BN</span><span className="mono">{r.patientCode}</span>
+              <span>Mã GPB</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.requestCode}</span>
+              {r.gender && (<><span>Giới tính</span><span>{r.gender === 1 ? 'Nam' : 'Nữ'}</span></>)}
+              {r.dateOfBirth && (<><span>Ngày sinh</span><span>{fmtDMY(r.dateOfBirth)}</span></>)}
             </div>
           </div>
-        </div>
-
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h">
-            <span className="title">Chi tiết YC</span>
-            <span className="sub">{selected ? selected.patientName : 'Chọn YC'}</span>
+          <div className="rec-section">
+            <h5><TermIcon name="flask" size={11} /> BỆNH PHẨM</h5>
+            <div className="rec-kv">
+              <span>Loại mẫu</span><b>{SPECIMEN_LABEL[r.specimenType]}</b>
+              <span>Vị trí lấy</span><span>{r.specimenSite}</span>
+              <span>Ưu tiên</span><span className={`chip ${r.priority === 'urgent' ? 'crit' : 'info'}`}>{r.priority === 'urgent' ? 'Khẩn' : 'Thường'}</span>
+            </div>
           </div>
-          <div className="panel-body pad">
-            {!selected ? <div className="ph">Chọn yêu cầu GPB</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{selected.requestCode}</span>} />
-                <Field label="BN" value={`${selected.patientName} · ${selected.patientCode}`} />
-                <Field label="Ngày YC" value={<span className="mono">{dayjs(selected.requestDate).format('DD/MM/YYYY HH:mm')}</span>} />
-                <Field label="Loại bệnh phẩm" value={SPECIMEN_LABEL[selected.specimenType] || selected.specimenType} />
-                <Field label="Vị trí lấy" value={selected.specimenSite} />
-                <Field label="Chẩn đoán LS" value={selected.clinicalDiagnosis} />
-                <Field label="BS yêu cầu" value={selected.requestingDoctor} />
-                {selected.departmentName && <Field label="Khoa" value={selected.departmentName} />}
-                <Field label="Ưu tiên" value={selected.priority === 'urgent' ? <span style={{ color: 'var(--s-crit)' }}>KHẨN</span> : 'Thường'} />
-                <Field label="Trạng thái" value={(() => { const st = STATUS_LABEL[selected.status] || { text: '—', cls: 'ghost' as const }; return <span className={`chip ${st.cls}`}>{st.text}</span>; })()} />
-              </div>
-            )}
+          <div className="rec-section">
+            <h5><TermIcon name="stethoscope" size={11} /> CHỈ ĐỊNH</h5>
+            <div className="rec-kv">
+              <span>BS chỉ định</span><span>{r.requestingDoctor}</span>
+              <span>Khoa</span><span>{r.departmentName || '—'}</span>
+              <span>CĐ lâm sàng</span><span>{r.clinicalDiagnosis}</span>
+              <span>Ngày YC</span><span>{fmtDMY(r.requestDate)}</span>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+      drawerTitle={(r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.requestCode}</span>
+          <span style={{ fontSize: 14 }}>{r.patientName}</span>
+        </span>
+      )}
+      drawerSub={(r) => `${SPECIMEN_LABEL[r.specimenType]} · ${r.specimenSite}`}
+    />
   );
 };
-
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
 
 export default PathologyV2;

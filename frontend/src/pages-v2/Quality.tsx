@@ -1,156 +1,386 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { App as AntdApp } from 'antd';
 import { getIncidents, getQualityIndicators } from '../api/quality';
-import type { IncidentReportDto as IncidentReport, QualityIndicatorDto as QualityIndicator } from '../api/quality';
+import type { IncidentReportDto, QualityIndicatorDto } from '../api/quality';
+import {
+  KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
+  StatusBadge, ActBtn, DrawerShell,
+  type ColumnDef, type StatusTab, type TopTab,
+} from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
-const SEVERITY_LABEL: Record<number, { text: string; cls: string }> = {
-  1: { text: 'NearMiss', cls: 'ok' },
-  2: { text: 'NoHarm', cls: 'ok' },
-  3: { text: 'Nhẹ', cls: 'ok' },
-  4: { text: 'TB', cls: 'warn' },
-  5: { text: 'Cao', cls: 'crit' },
-  6: { text: 'Khẩn', cls: 'crit' },
+/* ────────────────────────────────────────────────────────────
+   Chất lượng v2 — port of design-system-v2/his/project/Quality v2.html
+   3 tabs: KPI indicators · Sự cố y khoa · Đánh giá định kỳ
+   ──────────────────────────────────────────────────────────── */
+
+type TopKey = 'kpi' | 'incidents' | 'audit';
+type IncStatusKey = 'reported' | 'investigation' | 'closed';
+
+const TOP_TABS: TopTab<TopKey>[] = [
+  { v: 'kpi',       l: 'Bộ chỉ số chất lượng', ic: 'chart' },
+  { v: 'incidents', l: 'Sự cố y khoa',         ic: 'alert' },
+  { v: 'audit',     l: 'Đánh giá định kỳ',     ic: 'file-text' },
+];
+
+const INC_TABS: StatusTab<IncStatusKey>[] = [
+  { v: 'reported',      l: 'Mới',      tone: 'info' },
+  { v: 'investigation', l: 'Điều tra', tone: 'warn' },
+  { v: 'closed',        l: 'Đóng',     tone: 'ok' },
+];
+
+const incStatusKey = (s: number): IncStatusKey => {
+  if (s === 5) return 'closed';
+  if (s >= 2 && s <= 4) return 'investigation';
+  return 'reported';
 };
 
+const SEVERITY_TONE: Record<number, 'ok' | 'warn' | 'crit'> = {
+  1: 'ok', 2: 'ok', 3: 'ok', 4: 'warn', 5: 'crit', 6: 'crit',
+};
+
+const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
+
 const QualityV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [tab, setTab] = useState<'incidents' | 'indicators'>('incidents');
-  const [incidents, setIncidents] = useState<IncidentReport[]>([]);
-  const [indicators, setIndicators] = useState<QualityIndicator[]>([]);
+  const { message } = AntdApp.useApp();
+  const [tab, setTab] = useState<TopKey>('kpi');
+  const [incidents, setIncidents] = useState<IncidentReportDto[]>([]);
+  const [indicators, setIndicators] = useState<QualityIndicatorDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [sel, setSel] = useState<IncidentReport | null>(null);
+  const [stab, setStab] = useState<IncStatusKey | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [detail, setDetail] = useState<IncidentReportDto | null>(null);
+  const PAGE_SIZE = 16;
 
-  const load = async () => {
+  const reload = () => {
     setLoading(true);
-    try {
-      if (tab === 'incidents') {
-        const r = await getIncidents({ keyword, page: 1, pageSize: 100 } as Parameters<typeof getIncidents>[0]);
-        const list = (r.data?.items || []) as IncidentReport[];
-        setIncidents(list);
-        if (list.length > 0 && !sel) setSel(list[0]);
-      } else {
-        const r = await getQualityIndicators();
-        setIndicators(Array.isArray(r.data) ? r.data : []);
-      }
-    } finally { setLoading(false); }
+    Promise.allSettled([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      getIncidents({ page: 1, pageSize: 200 } as any),
+      getQualityIndicators(),
+    ]).then(([i, q]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (i.status === 'fulfilled') setIncidents(((i.value as any).data?.items || []) as IncidentReportDto[]);
+      if (q.status === 'fulfilled') setIndicators((q.value.data || []) as QualityIndicatorDto[]);
+      setLoading(false);
+    });
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tab]);
+  useEffect(reload, []);
 
-  const stats = useMemo(() => ({
-    total: incidents.length,
-    critical: incidents.filter((i) => i.severity >= 5).length,
-    open: incidents.filter((i) => i.status !== 5).length,
-    indicatorCount: indicators.length,
-  }), [incidents, indicators]);
+  const incCounts = useMemo(() => {
+    const c: Record<string, number> = { all: incidents.length };
+    INC_TABS.forEach((s) => { c[s.v] = incidents.filter((x) => incStatusKey(x.status) === s.v).length; });
+    return c;
+  }, [incidents]);
+
+  const incFiltered = useMemo(() => {
+    return incidents.filter((r) => {
+      if (stab !== 'all' && incStatusKey(r.status) !== stab) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [r.incidentCode, r.description, r.departmentName, r.reportedByName, r.incidentTypeName]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [incidents, stab, search]);
+
+  const totalPages = Math.max(1, Math.ceil(incFiltered.length / PAGE_SIZE));
+  const paged = incFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const kpis = useMemo(() => {
+    const total = indicators.length;
+    const onTarget = indicators.filter((i) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cur = (i as any).currentValue || 0;
+      return i.targetType === 'AtMost' ? cur <= i.targetValue : cur >= i.targetValue;
+    }).length;
+    const severeIncidents = incidents.filter((x) => x.severity >= 5).length;
+    const investigating = incidents.filter((x) => incStatusKey(x.status) === 'investigation').length;
+    return {
+      onTarget, indicatorTotal: total,
+      incTotal: incidents.length,
+      severe: severeIncidents,
+      investigating,
+    };
+  }, [indicators, incidents]);
+
+  const incColumns: ColumnDef<IncidentReportDto>[] = [
+    { key: 'code', label: 'Mã sự cố', mono: true, width: 130, render: (r) => r.incidentCode },
+    {
+      key: 'type', label: 'Loại sự cố',
+      render: (r) => (
+        <div className="cell-2l">
+          <b>{r.incidentTypeName || r.incidentType}</b>
+          <i>{r.description?.slice(0, 60)}{r.description?.length > 60 ? '…' : ''}</i>
+        </div>
+      ),
+    },
+    {
+      key: 'severity', label: 'Mức độ', width: 110,
+      render: (r) => <span className={`chip ${SEVERITY_TONE[r.severity] || 'info'}`}>{r.severityName}</span>,
+    },
+    { key: 'dept', label: 'Khoa', width: 160, render: (r) => r.departmentName || '—' },
+    { key: 'reporter', label: 'Người báo cáo', width: 180, render: (r) => r.reportedByName || '—' },
+    { key: 'date', label: 'Báo cáo', mono: true, width: 110, render: (r) => fmtDMY(r.reportedDate) },
+    {
+      key: 'status', label: 'Trạng thái', width: 130,
+      render: (r) => {
+        const sk = incStatusKey(r.status);
+        return <StatusBadge tone={INC_TABS.find((t) => t.v === sk)?.tone || 'info'} dot>{r.statusName}</StatusBadge>;
+      },
+    },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Quản lý chất lượng</span>
-          <div className="actions">
-            <div className="rx-seg" style={{ display: 'flex', gap: 4 }}>
-              <div className={'rx-seg-i ' + (tab === 'incidents' ? 'on' : '')} onClick={() => setTab('incidents')}>Sự cố</div>
-              <div className={'rx-seg-i ' + (tab === 'indicators' ? 'on' : '')} onClick={() => setTab('indicators')}>Chỉ số</div>
-            </div>
-            <input className="input" style={{ width: 200 }} placeholder="Tìm..." value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/quality')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : tab === 'incidents' ? (
-              incidents.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có sự cố</div> : (
-                <table className="tbl">
-                  <thead><tr><th>Mã</th><th>Tiêu đề</th><th>Loại</th><th>Khoa</th><th>Mức độ</th><th>Trạng thái</th><th>Ngày báo</th></tr></thead>
-                  <tbody>
-                    {incidents.map((i) => {
-                      const sev = SEVERITY_LABEL[i.severity] || { text: i.severityName || String(i.severity), cls: 'ghost' };
-                      return (
-                        <tr key={i.id} className={sel?.id === i.id ? 'sel' : ''} onClick={() => setSel(i)} style={{ cursor: 'pointer' }}>
-                          <td className="mono">{i.incidentCode}</td>
-                          <td style={{ fontWeight: 500 }}>{i.description?.slice(0, 60) || '—'}</td>
-                          <td className="muted">{i.incidentTypeName || i.incidentType}</td>
-                          <td className="muted">{i.departmentName || '—'}</td>
-                          <td><span className={`chip ${sev.cls}`}>{sev.text}</span></td>
-                          <td className="muted">{i.statusName || i.status}</td>
-                          <td className="mono">{dayjs(i.reportedDate).format('DD/MM HH:mm')}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )
-            ) : (
-              indicators.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có chỉ số</div> : (
-                <table className="tbl">
-                  <thead><tr><th>Mã</th><th>Tên chỉ số</th><th>Đơn vị</th><th>Mục tiêu</th><th>Khoa</th></tr></thead>
-                  <tbody>
-                    {indicators.map((i) => (
-                      <tr key={i.id}>
-                        <td className="mono">{i.indicatorCode}</td>
-                        <td style={{ fontWeight: 500 }}>{i.name}</td>
-                        <td className="muted">{i.measureType || '—'}</td>
-                        <td className="mono">{i.targetValue ?? '—'}</td>
-                        <td className="muted">{i.categoryName || i.category || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            )}
-        </div>
-      </div>
+    <div className="ab">
+      <KpiStrip
+        items={[
+          { lbl: 'Chỉ số đạt', val: kpis.onTarget, sub: `/${kpis.indicatorTotal}`, tone: 'ok' },
+          { lbl: 'Sự cố tổng', val: kpis.incTotal, sub: 'tất cả' },
+          { lbl: 'Sự cố nặng', val: kpis.severe, sub: 'level ≥5', tone: 'crit' },
+          { lbl: 'Đang điều tra', val: kpis.investigating, sub: 'mở', tone: 'warn' },
+          { lbl: 'KPI tổng', val: kpis.indicatorTotal, sub: 'chỉ số' },
+          { lbl: 'Tỉ lệ đạt', val: kpis.indicatorTotal > 0 ? Math.round(kpis.onTarget / kpis.indicatorTotal * 100) : 0, unit: '%', tone: 'ok' },
+        ]}
+      />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Sự cố" value={stats.total} />
-              <Stat label="Khẩn/Cao" value={stats.critical} crit />
-              <Stat label="Đang mở" value={stats.open} warn />
-              <Stat label="Chỉ số" value={stats.indicatorCount} cy />
-            </div>
+      <TopTabs<TopKey>
+        tab={tab}
+        setTab={setTab}
+        tabs={TOP_TABS}
+        actions={
+          <>
+            <button type="button" className="ab-btn ghost" onClick={reload}>
+              <TermIcon name="refresh" size={12} /> Làm mới
+            </button>
+            <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Báo cáo sự cố')}>
+              <TermIcon name="plus" size={12} /> Báo cáo sự cố
+            </button>
+          </>
+        }
+      />
+
+      {tab === 'kpi' && <KpiTab indicators={indicators} loading={loading} />}
+
+      {tab === 'incidents' && (
+        <>
+          <div className="ab-tools">
+            <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã / khoa / loại / người báo cáo…" />
+            <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+              <TermIcon name="refresh" size={12} /> Bỏ lọc
+            </button>
+            <span className="spacer" />
+            <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{incFiltered.length} sự cố</span>
           </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Chi tiết sự cố</span><span className="sub">{sel?.incidentCode || 'Chọn sự cố'}</span></div>
-          <div className="panel-body pad">
-            {!sel ? <div className="ph">Chọn sự cố</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{sel.incidentCode}</span>} />
-                <Field label="Mô tả" value={sel.description || '—'} />
-                <Field label="Loại" value={sel.incidentTypeName || sel.incidentType} />
-                <Field label="Khoa" value={sel.departmentName || '—'} />
-                <Field label="Vị trí" value={sel.locationDescription || '—'} />
-                <Field label="BN liên quan" value={sel.patientName || '—'} />
-                <Field label="Mức nguy hại" value={sel.severityName || String(sel.severity)} />
-                <Field label="Người báo cáo" value={sel.reportedByName || '—'} />
-                <Field label="Ngày báo" value={<span className="mono">{dayjs(sel.reportedDate).format('DD/MM/YYYY HH:mm')}</span>} />
-                <Field label="Trạng thái" value={<span className="chip">{sel.statusName || sel.status}</span>} />
+          <StatusTabs<IncStatusKey> value={stab} onChange={setStab} tabs={INC_TABS} counts={incCounts} />
+          <DataTable<IncidentReportDto>
+            columns={incColumns}
+            data={paged}
+            rowKey={(r) => r.id}
+            onRowClick={(r) => setDetail(r)}
+            actions={(r) => (
+              <div className="ab-actions">
+                <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
+                <ActBtn ic="edit" title="Cập nhật" onClick={() => message.info('TODO: Cập nhật điều tra')} />
               </div>
             )}
-          </div>
-        </div>
-      </div>
+            empty={loading ? 'Đang tải…' : (
+              <div className="ab-empty">
+                <TermIcon name="check" size={20} />
+                <div>Không có sự cố nào</div>
+              </div>
+            )}
+          />
+          <Pager page={page} totalPages={totalPages} setPage={setPage} total={incFiltered.length} perPage={PAGE_SIZE} />
+        </>
+      )}
+
+      {tab === 'audit' && <AuditTab />}
+
+      <DrawerShell
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.incidentCode}</span>
+              <span style={{ fontSize: 14 }}>{detail.incidentTypeName || detail.incidentType}</span>
+            </span>
+          : ''}
+        sub={detail ? `${detail.departmentName} · ${fmtDMY(detail.reportedDate)}` : ''}
+        size="lg"
+      >
+        {detail && <IncidentDrawerBody r={detail} />}
+      </DrawerShell>
     </div>
   );
 };
 
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
+const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> = ({ indicators, loading }) => {
+  const groups = useMemo(() => {
+    const map = new Map<string, QualityIndicatorDto[]>();
+    indicators.forEach((i) => {
+      const k = i.categoryName || i.category || 'Khác';
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(i);
+    });
+    return Array.from(map.entries());
+  }, [indicators]);
+
+  if (loading) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>;
+  if (indicators.length === 0) {
+    return (
+      <div className="ab-empty" style={{ padding: 40 }}>
+        <TermIcon name="chart" size={20} />
+        <div>Chưa có chỉ số chất lượng</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '0 18px 16px', overflow: 'auto' }}>
+      {groups.map(([groupName, items]) => (
+        <div key={groupName} style={{
+          marginTop: 14, border: '1px solid var(--line)',
+          background: '#fff', borderRadius: 8, overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '10px 14px', background: 'var(--d-1)',
+            fontSize: 11, fontFamily: 'var(--font-mono)',
+            textTransform: 'uppercase', letterSpacing: '.06em',
+            color: 'var(--t-1)', fontWeight: 600,
+            borderBottom: '1px solid var(--line)',
+          }}>{groupName}</div>
+          <div>
+            {items.map((ind) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const cur = (ind as any).currentValue || 0;
+              const ok = ind.targetType === 'AtMost' ? cur <= ind.targetValue : cur >= ind.targetValue;
+              const pct = Math.min(100, (cur / Math.max(ind.targetValue, cur, 1)) * 100);
+              return (
+                <div key={ind.id} style={{
+                  display: 'grid', gridTemplateColumns: '110px 1fr 220px 140px 90px',
+                  gap: 14, padding: '12px 14px', borderBottom: '1px solid var(--line-soft)',
+                  alignItems: 'center', fontSize: 13,
+                }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>{ind.indicatorCode}</div>
+                  <div style={{ fontWeight: 500, color: 'var(--t-0)' }}>{ind.name}</div>
+                  <div style={{
+                    position: 'relative', height: 8, background: 'var(--d-2, #f1f5f9)',
+                    borderRadius: 4, overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      position: 'absolute', left: 0, top: 0, bottom: 0,
+                      width: `${pct}%`,
+                      background: ok ? '#15803d' : 'var(--s-crit)',
+                    }} />
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, textAlign: 'right' }}>
+                    {cur.toLocaleString('vi-VN')}
+                    <span style={{ color: 'var(--t-2)', fontWeight: 400 }}> / {ind.targetValue.toLocaleString('vi-VN')}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <StatusBadge tone={ok ? 'ok' : 'crit'} dot>{ok ? 'Đạt' : 'Chưa đạt'}</StatusBadge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const AuditTab: React.FC = () => (
+  <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+    {[
+      { title: 'Đánh giá CL BV theo BYT', date: 'Q4/2025', score: '4.2/5', status: 'Hoàn tất', tone: 'ok' as const },
+      { title: 'Audit kiểm soát NK',       date: 'T11/2025', score: '92%',   status: 'Hoàn tất', tone: 'ok' as const },
+      { title: 'Audit an toàn thuốc',      date: 'T11/2025', score: '88%',   status: 'Hoàn tất', tone: 'ok' as const },
+      { title: 'Audit hồ sơ BA',           date: 'T12/2025', score: 'Đang thực hiện', status: 'Đang triển khai', tone: 'warn' as const },
+    ].map((a, i) => (
+      <div key={i} style={{
+        border: '1px solid var(--line)', background: '#fff',
+        borderRadius: 8, padding: 14,
+      }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{a.title}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--t-2)' }}>
+          <span>Kỳ {a.date}</span>
+          <StatusBadge tone={a.tone} dot>{a.status}</StatusBadge>
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 600,
+          color: 'var(--a-cy)', marginTop: 10,
+        }}>{a.score}</div>
+      </div>
+    ))}
   </div>
 );
 
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
+const IncidentDrawerBody: React.FC<{ r: IncidentReportDto }> = ({ r }) => (
+  <>
+    <div className="rec-section">
+      <h5><TermIcon name="alert" size={11} /> THÔNG TIN SỰ CỐ</h5>
+      <div className="rec-kv">
+        <span>Mã sự cố</span><span className="mono">{r.incidentCode}</span>
+        <span>Loại</span><b>{r.incidentTypeName || r.incidentType}</b>
+        <span>Mức độ</span>
+        <span><span className={`chip ${SEVERITY_TONE[r.severity] || 'info'}`}>{r.severityName}</span></span>
+        <span>Khoa</span><span>{r.departmentName}</span>
+        <span>Vị trí</span><span>{r.locationDescription || '—'}</span>
+        <span>Báo cáo</span><span>{r.reportedByName} · {fmtDMY(r.reportedDate)}</span>
+      </div>
+    </div>
+
+    <div className="rec-section">
+      <h5><TermIcon name="info" size={11} /> MÔ TẢ</h5>
+      <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>
+        {r.description || '—'}
+      </div>
+    </div>
+
+    {r.immediateActions && (
+      <div className="rec-section">
+        <h5><TermIcon name="check" size={11} /> XỬ LÝ NGAY</h5>
+        <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.immediateActions}</div>
+      </div>
+    )}
+
+    {r.investigationRequired && (
+      <div className="rec-section">
+        <h5><TermIcon name="search" size={11} /> ĐIỀU TRA</h5>
+        <div className="rec-kv">
+          <span>Người điều tra</span><span>{r.investigatorName || 'Chưa phân'}</span>
+          {r.investigationStartDate && (<><span>Bắt đầu</span><span>{fmtDMY(r.investigationStartDate)}</span></>)}
+          {r.investigationCompletedDate && (<><span>Kết thúc</span><span>{fmtDMY(r.investigationCompletedDate)}</span></>)}
+          {r.rcaMethod && (<><span>PP RCA</span><span>{r.rcaMethod}</span></>)}
+        </div>
+        {r.rootCauseAnalysis && (
+          <div style={{ fontSize: 12.5, color: 'var(--t-1)', marginTop: 8, whiteSpace: 'pre-wrap' }}>
+            {r.rootCauseAnalysis}
+          </div>
+        )}
+      </div>
+    )}
+
+    {r.preventiveMeasures && (
+      <div className="rec-section">
+        <h5><TermIcon name="check" size={11} /> PHÒNG NGỪA</h5>
+        <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.preventiveMeasures}</div>
+      </div>
+    )}
+
+    {r.lessonLearned && (
+      <div className="rec-section">
+        <h5><TermIcon name="info" size={11} /> BÀI HỌC RÚT RA</h5>
+        <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.lessonLearned}</div>
+      </div>
+    )}
+  </>
 );
 
 export default QualityV2;
