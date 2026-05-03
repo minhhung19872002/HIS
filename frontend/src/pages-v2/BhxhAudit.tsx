@@ -49,7 +49,7 @@ const BhxhAuditV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await client.get('/bhxh-audit/records');
+      const res = await client.get('/bhxh-audit/sessions');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (res.data?.items || res.data || []) as any[];
       const rows: AuditRecord[] = data.map((r, i) => ({

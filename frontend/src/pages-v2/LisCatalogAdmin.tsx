@@ -51,10 +51,10 @@ const LisCatalogAdminV2: React.FC = () => {
   useEffect(() => {
     (async () => {
       try { const { data: b } = await apiClient.get('/lis-catalog/books', { params: { isActive: true } }); setBooks(Array.isArray(b) ? (b as Row[]) : []); } catch { /* empty */ }
-      try { const { data: s } = await apiClient.get('/catalog/services', { params: { serviceType: 'XN', isActive: true } });
+      try { const { data: s } = await apiClient.get('/catalog/paraclinical-services', { params: { serviceType: 2, isActive: true } });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setServices(Array.isArray(s) ? (s as Row[]) : ((s as any)?.items ?? [])); } catch { /* empty */ }
-      try { const { data: sp } = await apiClient.get('/catalog/supplies', { params: { isActive: true } });
+      try { const { data: sp } = await apiClient.get('/catalog/medical-supplies', { params: { isActive: true } });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setSupplies(Array.isArray(sp) ? (sp as Row[]) : ((sp as any)?.items ?? [])); } catch { /* empty */ }
     })();

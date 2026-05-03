@@ -82,7 +82,7 @@ const PermissionsTab: React.FC = () => {
       try {
         const [u, r] = await Promise.all([
           apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 200 } }).catch(() => ({ data: [] })),
-          apiClient.get<Array<{ id: string; roomName: string }>>('/system/rooms', { params: { type: 'radiology' } }).catch(() => ({ data: [] })),
+          apiClient.get<Array<{ id: string; roomName: string }>>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch(() => ({ data: [] })),
         ]);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setUsers(Array.isArray(u.data) ? (u.data as User[]) : ((u.data as any)?.items ?? []));
@@ -364,7 +364,7 @@ const IcdMapTab: React.FC = () => (
 const MachinesTab: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   useEffect(() => {
-    apiClient.get<Room[]>('/system/rooms', { params: { type: 'radiology' } })
+    apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } })
       .then((r) => setRooms(r.data)).catch(() => setRooms([]));
   }, []);
 

@@ -68,13 +68,13 @@ const RadiologyOpsV2: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      try { const { data: s } = await apiClient.get('/catalog/services', { params: { serviceType: 'CDHA', isActive: true, pageSize: 500 } });
+      try { const { data: s } = await apiClient.get('/catalog/paraclinical-services', { params: { serviceType: 3, isActive: true, pageSize: 500 } });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setServices(Array.isArray(s) ? (s as Service[]) : ((s as any)?.items ?? [])); } catch { /* empty */ }
       try { const { data: m } = await apiClient.get('/catalog/medicines', { params: { isActive: true, pageSize: 500 } });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setMedicines(Array.isArray(m) ? (m as Medicine[]) : ((m as any)?.items ?? [])); } catch { /* empty */ }
-      try { const { data: sp } = await apiClient.get('/catalog/supplies', { params: { isActive: true, pageSize: 500 } });
+      try { const { data: sp } = await apiClient.get('/catalog/medical-supplies', { params: { isActive: true, pageSize: 500 } });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setSupplies(Array.isArray(sp) ? (sp as Supply[]) : ((sp as any)?.items ?? [])); } catch { /* empty */ }
       try { const w = await getWarehouses(1);

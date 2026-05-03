@@ -35,7 +35,7 @@ const RisDispatcherV2: React.FC = () => {
     try {
       const [p, r] = await Promise.all([
         apiClient.get<PendingService[]>('/radiology-dispatch/pending'),
-        apiClient.get<Room[]>('/system/rooms', { params: { type: 'radiology' } }).catch(() => ({ data: [] as Room[] })),
+        apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch(() => ({ data: [] as Room[] })),
       ]);
       setPending(p.data); setRooms(r.data);
       if (selectedRoom) {

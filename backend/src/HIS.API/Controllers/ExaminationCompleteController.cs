@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Examination;
+using HIS.Infrastructure.Data;
 using RoomDto = HIS.Application.DTOs.RoomDto;
 using ServiceDto = HIS.Application.DTOs.ServiceDto;
 
@@ -18,10 +20,12 @@ namespace HIS.API.Controllers;
 public class ExaminationCompleteController : ControllerBase
 {
     private readonly IExaminationCompleteService _examinationService;
+    private readonly HISDbContext _db;
 
-    public ExaminationCompleteController(IExaminationCompleteService examinationService)
+    public ExaminationCompleteController(IExaminationCompleteService examinationService, HISDbContext db)
     {
         _examinationService = examinationService;
+        _db = db;
     }
 
     #region 2.1 Màn hình chờ phòng khám
@@ -975,6 +979,67 @@ public class ExaminationCompleteController : ControllerBase
     {
         var result = await _examinationService.GetPrescriptionsAsync(examinationId);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Danh sách đơn thuốc gần đây trong khoảng ngày — phục vụ DispensingCounter (quầy phát thuốc).
+    /// </summary>
+    [HttpGet("prescriptions/recent")]
+    public async Task<IActionResult> GetRecentPrescriptions(
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] string? keyword,
+        [FromQuery] int pageSize = 100)
+    {
+        var from = fromDate ?? DateTime.Today;
+        var to = toDate ?? DateTime.Today.AddDays(1).AddTicks(-1);
+        if (pageSize <= 0 || pageSize > 500) pageSize = 100;
+
+        var q = _db.Prescriptions
+            .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
+            .Include(p => p.Doctor)
+            .Include(p => p.Details).ThenInclude(i => i.Medicine)
+            .Where(p => p.PrescriptionDate >= from && p.PrescriptionDate <= to);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(p =>
+                p.PrescriptionCode.Contains(kw)
+                || (p.MedicalRecord != null && p.MedicalRecord.Patient != null
+                    && (p.MedicalRecord.Patient.FullName.Contains(kw)
+                        || p.MedicalRecord.Patient.PatientCode.Contains(kw))));
+        }
+
+        var list = await q
+            .OrderByDescending(p => p.PrescriptionDate)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Ok(list.Select(p => new
+        {
+            id = p.Id,
+            prescriptionCode = p.PrescriptionCode,
+            prescriptionDate = p.PrescriptionDate,
+            prescribedAt = p.PrescriptionDate,
+            patientCode = p.MedicalRecord?.Patient?.PatientCode,
+            patientName = p.MedicalRecord?.Patient?.FullName,
+            gender = p.MedicalRecord?.Patient?.Gender,
+            doctorName = p.Doctor?.FullName,
+            diagnosis = p.Diagnosis,
+            isDispensed = p.IsDispensed,
+            status = p.Status,
+            totalAmount = p.TotalAmount,
+            items = p.Details.Select(i => new
+            {
+                id = i.Id,
+                medicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                quantity = i.Quantity,
+                unit = i.Unit ?? (i.Medicine != null ? i.Medicine.Unit : null),
+                dosage = i.Dosage,
+                days = i.Days,
+            }),
+        }));
     }
 
     /// <summary>
