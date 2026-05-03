@@ -1,0 +1,3134 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<title>HIS Terminal — Bản B</title>
+<meta name="viewport" content="width=1440"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   HIS — Clinical Blue
+   Inter · bg white · primary #2563eb · medical
+   ============================================ */
+
+:root {
+  --font-sans: "Inter", "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+  --font-serif: "Inter", system-ui, sans-serif; /* was serif — now sans for clinical */
+
+  /* Depth — now LIGHT surfaces (kept var names for compat) */
+  --d-0: #ffffff;      /* header/card header (was deepest) */
+  --d-1: #f7f9fc;      /* page bg */
+  --d-2: #ffffff;      /* panel */
+  --d-3: #f1f5f9;      /* raised / hover soft */
+  --d-4: #e5edf7;      /* hover strong */
+  --d-5: #cbd6e3;      /* border strong */
+
+  --line: #e4e9f0;
+  --line-soft: #edf1f6;
+  --line-hair: #f1f4f9;
+
+  /* Text — dark on light */
+  --t-0: #0f172a;       /* primary (slate-900) */
+  --t-1: #334155;       /* secondary (slate-700) */
+  --t-2: #64748b;       /* tertiary (slate-500) */
+  --t-3: #94a3b8;       /* muted (slate-400) */
+  --t-4: #cbd5e1;       /* hint (slate-300) */
+
+  /* Accent: Clinical Blue */
+  --a-cy: #2563eb;
+  --a-cy-dim: #1d4ed8;
+  --a-cy-bg: #eff5ff;
+  --a-cy-line: #bfd3fa;
+
+  /* Signals — accessible on white */
+  --s-crit: #dc2626;
+  --s-crit-bg: #fef2f2;
+  --s-warn: #d97706;
+  --s-warn-bg: #fffbeb;
+  --s-ok:   #16a34a;
+  --s-ok-bg: #f0fdf4;
+  --s-info: #0284c7;
+  --s-info-bg: #f0f9ff;
+  --s-mag:  #7c3aed;
+  --s-mag-bg: #f5f3ff;
+
+  /* Geometry — softer */
+  --r-0: 0px;
+  --r-1: 3px;
+  --r-2: 6px;
+  --r-3: 8px;
+  --r-4: 12px;
+
+  /* Density — spacious (option "thoáng") */
+  --row-h: 40px;
+  --ctl-h: 36px;
+  --fs-xxs: 10px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 22px;
+  --fs-2xl: 32px;
+  --fs-3xl: 48px;
+}
+
+* { box-sizing: border-box; }
+html, body, #root {
+  margin: 0; height: 100%;
+  background: var(--d-1);
+  color: var(--t-0);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; padding: 0; }
+input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; outline: none; }
+a { color: inherit; }
+
+.mono { font-family: var(--font-mono); font-feature-settings: "tnum", "zero"; letter-spacing: -0.01em; }
+.serif { font-family: var(--font-sans); font-weight: 600; letter-spacing: -0.01em; }
+.tab { font-variant-numeric: tabular-nums; }
+.up { text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ============== APP SHELL (3-col: rail + subnav + content) ============== */
+.app {
+  display: grid;
+  grid-template-columns: 64px 232px 1fr;
+  grid-template-rows: 1fr 28px;
+  height: 100vh;
+  overflow: hidden;
+}
+.rail    { grid-column: 1; grid-row: 1 / -1; }
+.subnav  { grid-column: 2; grid-row: 1; overflow: hidden; }
+.main    { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.statusbar { grid-column: 1 / -1; grid-row: 2; }
+
+/* ============== RAIL (72px icon-only left column) ============== */
+.rail {
+  background: #ffffff;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 0 10px;
+  gap: 2px;
+}
+.rail-mark {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--a-cy);
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+.rail-item {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  color: var(--t-2);
+  border-radius: 10px;
+  position: relative;
+  transition: color 0.12s, background 0.12s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.rail-item:hover { color: var(--t-0); background: var(--d-3); }
+.rail-item.active {
+  color: var(--a-cy);
+  background: var(--a-cy-bg);
+}
+.rail-item .hot {
+  position: absolute; top: 6px; right: 6px;
+  min-width: 16px; height: 14px; padding: 0 4px;
+  background: var(--s-crit); color: #fff;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+.rail-item .tip {
+  position: absolute; left: calc(100% + 6px); top: 50%;
+  transform: translateY(-50%);
+  background: var(--t-0); color: #fff;
+  font-size: 11px; padding: 4px 8px; border-radius: 4px;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.12s;
+  z-index: 50;
+}
+.rail-item:hover .tip { opacity: 1; }
+.rail-spacer { flex: 1; }
+.rail-group-line {
+  width: 28px; height: 1px;
+  background: var(--line);
+  margin: 10px 0;
+}
+
+/* ============== SUBNAV (secondary column, module-specific) ============== */
+.subnav {
+  background: #ffffff;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  padding: 22px 18px 16px;
+}
+.subnav-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--t-3);
+  margin-bottom: 6px;
+}
+.subnav-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--t-0);
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.subnav-sub {
+  font-size: 12px;
+  color: var(--t-2);
+  margin-bottom: 22px;
+  font-family: var(--font-mono);
+}
+.subnav-group {
+  padding: 18px 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--t-3);
+}
+.subnav-item {
+  display: flex; align-items: center; gap: 10px;
+  height: 36px; padding: 0 10px;
+  color: var(--t-1);
+  border-radius: var(--r-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+  position: relative;
+  text-align: left;
+  background: transparent;
+  border: none;
+  width: 100%;
+}
+.subnav-item:hover { color: var(--t-0); background: var(--d-3); }
+.subnav-item.active {
+  color: var(--a-cy);
+  background: var(--a-cy-bg);
+  font-weight: 600;
+}
+.subnav-item .lbl { flex: 1; }
+.subnav-item .tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--t-3);
+  font-weight: 500;
+}
+.subnav-item.active .tag { color: var(--a-cy); }
+.subnav-item .dot-live {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--s-ok);
+}
+.subnav-spacer { flex: 1; }
+
+/* Tiny card at bottom of subnav */
+.subnav-card {
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  padding: 12px;
+  margin-top: 14px;
+}
+.subnav-card .lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--t-3);
+}
+.subnav-card .val {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--t-0);
+  margin-top: 4px;
+  line-height: 1;
+}
+.subnav-card .hint {
+  font-size: 11px;
+  color: var(--t-2);
+  margin-top: 4px;
+}
+
+/* legacy sb-* still used by Login side — keep minimal compatibility */
+.sb-sec {
+  padding: 14px 10px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--t-3);
+}
+
+/* ============== COMMAND BAR (top) ============== */
+.cmdbar {
+  height: 56px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.cmdbar-path {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+  color: var(--t-2);
+}
+.cmdbar-path .slash { color: var(--t-4); }
+.cmdbar-path .here { color: var(--t-0); font-weight: 600; }
+
+.cmd {
+  flex: 1; max-width: 520px;
+  height: 36px;
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  display: flex; align-items: center;
+  padding: 0 12px;
+  gap: 10px;
+  color: var(--t-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.cmd:hover { border-color: var(--a-cy-line); background: #fff; }
+.cmd .prompt { color: var(--a-cy); font-family: var(--font-mono); }
+.cmd .hint { flex: 1; color: var(--t-3); }
+.cmd kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--t-2);
+  border-radius: 3px;
+}
+
+.cmdbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.topbtn {
+  height: 32px; padding: 0 10px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  color: var(--t-1);
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  font-weight: 500;
+}
+.topbtn:hover { background: var(--d-3); color: var(--t-0); }
+.topbtn.icon { width: 32px; padding: 0; justify-content: center; }
+.topbtn.on { background: var(--a-cy-bg); color: var(--a-cy); border-color: var(--a-cy-line); }
+
+.chip-shift {
+  height: 30px; padding: 0 10px;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--s-ok-bg); border: 1px solid #bbf7d0;
+  border-radius: var(--r-2);
+  color: #15803d;
+  font-weight: 500;
+}
+.chip-shift .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--s-ok); }
+
+.user {
+  display: flex; align-items: center; gap: 8px;
+  padding: 2px 10px 2px 2px;
+  border-radius: var(--r-2);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.user:hover { border-color: var(--line); background: var(--d-3); }
+.user .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--a-cy);
+  color: #fff;
+  display: grid; place-items: center;
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 600;
+}
+.user .who { display: flex; flex-direction: column; line-height: 1.2; }
+.user .who .n { font-size: 13px; color: var(--t-0); font-weight: 600; }
+.user .who .r { font-size: 11px; color: var(--t-2); }
+
+/* ============== CONTENT AREA ============== */
+.content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--d-1);
+}
+
+/* ============== PANEL (card) ============== */
+.panel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  display: flex; flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.panel-h {
+  height: 44px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+.panel-h .title {
+  font-size: 13px;
+  color: var(--t-0);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.panel-h .title b { color: var(--a-cy); font-weight: 600; }
+.panel-h .sub { font-size: 12px; color: var(--t-2); font-weight: 400; }
+.panel-h .actions { margin-left: auto; display: flex; gap: 6px; }
+.panel-body { flex: 1; overflow: auto; min-height: 0; }
+.panel-body.pad { padding: 14px; }
+.panel-body.pad-sm { padding: 10px; }
+
+/* ============== DASHCARD (spacious, flat) ============== */
+.dashcard {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 28px 28px 24px;
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.dashcard.featured {
+  border-color: var(--a-cy-line);
+  background: linear-gradient(180deg, #f5faff 0%, #ffffff 44%);
+}
+.dashcard-eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--t-2);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.dashcard-eyebrow .dot { width: 7px; height: 7px; }
+.dashcard-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--t-0);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+.dashcard-meta {
+  font-size: 13px;
+  color: var(--t-2);
+  line-height: 1.5;
+}
+.dashcard-cta {
+  margin-top: auto;
+  padding-top: 18px;
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--a-cy);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 18px 0 0;
+}
+.dashcard-cta.ghost { color: var(--t-1); }
+.dashcard-cta:hover { color: var(--a-cy-dim); }
+
+.dashlist {
+  display: flex; flex-direction: column;
+  border-top: 1px solid var(--line-soft);
+}
+.dashlist > * {
+  border-bottom: 1px solid var(--line-soft);
+  padding: 12px 0 !important;
+}
+.dashlist > *:last-child { border-bottom: none; }
+
+.lab-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.lab-table th {
+  text-align: left;
+  padding: 10px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--t-3);
+  border-bottom: 1px solid var(--line);
+}
+.lab-table td {
+  padding: 14px 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.lab-table tr:last-child td { border-bottom: none; }
+.lab-table tr:hover td { background: var(--d-1); }
+
+/* ============== BUTTONS ============== */
+.btn {
+  height: var(--ctl-h);
+  padding: 0 14px;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  color: var(--t-0);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--d-3); border-color: var(--d-5); }
+.btn.primary {
+  background: var(--a-cy); color: #ffffff;
+  border-color: var(--a-cy);
+  font-weight: 600;
+}
+.btn.primary:hover { background: var(--a-cy-dim); border-color: var(--a-cy-dim); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--t-1); }
+.btn.ghost:hover { background: var(--d-3); color: var(--t-0); }
+.btn.danger { color: var(--s-crit); border-color: var(--line); background: #fff; }
+.btn.danger:hover { background: var(--s-crit-bg); border-color: #fecaca; }
+.btn.icon { padding: 0; width: var(--ctl-h); justify-content: center; }
+.btn.sm { height: 26px; font-size: 12px; padding: 0 10px; }
+
+/* ============== INPUTS ============== */
+.input, .select {
+  height: var(--ctl-h);
+  padding: 0 12px;
+  background: #ffffff;
+  border: 1px solid var(--d-5);
+  border-radius: var(--r-2);
+  color: var(--t-0);
+  font-size: 13px;
+  width: 100%;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.input:focus, .select:focus {
+  border-color: var(--a-cy);
+  box-shadow: 0 0 0 3px var(--a-cy-bg);
+}
+.input::placeholder { color: var(--t-3); }
+.select { appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3.5 5 7l4-3.5' fill='none' stroke='%2364748b' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 10px; }
+
+.label {
+  font-size: 11px;
+  color: var(--t-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* ============== BADGES / CHIPS ============== */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 22px; padding: 0 8px;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--d-3);
+  color: var(--t-1);
+  white-space: nowrap;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.chip.crit { background: var(--s-crit-bg); color: var(--s-crit); }
+.chip.warn { background: var(--s-warn-bg); color: var(--s-warn); }
+.chip.ok { background: var(--s-ok-bg); color: #15803d; }
+.chip.info { background: var(--s-info-bg); color: var(--s-info); }
+.chip.mag { background: var(--s-mag-bg); color: var(--s-mag); }
+.chip.cy { background: var(--a-cy-bg); color: var(--a-cy); }
+.chip.ghost { background: transparent; border: 1px solid var(--line); color: var(--t-2); }
+
+.dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--t-3);
+  vertical-align: middle;
+}
+.dot.crit { background: var(--s-crit); }
+.dot.warn { background: var(--s-warn); }
+.dot.ok { background: var(--s-ok); }
+.dot.info { background: var(--s-info); }
+.dot.cy { background: var(--a-cy); }
+
+/* ============== TABLE ============== */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--t-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  background: var(--d-1);
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0;
+  white-space: nowrap;
+  z-index: 1;
+}
+.tbl th.num { text-align: right; }
+.tbl td {
+  padding: 0 14px;
+  height: var(--row-h);
+  border-bottom: 1px solid var(--line-hair);
+  color: var(--t-0);
+  white-space: nowrap;
+}
+.tbl td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tbl td.mono { font-family: var(--font-mono); font-size: 12px; color: var(--t-1); }
+.tbl tr { cursor: default; }
+.tbl tr:hover td { background: var(--d-1); }
+.tbl tr.sel td {
+  background: var(--a-cy-bg);
+  box-shadow: inset 3px 0 0 var(--a-cy);
+}
+.tbl tr.sel:hover td { background: var(--a-cy-bg); }
+.tbl .muted { color: var(--t-2); }
+.tbl .dim { color: var(--t-3); }
+
+/* ============== STATUS BAR ============== */
+.statusbar {
+  background: #ffffff;
+  border-top: 1px solid var(--line);
+  display: flex; align-items: center;
+  padding: 0 14px;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--t-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.statusbar .sb-seg { display: inline-flex; align-items: center; gap: 6px; }
+.statusbar .sb-seg b { color: var(--t-0); font-weight: 600; }
+.statusbar .sb-seg.ok b { color: #15803d; }
+.statusbar .sep { width: 1px; height: 14px; background: var(--line); }
+
+/* ============== KBD ============== */
+kbd {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  min-width: 18px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: var(--t-1);
+  line-height: 1.2;
+}
+
+/* ============== MODAL ============== */
+.backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(3px);
+  display: grid; place-items: center;
+  z-index: 1000;
+  animation: f 0.15s ease;
+}
+.modal {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.15);
+  max-width: 92vw; max-height: 88vh;
+  min-width: 460px;
+  display: flex; flex-direction: column;
+  animation: p 0.18s ease;
+  overflow: hidden;
+}
+.modal-h {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  background: #ffffff;
+}
+.modal-h .title {
+  font-size: 15px;
+  color: var(--t-0);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.modal-h .title b { color: var(--a-cy); font-weight: 600; }
+.modal-body { padding: 18px; overflow: auto; flex: 1; }
+.modal-f {
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  display: flex; gap: 10px; justify-content: flex-end;
+  background: var(--d-1);
+}
+@keyframes f { from { opacity: 0; } to { opacity: 1; } }
+@keyframes p { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ============== UTILITIES ============== */
+.row { display: flex; align-items: center; gap: 8px; }
+.col { display: flex; flex-direction: column; }
+.stack-sm > * + * { margin-top: 8px; }
+.stack > * + * { margin-top: 12px; }
+.stack-lg > * + * { margin-top: 18px; }
+.spacer { flex: 1; }
+.hline { height: 1px; background: var(--line); }
+.vline { width: 1px; background: var(--line); align-self: stretch; }
+.gridcol { display: grid; gap: 12px; }
+
+/* ============== SCROLLBAR ============== */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: padding-box; border: 2px solid transparent; }
+
+/* ============== TWEAKS PANEL ============== */
+.tweaks {
+  position: fixed;
+  bottom: 40px; right: 16px;
+  width: 280px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  z-index: 900;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.15);
+  overflow: hidden;
+}
+.tweaks-h {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--a-cy);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex; align-items: center;
+}
+.tweaks-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.tweak-row { display: flex; flex-direction: column; gap: 6px; }
+.swatch-row { display: flex; gap: 8px; }
+.swatch {
+  width: 28px; height: 28px; border-radius: var(--r-2);
+  cursor: pointer; border: 2px solid transparent;
+}
+.swatch.on { border-color: var(--t-0); box-shadow: 0 0 0 2px #fff; }
+
+/* ============== PLACEHOLDERS ============== */
+.ph {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 10px, rgba(148, 163, 184, 0.08) 10px 11px),
+    var(--d-1);
+  border: 1px dashed var(--d-5);
+  border-radius: var(--r-2);
+  display: grid; place-items: center;
+  color: var(--t-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: center;
+  padding: 14px;
+  letter-spacing: 0.02em;
+}
+
+/* ============== CHART GRID ============== */
+.chart-grid {
+  background:
+    linear-gradient(var(--line-soft) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px) 0 0 / 44px 100%,
+    #ffffff;
+  position: relative;
+}
+
+/* ============== SEGMENTED ============== */
+.seg {
+  display: inline-flex;
+  background: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: 3px;
+  height: var(--ctl-h);
+}
+.seg button {
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t-2);
+  border-radius: var(--r-1);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.seg button.active {
+  background: #ffffff;
+  color: var(--t-0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  font-weight: 600;
+}
+
+/* ============== TABS ============== */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+  padding: 0 18px;
+  height: 44px;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.tabs .tab {
+  padding: 0 14px;
+  height: 42px;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t-2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.tabs .tab:hover { color: var(--t-0); }
+.tabs .tab.active { color: var(--a-cy); border-bottom-color: var(--a-cy); font-weight: 600; }
+.tabs .tab .n {
+  color: var(--t-3);
+  font-size: 11px;
+  background: var(--d-3);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+}
+.tabs .tab.active .n { background: var(--a-cy-bg); color: var(--a-cy); }
+
+/* ============== LOGIN ============== */
+.login-stage {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f7f9fc 0%, #eff5ff 100%);
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  overflow: hidden;
+}
+@media (max-width: 860px) { .login-stage { grid-template-columns: 1fr; } }
+
+.login-side {
+  padding: 56px 64px;
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+.login-card {
+  padding: 56px 48px;
+  background: #ffffff;
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  justify-content: center;
+  box-shadow: -10px 0 40px rgba(15, 23, 42, 0.04);
+}
+
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#f5f7fb">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#f5f7fb"/>
+    <rect x="80" y="120" width="1040" height="560" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+    <rect x="80" y="120" width="240" height="560" rx="16" fill="#0f172a"/>
+    <circle cx="200" cy="220" r="28" fill="#22d3ee"/>
+    <rect x="360" y="180" width="320" height="32" rx="6" fill="#0f172a"/>
+    <rect x="360" y="230" width="460" height="16" rx="4" fill="#94a3b8"/>
+    <rect x="360" y="310" width="220" height="120" rx="10" fill="#ecfeff" stroke="#a5f3fc" stroke-width="2"/>
+    <rect x="600" y="310" width="220" height="120" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <rect x="840" y="310" width="220" height="120" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <rect x="360" y="460" width="700" height="180" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="600" y="750" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" font-weight="600" fill="#64748b" letter-spacing="4">HIS · TERMINAL</text>
+  </svg>
+</template>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script>
+(function(){
+  const DICT = {
+    "nav.dashboard": { vi: "Tổng quan", en: "Dashboard" },
+    "nav.reception": { vi: "Tiếp nhận", en: "Reception" },
+    "nav.opd": { vi: "Khám ngoại trú", en: "Outpatient" },
+    "nav.ipd": { vi: "Nội trú", en: "Inpatient" },
+    "nav.surgery": { vi: "Phẫu thuật", en: "Surgery" },
+    "nav.billing": { vi: "Thanh toán", en: "Billing" },
+    "nav.ris": { vi: "CĐHA", en: "Imaging" },
+    "nav.lis": { vi: "Xét nghiệm", en: "Lab" },
+    "nav.settings": { vi: "Cài đặt", en: "Settings" },
+    "c.today": { vi: "Hôm nay", en: "Today" },
+    "c.search_hint": { vi: "Tìm bệnh nhân, mã BN, hoặc gõ lệnh…", en: "Search patients, MRN, or type a command…" },
+    "c.patient": { vi: "Bệnh nhân", en: "Patient" },
+    "c.mrn": { vi: "Mã BN", en: "MRN" },
+    "c.age": { vi: "Tuổi", en: "Age" },
+    "c.gender": { vi: "Giới", en: "Sex" },
+    "c.status": { vi: "Trạng thái", en: "Status" },
+    "c.action": { vi: "Thao tác", en: "Action" },
+    "c.male": { vi: "Nam", en: "M" },
+    "c.female": { vi: "Nữ", en: "F" },
+    "c.close": { vi: "Đóng", en: "Close" },
+    "c.save": { vi: "Lưu", en: "Save" },
+    "c.cancel": { vi: "Huỷ", en: "Cancel" },
+  };
+  const STORE = "his.term.lang";
+  window.__lang = localStorage.getItem(STORE) || "vi";
+  window.t = (k) => (DICT[k] && (DICT[k][window.__lang] || DICT[k].en)) || k;
+  window.setLang = (lang) => { window.__lang = lang; localStorage.setItem(STORE, lang); window.dispatchEvent(new Event("lang-changed")); };
+})();
+
+// Shared mock data for the HIS Terminal prototype.
+window.HIS_DATA = (function(){
+  const patients = [
+    { id: "BN-00142", name: "Nguyễn Văn An", age: 54, gender: "M", phone: "0912 345 678", insurance: "BHYT HN4-54321", allergy: ["Penicillin"], bloodType: "O+", address: "Ba Đình, Hà Nội" },
+    { id: "BN-00189", name: "Trần Thị Bình", age: 32, gender: "F", phone: "0987 654 321", insurance: "BHYT HN3-98765", allergy: [], bloodType: "A+", address: "Cầu Giấy, Hà Nội" },
+    { id: "BN-00201", name: "Lê Hoàng Cường", age: 67, gender: "M", phone: "0901 223 344", insurance: "BHYT HN2-11223", allergy: ["Aspirin","Sulfa"], bloodType: "B+", address: "Hai Bà Trưng, Hà Nội" },
+    { id: "BN-00223", name: "Phạm Minh Dũng", age: 45, gender: "M", phone: "0933 445 566", insurance: "Dịch vụ", allergy: [], bloodType: "AB+", address: "Đống Đa, Hà Nội" },
+    { id: "BN-00256", name: "Hoàng Thị Em", age: 28, gender: "F", phone: "0977 889 900", insurance: "BHYT HN1-33445", allergy: [], bloodType: "O-", address: "Thanh Xuân, Hà Nội" },
+    { id: "BN-00278", name: "Vũ Thanh Phong", age: 71, gender: "M", phone: "0944 556 677", insurance: "BHYT HN5-55667", allergy: ["Iodine"], bloodType: "A-", address: "Long Biên, Hà Nội" },
+    { id: "BN-00301", name: "Đặng Thu Giang", age: 38, gender: "F", phone: "0966 778 899", insurance: "Dịch vụ", allergy: [], bloodType: "B-", address: "Hà Đông, Hà Nội" },
+    { id: "BN-00312", name: "Bùi Quang Huy", age: 52, gender: "M", phone: "0955 889 977", insurance: "BHYT HN2-77889", allergy: [], bloodType: "O+", address: "Tây Hồ, Hà Nội" },
+  ];
+
+  const queue = [
+    { pid: "BN-00142", token: "A012", arrived: "07:42", priority: "normal", status: "waiting", reason: "Đau thượng vị 3 ngày", vitals: { bp: "138/92", hr: 84, temp: 37.2, spo2: 98 } },
+    { pid: "BN-00189", token: "A013", arrived: "07:55", priority: "normal", status: "in-progress", reason: "Khám thai 28 tuần", vitals: { bp: "118/76", hr: 78, temp: 36.8, spo2: 99 } },
+    { pid: "BN-00201", token: "A014", arrived: "08:02", priority: "urgent", status: "waiting", reason: "Khó thở, đau ngực trái", vitals: { bp: "162/98", hr: 102, temp: 37.0, spo2: 94 } },
+    { pid: "BN-00223", token: "A015", arrived: "08:10", priority: "normal", status: "waiting", reason: "Tái khám THA", vitals: { bp: "142/88", hr: 76, temp: 36.7, spo2: 98 } },
+    { pid: "BN-00256", token: "A016", arrived: "08:18", priority: "normal", status: "labs", reason: "Chóng mặt, buồn nôn", vitals: { bp: "108/68", hr: 88, temp: 37.1, spo2: 99 } },
+    { pid: "BN-00278", token: "A017", arrived: "08:25", priority: "normal", status: "waiting", reason: "Đái tháo đường - tái khám", vitals: { bp: "134/82", hr: 72, temp: 36.6, spo2: 97 } },
+    { pid: "BN-00301", token: "A018", arrived: "08:33", priority: "normal", status: "waiting", reason: "Ho kéo dài 2 tuần", vitals: { bp: "122/78", hr: 80, temp: 37.4, spo2: 97 } },
+    { pid: "BN-00312", token: "A019", arrived: "08:40", priority: "normal", status: "waiting", reason: "Đau lưng mạn", vitals: { bp: "128/84", hr: 74, temp: 36.8, spo2: 98 } },
+  ];
+
+  const wards = [
+    { id: "W-I", name: "Khoa Nội A", shortName: "Nội A", beds: 24,
+      rooms: [
+        { id: "P.301", beds: [
+          { n: "301-1", patient: { name: "Phạm Văn K.", id: "BN-00088", dx: "Viêm phổi cộng đồng" }, status: "occupied", severity: "stable", los: 3 },
+          { n: "301-2", patient: null, status: "free", severity: null, los: 0 },
+          { n: "301-3", patient: { name: "Nguyễn Thị M.", id: "BN-00102", dx: "Đợt cấp COPD" }, status: "occupied", severity: "critical", los: 5 },
+          { n: "301-4", patient: null, status: "cleaning", severity: null, los: 0 },
+        ]},
+        { id: "P.302", beds: [
+          { n: "302-1", patient: { name: "Lê Văn T.", id: "BN-00115", dx: "ĐTĐ type 2 biến chứng" }, status: "occupied", severity: "monitoring", los: 2 },
+          { n: "302-2", patient: { name: "Trần Thị H.", id: "BN-00121", dx: "Suy tim NYHA III" }, status: "occupied", severity: "stable", los: 7 },
+          { n: "302-3", patient: null, status: "free", severity: null, los: 0 },
+          { n: "302-4", patient: { name: "Vũ Văn D.", id: "BN-00133", dx: "Viêm dạ dày cấp" }, status: "occupied", severity: "stable", los: 1 },
+        ]},
+        { id: "P.303", beds: [
+          { n: "303-1", patient: { name: "Đặng Thị L.", id: "BN-00141", dx: "TBMN nhẹ" }, status: "occupied", severity: "monitoring", los: 4 },
+          { n: "303-2", patient: null, status: "reserved", severity: null, los: 0 },
+          { n: "303-3", patient: { name: "Hoàng Văn N.", id: "BN-00145", dx: "Tăng HA độ 3" }, status: "occupied", severity: "stable", los: 2 },
+          { n: "303-4", patient: { name: "Bùi Thị O.", id: "BN-00159", dx: "Viêm tụy cấp" }, status: "occupied", severity: "critical", los: 3 },
+        ]},
+      ]},
+    { id: "W-N", name: "Khoa Ngoại", shortName: "Ngoại", beds: 20,
+      rooms: [
+        { id: "P.501", beds: [
+          { n: "501-1", patient: { name: "Phạm Ngọc P.", id: "BN-00162", dx: "Hậu phẫu ruột thừa" }, status: "occupied", severity: "stable", los: 1 },
+          { n: "501-2", patient: null, status: "free", severity: null, los: 0 },
+          { n: "501-3", patient: { name: "Trần Văn Q.", id: "BN-00168", dx: "Gãy xương đùi P" }, status: "occupied", severity: "monitoring", los: 4 },
+          { n: "501-4", patient: null, status: "free", severity: null, los: 0 },
+        ]},
+        { id: "P.502", beds: [
+          { n: "502-1", patient: { name: "Lê Minh R.", id: "BN-00173", dx: "Sỏi mật - chờ PT" }, status: "occupied", severity: "stable", los: 0 },
+          { n: "502-2", patient: { name: "Đỗ Văn S.", id: "BN-00179", dx: "Thoát vị bẹn P" }, status: "occupied", severity: "stable", los: 2 },
+          { n: "502-3", patient: null, status: "cleaning", severity: null, los: 0 },
+          { n: "502-4", patient: null, status: "free", severity: null, los: 0 },
+        ]},
+      ]},
+    { id: "W-S", name: "Khoa Sản", shortName: "Sản", beds: 16,
+      rooms: [
+        { id: "P.701", beds: [
+          { n: "701-1", patient: { name: "Nguyễn Thị U.", id: "BN-00188", dx: "Hậu sản thường" }, status: "occupied", severity: "stable", los: 1 },
+          { n: "701-2", patient: { name: "Phạm Thị V.", id: "BN-00195", dx: "Hậu mổ đẻ" }, status: "occupied", severity: "stable", los: 2 },
+          { n: "701-3", patient: null, status: "free", severity: null, los: 0 },
+          { n: "701-4", patient: null, status: "free", severity: null, los: 0 },
+        ]},
+      ]},
+  ];
+
+  const orSchedule = [
+    { or: "OR-1", start: "07:30", end: "09:30", pt: "Trần Văn Q.", pid: "BN-00168", proc: "Kết hợp xương đùi P", surgeon: "BS Khải", status: "done" },
+    { or: "OR-1", start: "10:00", end: "12:00", pt: "Lê Minh R.", pid: "BN-00173", proc: "Cắt túi mật nội soi", surgeon: "BS Khải", status: "in-progress" },
+    { or: "OR-1", start: "13:30", end: "15:00", pt: "Đỗ Văn S.", pid: "BN-00179", proc: "Mổ thoát vị bẹn", surgeon: "BS Khải", status: "scheduled" },
+    { or: "OR-2", start: "08:00", end: "10:30", pt: "Phạm Thị V.", pid: "BN-00195", proc: "Mổ đẻ chủ động", surgeon: "BS Hà", status: "done" },
+    { or: "OR-2", start: "11:00", end: "12:30", pt: "Nguyễn Thu A.", pid: "BN-00211", proc: "Mổ u xơ tử cung", surgeon: "BS Hà", status: "scheduled" },
+    { or: "OR-3", start: "07:30", end: "10:00", pt: "Vũ Văn X.", pid: "BN-00220", proc: "Phaco - IOL 2 mắt", surgeon: "BS Minh", status: "done" },
+    { or: "OR-3", start: "10:30", end: "11:30", pt: "Lê Thị Y.", pid: "BN-00229", proc: "Phaco P", surgeon: "BS Minh", status: "in-progress" },
+    { or: "OR-4", start: "09:00", end: "13:00", pt: "Hoàng Văn Z.", pid: "BN-00234", proc: "Thay khớp háng P", surgeon: "BS Khải", status: "scheduled" },
+    { or: "OR-4", start: "14:00", end: "15:30", pt: "Bùi Thị B.", pid: "BN-00241", proc: "Nội soi khớp gối T", surgeon: "BS Khải", status: "scheduled" },
+  ];
+
+  const invoices = [
+    { id: "HD-2026-00872", pt: "Nguyễn Văn An", pid: "BN-00142", date: "18/04", items: 8, total: 2_340_000, paid: 0, status: "unpaid", kind: "OPD" },
+    { id: "HD-2026-00871", pt: "Trần Thị Bình", pid: "BN-00189", date: "18/04", items: 3, total: 680_000, paid: 680_000, status: "paid", kind: "OPD" },
+    { id: "HD-2026-00870", pt: "Phạm Văn K.", pid: "BN-00088", date: "18/04", items: 22, total: 12_480_000, paid: 8_000_000, status: "partial", kind: "IPD" },
+    { id: "HD-2026-00869", pt: "Lê Minh R.", pid: "BN-00173", date: "17/04", items: 14, total: 18_960_000, paid: 0, status: "unpaid", kind: "Surgery" },
+    { id: "HD-2026-00868", pt: "Vũ Thanh Phong", pid: "BN-00278", date: "17/04", items: 5, total: 1_240_000, paid: 1_240_000, status: "paid", kind: "OPD" },
+    { id: "HD-2026-00867", pt: "Nguyễn Thị M.", pid: "BN-00102", date: "17/04", items: 18, total: 7_650_000, paid: 7_650_000, status: "paid", kind: "IPD" },
+    { id: "HD-2026-00866", pt: "Hoàng Thị Em", pid: "BN-00256", date: "16/04", items: 6, total: 2_100_000, paid: 0, status: "unpaid", kind: "OPD" },
+    { id: "HD-2026-00865", pt: "Đặng Thu Giang", pid: "BN-00301", date: "16/04", items: 4, total: 950_000, paid: 950_000, status: "paid", kind: "OPD" },
+  ];
+
+  const studies = [
+    { id: "ACC-88712", pt: "Lê Hoàng Cường", pid: "BN-00201", modality: "CT", body: "Ngực - cản quang", ordered: "08:14", priority: "STAT", status: "in-progress", refDr: "BS Linh" },
+    { id: "ACC-88711", pt: "Phạm Văn K.", pid: "BN-00088", modality: "CR", body: "X-quang ngực PA", ordered: "07:52", priority: "Routine", status: "completed", refDr: "BS Linh" },
+    { id: "ACC-88710", pt: "Trần Thị Bình", pid: "BN-00189", modality: "US", body: "Siêu âm sản", ordered: "07:45", priority: "Routine", status: "reported", refDr: "BS Hà" },
+    { id: "ACC-88709", pt: "Nguyễn Thị M.", pid: "BN-00102", modality: "CT", body: "CT Scan Ngực HRCT", ordered: "07:10", priority: "Routine", status: "reported", refDr: "BS Linh" },
+    { id: "ACC-88708", pt: "Vũ Văn D.", pid: "BN-00133", modality: "MRI", body: "Cộng hưởng từ ổ bụng", ordered: "06:55", priority: "Routine", status: "scheduled", refDr: "BS Đạt" },
+    { id: "ACC-88707", pt: "Đặng Thị L.", pid: "BN-00141", modality: "MRI", body: "MRI sọ não", ordered: "06:30", priority: "STAT", status: "completed", refDr: "BS Linh" },
+    { id: "ACC-88706", pt: "Hoàng Văn N.", pid: "BN-00145", modality: "CR", body: "X-quang cột sống TL", ordered: "06:15", priority: "Routine", status: "reported", refDr: "BS Khải" },
+  ];
+
+  const labs = [
+    { id: "XN-2026-4419", pt: "Lê Hoàng Cường", pid: "BN-00201", panel: "Sinh hoá máu + Troponin I", priority: "STAT", collected: "08:20", status: "running", tat: "30p", abnormal: 2 },
+    { id: "XN-2026-4418", pt: "Nguyễn Văn An", pid: "BN-00142", panel: "CTM + CRP", priority: "Routine", collected: "08:05", status: "verified", tat: "—", abnormal: 1 },
+    { id: "XN-2026-4417", pt: "Hoàng Thị Em", pid: "BN-00256", panel: "Beta-hCG định lượng", priority: "Routine", collected: "07:58", status: "running", tat: "1h", abnormal: 0 },
+    { id: "XN-2026-4416", pt: "Vũ Thanh Phong", pid: "BN-00278", panel: "HbA1c + Glucose + Lipid", priority: "Routine", collected: "07:40", status: "verified", tat: "—", abnormal: 2 },
+    { id: "XN-2026-4415", pt: "Trần Thị Bình", pid: "BN-00189", panel: "TPTNT + Cấy NT", priority: "Routine", collected: "07:22", status: "verified", tat: "—", abnormal: 0 },
+    { id: "XN-2026-4414", pt: "Phạm Văn K.", pid: "BN-00088", panel: "Khí máu động mạch", priority: "STAT", collected: "07:00", status: "verified", tat: "—", abnormal: 1 },
+    { id: "XN-2026-4413", pt: "Đặng Thu Giang", pid: "BN-00301", panel: "AFP + CEA + CA 19-9", priority: "Routine", collected: "06:40", status: "pending", tat: "4h", abnormal: 0 },
+  ];
+
+  const patientById = (id) => patients.find(p => p.id === id);
+
+  return { patients, queue, wards, orRooms: ["OR-1","OR-2","OR-3","OR-4"], orSchedule, invoices, studies, labs, patientById };
+})();
+
+</script>
+<script type="text/babel" data-presets="react">
+;(function(){
+const Icon = ({ name, size = 16, stroke = 1.6, className = "" }) => {
+  const props = {
+    viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
+    strokeLinecap: "round", strokeLinejoin: "round",
+    className, style: { width: size, height: size, strokeWidth: stroke },
+  };
+  switch (name) {
+    case "grid": return <svg {...props}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>;
+    case "user-plus": return <svg {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>;
+    case "stethoscope": return <svg {...props}><path d="M6 3v6a5 5 0 0 0 10 0V3"/><path d="M6 3H4"/><path d="M16 3h2"/><circle cx="20" cy="14" r="2"/><path d="M11 14a7 7 0 0 0 7 7"/></svg>;
+    case "bed": return <svg {...props}><path d="M2 20V8"/><path d="M2 12h20v8"/><circle cx="7" cy="10" r="2"/><path d="M11 10h11"/></svg>;
+    case "scalpel": return <svg {...props}><path d="M21 3 14 10l-4-1-7 11 7-3 1-4 10-7Z"/></svg>;
+    case "receipt": return <svg {...props}><path d="M4 2h16v20l-4-2-4 2-4-2-4 2V2Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>;
+    case "scan": return <svg {...props}><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>;
+    case "flask": return <svg {...props}><path d="M9 2v7L3 20a1 1 0 0 0 .9 1.5h16.2A1 1 0 0 0 21 20L15 9V2"/><line x1="8" y1="2" x2="16" y2="2"/><line x1="7" y1="14" x2="17" y2="14"/></svg>;
+    case "settings": return <svg {...props}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8h0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>;
+    case "search": return <svg {...props}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>;
+    case "bell": return <svg {...props}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>;
+    case "filter": return <svg {...props}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+    case "plus": return <svg {...props}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+    case "x": return <svg {...props}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+    case "chevron-right": return <svg {...props}><polyline points="9 18 15 12 9 6"/></svg>;
+    case "chevron-down": return <svg {...props}><polyline points="6 9 12 15 18 9"/></svg>;
+    case "chevron-left": return <svg {...props}><polyline points="15 18 9 12 15 6"/></svg>;
+    case "arrow-right": return <svg {...props}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
+    case "printer": return <svg {...props}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
+    case "download": return <svg {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+    case "calendar": return <svg {...props}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+    case "clock": return <svg {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+    case "alert": return <svg {...props}><path d="M10.3 3.86 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+    case "heart": return <svg {...props}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>;
+    case "pill": return <svg {...props}><path d="m10.5 20.5 10-10a4.95 4.95 0 0 0-7-7l-10 10a4.95 4.95 0 0 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>;
+    case "check": return <svg {...props}><polyline points="20 6 9 17 4 12"/></svg>;
+    case "eye": return <svg {...props}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>;
+    case "edit": return <svg {...props}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+    case "more": return <svg {...props}><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>;
+    case "activity": return <svg {...props}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+    case "droplet": return <svg {...props}><path d="M12 2 6.5 9.5a7 7 0 1 0 11 0Z"/></svg>;
+    case "thermometer": return <svg {...props}><path d="M14 4a2 2 0 0 0-4 0v10.5a4 4 0 1 0 4 0Z"/></svg>;
+    case "logout": return <svg {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+    case "cmd": return <svg {...props}><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3Z"/></svg>;
+    default: return null;
+  }
+};
+window.Icon = Icon;
+
+})();
+</script>
+<script type="text/babel" data-presets="react">
+;(function(){
+// App shell: sidebar + command bar + module router.
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+const ROUTES = [
+  { id: "dashboard", t: "nav.dashboard", icon: "grid",         hot: null },
+  { id: "reception", t: "nav.reception", icon: "user-plus",    hot: null },
+  { id: "opd",       t: "nav.opd",       icon: "stethoscope",  hot: 8 },
+  { id: "ipd",       t: "nav.ipd",       icon: "bed",          hot: null },
+  { id: "surgery",   t: "nav.surgery",   icon: "scalpel",      hot: null },
+  { id: "billing",   t: "nav.billing",   icon: "receipt",      hot: 3 },
+  { id: "ris",       t: "nav.ris",       icon: "scan",         hot: null },
+  { id: "lis",       t: "nav.lis",       icon: "flask",        hot: 2 },
+];
+
+const useLang = () => {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const h = () => force(x => x + 1);
+    window.addEventListener("lang-changed", h);
+    return () => window.removeEventListener("lang-changed", h);
+  }, []);
+};
+
+// Rail groups for the icon column
+const RAIL_GROUPS = [
+  { items: [ROUTES[0]] },                                     // dashboard
+  { items: [ROUTES[1], ROUTES[2], ROUTES[3], ROUTES[4]] },    // reception, opd, ipd, surgery
+  { items: [ROUTES[6], ROUTES[7]] },                          // ris, lis
+  { items: [ROUTES[5]] },                                     // billing
+];
+
+// Subnav content per route: eyebrow, title, sub, groups of items
+const SUBNAV = {
+  dashboard: {
+    eyebrow: "OVERVIEW", title: "Tổng quan", sub: "Ca trực · 07:00 → 15:00",
+    groups: [
+      { label: "HÔM NAY", items: [
+        { id: "today", lbl: "Dashboard ca trực", tag: "06:42", active: true },
+        { id: "alerts", lbl: "Cảnh báo", tag: "3" },
+        { id: "kpi",    lbl: "KPI khoa", tag: "" },
+      ]},
+      { label: "LỐI TẮT", items: [
+        { id: "sh-rx",    lbl: "Đơn thuốc chờ ký", tag: "2" },
+        { id: "sh-lab",   lbl: "Kết quả lab mới", tag: "4" },
+        { id: "sh-consult", lbl: "Yêu cầu hội chẩn", tag: "" },
+      ]},
+    ],
+  },
+  reception: {
+    eyebrow: "CLINICAL · REG", title: "Tiếp nhận", sub: "Quầy 3 · kíp sáng",
+    groups: [
+      { label: "LUỒNG", items: [
+        { id: "new",    lbl: "Bệnh nhân mới", tag: "" },
+        { id: "queue",  lbl: "Hàng chờ OPD", tag: "6", active: true },
+        { id: "return", lbl: "Tái khám", tag: "" },
+      ]},
+      { label: "TRA CỨU", items: [
+        { id: "lookup", lbl: "Tra cứu BHYT", tag: "" },
+        { id: "family", lbl: "Hộ gia đình", tag: "" },
+      ]},
+    ],
+  },
+  opd: {
+    eyebrow: "CLINICAL · OPD", title: "Khám ngoại trú", sub: "Phòng khám 3B",
+    groups: [
+      { label: "DANH SÁCH", items: [
+        { id: "mine",    lbl: "BN của tôi", tag: "6", active: true },
+        { id: "all",     lbl: "Toàn khoa", tag: "24" },
+        { id: "pri",     lbl: "Ưu tiên", tag: "1" },
+      ]},
+      { label: "HỒ SƠ", items: [
+        { id: "cur",     lbl: "BN đang khám", tag: "A013" },
+        { id: "hist",    lbl: "Lịch sử hôm nay", tag: "" },
+      ]},
+      { label: "CÔNG CỤ", items: [
+        { id: "templates", lbl: "Mẫu chẩn đoán", tag: "" },
+        { id: "ref",       lbl: "Gửi tuyến trên", tag: "" },
+      ]},
+    ],
+  },
+  ipd: {
+    eyebrow: "CLINICAL · IPD", title: "Nội trú", sub: "Khoa Nội TQ · 60 giường",
+    groups: [
+      { label: "GIƯỜNG", items: [
+        { id: "map", lbl: "Sơ đồ giường", tag: "47/60", active: true },
+        { id: "in",  lbl: "Nhập viện hôm nay", tag: "3" },
+        { id: "out", lbl: "Xuất viện chờ", tag: "2" },
+      ]},
+      { label: "CHĂM SÓC", items: [
+        { id: "rounds", lbl: "Đi buồng", tag: "" },
+        { id: "vitals", lbl: "Sinh hiệu 2h", tag: "" },
+        { id: "meds",   lbl: "Thuốc MAR", tag: "" },
+      ]},
+    ],
+  },
+  surgery: {
+    eyebrow: "CLINICAL · OR", title: "Phẫu thuật", sub: "4 phòng mổ",
+    groups: [
+      { label: "LỊCH", items: [
+        { id: "today", lbl: "Hôm nay", tag: "9", active: true },
+        { id: "week",  lbl: "Tuần này", tag: "38" },
+      ]},
+      { label: "THEO PHÒNG", items: [
+        { id: "or1", lbl: "OR-1", tag: "LIVE" },
+        { id: "or2", lbl: "OR-2", tag: "" },
+        { id: "or3", lbl: "OR-3", tag: "" },
+        { id: "or4", lbl: "OR-4", tag: "" },
+      ]},
+    ],
+  },
+  billing: {
+    eyebrow: "OPERATIONS", title: "Thanh toán", sub: "Thu ngân · quầy 1",
+    groups: [
+      { label: "HOÁ ĐƠN", items: [
+        { id: "pending", lbl: "Chờ thanh toán", tag: "12", active: true },
+        { id: "partial", lbl: "Trả một phần", tag: "3" },
+        { id: "paid",    lbl: "Đã thu hôm nay", tag: "84" },
+      ]},
+      { label: "BHYT", items: [
+        { id: "claim", lbl: "Giám định", tag: "5" },
+        { id: "rej",   lbl: "Bị trả lại", tag: "2" },
+      ]},
+    ],
+  },
+  ris: {
+    eyebrow: "DIAGNOSTICS · RIS", title: "Chẩn đoán hình ảnh", sub: "PACS cluster-01",
+    groups: [
+      { label: "WORKLIST", items: [
+        { id: "wait",     lbl: "Chờ chụp", tag: "7", active: true },
+        { id: "reading",  lbl: "Đang đọc", tag: "3" },
+        { id: "signed",   lbl: "Đã ký trả", tag: "22" },
+      ]},
+      { label: "MODALITY", items: [
+        { id: "ct", lbl: "CT", tag: "2" },
+        { id: "mr", lbl: "MRI", tag: "1" },
+        { id: "xr", lbl: "X-quang", tag: "4" },
+        { id: "us", lbl: "Siêu âm", tag: "6" },
+      ]},
+    ],
+  },
+  lis: {
+    eyebrow: "DIAGNOSTICS · LIS", title: "Xét nghiệm", sub: "3 máy online",
+    groups: [
+      { label: "MẪU", items: [
+        { id: "incoming", lbl: "Chờ xử lý", tag: "14", active: true },
+        { id: "running",  lbl: "Đang chạy", tag: "8" },
+        { id: "flag",     lbl: "Giá trị H/L", tag: "2" },
+      ]},
+      { label: "MÁY", items: [
+        { id: "a1", lbl: "A1 · Sinh hoá", tag: "" },
+        { id: "a2", lbl: "A2 · Huyết học", tag: "" },
+        { id: "a3", lbl: "A3 · Miễn dịch", tag: "" },
+      ]},
+    ],
+  },
+};
+
+const Rail = ({ route, setRoute }) => {
+  useLang();
+  return (
+    <aside className="rail">
+      <div className="rail-mark">H</div>
+      {RAIL_GROUPS.map((g, gi) => (
+        <React.Fragment key={gi}>
+          {gi > 0 && <div className="rail-group-line"/>}
+          {g.items.map(r => (
+            <button key={r.id} className={"rail-item " + (route === r.id ? "active" : "")} onClick={() => setRoute(r.id)}>
+              <Icon name={r.icon} size={18}/>
+              {r.hot && <span className="hot">{r.hot}</span>}
+              <span className="tip">{t(r.t)}</span>
+            </button>
+          ))}
+        </React.Fragment>
+      ))}
+      <div className="rail-spacer"/>
+      <button className="rail-item" title="Cài đặt">
+        <Icon name="settings" size={18}/>
+        <span className="tip">{t("nav.settings")}</span>
+      </button>
+    </aside>
+  );
+};
+
+const SubNav = ({ route, subRoute, setSubRoute }) => {
+  useLang();
+  const data = SUBNAV[route] || SUBNAV.dashboard;
+  // determine active: subRoute or fallback to items marked active
+  const isActive = (item) => subRoute ? subRoute === item.id : !!item.active;
+  return (
+    <nav className="subnav">
+      <div className="subnav-eyebrow">{data.eyebrow}</div>
+      <div className="subnav-title">{data.title}</div>
+      <div className="subnav-sub">{data.sub}</div>
+      {data.groups.map((g, gi) => (
+        <React.Fragment key={gi}>
+          <div className="subnav-group">{g.label}</div>
+          {g.items.map(it => (
+            <button key={it.id} className={"subnav-item " + (isActive(it) ? "active" : "")} onClick={() => setSubRoute(it.id)}>
+              <span className="lbl">{it.lbl}</span>
+              {it.tag === "LIVE" ? <span className="dot-live"/> : it.tag && <span className="tag">{it.tag}</span>}
+            </button>
+          ))}
+        </React.Fragment>
+      ))}
+      <div className="subnav-spacer"/>
+      <div className="subnav-card">
+        <div className="lbl">Ca trực còn</div>
+        <div className="val">4h 18m</div>
+        <div className="hint">Giao ban kế tiếp · 09:00</div>
+      </div>
+    </nav>
+  );
+};
+
+const CommandBar = ({ route, onCmdOpen, onLogout }) => {
+  useLang();
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const i = setInterval(() => setNow(new Date()), 1000 * 30);
+    return () => clearInterval(i);
+  }, []);
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const here = ROUTES.find(r => r.id === route);
+
+  const toggleLang = () => window.setLang(window.__lang === "vi" ? "en" : "vi");
+
+  return (
+    <header className="cmdbar">
+      <div className="cmdbar-path">
+        <span>his</span>
+        <span className="slash">/</span>
+        <span>workspace</span>
+        <span className="slash">/</span>
+        <span className="here">{here ? t(here.t) : ""}</span>
+      </div>
+      <div className="cmd" onClick={onCmdOpen}>
+        <span className="prompt">❯</span>
+        <span className="hint">{t("c.search_hint")}</span>
+        <kbd>⌘</kbd><kbd>K</kbd>
+      </div>
+      <div className="cmdbar-right">
+        <div className="chip-shift"><span className="dot"/>CA TRỰC · {hh}:{mm}</div>
+        <button className="topbtn" onClick={toggleLang}>{window.__lang.toUpperCase()}</button>
+        <button className="topbtn icon" title="Notifications">
+          <Icon name="bell" size={15}/>
+        </button>
+        <div className="user" onClick={onLogout}>
+          <div className="avatar">NL</div>
+          <div className="who">
+            <span className="n">BS Nguyễn Hoài Linh</span>
+            <span className="r">Nội tổng quát · BS-01</span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+const StatusBar = ({ route, extra }) => (
+  <footer className="statusbar">
+    <span className="sb-seg ok"><span className="dot ok"/><b>ONLINE</b></span>
+    <span className="sep"/>
+    <span className="sb-seg">DB <b>SQL-01</b> · 2ms</span>
+    <span className="sep"/>
+    <span className="sb-seg">HL7 <b>ACK</b></span>
+    <span className="sep"/>
+    <span className="sb-seg">PACS <b>8 studies</b></span>
+    <span className="sep"/>
+    <span className="sb-seg">{extra || `ROUTE · ${route.toUpperCase()}`}</span>
+    <div style={{ marginLeft: "auto" }}></div>
+    <span className="sb-seg">v2.4.1</span>
+    <span className="sep"/>
+    <span className="sb-seg">© 2026 HIS</span>
+  </footer>
+);
+
+// =================== COMMAND PALETTE ===================
+const CommandPalette = ({ open, onClose, onNav }) => {
+  const [q, setQ] = useState("");
+  const inputRef = useRef(null);
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    if (!open) setQ("");
+  }, [open]);
+
+  const actions = useMemo(() => [
+    { id: "go-dashboard", label: "Đi tới Dashboard", kind: "NAV", go: "dashboard" },
+    { id: "go-reception", label: "Tiếp nhận bệnh nhân mới", kind: "NAV", go: "reception" },
+    { id: "go-opd", label: "OPD - Hàng chờ khám", kind: "NAV", go: "opd" },
+    { id: "go-ipd", label: "IPD - Sơ đồ giường", kind: "NAV", go: "ipd" },
+    { id: "go-surgery", label: "Lịch phẫu thuật hôm nay", kind: "NAV", go: "surgery" },
+    { id: "go-billing", label: "Hoá đơn chưa thanh toán", kind: "NAV", go: "billing" },
+    { id: "go-ris", label: "Worklist chẩn đoán hình ảnh", kind: "NAV", go: "ris" },
+    { id: "go-lis", label: "Kết quả xét nghiệm", kind: "NAV", go: "lis" },
+    ...HIS_DATA.patients.map(p => ({ id: p.id, label: `${p.name} · ${p.id} · ${p.age} ${p.gender}`, kind: "PATIENT", pid: p.id })),
+  ], []);
+
+  const filtered = useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    if (!ql) return actions.slice(0, 10);
+    return actions.filter(a => a.label.toLowerCase().includes(ql) || a.id.toLowerCase().includes(ql)).slice(0, 12);
+  }, [q, actions]);
+
+  const pick = (a) => {
+    if (a.kind === "NAV") onNav(a.go);
+    onClose();
+  };
+
+  if (!open) return null;
+  return (
+    <div className="backdrop" onMouseDown={onClose}>
+      <div className="modal" style={{ minWidth: 560, maxWidth: 640 }} onMouseDown={e => e.stopPropagation()}>
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 8, background: "var(--d-0)" }}>
+          <span className="mono" style={{ color: "var(--a-cy)" }}>❯</span>
+          <input
+            ref={inputRef}
+            className="mono"
+            placeholder="Gõ để tìm bệnh nhân, chuyển module, hoặc ra lệnh…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            style={{ flex: 1, background: "transparent", border: 0, color: "var(--t-0)", fontSize: 14 }}
+          />
+          <kbd>ESC</kbd>
+        </div>
+        <div style={{ maxHeight: 380, overflow: "auto", padding: 4 }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 24, color: "var(--t-3)", fontFamily: "var(--font-mono)", fontSize: 12 }}>Không tìm thấy kết quả cho "{q}"</div>
+          ) : (
+            filtered.map(a => (
+              <div key={a.id}
+                onClick={() => pick(a)}
+                className="mono"
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "8px 10px", borderRadius: 4,
+                  cursor: "pointer", fontSize: 12,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--d-3)"}
+                onMouseLeave={e => e.currentTarget.style.background = ""}
+              >
+                <span className="chip" style={{ background: a.kind === "NAV" ? "var(--a-cy-bg)" : "var(--s-mag-bg)", color: a.kind === "NAV" ? "var(--a-cy)" : "var(--s-mag)" }}>
+                  {a.kind}
+                </span>
+                <span style={{ color: "var(--t-0)" }}>{a.label}</span>
+                <span className="spacer"/>
+                <Icon name="arrow-right" size={12}/>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== TWEAKS ====================
+const ACCENTS = [
+  { id: "cyan", cy: "#22d3ee", dim: "#0891b2" },
+  { id: "emerald", cy: "#34d399", dim: "#059669" },
+  { id: "violet", cy: "#a78bfa", dim: "#7c3aed" },
+  { id: "amber", cy: "#fbbf24", dim: "#d97706" },
+];
+
+const TweaksPanel = ({ onClose }) => {
+  const [density, setDensity] = useState(localStorage.getItem("his.term.density") || "comfy");
+  const [accent, setAccent] = useState(localStorage.getItem("his.term.accent") || "cyan");
+  const [radius, setRadius] = useState(localStorage.getItem("his.term.radius") || "soft");
+  const [dashLayout, setDashLayout] = useState(localStorage.getItem("his.term.dashLayout") || "focus");
+
+  useEffect(() => {
+    localStorage.setItem("his.term.dashLayout", dashLayout);
+    window.__dashLayout = dashLayout;
+    window.dispatchEvent(new Event("dash-layout-changed"));
+  }, [dashLayout]);
+
+  useEffect(() => {
+    const r = document.documentElement;
+    if (density === "compact") {
+      r.style.setProperty("--row-h", "32px");
+      r.style.setProperty("--ctl-h", "30px");
+      r.style.setProperty("--fs-md", "13px");
+    } else {
+      r.style.setProperty("--row-h", "42px");
+      r.style.setProperty("--ctl-h", "38px");
+      r.style.setProperty("--fs-md", "14px");
+    }
+    localStorage.setItem("his.term.density", density);
+  }, [density]);
+
+  useEffect(() => {
+    const a = ACCENTS.find(x => x.id === accent) || ACCENTS[0];
+    const r = document.documentElement;
+    r.style.setProperty("--a-cy", a.cy);
+    r.style.setProperty("--a-cy-dim", a.dim);
+    const hex = a.cy.replace("#", "");
+    const rr = parseInt(hex.slice(0,2),16), gg = parseInt(hex.slice(2,4),16), bb = parseInt(hex.slice(4,6),16);
+    r.style.setProperty("--a-cy-bg", `rgba(${rr},${gg},${bb},0.08)`);
+    r.style.setProperty("--a-cy-line", `rgba(${rr},${gg},${bb},0.25)`);
+    localStorage.setItem("his.term.accent", accent);
+  }, [accent]);
+
+  useEffect(() => {
+    const r = document.documentElement;
+    if (radius === "sharp") {
+      r.style.setProperty("--r-1", "2px"); r.style.setProperty("--r-2", "4px");
+      r.style.setProperty("--r-3", "6px"); r.style.setProperty("--r-4", "10px");
+    } else {
+      r.style.setProperty("--r-1", "4px"); r.style.setProperty("--r-2", "8px");
+      r.style.setProperty("--r-3", "12px"); r.style.setProperty("--r-4", "16px");
+    }
+    localStorage.setItem("his.term.radius", radius);
+  }, [radius]);
+
+  return (
+    <div className="tweaks">
+      <div className="tweaks-h">
+        <span>TWEAKS</span>
+        <span className="spacer" style={{ flex: 1 }}/>
+        <button className="topbtn icon" onClick={onClose} style={{ color: "var(--t-2)", height: 20, width: 20 }}>
+          <Icon name="x" size={12}/>
+        </button>
+      </div>
+      <div className="tweaks-body">
+        <div className="tweak-row">
+          <label className="label">Dashboard layout</label>
+          <div className="seg">
+            <button className={dashLayout === "focus" ? "active" : ""} onClick={() => setDashLayout("focus")}>Focus</button>
+            <button className={dashLayout === "dense" ? "active" : ""} onClick={() => setDashLayout("dense")}>Data</button>
+            <button className={dashLayout === "brief" ? "active" : ""} onClick={() => setDashLayout("brief")}>Brief</button>
+          </div>
+        </div>
+        <div className="tweak-row">
+          <label className="label">Accent</label>
+          <div className="swatch-row">
+            {ACCENTS.map(a => (
+              <div key={a.id}
+                className={"swatch " + (accent === a.id ? "on" : "")}
+                style={{ background: a.cy }}
+                onClick={() => setAccent(a.id)}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="tweak-row">
+          <label className="label">Density</label>
+          <div className="seg">
+            <button className={density === "compact" ? "active" : ""} onClick={() => setDensity("compact")}>Compact</button>
+            <button className={density === "comfy" ? "active" : ""} onClick={() => setDensity("comfy")}>Comfy</button>
+          </div>
+        </div>
+        <div className="tweak-row">
+          <label className="label">Radius</label>
+          <div className="seg">
+            <button className={radius === "sharp" ? "active" : ""} onClick={() => setRadius("sharp")}>Sharp</button>
+            <button className={radius === "soft" ? "active" : ""} onClick={() => setRadius("soft")}>Soft</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { Rail, SubNav, CommandBar, StatusBar, CommandPalette, TweaksPanel, ROUTES, SUBNAV, useLang });
+
+})();
+</script>
+<script type="text/babel" data-presets="react">
+;(function(){
+// Module: Dashboard (doctor's command deck)
+const Dashboard = ({ goPatient, goRoute }) => {
+  const [, force] = React.useState(0);
+  React.useEffect(() => {
+    const h = () => force(x => x + 1);
+    window.addEventListener("dash-layout-changed", h);
+    return () => window.removeEventListener("dash-layout-changed", h);
+  }, []);
+  const layout = window.__dashLayout || localStorage.getItem("his.term.dashLayout") || "focus";
+  if (layout === "dense") return <DashboardDense goRoute={goRoute}/>;
+  if (layout === "brief") return <DashboardBrief goRoute={goRoute}/>;
+  return <DashboardFocus goRoute={goRoute}/>;
+};
+
+const DashboardFocus = ({ goRoute }) => {
+  useLang();
+  const inProgress = HIS_DATA.queue.find(q => q.status === "in-progress");
+  const waiting = HIS_DATA.queue.filter(q => q.status === "waiting");
+  const urgent = HIS_DATA.queue.filter(q => q.priority === "urgent");
+  const p = inProgress ? HIS_DATA.patientById(inProgress.pid) : null;
+
+  return (
+    <div style={{ padding: "32px 40px 40px", maxWidth: 1400, margin: "0 auto", display: "flex", flexDirection: "column", gap: 32 }}>
+
+      {/* HERO — page-wide greeting band */}
+      <section>
+        <div className="mono up" style={{ fontSize: 11, color: "var(--t-3)", letterSpacing: "0.14em" }}>
+          Thứ Bảy · 18/04/2026 · 08:42
+        </div>
+        <h1 style={{ fontSize: 40, fontWeight: 600, color: "var(--t-0)", margin: "10px 0 4px", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+          Chào buổi sáng, <span style={{ color: "var(--a-cy)" }}>BS Linh</span>.
+        </h1>
+        <div style={{ fontSize: 15, color: "var(--t-2)", maxWidth: 620 }}>
+          {waiting.length} bệnh nhân đang chờ, {urgent.length} ưu tiên. Ca trực của bạn bắt đầu lúc 07:00 và kết thúc 15:00.
+        </div>
+
+        {/* KPI row — big, airy */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, marginTop: 32, paddingTop: 28, borderTop: "1px solid var(--line)" }}>
+          <KPIBig label="Hàng chờ OPD" value={waiting.length} sub="bệnh nhân" trend="-2" />
+          <KPIBig label="Đang nội trú" value="47" sub="/ 60 giường" trend="+3" />
+          <KPIBig label="Phẫu thuật" value="9" sub="hôm nay" trend="0" />
+          <KPIBig label="Cảnh báo" value="3" sub="đang hoạt động" trend="+1" warn />
+        </div>
+      </section>
+
+      {/* 3-CARD ROW — equal columns, focused */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+
+        {/* Card 1: Current patient */}
+        <div className="dashcard featured">
+          <div className="dashcard-eyebrow">
+            <span className="dot cy"/>
+            <span>ĐANG KHÁM · {inProgress?.token}</span>
+          </div>
+          <div className="dashcard-title">{p?.name}</div>
+          <div className="dashcard-meta">
+            {p?.id} · {p?.age}{p?.gender === "M" ? "♂" : "♀"} · {p?.bloodType} · {p?.insurance}
+          </div>
+          {p?.allergy.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <span className="chip crit"><Icon name="alert" size={11}/> Dị ứng: {p.allergy.join(", ")}</span>
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22 }}>
+            <VitalMini label="Huyết áp" value={inProgress?.vitals.bp} unit="mmHg" />
+            <VitalMini label="Nhịp tim" value={inProgress?.vitals.hr} unit="bpm" />
+            <VitalMini label="Nhiệt độ" value={inProgress?.vitals.temp} unit="°C" />
+            <VitalMini label="SpO₂" value={inProgress?.vitals.spo2} unit="%" />
+          </div>
+          <button className="dashcard-cta" onClick={() => goRoute("opd")}>
+            Mở hồ sơ bệnh án <Icon name="arrow-right" size={13}/>
+          </button>
+        </div>
+
+        {/* Card 2: Vital alerts */}
+        <div className="dashcard">
+          <div className="dashcard-eyebrow">
+            <span className="dot crit"/>
+            <span>CẢNH BÁO SINH HIỆU · 3</span>
+          </div>
+          <div className="dashcard-title" style={{ fontSize: 18 }}>Cần chú ý ngay</div>
+          <div className="dashcard-meta" style={{ marginBottom: 18 }}>Tín hiệu từ thiết bị đeo & monitor trung tâm</div>
+          <div className="dashlist">
+            <AlertRow sev="crit" pt="Nguyễn Thị M." room="P.301-3 · IPD" msg="SpO₂ 88% ↓" age="2 phút" />
+            <AlertRow sev="warn" pt="Lê Hoàng Cường" room="OPD · hàng chờ" msg="HA 162/98 ↑" age="5 phút" />
+            <AlertRow sev="warn" pt="Bùi Thị O." room="P.303-4 · IPD" msg="Nhiệt độ 38.9°C" age="18 phút" />
+          </div>
+          <button className="dashcard-cta ghost">Xem tất cả cảnh báo →</button>
+        </div>
+
+        {/* Card 3: Today's schedule */}
+        <div className="dashcard">
+          <div className="dashcard-eyebrow">
+            <span className="dot"/>
+            <span>LỊCH HÔM NAY · 5</span>
+          </div>
+          <div className="dashcard-title" style={{ fontSize: 18 }}>Sự kiện sắp tới</div>
+          <div className="dashcard-meta" style={{ marginBottom: 18 }}>Lịch giao ban, hội chẩn, phẫu thuật</div>
+          <div className="dashlist">
+            <TLRow time="09:00" what="Giao ban khoa" where="P.Họp A2" />
+            <TLRow time="10:30" what="Hội chẩn ca BN-00102" where="Khoa Nội TQ" active />
+            <TLRow time="13:00" what="Phẫu thuật thoát vị bẹn" where="OR-1" chip="Surgery" />
+            <TLRow time="14:30" what="Gặp TS.BS Hoàng" where="VP 408" />
+          </div>
+          <button className="dashcard-cta ghost">Xem toàn bộ lịch →</button>
+        </div>
+
+      </section>
+
+      {/* SECONDARY ROW: Lab results pending + quick actions */}
+      <section style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+        <div className="dashcard">
+          <div className="dashcard-eyebrow">
+            <span className="dot warn"/>
+            <span>LAB CHỜ DUYỆT · 4 KẾT QUẢ</span>
+          </div>
+          <div className="dashcard-title" style={{ fontSize: 18 }}>Giá trị bất thường</div>
+          <div className="dashcard-meta" style={{ marginBottom: 18 }}>Cần bác sĩ ký duyệt trước khi trả</div>
+          <table className="lab-table">
+            <thead>
+              <tr><th>Bệnh nhân</th><th>Panel</th><th>Mã</th><th style={{textAlign:"right"}}>Bất thường</th></tr>
+            </thead>
+            <tbody>
+              {HIS_DATA.labs.filter(l => l.status === "verified" && l.abnormal > 0).slice(0, 4).map(l => (
+                <tr key={l.id}>
+                  <td><span style={{color:"var(--t-0)",fontWeight:500}}>{l.pt}</span></td>
+                  <td><span className="mono" style={{color:"var(--t-2)",fontSize:12}}>{l.panel}</span></td>
+                  <td><span className="mono" style={{color:"var(--t-3)",fontSize:11}}>{l.id}</span></td>
+                  <td style={{textAlign:"right"}}><span className="chip warn">{l.abnormal} abn</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="dashcard">
+          <div className="dashcard-eyebrow">
+            <span className="dot cy"/>
+            <span>LỐI TẮT</span>
+          </div>
+          <div className="dashcard-title" style={{ fontSize: 18 }}>Hành động nhanh</div>
+          <div className="dashcard-meta" style={{ marginBottom: 18 }}>Thao tác thường dùng trong ca trực</div>
+          <div style={{ display: "grid", gap: 10 }}>
+            <QuickAction icon="user-plus" lbl="Tiếp nhận BN mới" onClick={()=>goRoute("reception")}/>
+            <QuickAction icon="stethoscope" lbl="Bắt đầu phiên khám" onClick={()=>goRoute("opd")}/>
+            <QuickAction icon="scan" lbl="Yêu cầu chụp CĐHA" onClick={()=>goRoute("ris")}/>
+            <QuickAction icon="flask" lbl="Yêu cầu xét nghiệm" onClick={()=>goRoute("lis")}/>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  );
+};
+
+// ---- Spacious dashboard helpers ----
+const KPIBig = ({ label, value, sub, trend, warn }) => (
+  <div>
+    <div className="mono up" style={{ fontSize: 10, color: "var(--t-3)", letterSpacing: "0.12em" }}>{label}</div>
+    <div style={{ fontSize: 44, fontWeight: 600, color: warn ? "var(--s-warn)" : "var(--t-0)", lineHeight: 1, marginTop: 10, letterSpacing: "-0.02em", fontFamily: "var(--font-sans)" }}>{value}</div>
+    <div style={{ fontSize: 12, color: "var(--t-2)", marginTop: 8 }}>
+      {sub}{" "}
+      <span style={{ color: trend === "0" ? "var(--t-3)" : (trend.startsWith("+") ? "var(--s-ok)" : "var(--s-crit)"), fontFamily: "var(--font-mono)", marginLeft: 4 }}>{trend}</span>
+    </div>
+  </div>
+);
+
+const VitalMini = ({ label, value, unit }) => (
+  <div style={{ padding: "12px 14px", background: "var(--d-1)", borderRadius: 8 }}>
+    <div style={{ fontSize: 11, color: "var(--t-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--font-mono)" }}>{label}</div>
+    <div style={{ fontSize: 22, color: "var(--t-0)", marginTop: 4, fontWeight: 500, fontFamily: "var(--font-sans)" }}>
+      {value} <span style={{ fontSize: 11, color: "var(--t-3)", fontWeight: 400 }}>{unit}</span>
+    </div>
+  </div>
+);
+
+const QuickAction = ({ icon, lbl, onClick }) => (
+  <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--d-1)", border: "1px solid var(--line)", borderRadius: 8, color: "var(--t-0)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", transition: "all 0.12s" }}
+    onMouseEnter={e=>{e.currentTarget.style.background="var(--a-cy-bg)"; e.currentTarget.style.borderColor="var(--a-cy-line)"; e.currentTarget.style.color="var(--a-cy)";}}
+    onMouseLeave={e=>{e.currentTarget.style.background="var(--d-1)"; e.currentTarget.style.borderColor="var(--line)"; e.currentTarget.style.color="var(--t-0)";}}>
+    <Icon name={icon} size={15}/>
+    <span style={{ flex: 1 }}>{lbl}</span>
+    <Icon name="arrow-right" size={12}/>
+  </button>
+);
+
+// ======== DASHBOARD · DENSE ========
+// Data-rich, 2 columns, more tables & timelines
+const DashboardDense = ({ goRoute }) => {
+  useLang();
+  const inProgress = HIS_DATA.queue.find(q => q.status === "in-progress");
+  const waiting = HIS_DATA.queue.filter(q => q.status === "waiting");
+  const urgent = HIS_DATA.queue.filter(q => q.priority === "urgent");
+  const p = inProgress ? HIS_DATA.patientById(inProgress.pid) : null;
+
+  return (
+    <div style={{ padding: "24px 32px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Tight hero */}
+      <section style={{ display: "flex", alignItems: "flex-end", gap: 32, paddingBottom: 20, borderBottom: "1px solid var(--line)" }}>
+        <div style={{ flex: 1 }}>
+          <div className="mono up" style={{ fontSize: 11, color: "var(--t-3)", letterSpacing: "0.12em" }}>Ca trực · BS Linh · 18/04/2026 08:42</div>
+          <h1 style={{ fontSize: 28, fontWeight: 600, color: "var(--t-0)", margin: "8px 0 0", letterSpacing: "-0.015em" }}>
+            Dashboard ca trực — Khoa Nội tổng quát
+          </h1>
+        </div>
+        <div style={{ display: "flex", gap: 0 }}>
+          <KPIInline label="Hàng chờ" value={waiting.length} trend="-2"/>
+          <KPIInline label="Nội trú" value="47" trend="+3"/>
+          <KPIInline label="OR hôm nay" value="9" trend="0"/>
+          <KPIInline label="Cảnh báo" value="3" trend="+1" warn/>
+          <KPIInline label="Lab bất thường" value="4" trend="+1" warn/>
+          <KPIInline label="BHYT chờ" value="5" trend="0"/>
+        </div>
+      </section>
+
+      {/* 2 cols */}
+      <section style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 24 }}>
+        {/* LEFT: Current patient + timeline */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="dashcard featured" style={{ padding: "22px 24px" }}>
+            <div className="dashcard-eyebrow"><span className="dot cy"/><span>ĐANG KHÁM · {inProgress?.token}</span></div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginTop: 6 }}>
+              <div className="dashcard-title" style={{ marginBottom: 0 }}>{p?.name}</div>
+              <div className="mono" style={{ fontSize: 12, color: "var(--t-2)" }}>
+                {p?.id} · {p?.age}{p?.gender === "M" ? "♂" : "♀"} · {p?.bloodType} · {p?.insurance}
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 18 }}>
+              <VitalMini label="Huyết áp" value={inProgress?.vitals.bp} unit="mmHg"/>
+              <VitalMini label="Nhịp tim" value={inProgress?.vitals.hr} unit="bpm"/>
+              <VitalMini label="Nhiệt độ" value={inProgress?.vitals.temp} unit="°C"/>
+              <VitalMini label="SpO₂" value={inProgress?.vitals.spo2} unit="%"/>
+            </div>
+            <div style={{ marginTop: 16, fontSize: 12, color: "var(--t-1)", fontFamily: "var(--font-mono)", lineHeight: 1.9 }}>
+              <div><span style={{ color: "var(--t-3)" }}>07:55</span>  Tiếp nhận · tầng 1 · quầy 3</div>
+              <div><span style={{ color: "var(--t-3)" }}>08:12</span>  Sinh hiệu · ĐD Hương</div>
+              <div><span style={{ color: "var(--t-3)" }}>08:18</span>  Vào phòng khám 201 <span className="chip cy sm">HIỆN TẠI</span></div>
+              <div><span style={{ color: "var(--t-3)" }}>08:31</span>  — Chỉ định Siêu âm sản · ACC-88710</div>
+            </div>
+          </div>
+
+          <div className="dashcard" style={{ padding: "22px 24px" }}>
+            <div className="dashcard-eyebrow"><span className="dot warn"/><span>LAB CHỜ DUYỆT · 4 KẾT QUẢ</span></div>
+            <table className="lab-table" style={{ marginTop: 14 }}>
+              <thead><tr><th>Bệnh nhân</th><th>Panel</th><th>Mã</th><th style={{textAlign:"right"}}>Bất thường</th><th style={{textAlign:"right"}}>Tuổi</th></tr></thead>
+              <tbody>
+                {HIS_DATA.labs.filter(l => l.status === "verified" && l.abnormal > 0).slice(0, 5).map(l => (
+                  <tr key={l.id}>
+                    <td style={{color:"var(--t-0)",fontWeight:500}}>{l.pt}</td>
+                    <td className="mono" style={{color:"var(--t-2)",fontSize:12}}>{l.panel}</td>
+                    <td className="mono" style={{color:"var(--t-3)",fontSize:11}}>{l.id}</td>
+                    <td style={{textAlign:"right"}}><span className="chip warn">{l.abnormal} abn</span></td>
+                    <td className="mono" style={{textAlign:"right",color:"var(--t-3)",fontSize:11}}>12m</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* RIGHT: Alerts + schedule */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="dashcard" style={{ padding: "22px 24px" }}>
+            <div className="dashcard-eyebrow"><span className="dot crit"/><span>CẢNH BÁO · 3 SIGNALS</span></div>
+            <div className="dashlist" style={{ marginTop: 10 }}>
+              <AlertRow sev="crit" pt="Nguyễn Thị M." room="P.301-3" msg="SpO₂ 88% ↓" age="2 phút"/>
+              <AlertRow sev="warn" pt="Lê Hoàng Cường" room="OPD · hàng chờ" msg="HA 162/98 ↑" age="5 phút"/>
+              <AlertRow sev="warn" pt="Bùi Thị O." room="P.303-4" msg="Nhiệt độ 38.9°C" age="18 phút"/>
+            </div>
+          </div>
+          <div className="dashcard" style={{ padding: "22px 24px" }}>
+            <div className="dashcard-eyebrow"><span className="dot"/><span>LỊCH HÔM NAY · 5</span></div>
+            <div className="dashlist" style={{ marginTop: 10 }}>
+              <TLRow time="09:00" what="Giao ban khoa" where="P.Họp A2"/>
+              <TLRow time="10:30" what="Hội chẩn ca BN-00102" where="Khoa Nội" active/>
+              <TLRow time="13:00" what="Phẫu thuật thoát vị bẹn" where="OR-1" chip="Surgery"/>
+              <TLRow time="14:30" what="Gặp TS.BS Hoàng" where="VP 408"/>
+              <TLRow time="15:00" what="Kết ca trực" where="—"/>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const KPIInline = ({ label, value, trend, warn }) => (
+  <div style={{ padding: "4px 20px", borderLeft: "1px solid var(--line)" }}>
+    <div className="mono up" style={{ fontSize: 10, color: "var(--t-3)" }}>{label}</div>
+    <div style={{ fontSize: 26, fontWeight: 600, color: warn ? "var(--s-warn)" : "var(--t-0)", lineHeight: 1.1, marginTop: 4, letterSpacing: "-0.01em" }}>{value}</div>
+    <div className="mono" style={{ fontSize: 10, color: trend === "0" ? "var(--t-3)" : (trend.startsWith("+") ? "var(--s-ok)" : "var(--s-crit)"), marginTop: 2 }}>{trend}</div>
+  </div>
+);
+
+// ======== DASHBOARD · BRIEF ========
+// One big decision per screen — very generous whitespace, magazine-like
+const DashboardBrief = ({ goRoute }) => {
+  useLang();
+  const inProgress = HIS_DATA.queue.find(q => q.status === "in-progress");
+  const waiting = HIS_DATA.queue.filter(q => q.status === "waiting");
+  const p = inProgress ? HIS_DATA.patientById(inProgress.pid) : null;
+
+  return (
+    <div style={{ padding: "60px 80px 80px", maxWidth: 1200, margin: "0 auto" }}>
+      <div className="mono up" style={{ fontSize: 11, color: "var(--t-3)", letterSpacing: "0.16em" }}>
+        Thứ Bảy · 18/04/2026 · 08:42
+      </div>
+      <h1 style={{ fontSize: 56, fontWeight: 600, color: "var(--t-0)", margin: "20px 0 16px", letterSpacing: "-0.025em", lineHeight: 1.05 }}>
+        Tiếp theo: <span style={{ color: "var(--a-cy)" }}>{p?.name}</span>
+      </h1>
+      <div style={{ fontSize: 18, color: "var(--t-1)", maxWidth: 680, lineHeight: 1.55 }}>
+        {inProgress?.reason} · BN đang ngồi chờ ở phòng khám 3B. {waiting.length - 1} bệnh nhân khác sau lượt này.
+      </div>
+
+      <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 28, paddingTop: 36, borderTop: "1px solid var(--line)" }}>
+        <VitalMini label="Huyết áp" value={inProgress?.vitals.bp} unit="mmHg"/>
+        <VitalMini label="Nhịp tim" value={inProgress?.vitals.hr} unit="bpm"/>
+        <VitalMini label="Nhiệt độ" value={inProgress?.vitals.temp} unit="°C"/>
+        <VitalMini label="SpO₂" value={inProgress?.vitals.spo2} unit="%"/>
+      </div>
+
+      <div style={{ marginTop: 40, display: "flex", gap: 12 }}>
+        <button className="btn primary" style={{ height: 48, padding: "0 24px", fontSize: 15 }} onClick={() => goRoute("opd")}>
+          Bắt đầu khám <Icon name="arrow-right" size={14}/>
+        </button>
+        <button className="btn" style={{ height: 48, padding: "0 20px", fontSize: 14 }}>Hoãn 15 phút</button>
+        <button className="btn ghost" style={{ height: 48, padding: "0 16px", fontSize: 14 }}>Chuyển bác sĩ khác</button>
+      </div>
+
+      <div style={{ marginTop: 80, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 40, paddingTop: 36, borderTop: "1px solid var(--line)" }}>
+        <div>
+          <div className="mono up" style={{ fontSize: 11, color: "var(--t-3)", letterSpacing: "0.12em" }}>CẢNH BÁO CẦN XEM</div>
+          <div style={{ fontSize: 48, fontWeight: 600, color: "var(--s-crit)", marginTop: 12, lineHeight: 1 }}>3</div>
+          <div style={{ fontSize: 13, color: "var(--t-2)", marginTop: 8 }}>1 nguy kịch · 2 chú ý</div>
+          <button className="dashcard-cta">Xem cảnh báo →</button>
+        </div>
+        <div>
+          <div className="mono up" style={{ fontSize: 11, color: "var(--t-3)", letterSpacing: "0.12em" }}>LAB CHỜ KÝ</div>
+          <div style={{ fontSize: 48, fontWeight: 600, color: "var(--t-0)", marginTop: 12, lineHeight: 1 }}>4</div>
+          <div style={{ fontSize: 13, color: "var(--t-2)", marginTop: 8 }}>Kết quả có giá trị bất thường</div>
+          <button className="dashcard-cta">Duyệt ngay →</button>
+        </div>
+        <div>
+          <div className="mono up" style={{ fontSize: 11, color: "var(--t-3)", letterSpacing: "0.12em" }}>SỰ KIỆN KẾ TIẾP</div>
+          <div style={{ fontSize: 28, fontWeight: 600, color: "var(--t-0)", marginTop: 12, lineHeight: 1.1 }}>Hội chẩn BN-00102</div>
+          <div style={{ fontSize: 13, color: "var(--t-2)", marginTop: 8 }}>10:30 · Khoa Nội TQ · còn 1h 48m</div>
+          <button className="dashcard-cta">Xem chi tiết →</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const KPI = ({ label, value, sub, trend, warn }) => (
+  <div style={{ padding: "6px 12px", borderLeft: "1px solid var(--line)", minWidth: 110 }}>
+    <div className="mono up" style={{ fontSize: 9, color: "var(--t-3)" }}>{label}</div>
+    <div className="mono" style={{ fontSize: 24, color: warn ? "var(--s-warn)" : "var(--t-0)", lineHeight: 1.1, marginTop: 2 }}>{value}</div>
+    <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", marginTop: 2 }}>
+      {sub} <span style={{ color: trend === "0" ? "var(--t-3)" : (trend.startsWith("+") ? "var(--s-ok)" : "var(--s-crit)") }}>{trend}</span>
+    </div>
+  </div>
+);
+
+const Vital = ({ icon, label, value, unit, state }) => (
+  <div style={{ padding: 10, border: "1px solid var(--line)", borderRadius: 6, background: "var(--d-1)" }}>
+    <div className="row" style={{ color: "var(--t-3)" }}>
+      <Icon name={icon} size={12}/>
+      <span className="mono up" style={{ fontSize: 9 }}>{label}</span>
+    </div>
+    <div className="mono" style={{ fontSize: 22, color: state === "crit" ? "var(--s-crit)" : state === "warn" ? "var(--s-warn)" : "var(--t-0)", marginTop: 4 }}>
+      {value} <span style={{ fontSize: 11, color: "var(--t-3)" }}>{unit}</span>
+    </div>
+  </div>
+);
+
+const AlertRow = ({ sev, pt, room, msg, age }) => (
+  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--line-hair)", cursor: "pointer" }}>
+    <div className="row" style={{ justifyContent: "space-between" }}>
+      <span className="row">
+        <span className={`dot ${sev}`}/>
+        <span style={{ fontSize: 12 }}>{pt}</span>
+      </span>
+      <span className={`chip ${sev}`}>{msg}</span>
+    </div>
+    <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", marginTop: 2 }}>{room} · {age}</div>
+  </div>
+);
+
+const TLRow = ({ time, what, where, active, chip }) => (
+  <div style={{ display: "grid", gridTemplateColumns: "48px 1fr auto", gap: 8, padding: "6px 0", borderBottom: "1px dashed var(--line-soft)" }}>
+    <span className="mono" style={{ fontSize: 11, color: active ? "var(--a-cy)" : "var(--t-2)" }}>{time}</span>
+    <div>
+      <div style={{ fontSize: 12, color: active ? "var(--t-0)" : "var(--t-1)" }}>{what}</div>
+      <div className="mono" style={{ fontSize: 10, color: "var(--t-3)" }}>{where}</div>
+    </div>
+    {chip && <span className="chip mag">{chip}</span>}
+    {active && <span className="chip cy">NOW</span>}
+  </div>
+);
+
+window.Dashboard = Dashboard;
+
+})();
+</script>
+<script type="text/babel" data-presets="react">
+;(function(){
+// Module: OPD (main focus) + Patient detail drawer
+const { useState: useState2, useEffect: useEffect2, useMemo: useMemo2 } = React;
+
+const OPDModule = () => {
+  useLang();
+  const [selectedPid, setSelectedPid] = useState2("BN-00189");
+  const [filter, setFilter] = useState2("all");
+  const [searchQ, setSearchQ] = useState2("");
+
+  const filteredQueue = useMemo2(() => {
+    let q = HIS_DATA.queue;
+    if (filter === "waiting") q = q.filter(x => x.status === "waiting");
+    if (filter === "urgent") q = q.filter(x => x.priority === "urgent");
+    if (filter === "labs") q = q.filter(x => x.status === "labs");
+    if (searchQ) {
+      const sq = searchQ.toLowerCase();
+      q = q.filter(x => {
+        const p = HIS_DATA.patientById(x.pid);
+        return p.name.toLowerCase().includes(sq) || x.pid.toLowerCase().includes(sq);
+      });
+    }
+    return q;
+  }, [filter, searchQ]);
+
+  const encounter = HIS_DATA.queue.find(q => q.pid === selectedPid);
+  const patient = HIS_DATA.patientById(selectedPid);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "340px 1fr 320px", height: "100%", minHeight: 0 }}>
+      {/* LEFT: Queue */}
+      <div style={{ borderRight: "1px solid var(--line)", display: "flex", flexDirection: "column", minHeight: 0, background: "var(--d-2)" }}>
+        <div className="panel-h" style={{ borderRadius: 0 }}>
+          <span className="title">HÀNG CHỜ · <b>{filteredQueue.length}</b></span>
+          <span className="actions">
+            <button className="btn sm"><Icon name="plus" size={10}/> Thêm</button>
+          </span>
+        </div>
+        <div style={{ padding: 8, borderBottom: "1px solid var(--line)", display: "flex", gap: 6 }}>
+          <input className="input" placeholder="Tìm BN, mã…" value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ flex: 1 }}/>
+        </div>
+        <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--line)", display: "flex", gap: 4 }}>
+          {[{ k: "all", l: "TẤT CẢ" }, { k: "waiting", l: "CHỜ" }, { k: "urgent", l: "ƯU TIÊN" }, { k: "labs", l: "CHỜ CLS" }].map(f => (
+            <button key={f.k}
+              className="mono up"
+              onClick={() => setFilter(f.k)}
+              style={{ padding: "3px 8px", borderRadius: 3, fontSize: 10, letterSpacing: "0.08em",
+                background: filter === f.k ? "var(--a-cy-bg)" : "transparent",
+                color: filter === f.k ? "var(--a-cy)" : "var(--t-3)" }}>
+              {f.l}
+            </button>
+          ))}
+        </div>
+        <div style={{ flex: 1, overflow: "auto" }}>
+          {filteredQueue.map(q => {
+            const p = HIS_DATA.patientById(q.pid);
+            const sel = q.pid === selectedPid;
+            return (
+              <div key={q.pid} onClick={() => setSelectedPid(q.pid)}
+                style={{
+                  padding: "8px 12px",
+                  borderBottom: "1px solid var(--line-hair)",
+                  borderLeft: sel ? "2px solid var(--a-cy)" : "2px solid transparent",
+                  background: sel ? "var(--a-cy-bg)" : "transparent",
+                  cursor: "pointer",
+                }}>
+                <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <span className="mono" style={{ fontSize: 11, color: q.priority === "urgent" ? "var(--s-crit)" : "var(--a-cy)" }}>{q.token}</span>
+                  <span className="row" style={{ gap: 4 }}>
+                    {q.priority === "urgent" && <span className="chip crit">ƯU TIÊN</span>}
+                    <span className={`chip ${statusToChip(q.status)}`}>{statusLabel(q.status)}</span>
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, color: "var(--t-0)", marginTop: 4 }}>{p.name}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", marginTop: 2 }}>
+                  {p.id} · {p.age}{p.gender === "M" ? "♂" : "♀"} · đến {q.arrived}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--t-2)", marginTop: 4 }}>{q.reason}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* CENTER: Encounter */}
+      <EncounterWorkspace patient={patient} encounter={encounter}/>
+
+      {/* RIGHT: Patient details / history */}
+      <PatientSidebar patient={patient} encounter={encounter}/>
+    </div>
+  );
+};
+
+const statusToChip = (s) => ({ waiting: "ghost", "in-progress": "cy", labs: "warn", done: "ok" }[s] || "ghost");
+const statusLabel = (s) => ({ waiting: "CHỜ", "in-progress": "KHÁM", labs: "CHỜ CLS", done: "XONG" }[s] || s.toUpperCase());
+
+// ==================== ENCOUNTER WORKSPACE ====================
+const EncounterWorkspace = ({ patient, encounter }) => {
+  const [tab, setTab] = useState2("exam");
+  const [cc, setCC] = useState2("");
+  const [dx, setDx] = useState2([{ code: "O09.9", label: "Theo dõi thai kỳ nguy cơ cao - không xác định" }]);
+  const [rx, setRx] = useState2([
+    { drug: "Acid folic 5mg", dose: "1v × 1 lần/ngày", duration: "30 ngày", qty: 30 },
+    { drug: "Canxi + D3 (Calcium-D 500mg/200IU)", dose: "1v × 2 lần/ngày", duration: "30 ngày", qty: 60 },
+  ]);
+  const [orders, setOrders] = useState2([
+    { kind: "US", label: "Siêu âm sản 2D", status: "in-progress", acc: "ACC-88710" },
+    { kind: "LAB", label: "CTM + Tổng phân tích nước tiểu", status: "pending", acc: "XN-2026-4420" },
+  ]);
+  const [newDrug, setNewDrug] = useState2("");
+
+  if (!patient) return <div style={{ padding: 24, color: "var(--t-3)" }}>Chưa chọn bệnh nhân.</div>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: "var(--d-1)" }}>
+      {/* Patient banner */}
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", background: "var(--d-0)", display: "flex", alignItems: "center", gap: 16 }}>
+        <div>
+          <div className="mono up" style={{ fontSize: 9, color: "var(--t-3)" }}>ENCOUNTER · ENC-{encounter?.token}</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 2 }}>
+            <span className="serif" style={{ fontSize: 22 }}>{patient.name}</span>
+            <span className="mono" style={{ fontSize: 11, color: "var(--t-2)" }}>
+              {patient.id} · {patient.age}{patient.gender === "M" ? "♂" : "♀"} · {patient.bloodType}
+            </span>
+          </div>
+          <div className="row" style={{ gap: 6, marginTop: 6 }}>
+            <span className="chip">{patient.insurance}</span>
+            {patient.allergy.length > 0 && (
+              <span className="chip crit"><Icon name="alert" size={10}/> DỊ ỨNG: {patient.allergy.join(", ").toUpperCase()}</span>
+            )}
+            {encounter?.priority === "urgent" && <span className="chip crit">ƯU TIÊN</span>}
+          </div>
+        </div>
+        <div className="spacer" style={{ flex: 1 }}/>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="btn"><Icon name="printer" size={12}/> In</button>
+          <button className="btn danger"><Icon name="x" size={12}/> Huỷ khám</button>
+          <button className="btn primary"><Icon name="check" size={12}/> Kết thúc khám</button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs">
+        <div className={"tab " + (tab === "exam" ? "active" : "")} onClick={() => setTab("exam")}>KHÁM LÂM SÀNG</div>
+        <div className={"tab " + (tab === "dx" ? "active" : "")} onClick={() => setTab("dx")}>CHẨN ĐOÁN <span className="n">{dx.length}</span></div>
+        <div className={"tab " + (tab === "rx" ? "active" : "")} onClick={() => setTab("rx")}>ĐƠN THUỐC <span className="n">{rx.length}</span></div>
+        <div className={"tab " + (tab === "orders" ? "active" : "")} onClick={() => setTab("orders")}>CHỈ ĐỊNH CLS <span className="n">{orders.length}</span></div>
+        <div className={"tab " + (tab === "notes" ? "active" : "")} onClick={() => setTab("notes")}>GHI CHÚ</div>
+      </div>
+
+      {/* Body */}
+      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        {tab === "exam" && <ExamTab cc={cc} setCC={setCC} encounter={encounter}/>}
+        {tab === "dx" && <DxTab dx={dx} setDx={setDx}/>}
+        {tab === "rx" && <RxTab rx={rx} setRx={setRx} newDrug={newDrug} setNewDrug={setNewDrug}/>}
+        {tab === "orders" && <OrdersTab orders={orders} setOrders={setOrders}/>}
+        {tab === "notes" && <div className="ph" style={{ minHeight: 200 }}>NOTES · rich-text</div>}
+      </div>
+    </div>
+  );
+};
+
+const ExamTab = ({ cc, setCC, encounter }) => (
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+    <div className="col">
+      <label className="label">LÝ DO KHÁM</label>
+      <textarea className="input mono" style={{ height: 64, padding: 8, resize: "none" }}
+        defaultValue={encounter?.reason || ""} onChange={e => setCC(e.target.value)}/>
+
+      <label className="label" style={{ marginTop: 12 }}>TIỀN SỬ BỆNH</label>
+      <textarea className="input mono" style={{ height: 80, padding: 8, resize: "none" }}
+        defaultValue="Thai lần 1, 28 tuần. Không THA, không ĐTĐ. Khám thai định kỳ đủ 4 lần."/>
+
+      <label className="label" style={{ marginTop: 12 }}>KHÁM TOÀN TRẠNG</label>
+      <textarea className="input mono" style={{ height: 100, padding: 8, resize: "none" }}
+        defaultValue="Tỉnh, tiếp xúc tốt. Da niêm hồng. Không phù. Tim đều, phổi trong. Bụng mềm, tử cung BCTC 24cm, tim thai 142 lần/phút đều."/>
+    </div>
+
+    <div className="col">
+      <label className="label">SINH HIỆU</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <MetricInput label="Mạch" value="78" unit="L/p"/>
+        <MetricInput label="Huyết áp" value="118/76" unit="mmHg"/>
+        <MetricInput label="Nhiệt độ" value="36.8" unit="°C"/>
+        <MetricInput label="SpO₂" value="99" unit="%"/>
+        <MetricInput label="Cân nặng" value="62" unit="kg"/>
+        <MetricInput label="BCTC" value="24" unit="cm"/>
+      </div>
+
+      <label className="label" style={{ marginTop: 16 }}>BIỂU ĐỒ SINH HIỆU · 30 NGÀY</label>
+      <div className="chart-grid" style={{ height: 140, borderRadius: 6, border: "1px solid var(--line)", position: "relative", overflow: "hidden" }}>
+        <svg viewBox="0 0 400 140" width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0 }}>
+          <polyline fill="none" stroke="var(--a-cy)" strokeWidth="1.5"
+            points="10,90 40,82 70,88 100,75 130,78 160,70 190,72 220,65 250,70 280,60 310,65 340,55 370,58"/>
+          <polyline fill="none" stroke="var(--s-warn)" strokeWidth="1.5" strokeDasharray="3 2"
+            points="10,110 40,108 70,112 100,105 130,106 160,100 190,105 220,98 250,100 280,95 310,98 340,92 370,95"/>
+        </svg>
+        <div className="mono" style={{ position: "absolute", bottom: 4, right: 6, fontSize: 9, color: "var(--t-3)" }}>
+          <span style={{ color: "var(--a-cy)" }}>● HR</span>  <span style={{ color: "var(--s-warn)", marginLeft: 6 }}>● TEMP</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const MetricInput = ({ label, value, unit }) => (
+  <div>
+    <label className="label">{label}</label>
+    <div className="row" style={{ gap: 0 }}>
+      <input className="input mono" defaultValue={value} style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}/>
+      <span className="mono" style={{ padding: "0 8px", height: 26, display: "grid", placeItems: "center", border: "1px solid var(--line)", borderLeft: 0, background: "var(--d-3)", color: "var(--t-3)", fontSize: 10, borderTopRightRadius: 4, borderBottomRightRadius: 4 }}>
+        {unit}
+      </span>
+    </div>
+  </div>
+);
+
+const DxTab = ({ dx, setDx }) => (
+  <div>
+    <div className="row" style={{ marginBottom: 10 }}>
+      <button className="btn primary"><Icon name="plus" size={12}/> Thêm chẩn đoán</button>
+      <span className="mono" style={{ fontSize: 11, color: "var(--t-3)", marginLeft: 12 }}>ICD-10</span>
+    </div>
+    <table className="tbl">
+      <thead><tr><th style={{ width: 80 }}>MÃ</th><th>TÊN CHẨN ĐOÁN</th><th style={{ width: 100 }}>LOẠI</th><th style={{ width: 40 }}></th></tr></thead>
+      <tbody>
+        {dx.map((d, i) => (
+          <tr key={i}>
+            <td className="mono"><span className="chip cy">{d.code}</span></td>
+            <td>{d.label}</td>
+            <td><span className="chip">Chính</span></td>
+            <td style={{ textAlign: "right" }}><button className="btn ghost sm icon"><Icon name="x" size={11}/></button></td>
+          </tr>
+        ))}
+        <tr><td className="mono">J06.9</td><td className="muted">Nhiễm khuẩn hô hấp trên cấp, KXĐ</td><td><span className="chip ghost">Phụ</span></td><td style={{ textAlign: "right" }}><button className="btn ghost sm icon"><Icon name="x" size={11}/></button></td></tr>
+      </tbody>
+    </table>
+  </div>
+);
+
+const RxTab = ({ rx, setRx, newDrug, setNewDrug }) => (
+  <div>
+    <div className="row" style={{ marginBottom: 10, gap: 6 }}>
+      <input className="input" placeholder="Tìm thuốc theo tên hoạt chất hoặc biệt dược…" value={newDrug} onChange={e => setNewDrug(e.target.value)} style={{ flex: 1 }}/>
+      <button className="btn primary"
+        onClick={() => { if (newDrug.trim()) { setRx([...rx, { drug: newDrug, dose: "1v × 2/ngày", duration: "7 ngày", qty: 14 }]); setNewDrug(""); } }}>
+        <Icon name="plus" size={12}/> Kê đơn
+      </button>
+      <button className="btn"><Icon name="pill" size={12}/> Toa mẫu</button>
+    </div>
+    <table className="tbl">
+      <thead>
+        <tr>
+          <th style={{ width: 30 }}>#</th>
+          <th>THUỐC</th>
+          <th>LIỀU DÙNG</th>
+          <th>ĐỢT</th>
+          <th className="num">SL</th>
+          <th className="num">ĐƠN GIÁ</th>
+          <th className="num">THÀNH TIỀN</th>
+          <th style={{ width: 40 }}></th>
+        </tr>
+      </thead>
+      <tbody>
+        {rx.map((r, i) => {
+          const unitPrice = [4_500, 2_800, 12_000, 8_500][i % 4];
+          return (
+            <tr key={i}>
+              <td className="mono dim">{String(i + 1).padStart(2, "0")}</td>
+              <td>{r.drug}</td>
+              <td className="mono">{r.dose}</td>
+              <td className="mono">{r.duration}</td>
+              <td className="num">{r.qty}</td>
+              <td className="num">{unitPrice.toLocaleString()}</td>
+              <td className="num">{(unitPrice * r.qty).toLocaleString()}</td>
+              <td style={{ textAlign: "right" }}>
+                <button className="btn ghost sm icon" onClick={() => setRx(rx.filter((_, j) => j !== i))}>
+                  <Icon name="x" size={11}/>
+                </button>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colSpan="6" style={{ textAlign: "right", color: "var(--t-3)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TỔNG CỘNG</td>
+          <td className="num mono" style={{ color: "var(--a-cy)", fontSize: 13 }}>
+            {(rx.reduce((s, r, i) => s + r.qty * [4_500, 2_800, 12_000, 8_500][i % 4], 0)).toLocaleString()} ₫
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+);
+
+const OrdersTab = ({ orders, setOrders }) => (
+  <div>
+    <div className="row" style={{ marginBottom: 10, gap: 6 }}>
+      <button className="btn primary"><Icon name="plus" size={12}/> Chỉ định mới</button>
+      <div className="seg" style={{ height: 26 }}>
+        <button className="active">CĐHA</button>
+        <button>XÉT NGHIỆM</button>
+        <button>THỦ THUẬT</button>
+      </div>
+    </div>
+    <table className="tbl">
+      <thead><tr><th style={{ width: 60 }}>LOẠI</th><th>TÊN DỊCH VỤ</th><th>MÃ</th><th>TRẠNG THÁI</th><th style={{ width: 120 }}>HÀNH ĐỘNG</th></tr></thead>
+      <tbody>
+        {orders.map((o, i) => (
+          <tr key={i}>
+            <td><span className={`chip ${o.kind === "US" || o.kind === "CT" || o.kind === "MRI" ? "mag" : "info"}`}>{o.kind}</span></td>
+            <td>{o.label}</td>
+            <td className="mono">{o.acc}</td>
+            <td>
+              {o.status === "in-progress" && <span className="chip cy"><span className="dot cy"/> Đang thực hiện</span>}
+              {o.status === "pending" && <span className="chip ghost">Chờ lấy mẫu</span>}
+              {o.status === "done" && <span className="chip ok">Hoàn tất</span>}
+            </td>
+            <td>
+              <button className="btn sm"><Icon name="eye" size={10}/> Xem</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+// ==================== PATIENT SIDEBAR ====================
+const PatientSidebar = ({ patient, encounter }) => {
+  if (!patient) return <div></div>;
+  return (
+    <div style={{ borderLeft: "1px solid var(--line)", display: "flex", flexDirection: "column", minHeight: 0, background: "var(--d-2)", overflow: "auto" }}>
+      <div className="panel-h" style={{ borderRadius: 0 }}>
+        <span className="title">THÔNG TIN BN</span>
+      </div>
+      <div style={{ padding: 14 }}>
+        <div className="label">Liên hệ</div>
+        <KV k="Điện thoại" v={patient.phone}/>
+        <KV k="Địa chỉ" v={patient.address}/>
+
+        <div className="hline" style={{ margin: "12px 0" }}/>
+        <div className="label">Y tế</div>
+        <KV k="Nhóm máu" v={patient.bloodType}/>
+        <KV k="Bảo hiểm" v={patient.insurance}/>
+        <KV k="Dị ứng" v={patient.allergy.length ? patient.allergy.join(", ") : "— Không —"} warn={patient.allergy.length > 0}/>
+      </div>
+
+      <div className="hline"/>
+      <div style={{ padding: "10px 14px 6px" }} className="label">LẦN KHÁM GẦN ĐÂY</div>
+      <div style={{ padding: "0 14px 14px" }}>
+        <HistoryRow date="02/04/26" dr="BS Linh" dx="Viêm họng cấp" rx="3 thuốc"/>
+        <HistoryRow date="11/03/26" dr="BS Linh" dx="Khám thai 24w" rx="2 thuốc"/>
+        <HistoryRow date="15/02/26" dr="BS Hà" dx="Khám thai 20w" rx="2 thuốc"/>
+        <HistoryRow date="18/01/26" dr="BS Hà" dx="Khám thai 16w" rx="1 thuốc"/>
+      </div>
+
+      <div className="hline"/>
+      <div style={{ padding: "10px 14px 6px" }} className="label">CHỈ SỐ CƠ BẢN</div>
+      <div style={{ padding: "0 14px 14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <MiniStat label="HA TB" value="118/76" unit="mmHg"/>
+        <MiniStat label="HR TB" value="76" unit="bpm"/>
+        <MiniStat label="BMI" value="22.1" unit=""/>
+        <MiniStat label="HbA1c" value="5.2" unit="%"/>
+      </div>
+    </div>
+  );
+};
+
+const KV = ({ k, v, warn }) => (
+  <div style={{ display: "grid", gridTemplateColumns: "86px 1fr", gap: 8, padding: "3px 0", fontSize: 12 }}>
+    <span className="mono" style={{ color: "var(--t-3)", fontSize: 11 }}>{k}</span>
+    <span style={{ color: warn ? "var(--s-crit)" : "var(--t-0)" }}>{v}</span>
+  </div>
+);
+
+const HistoryRow = ({ date, dr, dx, rx }) => (
+  <div style={{ padding: "6px 0", borderBottom: "1px dashed var(--line-soft)", cursor: "pointer" }}>
+    <div className="row" style={{ justifyContent: "space-between" }}>
+      <span className="mono" style={{ fontSize: 11, color: "var(--a-cy)" }}>{date}</span>
+      <span className="mono" style={{ fontSize: 10, color: "var(--t-3)" }}>{dr}</span>
+    </div>
+    <div style={{ fontSize: 12, color: "var(--t-1)", marginTop: 2 }}>{dx}</div>
+    <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", marginTop: 2 }}>{rx}</div>
+  </div>
+);
+
+const MiniStat = ({ label, value, unit }) => (
+  <div style={{ padding: 8, border: "1px solid var(--line)", borderRadius: 4, background: "var(--d-1)" }}>
+    <div className="mono" style={{ fontSize: 9, color: "var(--t-3)", textTransform: "uppercase" }}>{label}</div>
+    <div className="mono" style={{ fontSize: 14, color: "var(--t-0)", marginTop: 2 }}>{value} <span style={{ fontSize: 9, color: "var(--t-3)" }}>{unit}</span></div>
+  </div>
+);
+
+window.OPDModule = OPDModule;
+
+})();
+</script>
+<script type="text/babel" data-presets="react">
+;(function(){
+// Remaining modules: Reception, IPD, Surgery, Billing, RIS, LIS
+const { useState: useS3 } = React;
+
+// ============== RECEPTION ==============
+const ReceptionModule = () => {
+  const [tab, setTab] = useS3("intake");
+  const [form, setForm] = useS3({ name: "", dob: "", phone: "", gender: "M", insurance: "" });
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", height: "100%", minHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: "var(--d-1)" }}>
+        <div className="tabs">
+          <div className={"tab " + (tab === "intake" ? "active" : "")} onClick={() => setTab("intake")}>ĐĂNG KÝ MỚI</div>
+          <div className={"tab " + (tab === "today" ? "active" : "")} onClick={() => setTab("today")}>BN ĐĂNG KÝ HÔM NAY <span className="n">24</span></div>
+          <div className={"tab " + (tab === "appt" ? "active" : "")} onClick={() => setTab("appt")}>LỊCH HẸN</div>
+        </div>
+
+        <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
+          {tab === "intake" && (
+            <div style={{ maxWidth: 720 }}>
+              <div className="serif" style={{ fontSize: 20, color: "var(--t-0)" }}>Tiếp nhận bệnh nhân</div>
+              <div className="mono" style={{ fontSize: 11, color: "var(--t-3)", marginTop: 4 }}>
+                Mã BN sẽ được cấp tự động · Quầy 03 · 08:42
+              </div>
+
+              <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div><label className="label">HỌ VÀ TÊN *</label><input className="input" placeholder="Nguyễn Văn A" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+                <div><label className="label">NGÀY SINH *</label><input className="input mono" placeholder="DD/MM/YYYY"/></div>
+                <div><label className="label">GIỚI TÍNH</label>
+                  <div className="seg" style={{ width: "100%" }}>
+                    <button className={form.gender==="M"?"active":""} onClick={()=>setForm({...form,gender:"M"})} style={{flex:1}}>Nam</button>
+                    <button className={form.gender==="F"?"active":""} onClick={()=>setForm({...form,gender:"F"})} style={{flex:1}}>Nữ</button>
+                    <button style={{flex:1}}>Khác</button>
+                  </div>
+                </div>
+                <div><label className="label">SỐ ĐIỆN THOẠI *</label><input className="input mono" placeholder="09xx xxx xxx"/></div>
+                <div style={{ gridColumn: "1 / -1" }}><label className="label">ĐỊA CHỈ</label><input className="input" placeholder="Số nhà, xã/phường, quận/huyện, tỉnh/TP"/></div>
+                <div><label className="label">SỐ BHYT</label><input className="input mono" placeholder="HN4-..."/></div>
+                <div><label className="label">LOẠI HÌNH KHÁM</label>
+                  <select className="select">
+                    <option>BHYT - Khám thường</option>
+                    <option>BHYT - Khám theo yêu cầu</option>
+                    <option>Dịch vụ</option>
+                    <option>Cấp cứu</option>
+                  </select>
+                </div>
+                <div><label className="label">CHUYÊN KHOA</label>
+                  <select className="select">
+                    <option>Nội tổng quát</option><option>Tim mạch</option><option>Sản phụ khoa</option><option>Ngoại chấn thương</option>
+                  </select>
+                </div>
+                <div><label className="label">BÁC SĨ CHỈ ĐỊNH</label>
+                  <select className="select">
+                    <option>— Tự động phân —</option><option>TS.BS Nguyễn Hoài Linh (P.201)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 20, padding: 14, border: "1px solid var(--a-cy-line)", borderRadius: 6, background: "var(--a-cy-bg)", display: "flex", alignItems: "center", gap: 12 }}>
+                <Icon name="check" size={14} className="mono"/>
+                <div>
+                  <div className="mono" style={{ fontSize: 11, color: "var(--a-cy)" }}>SẴN SÀNG CẤP SỐ</div>
+                  <div style={{ fontSize: 13, color: "var(--t-0)", marginTop: 2 }}>Số thứ tự kế tiếp: <b className="mono" style={{ color: "var(--a-cy)" }}>A-020</b> · Phòng khám 201 · ước tính 15 phút</div>
+                </div>
+                <div className="spacer" style={{ flex: 1 }}/>
+                <button className="btn">Huỷ</button>
+                <button className="btn primary">Cấp số & In phiếu →</button>
+              </div>
+            </div>
+          )}
+
+          {tab === "today" && (
+            <table className="tbl">
+              <thead><tr><th>SỐ</th><th>MÃ BN</th><th>HỌ TÊN</th><th>TUỔI</th><th>GIỚI</th><th>LOẠI HÌNH</th><th>CHUYÊN KHOA</th><th>ĐẾN LÚC</th><th>TRẠNG THÁI</th></tr></thead>
+              <tbody>
+                {HIS_DATA.queue.map(q => { const p = HIS_DATA.patientById(q.pid); return (
+                  <tr key={q.pid}>
+                    <td className="mono"><span className="chip cy">{q.token}</span></td>
+                    <td className="mono">{p.id}</td>
+                    <td>{p.name}</td>
+                    <td className="num">{p.age}</td>
+                    <td>{p.gender === "M" ? "Nam" : "Nữ"}</td>
+                    <td className="muted">{p.insurance.startsWith("BHYT") ? "BHYT" : "Dịch vụ"}</td>
+                    <td>Nội tổng quát</td>
+                    <td className="mono">{q.arrived}</td>
+                    <td><span className={`chip ${statusToChip(q.status)}`}>{statusLabel(q.status)}</span></td>
+                  </tr>
+                );})}
+              </tbody>
+            </table>
+          )}
+
+          {tab === "appt" && <div className="ph" style={{ minHeight: 200 }}>APPOINTMENTS · calendar grid</div>}
+        </div>
+      </div>
+
+      <div style={{ borderLeft: "1px solid var(--line)", padding: 18, overflow: "auto", background: "var(--d-2)" }}>
+        <div className="label">QUẦY TIẾP NHẬN · 03</div>
+        <div className="serif" style={{ fontSize: 18, marginTop: 4 }}>Hôm nay</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+          <QuickStat label="ĐÃ ĐĂNG KÝ" v="24" />
+          <QuickStat label="CHỜ KHÁM" v="8" />
+          <QuickStat label="TRUNG BÌNH" v="4 p" sub="xử lý / BN"/>
+          <QuickStat label="DOANH THU" v="14.2" sub="triệu ₫"/>
+        </div>
+        <div className="hline" style={{ margin: "16px 0" }}/>
+        <div className="label">LỊCH HẸN SẮP TỚI</div>
+        <div className="stack-sm">
+          {[
+            { t: "09:00", n: "Đỗ Thị Mai", r: "Khám thai 32w" },
+            { t: "09:30", n: "Nguyễn Văn Thành", r: "Tái khám THA" },
+            { t: "10:00", n: "Lê Thị Hồng", r: "Xét nghiệm định kỳ" },
+            { t: "10:30", n: "Phạm Gia Bảo", r: "Tiêm chủng" },
+          ].map((a,i) => (
+            <div key={i} style={{ padding: "8px 10px", background: "var(--d-1)", border: "1px solid var(--line)", borderRadius: 4, display: "flex", gap: 10 }}>
+              <span className="mono" style={{ color: "var(--a-cy)", fontSize: 12 }}>{a.t}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12 }}>{a.n}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--t-3)" }}>{a.r}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuickStat = ({ label, v, sub }) => (
+  <div style={{ padding: 10, border: "1px solid var(--line)", borderRadius: 4, background: "var(--d-1)" }}>
+    <div className="mono" style={{ fontSize: 9, color: "var(--t-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</div>
+    <div className="mono" style={{ fontSize: 20, color: "var(--t-0)", marginTop: 2 }}>{v}</div>
+    {sub && <div className="mono" style={{ fontSize: 9, color: "var(--t-3)" }}>{sub}</div>}
+  </div>
+);
+
+// ============== IPD (BED MAP) ==============
+const IPDModule = () => {
+  const [wardId, setWardId] = useS3(HIS_DATA.wards[0].id);
+  const [bedSel, setBedSel] = useS3(null);
+  const ward = HIS_DATA.wards.find(w => w.id === wardId);
+  const totalBeds = ward.rooms.reduce((s, r) => s + r.beds.length, 0);
+  const occupied = ward.rooms.reduce((s, r) => s + r.beds.filter(b => b.status === "occupied").length, 0);
+  const occ = Math.round(occupied / totalBeds * 100);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 340px", height: "100%", minHeight: 0 }}>
+      {/* Ward list */}
+      <div style={{ borderRight: "1px solid var(--line)", background: "var(--d-2)", padding: 8 }}>
+        <div className="label" style={{ padding: "6px 6px 8px" }}>KHOA</div>
+        {HIS_DATA.wards.map(w => {
+          const wt = w.rooms.reduce((s,r)=>s+r.beds.length,0);
+          const wo = w.rooms.reduce((s,r)=>s+r.beds.filter(b=>b.status==="occupied").length,0);
+          const sel = w.id === wardId;
+          return (
+            <div key={w.id} onClick={()=>setWardId(w.id)} style={{
+              padding: "8px 10px", borderLeft: sel?"2px solid var(--a-cy)":"2px solid transparent",
+              background: sel?"var(--a-cy-bg)":"transparent", borderRadius: 4, cursor: "pointer", marginBottom: 2,
+            }}>
+              <div style={{ fontSize: 12, color: sel?"var(--t-0)":"var(--t-1)" }}>{w.name}</div>
+              <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", marginTop: 2 }}>{wo}/{wt} giường · {Math.round(wo/wt*100)}%</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Bed map */}
+      <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", background: "var(--d-1)" }}>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 16 }}>
+          <div>
+            <div className="serif" style={{ fontSize: 18 }}>{ward.name}</div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--t-3)", marginTop: 2 }}>
+              {ward.rooms.length} phòng · {totalBeds} giường
+            </div>
+          </div>
+          <div className="spacer" style={{ flex: 1 }}/>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div>
+              <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", textAlign: "right" }}>CÔNG SUẤT</div>
+              <div style={{ width: 180, height: 8, background: "var(--d-3)", borderRadius: 2, overflow: "hidden", marginTop: 4, position: "relative" }}>
+                <div style={{ height: "100%", width: `${occ}%`, background: occ > 85 ? "var(--s-warn)" : "var(--s-ok)" }}/>
+              </div>
+              <div className="mono" style={{ fontSize: 11, color: "var(--t-0)", marginTop: 2, textAlign: "right" }}>{occupied}/{totalBeds} · {occ}%</div>
+            </div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }} className="mono" style={{fontSize:10}}>
+              <span className="row" style={{gap:4}}><span className="dot ok"/>Ổn định</span>
+              <span className="row" style={{gap:4}}><span className="dot warn"/>Theo dõi</span>
+              <span className="row" style={{gap:4}}><span className="dot crit"/>Nguy kịch</span>
+            </div>
+            <button className="btn primary"><Icon name="user-plus" size={12}/> Nhập viện</button>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+            {ward.rooms.map(room => (
+              <div key={room.id} style={{ border: "1px solid var(--line)", borderRadius: 6, background: "var(--d-2)", overflow: "hidden" }}>
+                <div style={{ padding: "8px 10px", background: "var(--d-0)", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between" }}>
+                  <span className="mono" style={{ fontSize: 12, color: "var(--t-0)" }}>{room.id}</span>
+                  <span className="mono" style={{ fontSize: 10, color: "var(--t-3)" }}>
+                    {room.beds.filter(b=>b.status==="occupied").length}/{room.beds.length}
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "var(--line)" }}>
+                  {room.beds.map(b => (
+                    <div key={b.n} onClick={()=>b.patient && setBedSel(b)} style={{
+                      padding: 10, background: "var(--d-2)", cursor: b.patient ? "pointer" : "default",
+                      minHeight: 84,
+                      borderTop: b.severity ? `2px solid ${sevColor(b.severity)}` : "2px solid transparent",
+                    }}>
+                      <div className="row" style={{justifyContent:"space-between"}}>
+                        <span className="mono" style={{fontSize:10,color:"var(--t-3)"}}>{b.n}</span>
+                        {b.status === "free" && <span className="chip ok" style={{height:16}}>Trống</span>}
+                        {b.status === "cleaning" && <span className="chip warn" style={{height:16}}>VS</span>}
+                        {b.status === "reserved" && <span className="chip info" style={{height:16}}>Giữ</span>}
+                        {b.status === "occupied" && b.severity && <span className={`chip ${sevChip(b.severity)}`} style={{height:16}}>{sevLabel(b.severity)}</span>}
+                      </div>
+                      {b.patient ? (
+                        <>
+                          <div style={{fontSize:12,color:"var(--t-0)",marginTop:6}}>{b.patient.name}</div>
+                          <div className="mono" style={{fontSize:9,color:"var(--t-3)",marginTop:2}}>{b.patient.id} · {b.los}d</div>
+                          <div style={{fontSize:10,color:"var(--t-2)",marginTop:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{b.patient.dx}</div>
+                        </>
+                      ) : (
+                        <div style={{marginTop:18,textAlign:"center",color:"var(--t-4)",fontFamily:"var(--font-mono)",fontSize:10}}>— {b.status === "cleaning" ? "Đang vệ sinh" : b.status === "reserved" ? "Đã giữ" : "Sẵn sàng"} —</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bed detail */}
+      <div style={{ borderLeft: "1px solid var(--line)", background: "var(--d-2)", padding: 16, overflow: "auto" }}>
+        {bedSel && bedSel.patient ? (
+          <>
+            <div className="label">GIƯỜNG {bedSel.n}</div>
+            <div className="serif" style={{ fontSize: 18, marginTop: 4 }}>{bedSel.patient.name}</div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--t-2)", marginTop: 2 }}>{bedSel.patient.id} · Ngày thứ {bedSel.los}</div>
+            <div style={{ marginTop: 10 }}><span className={`chip ${sevChip(bedSel.severity)}`}>{sevLabel(bedSel.severity)}</span></div>
+            <div className="hline" style={{ margin: "14px 0" }}/>
+            <div className="label">CHẨN ĐOÁN</div>
+            <div style={{ fontSize: 13 }}>{bedSel.patient.dx}</div>
+            <div className="hline" style={{ margin: "14px 0" }}/>
+            <div className="label">SINH HIỆU MỚI NHẤT · 08:00</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+              <MiniStat label="HA" value="128/82" unit="mmHg"/>
+              <MiniStat label="HR" value="78" unit="bpm"/>
+              <MiniStat label="T°" value="36.9" unit="°C"/>
+              <MiniStat label="SpO₂" value="97" unit="%"/>
+            </div>
+            <div style={{ marginTop: 16, display: "grid", gap: 6 }}>
+              <button className="btn primary">Mở hồ sơ bệnh án →</button>
+              <button className="btn">Ghi y lệnh</button>
+              <button className="btn">Chỉ định CLS</button>
+              <button className="btn danger">Cho xuất viện</button>
+            </div>
+          </>
+        ) : (
+          <div className="ph" style={{minHeight:200,marginTop:20}}>CHỌN MỘT GIƯỜNG<br/>để xem thông tin</div>
+        )}
+      </div>
+    </div>
+  );
+};
+const sevColor = (s) => ({ stable: "var(--s-ok)", monitoring: "var(--s-warn)", critical: "var(--s-crit)" }[s] || "var(--t-4)");
+const sevChip = (s) => ({ stable: "ok", monitoring: "warn", critical: "crit" }[s]);
+const sevLabel = (s) => ({ stable: "ỔN ĐỊNH", monitoring: "THEO DÕI", critical: "NGUY KỊCH" }[s]);
+
+// ============== SURGERY ==============
+const SurgeryModule = () => {
+  const HOURS = Array.from({length: 11}, (_, i) => 7 + i); // 7h-17h
+  const hrToX = (hm) => { const [h, m] = hm.split(":").map(Number); return ((h - 7) * 60 + m) / (60 * 10) * 100; };
+
+  return (
+    <div style={{ padding: 14, height: "100%", overflow: "auto", background: "var(--d-1)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <div>
+          <div className="serif" style={{ fontSize: 20 }}>Lịch mổ · Thứ Bảy 18/04/2026</div>
+          <div className="mono" style={{ fontSize: 11, color: "var(--t-3)", marginTop: 2 }}>
+            9 ca mổ · 4 phòng hoạt động · 2 đang thực hiện
+          </div>
+        </div>
+        <div className="spacer" style={{ flex: 1 }}/>
+        <div className="seg"><button className="active">NGÀY</button><button>TUẦN</button><button>THÁNG</button></div>
+        <button className="btn"><Icon name="chevron-left" size={12}/></button>
+        <button className="btn">Hôm nay</button>
+        <button className="btn"><Icon name="chevron-right" size={12}/></button>
+        <button className="btn primary"><Icon name="plus" size={12}/> Lên lịch</button>
+      </div>
+
+      <div style={{ background: "var(--d-2)", border: "1px solid var(--line)", borderRadius: 6, overflow: "hidden" }}>
+        {/* Hour ruler */}
+        <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", borderBottom: "1px solid var(--line)" }}>
+          <div style={{ padding: "8px 10px", background: "var(--d-0)", borderRight: "1px solid var(--line)" }}>
+            <span className="mono up" style={{ fontSize: 9, color: "var(--t-3)" }}>OR</span>
+          </div>
+          <div style={{ position: "relative", height: 28, background: "var(--d-0)" }}>
+            {HOURS.map(h => (
+              <div key={h} style={{ position: "absolute", left: `${(h - 7) * 10}%`, top: 0, bottom: 0, borderLeft: "1px solid var(--line)", paddingLeft: 4 }}>
+                <span className="mono" style={{ fontSize: 10, color: "var(--t-3)" }}>{String(h).padStart(2,"0")}:00</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {HIS_DATA.orRooms.map(or => {
+          const cases = HIS_DATA.orSchedule.filter(s => s.or === or);
+          return (
+            <div key={or} style={{ display: "grid", gridTemplateColumns: "80px 1fr", borderBottom: "1px solid var(--line)", minHeight: 76 }}>
+              <div style={{ padding: "10px 12px", borderRight: "1px solid var(--line)", background: "var(--d-0)" }}>
+                <div className="mono" style={{ fontSize: 13, color: "var(--a-cy)" }}>{or}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", marginTop: 2 }}>{cases.length} ca</div>
+              </div>
+              <div style={{ position: "relative", background: "linear-gradient(90deg, var(--line-soft) 1px, transparent 1px) 0 0 / 10% 100%" }}>
+                {cases.map((c, i) => {
+                  const x1 = hrToX(c.start);
+                  const x2 = hrToX(c.end);
+                  const w = x2 - x1;
+                  const bg = c.status === "done" ? "var(--s-ok-bg)" : c.status === "in-progress" ? "var(--a-cy-bg)" : "var(--s-mag-bg)";
+                  const bd = c.status === "done" ? "var(--s-ok)" : c.status === "in-progress" ? "var(--a-cy)" : "var(--s-mag)";
+                  return (
+                    <div key={i} style={{
+                      position: "absolute", left: `${x1}%`, width: `${w}%`,
+                      top: 8, bottom: 8, background: bg, border: `1px solid ${bd}`, borderLeft: `3px solid ${bd}`,
+                      borderRadius: 3, padding: "4px 8px", overflow: "hidden", cursor: "pointer",
+                    }}>
+                      <div className="row" style={{ gap: 6, justifyContent: "space-between" }}>
+                        <span className="mono" style={{ fontSize: 10, color: "var(--t-0)" }}>{c.start}–{c.end}</span>
+                        {c.status === "in-progress" && <span className="chip cy" style={{height:14}}><span className="dot cy"/>LIVE</span>}
+                        {c.status === "done" && <span className="chip ok" style={{height:14}}>XONG</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--t-0)", marginTop: 2, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.proc}</div>
+                      <div className="mono" style={{ fontSize: 10, color: "var(--t-2)", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.pt} · {c.surgeon}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ============== BILLING ==============
+const BillingModule = () => {
+  const [filter, setFilter] = useS3("all");
+  const [selected, setSelected] = useS3(HIS_DATA.invoices[0]);
+  const list = filter === "all" ? HIS_DATA.invoices : HIS_DATA.invoices.filter(i => i.status === filter);
+  const totals = HIS_DATA.invoices.reduce((a, i) => {
+    a.total += i.total; a.paid += i.paid; a.outstanding += (i.total - i.paid); return a;
+  }, { total: 0, paid: 0, outstanding: 0 });
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", height: "100%", minHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: "var(--d-1)" }}>
+        <div style={{ padding: 14, borderBottom: "1px solid var(--line)", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          <BigStat label="TỔNG DOANH THU HÔM NAY" v={(totals.total/1_000_000).toFixed(2)} unit="TRIỆU ₫"/>
+          <BigStat label="ĐÃ THU" v={(totals.paid/1_000_000).toFixed(2)} unit="TRIỆU ₫" c="ok"/>
+          <BigStat label="CÒN LẠI" v={(totals.outstanding/1_000_000).toFixed(2)} unit="TRIỆU ₫" c="warn"/>
+          <BigStat label="HOÁ ĐƠN CHƯA THU" v={HIS_DATA.invoices.filter(i=>i.status!=="paid").length} unit="HĐ" c="crit"/>
+        </div>
+
+        <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="seg">
+            {[{k:"all",l:"TẤT CẢ"},{k:"unpaid",l:"CHƯA THU"},{k:"partial",l:"MỘT PHẦN"},{k:"paid",l:"ĐÃ THU"}].map(f => (
+              <button key={f.k} className={filter===f.k?"active":""} onClick={()=>setFilter(f.k)}>{f.l}</button>
+            ))}
+          </div>
+          <input className="input mono" placeholder="Tìm HĐ, BN, SĐT…" style={{ maxWidth: 300 }}/>
+          <div className="spacer" style={{ flex: 1 }}/>
+          <button className="btn"><Icon name="download" size={12}/> Xuất Excel</button>
+        </div>
+
+        <div style={{ flex: 1, overflow: "auto" }}>
+          <table className="tbl">
+            <thead><tr><th>MÃ HĐ</th><th>BỆNH NHÂN</th><th>LOẠI</th><th>NGÀY</th><th className="num">MỤC</th><th className="num">TỔNG (₫)</th><th className="num">ĐÃ THU (₫)</th><th>TRẠNG THÁI</th></tr></thead>
+            <tbody>
+              {list.map(inv => (
+                <tr key={inv.id} className={selected?.id === inv.id ? "sel" : ""} onClick={()=>setSelected(inv)}>
+                  <td className="mono">{inv.id}</td>
+                  <td>{inv.pt} <span className="dim mono" style={{fontSize:10}}>· {inv.pid}</span></td>
+                  <td><span className={`chip ${inv.kind==="Surgery"?"mag":inv.kind==="IPD"?"info":"ghost"}`}>{inv.kind}</span></td>
+                  <td className="mono dim">{inv.date}</td>
+                  <td className="num">{inv.items}</td>
+                  <td className="num" style={{color:"var(--t-0)"}}>{inv.total.toLocaleString()}</td>
+                  <td className="num" style={{color:inv.paid===inv.total?"var(--s-ok)":inv.paid>0?"var(--s-warn)":"var(--t-3)"}}>{inv.paid.toLocaleString()}</td>
+                  <td><span className={`chip ${inv.status==="paid"?"ok":inv.status==="partial"?"warn":"crit"}`}>{inv.status==="paid"?"ĐÃ THU":inv.status==="partial"?"MỘT PHẦN":"CHƯA THU"}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Detail */}
+      <div style={{ borderLeft: "1px solid var(--line)", padding: 18, overflow: "auto", background: "var(--d-2)" }}>
+        {selected && (
+          <>
+            <div className="label">HOÁ ĐƠN</div>
+            <div className="mono" style={{ fontSize: 18, color: "var(--t-0)", marginTop: 2 }}>{selected.id}</div>
+            <div style={{ fontSize: 13, color: "var(--t-1)", marginTop: 8 }}>{selected.pt}</div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--t-3)" }}>{selected.pid} · {selected.date}</div>
+            <div className="hline" style={{ margin: "14px 0" }}/>
+            <div className="label">CHI TIẾT</div>
+            <div style={{ fontSize: 12, color: "var(--t-1)" }}>
+              <LineRow k="Khám bệnh (1)" v="150,000"/>
+              <LineRow k="Xét nghiệm (3)" v="620,000"/>
+              <LineRow k="CĐHA (1)" v="450,000"/>
+              <LineRow k="Thuốc (3)" v="1,120,000"/>
+            </div>
+            <div className="hline" style={{ margin: "14px 0" }}/>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, fontSize: 13 }}>
+              <span className="muted">Tổng tiền</span>
+              <span className="mono" style={{ textAlign: "right" }}>{selected.total.toLocaleString()} ₫</span>
+              <span className="muted">Đã thu</span>
+              <span className="mono" style={{ textAlign: "right", color: "var(--s-ok)" }}>{selected.paid.toLocaleString()} ₫</span>
+              <span style={{ color: "var(--t-0)", fontWeight: 500 }}>Còn lại</span>
+              <span className="mono" style={{ textAlign: "right", color: "var(--s-crit)", fontSize: 18 }}>{(selected.total - selected.paid).toLocaleString()} ₫</span>
+            </div>
+            <div style={{ marginTop: 16, display: "grid", gap: 6 }}>
+              <button className="btn primary">Thu tiền →</button>
+              <button className="btn"><Icon name="printer" size={12}/> In hoá đơn</button>
+              <button className="btn">Gửi SMS nhắc</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const LineRow = ({k,v}) => (
+  <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px dashed var(--line-soft)" }}>
+    <span style={{ color: "var(--t-2)" }}>{k}</span>
+    <span className="mono" style={{ color: "var(--t-0)" }}>{v} ₫</span>
+  </div>
+);
+
+const BigStat = ({ label, v, unit, c }) => (
+  <div style={{ padding: 12, background: "var(--d-2)", border: "1px solid var(--line)", borderRadius: 4 }}>
+    <div className="mono up" style={{ fontSize: 9, color: "var(--t-3)" }}>{label}</div>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 6 }}>
+      <span className="mono" style={{ fontSize: 24, color: c === "ok" ? "var(--s-ok)" : c === "warn" ? "var(--s-warn)" : c === "crit" ? "var(--s-crit)" : "var(--t-0)" }}>{v}</span>
+      <span className="mono" style={{ fontSize: 10, color: "var(--t-3)" }}>{unit}</span>
+    </div>
+  </div>
+);
+
+// ============== RIS/PACS ==============
+const RISModule = () => {
+  const [sel, setSel] = useS3(HIS_DATA.studies[0]);
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", height: "100%", minHeight: 0 }}>
+      <div style={{ borderRight: "1px solid var(--line)", display: "flex", flexDirection: "column", minHeight: 0, background: "var(--d-2)" }}>
+        <div className="panel-h" style={{ borderRadius: 0 }}>
+          <span className="title">WORKLIST · <b>{HIS_DATA.studies.length}</b></span>
+          <span className="actions"><button className="btn sm"><Icon name="filter" size={10}/> Lọc</button></span>
+        </div>
+        <div style={{ flex: 1, overflow: "auto" }}>
+          {HIS_DATA.studies.map(s => (
+            <div key={s.id} onClick={()=>setSel(s)} style={{
+              padding: "10px 12px", borderBottom: "1px solid var(--line-hair)",
+              borderLeft: sel?.id===s.id?"2px solid var(--a-cy)":"2px solid transparent",
+              background: sel?.id===s.id?"var(--a-cy-bg)":"transparent", cursor: "pointer",
+            }}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="chip mag">{s.modality}</span>
+                {s.priority === "STAT" && <span className="chip crit">STAT</span>}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--t-0)", marginTop: 6 }}>{s.pt}</div>
+              <div className="mono" style={{ fontSize: 10, color: "var(--t-3)", marginTop: 2 }}>{s.id} · {s.ordered} · {s.refDr}</div>
+              <div style={{ fontSize: 11, color: "var(--t-2)", marginTop: 4 }}>{s.body}</div>
+              <div style={{ marginTop: 6 }}>
+                {s.status === "in-progress" && <span className="chip cy"><span className="dot cy"/>ĐANG CHỤP</span>}
+                {s.status === "completed" && <span className="chip warn">CHỜ ĐỌC</span>}
+                {s.status === "reported" && <span className="chip ok">ĐÃ CÓ KQ</span>}
+                {s.status === "scheduled" && <span className="chip ghost">ĐÃ LÊN LỊCH</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Viewer */}
+      <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: "#000" }}>
+        <div style={{ padding: "10px 14px", background: "var(--d-0)", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 12 }}>
+          <span className="mono" style={{ fontSize: 12, color: "var(--a-cy)" }}>{sel?.id}</span>
+          <span style={{ fontSize: 13, color: "var(--t-0)" }}>{sel?.pt}</span>
+          <span className="mono" style={{ fontSize: 11, color: "var(--t-3)" }}>· {sel?.body}</span>
+          <div className="spacer" style={{ flex: 1 }}/>
+          <div className="seg" style={{ height: 24 }}><button className="active">W/L</button><button>ZOOM</button><button>PAN</button><button>MEASURE</button></div>
+          <button className="btn sm"><Icon name="download" size={10}/> DICOM</button>
+        </div>
+
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "var(--line)", overflow: "hidden" }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{ background: "#000", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at ${30 + i * 15}% ${50 + (i%2)*20}%, #3a3f4a 0%, #1a1d22 35%, #000 80%)` }}>
+                <div style={{ position: "absolute", left: "35%", top: "20%", width: "30%", height: "55%", background: "radial-gradient(ellipse, rgba(180,180,200,0.4) 0%, rgba(120,120,140,0.2) 50%, transparent 80%)", borderRadius: "50%" }}/>
+                <div style={{ position: "absolute", left: "40%", top: "35%", width: "20%", height: "30%", background: "radial-gradient(circle, rgba(200,200,220,0.3) 0%, transparent 70%)" }}/>
+              </div>
+              <div className="mono" style={{ position: "absolute", top: 6, left: 6, fontSize: 10, color: "#aaf" }}>IM: {i + 1}/{248}</div>
+              <div className="mono" style={{ position: "absolute", top: 6, right: 6, fontSize: 10, color: "#aaf" }}>{sel?.modality} · 512×512</div>
+              <div className="mono" style={{ position: "absolute", bottom: 6, left: 6, fontSize: 10, color: "#aaf" }}>W 400  L 40</div>
+              <div className="mono" style={{ position: "absolute", bottom: 6, right: 6, fontSize: 10, color: "#aaf" }}>0.5 mm</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ padding: 12, background: "var(--d-2)", borderTop: "1px solid var(--line)", maxHeight: 180 }}>
+          <div className="label">KẾT LUẬN CỦA BÁC SĨ</div>
+          <textarea className="input mono" style={{ height: 110, padding: 10, resize: "none", marginTop: 4, fontSize: 12 }}
+            defaultValue="- Nhu mô phổi hai bên sáng. Không thấy tổn thương khu trú.
+- Trung thất không giãn rộng. Bóng tim không to.
+- Không tràn dịch, tràn khí màng phổi.
+=> Kết luận: X-quang ngực PA trong giới hạn bình thường."/>
+          <div className="row" style={{ marginTop: 8, justifyContent: "flex-end", gap: 6 }}>
+            <button className="btn">Lưu nháp</button>
+            <button className="btn primary">Ký số & Phát hành</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============== LIS ==============
+const LISModule = () => {
+  const [sel, setSel] = useS3(HIS_DATA.labs[0]);
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 440px", height: "100%", minHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: "var(--d-1)" }}>
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="serif" style={{ fontSize: 18 }}>Xét nghiệm · Worklist</div>
+          <span className="mono" style={{ fontSize: 11, color: "var(--t-3)", marginLeft: 10 }}>{HIS_DATA.labs.length} mẫu</span>
+          <div className="spacer" style={{ flex: 1 }}/>
+          <div className="seg"><button className="active">HÔM NAY</button><button>CHỜ DUYỆT</button><button>BẤT THƯỜNG</button></div>
+          <button className="btn primary"><Icon name="plus" size={12}/> Nhận mẫu</button>
+        </div>
+        <div style={{ flex: 1, overflow: "auto" }}>
+          <table className="tbl">
+            <thead><tr><th>MÃ</th><th>BỆNH NHÂN</th><th>PANEL</th><th>MỨC</th><th>GIỜ LẤY</th><th>TRẠNG THÁI</th><th className="num">ABN</th><th>TAT</th></tr></thead>
+            <tbody>
+              {HIS_DATA.labs.map(l => (
+                <tr key={l.id} className={sel?.id===l.id?"sel":""} onClick={()=>setSel(l)}>
+                  <td className="mono">{l.id}</td>
+                  <td>{l.pt} <span className="dim mono" style={{fontSize:10}}>· {l.pid}</span></td>
+                  <td className="muted">{l.panel}</td>
+                  <td>{l.priority === "STAT" ? <span className="chip crit">STAT</span> : <span className="chip ghost">Routine</span>}</td>
+                  <td className="mono">{l.collected}</td>
+                  <td>
+                    {l.status === "running" && <span className="chip cy"><span className="dot cy"/>CHẠY</span>}
+                    {l.status === "verified" && <span className="chip ok">DUYỆT</span>}
+                    {l.status === "pending" && <span className="chip ghost">CHỜ</span>}
+                  </td>
+                  <td className="num" style={{color:l.abnormal>0?"var(--s-warn)":"var(--t-3)"}}>{l.abnormal || "—"}</td>
+                  <td className="mono dim">{l.tat}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Result detail */}
+      <div style={{ borderLeft: "1px solid var(--line)", padding: 18, overflow: "auto", background: "var(--d-2)" }}>
+        {sel && (
+          <>
+            <div className="label">KẾT QUẢ</div>
+            <div className="mono" style={{ fontSize: 16, color: "var(--t-0)", marginTop: 2 }}>{sel.id}</div>
+            <div style={{ fontSize: 13, color: "var(--t-1)", marginTop: 6 }}>{sel.pt}</div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--t-3)" }}>{sel.pid} · Lấy mẫu {sel.collected}</div>
+            <div className="hline" style={{ margin: "14px 0" }}/>
+            <div className="label">SINH HOÁ MÁU</div>
+            <LabRow name="Glucose" v="7.8" unit="mmol/L" range="3.9 – 6.1" flag="H"/>
+            <LabRow name="Ure" v="5.2" unit="mmol/L" range="2.5 – 7.5"/>
+            <LabRow name="Creatinine" v="88" unit="µmol/L" range="64 – 104"/>
+            <LabRow name="AST (SGOT)" v="42" unit="U/L" range="5 – 34" flag="H"/>
+            <LabRow name="ALT (SGPT)" v="28" unit="U/L" range="0 – 55"/>
+            <LabRow name="Cholesterol TP" v="5.1" unit="mmol/L" range="< 5.2"/>
+            <LabRow name="HDL-C" v="1.2" unit="mmol/L" range="> 1.03"/>
+            <LabRow name="LDL-C" v="3.4" unit="mmol/L" range="< 3.34" flag="H"/>
+            <LabRow name="Triglyceride" v="2.1" unit="mmol/L" range="< 1.7" flag="H"/>
+            <LabRow name="Troponin I" v="< 0.01" unit="ng/mL" range="< 0.04"/>
+            <div style={{ marginTop: 14, display: "grid", gap: 6 }}>
+              <button className="btn primary">Duyệt kết quả</button>
+              <button className="btn"><Icon name="printer" size={12}/> In phiếu KQ</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const LabRow = ({ name, v, unit, range, flag }) => (
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 28px 90px", gap: 6, padding: "4px 0", borderBottom: "1px dashed var(--line-soft)", fontSize: 11, alignItems: "center" }}>
+    <span style={{ color: "var(--t-1)" }}>{name}</span>
+    <span className="mono" style={{ textAlign: "right", color: flag ? (flag === "H" ? "var(--s-warn)" : "var(--s-info)") : "var(--t-0)", fontWeight: flag ? 600 : 400 }}>{v}</span>
+    <span className="mono" style={{ color: flag ? (flag === "H" ? "var(--s-warn)" : "var(--s-info)") : "transparent", fontSize: 10 }}>{flag || "·"}</span>
+    <span className="mono dim" style={{ fontSize: 10 }}>{unit}  <span style={{color:"var(--t-4)"}}>· {range}</span></span>
+  </div>
+);
+
+Object.assign(window, { ReceptionModule, IPDModule, SurgeryModule, BillingModule, RISModule, LISModule });
+
+})();
+</script>
+<script type="text/babel" data-presets="react">
+;(function(){
+
+const { useState, useEffect, useCallback } = React;
+
+// ==== LOGIN (Terminal style) ====
+const LoginScreen = ({ onLogin }) => {
+  const [user, setUser] = useState("nhlinh");
+  const [pass, setPass] = useState("••••••••");
+  const [role, setRole] = useState("Bác sĩ");
+  const [boot, setBoot] = useState([]);
+  useEffect(() => {
+    const lines = [
+      "[ OK ] init his.kernel @ 2.4.1",
+      "[ OK ] mount /var/hl7 · ack OK",
+      "[ OK ] PACS-01 · 8 studies queued",
+      "[ OK ] lis.analyzer · online (A1 A2 A3)",
+      "[ OK ] emr.sync · last 30s",
+      "[ OK ] auth.ldap · CONNECTED",
+      "[ READY ] entering session manager…"
+    ];
+    lines.forEach((l, i) => setTimeout(() => setBoot(b => [...b, l]), 150 + i * 120));
+  }, []);
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",height:"100vh",background:"var(--d-1)"}}>
+      <div style={{background:"var(--d-0)",borderRight:"1px solid var(--line)",padding:"28px 32px",display:"flex",flexDirection:"column",fontFamily:"var(--font-mono)",fontSize:12,color:"var(--t-2)",overflow:"hidden"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{width:10,height:10,borderRadius:"50%",background:"var(--s-crit)"}}/>
+          <span style={{width:10,height:10,borderRadius:"50%",background:"var(--s-warn)"}}/>
+          <span style={{width:10,height:10,borderRadius:"50%",background:"var(--s-ok)"}}/>
+          <span style={{marginLeft:10,color:"var(--t-3)"}}>his.terminal · tty0 · 1440×900</span>
+        </div>
+        <div style={{marginTop:32,fontFamily:"var(--font-serif)",fontSize:40,color:"var(--t-0)",letterSpacing:"-0.02em",lineHeight:1.1}}>
+          Hệ thống<br/>thông tin bệnh viện
+        </div>
+        <div style={{marginTop:10,fontSize:12,color:"var(--t-3)"}}>v2.4.1 · build 20260418.1 · cluster-hn-01</div>
+
+        <div style={{marginTop:40,borderTop:"1px dashed var(--line)",paddingTop:18,lineHeight:1.8,flex:1,overflow:"hidden"}}>
+          {boot.map((l,i)=>(
+            <div key={i} style={{color:l.startsWith("[ OK ]")?"var(--s-ok)":l.startsWith("[ READY")?"var(--a-cy)":"var(--t-2)"}}>{l}</div>
+          ))}
+          <div style={{color:"var(--a-cy)"}}>{"> _"}</div>
+        </div>
+
+        <div style={{borderTop:"1px dashed var(--line)",paddingTop:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,fontSize:10,color:"var(--t-3)"}}>
+          <div>DB <span style={{color:"var(--s-ok)"}}>● UP</span> · 2ms</div>
+          <div>HL7 <span style={{color:"var(--s-ok)"}}>● ACK</span></div>
+          <div>PACS <span style={{color:"var(--s-ok)"}}>● OK</span></div>
+          <div>LIS <span style={{color:"var(--s-ok)"}}>● OK</span></div>
+        </div>
+      </div>
+
+      <div style={{display:"grid",placeItems:"center",padding:32}}>
+        <div style={{width:380}}>
+          <div className="mono up" style={{fontSize:10,color:"var(--t-3)",letterSpacing:"0.12em"}}>— AUTHENTICATION —</div>
+          <div className="serif" style={{fontSize:26,color:"var(--t-0)",marginTop:6}}>Đăng nhập phiên làm việc</div>
+          <div className="mono" style={{fontSize:11,color:"var(--t-3)",marginTop:4}}>Ca trực: 07:00 → 15:00 · Thứ Bảy 18/04/2026</div>
+
+          <div style={{marginTop:24,display:"grid",gap:12}}>
+            <div><label className="label">TÊN ĐĂNG NHẬP</label><input className="input mono" value={user} onChange={e=>setUser(e.target.value)}/></div>
+            <div><label className="label">MẬT KHẨU</label><input className="input mono" type="password" value={pass} onChange={e=>setPass(e.target.value)}/></div>
+            <div>
+              <label className="label">VAI TRÒ</label>
+              <div className="seg" style={{width:"100%"}}>
+                {["Bác sĩ","Điều dưỡng","Tiếp nhận","Dược","Thu ngân"].map(r=>(
+                  <button key={r} className={role===r?"active":""} onClick={()=>setRole(r)} style={{flex:1,fontSize:10}}>{r}</button>
+                ))}
+              </div>
+            </div>
+            <button className="btn primary" style={{height:38,marginTop:6,fontSize:13}} onClick={onLogin}>
+              <Icon name="arrow-right" size={14}/>  ĐĂNG NHẬP
+            </button>
+            <button className="btn" style={{height:34}}>Đăng nhập bằng SSO (AD)</button>
+            <div className="row" style={{justifyContent:"space-between",marginTop:6}}>
+              <label className="row mono" style={{fontSize:11,color:"var(--t-2)",gap:6}}><input type="checkbox" defaultChecked/> Ghi nhớ phiên</label>
+              <a className="mono" href="#" style={{fontSize:11,color:"var(--a-cy)"}}>Quên mật khẩu?</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==== APP ====
+const App = () => {
+  const [logged, setLogged] = useState(localStorage.getItem("his.term.logged") === "1");
+  const [route, setRoute] = useState(localStorage.getItem("his.term.route") || "dashboard");
+  const [subRoute, setSubRoute] = useState(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+
+  useEffect(()=>{ localStorage.setItem("his.term.route", route); setSubRoute(null); }, [route]);
+
+  // Cmd+K
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmdOpen(o=>!o); }
+      if (e.key === "Escape") { setCmdOpen(false); setTweaksOpen(false); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  // Tweaks host protocol
+  useEffect(() => {
+    const h = (e) => {
+      if (!e.data || typeof e.data !== "object") return;
+      if (e.data.type === "__activate_edit_mode") setTweaksOpen(true);
+      if (e.data.type === "__deactivate_edit_mode") setTweaksOpen(false);
+    };
+    window.addEventListener("message", h);
+    window.parent.postMessage({type: "__edit_mode_available"}, "*");
+    return () => window.removeEventListener("message", h);
+  }, []);
+
+  const doLogin = useCallback(()=>{ localStorage.setItem("his.term.logged","1"); setLogged(true); }, []);
+  const doLogout = useCallback(()=>{ localStorage.removeItem("his.term.logged"); setLogged(false); }, []);
+
+  if (!logged) return <LoginScreen onLogin={doLogin}/>;
+
+  return (
+    <div className="app">
+      <Rail route={route} setRoute={setRoute}/>
+      <SubNav route={route} subRoute={subRoute} setSubRoute={setSubRoute}/>
+      <div className="main">
+        <CommandBar route={route} onCmdOpen={()=>setCmdOpen(true)} onLogout={doLogout}/>
+        <div className="content">
+          {route === "dashboard" && <Dashboard goRoute={setRoute}/>}
+          {route === "reception" && <ReceptionModule/>}
+          {route === "opd" && <OPDModule/>}
+          {route === "ipd" && <IPDModule/>}
+          {route === "surgery" && <SurgeryModule/>}
+          {route === "billing" && <BillingModule/>}
+          {route === "ris" && <RISModule/>}
+          {route === "lis" && <LISModule/>}
+        </div>
+        <StatusBar route={route}/>
+      </div>
+      <CommandPalette open={cmdOpen} onClose={()=>setCmdOpen(false)} onNav={setRoute}/>
+      {tweaksOpen && <TweaksPanel onClose={()=>setTweaksOpen(false)}/>}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+})();
+</script>
+</body>
+</html>

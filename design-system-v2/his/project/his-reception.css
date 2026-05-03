@@ -1,8 +1,4 @@
-/* ============================================
-   Reception page — copied verbatim from
-   design/his/project/Reception.html (lines 858–1145)
-   ============================================ */
-
+/* ============ RECEPTION ============ */
 .rcp-grid {
   display: grid;
   grid-template-columns: 320px 1fr 360px;

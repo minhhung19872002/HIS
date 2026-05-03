@@ -1,0 +1,251 @@
+/* Reception v2 — module-specific tweaks on top of his-mod2.css */
+@import url("his-mod2.css");
+
+/* Map ab- → rec- aliases (use shared classes directly).
+   Tweaks below extend for Reception-specific UI. */
+
+/* Queue strip with priority lanes */
+.rec-lanes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid var(--line);
+}
+.rec-lane {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+}
+.rec-lane.crit { border-color: #fecaca; background: linear-gradient(180deg,#fff 0%,#fef2f2 100%); }
+.rec-lane.high { border-color: #fed7aa; background: linear-gradient(180deg,#fff 0%,#fff7ed 100%); }
+.rec-lane.norm { border-color: #bfdbfe; background: linear-gradient(180deg,#fff 0%,#eff6ff 100%); }
+.rec-lane.bhyt { border-color: #bbf7d0; background: linear-gradient(180deg,#fff 0%,#f0fdf4 100%); }
+.rec-lane h6 {
+  margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  color: var(--t-2); text-transform: uppercase;
+}
+.rec-lane .num {
+  font-family: var(--font-mono);
+  font-size: 28px; font-weight: 700; line-height: 1;
+  color: var(--t-0);
+}
+.rec-lane.crit .num { color: var(--s-crit); }
+.rec-lane.high .num { color: #d97706; }
+.rec-lane.norm .num { color: var(--a-cy); }
+.rec-lane.bhyt .num { color: #16a34a; }
+.rec-lane .tag {
+  font-size: 10.5px; color: var(--t-2);
+  margin-top: 2px; font-family: var(--font-mono);
+}
+
+/* Token / queue number badge */
+.rec-token {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12.5px; font-weight: 700;
+  color: #fff; background: var(--a-cy);
+  padding: 2px 8px; border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+.rec-token.crit { background: var(--s-crit); }
+.rec-token.high { background: #d97706; }
+.rec-token.norm { background: var(--a-cy); }
+.rec-token.done { background: var(--t-3); }
+
+/* Now-serving big board */
+.rec-now {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 12px 14px;
+}
+.rec-now > div {
+  background: #fff;
+  padding: 14px 16px;
+}
+.rec-now .lbl {
+  font-size: 10.5px; color: var(--t-2);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.rec-now .big {
+  font-family: var(--font-mono);
+  font-size: 32px; font-weight: 700;
+  color: var(--a-cy);
+  line-height: 1;
+}
+.rec-now .name { font-size: 14px; font-weight: 600; color: var(--t-0); margin-top: 2px; }
+.rec-now .sub { font-size: 11.5px; color: var(--t-2); margin-top: 2px; }
+
+/* Wizard/registration card */
+.rec-section {
+  padding: 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.rec-section h5 {
+  margin: 0 0 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--t-2); text-transform: uppercase;
+}
+.rec-section h5 .ico { color: var(--a-cy); margin-right: 4px; vertical-align: -2px; }
+
+.rec-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rec-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.rec-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+
+/* BHYT verify card */
+.rec-bhyt-card {
+  border: 1.5px solid #bbf7d0;
+  background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.rec-bhyt-card.invalid {
+  border-color: #fecaca;
+  background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+}
+.rec-bhyt-card.invalid .rec-bhyt-icon { background: var(--s-crit); }
+.rec-bhyt-icon {
+  width: 44px; height: 44px;
+  background: #16a34a; color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.rec-bhyt-num {
+  font-family: var(--font-mono);
+  font-size: 16px; font-weight: 700;
+  color: var(--t-0);
+  letter-spacing: 0.4px;
+}
+.rec-bhyt-meta {
+  display: flex; gap: 14px;
+  font-size: 11.5px; color: var(--t-2);
+  margin-top: 2px;
+}
+.rec-bhyt-meta b { color: var(--t-0); font-weight: 600; }
+
+/* Print preview frame */
+.rec-print {
+  background: #fff;
+  border: 1px solid var(--line);
+  width: 420px;
+  margin: 0 auto;
+  padding: 24px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.rec-print h2 { margin: 0; text-align: center; font-size: 14px; }
+.rec-print h3 { margin: 4px 0 14px; text-align: center; font-size: 18px; font-weight: 700; color: var(--a-cy); }
+.rec-print .row { display: grid; grid-template-columns: 100px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.rec-print .row span:first-child { color: var(--t-2); }
+.rec-print .row b { font-weight: 600; }
+.rec-print .qr {
+  margin: 18px auto; width: 100px; height: 100px;
+  background: repeating-linear-gradient(45deg, #000, #000 4px, #fff 4px, #fff 8px);
+  border: 6px solid #fff; box-shadow: 0 0 0 1px #000;
+}
+
+/* Avatar small */
+.rec-av {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--a-cy-bg); color: var(--a-cy);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* History timeline */
+.rec-tline { padding: 6px 0; }
+.rec-tline-it {
+  display: grid;
+  grid-template-columns: 80px auto 1fr;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-hair);
+}
+.rec-tline-it:last-child { border-bottom: 0; }
+.rec-tline-it .tm { font-family: var(--font-mono); font-size: 11px; color: var(--t-2); }
+.rec-tline-it .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--a-cy);
+  margin-top: 5px; justify-self: center;
+}
+.rec-tline-it .dot.ok { background: var(--s-ok, #16a34a); }
+.rec-tline-it .dot.warn { background: #d97706; }
+.rec-tline-it .dot.crit { background: var(--s-crit); }
+.rec-tline-it b { font-weight: 600; color: var(--t-0); display: block; font-size: 12px; }
+.rec-tline-it i { font-style: normal; color: var(--t-2); font-size: 11.5px; }
+
+/* Wizard 4-step (reuse ab-step from shared) */
+/* Slot picker reuse */
+
+/* Visit type cards */
+.rec-vtype {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.rec-vtype label {
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  transition: all 0.12s;
+}
+.rec-vtype label:hover { border-color: var(--a-cy-line); background: var(--a-cy-bg); }
+.rec-vtype label input { display: none; }
+.rec-vtype label.on, .rec-vtype label:has(input:checked) {
+  border-color: var(--a-cy); background: var(--a-cy-bg); color: var(--a-cy);
+  font-weight: 600;
+}
+.rec-vtype label .ico { color: var(--a-cy); }
+
+/* Department picker grid */
+.rec-deptgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.rec-deptgrid label {
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  background: #fff;
+}
+.rec-deptgrid label:hover { border-color: var(--a-cy-line); }
+.rec-deptgrid label input { display: none; }
+.rec-deptgrid label:has(input:checked) {
+  border-color: var(--a-cy); background: var(--a-cy-bg);
+}
+.rec-deptgrid .di {
+  width: 36px; height: 36px;
+  background: var(--a-cy-bg); color: var(--a-cy);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.rec-deptgrid b { font-weight: 600; color: var(--t-0); display: block; font-size: 12.5px; }
+.rec-deptgrid i { font-style: normal; color: var(--t-2); font-size: 11px; font-family: var(--font-mono); display: block; }
+.rec-deptgrid .room { font-size: 11px; color: var(--t-2); font-family: var(--font-mono); }
