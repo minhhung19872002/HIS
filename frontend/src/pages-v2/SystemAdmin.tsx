@@ -1,22 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../api/system';
 import type { SystemUserDto, RoleDto } from '../api/system';
 import { getAuditLogs } from '../api/audit';
 import type { AuditLogDto } from '../api/audit';
-import TermIcon from '../layouts/terminal/Icon';
+import {
+  KpiStrip, TopTabs, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
+  type ColumnDef, type TopTab,
+} from './_v2kit';
 
 type AdminTab = 'users' | 'roles' | 'audit';
-
-const TABS: { key: AdminTab; label: string; icon: string }[] = [
-  { key: 'users', label: 'Người dùng', icon: 'users' },
-  { key: 'roles', label: 'Vai trò',     icon: 'shield' },
-  { key: 'audit', label: 'Nhật ký',     icon: 'list' },
+const TABS: TopTab<AdminTab>[] = [
+  { v: 'users', l: 'Người dùng', ic: 'users' },
+  { v: 'roles', l: 'Vai trò',    ic: 'shield' },
+  { v: 'audit', l: 'Nhật ký',    ic: 'list' },
 ];
 
 const SystemAdminV2: React.FC = () => {
-  const navigate = useNavigate();
   const [tab, setTab] = useState<AdminTab>('users');
   const [keyword, setKeyword] = useState('');
   const [users, setUsers] = useState<SystemUserDto[]>([]);
@@ -25,18 +25,16 @@ const SystemAdminV2: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selUser, setSelUser] = useState<SystemUserDto | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       if (tab === 'users') {
         const r = await adminApi.getUsers(keyword || undefined);
-        const list = Array.isArray(r.data) ? r.data : [];
-        setUsers(list);
-        if (list.length > 0 && !selUser) setSelUser(list[0]);
+        setUsers(Array.isArray(r.data) ? r.data : []);
       } else if (tab === 'roles') {
         const r = await adminApi.getRoles(true);
         setRoles(Array.isArray(r.data) ? r.data : []);
-      } else if (tab === 'audit') {
+      } else {
         const r = await getAuditLogs({
           fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
           toDate: dayjs().format('YYYY-MM-DD'),
@@ -45,181 +43,153 @@ const SystemAdminV2: React.FC = () => {
         });
         setAudit(Array.isArray(r.data?.items) ? r.data.items : []);
       }
-    } catch {
-      // empty arrays already set
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tab]);
+    } catch { /* keep current */ }
+    finally { setLoading(false); }
+  }, [tab, keyword]);
+  useEffect(() => { load(); }, [load]);
 
-  const stats = useMemo(() => ({
-    total: users.length,
-    active: users.filter((u) => u.isActive && !u.isLocked).length,
-    locked: users.filter((u) => u.isLocked).length,
-    rolesCount: roles.length,
-  }), [users, roles]);
+  const filteredUsers = useMemo(() => {
+    if (!keyword.trim()) return users;
+    const q = keyword.toLowerCase();
+    return users.filter((u) =>
+      u.username.toLowerCase().includes(q) ||
+      u.fullName.toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q));
+  }, [users, keyword]);
+
+  const filteredRoles = useMemo(() => {
+    if (!keyword.trim()) return roles;
+    const q = keyword.toLowerCase();
+    return roles.filter((r) => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q));
+  }, [roles, keyword]);
+
+  const kpis = useMemo(() => [
+    { lbl: 'Tổng user',       val: users.length },
+    { lbl: 'Hoạt động',       val: users.filter((u) => u.isActive && !u.isLocked).length, tone: 'ok' as const },
+    { lbl: 'Đã khoá',         val: users.filter((u) => u.isLocked).length, tone: 'crit' as const },
+    { lbl: 'Vai trò',         val: roles.length, tone: 'info' as const },
+    { lbl: 'Nhật ký 7d',      val: audit.length, tone: 'info' as const },
+    { lbl: 'Lỗi 4xx/5xx',     val: audit.filter((a) => (a.responseStatusCode ?? 0) >= 400).length, tone: 'warn' as const },
+  ], [users, roles, audit]);
+
+  const userColumns: ColumnDef<SystemUserDto>[] = [
+    { key: 'username',         label: 'Username',  mono: true, code: true,
+      render: (u) => u.username },
+    { key: 'fullName',         label: 'Họ tên',     render: (u) => u.fullName },
+    { key: 'departmentName',   label: 'Khoa',       render: (u) => u.departmentName || '—' },
+    { key: 'roles',            label: 'Vai trò',    render: (u) => u.roles?.map((r) => r.name).join(', ') || '—' },
+    { key: 'email',            label: 'Email',      render: (u) => u.email || '—' },
+    { key: 'lastLoginDate',    label: 'Lần cuối',   mono: true,
+      render: (u) => u.lastLoginDate ? dayjs(u.lastLoginDate).format('DD/MM HH:mm') : '—' },
+    { key: 'status',           label: 'Trạng thái',
+      render: (u) => u.isLocked ? <StatusBadge tone="crit">Khoá</StatusBadge>
+        : u.isActive ? <StatusBadge tone="ok">Hoạt động</StatusBadge>
+        : <StatusBadge tone="warn">Tạm dừng</StatusBadge> },
+  ];
+
+  const roleColumns: ColumnDef<RoleDto>[] = [
+    { key: 'code',        label: 'Mã',         mono: true, code: true, render: (r) => r.code },
+    { key: 'name',        label: 'Tên vai trò', render: (r) => r.name },
+    { key: 'description', label: 'Mô tả',       render: (r) => r.description || '—' },
+    { key: 'isActive',    label: 'Trạng thái',
+      render: (r) => r.isActive ? <StatusBadge tone="ok">Hoạt động</StatusBadge>
+        : <StatusBadge tone="warn">Tạm dừng</StatusBadge> },
+  ];
+
+  const auditColumns: ColumnDef<AuditLogDto>[] = [
+    { key: 'timestamp', label: 'Thời gian', mono: true,
+      render: (a) => dayjs(a.timestamp).format('DD/MM HH:mm:ss') },
+    { key: 'userFullName', label: 'User',
+      render: (a) => a.userFullName || a.userName || '—' },
+    { key: 'module',    label: 'Module',  render: (a) => a.module || '—' },
+    { key: 'action',    label: 'Hành động', render: (a) => a.action },
+    { key: 'entityType', label: 'Đối tượng',
+      render: (a) => a.entityType ? `${a.entityType} ${(a.entityId || '').toString().slice(0, 8)}` : '—' },
+    { key: 'responseStatusCode', label: 'HTTP',
+      render: (a) => {
+        const code = a.responseStatusCode ?? 0;
+        const tone = code >= 400 ? 'crit' : code >= 300 ? 'warn' : 'ok';
+        return <StatusBadge tone={tone}>{code || '—'}</StatusBadge>;
+      } },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '220px 1fr 360px', gap: 16, height: '100%', minHeight: 0 }}>
-      {/* Sidebar tabs */}
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h"><span className="title">Quản trị hệ thống</span></div>
-        <div className="panel-body" style={{ padding: 4 }}>
-          {TABS.map((t) => (
-            <div
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                padding: '10px 12px', cursor: 'pointer', borderRadius: 6, marginBottom: 2,
-                background: tab === t.key ? 'var(--a-cy-bg)' : 'transparent',
-                color: tab === t.key ? 'var(--a-cy)' : 'var(--t-1)',
-                fontWeight: tab === t.key ? 500 : 400, fontSize: 13,
-                display: 'flex', alignItems: 'center', gap: 10,
-              }}
-            >
-              <TermIcon name={t.icon} size={14} />{t.label}
-            </div>
-          ))}
-        </div>
+    <div className="ab">
+      <KpiStrip items={kpis} />
+
+      <div className="ab-tools">
+        <TopTabs tab={tab} setTab={setTab} tabs={TABS} />
+        <SearchBox
+          value={keyword}
+          onChange={setKeyword}
+          placeholder={tab === 'users' ? 'Tìm BS / username…'
+            : tab === 'audit' ? 'Tìm theo username / module…'
+            : 'Tìm vai trò…'}
+        />
+        <span className="spacer" />
+        <button type="button" className="ab-btn ghost" onClick={load}>Làm mới</button>
       </div>
 
-      {/* Main table */}
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">{TABS.find((t) => t.key === tab)?.label}</span>
-          <span className="sub">· {tab === 'users' ? users.length : tab === 'roles' ? roles.length : audit.length}</span>
-          <div className="actions">
-            <input
-              className="input" style={{ width: 220 }}
-              placeholder={tab === 'users' ? 'Tìm BS / username...' : tab === 'audit' ? 'Tìm theo username / module...' : 'Tìm vai trò...'}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
-            />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/admin')}>
-              <TermIcon name="layers" size={12} />Mở v1
-            </button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : tab === 'users' ? (
-              users.length === 0 ? <div className="ph" style={{ margin: 14 }}>Không có người dùng</div> : (
-                <table className="tbl">
-                  <thead><tr><th>Username</th><th>Họ tên</th><th>Khoa</th><th>Vai trò</th><th>Email</th><th>Đăng nhập gần nhất</th><th>Trạng thái</th></tr></thead>
-                  <tbody>
-                    {users.map((u) => (
-                      <tr key={u.id} className={selUser?.id === u.id ? 'sel' : ''} onClick={() => setSelUser(u)} style={{ cursor: 'pointer' }}>
-                        <td className="mono">{u.username}</td>
-                        <td style={{ fontWeight: 500 }}>{u.fullName}</td>
-                        <td className="muted">{u.departmentName || '—'}</td>
-                        <td className="muted">{u.roles?.map((r) => r.name).join(', ') || '—'}</td>
-                        <td className="muted">{u.email || '—'}</td>
-                        <td className="mono">{u.lastLoginDate ? dayjs(u.lastLoginDate).format('DD/MM HH:mm') : '—'}</td>
-                        <td>
-                          {u.isLocked ? <span className="chip crit">Khoá</span>
-                          : u.isActive ? <span className="chip ok">Hoạt động</span>
-                          : <span className="chip ghost">Tạm dừng</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            )
-            : tab === 'roles' ? (
-              roles.length === 0 ? <div className="ph" style={{ margin: 14 }}>Không có vai trò</div> : (
-                <table className="tbl">
-                  <thead><tr><th>Mã</th><th>Tên vai trò</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
-                  <tbody>
-                    {roles.map((r) => (
-                      <tr key={r.id}>
-                        <td className="mono">{r.code}</td>
-                        <td style={{ fontWeight: 500 }}>{r.name}</td>
-                        <td className="muted">{r.description || '—'}</td>
-                        <td>{r.isActive ? <span className="chip ok">Hoạt động</span> : <span className="chip ghost">Tạm dừng</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            )
-            : (
-              audit.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có nhật ký 7 ngày</div> : (
-                <table className="tbl">
-                  <thead><tr><th>Thời gian</th><th>User</th><th>Module</th><th>Hành động</th><th>Đối tượng</th><th>HTTP</th></tr></thead>
-                  <tbody>
-                    {audit.map((a) => (
-                      <tr key={a.id}>
-                        <td className="mono">{dayjs(a.timestamp).format('DD/MM HH:mm:ss')}</td>
-                        <td>{a.userFullName || a.userName || '—'}</td>
-                        <td className="muted">{a.module || '—'}</td>
-                        <td className="muted">{a.action}</td>
-                        <td className="muted" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {a.entityType ? `${a.entityType} ${a.entityId?.toString().slice(0, 8)}` : '—'}
-                        </td>
-                        <td className="mono"><span className={'chip ' + ((a.responseStatusCode ?? 0) >= 400 ? 'crit' : (a.responseStatusCode ?? 0) >= 300 ? 'warn' : 'ok')}>{a.responseStatusCode ?? '—'}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            )}
-        </div>
-      </div>
+      {tab === 'users' && (
+        <DataTable<SystemUserDto>
+          columns={userColumns}
+          data={filteredUsers}
+          rowKey={(u) => u.id || u.username}
+          onRowClick={(u) => setSelUser(u)}
+          empty={loading ? 'Đang tải…' : 'Không có người dùng'}
+        />
+      )}
+      {tab === 'roles' && (
+        <DataTable<RoleDto>
+          columns={roleColumns}
+          data={filteredRoles}
+          rowKey={(r) => r.id || r.code}
+          empty={loading ? 'Đang tải…' : 'Không có vai trò'}
+        />
+      )}
+      {tab === 'audit' && (
+        <DataTable<AuditLogDto>
+          columns={auditColumns}
+          data={audit}
+          rowKey={(a) => String(a.id ?? '')}
+          empty={loading ? 'Đang tải…' : 'Chưa có nhật ký 7 ngày'}
+        />
+      )}
 
-      {/* Right: stats + selected user */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng user" value={stats.total} />
-              <Stat label="Đang hoạt động" value={stats.active} ok />
-              <Stat label="Đã khoá" value={stats.locked} crit />
-              <Stat label="Vai trò" value={stats.rolesCount} cy />
-            </div>
-          </div>
-        </div>
-        {tab === 'users' && (
-          <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-            <div className="panel-h">
-              <span className="title">Chi tiết user</span>
-              <span className="sub">{selUser?.fullName || 'Chọn user'}</span>
-            </div>
-            <div className="panel-body pad">
-              {!selUser ? <div className="ph">Chọn user để xem chi tiết</div> : (
-                <div className="stack-sm">
-                  <Field label="Username" value={<span className="mono">{selUser.username}</span>} />
-                  <Field label="Họ tên" value={selUser.fullName} />
-                  <Field label="Email" value={selUser.email || '—'} />
-                  <Field label="SĐT" value={selUser.phoneNumber || '—'} />
-                  <Field label="Mã NV" value={selUser.employeeCode || '—'} />
-                  <Field label="Khoa" value={selUser.departmentName || '—'} />
-                  <Field label="Vai trò" value={selUser.roles?.map((r) => r.name).join(', ') || '—'} />
-                  <Field label="Đăng nhập gần nhất" value={selUser.lastLoginDate ? <span className="mono">{dayjs(selUser.lastLoginDate).format('DD/MM/YYYY HH:mm')}</span> : '—'} />
-                  <Field label="IP đăng nhập" value={selUser.lastLoginIP ? <span className="mono">{selUser.lastLoginIP}</span> : '—'} />
-                </div>
-              )}
-            </div>
-          </div>
+      <DrawerShell
+        open={!!selUser}
+        onClose={() => setSelUser(null)}
+        title={selUser?.fullName || ''}
+        sub={selUser ? `@${selUser.username}` : ''}
+        size="md"
+      >
+        {selUser && (
+          <>
+            <DrSec title="Định danh">
+              <DrField lbl="Username">{selUser.username}</DrField>
+              <DrField lbl="Họ tên">{selUser.fullName}</DrField>
+              <DrField lbl="Email">{selUser.email || '—'}</DrField>
+              <DrField lbl="SĐT">{selUser.phoneNumber || '—'}</DrField>
+              <DrField lbl="Mã NV">{selUser.employeeCode || '—'}</DrField>
+            </DrSec>
+            <DrSec title="Tổ chức">
+              <DrField lbl="Khoa">{selUser.departmentName || '—'}</DrField>
+              <DrField lbl="Vai trò">{selUser.roles?.map((r) => r.name).join(', ') || '—'}</DrField>
+            </DrSec>
+            <DrSec title="Đăng nhập">
+              <DrField lbl="Lần cuối">
+                {selUser.lastLoginDate ? dayjs(selUser.lastLoginDate).format('DD/MM/YYYY HH:mm') : '—'}
+              </DrField>
+              <DrField lbl="IP">{selUser.lastLoginIP || '—'}</DrField>
+              <DrField lbl="Trạng thái">
+                {selUser.isLocked ? 'Khoá' : selUser.isActive ? 'Hoạt động' : 'Tạm dừng'}
+              </DrField>
+            </DrSec>
+          </>
         )}
-      </div>
+      </DrawerShell>
     </div>
   );
 };
-
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean; crit?: boolean }> = ({ label, value, warn, cy, ok, crit }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : crit ? 'var(--s-crit)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
 
 export default SystemAdminV2;
