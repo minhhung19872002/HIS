@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { App as AntdApp, Drawer, Select } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
+import { getActiveEvent, getVictims, type MCIVictimDto } from '../api/massCasualty';
 import './EmergencyDisaster.css';
 
 type TriageLevel = 1 | 2 | 3 | 4 | 5;
@@ -168,9 +169,91 @@ function toneClass(tone: StatusMeta['tone']): string {
   }
 }
 
+// ─── API DTO mapper ──────────────────────────────────────────────────────────
+//
+// Backend MCIVictimDto comes from /api/mci/events/{id}/victims and uses string
+// triage categories ('Immediate'/'Delayed'/'Minor'/'Expectant'/'Deceased') +
+// triage colors. The custom triage UI in this v2 page expects numeric levels
+// 1–5 + a richer EmergencyCase shape (vitals/gcs/complaint/bed). This mapper
+// translates real MCI victims into that shape, defaulting missing fields.
+
+function triageFromCategory(cat?: string, color?: string): TriageLevel {
+  const c = (cat || '').toLowerCase();
+  const col = (color || '').toLowerCase();
+  if (c === 'immediate' || col === 'red') return 1;
+  if (c === 'delayed'   || col === 'yellow') return 3;
+  if (c === 'minor'     || col === 'green') return 4;
+  if (c === 'expectant' || c === 'deceased' || col === 'black') return 2;
+  return 3;
+}
+
+function statusFromTreatment(s?: string, dispo?: string): EmergencyStatus {
+  const t = (s || '').toLowerCase();
+  const d = (dispo || '').toLowerCase();
+  if (d === 'admitted')   return 'admitted';
+  if (d === 'discharged') return 'discharged';
+  if (d === 'transferred' || d === 'or' || d === 'icu') return 'referred';
+  if (t.includes('treatment')) return 'treating';
+  if (t.includes('observ'))    return 'observing';
+  return 'triage';
+}
+
+function genderLabel(g?: string): 'Nam' | 'Nữ' {
+  const v = (g || '').toLowerCase();
+  if (v === 'female' || v === 'f' || v === 'nữ' || v === 'nu') return 'Nữ';
+  return 'Nam';
+}
+
+function mapVictimToCase(v: MCIVictimDto): EmergencyCase {
+  const triage = triageFromCategory(v.triageCategory, v.triageColor);
+  return {
+    code: v.victimCode || v.id,
+    patientCode: v.patientCode || v.temporaryId || '—',
+    patientName: v.fullName || v.temporaryId || `BN ${v.victimCode || v.id}`,
+    age: v.estimatedAge ?? 0,
+    gender: genderLabel(v.gender),
+    arrivalTime: v.arrivalTime || v.createdAt || new Date().toISOString(),
+    triage,
+    status: statusFromTreatment(v.treatmentStatus, v.disposition),
+    complaint: v.chiefComplaint || (v.injuries && v.injuries[0]) || '—',
+    mode: v.identificationMethod || 'Tự đến',
+    doctor: v.attendingDoctorName || '—',
+    bed: v.bedNumber,
+    gcs: v.gcsScore ?? (triage <= 2 ? 10 : 15),
+    vitals: {
+      bp: v.vitalSigns?.bloodPressure || '—',
+      hr: v.vitalSigns?.heartRate ?? 0,
+      temp: v.vitalSigns?.temperature ?? 0,
+      spo2: v.vitalSigns?.oxygenSaturation ?? 0,
+    },
+  };
+}
+
 const EmergencyDisasterV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [rows, setRows] = useState<EmergencyCase[]>(() => buildEmergencySeed());
+  const [usingMock, setUsingMock] = useState(true);
+
+  // Try real MCI API on mount; fall back to seed if no active event or empty.
+  useEffect(() => {
+    (async () => {
+      try {
+        const evt = await getActiveEvent();
+        if (!evt?.data?.id) return; // no active MCI — keep seed for demo
+        const vRes = await getVictims(evt.data.id);
+        const list = Array.isArray(vRes?.data) ? vRes.data : [];
+        if (list.length === 0) return; // active event but no victims yet — keep seed
+        const real = list.map(mapVictimToCase)
+          .sort((a, b) => dayjs(b.arrivalTime).valueOf() - dayjs(a.arrivalTime).valueOf());
+        setRows(real);
+        setUsingMock(false);
+        message.success(`Đang hiển thị MCI thật: ${evt.data.eventName} (${real.length} ca)`);
+      } catch {
+        // API down or schema drift — silently keep seed for demo
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [statusFilter, setStatusFilter] = useState<'all' | EmergencyStatus>('all');
   const [triageFilter, setTriageFilter] = useState<string>('');
   const [search, setSearch] = useState('');
@@ -302,6 +385,9 @@ const EmergencyDisasterV2: React.FC = () => {
               options={TRIAGE_LEVELS.map((item) => ({ value: String(item.level), label: item.label }))}
             />
             <span className="er-v2-timestamp">Cập nhật {dayjs().format('HH:mm')}</span>
+            <span className={'er-v2-badge ' + (usingMock ? 'warn' : 'ok')} title={usingMock ? 'Không có MCI active — hiển thị dữ liệu mẫu' : 'Đang hiển thị MCI thật'}>
+              {usingMock ? 'Demo' : 'Live'}
+            </span>
           </div>
         </div>
 

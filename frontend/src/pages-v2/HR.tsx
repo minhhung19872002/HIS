@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { App as AntdApp, Drawer, Modal, Select } from 'antd';
+import { getStaff, getRoster, type StaffProfileDto, type RosterAssignmentDto } from '../api/medicalHR';
 import {
   CheckOutlined,
   CopyOutlined,
@@ -72,8 +73,8 @@ function seededValue(seed: number): number {
   return value - Math.floor(value);
 }
 
-function buildRotaSeed(): Record<string, ShiftType[]> {
-  return STAFF.reduce<Record<string, ShiftType[]>>((accumulator, staff, staffIndex) => {
+function buildRotaSeed(staffList: StaffMember[] = STAFF): Record<string, ShiftType[]> {
+  return staffList.reduce<Record<string, ShiftType[]>>((accumulator, staff, staffIndex) => {
     accumulator[staff.id] = DAYS.map((_, dayIndex) => {
       if (staff.role === 'Trưởng khoa' || staff.role === 'Trưởng ĐD') {
         return dayIndex === 6 ? 'off' : 'morning';
@@ -89,13 +90,103 @@ function buildRotaSeed(): Record<string, ShiftType[]> {
   }, {});
 }
 
+// ─── API DTO mapper ──────────────────────────────────────────────────────────
+//
+// Backend StaffProfileDto carries staffType ('Doctor'/'Nurse'/'Technician'/...),
+// the v2 grid expects role labels like "Trưởng khoa"/"Bác sĩ"/"Điều dưỡng"/"KTV".
+// Map staff type → Vietnamese role; quota defaults to 6 (target shifts/week).
+
+function staffTypeToRole(t?: string): string {
+  const v = (t || '').toLowerCase();
+  if (v.includes('doctor')) return 'Bác sĩ';
+  if (v.includes('nurse'))  return 'Điều dưỡng';
+  if (v.includes('tech') || v.includes('technician')) return 'KTV';
+  if (v.includes('admin'))  return 'Hành chính';
+  if (v.includes('allied') || v.includes('support')) return 'Hỗ trợ';
+  return t || 'Nhân viên';
+}
+
+function mapProfileToStaff(p: StaffProfileDto): StaffMember {
+  return {
+    id: p.staffCode || p.id,
+    name: p.fullName || p.staffCode,
+    role: staffTypeToRole(p.staffType),
+    department: p.departmentName || '—',
+    quota: 6,
+  };
+}
+
+function shiftFromName(name?: string): ShiftType {
+  const v = (name || '').toLowerCase();
+  if (v.includes('sáng') || v.includes('sang') || v.includes('morning')) return 'morning';
+  if (v.includes('chiều') || v.includes('chieu') || v.includes('evening') || v.includes('afternoon')) return 'evening';
+  if (v.includes('đêm') || v.includes('dem') || v.includes('night')) return 'night';
+  return 'off';
+}
+
+function buildRotaFromAssignments(
+  staffList: StaffMember[],
+  assignments: RosterAssignmentDto[],
+  weekStart: dayjs.Dayjs,
+): Record<string, ShiftType[]> {
+  const weekDates = DAYS.map((_, i) => weekStart.add(i, 'day').format('YYYY-MM-DD'));
+  const out: Record<string, ShiftType[]> = {};
+  for (const s of staffList) {
+    out[s.id] = weekDates.map((date) => {
+      // Match by date AND (staffCode OR original API id stored in code)
+      const a = assignments.find((x) => (x.staffCode === s.id || x.staffId === s.id) && x.date.startsWith(date));
+      return a ? shiftFromName(a.shiftName) : 'off';
+    });
+  }
+  return out;
+}
+
 const HRV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [week, setWeek] = useState(43);
+  const [staffList, setStaffList] = useState<StaffMember[]>(STAFF);
   const [rota, setRota] = useState<Record<string, ShiftType[]>>(() => buildRotaSeed());
+  const [usingMock, setUsingMock] = useState(true);
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+
+  // Try real HR API: load staff + current month roster, fall back to seed.
+  useEffect(() => {
+    (async () => {
+      try {
+        const now = dayjs();
+        const [staffRes, rosterRes] = await Promise.allSettled([
+          getStaff({ page: 1, pageSize: 50 }),
+          getRoster('', now.year(), now.month() + 1),
+        ]);
+
+        let realStaff: StaffMember[] = [];
+        if (staffRes.status === 'fulfilled') {
+          const items = staffRes.value?.data?.items || [];
+          if (items.length >= 8) realStaff = items.map(mapProfileToStaff);
+        }
+        if (realStaff.length === 0) return; // not enough real staff — keep seed
+
+        setStaffList(realStaff);
+
+        // Compute Monday-of-this-week as the rota's reference start
+        const weekStart = now.startOf('week').add(1, 'day'); // dayjs week starts Sunday by default
+        const assignments = rosterRes.status === 'fulfilled'
+          ? (rosterRes.value?.data?.staffAssignments || [])
+          : [];
+        const rotaMap = assignments.length > 0
+          ? buildRotaFromAssignments(realStaff, assignments, weekStart)
+          : buildRotaSeed(realStaff);
+        setRota(rotaMap);
+        setUsingMock(false);
+        message.success(`Hiển thị nhân sự thật: ${realStaff.length} người${assignments.length > 0 ? `, ${assignments.length} ca` : ' (lịch trực mẫu)'}`);
+      } catch {
+        // Silent fallback — keep seed
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapForm, setSwapForm] = useState({
     from: '',
@@ -110,13 +201,13 @@ const HRV2: React.FC = () => {
   ]);
 
   const departments = useMemo(
-    () => [...new Set(STAFF.map((member) => member.department))],
-    [],
+    () => [...new Set(staffList.map((member) => member.department))],
+    [staffList],
   );
 
   const visibleStaff = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return STAFF.filter((member) => {
+    return staffList.filter((member) => {
       if (departmentFilter && member.department !== departmentFilter) {
         return false;
       }
@@ -127,12 +218,12 @@ const HRV2: React.FC = () => {
 
       return `${member.name} ${member.id} ${member.role}`.toLowerCase().includes(query);
     });
-  }, [departmentFilter, search]);
+  }, [staffList, departmentFilter, search]);
 
   const shiftCount = (staffId: string): number => (rota[staffId] ?? []).filter((shift) => shift !== 'off').length;
 
   const overtimeCount = (staffId: string): number => {
-    const staff = STAFF.find((member) => member.id === staffId);
+    const staff = staffList.find((member) => member.id === staffId);
     if (!staff) {
       return 0;
     }
@@ -248,6 +339,17 @@ const HRV2: React.FC = () => {
           </div>
 
           <div className="hr-v2-toolbar-right">
+            <span
+              className={'hr-v2-btn'}
+              style={{
+                cursor: 'default',
+                background: usingMock ? 'var(--a-or-bg, #fff7ed)' : 'var(--a-cy-bg, #ecfeff)',
+                color:      usingMock ? 'var(--a-or-text, #c05621)' : 'var(--a-cy-text, #0f766e)',
+              }}
+              title={usingMock ? 'Backend HR rỗng — đang dùng dữ liệu mẫu' : 'Đang hiển thị nhân sự thật từ backend'}
+            >
+              {usingMock ? 'Demo' : 'Live'}
+            </span>
             <button type="button" className="hr-v2-btn" onClick={() => setSwapModalOpen(true)}>
               <SwapOutlined />
               Yêu cầu đổi ca
@@ -272,8 +374,8 @@ const HRV2: React.FC = () => {
             <div className="hr-v2-alert-title">Yêu cầu đổi ca chờ duyệt</div>
             <div className="hr-v2-alert-list">
               {swapRequests.filter((request) => request.status === 'pending').map((request) => {
-                const fromStaff = STAFF.find((member) => member.id === request.from);
-                const toStaff = STAFF.find((member) => member.id === request.to);
+                const fromStaff = staffList.find((member) => member.id === request.from);
+                const toStaff = staffList.find((member) => member.id === request.to);
                 const shift = SHIFT_TYPES.find((item) => item.value === request.shift)!;
                 return (
                   <div key={request.id} className="hr-v2-alert-row">
@@ -438,7 +540,7 @@ const HRV2: React.FC = () => {
               value={swapForm.from || undefined}
               placeholder="Chọn nhân sự"
               onChange={(value) => setSwapForm((current) => ({ ...current, from: value }))}
-              options={STAFF.map((member) => ({ value: member.id, label: member.name }))}
+              options={staffList.map((member) => ({ value: member.id, label: member.name }))}
             />
           </label>
           <label>
@@ -447,7 +549,7 @@ const HRV2: React.FC = () => {
               value={swapForm.to || undefined}
               placeholder="Chọn người thay"
               onChange={(value) => setSwapForm((current) => ({ ...current, to: value }))}
-              options={STAFF.map((member) => ({ value: member.id, label: member.name }))}
+              options={staffList.map((member) => ({ value: member.id, label: member.name }))}
             />
           </label>
           <label>
