@@ -31,3 +31,4 @@ cypress/downloads
 .vercel
 public/__design/
 e2e/design-diff/__snapshots__/
+playwright-prod-design-conformance.json

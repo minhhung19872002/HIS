@@ -1,132 +1,100 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback } from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import { getProcurementRequests } from '../api/warehouse';
 import type { ProcurementRequestDto } from '../api/warehouse';
-import TermIcon from '../layouts/terminal/Icon';
+import {
+  SimpleV2Page, StatusBadge, DrSec, DrField,
+  type ColumnDef, type StatusTab, type KpiItem,
+} from './_v2kit';
 
-const STATUS_LABEL: Record<number, { text: string; cls: string }> = {
-  0: { text: 'Mới', cls: 'warn' },
-  1: { text: 'Đã duyệt', cls: 'cy' },
-  2: { text: 'Đã mua', cls: 'ok' },
-  3: { text: 'Hủy', cls: 'crit' },
-};
+type SKey = 'new' | 'approved' | 'purchased' | 'cancelled';
+const STATUS_TABS: StatusTab<SKey>[] = [
+  { v: 'new',       l: 'Mới',       tone: 'warn' },
+  { v: 'approved',  l: 'Đã duyệt',  tone: 'info' },
+  { v: 'purchased', l: 'Đã mua',    tone: 'ok' },
+  { v: 'cancelled', l: 'Hủy',       tone: 'crit' },
+];
+const statusKey = (r: ProcurementRequestDto): SKey =>
+  r.status === 1 ? 'approved' : r.status === 2 ? 'purchased' : r.status === 3 ? 'cancelled' : 'new';
 
 const ProcurementV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<ProcurementRequestDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sel, setSel] = useState<ProcurementRequestDto | null>(null);
+  const load = useCallback(async () => {
+    const r = await getProcurementRequests(undefined, undefined,
+      dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
+      dayjs().format('YYYY-MM-DD'));
+    return Array.isArray(r.data) ? (r.data as ProcurementRequestDto[]) : [];
+  }, []);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r = await getProcurementRequests(undefined, undefined,
-        dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
-        dayjs().format('YYYY-MM-DD'));
-      const list = Array.isArray(r.data) ? r.data : [];
-      setItems(list);
-      if (list.length > 0 && !sel) setSel(list[0]);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  const columns: ColumnDef<ProcurementRequestDto>[] = [
+    { key: 'requestCode',   label: 'Mã',          mono: true, code: true,
+      render: (r) => r.requestCode },
+    { key: 'warehouseName', label: 'Kho',         render: (r) => r.warehouseName },
+    { key: 'description',   label: 'Mô tả',
+      render: (r) => (
+        <span style={{ display: 'inline-block', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {r.description || '—'}
+        </span>
+      ) },
+    { key: 'items',         label: 'Số mục',      mono: true,
+      render: (r) => r.items?.length || 0 },
+    { key: 'createdByName', label: 'Người tạo',   render: (r) => r.createdByName },
+    { key: 'requestDate',   label: 'Ngày YC',     mono: true,
+      render: (r) => dayjs(r.requestDate).format('DD/MM/YYYY') },
+    { key: 'status',        label: 'Trạng thái',
+      render: (r) => {
+        const k = statusKey(r);
+        const m = STATUS_TABS.find((s) => s.v === k)!;
+        return <StatusBadge tone={m.tone as 'ok' | 'warn' | 'crit' | 'info'}>{m.l}</StatusBadge>;
+      } },
+  ];
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    new: items.filter((r) => r.status === 0).length,
-    approved: items.filter((r) => r.status === 1).length,
-    purchased: items.filter((r) => r.status === 2).length,
-  }), [items]);
+  const kpis = (rows: ProcurementRequestDto[]): KpiItem[] => [
+    { lbl: 'Tổng dự trù', val: rows.length },
+    { lbl: 'Chờ duyệt',   val: rows.filter((r) => r.status === 0).length, tone: 'warn' },
+    { lbl: 'Đã duyệt',    val: rows.filter((r) => r.status === 1).length, tone: 'info' },
+    { lbl: 'Đã mua',      val: rows.filter((r) => r.status === 2).length, tone: 'ok' },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Dự trù mua sắm · <b>{items.length}</b></span>
-          <div className="actions">
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="refresh" size={13} />Làm mới</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/procurement')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có dự trù</div> : (
-              <table className="tbl">
-                <thead><tr><th>Mã</th><th>Kho</th><th>Mô tả</th><th>Số mục</th><th>Người tạo</th><th>Ngày</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {items.map((r) => {
-                    const st = STATUS_LABEL[r.status] || { text: r.statusName, cls: 'ghost' };
-                    return (
-                      <tr key={r.id} className={sel?.id === r.id ? 'sel' : ''} onClick={() => setSel(r)} style={{ cursor: 'pointer' }}>
-                        <td className="mono">{r.requestCode}</td>
-                        <td className="muted">{r.warehouseName}</td>
-                        <td className="muted" style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description || '—'}</td>
-                        <td className="mono">{r.items?.length || 0}</td>
-                        <td className="muted">{r.createdByName}</td>
-                        <td className="mono">{dayjs(r.requestDate).format('DD/MM/YYYY')}</td>
-                        <td><span className={`chip ${st.cls}`}>{st.text}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng" value={stats.total} />
-              <Stat label="Chờ duyệt" value={stats.new} warn />
-              <Stat label="Đã duyệt" value={stats.approved} cy />
-              <Stat label="Đã mua" value={stats.purchased} ok />
-            </div>
-          </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Chi tiết dự trù</span><span className="sub">{sel?.requestCode || 'Chọn'}</span></div>
-          <div className="panel-body pad">
-            {!sel ? <div className="ph">Chọn dự trù</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{sel.requestCode}</span>} />
-                <Field label="Kho" value={sel.warehouseName} />
-                <Field label="Mô tả" value={sel.description || '—'} />
-                <Field label="Người tạo" value={sel.createdByName} />
-                <Field label="Ngày yêu cầu" value={<span className="mono">{dayjs(sel.requestDate).format('DD/MM/YYYY')}</span>} />
-                <Field label="Trạng thái" value={<span className={'chip ' + (STATUS_LABEL[sel.status]?.cls || 'ghost')}>{sel.statusName}</span>} />
-                <div>
-                  <div className="label">Danh sách mặt hàng ({sel.items?.length || 0})</div>
-                  <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.7 }}>
-                    {(sel.items || []).slice(0, 8).map((it) => (
-                      <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--line)', padding: '4px 0' }}>
-                        <span>{it.itemName}</span>
-                        <span className="mono">{it.requestedQuantity} {it.unit}</span>
-                      </div>
-                    ))}
-                  </div>
+    <SimpleV2Page<ProcurementRequestDto>
+      title="Dự trù mua sắm"
+      load={load}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm theo mã / kho / mô tả…"
+      searchOf={(r) => `${r.requestCode} ${r.warehouseName} ${r.description || ''}`}
+      statusTabs={STATUS_TABS}
+      statusOf={statusKey}
+      kpis={kpis}
+      pageSize={20}
+      emptyMessage="Chưa có dự trù"
+      drawerTitle={(r) => r.requestCode}
+      drawerSub={(r) => `${r.warehouseName} · ${dayjs(r.requestDate).format('DD/MM/YYYY')}`}
+      drawer={(r) => (
+        <>
+          <DrSec title="Thông tin">
+            <DrField lbl="Mã">{r.requestCode}</DrField>
+            <DrField lbl="Kho">{r.warehouseName}</DrField>
+            <DrField lbl="Mô tả">{r.description || '—'}</DrField>
+            <DrField lbl="Người tạo">{r.createdByName}</DrField>
+            <DrField lbl="Ngày YC">{dayjs(r.requestDate).format('DD/MM/YYYY')}</DrField>
+            <DrField lbl="Trạng thái">{r.statusName}</DrField>
+          </DrSec>
+          <DrSec title={`Danh sách mặt hàng (${r.items?.length || 0})`}>
+            <div style={{ fontSize: 12.5 }}>
+              {(r.items || []).slice(0, 30).map((it) => (
+                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between',
+                  borderBottom: '1px solid var(--line-soft)', padding: '6px 0' }}>
+                  <span>{it.itemName}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{it.requestedQuantity} {it.unit}</span>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+              ))}
+            </div>
+          </DrSec>
+        </>
+      )}
+    />
   );
 };
-
-const Stat: React.FC<{ label: string; value: number; warn?: boolean; cy?: boolean; ok?: boolean }> = ({ label, value, warn, cy, ok }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
 
 export default ProcurementV2;

@@ -1,119 +1,110 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback } from 'react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import { getStock } from '../api/warehouse';
 import type { StockDto } from '../api/warehouse';
-import TermIcon from '../layouts/terminal/Icon';
+import {
+  SimpleV2Page, StatusBadge, DrSec, DrField,
+  type ColumnDef, type StatusTab, type KpiItem,
+} from './_v2kit';
+
+type SKey = 'in-stock' | 'low' | 'expiring' | 'out';
+const STATUS_TABS: StatusTab<SKey>[] = [
+  { v: 'in-stock', l: 'Còn tồn',     tone: 'ok' },
+  { v: 'low',      l: 'Tồn thấp',    tone: 'warn' },
+  { v: 'expiring', l: 'Sắp hết hạn', tone: 'warn' },
+  { v: 'out',      l: 'Hết',         tone: 'crit' },
+];
+
+const fmt = (n: number | undefined | null) => (n ?? 0).toLocaleString('vi-VN');
 
 const MedicalSupplyV2: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<StockDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [sel, setSel] = useState<StockDto | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r = await getStock({ keyword, itemType: 2, page: 1, pageSize: 200 } as Parameters<typeof getStock>[0]);
-      const list = (r.data?.items || (Array.isArray(r.data) ? r.data : [])) as StockDto[];
-      setItems(list);
-      if (list.length > 0 && !sel) setSel(list[0]);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
   const today = dayjs();
-  const stats = useMemo(() => ({
-    total: items.length,
-    inStock: items.filter((s) => s.quantity > 0).length,
-    expiringSoon: items.filter((s) => s.expiryDate && dayjs(s.expiryDate).diff(today, 'day') < 90).length,
-    totalValue: items.reduce((sum, s) => sum + (s.quantity * (s.unitPrice || 0)), 0),
-  }), [items, today]);
+
+  const load = useCallback(async () => {
+    const r = await getStock({ itemType: 2, page: 1, pageSize: 200 } as Parameters<typeof getStock>[0]);
+    return ((r.data?.items as StockDto[]) || (Array.isArray(r.data) ? (r.data as StockDto[]) : [])) as StockDto[];
+  }, []);
+
+  const statusKey = (s: StockDto): SKey => {
+    if (s.quantity <= 0) return 'out';
+    if (s.expiryDate && dayjs(s.expiryDate).diff(today, 'day') < 90) return 'expiring';
+    if (s.quantity < 10) return 'low';
+    return 'in-stock';
+  };
+
+  const columns: ColumnDef<StockDto>[] = [
+    { key: 'itemCode', label: 'Mã', mono: true, code: true,
+      render: (r) => r.itemCode },
+    { key: 'itemName', label: 'Tên vật tư', render: (r) => r.itemName },
+    { key: 'unit',     label: 'ĐVT',        render: (r) => r.unit },
+    { key: 'batchNumber', label: 'Lô', mono: true,
+      render: (r) => r.batchNumber || '—' },
+    { key: 'expiryDate', label: 'HSD', mono: true,
+      render: (r) => {
+        if (!r.expiryDate) return '—';
+        const d = dayjs(r.expiryDate);
+        const diff = d.diff(today, 'day');
+        const color = diff < 0 ? 'var(--s-crit)' : diff < 90 ? 'var(--s-warn)' : undefined;
+        return <span style={{ color }}>{d.format('DD/MM/YYYY')}</span>;
+      } },
+    { key: 'quantity', label: 'Tồn', mono: true, render: (r) => fmt(r.quantity) },
+    { key: 'unitPrice', label: 'Giá', mono: true,
+      render: (r) => r.unitPrice ? `${fmt(r.unitPrice)}đ` : '—' },
+    { key: 'value', label: 'Thành tiền', mono: true,
+      render: (r) => `${fmt(r.quantity * (r.unitPrice || 0))}đ` },
+    { key: 'status', label: 'Trạng thái',
+      render: (r) => {
+        const k = statusKey(r);
+        const m = STATUS_TABS.find((s) => s.v === k)!;
+        return <StatusBadge tone={m.tone as 'ok' | 'warn' | 'crit'}>{m.l}</StatusBadge>;
+      } },
+  ];
+
+  const kpis = (rows: StockDto[]): KpiItem[] => [
+    { lbl: 'Tổng SKU',     val: rows.length },
+    { lbl: 'Còn tồn',      val: rows.filter((s) => s.quantity > 0).length, tone: 'ok' },
+    { lbl: 'Sắp hết hạn',  val: rows.filter((s) => s.expiryDate && dayjs(s.expiryDate).diff(today, 'day') < 90).length, tone: 'warn' },
+    { lbl: 'Tổng giá trị', val: Math.round(rows.reduce((sum, s) => sum + (s.quantity * (s.unitPrice || 0)), 0) / 1_000_000), unit: 'M₫', tone: 'info' },
+  ];
 
   return (
-    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, height: '100%', minHeight: 0 }}>
-      <div className="panel" style={{ minHeight: 0 }}>
-        <div className="panel-h">
-          <span className="title">Vật tư y tế · <b>{items.length}</b></span>
-          <div className="actions">
-            <input className="input" style={{ width: 220 }} placeholder="Tìm theo mã / tên..." value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load(); }} />
-            <button className="btn primary" type="button" onClick={load}><TermIcon name="search" size={13} />Tìm</button>
-            <button className="btn sm" type="button" onClick={() => navigate('/medical-supply')}><TermIcon name="layers" size={12} />Mở v1</button>
-          </div>
-        </div>
-        <div className="panel-body">
-          {loading ? <div className="ph" style={{ margin: 14 }}>Đang tải…</div>
-            : items.length === 0 ? <div className="ph" style={{ margin: 14 }}>Chưa có vật tư</div> : (
-              <table className="tbl">
-                <thead><tr><th>Mã</th><th>Tên</th><th>ĐVT</th><th>Lô</th><th>HSD</th><th>Tồn</th><th>Giá</th><th>Thành tiền</th></tr></thead>
-                <tbody>
-                  {items.map((s) => {
-                    const expSoon = s.expiryDate && dayjs(s.expiryDate).diff(today, 'day') < 90;
-                    return (
-                      <tr key={s.id} className={sel?.id === s.id ? 'sel' : ''} onClick={() => setSel(s)} style={{ cursor: 'pointer' }}>
-                        <td className="mono">{s.itemCode}</td>
-                        <td style={{ fontWeight: 500 }}>{s.itemName}</td>
-                        <td className="muted">{s.unit}</td>
-                        <td className="mono">{s.batchNumber || '—'}</td>
-                        <td className="mono" style={{ color: expSoon ? 'var(--s-warn)' : undefined }}>{s.expiryDate ? dayjs(s.expiryDate).format('DD/MM/YYYY') : '—'}</td>
-                        <td className="mono">{s.quantity}</td>
-                        <td className="mono">{s.unitPrice?.toLocaleString('vi-VN') || '—'}</td>
-                        <td className="mono">{(s.quantity * (s.unitPrice || 0)).toLocaleString('vi-VN')}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        <div className="panel">
-          <div className="panel-h"><span className="title">Tổng quan</span></div>
-          <div className="panel-body pad">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Stat label="Tổng SKU" value={String(stats.total)} />
-              <Stat label="Còn tồn" value={String(stats.inStock)} ok />
-              <Stat label="Sắp hết hạn" value={String(stats.expiringSoon)} warn />
-              <Stat label="Tổng giá trị" value={`${Math.round(stats.totalValue / 1_000_000)}M₫`} cy />
-            </div>
-          </div>
-        </div>
-        <div className="panel" style={{ flex: 1, minHeight: 0 }}>
-          <div className="panel-h"><span className="title">Chi tiết VT</span><span className="sub">{sel?.itemName || 'Chọn'}</span></div>
-          <div className="panel-body pad">
-            {!sel ? <div className="ph">Chọn VT</div> : (
-              <div className="stack-sm">
-                <Field label="Mã" value={<span className="mono">{sel.itemCode}</span>} />
-                <Field label="Tên" value={sel.itemName} />
-                <Field label="ĐVT" value={sel.unit} />
-                <Field label="Lô" value={sel.batchNumber ? <span className="mono">{sel.batchNumber}</span> : '—'} />
-                <Field label="HSD" value={sel.expiryDate ? <span className="mono">{dayjs(sel.expiryDate).format('DD/MM/YYYY')}</span> : '—'} />
-                <Field label="Tồn kho" value={<span className="mono">{sel.quantity} {sel.unit}</span>} />
-                <Field label="Đã giữ chỗ" value={String(sel.reservedQuantity)} />
-                <Field label="Đơn giá" value={sel.unitPrice ? <span className="mono">{sel.unitPrice.toLocaleString('vi-VN')}đ</span> : '—'} />
-                <Field label="Thành tiền" value={<span className="mono">{(sel.quantity * (sel.unitPrice || 0)).toLocaleString('vi-VN')}đ</span>} />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    <SimpleV2Page<StockDto>
+      title="Vật tư y tế"
+      load={load}
+      rowKey={(r) => r.id}
+      columns={columns}
+      searchPlaceholder="Tìm theo mã / tên / lô…"
+      searchOf={(r) => `${r.itemCode} ${r.itemName} ${r.batchNumber || ''}`}
+      statusTabs={STATUS_TABS}
+      statusOf={statusKey}
+      kpis={kpis}
+      pageSize={20}
+      emptyMessage="Chưa có vật tư"
+      drawerTitle={(r) => r.itemName}
+      drawerSub={(r) => `${r.itemCode} · ${r.unit}`}
+      drawer={(r) => (
+        <>
+          <DrSec title="Định danh">
+            <DrField lbl="Mã">{r.itemCode}</DrField>
+            <DrField lbl="Tên">{r.itemName}</DrField>
+            <DrField lbl="ĐVT">{r.unit}</DrField>
+          </DrSec>
+          <DrSec title="Lô / Hạn dùng">
+            <DrField lbl="Lô">{r.batchNumber || '—'}</DrField>
+            <DrField lbl="HSD">
+              {r.expiryDate ? dayjs(r.expiryDate).format('DD/MM/YYYY') : '—'}
+            </DrField>
+          </DrSec>
+          <DrSec title="Tồn kho">
+            <DrField lbl="Tồn">{fmt(r.quantity)} {r.unit}</DrField>
+            <DrField lbl="Đã giữ chỗ">{fmt(r.reservedQuantity)}</DrField>
+            <DrField lbl="Đơn giá">{r.unitPrice ? `${fmt(r.unitPrice)}đ` : '—'}</DrField>
+            <DrField lbl="Thành tiền">{fmt(r.quantity * (r.unitPrice || 0))}đ</DrField>
+          </DrSec>
+        </>
+      )}
+    />
   );
 };
-
-const Stat: React.FC<{ label: string; value: string; warn?: boolean; cy?: boolean; ok?: boolean }> = ({ label, value, warn, cy, ok }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--d-1)', borderRadius: 8 }}>
-    <div className="mono up" style={{ fontSize: 10, color: 'var(--t-3)', letterSpacing: '0.1em' }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 600, marginTop: 4, color: warn ? 'var(--s-warn)' : cy ? 'var(--a-cy)' : ok ? 'var(--s-ok)' : 'var(--t-0)' }}>{value}</div>
-  </div>
-);
-
-const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div><div className="label">{label}</div><div style={{ fontSize: 13, color: 'var(--t-0)' }}>{value}</div></div>
-);
 
 export default MedicalSupplyV2;
