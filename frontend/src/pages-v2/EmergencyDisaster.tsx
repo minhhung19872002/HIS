@@ -240,7 +240,9 @@ const EmergencyDisasterV2: React.FC = () => {
       try {
         const evt = await getActiveEvent();
         if (!evt?.data?.id) return; // no active MCI — keep seed for demo
-        const vRes = await getVictims(evt.data.id);
+        // Backend marks status + triageCategory as required even though
+        // frontend types them as optional. Pass dummy to bypass validation.
+        const vRes = await getVictims(evt.data.id, 'all', 0);
         const list = Array.isArray(vRes?.data) ? vRes.data : [];
         if (list.length === 0) return; // active event but no victims yet — keep seed
         const real = list.map(mapVictimToCase)

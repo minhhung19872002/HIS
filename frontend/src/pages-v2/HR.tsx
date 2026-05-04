@@ -163,7 +163,11 @@ const HRV2: React.FC = () => {
 
         let realStaff: StaffMember[] = [];
         if (staffRes.status === 'fulfilled') {
-          const items = staffRes.value?.data?.items || [];
+          // Backend may return list directly OR wrapped {items: []}; handle both.
+          const body = staffRes.value?.data as unknown;
+          const items: StaffProfileDto[] = Array.isArray(body)
+            ? body as StaffProfileDto[]
+            : ((body as { items?: StaffProfileDto[] })?.items || []);
           if (items.length >= 8) realStaff = items.map(mapProfileToStaff);
         }
         if (realStaff.length === 0) return; // not enough real staff — keep seed
@@ -172,9 +176,14 @@ const HRV2: React.FC = () => {
 
         // Compute Monday-of-this-week as the rota's reference start
         const weekStart = now.startOf('week').add(1, 'day'); // dayjs week starts Sunday by default
-        const assignments = rosterRes.status === 'fulfilled'
-          ? (rosterRes.value?.data?.staffAssignments || [])
-          : [];
+        const rosterBody = rosterRes.status === 'fulfilled'
+          ? rosterRes.value?.data as unknown : null;
+        const assignments: RosterAssignmentDto[] = (() => {
+          if (!rosterBody) return [];
+          if (Array.isArray(rosterBody)) return rosterBody as RosterAssignmentDto[];
+          const r = rosterBody as { staffAssignments?: RosterAssignmentDto[]; items?: RosterAssignmentDto[] };
+          return r.staffAssignments || r.items || [];
+        })();
         const rotaMap = assignments.length > 0
           ? buildRotaFromAssignments(realStaff, assignments, weekStart)
           : buildRotaSeed(realStaff);
