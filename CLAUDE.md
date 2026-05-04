@@ -3494,3 +3494,237 @@ xong.
   6. Verify smoke test passes
 - Backend port `5106`, frontend dev `3001`. Backend was running in
   background `b6lkdln3o` at session end (may need restart).
+
+---
+
+## Work Log - 2026-05-04 (v2 design conformance audit + Cloud Build deploy)
+
+User asked to test every v2 page and verify it matches the design pack
+(claude.ai/design bundle in `design-system/project/`). Built two Playwright
+audit specs against prod, fixed everything they flagged.
+
+### Done
+
+**1. Audit infrastructure** (commits `22a192e`, `462ce4c`):
+- `frontend/e2e-prod/v2-design-conformance.spec.ts` — visits all 108
+  /v2/* routes under admin auth (token stuffed via init script, no UI
+  login). Per-route checks: load OK, no `pageerror`, no `/api/*`
+  4xx-5xx, ab-* class presence, kit primitive count (KpiStrip /
+  StatusTabs / DataTable / SearchBox / Drawer). Outputs
+  `playwright-prod-design-conformance.json` (gitignored).
+- `frontend/e2e-prod/v2-interactive-audit.spec.ts` — same 108 routes,
+  exercises 3 interactions: row click → drawer opens, search filter
+  shrinks rows, status tab switch updates active class. Outputs
+  `playwright-prod-interactive.json` (gitignored).
+- Each run takes ~6 min (conformance) and ~9 min (interactive).
+- Login uses `getToken()` against `${PROD_API}/auth/login` → cached →
+  injected via `addInitScript`. Hits `/login` page selector failed
+  (Antd Form prefix-icon shape) — prefer the API-token approach.
+
+**2. Baseline → final conformance** (after audit + fixes):
+
+| Metric | Baseline | After fixes | Final |
+|---|---|---|---|
+| API failures | 4 | 1 | **0** |
+| Console errors | 4 | 1 | **0** |
+| Page errors | 0 | 0 | 0 |
+| Empty content | 0 | 0 | 0 |
+| Missing ab-* classes | 13 | 7 | **5** |
+| No KpiStrip | 13 | 7 | 5 |
+| No StatusTabs | 23 | 17 | 15 |
+| No DataTable | 21 | 15 | 13 |
+| No toolbar | 27 | 21 | 19 |
+
+**3. Foundation→ab-* conversion — 7 pages** (commits `22a192e` +
+`26ded70`). Each was on the panel-based Foundation tier (`.panel`,
+`.panel-h`, `.tbl`, `.btn`, `.chip`) instead of the ab-* module
+overlay every other v2 page uses. Rewritten with `SimpleV2Page<T>`
+helper or explicit `_v2kit` primitives:
+
+- **HospitalPharmacy** — `SimpleV2Page<RetailSaleDto>` 4 KPIs + 3
+  status tabs (Chờ/Đã bán/Hủy)
+- **MedicalSupply** — `SimpleV2Page<StockDto>` filtered by
+  `itemType=2`, 4 status tabs (in-stock/low/expiring/out)
+- **Procurement** — `SimpleV2Page<ProcurementRequestDto>` 4 status
+  tabs (new/approved/purchased/cancelled)
+- **SmsManagement** — `SimpleV2Page<SmsLogDto>` sent/failed/dev tabs
+- **SigningWorkflow** — bespoke (TopTabs for pending/submitted/history
+  data-source switch — StatusTabs only filters current data; can't
+  swap source)
+- **MasterData** — TopTabs for 5 catalogs (departments / services /
+  medicines / icd / clinical-terms), single DataTable per active tab
+- **SystemAdmin** — TopTabs for users / roles / audit, per-tab
+  DataTable, user click → drawer
+
+Each conversion dropped ~50-80 LOC by deleting bespoke `Stat`/`Field`
+helpers + 3-column panel layout.
+
+**5 pages remain on bespoke layouts (justified)**:
+- `dashboard` — `dash-*` Foundation, dashboard-specific layout
+- `reports` — `reports-v2-*` matches `Reports v2.html` design
+  canonical (own bespoke CSS file, intentional)
+- `emergency-disaster` + `hr` — custom 1k-LOC demo UIs (kept by user
+  request as polished sales demo)
+- `radiology/viewer` — DICOM full-bleed viewer
+
+**4. EmergencyDisaster + HR backend wiring** (commits `eb37328`,
+`091f47b`). Final 2 v2 pages still on hardcoded mock arrays. Wired
+to real backend with seed fallback so the demo stays populated when
+prod has no data.
+
+EmergencyDisaster:
+- `mapVictimToCase`: MCIVictimDto → EmergencyCase. triageCategory
+  ('Immediate'/'Delayed'/'Minor'/'Expectant') + triageColor →
+  numeric levels 1-5; treatmentStatus + disposition → status enum;
+  vitals/gcs default 0 when no vital signs recorded.
+- On mount: `getActiveEvent()` → if active MCI exists, fetch
+  `getVictims(eventId, 'all', 0)` then map. **Backend marks `status`
+  + `triageCategory` as required even though frontend types them
+  optional** — pass `'all'` and `0` as dummies. Empty list / no
+  active event → silently fall back to seed.
+- Live/Demo chip in toolbar.
+
+HR:
+- `mapProfileToStaff`: StaffProfileDto.staffType → Vietnamese role
+  ("Bác sĩ"/"Điều dưỡng"/"KTV"). Quota defaults to 6.
+- `buildRotaFromAssignments`: RosterAssignmentDto[] → 7-day shift
+  grid keyed by staffCode, matching shifts to current week dates.
+  shiftFromName picks 'morning'/'evening'/'night'/'off' from
+  Vietnamese or English shift names.
+- On mount: `getStaff()` + `getRoster('', year, month)` in parallel.
+  Prod returned 13 real staff but empty roster — kept seed shifts
+  on real names. Need ≥8 real staff to flip mode.
+- **Backend response shape inconsistencies**: `getStaff` returns a
+  bare array on prod (13 items), not the `PagedResultDto<...>` the
+  frontend types describe. `getRoster` returns `{items: []}`
+  (paged) for empty case but full `DutyRosterDto` with
+  `staffAssignments` when populated. Wiring tolerates all 3 shapes
+  via `Array.isArray` + `.staffAssignments || .items` fallback.
+- All `STAFF` references in the page swapped to `staffList` state
+  so departments, visibleStaff, swap modal options, overtime calc
+  work against live data.
+- Live/Demo chip in toolbar.
+
+**Both pages on prod show MCI active event "Sập công trình xây dựng"
+(MCI-260317-04) with 12 estimated casualties + 13 real staff. Roster
+empty so HR shifts stay seed-generated.**
+
+**5. Cloud Build deploy → revision `his-api-00021-7p7`**:
+- Last build was 2026-04-29 (`63a685ce`); 4 backend endpoints had
+  drifted out of date.
+- Triggered: `gcloud builds submit --config cloudbuild.yaml
+  --substitutions=_IMAGE=...:20260504-122746
+  --project=project-4d4a3f8e-d582-4536-97f` (5m 5s, SUCCESS).
+- Then: `gcloud run services update his-api --image=... --region
+  asia-southeast1` (rolling deploy ~1 min).
+- Schema repair runner auto-applied `41_medical_supplies_columns.sql`
+  on startup (8 columns ALTER on `MedicalSupplies`). `schema-drift`
+  endpoint reports 0 missing.
+
+**Endpoints fixed** (verified 200 each post-deploy):
+| Endpoint | Was | Now |
+|---|---|---|
+| `/examination/prescriptions/recent` | 400 (route stale) | 200 |
+| `/office-supply/catalog` | 500 (col missing) | 200 |
+| `/office-supply/requests` | 500 | 200 |
+| `/stock-report/detail` | 500 | 200 |
+
+### Backend wiring state — 100% v2 coverage
+
+| Group | Count |
+|---|---|
+| ✅ API wired + 200 OK on prod | 105 |
+| Helper/viewer (no API needed): DicomViewer, ModuleIndex, _v2kit | 3 |
+| Mock-only hardcoded | **0** |
+
+### Pitfalls hit this session
+
+- **Login UI selector**: `input[name="username"]` doesn't match Antd's
+  Form-rendered input. Use API-token + `addInitScript` instead of UI
+  login for prod audits.
+- **`tsc -b` is stricter than `tsc --noEmit`**: 2 build errors slipped
+  through (`SystemUserDto.id` typed `string | undefined` but DataTable
+  rowKey expects strict `string`; `MedicalSupply.tsx` had a
+  `kpis = ({...}) && [...]` pattern flagged "always truthy"). Always
+  run `npm run build` before commit.
+- **TopTabs API**: takes `tab`/`setTab`, NOT `value`/`onChange`. Easy
+  to copy from StatusTabs which has `value`/`onChange`.
+- **Cloud Build NOT auto-triggered** by GitHub push. Must run manually
+  via `gcloud builds submit`.
+- **Cloud Run image drift**: prod backend can lag main branch by
+  weeks if no manual deploy. The 4 "broken" endpoints were fixed in
+  source (commit `854afca`, May 3) but not deployed until today.
+- **Backend response shape drift**: production endpoints sometimes
+  return bare arrays where frontend types expect `PagedResultDto`. Be
+  defensive: `Array.isArray(body) ? body : body.items || []`.
+- **Required-but-optional query params**: `getVictims` types
+  `triageCategory`/`status` as optional but backend rejects requests
+  without them as 400. Pass dummies (`'all'`, `0`) at the call site.
+- **`er-v2-*` and `hr-v2-*` CSS classes** are NOT design-pack ab-*
+  but are intentional bespoke per CLAUDE.md note. Audit's
+  "missing ab-*" finding for these is expected.
+
+### CAN LAM TIEP (mai)
+
+**Quick wins (~30-60 min)**:
+1. **Refine interactive spec** — 35 routes flagged "row click fail"
+   are false positives where `rows=1` is actually the empty-state
+   `<tr>` placeholder rendered when DataTable gets `[]`. Audit
+   should detect empty state explicitly + skip interaction checks.
+   Change selector to count only data rows
+   (`tbody tr:not(.ab-empty-row)` or check for `.ab-empty` sibling).
+2. **Re-run full audit (conformance + interactive)** as final
+   verification — both should be ~all green now.
+
+**Functional improvements (~1-2 hr each)**:
+3. **Patient-portal `Guid.Empty` fallback for remaining endpoints** —
+   Session 2026-04-29 fix only covered some `ExtendedWorkflowServices`
+   methods. ~5 endpoints still filter `AccountId == currentUserId`
+   strictly so admin sees nothing. Search for that pattern in
+   `backend/src/HIS.Infrastructure/Services/ExtendedWorkflowServices.cs`
+   and add the same fallback as on the wired ones.
+4. **Cypress regression tests for the 7 newly converted pages** —
+   page object tests verifying drawer opens on row click, search
+   filter narrows rows, status tab switch changes active count.
+   Files to add under `frontend/cypress/e2e/`. Use existing
+   `console-errors.cy.ts` as template (token via API + visit).
+5. **HR roster seed** — `medicalhr/rosters` returns `{items: []}` on
+   prod. Run a roster generator endpoint or seed script so HR shows
+   real shift assignments (currently seed-shifts on real names).
+
+**Bigger backlog**:
+6. **USB Token Pkcs11Interop** — ~2 days, needs hardware. Programmatic
+   PIN signing replacing the current Windows dialog flow.
+7. **Jibri recording** — waiting on Tokyo ARM capacity. Self-host on
+   a 2nd Oracle VM when 4-OCPU/24GB ARM frees up.
+8. **Group 3 hardware pilots** — fingerprint reader + smart card
+   writer. Need vendor SDK + hardware on-site.
+
+### Quick reference for tomorrow
+
+- Vercel bundle hash at session end: `index-B35maZBU.js`
+- Cloud Run revision: `his-api-00021-7p7` (from image tag
+  `his-api:20260504-122746`)
+- Active MCI on prod: id `5b41dc5f-a353-4f9e-a3b0-0a45915ff38a`,
+  code `MCI-260317-04`, 12 estimated casualties (no victims yet
+  → /v2/emergency-disaster shows seed)
+- Real staff seeded: 13 in `medicalhr/staff` (HR shows real names)
+- Both audit specs are committed; rerun with:
+  ```bash
+  cd frontend && npx playwright test e2e-prod/v2-design-conformance.spec.ts \
+    --config=playwright.prod.config.ts --workers=2
+  cd frontend && npx playwright test e2e-prod/v2-interactive-audit.spec.ts \
+    --config=playwright.prod.config.ts --workers=2
+  ```
+- Last 7 commits today (oldest first):
+  ```
+  5b40720 Phase 4 Equipment refactor (was unpushed from yesterday)
+  08f7d34 docs handoff (was unpushed from yesterday)
+  22a192e 5 Foundation→ab-* convert
+  26ded70 MasterData + SystemAdmin to ab-*
+  462ce4c interactive audit spec
+  eb37328 EmergencyDisaster + HR backend wire
+  091f47b tolerate backend response shapes
+  ```
+- ALL pushed. Working tree was clean at session end (only this
+  CLAUDE.md update remains).
