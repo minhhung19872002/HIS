@@ -171,7 +171,11 @@ const BloodBank = lazy(() => import('./pages/BloodBank'));
 const Finance = lazy(() => import('./pages/Finance'));
 const Insurance = lazy(() => import('./pages/Insurance'));
 const MasterData = lazy(() => import('./pages/MasterData'));
-const MasterCatalogV1 = lazy(() => import('./pages/MasterCatalogV1'));
+const PharmacyCatalogs = lazy(() => import('./pages/PharmacyCatalogs'));
+const FinanceCatalogs = lazy(() => import('./pages/FinanceCatalogs'));
+const ParaclinicalCatalogs = lazy(() => import('./pages/ParaclinicalCatalogs'));
+const ClinicalCatalogs = lazy(() => import('./pages/ClinicalCatalogs'));
+const ReportCatalogs = lazy(() => import('./pages/ReportCatalogs'));
 const Reports = lazy(() => import('./pages/Reports'));
 const WorkloadReport = lazy(() => import('./pages/WorkloadReport'));
 const Telemedicine = lazy(() => import('./pages/Telemedicine'));
@@ -347,7 +351,11 @@ const AppRoutes: React.FC = () => {
           <Route path="finance" element={<Finance />} />
           <Route path="insurance" element={<Insurance />} />
           <Route path="master-data" element={<MasterData />} />
-          <Route path="master-catalog" element={<MasterCatalogV1 />} />
+          <Route path="pharmacy-catalogs" element={<PharmacyCatalogs />} />
+          <Route path="finance-catalogs" element={<FinanceCatalogs />} />
+          <Route path="paraclinical-catalogs" element={<ParaclinicalCatalogs />} />
+          <Route path="clinical-catalogs" element={<ClinicalCatalogs />} />
+          <Route path="report-catalogs" element={<ReportCatalogs />} />
           <Route path="reports" element={<Reports />} />
           <Route path="admin" element={<SystemAdmin />} />
           <Route path="digital-signature" element={<DigitalSignature />} />

@@ -101,15 +101,15 @@ const MainLayout: React.FC = () => {
   const getOpenKeys = (): string[] => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
-      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/observation-stay', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv'],
-      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/sample-receive', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/consultation-register', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin'],
-      support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/inpatient-dispensing', '/stock-report', '/medical-supply', '/office-supply-approval', '/hospital-pharmacy', '/nutrition', '/rehabilitation'],
-      finance: ['/billing', '/payment-transactions', '/payment-reports', '/service-requeue', '/receipt-book-admin', '/finance', '/insurance', '/bhxh-audit', '/bhxh-config'],
+      clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/observation-stay', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv', '/clinical-catalogs'],
+      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/sample-receive', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/consultation-register', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin', '/paraclinical-catalogs'],
+      support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/inpatient-dispensing', '/stock-report', '/medical-supply', '/office-supply-approval', '/hospital-pharmacy', '/nutrition', '/rehabilitation', '/pharmacy-catalogs'],
+      finance: ['/billing', '/payment-transactions', '/payment-reports', '/service-requeue', '/receipt-book-admin', '/finance', '/insurance', '/bhxh-audit', '/bhxh-config', '/finance-catalogs'],
       management: ['/infection-control', '/equipment', '/hr', '/employee-profile', '/quality'],
       integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance'],
       publicHealth: ['/health-checkup', '/immunization', '/epidemiology', '/school-health', '/occupational-health', '/methadone-treatment', '/food-safety', '/community-health', '/hiv-management'],
       medinetYtcc: ['/medical-forensics', '/traditional-medicine', '/reproductive-health', '/mental-health', '/environmental-health', '/trauma-registry', '/population-health', '/health-education', '/practice-license', '/inter-hospital'],
-      system: ['/master-data', '/master-catalog', '/catalogs-admin', '/reports', '/workload-report', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
+      system: ['/master-data', '/report-catalogs', '/catalogs-admin', '/reports', '/workload-report', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
     };
     for (const [group, routes] of Object.entries(groupMap)) {
       if (routes.includes(path)) return [group];
@@ -149,6 +149,7 @@ const MainLayout: React.FC = () => {
         { key: '/treatment-protocols', icon: <ExperimentOutlined />, label: 'Phác đồ điều trị' },
         { key: '/chronic-disease', icon: <HeartOutlined />, label: 'Bệnh mãn tính' },
         { key: '/tb-hiv', icon: <MedicineBoxOutlined />, label: 'Quản lý Lao/HIV' },
+        { key: '/clinical-catalogs', icon: <DatabaseOutlined />, label: 'DM Lâm sàng' },
       ],
     },
     {
@@ -179,6 +180,7 @@ const MainLayout: React.FC = () => {
         { key: '/lis-config', icon: <SettingOutlined />, label: 'Cấu hình LIS' },
         { key: '/lis-catalog-admin', icon: <ExperimentOutlined />, label: 'LIS Danh mục' },
         { key: '/ris-catalog-admin', icon: <ScanOutlined />, label: 'CĐHA Danh mục' },
+        { key: '/paraclinical-catalogs', icon: <DatabaseOutlined />, label: 'DM Cận lâm sàng' },
       ],
     },
     {
@@ -197,6 +199,7 @@ const MainLayout: React.FC = () => {
         { key: '/office-supply-approval', icon: <ShopOutlined />, label: 'VPP / TTB VP' },
         { key: '/nutrition', icon: <CoffeeOutlined />, label: 'Dinh dưỡng' },
         { key: '/rehabilitation', icon: <ThunderboltOutlined />, label: 'VLTL/PHCN' },
+        { key: '/pharmacy-catalogs', icon: <DatabaseOutlined />, label: 'DM Dược' },
       ],
     },
     {
@@ -213,6 +216,7 @@ const MainLayout: React.FC = () => {
         { key: '/insurance', icon: <SafetyOutlined />, label: 'Giám định BHYT' },
         { key: '/bhxh-audit', icon: <InsuranceOutlined />, label: 'BHXH Giám định' },
         { key: '/bhxh-config', icon: <ApiOutlined />, label: 'BHXH Cấu hình' },
+        { key: '/finance-catalogs', icon: <DatabaseOutlined />, label: 'DM Tài chính' },
       ],
     },
     {
@@ -279,7 +283,7 @@ const MainLayout: React.FC = () => {
       label: 'Hệ thống',
       children: [
         { key: '/master-data', icon: <DatabaseOutlined />, label: 'Danh mục' },
-        { key: '/master-catalog', icon: <DatabaseOutlined />, label: 'Danh mục bổ sung (NangCap22)' },
+        { key: '/report-catalogs', icon: <DatabaseOutlined />, label: 'DM Nhóm BC' },
         { key: '/catalogs-admin', icon: <DatabaseOutlined />, label: 'Viết tắt + Template' },
         { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
         { key: '/workload-report', icon: <TeamOutlined />, label: 'Workload BS/KTV' },

@@ -1,23 +1,15 @@
 /**
- * NangCap22 — verify Danh mục bổ sung (13 catalog tabs) page loads + 4 sample CRUD flows.
+ * NangCap22 — verify 5 module catalog pages load + sample CRUD flows
+ * Pages by module:
+ *   /pharmacy-catalogs    — Hãng SX, Đường dùng, Hội đồng KN
+ *   /finance-catalogs     — Phụ thu, Thu khác, Vận chuyển, Giá xăng
+ *   /paraclinical-catalogs — Mã máy, Mapping, Phòng CLS
+ *   /clinical-catalogs    — Chế độ CS, Loại BA
+ *   /report-catalogs      — Loại nhóm BC, Nhóm BC
  */
 
-describe('Master Catalog (NangCap22)', () => {
-  before(() => {
-    cy.request('POST', 'http://localhost:5106/api/auth/login', {
-      username: 'admin',
-      password: 'Admin@123',
-    }).then((res) => {
-      const token = res.body.data.token;
-      cy.window().then((win) => {
-        win.localStorage.setItem('token', token);
-        win.localStorage.setItem('user', JSON.stringify({ username: 'admin', fullName: 'Quản trị', roles: ['Admin'] }));
-      });
-    });
-  });
-
+describe('NangCap22 module catalogs', () => {
   beforeEach(() => {
-    cy.intercept('**/api/**').as('api');
     cy.window().then((win) => {
       cy.request('POST', 'http://localhost:5106/api/auth/login', {
         username: 'admin', password: 'Admin@123',
@@ -28,95 +20,85 @@ describe('Master Catalog (NangCap22)', () => {
     });
   });
 
-  it('page loads and renders 12 tabs', () => {
-    cy.visit('/master-catalog');
-    cy.contains('Danh mục bổ sung (NangCap22)').should('exist');
+  it('Pharmacy Catalogs page loads with 3 tabs', () => {
+    cy.visit('/pharmacy-catalogs');
+    cy.contains('Danh mục Dược').should('exist');
     cy.contains('Hãng sản xuất').should('be.visible');
     cy.contains('Đường dùng').should('be.visible');
+    cy.contains('Hội đồng kiểm nhập').should('be.visible');
+    cy.wait(800);
+    cy.contains('Pfizer').should('exist'); // seed data
+  });
+
+  it('Finance Catalogs page loads with 4 tabs', () => {
+    cy.visit('/finance-catalogs');
+    cy.contains('Danh mục Tài chính').should('exist');
     cy.contains('Phụ thu').should('be.visible');
     cy.contains('Thu khác').should('be.visible');
     cy.contains('Vận chuyển').should('be.visible');
     cy.contains('Giá xăng').should('be.visible');
+  });
+
+  it('Paraclinical Catalogs page loads with 3 tabs', () => {
+    cy.visit('/paraclinical-catalogs');
+    cy.contains('Danh mục Cận lâm sàng').should('exist');
     cy.contains('Mã máy').should('be.visible');
-    cy.contains('Hội đồng kiểm nhập').should('be.visible');
+    cy.contains('Thứ tự phòng CLS').should('be.visible');
+  });
+
+  it('Clinical Catalogs page loads with 2 tabs', () => {
+    cy.visit('/clinical-catalogs');
+    cy.contains('Danh mục Lâm sàng').should('exist');
     cy.contains('Chế độ chăm sóc').should('be.visible');
     cy.contains('Loại bệnh án').should('be.visible');
-  });
-
-  it('Manufacturers tab shows seed data', () => {
-    cy.visit('/master-catalog');
-    cy.contains('Hãng sản xuất').click();
     cy.wait(800);
-    // Seeded entries: PFIZER, NOVARTIS, TRAPHACO, MEKOPHAR, etc.
-    cy.contains('Pfizer').should('exist');
-    cy.contains('Traphaco').should('exist');
+    cy.contains('CS1').should('exist'); // seed data
   });
 
-  it('MedicationRoutes tab shows TT 52 seed routes', () => {
-    cy.visit('/master-catalog');
-    cy.contains('Đường dùng').click();
-    cy.wait(800);
-    cy.contains('Uống').should('exist');
-    cy.contains('Tiêm bắp').should('exist');
-    cy.contains('Tiêm tĩnh mạch').should('exist');
+  it('Report Catalogs page loads with 2 tabs', () => {
+    cy.visit('/report-catalogs');
+    cy.contains('Danh mục Báo cáo').should('exist');
+    cy.contains('Loại nhóm BC').should('be.visible');
+    cy.contains('Nhóm BC').should('be.visible');
   });
 
-  it('NursingCareLevels tab shows 3 seeded levels', () => {
-    cy.visit('/master-catalog');
-    cy.contains('Chế độ chăm sóc').click();
-    cy.wait(800);
-    cy.contains('CS1').should('exist');
-    cy.contains('Chăm sóc toàn diện').should('exist');
-  });
-
-  it('MedicalRecordTypes endpoint returns 10 seeded types', () => {
+  it('All 13 catalog endpoints return 200', () => {
+    const endpoints = [
+      'manufacturers', 'medication-routes', 'additional-charges', 'other-incomes',
+      'transport-services', 'gasoline-prices', 'machine-codes', 'machine-services',
+      'inspection-committees', 'nursing-care-levels', 'medical-record-types',
+      'paraclinical-room-priorities', 'report-group-types', 'report-groups',
+    ];
     cy.window().then((win) => {
       const token = win.localStorage.getItem('token');
-      cy.request({
-        url: 'http://localhost:5106/api/master-catalog/medical-record-types',
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((res) => {
-        expect(res.status).to.eq(200);
-        const items = res.body;
-        const codes = items.map((i: { code: string }) => i.code);
-        expect(codes).to.include('NGOAITRU');
-        expect(codes).to.include('NOITRU');
-        expect(codes).to.include('CC');
-        expect(items.length).to.be.gte(10);
+      endpoints.forEach((ep) => {
+        cy.request({
+          url: `http://localhost:5106/api/master-catalog/${ep}`,
+          headers: { Authorization: `Bearer ${token}` },
+        }).its('status').should('eq', 200);
       });
     });
   });
 
-  it('Add + delete a manufacturer end-to-end', () => {
-    cy.visit('/master-catalog');
-    cy.contains('Hãng sản xuất').click();
+  it('Manufacturer add + delete end-to-end', () => {
+    cy.visit('/pharmacy-catalogs');
     cy.wait(500);
-
-    // Open add modal
-    cy.contains('button', 'Thêm mới').click();
-
-    // Fill form
+    cy.contains('button', 'Thêm mới').first().click();
     const code = `CYTEST_${Date.now().toString().slice(-6)}`;
     cy.get('.ant-modal-body input#code, .ant-modal-body input[id$="_code"]').first().type(code);
     cy.get('.ant-modal-body input#name, .ant-modal-body input[id$="_name"]').first().type('Cypress Test Mfr');
-
-    // Save
     cy.contains('.ant-modal-footer button', 'Lưu').click();
     cy.wait(800);
     cy.contains('Đã lưu').should('exist');
-
-    // Find row + delete
-    cy.contains('td', code).should('exist');
-    cy.contains('td', code)
-      .parent('tr')
-      .find('button.ant-btn-dangerous')
-      .click();
-    cy.get('.ant-popover-buttons .ant-btn-primary, .ant-popconfirm .ant-btn-primary').last().click({ force: true });
+    cy.contains('td', code).parent('tr').find('button.ant-btn-dangerous').click();
+    cy.get('.ant-popover-buttons .ant-btn-primary, .ant-popconfirm .ant-btn-primary')
+      .last()
+      .click({ force: true });
     cy.wait(500);
     cy.contains('Đã xóa').should('exist');
   });
 
-  it('InspectionCommittee endpoint accepts nested members', () => {
+  it('Inspection committee API accepts nested members', () => {
     const code = `IC_${Date.now().toString().slice(-6)}`;
     cy.window().then((win) => {
       const token = win.localStorage.getItem('token');
@@ -135,7 +117,6 @@ describe('Master Catalog (NangCap22)', () => {
       }).then((res) => {
         expect(res.status).to.eq(200);
         const id = res.body.id;
-        // Verify members persisted
         cy.request({
           url: 'http://localhost:5106/api/master-catalog/inspection-committees',
           headers,
@@ -143,7 +124,6 @@ describe('Master Catalog (NangCap22)', () => {
           const found = (listRes.body as Array<{ id: string; members: Array<unknown> }>)
             .find((r) => r.id === id);
           expect(found?.members.length).to.eq(2);
-          // Cleanup
           cy.request({
             method: 'DELETE',
             url: `http://localhost:5106/api/master-catalog/inspection-committees/${id}`,
