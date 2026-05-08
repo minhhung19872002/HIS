@@ -758,7 +758,8 @@ async function testBillingFlow() {
       discountScope: 1,
       discountType: 1,
       discountPercent: 10,
-      discountReason: 'Gi???m gi?? ??u ????i b???nh nh??n VIP',
+      discountReasonCode: 1,
+      discountReason: 'Giam gia uu dai BN VIP',
       approverId: ADMIN_ID
     });
     check('??p d???ng gi???m gi??', discRes.status === 200 || discRes.status === 201,

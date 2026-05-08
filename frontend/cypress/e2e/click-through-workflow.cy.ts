@@ -201,8 +201,8 @@ describe('Click-Through Workflow - Full Patient Journey', () => {
       });
       selectFirstVisibleAntOption();
 
-      // Fill Dia chi
-      cy.get('textarea[placeholder*="dia chi"], textarea[placeholder*="địa chỉ"]', { timeout: 5000 })
+      // Fill Dia chi (Reception form uses Input now, not textarea)
+      cy.get('input[placeholder*="VD: 123"], input[placeholder*="Trần"], input#registerForm_address', { timeout: 5000 })
         .first()
         .clear()
         .type('123 Tran Phu, Q5, TP.HCM');

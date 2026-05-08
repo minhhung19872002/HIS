@@ -634,6 +634,15 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             .HasForeignKey(d => d.DischargedBy)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Fix Receipt FK: DiscountApprovedBy is the real FK for DiscountApprovedByUser
+        // navigation. Without this, EF would create a shadow DiscountApprovedByUserId
+        // column that doesn't exist in the DB → 500 on /api/portal/bills.
+        modelBuilder.Entity<Receipt>()
+            .HasOne(r => r.DiscountApprovedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.DiscountApprovedBy)
+            .OnDelete(DeleteBehavior.NoAction);
+
         // Examination self-ref: ParentExaminationId is FK to another Examination
         // (used for "Khám thêm chuyên khoa khác" multi-specialty workflow)
         modelBuilder.Entity<Examination>()

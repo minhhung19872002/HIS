@@ -1494,7 +1494,7 @@ const Inpatient: React.FC = () => {
                     <Table
                       columns={admissionColumns}
                       dataSource={admissions}
-                      rowKey="admissionId"
+                      rowKey={(r) => (r.admissionId && r.admissionId !== '00000000-0000-0000-0000-000000000000') ? r.admissionId : (r.medicalRecordCode || r.patientCode || String(Math.random()))}
                       size="small"
                       scroll={{ x: 1400 }}
                       pagination={{
@@ -1640,7 +1640,7 @@ const Inpatient: React.FC = () => {
                     <Table
                       columns={admissionColumns}
                       dataSource={filteredProgressAdmissions}
-                      rowKey="admissionId"
+                      rowKey={(r) => (r.admissionId && r.admissionId !== '00000000-0000-0000-0000-000000000000') ? r.admissionId : (r.medicalRecordCode || r.patientCode || String(Math.random()))}
                       size="small"
                       scroll={{ x: 1400 }}
                       pagination={{ showSizeChanger: true, showTotal: (total) => `Tổng: ${total} bệnh nhân` }}
@@ -1690,7 +1690,7 @@ const Inpatient: React.FC = () => {
                     <Table
                       columns={admissionColumns}
                       dataSource={filteredNursingAdmissions}
-                      rowKey="admissionId"
+                      rowKey={(r) => (r.admissionId && r.admissionId !== '00000000-0000-0000-0000-000000000000') ? r.admissionId : (r.medicalRecordCode || r.patientCode || String(Math.random()))}
                       size="small"
                       scroll={{ x: 1400 }}
                       pagination={{ showSizeChanger: true, showTotal: (total) => `Tổng: ${total} bệnh nhân` }}
@@ -1747,7 +1747,7 @@ const Inpatient: React.FC = () => {
                     <Table
                       columns={admissionColumns}
                       dataSource={filteredDischargeAdmissions}
-                      rowKey="admissionId"
+                      rowKey={(r) => (r.admissionId && r.admissionId !== '00000000-0000-0000-0000-000000000000') ? r.admissionId : (r.medicalRecordCode || r.patientCode || String(Math.random()))}
                       size="small"
                       scroll={{ x: 1400 }}
                       pagination={{ showSizeChanger: true, showTotal: (total) => `Tổng: ${total} bệnh nhân` }}
