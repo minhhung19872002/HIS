@@ -436,6 +436,23 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // N1.13: Receipt book (sổ biên lai khai báo)
     public DbSet<ReceiptBook> ReceiptBooks => Set<ReceiptBook>();
 
+    // NangCap22: 13 master catalogs (gói thầu BV Đắk Nông)
+    public DbSet<Manufacturer> Manufacturers => Set<Manufacturer>();
+    public DbSet<MedicationRoute> MedicationRoutes => Set<MedicationRoute>();
+    public DbSet<AdditionalCharge> AdditionalCharges => Set<AdditionalCharge>();
+    public DbSet<OtherIncome> OtherIncomes => Set<OtherIncome>();
+    public DbSet<TransportService> TransportServices => Set<TransportService>();
+    public DbSet<GasolinePrice> GasolinePrices => Set<GasolinePrice>();
+    public DbSet<MachineCode> MachineCodes => Set<MachineCode>();
+    public DbSet<MachineService> MachineServices => Set<MachineService>();
+    public DbSet<InspectionCommittee> InspectionCommittees => Set<InspectionCommittee>();
+    public DbSet<InspectionCommitteeMember> InspectionCommitteeMembers => Set<InspectionCommitteeMember>();
+    public DbSet<NursingCareLevel> NursingCareLevels => Set<NursingCareLevel>();
+    public DbSet<MedicalRecordType> MedicalRecordTypes => Set<MedicalRecordType>();
+    public DbSet<ParaclinicalRoomPriority> ParaclinicalRoomPriorities => Set<ParaclinicalRoomPriority>();
+    public DbSet<ReportServiceGroupType> ReportServiceGroupTypes => Set<ReportServiceGroupType>();
+    public DbSet<ReportServiceGroup> ReportServiceGroups => Set<ReportServiceGroup>();
+
     // Luồng 19: Health Information Exchange
     public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();
     public DbSet<InsuranceXMLSubmission> InsuranceXMLSubmissions => Set<InsuranceXMLSubmission>();

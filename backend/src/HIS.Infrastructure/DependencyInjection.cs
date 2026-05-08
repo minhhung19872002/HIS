@@ -190,6 +190,9 @@ public static class DependencyInjection
         // Booking Management (Staff - cần đăng nhập)
         services.AddScoped<IBookingManagementService, BookingManagementService>();
 
+        // NangCap22: 13 master catalogs (BV Đắk Nông tender)
+        services.AddScoped<IMasterCatalogService, MasterCatalogService>();
+
         // Medical Record Archive (Lưu trữ hồ sơ bệnh án)
         services.AddScoped<IMedicalRecordArchiveService, MedicalRecordArchiveService>();
 
