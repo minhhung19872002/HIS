@@ -3898,3 +3898,49 @@ Nothing blocking. The 4/5 session's "tomorrow" list still applies:
 - Commit pushed: `073db9d`
 - Prod URL still: `https://his-api-694913628964.asia-southeast1.run.app`
   + `https://his-psi.vercel.app`
+
+### Post-deploy testing (same day)
+
+User asked to test all functions via the `document-skills:webapp-testing`
+skill (Playwright Python wrapper, installed at
+`C:\Users\ADMIN\.claude\plugins\cache\anthropic-agent-skills\document-skills\…`).
+Wrote 2 ad-hoc Python scripts that hit prod directly — auth via API token
++ `add_init_script` to inject `localStorage.token/user`, no UI login.
+
+**Scripts (local only, not committed per user choice):**
+- `scripts/test-prod/test_catalogs.py` (~270 LOC) — per-catalog deep test:
+  KPI strip count (4 cards), all tabs visible + clickable + real row count
+  (`tbody tr:has(td.act)` ignores empty-state colspan row), row-click on
+  the tab with most data → drawer opens, "Thêm mới" → empty drawer with
+  "Thêm" in title, search box interactive, no console errors, no API
+  4xx/5xx during load.
+- `scripts/test-prod/smoke_all_v2.py` (~190 LOC) — 109 v2 routes (skips
+  3 full-bleed: `radiology/viewer`, `non-dicom-capture`, `mobile`):
+  navigate + `domcontentloaded` + soft-wait for `networkidle` (8s, OK if
+  it times out — some pages poll forever), verify body has >20 chars of
+  rendered text, no console errors, no API failures. Sequential, ~3 min.
+
+**Results:**
+
+| Suite | Pass | Notes |
+|---|---|---|
+| 5 catalog deep test | 5/5 ✓ | All KPI/tabs/drawer/search work; pharmacy 10+12+0 rows, clinical 3+10, report 3+0, finance 0+0+0+3, paraclinical 0+0+0 |
+| 109 v2 smoke | 109/109 ✓ | No console error, no API failure, all render |
+
+**Data gaps surfaced** (not UI bugs — just empty catalogs that `42_nangcap22_catalogs.sql`
+didn't seed): AdditionalCharges, OtherIncomes, TransportServices, MachineCodes,
+MachineServices, ParaclinicalRoomPriorities, InspectionCommittees, ReportServiceGroups
+all have 0 rows on prod. If a demo needs them populated, either extend the seed script
+or POST a few rows via the now-working CRUD UI.
+
+**Pitfalls when writing the test scripts**:
+- Windows console encoding is cp1252 — printing Vietnamese (`ụ`, `ằ`)
+  raises `UnicodeEncodeError`. Fix at top of script: `sys.stdout.reconfigure(encoding="utf-8")`.
+- DataTable's empty-state row IS a `<tr>` (1 colspan `<td>`), so plain
+  `tbody tr` count = 1 even with no data. Differentiate by counting
+  `tbody tr td.act` instead (only real data rows have an action cell).
+- For row-click-drawer test, walk all tabs first, find the one with the
+  most real rows, then click. Hard-coding "first tab" fails when the
+  first tab is the empty one.
+- 109 pages × ~1.7s each → ~3 min sequential. Don't parallelize against
+  the same Cloud Run instance — risks rate-limiting and extra cold starts.
