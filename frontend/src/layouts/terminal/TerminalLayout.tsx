@@ -56,6 +56,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'tb-hiv',            path: '/v2/tb-hiv',                   label: 'Quản lý Lao/HIV' },
       { id: 'consultation',      path: '/v2/consultation',             label: 'Hội chẩn' },
       { id: 'doctor-portal',     path: '/v2/doctor-portal',            label: 'Cổng bác sĩ' },
+      { id: 'clinical-catalogs', path: '/v2/clinical-catalogs',        label: 'DM Lâm sàng' },
     ],
   },
   {
@@ -75,6 +76,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'pathology',          path: '/v2/pathology',          label: 'Giải phẫu bệnh' },
       { id: 'ivf-lab',            path: '/v2/ivf-lab',            label: 'Phòng Lab IVF' },
       { id: 'blood-bank',         path: '/v2/blood-bank',         label: 'Ngân hàng máu' },
+      { id: 'paraclinical-catalogs', path: '/v2/paraclinical-catalogs', label: 'DM CLS' },
     ],
   },
   {
@@ -86,6 +88,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'nutrition',            path: '/v2/nutrition',            label: 'Dinh dưỡng' },
       { id: 'rehabilitation',       path: '/v2/rehabilitation',       label: 'VLTL / PHCN' },
       { id: 'traditional-medicine', path: '/v2/traditional-medicine', label: 'Y học cổ truyền' },
+      { id: 'pharmacy-catalogs',    path: '/v2/pharmacy-catalogs',    label: 'DM Dược' },
     ],
   },
   {
@@ -96,6 +99,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'insurance',   path: '/v2/insurance',   label: 'Giám định BHYT' },
       { id: 'bhxh-audit',  path: '/v2/bhxh-audit',  label: 'BHXH kiểm tra' },
       { id: 'procurement', path: '/v2/procurement', label: 'Đề xuất - Dự trù' },
+      { id: 'finance-catalogs', path: '/v2/finance-catalogs', label: 'DM Tài chính' },
     ],
   },
   {
@@ -120,6 +124,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'practice-license',  path: '/v2/practice-license',  label: 'Chứng chỉ hành nghề' },
       { id: 'endpoint-security', path: '/v2/endpoint-security', label: 'An toàn thông tin' },
       { id: 'reports',           path: '/v2/reports',           label: 'Báo cáo' },
+      { id: 'report-catalogs',   path: '/v2/report-catalogs',   label: 'DM Nhóm BC' },
     ],
   },
   {

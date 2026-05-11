@@ -128,6 +128,12 @@ const CatalogsAdminV2 = lazy(() => import('./pages-v2/CatalogsAdmin'));
 const EmployeeProfileV2 = lazy(() => import('./pages-v2/EmployeeProfile'));
 const NonDicomCaptureV2 = lazy(() => import('./pages-v2/NonDicomCapture'));
 const VideoConsultationV2 = lazy(() => import('./pages-v2/VideoConsultation'));
+// NangCap22 master catalogs
+const PharmacyCatalogsV2 = lazy(() => import('./pages-v2/PharmacyCatalogs'));
+const FinanceCatalogsV2 = lazy(() => import('./pages-v2/FinanceCatalogs'));
+const ParaclinicalCatalogsV2 = lazy(() => import('./pages-v2/ParaclinicalCatalogs'));
+const ClinicalCatalogsV2 = lazy(() => import('./pages-v2/ClinicalCatalogs'));
+const ReportCatalogsV2 = lazy(() => import('./pages-v2/ReportCatalogs'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -559,6 +565,12 @@ const AppRoutes: React.FC = () => {
           <Route path="employee-profile" element={<EmployeeProfileV2 />} />
           <Route path="non-dicom-capture" element={<NonDicomCaptureV2 />} />
           <Route path="video-consultation" element={<VideoConsultationV2 />} />
+          {/* NangCap22 master catalogs */}
+          <Route path="pharmacy-catalogs" element={<PharmacyCatalogsV2 />} />
+          <Route path="finance-catalogs" element={<FinanceCatalogsV2 />} />
+          <Route path="paraclinical-catalogs" element={<ParaclinicalCatalogsV2 />} />
+          <Route path="clinical-catalogs" element={<ClinicalCatalogsV2 />} />
+          <Route path="report-catalogs" element={<ReportCatalogsV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>
