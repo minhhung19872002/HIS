@@ -3728,3 +3728,173 @@ empty so HR shifts stay seed-generated.**
   ```
 - ALL pushed. Working tree was clean at session end (only this
   CLAUDE.md update remains).
+
+---
+
+## Work Log - 2026-05-11 (NangCap22 v2 conversion + Cloud Run deploy)
+
+Picked up from the 5/4 audit with two prior NangCap22 commits queued on
+`main` but unverified on prod:
+- `ebce7e8` — 13 master catalogs for BV Đắk Nông tender (backend full
+  stack: entities, service, controller, DTOs, SQL script 42, v1 page
+  + CrudTab helper) — 8/5 commit
+- `86cd725` — split single v1 page into 5 module-based pages (PharmacyCatalogs,
+  FinanceCatalogs, ParaclinicalCatalogs, ClinicalCatalogs, ReportCatalogs) —
+  8/5 commit
+
+Prod state at session start: 13/13 master-catalog endpoints returning
+404 because Cloud Run was still on revision `his-api-00021-7p7` (the
+4/5 build) — both NangCap22 commits had merged but neither had been
+deployed.
+
+### Done
+
+**1. v2 design conversion — 5 catalog pages**
+
+Pulled design pack `https://api.anthropic.com/v1/design/h/af2Wpg1dc2cG3K8PJY-M1A`
+(~5MB gzipped, 8.5MB extracted) into `design-system/nangcap22-bundle/`
+(gitignored — too large for repo). Bundle contained 5 paired
+`Catalogs v2.html` + `mod-*-catalogs.jsx` prototypes from claude.ai/design.
+
+Converted all 5 v1 pages (CrudTab generic + Antd Tabs) to native v2
+(ab-* design pack + `_v2kit` primitives). Each page now binds to the
+real `/api/master-catalog/*` endpoints with full CRUD:
+
+| File | LOC | Tabs | API endpoints |
+|---|---|---|---|
+| `pages-v2/FinanceCatalogs.tsx` | 423 | 4 | additional-charges, other-incomes, transport-services, gasoline-prices |
+| `pages-v2/PharmacyCatalogs.tsx` | 376 | 3 | manufacturers, medication-routes, inspection-committees (+ nested members CRUD) |
+| `pages-v2/ParaclinicalCatalogs.tsx` | 414 | 3 | machine-codes, machine-services, paraclinical-room-priorities |
+| `pages-v2/ClinicalCatalogs.tsx` | 309 | 2 | nursing-care-levels, medical-record-types |
+| `pages-v2/ReportCatalogs.tsx` | 269 | 2 | report-group-types, report-groups |
+
+Per-tab layout: `KpiStrip` (4 KPIs auto-derived from data) →
+`TopTabs` → `ab-toolbar` (SearchBox + per-tab Filter dropdown + CSV
+export + "Thêm mới") → `DataTable` with row-click drawer + edit/delete
+actions → `Pager`. Drawer body uses `DrSec`/`DrField` grids with Antd
+`Input`/`InputNumber`/`Select`/`DatePicker`/`Switch` inputs and a
+sticky Cancel/Save footer.
+
+Pattern preserved across all 5 files:
+- Discriminated union `AnyRow = (Dto & { _kind: 'tabKey' })[]` so a single
+  `DataTable<AnyRow>` can render any tab's rows with type narrowing inside
+  column render fns
+- `reload(tab?)` reloads only the affected catalog after save/delete
+- CSV export reuses column metadata (label + key) so each tab exports
+  exactly what the user sees
+- Lock checks (`isLocked` on machine-codes + medical-record-types)
+  surface as red lock icon in column + block delete with toast warning
+
+**Design-only fields dropped** (backend DTO doesn't store them; same
+pattern as earlier v2 conversions):
+- AdditionalCharge: design's `payer`, `category` → use `unit` + `price` + `effectiveFrom/To`
+- TransportService: design's `basePrice`, `pricePerKm`, `distance`, `vehicle` →
+  use `calculationType` (1=km/2=lượt) + `unitPrice` + `gasolineFactor`
+- GasolinePrice: design's `pricePerLiter`, `source` → real DTO has
+  `pricePerLitre` (British spelling), `issuedBy`
+- MachineCode: design's `type`, `brand`, `serial`, `year` → real DTO has
+  `manufacturer`, `model`, `serialNumber`
+- MachineService: design's `price`, `bhxhPrice` → those live on the Service
+  entity, not the mapping; v2 uses `isDefault` toggle instead
+- ReportServiceGroup: design's `period`, `format[]`, `cron`, `runs`,
+  `lastRun`, `receivers[]` → real DTO is the catalog (code/name/note),
+  not the runtime execution config; dropped
+
+**Wiring (App.tsx + TerminalLayout.tsx):**
+- 5 lazy imports (`PharmacyCatalogsV2`, `FinanceCatalogsV2`,
+  `ParaclinicalCatalogsV2`, `ClinicalCatalogsV2`, `ReportCatalogsV2`)
+  added below the Batch 10 v2 imports block
+- 5 `<Route path="..." element={<...V2 />} />` lines added inside the
+  `/v2/*` route group, before the `<Route path="*">` catch-all
+- 5 menu items added to TerminalLayout sidebar matching v1 grouping
+  (which lives in `MainLayout.tsx`):
+  - `clinical` group → "DM Lâm sàng" (`/v2/clinical-catalogs`)
+  - `paraclinical` group → "DM CLS" (`/v2/paraclinical-catalogs`)
+  - `support` group → "DM Dược" (`/v2/pharmacy-catalogs`)
+  - `finance` group → "DM Tài chính" (`/v2/finance-catalogs`)
+  - `management` group → "DM Nhóm BC" (`/v2/report-catalogs`)
+
+**2. Cloud Run deploy — revision `his-api-00023-np2`**
+
+- `gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=...:20260511-150532`
+  triggered 2 parallel builds because the polling output stalled and I
+  resubmitted. Both built successfully (~5 min each) with the same image
+  tag. Either could have been used.
+- `gcloud run services update his-api --image=...:20260511-150532
+  --region=asia-southeast1 --project=project-4d4a3f8e-d582-4536-97f`
+  rolled out revision `his-api-00023-np2` in ~60s. `DEPLOY_AT=<epoch>`
+  env var bump forced instance recycle.
+- `ProductionSchemaRepairRunner` auto-applied
+  `Data/Scripts/42_nangcap22_catalogs.sql` on first cold start:
+  - 14 new tables + 14 filtered unique indexes
+  - Seed: 10 Manufacturers, 15 MedicationRoutes (TT 52/2017),
+    3 NursingCareLevels (CS1/CS2/CS3), 10 MedicalRecordTypes (TT 32),
+    14 ReportServiceGroupTypes (auto-created from controller's default)
+
+**3. Verify on prod**
+
+- 14/14 endpoints under `/api/master-catalog/*` return `200 OK`
+- Sample manufacturer row returned: `{ code: PFIZER, name: Pfizer,
+  country: Hoa Kỳ, isActive: true }` — seed loaded correctly
+- 15 medication-routes rows, 3 nursing-care-levels rows
+
+**4. Commit + push**
+
+- `073db9d feat(v2): convert 5 NangCap22 catalog pages from v1 (CrudTab)
+  to v2 (ab-* design pack)` — 7 files, +1929 LOC
+- Pushed to `origin/main`. Vercel auto-deploys frontend on push (~2 min).
+
+### Pitfalls hit
+
+- **Cloud Build poll rate-limit (HTTP 429)**: `gcloud builds submit`
+  polls the build status every 1s. Running 2-3 polls concurrently
+  (parallel submits + manual `gcloud builds list` checks) easily
+  exceeds the `Build and Operation Get requests per minute = 60`
+  quota and the foreground command bombs out with `RESOURCE_EXHAUSTED`.
+  The build itself completes in the cloud regardless — just don't
+  hammer the describe API. For future deploys: submit once, poll at
+  ≥60s intervals via `gcloud builds describe <ID> --format='value(status)'`.
+- **gcloud first attempt silently failed**: `bel2zqa3n` background
+  task exited "exit 0" with zero output, no build ID was triggered.
+  Re-submitting worked. Don't trust silent success from a background
+  `gcloud` invocation — confirm by listing builds.
+- **2 builds produced same image tag** because both submits used the
+  same `_IMAGE` substitution. Cloud Build doesn't dedupe — both built,
+  both pushed, second one wins by timestamp. Cosmetic only.
+- **TS2352 on `Record<string, unknown>` cast**: `tsc -b` (project
+  references, strict) flagged direct cast from discriminated-union
+  `AnyRow` → `Record<string, unknown>` as unrelated types. `tsc
+  --noEmit` allowed it. Fix is `as unknown as Record<string, unknown>`
+  — applied to all 5 catalog files' `exportCsv` body. Always run
+  `npm run build` (which runs `tsc -b`), not just `tsc --noEmit`,
+  before pushing.
+- **Vercel buildCommand is `npm run build`** (no skip-tsc fallback
+  since 2026-04-28), so a TS regression fails the deploy. The 5 new
+  files all build clean.
+
+### Files touched
+
+- 5 new: `frontend/src/pages-v2/{Pharmacy,Finance,Paraclinical,Clinical,Report}Catalogs.tsx`
+- 2 modified: `frontend/src/App.tsx` (+12 lines: 5 lazy + 5 routes + 2 comments),
+  `frontend/src/layouts/terminal/TerminalLayout.tsx` (+5 lines, one per group)
+
+### Pending
+
+Nothing blocking. The 4/5 session's "tomorrow" list still applies:
+- Refine interactive audit spec (35 false-positive row-click failures
+  where rows=1 is actually the empty placeholder)
+- Re-run conformance + interactive audits as final verification
+- Patient-portal `Guid.Empty` fallback for the remaining ~5 endpoints
+- HR roster seeder
+- USB Token Pkcs11Interop (~2 days, needs hardware)
+- Jibri ARM retry loop (still waiting on Tokyo ARM capacity)
+
+### Key URLs / IDs
+
+- Cloud Run revision: `his-api-00023-np2`
+- Image tag: `asia-southeast1-docker.pkg.dev/project-4d4a3f8e-d582-4536-97f/his/his-api:20260511-150532`
+- Both Cloud Build IDs: `6d46600f-2b7f-459c-a7c5-4a12e725778e` +
+  `11bbf700-48b8-4a64-8b9a-4d69f86bc3b5` (both SUCCESS, same image)
+- Commit pushed: `073db9d`
+- Prod URL still: `https://his-api-694913628964.asia-southeast1.run.app`
+  + `https://his-psi.vercel.app`
