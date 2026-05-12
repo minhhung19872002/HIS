@@ -170,3 +170,48 @@ export async function mergeAiToReport(aiResultId: string): Promise<MergeReportRe
   const { data } = await apiClient.post<MergeReportResult>(`/ai-labeling/${aiResultId}/merge-to-report`);
   return data;
 }
+
+// -------- Phase 4 worklist + providers --------
+
+export interface AiQueueItem {
+  id: string;
+  studyInstanceUID: string;
+  patientId?: string;
+  patientName?: string;
+  radiologyRequestId?: string;
+  requestCode?: string;
+  modality?: string;
+  queuedAt: string;
+  /** True for entries created by the AiWorklistService cron (auto). */
+  autoQueued: boolean;
+}
+
+export interface AiProviderInfo {
+  id: string;
+  name: string;
+  supportedModalities: string[];
+}
+
+export async function getAiQueue(limit = 50): Promise<AiQueueItem[]> {
+  const { data } = await apiClient.get<AiQueueItem[]>(`/ai-labeling/queue?limit=${limit}`);
+  return data;
+}
+
+export async function listAiProviders(): Promise<AiProviderInfo[]> {
+  const { data } = await apiClient.get<AiProviderInfo[]>('/ai-labeling/providers');
+  return data;
+}
+
+export interface RunViaProviderRequest {
+  providerId: string;
+  studyInstanceUID: string;
+  modality: string;
+  imageUrl?: string;
+  patientId?: string;
+  radiologyRequestId?: string;
+}
+
+export async function runViaProvider(req: RunViaProviderRequest): Promise<AiResultDto> {
+  const { data } = await apiClient.post<AiResultDto>('/ai-labeling/run-via-provider', req);
+  return data;
+}

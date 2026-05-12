@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,12 +24,18 @@ public class AiLabelingController : ControllerBase
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
     private readonly IAiReportService _reportService;
+    private readonly IAiProviderRegistry _providerRegistry;
 
-    public AiLabelingController(HISDbContext db, IConfiguration config, IAiReportService reportService)
+    public AiLabelingController(
+        HISDbContext db,
+        IConfiguration config,
+        IAiReportService reportService,
+        IAiProviderRegistry providerRegistry)
     {
         _db = db;
         _config = config;
         _reportService = reportService;
+        _providerRegistry = providerRegistry;
     }
 
     private Guid GetUserId() =>
@@ -424,6 +431,162 @@ public class AiLabelingController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    // =========================================================================
+    // Phase 4 — Worklist + Vendor adapter
+    // =========================================================================
+
+    public record QueueItemDto(
+        Guid Id,
+        string StudyInstanceUID,
+        Guid? PatientId,
+        string? PatientName,
+        Guid? RadiologyRequestId,
+        string? RequestCode,
+        string? Modality,
+        DateTime QueuedAt,
+        bool AutoQueued);
+
+    /// <summary>
+    /// Danh sách ca AI đang chờ BS xem xét. Bao gồm:
+    ///  - Records được `AiWorklistService` auto-tạo (ErrorMessage = AUTO_QUEUED,
+    ///    LabelsJson rỗng) khi study mới upload nhưng chưa chạy inference.
+    ///  - Records đã chạy nhưng `ReviewStatus = 0` (BS chưa accept/reject).
+    /// </summary>
+    [HttpGet("queue")]
+    public async Task<ActionResult<IReadOnlyList<QueueItemDto>>> GetQueue([FromQuery] int limit = 50)
+    {
+        var rows = await _db.AiLabelingResults
+            .Where(a => a.ReviewStatus == 0)
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(Math.Clamp(limit, 1, 200))
+            .Select(a => new
+            {
+                a.Id,
+                a.StudyInstanceUID,
+                a.PatientId,
+                a.RadiologyRequestId,
+                a.CreatedAt,
+                a.ErrorMessage,
+            })
+            .ToListAsync();
+
+        // Enrich with patient name + request code (single round-trip per type).
+        var patientIds = rows.Where(r => r.PatientId.HasValue).Select(r => r.PatientId!.Value).Distinct().ToList();
+        var requestIds = rows.Where(r => r.RadiologyRequestId.HasValue).Select(r => r.RadiologyRequestId!.Value).Distinct().ToList();
+
+        var patients = patientIds.Count == 0 ? new Dictionary<Guid, string>()
+            : await _db.Patients
+                .Where(p => patientIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.FullName);
+
+        var requests = requestIds.Count == 0
+            ? new Dictionary<Guid, (string Code, string? Modality)>()
+            : (await _db.RadiologyRequests
+                .Include(r => r.Service)
+                .Where(r => requestIds.Contains(r.Id))
+                .ToListAsync())
+                .ToDictionary(r => r.Id, r => (Code: r.RequestCode, Modality: r.Service?.ServiceCode));
+
+        var dtos = rows.Select(r => new QueueItemDto(
+            Id: r.Id,
+            StudyInstanceUID: r.StudyInstanceUID,
+            PatientId: r.PatientId,
+            PatientName: r.PatientId.HasValue && patients.TryGetValue(r.PatientId.Value, out var pn) ? pn : null,
+            RadiologyRequestId: r.RadiologyRequestId,
+            RequestCode: r.RadiologyRequestId.HasValue && requests.TryGetValue(r.RadiologyRequestId.Value, out var rq) ? rq.Code : null,
+            Modality: r.RadiologyRequestId.HasValue && requests.TryGetValue(r.RadiologyRequestId.Value, out var rq2) ? rq2.Modality : null,
+            QueuedAt: r.CreatedAt,
+            AutoQueued: r.ErrorMessage == AiWorklistService.QueueMarkerValue
+        )).ToList();
+
+        return Ok(dtos);
+    }
+
+    public record ProviderDto(
+        string Id,
+        string Name,
+        IReadOnlyList<string> SupportedModalities);
+
+    /// <summary>
+    /// List các AI vendor đã cấu hình trong appsettings.AiLabeling.Providers[].
+    /// Frontend dùng để hiển thị dropdown "Chọn vendor" cho server-side
+    /// inference flow (alternative to local browser ONNX).
+    /// </summary>
+    [HttpGet("providers")]
+    public ActionResult<IReadOnlyList<ProviderDto>> GetProviders()
+    {
+        var providers = _providerRegistry.All;
+        var result = providers.Select(p =>
+        {
+            // Probe a small set of standard modalities to see which the provider claims.
+            var supported = new[] { "CR", "DX", "CT", "MR", "US", "MG", "NM" }
+                .Where(p.SupportsModality)
+                .ToArray();
+            return new ProviderDto(p.Id, p.Name, supported);
+        }).ToList();
+        return Ok(result);
+    }
+
+    public record RunViaProviderDto(
+        string ProviderId,
+        string StudyInstanceUID,
+        string Modality,
+        string? ImageUrl,
+        Guid? PatientId,
+        Guid? RadiologyRequestId);
+
+    /// <summary>
+    /// Trigger server-side inference qua 1 vendor cụ thể. Vendor nhận ImageUrl
+    /// (preferred — vendor self-fetches) hoặc bytes (rarely). Kết quả được lưu
+    /// audit y như client-side inference, BS review tiếp như bình thường.
+    /// </summary>
+    [HttpPost("run-via-provider")]
+    public async Task<ActionResult<AiResultDto>> RunViaProvider([FromBody] RunViaProviderDto dto, CancellationToken ct)
+    {
+        var provider = _providerRegistry.GetById(dto.ProviderId);
+        if (provider == null)
+            return BadRequest(new { message = $"Provider '{dto.ProviderId}' không có trong cấu hình" });
+        if (!provider.SupportsModality(dto.Modality))
+            return BadRequest(new { message = $"Provider '{provider.Name}' không hỗ trợ modality '{dto.Modality}'" });
+
+        var req = new AiInferenceRequest
+        {
+            Modality = dto.Modality,
+            StudyInstanceUid = dto.StudyInstanceUID,
+            ImageUrl = dto.ImageUrl,
+        };
+        var infResult = await provider.RunInferenceAsync(req, ct);
+
+        // Persist as a regular AiLabelingResult — frontend reads via the same endpoints.
+        var labelsJson = System.Text.Json.JsonSerializer.Serialize(infResult.Labels.Select(l => new
+        {
+            label = l.Label,
+            labelVi = l.LabelVi,
+            score = l.Score,
+            bbox = l.Bbox,
+        }));
+
+        var entity = new AiLabelingResult
+        {
+            Id = Guid.NewGuid(),
+            StudyInstanceUID = dto.StudyInstanceUID,
+            PatientId = dto.PatientId,
+            RadiologyRequestId = dto.RadiologyRequestId,
+            ModelName = infResult.ModelName + " (via " + provider.Name + ")",
+            ModelVersion = infResult.ModelVersion,
+            LabelsJson = labelsJson,
+            DurationMs = infResult.DurationMs,
+            ReviewStatus = 0,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = GetUserId().ToString(),
+            ErrorMessage = infResult.ErrorMessage,
+        };
+        _db.AiLabelingResults.Add(entity);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(await MapAsync(entity.Id));
     }
 
     // =========================================================================

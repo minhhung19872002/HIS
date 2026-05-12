@@ -62,6 +62,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import NotificationBell from '../components/NotificationBell';
+import AiQueueBadge from '../components/AiQueueBadge';
 
 const { Header, Sider, Content } = Layout;
 
@@ -439,6 +440,7 @@ const MainLayout: React.FC = () => {
                 {isDark ? <SunOutlined /> : <MoonOutlined />}
               </span>
             </Tooltip>
+            <AiQueueBadge />
             <NotificationBell />
             <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>

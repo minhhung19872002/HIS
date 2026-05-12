@@ -184,6 +184,13 @@ public static class DependencyInjection
         // AI report exports (Phase 3): HTML/PDF, DICOM SR, merge to RadiologyReport
         services.AddScoped<IAiReportService, AiReportService>();
 
+        // AI vendor adapter registry (Phase 4) — singleton because provider
+        // instances pool HTTP clients internally.
+        services.AddSingleton<IAiProviderRegistry, AiProviderRegistry>();
+        // Background worker that auto-queues AI analysis when new DICOM studies
+        // arrive. Disabled by default; flip on via AiLabeling:Worklist:Enabled=true.
+        services.AddHostedService<AiWorklistService>();
+
         // HL7 CDA R2 Document Generation (health information exchange)
         services.AddScoped<ICdaDocumentService, CdaDocumentService>();
 
