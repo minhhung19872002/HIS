@@ -877,7 +877,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             "PortalAppointment", "RadiologyExam", "RadiologyModality",
             "RadiologyReport", "RadiologyRequest", "RehabReferral",
             "RehabSession", "RehabTreatmentPlan", "RepairRequest",
-            "TeleAppointment", "TeleconsultationRequest", "TeleSession"
+            "TeleAppointment", "TeleconsultationRequest", "TeleSession",
+            "AiLabelingResult"
         };
 
         // Global query filter for soft delete + apply audit converters

@@ -38,7 +38,7 @@ import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
 import { createRoom, searchRooms, joinRoom } from '../api/videoConsultation';
 import AiLabelingModal from '../components/AiLabelingModal';
 import AiOverlayLayer from '../components/AiOverlayLayer';
-import type { AiLabel } from '../api/aiLabeling';
+import { openAiReportHtml, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../api/aiLabeling';
 import { API_ORIGIN } from '../config/api';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import DicomViewerConfig from '../components/DicomViewerConfig';
@@ -121,6 +121,10 @@ const DicomViewer: React.FC = () => {
   const [showAiOverlay, setShowAiOverlay] = useState(true);
   const [showAiHeatmap, setShowAiHeatmap] = useState(true);
   const [showAiBbox, setShowAiBbox] = useState(true);
+  // Phase 3 — capture the audit-saved AI result id so the toolbar can call
+  // export endpoints (HTML/PDF, DICOM SR upload, merge to RadiologyReport).
+  const [lastAiResultId, setLastAiResultId] = useState<string | null>(null);
+  const [aiExporting, setAiExporting] = useState<string | null>(null);
 
   // Cornerstone3D viewer toggle + handle for tool/preset commands
   const [useCs, setUseCs] = useState(true); // default to native renderer
@@ -803,9 +807,73 @@ const DicomViewer: React.FC = () => {
                             <Button
                               size="small"
                               danger
-                              onClick={() => setAiOverlayLabels([])}
+                              onClick={() => { setAiOverlayLabels([]); setLastAiResultId(null); }}
                             >
                               Xóa overlay
+                            </Button>
+                          </>
+                        )}
+                        {lastAiResultId && (
+                          <>
+                            <Button
+                              size="small"
+                              icon={<DownloadOutlined />}
+                              loading={aiExporting === 'pdf'}
+                              data-testid="ai-export-pdf"
+                              onClick={() => {
+                                setAiExporting('pdf');
+                                try {
+                                  openAiReportHtml(lastAiResultId);
+                                  message.info('Báo cáo AI mở ở tab mới — Ctrl+P để in PDF');
+                                } catch (e) {
+                                  message.error(e instanceof Error ? e.message : 'Xuất báo cáo thất bại');
+                                } finally {
+                                  setTimeout(() => setAiExporting(null), 800);
+                                }
+                              }}
+                            >
+                              Xuất PDF
+                            </Button>
+                            <Button
+                              size="small"
+                              loading={aiExporting === 'dicom'}
+                              data-testid="ai-export-dicom"
+                              onClick={async () => {
+                                setAiExporting('dicom');
+                                try {
+                                  const r = await uploadAiDicomSr(lastAiResultId);
+                                  message.success(`Đã lưu DICOM SR vào PACS (instance ${r.instanceId.slice(0, 8)}…)`);
+                                } catch (e) {
+                                  const msg = e instanceof Error ? e.message : 'Upload PACS thất bại';
+                                  message.error(msg);
+                                } finally {
+                                  setAiExporting(null);
+                                }
+                              }}
+                            >
+                              Lưu DICOM SR
+                            </Button>
+                            <Button
+                              size="small"
+                              loading={aiExporting === 'merge'}
+                              data-testid="ai-merge-report"
+                              onClick={async () => {
+                                setAiExporting('merge');
+                                try {
+                                  const r = await mergeAiToReport(lastAiResultId);
+                                  if (r.merged) {
+                                    message.success('Đã merge AI findings vào báo cáo CĐHA');
+                                  } else {
+                                    message.warning(r.message || 'Không tìm thấy báo cáo CĐHA tương ứng');
+                                  }
+                                } catch (e) {
+                                  message.error(e instanceof Error ? e.message : 'Merge thất bại');
+                                } finally {
+                                  setAiExporting(null);
+                                }
+                              }}
+                            >
+                              Merge vào báo cáo
                             </Button>
                           </>
                         )}
@@ -1066,9 +1134,10 @@ const DicomViewer: React.FC = () => {
           previewUrl={selectedImageUrl}
           patientId={studyInfo?.patientId}
           modality={selectedSeries?.modality || studyInfo?.modality}
-          onAccepted={(labels) => {
+          onAccepted={(labels, aiResultId) => {
             setAiOverlayLabels(labels);
             setShowAiOverlay(true);
+            if (aiResultId) setLastAiResultId(aiResultId);
             message.success(`Đã hiển thị ${labels.length} dấu hiệu AI lên ảnh`);
           }}
         />

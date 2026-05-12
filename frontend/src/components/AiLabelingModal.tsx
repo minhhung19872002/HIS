@@ -47,7 +47,10 @@ interface Props {
    *  omitted. Backend returns 404 + Available:false if the modality has no
    *  model configured. */
   modality?: string;
-  onAccepted?: (labels: AiLabel[]) => void;
+  /** Receives accepted labels AND the audit-saved AI result id (when present),
+   *  so the parent can call Phase 3 export endpoints (`/export/html`,
+   *  `/export/dicom-sr`, `/merge-to-report`). */
+  onAccepted?: (labels: AiLabel[], aiResultId?: string) => void;
 }
 
 export default function AiLabelingModal({
@@ -223,7 +226,7 @@ export default function AiLabelingModal({
         message.warning('Không lưu được audit review (overlay vẫn hiển thị)');
       }
     }
-    if (status !== 3) onAccepted?.(acceptedLabels);
+    if (status !== 3) onAccepted?.(acceptedLabels, savedResult?.id);
     message.success(
       status === 1 ? 'Đã chấp nhận toàn bộ AI suggest'
       : status === 2 ? `Đã chấp nhận ${acceptedLabels.length} nhãn`

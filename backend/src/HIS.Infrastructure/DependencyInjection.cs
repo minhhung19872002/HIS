@@ -181,6 +181,9 @@ public static class DependencyInjection
         // PDF Generation (EMR forms - HTML for browser printing)
         services.AddScoped<IPdfGenerationService, PdfGenerationService>();
 
+        // AI report exports (Phase 3): HTML/PDF, DICOM SR, merge to RadiologyReport
+        services.AddScoped<IAiReportService, AiReportService>();
+
         // HL7 CDA R2 Document Generation (health information exchange)
         services.AddScoped<ICdaDocumentService, CdaDocumentService>();
 

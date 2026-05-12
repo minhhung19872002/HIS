@@ -120,3 +120,53 @@ export async function getAiHistoryByStudy(studyUid: string): Promise<AiResultDto
   const { data } = await apiClient.get<AiResultDto[]>(`/ai-labeling/by-study/${encodeURIComponent(studyUid)}`);
   return data;
 }
+
+// -------- Phase 3 export helpers --------
+
+/** Open the HTML report in a new tab; user can Ctrl+P to print as PDF. */
+export function openAiReportHtml(aiResultId: string): void {
+  const token = localStorage.getItem('token') || '';
+  // Inline token into URL hash so the new tab can attach it via interceptor.
+  // The simpler approach: rely on cookie-based auth. Since this app uses
+  // localStorage JWT, we instead fetch the HTML via authenticated axios
+  // and open via blob URL.
+  apiClient
+    .get<Blob>(`/ai-labeling/${aiResultId}/export/html`, { responseType: 'blob' })
+    .then((resp) => {
+      const blob = new Blob([resp.data], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      // Revoke after the new window has had time to load.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      if (!win) throw new Error('Popup bị chặn — bật popup cho trang này');
+    })
+    .catch((e) => {
+      console.warn('[AI] HTML export failed:', e);
+      throw e;
+    });
+  // Note: token header is injected by the apiClient request interceptor.
+}
+
+export interface DicomSrUploadResult {
+  instanceId: string;
+  studyInstanceUid: string;
+}
+
+/** Build DICOM SR + upload back to PACS so the SR appears alongside the
+ *  original CR/CT/US in any viewer. Requires PACS:BaseUrl configured. */
+export async function uploadAiDicomSr(aiResultId: string): Promise<DicomSrUploadResult> {
+  const { data } = await apiClient.post<DicomSrUploadResult>(`/ai-labeling/${aiResultId}/export/dicom-sr/upload`);
+  return data;
+}
+
+export interface MergeReportResult {
+  merged: boolean;
+  radiologyReportId?: string;
+  message?: string;
+}
+
+/** Append accepted AI findings into the matching RadiologyReport.Findings. */
+export async function mergeAiToReport(aiResultId: string): Promise<MergeReportResult> {
+  const { data } = await apiClient.post<MergeReportResult>(`/ai-labeling/${aiResultId}/merge-to-report`);
+  return data;
+}

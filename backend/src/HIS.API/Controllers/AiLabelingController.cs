@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -21,11 +22,13 @@ public class AiLabelingController : ControllerBase
 {
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IAiReportService _reportService;
 
-    public AiLabelingController(HISDbContext db, IConfiguration config)
+    public AiLabelingController(HISDbContext db, IConfiguration config, IAiReportService reportService)
     {
         _db = db;
         _config = config;
+        _reportService = reportService;
     }
 
     private Guid GetUserId() =>
@@ -338,6 +341,92 @@ public class AiLabelingController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(await MapAsync(entity.Id));
     }
+
+    // =========================================================================
+    // Phase 3 — Export endpoints
+    // =========================================================================
+
+    /// <summary>
+    /// Sinh HTML báo cáo AI cho 1 lần phân tích. Frontend mở trong popup,
+    /// browser `window.print()` để xuất PDF. Same pattern as PdfGenerationService.
+    /// </summary>
+    [HttpGet("{id:guid}/export/html")]
+    public async Task<IActionResult> ExportHtml(Guid id)
+    {
+        try
+        {
+            var bytes = await _reportService.GenerateAiReportHtmlAsync(id);
+            return File(bytes, "text/html; charset=utf-8", $"ai-report-{id:N}.html");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("không tồn tại"))
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Sinh DICOM Structured Report (PS3.10) cho 1 lần phân tích. Trả về
+    /// `application/dicom` bytes — viewer hoặc admin có thể tải về.
+    /// </summary>
+    [HttpGet("{id:guid}/export/dicom-sr")]
+    public async Task<IActionResult> ExportDicomSr(Guid id)
+    {
+        try
+        {
+            var bytes = await _reportService.GenerateDicomSrAsync(id);
+            return File(bytes, "application/dicom", $"ai-sr-{id:N}.dcm");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("không tồn tại"))
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Build DICOM SR + đẩy về Orthanc PACS. SR sẽ xuất hiện trong cùng
+    /// Study với CR/CT/US gốc, mọi DICOM viewer khác đọc được.
+    /// </summary>
+    [HttpPost("{id:guid}/export/dicom-sr/upload")]
+    public async Task<IActionResult> UploadDicomSr(Guid id)
+    {
+        try
+        {
+            var (instanceId, studyUid) = await _reportService.UploadDicomSrToOrthancAsync(id);
+            return Ok(new { instanceId, studyInstanceUid = studyUid });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Upload PACS thất bại: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Merge accepted AI findings vào field RadiologyReport.Findings của
+    /// báo cáo CĐHA hiện có (đi qua RadiologyExam → RadiologyRequest, hoặc
+    /// fallback theo StudyInstanceUID). Idempotent — re-call sẽ replace
+    /// AI block cũ thay vì duplicate.
+    /// </summary>
+    [HttpPost("{id:guid}/merge-to-report")]
+    public async Task<IActionResult> MergeToReport(Guid id)
+    {
+        try
+        {
+            var reportId = await _reportService.MergeToRadiologyReportAsync(id);
+            if (reportId == null)
+                return Ok(new { merged = false, message = "Không tìm thấy RadiologyReport tương ứng với study này (báo cáo BS chưa tạo, hoặc không có nhãn nào được chấp nhận)." });
+            return Ok(new { merged = true, radiologyReportId = reportId });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // =========================================================================
 
     /// <summary>Lịch sử AI runs cho 1 ca chụp.</summary>
     [HttpGet("by-study/{studyUid}")]
