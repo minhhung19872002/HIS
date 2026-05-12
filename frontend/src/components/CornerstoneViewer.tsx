@@ -57,6 +57,12 @@ interface Props {
   initialIndex?: number;
   height?: number | string;
   onError?: (e: unknown) => void;
+  /**
+   * Render-prop for overlays (AI bbox/heatmap, annotations) drawn ABOVE the
+   * cornerstone canvas. Receives the current viewport size in CSS pixels so the
+   * overlay can size itself correctly across DPR + resize.
+   */
+  overlay?: (size: { width: number; height: number }) => React.ReactNode;
 }
 
 const TOOL_GROUP_ID = 'his-dicom-toolgroup';
@@ -64,13 +70,27 @@ const VIEWPORT_ID = 'his-dicom-viewport';
 const RENDERING_ENGINE_ID = 'his-dicom-engine';
 
 const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
-  imageIds, initialIndex = 0, height = '60vh', onError,
+  imageIds, initialIndex = 0, height = '60vh', onError, overlay,
 }, ref) => {
   const elementRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTool, setActiveToolState] = useState<CsToolName>('WindowLevel');
   const [currentIdx, setCurrentIdx] = useState(initialIndex);
+  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  // Track viewport CSS size so overlay can match. ResizeObserver fires on
+  // window resize, fullscreen toggle, and on container reflows.
+  useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      setViewportSize({ width: r.width, height: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Init engine + viewport once when element is mounted
   useEffect(() => {
@@ -284,6 +304,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         onContextMenu={(e) => e.preventDefault()}
       >
         {loading && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: '#fff', fontSize: 14 }}>Đang tải DICOM…</div>}
+        {overlay && viewportSize.width > 0 && overlay(viewportSize)}
       </div>
     </div>
   );

@@ -14,6 +14,30 @@ export interface AiLabel {
   label: string;
   labelVi: string;
   score: number; // 0..1
+  /** Bounding box normalized [0..1] in image space. Optional — set for detection models (YOLO, RetinaNet). */
+  bbox?: AiBoundingBox;
+  /** Class-activation/saliency map. Optional — set when frontend computes occlusion heatmap or Grad-CAM. */
+  heatmap?: AiHeatmap;
+}
+
+/** Normalized [0..1] coords. (x,y) is top-left corner, (w,h) is size. */
+export interface AiBoundingBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Coarse heatmap grid for a single label. Stored as flat row-major Float32 in
+ * range [0..1] (renderer interpolates + applies color ramp).
+ * Typical sizes: 7x7 (DenseNet feature map) or 14x14 (occlusion grid).
+ */
+export interface AiHeatmap {
+  width: number;
+  height: number;
+  /** Row-major, length = width*height, each in [0..1]. */
+  data: number[];
 }
 
 export interface AiResultDto {

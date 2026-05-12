@@ -18,9 +18,22 @@ import {
   type AiModelConfig,
   type AiResultDto,
 } from '../api/aiLabeling';
-import { runInference, type InferenceResult } from '../services/aiLabelingService';
+import { runInference, computeOcclusionHeatmaps, type InferenceResult } from '../services/aiLabelingService';
 
 const { Text, Title } = Typography;
+
+/**
+ * Backend `PatientId` / `RadiologyRequestId` are typed `Guid?` on the DTO.
+ * For PACS-only views (DICOM CD imports, ACRIN test data) the patient
+ * identifier is a free-text string like "ACRIN-NSCLC-FDG-PET-042" — sending
+ * it back as `patientId` makes ASP.NET model binding 400 the whole request,
+ * which silently kills the modal close path. Only pass the value when it
+ * actually parses as a UUID.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function asGuidOrUndef(v: string | undefined): string | undefined {
+  return v && UUID_RE.test(v) ? v : undefined;
+}
 
 interface Props {
   open: boolean;
@@ -81,14 +94,45 @@ export default function AiLabelingModal({
         onProgress: setProgress,
         authHeader,
       });
+
+      // Phase 2 — compute heatmaps for labels with score >= 0.4 (BS thấy được
+      // mức TB+). Top 4 only to cap occlusion cost (~2s per heatmap on WASM).
+      try {
+        const hotLabels = inf.labels
+          .map((l, _i) => ({ l, idx: config.labels.indexOf(l.label) }))
+          .filter((x) => x.idx >= 0 && x.l.score >= 0.4)
+          .slice(0, 4);
+        if (hotLabels.length > 0 && inf._cachedTensor) {
+          setProgress('Tính heatmap vùng nghi ngờ…');
+          const scores = config.labels.map((lbl) =>
+            inf.labels.find((x) => x.label === lbl)?.score ?? 0,
+          );
+          const heats = await computeOcclusionHeatmaps(
+            config,
+            inf._cachedTensor,
+            scores,
+            hotLabels.map((x) => x.idx),
+            { onProgress: setProgress },
+          );
+          // Attach heatmap to each label by index.
+          for (const x of hotLabels) {
+            const h = heats[x.idx];
+            if (h) x.l.heatmap = h;
+          }
+        }
+      } catch (heatErr) {
+        // Heatmap is best-effort — failure must not block the main result.
+        console.warn('[AI] heatmap pass failed:', heatErr);
+      }
+
       setResult(inf);
       // Save audit log
       const labelsJson = JSON.stringify(inf.labels);
       try {
         const saved = await saveAiResult({
           studyInstanceUID,
-          patientId,
-          radiologyRequestId,
+          patientId: asGuidOrUndef(patientId),
+          radiologyRequestId: asGuidOrUndef(radiologyRequestId),
           modelName: config.modelName,
           modelVersion: config.modelVersion,
           modelUrl: config.modelUrl,
@@ -109,8 +153,8 @@ export default function AiLabelingModal({
       try {
         await saveAiResult({
           studyInstanceUID,
-          patientId,
-          radiologyRequestId,
+          patientId: asGuidOrUndef(patientId),
+          radiologyRequestId: asGuidOrUndef(radiologyRequestId),
           modelName: config.modelName,
           modelVersion: config.modelVersion,
           modelUrl: config.modelUrl,
@@ -126,28 +170,33 @@ export default function AiLabelingModal({
   }, [config, previewUrl, studyInstanceUID, patientId, radiologyRequestId]);
 
   const handleReview = async (status: 1 | 2 | 3) => {
-    if (!savedResult || !result) return;
+    if (!result) return;
     const acceptedLabels = status === 1
       ? result.labels
       : status === 2
         ? result.labels.filter((l) => accepted[l.label])
         : [];
-    try {
-      await reviewAiResult(savedResult.id, {
-        reviewStatus: status,
-        acceptedLabelsJson: JSON.stringify(acceptedLabels),
-        reviewNote,
-      });
-      if (status !== 3) onAccepted?.(acceptedLabels);
-      message.success(
-        status === 1 ? 'Đã chấp nhận toàn bộ AI suggest'
-        : status === 2 ? `Đã chấp nhận ${acceptedLabels.length} nhãn`
-        : 'Đã từ chối kết quả AI'
-      );
-      onClose();
-    } catch {
-      message.error('Không lưu được review');
+    // Audit review is best-effort: if the save audit call hadn't completed
+    // yet (race) or the network 4xx-ed, we still hand the labels back to
+    // the parent so the overlay renders. Audit gap is logged as warning.
+    if (savedResult) {
+      try {
+        await reviewAiResult(savedResult.id, {
+          reviewStatus: status,
+          acceptedLabelsJson: JSON.stringify(acceptedLabels),
+          reviewNote,
+        });
+      } catch {
+        message.warning('Không lưu được audit review (overlay vẫn hiển thị)');
+      }
     }
+    if (status !== 3) onAccepted?.(acceptedLabels);
+    message.success(
+      status === 1 ? 'Đã chấp nhận toàn bộ AI suggest'
+      : status === 2 ? `Đã chấp nhận ${acceptedLabels.length} nhãn`
+      : 'Đã từ chối kết quả AI'
+    );
+    onClose();
   };
 
   const severityColor = (score: number) =>

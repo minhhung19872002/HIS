@@ -37,6 +37,8 @@ import risApi from '../api/ris';
 import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
 import { createRoom, searchRooms, joinRoom } from '../api/videoConsultation';
 import AiLabelingModal from '../components/AiLabelingModal';
+import AiOverlayLayer from '../components/AiOverlayLayer';
+import type { AiLabel } from '../api/aiLabeling';
 import { API_ORIGIN } from '../config/api';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import DicomViewerConfig from '../components/DicomViewerConfig';
@@ -113,6 +115,12 @@ const DicomViewer: React.FC = () => {
 
   // AI Labeling
   const [aiOpen, setAiOpen] = useState(false);
+  // Phase 2 — AI overlay (bbox + heatmap) lifted up from modal so it can render
+  // on top of CornerstoneViewer's canvas. Cleared when image selection changes.
+  const [aiOverlayLabels, setAiOverlayLabels] = useState<AiLabel[]>([]);
+  const [showAiOverlay, setShowAiOverlay] = useState(true);
+  const [showAiHeatmap, setShowAiHeatmap] = useState(true);
+  const [showAiBbox, setShowAiBbox] = useState(true);
 
   // Cornerstone3D viewer toggle + handle for tool/preset commands
   const [useCs, setUseCs] = useState(true); // default to native renderer
@@ -765,6 +773,44 @@ const DicomViewer: React.FC = () => {
                     >
                       {useCs ? 'Native DICOM' : 'PNG preview'}
                     </Button>
+                    {aiOverlayLabels.length > 0 && (
+                      <>
+                        <Button
+                          size="small"
+                          type={showAiOverlay ? 'primary' : 'default'}
+                          icon={<RobotOutlined />}
+                          onClick={() => setShowAiOverlay((v) => !v)}
+                          data-testid="ai-overlay-toggle"
+                        >
+                          AI ({aiOverlayLabels.length})
+                        </Button>
+                        {showAiOverlay && (
+                          <>
+                            <Button
+                              size="small"
+                              type={showAiHeatmap ? 'primary' : 'default'}
+                              onClick={() => setShowAiHeatmap((v) => !v)}
+                            >
+                              Heatmap
+                            </Button>
+                            <Button
+                              size="small"
+                              type={showAiBbox ? 'primary' : 'default'}
+                              onClick={() => setShowAiBbox((v) => !v)}
+                            >
+                              Bounding box
+                            </Button>
+                            <Button
+                              size="small"
+                              danger
+                              onClick={() => setAiOverlayLabels([])}
+                            >
+                              Xóa overlay
+                            </Button>
+                          </>
+                        )}
+                      </>
+                    )}
                   </Space>
                   {useCs && cornerstoneImageIds.length > 0 ? (
                     <div style={{ position: 'relative' }}>
@@ -773,6 +819,17 @@ const DicomViewer: React.FC = () => {
                         imageIds={cornerstoneImageIds}
                         initialIndex={Math.max(0, images.findIndex((i) => resolveApiUrl(i.imageUrl || '') === selectedImageUrl))}
                         height="calc(100vh - 460px)"
+                        overlay={(size) =>
+                          showAiOverlay && aiOverlayLabels.length > 0 ? (
+                            <AiOverlayLayer
+                              labels={aiOverlayLabels}
+                              width={size.width}
+                              height={size.height}
+                              showHeatmap={showAiHeatmap}
+                              showBbox={showAiBbox}
+                            />
+                          ) : null
+                        }
                       />
                       {/* Overlay DICOM tags theo config */}
                       {showOverlay && studyInfo && (
@@ -921,7 +978,7 @@ const DicomViewer: React.FC = () => {
                           )}
                         </div>
                       }
-                      onClick={() => setSelectedImageUrl(resolveApiUrl(img.imageUrl || img.thumbnailUrl || ''))}
+                      onClick={() => { setSelectedImageUrl(resolveApiUrl(img.imageUrl || img.thumbnailUrl || '')); setAiOverlayLabels([]); }}
                     >
                       <Card.Meta
                         description={
@@ -1008,6 +1065,11 @@ const DicomViewer: React.FC = () => {
           studyInstanceUID={studyInstanceUID}
           previewUrl={selectedImageUrl}
           patientId={studyInfo?.patientId}
+          onAccepted={(labels) => {
+            setAiOverlayLabels(labels);
+            setShowAiOverlay(true);
+            message.success(`Đã hiển thị ${labels.length} dấu hiệu AI lên ảnh`);
+          }}
         />
       )}
     </div>

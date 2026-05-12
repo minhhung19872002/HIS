@@ -111,6 +111,99 @@ export interface InferenceResult {
   inputImageHash: string;
   inputWidth: number;
   inputHeight: number;
+  /** Cached preprocessed tensor so heatmap pass can reuse without re-fetching. */
+  _cachedTensor?: Float32Array;
+}
+
+/**
+ * Generate occlusion-based saliency heatmaps for the given label indices.
+ *
+ * Method: tile the input image with a GRID×GRID patch mask, run one batched
+ * inference (batch_size = GRID*GRID), measure how much each label score drops
+ * relative to the baseline. Larger drop = patch matters more → higher heat.
+ *
+ * Cost: 1 extra inference call with batch dim = GRID*GRID. For GRID=7 that's
+ * 49 samples, ~2s on WASM CPU / <500ms on WebGPU.
+ *
+ * Why occlusion instead of Grad-CAM?
+ *   - Works with the current single-output ONNX (sigmoid(logits)). Grad-CAM
+ *     needs the model re-exported with 2 outputs (probs + last_conv_features).
+ *   - Model-agnostic — works for any classifier without architectural assumptions.
+ *   - Result quality is acceptable for "show roughly where the AI looked";
+ *     not pixel-precise but enough to mark a lobe / quadrant.
+ */
+export async function computeOcclusionHeatmaps(
+  config: AiModelConfig,
+  baselineTensor: Float32Array,
+  baselineScores: number[],
+  labelIndices: number[],
+  opts?: { grid?: number; onProgress?: (s: string) => void },
+): Promise<Record<number, { width: number; height: number; data: number[] }>> {
+  if (labelIndices.length === 0) return {};
+  const grid = opts?.grid ?? 7;
+  const W = config.inputWidth;
+  const H = config.inputHeight;
+  const patchW = Math.floor(W / grid);
+  const patchH = Math.floor(H / grid);
+  const batch = grid * grid;
+  const session = await loadModel(config.modelUrl);
+
+  opts?.onProgress?.(`Tính heatmap ${grid}×${grid}…`);
+
+  // Build batched tensor: for sample i = (row r, col c), set pixels inside the
+  // patch to 0.5 (neutral gray) — masks the region without introducing extreme
+  // black/white pixels that would bias the model.
+  const stride = 3 * W * H;
+  const batched = new Float32Array(batch * stride);
+  for (let r = 0; r < grid; r++) {
+    for (let c = 0; c < grid; c++) {
+      const sampleIdx = r * grid + c;
+      const offset = sampleIdx * stride;
+      batched.set(baselineTensor, offset);
+      const x0 = c * patchW;
+      const y0 = r * patchH;
+      const x1 = c === grid - 1 ? W : x0 + patchW;
+      const y1 = r === grid - 1 ? H : y0 + patchH;
+      for (let chan = 0; chan < 3; chan++) {
+        const channelBase = offset + chan * W * H;
+        for (let y = y0; y < y1; y++) {
+          for (let x = x0; x < x1; x++) {
+            batched[channelBase + y * W + x] = 0.5;
+          }
+        }
+      }
+    }
+  }
+
+  const inputName = session.inputNames[0] ?? 'input';
+  const outputName = session.outputNames[0] ?? 'output';
+  const feeds: Record<string, ort.Tensor> = {
+    [inputName]: new ort.Tensor('float32', batched, [batch, 3, H, W]),
+  };
+  const out = await session.run(feeds);
+  const outData = out[outputName]?.data as Float32Array | undefined;
+  if (!outData) throw new Error('Occlusion inference missing output');
+
+  const numLabels = baselineScores.length;
+  const heatmaps: Record<number, { width: number; height: number; data: number[] }> = {};
+  for (const li of labelIndices) {
+    const baseline = baselineScores[li] ?? 0;
+    const data = new Array<number>(grid * grid);
+    let max = 0;
+    for (let s = 0; s < batch; s++) {
+      const masked = outData[s * numLabels + li] ?? baseline;
+      // Drop in confidence when this patch is hidden = importance of patch.
+      const drop = Math.max(0, baseline - masked);
+      data[s] = drop;
+      if (drop > max) max = drop;
+    }
+    // Normalize to [0..1] for renderer. Guard against all-zero (label not influenced).
+    if (max > 1e-6) {
+      for (let i = 0; i < data.length; i++) data[i] = data[i] / max;
+    }
+    heatmaps[li] = { width: grid, height: grid, data };
+  }
+  return heatmaps;
 }
 
 export async function runInference(
@@ -159,5 +252,6 @@ export async function runInference(
     inputImageHash: hash,
     inputWidth: config.inputWidth,
     inputHeight: config.inputHeight,
+    _cachedTensor: tensorData,
   };
 }
