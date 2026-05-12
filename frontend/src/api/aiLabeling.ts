@@ -8,6 +8,20 @@ export interface AiModelConfig {
   labelsVi: string[];
   inputWidth: number;
   inputHeight: number;
+  /** DICOM Modality this model was configured for. Server echoes the resolved value. */
+  modality: string;
+  /** True when the ONNX file is present on the server (or a ModelUrl override is set). */
+  available: boolean;
+}
+
+/** Summary of every configured modality — used to disable the AI button early when unsupported. */
+export interface AiModalitySummary {
+  modality: string;
+  aliases: string[];
+  modelName: string;
+  modelVersion: string;
+  available: boolean;
+  note?: string;
 }
 
 export interface AiLabel {
@@ -81,8 +95,14 @@ export interface ReviewAiResultRequest {
   reviewNote?: string;
 }
 
-export async function getModelConfig(): Promise<AiModelConfig> {
-  const { data } = await apiClient.get<AiModelConfig>('/ai-labeling/config');
+export async function getModelConfig(modality?: string): Promise<AiModelConfig> {
+  const url = modality ? `/ai-labeling/config?modality=${encodeURIComponent(modality)}` : '/ai-labeling/config';
+  const { data } = await apiClient.get<AiModelConfig>(url);
+  return data;
+}
+
+export async function listModalities(): Promise<AiModalitySummary[]> {
+  const { data } = await apiClient.get<AiModalitySummary[]>('/ai-labeling/modalities');
   return data;
 }
 

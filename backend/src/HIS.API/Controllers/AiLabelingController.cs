@@ -76,7 +76,88 @@ public class AiLabelingController : ControllerBase
         IReadOnlyList<string> Labels,
         IReadOnlyList<string> LabelsVi,
         int InputWidth,
-        int InputHeight);
+        int InputHeight,
+        string Modality,
+        bool Available);
+
+    public record ModalitySummaryDto(
+        string Modality,
+        IReadOnlyList<string> Aliases,
+        string ModelName,
+        string ModelVersion,
+        bool Available,
+        string? Note);
+
+    /// <summary>
+    /// Phase 1 multi-modality: pick the ONNX model whose `Modalities[]` list
+    /// matches the requested DICOM Modality code (case-insensitive). Falls
+    /// back to the legacy flat config block (CR/DX) when:
+    ///   - the caller passes no modality, or
+    ///   - the requested modality has no entry in Models[].
+    /// Returns null if neither the requested entry nor the legacy block is
+    /// configured (controller will translate to 404).
+    /// </summary>
+    private (string? ModelFileName, string? ModelUrl, string ModelName,
+             string ModelVersion, int InputWidth, int InputHeight,
+             string[] Labels, string[] LabelsVi, string Modality, string? Note)?
+        ResolveModelConfig(string? modality)
+    {
+        var root = _config.GetSection("AiLabeling");
+        var defaultModality = root["DefaultModality"] ?? "CR";
+        var wanted = string.IsNullOrWhiteSpace(modality) ? defaultModality : modality.Trim().ToUpperInvariant();
+
+        var models = root.GetSection("Models").GetChildren().ToList();
+        foreach (var m in models)
+        {
+            var mods = m.GetSection("Modalities").Get<string[]>() ?? Array.Empty<string>();
+            if (mods.Any(x => string.Equals(x, wanted, StringComparison.OrdinalIgnoreCase)))
+            {
+                return (
+                    ModelFileName: m["ModelFileName"],
+                    ModelUrl: m["ModelUrl"],
+                    ModelName: m["ModelName"] ?? "unknown",
+                    ModelVersion: m["ModelVersion"] ?? "v1",
+                    InputWidth: m.GetValue<int?>("InputWidth") ?? 224,
+                    InputHeight: m.GetValue<int?>("InputHeight") ?? 224,
+                    Labels: m.GetSection("Labels").Get<string[]>() ?? Array.Empty<string>(),
+                    LabelsVi: m.GetSection("LabelsVi").Get<string[]>() ?? Array.Empty<string>(),
+                    Modality: mods.FirstOrDefault() ?? wanted,
+                    Note: m["_note"]);
+            }
+        }
+
+        // Fallback to legacy flat keys — only valid for CR/DX equivalents.
+        if (string.Equals(wanted, defaultModality, StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                ModelFileName: root["ModelFileName"],
+                ModelUrl: root["ModelUrl"],
+                ModelName: root["ModelName"] ?? "TorchXRayVision-DenseNet121",
+                ModelVersion: root["ModelVersion"] ?? "NIH14-v1",
+                InputWidth: root.GetValue<int?>("InputWidth") ?? 224,
+                InputHeight: root.GetValue<int?>("InputHeight") ?? 224,
+                Labels: root.GetSection("Labels").Get<string[]>() ?? Array.Empty<string>(),
+                LabelsVi: root.GetSection("LabelsVi").Get<string[]>() ?? Array.Empty<string>(),
+                Modality: defaultModality,
+                Note: null);
+        }
+
+        return null;
+    }
+
+    /// <summary>True when the ONNX file is present on disk OR an explicit
+    /// ModelUrl was configured (admin pointed at R2/CDN). Used by FE to
+    /// decide whether "Phân tích AI" should be enabled for that modality.</summary>
+    private bool IsModelAvailable(string? modelFileName, string? modelUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(modelUrl)) return true;
+        if (string.IsNullOrWhiteSpace(modelFileName)) return false;
+        var safe = Path.GetFileName(modelFileName);
+        var primary = Path.Combine(AppContext.BaseDirectory, "wwwroot", "ai-models", safe);
+        if (System.IO.File.Exists(primary)) return true;
+        var alt = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "ai-models", safe);
+        return System.IO.File.Exists(alt);
+    }
 
     private static string StatusLabel(int s) => s switch
     {
@@ -90,21 +171,26 @@ public class AiLabelingController : ControllerBase
     /// <summary>Stream model ONNX kèm trong Docker image tới frontend.</summary>
     [HttpGet("model")]
     [AllowAnonymous]
-    public IActionResult GetModel()
+    public IActionResult GetModel([FromQuery] string? modality = null)
     {
         // ONNX Runtime's fetch() inside the browser doesn't carry JWT, so we
         // expose the model anonymously. Audit trail + ReviewStatus in the
         // POST /ai-labeling endpoint is where accountability lives.
-        var section = _config.GetSection("AiLabeling");
-        var fileName = section["ModelFileName"] ?? "chestxray_densenet121_res224_all.onnx";
-        fileName = Path.GetFileName(fileName);
+        var cfg = ResolveModelConfig(modality);
+        if (cfg == null)
+            return NotFound(new { message = $"Modality '{modality}' không hỗ trợ AI" });
 
+        var fileName = Path.GetFileName(cfg.Value.ModelFileName ?? "chestxray_densenet121_res224_all.onnx");
         var path = Path.Combine(AppContext.BaseDirectory, "wwwroot", "ai-models", fileName);
         if (!System.IO.File.Exists(path))
         {
             var alt = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "ai-models", fileName);
             if (System.IO.File.Exists(alt)) path = alt;
-            else return NotFound(new { message = $"Model file '{fileName}' not found on server" });
+            else return NotFound(new
+            {
+                message = $"Model file '{fileName}' chưa cài đặt cho modality '{cfg.Value.Modality}'. " +
+                          "Liên hệ admin chạy scripts/convert_*.py hoặc set AiLabeling__Models__N__ModelUrl trỏ về R2/CDN."
+            });
         }
         // Use PhysicalFile result — ASP.NET Core streams directly via SendFile,
         // no buffering. Needed for >32MB files on Cloud Run which otherwise hit
@@ -118,39 +204,91 @@ public class AiLabelingController : ControllerBase
 
     /// <summary>
     /// Frontend gọi khi load DicomViewer để biết model URL + labels.
-    /// Admin có thể override qua appsettings.json mục AiLabeling.
+    /// Optional query param `modality` cho phép pick model theo DICOM tag
+    /// (CR/DX → CXR model, CT → CT model, US → ultrasound model).
+    /// Admin có thể override qua appsettings.json mục AiLabeling.Models[*].
     /// </summary>
     [HttpGet("config")]
-    public ActionResult<ModelConfigDto> GetConfig()
+    public ActionResult<ModelConfigDto> GetConfig([FromQuery] string? modality = null)
     {
-        var section = _config.GetSection("AiLabeling");
-        // Defaults: TorchXRayVision NIH14 labels, 224x224 input.
-        var labels = section.GetSection("Labels").Get<string[]>() ?? new[]
+        var cfg = ResolveModelConfig(modality);
+        if (cfg == null)
         {
-            "Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Effusion",
-            "Emphysema", "Fibrosis", "Hernia", "Infiltration", "Mass",
-            "Nodule", "Pleural_Thickening", "Pneumonia", "Pneumothorax"
-        };
-        var labelsVi = section.GetSection("LabelsVi").Get<string[]>() ?? new[]
-        {
-            "Xẹp phổi", "Tim to", "Đông đặc phổi", "Phù phổi", "Tràn dịch màng phổi",
-            "Khí phế thũng", "Xơ phổi", "Thoát vị", "Thâm nhiễm", "Khối u",
-            "Nốt phổi", "Dày màng phổi", "Viêm phổi", "Tràn khí màng phổi"
-        };
+            return NotFound(new ModelConfigDto(
+                ModelUrl: string.Empty,
+                ModelName: string.Empty,
+                ModelVersion: string.Empty,
+                Labels: Array.Empty<string>(),
+                LabelsVi: Array.Empty<string>(),
+                InputWidth: 0,
+                InputHeight: 0,
+                Modality: modality ?? string.Empty,
+                Available: false));
+        }
 
-        // Default to the embedded model endpoint if admin hasn't overridden via env var.
-        var modelUrl = section["ModelUrl"];
+        var resolved = cfg.Value;
+
+        // Build a URL the browser can fetch directly. Admin override (ModelUrl
+        // pointing at R2/CDN) takes precedence; otherwise stream via this API.
+        var modelUrl = resolved.ModelUrl;
         if (string.IsNullOrEmpty(modelUrl))
-            modelUrl = $"{Request.Scheme}://{Request.Host}/api/ai-labeling/model";
+            modelUrl = $"{Request.Scheme}://{Request.Host}/api/ai-labeling/model?modality={Uri.EscapeDataString(resolved.Modality)}";
+
+        var available = IsModelAvailable(resolved.ModelFileName, resolved.ModelUrl);
 
         return Ok(new ModelConfigDto(
             modelUrl,
-            section["ModelName"] ?? "TorchXRayVision-DenseNet121",
-            section["ModelVersion"] ?? "NIH14-v1",
-            labels,
-            labelsVi,
-            section.GetValue<int?>("InputWidth") ?? 224,
-            section.GetValue<int?>("InputHeight") ?? 224));
+            resolved.ModelName,
+            resolved.ModelVersion,
+            resolved.Labels,
+            resolved.LabelsVi,
+            resolved.InputWidth,
+            resolved.InputHeight,
+            resolved.Modality,
+            available));
+    }
+
+    /// <summary>
+    /// FE gọi để biết danh sách modality nào server đã cấu hình + sẵn sàng.
+    /// Dùng để disable button "Phân tích AI" trên DicomViewer khi modality
+    /// chưa có model. Nhanh hơn việc gọi /config riêng cho từng modality.
+    /// </summary>
+    [HttpGet("modalities")]
+    public ActionResult<IReadOnlyList<ModalitySummaryDto>> ListModalities()
+    {
+        var result = new List<ModalitySummaryDto>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var section = _config.GetSection("AiLabeling");
+
+        foreach (var m in section.GetSection("Models").GetChildren())
+        {
+            var mods = m.GetSection("Modalities").Get<string[]>() ?? Array.Empty<string>();
+            if (mods.Length == 0) continue;
+            var primary = mods[0];
+            if (!seen.Add(primary)) continue;
+            result.Add(new ModalitySummaryDto(
+                Modality: primary,
+                Aliases: mods.Skip(1).ToArray(),
+                ModelName: m["ModelName"] ?? "",
+                ModelVersion: m["ModelVersion"] ?? "",
+                Available: IsModelAvailable(m["ModelFileName"], m["ModelUrl"]),
+                Note: m["_note"]));
+        }
+
+        // Fallback to legacy flat block when Models[] is empty (older deploys).
+        if (result.Count == 0)
+        {
+            var defaultModality = section["DefaultModality"] ?? "CR";
+            result.Add(new ModalitySummaryDto(
+                Modality: defaultModality,
+                Aliases: defaultModality == "CR" ? new[] { "DX" } : Array.Empty<string>(),
+                ModelName: section["ModelName"] ?? "TorchXRayVision-DenseNet121",
+                ModelVersion: section["ModelVersion"] ?? "v1",
+                Available: IsModelAvailable(section["ModelFileName"], section["ModelUrl"]),
+                Note: null));
+        }
+
+        return Ok(result);
     }
 
     /// <summary>Frontend gọi sau khi chạy inference xong để lưu audit.</summary>

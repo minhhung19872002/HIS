@@ -42,6 +42,11 @@ interface Props {
   previewUrl: string;
   patientId?: string;
   radiologyRequestId?: string;
+  /** DICOM Modality (CR, DX, CT, US, MG, MR…). When set, the modal asks the
+   *  backend for the modality-specific model. Falls back to default (CR) when
+   *  omitted. Backend returns 404 + Available:false if the modality has no
+   *  model configured. */
+  modality?: string;
   onAccepted?: (labels: AiLabel[]) => void;
 }
 
@@ -52,6 +57,7 @@ export default function AiLabelingModal({
   previewUrl,
   patientId,
   radiologyRequestId,
+  modality,
   onAccepted,
 }: Props) {
   const [config, setConfig] = useState<AiModelConfig | null>(null);
@@ -73,10 +79,37 @@ export default function AiLabelingModal({
     setSavedResult(null);
     setAccepted({});
     setReviewNote('');
+    setConfig(null);
 
-    getModelConfig().then(setConfig).catch(() => setError('Không tải được cấu hình model AI'));
+    getModelConfig(modality)
+      .then((c) => {
+        // Backward-compat: pre-Phase-1 backends don't return `modality` or
+        // `available`. Treat absence as "yes, available" so the modal keeps
+        // working on older deploys.
+        const normalized: AiModelConfig = {
+          ...c,
+          modality: c.modality ?? modality ?? 'CR',
+          available: c.available ?? true,
+        };
+        setConfig(normalized);
+        // Only block Run when the backend explicitly says unavailable.
+        if (c.available === false) {
+          setError(
+            `Model AI cho modality "${normalized.modality}" chưa cài đặt. ` +
+            'Admin cần chạy scripts/convert_*.py hoặc cấu hình ModelUrl trỏ về CDN/R2.',
+          );
+        }
+      })
+      .catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : '';
+        if (/404|not.found|Modality.*không hỗ trợ/i.test(msg)) {
+          setError(`Modality "${modality ?? 'mặc định'}" chưa được cấu hình AI trong appsettings.AiLabeling.Models[].`);
+        } else {
+          setError('Không tải được cấu hình model AI');
+        }
+      });
     getAiHistoryByStudy(studyInstanceUID).then(setHistory).catch(() => {});
-  }, [open, studyInstanceUID]);
+  }, [open, studyInstanceUID, modality]);
 
   const handleRun = useCallback(async () => {
     if (!config) return;
@@ -208,6 +241,7 @@ export default function AiLabelingModal({
         <Space>
           <RobotOutlined />
           AI Labeling — Phân tích tự động
+          {config && <Tag color="blue">{config.modality}</Tag>}
           {config && <Tag color="blue">{config.modelName}</Tag>}
         </Space>
       }
@@ -268,7 +302,7 @@ export default function AiLabelingModal({
                 size="large"
                 icon={<RobotOutlined />}
                 onClick={handleRun}
-                disabled={!config}
+                disabled={!config || !config.available}
                 data-testid="ai-labeling-run-btn"
               >
                 Chạy phân tích AI

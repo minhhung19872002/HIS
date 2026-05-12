@@ -1065,6 +1065,7 @@ const DicomViewer: React.FC = () => {
           studyInstanceUID={studyInstanceUID}
           previewUrl={selectedImageUrl}
           patientId={studyInfo?.patientId}
+          modality={selectedSeries?.modality || studyInfo?.modality}
           onAccepted={(labels) => {
             setAiOverlayLabels(labels);
             setShowAiOverlay(true);
