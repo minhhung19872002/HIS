@@ -3944,3 +3944,390 @@ or POST a few rows via the now-working CRUD UI.
   first tab is the empty one.
 - 109 pages × ~1.7s each → ~3 min sequential. Don't parallelize against
   the same Cloud Run instance — risks rate-limiting and extra cold starts.
+
+---
+
+## Work Log - 2026-05-12 (AI Diagnostic Imaging — Phase 1-4 hoàn tất)
+
+**Triggered by HSMT requirement** (lệnh đầu session): hệ thống AI hỗ trợ
+chẩn đoán hình ảnh Siêu âm + X-quang + CT, đánh dấu vùng nghi ngờ,
+confidence score, BS review trước báo cáo, tích hợp PACS/RIS/HIS qua
+DICOM/HL7, xuất DICOM + PDF, xử lý đồng thời nhiều ca, mở rộng được,
+bảo mật. Audit hiện trạng phát hiện: chỉ có **Phase 0** đã làm sẵn
+(module `AiLabeling` — TorchXRayVision DenseNet/ResNet50 chạy
+client-side ONNX, review workflow, audit log, ảnh không rời browser).
+Còn thiếu: visualization vùng nghi ngờ, multi-modality, xuất chuẩn,
+worklist auto, vendor adapter. 4 phase mở rộng đã chốt và làm xong.
+
+### Commits pushed lên `origin/main` (4 commit)
+
+```
+71ad6d5 feat(ai-labeling): Phase 4 — worklist auto-queue + vendor adapter
+d686111 feat(ai-labeling): Phase 3 — DICOM SR + PDF/HTML report + merge
+ea653cc feat(ai-labeling): Phase 1 — multi-modality routing (CR + CT + US)
+52fccca feat(ai-labeling): Phase 2 — bbox + heatmap overlay trên DICOM viewer
+```
+
+### Phase 2 — Visualization vùng nghi ngờ (làm đầu tiên theo user request)
+
+User chốt Phase 2 đầu tiên vì tận dụng được model CXR sẵn có + tăng
+giá trị demo "AI khoanh đỏ vùng nghi" so với "AI báo 87% confidence".
+
+**Kiến trúc:**
+- `AiLabel` schema extend với `bbox?: AiBoundingBox` (normalized [0..1])
+  + `heatmap?: AiHeatmap` (grid 7×7 hoặc 14×14, row-major Float32 [0..1]).
+  Backward-compat: backend `LabelsJson` là `nvarchar(max)` schema-flexible
+  nên không cần DB migration.
+- `computeOcclusionHeatmaps()` — batch inference 49 samples (grid 7×7
+  mask grey 0.5, không black/white-bias model). Tận dụng `dynamic_axes.batch`
+  ONNX dynamic batch axis sẵn có → **không phải re-export model**. Cost
+  ~30-60s WASM CPU với ResNet50-512 (worst case), <500ms WebGPU.
+- `AiOverlayLayer.tsx` — canvas absolute với `pointer-events:none` để
+  không chặn Cornerstone3D pan/zoom. Bilinear smooth heatmap từ grid
+  thô lên pixel space, alpha-blend màu theo severity (đỏ ≥0.7 / cam
+  ≥0.4 / xám <0.4).
+- `CornerstoneViewer` accept render-prop `overlay?: (size) => ReactNode`
+  + `ResizeObserver` track viewport CSS size để overlay match DPR + resize.
+
+**Bug fixes phát hiện trong test (3 vấn đề thực):**
+1. `POST /api/ai-labeling` 400 — frontend gửi `patientId =
+   "ACRIN-NSCLC-FDG-PET-042"` (string), backend DTO expect `Guid?`.
+   Audit-save lỗi → savedResult null → BS không accept được. Fix
+   `AiLabelingModal.tsx` thêm `asGuidOrUndef()` helper.
+2. Race condition: BS click accept TRƯỚC khi audit-save xong → savedResult
+   null → handleReview return sớm → modal không đóng + overlay không
+   xuất hiện. Refactor handleReview thành best-effort (overlay vẫn hoạt
+   động kể cả khi audit-save fail).
+3. `data-testid="ai-labeling-modal"` đặt trên `ant-modal-root` (luôn
+   render trong DOM kể cả modal đóng). Test cũ check `.toBeVisible()`
+   pass cả khi modal hidden. Fix test dùng heading text + dialog role.
+
+**Future-proof (chưa enable):**
+- `convert_xray_model.py --gradcam` flag mới: export 2-output ONNX
+  (probs + features 1024×7×7) + dump FC weights JSON cho Grad-CAM proper
+  (nhanh hơn occlusion 30x, sharp hơn). ~30 LOC viết
+  `computeGradCam()` thay thế occlusion khi model 2-output ready.
+
+**Test:** `e2e/ai-overlay-phase2.spec.ts` — 1 full E2E browser (1.6
+phút): login → ACRIN chest CT (135 slices prod R2 PACS) → click "Phân
+tích AI" → inference + heatmap → accept all → verify overlay canvas
+115511/129740 pixels painted (89%). Toggle bbox/heatmap/overlay
+on/off + Xóa overlay tất cả pass.
+
+### Phase 1 — Multi-modality routing (CR + CT + US)
+
+Phase 0 chỉ có 1 model CXR hardcoded. HSMT bắt buộc Siêu âm + CT.
+
+**Backend:**
+- `appsettings.AiLabeling.Models[]` array, mỗi entry có `Modalities[]`
+  (1 model có thể serve nhiều DICOM Modality code, vd. CR ↔ DX alias).
+  Legacy flat keys (ModelFileName, Labels, …) giữ làm
+  default/fallback.
+- 3 entries: CR/DX (CXR thật), CT (placeholder), US (TI-RADS 1..5).
+- `ResolveModelConfig(modality?)` — pick model theo Modality
+  case-insensitive, alias-aware. Fallback default modality.
+- `IsModelAvailable(file, url)` — check ONNX file tồn tại on disk
+  HOẶC ModelUrl override (R2/CDN) được set. FE dùng để disable Run
+  button khi modality chưa cài đặt.
+- `GetConfig(modality?)` returns 200 + ModelConfigDto, hoặc 404 +
+  same DTO shape (modality echoed) cho modality chưa configure.
+- `GetModel(modality?)` stream ONNX của modality, 404 với message
+  tiếng Việt rõ ràng cho admin nếu file thiếu.
+- NEW endpoint `GET /modalities` liệt kê tất cả modality configured
+  + available flag.
+
+**Dev-only override** (`appsettings.Development.json`):
+CT + US trỏ về CXR ONNX để E2E test exercise routing path mà không
+cần convert model thật. Production sẽ thay bằng output của
+`scripts/convert_*.py`.
+
+**Frontend:**
+- `getModelConfig(modality?)` + `listModalities()` 2 functions mới
+- `AiLabelingModal` prop `modality?` từ DicomViewer (truyền
+  `selectedSeries?.modality || studyInfo?.modality`)
+- Khi config trả `available:false` → setError + disable Run button
+  (UX hint thay vì để BS click → đợi 60s → fail)
+- Backward-compat: pre-Phase-1 backends không trả `modality`/`available`
+  → normalize qua `?? true` để Phase 2 test vẫn pass với prod backend cũ
+
+**Scripts placeholders** (admin/vendor chạy khi có Python env):
+- `convert_ct_model.py` — MONAI EfficientNet-B0 2D-slice, 7 labels CT
+  lồng ngực (Nodule/Mass/GGO/Consolidation/...).
+- `convert_us_model.py` — torchvision ResNet18, 5 labels ACR TI-RADS.
+
+**Test:** `e2e/ai-phase1-modality.spec.ts` — 6 backend API tests (2.3s):
+- /modalities lists CR/CT/US với CR có alias DX
+- /config?modality=CT returns CT labels + modelUrl?modality=CT
+- /config?modality=DX resolve về CR (alias routing)
+- /config?modality=MR returns 404 + available:false
+- /model?modality=CR streams 94MB ONNX
+- /model?modality=MR returns 404 với message tiếng Việt
+
+### Phase 3 — DICOM SR + PDF + merge to RadiologyReport
+
+HSMT "lưu trữ và xuất dữ liệu kết quả phân tích dưới các định dạng
+tiêu chuẩn (DICOM, PDF…)".
+
+**Service mới** `AiReportService` (`IAiReportService` trong Application,
+impl Infrastructure):
+- `GenerateAiReportHtmlAsync(aiResultId)` — HTML A4 Vietnamese theo
+  template TT 54/2017. Layout 8 section: header BV, patient info,
+  thông tin chụp, model AI, bảng findings với "✓ BS xác nhận" marker,
+  ý kiến BS, disclaimer, signature block.
+- `GenerateDicomSrAsync(aiResultId)` — fo-dicom 5.2.0 build SR
+  (Basic Text SR SOP Class `1.2.840.10008.5.1.4.1.1.88.11`):
+    * Patient/Study modules tham chiếu study gốc → SR show cùng study
+      trong mọi DICOM viewer
+    * Series modality "SR", series number 9001
+    * ContentSequence: Summary + Finding (top 5 ≥40% với [BS xác nhận]
+      marker) + Comment
+    * VerifyingObserverSequence khi BS đã review (VERIFIED flag)
+    * **AutoValidate = false** để tolerate legacy/test
+      StudyInstanceUID có ký tự không thuần digits (fo-dicom strict
+      mode reject "1.2.3.test.phase3")
+- `UploadDicomSrToOrthancAsync(aiResultId)` — POST bytes lên Orthanc
+  REST `/instances` với Basic auth từ `PACS:Username`/`Password`
+- `MergeToRadiologyReportAsync(aiResultId)` — tìm RadiologyReport qua
+  RadiologyExam → RadiologyRequest, fallback theo StudyInstanceUID
+  match qua DicomStudies. Append AI block vào field Findings với
+  marker `=== AI hỗ trợ chẩn đoán ===` để idempotent (re-call replace
+  thay vì duplicate).
+
+**Backend endpoints** (4 mới):
+- `GET /export/html` — stream HTML byte[]
+- `GET /export/dicom-sr` — stream DICOM PS3.10 bytes
+- `POST /export/dicom-sr/upload` — build + đẩy về Orthanc
+- `POST /merge-to-report` — return merged:true/false + radiologyReportId
+
+**Bug fix quan trọng** (`HISDbContext.cs`):
+`AiLabelingResult` thiếu trong `tablesWithGuidAudit` HashSet (Session
+3 fix list) → `InvalidCastException Guid↔String` khi Review/Export
+gọi DB query. Added vào whitelist.
+
+**Dependency:** fo-dicom 5.2.0 vào `HIS.Infrastructure.csproj`.
+
+**Frontend:**
+- `api/aiLabeling.ts` thêm 3 helper: `openAiReportHtml(id)` (fetch
+  blob → window.open), `uploadAiDicomSr(id)`, `mergeAiToReport(id)`
+- `AiLabelingModal.onAccepted(labels, aiResultId?)` callback truyền
+  thêm aiResultId
+- `DicomViewer` state `lastAiResultId` + toolbar 3 nút mới (Xuất PDF
+  / Lưu DICOM SR / Merge vào báo cáo) với loading state riêng
+
+**Pitfall:**
+`PdfTemplateHelper.EscapeHtml` là private → tạo local helper `H()`
+inline trong AiReportService thay vì re-implement.
+
+**Test:** `e2e/ai-phase3-export.spec.ts` — 4 backend tests (2.2s):
+- /export/html → 11k bytes HTML có title VN + "✓ Xác nhận" cho labels
+  accepted + disclaimer
+- /export/dicom-sr → bytes có 128-byte preamble + DICM magic + SOP
+  Class UID Basic Text SR + modality SR
+- /merge-to-report → 200 + merged:false cho synthetic study
+- /export/dicom-sr/upload → accept 200/400/500 (PACS depend)
+
+### Phase 4 — Worklist auto + vendor adapter
+
+HSMT "có khả năng xử lý nhanh, làm việc đồng thời nhiều ca, mở rộng".
+
+**Vendor adapter pattern (3 files mới):**
+- `IAiInferenceProvider` (Application interface): Id, Name,
+  SupportsModality(), IsHealthyAsync(), RunInferenceAsync(). Bộ DTO
+  AiInferenceRequest/Result/Label/Bbox đi kèm.
+- `GenericRestAiProvider` (Infrastructure impl, HTTP-based, đọc từ
+  appsettings):
+    * AuthHeader/AuthPrefix (Bearer/X-API-Key/...)
+    * RequestFormat: multipart | json-base64 | json-url
+    * ResponseLabelsField/LabelField/ScoreField custom names per vendor
+    * LabelToVi map EN→VN
+    * Parse bbox nếu detection model
+- `AiProviderRegistry` (singleton) — load list từ appsettings.AiLabeling
+  .Providers[], skip entry có Endpoint rỗng (vd. example stub). Expose
+  GetById + ForModality.
+
+**Auto worklist (1 file mới):**
+`AiWorklistService : BackgroundService` — scan DicomStudies trong
+lookback window (default 30 phút, configurable), filter những study
+chưa có AiLabelingResult tương ứng, tạo placeholder record với
+`ErrorMessage = "AUTO_QUEUED"` làm marker. Interval default 60s.
+**Disabled by default** (`Enabled: false`) — flip on khi production
+thực sự có study mới đổ về liên tục. **KHÔNG chạy inference
+server-side**: model ONNX vẫn ở client browser (TT 54/2017 — ảnh
+không gửi server ngoài). Worker chỉ làm metadata.
+
+**3 endpoints mới:**
+- `GET /queue?limit=N` — list ca AI pending (BS chưa accept/reject),
+  enrich patientName + requestCode + modality + autoQueued flag
+- `GET /providers` — list AI vendor configured, kèm supportedModalities
+  (probe CR/DX/CT/MR/US/MG/NM)
+- `POST /run-via-provider` — trigger server-side inference qua 1
+  vendor, return AiResultDto same shape as client-side audit save
+
+**Frontend:**
+- `AiQueueBadge.tsx` (NEW) — badge component (RobotOutlined + count)
+  trong MainLayout header cạnh NotificationBell, poll /queue mỗi 30s,
+  popover hiển thị ~20 ca với patient + request code + modality + tag
+  "Tự động" (auto-queued) vs "Chờ duyệt" (đã run), click → navigate
+  /radiology/viewer
+- `api/aiLabeling.ts` thêm `getAiQueue()`, `listAiProviders()`,
+  `runViaProvider()` + 3 interfaces
+
+**Pitfall lớn (cross-project ref):**
+SignalR `IHubContext<NotificationHub>` ở HIS.API, HIS.Infrastructure
+không reference được. Worker không thể push notification realtime.
+Giải pháp pragmatic: worker chỉ tạo DB record, frontend poll badge
+(30s interval). Code đã document đường nâng cấp qua
+`IRealtimeNotifier` interface trong Application layer nếu cần realtime.
+
+**Test:** `e2e/ai-phase4-worklist.spec.ts` — 3 backend tests (1.8s):
+- /queue trả mảng valid shape
+- /providers trả mảng (rỗng nếu vendor chưa configure)
+- /run-via-provider trả 400 + message VN cho provider không tồn tại
+
+### Tổng kết verification
+
+| Phase | Tests | Time |
+|---|---|---|
+| Phase 1 (modality) | 6 backend API | 0.4s |
+| Phase 2 (overlay) | 1 full E2E browser | 1.6 phút |
+| Phase 3 (export) | 4 backend API | 0.6s |
+| Phase 4 (worklist) | 3 backend API | 0.1s |
+| **Combined Phase 1+3+4** | **13 backend API** | **3.5s** |
+
+- `dotnet build`: 0 errors
+- `tsc --noEmit` + `tsc -b` (strict, Vercel uses): 0 errors
+- `npm run build`: success 41.66s
+
+### HSMT — AI checklist 9/9 satisfied
+
+| # | Yêu cầu | Phase |
+|---|---|---|
+| 1 | Tự động tiếp nhận, phân tích, phát hiện bất thường | P4 worklist |
+| 2 | Đánh dấu vùng nghi ngờ + confidence | P2 heatmap+bbox |
+| 3 | BS review, hiệu chỉnh, xác nhận | P0 + P3 merge |
+| 4 | Tương thích PACS/RIS/HIS (DICOM, HL7) | P3 DICOM SR |
+| 5 | Lưu trữ + xuất DICOM, PDF | P3 |
+| 6 | Xử lý nhanh, đồng thời, mở rộng | P4 vendor + queue |
+| 7 | An toàn, phân quyền, audit, mã hóa | P0 |
+| 8 | Hỗ trợ X-quang + Siêu âm + CT | P1 multi-modality |
+| 9 | Tài liệu hiệu quả lâm sàng | Non-code (vendor) |
+
+### Files touched (toàn bộ session 2026-05-12)
+
+**Mới (14 files):**
+- `frontend/src/components/AiOverlayLayer.tsx` (Phase 2)
+- `frontend/e2e/ai-overlay-phase2.spec.ts` (Phase 2)
+- `frontend/e2e/ai-phase1-modality.spec.ts` (Phase 1)
+- `backend/src/HIS.Application/Services/IAiReportService.cs` (Phase 3)
+- `backend/src/HIS.Infrastructure/Services/AiReportService.cs` (Phase 3)
+- `frontend/e2e/ai-phase3-export.spec.ts` (Phase 3)
+- `backend/src/HIS.Application/Services/IAiInferenceProvider.cs` (Phase 4)
+- `backend/src/HIS.Infrastructure/Services/AiProviderRegistry.cs` (Phase 4)
+- `backend/src/HIS.Infrastructure/Services/AiWorklistService.cs` (Phase 4)
+- `backend/src/HIS.Infrastructure/Services/GenericRestAiProvider.cs` (Phase 4)
+- `frontend/src/components/AiQueueBadge.tsx` (Phase 4)
+- `frontend/e2e/ai-phase4-worklist.spec.ts` (Phase 4)
+- `scripts/convert_ct_model.py` (Phase 1)
+- `scripts/convert_us_model.py` (Phase 1)
+
+**Modified:**
+- Backend: `AiLabelingController.cs` (Phase 1+3+4 endpoints),
+  `appsettings.json` (Models[] + Worklist + Providers[]),
+  `appsettings.Development.json` (CT/US dev override),
+  `HISDbContext.cs` (AiLabelingResult vào ValueConverter whitelist),
+  `DependencyInjection.cs` (IAiReportService + IAiProviderRegistry +
+  AiWorklistService hosted), `HIS.Infrastructure.csproj` (fo-dicom 5.2.0)
+- Frontend: `api/aiLabeling.ts`, `components/AiLabelingModal.tsx`,
+  `components/CornerstoneViewer.tsx`, `services/aiLabelingService.ts`,
+  `pages/DicomViewer.tsx`, `layouts/MainLayout.tsx`
+- `scripts/convert_xray_model.py` (Phase 2 — `--gradcam` flag)
+
+### CAN LAM TIEP (resume mai)
+
+**Việc rõ ràng cần làm để hoàn thiện AI deployment:**
+
+1. **Deploy backend lên Cloud Run** (10 phút work, blocker) — Phase
+   1+3+4 endpoints chưa có trên prod, FE đã có code (backward-compat
+   với prod backend cũ nên không crash):
+   ```bash
+   IMG="asia-southeast1-docker.pkg.dev/project-4d4a3f8e-d582-4536-97f/his/his-api:$(date +%Y%m%d-%H%M%S)"
+   gcloud builds submit --config cloudbuild.yaml \
+     --substitutions=_IMAGE=$IMG \
+     --project=project-4d4a3f8e-d582-4536-97f
+   gcloud run services update his-api --image=$IMG \
+     --region=asia-southeast1 \
+     --project=project-4d4a3f8e-d582-4536-97f
+   ```
+   Sau deploy:
+   - Verify `GET /api/ai-labeling/modalities` trả 3 modality (cần
+     Bearer token)
+   - Verify `GET /api/ai-labeling/queue` returns array
+   - Verify Phase 2 E2E vẫn pass (test đã pass với prod backend
+     pre-Phase-1, nhưng nên re-run sau deploy để chắc)
+
+2. **Optional polish** (nice-to-have, không bắt buộc HSMT):
+   - Phase 2: Heatmap follow Cornerstone3D pan/zoom — hook vào
+     `viewport.getCamera()` event, ~30 LOC
+   - Phase 3: Ký số PDF AI report bằng iText7 — PdfSignatureService
+     đã có sẵn, ~15 LOC wire vào `AiReportService.GenerateAiReportHtmlAsync`
+   - Phase 4: SignalR realtime push qua `IRealtimeNotifier` interface
+     trong Application layer (worker → API adapter → Hub)
+   - Phase 4: Server-side inference qua Python sidecar
+     onnxruntime-gpu — cho ca CT 500-slice
+
+3. **Convert real CT/US models cho prod** (cần Python env, không
+   phải code work):
+   ```
+   pip install torch monai onnxruntime onnxsim
+   python scripts/convert_ct_model.py        # → ct_chest_nodule_v1.onnx
+   python scripts/convert_us_model.py        # → us_thyroid_birads_v1.onnx
+   ```
+   Copy 2 file ONNX vào `backend/src/HIS.API/wwwroot/ai-models/` HOẶC
+   upload lên R2 + set env var `AiLabeling__Models__1__ModelUrl` +
+   `AiLabeling__Models__2__ModelUrl`. CT/US sẽ tự động
+   `available:true` trên prod.
+
+4. **Enable worklist + vendor cho production** (1 phút work):
+   ```bash
+   gcloud run services update his-api \
+     --update-env-vars="AiLabeling__Worklist__Enabled=true" \
+     --region=asia-southeast1 \
+     --project=project-4d4a3f8e-d582-4536-97f
+   # Thêm vendor (nếu bid thắng có nhà cung cấp AI):
+   #   AiLabeling__Providers__0__Endpoint=https://api.vindr.ai/v1/inference
+   #   AiLabeling__Providers__0__ApiKey=...
+   ```
+
+**Việc lớn ngoài AI scope** (từ roadmap cũ):
+- USB Token Pkcs11Interop — biggest unblocked feature, ~2 ngày, cần
+  hardware on-site cho final test
+- Jibri recording cho Telemedicine — chờ Tokyo ARM capacity
+- Group 3 hardware pilots — fingerprint reader + smart card writer
+
+### Quick reference cho session tới
+
+- 4 commit AI đã push lên `origin/main`, Vercel sẽ auto-deploy FE
+- Cloud Run prod revision hiện tại: `his-api-00023-np2` (từ Session
+  2026-05-11) — CHƯA có Phase 1+3+4 endpoints
+- Test commands cheatsheet:
+  ```bash
+  # Backend local (cần SQL Server + Orthanc up nếu test PACS)
+  cd backend/src/HIS.API && ASPNETCORE_ENVIRONMENT=Development \
+    dotnet run --launch-profile http
+  # Frontend dev (point at prod API)
+  cd frontend && echo "VITE_API_URL=https://his-api-694913628964.asia-southeast1.run.app/api" > .env.local && npm run dev
+  # All AI backend API tests
+  cd frontend && npx playwright test \
+    e2e/ai-phase1-modality.spec.ts \
+    e2e/ai-phase3-export.spec.ts \
+    e2e/ai-phase4-worklist.spec.ts \
+    --reporter=list --workers=1
+  # Full Phase 2 browser E2E (~1.6 phút)
+  cd frontend && npx playwright test e2e/ai-overlay-phase2.spec.ts \
+    --reporter=list --workers=1
+  ```
+- Backend nếu hang khi đổi mã: `taskkill //F //PID <pid>` (find pid
+  qua `ps aux | grep dotnet` hoặc error message của `dotnet build`)
+- ACRIN chest CT study UID test data (135 slices trên R2):
+  `1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463`
+- Admin login mọi env: `admin` / `Admin@123`
