@@ -4331,3 +4331,234 @@ Giải pháp pragmatic: worker chỉ tạo DB record, frontend poll badge
 - ACRIN chest CT study UID test data (135 slices trên R2):
   `1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463`
 - Admin login mọi env: `admin` / `Admin@123`
+
+---
+
+## Work Log - 2026-05-13 (AI Cloud Run deploy + Phase 2/3 polish)
+
+Triển khai AI Phase 1+3+4 lên prod + thêm 2 polish item. 3 revision Cloud
+Run cut trong session này (`00024-mk8` → `00025-vkv` → `00026-gvs`),
+revision cuối là production hiện tại.
+
+### Done
+
+**1. Deploy AI Phase 1+3+4 lên Cloud Run** (revision `his-api-00024-mk8`)
+- `gcloud builds submit` 3m37s → image
+  `his-api:20260513-143152`
+- `gcloud run services update` rolled out trong ~60s
+- Verified trên prod: `/modalities` trả 3 modality (CR available,
+  CT/US placeholder), `/queue` 200, `/providers` 200 (rỗng)
+
+**2. Enable AI worklist background service** (revision
+`his-api-00025-vkv`)
+- Set env: `AiLabeling__Worklist__Enabled=true`,
+  `AiLabeling__Worklist__IntervalSeconds=60`,
+  `AiLabeling__Worklist__LookbackMinutes=30`
+- Worker không crash, /queue endpoint OK. Sẽ auto-queue khi có
+  DicomStudy mới push qua PACS trong 30 phút gần đây.
+- `providers` vẫn rỗng vì chưa configure vendor thật. Document
+  cách add: `AiLabeling__Providers__0__Id/Endpoint/ApiKey/Modalities`
+
+**3. Smoke test 4 endpoint Phase 3+4** (verified live trên prod)
+| Endpoint | HTTP | Verify |
+|---|---|---|
+| `GET /{id}/export/html` | 200 | 18794 bytes HTML A4 tiếng Việt |
+| `GET /{id}/export/dicom-sr` | 200 | 2160 bytes DICOM, DICM magic offset 128 |
+| `POST /{id}/export/dicom-sr/upload` | 200 | Orthanc nhận, Modality=SR, SOPClassUID=1.2.840.10008.5.1.4.1.1.88.11 |
+| `POST /{id}/merge-to-report` | 200 | merged:false (test study không có RadiologyReport gốc — happy path) |
+- Cross-check Orthanc: SR upload thành công, nằm cùng study CT
+  gốc trong PACS. BS mở viewer thấy SR trong series list.
+- Pitfall: Google load balancer trả 411 "Content-Length required"
+  cho POST body rỗng → fix bằng `-H "Content-Length: 0"`
+- Pitfall: Test sai path lần đầu — đúng là
+  `/{id:guid}/export/html` không phải `/export/html?id=`
+
+**4. Polish #1 — Ký số PDF AI report bằng iText7** (revision
+`his-api-00026-gvs`, commit `1bd3bfc`)
+
+Backend (5 files modified):
+- `PdfSignatureService.cs`: thêm `SignPdfWithPfxAsync` method
+  load X509Certificate2 từ PFX bytes hoặc fallback self-signed cert
+  in-memory (cached static). Cert tự sinh BouncyCastle/.NET RSA 2048,
+  CN="HIS AI Report Signer (Self-Signed Demo)". Adobe Reader sẽ hiển
+  thị badge "Signed (Self-Signed)" — production cần thay bằng cert
+  BV qua config keys `AiLabeling:SigningCertPfxBase64` +
+  `AiLabeling:SigningCertPfxPassword`.
+- `PdfSignatureService.cs`: `_fontPath` fallback chain: Windows
+  Times → Linux DejaVu (`/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`)
+  → Liberation Serif → first candidate (graceful fallback).
+- `IAiReportService.cs` + `AiReportService.cs`: thêm
+  `GenerateAiReportSignedPdfAsync(aiResultId)` — pipeline
+  `GenerateAiReportHtmlAsync → ConvertHtmlToPdfAsync → SignPdfWithPfxAsync`.
+  Signer name = reviewer/creator FullName, reason = "Báo cáo phân
+  tích AI — {model} {version}", location = request code.
+- `AiLabelingController.cs`: endpoint mới `GET /{id:guid}/export/pdf`
+  trả `application/pdf` bytes.
+- `Dockerfile`: thêm `apt-get install -y fonts-dejavu fonts-liberation`
+  trên final stage để Vietnamese chars render đúng khi html2pdf trên
+  Linux container.
+
+Frontend (2 files):
+- `api/aiLabeling.ts`: thêm `downloadAiSignedPdf(aiResultId)` helper
+  (fetch blob, force download `.pdf`)
+- `pages/DicomViewer.tsx`: toolbar 2 nút thay vì 1:
+  - "Xem HTML" (đổi tên từ "Xuất PDF" — quick preview, Ctrl+P để in)
+  - "Tải PDF ký số" (primary button mới, download PDF đã ký)
+
+Smoke test trên prod:
+- `GET /export/pdf` → 200, 70 KB, `%PDF-1.7`, 3 `/Sig` objects,
+  1 `/ByteRange`, `adbe.pkcs7.detached` subfilter chuẩn PKCS#7
+
+**5. Polish #2 — Heatmap/bbox overlay follow Cornerstone3D pan/zoom**
+
+Frontend (3 files):
+- `CornerstoneViewer.tsx`: export type mới `ImageCanvasRect = { x, y, w, h }`.
+  Subscribe 3 events: `CORNERSTONE_CAMERA_MODIFIED` (pan/zoom drag),
+  `CORNERSTONE_STACK_NEW_IMAGE` (slice change), `CORNERSTONE_IMAGE_RENDERED`
+  (initial render). Helper `computeImageRect(viewport)` dùng
+  `viewport.worldToCanvas()` + `imageData.origin/spacing/dimensions` để
+  derive image bounds trong canvas CSS pixels. rAF coalescing tránh
+  recompute mỗi frame khi drag (60fps smooth). Render-prop `overlay`
+  signature đổi từ `(size)` → `(size, imageRect)`.
+- `AiOverlayLayer.tsx`: thêm prop `imageRect`. Refactor `drawHeatmap` +
+  `drawBbox` từ `(W, H)` thành `(rect)` — bbox vẽ tại
+  `rect.x + bb.x * rect.w`, heatmap upscale vào rect. Clip-rect bao
+  ngoài tránh overlay tràn ra ngoài viewport khi pan mạnh. Backward
+  compat: `imageRect=null` → fall back full-viewport (Phase 2 cũ).
+- `pages/DicomViewer.tsx`: update render-prop pass `imageRect` xuống
+  `AiOverlayLayer`.
+
+### Verification
+
+- `dotnet build HIS.sln`: 0 errors
+- `npm run build` (tsc -b + vite): 0 errors, 40.88s
+- Cloud Build: 4m22s SUCCESS
+- Cloud Run rollout: ~60s, revision `his-api-00026-gvs` 100% traffic
+- Endpoint `/export/pdf` smoke: 200, signed PDF với 3 /Sig + ByteRange
+
+### Git
+
+- 1 commit pushed: `1bd3bfc feat(ai-labeling): polish — signed PDF
+  report + overlay follows pan/zoom`
+- 9 files changed, +419/-26 lines
+- Vercel auto-deploy FE trigger từ push
+
+### Pitfalls hit
+
+- **Cloud Build poll 429**: vẫn nhớ từ session 2026-05-11. Submit 1
+  lần thôi, đừng hammer describe API.
+- **Wrong test path**: AiLabelingController endpoint là
+  `/{id:guid}/export/*` (path param), không phải `/export/*?id=`
+  (query). 4 endpoint Phase 3 đều theo pattern path-param. Document
+  đã đầy đủ trong CLAUDE.md.
+- **POST 411 từ Google LB**: POST body rỗng bị Google's HTTPS load
+  balancer reject. Fix `-H "Content-Length: 0"` hoặc dùng `--data ''`
+  khi test với curl.
+- **iText `PdfSigner.SignDetached` closes stream**: existing
+  `UnclosableMemoryStream` pattern đã handle. Em reuse cho
+  `SignPdfWithPfxAsync` không phát sinh issue mới.
+- **Self-signed cert key persistence**: dùng
+  `X509KeyStorageFlags.Exportable | EphemeralKeySet` khi load PFX
+  để cert hoạt động trên cả Windows + Linux không cần Windows cert
+  store. Round-trip qua PFX bytes (Export → Load) để private key
+  stable across `dispose()` của RSA gốc.
+- **CS3D event names**: `CORNERSTONE_CAMERA_MODIFIED`,
+  `CORNERSTONE_STACK_NEW_IMAGE`, `CORNERSTONE_IMAGE_RENDERED` —
+  match existing patterns line 213 cũ (`'CORNERSTONE_STACK_NEW_IMAGE'`).
+- **`viewport.worldToCanvas` 3D vec**: Cornerstone3D 3.x cần
+  `[x, y, z]` (3 components), không phải 2D. Em pass `[x, y, 0]` ok.
+- **vtk-style imageData getters**: CS3D 3.x đôi khi expose origin/
+  spacing/dimensions ở top-level `imageData.origin`, đôi khi qua
+  `imageData.imageData.getOrigin()`. Helper `computeImageRect()` thử
+  cả 2 với fallback `[0,0,0]` / `[1,1,1]` / null.
+
+### CAN LAM TIEP (mai)
+
+**Quick wins (~30-60 phút mỗi cái):**
+
+1. **Patient-portal `Guid.Empty` fallback cho 5 endpoint còn lại** —
+   Session 2026-04-29 + 2026-05-03 đã fix một phần
+   `ExtendedWorkflowServices` (portal queries với `Guid.Empty` fallback
+   để admin browse được). Vẫn còn ~5 endpoint trong các file portal
+   khác filter `AccountId == currentUserId` cứng → admin xem `/v2/patient-
+   portal` thấy nhiều tab empty. Grep `AccountId == currentUserId` trong
+   `backend/src/HIS.Infrastructure/Services/` tìm các method còn sót.
+
+2. **Smoke test full 121 v2 routes trên prod** — chạy lại
+   `scripts/test-prod/smoke_all_v2.py` (từ Session 2026-05-11) để
+   verify revision `his-api-00026-gvs` không break route nào sau khi
+   bump font + new endpoint. ~3 phút sequential.
+
+3. **AI worklist SignalR realtime push** — hiện FE `AiQueueBadge`
+   poll `/queue` mỗi 30s. Add `IRealtimeNotifier` interface trong
+   `HIS.Application` layer, `AiWorklistService` inject + call
+   `notifier.PushToGroup("admins", new { type: "ai-queue-added", ... })`,
+   adapter ở API layer wrap `IHubContext<NotificationHub>`. FE
+   `NotificationContext` listen event `ReceiveAiQueueUpdate` → set
+   queue state real-time. ~1 giờ.
+
+**Bigger items (chưa start):**
+
+4. **USB Token Pkcs11Interop full implementation** — biggest unblocked
+   feature. Programmatic PIN signing thay Windows dialog. PKCS#11
+   library (Net.Pkcs11Interop đã có trong project). Cần hardware
+   on-site cho final E2E test. ~2 ngày work.
+
+5. **Convert CT/US model thật** — chạy
+   `scripts/convert_ct_model.py` + `convert_us_model.py` cần Python
+   env có torch+monai+torchvision. Output ONNX upload R2 hoặc
+   `cp wwwroot/ai-models/`. Trên prod sẽ tự `available:true`. Caveat:
+   script export weights random — production thật cần fine-tuned
+   checkpoint (MONAI Apache 2.0 hoặc mua vendor có cert lâm sàng).
+
+6. **Jibri recording cho Telemedicine** — chờ Tokyo ARM 4-OCPU
+   capacity. Khi free, retry `python deploy/pacs/oracle/retry_arm.py`,
+   provision VM mới, deploy Jibri docker compose, reconfigure Jitsi
+   self-host (161.33.180.17) để Jibri record vào R2.
+
+7. **Group 3 hardware pilots** — fingerprint reader + smart card
+   writer. Cần vendor SDK + hardware on-site.
+
+**Optional polish AI (nice-to-have, low priority):**
+
+- Sign AI PDF bằng cert BV thật qua Cloud Secret Manager — set env
+  `AiLabeling__SigningCertPfxBase64=<base64 PFX>` +
+  `AiLabeling__SigningCertPfxPassword=<password>` trên Cloud Run.
+  Code đã support, chỉ cần secret + 1 lệnh `gcloud run services update`.
+- Server-side inference qua Python sidecar onnxruntime-gpu cho CT
+  500-slice (hiện browser ONNX overload khi >100 slice).
+
+### Quick reference cho session tới
+
+- **Cloud Run hiện tại**: `his-api-00026-gvs`, image
+  `his-api:20260513-193630` — đã có **đầy đủ AI Phase 1+2+3+4 + polish**
+- **Endpoint mới**: `GET /api/ai-labeling/{id}/export/pdf` trả signed PDF
+- **Self-signed cert demo CN**: `HIS AI Report Signer (Self-Signed
+  Demo),O=HIS,C=VN`. Adobe Reader: "Signed by Self-Signed Demo"
+  (warning vàng). Production thay bằng cert BV qua 2 config keys ở
+  trên.
+- **Dockerfile changes** (rebuilt vào image hiện tại):
+  - Linux fonts: `fonts-dejavu` + `fonts-liberation`
+- **CornerstoneViewer API mới**:
+  - `export type ImageCanvasRect = { x, y, w, h }`
+  - render-prop `overlay?: (size, imageRect: ImageCanvasRect | null) =>
+    React.ReactNode`
+- **Test commands cheatsheet**:
+  ```bash
+  # Smoke test signed PDF endpoint
+  TOKEN=$(curl -s -X POST https://his-api-694913628964.asia-southeast1.run.app/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"username":"admin","password":"Admin@123"}' \
+    | python -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
+  curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://his-api-694913628964.asia-southeast1.run.app/api/ai-labeling/362229e1-eade-475a-829a-12b6fffa7111/export/pdf" \
+    -o /tmp/ai.pdf
+  ```
+- **Replace self-signed cert với cert BV thật** khi có:
+  ```bash
+  PFX_B64=$(base64 -w0 hospital-cert.pfx)
+  gcloud run services update his-api \
+    --update-env-vars="AiLabeling__SigningCertPfxBase64=$PFX_B64,AiLabeling__SigningCertPfxPassword=<password>" \
+    --region=asia-southeast1 \
+    --project=project-4d4a3f8e-d582-4536-97f
+  ```
