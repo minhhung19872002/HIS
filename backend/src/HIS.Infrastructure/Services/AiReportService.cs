@@ -23,17 +23,20 @@ public class AiReportService : IAiReportService
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<AiReportService> _logger;
+    private readonly IPdfSignatureService _pdfSigner;
 
     public AiReportService(
         HISDbContext db,
         IConfiguration config,
         IHttpClientFactory httpFactory,
-        ILogger<AiReportService> logger)
+        ILogger<AiReportService> logger,
+        IPdfSignatureService pdfSigner)
     {
         _db = db;
         _config = config;
         _httpFactory = httpFactory;
         _logger = logger;
+        _pdfSigner = pdfSigner;
     }
 
     // ------------------------------------------------------------------
@@ -225,6 +228,47 @@ public class AiReportService : IAiReportService
             includePatient: false));
 
         return Encoding.UTF8.GetBytes(WrapHtmlPage("Báo cáo phân tích AI", body.ToString()));
+    }
+
+    // ==================================================================
+    // 1b. Signed PDF: HTML → PDF (iText html2pdf) → ký số bằng cert PFX
+    // ==================================================================
+
+    public async Task<byte[]> GenerateAiReportSignedPdfAsync(Guid aiResultId)
+    {
+        // Load metadata first so failure mode is "AI result not found" not
+        // "PDF conversion failed", and so signer name reflects the actual reviewer.
+        var (result, _, request, reviewer, creator) = await LoadAsync(aiResultId);
+
+        var htmlBytes = await GenerateAiReportHtmlAsync(aiResultId);
+        var pdfBytes = await _pdfSigner.ConvertHtmlToPdfAsync(htmlBytes);
+
+        // Optional: hospital PFX in config. If absent, signer falls back to
+        // a runtime self-signed cert (Adobe Reader will label it "Self-Signed").
+        byte[]? pfxBytes = null;
+        var pfxBase64 = _config["AiLabeling:SigningCertPfxBase64"];
+        if (!string.IsNullOrWhiteSpace(pfxBase64))
+        {
+            try { pfxBytes = Convert.FromBase64String(pfxBase64); }
+            catch { _logger.LogWarning("AiLabeling:SigningCertPfxBase64 không phải base64 hợp lệ, fallback self-signed"); }
+        }
+        var pfxPassword = _config["AiLabeling:SigningCertPfxPassword"];
+
+        var signerName = reviewer?.FullName ?? creator?.FullName ?? "HIS AI System";
+        var reason = $"Báo cáo phân tích AI — {result.ModelName} {result.ModelVersion}";
+        var location = request?.RequestCode != null ? $"Phiếu CĐHA {request.RequestCode}" : "HIS";
+
+        var signResult = await _pdfSigner.SignPdfWithPfxAsync(
+            pdfBytes, pfxBytes, pfxPassword, reason, location, signerName, visibleStamp: true);
+
+        if (!signResult.Success || signResult.SignedPdfBytes == null)
+        {
+            _logger.LogError("AI report PDF signing failed: {Msg}", signResult.Message);
+            // Return unsigned PDF rather than failing — BS vẫn tải được báo cáo
+            // dù không có chữ ký. Cosmetic note in HTML mentions disclaimer.
+            return pdfBytes;
+        }
+        return signResult.SignedPdfBytes;
     }
 
     // ==================================================================

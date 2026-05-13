@@ -38,7 +38,7 @@ import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
 import { createRoom, searchRooms, joinRoom } from '../api/videoConsultation';
 import AiLabelingModal from '../components/AiLabelingModal';
 import AiOverlayLayer from '../components/AiOverlayLayer';
-import { openAiReportHtml, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../api/aiLabeling';
+import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../api/aiLabeling';
 import { API_ORIGIN } from '../config/api';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import DicomViewerConfig from '../components/DicomViewerConfig';
@@ -817,9 +817,8 @@ const DicomViewer: React.FC = () => {
                           <>
                             <Button
                               size="small"
-                              icon={<DownloadOutlined />}
                               loading={aiExporting === 'pdf'}
-                              data-testid="ai-export-pdf"
+                              data-testid="ai-export-html"
                               onClick={() => {
                                 setAiExporting('pdf');
                                 try {
@@ -832,7 +831,27 @@ const DicomViewer: React.FC = () => {
                                 }
                               }}
                             >
-                              Xuất PDF
+                              Xem HTML
+                            </Button>
+                            <Button
+                              size="small"
+                              type="primary"
+                              icon={<DownloadOutlined />}
+                              loading={aiExporting === 'signed-pdf'}
+                              data-testid="ai-export-signed-pdf"
+                              onClick={async () => {
+                                setAiExporting('signed-pdf');
+                                try {
+                                  await downloadAiSignedPdf(lastAiResultId);
+                                  message.success('Tải PDF đã ký số thành công');
+                                } catch (e) {
+                                  message.error(e instanceof Error ? e.message : 'Tải PDF thất bại');
+                                } finally {
+                                  setAiExporting(null);
+                                }
+                              }}
+                            >
+                              Tải PDF ký số
                             </Button>
                             <Button
                               size="small"
@@ -887,12 +906,13 @@ const DicomViewer: React.FC = () => {
                         imageIds={cornerstoneImageIds}
                         initialIndex={Math.max(0, images.findIndex((i) => resolveApiUrl(i.imageUrl || '') === selectedImageUrl))}
                         height="calc(100vh - 460px)"
-                        overlay={(size) =>
+                        overlay={(size, imageRect) =>
                           showAiOverlay && aiOverlayLabels.length > 0 ? (
                             <AiOverlayLayer
                               labels={aiOverlayLabels}
                               width={size.width}
                               height={size.height}
+                              imageRect={imageRect}
                               showHeatmap={showAiHeatmap}
                               showBbox={showAiBbox}
                             />

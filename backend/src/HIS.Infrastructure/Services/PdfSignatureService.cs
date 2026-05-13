@@ -89,6 +89,21 @@ public interface IPdfSignatureService
     /// Verify all signatures in a signed PDF - NangCap6 API #10, #12
     /// </summary>
     HIS.Application.DTOs.PdfVerificationResult VerifyPdfSignatures(byte[] pdfBytes);
+
+    /// <summary>
+    /// Sign PDF using a PFX file (server-side cert, no USB Token / Pkcs11).
+    /// Use case: AI report signed by hospital cert on Cloud Run Linux. If
+    /// <paramref name="pfxBytes"/> is null, falls back to an in-memory
+    /// self-signed cert (demo mode — visible in Adobe Reader as "Self-Signed").
+    /// </summary>
+    Task<PdfSignatureResult> SignPdfWithPfxAsync(
+        byte[] pdfBytes,
+        byte[]? pfxBytes,
+        string? pfxPassword,
+        string reason,
+        string location,
+        string signerName,
+        bool visibleStamp = true);
 }
 
 public class RadiologyReportData
@@ -185,8 +200,17 @@ public class PdfSignatureService : IPdfSignatureService
     {
         _logger = logger;
 
-        // Sử dụng font Times New Roman có sẵn trong Windows
-        _fontPath = @"C:\Windows\Fonts\times.ttf";
+        // Vietnamese-capable font: Windows ships Times New Roman; Linux containers
+        // (Cloud Run) install DejaVu via fonts-dejavu in Dockerfile. Fall back to
+        // first existing path so PDF rendering doesn't crash on either OS.
+        var candidates = new[]
+        {
+            @"C:\Windows\Fonts\times.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+        };
+        _fontPath = candidates.FirstOrDefault(File.Exists) ?? candidates[0];
 
         // Thư mục lưu file PDF
         _outputFolder = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Radiology");
@@ -1021,6 +1045,126 @@ public class PdfSignatureService : IPdfSignatureService
             {
                 Success = false,
                 Message = $"Lỗi ký PDF hiện: {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Lazy-init self-signed cert for demo signing (no USB Token / Pkcs11 needed).
+    /// Cached static so we don't regenerate on every request. Replace with a real
+    /// hospital cert PFX loaded from Cloud Secret Manager before production.
+    /// </summary>
+    private static X509Certificate2? _selfSignedCache;
+    private static readonly object _selfSignedLock = new();
+
+    private static X509Certificate2 GetOrCreateSelfSignedCert()
+    {
+        if (_selfSignedCache != null) return _selfSignedCache;
+        lock (_selfSignedLock)
+        {
+            if (_selfSignedCache != null) return _selfSignedCache;
+
+            using var rsa = System.Security.Cryptography.RSA.Create(2048);
+            var req = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                "CN=HIS AI Report Signer (Self-Signed Demo),O=HIS,C=VN",
+                rsa,
+                System.Security.Cryptography.HashAlgorithmName.SHA256,
+                System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+            req.CertificateExtensions.Add(new X509KeyUsageExtension(
+                X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation, true));
+            req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+
+            using var cert = req.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1),
+                DateTimeOffset.UtcNow.AddYears(5));
+
+            // Round-trip via PFX bytes — required so the cert is loadable on
+            // both Windows + Linux with the private key intact.
+            var pfxBytes = cert.Export(X509ContentType.Pkcs12, "");
+            _selfSignedCache = X509CertificateLoader.LoadPkcs12(pfxBytes, "",
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+            return _selfSignedCache;
+        }
+    }
+
+    public Task<PdfSignatureResult> SignPdfWithPfxAsync(
+        byte[] pdfBytes,
+        byte[]? pfxBytes,
+        string? pfxPassword,
+        string reason,
+        string location,
+        string signerName,
+        bool visibleStamp = true)
+    {
+        try
+        {
+            X509Certificate2 cert;
+            if (pfxBytes != null && pfxBytes.Length > 0)
+            {
+                cert = X509CertificateLoader.LoadPkcs12(pfxBytes, pfxPassword ?? "",
+                    X509KeyStorageFlags.EphemeralKeySet);
+            }
+            else
+            {
+                cert = GetOrCreateSelfSignedCert();
+            }
+
+            if (!cert.HasPrivateKey)
+            {
+                return Task.FromResult(new PdfSignatureResult
+                {
+                    Success = false,
+                    Message = "Cert không có private key — không thể ký số"
+                });
+            }
+
+            var bouncyCastleCert = new X509CertificateParser().ReadCertificate(cert.RawData);
+            var chain = new IX509Certificate[] { new X509CertificateBC(bouncyCastleCert) };
+
+            var outputStream = new UnclosableMemoryStream();
+            using var inputStream = new MemoryStream(pdfBytes);
+            var reader = new PdfReader(inputStream);
+            var signer = new PdfSigner(reader, outputStream, new StampingProperties());
+            signer.SetFieldName("Sig_" + Guid.NewGuid().ToString("N")[..8]);
+
+            if (visibleStamp)
+            {
+                ConfigureStampAppearance(signer, cert.Subject, signerName, reason, location);
+            }
+            else
+            {
+                var appearance = signer.GetSignatureAppearance();
+                appearance.SetReason(reason).SetLocation(location).SetContact(signerName);
+                // No page rect → invisible signature
+            }
+
+            var externalSignature = new X509Certificate2Signature(cert, "SHA-256");
+            signer.SignDetached(externalSignature, chain, null, null, null, 8192, PdfSigner.CryptoStandard.CMS);
+
+            var signedBytes = outputStream.ToArray();
+            outputStream.ForceDispose();
+
+            _logger?.LogInformation("PDF signed with PFX cert. Signer: {Signer}, Cert: {Subject}",
+                signerName, cert.Subject);
+
+            return Task.FromResult(new PdfSignatureResult
+            {
+                Success = true,
+                Message = "Ký số PDF thành công",
+                SignedPdfBytes = signedBytes,
+                SignerName = signerName,
+                SignedAt = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"),
+                CertificateSerial = cert.SerialNumber,
+                CertificateThumbprint = cert.Thumbprint
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "PFX signing failed");
+            return Task.FromResult(new PdfSignatureResult
+            {
+                Success = false,
+                Message = $"Lỗi ký số PDF: {ex.Message}"
             });
         }
     }

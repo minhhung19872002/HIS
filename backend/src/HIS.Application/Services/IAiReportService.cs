@@ -17,6 +17,13 @@ public interface IAiReportService
     Task<byte[]> GenerateAiReportHtmlAsync(Guid aiResultId);
 
     /// <summary>
+    /// Build HTML report → convert to PDF (iText html2pdf) → ký số bằng
+    /// cert PFX của BV (hoặc self-signed cert demo nếu chưa cấu hình).
+    /// Trả về PDF đã ký số, sẵn sàng tải về.
+    /// </summary>
+    Task<byte[]> GenerateAiReportSignedPdfAsync(Guid aiResultId);
+
+    /// <summary>
     /// Sinh DICOM Structured Report (PS3.10 file format) cho 1
     /// AiLabelingResult. SR document tham chiếu Study/Series gốc qua
     /// StudyInstanceUID + chứa các finding như TextContentItem.

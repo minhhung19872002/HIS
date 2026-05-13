@@ -147,6 +147,22 @@ export function openAiReportHtml(aiResultId: string): void {
   // Note: token header is injected by the apiClient request interceptor.
 }
 
+/** Download the signed PDF report (HTML → PDF → ký số PFX). */
+export async function downloadAiSignedPdf(aiResultId: string, filename?: string): Promise<void> {
+  const resp = await apiClient.get<Blob>(`/ai-labeling/${aiResultId}/export/pdf`, {
+    responseType: 'blob',
+  });
+  const blob = new Blob([resp.data], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `ai-report-${aiResultId.replace(/-/g, '')}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5_000);
+}
+
 export interface DicomSrUploadResult {
   instanceId: string;
   studyInstanceUid: string;

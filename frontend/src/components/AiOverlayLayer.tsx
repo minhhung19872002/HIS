@@ -23,6 +23,12 @@ interface Props {
   /** Width and height of the host viewport, in CSS pixels. */
   width: number;
   height: number;
+  /**
+   * Rendered DICOM image bounds in the canvas (CSS px). When provided,
+   * bbox/heatmap follow the image during pan/zoom. When null, overlay
+   * falls back to full-viewport drawing (Phase 2 behavior).
+   */
+  imageRect?: { x: number; y: number; w: number; h: number } | null;
   /** Toggle heatmap layer (BS có thể tắt heatmap mà vẫn giữ bbox). */
   showHeatmap?: boolean;
   /** Toggle bbox layer. */
@@ -37,13 +43,13 @@ function severityColor(score: number): { r: number; g: number; b: number } {
   return { r: 156, g: 163, b: 175 };                   // gray-400
 }
 
-/** Bilinear interpolation from a coarse heatmap grid into pixel space. */
+/** Bilinear interpolation from a coarse heatmap grid into pixel space.
+ *  rect = (offsetX, offsetY, drawW, drawH) — where in the canvas to render. */
 function drawHeatmap(
   ctx: CanvasRenderingContext2D,
   hm: AiHeatmap,
   color: { r: number; g: number; b: number },
-  W: number,
-  H: number,
+  rect: { x: number; y: number; w: number; h: number },
 ): void {
   // Render onto an offscreen canvas at low res then scale up — browser smooths.
   const off = document.createElement('canvas');
@@ -61,10 +67,10 @@ function drawHeatmap(
     img.data[i * 4 + 3] = Math.round(v * 150);
   }
   offCtx.putImageData(img, 0, 0);
-  // Smooth upscale onto main canvas.
+  // Smooth upscale onto main canvas at the image rect.
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(off, 0, 0, W, H);
+  ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
 }
 
 function drawBbox(
@@ -73,13 +79,12 @@ function drawBbox(
   label: string,
   score: number,
   color: { r: number; g: number; b: number },
-  W: number,
-  H: number,
+  rect: { x: number; y: number; w: number; h: number },
 ): void {
-  const x = bb.x * W;
-  const y = bb.y * H;
-  const w = bb.w * W;
-  const h = bb.h * H;
+  const x = rect.x + bb.x * rect.w;
+  const y = rect.y + bb.y * rect.h;
+  const w = bb.w * rect.w;
+  const h = bb.h * rect.h;
   ctx.lineWidth = 2;
   ctx.strokeStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
   ctx.strokeRect(x, y, w, h);
@@ -100,6 +105,7 @@ export default function AiOverlayLayer({
   labels,
   width,
   height,
+  imageRect,
   showHeatmap = true,
   showBbox = true,
   minScore = 0.4,
@@ -119,6 +125,18 @@ export default function AiOverlayLayer({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
+    // Clip to the visible viewport so overlay never bleeds outside on extreme pan.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, width, height);
+    ctx.clip();
+
+    // Pick render rect: use imageRect when provided (Phase 2-follow-pan mode),
+    // else fall back to full viewport (backward compat).
+    const rect = imageRect && imageRect.w > 0 && imageRect.h > 0
+      ? imageRect
+      : { x: 0, y: 0, w: width, h: height };
+
     // Filter + sort: weakest first so strong labels overlay on top.
     const visible = labels
       .filter((l) => l.score >= minScore)
@@ -126,15 +144,16 @@ export default function AiOverlayLayer({
 
     if (showHeatmap) {
       for (const l of visible) {
-        if (l.heatmap) drawHeatmap(ctx, l.heatmap, severityColor(l.score), width, height);
+        if (l.heatmap) drawHeatmap(ctx, l.heatmap, severityColor(l.score), rect);
       }
     }
     if (showBbox) {
       for (const l of visible) {
-        if (l.bbox) drawBbox(ctx, l.bbox, l.labelVi || l.label, l.score, severityColor(l.score), width, height);
+        if (l.bbox) drawBbox(ctx, l.bbox, l.labelVi || l.label, l.score, severityColor(l.score), rect);
       }
     }
-  }, [labels, width, height, showHeatmap, showBbox, minScore]);
+    ctx.restore();
+  }, [labels, width, height, imageRect, showHeatmap, showBbox, minScore]);
 
   return (
     <canvas

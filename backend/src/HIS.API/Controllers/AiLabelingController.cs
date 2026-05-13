@@ -372,6 +372,25 @@ public class AiLabelingController : ControllerBase
     }
 
     /// <summary>
+    /// Build HTML → PDF (iText html2pdf) → ký số bằng cert PFX của BV
+    /// (hoặc self-signed cert demo). Trả về PDF đã ký số, BS tải về xem
+    /// signature trong Adobe Reader.
+    /// </summary>
+    [HttpGet("{id:guid}/export/pdf")]
+    public async Task<IActionResult> ExportSignedPdf(Guid id)
+    {
+        try
+        {
+            var bytes = await _reportService.GenerateAiReportSignedPdfAsync(id);
+            return File(bytes, "application/pdf", $"ai-report-{id:N}.pdf");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("không tồn tại"))
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Sinh DICOM Structured Report (PS3.10) cho 1 lần phân tích. Trả về
     /// `application/dicom` bytes — viewer hoặc admin có thể tải về.
     /// </summary>

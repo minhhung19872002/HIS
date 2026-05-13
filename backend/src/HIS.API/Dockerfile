@@ -17,6 +17,12 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
+# Vietnamese-capable fonts for iText PDF generation (signed AI reports).
+# DejaVu = Unicode-complete, Liberation Serif ≈ Times New Roman.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-dejavu fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
 EXPOSE 8080
 
 COPY --from=build /app/publish .
