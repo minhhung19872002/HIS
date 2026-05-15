@@ -637,6 +637,18 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<DrugEquivalence> DrugEquivalences => Set<DrugEquivalence>();
     public DbSet<LabResultAccessLink> LabResultAccessLinks => Set<LabResultAccessLink>();
 
+    // NangCap23: HSMT gói thầu BV Đa khoa (gap #1-9)
+    public DbSet<NationalPrescriptionSubmission> NationalPrescriptionSubmissions => Set<NationalPrescriptionSubmission>();
+    public DbSet<NationalPharmacyOutboundReport> NationalPharmacyOutboundReports => Set<NationalPharmacyOutboundReport>();
+    public DbSet<BirthCertificateRecord> BirthCertificateRecords => Set<BirthCertificateRecord>();
+    public DbSet<DeathCertificateRecord> DeathCertificateRecords => Set<DeathCertificateRecord>();
+    public DbSet<DrivingLicenseHealthCheck> DrivingLicenseHealthChecks => Set<DrivingLicenseHealthCheck>();
+    public DbSet<LinenItem> LinenItems => Set<LinenItem>();
+    public DbSet<LinenTransaction> LinenTransactions => Set<LinenTransaction>();
+    public DbSet<SterilizationSchedule> SterilizationSchedules => Set<SterilizationSchedule>();
+    public DbSet<FunctionalDiagnosticTest> FunctionalDiagnosticTests => Set<FunctionalDiagnosticTest>();
+    public DbSet<ZaloNotificationLog> ZaloNotificationLogs => Set<ZaloNotificationLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -645,6 +657,36 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HISDbContext).Assembly);
 
         // Fix Discharge FK: DischargedBy is the FK for DischargedBy_User navigation
+        // NangCap23: fix non-conventional navigation FK mappings
+        modelBuilder.Entity<BirthCertificateRecord>()
+            .HasOne(b => b.Mother).WithMany().HasForeignKey(b => b.MotherPatientId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BirthCertificateRecord>()
+            .HasOne(b => b.MedicalRecord).WithMany().HasForeignKey(b => b.MedicalRecordId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DeathCertificateRecord>()
+            .HasOne(d => d.Patient).WithMany().HasForeignKey(d => d.PatientId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DeathCertificateRecord>()
+            .HasOne(d => d.MedicalRecord).WithMany().HasForeignKey(d => d.MedicalRecordId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DrivingLicenseHealthCheck>()
+            .HasOne(d => d.Patient).WithMany().HasForeignKey(d => d.PatientId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DrivingLicenseHealthCheck>()
+            .HasOne(d => d.Examination).WithMany().HasForeignKey(d => d.ExaminationId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<FunctionalDiagnosticTest>()
+            .HasOne(f => f.Patient).WithMany().HasForeignKey(f => f.PatientId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<FunctionalDiagnosticTest>()
+            .HasOne(f => f.MedicalRecord).WithMany().HasForeignKey(f => f.MedicalRecordId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<FunctionalDiagnosticTest>()
+            .HasOne(f => f.Examination).WithMany().HasForeignKey(f => f.ExaminationId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<LinenTransaction>()
+            .HasOne(t => t.FromDepartment).WithMany().HasForeignKey(t => t.FromDepartmentId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<LinenTransaction>()
+            .HasOne(t => t.ToDepartment).WithMany().HasForeignKey(t => t.ToDepartmentId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SterilizationSchedule>()
+            .HasOne(s => s.Department).WithMany().HasForeignKey(s => s.DepartmentId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SterilizationSchedule>()
+            .HasOne(s => s.Room).WithMany().HasForeignKey(s => s.RoomId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<NationalPrescriptionSubmission>()
+            .HasOne(n => n.Prescription).WithMany().HasForeignKey(n => n.PrescriptionId).OnDelete(DeleteBehavior.NoAction);
+
         modelBuilder.Entity<Discharge>()
             .HasOne(d => d.DischargedBy_User)
             .WithMany()

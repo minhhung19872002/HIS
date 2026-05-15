@@ -4562,3 +4562,127 @@ Frontend (3 files):
     --region=asia-southeast1 \
     --project=project-4d4a3f8e-d582-4536-97f
   ```
+
+---
+
+## Work Log - 2026-05-15 (NangCap23 — HSMT gói thầu BV Đa khoa, 9 gap → done)
+
+User cung cấp NangCap23.pdf (35 trang, 39 phân hệ HSMT). Đối chiếu codebase
+hiện tại phát hiện 9 gap, làm xong end-to-end (BE + FE + Playwright + Cypress)
+trong session này.
+
+### 9 gap đã đóng
+
+| # | Gap | HSMT mục | Service chính |
+|---|---|---|---|
+| 1 | Cổng Đơn thuốc QG (donthuocquocgia.vn) — QĐ 808/QĐ-BYT 2022, TT 04/2022 | #12 | `NationalPrescriptionGatewayService` |
+| 2 | Cổng Dược QG (duocquocgia.com.vn) — CV 2406/QLD-Ttra 2018 | #12 | `NationalPharmacyGatewayService` |
+| 3 | Giấy báo tử điện tử — Đề án 06 liên thông | #32 | `DeAn06CertificateService` |
+| 4 | Giấy KSK lái xe điện tử — TT 24/2023 + Đề án 06 | #32 | `DeAn06CertificateService` |
+| 5 | Đồ giặt vải + lịch tiệt trùng phòng (KSNK) | #21 | `LinenManagementService` |
+| 6 | Giấy chứng sinh điện tử — Đề án 06 liên thông | #32 | `DeAn06CertificateService` |
+| 7 | Thăm dò chức năng 8 loại (ECG/Endoscopy/EEG/EMG/Spirometry/Audiometry/BoneDensity/ECGStress) | #18 | `FunctionalDiagnosticsService` |
+| 8 | Quality Dashboard 5 view (Phòng khám / Nội trú / CLS / XN / Doanh thu ngày) | #39 | `QualityDashboardService` |
+| 9 | Zalo OA / ZNS notification (đã có SMS) | #14 | `ZaloNotificationService` |
+
+### Backend
+
+**Files mới:**
+- `HIS.Core/Entities/NangCap23Entities.cs` — 10 entities
+- `HIS.Application/DTOs/NangCap23/NangCap23DTOs.cs` — ~30 DTOs
+- `HIS.Application/Services/INangCap23Services.cs` — 7 interfaces
+- `HIS.Infrastructure/Services/NangCap23Services.cs` (~1900 LOC) — 7 impls.
+  Cổng QG mặc định mock mode (`NationalGateway:MockMode=true`), payload đúng
+  schema: JSON cho Đơn thuốc QG, XML `<DuocQuocGiaReport>` theo CV 2406 cho
+  Dược QG. Khi flip MockMode=false, comment `TODO: HTTP POST` đánh dấu chỗ
+  cần wire HttpClient.
+- `HIS.API/Controllers/NangCap23Controllers.cs` — 7 controllers, ~55 endpoints.
+  Route mới `/api/national-prescription-gateway` (tránh conflict
+  `NationalPrescriptionController` cũ chỉ quản lý cục bộ).
+- `Data/Scripts/43_nangcap23_gateways.sql` — 10 tables idempotent.
+
+**Files modified:**
+- `HISDbContext.cs` — 10 DbSet + Fluent API cho 7 non-conventional FK
+  navigations (BirthCertificate.Mother → MotherPatientId, etc.). Không fluent
+  config → EF tự tạo shadow FK `MotherId` không tồn tại → 500.
+- `DependencyInjection.cs` — 7 service registration.
+
+### Frontend
+
+**Files mới:**
+- `api/nangcap23.ts` (~570 LOC) — 7 API client objects
+- 6 v2 pages dùng `_v2kit` (KpiStrip, TopTabs, DataTable, DrawerShell,
+  ModalShell, ActBtn, DrSec, DrField, StatusBadge):
+  - `NationalGateways.tsx` — 3 tab (Đơn thuốc QG / Dược QG / Cấu hình)
+  - `DeAn06Liaison.tsx` — 3 tab cert (chứng sinh / báo tử / KSK lái xe)
+  - `LinenManagement.tsx` — 3 tab (Danh mục / Giao nhận / Tiệt trùng)
+  - `FunctionalDiagnostics.tsx` — single page với 8 test types filter
+  - `ZaloNotifications.tsx` — Logs + Config + Send modal (4 templates)
+  - `QualityDashboardLive.tsx` — 5 view auto-refresh 60s
+- 2 test specs: Playwright + Cypress
+
+**Files modified:**
+- `App.tsx` — 6 lazy import + 6 route mới
+- `layouts/terminal/TerminalLayout.tsx` — 6 menu items mới
+
+### Verification
+
+| Suite | Pass | Notes |
+|---|---|---|
+| `dotnet build HIS.sln` | 0 errors | |
+| `tsc --noEmit` + `tsc -b` + `vite build` | success | 32.79s |
+| Backend smoke (17 endpoints curl) | 17/17 | birth-certs 500 ban đầu, fix bằng Fluent API |
+| Playwright `nangcap23-pages.spec.ts` | 12/12 | 49s |
+| Cypress `nangcap23-pages.cy.ts` | 13/13 | 27s, baseUrl=3001 (Vite default) |
+| Migration `43_nangcap23_gateways.sql` | 10/10 tables | docker exec his-sqlserver apply OK |
+
+### Pitfalls
+
+- **Route conflict cũ**: legacy `NationalPrescriptionController` đăng ký
+  `/api/national-prescription` với service cục bộ. Đặt controller mới ở
+  `/api/national-prescription-gateway`.
+- **EF shadow FK**: entity có virtual nav property nhưng FK property name
+  không theo convention → EF tự tạo shadow FK không tồn tại → 500. Fix Fluent
+  API trong `OnModelCreating`.
+- **DataTable kit prop là `data`** (không phải `rows`), `actions: (row) =>
+  ReactNode` (không phải children). **ActBtn** signature `{ ic, title,
+  onClick, tone }` — không lấy children. **DrField**: `lbl="..."` + children.
+  **ColumnDef** không có `align`.
+- **Field name codebase** thường khác convention:
+  - Medicine: `MedicineCode/MedicineName` (không phải Code/Name)
+  - Department: `DepartmentName`, Room: `RoomName`
+  - Receipt: `ReceiptDate` + `FinalAmount` + `CashierId` (non-nullable)
+  - Admission Status=0 là "Đang điều trị" (không phải 1)
+  - Admission DischargeDate qua nav `a.Discharge.DischargeDate`
+  - LabRequest không có `Category` field → groupby qua `Service.ServiceGroup.GroupName`
+  - MedicalRecord.MedicalRecordType không tồn tại → dùng `TreatmentType`
+    (1=Ngoại trú, 2=Nội trú, 3=Cấp cứu)
+- **Backend dll lock**: build sau khi backend đang chạy → MSB3027. Phải kill
+  process trước rebuild.
+- **Cypress baseUrl** mặc định `3003` nhưng Vite serve `3001`. Run với
+  `--config baseUrl=http://localhost:3001`.
+
+### Production deploy guidance
+
+Tất cả 5 cổng (Đơn thuốc QG, Dược QG, GCS, GBT, KSK lái xe) đang ở Mock mode
+mặc định. Để bật production:
+
+```bash
+gcloud run services update his-api --update-env-vars="
+  NationalGateway__MockMode=false,
+  NationalGateway__Prescription__BaseUrl=https://api.donthuocquocgia.vn,
+  NationalGateway__Pharmacy__BaseUrl=https://api.duocquocgia.com.vn,
+  NationalGateway__FacilityCode=BV-DEMO-01,
+  Zalo__MockMode=false,
+  Zalo__AccessToken=<zalo-oa-access-token>,
+  Zalo__OaId=<zalo-oa-id>,
+  Zalo__IsEnabled=true
+" --region=asia-southeast1 --project=project-4d4a3f8e-d582-4536-97f
+```
+
+Khi `MockMode=false`, services hiện trả status `Submitted` (chưa ack) +
+comment `TODO: HTTP POST` marker — wire HttpClient gọi endpoint thật khi
+BHXH Vietnam / Cục QLD công bố sandbox URL + credential.
+
+**HSMT NangCap23: 39/39 phân hệ ✅** (30 đã có sẵn + 9 implement trong session này)
+

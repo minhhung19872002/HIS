@@ -135,6 +135,14 @@ const ParaclinicalCatalogsV2 = lazy(() => import('./pages-v2/ParaclinicalCatalog
 const ClinicalCatalogsV2 = lazy(() => import('./pages-v2/ClinicalCatalogs'));
 const ReportCatalogsV2 = lazy(() => import('./pages-v2/ReportCatalogs'));
 
+// NangCap23: 9 gap mới (HSMT gói thầu BV Đa khoa)
+const NationalGatewaysV2 = lazy(() => import('./pages-v2/NationalGateways'));
+const DeAn06LiaisonV2 = lazy(() => import('./pages-v2/DeAn06Liaison'));
+const LinenManagementV2 = lazy(() => import('./pages-v2/LinenManagement'));
+const FunctionalDiagnosticsV2 = lazy(() => import('./pages-v2/FunctionalDiagnostics'));
+const ZaloNotificationsV2 = lazy(() => import('./pages-v2/ZaloNotifications'));
+const QualityDashboardLiveV2 = lazy(() => import('./pages-v2/QualityDashboardLive'));
+
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Dashboard3Cap = lazy(() => import('./pages/Dashboard3Cap'));
@@ -571,6 +579,13 @@ const AppRoutes: React.FC = () => {
           <Route path="paraclinical-catalogs" element={<ParaclinicalCatalogsV2 />} />
           <Route path="clinical-catalogs" element={<ClinicalCatalogsV2 />} />
           <Route path="report-catalogs" element={<ReportCatalogsV2 />} />
+          {/* NangCap23: HSMT gói thầu BV Đa khoa */}
+          <Route path="national-gateways" element={<NationalGatewaysV2 />} />
+          <Route path="de-an-06" element={<DeAn06LiaisonV2 />} />
+          <Route path="linen-management" element={<LinenManagementV2 />} />
+          <Route path="functional-diagnostics" element={<FunctionalDiagnosticsV2 />} />
+          <Route path="zalo-notifications" element={<ZaloNotificationsV2 />} />
+          <Route path="quality-dashboard-live" element={<QualityDashboardLiveV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>

@@ -317,6 +317,15 @@ public static class DependencyInjection
         // Supplementary Module 9: Kiểm tra BHXH (BHXH Audit)
         services.AddScoped<IBhxhAuditService, BhxhAuditService>();
 
+        // NangCap23: HSMT gói thầu BV Đa khoa (9 gap)
+        services.AddScoped<INationalPrescriptionGatewayService, NationalPrescriptionGatewayService>();
+        services.AddScoped<INationalPharmacyGatewayService, NationalPharmacyGatewayService>();
+        services.AddScoped<IDeAn06CertificateService, DeAn06CertificateService>();
+        services.AddScoped<ILinenManagementService, LinenManagementService>();
+        services.AddScoped<IFunctionalDiagnosticsService, FunctionalDiagnosticsService>();
+        services.AddScoped<IZaloNotificationService, ZaloNotificationService>();
+        services.AddScoped<IQualityDashboardService, QualityDashboardService>();
+
         return services;
     }
 }
