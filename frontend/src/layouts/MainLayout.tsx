@@ -103,11 +103,11 @@ const MainLayout: React.FC = () => {
     const path = location.pathname;
     const groupMap: Record<string, string[]> = {
       clinical: ['/reception', '/opd', '/telemedicine', '/prescription', '/ipd', '/observation-stay', '/surgery', '/emr', '/medical-record-archive', '/medical-record-planning', '/follow-up', '/booking-management', '/treatment-protocols', '/chronic-disease', '/tb-hiv', '/clinical-catalogs'],
-      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/sample-receive', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/consultation-register', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin', '/paraclinical-catalogs'],
+      paraclinical: ['/lab', '/lab-qc', '/microbiology', '/culture-collection', '/screening', '/sample-storage', '/sample-tracking', '/sample-receive', '/reagent-management', '/radiology', '/radiology-ops', '/ris-dispatcher', '/ris-admin', '/consultation', '/consultation-register', '/video-consultation', '/non-dicom-capture', '/blood-bank', '/pathology', '/lis-config', '/lis-catalog-admin', '/ris-catalog-admin', '/paraclinical-catalogs', '/functional-diagnostics'],
       support: ['/pharmacy', '/dispensing-counter', '/pharmacy-approval', '/clinical-pharmacy-check', '/inpatient-dispensing', '/stock-report', '/medical-supply', '/office-supply-approval', '/hospital-pharmacy', '/nutrition', '/rehabilitation', '/pharmacy-catalogs'],
       finance: ['/billing', '/payment-transactions', '/payment-reports', '/service-requeue', '/receipt-book-admin', '/finance', '/insurance', '/bhxh-audit', '/bhxh-config', '/finance-catalogs'],
-      management: ['/infection-control', '/equipment', '/hr', '/employee-profile', '/quality'],
-      integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance'],
+      management: ['/infection-control', '/equipment', '/hr', '/employee-profile', '/quality', '/linen-management', '/quality-dashboard-live'],
+      integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance', '/national-gateways', '/de-an-06', '/zalo-notifications'],
       publicHealth: ['/health-checkup', '/immunization', '/epidemiology', '/school-health', '/occupational-health', '/methadone-treatment', '/food-safety', '/community-health', '/hiv-management'],
       medinetYtcc: ['/medical-forensics', '/traditional-medicine', '/reproductive-health', '/mental-health', '/environmental-health', '/trauma-registry', '/population-health', '/health-education', '/practice-license', '/inter-hospital'],
       system: ['/master-data', '/report-catalogs', '/catalogs-admin', '/reports', '/workload-report', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
@@ -182,6 +182,7 @@ const MainLayout: React.FC = () => {
         { key: '/lis-catalog-admin', icon: <ExperimentOutlined />, label: 'LIS Danh mục' },
         { key: '/ris-catalog-admin', icon: <ScanOutlined />, label: 'CĐHA Danh mục' },
         { key: '/paraclinical-catalogs', icon: <DatabaseOutlined />, label: 'DM Cận lâm sàng' },
+        { key: '/functional-diagnostics', icon: <ExperimentOutlined />, label: 'Thăm dò chức năng' },
       ],
     },
     {
@@ -233,6 +234,8 @@ const MainLayout: React.FC = () => {
         { key: '/employee-profile', icon: <SolutionOutlined />, label: 'Hồ sơ NV (9 tab)' },
         { key: '/training-research', icon: <ReadOutlined />, label: 'Đào tạo - NCKH' },
         { key: '/quality', icon: <AuditOutlined />, label: 'Chất lượng' },
+        { key: '/quality-dashboard-live', icon: <DashboardOutlined />, label: 'DB Chất lượng (live)' },
+        { key: '/linen-management', icon: <SafetyOutlined />, label: 'Đồ giặt & Tiệt trùng' },
       ],
     },
     {
@@ -243,6 +246,9 @@ const MainLayout: React.FC = () => {
         { key: '/health-exchange', icon: <CloudUploadOutlined />, label: 'Liên thông Y tế' },
         { key: '/emergency-disaster', icon: <BellOutlined />, label: 'Cấp cứu thảm họa' },
         { key: '/clinical-guidance', icon: <TeamOutlined />, label: 'Chỉ đạo tuyến' },
+        { key: '/national-gateways', icon: <CloudUploadOutlined />, label: 'Cổng Đơn thuốc / Dược QG' },
+        { key: '/de-an-06', icon: <IdcardOutlined />, label: 'Đề án 06 (GCS/GBT/Lái xe)' },
+        { key: '/zalo-notifications', icon: <MessageOutlined />, label: 'Zalo OA / ZNS' },
       ],
     },
     {

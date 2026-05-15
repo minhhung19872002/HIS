@@ -190,6 +190,13 @@ const FinanceCatalogs = lazy(() => import('./pages/FinanceCatalogs'));
 const ParaclinicalCatalogs = lazy(() => import('./pages/ParaclinicalCatalogs'));
 const ClinicalCatalogs = lazy(() => import('./pages/ClinicalCatalogs'));
 const ReportCatalogs = lazy(() => import('./pages/ReportCatalogs'));
+// NangCap23 v1 pages (MainLayout) — HSMT BV Đa khoa 9 gap
+const NationalGateways = lazy(() => import('./pages/NationalGateways'));
+const DeAn06Liaison = lazy(() => import('./pages/DeAn06Liaison'));
+const LinenManagement = lazy(() => import('./pages/LinenManagement'));
+const FunctionalDiagnostics = lazy(() => import('./pages/FunctionalDiagnostics'));
+const ZaloNotifications = lazy(() => import('./pages/ZaloNotifications'));
+const QualityDashboardLive = lazy(() => import('./pages/QualityDashboardLive'));
 const Reports = lazy(() => import('./pages/Reports'));
 const WorkloadReport = lazy(() => import('./pages/WorkloadReport'));
 const Telemedicine = lazy(() => import('./pages/Telemedicine'));
@@ -370,6 +377,13 @@ const AppRoutes: React.FC = () => {
           <Route path="paraclinical-catalogs" element={<ParaclinicalCatalogs />} />
           <Route path="clinical-catalogs" element={<ClinicalCatalogs />} />
           <Route path="report-catalogs" element={<ReportCatalogs />} />
+          {/* NangCap23: HSMT BV Đa khoa */}
+          <Route path="national-gateways" element={<NationalGateways />} />
+          <Route path="de-an-06" element={<DeAn06Liaison />} />
+          <Route path="linen-management" element={<LinenManagement />} />
+          <Route path="functional-diagnostics" element={<FunctionalDiagnostics />} />
+          <Route path="zalo-notifications" element={<ZaloNotifications />} />
+          <Route path="quality-dashboard-live" element={<QualityDashboardLive />} />
           <Route path="reports" element={<Reports />} />
           <Route path="admin" element={<SystemAdmin />} />
           <Route path="digital-signature" element={<DigitalSignature />} />
