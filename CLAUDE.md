@@ -4686,3 +4686,167 @@ BHXH Vietnam / Cục QLD công bố sandbox URL + credential.
 
 **HSMT NangCap23: 39/39 phân hệ ✅** (30 đã có sẵn + 9 implement trong session này)
 
+---
+
+## Work Log - 2026-05-15 (NangCap23 tiếp — v1 MainLayout + v2 design port + prod deploy)
+
+Phiên tiếp theo same-day. User chốt: bỏ 6 page mới vào **MainLayout (v1)** trước
+(v2 design sẽ chuyển bằng claude.ai/design sau), rồi pull handoff bundle từ
+`api.anthropic.com/v1/design/h/V9H_yBugmWNF7AnlovXO8g` để redesign 6 page v2,
+sau đó push GitHub + deploy Cloud Run prod.
+
+### 4 commit phiên này (đều đã push origin/main)
+
+```
+e3935e1  chore(gitignore): ignore Rider lscache, NangCap23 PDF extract, design bundle v2
+d01fed7  feat(nangcap23-v2): redesign 6 v2 pages theo handoff bundle V9H_yBugmWNF7AnlovXO8g
+b9097cb  feat(nangcap23-v1): wire 6 NangCap23 pages vào MainLayout (Antd v1 UI)
+8b2f777  feat(nangcap23): HSMT BV Đa khoa — close 9 gap (BE + FE + tests) ← từ phiên trước
+```
+
+### Commit `b9097cb` — v1 pages cho MainLayout
+
+6 file Antd v1 mới trong `frontend/src/pages/`, dùng Card/Tabs/Table/Modal/
+Drawer/Descriptions/Statistic primitives. Reuse 100% API client từ
+`api/nangcap23.ts` (cùng client với v2):
+
+- `NationalGateways.tsx` — 3 tab Antd (Đơn thuốc QG / Dược QG / Cấu hình)
+- `DeAn06Liaison.tsx` — 3 tab cert (GCS / GBT / KSK lái xe), Drawer + submit
+- `LinenManagement.tsx` — 3 tab (Danh mục / Giao nhận / Tiệt trùng)
+- `FunctionalDiagnostics.tsx` — Single page với filter 8 loại TDCN
+- `ZaloNotifications.tsx` — Logs + Config tabs + Send Modal 4 templates
+- `QualityDashboardLive.tsx` — 5 tab views, auto-refresh 60s
+
+Wire vào MainLayout:
+- `App.tsx`: 6 lazy import + 6 route non-/v2 prefix
+- `MainLayout.tsx`: getOpenKeys group map + 6 menu items
+  - Cận lâm sàng → Thăm dò chức năng
+  - Quản lý → DB Chất lượng (live), Đồ giặt & Tiệt trùng
+  - Liên thông → Cổng Đơn thuốc / Dược QG, Đề án 06, Zalo OA / ZNS
+
+Test verification:
+- Playwright `nangcap23-v1-pages.spec.ts`: 13/13 pass (54s)
+- Cypress `nangcap23-v1-pages.cy.ts`: 14/14 pass (31s)
+
+### Commit `d01fed7` — v2 redesign theo handoff bundle
+
+User pull design bundle từ claude.ai/design (5.4MB tar.gz, extract vào
+`design-system/nangcap23-bundle-v2/`). Bundle gồm:
+- README.md (handoff instructions)
+- `his/project/mod-batch11-nangcap23.jsx` — 6 component v2 mock dùng
+  `_v2kit` primitives + ab-* CSS (KpiStrip, TopTabs, DataTable, DrawerShell,
+  ModalShell, ActBtn, DrSec, DrField, StatusBadge, SearchBox, Filter, Pager)
+- 6 HTML wrapper files
+
+Port 6 file v2 trong `frontend/src/pages-v2/*` theo design mock, wire 100%
+real API:
+
+| File | Wire API |
+|---|---|
+| `QualityDashboardLive.tsx` | `qualityDash.getFull()` auto 60s, 5 view |
+| `NationalGateways.tsx` | `npGateway/nphGateway` search/retry/cancel/get/config |
+| `DeAn06Liaison.tsx` | `deAn06.searchBirths/searchDeaths/searchDlhc + submitX` |
+| `LinenManagement.tsx` | `linen.listItems/searchTransactions/updateStatus + searchSchedules` |
+| `FunctionalDiagnostics.tsx` | `fdt.search/complete/verify` + Pager 20/page |
+| `ZaloNotifications.tsx` | `zalo.search/send/getTemplates/getConfig/saveConfig/testConnection` |
+
+Design differences khi port từ v1 (Antd) sang v2 (ab-*):
+- DataTable prop `data` (không phải `dataSource`)
+- ActBtn signature `{ ic, title, onClick, tone }` — không lấy children
+- DrField `lbl="..."` + children (không phải `label`/`value` props)
+- StatusBadge tone: `'ok' | 'warn' | 'crit' | 'info'`
+- Tab label đổi "Giấy KSK lái xe" → "KSK lái xe" (theo design mock ngắn hơn)
+- DrawerShell footer/title declarative, không gọi `HUI.drawer(cx => ...)`
+- ModalShell tương tự, replace `HUI.open(cx => <Modal>...)`
+
+Build verify:
+- `tsc --noEmit` + `tsc -b` + `vite build`: success (29.97s)
+- Playwright `nangcap23-pages.spec.ts`: 12/12 pass (39.4s)
+- Cypress `nangcap23-pages.cy.ts`: 13/13 pass (28s)
+- Fix label "Giấy KSK lái xe" → "KSK lái xe" trong test specs
+
+### Commit `e3935e1` — gitignore cleanup
+
+Sau khi push 3 commit trước, working tree có 7 untracked file. User báo
+"còn thấy nhiều file đang tracking" — đó là Rider lscache + PDF extract +
+design bundle 9.6MB. Thêm vào `.gitignore`:
+
+```
+design-system/nangcap23-bundle/
+design-system/nangcap23-bundle-v2/
+**/*.csproj.lscache         # Rider/JetBrains build cache
+NangCap*.txt                 # PDF text dumps
+```
+
+Sau đó working tree sạch, `## main...origin/main` không lệch.
+
+### Cloud Run prod deploy
+
+Vercel auto-deploy FE từ push (bundle hash `index-lCUDIsyC.js`). Backend
+Cloud Run vẫn ở revision `00026-gvs` (từ 2026-05-13), chưa có NangCap23
+endpoints — 22/22 đều trả 404.
+
+Deploy step:
+1. `gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=...:20260515-215236`
+   → Build ID `79cec4cd-8c62-4a94-92ef-d10976089a70`, 4m32s SUCCESS
+2. `gcloud run services update his-api --image=$IMG --update-env-vars=DEPLOY_AT=$(date +%s)`
+   → revision `his-api-00027-cjw`, rollout ~60s, 100% traffic
+3. Migration script `43_nangcap23_gateways.sql` auto-apply qua
+   `ProductionSchemaRepairRunner` lúc cold start (10 tables)
+
+Verify prod (đầy đủ):
+
+| Layer | Trạng thái | URL |
+|---|---|---|
+| Cloud Run | `his-api-00027-cjw`, image `his-api:20260515-215236` | https://his-api-694913628964.asia-southeast1.run.app |
+| Vercel | bundle `index-lCUDIsyC.js` | https://his-psi.vercel.app |
+| 22 NangCap23 endpoints | 22/22 = 200 OK | (verified curl với JWT) |
+
+E2E sanity check qua API:
+- `/api/quality-dashboard` → 5 khoa nội trú, 3 loại CLS, 4 nhóm XN (data từ DB)
+- `/api/national-prescription-gateway/config` → mockMode=true, facility=BV-DEMO-01
+- `/api/functional-diagnostics/test-types` → 8 loại
+- `/api/zalo-notification/templates` → 4 templates
+
+### Tổng kết NangCap23 (2 phiên)
+
+| Hạng mục | Số lượng | Trạng thái |
+|---|---|---|
+| Gap đã đóng (HSMT 39 phân hệ) | 9 | ✅ |
+| Backend entities + DTO + service + controller | 7 + 7 + 7 | ✅ build clean |
+| Migration tables | 10 | ✅ applied prod |
+| API endpoints | 22 | ✅ 200 OK trên prod |
+| Frontend v1 (MainLayout, Antd) | 6 | ✅ |
+| Frontend v2 (TerminalLayout, ab-* design pack) | 6 | ✅ ported |
+| Test suites pass (Playwright v1+v2 + Cypress v1+v2) | 74/74 | ✅ |
+| Git commits | 4 (`8b2f777 → e3935e1`) | ✅ pushed |
+| Cloud Run prod deploy | `his-api-00027-cjw` | ✅ live |
+| Vercel prod deploy | `index-lCUDIsyC.js` | ✅ live (auto) |
+
+### Pitfalls phiên này
+
+- **Cloud Run lag deploy**: Vercel auto-deploys nhưng Cloud Run cần manual
+  `gcloud builds submit` + `gcloud run services update`. Sau push commit
+  backend (`8b2f777`), 22 endpoints vẫn 404 cho đến khi build+deploy thủ công.
+- **MSB3027 file locked**: build local khi backend đang chạy → DLL locked
+  bởi process. Phải `Stop-Process` trước khi rebuild. Không phải code error.
+- **Antd v6 vs ab-* DataTable**: prop khác nhau hoàn toàn. Antd `dataSource`,
+  ab-* `data`. Migration v1→v2 cần đổi từng prop một.
+- **HUI.drawer / HUI.Modal trong mock**: handoff JSX dùng imperative API
+  `HUI.drawer(cx => <X cx={cx}/>)`. Khi port sang TS dùng `DrawerShell` /
+  `ModalShell` declarative — caller manage `open` state.
+- **`tk`/`ti`/`tw`/`te`/`cf`** toast helpers: export sẵn trong `_v2kit.tsx`,
+  không phải global window functions như mock.
+
+### CAN LAM TIEP (post-deploy)
+
+- ~~Push code~~ ✅ pushed `e3935e1`
+- ~~Deploy backend Cloud Run~~ ✅ `his-api-00027-cjw`
+- ~~Verify 22 endpoint prod~~ ✅ 22/22 200 OK
+- Test smoke trên prod 6 v1 + 6 v2 page qua browser (nên làm khi anh có time)
+- Production gateway URLs (5 cổng QG hiện mock) — chờ BHXH/Cục QLD công bố
+  sandbox + credential. Switch env `NationalGateway__MockMode=false` +
+  wire HttpClient theo TODO marker.
+- Zalo OA real ZNS template approval (template ID hiện hardcoded mock)
+
+
