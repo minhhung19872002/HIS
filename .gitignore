@@ -188,10 +188,18 @@ localstorage.json
 # Keep README + key v2 sources; ignore chat transcripts (4MB) and unused HTML files.
 design-system/chats/
 design-system/nangcap22-bundle/
+design-system/nangcap23-bundle/
+design-system/nangcap23-bundle-v2/
 design-system-v2/his/chats/
 design-system-v2/his/project/scraps/
 design-system-v2/his/project/screenshots/
 design-system-v2/his/project/uploads/
+
+# Rider / JetBrains build cache
+**/*.csproj.lscache
+
+# NangCap PDF extracts (text dumps)
+NangCap*.txt
 
 # Local-only prod test scripts (not part of the codebase)
 scripts/test-prod/
