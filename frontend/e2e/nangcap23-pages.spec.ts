@@ -100,7 +100,7 @@ test('DeAn06Liaison - 3 tabs render', async ({ page }) => {
   await expect(page.getByTestId('de-an-06-page')).toBeVisible();
   await page.getByRole('button', { name: /Giấy báo tử/ }).click();
   await page.waitForTimeout(400);
-  await page.getByRole('button', { name: /Giấy KSK lái xe/ }).click();
+  await page.getByRole('button', { name: /KSK lái xe/ }).click();
   await page.waitForTimeout(400);
 });
 
