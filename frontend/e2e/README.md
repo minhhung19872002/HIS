@@ -219,4 +219,4 @@ test.use({ actionTimeout: 10000 }); // 10 giay cho moi action
 
 Neu gap van de, xem:
 - Playwright docs: https://playwright.dev/docs/intro
-- HIS_DataFlow_Architecture.md - Mo ta cac luong nghiep vu
+- docs/architecture/data-flow.md - Mo ta cac luong nghiep vu
