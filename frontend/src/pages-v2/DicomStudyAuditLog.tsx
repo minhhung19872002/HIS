@@ -1,35 +1,53 @@
+/**
+ * NangCap24 — DICOM Study Audit Log v2 (port từ mod-dicom-study-audit.jsx)
+ *
+ * Log audit per-study DICOM với Timeline drawer.
+ * 16 loại action với màu sắc + filter + date range.
+ */
 import React, { useEffect, useState } from 'react';
-import { Button, DatePicker, Tag, Empty, Timeline } from 'antd';
 import dayjs from 'dayjs';
+import { Button } from 'antd';
 import {
-  KpiStrip, DataTable, SearchBox, DrawerShell, Filter, tk, te, fmtDTg
+  KpiStrip, DataTable, SearchBox, DrawerShell, Filter, Pager, StatusBadge,
+  tk, te, fmtDTg,
 } from './_v2kit';
 import type { ColumnDef } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 import { dicomStudyLogApi } from '../api/nangcap24';
 import type { DicomStudyActivityLogDto } from '../api/nangcap24';
 
-const ACTION_FILTERS = [
-  { v: '', l: 'Tất cả hành động' },
-  { v: 'created_from_his', l: 'Tạo từ HIS' },
-  { v: 'received_from_modality', l: 'Nhận từ máy chụp' },
-  { v: 'viewed', l: 'Xem ảnh' },
-  { v: 'result_drafted', l: 'Soạn KQ' },
-  { v: 'result_modified', l: 'Sửa KQ' },
-  { v: 'result_approved', l: 'Duyệt KQ' },
-  { v: 'result_printed', l: 'In KQ' },
-  { v: 'matched_to_request', l: 'Match' },
-  { v: 'unmatched', l: 'Unmatch' },
-  { v: 'sent_to_remote', l: 'Gửi server khác' },
-];
+type Tone = 'ok' | 'info' | 'warn' | 'crit';
+
+const DSL_ACTIONS: Record<string, { label: string; color: Tone }> = {
+  created_from_his:        { label: 'Tạo từ HIS',          color: 'info' },
+  received_from_modality:  { label: 'Nhận từ máy chụp',    color: 'info' },
+  matched_to_request:      { label: 'Match y/c HIS',       color: 'ok' },
+  unmatched:               { label: 'Bỏ match',            color: 'warn' },
+  viewed:                  { label: 'Xem ảnh',             color: 'info' },
+  downloaded:              { label: 'Tải về',              color: 'info' },
+  result_drafted:          { label: 'Soạn kết quả',        color: 'warn' },
+  result_modified:         { label: 'Sửa kết quả',         color: 'warn' },
+  result_approved:         { label: 'Duyệt kết quả',       color: 'ok' },
+  result_rejected:         { label: 'Từ chối duyệt',       color: 'crit' },
+  result_printed:          { label: 'In kết quả',          color: 'info' },
+  sent_to_remote:          { label: 'Gửi server khác',     color: 'info' },
+  received_from_remote:    { label: 'Nhận từ server khác', color: 'info' },
+  copied_to_external:      { label: 'Copy ra USB/CD',      color: 'warn' },
+  deleted:                 { label: 'Xoá',                 color: 'crit' },
+  archived:                { label: 'Lưu trữ',             color: 'ok' },
+};
+
+const PER = 18;
 
 const DicomStudyAuditLog: React.FC = () => {
   const [rows, setRows] = useState<DicomStudyActivityLogDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [action, setAction] = useState('');
-  const [fromDate, setFromDate] = useState(dayjs().subtract(7, 'day'));
-  const [toDate, setToDate] = useState(dayjs());
+  const [fAct, setFAct] = useState('');
+  const [fromDate, setFromDate] = useState(dayjs().subtract(7, 'day').format('YYYY-MM-DD'));
+  const [toDate, setToDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [page, setPage] = useState(0);
   const [studyDetail, setStudyDetail] = useState<{ uid: string; timeline: DicomStudyActivityLogDto[] } | null>(null);
 
   const load = async () => {
@@ -37,138 +55,185 @@ const DicomStudyAuditLog: React.FC = () => {
     try {
       const r = await dicomStudyLogApi.search({
         studyInstanceUid: search || undefined,
-        action: action || undefined,
-        fromDate: fromDate.toISOString(),
-        toDate: toDate.toISOString(),
-        pageIndex: 1,
-        pageSize: 200,
+        action: fAct || undefined,
+        fromDate: dayjs(fromDate).toISOString(),
+        toDate: dayjs(toDate).toISOString(),
+        pageIndex: 1, pageSize: 300,
       });
-      setRows(r.items);
-      setTotal(r.totalCount);
-    } catch {
-      te('Không tải được log');
-    } finally {
-      setLoading(false);
-    }
+      setRows(r.items); setTotal(r.totalCount);
+    } catch { te('Không tải được log'); }
+    finally { setLoading(false); }
   };
-
   useEffect(() => { load(); }, []);
 
-  const openStudyTimeline = async (uid: string) => {
+  const openTimeline = async (uid: string) => {
     try {
       const tl = await dicomStudyLogApi.getStudyTimeline(uid);
-      setStudyDetail({ uid, timeline: tl });
-    } catch {
-      te('Không tải được lịch sử ca chụp');
-    }
+      setStudyDetail({ uid, timeline: tl.sort((a, b) => dayjs(a.performedAt).diff(dayjs(b.performedAt))) });
+    } catch { te('Không lấy được timeline'); }
   };
 
-  const seedDemoData = async () => {
+  const seedDemo = async () => {
     try {
-      const demoUid = `1.2.3.4.5.6.7.8.demo.${Date.now()}`;
+      const uid = `1.2.840.113619.demo.${Date.now()}`;
       const actions = ['created_from_his', 'received_from_modality', 'viewed', 'result_drafted', 'result_approved', 'result_printed'];
       for (const a of actions) {
         await dicomStudyLogApi.logActivity({
-          studyInstanceUid: demoUid,
-          action: a,
-          actionDetails: `Demo seed for ${a}`,
-          machineName: 'TEST-PC',
+          studyInstanceUid: uid, action: a,
+          actionDetails: `Demo seed for ${a}`, machineName: 'TEST-PC',
         });
       }
-      tk(`Đã seed 6 log cho study ${demoUid.slice(-15)}`);
+      tk(`Đã seed 6 log cho study ${uid.slice(-15)}`);
       load();
-    } catch {
-      te('Seed thất bại');
-    }
+    } catch { te('Seed thất bại'); }
   };
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PER));
+  const paged = rows.slice(page * PER, (page + 1) * PER);
 
   const uniqueStudies = new Set(rows.map(r => r.studyInstanceUid)).size;
-  const uniqueUsers = new Set(rows.filter(r => r.performedByName).map(r => r.performedByName)).size;
+  const uniqueUsers = new Set(rows.filter(r => r.performedByName && !r.performedByName.includes('auto') && !r.performedByName.includes('System')).map(r => r.performedByName)).size;
+  const approved = rows.filter(r => r.action === 'result_approved').length;
+  const risky = rows.filter(r => r.action === 'result_modified' || r.action === 'result_rejected').length;
+  const danger = rows.filter(r => r.action === 'deleted' || r.action === 'copied_to_external').length;
 
   const kpis = [
-    { lbl: 'Tổng log (filter)', val: total },
-    { lbl: 'Số ca chụp khác nhau', val: uniqueStudies },
-    { lbl: 'Số người tác động', val: uniqueUsers },
-    { lbl: 'Khoảng', val: `${fromDate.format('DD/MM')} → ${toDate.format('DD/MM')}` },
+    { lbl: 'Tổng log', val: total, sub: 'tất cả hành động' },
+    { lbl: 'Số ca chụp', val: uniqueStudies, sub: 'study unique' },
+    { lbl: 'Người tác động', val: uniqueUsers, sub: 'BS/KTV' },
+    { lbl: 'Đã duyệt KQ', val: approved, tone: 'ok' as const },
+    { lbl: 'Sửa/Từ chối', val: risky, tone: 'warn' as const },
+    { lbl: 'Sự kiện nguy hiểm', val: danger, tone: 'crit' as const, sub: 'xoá · copy ra ngoài' },
   ];
 
-  const actionColors: Record<string, string> = {
-    created_from_his: 'blue',
-    received_from_modality: 'cyan',
-    viewed: 'default',
-    result_drafted: 'gold',
-    result_modified: 'orange',
-    result_approved: 'green',
-    result_rejected: 'red',
-    result_printed: 'purple',
-    sent_to_remote: 'magenta',
-  };
-
-  const columns: ColumnDef<DicomStudyActivityLogDto>[] = [
+  const cols: ColumnDef<DicomStudyActivityLogDto>[] = [
     {
-      key: 'study', label: 'Study UID', code: true, render: r => (
-        <a onClick={() => openStudyTimeline(r.studyInstanceUid)} style={{ color: '#2563eb', cursor: 'pointer' }}>
-          ...{r.studyInstanceUid.slice(-25)}
-        </a>
+      key: 'study', label: 'Study UID', mono: true, code: true,
+      render: r => (
+        <a
+          onClick={(e) => { e.stopPropagation(); openTimeline(r.studyInstanceUid); }}
+          style={{ color: 'var(--c-pri, #2563eb)', cursor: 'pointer', fontSize: 11 }}
+        >…{r.studyInstanceUid.slice(-30)}</a>
       )
     },
     {
-      key: 'action', label: 'Hành động', render: r => (
-        <Tag color={actionColors[r.action] ?? 'default'}>{r.actionLabel}</Tag>
+      key: 'action', label: 'Hành động', width: 180, render: r => {
+        const a = DSL_ACTIONS[r.action];
+        return <StatusBadge tone={a?.color ?? 'info'} dot>{a?.label ?? r.actionLabel ?? r.action}</StatusBadge>;
+      }
+    },
+    {
+      key: 'user', label: 'Người thực hiện', render: r => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{r.performedByName ?? '(System)'}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--t-2)' }}>{r.machineName ?? '—'}</div>
+        </div>
       )
     },
-    { key: 'user', label: 'Người thực hiện', render: r => r.performedByName ?? '(System)' },
-    { key: 'machine', label: 'Máy', render: r => r.machineName ?? '-' },
-    { key: 'ip', label: 'IP', mono: true, render: r => r.ipAddress ?? '-' },
-    { key: 'details', label: 'Chi tiết', render: r => <span style={{ fontSize: 11, color: '#64748b' }}>{r.actionDetails ?? '-'}</span> },
-    { key: 'time', label: 'Thời gian', render: r => fmtDTg(r.performedAt) },
+    { key: 'ip', label: 'IP', mono: true, width: 110, render: r => r.ipAddress ?? '—' },
+    {
+      key: 'details', label: 'Chi tiết',
+      render: r => <span style={{ fontSize: 11.5, color: 'var(--t-1)' }}>{r.actionDetails || <span style={{ color: 'var(--t-3)' }}>—</span>}</span>
+    },
+    { key: 'time', label: 'Thời gian', mono: true, width: 150, render: r => fmtDTg(r.performedAt) },
   ];
 
   return (
-    <div className="ab-stack">
+    <div className="ab" data-testid="dicom-study-log-page">
       <KpiStrip items={kpis} />
 
-      <div className="ab-tools">
-        <SearchBox value={search} onChange={setSearch} placeholder="Lọc theo Study UID..." minWidth={320} />
-        <Filter value={action} onChange={setAction} options={ACTION_FILTERS} />
-        <DatePicker value={fromDate} onChange={d => setFromDate(d!)} format="DD/MM/YYYY" />
-        <DatePicker value={toDate} onChange={d => setToDate(d!)} format="DD/MM/YYYY" />
-        <Button type="primary" onClick={load} loading={loading} data-testid="filter-btn">Lọc</Button>
-        <Button onClick={seedDemoData} data-testid="seed-demo-btn">Seed demo</Button>
+      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Lọc theo Study UID…" minWidth={320} />
+        <Filter
+          value={fAct}
+          onChange={(v) => { setFAct(v); setPage(0); }}
+          options={Object.entries(DSL_ACTIONS).map(([v, a]) => ({ v, l: a.label }))}
+          placeholder="▾ Hành động"
+        />
+        <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+          style={{ height: 30, padding: '0 8px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12 }} />
+        <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+          style={{ height: 30, padding: '0 8px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12 }} />
+        <Button type="primary" size="small" onClick={load} loading={loading} data-testid="dsl-filter-btn">
+          <TermIcon name="search" size={12} /> Lọc
+        </Button>
+        <span className="spacer" style={{ flex: 1 }} />
+        <Button size="small" onClick={seedDemo} data-testid="seed-demo-btn">Seed demo</Button>
+        <Button size="small"><TermIcon name="download" size={12} /> Xuất CSV</Button>
       </div>
 
       <DataTable
-        columns={columns}
-        data={rows}
+        columns={cols}
+        data={paged}
         rowKey={r => r.id}
-        onRowClick={r => openStudyTimeline(r.studyInstanceUid)}
+        onRowClick={(r) => openTimeline(r.studyInstanceUid)}
       />
+      <Pager page={page} setPage={setPage} totalPages={totalPages} total={rows.length} perPage={PER} />
 
+      {/* Timeline drawer */}
       <DrawerShell
         open={!!studyDetail}
         onClose={() => setStudyDetail(null)}
-        title={studyDetail ? `Timeline ca chụp ...${studyDetail.uid.slice(-20)}` : ''}
-        sub={`${studyDetail?.timeline.length ?? 0} log activities`}
+        title={studyDetail ? `Timeline ca chụp · …${studyDetail.uid.slice(-20)}` : ''}
+        sub={studyDetail ? `${studyDetail.timeline.length} hoạt động` : undefined}
+        size="xl"
       >
         {studyDetail && (
-          <Timeline mode="left">
-            {studyDetail.timeline.map(t => (
-              <Timeline.Item key={t.id} color={
-                t.action.includes('approved') ? 'green' :
-                t.action.includes('rejected') ? 'red' :
-                t.action.includes('modified') ? 'orange' : 'blue'
-              }>
-                <div style={{ fontWeight: 600 }}>{t.actionLabel}</div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  {fmtDTg(t.performedAt)} • {t.performedByName ?? 'System'} • {t.machineName ?? '-'}
-                </div>
-                {t.actionDetails && (
-                  <div style={{ fontSize: 11, marginTop: 4, fontFamily: 'var(--font-mono)' }}>{t.actionDetails}</div>
-                )}
-              </Timeline.Item>
-            ))}
-            {studyDetail.timeline.length === 0 && <Empty description="Chưa có log nào" />}
-          </Timeline>
+          <div style={{ padding: 20 }}>
+            <div style={{
+              padding: 12, background: 'var(--d-1, #f8fafc)', borderRadius: 6,
+              marginBottom: 16, fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all',
+            }}>
+              <span style={{ color: 'var(--t-2)' }}>Study UID:</span> {studyDetail.uid}
+            </div>
+
+            {/* Custom timeline (mirror mock) */}
+            <div style={{ position: 'relative', paddingLeft: 30 }}>
+              <div style={{
+                position: 'absolute', left: 9, top: 6, bottom: 6, width: 2,
+                background: 'var(--line, #e5e7eb)',
+              }} />
+              {studyDetail.timeline.map((t, i) => {
+                const a = DSL_ACTIONS[t.action];
+                const tone: Tone = a?.color ?? 'info';
+                const dotColor = tone === 'ok' ? '#16a34a' : tone === 'warn' ? '#d97706' : tone === 'crit' ? '#dc2626' : '#0284c7';
+                return (
+                  <div key={t.id} style={{ position: 'relative', paddingBottom: i === studyDetail.timeline.length - 1 ? 0 : 18 }}>
+                    <div style={{
+                      position: 'absolute', left: -25, top: 4, width: 12, height: 12, borderRadius: 6,
+                      background: dotColor, border: '2px solid var(--d-0, #fff)',
+                      boxShadow: `0 0 0 3px ${dotColor}33`,
+                    }} />
+                    <div style={{
+                      background: 'var(--d-0, #fff)', border: '1px solid var(--line, #e5e7eb)',
+                      borderRadius: 6, padding: '10px 14px', borderLeft: `3px solid ${dotColor}`,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <StatusBadge tone={tone} dot>{a?.label ?? t.actionLabel ?? t.action}</StatusBadge>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>{fmtDTg(t.performedAt)}</span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: 'var(--t-1)' }}>
+                        <b>{t.performedByName ?? '(System)'}</b>
+                        {t.machineName && <> · {t.machineName}</>}
+                        {t.ipAddress && <> · <span className="mono">{t.ipAddress}</span></>}
+                      </div>
+                      {t.actionDetails && (
+                        <div style={{
+                          fontSize: 11, color: 'var(--t-2)', marginTop: 4, padding: 6,
+                          background: 'var(--d-1, #f8fafc)', borderRadius: 4, fontFamily: 'var(--font-mono)',
+                        }}>
+                          {t.actionDetails}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {studyDetail.timeline.length === 0 && (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có log nào</div>
+              )}
+            </div>
+          </div>
         )}
       </DrawerShell>
     </div>

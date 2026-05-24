@@ -1,131 +1,203 @@
+/**
+ * NangCap24 — EMR HL7 Export v2 (port từ mod-emr-hl7-export.jsx)
+ *
+ * Xuất HSBA → HL7 v2.5 archive: ADT/ORM/ORU/MDM/RDE theo TT 54/2017.
+ * Layout: KPI + alert info + 2-column (Form | Result) + recent exports table.
+ */
 import React, { useState } from 'react';
-import { Form, Input, Button, Checkbox, message, Alert, Spin } from 'antd';
+import { Form, Input, Checkbox, Button } from 'antd';
 import {
-  KpiStrip, DrawerShell, tk, te, fmtDTg
+  KpiStrip, DrawerShell, StatusBadge,
+  tk, te, fmtDTg, fmtDMYg, fmtHMg,
 } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 import { emrHl7Api } from '../api/nangcap24';
 import type { Hl7ExportResponseDto } from '../api/nangcap24';
 
+const SEGMENT_OPTIONS = [
+  { k: 'services',      l: 'ORM^O01 · Service Orders',   desc: 'Chỉ định dịch vụ XN / CĐHA / phẫu thuật' },
+  { k: 'prescriptions', l: 'RDE^O11 · Prescriptions',    desc: 'Kê đơn thuốc — outpatient & inpatient' },
+  { k: 'lab',           l: 'ORU^R01 · Lab Results',      desc: 'Kết quả xét nghiệm có LOINC code' },
+  { k: 'radiology',     l: 'ORU^R01 · Radiology',        desc: 'Đọc phim CĐHA + impression' },
+];
+
 const EmrHl7Export: React.FC = () => {
-  const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
+  const [recordId, setRecordId] = useState('');
+  const [opts, setOpts] = useState({ services: true, prescriptions: true, lab: true, radiology: true });
   const [result, setResult] = useState<Hl7ExportResponseDto | null>(null);
+  const [running, setRunning] = useState(false);
   const [preview, setPreview] = useState(false);
 
-  const handleExport = async () => {
+  const doExport = async () => {
+    if (!recordId.trim()) { te('Cần nhập HSBA ID'); return; }
+    setRunning(true);
     try {
-      const values = await form.validateFields();
-      setLoading(true);
       const r = await emrHl7Api.export({
-        medicalRecordId: values.medicalRecordId,
-        includeServices: values.includeServices,
-        includePrescriptions: values.includePrescriptions,
-        includeLabResults: values.includeLabResults,
-        includeRadiologyReports: values.includeRadiologyReports,
+        medicalRecordId: recordId,
+        includeServices: opts.services,
+        includePrescriptions: opts.prescriptions,
+        includeLabResults: opts.lab,
+        includeRadiologyReports: opts.radiology,
       });
       setResult(r);
-      tk(`Đã tạo ${r.messageCount} HL7 message (${(r.contentSizeBytes / 1024).toFixed(1)} KB)`);
+      tk(`Đã tạo ${r.messageCount} HL7 message · ${(r.contentSizeBytes / 1024).toFixed(1)} KB`);
     } catch (e: any) {
-      te(e?.response?.data?.message || 'Xuất HL7 thất bại');
-    } finally {
-      setLoading(false);
-    }
+      te(e?.response?.data?.message ?? 'Xuất HL7 thất bại');
+    } finally { setRunning(false); }
   };
 
-  const handleDownload = async () => {
+  const download = () => {
     if (!result) return;
     const blob = new Blob([result.hl7Content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = result.fileName;
-    a.click();
+    a.href = url; a.download = result.fileName; a.click();
     URL.revokeObjectURL(url);
-    message.success(`Đã tải xuống ${result.fileName}`);
+    tk(`Đang tải ${result.fileName}`);
   };
 
   const kpis = result ? [
-    { lbl: 'Mã HSBA', val: result.medicalRecordCode },
-    { lbl: 'Số HL7 message', val: result.messageCount, tone: 'ok' as const },
-    { lbl: 'Dung lượng', val: `${(result.contentSizeBytes / 1024).toFixed(1)} KB` },
-    { lbl: 'Tạo lúc', val: fmtDTg(result.generatedAt) },
+    { lbl: 'HSBA', val: result.medicalRecordCode, sub: 'đã xuất' },
+    { lbl: 'HL7 message', val: result.messageCount, tone: 'ok' as const },
+    { lbl: 'Dung lượng', val: `${(result.contentSizeBytes / 1024).toFixed(1)} KB`, sub: 'v2.5 archive' },
+    { lbl: 'Tạo lúc', val: fmtHMg(result.generatedAt), sub: fmtDMYg(result.generatedAt) },
+    { lbl: 'TT 54/2017', val: 'OK', tone: 'info' as const, sub: 'BYT compliant' },
   ] : [
-    { lbl: 'Mã HSBA', val: '-' },
-    { lbl: 'Số HL7 message', val: 0 },
+    { lbl: 'HSBA', val: '—' },
+    { lbl: 'HL7 message', val: 0 },
     { lbl: 'Dung lượng', val: '0 KB' },
-    { lbl: 'Tạo lúc', val: '-' },
+    { lbl: 'Tạo lúc', val: '—' },
+    { lbl: 'TT 54/2017', val: 'Chuẩn', tone: 'info' as const, sub: 'BYT compliant' },
   ];
 
   return (
-    <div className="ab-stack">
+    <div className="ab" data-testid="emr-hl7-export-page">
       <KpiStrip items={kpis} />
 
-      <Alert
-        type="info"
-        showIcon
-        message="HL7 v2.5 Archive Export"
-        description="Xuất toàn bộ HSBA (Admission ADT^A04, Service Orders ORM^O01, Pharmacy RDE^O11, Lab Results ORU^R01, Radiology ORU^R01, Discharge MDM^T02) thành 1 file HL7 chuẩn lưu trữ. Theo TT 54/2017."
-      />
+      <div style={{
+        padding: '12px 14px', background: '#eff6ff',
+        borderTop: '1px solid var(--line)', borderBottom: '1px solid #bfdbfe',
+        color: '#1d4ed8', fontSize: 12.5,
+      }}>
+        <TermIcon name="info" size={13} /> <b>HL7 v2.5 Archive Export</b> — Xuất toàn bộ HSBA dưới dạng các message HL7 chuẩn lưu trữ:
+        ADT^A04 (nhập viện), ORM^O01 (chỉ định DV), RDE^O11 (kê đơn),
+        ORU^R01 (KQ CLS + đọc phim), MDM^T02 (giấy ra viện). Theo TT 54/2017/TT-BYT.
+      </div>
 
-      <div className="panel">
-        <div className="panel-h">Tham số xuất HL7</div>
-        <div className="panel-body">
-          <Form form={form} layout="vertical" initialValues={{
-            includeServices: true, includePrescriptions: true,
-            includeLabResults: true, includeRadiologyReports: true
-          }}>
-            <Form.Item name="medicalRecordId" label="HSBA ID (UUID)" rules={[{ required: true, message: 'Bắt buộc' }]}>
-              <Input placeholder="VD: 12345678-1234-1234-1234-123456789012" data-testid="hl7-export-record-id" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
+        {/* Form panel */}
+        <div style={{ background: 'var(--d-0, #fff)', border: '1px solid var(--line)', borderRadius: 8, padding: 18 }}>
+          <h3 style={{
+            margin: '0 0 14px', fontSize: 13, fontFamily: 'var(--font-mono)',
+            textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
+          }}>Tham số xuất HL7</h3>
+
+          <Form layout="vertical">
+            <Form.Item
+              label={<span>HSBA ID hoặc Mã <span style={{ color: '#ef4444' }}>*</span></span>}
+              extra="UUID 36-ký tự hoặc mã HSBA dạng HSBA-xxxx-xxxxx"
+            >
+              <Input
+                data-testid="hl7-export-record-id"
+                value={recordId}
+                onChange={e => setRecordId(e.target.value)}
+                placeholder="12345678-1234-… hoặc HSBA-1018-20100"
+              />
             </Form.Item>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <Form.Item name="includeServices" valuePropName="checked"><Checkbox>Bao gồm Service Orders (ORM^O01)</Checkbox></Form.Item>
-              <Form.Item name="includePrescriptions" valuePropName="checked"><Checkbox>Bao gồm Prescriptions (RDE^O11)</Checkbox></Form.Item>
-              <Form.Item name="includeLabResults" valuePropName="checked"><Checkbox>Bao gồm Lab Results (ORU^R01)</Checkbox></Form.Item>
-              <Form.Item name="includeRadiologyReports" valuePropName="checked"><Checkbox>Bao gồm Radiology (ORU^R01)</Checkbox></Form.Item>
+
+            <div style={{ marginTop: 12 }}>
+              <label style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 8, display: 'block' }}>Bao gồm các segment:</label>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {SEGMENT_OPTIONS.map(o => {
+                  const on = opts[o.k as keyof typeof opts];
+                  return (
+                    <label
+                      key={o.k}
+                      style={{
+                        display: 'grid', gridTemplateColumns: '20px 1fr', gap: 8, padding: 8,
+                        background: on ? 'var(--c-pri-bg, #eff6ff)' : 'var(--d-1, #f8fafc)',
+                        borderRadius: 6, cursor: 'pointer',
+                        border: on ? '1px solid var(--c-pri, #2563eb)' : '1px solid transparent',
+                      }}
+                    >
+                      <Checkbox checked={on} onChange={e => setOpts(s => ({ ...s, [o.k]: e.target.checked }))} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>{o.l}</div>
+                        <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{o.desc}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-            <Button type="primary" onClick={handleExport} loading={loading} data-testid="hl7-export-btn">
-              Xuất HL7
+
+            <Button
+              type="primary"
+              data-testid="hl7-export-btn"
+              loading={running}
+              onClick={doExport}
+              style={{ marginTop: 16, width: '100%', height: 38 }}
+            >
+              <TermIcon name="download" size={13} /> {running ? 'Đang xuất…' : 'Xuất HL7'}
             </Button>
           </Form>
         </div>
+
+        {/* Result panel */}
+        <div style={{ background: 'var(--d-0, #fff)', border: '1px solid var(--line)', borderRadius: 8, padding: 18, minHeight: 360 }}>
+          <h3 style={{
+            margin: '0 0 14px', fontSize: 13, fontFamily: 'var(--font-mono)',
+            textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
+          }}>Kết quả</h3>
+          {!result ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--t-3)' }}>
+              <TermIcon name="folder" size={32} />
+              <div style={{ marginTop: 8, fontSize: 13 }}>Nhập HSBA ID rồi bấm "Xuất HL7" để bắt đầu.</div>
+            </div>
+          ) : (
+            <>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', width: 130, padding: '6px 0' }}>Mã HSBA</td><td className="mono">{result.medicalRecordCode}</td></tr>
+                  <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Tên file</td><td className="mono" style={{ fontSize: 11 }}>{result.fileName}</td></tr>
+                  <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Số HL7 message</td><td className="mono" style={{ fontWeight: 700 }}>{result.messageCount}</td></tr>
+                  <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Dung lượng</td><td className="mono">{result.contentSizeBytes.toLocaleString('vi-VN')} bytes ({(result.contentSizeBytes / 1024).toFixed(1)} KB)</td></tr>
+                  <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Tạo lúc</td><td className="mono">{fmtDTg(result.generatedAt)}</td></tr>
+                  <tr><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Trạng thái</td><td><StatusBadge tone="ok" dot>Hoàn tất</StatusBadge></td></tr>
+                </tbody>
+              </table>
+              <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                <Button style={{ flex: 1 }} onClick={() => setPreview(true)} data-testid="hl7-preview-btn">
+                  <TermIcon name="eye" size={12} /> Xem preview HL7
+                </Button>
+                <Button type="primary" style={{ flex: 1 }} onClick={download} data-testid="hl7-download-btn">
+                  <TermIcon name="download" size={12} /> Tải xuống .hl7
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 40 }}><Spin size="large" /></div>}
-
-      {result && (
-        <div className="panel">
-          <div className="panel-h">
-            Kết quả xuất
-            <span style={{ float: 'right' }}>
-              <Button onClick={() => setPreview(true)}>Xem preview</Button>{' '}
-              <Button type="primary" onClick={handleDownload} data-testid="hl7-download-btn">Tải xuống .hl7</Button>
-            </span>
-          </div>
-          <div className="panel-body">
-            <table className="tbl">
-              <tbody>
-                <tr><th>HSBA Code</th><td className="mono">{result.medicalRecordCode}</td></tr>
-                <tr><th>File name</th><td className="mono">{result.fileName}</td></tr>
-                <tr><th>Số HL7 message</th><td className="mono">{result.messageCount}</td></tr>
-                <tr><th>Dung lượng</th><td className="mono">{result.contentSizeBytes.toLocaleString('vi-VN')} bytes</td></tr>
-                <tr><th>Tạo lúc</th><td>{fmtDTg(result.generatedAt)}</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <DrawerShell open={preview} onClose={() => setPreview(false)} title={`HL7 preview: ${result?.fileName ?? ''}`}>
+      {/* Preview drawer */}
+      <DrawerShell
+        open={preview && !!result}
+        onClose={() => setPreview(false)}
+        title={result ? `HL7 preview · ${result.fileName}` : ''}
+        sub={result ? `${result.messageCount} message · ${(result.contentSizeBytes / 1024).toFixed(1)} KB` : undefined}
+        size="xl"
+        footer={(
+          <>
+            <Button onClick={() => setPreview(false)}>Đóng</Button>
+            <Button type="primary" onClick={download}><TermIcon name="download" size={12} /> Tải xuống</Button>
+          </>
+        )}
+      >
         {result && (
           <pre style={{
-            background: '#0b1220',
-            color: '#e2e8f0',
-            padding: 16,
-            fontSize: 11,
-            fontFamily: 'var(--font-mono)',
-            overflow: 'auto',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
+            background: '#0b1220', color: '#86efac', padding: 16, margin: 0,
+            fontSize: 11, fontFamily: 'var(--font-mono)', lineHeight: 1.6,
+            whiteSpace: 'pre-wrap', wordBreak: 'break-all', minHeight: 400,
           }}>
             {result.hl7Content}
           </pre>

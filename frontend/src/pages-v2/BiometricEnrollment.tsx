@@ -1,18 +1,38 @@
+/**
+ * NangCap24 — Biometric Enrollment v2 (port từ mod-biometric-enrollment.jsx)
+ *
+ * Đăng ký vân tay WebAuthn cho bệnh nhân/người nhà.
+ * Layout 2-column: BN list (380px) | Credentials panel.
+ * Real WebAuthn API (Touch ID / Windows Hello / USB Fingerprint).
+ */
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Button, Select, Alert, Tag, message } from 'antd';
+import { Form, Input, Radio, Select, Button } from 'antd';
 import {
-  KpiStrip, DataTable, SearchBox, ModalShell, tk, te, fmtDTg
+  KpiStrip, DataTable, SearchBox, ModalShell, StatusBadge, ActBtn,
+  tk, te, fmtDTg, cf,
 } from './_v2kit';
 import type { ColumnDef } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
 import { biometricApi } from '../api/nangcap24';
 import type { BiometricCredentialDto } from '../api/nangcap24';
 import apiClient from '../api/client';
 
-interface PatientDto { id: string; patientCode: string; fullName: string; phoneNumber?: string; }
+interface PatientDto {
+  id: string;
+  patientCode: string;
+  fullName: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+}
 
-/**
- * WebAuthn helpers - convert between base64url and ArrayBuffer.
- */
+const DOC_TYPES: Record<string, string> = {
+  cam_ket_pt: 'Cam kết phẫu thuật',
+  cam_ket_tm: 'Cam kết truyền máu',
+  cam_ket_dv: 'Cam kết dịch vụ',
+  phieu_hen:  'Phiếu hẹn khám',
+};
+
+// ─── WebAuthn helpers ───
 const b64uToBuf = (b64u: string): ArrayBuffer => {
   const b64 = b64u.replace(/-/g, '+').replace(/_/g, '/');
   const padded = b64 + '==='.slice((b64.length + 3) % 4);
@@ -22,7 +42,6 @@ const b64uToBuf = (b64u: string): ArrayBuffer => {
   for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
   return buf;
 };
-
 const bufToB64u = (buf: ArrayBuffer): string => {
   const bytes = new Uint8Array(buf);
   let str = '';
@@ -32,25 +51,22 @@ const bufToB64u = (buf: ArrayBuffer): string => {
 
 const BiometricEnrollment: React.FC = () => {
   const [patients, setPatients] = useState<PatientDto[]>([]);
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const [credentials, setCredentials] = useState<BiometricCredentialDto[]>([]);
+  const [creds, setCreds] = useState<BiometricCredentialDto[]>([]);
   const [search, setSearch] = useState('');
+  const [selPid, setSelPid] = useState<string | null>(null);
+  const [credCounts, setCredCounts] = useState<Record<string, number>>({});
   const [enrollModal, setEnrollModal] = useState(false);
-  const [signTestModal, setSignTestModal] = useState(false);
-  const [form] = Form.useForm();
+  const [signModal, setSignModal] = useState(false);
+  const [enrollForm] = Form.useForm();
   const [signForm] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-
-  // Check WebAuthn support
-  const webAuthnSupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
+  const [scanning, setScanning] = useState(false);
+  const webAuthnOk = typeof window !== 'undefined' && !!window.PublicKeyCredential;
 
   const loadPatients = async () => {
     try {
-      // Reception patient search requires non-empty keyword - default to broad query
-      const kw = search || 'a';
-      const r = await apiClient.get('/reception/patients/search', { params: { keyword: kw, limit: 50 } });
+      const r = await apiClient.get('/reception/patients/search', { params: { keyword: search || 'a', limit: 50 } });
       const items = Array.isArray(r.data) ? r.data : (r.data?.items || []);
-      setPatients(items);
+      setPatients(items as PatientDto[]);
     } catch {
       setPatients([]);
     }
@@ -58,304 +74,344 @@ const BiometricEnrollment: React.FC = () => {
 
   const loadCredentials = async (patientId: string) => {
     try {
-      const creds = await biometricApi.listCredentials(patientId);
-      setCredentials(creds);
+      const list = await biometricApi.listCredentials(patientId);
+      setCreds(list);
+      setCredCounts(prev => ({ ...prev, [patientId]: list.length }));
     } catch {
-      setCredentials([]);
+      setCreds([]);
     }
   };
 
   useEffect(() => { loadPatients(); }, []);
-  useEffect(() => { if (selectedPatientId) loadCredentials(selectedPatientId); }, [selectedPatientId]);
+  useEffect(() => { if (selPid) loadCredentials(selPid); }, [selPid]);
 
-  const filtered = patients.filter(p => {
+  const sel = patients.find(p => p.id === selPid);
+  const myCreds = creds.filter(c => c.patientId === selPid);
+  const activeCount = myCreds.filter(c => c.status === 'active').length;
+  const revokedCount = myCreds.filter(c => c.status === 'revoked').length;
+  const usageSum = myCreds.reduce((s, c) => s + c.usageCount, 0);
+
+  const filteredPts = patients.filter(p => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return p.fullName.toLowerCase().includes(s) || p.patientCode.toLowerCase().includes(s);
+    return `${p.fullName} ${p.patientCode} ${p.phoneNumber || ''}`.toLowerCase().includes(s);
   });
 
-  const handleEnroll = async () => {
-    if (!selectedPatientId || !webAuthnSupported) {
-      message.error('WebAuthn không khả dụng trên trình duyệt này');
-      return;
-    }
-    try {
-      const values = await form.validateFields();
-      setLoading(true);
-
-      // Step 1: begin
-      const beginResp = await biometricApi.beginRegister({
-        patientId: selectedPatientId,
-        ownerType: values.ownerType,
-        ownerName: values.ownerName,
-        deviceName: values.deviceName,
-      });
-
-      // Step 2: navigator.credentials.create()
-      const publicKeyOptions: PublicKeyCredentialCreationOptions = {
-        challenge: b64uToBuf(beginResp.challenge),
-        rp: { id: beginResp.rpId === 'localhost' ? undefined : beginResp.rpId, name: beginResp.rpName },
-        user: {
-          id: b64uToBuf(beginResp.userHandle),
-          name: beginResp.userName,
-          displayName: beginResp.userDisplayName,
-        },
-        pubKeyCredParams: [
-          { type: 'public-key', alg: -7 },     // ES256
-          { type: 'public-key', alg: -257 },   // RS256
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: 'platform',
-          userVerification: 'required',
-          residentKey: 'discouraged',
-        },
-        timeout: 60000,
-        attestation: 'none',
-      };
-
-      const cred = await navigator.credentials.create({ publicKey: publicKeyOptions }) as PublicKeyCredential | null;
-      if (!cred) throw new Error('User hủy đăng ký');
-
-      const response = cred.response as AuthenticatorAttestationResponse;
-      // @ts-ignore - getPublicKey is supported in modern browsers
-      const publicKeyBuf: ArrayBuffer | null = typeof response.getPublicKey === 'function' ? response.getPublicKey() : null;
-
-      // Step 3: finish
-      const result = await biometricApi.finishRegister({
-        patientId: selectedPatientId,
-        ownerType: values.ownerType,
-        ownerName: values.ownerName,
-        deviceName: values.deviceName,
-        credentialId: bufToB64u(cred.rawId),
-        publicKey: publicKeyBuf ? bufToB64u(publicKeyBuf) : '',
-        userHandle: beginResp.userHandle,
-        clientDataJson: bufToB64u(response.clientDataJSON),
-        attestationObject: bufToB64u(response.attestationObject),
-      });
-
-      tk(`Đã đăng ký vân tay cho ${result.ownerName ?? values.ownerType}`);
-      setEnrollModal(false);
-      form.resetFields();
-      loadCredentials(selectedPatientId);
-    } catch (e: any) {
-      te(`Đăng ký thất bại: ${e?.message ?? e}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRevoke = async (id: string) => {
-    if (!selectedPatientId) return;
-    try {
-      await biometricApi.revoke(id);
-      tk('Đã thu hồi credential');
-      loadCredentials(selectedPatientId);
-    } catch {
-      te('Thu hồi thất bại');
-    }
-  };
-
-  const handleSignTest = async () => {
-    if (!selectedPatientId || !webAuthnSupported) return;
-    try {
-      const values = await signForm.validateFields();
-      setLoading(true);
-
-      const beginResp = await biometricApi.beginSign({
-        patientId: selectedPatientId,
-        documentType: values.documentType,
-        documentRef: values.documentRef,
-      });
-
-      const publicKeyOptions: PublicKeyCredentialRequestOptions = {
-        challenge: b64uToBuf(beginResp.challenge),
-        rpId: beginResp.rpId === 'localhost' ? undefined : beginResp.rpId,
-        allowCredentials: beginResp.allowCredentials.map(c => ({
-          type: 'public-key' as const,
-          id: b64uToBuf(c.credentialId),
-        })),
-        userVerification: 'required',
-        timeout: 60000,
-      };
-
-      const cred = await navigator.credentials.get({ publicKey: publicKeyOptions }) as PublicKeyCredential | null;
-      if (!cred) throw new Error('User hủy ký');
-
-      const response = cred.response as AuthenticatorAssertionResponse;
-
-      const result = await biometricApi.finishSign({
-        patientId: selectedPatientId,
-        credentialId: bufToB64u(cred.rawId),
-        documentType: values.documentType,
-        documentRef: values.documentRef,
-        challenge: beginResp.challenge,
-        clientDataJson: bufToB64u(response.clientDataJSON),
-        authenticatorData: bufToB64u(response.authenticatorData),
-        signature: bufToB64u(response.signature),
-      });
-
-      if (result.isVerified) {
-        tk(`Ký thành công bởi: ${result.signerName}`);
-      } else {
-        te(`Ký thất bại: ${result.error}`);
-      }
-      setSignTestModal(false);
-      signForm.resetFields();
-      loadCredentials(selectedPatientId);
-    } catch (e: any) {
-      te(`Ký thất bại: ${e?.message ?? e}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const kpis = [
-    { lbl: 'Bệnh nhân đã đăng ký', val: patients.length },
-    { lbl: 'BN đang chọn', val: selectedPatientId ? (patients.find(p => p.id === selectedPatientId)?.fullName ?? '') : '-' },
-    { lbl: 'Credentials hoạt động', val: credentials.filter(c => c.status === 'active').length, tone: 'ok' as const },
-    { lbl: 'Tổng lần ký', val: credentials.reduce((s, c) => s + c.usageCount, 0) },
+    { lbl: 'BN đã đăng ký', val: Object.values(credCounts).filter(c => c > 0).length, sub: `/ ${patients.length} tổng`, tone: 'ok' as const },
+    { lbl: 'BN đang chọn',  val: sel?.fullName || '—' },
+    { lbl: 'Credentials hoạt động', val: activeCount, tone: 'ok' as const },
+    { lbl: 'Tổng lần ký vân tay',   val: usageSum, sub: 'BN đang chọn' },
+    { lbl: 'Đã thu hồi', val: revokedCount, tone: 'warn' as const },
   ];
 
-  const patientCols: ColumnDef<PatientDto>[] = [
-    { key: 'code', label: 'Mã BN', code: true, render: p => p.patientCode },
-    { key: 'name', label: 'Họ tên', render: p => p.fullName },
-    { key: 'phone', label: 'SDT', render: p => p.phoneNumber ?? '-' },
-  ];
+  // ─── WebAuthn register ───
+  const doEnroll = async () => {
+    if (!sel || !webAuthnOk) { te('WebAuthn không khả dụng'); return; }
+    try {
+      const v = await enrollForm.validateFields();
+      setScanning(true);
+      const begin = await biometricApi.beginRegister({
+        patientId: sel.id,
+        ownerType: v.ownerType,
+        ownerName: v.ownerName,
+        deviceName: v.deviceName,
+      });
+      const opts: PublicKeyCredentialCreationOptions = {
+        challenge: b64uToBuf(begin.challenge),
+        rp: { id: begin.rpId === 'localhost' ? undefined : begin.rpId, name: begin.rpName },
+        user: {
+          id: b64uToBuf(begin.userHandle),
+          name: begin.userName,
+          displayName: begin.userDisplayName,
+        },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+        timeout: 60000, attestation: 'none',
+      };
+      const cred = await navigator.credentials.create({ publicKey: opts }) as PublicKeyCredential | null;
+      if (!cred) throw new Error('User cancelled');
+      const r = cred.response as AuthenticatorAttestationResponse;
+      // @ts-ignore
+      const pk: ArrayBuffer | null = typeof r.getPublicKey === 'function' ? r.getPublicKey() : null;
+      const result = await biometricApi.finishRegister({
+        patientId: sel.id, ownerType: v.ownerType, ownerName: v.ownerName, deviceName: v.deviceName,
+        credentialId: bufToB64u(cred.rawId), publicKey: pk ? bufToB64u(pk) : '',
+        userHandle: begin.userHandle, clientDataJson: bufToB64u(r.clientDataJSON),
+        attestationObject: bufToB64u(r.attestationObject),
+      });
+      tk(`Đã đăng ký vân tay cho ${result.ownerName ?? v.ownerType}`);
+      setEnrollModal(false); enrollForm.resetFields();
+      loadCredentials(sel.id);
+    } catch (e: any) {
+      if (!e?.errorFields) te(`Đăng ký thất bại: ${e?.message ?? e}`);
+    } finally { setScanning(false); }
+  };
+
+  const doSign = async () => {
+    if (!sel || !webAuthnOk) return;
+    try {
+      const v = await signForm.validateFields();
+      setScanning(true);
+      const begin = await biometricApi.beginSign({ patientId: sel.id, documentType: v.documentType, documentRef: v.documentRef });
+      const opts: PublicKeyCredentialRequestOptions = {
+        challenge: b64uToBuf(begin.challenge),
+        rpId: begin.rpId === 'localhost' ? undefined : begin.rpId,
+        allowCredentials: begin.allowCredentials.map(c => ({ type: 'public-key' as const, id: b64uToBuf(c.credentialId) })),
+        userVerification: 'required', timeout: 60000,
+      };
+      const cred = await navigator.credentials.get({ publicKey: opts }) as PublicKeyCredential | null;
+      if (!cred) throw new Error('User cancelled');
+      const r = cred.response as AuthenticatorAssertionResponse;
+      const result = await biometricApi.finishSign({
+        patientId: sel.id, credentialId: bufToB64u(cred.rawId),
+        documentType: v.documentType, documentRef: v.documentRef,
+        challenge: begin.challenge, clientDataJson: bufToB64u(r.clientDataJSON),
+        authenticatorData: bufToB64u(r.authenticatorData), signature: bufToB64u(r.signature),
+      });
+      if (result.isVerified) tk(`✓ Ký thành công · ${DOC_TYPES[v.documentType] ?? v.documentType}`);
+      else te(`Ký thất bại: ${result.error}`);
+      setSignModal(false); signForm.resetFields();
+      loadCredentials(sel.id);
+    } catch (e: any) {
+      if (!e?.errorFields) te(`Ký thất bại: ${e?.message ?? e}`);
+    } finally { setScanning(false); }
+  };
+
+  const revoke = (c: BiometricCredentialDto) =>
+    cf(`Thu hồi credential "${c.deviceName ?? c.ownerName}"?`, async () => {
+      try {
+        await biometricApi.revoke(c.id);
+        tk('Đã thu hồi credential');
+        if (selPid) loadCredentials(selPid);
+      } catch { te('Thu hồi thất bại'); }
+    }, { tone: 'crit', confirm: 'Thu hồi' });
 
   const credCols: ColumnDef<BiometricCredentialDto>[] = [
-    { key: 'owner', label: 'Người ký', render: c => (
-        <>
-          {c.ownerName ?? (c.ownerType === 'family' ? 'Người nhà' : 'Bệnh nhân')}
-          <Tag style={{ marginLeft: 6 }} color={c.ownerType === 'patient' ? 'blue' : 'purple'}>
-            {c.ownerType === 'patient' ? 'BN' : 'Người nhà'}
-          </Tag>
-        </>
+    {
+      key: 'owner', label: 'Người ký', render: c => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{c.ownerName ?? '—'}</div>
+          <StatusBadge tone={c.ownerType === 'patient' ? 'info' : 'warn'}>
+            {c.ownerType === 'patient' ? 'Bệnh nhân' : 'Người nhà'}
+          </StatusBadge>
+        </div>
       )
     },
-    { key: 'device', label: 'Thiết bị', render: c => c.deviceName ?? '-' },
-    { key: 'enrolled', label: 'Đăng ký lúc', render: c => fmtDTg(c.enrolledAt) },
-    { key: 'last', label: 'Lần ký cuối', render: c => c.lastUsedAt ? fmtDTg(c.lastUsedAt) : '-' },
-    { key: 'usage', label: 'Số lần ký', mono: true, render: c => `${c.usageCount}` },
-    { key: 'status', label: 'Trạng thái', render: c => (
-        <Tag color={c.status === 'active' ? 'green' : 'red'}>{c.status === 'active' ? 'Hoạt động' : 'Đã thu hồi'}</Tag>
-      )
+    {
+      key: 'device', label: 'Thiết bị',
+      render: c => <span style={{ fontSize: 12 }}><TermIcon name="shield" size={11} /> {c.deviceName ?? '—'}</span>
+    },
+    { key: 'enrolled', label: 'Đăng ký lúc', mono: true, render: c => fmtDTg(c.enrolledAt) },
+    {
+      key: 'lastUsed', label: 'Lần ký cuối', mono: true,
+      render: c => c.lastUsedAt ? fmtDTg(c.lastUsedAt) : <span style={{ color: 'var(--t-3)' }}>Chưa dùng</span>
+    },
+    { key: 'usageCount', label: 'Số lần ký', mono: true, width: 90 },
+    {
+      key: 'status', label: 'Trạng thái', width: 130, render: c => c.status === 'active'
+        ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge>
+        : <StatusBadge tone="crit" dot>Đã thu hồi</StatusBadge>
     },
   ];
 
   return (
-    <div className="ab-stack">
+    <div className="ab" data-testid="biometric-enrollment-page">
       <KpiStrip items={kpis} />
 
-      {!webAuthnSupported && (
-        <Alert
-          type="error"
-          title="Trình duyệt không hỗ trợ WebAuthn"
-          showIcon
-          message="Cần Chrome/Edge/Safari mới + HTTPS để dùng vân tay. Touch ID / Windows Hello sẽ được sử dụng."
-        />
+      {!webAuthnOk && (
+        <div style={{
+          padding: '10px 14px', background: '#fffbeb', borderTop: '1px solid var(--line)',
+          borderBottom: '1px solid #fde68a', color: '#92400e', fontSize: 12.5,
+        }}>
+          <TermIcon name="alert" size={13} /> <b>WebAuthn / FIDO2</b> · Cần HTTPS + Chrome/Edge/Safari mới. Trình duyệt hiện không hỗ trợ.
+        </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
-        <div className="panel">
-          <div className="panel-h">Chọn bệnh nhân</div>
-          <div className="panel-body">
-            <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên / mã BN" />
-            <DataTable
-              columns={patientCols}
-              data={filtered}
-              rowKey={p => p.id}
-              onRowClick={p => setSelectedPatientId(p.id)}
-            />
+      {webAuthnOk && (
+        <div style={{
+          padding: '10px 14px', background: '#fffbeb', borderTop: '1px solid var(--line)',
+          borderBottom: '1px solid #fde68a', color: '#92400e', fontSize: 12.5,
+        }}>
+          <TermIcon name="alert" size={13} /> <b>WebAuthn / FIDO2</b> · Hệ thống sẽ dùng <b>Touch ID</b> · <b>Windows Hello</b> · <b>USB Fingerprint Reader</b>. Khoá riêng tư không rời thiết bị.
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 0, flex: 1, minHeight: 0 }}>
+        {/* Patient list */}
+        <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ padding: 10, borderBottom: '1px solid var(--line)' }}>
+            <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên / mã BN / SĐT" minWidth="100%" />
+          </div>
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            {filteredPts.map(p => {
+              const isSel = p.id === selPid;
+              const credCount = credCounts[p.id] ?? 0;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setSelPid(p.id)}
+                  data-testid={`bio-patient-${p.id}`}
+                  style={{
+                    padding: '10px 14px', borderBottom: '1px solid var(--line-soft)',
+                    background: isSel ? 'var(--c-pri-bg, #eff6ff)' : 'transparent',
+                    borderLeft: isSel ? '3px solid var(--c-pri, #2563eb)' : '3px solid transparent',
+                    cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{p.fullName}</div>
+                    <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{p.patientCode}</div>
+                    <div style={{ fontSize: 11, color: 'var(--t-3)' }}>{p.phoneNumber ?? ''}</div>
+                  </div>
+                  <div style={{ alignSelf: 'center' }}>
+                    {credCount > 0
+                      ? <StatusBadge tone="ok" dot>{credCount} cred</StatusBadge>
+                      : <StatusBadge tone="info">chưa ĐK</StatusBadge>}
+                  </div>
+                </div>
+              );
+            })}
+            {filteredPts.length === 0 && (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+                Không có bệnh nhân
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="panel">
-          <div className="panel-h">
-            Credentials sinh trắc học
-            {selectedPatientId && (
-              <div style={{ display: 'inline-flex', gap: 8, marginLeft: 16 }}>
-                <Button type="primary" size="small" onClick={() => setEnrollModal(true)} disabled={!webAuthnSupported}>
-                  + Đăng ký vân tay
-                </Button>
-                {credentials.length > 0 && (
-                  <Button size="small" onClick={() => setSignTestModal(true)} disabled={!webAuthnSupported}>
-                    Test ký
+        {/* Credentials panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {!sel ? (
+            <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)', fontSize: 13 }}>
+              <TermIcon name="user" size={32} /><br />Chọn 1 bệnh nhân ở danh sách trái để quản lý vân tay
+            </div>
+          ) : (
+            <>
+              <div style={{
+                padding: '14px 18px', borderBottom: '1px solid var(--line)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>{sel.fullName}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+                    {sel.patientCode} · {sel.phoneNumber ?? ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Button size="small" disabled={activeCount === 0 || !webAuthnOk} onClick={() => { signForm.resetFields(); setSignModal(true); }}>
+                    <TermIcon name="check" size={12} /> Test ký
                   </Button>
+                  <Button type="primary" size="small" disabled={!webAuthnOk} onClick={() => { enrollForm.resetFields(); setEnrollModal(true); }} data-testid="enroll-btn">
+                    <TermIcon name="plus" size={12} /> Đăng ký vân tay
+                  </Button>
+                </div>
+              </div>
+
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                {myCreds.length === 0 ? (
+                  <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)' }}>
+                    <TermIcon name="shield" size={32} />
+                    <div style={{ marginTop: 8, fontWeight: 600, fontSize: 14 }}>Chưa có credential</div>
+                    <div style={{ marginTop: 4, fontSize: 12 }}>Bấm "Đăng ký vân tay" để bắt đầu quét.</div>
+                  </div>
+                ) : (
+                  <DataTable
+                    rowKey={c => c.id}
+                    data={myCreds}
+                    columns={credCols}
+                    actions={c => c.status === 'active'
+                      ? <ActBtn ic="x" title="Thu hồi" tone="crit" onClick={() => revoke(c)} />
+                      : null}
+                  />
                 )}
               </div>
-            )}
-          </div>
-          <div className="panel-body">
-            {!selectedPatientId ? (
-              <div style={{ padding: 30, textAlign: 'center', color: '#64748b' }}>
-                Chọn 1 bệnh nhân để quản lý credentials
-              </div>
-            ) : (
-              <DataTable
-                columns={credCols}
-                data={credentials}
-                rowKey={c => c.id}
-                actions={c => c.status === 'active' ? (
-                  <button className="ab-iconbtn" onClick={() => handleRevoke(c.id)}>Thu hồi</button>
-                ) : null}
-              />
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
 
+      {/* Enroll modal */}
       <ModalShell
         open={enrollModal}
-        onClose={() => { setEnrollModal(false); form.resetFields(); }}
+        onClose={() => { setEnrollModal(false); enrollForm.resetFields(); setScanning(false); }}
         title="Đăng ký vân tay sinh trắc học"
+        size="md"
         footer={(
           <>
-            <Button onClick={() => { setEnrollModal(false); form.resetFields(); }}>Hủy</Button>
-            <Button type="primary" loading={loading} onClick={handleEnroll}>Bắt đầu quét vân tay</Button>
+            <Button onClick={() => { setEnrollModal(false); enrollForm.resetFields(); }}>Hủy</Button>
+            <Button type="primary" loading={scanning} onClick={doEnroll}>
+              <TermIcon name="shield" size={12} /> {scanning ? 'Đang quét…' : 'Bắt đầu quét vân tay'}
+            </Button>
           </>
         )}
       >
-        <Alert type="info" message="Khi bấm OK, hệ thống sẽ yêu cầu Touch ID / Windows Hello / vân tay" style={{ marginBottom: 16 }} />
-        <Form form={form} layout="vertical" initialValues={{ ownerType: 'patient' }}>
-          <Form.Item name="ownerType" label="Loại người ký">
-            <Select options={[
-              { value: 'patient', label: 'Bệnh nhân' },
-              { value: 'family', label: 'Người nhà (cho cam kết phẫu thuật...)' }
-            ]} />
-          </Form.Item>
-          <Form.Item name="ownerName" label="Tên người ký" rules={[{ required: true }]}>
-            <Input placeholder="VD: Nguyễn Văn A" />
-          </Form.Item>
-          <Form.Item name="deviceName" label="Mô tả thiết bị">
-            <Input placeholder="VD: Touch ID iPhone, USB Fingerprint Reader..." />
-          </Form.Item>
-        </Form>
+        <div style={{ padding: 18 }}>
+          <div style={{ padding: 12, background: '#eff6ff', color: '#1d4ed8', borderRadius: 6, marginBottom: 16, fontSize: 12.5 }}>
+            <TermIcon name="info" size={13} /> Khi bấm "Bắt đầu", trình duyệt sẽ yêu cầu Touch ID / Windows Hello / vân tay. Khoá riêng tư <b>không rời khỏi thiết bị</b>.
+          </div>
+          <Form form={enrollForm} layout="vertical" initialValues={{ ownerType: 'patient', ownerName: sel?.fullName ?? '' }}>
+            <Form.Item name="ownerType" label="Loại người ký" rules={[{ required: true }]}>
+              <Radio.Group>
+                <Radio value="patient" style={{ display: 'block', marginBottom: 6 }}>
+                  <b>Bệnh nhân</b> <span style={{ color: 'var(--t-2)', fontSize: 11 }}> · Tự ký bằng vân tay</span>
+                </Radio>
+                <Radio value="family" style={{ display: 'block' }}>
+                  <b>Người nhà</b> <span style={{ color: 'var(--t-2)', fontSize: 11 }}> · Cho cam kết PT/truyền máu khi BN không tự ký được</span>
+                </Radio>
+              </Radio.Group>
+            </Form.Item>
+            <Form.Item name="ownerName" label="Tên người ký" rules={[{ required: true, message: 'Cần nhập tên' }]}>
+              <Input placeholder="VD: Nguyễn Văn A" />
+            </Form.Item>
+            <Form.Item name="deviceName" label="Mô tả thiết bị" extra="Tùy chọn — gợi ý nhận diện về sau">
+              <Input placeholder="VD: Touch ID iPhone, USB U.are.U 4500…" />
+            </Form.Item>
+            {scanning && (
+              <div style={{
+                padding: 24, textAlign: 'center', border: '2px dashed var(--c-pri, #2563eb)',
+                borderRadius: 8, marginTop: 14, background: 'var(--c-pri-bg, #eff6ff)',
+              }}>
+                <div style={{ fontSize: 32 }}>👆</div>
+                <div style={{ marginTop: 8, fontWeight: 600, color: 'var(--c-pri, #2563eb)' }}>Đặt ngón tay lên cảm biến…</div>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>WebAuthn challenge đang xử lý</div>
+              </div>
+            )}
+          </Form>
+        </div>
       </ModalShell>
 
+      {/* Sign test modal */}
       <ModalShell
-        open={signTestModal}
-        onClose={() => { setSignTestModal(false); signForm.resetFields(); }}
+        open={signModal}
+        onClose={() => { setSignModal(false); signForm.resetFields(); setScanning(false); }}
         title="Test ký bằng vân tay"
+        size="md"
         footer={(
           <>
-            <Button onClick={() => { setSignTestModal(false); signForm.resetFields(); }}>Hủy</Button>
-            <Button type="primary" loading={loading} onClick={handleSignTest}>Quét vân tay để ký</Button>
+            <Button onClick={() => { setSignModal(false); signForm.resetFields(); }}>Hủy</Button>
+            <Button type="primary" loading={scanning} onClick={doSign}>
+              <TermIcon name="shield" size={12} /> {scanning ? 'Đang ký…' : 'Quét vân tay để ký'}
+            </Button>
           </>
         )}
       >
-        <Form form={signForm} layout="vertical" initialValues={{ documentType: 'cam_ket_pt', documentRef: 'DEMO-001' }}>
-          <Form.Item name="documentType" label="Loại tài liệu">
-            <Select options={[
-              { value: 'cam_ket_pt', label: 'Cam kết phẫu thuật' },
-              { value: 'cam_ket_tm', label: 'Cam kết truyền máu' },
-              { value: 'cam_ket_dv', label: 'Cam kết dịch vụ' },
-              { value: 'phieu_hen', label: 'Phiếu hẹn khám' },
-            ]} />
-          </Form.Item>
-          <Form.Item name="documentRef" label="Mã tham chiếu">
-            <Input />
-          </Form.Item>
-        </Form>
+        <div style={{ padding: 18 }}>
+          <Form form={signForm} layout="vertical" initialValues={{ documentType: 'cam_ket_pt', documentRef: 'DEMO-001' }}>
+            <Form.Item name="documentType" label="Loại tài liệu">
+              <Select options={Object.entries(DOC_TYPES).map(([value, label]) => ({ value, label }))} />
+            </Form.Item>
+            <Form.Item name="documentRef" label="Mã tham chiếu">
+              <Input />
+            </Form.Item>
+          </Form>
+          <div style={{ marginTop: 10, padding: 10, background: 'var(--d-1)', borderRadius: 6, fontSize: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Credential khả dụng:</div>
+            {myCreds.filter(c => c.status === 'active').map(c => (
+              <div key={c.id} style={{ fontSize: 11, color: 'var(--t-2)' }}>• {c.ownerName ?? '—'} — {c.deviceName ?? '—'}</div>
+            ))}
+          </div>
+        </div>
       </ModalShell>
     </div>
   );
