@@ -13,10 +13,11 @@ using Microsoft.Extensions.Logging;
 namespace HIS.Infrastructure.Services;
 
 /// <summary>
-/// Implementation cho VNPay (mặc định), MoMo và ZaloPay.
+/// Implementation cho VNPay, MoMo, ZaloPay + 5 ngân hàng VN qua VietQR (BIDV/VCB/Agribank/Vietinbank/MSB).
 /// Các hằng số response code và signing algorithm theo tài liệu chính thức.
+/// VietQR cho NH dùng partial class PaymentGatewayService.VietQR.cs.
 /// </summary>
-public class PaymentGatewayService : IPaymentGatewayService
+public partial class PaymentGatewayService : IPaymentGatewayService
 {
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
@@ -71,6 +72,8 @@ public class PaymentGatewayService : IPaymentGatewayService
             "vnpay" => BuildVnPayUrl(txn, dto, ipAddress),
             "momo" => BuildMoMoUrl(txn, dto),
             "zalopay" => BuildZaloPayUrl(txn, dto),
+            "bidv" or "vcb" or "vietcombank" or "agribank" or "vietinbank" or "msb"
+                => BuildBankVietQrUrl(txn, dto, provider),
             _ => throw new ArgumentException($"Provider không hỗ trợ: {provider}")
         };
 

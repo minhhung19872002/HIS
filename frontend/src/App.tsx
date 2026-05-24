@@ -143,6 +143,16 @@ const FunctionalDiagnosticsV2 = lazy(() => import('./pages-v2/FunctionalDiagnost
 const ZaloNotificationsV2 = lazy(() => import('./pages-v2/ZaloNotifications'));
 const QualityDashboardLiveV2 = lazy(() => import('./pages-v2/QualityDashboardLive'));
 
+// NangCap24: 10 gap mới (HSMT BV Đa khoa)
+const BankPaymentsV2 = lazy(() => import('./pages-v2/BankPayments'));
+const BiometricEnrollmentV2 = lazy(() => import('./pages-v2/BiometricEnrollment'));
+const InspectorPortalStandalone = lazy(() => import('./pages-v2/InspectorPortal'));
+const EmrHl7ExportV2 = lazy(() => import('./pages-v2/EmrHl7Export'));
+const EmrCloudSyncV2 = lazy(() => import('./pages-v2/EmrCloudSync'));
+const DicomAutoSendV2 = lazy(() => import('./pages-v2/DicomAutoSend'));
+const Hl7MessageQueueV2 = lazy(() => import('./pages-v2/Hl7MessageQueue'));
+const DicomStudyAuditLogV2 = lazy(() => import('./pages-v2/DicomStudyAuditLog'));
+
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Dashboard3Cap = lazy(() => import('./pages/Dashboard3Cap'));
@@ -600,9 +610,19 @@ const AppRoutes: React.FC = () => {
           <Route path="functional-diagnostics" element={<FunctionalDiagnosticsV2 />} />
           <Route path="zalo-notifications" element={<ZaloNotificationsV2 />} />
           <Route path="quality-dashboard-live" element={<QualityDashboardLiveV2 />} />
+          {/* NangCap24: HSMT BV Đa khoa - 10 gap mới */}
+          <Route path="bank-payments" element={<BankPaymentsV2 />} />
+          <Route path="biometric-enrollment" element={<BiometricEnrollmentV2 />} />
+          <Route path="emr-hl7-export" element={<EmrHl7ExportV2 />} />
+          <Route path="emr-cloud-sync" element={<EmrCloudSyncV2 />} />
+          <Route path="dicom-autosend" element={<DicomAutoSendV2 />} />
+          <Route path="hl7-message-queue" element={<Hl7MessageQueueV2 />} />
+          <Route path="dicom-study-audit-log" element={<DicomStudyAuditLogV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>
+        {/* Standalone routes - không thuộc layout chính */}
+        <Route path="/inspector-portal" element={<InspectorPortalStandalone />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

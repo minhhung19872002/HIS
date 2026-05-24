@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Space, Tooltip, message } from 'antd';
+import { Button, Space, Tooltip, message, Segmented } from 'antd';
 import {
   BgColorsOutlined,
   ReloadOutlined,
@@ -7,6 +7,9 @@ import {
   ExpandOutlined,
   CompressOutlined,
 } from '@ant-design/icons';
+
+// NangCap24 Gap #10 - Mammography 4-up/8-up layouts (PACS II.2.4 - "Layout cho Mammography")
+export type MammoLayout = '2x2' | '1x4' | '2x4';
 
 let csInitialized = false;
 let csInitPromise: Promise<void> | null = null;
@@ -36,7 +39,10 @@ export interface MammoImage {
 
 interface Props {
   images: MammoImage[];
+  /** Optional second study (prior) for 2x4 comparison layout */
+  priorImages?: MammoImage[];
   height?: number | string;
+  defaultLayout?: MammoLayout;
   onError?: (e: unknown) => void;
 }
 
@@ -74,17 +80,32 @@ function buildHangingProtocol(images: MammoImage[]): Record<SlotKey, MammoImage 
   return slots;
 }
 
-const MammoViewer: React.FC<Props> = ({ images, height = '78vh', onError }) => {
+const MammoViewer: React.FC<Props> = ({ images, priorImages, height = '78vh', defaultLayout = '2x2', onError }) => {
   const ccRRef = useRef<HTMLDivElement>(null);
   const ccLRef = useRef<HTMLDivElement>(null);
   const mloRRef = useRef<HTMLDivElement>(null);
   const mloLRef = useRef<HTMLDivElement>(null);
+  // Prior study refs (for 2x4 layout)
+  const ccRPriorRef = useRef<HTMLDivElement>(null);
+  const ccLPriorRef = useRef<HTMLDivElement>(null);
+  const mloRPriorRef = useRef<HTMLDivElement>(null);
+  const mloLPriorRef = useRef<HTMLDivElement>(null);
+
   const [ready, setReady] = useState(false);
   const [magnifyOn, setMagnifyOn] = useState(false);
+  const [layout, setLayout] = useState<MammoLayout>(defaultLayout);
 
   const slots = React.useMemo(() => buildHangingProtocol(images), [images]);
+  const priorSlots = React.useMemo(
+    () => priorImages && priorImages.length > 0 ? buildHangingProtocol(priorImages) : null,
+    [priorImages]
+  );
+
   const slotElementMap: Record<SlotKey, React.RefObject<HTMLDivElement | null>> = {
     RCC: ccRRef, LCC: ccLRef, RMLO: mloRRef, LMLO: mloLRef,
+  };
+  const priorSlotElementMap: Record<SlotKey, React.RefObject<HTMLDivElement | null>> = {
+    RCC: ccRPriorRef, LCC: ccLPriorRef, RMLO: mloRPriorRef, LMLO: mloLPriorRef,
   };
 
   useEffect(() => {
@@ -119,6 +140,20 @@ const MammoViewer: React.FC<Props> = ({ images, height = '78vh', onError }) => {
             type: Enums.ViewportType.STACK,
             defaultOptions: { background: [0, 0, 0] as [number, number, number] },
           }));
+
+        // Add prior-study viewports (for 2x4 layout) if available
+        if (priorSlots && layout === '2x4') {
+          SLOTS.filter((k) => priorSlots[k] !== null).forEach((k) => {
+            if (priorSlotElementMap[k].current) {
+              viewportInputs.push({
+                viewportId: `mammo-prior-${k}`,
+                element: priorSlotElementMap[k].current!,
+                type: Enums.ViewportType.STACK,
+                defaultOptions: { background: [0, 0, 0] as [number, number, number] },
+              });
+            }
+          });
+        }
         if (viewportInputs.length === 0) {
           setReady(false);
           return;
@@ -155,6 +190,20 @@ const MammoViewer: React.FC<Props> = ({ images, height = '78vh', onError }) => {
           }
         }
 
+        // Load prior-study viewports
+        if (priorSlots && layout === '2x4') {
+          for (const k of SLOTS) {
+            const img = priorSlots[k];
+            if (!img) continue;
+            const vp = renderingEngine.getViewport(`mammo-prior-${k}`) as import('@cornerstonejs/core').Types.IStackViewport | undefined;
+            if (vp) {
+              tg.addViewport(`mammo-prior-${k}`, RENDER_ID);
+              await vp.setStack([img.imageId], 0);
+              vp.render();
+            }
+          }
+        }
+
         if (!cancelled) setReady(true);
       } catch (err) {
         console.warn('[MammoViewer] init failed:', err);
@@ -173,7 +222,7 @@ const MammoViewer: React.FC<Props> = ({ images, height = '78vh', onError }) => {
       } catch { /* ignore */ }
       try { if (renderingEngine) renderingEngine.destroy(); } catch { /* ignore */ }
     };
-  }, [images, onError]);
+  }, [images, priorImages, layout, onError]);
 
   const toggleMagnify = async () => {
     try {
@@ -283,6 +332,17 @@ const MammoViewer: React.FC<Props> = ({ images, height = '78vh', onError }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <Space wrap size={8}>
+        <Segmented
+          size="small"
+          value={layout}
+          onChange={(v) => setLayout(v as MammoLayout)}
+          options={[
+            { label: '2×2 (CC + MLO)', value: '2x2' },
+            { label: '1×4 (1 hàng)', value: '1x4' },
+            { label: `2×4 (so sánh prior)${priorImages ? '' : ' [chưa có prior]'}`, value: '2x4', disabled: !priorImages || priorImages.length === 0 },
+          ]}
+          data-testid="mammo-layout-toggle"
+        />
         <Tooltip title="Bật/tắt kính lúp (Magnify)">
           <Button
             size="small"
@@ -312,23 +372,76 @@ const MammoViewer: React.FC<Props> = ({ images, height = '78vh', onError }) => {
         {!ready && <span style={{ fontSize: 11, color: '#888' }}>Đang khởi tạo…</span>}
       </Space>
 
-      {/* 2x2 hanging protocol: top row = CC, bottom = MLO. Right breast on viewer's left. */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr',
-        gap: 4, height, background: '#000', borderRadius: 4, overflow: 'hidden',
-      }}>
-        {SLOTS.map((k) => (
-          <Quadrant
-            key={k}
-            label={SLOT_LABELS[k]}
-            color={k.startsWith('R') ? 'rgb(80, 180, 220)' : 'rgb(220, 160, 80)'}
-            elementRef={slotElementMap[k]}
-            empty={!slots[k]}
-            pixelSpacing={slots[k]?.pixelSpacing}
-            testid={`mammo-slot-${k}`}
-          />
-        ))}
-      </div>
+      {/* Render layout dynamically based on `layout` state */}
+      {layout === '2x2' && (
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr',
+          gap: 4, height, background: '#000', borderRadius: 4, overflow: 'hidden',
+        }} data-testid="mammo-layout-2x2">
+          {SLOTS.map((k) => (
+            <Quadrant
+              key={k}
+              label={SLOT_LABELS[k]}
+              color={k.startsWith('R') ? 'rgb(80, 180, 220)' : 'rgb(220, 160, 80)'}
+              elementRef={slotElementMap[k]}
+              empty={!slots[k]}
+              pixelSpacing={slots[k]?.pixelSpacing}
+              testid={`mammo-slot-${k}`}
+            />
+          ))}
+        </div>
+      )}
+
+      {layout === '1x4' && (
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gridTemplateRows: '1fr',
+          gap: 4, height, background: '#000', borderRadius: 4, overflow: 'hidden',
+        }} data-testid="mammo-layout-1x4">
+          {SLOTS.map((k) => (
+            <Quadrant
+              key={k}
+              label={SLOT_LABELS[k]}
+              color={k.startsWith('R') ? 'rgb(80, 180, 220)' : 'rgb(220, 160, 80)'}
+              elementRef={slotElementMap[k]}
+              empty={!slots[k]}
+              pixelSpacing={slots[k]?.pixelSpacing}
+              testid={`mammo-slot-${k}`}
+            />
+          ))}
+        </div>
+      )}
+
+      {layout === '2x4' && priorSlots && (
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gridTemplateRows: '1fr 1fr',
+          gap: 4, height, background: '#000', borderRadius: 4, overflow: 'hidden',
+        }} data-testid="mammo-layout-2x4">
+          {/* Top row: current study */}
+          {SLOTS.map((k) => (
+            <Quadrant
+              key={`cur-${k}`}
+              label={`${SLOT_LABELS[k]} (Hiện tại)`}
+              color={k.startsWith('R') ? 'rgb(80, 180, 220)' : 'rgb(220, 160, 80)'}
+              elementRef={slotElementMap[k]}
+              empty={!slots[k]}
+              pixelSpacing={slots[k]?.pixelSpacing}
+              testid={`mammo-slot-${k}`}
+            />
+          ))}
+          {/* Bottom row: prior study */}
+          {SLOTS.map((k) => (
+            <Quadrant
+              key={`prior-${k}`}
+              label={`${SLOT_LABELS[k]} (Prior)`}
+              color={k.startsWith('R') ? 'rgb(40, 100, 140)' : 'rgb(140, 100, 50)'}
+              elementRef={priorSlotElementMap[k]}
+              empty={!priorSlots[k]}
+              pixelSpacing={priorSlots[k]?.pixelSpacing}
+              testid={`mammo-slot-prior-${k}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

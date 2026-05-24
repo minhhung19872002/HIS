@@ -32,4 +32,10 @@ public interface IPaymentGatewayService
     Task<PaymentStatsDto> GetStatsAsync(DateTime fromDate, DateTime toDate, string? provider);
 
     Task<bool> MarkExpiredAsync();
+
+    /// <summary>
+    /// Xác nhận thủ công giao dịch bank-VietQR (BIDV/VCB/Agribank/Vietinbank/MSB).
+    /// Dùng cho BV chưa có merchant API contract — kế toán đối soát sao kê và confirm.
+    /// </summary>
+    Task<PaymentTransactionDto> ConfirmBankTransferAsync(BankConfirmDto dto, Guid userId);
 }

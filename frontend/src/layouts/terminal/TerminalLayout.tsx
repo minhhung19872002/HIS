@@ -74,6 +74,9 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'functional-diagnostics', path: '/v2/functional-diagnostics', label: 'Thăm dò chức năng' },
       { id: 'radiology',          path: '/v2/radiology',          label: 'Chẩn đoán HA' },
       { id: 'dicom-viewer',       path: '/v2/radiology/viewer',   label: 'DICOM Viewer' },
+      // NangCap24 - DICOM advanced features
+      { id: 'dicom-autosend',     path: '/v2/dicom-autosend',     label: 'DICOM tự động gửi' },
+      { id: 'dicom-study-audit-log', path: '/v2/dicom-study-audit-log', label: 'Log ca chụp DICOM' },
       { id: 'pathology',          path: '/v2/pathology',          label: 'Giải phẫu bệnh' },
       { id: 'ivf-lab',            path: '/v2/ivf-lab',            label: 'Phòng Lab IVF' },
       { id: 'blood-bank',         path: '/v2/blood-bank',         label: 'Ngân hàng máu' },
@@ -101,6 +104,8 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'bhxh-audit',  path: '/v2/bhxh-audit',  label: 'BHXH kiểm tra' },
       { id: 'procurement', path: '/v2/procurement', label: 'Đề xuất - Dự trù' },
       { id: 'finance-catalogs', path: '/v2/finance-catalogs', label: 'DM Tài chính' },
+      // NangCap24
+      { id: 'bank-payments', path: '/v2/bank-payments', label: 'TT Ngân hàng (BIDV/VCB/...)' },
     ],
   },
   {
@@ -109,6 +114,8 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'digital-signature', path: '/v2/digital-signature', label: 'Chữ ký số' },
       { id: 'central-signing',   path: '/v2/central-signing',   label: 'Ký số tập trung' },
       { id: 'signing-workflow',  path: '/v2/signing-workflow',  label: 'Quy trình ký' },
+      // NangCap24
+      { id: 'biometric-enrollment', path: '/v2/biometric-enrollment', label: 'Vân tay BN (WebAuthn)' },
       { id: 'master-data',       path: '/v2/master-data',       label: 'Danh mục' },
     ],
   },
@@ -141,6 +148,10 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'zalo-notifications', path: '/v2/zalo-notifications',   label: 'Zalo OA / ZNS' },
       { id: 'national-gateways',  path: '/v2/national-gateways',    label: 'Cổng Đơn thuốc / Dược QG' },
       { id: 'de-an-06',           path: '/v2/de-an-06',             label: 'Đề án 06 (GCS/GBT/Lái xe)' },
+      // NangCap24 - HSMT BV Đa khoa
+      { id: 'hl7-message-queue',  path: '/v2/hl7-message-queue',    label: 'Hàng đợi HL7 (retry)' },
+      { id: 'emr-cloud-sync',     path: '/v2/emr-cloud-sync',       label: 'Đồng bộ EMR lên Cloud' },
+      { id: 'emr-hl7-export',     path: '/v2/emr-hl7-export',       label: 'Xuất HL7 v2 HSBA' },
     ],
   },
   {

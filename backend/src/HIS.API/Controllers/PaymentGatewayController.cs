@@ -120,4 +120,34 @@ public class PaymentGatewayController : ControllerBase
         var changed = await _service.MarkExpiredAsync();
         return Ok(new { changed });
     }
+
+    /// <summary>
+    /// Xác nhận thủ công giao dịch ngân hàng (BIDV/VCB/Agribank/Vietinbank/MSB).
+    /// Khi BV chưa có merchant API, kế toán đối soát sao kê và confirm.
+    /// </summary>
+    [HttpPost("bank/confirm")]
+    [Authorize(Roles = "Admin,Accountant,Cashier")]
+    public async Task<ActionResult<PaymentTransactionDto>> ConfirmBankTransfer([FromBody] BankConfirmDto dto)
+    {
+        var result = await _service.ConfirmBankTransferAsync(dto, GetUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách 5 ngân hàng VN qua VietQR + BIN code.
+    /// </summary>
+    [HttpGet("bank/list")]
+    [Authorize]
+    public IActionResult ListSupportedBanks()
+    {
+        var banks = new[]
+        {
+            new { code = "bidv", name = "Ngân hàng BIDV", shortName = "BIDV", bin = "970418", color = "#00754A" },
+            new { code = "vcb", name = "Vietcombank", shortName = "VCB", bin = "970436", color = "#007934" },
+            new { code = "agribank", name = "Agribank", shortName = "Agribank", bin = "970405", color = "#940202" },
+            new { code = "vietinbank", name = "VietinBank", shortName = "VietinBank", bin = "970415", color = "#005DAA" },
+            new { code = "msb", name = "MSB", shortName = "MSB", bin = "970426", color = "#E60012" }
+        };
+        return Ok(banks);
+    }
 }

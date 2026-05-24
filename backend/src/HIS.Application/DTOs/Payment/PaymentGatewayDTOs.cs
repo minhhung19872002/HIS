@@ -115,3 +115,11 @@ public class DailyStatDto
     public int Count { get; set; }
     public decimal Amount { get; set; }
 }
+
+public class BankConfirmDto
+{
+    public Guid TransactionId { get; set; }
+    public string? BankReference { get; set; }     // Số ref từ sao kê bank
+    public DateTime? PaidAt { get; set; }
+    public string? Note { get; set; }
+}

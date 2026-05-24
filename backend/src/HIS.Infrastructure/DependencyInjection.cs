@@ -326,6 +326,15 @@ public static class DependencyInjection
         services.AddScoped<IZaloNotificationService, ZaloNotificationService>();
         services.AddScoped<IQualityDashboardService, QualityDashboardService>();
 
+        // NangCap24: HSMT BV Đa khoa (10 gap)
+        services.AddScoped<IBiometricSignatureService, BiometricSignatureService>();
+        services.AddScoped<IBhxhInspectorService, BhxhInspectorService>();
+        services.AddScoped<IEmrHl7ArchiveService, EmrHl7ArchiveService>();
+        services.AddScoped<IEmrCloudSyncService, EmrCloudSyncService>();
+        services.AddScoped<IDicomAutoSendService, DicomAutoSendService>();
+        services.AddScoped<IHl7QueueService, Hl7QueueService>();
+        services.AddScoped<IDicomStudyActivityService, DicomStudyActivityService>();
+
         return services;
     }
 }

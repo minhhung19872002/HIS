@@ -263,6 +263,17 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // Chi nhánh bệnh viện (NangCap15 1.21)
     public DbSet<HospitalBranch> HospitalBranches => Set<HospitalBranch>();
 
+    // NangCap24 - HSMT BV Đa khoa
+    public DbSet<BiometricCredential> BiometricCredentials => Set<BiometricCredential>();
+    public DbSet<BiometricSignatureLog> BiometricSignatureLogs => Set<BiometricSignatureLog>();
+    public DbSet<BhxhInspectorAccount> BhxhInspectorAccounts => Set<BhxhInspectorAccount>();
+    public DbSet<BhxhInspectorAccessLog> BhxhInspectorAccessLogs => Set<BhxhInspectorAccessLog>();
+    public DbSet<EmrCloudSyncLog> EmrCloudSyncLogs => Set<EmrCloudSyncLog>();
+    public DbSet<DicomAutoSendRule> DicomAutoSendRules => Set<DicomAutoSendRule>();
+    public DbSet<DicomTransmissionLog> DicomTransmissionLogs => Set<DicomTransmissionLog>();
+    public DbSet<Hl7MessageQueue> Hl7MessageQueues => Set<Hl7MessageQueue>();
+    public DbSet<DicomStudyActivityLog> DicomStudyActivityLogs => Set<DicomStudyActivityLog>();
+
     // Dược/Cấp phát
     public DbSet<DispenseRequest> DispenseRequests => Set<DispenseRequest>();
     public DbSet<DispenseRequestItem> DispenseRequestItems => Set<DispenseRequestItem>();
