@@ -4,7 +4,7 @@ import { registerPatientViaAPI, getExamRoomsViaAPI } from '../helpers/test-utils
 /**
  * HIS - FULL HOSPITAL WORKFLOW E2E TEST
  *
- * Test luong du lieu day du theo HIS_DataFlow_Architecture.md:
+ * Test luong du lieu day du theo docs/architecture/data-flow.md:
  * DATA SE DUOC LUU VAO DATABASE THAT de co the review tren browser
  *
  * LUONG 1: KHAM BENH NGOAI TRU (OPD Flow)

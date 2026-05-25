@@ -318,6 +318,8 @@ public static class DependencyInjection
         services.AddScoped<IBhxhAuditService, BhxhAuditService>();
 
         // NangCap23: HSMT gói thầu BV Đa khoa (9 gap)
+        services.AddScoped<HIS.Application.Services.INangCap23ConfigStore, NangCap23ConfigStore>();
+        services.AddHostedService<HIS.Infrastructure.Services.Workers.Nangcap23RetryWorker>();
         services.AddScoped<INationalPrescriptionGatewayService, NationalPrescriptionGatewayService>();
         services.AddScoped<INationalPharmacyGatewayService, NationalPharmacyGatewayService>();
         services.AddScoped<IDeAn06CertificateService, DeAn06CertificateService>();
@@ -334,6 +336,89 @@ public static class DependencyInjection
         services.AddScoped<IDicomAutoSendService, DicomAutoSendService>();
         services.AddScoped<IHl7QueueService, Hl7QueueService>();
         services.AddScoped<IDicomStudyActivityService, DicomStudyActivityService>();
+
+        // NangCap23 external gateway clients — production-first registration:
+        //   * MockMode=false (default) → typed HttpClient hitting real cổng QG sandbox
+        //   * MockMode=true (development override) → InMemory fake returns "MOCK-*" acks
+        // Mock binding ONLY when appsettings explicitly sets the flag → an empty config
+        // section in production prevents accidental mock leakage.
+        var ngMock = configuration.GetValue<bool>("NationalGateway:MockMode", false);
+        var zaloMock = configuration.GetValue<bool>("Zalo:MockMode", false);
+        var ngTimeout = TimeSpan.FromSeconds(configuration.GetValue<int>("NationalGateway:TimeoutSeconds", 30));
+        var zaloTimeout = TimeSpan.FromSeconds(configuration.GetValue<int>("Zalo:TimeoutSeconds", 15));
+
+        // SSRF: validate base URL với allowlist trước khi register (chặn admin trỏ tới
+        // internal IP/metadata endpoint qua appsettings/env override).
+        HIS.Application.Services.Nangcap23ConfigValidator.EnsureSafeUrl(
+            configuration["NationalGateway:Prescription:BaseUrl"] ?? "https://donthuocquocgia.vn",
+            "NationalGateway:Prescription:BaseUrl");
+        HIS.Application.Services.Nangcap23ConfigValidator.EnsureSafeUrl(
+            configuration["NationalGateway:Pharmacy:BaseUrl"] ?? "https://duocquocgia.com.vn",
+            "NationalGateway:Pharmacy:BaseUrl");
+        HIS.Application.Services.Nangcap23ConfigValidator.EnsureSafeUrl(
+            configuration["DeAn06:BaseUrl"] ?? "https://gdbhyt.baohiemxahoi.gov.vn",
+            "DeAn06:BaseUrl");
+        HIS.Application.Services.Nangcap23ConfigValidator.EnsureSafeUrl(
+            configuration["Zalo:BaseUrl"] ?? "https://business.openapi.zalo.me",
+            "Zalo:BaseUrl");
+
+        // Polly circuit breaker: sau 5 lỗi liên tiếp (5xx/network/timeout), mở mạch 30s
+        // → fast-fail toàn bộ request đến gateway đó → không block thread pool.
+        // HandleTransientHttpError handle: HttpRequestException + 5xx + 408 timeout.
+        var cbThreshold = configuration.GetValue<int>("NationalGateway:CircuitBreakerThreshold", 5);
+        var cbDurationSec = configuration.GetValue<int>("NationalGateway:CircuitBreakerDurationSeconds", 30);
+        Polly.IAsyncPolicy<HttpResponseMessage> circuitBreaker() =>
+            Polly.Extensions.Http.HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .CircuitBreakerAsync(cbThreshold, TimeSpan.FromSeconds(cbDurationSec));
+
+        if (ngMock)
+        {
+            services.AddSingleton<HIS.Application.Services.INationalPrescriptionGatewayClient,
+                HIS.Infrastructure.Services.External.InMemoryNationalPrescriptionGatewayClient>();
+            services.AddSingleton<HIS.Application.Services.INationalPharmacyGatewayClient,
+                HIS.Infrastructure.Services.External.InMemoryNationalPharmacyGatewayClient>();
+            services.AddSingleton<HIS.Application.Services.IDeAn06GatewayClient,
+                HIS.Infrastructure.Services.External.InMemoryDeAn06GatewayClient>();
+        }
+        else
+        {
+            services.AddHttpClient<HIS.Application.Services.INationalPrescriptionGatewayClient,
+                HIS.Infrastructure.Services.External.HttpNationalPrescriptionGatewayClient>(c =>
+            {
+                c.BaseAddress = new Uri(configuration["NationalGateway:Prescription:BaseUrl"] ?? "https://donthuocquocgia.vn");
+                c.Timeout = ngTimeout;
+            }).AddPolicyHandler(circuitBreaker());
+
+            services.AddHttpClient<HIS.Application.Services.INationalPharmacyGatewayClient,
+                HIS.Infrastructure.Services.External.HttpNationalPharmacyGatewayClient>(c =>
+            {
+                c.BaseAddress = new Uri(configuration["NationalGateway:Pharmacy:BaseUrl"] ?? "https://duocquocgia.com.vn");
+                c.Timeout = ngTimeout;
+            }).AddPolicyHandler(circuitBreaker());
+
+            services.AddHttpClient<HIS.Application.Services.IDeAn06GatewayClient,
+                HIS.Infrastructure.Services.External.HttpDeAn06GatewayClient>(c =>
+            {
+                c.BaseAddress = new Uri(configuration["DeAn06:BaseUrl"] ?? "https://gdbhyt.baohiemxahoi.gov.vn");
+                c.Timeout = ngTimeout;
+            }).AddPolicyHandler(circuitBreaker());
+        }
+
+        if (zaloMock)
+        {
+            services.AddSingleton<HIS.Application.Services.IZaloOaClient,
+                HIS.Infrastructure.Services.External.InMemoryZaloOaClient>();
+        }
+        else
+        {
+            services.AddHttpClient<HIS.Application.Services.IZaloOaClient,
+                HIS.Infrastructure.Services.External.HttpZaloOaClient>(c =>
+            {
+                c.BaseAddress = new Uri(configuration["Zalo:BaseUrl"] ?? "https://business.openapi.zalo.me");
+                c.Timeout = zaloTimeout;
+            }).AddPolicyHandler(circuitBreaker());
+        }
 
         return services;
     }

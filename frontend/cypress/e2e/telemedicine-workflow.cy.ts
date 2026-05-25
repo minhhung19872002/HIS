@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
 /**
- * Telemedicine & Online Booking Workflow Tests (Luồng 11 HIS_DataFlow_Architecture)
+ * Telemedicine & Online Booking Workflow Tests (Luồng 11 docs/architecture/data-flow)
  *
  * Luồng: Đặt lịch → Thanh toán → Phòng chờ → Video call → Khám → Kê đơn
  */

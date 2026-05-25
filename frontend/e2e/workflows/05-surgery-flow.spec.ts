@@ -3,7 +3,7 @@ import { test, expect, Page, request } from '@playwright/test';
 /**
  * LUỒNG PHẪU THUẬT THỦ THUẬT (Surgery Flow)
  *
- * Theo tài liệu HIS_DataFlow_Architecture.md:
+ * Theo tài liệu docs/architecture/data-flow.md:
  *
  * [Từ Khoa Lâm sàng]
  *      │

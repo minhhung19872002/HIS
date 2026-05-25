@@ -1,5 +1,21 @@
 # HIS - Hospital Information System
 
+## ⚠️ SKILL ROUTING — BẮT BUỘC TRƯỚC MỌI TASK CODE
+
+> Áp dụng cho **mọi phiên, mọi máy** làm việc trên dự án này.
+
+Khi nhận **bất kỳ yêu cầu làm tính năng / sửa code / viết test / migration / deploy / tài liệu**
+(kể cả prompt ngắn KHÔNG nhắc skill), **TRƯỚC KHI bắt tay làm phải:**
+
+1. **Đọc `.claude/SKILL-MAP.md`** — bản đồ skill 2 tầng (CORE `core-*` portable + PROJECT `his-*` riêng HIS).
+2. **Chọn skill phù hợp** theo bảng định tuyến (mục 1+2): áp `core-*` trước → `his-*` sau, theo đúng thứ tự + path.
+3. **Nếu KHÔNG có skill phù hợp** → theo **mục (6) FALLBACK**: ưu tiên mở rộng skill cũ; chỉ đề xuất tạo
+   skill mới khi task **tái dùng nhiều lần** (hỏi user duyệt); task one-off thì làm trực tiếp, không tạo skill.
+4. Mới tiến hành làm task theo skill đã chọn.
+
+Skill nằm ở `.claude/skills/` (auto-nạp description). SKILL-MAP/PROMPT-TEMPLATES là file thường — **phải chủ
+động Read** theo chỉ thị này. Bỏ qua bước routing = sai quy trình.
+
 ## Project Structure
 - **Backend**: ASP.NET Core Clean Architecture (HIS.Core → HIS.Application → HIS.Infrastructure → HIS.API)
 - **Frontend**: React 19 + TypeScript + Ant Design v6 + Vite

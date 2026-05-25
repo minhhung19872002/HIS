@@ -17,17 +17,24 @@ public static class DatabaseSeeder
         // Prefer migrations for evolving schemas; fall back to EnsureCreated for providers without migrations.
         if (context.Database.IsRelational())
         {
-            try
+            // Empty DB? Use runtime model (EnsureCreated) instead of historical migrations
+            // — committed migrations have stale ON DELETE CASCADE that conflicts with newer
+            // model fixes (e.g. DrugInteraction 2-FK to Medicine). ProductionSchemaRepairRunner
+            // (called below) reconciles any drift after.
+            if (!await HasAnyUserTableAsync(context))
             {
-                await context.Database.MigrateAsync();
+                await context.Database.EnsureCreatedAsync();
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("PendingModelChangesWarning", StringComparison.Ordinal))
+            else
             {
-                // The committed migrations are behind the runtime model. Keep startup working and let
-                // compatibility shims patch the live schema until the migration set is brought up to date.
-                if (!await HasAnyUserTableAsync(context))
+                try
                 {
-                    await context.Database.EnsureCreatedAsync();
+                    await context.Database.MigrateAsync();
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("PendingModelChangesWarning", StringComparison.Ordinal))
+                {
+                    // The committed migrations are behind the runtime model. Keep startup working and let
+                    // compatibility shims patch the live schema until the migration set is brought up to date.
                 }
             }
         }

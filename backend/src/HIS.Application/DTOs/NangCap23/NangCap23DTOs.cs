@@ -479,7 +479,15 @@ public class SendZaloMessageDto
 
 public class ZaloConfigDto
 {
-    public string AccessToken { get; set; } = string.Empty;
+    /// <summary>
+    /// Zalo OA access token. Semantic 3 trạng thái khi POST /config:
+    ///   - <c>null</c> (field bỏ trống JSON) → giữ nguyên token cũ trong DB (no-op).
+    ///   - <c>"***"</c> → giữ nguyên (UI gửi lại mask khi không sửa).
+    ///   - <c>""</c> (empty string) → xóa hoàn toàn token (vô hiệu hóa Zalo OA).
+    ///   - chuỗi khác → cập nhật token mới (sẽ được encrypt server-side).
+    /// Khi GET /config server luôn trả <c>"***"</c> nếu đã có token; <c>""</c> nếu chưa cấu hình.
+    /// </summary>
+    public string? AccessToken { get; set; }
     public string OaId { get; set; } = string.Empty;
     public string BaseUrl { get; set; } = "https://business.openapi.zalo.me";
     public bool MockMode { get; set; } = true;

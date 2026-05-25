@@ -5,7 +5,7 @@ import { waitForLoading, login } from '../helpers/test-utils';
  * LUONG 8: KE DON THUOC (Prescription Flow)
  * Test quy trinh ke don thuoc tu bac si
  *
- * Theo tài liệu HIS_DataFlow_Architecture.md:
+ * Theo tài liệu docs/architecture/data-flow.md:
  *
  * Tu Kham benh:
  *   Chan doan -> Ke don thuoc -> Gui Kho duoc

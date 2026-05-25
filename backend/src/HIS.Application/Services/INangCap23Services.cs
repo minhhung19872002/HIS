@@ -14,6 +14,7 @@ public interface INationalPrescriptionGatewayService
     Task<List<NationalPrescriptionSubmissionDto>> SearchAsync(string? keyword, int? status, DateTime? from, DateTime? to, int pageIndex = 0, int pageSize = 50);
     Task<NationalPrescriptionSubmissionDetailDto?> GetByIdAsync(Guid id);
     Task<NationalPrescriptionSubmissionDto> SubmitAsync(SubmitNationalPrescriptionDto dto, string? userId);
+    Task<NationalPrescriptionSubmissionDto> SubmitAsync(SubmitNationalPrescriptionDto dto, string? userId, CancellationToken ct);
     Task<NationalPrescriptionSubmissionDto?> RetryAsync(Guid id, string? userId);
     Task<NationalPrescriptionSubmissionDto?> CancelAsync(Guid id, string? userId);
     Task<NationalGatewayConfigDto> GetConfigAsync();
@@ -99,6 +100,7 @@ public interface IZaloNotificationService
     Task<List<ZaloNotificationLogDto>> SearchLogsAsync(string? keyword, int? status, DateTime? from, DateTime? to, int pageIndex = 0, int pageSize = 50);
     Task<ZaloNotificationLogDto?> GetLogAsync(Guid id);
     Task<ZaloNotificationLogDto> SendAsync(SendZaloMessageDto dto, string? userId);
+    Task<ZaloNotificationLogDto?> RetryAsync(Guid id, string? userId);
     Task<ZaloConfigDto> GetConfigAsync();
     Task<bool> SaveConfigAsync(ZaloConfigDto config, string? userId);
     Task<bool> TestConnectionAsync();

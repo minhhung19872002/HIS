@@ -2,7 +2,7 @@
 
 /**
  * All Data Flows Test Suite
- * Based on HIS_DataFlow_Architecture.md - 10 Main Data Flows
+ * Based on docs/architecture/data-flow.md - 10 Main Data Flows
  *
  * Tests real API calls simulating actual user operations:
  * Flow 1: OPD (Khám ngoại trú)
@@ -31,7 +31,7 @@ function h(token: string) {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' };
 }
 
-describe('All Data Flows - HIS_DataFlow_Architecture', () => {
+describe('All Data Flows - docs/architecture/data-flow', () => {
   let token: string;
   let userData: string;
   let examRooms: any[] = [];

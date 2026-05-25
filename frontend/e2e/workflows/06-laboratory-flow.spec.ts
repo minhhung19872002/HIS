@@ -5,7 +5,7 @@ import { waitForLoading, login } from '../helpers/test-utils';
  * LUONG 6: XET NGHIEM (Laboratory - LIS Flow)
  * Test quy trinh xet nghiem tu chi dinh den tra ket qua
  *
- * Theo tài liệu HIS_DataFlow_Architecture.md:
+ * Theo tài liệu docs/architecture/data-flow.md:
  *
  * [Tu Phong kham/Khoa LS]
  *      |

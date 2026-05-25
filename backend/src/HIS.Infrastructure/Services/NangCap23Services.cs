@@ -4,10 +4,24 @@ using HIS.Application.DTOs.NangCap23;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace HIS.Infrastructure.Services;
+
+/// <summary>Internal helpers shared by NangCap23 services.</summary>
+internal static class NangCap23ServiceHelpers
+{
+    /// <summary>True khi DbUpdateException là do vi phạm UNIQUE/PRIMARY constraint
+    /// (SQL Server error 2601 hoặc 2627).</summary>
+    public static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        return ex.InnerException is SqlException sql
+            && (sql.Number == 2601 || sql.Number == 2627);
+    }
+}
 
 // ============================================================================
 // Batch 1.1: National Prescription Gateway (donthuocquocgia.vn)
@@ -15,13 +29,20 @@ namespace HIS.Infrastructure.Services;
 
 public class NationalPrescriptionGatewayService : INationalPrescriptionGatewayService
 {
+    private const string EntityLabel = "Submission đơn thuốc QG";
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
+    private readonly INationalPrescriptionGatewayClient _client;
+    private readonly INangCap23ConfigStore _configStore;
+    private readonly ILogger<NationalPrescriptionGatewayService> _logger;
 
-    public NationalPrescriptionGatewayService(HISDbContext db, IConfiguration config)
+    public NationalPrescriptionGatewayService(
+        HISDbContext db, IConfiguration config,
+        INationalPrescriptionGatewayClient client,
+        INangCap23ConfigStore configStore,
+        ILogger<NationalPrescriptionGatewayService> logger)
     {
-        _db = db;
-        _config = config;
+        _db = db; _config = config; _client = client; _configStore = configStore; _logger = logger;
     }
 
     private static string StatusName(int s) => s switch
@@ -128,11 +149,40 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
 
     public async Task<NationalPrescriptionSubmissionDto> SubmitAsync(SubmitNationalPrescriptionDto dto, string? userId)
     {
+        return await SubmitAsync(dto, userId, CancellationToken.None);
+    }
+
+    public async Task<NationalPrescriptionSubmissionDto> SubmitAsync(SubmitNationalPrescriptionDto dto, string? userId, CancellationToken ct)
+    {
+        // Business validation — fail fast trước khi đụng DB
+        if (dto.PrescriptionId == Guid.Empty)
+            throw new ArgumentException("Thiếu PrescriptionId.", nameof(dto));
+        if (string.IsNullOrWhiteSpace(dto.DoctorIdNumber))
+            throw new ArgumentException("Thiếu CCCD bác sĩ kê đơn.", nameof(dto));
+        if (string.IsNullOrWhiteSpace(dto.DoctorLicenseNumber))
+            throw new ArgumentException("Thiếu mã chứng chỉ hành nghề.", nameof(dto));
+        var allowedTypes = new[] { "Outpatient", "Narcotic", "Psychotropic", "Precursor" };
+        if (!allowedTypes.Contains(dto.PrescriptionType))
+            throw new ArgumentException($"PrescriptionType phải thuộc {string.Join("/", allowedTypes)}.", nameof(dto));
+
+        // Service-level duplicate prevention — chặn race trước khi đụng DB unique index
+        var existing = await _db.NationalPrescriptionSubmissions.AsNoTracking()
+            .Where(x => x.PrescriptionId == dto.PrescriptionId && x.Status != 4)
+            .Select(x => new { x.Id, x.Status, x.SubmissionCode })
+            .FirstOrDefaultAsync(ct);
+        if (existing != null)
+            throw new InvalidOperationException(
+                existing.Status == 2
+                    ? $"Đơn thuốc đã được gửi cổng QG và xác nhận (mã giao dịch {existing.SubmissionCode}). Không thể gửi lại."
+                    : $"Đơn thuốc đã có submission đang chờ xử lý (mã {existing.SubmissionCode}). Vui lòng dùng chức năng Retry/Cancel.");
+
         var rx = await _db.Prescriptions
             .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
             .Include(p => p.Details).ThenInclude(d => d.Medicine)
-            .FirstOrDefaultAsync(p => p.Id == dto.PrescriptionId)
+            .FirstOrDefaultAsync(p => p.Id == dto.PrescriptionId, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy đơn thuốc");
+        if (!rx.Details.Any())
+            throw new InvalidOperationException("Đơn thuốc trống — không thể gửi cổng QG.");
         var patient = rx.MedicalRecord?.Patient;
 
         var facilityCode = _config["NationalGateway:FacilityCode"] ?? "BV-DEMO-01";
@@ -177,30 +227,75 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
             PatientIdNumber = patient?.IdentityNumber ?? "",
             PrescriptionType = dto.PrescriptionType,
             PayloadJson = JsonSerializer.Serialize(payload),
-            Status = 1, // Submitted
+            Status = 1, // Submitted — placeholder trước khi gọi gateway (2-phase save)
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId,
             SubmittedAt = DateTime.UtcNow
         };
 
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        if (mockMode)
+        // PHASE 1: Save row trước khi gọi gateway → user reload không tạo duplicate;
+        // DB unique index (UX_NationalPrescriptionSubmissions_PrescriptionId_Active) chặn race.
+        _db.NationalPrescriptionSubmissions.Add(entity);
+        try
         {
-            // Mock cổng — luôn acknowledge
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException dux) when (NangCap23ServiceHelpers.IsUniqueViolation(dux))
+        {
+            throw new InvalidOperationException(
+                "Đơn thuốc đã được submit bởi 1 request khác cùng lúc. Vui lòng xem lại danh sách.", dux);
+        }
+
+        // PHASE 2: Gọi gateway. Có thể block đến 90s (3 attempts × 30s timeout + backoff).
+        // Khi user/Cloud Run cancel, CT throw — row đã save với Status=1, background retry sẽ pick up.
+        GatewaySubmissionResult result;
+        try
+        {
+            result = await _client.SubmitAsync(entity.PayloadJson, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Row giữ Status=1 (Submitted) — không update. Retry background job hoặc user Retry sẽ xử lý.
+            _logger.LogWarning("Prescription QG submit cancelled mid-flight: code={Code}", code);
+            throw;
+        }
+
+        if (result.Acknowledged)
+        {
             entity.Status = 2;
-            entity.GatewayTransactionId = $"MOCK-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
+            entity.GatewayTransactionId = result.TransactionId;
             entity.AcknowledgedAt = DateTime.UtcNow;
-            entity.ResponseJson = JsonSerializer.Serialize(new { ack = true, transactionId = entity.GatewayTransactionId, ts = DateTime.UtcNow });
+            entity.ResponseJson = result.RawResponse;
+            _logger.LogInformation("Prescription QG ack: code={Code} txn={Txn}", code, result.TransactionId);
         }
         else
         {
-            // TODO: HTTP POST tới donthuocquocgia.vn/api/prescription
-            // Khi production, gọi HttpClient sandbox URL từ config["NationalGateway:Prescription:BaseUrl"]
-            entity.Status = 1;
+            // 4xx → Status=3 Rejected; network/timeout/circuit → giữ Status=1 Submitted để worker retry
+            entity.Status = result.ErrorCode is "NETWORK_ERROR" or "TIMEOUT" or "CIRCUIT_OPEN" ? 1 : 3;
+            entity.ErrorCode = result.ErrorCode;
+            entity.ErrorMessage = result.ErrorMessage;
+            entity.ResponseJson = result.RawResponse;
+            _logger.LogWarning("Prescription QG submit fail: code={Code} err={Err}", code, result.ErrorCode);
         }
 
-        _db.NationalPrescriptionSubmissions.Add(entity);
-        await _db.SaveChangesAsync();
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        // High-New-5: nếu gateway đã ACK nhưng final SaveChanges fail (DB outage, disk full),
+        // row in DB vẫn Status=1 (Phase 1) → user retry → gateway nhận lần 2 (duplicate trên cổng).
+        // Log CRITICAL + capture transactionId để admin manual reconcile (idempotency key có hỗ trợ
+        // dedupe trên cổng nếu cổng QG support, nhưng không bảo đảm).
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex) when (result.Acknowledged)
+        {
+            _logger.LogCritical(ex,
+                "[NANGCAP23-ALERT] Gateway acknowledged prescription {Code} (txn={Txn}) but DB final save FAILED. "
+                + "Manual reconcile required: check gateway transactionId vs DB row {EntityId}.",
+                code, result.TransactionId, entity.Id);
+            throw;
+        }
 
         return new NationalPrescriptionSubmissionDto
         {
@@ -228,20 +323,28 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
     {
         var entity = await _db.NationalPrescriptionSubmissions.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
-        if (entity.Status == 2) return null; // đã ack — không retry
+        var maxRetries = _config.GetValue<int>("NationalGateway:RetryCount", 3);
+        Nangcap23StateMachine.EnsureCanRetry(entity.Status, entity.RetryCount, maxRetries, EntityLabel);
+
         entity.RetryCount++;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
-
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        if (mockMode)
+        var result = await _client.SubmitAsync(entity.PayloadJson);
+        if (result.Acknowledged)
         {
             entity.Status = 2;
             entity.AcknowledgedAt = DateTime.UtcNow;
-            entity.GatewayTransactionId = $"MOCK-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
-            entity.ResponseJson = JsonSerializer.Serialize(new { ack = true, retried = true, transactionId = entity.GatewayTransactionId });
+            entity.GatewayTransactionId = result.TransactionId;
+            entity.ResponseJson = result.RawResponse;
             entity.ErrorCode = null;
             entity.ErrorMessage = null;
+        }
+        else
+        {
+            entity.Status = result.ErrorCode is "NETWORK_ERROR" or "TIMEOUT" or "CIRCUIT_OPEN" ? 1 : 3;
+            entity.ErrorCode = result.ErrorCode;
+            entity.ErrorMessage = result.ErrorMessage;
+            entity.ResponseJson = result.RawResponse;
         }
         await _db.SaveChangesAsync();
         return await GetByIdAsync(id);
@@ -251,6 +354,7 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
     {
         var entity = await _db.NationalPrescriptionSubmissions.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
+        Nangcap23StateMachine.EnsureCanCancel(entity.Status, EntityLabel);
         entity.Status = 4;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
@@ -258,33 +362,43 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
         return await GetByIdAsync(id);
     }
 
-    public Task<NationalGatewayConfigDto> GetConfigAsync()
+    public async Task<NationalGatewayConfigDto> GetConfigAsync()
     {
-        return Task.FromResult(new NationalGatewayConfigDto
+        // Đọc từ SystemConfig, fallback appsettings → môi trường bất kỳ đều có giá trị
+        return new NationalGatewayConfigDto
         {
-            NationalPrescriptionBaseUrl = _config["NationalGateway:Prescription:BaseUrl"] ?? "https://donthuocquocgia.vn",
-            NationalPharmacyBaseUrl = _config["NationalGateway:Pharmacy:BaseUrl"] ?? "https://duocquocgia.com.vn",
-            FacilityCode = _config["NationalGateway:FacilityCode"] ?? "BV-DEMO-01",
-            FacilityName = _config["NationalGateway:FacilityName"] ?? "Bệnh viện Demo",
-            MockMode = _config.GetValue<bool>("NationalGateway:MockMode", true),
-            AutoSubmit = _config.GetValue<bool>("NationalGateway:AutoSubmit", false),
-            RetryCount = _config.GetValue<int>("NationalGateway:RetryCount", 3),
-            TimeoutSeconds = _config.GetValue<int>("NationalGateway:TimeoutSeconds", 30)
-        });
+            NationalPrescriptionBaseUrl = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.Prescription.BaseUrl", "https://donthuocquocgia.vn") ?? "https://donthuocquocgia.vn",
+            NationalPharmacyBaseUrl = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.Pharmacy.BaseUrl", "https://duocquocgia.com.vn") ?? "https://duocquocgia.com.vn",
+            FacilityCode = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.FacilityCode", "BV-DEMO-01") ?? "BV-DEMO-01",
+            FacilityName = await _configStore.GetOrFallbackAsync("NangCap23.NationalGateway.FacilityName", "Bệnh viện Demo") ?? "Bệnh viện Demo",
+            MockMode = await _configStore.GetBoolAsync("NangCap23.NationalGateway.MockMode", _config.GetValue<bool>("NationalGateway:MockMode", false)),
+            AutoSubmit = await _configStore.GetBoolAsync("NangCap23.NationalGateway.AutoSubmit", false),
+            RetryCount = await _configStore.GetIntAsync("NangCap23.NationalGateway.RetryCount", 3),
+            TimeoutSeconds = await _configStore.GetIntAsync("NangCap23.NationalGateway.TimeoutSeconds", 30)
+        };
     }
 
-    public Task<bool> SaveConfigAsync(NationalGatewayConfigDto config, string? userId)
+    public async Task<bool> SaveConfigAsync(NationalGatewayConfigDto config, string? userId)
     {
-        // Config persistence ngoài scope đơn giản — production lưu vào SystemConfig table
-        // (placeholder để FE save không lỗi 404)
-        return Task.FromResult(true);
+        // Whitelist + validation trước khi persist (chống SSRF qua admin endpoint).
+        Nangcap23ConfigValidator.ValidateNationalGateway(config);
+        var pairs = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["NangCap23.NationalGateway.Prescription.BaseUrl"] = config.NationalPrescriptionBaseUrl,
+            ["NangCap23.NationalGateway.Pharmacy.BaseUrl"] = config.NationalPharmacyBaseUrl,
+            ["NangCap23.NationalGateway.FacilityCode"] = config.FacilityCode,
+            ["NangCap23.NationalGateway.FacilityName"] = config.FacilityName,
+            ["NangCap23.NationalGateway.MockMode"] = config.MockMode.ToString(),
+            ["NangCap23.NationalGateway.AutoSubmit"] = config.AutoSubmit.ToString(),
+            ["NangCap23.NationalGateway.RetryCount"] = config.RetryCount.ToString(),
+            ["NangCap23.NationalGateway.TimeoutSeconds"] = config.TimeoutSeconds.ToString(),
+        };
+        var n = await _configStore.SaveAsync(pairs, userId);
+        _logger.LogInformation("NationalGateway config saved by {User}, {Count} keys upserted", userId ?? "?", n);
+        return true;
     }
 
-    public Task<bool> TestConnectionAsync()
-    {
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        return Task.FromResult(mockMode);
-    }
+    public Task<bool> TestConnectionAsync() => _client.PingAsync();
 }
 
 // ============================================================================
@@ -293,13 +407,18 @@ public class NationalPrescriptionGatewayService : INationalPrescriptionGatewaySe
 
 public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
 {
+    private const string EntityLabel = "Báo cáo Dược QG";
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
+    private readonly INationalPharmacyGatewayClient _client;
+    private readonly ILogger<NationalPharmacyGatewayService> _logger;
 
-    public NationalPharmacyGatewayService(HISDbContext db, IConfiguration config)
+    public NationalPharmacyGatewayService(
+        HISDbContext db, IConfiguration config,
+        INationalPharmacyGatewayClient client,
+        ILogger<NationalPharmacyGatewayService> logger)
     {
-        _db = db;
-        _config = config;
+        _db = db; _config = config; _client = client; _logger = logger;
     }
 
     private static string StatusName(int s) => s switch
@@ -372,6 +491,27 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
 
     public async Task<NationalPharmacyOutboundReportDto> GenerateAndSubmitAsync(GeneratePharmacyReportDto dto, string? userId)
     {
+        // Validation
+        var allowed = new[] { "DailySale", "MonthlyInventory", "NarcoticReport", "Recall" };
+        if (!allowed.Contains(dto.ReportType))
+            throw new ArgumentException($"ReportType phải thuộc {string.Join("/", allowed)}.", nameof(dto));
+        if (dto.PeriodFrom > dto.PeriodTo)
+            throw new ArgumentException("PeriodFrom phải <= PeriodTo.", nameof(dto));
+        if (dto.PeriodTo > DateTime.UtcNow.AddDays(1))
+            throw new ArgumentException("PeriodTo không được vượt quá hôm nay.", nameof(dto));
+
+        // Dedupe: cùng (ReportType, PeriodFrom, PeriodTo) đã có report Status=2 Acknowledged
+        var dup = await _db.NationalPharmacyOutboundReports.AsNoTracking()
+            .Where(x => x.ReportType == dto.ReportType
+                     && x.PeriodFrom == dto.PeriodFrom
+                     && x.PeriodTo == dto.PeriodTo
+                     && x.Status == 2)
+            .Select(x => x.ReportCode)
+            .FirstOrDefaultAsync();
+        if (dup != null)
+            throw new InvalidOperationException(
+                $"Báo cáo '{dto.ReportType}' giai đoạn {dto.PeriodFrom:yyyy-MM-dd}..{dto.PeriodTo:yyyy-MM-dd} đã được cổng QG xác nhận (mã {dup}). Không thể tạo lại.");
+
         var code = $"DQG-{dto.ReportType}-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()}";
 
         // Build XML payload per CV 2406/QLD-Ttra 2018 schema
@@ -435,17 +575,51 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
             Notes = dto.Notes
         };
 
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        if (mockMode)
+        // PHASE 1: save row trước khi gọi gateway
+        _db.NationalPharmacyOutboundReports.Add(entity);
+        try
         {
-            entity.Status = 2;
-            entity.GatewayTicketNumber = $"DQG-ACK-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
-            entity.AcknowledgedAt = DateTime.UtcNow;
-            entity.ResponseXml = $"<DuocQuocGiaResponse><Ticket>{entity.GatewayTicketNumber}</Ticket><Status>Accepted</Status></DuocQuocGiaResponse>";
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException dux) when (NangCap23ServiceHelpers.IsUniqueViolation(dux))
+        {
+            throw new InvalidOperationException(
+                $"Báo cáo Dược QG cho giai đoạn này đã được cổng xác nhận bởi một request khác. Vui lòng refresh danh sách.", dux);
         }
 
-        _db.NationalPharmacyOutboundReports.Add(entity);
-        await _db.SaveChangesAsync();
+        // PHASE 2: gọi gateway (có thể block lâu, có thể bị cancel)
+        var result = await _client.SubmitReportAsync(entity.PayloadXml, dto.ReportType);
+        if (result.Acknowledged)
+        {
+            entity.Status = 2;
+            entity.GatewayTicketNumber = result.TransactionId;
+            entity.AcknowledgedAt = DateTime.UtcNow;
+            entity.ResponseXml = result.RawResponse;
+            _logger.LogInformation("Pharmacy QG ack: code={Code} ticket={Ticket}", code, result.TransactionId);
+        }
+        else
+        {
+            entity.Status = result.ErrorCode is "NETWORK_ERROR" or "TIMEOUT" or "CIRCUIT_OPEN" ? 1 : 3;
+            entity.ErrorCode = result.ErrorCode;
+            entity.ErrorMessage = result.ErrorMessage;
+            entity.ResponseXml = result.RawResponse;
+            _logger.LogWarning("Pharmacy QG submit fail: code={Code} err={Err}", code, result.ErrorCode);
+        }
+
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex) when (result.Acknowledged)
+        {
+            _logger.LogCritical(ex,
+                "[NANGCAP23-ALERT] Gateway acknowledged pharmacy report {Code} (ticket={Ticket}) but DB final save FAILED. "
+                + "Manual reconcile required for row {EntityId}.",
+                code, result.TransactionId, entity.Id);
+            throw;
+        }
 
         return new NationalPharmacyOutboundReportDto
         {
@@ -470,20 +644,29 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
     {
         var entity = await _db.NationalPharmacyOutboundReports.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
-        if (entity.Status == 2) return null;
+        var maxRetries = _config.GetValue<int>("NationalGateway:RetryCount", 3);
+        Nangcap23StateMachine.EnsureCanRetry(entity.Status, entity.RetryCount, maxRetries, EntityLabel);
+
         entity.RetryCount++;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
 
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        if (mockMode)
+        var result = await _client.SubmitReportAsync(entity.PayloadXml, entity.ReportType);
+        if (result.Acknowledged)
         {
             entity.Status = 2;
             entity.AcknowledgedAt = DateTime.UtcNow;
-            entity.GatewayTicketNumber = $"DQG-ACK-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
-            entity.ResponseXml = $"<DuocQuocGiaResponse><Ticket>{entity.GatewayTicketNumber}</Ticket><Status>Retried-Accepted</Status></DuocQuocGiaResponse>";
+            entity.GatewayTicketNumber = result.TransactionId;
+            entity.ResponseXml = result.RawResponse;
             entity.ErrorCode = null;
             entity.ErrorMessage = null;
+        }
+        else
+        {
+            entity.Status = result.ErrorCode is "NETWORK_ERROR" or "TIMEOUT" or "CIRCUIT_OPEN" ? 1 : 3;
+            entity.ErrorCode = result.ErrorCode;
+            entity.ErrorMessage = result.ErrorMessage;
+            entity.ResponseXml = result.RawResponse;
         }
         await _db.SaveChangesAsync();
 
@@ -491,11 +674,7 @@ public class NationalPharmacyGatewayService : INationalPharmacyGatewayService
         return detail;
     }
 
-    public Task<bool> TestConnectionAsync()
-    {
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        return Task.FromResult(mockMode);
-    }
+    public Task<bool> TestConnectionAsync() => _client.PingAsync();
 }
 
 // ============================================================================
@@ -506,11 +685,14 @@ public class DeAn06CertificateService : IDeAn06CertificateService
 {
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IDeAn06GatewayClient _client;
+    private readonly ILogger<DeAn06CertificateService> _logger;
 
-    public DeAn06CertificateService(HISDbContext db, IConfiguration config)
+    public DeAn06CertificateService(
+        HISDbContext db, IConfiguration config,
+        IDeAn06GatewayClient client, ILogger<DeAn06CertificateService> logger)
     {
-        _db = db;
-        _config = config;
+        _db = db; _config = config; _client = client; _logger = logger;
     }
 
     private static string Da06StatusName(int s) => s switch
@@ -598,20 +780,48 @@ public class DeAn06CertificateService : IDeAn06CertificateService
     {
         var entity = await _db.BirthCertificateRecords.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
+        Nangcap23StateMachine.EnsureCanSubmit(entity.Da06Status, "Giấy chứng sinh");
 
-        entity.Da06SubmissionId = $"DA06-BIRTH-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
         entity.Da06SubmittedAt = DateTime.UtcNow;
         entity.Da06Status = 1;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
 
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        if (mockMode)
+        var payload = JsonSerializer.Serialize(new
+        {
+            certificateNumber = entity.CertificateNumber,
+            facilityCode = _config["NationalGateway:FacilityCode"] ?? "BV-DEMO-01",
+            mother = new { fullName = entity.MotherFullName, idNumber = entity.MotherIdNumber },
+            father = new { fullName = entity.FatherFullName, idNumber = entity.FatherIdNumber },
+            birth = new
+            {
+                dateTime = entity.BirthDateTime,
+                weight = entity.BirthWeight,
+                gestationalAgeWeeks = entity.GestationalAgeWeeks,
+                method = entity.BirthMethod,
+                location = entity.BirthLocation,
+                childGender = entity.ChildGender,
+                childName = entity.ChildName,
+                isLiveBirth = entity.IsLiveBirth,
+                singletonOrMultiple = entity.SingletonOrMultiple
+            }
+        });
+        var result = await _client.SubmitBirthCertificateAsync(payload);
+        if (result.Acknowledged)
         {
             entity.Da06Status = 2;
             entity.Da06AcknowledgedAt = DateTime.UtcNow;
+            entity.Da06SubmissionId = result.TransactionId;
             entity.Da06ResponseCode = "200";
             entity.Da06ErrorMessage = null;
+            _logger.LogInformation("Birth cert ack: cert={Cert} txn={Txn}", entity.CertificateNumber, result.TransactionId);
+        }
+        else
+        {
+            entity.Da06Status = result.ErrorCode is "NETWORK_ERROR" or "TIMEOUT" or "CIRCUIT_OPEN" ? 1 : 3;
+            entity.Da06ResponseCode = result.ErrorCode;
+            entity.Da06ErrorMessage = result.ErrorMessage;
+            _logger.LogWarning("Birth cert submit fail: cert={Cert} err={Err}", entity.CertificateNumber, result.ErrorCode);
         }
 
         await _db.SaveChangesAsync();
@@ -734,20 +944,55 @@ public class DeAn06CertificateService : IDeAn06CertificateService
     {
         var entity = await _db.DeathCertificateRecords.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
+        Nangcap23StateMachine.EnsureCanSubmit(entity.Da06Status, "Giấy báo tử");
 
-        entity.Da06SubmissionId = $"DA06-DEATH-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
         entity.Da06SubmittedAt = DateTime.UtcNow;
         entity.Da06Status = 1;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
 
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        if (mockMode)
+        var payload = JsonSerializer.Serialize(new
+        {
+            certificateNumber = entity.CertificateNumber,
+            facilityCode = _config["NationalGateway:FacilityCode"] ?? "BV-DEMO-01",
+            patientId = entity.PatientId,
+            death = new
+            {
+                dateTime = entity.DeathDateTime,
+                location = entity.DeathLocation,
+                primaryCauseIcd = entity.PrimaryCauseIcd,
+                primaryCauseDescription = entity.PrimaryCauseDescription,
+                secondaryCauseIcd = entity.SecondaryCauseIcd,
+                manner = entity.MannerOfDeath
+            },
+            certifyingDoctor = new
+            {
+                name = entity.CertifyingDoctorName,
+                license = entity.CertifyingDoctorLicense,
+                date = entity.CertifyingDate
+            },
+            informant = new
+            {
+                fullName = entity.InformantFullName,
+                idNumber = entity.InformantIdNumber,
+                relationship = entity.InformantRelationship
+            }
+        });
+        var result = await _client.SubmitDeathCertificateAsync(payload);
+        if (result.Acknowledged)
         {
             entity.Da06Status = 2;
             entity.Da06AcknowledgedAt = DateTime.UtcNow;
+            entity.Da06SubmissionId = result.TransactionId;
             entity.Da06ResponseCode = "200";
             entity.Da06ErrorMessage = null;
+        }
+        else
+        {
+            entity.Da06Status = result.ErrorCode is "NETWORK_ERROR" or "TIMEOUT" or "CIRCUIT_OPEN" ? 1 : 3;
+            entity.Da06ResponseCode = result.ErrorCode;
+            entity.Da06ErrorMessage = result.ErrorMessage;
+            _logger.LogWarning("Death cert submit fail: cert={Cert} err={Err}", entity.CertificateNumber, result.ErrorCode);
         }
 
         await _db.SaveChangesAsync();
@@ -877,7 +1122,16 @@ public class DeAn06CertificateService : IDeAn06CertificateService
         entity.DrugTestDetail = dto.DrugTestDetail;
         entity.AlcoholTestPerformed = dto.AlcoholTestPerformed;
         entity.AlcoholLevelMgPercent = dto.AlcoholLevelMgPercent;
-        entity.EligibleToDrive = dto.EligibleToDrive;
+        // High-New-2 + High-New-3: KHÔNG trust dto.EligibleToDrive — server tự tính theo TT 24/2023
+        // Apply ngay tại Save (không chỉ Submit) để UI/print pipeline đọc đúng giá trị.
+        entity.EligibleToDrive = dto.EligibleToDrive; // gán tạm để Recompute thấy giá trị "yêu cầu"
+        var changed = DrivingLicenseEligibility.Recompute(entity);
+        if (changed)
+        {
+            _logger.LogInformation(
+                "DLHC eligibility auto-corrected at Save: cert={Cert} class={Class} client={Client} computed={Computed}",
+                entity.CertificateNumber, entity.LicenseClass, dto.EligibleToDrive, entity.EligibleToDrive);
+        }
         entity.Conclusion = dto.Conclusion;
         entity.CertifyingDoctorId = dto.CertifyingDoctorId;
         entity.CertifyingDoctorName = dto.CertifyingDoctorName;
@@ -894,20 +1148,62 @@ public class DeAn06CertificateService : IDeAn06CertificateService
     {
         var entity = await _db.DrivingLicenseHealthChecks.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
+        Nangcap23StateMachine.EnsureCanSubmit(entity.Da06Status, "Giấy KSK lái xe");
 
-        entity.Da06SubmissionId = $"DA06-DRIVE-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
+        // LUÔN re-compute trước Submit — defense-in-depth (đã Recompute tại Save nhưng có thể
+        // DB record được Service khác update). Helper duy nhất ở Application layer.
+        var origEligibility = entity.EligibleToDrive;
+        if (DrivingLicenseEligibility.Recompute(entity))
+        {
+            _logger.LogInformation(
+                "DLHC eligibility re-corrected at Submit: cert={Cert} class={Class} prev={Prev} computed={Computed}",
+                entity.CertificateNumber, entity.LicenseClass, origEligibility, entity.EligibleToDrive);
+        }
+
         entity.Da06SubmittedAt = DateTime.UtcNow;
         entity.Da06Status = 1;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
 
-        var mockMode = _config.GetValue<bool>("NationalGateway:MockMode", true);
-        if (mockMode)
+        var payload = JsonSerializer.Serialize(new
+        {
+            certificateNumber = entity.CertificateNumber,
+            facilityCode = _config["NationalGateway:FacilityCode"] ?? "BV-DEMO-01",
+            patientId = entity.PatientId,
+            licenseClass = entity.LicenseClass,
+            examDate = entity.ExamDate,
+            anthropometric = new { heightCm = entity.HeightCm, weightKg = entity.WeightKg },
+            vitals = new { sbp = entity.SystolicBp, dbp = entity.DiastolicBp, heartRate = entity.HeartRate },
+            vision = new
+            {
+                rightWithout = entity.VisionRightWithoutGlasses,
+                leftWithout = entity.VisionLeftWithoutGlasses,
+                rightWith = entity.VisionRightWithGlasses,
+                leftWith = entity.VisionLeftWithGlasses,
+                colorBlindNormal = entity.ColorBlindNormal
+            },
+            hearingNormal = entity.HearingNormal,
+            drug = new { performed = entity.DrugTestPerformed, positive = entity.DrugTestPositive },
+            alcohol = new { performed = entity.AlcoholTestPerformed, level = entity.AlcoholLevelMgPercent },
+            conclusion = entity.Conclusion,
+            eligibleToDrive = entity.EligibleToDrive,
+            certifyingDoctor = new { name = entity.CertifyingDoctorName, license = entity.CertifyingDoctorLicense }
+        });
+        var result = await _client.SubmitDrivingLicenseCheckAsync(payload);
+        if (result.Acknowledged)
         {
             entity.Da06Status = 2;
             entity.Da06AcknowledgedAt = DateTime.UtcNow;
+            entity.Da06SubmissionId = result.TransactionId;
             entity.Da06ResponseCode = "200";
             entity.Da06ErrorMessage = null;
+        }
+        else
+        {
+            entity.Da06Status = result.ErrorCode is "NETWORK_ERROR" or "TIMEOUT" or "CIRCUIT_OPEN" ? 1 : 3;
+            entity.Da06ResponseCode = result.ErrorCode;
+            entity.Da06ErrorMessage = result.ErrorMessage;
+            _logger.LogWarning("DLHC submit fail: cert={Cert} err={Err}", entity.CertificateNumber, result.ErrorCode);
         }
 
         await _db.SaveChangesAsync();
@@ -1199,6 +1495,8 @@ public class LinenManagementService : ILinenManagementService
     {
         var entity = await _db.LinenTransactions.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
+        // STATE GUARD (High-New-1): chặn nhảy bất hợp lệ như 0→3 (Reconciled không qua Receive)
+        Nangcap23StateMachine.EnsureValidLinenTransition(entity.Status, newStatus);
         entity.Status = newStatus;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = userId;
@@ -1321,6 +1619,8 @@ public class LinenManagementService : ILinenManagementService
     {
         var entity = await _db.SterilizationSchedules.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
+        // STATE GUARD: chỉ cho phép transition hợp lệ (0→1→2, 1→3, 0→4, 1→4)
+        Nangcap23StateMachine.EnsureValidSterilizationTransition(entity.Status, newStatus);
         entity.Status = newStatus;
         if (newStatus == 1) entity.StartedAt = DateTime.UtcNow;
         if (newStatus == 2) entity.CompletedAt = DateTime.UtcNow;
@@ -1508,6 +1808,8 @@ public class FunctionalDiagnosticsService : IFunctionalDiagnosticsService
     {
         var entity = await _db.FunctionalDiagnosticTests.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return null;
+        // STATE GUARD: chỉ verify được khi đã Completed (status=2)
+        Nangcap23StateMachine.EnsureCanVerifyDiagnostic(entity.Status);
         entity.Status = 3;
         entity.VerifiedAt = DateTime.UtcNow;
         if (Guid.TryParse(userId, out var g)) entity.VerifiedById = g;
@@ -1535,13 +1837,18 @@ public class FunctionalDiagnosticsService : IFunctionalDiagnosticsService
 
 public class ZaloNotificationService : IZaloNotificationService
 {
+    private const string EntityLabel = "Tin Zalo ZNS";
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IZaloOaClient _client;
+    private readonly INangCap23ConfigStore _configStore;
+    private readonly ILogger<ZaloNotificationService> _logger;
 
-    public ZaloNotificationService(HISDbContext db, IConfiguration config)
+    public ZaloNotificationService(
+        HISDbContext db, IConfiguration config,
+        IZaloOaClient client, INangCap23ConfigStore configStore, ILogger<ZaloNotificationService> logger)
     {
-        _db = db;
-        _config = config;
+        _db = db; _config = config; _client = client; _configStore = configStore; _logger = logger;
     }
 
     private static string StatusName(int s) => s switch
@@ -1595,6 +1902,12 @@ public class ZaloNotificationService : IZaloNotificationService
 
     public async Task<ZaloNotificationLogDto> SendAsync(SendZaloMessageDto dto, string? userId)
     {
+        // Validation
+        if (string.IsNullOrWhiteSpace(dto.TargetPhone) || dto.TargetPhone.Length < 9 || dto.TargetPhone.Length > 12)
+            throw new ArgumentException("Số điện thoại không hợp lệ (yêu cầu 9-12 chữ số).", nameof(dto));
+        if (string.IsNullOrWhiteSpace(dto.TemplateId))
+            throw new ArgumentException("Thiếu TemplateId.", nameof(dto));
+
         // Resolve patient name if patientId provided
         string? patientName = null;
         if (dto.PatientId.HasValue)
@@ -1630,20 +1943,25 @@ public class ZaloNotificationService : IZaloNotificationService
             CreatedBy = userId
         };
 
-        var mockMode = _config.GetValue<bool>("Zalo:MockMode", true);
-        if (mockMode)
+        // Real Zalo OA call
+        var result = await _client.SendTemplateMessageAsync(
+            dto.TargetPhone, dto.TemplateId, entity.PayloadJson);
+        if (result.Acknowledged)
         {
             entity.Status = 2; // Delivered
-            entity.MessageId = $"ZNS-MOCK-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper()}";
+            entity.MessageId = result.TransactionId;
             entity.SentAt = DateTime.UtcNow;
             entity.DeliveredAt = DateTime.UtcNow;
-            entity.CostVnd = 350; // typical ZNS cost
+            entity.CostVnd = _config.GetValue<decimal>("Zalo:CostPerMessageVnd", 350m);
+            _logger.LogInformation("ZNS sent: msg={Msg} phone={Phone}", result.TransactionId, dto.TargetPhone);
         }
         else
         {
-            // TODO: POST https://business.openapi.zalo.me/message/template
-            // headers: access_token, Content-Type: application/json
-            entity.Status = 0;
+            entity.Status = 3; // Failed
+            entity.ErrorCode = result.ErrorCode;
+            entity.ErrorMessage = result.ErrorMessage;
+            entity.SentAt = DateTime.UtcNow;
+            _logger.LogWarning("ZNS fail: phone={Phone} err={Err}", dto.TargetPhone, result.ErrorCode);
         }
 
         _db.ZaloNotificationLogs.Add(entity);
@@ -1671,28 +1989,88 @@ public class ZaloNotificationService : IZaloNotificationService
         };
     }
 
-    public Task<ZaloConfigDto> GetConfigAsync()
+    public async Task<ZaloConfigDto> GetConfigAsync()
     {
-        return Task.FromResult(new ZaloConfigDto
+        // Đọc từ SystemConfig (AccessToken được decrypt tự động), fallback appsettings.
+        // KHÔNG trả AccessToken thật ra UI — chỉ trả "***" nếu đã có cấu hình.
+        var rawToken = await _configStore.GetOrFallbackAsync("NangCap23.Zalo.AccessToken", _config["Zalo:AccessToken"]);
+        return new ZaloConfigDto
         {
-            AccessToken = _config["Zalo:AccessToken"] ?? "",
-            OaId = _config["Zalo:OaId"] ?? "",
-            BaseUrl = _config["Zalo:BaseUrl"] ?? "https://business.openapi.zalo.me",
-            MockMode = _config.GetValue<bool>("Zalo:MockMode", true),
-            IsEnabled = _config.GetValue<bool>("Zalo:IsEnabled", false)
-        });
+            AccessToken = string.IsNullOrEmpty(rawToken) ? "" : "***", // mask, không leak token ra FE
+            OaId = await _configStore.GetOrFallbackAsync("NangCap23.Zalo.OaId", _config["Zalo:OaId"]) ?? "",
+            BaseUrl = await _configStore.GetOrFallbackAsync("NangCap23.Zalo.BaseUrl", "https://business.openapi.zalo.me") ?? "https://business.openapi.zalo.me",
+            MockMode = await _configStore.GetBoolAsync("NangCap23.Zalo.MockMode", _config.GetValue<bool>("Zalo:MockMode", false)),
+            IsEnabled = await _configStore.GetBoolAsync("NangCap23.Zalo.IsEnabled", _config.GetValue<bool>("Zalo:IsEnabled", false))
+        };
     }
 
-    public Task<bool> SaveConfigAsync(ZaloConfigDto config, string? userId)
+    public async Task<bool> SaveConfigAsync(ZaloConfigDto config, string? userId)
     {
-        // Placeholder — persistence into SystemConfig table is left to production deployment
-        return Task.FromResult(true);
+        Nangcap23ConfigValidator.ValidateZalo(config);
+        var pairs = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["NangCap23.Zalo.OaId"] = config.OaId,
+            ["NangCap23.Zalo.BaseUrl"] = config.BaseUrl,
+            ["NangCap23.Zalo.MockMode"] = config.MockMode.ToString(),
+            ["NangCap23.Zalo.IsEnabled"] = config.IsEnabled.ToString(),
+        };
+        // Med-New-1: 3 trạng thái cho AccessToken
+        //   null  → bỏ qua, không touch DB row (UI không sửa field)
+        //   "***" → bỏ qua (UI gửi lại mask)
+        //   ""    → CLEAR token (vô hiệu hóa Zalo OA) — phải save explicit empty
+        //   khác  → cập nhật token mới
+        if (config.AccessToken == null || config.AccessToken == "***")
+        {
+            // no-op
+        }
+        else if (config.AccessToken.Length == 0)
+        {
+            // Explicit clear — save empty string vào DB (ConfigStore không encrypt vì empty)
+            pairs["NangCap23.Zalo.AccessToken"] = string.Empty;
+            _logger.LogWarning("Zalo AccessToken cleared by {User} — OA disabled until reconfigured",
+                userId ?? "?");
+        }
+        else
+        {
+            pairs["NangCap23.Zalo.AccessToken"] = config.AccessToken;
+        }
+        var n = await _configStore.SaveAsync(pairs, userId);
+        _logger.LogInformation("Zalo config saved by {User}, {Count} keys upserted", userId ?? "?", n);
+        return true;
     }
 
-    public Task<bool> TestConnectionAsync()
+    public Task<bool> TestConnectionAsync() => _client.PingAsync();
+
+    public async Task<ZaloNotificationLogDto?> RetryAsync(Guid id, string? userId)
     {
-        var mockMode = _config.GetValue<bool>("Zalo:MockMode", true);
-        return Task.FromResult(mockMode);
+        var entity = await _db.ZaloNotificationLogs.FirstOrDefaultAsync(x => x.Id == id);
+        if (entity == null) return null;
+        var maxRetries = _config.GetValue<int>("Zalo:RetryCount", 3);
+        if (entity.Status == 2)
+            throw new InvalidOperationException("Tin nhắn đã giao thành công — không cần retry.");
+        if (entity.RetryCount >= maxRetries)
+            throw new InvalidOperationException($"Đã retry {entity.RetryCount} lần — vượt quá giới hạn {maxRetries}.");
+
+        entity.RetryCount++;
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        var result = await _client.SendTemplateMessageAsync(entity.TargetPhone, entity.TemplateId, entity.PayloadJson);
+        if (result.Acknowledged)
+        {
+            entity.Status = 2;
+            entity.MessageId = result.TransactionId;
+            entity.DeliveredAt = DateTime.UtcNow;
+            entity.ErrorCode = null;
+            entity.ErrorMessage = null;
+            entity.CostVnd = _config.GetValue<decimal>("Zalo:CostPerMessageVnd", 350m);
+        }
+        else
+        {
+            entity.ErrorCode = result.ErrorCode;
+            entity.ErrorMessage = result.ErrorMessage;
+        }
+        await _db.SaveChangesAsync();
+        return await GetLogAsync(id);
     }
 }
 
@@ -1703,7 +2081,11 @@ public class ZaloNotificationService : IZaloNotificationService
 public class QualityDashboardService : IQualityDashboardService
 {
     private readonly HISDbContext _db;
-    public QualityDashboardService(HISDbContext db) { _db = db; }
+    private readonly ILogger<QualityDashboardService> _logger;
+    public QualityDashboardService(HISDbContext db, ILogger<QualityDashboardService> logger)
+    {
+        _db = db; _logger = logger;
+    }
 
     public async Task<QualityDashboardDto> GetFullDashboardAsync(DateTime? asOfDate = null)
     {
@@ -1809,7 +2191,11 @@ public class QualityDashboardService : IQualityDashboardService
                 .FirstOrDefaultAsync();
             view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Chẩn đoán hình ảnh", Pending = radiology?.Pending ?? 0, Completed = radiology?.Completed ?? 0 });
         }
-        catch { view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Chẩn đoán hình ảnh" }); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "QualityDashboard: failed to aggregate Radiology");
+            view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Chẩn đoán hình ảnh" });
+        }
 
         try
         {
@@ -1821,7 +2207,11 @@ public class QualityDashboardService : IQualityDashboardService
                 .FirstOrDefaultAsync();
             view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Thăm dò chức năng", Pending = fdt?.Pending ?? 0, Completed = fdt?.Completed ?? 0 });
         }
-        catch { view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Thăm dò chức năng" }); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "QualityDashboard: failed to aggregate FunctionalDiagnostics");
+            view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Thăm dò chức năng" });
+        }
 
         try
         {
@@ -1833,7 +2223,11 @@ public class QualityDashboardService : IQualityDashboardService
                 .FirstOrDefaultAsync();
             view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Giải phẫu bệnh", Pending = path?.Pending ?? 0, Completed = path?.Completed ?? 0 });
         }
-        catch { view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Giải phẫu bệnh" }); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "QualityDashboard: failed to aggregate Pathology");
+            view.Items.Add(new ParaclinicalTypeStatusDto { TypeName = "Giải phẫu bệnh" });
+        }
 
         return view;
     }

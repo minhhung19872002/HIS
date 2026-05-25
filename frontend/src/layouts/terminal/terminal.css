@@ -410,19 +410,24 @@
 }
 .his-ticker-head {
   flex-shrink: 0;
-  padding: 0 10px;
+  padding: 0 12px;
   height: 100%;
-  display: flex; align-items: center; gap: 6px;
-  background: #020617;
-  color: #f8fafc;
+  display: flex; align-items: center; gap: 7px;
+  /* Elevated (sáng hơn nền ticker #0f172a) + accent trái -> nổi rõ trên nền tối */
+  background: #1e293b;
+  color: #f1f5f9;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  border-right: 1px solid #1e293b;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-left: 3px solid #38bdf8;
+  border-right: 1px solid #334155;
+  white-space: nowrap;
 }
 .his-ticker-head .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--s-ok);
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74,222,128,0.25);
   animation: his-pulse 1.6s ease-in-out infinite;
 }
 @keyframes his-pulse { 50% { opacity: 0.4; } }
@@ -507,6 +512,44 @@
   font-size: 9px;
   font-family: var(--font-mono);
 }
+
+/* Status bar — light theme overrides */
+body[data-theme="light"] .his-status {
+  background: #f8fafc;
+  color: #475569;
+  border-top: 1px solid #e2e8f0;
+}
+body[data-theme="light"] .his-status .seg b { color: #0f172a; }
+body[data-theme="light"] .his-status .seg.ok b { color: #16a34a; }
+body[data-theme="light"] .his-status .seg.warn b { color: #d97706; }
+body[data-theme="light"] .his-status .sep { background: #cbd5e1; }
+body[data-theme="light"] .his-status kbd {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+/* Ticker — light theme overrides (đồng bộ với status bar) */
+body[data-theme="light"] .his-ticker {
+  background: #f8fafc;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+body[data-theme="light"] .his-ticker-head {
+  background: #eef4ff;            /* tint xanh nhạt — nổi rõ trên nền sáng */
+  color: #1e3a8a;                 /* chữ xanh đậm — tương phản cao */
+  border-left: 3px solid #2563eb;
+  border-right: 1px solid #dbe4f0;
+}
+body[data-theme="light"] .his-ticker-head .dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.2);
+}
+body[data-theme="light"] .his-ticker-item   { color: #64748b; }
+body[data-theme="light"] .his-ticker-item b  { color: #0f172a; }
+body[data-theme="light"] .his-ticker-item.up b   { color: #16a34a; }
+body[data-theme="light"] .his-ticker-item.down b { color: #dc2626; }
+body[data-theme="light"] .his-ticker-item.warn b { color: #d97706; }
 
 /* ============== CONTENT ============== */
 .his-content {

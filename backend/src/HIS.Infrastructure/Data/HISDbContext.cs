@@ -695,6 +695,12 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             .HasOne(s => s.Department).WithMany().HasForeignKey(s => s.DepartmentId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<SterilizationSchedule>()
             .HasOne(s => s.Room).WithMany().HasForeignKey(s => s.RoomId).OnDelete(DeleteBehavior.NoAction);
+
+        // DrugInteraction: 2 FK -> Medicines (avoid SQL Server multiple cascade paths error)
+        modelBuilder.Entity<DrugInteraction>()
+            .HasOne(d => d.Medicine1).WithMany().HasForeignKey(d => d.Medicine1Id).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DrugInteraction>()
+            .HasOne(d => d.Medicine2).WithMany().HasForeignKey(d => d.Medicine2Id).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<NationalPrescriptionSubmission>()
             .HasOne(n => n.Prescription).WithMany().HasForeignKey(n => n.PrescriptionId).OnDelete(DeleteBehavior.NoAction);
 
@@ -961,6 +967,18 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
                             .HasConversion(stringToGuidConverter);
                     }
                 }
+            }
+        }
+
+        // Global FK cascade override: ALL Cascade FKs -> NoAction to avoid SQL Server
+        // "multiple cascade paths" errors on entities with 2+ FKs to the same target
+        // (e.g. DrugInteraction, IvfPatientCouples, BirthCertificateRecord). Safer for
+        // healthcare data — never auto-cascade-delete medical records.
+        foreach (var fk in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()))
+        {
+            if (fk.DeleteBehavior == DeleteBehavior.Cascade)
+            {
+                fk.DeleteBehavior = DeleteBehavior.ClientNoAction;
             }
         }
     }

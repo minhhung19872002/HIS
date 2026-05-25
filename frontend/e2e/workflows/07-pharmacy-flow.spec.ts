@@ -5,7 +5,7 @@ import { waitForLoading, login } from '../helpers/test-utils';
  * LUONG 7: KHO DUOC & PHAT THUOC (Pharmacy Flow)
  * Test quy trinh quan ly kho va phat thuoc
  *
- * Theo tài liệu HIS_DataFlow_Architecture.md:
+ * Theo tài liệu docs/architecture/data-flow.md:
  *
  * NGUON NHAP KHO:
  *   - Nha cung cap (theo thau)
