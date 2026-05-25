@@ -5047,6 +5047,18 @@ row-drawer), emr-cloud-sync/emr-hl7-export/biometric render OK.
 
 Commits: `0eb70c1` (menu [24] + spec), `c56032f` (inspector-portal redirect fix).
 
+**Cập nhật sau (commit `cda407d`)**: user yêu cầu đánh dấu TẤT CẢ phân hệ
+trong PDF (không chỉ 10 gap mới). Mở rộng [24] từ 7 → **57 menu item** —
+toàn bộ HIS (1.1-1.22) + LIS (2.1-2.8) + EMR (3.1-3.8) + RIS/PACS. Dùng
+script Python prepend `[24] ` theo set id mục tiêu trong TerminalLayout.tsx.
+Pitfall: group id `finance` trùng item id `finance` → header group "Tài chính"
+bị [24] nhầm, đã revert. **GIỮ NGUYÊN (không [24])** các module gói thầu khác:
+telemedicine, IVF, HIV/Lao, bệnh mạn tính, 16 module YTCC chuyên biệt, HR,
+chất lượng, thiết bị, tài sản, KSNK, đồ giặt, đào tạo, CCHN, ATTT, HIE,
+liên viện, chỉ đạo tuyến, SMS, Zalo, cổng QG, Đề án 06, lưu chủng VS, sàng
+lọc, hoá chất XN, giải phẫu bệnh, IVF lab, PHCN, YHCT, trợ giúp. Verify live
+(bundle `index-BxO1eFem.js`): 57/57 nhãn [24] render trên 10 rail group.
+
 **Lệnh chạy lại test NangCap24 prod**:
 ```
 cd frontend && npx playwright test e2e-prod/nangcap24-functional.spec.ts \
