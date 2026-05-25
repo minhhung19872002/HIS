@@ -4961,4 +4961,47 @@ Cloud Run còn ở revision NangCap23 (`his-api-00027-cjw`). Đã deploy + verif
   ARM capacity), patient-portal `Guid.Empty` fallback ~5 endpoint còn lại,
   production gateway URLs NangCap23 (5 cổng QG đang mock).
 
+### Seed demo data NangCap24 (gọi API thật) + fix bug payment confirm
+
+User yêu cầu "test thật để có data review". Đã seed data trên prod bằng
+cách **gọi chính các endpoint NangCap24** (test workflow end-to-end + để lại
+data review). Script local (không commit): `scripts/test-prod/seed_nangcap24.py`
++ `seed_nangcap24_bank.py`.
+
+| Phân hệ | Data tạo | Endpoint dùng |
+|---|---|---|
+| HL7 message queue | 8 msg (ORM/ORU/OML/ADT, in+out) + retry 3 | `POST /api/hl7-queue/demo-enqueue` + `/{id}/retry` |
+| DICOM study audit log | 12 hoạt động trên 3 study | `POST /api/dicom-study-log/log` |
+| DICOM auto-send | 2 remote PACS server + 3 rule + **1 C-STORE thật `done`** (135 slice CT → Orthanc VM) | `POST /api/RISComplete/dicom/remote-servers`, `/api/dicom-autosend/rules`, `/send` |
+| EMR cloud sync | 4 hồ sơ (signed_xml/hl7/pdf) | `POST /api/emr/cloud-sync/sync` |
+| EMR HL7 export | 3 hồ sơ | `POST /api/emr/hl7/export` |
+| Cổng thanh tra BHXH | 2 account + login OK, thấy 2192 hồ sơ thật | `POST /api/inspector-portal/accounts` + `/login` + `GET /records` |
+| Bank/VietQR payment | 6 giao dịch (BIDV/VCB/Agribank/Vietinbank/MSB), 4 đã confirm → paid | `POST /api/payment/create-url` + `/bank/confirm` |
+
+**Login thanh tra review**: `thanhtra01` / `Inspector@123` → `/inspector-portal`
+
+**Bug thật phát hiện + đã fix (commit `b523579`)**: `POST /api/payment/bank/confirm`
+trả 500 — `LinkReceiptAsync` set `Receipt.CashierId = Guid.Empty` nhưng cột này
+là **FK non-null tới Users.Id** → vi phạm `FK_Receipts_Users_Cashier` → INSERT
+fail. Bug dùng chung cho cả VNPay/MoMo/ZaloPay IPN (cùng gọi `LinkReceiptAsync`).
+Fix: `LinkReceiptAsync(txn, cashierId)` resolve về user xác nhận; fallback về
+admin/user hệ thống nếu không có context (IPN online). ConfirmBankTransfer
+truyền `userId`. Verify prod: confirm → 200, status=1 (paid), tạo Receipt + HĐĐT OK.
+
+**Cách đọc exception prod** (cho session sau): app KHÔNG log ở mức ERROR cho
+unhandled exception, nhưng Cloud Run **httpRequest log** có. Tìm request 500:
+`gcloud logging read 'resource.type="cloud_run_revision" AND
+resource.labels.service_name="his-api" AND httpRequest.status>=500'
+--freshness=40m --format="value(timestamp,httpRequest.requestUrl,httpRequest.status)"`.
+Stack trace + dòng `SqlException`/`FOREIGN KEY` nằm trong `textPayload` của các
+entry gần đó (lọc `grep -iE "xception|FOREIGN|SqlExcept|column"`), KHÔNG correlate
+theo `trace=` (app stdout không gắn trace id).
+
+**Còn lại cần test trên browser**: `/v2/biometric-enrollment` (WebAuthn cần
+thiết bị sinh trắc + browser thật — không seed được qua curl).
+
+### Cloud Run revisions session này
+- `his-api-00028-gm6` — deploy NangCap24 (10 gap)
+- `his-api-00029-khb` — fix FK_Receipts_Users_Cashier payment confirm
+
 
