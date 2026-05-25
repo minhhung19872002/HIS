@@ -5004,4 +5004,57 @@ thiết bị sinh trắc + browser thật — không seed được qua curl).
 - `his-api-00028-gm6` — deploy NangCap24 (10 gap)
 - `his-api-00029-khb` — fix FK_Receipts_Users_Cashier payment confirm
 
+### Đánh dấu [24] leftmenu + test thật kỹ NangCap24 (cùng ngày)
+
+User yêu cầu đối chiếu NangCap24.pdf (45 trang HSMT đầy đủ HIS/LIS/EMR/PACS),
+đánh dấu menu các chức năng NangCap24 + test kỹ như prod trước deploy.
+
+**Mapping 10 gap ↔ PDF** (extract: `scripts/test-prod/_nangcap24_extract.txt`):
+- 3666-3873 Phân hệ ký số + lưu trữ EMR: sinh trắc vân tay (3781) → Biometric;
+  ký XML (3821); đồng bộ Cloud (3829) → EmrCloudSync; tạo file HL7 (3842) → EmrHl7Export
+- 3875-3887 Cổng giám định BHXH trên web → InspectorPortal
+- 4115 HL7 v2.7 (LIS/PACS) → Hl7MessageQueue; 5136 tự động gửi file → DicomAutoSend;
+  5061-5093 3D/MIP/MPR/minIP + 4913 Mammography → MIP/MinIP + Mammo viewer
+- 1.21 (BIDV/VCB/Agribank/Vietinbank/MSB + QR động) → BankPayments
+
+**Đánh dấu `[24]`**: thêm tiền tố `[24]` vào 7 menu item v2 trong
+`frontend/src/layouts/terminal/TerminalLayout.tsx` (dicom-autosend,
+dicom-study-audit-log, bank-payments, biometric-enrollment, hl7-message-queue,
+emr-cloud-sync, emr-hl7-export). Cổng thanh tra là route standalone
+`/inspector-portal` (login riêng, không trong menu). Verify live: nhãn
+`[24] TT Ngân hàng (BIDV/VCB/...)` render đúng trên sidebar.
+
+**Bug deploy-blocking phát hiện + fix (commit `c56032f`)**: `/inspector-portal`
+redirect về `/login` → thanh tra KHÔNG vào được cổng. Root cause: cổng là
+route standalone nhưng vẫn nằm trong `NotificationProvider`; khi load chưa
+đăng nhập, provider poll `/notification/unread-count` → 401 (no token) →
+interceptor `client.ts` (line 32, điều kiện `!localStorage.getItem('token')`)
+`window.location.href='/login'` TRƯỚC khi form login thanh tra kịp hiện. Fix:
+bỏ qua redirect khi `pathname.startsWith('/inspector-portal')`. Đã deploy
+Vercel (bundle `index-D0B0GjCz.js`), verify hết redirect.
+
+**Phát hiện phụ về Vercel**: bản production từng bị **stale** (bundle
+`index-Ky42autl.js` thiếu route mới dù main đã có). Push commit FE mới ép
+Vercel rebuild → auto-promote production OK (~75-100s/lần). Nếu sau này thấy
+FE prod thiếu route đã merge, push 1 commit nhỏ để ép redeploy.
+
+**Test thật kỹ — `e2e-prod/nangcap24-functional.spec.ts` (8/8 pass trên prod)**:
+mỗi trang verify render + 0 console error + 0 API 4xx/5xx + có data seed +
+tương tác row→drawer; cổng thanh tra login `thanhtra01/Inspector@123` → vào
+view tra cứu (searchBox + 13 dòng hồ sơ). Kết quả: bank-payments 6 rows,
+hl7-queue 8, study-log 12, autosend 3 (rule sửa bằng nút action, không
+row-drawer), emr-cloud-sync/emr-hl7-export/biometric render OK.
+
+Commits: `0eb70c1` (menu [24] + spec), `c56032f` (inspector-portal redirect fix).
+
+**Lệnh chạy lại test NangCap24 prod**:
+```
+cd frontend && npx playwright test e2e-prod/nangcap24-functional.spec.ts \
+  --config=playwright.prod.config.ts --workers=3 --reporter=list
+```
+
+**Còn cần test trên browser thật** (không tự động được): `/v2/biometric-enrollment`
+WebAuthn ceremony cần thiết bị sinh trắc (vân tay/Windows Hello/USB U.are.U) —
+register-begin/finish + sign cần authenticator thật, prod đã HTTPS nên chạy được.
+
 
