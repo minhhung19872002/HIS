@@ -184,7 +184,7 @@ public partial class PaymentGatewayService
         txn.UpdatedAt = DateTime.UtcNow;
         txn.UpdatedBy = userId.ToString();
 
-        await LinkReceiptAsync(txn);
+        await LinkReceiptAsync(txn, userId);
         await _db.SaveChangesAsync();
 
         return MapToDto(txn);

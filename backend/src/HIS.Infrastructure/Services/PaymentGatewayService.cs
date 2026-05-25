@@ -631,8 +631,21 @@ public partial class PaymentGatewayService : IPaymentGatewayService
 
     #region Helpers
 
-    private async Task LinkReceiptAsync(PaymentTransaction txn)
+    private async Task LinkReceiptAsync(PaymentTransaction txn, Guid cashierId = default)
     {
+        // Receipts.CashierId là FK non-null tới Users.Id. Guid.Empty (hoặc id không
+        // tồn tại trong Users) vi phạm FK_Receipts_Users_Cashier → INSERT fail → 500.
+        // Resolve về user xác nhận (kế toán); nếu không có context (IPN online) thì
+        // fallback về tài khoản admin / user hệ thống đầu tiên.
+        var validCashierId = cashierId;
+        if (validCashierId == Guid.Empty || !await _db.Users.AnyAsync(u => u.Id == validCashierId))
+        {
+            validCashierId = await _db.Users
+                .Where(u => u.Username == "admin").Select(u => u.Id).FirstOrDefaultAsync();
+            if (validCashierId == Guid.Empty)
+                validCashierId = await _db.Users.Select(u => u.Id).FirstOrDefaultAsync();
+        }
+
         var receipt = new Receipt
         {
             Id = Guid.NewGuid(),
@@ -646,7 +659,7 @@ public partial class PaymentGatewayService : IPaymentGatewayService
             Discount = 0,
             FinalAmount = txn.Amount,
             Status = 1,
-            CashierId = Guid.Empty,
+            CashierId = validCashierId,
             Note = $"Thanh toán qua {txn.Provider.ToUpper()} — mã GD: {txn.GatewayTxnRef ?? txn.TxnRef}",
             CreatedAt = DateTime.UtcNow
         };
