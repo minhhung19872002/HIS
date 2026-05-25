@@ -29,7 +29,10 @@ apiClient.interceptors.response.use(
       // Don't redirect for data API 401s that may just be permission issues
       const url = error.config?.url || '';
       const isAuthEndpoint = url.includes('/auth/') || url.includes('/login');
-      if (isAuthEndpoint || !localStorage.getItem('token')) {
+      // /inspector-portal là cổng standalone (login riêng của giám định viên BHXH);
+      // không redirect về /login chính kể cả khi call nền (notification poll) bị 401.
+      const onInspectorPortal = window.location.pathname.startsWith('/inspector-portal');
+      if ((isAuthEndpoint || !localStorage.getItem('token')) && !onInspectorPortal) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         if (window.location.pathname !== '/login') {
