@@ -5069,4 +5069,51 @@ cd frontend && npx playwright test e2e-prod/nangcap24-functional.spec.ts \
 WebAuthn ceremony cần thiết bị sinh trắc (vân tay/Windows Hello/USB U.are.U) —
 register-begin/finish + sign cần authenticator thật, prod đã HTTPS nên chạy được.
 
+### Deep workflow test + seed data + sweep toàn bộ [24] (cùng ngày, pre-deploy khách)
+
+**Deep workflow test** (commit `ccb49e9`): `e2e-prod/nangcap24-deep.spec.ts` — test
+nghiệp vụ thật end-to-end từng gap (tạo/sửa/xóa/gửi/confirm/login/export), KHÁC
+`nangcap24-functional` (chỉ render). **10/10 deep + 8/8 functional pass** trên prod.
+
+**Seed data cho hôm nay** (user báo "ko thấy data"): nhiều trang lọc `CreatedAt.Date==today`
+mà data demo để ngày cũ → rỗng. Dùng 2 công cụ seed có sẵn (gọi API thật, không deploy):
+- `POST /api/admin/seed-daily/patients?count=40` header `X-Seed-Key: Er81jbXwX91UkcGEuMbPSgsuoG9bXb3R9m9kIGrdM2U`
+  (key lấy từ Cloud Run env `DailySeed__Key`). Tạo 40 BN + khám + 8 nhập viện +
+  3 ra viện + 18 phiếu thu + 12 chỉ định DV + 10 đơn + 10 XN + 5 CĐHA + 3 PT +
+  35 STT + 10 telemedicine + sự cố/ký số/khảo sát. **POST phải có body `-d '{}'`**
+  (Google LB trả 411 nếu body rỗng).
+- `POST /api/admin/populate/all` (`[AllowAnonymous]`, body `{}`) — idempotent, shift-to-today
+  (gồm LabOrders cho LIS pending) + đảm bảo module tables có data.
+- Dashboard sau seed: 40 ngoại trú · 8 nhập viện · 21 đang nằm · 9.27M doanh thu.
+
+**Seed 4 trang [24] còn trống** (script local `scripts/test-prod/seed_empty24.py`, không commit):
+functional-diagnostics (12 ca qua `POST /functional-diagnostics` + complete/verify),
+bhxh-audit (2 phiên `POST /bhxh-audit/session` + run), finance-catalogs +
+paraclinical-catalogs (qua `POST /master-catalog/{additional-charges,other-incomes,
+transport-services,gasoline-prices,machine-codes}`).
+
+**Bug phát hiện**: `GET /BloodBankComplete/issue-requests` **KHÔNG có** `fromDate/toDate`
+→ 500 `SqlTypeException: SqlDateTime overflow` (date param default `DateTime.MinValue`
+0001-01-01 < SQL min 1753). Có `fromDate&toDate` hợp lệ → 200. Frontend `getIssueRequests`
+gửi đúng `fromDate/toDate` nên trang OK (BloodBank dùng `Promise.allSettled` nên 1 call
+fail cũng không vỡ trang). **TODO nếu cần**: clamp date param về `SqlDateTime.MinValue`
+trong `BloodBankCompleteService.GetIssueRequestsAsync` cho an toàn.
+
+**Sweep toàn bộ 56 path [24]** (script `_paths24.txt` + browser): **55/56 trang có data**.
+Lưu ý sweep chỉ đếm `tbody tr` → báo nhầm trang dạng thẻ/dashboard; phải check thêm
+KPI/thẻ. Hai trang KHÔNG phải lỗi data:
+- `/v2/radiology/viewer`: trình xem ảnh DICOM, "Thiếu Study UID" khi mở trực tiếp —
+  đúng thiết kế (mở từ Radiology → click ca chụp). PACS có study CT 135 lát test sẵn.
+- `/v2/patient-portal`: cổng cá nhân BN, lọc `AccountId==currentUser` → admin (không
+  phải BN) thấy 0. `PortalAppointments` table rỗng hoàn toàn. Muốn demo có data cần:
+  (1) fallback top-30 khi accountId rỗng trong `ExtendedWorkflowServices.GetMyAppointmentsAsync`
+  + (2) seed `PortalAppointments` + (3) deploy. ĐANG CHỜ user quyết định.
+
+**Lưu ý vận hành**: data seed gắn ngày hôm nay → mai các trang lọc "hôm nay" rỗng lại
+trừ khi Cloud Scheduler chạy `/seed-daily/patients` mỗi ngày. Chưa rõ scheduler đã
+bật chưa — nếu cần data luôn tươi cho khách dùng thử dài ngày thì set Cloud Scheduler.
+
+Test commands: `cd frontend && npx playwright test e2e-prod/nangcap24-deep.spec.ts
+e2e-prod/nangcap24-functional.spec.ts --config=playwright.prod.config.ts --reporter=list`
+
 
