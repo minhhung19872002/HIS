@@ -96,6 +96,6 @@ Làm thanh toán [VietQR/VNPay/MoMo/ZaloPay] cho [BN/viện phí]: tạo QR + co
 
 ---
 **Mẹo:** prompt cụ thể (route/field/role/status) → match chuẩn, ít hỏi lại. Mọi code-gen được
-`core-reusable-code` (reuse trước) + `his-anti-pattern` (guardrail) "gác".
+`core-reusable-code` (reuse trước) + `his-qa-anti-pattern` (guardrail) "gác".
 **Không có skill phù hợp?** Xem `SKILL-MAP.md` mục (6) — Claude sẽ đề xuất tạo skill mới đúng tầng
 (core nếu portable / his nếu riêng HIS) rồi bổ sung vào map để tái dùng.
