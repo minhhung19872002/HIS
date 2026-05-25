@@ -4849,4 +4849,116 @@ E2E sanity check qua API:
   wire HttpClient theo TODO marker.
 - Zalo OA real ZNS template approval (template ID hiện hardcoded mock)
 
+---
+
+## Work Log - 2026-05-25 (NangCap24 — deploy prod + ghi work log truy hồi)
+
+Session này phát hiện **NangCap24 đã code xong + push GitHub từ session trước
+nhưng chưa ghi work log và chưa deploy backend lên Cloud Run** → 9 page v2 đã
+live trên Vercel (auto-deploy khi push) nhưng gọi API NangCap24 đều 404 vì
+Cloud Run còn ở revision NangCap23 (`his-api-00027-cjw`). Đã deploy + verify
++ ghi lại work log dưới đây.
+
+### NangCap24 — HSMT BV Đa khoa, 10 gap (2 commit từ session trước)
+
+```
+185ccd5 feat(nangcap24-v2): port 9 pages từ Claude Design bundle 7U9Opm5HscHHysP6aaHH_A
+2998527 feat(nangcap24): HSMT BV Đa khoa — close 10 gap (BE + FE + tests)
+```
+
+**10 gap đã đóng:**
+
+| # | Gap | Route / Component |
+|---|---|---|
+| 1 | Biometric / WebAuthn ký số bằng sinh trắc (vân tay/FaceID) | `api/biometric` (register/sign begin+finish) |
+| 2 | Cổng thanh tra BHXH (Inspector Portal) — login riêng, xem HSBA + signed XML | `api/inspector-portal` (standalone route `/inspector-portal`) |
+| 3 | EMR HL7 export (xuất HSBA ra HL7 message) | `api/emr/hl7` |
+| 4 | EMR cloud sync (đồng bộ HSBA lên cloud, retry-failed) | `api/emr/cloud-sync` |
+| 5 | DICOM auto-send (rule-based tự gửi study tới PACS đích) | `api/dicom-autosend` |
+| 6 | HL7 message queue (hàng đợi + retry-all-failed + demo-enqueue) | `api/hl7-queue` |
+| 7 | DICOM study activity audit log | `api/dicom-study-log` |
+| 8 | Bank / VietQR Napas247 payment (BIDV/VCB/Agribank/Vietinbank/MSB) | `api/payment` (VietQR partial + ConfirmBankTransfer) |
+| 9 | MIP / MinIP viewer (maximum/minimum intensity projection) | `MipMinIpViewer.tsx` |
+| 10 | Cine playback controls + Mammography viewer nâng cấp | `CineControls.tsx` + `MammoViewer.tsx` |
+
+**Backend (commit `2998527`):**
+- `HIS.Core/Entities/NangCap24Entities.cs` — 9 entities: BiometricCredential,
+  BiometricSignatureLog, BhxhInspectorAccount, BhxhInspectorAccessLog,
+  EmrCloudSyncLog, DicomAutoSendRule, DicomTransmissionLog, Hl7MessageQueue,
+  DicomStudyActivityLog
+- `HIS.Application/DTOs/NangCap24/NangCap24DTOs.cs` (~470 LOC, ~30 DTO)
+- `HIS.Application/Services/INangCap24Services.cs` — 7 interface
+- `HIS.Infrastructure/Services/NangCap24Services.cs` (~1547 LOC) — 7 impl
+- `HIS.API/Controllers/NangCap24Controllers.cs` (~344 LOC) — 7 controller
+- `PaymentGatewayService.VietQR.cs` (~217 LOC) — VietQR EMVCo TLV generator
+  (static + dynamic QR), `ConfirmBankTransferAsync`. Render URL từ
+  `PaymentGateway:Bank:QrImageBase` (default `https://img.vietqr.io/image`)
+- `Data/Scripts/44_nangcap24.sql` — 9 tables idempotent (IF NOT EXISTS) +
+  seed tài khoản `inspector`
+- HISDbContext: 9 DbSet + Fluent API; DependencyInjection: 7 service
+
+**Frontend (commit `185ccd5` redesign theo design bundle
+`7U9Opm5HscHHysP6aaHH_A`):**
+- 8 page v2 (`pages-v2/`): BankPayments, BiometricEnrollment, EmrHl7Export,
+  EmrCloudSync, DicomAutoSend, Hl7MessageQueue, DicomStudyAuditLog (7 trong
+  TerminalLayout) + InspectorPortal (standalone, route riêng ngoài
+  TerminalLayout cho thanh tra BHXH đăng nhập độc lập)
+- Viewer components: MipMinIpViewer (MIP/MinIP), CineControls (cine loop),
+  MammoViewer nâng cấp
+- `api/nangcap24.ts` (~480 LOC) — API client; `Icon.tsx` +8 icon
+- App.tsx: 8 route mới; TerminalLayout: menu items
+
+### Deploy prod (session này)
+
+1. `gcloud builds submit --config cloudbuild.yaml
+   --substitutions=_IMAGE=...:20260525-153209` → build ID
+   `17d42eb2-3e5f-48ae-b32a-b4f26e2ee9e4`, 5m8s SUCCESS
+2. `gcloud run services update his-api --image=...:20260525-153209
+   --update-env-vars=DEPLOY_AT=<epoch>` → revision **`his-api-00028-gm6`**,
+   100% traffic
+3. `ProductionSchemaRepairRunner` auto-apply `44_nangcap24.sql` lúc cold start
+
+**Verify prod:**
+
+| Check | Kết quả |
+|---|---|
+| `GET /api/hl7-queue` | 200 `{items:[],totalCount:0,...}` |
+| `GET /api/dicom-autosend/stats` | 200 `{totalTransmissions:0,byDestination:[],...}` |
+| `GET /api/dicom-autosend/rules` | 200 |
+| `GET /api/emr/cloud-sync/status` | 200 |
+| `GET /api/dicom-study-log` | 200 |
+| `GET /health/schema-drift` | `missingCount: 0` (9 bảng OK) |
+
+### Trạng thái hạ tầng prod sau session
+
+- Cloud Run: **`his-api-00028-gm6`**, image
+  `his-api:20260525-153209`
+- Vercel: NangCap24 FE đã live từ trước (push `185ccd5`); nay không còn 404
+- Branch `main` sync với origin (không có commit mới session này ngoài
+  CLAUDE.md update)
+
+### Pitfalls (giống các session deploy trước)
+
+- **Vercel auto-deploy nhưng Cloud Run KHÔNG** — push commit BE không tự
+  deploy backend. Phải `gcloud builds submit` + `gcloud run services update`
+  thủ công. Đây chính là nguyên nhân NangCap24 FE live mà BE còn 404.
+- Inspector Portal route `/inspector-portal` đặt **ngoài** TerminalLayout
+  (standalone) để thanh tra BHXH đăng nhập độc lập, không qua admin login.
+- VietQR là `partial class PaymentGatewayService` — mở rộng service thanh
+  toán sẵn có, không tạo service mới.
+
+### CAN LAM TIEP (mai)
+
+- **Test smoke NangCap24 trên browser** — 8 page v2 + Inspector Portal
+  standalone. Backend data rỗng nên cần seed vài row (autosend rule, HL7
+  msg, biometric credential) để demo có nội dung, hoặc tạo qua chính UI.
+- **Bank/VietQR**: cấu hình `PaymentGateway:Bank:*` (BIN + account number
+  thật của BV) khi đi production thật.
+- **Biometric/WebAuthn**: cần HTTPS + thiết bị có authenticator để test
+  register/sign end-to-end (prod đã HTTPS qua Vercel + Cloud Run).
+- Các item roadmap cũ vẫn treo: USB Token Pkcs11Interop (~2 ngày, cần
+  hardware), convert CT/US model thật cho AI, Jibri recording (chờ Tokyo
+  ARM capacity), patient-portal `Guid.Empty` fallback ~5 endpoint còn lại,
+  production gateway URLs NangCap23 (5 cổng QG đang mock).
+
 
