@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, Input, Select, Radio, Checkbox, InputNumber } from 'antd';
 import * as receptionApi from '../api/reception';
 import type { AdmissionDto, RoomOverviewDto } from '../api/reception';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -137,6 +137,7 @@ const ReceptionV2: React.FC = () => {
   const [page, setPage]         = useState(0);
   const [selRows, setSelRows]   = useState<Set<string>>(new Set());
   const [detail, setDetail]     = useState<RawRow | null>(null);
+  const [newOpen, setNewOpen]   = useState(false);
   const PAGE_SIZE = 14;
 
   const loadData = useCallback(() => {
@@ -229,13 +230,28 @@ const ReceptionV2: React.FC = () => {
     }
   };
 
-  // Mutations target the QueueTicket id (not the MedicalRecord id). Backend
-  // exposes ticketId on the AdmissionDto; fall back to id for older shapes.
-  const ticketIdOf = (r: RawRow): string | null => r.ticketId || null;
+  // Mutations target the QueueTicket id. Demo/seed rows can lack a linked
+  // ticket (ticketId null) — issue one on the fly so the action still works.
+  const ensureTicket = async (r: RawRow): Promise<string | null> => {
+    if (r.ticketId) return r.ticketId;
+    if (!r.roomId) return null;
+    try {
+      const res = await receptionApi.issueQueueTicket({
+        patientId: r.patientId || undefined,
+        patientName: r.patientName,
+        roomId: r.roomId,
+        queueType: r.isEmergency ? 3 : 1,
+        priority: r.isEmergency ? 1 : (priorityKey(r) === 'high' ? 2 : 0),
+      });
+      return res.data?.id || null;
+    } catch {
+      return null;
+    }
+  };
 
   const onCheckin = async (r: RawRow) => {
-    const tid = ticketIdOf(r);
-    if (!tid) { message.error('Không tìm thấy ticket'); return; }
+    const tid = await ensureTicket(r);
+    if (!tid) { message.error('Không tạo được số thứ tự (bệnh nhân chưa có phòng khám)'); return; }
     try {
       await receptionApi.startServing(tid);
       message.success(`Đã check-in · ${r.patientName}`);
@@ -246,8 +262,8 @@ const ReceptionV2: React.FC = () => {
   };
 
   const onSkip = async (r: RawRow) => {
-    const tid = ticketIdOf(r);
-    if (!tid) { message.error('Không tìm thấy ticket'); return; }
+    const tid = await ensureTicket(r);
+    if (!tid) { message.error('Không tìm thấy số thứ tự'); return; }
     try {
       await receptionApi.skipQueue(tid, 'Bệnh nhân không đến');
       message.warning(`Đã đánh dấu vắng mặt · ${r.patientName}`);
@@ -258,8 +274,8 @@ const ReceptionV2: React.FC = () => {
   };
 
   const onComplete = async (r: RawRow) => {
-    const tid = ticketIdOf(r);
-    if (!tid) { message.error('Không tìm thấy ticket'); return; }
+    const tid = await ensureTicket(r);
+    if (!tid) { message.error('Không tìm thấy số thứ tự'); return; }
     try {
       await receptionApi.completeServing(tid);
       message.success(`Đã hoàn thành · ${r.patientName}`);
@@ -269,8 +285,24 @@ const ReceptionV2: React.FC = () => {
     }
   };
 
-  const onPrint = (r: RawRow) => {
-    message.success(`Đã gửi in phiếu hẹn · ${r.queueCode || '#'}${r.queueNumber}`);
+  // Open the printable slip in a new tab. Prefer the queue ticket; fall back to
+  // the examination slip (keyed by medical-record id) for rows without a ticket.
+  const openSlip = async (r: RawRow) => {
+    const res = r.ticketId
+      ? await receptionApi.printQueueTicket(r.ticketId)
+      : await receptionApi.printExaminationSlip(r.id);
+    const url = URL.createObjectURL(res.data as Blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
+  const onPrint = async (r: RawRow) => {
+    try {
+      await openSlip(r);
+      message.success(`Đã mở phiếu · ${r.queueCode || `#${r.queueNumber}`}`);
+    } catch {
+      message.error('In phiếu thất bại');
+    }
   };
 
   const onResetFilter = () => {
@@ -278,19 +310,55 @@ const ReceptionV2: React.FC = () => {
   };
 
   const onExport = () => {
+    if (filtered.length === 0) { message.warning('Không có dữ liệu để xuất'); return; }
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['STT', 'Bệnh nhân', 'Giới', 'Tuổi', 'SĐT', 'CCCD', 'Khoa', 'Phòng', 'Hình thức', 'Số BHYT', 'Ưu tiên', 'Trạng thái', 'Đến lúc'];
+    const lines = filtered.map((r) => [
+      r.queueCode || `#${r.queueNumber}`, r.patientName, genderLabel(r), ageOf(r),
+      r.phoneNumber || '', r.identityNumber || '', r.departmentName || '', r.roomName || '',
+      treatmentLabel(r), r.insuranceNumber || '', priorityLabel(priorityKey(r)),
+      STATUS_TABS.find((t) => t.v === statusKey(r))?.l || '', fmtHM(r.admissionDate),
+    ].map(esc).join(','));
+    const csv = '﻿' + [header.map(esc).join(','), ...lines].join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tiep-don-${dayjs().format('YYYYMMDD-HHmm')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
     message.success(`Đã xuất ${filtered.length} dòng (CSV)`);
   };
 
-  const onBulkPrint = () => {
+  const onBulkPrint = async () => {
     if (selRows.size === 0) { message.warning('Chưa chọn phiên nào'); return; }
-    message.success(`Đã in ${selRows.size} phiếu hẹn`);
+    const targets = filtered.filter((r) => selRows.has(r.id));
+    let ok = 0;
+    for (const r of targets) {
+      try {
+        const res = r.ticketId
+          ? await receptionApi.printQueueTicket(r.ticketId)
+          : await receptionApi.printExaminationSlip(r.id);
+        const url = URL.createObjectURL(res.data as Blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `phieu-${r.queueCode || r.queueNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        ok += 1;
+      } catch { /* skip failed ones */ }
+    }
+    message.success(`Đã tải ${ok}/${targets.length} phiếu`);
     setSelRows(new Set());
   };
 
   // F2 = đăng ký mới · F3 = gọi số · F4 = tìm BN cũ
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'F2') { e.preventDefault(); message.info('Đăng ký mới — TODO: open wizard'); }
+      if (e.key === 'F2') { e.preventDefault(); setNewOpen(true); }
       if (e.key === 'F3') { e.preventDefault(); onCallNext(); }
       if (e.key === 'F4') { e.preventDefault(); document.querySelector<HTMLInputElement>('.ab-search input')?.focus(); }
     };
@@ -399,7 +467,7 @@ const ReceptionV2: React.FC = () => {
             <button type="button" className="ab-btn ok" onClick={onCallNext}>
               <TermIcon name="bell" size={12} /> Gọi số tiếp <kbd>F3</kbd>
             </button>
-            <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: NewVisitWizard')}>
+            <button type="button" className="ab-btn primary" onClick={() => setNewOpen(true)}>
               <TermIcon name="plus" size={12} /> Đăng ký mới <kbd>F2</kbd>
             </button>
           </>
@@ -553,7 +621,173 @@ const ReceptionV2: React.FC = () => {
       >
         {detail && <VisitDrawerBody v={detail} rows={rows} />}
       </DrawerShell>
+
+      {/* New registration modal */}
+      <NewVisitModal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        rooms={rooms}
+        onDone={() => { setNewOpen(false); loadData(); }}
+      />
     </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   New-visit registration modal — creates a real admission via
+   registerFeePatient (viện phí/dịch vụ) or registerInsurancePatient (BHYT).
+   A linked QueueTicket is created by the backend, so the new row's
+   check-in/print actions work end-to-end.
+   ──────────────────────────────────────────────────────────── */
+
+const PATIENT_TYPE_OPTS = [
+  { value: 1, label: 'BHYT' },
+  { value: 3, label: 'Viện phí' },
+  { value: 2, label: 'Dịch vụ' },
+];
+
+const Lbl: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
+  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
+    {label && (
+      <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    )}
+    {children}
+  </div>
+);
+
+const NewVisitModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  rooms: RoomOverviewDto[];
+  onDone: () => void;
+}> = ({ open, onClose, rooms, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [fullName, setFullName] = useState('');
+  const [gender, setGender]     = useState(1);
+  const [yob, setYob]           = useState<number | null>(null);
+  const [phone, setPhone]       = useState('');
+  const [cccd, setCccd]         = useState('');
+  const [address, setAddress]   = useState('');
+  const [ptype, setPtype]       = useState(3);
+  const [insurance, setInsurance] = useState('');
+  const [roomId, setRoomId]     = useState<string | undefined>(undefined);
+  const [priority, setPriority] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setFullName(''); setGender(1); setYob(null); setPhone(''); setCccd('');
+      setAddress(''); setPtype(3); setInsurance(''); setRoomId(undefined); setPriority(false);
+    }
+  }, [open]);
+
+  const roomOpts = useMemo(
+    () => rooms.map((r) => ({ value: r.roomId, label: `${r.departmentName || '—'} · ${r.roomName || ''}` })),
+    [rooms],
+  );
+
+  const submit = async () => {
+    if (!fullName.trim()) { message.warning('Nhập họ tên bệnh nhân'); return; }
+    if (!roomId)          { message.warning('Chọn phòng khám'); return; }
+    if (ptype === 1 && !insurance.trim()) { message.warning('Nhập số thẻ BHYT'); return; }
+    setSubmitting(true);
+    try {
+      if (ptype === 1 && insurance.trim()) {
+        await receptionApi.registerInsurancePatient({
+          insuranceNumber: insurance.trim(),
+          roomId,
+          identityNumber: cccd.trim() || undefined,
+          isPriority: priority,
+        });
+      } else {
+        await receptionApi.registerFeePatient({
+          newPatient: {
+            fullName: fullName.trim(),
+            gender,
+            yearOfBirth: yob || undefined,
+            phoneNumber: phone.trim() || undefined,
+            address: address.trim() || undefined,
+            identityNumber: cccd.trim() || undefined,
+          },
+          serviceType: ptype === 2 ? 2 : 3,
+          roomId,
+          isPriority: priority,
+        });
+      }
+      message.success(`Đã đăng ký · ${fullName.trim()}`);
+      onDone();
+    } catch {
+      message.error('Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Đăng ký tiếp đón mới"
+      footer={
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="ab-btn primary" disabled={submitting} onClick={submit}>
+            <TermIcon name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Đăng ký'}
+          </button>
+        </>
+      }
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Lbl label="Họ tên *">
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nguyễn Văn A" />
+        </Lbl>
+        <Lbl label="Giới tính">
+          <Radio.Group
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+            optionType="button"
+            options={[{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }]}
+          />
+        </Lbl>
+        <Lbl label="Năm sinh">
+          <InputNumber value={yob} onChange={(v) => setYob(v)} min={1900} max={new Date().getFullYear()} placeholder="1990" style={{ width: '100%' }} />
+        </Lbl>
+        <Lbl label="Số điện thoại">
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xxxxxxxx" />
+        </Lbl>
+        <Lbl label="CCCD">
+          <Input value={cccd} onChange={(e) => setCccd(e.target.value)} placeholder="12 chữ số" />
+        </Lbl>
+        <Lbl label="Đối tượng">
+          <Select value={ptype} onChange={setPtype} options={PATIENT_TYPE_OPTS} style={{ width: '100%' }} />
+        </Lbl>
+        {ptype === 1 && (
+          <Lbl label="Số thẻ BHYT *">
+            <Input value={insurance} onChange={(e) => setInsurance(e.target.value)} placeholder="Mã thẻ BHYT" />
+          </Lbl>
+        )}
+        <Lbl label="Phòng khám *" full={ptype !== 1}>
+          <Select
+            value={roomId}
+            onChange={setRoomId}
+            options={roomOpts}
+            showSearch
+            optionFilterProp="label"
+            placeholder="Chọn phòng khám"
+            style={{ width: '100%' }}
+          />
+        </Lbl>
+        <Lbl label="Địa chỉ" full>
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Số nhà, đường, phường/xã…" />
+        </Lbl>
+        <Lbl full>
+          <Checkbox checked={priority} onChange={(e) => setPriority(e.target.checked)}>
+            Ưu tiên (người già, trẻ em, thai phụ, người khuyết tật…)
+          </Checkbox>
+        </Lbl>
+      </div>
+    </ModalShell>
   );
 };
 
