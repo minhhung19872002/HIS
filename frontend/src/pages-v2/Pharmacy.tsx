@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
@@ -22,6 +23,7 @@ const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 
 const PharmacyV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [reloadVer, setReloadVer] = useState(0);
 
   const onAccept = async (r: PendingPrescription, reload: () => void) => {
@@ -161,10 +163,10 @@ const PharmacyV2: React.FC = () => {
       drawerSub={(r) => `${r.doctorName} · ${r.department} · ${fmtDT(r.createdDate)}`}
       toolbarRight={
         <>
-          <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: Phiếu nhập kho')}>
+          <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/pharmacy-approval')}>
             <TermIcon name="download" size={12} /> Nhập kho
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Đơn ngoại trú')}>
+          <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/dispensing-counter')}>
             <TermIcon name="plus" size={12} /> Đơn ngoại
           </button>
         </>

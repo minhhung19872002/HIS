@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { getAppointments, confirmAppointment, cancelAppointment } from '../api/telemedicine';
 import type { TelemedicineAppointmentDto } from '../api/telemedicine';
 import {
@@ -40,6 +41,7 @@ const fmtVND = (n: number) => n ? `${n.toLocaleString('vi-VN')} ₫` : 'Miễn p
 
 const TelemedicineV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<TelemedicineAppointmentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
@@ -180,7 +182,7 @@ const TelemedicineV2: React.FC = () => {
         <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
           <TermIcon name="download" size={12} /> Xuất Excel
         </button>
-        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Đặt lịch khám từ xa')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/booking-management')}>
           <TermIcon name="plus" size={12} /> Đặt lịch
         </button>
       </div>

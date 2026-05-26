@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { searchInsuranceClaims } from '../api/insurance';
 import type { InsuranceClaimSummaryDto } from '../api/insurance';
 import {
@@ -34,6 +35,7 @@ const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 
 const InsuranceV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<InsuranceClaimSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
@@ -146,13 +148,13 @@ const InsuranceV2: React.FC = () => {
         <button type="button" className="ab-btn ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: Validate XML')}>
+        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/bhxh-audit')}>
           <TermIcon name="check" size={12} /> Validate XML
         </button>
         <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
           <TermIcon name="download" size={12} /> Xuất XML
         </button>
-        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Gửi cổng BHXH')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/bhxh-config')}>
           <TermIcon name="send" size={12} /> Gửi BHXH
         </button>
       </div>

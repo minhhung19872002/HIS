@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as labApi from '../api/laboratory';
@@ -61,6 +62,7 @@ const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
 const LaboratoryV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [rows, setRows]   = useState<LabRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [stab, setStab]   = useState<StatusKey | 'all'>('all');
@@ -256,10 +258,10 @@ const LaboratoryV2: React.FC = () => {
         <button type="button" className="ab-btn ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: Xem QC chart')}>
+        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/lab-qc')}>
           <TermIcon name="chart" size={12} /> QC hôm nay
         </button>
-        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo chỉ định mới')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/sample-receive')}>
           <TermIcon name="plus" size={12} /> Chỉ định <kbd>F2</kbd>
         </button>
       </div>

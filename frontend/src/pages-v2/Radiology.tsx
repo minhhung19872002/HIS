@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as risApi from '../api/ris';
@@ -60,6 +61,7 @@ const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
 const RadiologyV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<RadiologyOrderDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
@@ -235,10 +237,10 @@ const RadiologyV2: React.FC = () => {
         <button type="button" className="ab-btn ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: DICOM Worklist')}>
+        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/ris-dispatcher')}>
           <TermIcon name="image" size={12} /> DICOM
         </button>
-        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo chỉ định CĐHA')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/radiology-ops')}>
           <TermIcon name="plus" size={12} /> Chỉ định <kbd>F2</kbd>
         </button>
       </div>

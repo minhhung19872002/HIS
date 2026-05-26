@@ -1,6 +1,7 @@
 import React from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { getInpatientList } from '../api/inpatient';
 import type { InpatientListDto } from '../api/inpatient';
 import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
@@ -20,6 +21,7 @@ const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 
 const InpatientV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const columns: ColumnDef<InpatientListDto>[] = [
     {
       key: 'patient', label: 'Bệnh nhân',
@@ -160,10 +162,10 @@ const InpatientV2: React.FC = () => {
       drawerSub={(r) => `${r.departmentName} · ${r.roomName}${r.bedName ? ` · ${r.bedName}` : ''} · ${r.daysOfStay} ngày`}
       toolbarRight={
         <>
-          <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: Bàn giao ca')}>
+          <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/hr')}>
             <TermIcon name="users" size={12} /> Bàn giao ca
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Y lệnh mới')}>
+          <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/inpatient-dispensing')}>
             <TermIcon name="plus" size={12} /> Y lệnh mới
           </button>
         </>

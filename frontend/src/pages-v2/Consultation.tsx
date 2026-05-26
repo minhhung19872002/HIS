@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import risApi from '../api/ris';
 import type { ConsultationSessionDto } from '../api/ris';
 import {
@@ -37,6 +38,7 @@ const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '�
 
 const ConsultationV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<ConsultationSessionDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
@@ -152,7 +154,7 @@ const ConsultationV2: React.FC = () => {
         <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} phiên`)}>
           <TermIcon name="download" size={12} /> Xuất Excel
         </button>
-        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo hội chẩn')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/consultation-register')}>
           <TermIcon name="plus" size={12} /> Tạo hội chẩn
         </button>
       </div>

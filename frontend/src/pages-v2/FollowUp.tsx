@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { searchAppointments, updateAppointmentStatus } from '../api/examination';
 import type { AppointmentListDto } from '../api/examination';
 import {
@@ -40,6 +41,7 @@ const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '�
 
 const FollowUpV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<AppointmentListDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
@@ -186,13 +188,13 @@ const FollowUpV2: React.FC = () => {
         <button type="button" className="ab-btn ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.info('TODO: Nhắc hàng loạt')}>
+        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/sms-management')}>
           <TermIcon name="message-square" size={12} /> Nhắc hàng loạt
         </button>
         <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
           <TermIcon name="download" size={12} /> Xuất Excel
         </button>
-        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Lập kế hoạch')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/booking-management')}>
           <TermIcon name="plus" size={12} /> Lập kế hoạch
         </button>
       </div>

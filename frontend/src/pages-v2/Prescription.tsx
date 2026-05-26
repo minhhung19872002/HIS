@@ -150,7 +150,7 @@ const PrescriptionV2: React.FC = () => {
               <button type="button" className="ab-btn" onClick={() => message.success('Đã gửi máy in')}>
                 <TermIcon name="print" size={12} /> In đơn
               </button>
-              <button type="button" className="ab-btn" onClick={() => message.info('TODO: Ký số')}>
+              <button type="button" className="ab-btn" onClick={() => navigate('/v2/signing-workflow')}>
                 <TermIcon name="check" size={12} /> Ký số
               </button>
             </div>
