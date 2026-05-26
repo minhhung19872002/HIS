@@ -710,13 +710,17 @@ const ShiftBoard: React.FC<{ hr: MedicalHRDashboardDto | null }> = ({ hr }) => {
       </div>
     );
   }
-  const fillRate = hr.todayShifts > 0 ? Math.round((hr.filledShifts / hr.todayShifts) * 100) : 0;
+  // Backend returns onDutyToday / openShiftsThisWeek / onLeave (the *Shifts /
+  // onLeaveStaff fields on the DTO are legacy and absent at runtime).
+  const onDuty = hr.onDutyToday ?? hr.clinicSessionsToday ?? 0;
+  const openSh = hr.openShiftsThisWeek ?? hr.openShifts ?? 0;
+  const onLeave = hr.onLeave ?? hr.onLeaveStaff ?? 0;
   const items: { label: string; value: string; tone?: 'ok' | 'warn' | 'crit' }[] = [
     { label: 'Đang trực hôm nay', value: String(hr.activeStaff), tone: 'ok' },
     { label: 'Bác sĩ / Điều dưỡng / KTV', value: `${hr.doctors} / ${hr.nurses} / ${hr.technicians}` },
-    { label: 'Tỷ lệ ca trực', value: `${hr.filledShifts}/${hr.todayShifts} (${fillRate}%)`, tone: fillRate >= 90 ? 'ok' : fillRate >= 70 ? 'warn' : 'crit' },
-    { label: 'Ca trống', value: String(hr.openShifts), tone: hr.openShifts === 0 ? 'ok' : 'warn' },
-    { label: 'Đang nghỉ', value: String(hr.onLeaveStaff) },
+    { label: 'Phiên trực hôm nay', value: String(onDuty) },
+    { label: 'Ca trống tuần', value: String(openSh), tone: openSh === 0 ? 'ok' : 'warn' },
+    { label: 'Đang nghỉ', value: String(onLeave) },
     { label: 'Sắp hết hạn CCHN (30 ngày)', value: String(hr.expiringLicenses30Days), tone: hr.expiringLicenses30Days > 0 ? 'warn' : 'ok' },
     { label: 'CME chưa đạt', value: String(hr.cmeNonCompliant), tone: hr.cmeNonCompliant > 0 ? 'warn' : 'ok' },
   ];

@@ -476,6 +476,11 @@ export interface MedicalHRDashboardDto {
   filledShifts: number;
   openShifts: number;
   pendingSwapRequests: number;
+  // Real backend field names (preferred at runtime; the *Shifts above are legacy)
+  onDutyToday?: number;
+  clinicSessionsToday?: number;
+  openShiftsThisWeek?: number;
+  onLeave?: number;
   // Overtime
   monthlyOvertimeHours: number;
   staffWithExcessiveOvertime: number;
