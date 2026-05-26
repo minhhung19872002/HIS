@@ -46,7 +46,6 @@ const MentalHealthV2 = lazy(() => import('./pages-v2/MentalHealth'));
 const TelemedicineV2 = lazy(() => import('./pages-v2/Telemedicine'));
 const SmsManagementV2 = lazy(() => import('./pages-v2/SmsManagement'));
 const SigningWorkflowV2 = lazy(() => import('./pages-v2/SigningWorkflow'));
-const PatientPortalV2 = lazy(() => import('./pages-v2/PatientPortal'));
 const DoctorPortalV2 = lazy(() => import('./pages-v2/DoctorPortal'));
 const HospitalPharmacyV2 = lazy(() => import('./pages-v2/HospitalPharmacy'));
 const ProcurementV2 = lazy(() => import('./pages-v2/Procurement'));
@@ -147,6 +146,7 @@ const QualityDashboardLiveV2 = lazy(() => import('./pages-v2/QualityDashboardLiv
 const BankPaymentsV2 = lazy(() => import('./pages-v2/BankPayments'));
 const BiometricEnrollmentV2 = lazy(() => import('./pages-v2/BiometricEnrollment'));
 const InspectorPortalStandalone = lazy(() => import('./pages-v2/InspectorPortal'));
+const PatientPortalMobileApp = lazy(() => import('./pages-mobile/PatientPortalMobile'));
 const EmrHl7ExportV2 = lazy(() => import('./pages-v2/EmrHl7Export'));
 const EmrCloudSyncV2 = lazy(() => import('./pages-v2/EmrCloudSync'));
 const DicomAutoSendV2 = lazy(() => import('./pages-v2/DicomAutoSend'));
@@ -536,7 +536,7 @@ const AppRoutes: React.FC = () => {
           <Route path="equipment" element={<EquipmentV2 />} />
           <Route path="hr" element={<HRV2 />} />
           <Route path="quality" element={<QualityV2 />} />
-          <Route path="patient-portal" element={<PatientPortalV2 />} />
+          <Route path="patient-portal" element={<Navigate to="/m/patient-portal" replace />} />
           <Route path="health-exchange" element={<HealthExchangeV2 />} />
           <Route path="emergency-disaster" element={<EmergencyDisasterV2 />} />
           <Route path="consultation" element={<ConsultationV2 />} />
@@ -632,6 +632,7 @@ const AppRoutes: React.FC = () => {
         </Route>
         {/* Standalone routes - không thuộc layout chính */}
         <Route path="/inspector-portal" element={<InspectorPortalStandalone />} />
+        <Route path="/m/patient-portal" element={<ProtectedRoute><PatientPortalMobileApp /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
