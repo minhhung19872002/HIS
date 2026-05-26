@@ -204,3 +204,5 @@ NangCap*.txt
 
 # Local-only prod test scripts (not part of the codebase)
 scripts/test-prod/
+
+.local-dotnet-sdks

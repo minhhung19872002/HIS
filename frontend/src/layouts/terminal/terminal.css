@@ -423,6 +423,9 @@
   border-left: 3px solid #38bdf8;
   border-right: 1px solid #334155;
   white-space: nowrap;
+  /* Nằm trên dải chạy: nền opaque + z-index che chữ ticker cuộn qua (chống đè/mờ) */
+  position: relative;
+  z-index: 2;
 }
 .his-ticker-head .dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -444,7 +447,7 @@
 }
 .his-ticker-item {
   display: inline-flex; align-items: center; gap: 6px;
-  color: #94a3b8;
+  color: #cbd5e1;   /* nhãn sáng hơn -> đọc rõ trên nền tối #0f172a */
 }
 .his-ticker-item b {
   color: #f8fafc;
@@ -545,7 +548,7 @@ body[data-theme="light"] .his-ticker-head .dot {
   background: #16a34a;
   box-shadow: 0 0 0 2px rgba(22,163,74,0.2);
 }
-body[data-theme="light"] .his-ticker-item   { color: #64748b; }
+body[data-theme="light"] .his-ticker-item   { color: #334155; }   /* nhãn đậm -> tương phản cao trên nền sáng #f8fafc */
 body[data-theme="light"] .his-ticker-item b  { color: #0f172a; }
 body[data-theme="light"] .his-ticker-item.up b   { color: #16a34a; }
 body[data-theme="light"] .his-ticker-item.down b { color: #dc2626; }
