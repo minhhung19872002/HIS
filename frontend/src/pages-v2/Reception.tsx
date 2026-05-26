@@ -37,6 +37,13 @@ const PRIORITY_OPTS = [
   { v: 'high', l: 'Ưu tiên' },
   { v: 'norm', l: 'Thường' },
 ];
+// Hình thức khám — map theo treatmentType backend (1 BHYT · 2 dịch vụ · 3 cấp cứu · 4 yêu cầu)
+const VISIT_TYPE_OPTS = [
+  { v: '1', l: 'Khám BHYT' },
+  { v: '2', l: 'Khám dịch vụ' },
+  { v: '3', l: 'Cấp cứu' },
+  { v: '4', l: 'Khám theo yêu cầu' },
+];
 
 const fmtHM = (iso: string) => {
   const d = new Date(iso);
@@ -134,10 +141,13 @@ const ReceptionV2: React.FC = () => {
   const [fDept, setFDept]       = useState('');
   const [fPriority, setFPriority] = useState('');
   const [fInsurance, setFInsurance] = useState('');
+  const [fVisitType, setFVisitType] = useState('');
   const [page, setPage]         = useState(0);
   const [selRows, setSelRows]   = useState<Set<string>>(new Set());
   const [detail, setDetail]     = useState<RawRow | null>(null);
   const [newOpen, setNewOpen]   = useState(false);
+  const [bhytOpen, setBhytOpen] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
   const PAGE_SIZE = 14;
 
   const loadData = useCallback(() => {
@@ -180,6 +190,7 @@ const ReceptionV2: React.FC = () => {
       if (fPriority && priorityKey(r) !== fPriority) return false;
       if (fInsurance === 'y' && !hasValidInsurance(r)) return false;
       if (fInsurance === 'n' && hasValidInsurance(r)) return false;
+      if (fVisitType && String(r.treatmentType ?? '') !== fVisitType) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         const hay = [r.patientName, r.patientCode, r.phoneNumber, r.identityNumber, r.insuranceNumber, r.queueCode]
@@ -188,7 +199,7 @@ const ReceptionV2: React.FC = () => {
       }
       return true;
     });
-  }, [rows, statusTab, fDept, fPriority, fInsurance, search]);
+  }, [rows, statusTab, fDept, fPriority, fInsurance, fVisitType, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -306,7 +317,7 @@ const ReceptionV2: React.FC = () => {
   };
 
   const onResetFilter = () => {
-    setSearch(''); setFDept(''); setFPriority(''); setFInsurance(''); setStatusTab('all'); setPage(0);
+    setSearch(''); setFDept(''); setFPriority(''); setFInsurance(''); setFVisitType(''); setStatusTab('all'); setPage(0);
   };
 
   const onExport = () => {
@@ -360,7 +371,7 @@ const ReceptionV2: React.FC = () => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'F2') { e.preventDefault(); setNewOpen(true); }
       if (e.key === 'F3') { e.preventDefault(); onCallNext(); }
-      if (e.key === 'F4') { e.preventDefault(); document.querySelector<HTMLInputElement>('.ab-search input')?.focus(); }
+      if (e.key === 'F4') { e.preventDefault(); setLookupOpen(true); }
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
@@ -464,6 +475,12 @@ const ReceptionV2: React.FC = () => {
             <button type="button" className="ab-btn ghost" onClick={loadData}>
               <TermIcon name="refresh" size={12} /> Làm mới
             </button>
+            <button type="button" className="ab-btn ghost" onClick={() => setBhytOpen(true)}>
+              <TermIcon name="shield" size={12} /> Tra cứu BHYT
+            </button>
+            <button type="button" className="ab-btn ghost" onClick={() => setLookupOpen(true)}>
+              <TermIcon name="search" size={12} /> Tìm BN cũ <kbd>F4</kbd>
+            </button>
             <button type="button" className="ab-btn ok" onClick={onCallNext}>
               <TermIcon name="bell" size={12} /> Gọi số tiếp <kbd>F3</kbd>
             </button>
@@ -491,6 +508,7 @@ const ReceptionV2: React.FC = () => {
             />
             <Filter value={fDept} onChange={setFDept} options={deptOpts} placeholder="▾ Tất cả khoa" />
             <Filter value={fPriority} onChange={setFPriority} options={PRIORITY_OPTS} placeholder="▾ Mức ưu tiên" />
+            <Filter value={fVisitType} onChange={setFVisitType} options={VISIT_TYPE_OPTS} placeholder="▾ Hình thức khám" />
             <Filter
               value={fInsurance} onChange={setFInsurance}
               options={[{ v: 'y', l: 'Có BHYT' }, { v: 'n', l: 'Không BHYT' }]}
@@ -628,6 +646,19 @@ const ReceptionV2: React.FC = () => {
         onClose={() => setNewOpen(false)}
         rooms={rooms}
         onDone={() => { setNewOpen(false); loadData(); }}
+      />
+
+      {/* Tra cứu BHYT */}
+      <BhytVerifyModal open={bhytOpen} onClose={() => setBhytOpen(false)} />
+
+      {/* Tìm BN cũ */}
+      <PatientLookupModal
+        open={lookupOpen}
+        onClose={() => setLookupOpen(false)}
+        onPick={(p) => {
+          setLookupOpen(false);
+          setSearch(p.patientCode || p.fullName || p.patientName || '');
+        }}
       />
     </div>
   );
@@ -1275,5 +1306,185 @@ const DrawerRelatedTab: React.FC<{ list: RawRow[] }> = ({ list }) => (
     })}
   </div>
 );
+
+/* ────────────────────────────────────────────────────────────
+   BHYT verify modal — real verifyInsurance lookup
+   ──────────────────────────────────────────────────────────── */
+
+const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const { message } = AntdApp.useApp();
+  const [num, setNum] = useState('');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<receptionApi.InsuranceVerificationResultDto | null>(null);
+
+  useEffect(() => {
+    if (open) { setNum(''); setName(''); setResult(null); }
+  }, [open]);
+
+  const verify = async () => {
+    if (!num.trim() || num.trim().length < 10) { message.warning('Nhập số thẻ BHYT hợp lệ'); return; }
+    setBusy(true);
+    try {
+      const res = await receptionApi.verifyInsurance({ insuranceNumber: num.trim(), patientName: name.trim() || undefined });
+      setResult(res.data);
+    } catch {
+      message.error('Tra cứu BHYT thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Tra cứu thẻ BHYT"
+      footer={(
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Đóng</button>
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={verify}>
+            <TermIcon name="shield" size={12} /> {busy ? 'Đang tra…' : 'Tra cứu'}
+          </button>
+        </>
+      )}
+    >
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số thẻ BHYT *</div>
+            <Input value={num} onChange={(e) => setNum(e.target.value)} placeholder="VD: HC4010112345678" onPressEnter={verify} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Họ tên (tùy chọn)</div>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Đối chiếu tên" />
+          </div>
+        </div>
+
+        {result && (
+          <div className="rec-section" style={{ marginTop: 16 }}>
+            <h5>
+              <TermIcon name={result.isValid ? 'check' : 'x'} size={11} /> KẾT QUẢ
+              <span style={{ marginLeft: 8 }}>
+                <StatusBadge tone={result.isValid && !result.isExpired ? 'ok' : 'crit'} dot>
+                  {result.isBlacklisted ? 'Thẻ bị khóa' : result.isExpired ? 'Hết hạn' : result.isValid ? 'Hợp lệ' : 'Không hợp lệ'}
+                </StatusBadge>
+              </span>
+            </h5>
+            <div className="rec-kv">
+              <span>Số thẻ</span><span className="mono">{result.newInsuranceNumber || result.insuranceNumber}</span>
+              <span>Họ tên</span><b>{result.patientName || '—'}</b>
+              {result.facilityName && (<><span>Nơi KCB</span><span>{result.facilityName}</span></>)}
+              {result.endDate && (<><span>Giá trị đến</span><span className="mono">{dayjs(result.endDate).format('DD/MM/YYYY')}</span></>)}
+              <span>Tuyến</span><span>{result.rightRouteName || '—'}</span>
+              <span>Mức hưởng</span><b>{result.paymentRate || 0}%</b>
+            </div>
+            {result.warnings?.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--s-warn)' }}>
+                {result.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
+              </div>
+            )}
+            {result.errorMessage && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--s-crit)' }}>{result.errorMessage}</div>
+            )}
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Patient lookup modal — search existing patients (Tìm BN cũ)
+   ──────────────────────────────────────────────────────────── */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LookupRow = any;
+
+const PatientLookupModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onPick: (p: LookupRow) => void;
+}> = ({ open, onClose, onPick }) => {
+  const { message } = AntdApp.useApp();
+  const [kw, setKw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [list, setList] = useState<LookupRow[]>([]);
+
+  useEffect(() => {
+    if (open) { setKw(''); setList([]); }
+  }, [open]);
+
+  const doSearch = async () => {
+    if (!kw.trim()) { message.warning('Nhập tên / mã BN / SĐT / CCCD'); return; }
+    setBusy(true);
+    try {
+      const res = await receptionApi.searchPatient(kw.trim());
+      setList(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      message.error('Tìm kiếm thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title="Tìm bệnh nhân cũ"
+      footer={<button type="button" className="ab-btn ghost" onClick={onClose}>Đóng</button>}
+    >
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Input
+            value={kw}
+            onChange={(e) => setKw(e.target.value)}
+            onPressEnter={doSearch}
+            placeholder="Tên, mã BN, SĐT, CCCD, số BHYT…"
+            autoFocus
+          />
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={doSearch}>
+            <TermIcon name="search" size={12} /> {busy ? 'Đang tìm…' : 'Tìm'}
+          </button>
+        </div>
+
+        <div style={{ marginTop: 14, maxHeight: 360, overflow: 'auto' }}>
+          {list.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--t-2)', fontSize: 12 }}>
+              {busy ? 'Đang tìm…' : 'Nhập từ khóa rồi bấm Tìm'}
+            </div>
+          ) : (
+            list.map((p, i) => (
+              <div
+                key={p.id || p.patientId || i}
+                style={{
+                  padding: '10px 12px', borderBottom: '1px solid var(--line-soft)',
+                  display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', cursor: 'pointer',
+                }}
+                onClick={() => onPick(p)}
+              >
+                <div>
+                  <b>{p.fullName || p.patientName || '—'}</b>
+                  <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                    <span className="mono">{p.patientCode || '—'}</span>
+                    {p.phoneNumber ? ` · ${p.phoneNumber}` : ''}
+                    {p.dateOfBirth ? ` · ${dayjs(p.dateOfBirth).format('DD/MM/YYYY')}` : (p.yearOfBirth ? ` · ${p.yearOfBirth}` : '')}
+                    {p.insuranceNumber ? ` · BHYT ${p.insuranceNumber}` : ''}
+                  </div>
+                </div>
+                <button type="button" className="ab-btn ghost" onClick={(e) => { e.stopPropagation(); onPick(p); }}>
+                  Chọn
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
 
 export default ReceptionV2;
