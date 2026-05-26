@@ -1,8 +1,11 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
-import { ConfigProvider, Popover, Dropdown } from 'antd';
+import { ConfigProvider, Popover, Dropdown, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  CommandProvider, useCommandCtx, COMMANDS, type CmdId,
+} from '../../contexts/CommandContext';
 import TermIcon from './Icon';
 import { HOSPITAL_NAME } from '../../constants/hospital';
 import './terminal.css';
@@ -475,26 +478,43 @@ const Ticker: React.FC<{ patient: TickerPatient | null; onClearPatient: () => vo
    Status bar — dark bottom strip with version + module + chips + kbd hints
    ========================================================================== */
 
-const StatusBar: React.FC<{ moduleLabel: string }> = ({ moduleLabel }) => (
-  <footer className="his-status">
-    <span className="seg ok"><span className="seg-dot" /><b>HIS 4.2.1</b></span>
-    <span className="sep" />
-    <span className="seg">MODULE: <b>{moduleLabel.toUpperCase()}</b></span>
-    <span className="sep" />
-    <span className="seg ok">BHYT: <b>OK</b></span>
-    <span className="sep" />
-    <span className="seg ok">HL7: <b>2.5</b></span>
-    <span className="sep" />
-    <span className="seg ok">PACS: <b>CONNECT</b></span>
-    <span className="sep" />
-    <span className="seg warn">ĐỒNG BỘ BYT: <b>15p TRƯỚC</b></span>
-    <span className="spacer" />
-    <span className="seg"><kbd>F1</kbd> Trợ giúp</span>
-    <span className="seg"><kbd>⌘</kbd><kbd>K</kbd> Lệnh</span>
-    <span className="seg"><kbd>F2</kbd> Lưu</span>
-    <span className="seg"><kbd>Esc</kbd> Hủy</span>
-  </footer>
-);
+const StatusBar: React.FC<{ moduleLabel: string; runCommand: (id: CmdId) => void }> = ({ moduleLabel, runCommand }) => {
+  const { has } = useCommandCtx();
+  return (
+    <footer className="his-status">
+      <span className="seg ok"><span className="seg-dot" /><b>HIS 4.2.1</b></span>
+      <span className="sep" />
+      <span className="seg">MODULE: <b>{moduleLabel.toUpperCase()}</b></span>
+      <span className="sep" />
+      <span className="seg ok">BHYT: <b>OK</b></span>
+      <span className="sep" />
+      <span className="seg ok">HL7: <b>2.5</b></span>
+      <span className="sep" />
+      <span className="seg ok">PACS: <b>CONNECT</b></span>
+      <span className="sep" />
+      <span className="seg warn">ĐỒNG BỘ BYT: <b>15p TRƯỚC</b></span>
+      <span className="spacer" />
+      {COMMANDS.map((c) => {
+        const enabled = c.pageOwned ? has(c.id) : true;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            className={'seg his-status-cmd' + (enabled ? '' : ' off')}
+            onClick={() => runCommand(c.id)}
+            title={enabled ? `${c.label} (${c.keyHint})` : `${c.label} (${c.keyHint}) — chưa khả dụng ở trang này`}
+            style={{
+              background: 'none', border: 'none', font: 'inherit', color: 'inherit',
+              cursor: enabled ? 'pointer' : 'default', opacity: enabled ? 1 : 0.4, padding: 0,
+            }}
+          >
+            <kbd>{c.keyHint}</kbd> {c.label}
+          </button>
+        );
+      })}
+    </footer>
+  );
+};
 
 /* ==========================================================================
    CmdK palette — Ctrl/Cmd+K opens, Esc closes, filters modules + patients
@@ -592,10 +612,23 @@ const CmdK: React.FC<CmdKProps> = ({ open, onClose }) => {
    TerminalLayout — shell wrapping /v2/* routes
    ========================================================================== */
 
-const TerminalLayout: React.FC = () => {
+// Fallback DOM generic cho trang list chưa đăng ký handler riêng (pure helpers).
+function clickToolbarPrimary(): boolean {
+  const btn = document.querySelector<HTMLButtonElement>('.ab-toolbar .ab-btn.primary, .ab-tools .ab-btn.primary');
+  if (btn) { btn.click(); return true; }
+  return false;
+}
+function focusSearch(): boolean {
+  const input = document.querySelector<HTMLInputElement>('.ab-search input');
+  if (input) { input.focus(); input.select(); return true; }
+  return false;
+}
+
+const TerminalShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { invoke, has } = useCommandCtx();
 
   const activeItem = useMemo(() => findItemForPath(location.pathname), [location.pathname]);
   const activeGroupId = activeItem?.groupId ?? findGroupIdForPath(location.pathname);
@@ -604,20 +637,79 @@ const TerminalLayout: React.FC = () => {
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ---- CmdK palette + keyboard ---- */
+  /* ---- Command keys (F1/F2/F3/F4/F8/F5/Esc + Ctrl+K/S/F/P) + palette ---- */
   const [cmdKOpen, setCmdKOpen] = useState(false);
+
+  const runCommand = useCallback((id: CmdId) => {
+    switch (id) {
+      case 'help':
+        navigate('/v2/help');
+        return;
+      case 'commandPalette':
+        setCmdKOpen((v) => !v);
+        return;
+      case 'cancel':
+        if (cmdKOpen) { setCmdKOpen(false); return; }
+        if (hoveredGroupId && !pinnedGroupId) { setHoveredGroupId(null); return; }
+        invoke('cancel');
+        return;
+      case 'new':
+        if (invoke('new')) return;
+        if (clickToolbarPrimary()) return;
+        message.info('Phím F3 · Thêm mới chưa khả dụng ở trang này');
+        return;
+      case 'search':
+        if (invoke('search')) return;
+        if (focusSearch()) return;
+        setCmdKOpen(true);            // fallback: mở ô lệnh (có thanh tìm)
+        return;
+      case 'save':
+        if (invoke('save')) return;
+        message.info('Phím F2 · Lưu chưa khả dụng ở trang này');
+        return;
+      case 'print':
+        if (invoke('print')) return;
+        message.info('Phím F8 · In chưa khả dụng ở trang này');
+        return;
+      case 'refresh':
+        if (invoke('refresh')) return;
+        window.location.reload();
+        return;
+      default:
+        return;
+    }
+  }, [navigate, cmdKOpen, hoveredGroupId, pinnedGroupId, invoke]);
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCmdKOpen((v) => !v);
-      } else if (e.key === 'Escape') {
-        if (hoveredGroupId && !pinnedGroupId) setHoveredGroupId(null);
+      const k = e.key;
+      if (e.metaKey || e.ctrlKey) {
+        const lk = k.toLowerCase();
+        if (lk === 'k') { e.preventDefault(); runCommand('commandPalette'); return; }
+        if (cmdKOpen) return;               // để CmdK tự xử lý khi đang mở
+        if (lk === 's') { e.preventDefault(); runCommand('save'); return; }
+        if (lk === 'f') { e.preventDefault(); runCommand('search'); return; }
+        if (lk === 'p') { e.preventDefault(); runCommand('print'); return; }
+        return;
+      }
+      if (e.altKey) return;
+      if (cmdKOpen && k !== 'Escape') return; // CmdK lo Arrow/Enter khi mở
+      switch (k) {
+        case 'F1': e.preventDefault(); runCommand('help'); break;
+        case 'F2': e.preventDefault(); runCommand('save'); break;
+        case 'F3': e.preventDefault(); runCommand('new'); break;
+        case 'F4': e.preventDefault(); runCommand('search'); break;
+        case 'F8': e.preventDefault(); runCommand('print'); break;
+        case 'F5':
+          if (has('refresh')) { e.preventDefault(); runCommand('refresh'); }
+          break;                            // else: để trình duyệt tải lại trang
+        case 'Escape': runCommand('cancel'); break;
+        default: break;
       }
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [hoveredGroupId, pinnedGroupId]);
+  }, [runCommand, cmdKOpen, has]);
 
   /* ---- Patient ticker context: URL ?pid= or localStorage his.patient ---- */
   const [patient, setPatient] = useState<TickerPatient | null>(null);
@@ -820,11 +912,17 @@ const TerminalLayout: React.FC = () => {
             </ConfigProvider>
           </div>
         </div>
-        <StatusBar moduleLabel={moduleLabel} />
+        <StatusBar moduleLabel={moduleLabel} runCommand={runCommand} />
       </div>
       <CmdK open={cmdKOpen} onClose={() => setCmdKOpen(false)} />
     </div>
   );
 };
+
+const TerminalLayout: React.FC = () => (
+  <CommandProvider>
+    <TerminalShell />
+  </CommandProvider>
+);
 
 export default TerminalLayout;
