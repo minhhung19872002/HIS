@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';
 import { Modal, Drawer, InputNumber, Select as AntdSelect, App as AntdApp, DatePicker } from 'antd';
 import { statisticsApi } from '../api/system';
-import type { HospitalDashboardDto } from '../api/system';
+import type { HospitalDashboardDto, DepartmentStatisticsDto } from '../api/system';
 import * as receptionApi from '../api/reception';
 import type { AdmissionDto } from '../api/reception';
 import * as surgeryApi from '../api/surgery';
@@ -71,6 +71,7 @@ const DashboardV2: React.FC = () => {
 
   const [loading, setLoading]       = useState(true);
   const [history, setHistory]       = useState<(HospitalDashboardDto | null)[]>([]);
+  const [deptStats, setDeptStats]   = useState<DepartmentStatisticsDto[]>([]);
   const [admissions, setAdmissions] = useState<AdmissionDto[]>([]);
   const [surgeries, setSurgeries]   = useState<SurgeryScheduleDto[]>([]);
   const [wards, setWards]           = useState<WardLayoutDto[]>([]);
@@ -103,6 +104,7 @@ const DashboardV2: React.FC = () => {
 
         const [
           historyRes,
+          deptRes,
           admRes,
           surgRes,
           expiryRes,
@@ -111,6 +113,7 @@ const DashboardV2: React.FC = () => {
           hrRes,
         ] = await Promise.all([
           Promise.all(historyPromises),
+          statisticsApi.getDepartmentStatistics(today, today).then((r) => r.data).catch(() => [] as DepartmentStatisticsDto[]),
           receptionApi.getTodayAdmissions(undefined, today).catch(() => ({ data: [] as AdmissionDto[] })),
           surgeryApi.getSurgerySchedule(today).catch(() => ({ data: [] as SurgeryScheduleDto[] })),
           warehouseApi.getExpiryWarnings(undefined, 3).catch(() => ({ data: [] as ExpiryWarningDto[] })),
@@ -123,7 +126,9 @@ const DashboardV2: React.FC = () => {
 
         const effectiveHistory = (historyRes.filter(Boolean) as HospitalDashboardDto[]);
         setHistory(effectiveHistory);
-        const latest = effectiveHistory[effectiveHistory.length - 1];
+
+        const depts = Array.isArray(deptRes) ? deptRes : [];
+        setDeptStats(depts);
 
         setAdmissions(Array.isArray(admRes.data) ? admRes.data : []);
         setSurgeries(Array.isArray(surgRes.data) ? surgRes.data : []);
@@ -135,9 +140,9 @@ const DashboardV2: React.FC = () => {
         setHr(hrData && typeof hrData.totalStaff === 'number' ? hrData : null);
 
         // Bed map: fetch ward layout for each department that has inpatients
-        if (latest && latest.inpatientByDepartment?.length) {
-          const wardPromises = latest.inpatientByDepartment
-            .slice(0, 8)
+        const inpatientDepts = depts.filter((d) => (d.inpatientCount ?? 0) > 0).slice(0, 8);
+        if (inpatientDepts.length) {
+          const wardPromises = inpatientDepts
             .map((d) =>
               inpatientApi.getWardLayout(d.departmentId).then((r) => r.data).catch(() => null),
             );
@@ -158,23 +163,48 @@ const DashboardV2: React.FC = () => {
 
   /* --------- derived: KPIs + sparklines from 7-day history --------- */
   const latest = history[history.length - 1] ?? null;
+  const prev = history.length >= 2 ? history[history.length - 2] : null;
 
-  const sparkOf = (field: keyof HospitalDashboardDto): number[] => {
-    const arr = history.map((d) => {
-      const v = d?.[field];
-      return typeof v === 'number' ? v : 0;
-    });
+  // Real /statistics/dashboard field names, with legacy *Count aliases as fallback.
+  const gOut  = (d: HospitalDashboardDto | null) => Number(d?.todayOutpatients ?? d?.outpatientCount ?? 0);
+  const gInp  = (d: HospitalDashboardDto | null) => Number(d?.currentInpatients ?? d?.inpatientCount ?? 0);
+  const gSurg = (d: HospitalDashboardDto | null) => Number(d?.todaySurgeries ?? d?.surgeryCount ?? 0);
+  const gEmer = (d: HospitalDashboardDto | null) => Number(d?.todayEmergencies ?? d?.emergencyCount ?? 0);
+  const gRev  = (d: HospitalDashboardDto | null) => Number(d?.todayRevenue ?? d?.totalRevenue ?? 0);
+  const gOcc  = (d: HospitalDashboardDto | null) => {
+    const inp = gInp(d);
+    const avail = Number(d?.availableBeds ?? 0);
+    return inp + avail > 0 ? (inp / (inp + avail)) * 100 : 0;
+  };
+
+  const sparkOf = (get: (d: HospitalDashboardDto | null) => number): number[] => {
+    const arr = history.map((d) => get(d));
     return arr.length ? arr : [0, 0, 0, 0, 0, 0, 0];
   };
 
+  const deltaOf = (get: (d: HospitalDashboardDto | null) => number): number | undefined =>
+    latest && prev ? get(latest) - get(prev) : undefined;
+
+  const revPct: number | undefined =
+    latest && prev && gRev(prev) > 0 ? Math.round(((gRev(latest) - gRev(prev)) / gRev(prev)) * 100) : undefined;
+
   const kpis: Kpi[] = useMemo(() => ([
-    { k: 'Khám ngoại trú', v: String(latest?.outpatientCount ?? 0),  delta: fmtDelta(latest?.outpatientChange),                              spark: sparkOf('outpatientCount') },
-    { k: 'Đang nội trú',   v: String(latest?.inpatientCount ?? 0),   delta: fmtDelta(latest?.inpatientChange),                               spark: sparkOf('inpatientCount') },
-    { k: 'Phẫu thuật',     v: String(latest?.surgeryCount ?? 0),     delta: fmtDelta(latest?.surgeryChange),                                 spark: sparkOf('surgeryCount') },
-    { k: 'Cấp cứu 24h',    v: String(latest?.emergencyCount ?? 0),   delta: fmtDelta(latest?.emergencyChange),  negSpark: true,              spark: sparkOf('emergencyCount') },
-    { k: 'Tỷ lệ giường',   v: `${Math.round(latest?.bedOccupancyRate ?? 0)}%`, delta: '—',                                                    spark: sparkOf('bedOccupancyRate') },
-    { k: 'Doanh thu',      v: (latest?.totalRevenue ? Math.round(latest.totalRevenue / 1_000_000) + 'M' : '0'), delta: fmtDelta(latest?.revenueChange, '%'), spark: sparkOf('totalRevenue') },
-  ]), [latest, history]);
+    { k: 'Khám ngoại trú', v: String(gOut(latest)),  delta: fmtDelta(deltaOf(gOut)),                  spark: sparkOf(gOut) },
+    { k: 'Đang nội trú',   v: String(gInp(latest)),  delta: fmtDelta(deltaOf(gInp)),                  spark: sparkOf(gInp) },
+    { k: 'Phẫu thuật',     v: String(gSurg(latest)), delta: fmtDelta(deltaOf(gSurg)),                 spark: sparkOf(gSurg) },
+    { k: 'Cấp cứu 24h',    v: String(gEmer(latest)), delta: fmtDelta(deltaOf(gEmer)), negSpark: true, spark: sparkOf(gEmer) },
+    { k: 'Tỷ lệ giường',   v: `${Math.round(gOcc(latest))}%`, delta: '—',                             spark: sparkOf(gOcc) },
+    { k: 'Doanh thu',      v: (gRev(latest) ? Math.round(gRev(latest) / 1_000_000) + 'M' : '0'), delta: fmtDelta(revPct, '%'), spark: sparkOf(gRev) },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]), [latest, prev, history]);
+
+  /* --------- OPD by department from department-statistics --------- */
+  const opdByDept = useMemo(() =>
+    deptStats
+      .map((d) => ({ departmentId: d.departmentId, departmentName: d.departmentName, count: d.outpatientCount ?? 0 }))
+      .filter((d) => d.count > 0)
+      .sort((a, b) => b.count - a.count),
+    [deptStats]);
 
   /* --------- ER rows: real admissions filtered by isEmergency --------- */
   const erRows = useMemo(() =>
@@ -222,7 +252,7 @@ const DashboardV2: React.FC = () => {
           />
           <OpdFlow
             flow={opdFlow}
-            byDept={latest?.outpatientByDepartment ?? []}
+            byDept={opdByDept}
           />
         </div>
 
@@ -245,7 +275,7 @@ const DashboardV2: React.FC = () => {
             onAlertClick={setAlertIt}
             onShowAll={() => setShowAllAlerts(true)}
           />
-          <BhytCard revenue={latest?.totalRevenue ?? 0} revenueChange={latest?.revenueChange ?? 0} />
+          <BhytCard revenue={gRev(latest)} revenueChange={revPct ?? 0} />
         </div>
       </div>
 

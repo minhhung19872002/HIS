@@ -883,6 +883,18 @@ export interface CreateBorrowRequestDto {
 
 export interface HospitalDashboardDto {
   date: string;
+  // Real field names returned by GET /statistics/dashboard (preferred at runtime).
+  // The *Count fields below are legacy aliases kept for backward-compat mapping.
+  reportDate?: string;
+  todayOutpatients?: number;
+  todayAdmissions?: number;
+  todayDischarges?: number;
+  currentInpatients?: number;
+  availableBeds?: number;
+  todaySurgeries?: number;
+  todayEmergencies?: number;
+  todayRevenue?: number;
+  trends?: Record<string, unknown>[];
   outpatientCount: number;
   outpatientChange: number;
   inpatientCount: number;
