@@ -182,6 +182,30 @@ const BankPayments: React.FC = () => {
     </div>
   );
 
+  const exportCsv = () => {
+    if (filtered.length === 0) { te('Không có giao dịch để xuất'); return; }
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Mã GD', 'Ngân hàng', 'BIN', 'Bệnh nhân', 'Mã BN', 'Số tiền', 'Mã ref NH', 'Trạng thái', 'Tạo'];
+    const lines = filtered.map((r) => {
+      const b = bankOf(r);
+      const meta = BP_STATUS.find((s) => s.v === statusToKey(r.status));
+      return [
+        r.txnRef, b.short, b.bin, r.patientName || '', r.patientCode || '',
+        r.amount, r.gatewayTxnRef || '', meta?.l || r.statusText || '', fmtDTg(r.createdAt),
+      ].map(esc).join(',');
+    });
+    const csv = '﻿' + [header.map(esc).join(','), ...lines].join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `thanh-toan-ngan-hang-${dayjs().format('YYYYMMDD-HHmm')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    tk(`Đã xuất ${filtered.length} giao dịch (CSV)`);
+  };
+
   const handleConfirm = async () => {
     if (!confirming) return;
     try {
@@ -218,7 +242,7 @@ const BankPayments: React.FC = () => {
         <Button className="ab-btn ghost" size="small" onClick={load} loading={loading}>
           <TermIcon name="refresh" size={12} /> Đối soát tự động
         </Button>
-        <Button className="ab-btn ghost" size="small" onClick={() => tk('Đang xuất CSV')}>
+        <Button className="ab-btn ghost" size="small" onClick={exportCsv}>
           <TermIcon name="download" size={12} /> Xuất CSV
         </Button>
       </div>
