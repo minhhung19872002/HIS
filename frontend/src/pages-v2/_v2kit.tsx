@@ -22,7 +22,8 @@
  * + DataTable + DrawerShell is the standard 4-piece composition.
  */
 import React from 'react';
-import { Drawer, Modal, message } from 'antd';
+import { createPortal } from 'react-dom';
+import { message, Modal } from 'antd';
 import TermIcon from '../layouts/terminal/Icon';
 
 // ─────────────────────────── KPI strip ───────────────────────────
@@ -320,10 +321,28 @@ export const DrField: React.FC<{
 );
 
 // ─────────────────────────── Drawer + Modal shells ───────────────────────────
+// Terminal-style popups (hui-modal / hui-drawer) matching the Claude design
+// mock. Rendered via portal to <body> with a backdrop, Esc-to-close and body
+// scroll-lock. CSS lives in layouts/terminal/ab-module.css.
 
-const DRAWER_WIDTH: Record<NonNullable<DrawerShellProps['size']>, number | string> = {
+const DRAWER_WIDTH: Record<NonNullable<DrawerShellProps['size']>, number> = {
   sm: 360, md: 480, lg: 640, xl: 820, '2xl': 1040,
 };
+
+// Esc-to-close + body scroll lock while a popup is open.
+function usePopup(open: boolean, onClose: () => void) {
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+}
 
 export interface DrawerShellProps {
   open: boolean;
@@ -337,56 +356,73 @@ export interface DrawerShellProps {
 
 export const DrawerShell: React.FC<DrawerShellProps> = ({
   open, onClose, title, sub, size = 'lg', footer, children,
-}) => (
-  <Drawer
-    open={open}
-    onClose={onClose}
-    width={DRAWER_WIDTH[size]}
-    title={(
-      <div>
-        <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
-        {sub && (
-          <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{sub}</div>
-        )}
+}) => {
+  usePopup(open, onClose);
+  if (!open) return null;
+  return createPortal(
+    <>
+      <div className="hui-drawer-backdrop" onClick={onClose} />
+      <div className="hui-drawer-wrap">
+        <div className="hui-drawer" style={{ width: DRAWER_WIDTH[size] }}>
+          <header className="hui-drawer-h">
+            <div className="t">
+              <div className="tt">{title}</div>
+              {sub && <div className="sub">{sub}</div>}
+            </div>
+            <button type="button" className="hui-x" onClick={onClose} title="Đóng (Esc)">
+              <TermIcon name="x" size={14} />
+            </button>
+          </header>
+          <div className="hui-drawer-b">{children}</div>
+          {footer && <footer className="hui-drawer-f">{footer}</footer>}
+        </div>
       </div>
-    )}
-    footer={footer ? (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>{footer}</div>
-    ) : undefined}
-    styles={{ body: { padding: 0 } }}
-  >
-    {children}
-  </Drawer>
-);
+    </>,
+    document.body,
+  );
+};
 
 export interface ModalShellProps {
   open: boolean;
   onClose: () => void;
   title: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  sub?: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  tone?: 'danger';
   footer?: React.ReactNode;
   children: React.ReactNode;
 }
 
-const MODAL_WIDTH: Record<NonNullable<ModalShellProps['size']>, number> = {
-  sm: 380, md: 520, lg: 720,
-};
-
 export const ModalShell: React.FC<ModalShellProps> = ({
-  open, onClose, title, size = 'md', footer, children,
-}) => (
-  <Modal
-    open={open}
-    onCancel={onClose}
-    width={MODAL_WIDTH[size]}
-    title={title}
-    footer={footer ? (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>{footer}</div>
-    ) : null}
-  >
-    {children}
-  </Modal>
-);
+  open, onClose, title, sub, size = 'md', tone, footer, children,
+}) => {
+  usePopup(open, onClose);
+  if (!open) return null;
+  return createPortal(
+    <>
+      <div className="hui-backdrop" onClick={onClose} />
+      <div className="hui-modal-wrap" onClick={onClose}>
+        <div
+          className={`hui-modal hui-size-${size}${tone ? ' hui-tone-' + tone : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <header className="hui-modal-h">
+            <div className="t">
+              <div className="tt">{title}</div>
+              {sub && <div className="sub">{sub}</div>}
+            </div>
+            <button type="button" className="hui-x" onClick={onClose} title="Đóng (Esc)">
+              <TermIcon name="x" size={14} />
+            </button>
+          </header>
+          <div className="hui-modal-b">{children}</div>
+          {footer && <footer className="hui-modal-f">{footer}</footer>}
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+};
 
 // ─────────────────────────── Helpers ───────────────────────────
 

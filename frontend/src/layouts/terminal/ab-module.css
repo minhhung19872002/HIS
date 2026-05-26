@@ -954,3 +954,124 @@
   .ab-iconbtn { width: 32px; height: 32px; }
   .ab-toptabs > button { min-height: 32px; }
 }
+
+/* ============================================================
+   HUI Modal / Drawer — terminal-style popups (port of design
+   his-ui.css). Used by ModalShell / DrawerShell in _v2kit so
+   every v2 popup matches the Claude design mock.
+   ============================================================ */
+@keyframes hui-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hui-slide-r { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes hui-pop { from { transform: translateY(8px) scale(.985); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.hui-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  animation: hui-fade .12s ease-out;
+  z-index: 1010;
+}
+
+/* ---- Modal ---- */
+.hui-modal-wrap {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  padding: 40px 20px;
+  z-index: 1020;
+  pointer-events: none;
+}
+.hui-modal-wrap > * { pointer-events: auto; }
+.hui-modal {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-4, 14px);
+  box-shadow: 0 24px 48px -12px rgba(15,23,42,.24), 0 2px 6px rgba(15,23,42,.06);
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 80px);
+  animation: hui-pop .14s ease-out;
+  overflow: hidden;
+  width: 100%;
+}
+.hui-size-sm { max-width: 420px; }
+.hui-size-md { max-width: 620px; }
+.hui-size-lg { max-width: 880px; }
+.hui-size-xl { max-width: 1160px; }
+.hui-tone-danger .hui-modal-h { background: var(--s-crit-bg, #fef2f2); }
+.hui-tone-danger .hui-modal-h .tt { color: var(--s-crit, #dc2626); }
+.hui-modal-h {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-modal-h .t { flex: 1; min-width: 0; }
+.hui-modal-h .tt { font-size: 15px; font-weight: 650; color: var(--t-0); letter-spacing: -0.01em; }
+.hui-modal-h .sub { font-size: 11.5px; color: var(--t-2); margin-top: 2px; font-family: var(--font-mono); }
+.hui-modal-b {
+  padding: 18px;
+  overflow: auto;
+  flex: 1;
+  font-size: 13px;
+  color: var(--t-1);
+}
+.hui-modal-f {
+  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-modal-f > .spacer { flex: 1; }
+.hui-x {
+  width: 26px; height: 26px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: var(--r-2, 8px);
+  display: grid; place-items: center;
+  cursor: pointer; color: var(--t-2);
+  transition: all .1s;
+  flex: 0 0 auto;
+}
+.hui-x:hover { background: var(--d-3, #e2e8f0); color: var(--t-0); border-color: var(--t-3); }
+
+/* ---- Drawer ---- */
+.hui-drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.28);
+  animation: hui-fade .12s ease-out;
+  z-index: 1010;
+}
+.hui-drawer-wrap {
+  position: fixed;
+  right: 0; top: 0; bottom: 0;
+  z-index: 1020;
+  animation: hui-slide-r .18s ease-out;
+  max-width: 100vw;
+}
+.hui-drawer {
+  background: #fff;
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px -12px rgba(15,23,42,.18);
+  height: 100%;
+  display: flex; flex-direction: column;
+  max-width: 100vw;
+}
+.hui-drawer-h {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--d-1);
+}
+.hui-drawer-h .t { flex: 1; min-width: 0; }
+.hui-drawer-h .tt { font-size: 15px; font-weight: 650; color: var(--t-0); }
+.hui-drawer-h .sub { font-size: 11.5px; color: var(--t-2); margin-top: 2px; font-family: var(--font-mono); }
+.hui-drawer-b {
+  flex: 1; overflow: auto;
+  padding: 0;                 /* match prior antd body padding:0 — content self-structures */
+  font-size: 13px;
+}
+.hui-drawer-f {
+  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--d-1);
+}

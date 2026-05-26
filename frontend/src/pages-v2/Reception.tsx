@@ -1384,7 +1384,7 @@ const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> = ({ ope
         </>
       )}
     >
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số thẻ BHYT *</div>
@@ -1471,7 +1471,7 @@ const PatientLookupModal: React.FC<{
       title="Tìm bệnh nhân cũ"
       footer={<button type="button" className="ab-btn ghost" onClick={onClose}>Đóng</button>}
     >
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 0 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <Input
             value={kw}
@@ -1578,7 +1578,7 @@ const MoveRoomModal: React.FC<{
       )}
     >
       {row && (
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 0 }}>
           <div style={{
             padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
             display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
@@ -1671,7 +1671,7 @@ const ReceptionPayModal: React.FC<{
       )}
     >
       {row && (
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 0 }}>
           <div style={{
             padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
             display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
