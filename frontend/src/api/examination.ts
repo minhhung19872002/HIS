@@ -972,6 +972,27 @@ export const saveAsExaminationTemplate = (examinationId: string, templateName: s
 export const getPatientAllergies = (patientId: string) =>
   request.get<AllergyDto[]>(`/examination/patient/${patientId}/allergies`);
 
+/** EMR record-centric (per patient) — kèm bệnh nền + dị ứng. */
+export interface EmrRecordDto {
+  patientId: string;
+  patientCode: string;
+  patientName: string;
+  gender: number;
+  age?: number;
+  insuranceNumber?: string;
+  visitCount: number;
+  lastVisit: string;
+  lastDiagnosisName?: string;
+  lastDiagnosisCode?: string;
+  lastRoomName?: string;
+  chronicDiseases: string[];
+  allergies: string[];
+}
+export const getEmrRecords = (keyword?: string, pageIndex = 1, pageSize = 300) =>
+  request.get<{ items: EmrRecordDto[]; totalCount: number }>(
+    '/examination/emr-records', { params: { keyword, pageIndex, pageSize } },
+  );
+
 export const addPatientAllergy = (patientId: string, dto: AllergyDto) =>
   request.post<AllergyDto>(`/examination/patient/${patientId}/allergies`, dto);
 
