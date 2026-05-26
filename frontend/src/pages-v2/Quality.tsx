@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
-import { getIncidents, getQualityIndicators } from '../api/quality';
+import { App as AntdApp, Input, Select, DatePicker, Checkbox } from 'antd';
+import { getIncidents, getQualityIndicators, createIncident } from '../api/quality';
 import type { IncidentReportDto, QualityIndicatorDto } from '../api/quality';
+import { catalogApi } from '../api/system';
+import type { DepartmentCatalogDto } from '../api/system';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -43,7 +45,6 @@ const SEVERITY_TONE: Record<number, 'ok' | 'warn' | 'crit'> = {
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const QualityV2: React.FC = () => {
-  const { message } = AntdApp.useApp();
   const [tab, setTab] = useState<TopKey>('kpi');
   const [incidents, setIncidents] = useState<IncidentReportDto[]>([]);
   const [indicators, setIndicators] = useState<QualityIndicatorDto[]>([]);
@@ -52,6 +53,7 @@ const QualityV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<IncidentReportDto | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const PAGE_SIZE = 16;
 
   const reload = () => {
@@ -157,7 +159,7 @@ const QualityV2: React.FC = () => {
             <button type="button" className="ab-btn ghost" onClick={reload}>
               <TermIcon name="refresh" size={12} /> Làm mới
             </button>
-            <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Báo cáo sự cố')}>
+            <button type="button" className="ab-btn primary" onClick={() => setReportOpen(true)}>
               <TermIcon name="plus" size={12} /> Báo cáo sự cố
             </button>
           </>
@@ -185,7 +187,7 @@ const QualityV2: React.FC = () => {
             actions={(r) => (
               <div className="ab-actions">
                 <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-                <ActBtn ic="edit" title="Cập nhật" onClick={() => message.info('TODO: Cập nhật điều tra')} />
+                <ActBtn ic="edit" title="Cập nhật" onClick={() => setDetail(r)} />
               </div>
             )}
             empty={loading ? 'Đang tải…' : (
@@ -215,9 +217,146 @@ const QualityV2: React.FC = () => {
       >
         {detail && <IncidentDrawerBody r={detail} />}
       </DrawerShell>
+
+      <IncidentReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        onDone={() => { setReportOpen(false); reload(); }}
+      />
     </div>
   );
 };
+
+/* ──────────────────────────────────────────────────────────
+   Incident report modal — real createIncident with department lookup.
+   ────────────────────────────────────────────────────────── */
+
+const INCIDENT_TYPES = [
+  'Té ngã', 'Sai sót dùng thuốc', 'Nhiễm khuẩn bệnh viện', 'Sự cố thiết bị',
+  'Sai sót quy trình/thủ thuật', 'Sự cố truyền máu', 'Suýt sai sót (near-miss)', 'Khác',
+];
+const SEVERITY_OPTS = [
+  { value: 1, label: '1 · Không tổn hại' },
+  { value: 2, label: '2 · Tổn hại nhẹ' },
+  { value: 3, label: '3 · Tổn hại trung bình' },
+  { value: 4, label: '4 · Tổn hại nặng' },
+  { value: 5, label: '5 · Nghiêm trọng' },
+  { value: 6, label: '6 · Tử vong / Sentinel' },
+];
+
+const IncidentReportModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [depts, setDepts] = useState<DepartmentCatalogDto[]>([]);
+  const [when, setWhen] = useState(() => dayjs());
+  const [deptId, setDeptId] = useState<string | undefined>(undefined);
+  const [incidentType, setIncidentType] = useState<string | undefined>(undefined);
+  const [severity, setSeverity] = useState(2);
+  const [location, setLocation] = useState('');
+  const [description, setDescription] = useState('');
+  const [immediate, setImmediate] = useState('');
+  const [reportable, setReportable] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setWhen(dayjs()); setDeptId(undefined); setIncidentType(undefined); setSeverity(2);
+      setLocation(''); setDescription(''); setImmediate(''); setReportable(false);
+      catalogApi.getDepartments(undefined, undefined, true)
+        .then((r) => setDepts(r.data || []))
+        .catch(() => setDepts([]));
+    }
+  }, [open]);
+
+  const submit = async () => {
+    if (!deptId) { message.warning('Chọn khoa/phòng xảy ra sự cố'); return; }
+    if (!incidentType) { message.warning('Chọn loại sự cố'); return; }
+    if (!description.trim()) { message.warning('Nhập mô tả sự cố'); return; }
+    setBusy(true);
+    try {
+      await createIncident({
+        incidentDate: when.format('YYYY-MM-DD'),
+        incidentTime: when.format('HH:mm'),
+        departmentId: deptId,
+        locationDescription: location.trim(),
+        incidentType,
+        severity,
+        description: description.trim(),
+        immediateActions: immediate.trim() || undefined,
+        isReportable: reportable,
+      });
+      message.success('Đã ghi nhận báo cáo sự cố');
+      onDone();
+    } catch {
+      message.error('Báo cáo sự cố thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Báo cáo sự cố y khoa"
+      footer={(
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Ghi nhận'}
+          </button>
+        </>
+      )}
+    >
+      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Fld label="Thời điểm xảy ra">
+          <DatePicker showTime value={when} onChange={(v) => v && setWhen(v)} format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
+        </Fld>
+        <Fld label="Khoa / phòng *">
+          <Select
+            value={deptId} onChange={setDeptId} showSearch optionFilterProp="label"
+            placeholder="Chọn khoa" style={{ width: '100%' }}
+            options={depts.map((d) => ({ value: d.id!, label: d.name }))}
+          />
+        </Fld>
+        <Fld label="Loại sự cố *">
+          <Select
+            value={incidentType} onChange={setIncidentType} placeholder="Chọn loại"
+            style={{ width: '100%' }} options={INCIDENT_TYPES.map((t) => ({ value: t, label: t }))}
+          />
+        </Fld>
+        <Fld label="Mức độ">
+          <Select value={severity} onChange={setSeverity} options={SEVERITY_OPTS} style={{ width: '100%' }} />
+        </Fld>
+        <Fld label="Vị trí cụ thể" full>
+          <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="VD: buồng bệnh 305, hành lang khoa…" />
+        </Fld>
+        <Fld label="Mô tả sự cố *" full>
+          <Input.TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Diễn biến, hậu quả…" />
+        </Fld>
+        <Fld label="Xử lý ngay" full>
+          <Input.TextArea value={immediate} onChange={(e) => setImmediate(e.target.value)} rows={2} placeholder="Biện pháp đã thực hiện ngay (nếu có)…" />
+        </Fld>
+        <Fld full>
+          <Checkbox checked={reportable} onChange={(e) => setReportable(e.target.checked)}>
+            Sự cố bắt buộc báo cáo cấp trên (Sở Y tế / Bộ Y tế)
+          </Checkbox>
+        </Fld>
+      </div>
+    </ModalShell>
+  );
+};
+
+const Fld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
+  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
+    {label && <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {children}
+  </div>
+);
 
 const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> = ({ indicators, loading }) => {
   const groups = useMemo(() => {

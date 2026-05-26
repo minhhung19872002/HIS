@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
-import { getBloodStock, getExpiringBloodBags, getIssueRequests } from '../api/bloodBank';
-import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto } from '../api/bloodBank';
+import { App as AntdApp, Input, Select, InputNumber } from 'antd';
+import { getBloodStock, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest } from '../api/bloodBank';
+import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto } from '../api/bloodBank';
+import { catalogApi } from '../api/system';
+import type { DepartmentCatalogDto } from '../api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, DrawerShell, ModalShell,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -42,6 +44,7 @@ const BloodBankV2: React.FC = () => {
   const [filterType, setFilterType] = useState('');
   const [page, setPage] = useState(0);
   const [detailType, setDetailType] = useState<string | null>(null);
+  const [issueOpen, setIssueOpen] = useState(false);
   const PAGE_SIZE = 16;
 
   const reload = () => {
@@ -147,7 +150,7 @@ const BloodBankV2: React.FC = () => {
             <button type="button" className="ab-btn ghost" onClick={reload}>
               <TermIcon name="refresh" size={12} /> Làm mới
             </button>
-            <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo phiếu xuất máu')}>
+            <button type="button" className="ab-btn primary" onClick={() => setIssueOpen(true)}>
               <TermIcon name="plus" size={12} /> Xuất máu
             </button>
           </>
@@ -190,9 +193,141 @@ const BloodBankV2: React.FC = () => {
       >
         {detailType && <BloodTypeDetail type={detailType} stock={stock} />}
       </DrawerShell>
+
+      <BloodIssueModal
+        open={issueOpen}
+        onClose={() => setIssueOpen(false)}
+        onDone={() => { setIssueOpen(false); reload(); }}
+      />
     </div>
   );
 };
+
+/* ──────────────────────────────────────────────────────────
+   Blood issue-request modal — real createIssueRequest with
+   department + product-type lookups.
+   ────────────────────────────────────────────────────────── */
+
+const BLOOD_GROUPS = ['A', 'B', 'AB', 'O'];
+const RH_OPTS = [{ value: '+', label: 'Rh+' }, { value: '-', label: 'Rh−' }];
+const URGENCY_OPTS = [
+  { value: 'Routine', label: 'Thường quy' },
+  { value: 'Urgent', label: 'Khẩn' },
+  { value: 'Emergency', label: 'Cấp cứu' },
+];
+
+const BloodIssueModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [depts, setDepts] = useState<DepartmentCatalogDto[]>([]);
+  const [products, setProducts] = useState<BloodProductTypeDto[]>([]);
+  const [deptId, setDeptId] = useState<string | undefined>(undefined);
+  const [bloodType, setBloodType] = useState('O');
+  const [rh, setRh] = useState('+');
+  const [productTypeId, setProductTypeId] = useState<string | undefined>(undefined);
+  const [qty, setQty] = useState(1);
+  const [urgency, setUrgency] = useState('Routine');
+  const [indication, setIndication] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setDeptId(undefined); setBloodType('O'); setRh('+'); setProductTypeId(undefined);
+      setQty(1); setUrgency('Routine'); setIndication('');
+      Promise.allSettled([
+        catalogApi.getDepartments(undefined, undefined, true),
+        getProductTypes(),
+      ]).then(([d, p]) => {
+        if (d.status === 'fulfilled') setDepts(d.value.data || []);
+        if (p.status === 'fulfilled') setProducts((p.value.data || []) as BloodProductTypeDto[]);
+      });
+    }
+  }, [open]);
+
+  const submit = async () => {
+    if (!deptId) { message.warning('Chọn khoa yêu cầu'); return; }
+    if (!productTypeId) { message.warning('Chọn chế phẩm máu'); return; }
+    if (!qty || qty <= 0) { message.warning('Nhập số lượng'); return; }
+    setBusy(true);
+    try {
+      await createIssueRequest({
+        departmentId: deptId,
+        bloodType,
+        rhFactor: rh,
+        productTypeId,
+        requestedQuantity: qty,
+        urgency,
+        clinicalIndication: indication.trim() || undefined,
+      });
+      message.success('Đã tạo phiếu yêu cầu xuất máu');
+      onDone();
+    } catch {
+      message.error('Tạo phiếu xuất máu thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Tạo phiếu yêu cầu xuất máu"
+      footer={(
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Tạo phiếu'}
+          </button>
+        </>
+      )}
+    >
+      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <BbFld label="Khoa yêu cầu *" full>
+          <Select
+            value={deptId} onChange={setDeptId} showSearch optionFilterProp="label"
+            placeholder="Chọn khoa" style={{ width: '100%' }}
+            options={depts.map((d) => ({ value: d.id!, label: d.name }))}
+          />
+        </BbFld>
+        <BbFld label="Nhóm máu">
+          <Select value={bloodType} onChange={setBloodType} style={{ width: '100%' }}
+            options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
+        </BbFld>
+        <BbFld label="Rh">
+          <Select value={rh} onChange={setRh} options={RH_OPTS} style={{ width: '100%' }} />
+        </BbFld>
+        <BbFld label="Chế phẩm *" full>
+          <Select
+            value={productTypeId} onChange={setProductTypeId} showSearch optionFilterProp="label"
+            placeholder="Chọn chế phẩm máu" style={{ width: '100%' }}
+            options={products.map((p) => ({ value: p.id, label: `${p.name} (${p.unit})` }))}
+          />
+        </BbFld>
+        <BbFld label="Số lượng">
+          <InputNumber value={qty} onChange={(v) => setQty(Number(v) || 1)} min={1} style={{ width: '100%' }} />
+        </BbFld>
+        <BbFld label="Mức độ">
+          <Select value={urgency} onChange={setUrgency} options={URGENCY_OPTS} style={{ width: '100%' }} />
+        </BbFld>
+        <BbFld label="Chỉ định lâm sàng" full>
+          <Input.TextArea value={indication} onChange={(e) => setIndication(e.target.value)} rows={2} placeholder="Lý do truyền máu, chẩn đoán…" />
+        </BbFld>
+      </div>
+    </ModalShell>
+  );
+};
+
+const BbFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
+  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
+    {label && <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {children}
+  </div>
+);
 
 const StockTab: React.FC<{
   rows: { key: string; total: number; available: number; reserved: number; expiring: number; expired: number; volume: number }[];
