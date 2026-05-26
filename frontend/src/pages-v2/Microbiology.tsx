@@ -1,12 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getMicrobiologyCultures } from '../api/microbiology';
+import { Input, Select } from 'antd';
+import { getMicrobiologyCultures, createCulture } from '../api/microbiology';
 import type { MicrobiologyCulture } from '../api/microbiology';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from './_v2kit';
+
+const SAMPLE_OPTS = [
+  { value: 'blood', label: 'Máu' }, { value: 'urine', label: 'Nước tiểu' },
+  { value: 'sputum', label: 'Đờm' }, { value: 'csf', label: 'Dịch não tủy' },
+  { value: 'wound', label: 'Dịch vết thương' }, { value: 'stool', label: 'Phân' },
+  { value: 'tissue', label: 'Mô' }, { value: 'other', label: 'Khác' },
+];
+const CULTURE_OPTS = [
+  { value: 'aerobic', label: 'Hiếu khí' }, { value: 'anaerobic', label: 'Kỵ khí' },
+  { value: 'fungal', label: 'Nấm' }, { value: 'mycobacteria', label: 'Mycobacteria' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Chờ', 1: 'Đang ủ', 2: 'Có VSV mọc', 3: 'Không mọc', 4: 'Đã định danh', 5: 'Hoàn tất',
@@ -33,6 +45,7 @@ const MicrobiologyV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<MicrobiologyCulture | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -121,7 +134,7 @@ const MicrobiologyV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở form cấy mới')}>
+        <button className="ab-btn primary" type="button" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Cấy mới
         </button>
       </div>
@@ -199,7 +212,98 @@ const MicrobiologyV2: React.FC = () => {
           )}
         </>}
       </DrawerShell>
+
+      {createOpen && (
+        <CreateCultureModal
+          onClose={() => setCreateOpen(false)}
+          onDone={() => { setCreateOpen(false); load(); }}
+        />
+      )}
     </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Modal tạo nuôi cấy mới — bám style _v2kit (ModalShell)
+   Tái dùng API createCulture + field từ form v1 (8 loại mẫu, 4 loại cấy)
+   ──────────────────────────────────────────────────────────── */
+
+const Fld: React.FC<{ lbl: string; req?: boolean; children: React.ReactNode }> = ({ lbl, req, children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>
+      {lbl}{req && <span style={{ color: 'var(--s-crit)' }}> *</span>}
+    </span>
+    {children}
+  </div>
+);
+
+const CreateCultureModal: React.FC<{ onClose: () => void; onDone: () => void }> = ({ onClose, onDone }) => {
+  const [labRequestId, setLabRequestId] = useState('');
+  const [sampleType, setSampleType] = useState<string>();
+  const [cultureType, setCultureType] = useState<string>();
+  const [sampleBarcode, setSampleBarcode] = useState('');
+  const [notes, setNotes] = useState('');
+  const [err, setErr] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (): Promise<void> => {
+    if (!labRequestId.trim() || !sampleType || !cultureType) {
+      setErr('Nhập Mã YC xét nghiệm, Loại mẫu và Loại nuôi cấy');
+      return;
+    }
+    setErr('');
+    setSubmitting(true);
+    try {
+      await createCulture({
+        labRequestId: labRequestId.trim(),
+        sampleType,
+        cultureType,
+        sampleBarcode: sampleBarcode.trim() || undefined,
+        notes: notes.trim() || undefined,
+      });
+      tk('Đã tạo nuôi cấy mới');
+      onDone();
+    } catch {
+      te('Tạo nuôi cấy thất bại. Kiểm tra lại Mã YC xét nghiệm.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open
+      onClose={onClose}
+      size="md"
+      title="Tạo nuôi cấy mới"
+      footer={<>
+        <button className="ab-btn ghost" type="button" onClick={onClose}>Huỷ</button>
+        <button className="ab-btn primary" type="button" onClick={submit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Tạo cấy'}
+        </button>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Fld lbl="Mã yêu cầu xét nghiệm" req>
+          <Input value={labRequestId} onChange={(e) => setLabRequestId(e.target.value)} placeholder="Nhập / quét mã YC xét nghiệm" />
+        </Fld>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Fld lbl="Loại mẫu" req>
+            <Select style={{ width: '100%' }} value={sampleType} onChange={setSampleType} placeholder="Chọn loại mẫu" options={SAMPLE_OPTS} />
+          </Fld>
+          <Fld lbl="Loại nuôi cấy" req>
+            <Select style={{ width: '100%' }} value={cultureType} onChange={setCultureType} placeholder="Chọn loại cấy" options={CULTURE_OPTS} />
+          </Fld>
+        </div>
+        <Fld lbl="Barcode mẫu">
+          <Input value={sampleBarcode} onChange={(e) => setSampleBarcode(e.target.value)} placeholder="Quét barcode mẫu (nếu có)" />
+        </Fld>
+        <Fld lbl="Ghi chú">
+          <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </Fld>
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+      </div>
+    </ModalShell>
   );
 };
 

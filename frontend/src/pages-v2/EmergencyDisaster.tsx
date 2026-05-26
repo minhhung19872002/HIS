@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Drawer, Select } from 'antd';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { App as AntdApp, Drawer, Select, Input } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
-import { getActiveEvent, getVictims, type MCIVictimDto } from '../api/massCasualty';
+import {
+  getActiveEvent, getVictims, registerVictim,
+  type MCIVictimDto, type RegisterVictimDto,
+} from '../api/massCasualty';
 import './EmergencyDisaster.css';
 
 type TriageLevel = 1 | 2 | 3 | 4 | 5;
@@ -46,6 +49,18 @@ type EmergencyCase = {
   bed?: string;
   gcs: number;
   vitals: Vitals;
+};
+
+type IntakePayload = {
+  triage: TriageLevel;
+  fullName: string;
+  gender: 'Nam' | 'Nữ';
+  estimatedAge: string;
+  mode: string;
+  ambulatory: boolean;
+  complaint: string;
+  injuries: string;
+  injuryMechanism: string;
 };
 
 const TRIAGE_LEVELS: TriageMeta[] = [
@@ -233,25 +248,43 @@ const EmergencyDisasterV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [rows, setRows] = useState<EmergencyCase[]>(() => buildEmergencySeed());
   const [usingMock, setUsingMock] = useState(true);
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const [intakeSubmitting, setIntakeSubmitting] = useState(false);
 
-  // Try real MCI API on mount; fall back to seed if no active event or empty.
+  // Tải lại danh sách nạn nhân thật của sự kiện MCI đang hoạt động.
+  const reloadVictims = useCallback(async (eventId: string) => {
+    try {
+      const vRes = await getVictims(eventId, 'all', 0);
+      const list = Array.isArray(vRes?.data) ? vRes.data : [];
+      if (list.length === 0) return;
+      const real = list.map(mapVictimToCase)
+        .sort((a, b) => dayjs(b.arrivalTime).valueOf() - dayjs(a.arrivalTime).valueOf());
+      setRows(real);
+      setUsingMock(false);
+    } catch {
+      // giữ dữ liệu hiện tại nếu API lỗi
+    }
+  }, []);
+
+  // Thử API MCI thật khi mount; không có sự kiện/nạn nhân thì giữ seed cho demo.
   useEffect(() => {
     (async () => {
       try {
         const evt = await getActiveEvent();
-        if (!evt?.data?.id) return; // no active MCI — keep seed for demo
-        // Backend marks status + triageCategory as required even though
-        // frontend types them as optional. Pass dummy to bypass validation.
+        if (!evt?.data?.id) return; // chưa có MCI — giữ seed
+        setActiveEventId(evt.data.id);
+        // Backend bắt buộc status + triageCategory dù FE để optional → truyền dummy.
         const vRes = await getVictims(evt.data.id, 'all', 0);
         const list = Array.isArray(vRes?.data) ? vRes.data : [];
-        if (list.length === 0) return; // active event but no victims yet — keep seed
+        if (list.length === 0) return; // có sự kiện nhưng chưa có nạn nhân — giữ seed
         const real = list.map(mapVictimToCase)
           .sort((a, b) => dayjs(b.arrivalTime).valueOf() - dayjs(a.arrivalTime).valueOf());
         setRows(real);
         setUsingMock(false);
         message.success(`Đang hiển thị MCI thật: ${evt.data.eventName} (${real.length} ca)`);
       } catch {
-        // API down or schema drift — silently keep seed for demo
+        // API lỗi/schema drift — giữ seed cho demo
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -324,6 +357,55 @@ const EmergencyDisasterV2: React.FC = () => {
     setSelectedCase(row);
   };
 
+  // Tiếp nhận ca cấp cứu mới → registerVictim vào MCI đang hoạt động.
+  // Chưa có sự kiện MCI: thêm tạm vào danh sách (demo, không lưu BE).
+  const onIntakeSubmit = async (payload: IntakePayload): Promise<void> => {
+    setIntakeSubmitting(true);
+    try {
+      if (activeEventId) {
+        const dto: RegisterVictimDto = {
+          eventId: activeEventId,
+          fullName: payload.fullName.trim() || undefined,
+          estimatedAge: payload.estimatedAge ? Number(payload.estimatedAge) : undefined,
+          gender: payload.gender === 'Nam' ? 'male' : 'female',
+          chiefComplaint: payload.complaint.trim() || undefined,
+          injuries: payload.injuries.trim()
+            ? payload.injuries.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean)
+            : undefined,
+          injuryMechanism: payload.injuryMechanism.trim() || undefined,
+          ambulatory: payload.ambulatory,
+        };
+        await registerVictim(dto);
+        await reloadVictims(activeEventId);
+        message.success(`Đã tiếp nhận ca cấp cứu · ${payload.fullName || 'chưa xác định'}`);
+      } else {
+        const lvl = payload.triage;
+        const localCase: EmergencyCase = {
+          code: `CC-${dayjs().format('HHmmss')}`,
+          patientCode: `BN-${Math.floor(1000 + Math.random() * 9000)}`,
+          patientName: payload.fullName.trim() || 'Chưa xác định',
+          age: payload.estimatedAge ? Number(payload.estimatedAge) : 0,
+          gender: payload.gender,
+          arrivalTime: dayjs().toISOString(),
+          triage: lvl,
+          status: 'triage',
+          complaint: payload.complaint.trim() || '—',
+          mode: payload.mode || 'Tự đến',
+          doctor: 'Chưa phân',
+          gcs: lvl <= 2 ? 10 : 15,
+          vitals: { bp: '—', hr: 0, temp: 0, spo2: 0 },
+        };
+        setRows((prev) => [localCase, ...prev]);
+        message.info('Chưa có sự kiện MCI đang hoạt động — ca được thêm tạm (demo, chưa lưu hệ thống).');
+      }
+      setIntakeOpen(false);
+    } catch {
+      message.error('Tiếp nhận thất bại. Vui lòng thử lại.');
+    } finally {
+      setIntakeSubmitting(false);
+    }
+  };
+
   React.useEffect(() => {
     setPage(1);
   }, [statusFilter, triageFilter, search]);
@@ -354,7 +436,7 @@ const EmergencyDisasterV2: React.FC = () => {
             <button
               className="er-v2-btn danger"
               type="button"
-              onClick={() => message.success('Đã tiếp nhận ca cấp cứu mới')}
+              onClick={() => setIntakeOpen(true)}
             >
               <TermIcon name="plus" size={14} />
               Tiếp nhận cấp cứu
@@ -532,6 +614,24 @@ const EmergencyDisasterV2: React.FC = () => {
           />
         )}
       </Drawer>
+
+      <Drawer
+        open={intakeOpen}
+        onClose={() => setIntakeOpen(false)}
+        title="Tiếp nhận ca cấp cứu mới"
+        placement="right"
+        size="large"
+        destroyOnHidden
+      >
+        {intakeOpen && (
+          <IntakeDrawerContent
+            submitting={intakeSubmitting}
+            isMci={!!activeEventId}
+            onClose={() => setIntakeOpen(false)}
+            onSubmit={onIntakeSubmit}
+          />
+        )}
+      </Drawer>
     </div>
   );
 };
@@ -635,6 +735,139 @@ const EmergencyCaseDrawerContent: React.FC<EmergencyCaseDrawerContentProps> = ({
         <button type="button" className="er-v2-btn" onClick={onClose}>Đóng</button>
         <button type="button" className="er-v2-btn" onClick={onPrint}>In hồ sơ</button>
         <button type="button" className="er-v2-btn primary" onClick={onAdmit}>Chuyển nội trú</button>
+      </div>
+    </div>
+  );
+};
+
+const MODE_OPTIONS = ['Tự đến', 'Xe cấp cứu 115', 'Người nhà đưa', 'Chuyển tuyến', 'Công an/CSGT'];
+
+type IntakeDrawerContentProps = {
+  submitting: boolean;
+  isMci: boolean;
+  onClose: () => void;
+  onSubmit: (payload: IntakePayload) => void;
+};
+
+const IntakeDrawerContent: React.FC<IntakeDrawerContentProps> = ({ submitting, isMci, onClose, onSubmit }) => {
+  const [triage, setTriage] = useState<TriageLevel>(3);
+  const [fullName, setFullName] = useState('');
+  const [gender, setGender] = useState<'Nam' | 'Nữ'>('Nam');
+  const [estimatedAge, setEstimatedAge] = useState('');
+  const [mode, setMode] = useState(MODE_OPTIONS[0]);
+  const [complaint, setComplaint] = useState('');
+  const [injuries, setInjuries] = useState('');
+  const [injuryMechanism, setInjuryMechanism] = useState('');
+  const [err, setErr] = useState('');
+
+  const meta = TRIAGE_LEVELS.find((item) => item.level === triage)!;
+  const ambulatory = triage >= 4; // mức 4-5 ~ tự đi được (START: green)
+
+  const submit = (): void => {
+    if (!complaint.trim() && !injuries.trim()) {
+      setErr('Nhập lý do vào cấp cứu hoặc mô tả thương tích');
+      return;
+    }
+    setErr('');
+    onSubmit({ triage, fullName, gender, estimatedAge, mode, ambulatory, complaint, injuries, injuryMechanism });
+  };
+
+  return (
+    <div className="er-v2-drawer">
+      <div className="er-v2-hero" style={{ background: meta.color }}>
+        <div className="er-v2-hero-level">{triage}</div>
+        <div>
+          <div className="er-v2-hero-title">{meta.label}</div>
+          <div className="er-v2-hero-sub">{meta.description}</div>
+        </div>
+      </div>
+
+      <section className="er-v2-section">
+        <div className="er-v2-section-title">Phân loại triage</div>
+        <div className="er-v2-triage-grid">
+          {TRIAGE_LEVELS.map((item) => (
+            <button
+              key={item.level}
+              type="button"
+              className={`er-v2-triage-opt ${triage === item.level ? 'on' : ''}`.trim()}
+              style={triage === item.level ? { borderColor: item.color, background: item.soft } : undefined}
+              onClick={() => setTriage(item.level)}
+            >
+              <span className="lvl" style={{ background: item.color }}>{item.level}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="er-v2-section">
+        <div className="er-v2-section-title">Thông tin nạn nhân</div>
+        <div className="er-v2-form-grid">
+          <label className="er-v2-field">
+            <span>Họ tên (nếu biết)</span>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Chưa xác định" />
+          </label>
+          <label className="er-v2-field">
+            <span>Giới tính</span>
+            <Select
+              value={gender}
+              onChange={(v) => setGender(v as 'Nam' | 'Nữ')}
+              options={[{ value: 'Nam', label: 'Nam' }, { value: 'Nữ', label: 'Nữ' }]}
+            />
+          </label>
+          <label className="er-v2-field">
+            <span>Tuổi ước tính</span>
+            <Input type="number" value={estimatedAge} onChange={(e) => setEstimatedAge(e.target.value)} placeholder="—" />
+          </label>
+          <label className="er-v2-field">
+            <span>Đường vào</span>
+            <Select
+              value={mode}
+              onChange={(v) => setMode(v as string)}
+              options={MODE_OPTIONS.map((m) => ({ value: m, label: m }))}
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="er-v2-section">
+        <div className="er-v2-section-title">Lý do & thương tích</div>
+        <div className="er-v2-form-stack">
+          <label className="er-v2-field">
+            <span>Lý do vào cấp cứu</span>
+            <Input value={complaint} onChange={(e) => setComplaint(e.target.value)} placeholder="VD: Đau ngực dữ dội, khó thở cấp…" />
+          </label>
+          <label className="er-v2-field">
+            <span>Mô tả thương tích</span>
+            <Input.TextArea
+              rows={2}
+              value={injuries}
+              onChange={(e) => setInjuries(e.target.value)}
+              placeholder="Vết thương, vị trí, mức độ… (phân tách bằng dấu phẩy)"
+            />
+          </label>
+          <label className="er-v2-field">
+            <span>Cơ chế chấn thương</span>
+            <Input value={injuryMechanism} onChange={(e) => setInjuryMechanism(e.target.value)} placeholder="VD: TNGT, ngã cao, bỏng…" />
+          </label>
+        </div>
+        {err && <div style={{ color: 'var(--s-crit, #c62828)', fontSize: 12, marginTop: 6 }}>{err}</div>}
+      </section>
+
+      {!isMci && (
+        <div style={{
+          margin: '0 0 10px', padding: '10px 12px', background: '#fffbeb',
+          border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#854d0e',
+        }}>
+          Chưa có sự kiện MCI đang hoạt động — ca sẽ được thêm tạm để theo dõi (demo), chưa lưu xuống hệ thống.
+        </div>
+      )}
+
+      <div className="er-v2-drawer-actions">
+        <button type="button" className="er-v2-btn" onClick={onClose}>Huỷ</button>
+        <button type="button" className="er-v2-btn primary" onClick={submit} disabled={submitting}>
+          {submitting ? 'Đang lưu…' : 'Tiếp nhận'}
+        </button>
       </div>
     </div>
   );
