@@ -1,7 +1,8 @@
 ---
 name: core-validation-pattern
 description: Use this skill (portable, tech-agnostic) when adding input validation, to keep frontend and backend validation consistent and to never trust client input. Triggers include validating a form/payload, defining required fields/ranges/formats, or aligning client-side and server-side rules. Reusable across any web project. Do NOT use for stack-specific validation libraries (his-* skills implement them).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Validation Pattern (portable)

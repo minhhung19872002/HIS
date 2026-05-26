@@ -1,7 +1,8 @@
 ---
 name: his-ops-deploy
 description: Use this skill when deploying HIS to production — backend to Google Cloud Run (gcloud builds submit + run services update) and frontend to Vercel. Triggers include "deploy backend lên prod", "deploy NangCapNN", releasing API changes, verifying schema-drift after migration, or diagnosing "FE live nhưng API 404". Reminds that Vercel auto-deploys on push but Cloud Run does NOT — backend must be deployed manually.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Production Deploy
@@ -90,7 +91,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 - `references/deploy-checklist.md` — checklist trước/sau deploy + lệnh rollback
 
-## When to update this skill
+## When to update
 
 - Khi đổi GCP project ID / region / service name / URL (đồng bộ với CLAUDE.md).
 - Khi đổi cloudbuild.yaml / Dockerfile path / cơ chế schema repair.

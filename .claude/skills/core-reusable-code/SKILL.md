@@ -1,7 +1,8 @@
 ---
 name: core-reusable-code
 description: Use this skill (portable, tech-agnostic) before creating ANY new file, function, component, hook, service, type or test setup, to reuse what already exists instead of duplicating. Triggers include any code-gen task, "add X", refactor, or when you might be about to recreate something that already exists. Enforces inspect-existing → extend/compose → extract-shared. Reusable across any web project.
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Reusable Code (portable)

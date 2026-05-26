@@ -1,7 +1,8 @@
 ---
 name: core-testing-architecture
 description: Use this skill (portable, tech-agnostic) when deciding what kind of test to write and how to structure tests — choosing unit vs integration vs e2e vs contract, and keeping tests testable/deterministic/isolated. Triggers include "viết test cho X", planning test coverage, or a flaky/slow test that needs the right level. Reusable across any web project. Do NOT use for a specific test runner's syntax (his-testing-* skills implement that).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Testing Architecture (portable)

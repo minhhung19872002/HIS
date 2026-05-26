@@ -1,7 +1,8 @@
 ---
 name: core-refactor
 description: Use this skill (portable, tech-agnostic) when refactoring, cleaning up, extracting shared code, improving naming/readability, or reducing tech debt — without changing behavior. Triggers include "refactor X", "clean up X", "extract shared", "tách hàm/file", removing dead code, or reducing duplication. Reusable across any web project. Do NOT use to change architecture or add features.
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Refactor (portable)

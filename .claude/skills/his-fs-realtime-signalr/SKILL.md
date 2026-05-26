@@ -1,7 +1,8 @@
 ---
 name: his-fs-realtime-signalr
 description: Use this skill when adding real-time push to HIS via SignalR — a backend Hub plus a frontend @microsoft/signalr client with JWT auth, auto-reconnect and polling fallback (notifications, RIS chat, AI queue, live queue display). Triggers include "realtime/đẩy thông báo [X]", creating a Hub, MapHub, IHubContext push, JWT query-string auth for SignalR, hoặc frontend HubConnectionBuilder + Context + badge. Do NOT use for plain REST polling pages (his-fe-page-v2) or background jobs (his-be-background-worker).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Real-time (SignalR)
@@ -70,3 +71,6 @@ public class XxxHub : Hub
 ## Dependency
 `core-reusable-code` → `core-error-loading-state` → `his-fe-api-client` (REST fallback) →
 `his-fs-realtime-signalr` → `his-qa-anti-pattern`.
+
+## When to update
+- Khi pattern Hub/`NotificationContext.tsx` hoặc cách auth JWT cho SignalR thay đổi.

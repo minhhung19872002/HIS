@@ -1,7 +1,8 @@
 ---
 name: core-localization-pattern
 description: Use this skill (portable, tech-agnostic) whenever adding user-facing text, to never hardcode strings and instead use translation keys with namespaces and fallback. Triggers include adding labels/messages/buttons, supporting multiple languages, or finding hardcoded text. Reusable across any web project. Do NOT use for a specific i18n library's API (his-* skills implement that).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Localization Pattern (portable)

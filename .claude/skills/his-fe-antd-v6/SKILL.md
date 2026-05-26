@@ -1,7 +1,8 @@
 ---
 name: his-fe-antd-v6
 description: Use this skill when writing or editing React UI in HIS that uses Ant Design v6 (mostly v1 pages in `frontend/src/pages/`, MainLayout). Triggers include using antd components (Space, Alert, Drawer, Timeline, List, Tabs, Modal, Statistic), fixing antd deprecation warnings/console errors, or migrating deprecated props. Do NOT use for v2 pages built with the `_v2kit`/`ab-*` design pack (use his-fe-page-v2).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Ant Design v6 Conventions
@@ -70,7 +71,7 @@ Smoke `console-errors.cy.ts` (Cypress) phải 0 error sau khi sửa.
 
 - `references/deprecations-cheatsheet.md` — bảng before/after từng deprecated prop + ví dụ code
 
-## When to update this skill
+## When to update
 
 - Khi nâng Antd lên major mới (v7...) hoặc antd báo deprecated props mới.
 - Khi convention logging/empty-state thay đổi.

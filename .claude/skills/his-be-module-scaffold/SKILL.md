@@ -1,7 +1,8 @@
 ---
 name: his-be-module-scaffold
 description: Use this skill when adding a new backend feature to HIS following Clean Architecture (HIS.Core → HIS.Application → HIS.Infrastructure → HIS.API). Triggers include creating a new service/controller/entity/DTO, đăng ký DI trong `backend/src/HIS.Infrastructure/DependencyInjection.cs`, scaffold AutoMapper profile, hoặc tránh lỗi 500 do quên DI.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Backend Module Scaffold
@@ -136,3 +137,6 @@ Inject `ILogger<XxxService>`. Log warning/error, không log info cho mọi call.
 - `references/service-template.cs` — class skeleton với DI, async, mapping, audit
 - `references/controller-template.cs` — controller skeleton với [Authorize], [HttpGet/Post/Put], DTO binding
 - `references/di-checklist.md` — checklist trước commit để chắc chắn không quên DI
+
+## When to update
+- Khi cấu trúc 4-layer / convention DI / mapping thay đổi.

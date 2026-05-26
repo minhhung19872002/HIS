@@ -1,7 +1,8 @@
 ---
 name: his-flow-nangcap-package
 description: Use this skill when implementing a whole HIS upgrade package / tender gap-closing (NangCapNN) end-to-end — read the requirement PDF, diff against the codebase, list gaps, implement full-stack, mark the [NN] menu, write the docs set, and deploy. Triggers include "làm gói NangCapNN", "đối chiếu NangCapNN.pdf", "đóng gap gói thầu [BV X]", closing a tender's feature list. This is an ORCHESTRATION playbook that chains the other his-* skills. Do NOT use for a single isolated feature (route directly to the specific his-* skill).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS NangCap Package (gói nâng cấp / gói thầu)
@@ -55,3 +56,6 @@ cùng quy trình. Skill này KHÔNG tự làm code — nó **chuỗi các skill 
 Điều phối: `his-be-module-scaffold`, `his-db-migration`, `his-fe-api-client`, `his-fe-page-v2`,
 `his-be-external-gateway`, `his-be-background-worker`, `his-fs-realtime-signalr`, `his-fe-emr-print-form`, `his-doc-feature`,
 `his-test-e2e`, `his-ops-deploy`, `his-qa-anti-pattern` (xuyên suốt).
+
+## When to update
+- Khi quy trình 7 bước hoặc convention đặt tên gói thay đổi.

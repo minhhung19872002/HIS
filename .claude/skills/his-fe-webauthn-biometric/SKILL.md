@@ -1,7 +1,8 @@
 ---
 name: his-fe-webauthn-biometric
 description: Use this skill when building or editing the HIS biometric/WebAuthn signature feature — patients signing EMR documents by fingerprint/FaceID via the browser WebAuthn API. Triggers include register/sign credential flows, `navigator.credentials.create/get`, the `/api/biometric` endpoints, BiometricEnrollment page, or RpId/HTTPS issues. Do NOT use for ordinary REST list/detail pages (his-fe-page-v2) or central digital-signature (Pkcs11/USB token).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS WebAuthn Biometric Signature

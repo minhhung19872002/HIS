@@ -1,7 +1,8 @@
 ---
 name: his-test-e2e
 description: Use this skill when writing or fixing E2E/UI tests for HIS frontend using Cypress (`frontend/cypress/e2e/*.cy.ts`) or Playwright (`frontend/e2e/*.spec.ts`, `frontend/e2e-prod/*.spec.ts`). Triggers include "viết test cypress/playwright cho [page]", page-load console-error smoke, login via API token + localStorage, intercept `**/api/**`, IGNORE_PATTERNS for SignalR/HMR, or fixing flaky tests. Do NOT use for backend PowerShell API tests (use his-test-api-powershell).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS E2E Testing (Cypress + Playwright)
@@ -114,7 +115,7 @@ Cần backend `localhost:5106` + frontend `localhost:3001` đang chạy (xem CLA
 - `references/cypress-pageload-template.cy.ts` — smoke spec page-load + API check
 - `references/playwright-template.spec.ts` — Playwright page-load + functional
 
-## When to update this skill
+## When to update
 
 - Khi đổi port dev / cấu trúc login / localStorage keys.
 - Khi thêm pattern console-error mới cần ignore.

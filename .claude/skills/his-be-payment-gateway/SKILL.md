@@ -1,7 +1,8 @@
 ---
 name: his-be-payment-gateway
 description: Use this skill when working on HIS cashless payment — VietQR/Napas247 bank QR, VNPay/MoMo/ZaloPay, IPN/return callbacks, manual bank confirm, and linking a paid transaction to a Receipt + e-invoice. Triggers include PaymentGatewayService (VietQR partial), EMVCo TLV/CRC QR generation, /api/payment/* endpoints, BankPayments page, or the LinkReceiptAsync CashierId FK issue. Do NOT use for generic CRUD backend (his-be-module-scaffold) unrelated to payment.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Payment Gateway (VietQR / VNPay / MoMo / ZaloPay)

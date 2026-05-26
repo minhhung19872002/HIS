@@ -1,7 +1,8 @@
 ---
 name: his-fe-dicom-viewer
 description: Use this skill when building or editing HIS DICOM viewer components built on Cornerstone3D — stack/MPR/3D viewport, MIP/MinIP projection, cine playback, mammography viewer. Triggers include editing DicomViewer page or CornerstoneViewer/MprViewer/MipMinIpViewer/CineControls/MammoViewer, loading wadouri imageIds from the PACS proxy, or window/level/zoom/pan tools. Do NOT use for list/detail pages (his-fe-page-v2) or RIS report CRUD.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS DICOM Viewer (Cornerstone3D)

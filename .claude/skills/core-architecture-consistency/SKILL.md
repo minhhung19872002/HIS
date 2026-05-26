@@ -1,7 +1,8 @@
 ---
 name: core-architecture-consistency
 description: Use this skill (portable, tech-agnostic) to keep new/changed code consistent with the project's EXISTING structure, naming and conventions instead of inventing new ones. Triggers include adding a feature, reviewing a diff for consistency, or noticing two parts of the codebase do the same thing differently. Reusable across any web project. Do NOT use for mechanics tied to a specific stack (his-* skills).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Architecture Consistency (portable)

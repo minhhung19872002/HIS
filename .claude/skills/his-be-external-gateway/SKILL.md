@@ -1,7 +1,8 @@
 ---
 name: his-be-external-gateway
 description: Use this skill when integrating HIS with an external Vietnamese healthcare gateway over HTTP — cổng Đơn thuốc QG / Dược QG / Đề án 06 / Zalo OA / BHXH / DQGVN / HL7 FHIR / SMS. Triggers include "tích hợp cổng [X]", wiring a typed HttpClient via IHttpClientFactory, MockMode dev/prod split, ApiKey/AccessToken qua env var, config lưu trong SystemConfig, retry + circuit breaker, idempotency key, hoặc status Submitted/Acknowledged/Failed. Do NOT use for payment gateways (dùng his-be-payment-gateway) hay generic CRUD service (his-be-module-scaffold).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS External Gateway Integration
@@ -64,3 +65,6 @@ Row treo (Status=1, RetryCount<max) được **Retry Worker** quét lại → d�
 ## Dependency
 `core-types-contract` (DTO request/response) → `his-be-module-scaffold` (DI, layer) →
 `his-be-background-worker` (retry) → `his-qa-anti-pattern` (không hardcode secret, không quên DI). Deploy: `his-ops-deploy`.
+
+## When to update
+- Khi thêm cổng ngoài mới, đổi cơ chế MockMode/retry, hoặc convention config trong SystemConfig thay đổi.

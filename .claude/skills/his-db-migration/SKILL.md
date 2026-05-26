@@ -1,7 +1,8 @@
 ---
 name: his-db-migration
 description: Use this skill when creating, fixing, or seeding SQL Server tables for the HIS database (DB name `HIS`, container `his-sqlserver`, password `HisDocker2024Pass#`). Triggers include writing scripts in `scripts/create_*.sql`, `scripts/fix_*.sql`, `scripts/seed_*.sql`, adding audit columns (CreatedBy/UpdatedBy uniqueidentifier với ValueConverter), idempotent IF NOT EXISTS, FK references Users/Patients/MedicalRecords, hoặc fix lỗi `InvalidCastException Guid↔String`.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS SQL Table Migration
@@ -14,6 +15,11 @@ Skill chuẩn hoá cách tạo/sửa bảng SQL Server cho HIS. Project hiện c
 - Sửa bảng có sẵn (thêm cột, đổi kiểu): `scripts/fix_<issue>.sql`, `scripts/add_<columns>.sql`
 - Seed master data: `scripts/seed_<module>_data.sql`
 - Hợp nhất nhiều migration nhỏ thành một bundle (NangCap14, NangCap15, ...).
+
+## Khi nào KHÔNG dùng
+
+- KHÔNG dùng `dotnet ef migrations` — project IGNORE pending model changes; luôn viết SQL script tay.
+- Logic service/controller trên bảng → `his-be-module-scaffold`. Test API → `his-test-api-powershell`.
 
 ## Quy trình chuẩn
 
@@ -108,3 +114,6 @@ Nhiều trang lọc `CreatedAt.Date == today` → data để ngày cũ thì tran
 - `references/sql-table-template.sql` — template CREATE TABLE + ALTER COLUMN + seed
 - `references/audit-columns-convention.md` — quyết định Guid vs nvarchar + cách đăng ký ValueConverter
 - `scripts/run-migration.ps1` — runner gọi sqlcmd qua docker container
+
+## When to update
+- Khi convention cột audit, FK, hoặc cách seed/migration thay đổi.

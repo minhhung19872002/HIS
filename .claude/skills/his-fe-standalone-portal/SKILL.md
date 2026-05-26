@@ -1,7 +1,8 @@
 ---
 name: his-fe-standalone-portal
 description: Use this skill when building a standalone HIS portal page that lives OUTSIDE the main app layouts (its own route, own login form, own JWT/role) — e.g. the BHXH Inspector Portal at /inspector-portal. Triggers include a separate login screen for external users, a route registered outside MainLayout/TerminalLayout/ProtectedRoute, or a non-admin role like BhxhInspector. Do NOT use for normal /v2/* pages inside TerminalLayout (his-fe-page-v2).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Standalone Portal

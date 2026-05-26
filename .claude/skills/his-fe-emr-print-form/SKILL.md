@@ -1,7 +1,8 @@
 ---
 name: his-fe-emr-print-form
 description: Use this skill when adding or editing a Vietnamese medical print form in HIS (biểu mẫu in MS xx/BV, DD xx, phiếu CLS, bệnh án chuyên khoa). Triggers include "thêm biểu mẫu/phiếu in [X]", a new *Print React component, registering a printType in PrintTemplateRenderer, the PrintHeader/SignatureBlock/Field layout, A4 print CSS, digital signature stamp, hoặc iText7 PDF export. Do NOT use for normal list/detail screens (his-fe-page-v2) or DICOM image viewing (his-fe-dicom-viewer).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS EMR Print Form (biểu mẫu in y tế VN)
@@ -51,3 +52,6 @@ nạp động qua `PrintTemplateRenderer`.
 ## Dependency
 `core-reusable-code` (tái dùng PrintHeader/SignatureBlock/Field, đừng tạo lại) → `his-fe-emr-print-form`
 → `his-qa-anti-pattern` (không hardcode tên BV).
+
+## When to update
+- Khi `EMRPrintTemplates.tsx`/`PrintTemplateRenderer` đổi cấu trúc, hoặc thêm loại biểu mẫu mới.

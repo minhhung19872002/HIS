@@ -1,7 +1,8 @@
 ---
 name: core-types-contract
 description: Use this skill (portable, tech-agnostic) when defining the data contract between layers/boundaries — request/response shapes, DTOs, interfaces, the type a function accepts and returns. Triggers include adding an API endpoint contract, a service signature, a typed payload, or aligning frontend/backend shapes. Reusable across any web project. Do NOT use for stack-specific type mechanics (his-* skills handle the concrete language/lib).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Types & Contracts (portable)

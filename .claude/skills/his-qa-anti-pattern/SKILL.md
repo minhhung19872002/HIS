@@ -1,7 +1,8 @@
 ---
 name: his-qa-anti-pattern
 description: Use this skill as a guardrail whenever generating or refactoring HIS code (backend, frontend, SQL, tests) to avoid the project's known footguns and to respect patient-safety / audit / compliance rules. Triggers include any code-gen or refactor task in HIS, reviewing a diff, or before committing. Reminds: never forget DI registration, never use cy.intercept('**/*'), never hardcode hospital name/URL/credentials, never skip audit log or drug-safety checks, never introduce CQRS/MediatR/Next.js.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Anti-Patterns & Safety Guardrails
@@ -68,7 +69,7 @@ Skill "phòng thủ" — danh sách điều **KHÔNG được làm** trong HIS +
 - **Hỏi khi không chắc, không đoán** — nhất là nghiệp vụ y tế.
 - **Explicit**: nói rõ đang làm gì + tại sao.
 
-## When to update this skill
+## When to update
 
 - Khi phát hiện footgun mới (thêm vào list).
 - Khi convention an toàn/pháp lý/audit thay đổi.

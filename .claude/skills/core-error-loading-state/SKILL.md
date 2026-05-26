@@ -1,7 +1,8 @@
 ---
 name: core-error-loading-state
 description: Use this skill (portable, tech-agnostic) when building any data-driven UI, to always handle loading, empty, error and success states plus user feedback. Triggers include adding a page/list/form/dialog that fetches or submits data, or fixing a screen that shows blank/spinner-forever/silent failure. Reusable across any web project. Do NOT use for stack-specific UI components (his-* skills implement them).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Error / Loading / Empty State (portable)

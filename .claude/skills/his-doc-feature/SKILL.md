@@ -1,7 +1,8 @@
 ---
 name: his-doc-feature
 description: Use this skill when writing the feature documentation set under `docs/features/<feature>/` for a HIS module/package (e.g. NangCapNN). Triggers include "viết tài liệu cho [feature]", "tạo bộ tài liệu kiểm thử", documenting a new phân hệ with README + analysis + test-plan + test-guide + workflow-test + summary. Do NOT use for code generation or for skills (skills live in .claude/skills, never docs).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Feature Documentation Set
@@ -69,7 +70,7 @@ Mỗi file có block "Tài liệu liên quan" link 5 file còn lại + section c
 
 - `references/doc-set-outline.md` — heading/outline chi tiết 6 file (copy làm khung)
 
-## When to update this skill
+## When to update
 
 - Khi convention `docs/features/<feature>/` đổi (thêm/bớt file chuẩn).
 - Khi mẫu nangcap23/24 được cải tiến cấu trúc.

@@ -1,7 +1,8 @@
 ---
 name: his-be-background-worker
 description: Use this skill when adding a background/hosted service to the HIS backend — a BackgroundService that runs on an interval (retry worker, worklist scanner, HL7 receiver, queue processor). Triggers include "worker/job nền [X]", "tự động quét/gửi lại [X]", BackgroundService + IServiceScopeFactory, interval loop, idempotent claim, hoặc fix ObjectDisposedException trong hosted service. Do NOT use for ASP.NET request-scoped services (his-be-module-scaffold) hay SignalR realtime push (his-fs-realtime-signalr).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Background Worker (Hosted Service)
@@ -76,3 +77,6 @@ public sealed class XxxWorker : BackgroundService
 ## Dependency
 `core-architecture-follow` (worker ở Infrastructure) → `his-be-background-worker` →
 `his-be-external-gateway` (nếu là retry cổng) → `his-qa-anti-pattern` (DI, không hardcode).
+
+## When to update
+- Khi pattern worker đổi (vd `Nangcap23RetryWorker`) hoặc cách tạo scope/idempotent thay đổi.

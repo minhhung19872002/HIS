@@ -1,7 +1,8 @@
 ---
 name: his-fe-api-client
 description: Use this skill when creating or editing a frontend API client in HIS (`frontend/src/api/*.ts`) that calls the backend via the shared axios `apiClient`. Triggers include "thêm api client cho [module]", wiring a v2/v1 page to backend endpoints, defining request/response DTO interfaces in TypeScript, handling paged vs array responses, or the login token wrapper `{data:{token}}`. Do NOT use for backend controller/service code or for test scripts.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Frontend API Client
@@ -80,7 +81,7 @@ KHÔNG `try/catch` nuốt lỗi trong client. Để lỗi nổi lên page → pa
 
 - `references/api-client-template.ts` — khung client đầy đủ (CRUD + paged + search + custom action)
 
-## When to update this skill
+## When to update
 
 - Khi `client.ts` đổi cấu hình (interceptor, baseURL env name, wrapper response).
 - Khi convention response (paged shape) thay đổi.

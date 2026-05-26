@@ -1,7 +1,8 @@
 ---
 name: his-test-api-powershell
 description: Use this skill when writing or modifying PowerShell test scripts (`test-*.ps1`) that exercise the HIS backend API at `localhost:5106`. Triggers include creating tests for Reception/OPD/IPD/Surgery/Billing/Pharmacy/Ward/Payment modules, login với admin/Admin@123, gọi API có Bearer JWT, hoặc parse response wrapper `data`/`items`/`value`.
-type: project
+metadata:
+  type: project
 ---
 
 # HIS API Test (PowerShell)
@@ -13,6 +14,11 @@ Skill này chuẩn hoá cách viết script test API của HIS bằng PowerShell
 - Tạo file mới `test-<module>.ps1` để smoke-test API sau khi thêm endpoint.
 - Sửa script hiện có (`test-reception-full.ps1`, `test-ipd-flow.ps1`, `test-billing.ps1`, ...) khi DTO hoặc route thay đổi.
 - Viết E2E flow nhiều bước (đăng ký bệnh nhân → khám → kê đơn → thanh toán) chạy nhanh ngoài Cypress/Playwright.
+
+## Khi nào KHÔNG dùng
+
+- Test UI/route/flow trên trình duyệt (Cypress/Playwright) → `his-test-e2e`.
+- Code backend service/controller → `his-be-module-scaffold` (skill này chỉ test, không sửa code app).
 
 ## Quy trình chuẩn
 
@@ -93,3 +99,6 @@ Write-Host "=== 3. REGISTER NEW PATIENT (Dang ky vien phi) ===" -ForegroundColor
 
 - `references/test-script-template.ps1` — skeleton copy-paste-ready
 - `references/api-endpoints-cheatsheet.md` — route + DTO đã verify từ 21 script hiện tại
+
+## When to update
+- Khi helper parse response (`Get-ResultItems`) hoặc convention login/headers thay đổi.

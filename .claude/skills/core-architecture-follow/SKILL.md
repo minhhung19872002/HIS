@@ -1,7 +1,8 @@
 ---
 name: core-architecture-follow
 description: Use this skill (portable, tech-agnostic) when adding or changing code that crosses architectural layers, to respect layer boundaries, dependency direction and module boundaries of whatever architecture the project uses. Triggers include adding a feature touching multiple layers, deciding where a piece of logic belongs, or keeping dependencies pointing the correct way. Reusable across any web project. Do NOT use for project-specific stack mechanics (those live in his-* skills).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Architecture Follow (portable)

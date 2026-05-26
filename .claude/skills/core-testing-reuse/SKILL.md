@@ -1,7 +1,8 @@
 ---
 name: core-testing-reuse
 description: Use this skill (portable, tech-agnostic) when writing tests, to reuse test helpers/fixtures/builders/mocks instead of copy-pasting setup, and to think about regression coverage. Triggers include adding tests, noticing duplicated test setup/mock/fake-data, or planning regression after a fix. Reusable across any web project. Do NOT use for a specific runner's mocking API (his-testing-* skills implement that).
-type: project
+metadata:
+  type: project
 ---
 
 # Core — Testing Reuse (portable)

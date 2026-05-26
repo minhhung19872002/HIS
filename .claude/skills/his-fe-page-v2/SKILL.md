@@ -1,7 +1,8 @@
 ---
 name: his-fe-page-v2
 description: Use this skill when creating or editing a v2 frontend page in HIS (route `/v2/*`, TerminalLayout). Triggers include "tạo page v2", "thêm màn hình v2 cho [module]", build a list/detail screen with KPI strip + status tabs + table + drawer using the `_v2kit` design pack and `ab-*` CSS, wire it to an `api/*.ts` client, register the route in App.tsx and the menu in TerminalLayout. Do NOT use for v1 Antd pages (pages/, MainLayout).
-type: project
+metadata:
+  type: project
 ---
 
 # HIS Frontend Page v2
@@ -97,7 +98,7 @@ Token màu: `var(--a-cy)`, `var(--s-crit)`, `var(--s-warn)`, `var(--t-0/1/2)`, `
 - `references/v2-page-template.tsx` — khung page v2 đầy đủ dùng `SimpleV2Page`
 - `references/v2kit-cheatsheet.md` — bảng tra nhanh mọi export của `_v2kit` + props
 
-## When to update this skill
+## When to update
 
 - Khi `_v2kit.tsx` thêm/đổi primitive hoặc props.
 - Khi đổi convention route (`/v2` prefix) hoặc cấu trúc menu TerminalLayout.
