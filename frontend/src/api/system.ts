@@ -1127,6 +1127,8 @@ export interface SystemUserDto {
   roles: RoleDto[];
   isActive: boolean;
   isLocked: boolean;
+  isTwoFactorEnabled?: boolean;
+  phone?: string;
   lockReason?: string;
   lastLoginDate?: string;
   lastLoginIP?: string;

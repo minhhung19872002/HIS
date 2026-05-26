@@ -865,6 +865,7 @@ namespace HIS.Application.DTOs.System
         public List<string> Roles { get; set; }
         public List<string> Permissions { get; set; }
         public bool IsActive { get; set; }
+        public bool IsTwoFactorEnabled { get; set; }
         public DateTime? LastLoginDate { get; set; }
         public string LastLoginIP { get; set; }
     }
