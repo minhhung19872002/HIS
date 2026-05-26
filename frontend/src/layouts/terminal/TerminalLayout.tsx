@@ -679,7 +679,9 @@ const TerminalLayout: React.FC = () => {
   }, [location.pathname, lastPath, pinnedGroupId]);
 
   const onSwitchLayout = () => {
-    const v1 = location.pathname.replace(/^\/v2/, '') || '/';
+    localStorage.setItem('layoutMode', 'v1');
+    let v1 = location.pathname.replace(/^\/v2/, '') || '/';
+    if (v1 === '/dashboard') v1 = '/';
     navigate(v1);
   };
 

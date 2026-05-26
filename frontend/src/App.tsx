@@ -306,6 +306,15 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Default UI is v2 (Terminal). Visiting "/" redirects to /v2/dashboard unless the
+// user has explicitly switched to the legacy v1 layout (persisted in localStorage).
+const HomeEntry: React.FC = () => {
+  if (localStorage.getItem('layoutMode') === 'v1') {
+    return <Dashboard />;
+  }
+  return <Navigate to="/v2/dashboard" replace />;
+};
+
 const AppRoutes: React.FC = () => {
   const { isAuthenticated } = useAuth();
   useGlobalAbbreviationExpander();
@@ -328,7 +337,7 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
+          <Route index element={<HomeEntry />} />
           <Route path="dashboard-3cap" element={<Dashboard3Cap />} />
           <Route path="reception" element={<Reception />} />
           <Route path="patients" element={<Navigate to="/reception" replace />} />

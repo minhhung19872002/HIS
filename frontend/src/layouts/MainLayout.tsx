@@ -429,6 +429,7 @@ const MainLayout: React.FC = () => {
                 size="small"
                 type="default"
                 onClick={() => {
+                  localStorage.setItem('layoutMode', 'v2');
                   const current = location.pathname === '/' ? '/dashboard' : location.pathname;
                   navigate('/v2' + current);
                 }}
