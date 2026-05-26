@@ -17,7 +17,9 @@ import TermIcon from '../layouts/terminal/Icon';
    ──────────────────────────────────────────────────────────── */
 
 type TopKey = 'queue' | 'now' | 'stats';
-type StatusKey = 'waiting' | 'queued' | 'serving' | 'completed';
+// 5 trạng thái thực tế tại quầy tiếp đón BV VN:
+// Chờ tiếp đón → Đang khám → Chờ KQ CLS → Khám xong, + Vắng/bỏ qua.
+type StatusKey = 'waiting' | 'serving' | 'waitresult' | 'completed' | 'noshow';
 
 const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'queue', l: 'Hàng đợi tiếp đón', ic: 'users' },
@@ -26,10 +28,11 @@ const TOP_TABS: TopTab<TopKey>[] = [
 ];
 
 const STATUS_TABS: StatusTab<StatusKey>[] = [
-  { v: 'waiting',   l: 'Chờ tiếp đón', tone: 'info' },
-  { v: 'queued',    l: 'Đã gọi số',    tone: 'ok' },
-  { v: 'serving',   l: 'Đang khám',    tone: 'ok' },
-  { v: 'completed', l: 'Hoàn thành',   tone: 'ok' },
+  { v: 'waiting',    l: 'Chờ tiếp đón', tone: 'info' },
+  { v: 'serving',    l: 'Đang khám',    tone: 'ok' },
+  { v: 'waitresult', l: 'Chờ KQ CLS',   tone: 'warn' },
+  { v: 'completed',  l: 'Khám xong',    tone: 'ok' },
+  { v: 'noshow',     l: 'Vắng / bỏ qua', tone: 'crit' },
 ];
 
 const PRIORITY_OPTS = [
@@ -65,23 +68,27 @@ type RawRow = AdmissionDto & {
   yearOfBirth?: number;
   patientTypeName?: string;
   ticketId?: string;
+  ticketStatus?: number;   // QueueTicket.Status: 0 Waiting · 1 Calling · 2 Serving · 3 Completed · 4 Skipped
   admissionType?: string;
   admissionCode?: string;
 };
 
 const statusKey = (row: RawRow): StatusKey => {
+  // Vắng/bỏ qua: chỉ phân biệt được qua trạng thái VÉ (=4 Skipped); MR bị reset
+  // về Waiting khi skip nên phải ưu tiên kiểm tra ticketStatus trước.
+  if (row.ticketStatus === 4) return 'noshow';
   const s = row.status;
-  // String form (current backend): "Waiting" | "InProgress" | "WaitingResult" | "Completed"
+  // String form (backend): "Waiting" | "InProgress" | "WaitingResult" | "Completed"
   if (typeof s === 'string') {
     if (s === 'Waiting') return 'waiting';
-    if (s === 'InProgress') return 'queued';
-    if (s === 'WaitingResult') return 'serving';
+    if (s === 'InProgress') return 'serving';
+    if (s === 'WaitingResult') return 'waitresult';
     return 'completed';
   }
-  // Numeric form: 0 chờ, 1 đã gọi, 2 đang khám, 3 hoàn thành
+  // Numeric form: 0 chờ · 1 đang khám · 2 chờ KQ CLS · 3 khám xong
   if (s === 0) return 'waiting';
-  if (s === 1) return 'queued';
-  if (s === 2) return 'serving';
+  if (s === 1) return 'serving';
+  if (s === 2) return 'waitresult';
   return 'completed';
 };
 const statusTone = (s: StatusKey) =>
@@ -218,11 +225,11 @@ const ReceptionV2: React.FC = () => {
     const waiting = rows.filter((r) => statusKey(r) === 'waiting').length;
     const registered = rows.filter((r) => statusKey(r) !== 'waiting').length;
     const bhyt = rows.filter((r) => hasValidInsurance(r)).length;
-    const emergency = rows.filter((r) => r.isEmergency).length;
+    const noShow = rows.filter((r) => statusKey(r) === 'noshow').length;
     const avgWait = rooms.length > 0
       ? Math.round(rooms.reduce((s, r) => s + (r.waitingCount || 0), 0) / Math.max(rooms.length, 1) * 1.5)
       : 0;
-    return { today, waiting, registered, bhyt, emergency, avgWait };
+    return { today, waiting, registered, bhyt, noShow, avgWait };
   }, [rows, rooms]);
 
   // ─── Mutations ───
@@ -461,7 +468,7 @@ const ReceptionV2: React.FC = () => {
             sub: kpis.today > 0 ? `${Math.round(kpis.bhyt / kpis.today * 100)}%` : '—',
             tone: 'ok',
           },
-          { lbl: 'Cấp cứu', val: kpis.emergency, sub: 'ưu tiên gọi', tone: 'crit' },
+          { lbl: 'Không đến', val: kpis.noShow, sub: 'vắng / bỏ qua', tone: 'crit' },
           { lbl: 'Chờ TB', val: kpis.avgWait, unit: 'p', sub: 'phút' },
         ]}
       />
@@ -556,16 +563,16 @@ const ReceptionV2: React.FC = () => {
               return (
                 <div className="ab-actions">
                   {sk === 'waiting' && (
-                    <ActBtn ic="check" title="Check-in" onClick={() => onCheckin(r)} />
-                  )}
-                  {sk === 'queued' && (
                     <ActBtn ic="check" title="Bắt đầu khám" onClick={() => onCheckin(r)} />
                   )}
-                  {sk === 'serving' && (
+                  {sk === 'noshow' && (
+                    <ActBtn ic="check" title="Gọi lại" onClick={() => onCheckin(r)} />
+                  )}
+                  {(sk === 'serving' || sk === 'waitresult') && (
                     <ActBtn ic="check" title="Hoàn thành" onClick={() => onComplete(r)} />
                   )}
                   <ActBtn ic="print" title="In phiếu" onClick={() => onPrint(r)} />
-                  {sk !== 'completed' && (
+                  {(sk === 'waiting' || sk === 'serving' || sk === 'waitresult') && (
                     <ActBtn ic="alert" title="Vắng mặt" onClick={() => onSkip(r)} tone="warn" />
                   )}
                 </div>
@@ -624,12 +631,12 @@ const ReceptionV2: React.FC = () => {
             <button type="button" className="ab-btn" onClick={() => onPrint(detail)}>
               <TermIcon name="print" size={12} /> In phiếu
             </button>
-            {(statusKey(detail) === 'waiting' || statusKey(detail) === 'queued') && (
+            {(statusKey(detail) === 'waiting' || statusKey(detail) === 'noshow') && (
               <button type="button" className="ab-btn primary" onClick={() => { onCheckin(detail); setDetail(null); }}>
-                <TermIcon name="check" size={12} /> Check-in
+                <TermIcon name="check" size={12} /> {statusKey(detail) === 'noshow' ? 'Gọi lại' : 'Bắt đầu khám'}
               </button>
             )}
-            {statusKey(detail) === 'serving' && (
+            {(statusKey(detail) === 'serving' || statusKey(detail) === 'waitresult') && (
               <button type="button" className="ab-btn ok" onClick={() => { onComplete(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> Hoàn thành
               </button>
@@ -845,7 +852,7 @@ const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] }> = ({
           </div>
         )}
         {rooms.map((r) => {
-          const current = rows.find((x) => x.roomId === r.roomId && statusKey(x) === 'queued');
+          const current = rows.find((x) => x.roomId === r.roomId && statusKey(x) === 'serving');
           const next = rows.find((x) => x.roomId === r.roomId && statusKey(x) === 'waiting');
           return (
             <div key={r.roomId} style={{
@@ -1235,11 +1242,15 @@ const buildAuditTimeline = (v: RawRow): AuditEvent[] => {
   const startedAt = v.startedAt ? new Date(v.startedAt) : new Date(arrived.getTime() + 12 * 60_000);
   const completedAt = v.completedAt ? new Date(v.completedAt) : new Date(arrived.getTime() + 30 * 60_000);
 
-  if (sk === 'queued' || sk === 'serving' || sk === 'completed') {
-    events.push({ t: calledAt, action: 'Gọi số vào phòng khám', by: v.doctorName || 'Phòng khám', tone: 'ok' });
+  if (sk === 'noshow') {
+    events.push({ t: calledAt, action: 'Gọi số nhưng bệnh nhân vắng mặt', by: v.doctorName || 'Phòng khám', tone: 'warn' });
   }
-  if (sk === 'serving' || sk === 'completed') {
+  if (sk === 'serving' || sk === 'waitresult' || sk === 'completed') {
+    events.push({ t: calledAt, action: 'Gọi số vào phòng khám', by: v.doctorName || 'Phòng khám', tone: 'ok' });
     events.push({ t: startedAt, action: 'Bắt đầu khám', by: v.doctorName || 'Bác sĩ', tone: 'ok' });
+  }
+  if (sk === 'waitresult') {
+    events.push({ t: startedAt, action: 'Chờ kết quả cận lâm sàng', by: v.doctorName || 'Bác sĩ', tone: 'mag' });
   }
   if (sk === 'completed') {
     events.push({ t: completedAt, action: 'Hoàn thành khám', by: v.doctorName || 'Bác sĩ', tone: 'ok' });

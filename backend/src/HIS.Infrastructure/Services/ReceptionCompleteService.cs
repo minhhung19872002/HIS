@@ -293,6 +293,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
             QueueNumber = ticket?.QueueNumber ?? 0,
             QueueCode = ticket?.TicketNumber ?? "",
             TicketId = ticket?.Id,
+            TicketStatus = ticket?.Status,
             Priority = priority,
             PriorityName = priorityVi,
             Notes = m.DischargeNote ?? ""

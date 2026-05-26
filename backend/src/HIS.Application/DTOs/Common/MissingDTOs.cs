@@ -183,6 +183,7 @@ namespace HIS.Application.DTOs
         public int QueueNumber { get; set; }
         public string QueueCode { get; set; }
         public Guid? TicketId { get; set; }
+        public int? TicketStatus { get; set; }   // QueueTicket.Status: 0 Waiting · 1 Calling · 2 Serving · 3 Completed · 4 Skipped
         public int Priority { get; set; }
         public string PriorityName { get; set; }
         public DateTime? CalledAt { get; set; }
