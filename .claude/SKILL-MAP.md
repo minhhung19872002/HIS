@@ -53,6 +53,7 @@ Quy tắc:
 | | `core-verify-before-assert` | chống ảo tưởng; verify file/symbol/endpoint/field trước khi khẳng định |
 | | `core-impact-analysis` | bản đồ tác động (callers/contract/test/migration) trước khi sửa code dùng chung |
 | | `core-minimal-change` | YAGNI; thay đổi nhỏ nhất đúng, không over-engineer, không sửa ngoài scope |
+| | `core-execution-output` | báo cáo kết quả chạy lệnh: ngắn gọn mặc định, tự bung khi lỗi, luôn nêu thao tác phá huỷ |
 | A1 arch/reuse | `core-architecture-follow` | code chạm nhiều layer |
 | | `core-reusable-code` | **mọi** lần tạo file/abstraction (reuse trước khi tạo) |
 | | `core-architecture-consistency` | thêm feature theo tiền lệ |
@@ -95,6 +96,7 @@ Quy tắc:
 | "tạo / sửa / chuẩn hoá / review skill [X]" | `core-reusable-code` (mở rộng trước khi tạo) → `core-skill-authoring` |
 | **PRE-FLIGHT — MỌI task code (chạy TRƯỚC khi viết)** | `core-requirement-clarify` (mơ hồ → hỏi gộp; rõ → ghi giả định) → `core-verify-before-assert` (verify, KHÔNG bịa file/symbol/field) → `core-impact-analysis` (bản đồ tác động nếu sửa code dùng chung) → viết theo `core-minimal-change` |
 | **BẤT KỲ code-gen** | luôn kèm `core-reusable-code` + `his-qa-anti-pattern`; **core-* trước → his-* sau** |
+| **BÁO CÁO kết quả chạy lệnh (mọi task)** | `core-execution-output`: ngắn gọn mặc định · tự bung root-cause khi lỗi · luôn nêu thao tác phá huỷ/bảo mật · không claim success khi chưa verify |
 
 ---
 

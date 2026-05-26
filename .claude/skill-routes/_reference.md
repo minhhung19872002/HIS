@@ -46,6 +46,7 @@ core-requirement-clarify     → (discipline pre-flight #1, độc lập) — d�
 core-verify-before-assert    → (discipline pre-flight #2, độc lập)
 core-impact-analysis         → core-verify-before-assert, core-architecture-follow (pre-flight #3)
 core-minimal-change          → core-reusable-code, core-refactor (lúc implement)
+core-execution-output        → core-verify-before-assert, his-qa-anti-pattern (luôn bật khi báo cáo kết quả)
 ```
 Nguyên tắc: `his-*` **kế thừa** nguyên tắc từ `core-*` rồi **hiện thực hoá** theo stack HIS.
 
