@@ -1075,3 +1075,50 @@
   border-top: 1px solid var(--line);
   background: var(--d-1);
 }
+
+/* ---- Wizard stepper + form grids (Reception NewVisit, port of mod-reception.css) ---- */
+.ab-step { display: flex; gap: 8px; margin-bottom: 16px; }
+.ab-step-it {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--t-2);
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+}
+.ab-step-it .num {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; flex: 0 0 auto;
+  background: var(--d-2, #f1f5f9); color: var(--t-2); font-weight: 700; font-size: 11px;
+}
+.ab-step-it.on { border-color: var(--a-cy); color: var(--a-cy); font-weight: 600; }
+.ab-step-it.on .num { background: var(--a-cy); color: #fff; }
+.ab-step-it.done { color: #16a34a; border-color: #bbf7d0; }
+.ab-step-it.done .num { background: #16a34a; color: #fff; }
+
+.rec-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rec-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+.rec-vtype { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.rec-vtype label {
+  border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font-size: 12px; transition: all .12s; background: #fff;
+}
+.rec-vtype label:hover { border-color: var(--a-cy-line, #bfd3fa); background: var(--a-cy-bg, #eff6ff); }
+.rec-vtype label input { display: none; }
+.rec-vtype label.on { border-color: var(--a-cy); background: var(--a-cy-bg, #eff6ff); color: var(--a-cy); font-weight: 600; }
+.rec-vtype label .ico { color: var(--a-cy); flex: 0 0 auto; }
+
+.rec-deptgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.rec-deptgrid label {
+  border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px;
+  cursor: pointer; display: grid; grid-template-columns: auto 1fr auto; gap: 10px;
+  align-items: center; font-size: 12px; background: #fff;
+}
+.rec-deptgrid label:hover { border-color: var(--a-cy-line, #bfd3fa); }
+.rec-deptgrid label input { display: none; }
+.rec-deptgrid label.on { border-color: var(--a-cy); background: var(--a-cy-bg, #eff6ff); }
+.rec-deptgrid .di {
+  width: 36px; height: 36px; background: var(--a-cy-bg, #eff6ff); color: var(--a-cy);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.rec-deptgrid label b { font-size: 12px; color: var(--t-0); display: block; }
+.rec-deptgrid label i { font-size: 10.5px; color: var(--t-2); font-style: normal; }
