@@ -741,6 +741,29 @@ interface WizardData {
   reason: string;
 }
 
+// Trích lỗi thật từ axios error (string / {message} / ProblemDetails {title,errors} / {error})
+// để hiện cho user thay vì thông báo chung chung "thất bại".
+function extractApiError(err: unknown, fallback: string): string {
+  const ax = err as { response?: { data?: unknown; status?: number }; message?: string };
+  const d = ax?.response?.data;
+  if (typeof d === 'string' && d.trim()) return d.trim();
+  if (d && typeof d === 'object') {
+    const o = d as Record<string, unknown>;
+    if (typeof o.message === 'string' && o.message.trim()) return o.message.trim();
+    if (o.errors && typeof o.errors === 'object') {
+      const msgs = Object.values(o.errors as Record<string, unknown>)
+        .flatMap((v) => (Array.isArray(v) ? v : [v]))
+        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+      if (msgs.length) return `${typeof o.title === 'string' ? o.title + ': ' : ''}${msgs.join('; ')}`;
+    }
+    if (typeof o.title === 'string' && o.title.trim()) return o.title.trim();
+    if (typeof o.error === 'string' && o.error.trim()) return o.error.trim();
+  }
+  const status = ax?.response?.status;
+  if (status) return `${fallback} (HTTP ${status})`;
+  return ax?.message || fallback;
+}
+
 const NewVisitModal: React.FC<{
   open: boolean;
   onClose: () => void;
@@ -838,8 +861,8 @@ const NewVisitModal: React.FC<{
       }
       message.success(`Đã đăng ký · ${data.patientName.trim()}`);
       onDone();
-    } catch {
-      message.error('Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.');
+    } catch (err) {
+      message.error(extractApiError(err, 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.'));
     } finally {
       setSubmitting(false);
     }
