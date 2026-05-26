@@ -155,6 +155,8 @@ const ReceptionV2: React.FC = () => {
   const [newOpen, setNewOpen]   = useState(false);
   const [bhytOpen, setBhytOpen] = useState(false);
   const [lookupOpen, setLookupOpen] = useState(false);
+  const [moveFor, setMoveFor]   = useState<RawRow | null>(null);
+  const [payFor, setPayFor]     = useState<RawRow | null>(null);
   const PAGE_SIZE = 14;
 
   const loadData = useCallback(() => {
@@ -571,6 +573,12 @@ const ReceptionV2: React.FC = () => {
                   {(sk === 'serving' || sk === 'waitresult') && (
                     <ActBtn ic="check" title="Hoàn thành" onClick={() => onComplete(r)} />
                   )}
+                  {sk !== 'completed' && (
+                    <ActBtn ic="dollar" title="Thu phí" onClick={() => setPayFor(r)} />
+                  )}
+                  {sk !== 'completed' && (
+                    <ActBtn ic="refresh" title="Đổi phòng" onClick={() => setMoveFor(r)} />
+                  )}
                   <ActBtn ic="print" title="In phiếu" onClick={() => onPrint(r)} />
                   {(sk === 'waiting' || sk === 'serving' || sk === 'waitresult') && (
                     <ActBtn ic="alert" title="Vắng mặt" onClick={() => onSkip(r)} tone="warn" />
@@ -666,6 +674,21 @@ const ReceptionV2: React.FC = () => {
           setLookupOpen(false);
           setSearch(p.patientCode || p.fullName || p.patientName || '');
         }}
+      />
+
+      {/* Đổi phòng */}
+      <MoveRoomModal
+        row={moveFor}
+        rooms={rooms}
+        onClose={() => setMoveFor(null)}
+        onDone={() => { setMoveFor(null); loadData(); }}
+      />
+
+      {/* Thu phí */}
+      <ReceptionPayModal
+        row={payFor}
+        onClose={() => setPayFor(null)}
+        onDone={() => { setPayFor(null); loadData(); }}
       />
     </div>
   );
@@ -1494,6 +1517,199 @@ const PatientLookupModal: React.FC<{
           )}
         </div>
       </div>
+    </ModalShell>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Đổi phòng modal — real changeRoom
+   ──────────────────────────────────────────────────────────── */
+
+const MoveRoomModal: React.FC<{
+  row: RawRow | null;
+  rooms: RoomOverviewDto[];
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ row, rooms, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [newRoomId, setNewRoomId] = useState<string | undefined>(undefined);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (row) { setNewRoomId(undefined); setReason(''); }
+  }, [row]);
+
+  const roomOpts = useMemo(
+    () => rooms
+      .filter((r) => r.roomId !== row?.roomId)
+      .map((r) => ({ value: r.roomId, label: `${r.departmentName || '—'} · ${r.roomName || ''}` })),
+    [rooms, row],
+  );
+
+  const submit = async () => {
+    if (!row) return;
+    if (!newRoomId) { message.warning('Chọn phòng mới'); return; }
+    setBusy(true);
+    try {
+      await receptionApi.changeRoom(row.id, newRoomId, undefined, reason.trim() || undefined);
+      message.success(`Đã đổi phòng · ${row.patientName}`);
+      onDone();
+    } catch {
+      message.error('Đổi phòng thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={!!row}
+      onClose={onClose}
+      size="md"
+      title="Đổi phòng khám"
+      footer={(
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang đổi…' : 'Đổi phòng'}
+          </button>
+        </>
+      )}
+    >
+      {row && (
+        <div style={{ padding: 16 }}>
+          <div style={{
+            padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>{row.patientName} · {row.patientCode}</span>
+            <span className="mono" style={{ fontSize: 12 }}>{row.queueCode || `#${row.queueNumber}`}</span>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Phòng hiện tại</span>
+            <b>{row.departmentName || '—'} · {row.roomName || '—'}</b>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Phòng mới *</div>
+            <Select
+              value={newRoomId} onChange={setNewRoomId} showSearch optionFilterProp="label"
+              placeholder="Chọn phòng khám" style={{ width: '100%' }} options={roomOpts}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Lý do</div>
+            <Input.TextArea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Lý do đổi phòng (tùy chọn)…" />
+          </div>
+        </div>
+      )}
+    </ModalShell>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Thu phí modal — real createPayment (phí khám tại quầy)
+   ──────────────────────────────────────────────────────────── */
+
+const PAY_METHOD_OPTS = [
+  { value: 1, label: 'Tiền mặt' },
+  { value: 2, label: 'Thẻ' },
+  { value: 3, label: 'Chuyển khoản' },
+];
+
+const ReceptionPayModal: React.FC<{
+  row: RawRow | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ row, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [amount, setAmount] = useState<number>(0);
+  const [received, setReceived] = useState<number>(0);
+  const [method, setMethod] = useState(1);
+  const [ref, setRef] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (row) { setAmount(0); setReceived(0); setMethod(1); setRef(''); }
+  }, [row]);
+
+  const submit = async () => {
+    if (!row) return;
+    if (!amount || amount <= 0) { message.warning('Nhập số tiền thu'); return; }
+    setBusy(true);
+    try {
+      await receptionApi.createPayment({
+        medicalRecordId: row.id,
+        serviceIds: [],
+        totalAmount: amount,
+        paidAmount: received || amount,
+        paymentMethod: method,
+        transactionReference: method !== 1 ? ref || undefined : undefined,
+      });
+      message.success(`Đã thu ${amount.toLocaleString('vi-VN')} ₫ · ${row.patientName}`);
+      onDone();
+    } catch {
+      message.error('Thu phí thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fmtMoney = (v: number | string | undefined) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  return (
+    <ModalShell
+      open={!!row}
+      onClose={onClose}
+      size="md"
+      title="Thu phí khám"
+      footer={(
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang thu…' : 'Xác nhận thu'}
+          </button>
+        </>
+      )}
+    >
+      {row && (
+        <div style={{ padding: 16 }}>
+          <div style={{
+            padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>{row.patientName} · {row.patientCode}</span>
+            <span className="mono" style={{ fontSize: 12 }}>{row.queueCode || `#${row.queueNumber}`}</span>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Hình thức</span>
+            <span>{treatmentLabel(row)}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số tiền thu *</div>
+              <InputNumber value={amount} onChange={(v) => setAmount(Number(v) || 0)} min={0} style={{ width: '100%' }} formatter={fmtMoney} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Phương thức</div>
+              <Select value={method} onChange={setMethod} options={PAY_METHOD_OPTS} style={{ width: '100%' }} />
+            </div>
+            {method === 1 && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Tiền khách đưa</div>
+                <InputNumber value={received} onChange={(v) => setReceived(Number(v) || 0)} min={0} style={{ width: '100%' }} formatter={fmtMoney} />
+              </div>
+            )}
+            {method !== 1 && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mã giao dịch</div>
+                <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Mã ref NH / thẻ" />
+              </div>
+            )}
+          </div>
+          {method === 1 && received > amount && (
+            <div style={{ marginTop: 10, fontSize: 13 }}>
+              Tiền thối: <b className="mono" style={{ color: '#15803d' }}>{(received - amount).toLocaleString('vi-VN')} ₫</b>
+            </div>
+          )}
+        </div>
+      )}
     </ModalShell>
   );
 };
