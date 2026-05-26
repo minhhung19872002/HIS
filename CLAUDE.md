@@ -5132,4 +5132,67 @@ bật chưa — nếu cần data luôn tươi cho khách dùng thử dài ngày 
 Test commands: `cd frontend && npx playwright test e2e-prod/nangcap24-deep.spec.ts
 e2e-prod/nangcap24-functional.spec.ts --config=playwright.prod.config.ts --reporter=list`
 
+---
+
+## Work Log - 2026-05-26 (SystemAdmin v2 khớp mock + audit toàn bộ v2 vs design)
+
+Phiên này đóng nốt điểm lệch cuối giữa live v2 và Claude Design mock. Audit thị giác
+trước đó (cùng chuỗi phiên) đã xác định **SystemAdmin là trang DUY NHẤT còn lệch** —
+phiên này sửa + deploy + verify + chạy conformance tự động xác nhận toàn bộ.
+
+### SystemAdmin v2 — 3 điểm lệch so mock đã sửa (commit `b5e8d67`)
+
+Mock có 4 tab + cột 2FA + KPI nhãn khác; live cũ chỉ 3 tab, thiếu cột 2FA, KPI sai nhãn.
+
+**Backend (deploy revision `his-api-00032-g92`, image `his-api:20260526-221020`):**
+- Thêm `IsTwoFactorEnabled` vào `SystemUserDto` (`HIS.Application/DTOs/System/SystemCompleteDTOs.cs`)
+  + map từ `u.IsTwoFactorEnabled` trong `GetUsersAsync` + `GetUserAsync`
+  (`SystemCompleteService.cs`). User entity đã có sẵn field này (từ 2FA Session 9) →
+  chỉ cần expose qua DTO. Additive, an toàn.
+- Verify prod: `/admin/users` trả `isTwoFactorEnabled` (admin=false, role "Quản trị hệ thống"),
+  `/admin/configs` 200, `/admin/sessions` 200.
+
+**Frontend (`pages-v2/SystemAdmin.tsx` rewrite + `api/system.ts`):**
+- 4 tab: Người dùng / **Vai trò & quyền** / **Audit log** / **Cấu hình HT** (tab config
+  mới dùng `adminApi.getSystemConfigs()` — 11 dòng config thật trên prod).
+- KPI đúng mock: Tổng tài khoản / **Đang online** (`adminApi.getActiveSessions()`) /
+  Bị khoá / **Bật 2FA** / **Quản trị** (đếm user có role chứa "admin"/"quản trị").
+- Cột user theo mock: Tài khoản · Họ tên · Vai trò · Khoa · Đăng nhập gần nhất ·
+  **2FA (chip Bật/Tắt)** · Trạng thái.
+- Thêm `isTwoFactorEnabled?: boolean` + `phone?: string` (optional, additive) vào
+  frontend `SystemUserDto`.
+- Render roles **an toàn cả 2 dạng** (`string[]` mà `/admin/users` thật trả, hoặc
+  `RoleDto[]` theo type cũ) qua helper `roleNames()` + `isAdminUser()`.
+
+**Verify live (Playwright, `/v2/admin`):** Users tab — 5 KPI đúng + cột 2FA chip Bật/Tắt
++ 13 dòng. Cấu hình HT tab — 11 dòng config (Khoá/Giá trị/Nhóm). Tất cả ✓.
+
+### Audit conformance toàn bộ v2 trên prod — 106/106 đạt, 0 vấn đề
+
+`frontend/e2e-prod/v2-design-conformance.spec.ts` (admin token inject, quét 106 route
+`/v2/*`): mỗi route check không API 4xx/5xx · không console/page error · không rỗng ·
+có class `ab-*` · có primitive `_v2kit` đúng kỳ vọng. **Kết quả: 106 passed (6.0m),
+routes with any issue: 0.** Report: `playwright-prod-design-conformance.json` (gitignored).
+
+→ **Không còn page v2 nào trong live khác mock.** Hai lớp kiểm bổ trợ: audit thị giác
+(so mock từng cặp, SystemAdmin là outlier duy nhất → đã sửa) + conformance tự động
+(cấu trúc + runtime, 0 lỗi).
+
+### Pitfalls phiên này
+- **Route v2 SystemAdmin là `/v2/admin`** (KHÔNG phải `/v2/system-admin` — cái sau là
+  Navigate dưới MainLayout v1). Mở sai path → catch-all đẩy về `/v2/dashboard`.
+- **KpiStrip + header in HOA bằng CSS** → `page.innerText()` trả chữ HOA
+  ("TỔNG TÀI KHOẢN"). So khớp substring phải `toLowerCase()` 2 vế, nếu không báo nhầm "✗".
+- **Backend `/admin/users` trả `roles: string[]`** (qua `SystemCompleteService.SystemUserDto`),
+  KHÁC frontend type `roles: RoleDto[]`. Render phải defensive cả 2 dạng.
+- Có **2 `SystemUserDto` cùng tên** khác field: backend (`SystemCompleteDTOs.cs`,
+  string[] roles, không IsLocked) vs frontend (`api/system.ts`, RoleDto[] + isLocked).
+  Khi sửa nhớ đúng cái — route `/admin/users` → controller `SystemCompleteController`.
+- `git commit -m @'...'@` (here-string PowerShell) chạy qua **Bash tool** → `@` dính
+  literal vào message. Muốn commit nhiều dòng qua Bash: dùng `$'...\n...'` hoặc nhiều `-m`.
+
+### Quick ref
+- Cloud Run hiện tại: `his-api-00032-g92`. Vercel: auto-deploy từ push `b5e8d67`.
+- Chạy lại conformance: `cd frontend && npx playwright test e2e-prod/v2-design-conformance.spec.ts --config=playwright.prod.config.ts --workers=3 --reporter=list`
+
 
