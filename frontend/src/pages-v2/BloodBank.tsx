@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
-import { getBloodStock, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest } from '../api/bloodBank';
-import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto } from '../api/bloodBank';
+import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest } from '../api/bloodBank';
+import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto } from '../api/bloodBank';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
@@ -25,10 +25,18 @@ const ALL_TYPES = BLOOD_TYPES.flatMap((b) => RH.map((r) => `${b}${r}`));
 type TopKey = 'stock' | 'expiring' | 'requests';
 
 const TOP_TABS: TopTab<TopKey>[] = [
-  { v: 'stock',     l: 'Tồn kho theo nhóm máu', ic: 'drop' },
-  { v: 'expiring',  l: 'Sắp hết hạn',           ic: 'alert' },
-  { v: 'requests',  l: 'Yêu cầu xuất máu',      ic: 'send' },
+  { v: 'stock',     l: 'Kho máu',          ic: 'drop' },
+  { v: 'expiring',  l: 'Sắp hết hạn',      ic: 'alert' },
+  { v: 'requests',  l: 'Yêu cầu xuất máu', ic: 'send' },
 ];
+
+const STATUS_LABEL: Record<string, { l: string; tone: 'ok' | 'warn' | 'info' | 'crit' }> = {
+  Available: { l: 'Khả dụng', tone: 'ok' },
+  Reserved: { l: 'Đặt trước', tone: 'info' },
+  Issued: { l: 'Đã xuất', tone: 'info' },
+  Expired: { l: 'Hết hạn', tone: 'crit' },
+  Quarantine: { l: 'Cách ly', tone: 'warn' },
+};
 
 const fmtVol = (n: number) => `${n.toLocaleString('vi-VN')} mL`;
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
@@ -37,6 +45,7 @@ const BloodBankV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [tab, setTab] = useState<TopKey>('stock');
   const [stock, setStock] = useState<BloodStockDto[]>([]);
+  const [units, setUnits] = useState<BloodStockDetailDto[]>([]);
   const [expiring, setExpiring] = useState<BloodBagDto[]>([]);
   const [requests, setRequests] = useState<BloodIssueRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,10 +60,12 @@ const BloodBankV2: React.FC = () => {
     setLoading(true);
     Promise.allSettled([
       getBloodStock(),
+      getBloodStockDetail(),
       getExpiringBloodBags(7),
       getIssueRequests(dayjs().subtract(60, 'day').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')),
-    ]).then(([s, e, r]) => {
+    ]).then(([s, u, e, r]) => {
       if (s.status === 'fulfilled') setStock((s.value.data || []) as BloodStockDto[]);
+      if (u.status === 'fulfilled') setUnits((u.value.data || []) as BloodStockDetailDto[]);
       if (e.status === 'fulfilled') setExpiring((e.value.data || []) as unknown as BloodBagDto[]);
       if (r.status === 'fulfilled') setRequests((r.value.data || []) as BloodIssueRequestDto[]);
       setLoading(false);
@@ -98,6 +109,20 @@ const BloodBankV2: React.FC = () => {
       .filter((r) => !filterType || r.key === filterType);
   }, [byType, filterType]);
 
+  // ─── Blood units (Kho máu table) ───
+  const unitsFiltered = useMemo(() => {
+    return units.filter((u) => {
+      if (filterType && `${u.bloodType}${u.rhFactor}` !== filterType) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [u.bagCode, u.barcode, u.storageLocation, u.productTypeName, u.bloodType]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [units, search, filterType]);
+
   const expiringFiltered = useMemo(() => {
     return expiring.filter((b) => {
       if (filterType && `${b.bloodType}${b.rhFactor}` !== filterType) return false;
@@ -125,8 +150,33 @@ const BloodBankV2: React.FC = () => {
   }, [requests, search]);
 
   const totalPages = Math.max(1, Math.ceil(
-    (tab === 'stock' ? stockRows.length : tab === 'expiring' ? expiringFiltered.length : requestsFiltered.length) / PAGE_SIZE,
+    (tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : requestsFiltered.length) / PAGE_SIZE,
   ));
+
+  // Unit table columns (mock "Kho máu")
+  const unitColumns: ColumnDef<BloodStockDetailDto>[] = [
+    { key: 'bag', label: 'Mã đơn vị', mono: true, code: true, width: 150, render: (u) => u.bagCode },
+    { key: 'type', label: 'Nhóm', width: 80, render: (u) => <span className="chip crit" style={{ fontWeight: 700 }}>{u.bloodType}{u.rhFactor}</span> },
+    { key: 'product', label: 'Chế phẩm', render: (u) => u.productTypeName },
+    { key: 'vol', label: 'Thể tích', mono: true, width: 90, render: (u) => `${u.volume} mL` },
+    { key: 'loc', label: 'Vị trí', render: (u) => u.storageLocation || '—' },
+    {
+      key: 'exp', label: 'HSD', mono: true, width: 130,
+      render: (u) => (
+        <span style={{ color: u.daysUntilExpiry < 7 ? 'var(--s-crit)' : u.daysUntilExpiry < 30 ? 'var(--s-warn)' : 'var(--t-1)' }}>
+          {fmtDMY(u.expiryDate)}{u.daysUntilExpiry != null ? ` · ${u.daysUntilExpiry}d` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'status', label: 'Trạng thái', width: 120,
+      render: (u) => {
+        const m = STATUS_LABEL[u.status] || { l: u.status, tone: 'info' as const };
+        return <StatusBadge tone={m.tone} dot>{m.l}</StatusBadge>;
+      },
+    },
+  ];
+  const unitsPaged = unitsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="ab">
@@ -169,20 +219,44 @@ const BloodBankV2: React.FC = () => {
         </button>
         <span className="spacer" />
         <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
-          {tab === 'stock' ? `${stockRows.length} nhóm` :
+          {tab === 'stock' ? `${unitsFiltered.length} đơn vị` :
            tab === 'expiring' ? `${expiringFiltered.length} túi` :
            `${requestsFiltered.length} yêu cầu`}
         </span>
       </div>
 
-      {tab === 'stock' && <StockTab rows={stockRows} loading={loading} onPick={setDetailType} />}
+      {tab === 'stock' && (
+        <>
+          {/* Group-count chip bar */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--d-1)' }}>
+            {ALL_TYPES.map((t) => {
+              const a = byType[t]?.available || 0;
+              return (
+                <button key={t} type="button" onClick={() => { setFilterType(filterType === t ? '' : t); setPage(0); }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 14,
+                    border: filterType === t ? '1px solid var(--a-cy)' : '1px solid var(--line)',
+                    background: filterType === t ? 'var(--a-cy-bg, #ecfeff)' : '#fff', cursor: 'pointer', fontSize: 11.5,
+                  }}>
+                  <b style={{ color: a < 5 ? 'var(--s-crit)' : 'var(--t-0)' }}>{t}</b>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>{a}đv</span>
+                </button>
+              );
+            })}
+          </div>
+          <DataTable<BloodStockDetailDto>
+            columns={unitColumns}
+            data={unitsPaged}
+            rowKey={(u) => u.bloodBagId}
+            empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="drop" size={20} /><div>Không có đơn vị máu</div></div>}
+          />
+        </>
+      )}
       {tab === 'expiring' && <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} />}
       {tab === 'requests' && <RequestsTab rows={requestsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} />}
 
-      {tab !== 'stock' && (
-        <Pager page={page} totalPages={totalPages} setPage={setPage}
-          total={tab === 'expiring' ? expiringFiltered.length : requestsFiltered.length} perPage={PAGE_SIZE} />
-      )}
+      <Pager page={page} totalPages={totalPages} setPage={setPage}
+        total={tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : requestsFiltered.length} perPage={PAGE_SIZE} />
 
       <DrawerShell
         open={!!detailType}
