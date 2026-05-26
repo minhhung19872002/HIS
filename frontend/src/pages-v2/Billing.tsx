@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
-import { searchInvoices } from '../api/billing';
+import { App as AntdApp, Input, InputNumber, Select } from 'antd';
+import { searchInvoices, createPayment, printInvoice } from '../api/billing';
 import type { InvoiceDto } from '../api/billing';
-import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, ModalShell, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Viện phí v2 — port of Billing v2.html */
@@ -25,6 +26,20 @@ const KIND_LABEL: Record<number, string> = { 1: 'Ngoại trú', 2: 'Nội trú' 
 
 const BillingV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
+  const [payFor, setPayFor] = useState<InvoiceDto | null>(null);
+  const reloadRef = useRef<() => void>(() => {});
+
+  const onPrintInvoice = async (r: InvoiceDto) => {
+    try {
+      const res = await printInvoice(r.id);
+      const url = URL.createObjectURL(res.data as Blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      message.error('In hóa đơn thất bại');
+    }
+  };
 
   const columns: ColumnDef<InvoiceDto>[] = [
     {
@@ -86,6 +101,7 @@ const BillingV2: React.FC = () => {
   ];
 
   return (
+    <>
     <SimpleV2Page<InvoiceDto>
       title="Hóa đơn viện phí"
       load={async () => {
@@ -123,14 +139,17 @@ const BillingV2: React.FC = () => {
           { lbl: 'Tổng nợ', val: Math.round(totalDebt / 1_000_000), unit: 'tr', sub: 'VND', tone: 'crit' },
         ];
       }}
-      rowActions={(r) => (
-        <div className="ab-actions">
-          {(r.paymentStatus === 0 || r.paymentStatus === 1) && (
-            <ActBtn ic="dollar" title="Thu tiền" onClick={() => message.info(`TODO: Thu tiền ${r.invoiceCode}`)} />
-          )}
-          <ActBtn ic="print" title="In HĐ" onClick={() => message.success('Đã in hóa đơn')} />
-        </div>
-      )}
+      rowActions={(r, reload) => {
+        reloadRef.current = reload;
+        return (
+          <div className="ab-actions">
+            {(r.paymentStatus === 0 || r.paymentStatus === 1) && (
+              <ActBtn ic="dollar" title="Thu tiền" onClick={() => setPayFor(r)} />
+            )}
+            <ActBtn ic="print" title="In HĐ" onClick={() => onPrintInvoice(r)} />
+          </div>
+        );
+      }}
       drawer={(r) => <BillingDrawerBody r={r} />}
       drawerTitle={(r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
@@ -140,11 +159,148 @@ const BillingV2: React.FC = () => {
       )}
       drawerSub={(r) => `${r.patientTypeName || '—'} · ${fmtDMY(r.createdAt)}`}
       toolbarRight={
-        <button type="button" className="ab-btn primary" onClick={() => message.info('TODO: Tạo HĐ mới')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/billing')}>
           <TermIcon name="plus" size={12} /> Tạo HĐ
         </button>
       }
     />
+
+    <PayModal
+      invoice={payFor}
+      onClose={() => setPayFor(null)}
+      onDone={() => { setPayFor(null); reloadRef.current(); }}
+    />
+    </>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   Payment modal — collect cash/card/transfer, calls createPayment.
+   ────────────────────────────────────────────────────────── */
+
+const PAY_METHODS = [
+  { value: 1, label: 'Tiền mặt' },
+  { value: 2, label: 'Thẻ' },
+  { value: 3, label: 'Chuyển khoản' },
+];
+
+const PayModal: React.FC<{
+  invoice: InvoiceDto | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ invoice, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const due = invoice ? (invoice.remainingAmount || invoice.totalAmount || 0) : 0;
+  const [method, setMethod] = useState(1);
+  const [amount, setAmount] = useState<number>(0);
+  const [received, setReceived] = useState<number>(0);
+  const [ref, setRef] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  React.useEffect(() => {
+    if (invoice) {
+      const d = invoice.remainingAmount || invoice.totalAmount || 0;
+      setMethod(1); setAmount(d); setReceived(d); setRef(''); setNote('');
+    }
+  }, [invoice]);
+
+  const submit = async () => {
+    if (!invoice) return;
+    if (!amount || amount <= 0) { message.warning('Nhập số tiền thu'); return; }
+    setBusy(true);
+    try {
+      await createPayment({
+        invoiceId: invoice.id,
+        paymentMethod: method,
+        amount,
+        receivedAmount: received || amount,
+        transactionNumber: method !== 1 ? ref || undefined : undefined,
+        notes: note || undefined,
+      });
+      message.success(`Đã thu ${fmtVND(amount)} · ${invoice.invoiceCode}`);
+      onDone();
+    } catch {
+      message.error('Thu tiền thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={!!invoice}
+      onClose={onClose}
+      size="md"
+      title="Thu tiền hóa đơn"
+      footer={(
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang thu…' : 'Xác nhận thu'}
+          </button>
+        </>
+      )}
+    >
+      {invoice && (
+        <div style={{ padding: 16 }}>
+          <div style={{
+            padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>{invoice.patientName} · {invoice.patientCode}</span>
+            <span className="mono" style={{ fontSize: 12 }}>{invoice.invoiceCode}</span>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>BN phải trả</span>
+            <b className="mono">{fmtVND(invoice.totalAmount)}</b>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Còn lại</span>
+            <b className="mono" style={{ color: 'var(--s-warn)' }}>{fmtVND(due)}</b>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Phương thức</div>
+              <Select value={method} onChange={setMethod} options={PAY_METHODS} style={{ width: '100%' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số tiền thu</div>
+              <InputNumber
+                value={amount}
+                onChange={(v) => setAmount(Number(v) || 0)}
+                min={0}
+                style={{ width: '100%' }}
+                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              />
+            </div>
+            {method === 1 && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Tiền khách đưa</div>
+                <InputNumber
+                  value={received}
+                  onChange={(v) => setReceived(Number(v) || 0)}
+                  min={0}
+                  style={{ width: '100%' }}
+                  formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                />
+              </div>
+            )}
+            {method !== 1 && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mã giao dịch</div>
+                <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Mã ref NH / thẻ" />
+              </div>
+            )}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Ghi chú</div>
+              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tùy chọn)" />
+            </div>
+          </div>
+          {method === 1 && received > amount && (
+            <div style={{ marginTop: 10, fontSize: 13 }}>
+              Tiền thối: <b className="mono" style={{ color: '#15803d' }}>{fmtVND(received - amount)}</b>
+            </div>
+          )}
+        </div>
+      )}
+    </ModalShell>
   );
 };
 
