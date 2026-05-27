@@ -99,3 +99,25 @@
   cursor: pointer;
   padding-right: 22px;
 }
+
+/* ── Editor form fields inside portaled modals (.ed-fld) ──
+   Modals render via portal to <body> (outside .ed-root), so these need a
+   global selector. Dark-theme input/textarea/select for create forms. */
+.ed-fld {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--t-0);
+  background: var(--d-0);
+  transition: border-color .1s, box-shadow .1s;
+}
+.ed-fld:focus {
+  outline: none;
+  border-color: var(--a-cy, #22d3ee);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, .2);
+}
+select.ed-fld { appearance: none; cursor: pointer; height: 34px; }
+textarea.ed-fld { resize: vertical; line-height: 1.5; }

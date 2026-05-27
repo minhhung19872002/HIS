@@ -12,16 +12,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   KpiStrip, StatusBadge, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
-  fmtDMYg, fmtDTg, tk, ti, type ColumnDef, type TopTab,
+  fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
   getMedicalRecordFull, type MedicalRecordFullDto,
-  getTreatmentSheets, type TreatmentSheetDto,
-  getConsultationRecords, type ConsultationRecordDto,
-  getNursingCareSheets, type NursingCareSheetDto,
+  getTreatmentSheets, createTreatmentSheet, type TreatmentSheetDto,
+  getConsultationRecords, createConsultationRecord, type ConsultationRecordDto,
+  getNursingCareSheets, createNursingCareSheet, type NursingCareSheetDto,
 } from '../api/examination';
 import '../layouts/terminal/ed-responsive.css';
 
@@ -63,6 +63,16 @@ const EmrEditorV2: React.FC = () => {
 
   const [printOpen, setPrintOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
+  const [modal, setModal] = useState<null | 'treatment' | 'consult' | 'nursing'>(null);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [savingForm, setSavingForm] = useState(false);
+
+  const openCreate = (kind: 'treatment' | 'consult' | 'nursing') => {
+    if (!examId) { tw('Chưa có lần khám để thêm phiếu'); return; }
+    setForm({ date: new Date().toISOString().slice(0, 10) });
+    setModal(kind);
+  };
+  const fld = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   // ── Load EMR list ────────────────────────────────────────────────
   const loadList = useCallback(async (kw?: string) => {
@@ -99,6 +109,41 @@ const EmrEditorV2: React.FC = () => {
     if (c.status === 'fulfilled' && Array.isArray(c.value.data)) setConsults(c.value.data);
     if (n.status === 'fulfilled' && Array.isArray(n.value.data)) setNursing(n.value.data);
   }, []);
+
+  const today = () => new Date().toISOString().slice(0, 10);
+  const saveSheet = async () => {
+    if (!examId) return;
+    setSavingForm(true);
+    try {
+      if (modal === 'treatment') {
+        await createTreatmentSheet({
+          id: '', examinationId: examId, treatmentDate: form.date || today(),
+          dayNumber: Number(form.dayNumber) || 1, dailyProgress: form.dailyProgress,
+          treatmentOrders: form.treatmentOrders, doctorNotes: form.doctorNotes,
+          medications: [], doctorId: '',
+        });
+        const r = await getTreatmentSheets(examId); setTreatments(Array.isArray(r.data) ? r.data : []);
+      } else if (modal === 'consult') {
+        await createConsultationRecord({
+          id: '', examinationId: examId, consultationDate: form.date || today(),
+          reason: form.reason || '', summary: form.summary || '', conclusion: form.conclusion || '',
+          recommendations: form.recommendations || '', consultants: [],
+          chairman: form.chairman, secretary: form.secretary,
+        });
+        const r = await getConsultationRecords(examId); setConsults(Array.isArray(r.data) ? r.data : []);
+      } else if (modal === 'nursing') {
+        await createNursingCareSheet({
+          id: '', examinationId: examId, careDate: form.date || today(),
+          shift: Number(form.shift) || 1, patientCondition: form.patientCondition,
+          nursingAssessment: form.nursingAssessment, nursingInterventions: form.nursingInterventions,
+          patientResponse: form.patientResponse, nurseId: '',
+        });
+        const r = await getNursingCareSheets(examId); setNursing(Array.isArray(r.data) ? r.data : []);
+      }
+      tk('Đã tạo phiếu'); setModal(null);
+    } catch { te('Tạo phiếu thất bại'); }
+    finally { setSavingForm(false); }
+  };
 
   const filtered = records.filter((r) =>
     !search || `${r.patientCode} ${r.patientName} ${r.lastDiagnosisName || ''}`.toLowerCase().includes(search.toLowerCase()));
@@ -252,7 +297,7 @@ const EmrEditorV2: React.FC = () => {
               {tab === 'treatment' && (
                 <div>
                   <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
-                    <button className="ab-btn primary" onClick={() => ti('Tạo phiếu điều trị (P2)')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</button>
+                    <button className="ab-btn primary" onClick={() => openCreate('treatment')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</button>
                   </div>
                   <DataTable<TreatmentSheetDto> columns={treatCols} data={treatments} rowKey={(r) => r.id} empty="Chưa có phiếu điều trị" />
                 </div>
@@ -260,14 +305,14 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'consult' && (
                 <div>
-                  <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => ti('Đề xuất hội chẩn (P2)')}><TermIcon name="plus" size={12} /> Đề xuất hội chẩn</button></div>
+                  <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('consult')}><TermIcon name="plus" size={12} /> Đề xuất hội chẩn</button></div>
                   <DataTable<ConsultationRecordDto> columns={consultCols} data={consults} rowKey={(r) => r.id} empty="Chưa có biên bản hội chẩn" />
                 </div>
               )}
 
               {tab === 'nursing' && (
                 <div>
-                  <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => ti('Phiếu chăm sóc (P2)')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</button></div>
+                  <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('nursing')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</button></div>
                   <DataTable<NursingCareSheetDto> columns={nursingCols} data={nursing} rowKey={(r) => r.id} empty="Chưa có phiếu chăm sóc" />
                 </div>
               )}
@@ -331,6 +376,46 @@ const EmrEditorV2: React.FC = () => {
           <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--t-2)' }}>Ký PKI đầy đủ (USB Token / HSM) thực hiện ở Luồng ký số tập trung.</div>
         </div>
       </ModalShell>
+
+      {/* Create sheet modal (treatment / consult / nursing) */}
+      <ModalShell open={modal !== null} onClose={() => setModal(null)}
+        title={modal === 'treatment' ? 'Tạo phiếu điều trị' : modal === 'consult' ? 'Đề xuất hội chẩn' : 'Tạo phiếu chăm sóc'}
+        sub={sel?.patientName} size="md"
+        footer={<>
+          <button className="ab-btn ghost" onClick={() => setModal(null)}>Hủy</button>
+          <button className="ab-btn primary" disabled={savingForm} onClick={saveSheet}><TermIcon name="check" size={12} /> Lưu</button>
+        </>}>
+        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <FormField lbl="Ngày"><input type="date" className="ed-fld" value={form.date || ''} onChange={(e) => fld('date', e.target.value)} /></FormField>
+            {modal === 'treatment' && <FormField lbl="Ngày thứ"><input type="number" className="ed-fld" value={form.dayNumber || ''} onChange={(e) => fld('dayNumber', e.target.value)} /></FormField>}
+            {modal === 'nursing' && (
+              <FormField lbl="Ca"><select className="ed-fld" value={form.shift || '1'} onChange={(e) => fld('shift', e.target.value)}><option value="1">Sáng</option><option value="2">Chiều</option><option value="3">Tối</option></select></FormField>
+            )}
+          </div>
+          {modal === 'treatment' && <>
+            <FormField lbl="Diễn biến"><textarea className="ed-fld" rows={3} value={form.dailyProgress || ''} onChange={(e) => fld('dailyProgress', e.target.value)} /></FormField>
+            <FormField lbl="Y lệnh"><textarea className="ed-fld" rows={3} value={form.treatmentOrders || ''} onChange={(e) => fld('treatmentOrders', e.target.value)} /></FormField>
+            <FormField lbl="Ghi chú BS"><textarea className="ed-fld" rows={2} value={form.doctorNotes || ''} onChange={(e) => fld('doctorNotes', e.target.value)} /></FormField>
+          </>}
+          {modal === 'consult' && <>
+            <FormField lbl="Lý do"><input className="ed-fld" value={form.reason || ''} onChange={(e) => fld('reason', e.target.value)} /></FormField>
+            <FormField lbl="Tóm tắt"><textarea className="ed-fld" rows={2} value={form.summary || ''} onChange={(e) => fld('summary', e.target.value)} /></FormField>
+            <FormField lbl="Kết luận"><textarea className="ed-fld" rows={2} value={form.conclusion || ''} onChange={(e) => fld('conclusion', e.target.value)} /></FormField>
+            <FormField lbl="Khuyến nghị"><textarea className="ed-fld" rows={2} value={form.recommendations || ''} onChange={(e) => fld('recommendations', e.target.value)} /></FormField>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <FormField lbl="Chủ tọa"><input className="ed-fld" value={form.chairman || ''} onChange={(e) => fld('chairman', e.target.value)} /></FormField>
+              <FormField lbl="Thư ký"><input className="ed-fld" value={form.secretary || ''} onChange={(e) => fld('secretary', e.target.value)} /></FormField>
+            </div>
+          </>}
+          {modal === 'nursing' && <>
+            <FormField lbl="Tình trạng BN"><textarea className="ed-fld" rows={2} value={form.patientCondition || ''} onChange={(e) => fld('patientCondition', e.target.value)} /></FormField>
+            <FormField lbl="Nhận định ĐD"><textarea className="ed-fld" rows={2} value={form.nursingAssessment || ''} onChange={(e) => fld('nursingAssessment', e.target.value)} /></FormField>
+            <FormField lbl="Can thiệp"><textarea className="ed-fld" rows={2} value={form.nursingInterventions || ''} onChange={(e) => fld('nursingInterventions', e.target.value)} /></FormField>
+            <FormField lbl="Đáp ứng"><textarea className="ed-fld" rows={2} value={form.patientResponse || ''} onChange={(e) => fld('patientResponse', e.target.value)} /></FormField>
+          </>}
+        </div>
+      </ModalShell>
     </div>
   );
 };
@@ -340,6 +425,13 @@ const Field: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, chil
     <div style={{ color: 'var(--t-2)' }}>{lbl}</div>
     <div style={{ color: 'var(--t-0)' }}>{children}</div>
   </div>
+);
+
+const FormField: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, children }) => (
+  <label style={{ display: 'block', fontSize: 11.5 }}>
+    <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>{lbl}</span>
+    {children}
+  </label>
 );
 
 export default EmrEditorV2;
