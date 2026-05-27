@@ -23,6 +23,7 @@ const InpatientV2 = lazy(() => import('./pages-v2/Inpatient'));
 const PrescriptionV2 = lazy(() => import('./pages-v2/Prescription'));
 const PrescriptionEditorV2 = lazy(() => import('./pages-v2/PrescriptionEditor'));
 const OpdEditorV2 = lazy(() => import('./pages-v2/OpdEditor'));
+const EmrEditorV2 = lazy(() => import('./pages-v2/EmrEditor'));
 const PharmacyV2 = lazy(() => import('./pages-v2/Pharmacy'));
 const SurgeryV2 = lazy(() => import('./pages-v2/Surgery'));
 const BillingV2 = lazy(() => import('./pages-v2/Billing'));
@@ -497,6 +498,7 @@ const AppRoutes: React.FC = () => {
           <Route path="radiology" element={<RadiologyV2 />} />
           <Route path="blood-bank" element={<BloodBankV2 />} />
           <Route path="emr" element={<EMRV2 />} />
+          <Route path="emr/edit" element={<EmrEditorV2 />} />
           {/* Native-designed Terminal pages available at /v2/lite/* for visual comparison */}
           <Route path="lite/dashboard" element={<DashboardV2 />} />
           <Route path="lite/reception" element={<ReceptionV2 />} />

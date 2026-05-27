@@ -88,7 +88,7 @@ const EMRV2: React.FC = () => {
       }}
       rowActions={(r) => (
         <div className="ab-actions">
-          <ActBtn ic="eye" title="Mở hồ sơ" onClick={() => navigate('/emr')} />
+          <ActBtn ic="eye" title="Mở hồ sơ" onClick={() => navigate('/v2/emr/edit')} />
           <ActBtn ic="print" title="In HS" onClick={() => message.success('Đã gửi PDF')} />
         </div>
       )}
@@ -134,7 +134,7 @@ const EMRV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button type="button" className="ab-btn primary" onClick={() => navigate('/emr')}>
+              <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/emr/edit')}>
                 <TermIcon name="eye" size={12} /> Mở HS chi tiết
               </button>
               <button type="button" className="ab-btn" onClick={() => message.success('Đã gửi PDF')}>

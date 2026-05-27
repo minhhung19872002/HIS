@@ -8,8 +8,8 @@ import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } fro
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Khám bệnh OPD v2 — list shell.
-   Form khám đầy đủ (vital signs, history, exam, prescription) ở v1
-   tại route /opd. Click "Khám" trên row chuyển sang v1. */
+   Form khám đầy đủ (vital signs, history, exam, CĐ, CLS) là native v2 tại
+   /v2/opd/edit (OpdEditor.tsx). Click "Khám" trên row mở editor đó. */
 
 type StatusKey = 'waiting' | 'inProgress' | 'waitingResult' | 'completed';
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -117,7 +117,7 @@ const OPDV2: React.FC = () => {
       rowActions={(r) => (
         <div className="ab-actions">
           <ActBtn ic="stethoscope" title="Khám" onClick={() => navigate('/v2/opd/edit')} />
-          <ActBtn ic="eye" title="Xem hồ sơ" onClick={() => navigate('/emr')} />
+          <ActBtn ic="eye" title="Xem hồ sơ" onClick={() => navigate('/v2/emr/edit')} />
           <ActBtn ic="print" title="In phiếu" onClick={() => message.success('Đã gửi máy in')} />
         </div>
       )}
@@ -159,7 +159,7 @@ const OPDV2: React.FC = () => {
               <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/opd/edit')}>
                 <TermIcon name="stethoscope" size={12} /> Mở phòng khám
               </button>
-              <button type="button" className="ab-btn" onClick={() => navigate('/emr')}>
+              <button type="button" className="ab-btn" onClick={() => navigate('/v2/emr/edit')}>
                 <TermIcon name="eye" size={12} /> Xem HSBA
               </button>
               <button type="button" className="ab-btn" onClick={() => navigate('/v2/prescription/edit')}>
