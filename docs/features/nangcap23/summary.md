@@ -352,10 +352,10 @@ Xem [analysis.md](./analysis.md) §17.3:
 
 - **HSMT root:** [`../../requirements.md`](../../requirements.md)
 - **NangCap roadmap:** [`../../roadmap/nangcap-phan-tich.md`](../../roadmap/nangcap-phan-tich.md)
-- **Project structure:** [`../../PROJECT_STRUCTURE.md`](../../PROJECT_STRUCTURE.md) — convention `docs/features/<feature>/`
-- **Module map:** [`../../MODULE_MAP.md`](../../MODULE_MAP.md)
-- **Architecture:** [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- **API flow:** [`../../API_FLOW.md`](../../API_FLOW.md)
+- **Project structure:** [`../../architecture/PROJECT_STRUCTURE.md`](../../architecture/PROJECT_STRUCTURE.md) — convention `docs/features/<feature>/`
+- **Module map:** [`../../architecture/MODULE_MAP.md`](../../architecture/MODULE_MAP.md)
+- **Architecture:** [`../../architecture/ARCHITECTURE.md`](../../architecture/ARCHITECTURE.md)
+- **API flow:** [`../../architecture/API_FLOW.md`](../../architecture/API_FLOW.md)
 
 ## Commit / Release reference
 

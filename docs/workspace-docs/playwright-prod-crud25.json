@@ -1,0 +1,324 @@
+{
+  "generated": "2026-05-27T19:19:07.079Z",
+  "total": 23,
+  "routes": [
+    {
+      "group": "A1 Kham ngoai tru",
+      "route": "opd",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "A2 Tai kham",
+      "route": "follow-up",
+      "loadOk": true,
+      "rows": 14,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 41,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "A3 Cap cuu",
+      "route": "emergency-disaster",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": false,
+      "createOpens": "n/a",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "A4 Noi tru",
+      "route": "ipd",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "A5 Phau thuat",
+      "route": "surgery",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 12,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "A6 Xet nghiem",
+      "route": "lab",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "A7 CDHA",
+      "route": "radiology",
+      "loadOk": true,
+      "rows": 10,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 10,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "A8 TDCN",
+      "route": "functional-diagnostics",
+      "loadOk": true,
+      "rows": 12,
+      "readDrawer": "pass",
+      "createBtn": false,
+      "createOpens": "n/a",
+      "actionBtns": 9,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "A9 PHCN",
+      "route": "rehabilitation",
+      "loadOk": true,
+      "rows": 18,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 24,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "A10 Thai san/CK",
+      "route": "specialty-emr",
+      "loadOk": true,
+      "rows": 18,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 72,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "A11 Tiem chung",
+      "route": "immunization",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "A12 Kham SK",
+      "route": "health-checkup",
+      "loadOk": true,
+      "rows": 18,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 36,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "A13 Truyen mau",
+      "route": "blood-bank",
+      "loadOk": true,
+      "rows": 10,
+      "readDrawer": "fail",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "row click khong mo detail",
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "A14 Hoi chan",
+      "route": "consultation",
+      "loadOk": true,
+      "rows": 5,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 10,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "B1 Tiep nhan",
+      "route": "reception",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "B3 EMR",
+      "route": "emr",
+      "loadOk": true,
+      "rows": 16,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 32,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "B4 Duoc",
+      "route": "pharmacy",
+      "loadOk": true,
+      "rows": 18,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 54,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "C1 Vien phi",
+      "route": "billing",
+      "loadOk": true,
+      "rows": 18,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 36,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "C2 BHYT",
+      "route": "insurance",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    },
+    {
+      "group": "C3 Tam ung/cong no",
+      "route": "finance",
+      "loadOk": true,
+      "rows": 1,
+      "readDrawer": "pass",
+      "createBtn": true,
+      "createOpens": "pass",
+      "actionBtns": 2,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "C4 Huy/hoan CLS",
+      "route": "service-requeue",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": false,
+      "createOpens": "n/a",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "C6 Bao cao",
+      "route": "reports",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": false,
+      "createOpens": "n/a",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": []
+    },
+    {
+      "group": "DM Danh muc",
+      "route": "master-data",
+      "loadOk": true,
+      "rows": 0,
+      "readDrawer": "n/a",
+      "createBtn": true,
+      "createOpens": "fail",
+      "actionBtns": 0,
+      "apiFails": 0,
+      "pageErrors": 0,
+      "notes": [
+        "nut Them khong mo modal/form"
+      ]
+    }
+  ]
+}

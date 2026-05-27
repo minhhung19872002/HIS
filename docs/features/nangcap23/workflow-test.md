@@ -81,7 +81,7 @@ Tổng hợp từ `App.tsx` (line 322–443) + `MainLayout.tsx` menu. NangCap23 
 
 `/dashboard-3cap`, `/follow-up`, `/booking-management`, `/sms-management`,
 `/admin`, `/digital-signature`, `/central-signing`, `/help`, `/settings` →
-`/admin`, plus 60+ route module khác. Tham khảo [`docs/MODULE_MAP.md`](../../MODULE_MAP.md)
+`/admin`, plus 60+ route module khác. Tham khảo [`docs/MODULE_MAP.md`](../../architecture/MODULE_MAP.md)
 §5.1 — không nằm trong scope test NangCap23 trừ khi audit log middleware
 ghi nhận hành động NangCap23.
 
@@ -1336,9 +1336,9 @@ Sắp xếp module bị ảnh hưởng theo mức ưu tiên:
 - [summary.md](./summary.md) — Index cross-doc + module impact ranking
 - [`../../architecture/data-flow.md`](../../architecture/data-flow.md) — 9 luồng dữ liệu HIS gốc
 - [`../../architecture/business-logic-complete.md`](../../architecture/business-logic-complete.md) — Business logic HSMT
-- [`../../MODULE_MAP.md`](../../MODULE_MAP.md) — Module boundaries + dependency
-- [`../../access-control-matrix.md`](../../access-control-matrix.md) — RBAC 8 role
-- [`../../API_FLOW.md`](../../API_FLOW.md) — Sequence diagram chi tiết
+- [`../../architecture/MODULE_MAP.md`](../../architecture/MODULE_MAP.md) — Module boundaries + dependency
+- [`../../operations/access-control-matrix.md`](../../operations/access-control-matrix.md) — RBAC 8 role
+- [`../../architecture/API_FLOW.md`](../../architecture/API_FLOW.md) — Sequence diagram chi tiết
 
 ## Commit reference
 

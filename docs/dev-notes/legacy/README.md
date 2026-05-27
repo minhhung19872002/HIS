@@ -19,6 +19,6 @@
 
 ## Migration system hiện tại
 
-Đọc `docs/ARCHITECTURE.md` §3 (Schema repair runner) — `ProductionSchemaRepairRunner`
+Đọc `docs/architecture/ARCHITECTURE.md` §3 (Schema repair runner) — `ProductionSchemaRepairRunner`
 tự apply mọi script embedded trong `backend/src/HIS.Infrastructure/Data/Scripts/`
 lúc backend startup.

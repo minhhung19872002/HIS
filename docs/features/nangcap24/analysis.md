@@ -313,7 +313,14 @@ Export object cho từng gap: `biometric`, `inspectorPortal`, `emrHl7`,
 - `MipMinIpViewer.tsx` (~447 LOC): MIP/MinIP projection trên volume Cornerstone3D.
 - `CineControls.tsx` (~163 LOC): cine loop playback (play/pause/speed/frame).
 - `MammoViewer.tsx` (nâng cấp +153 LOC): mammography CC/MLO + magnify + inversion.
-- Tích hợp vào `pages/DicomViewer.tsx` (radiology viewer), **không có route v2 riêng**.
+- Tích hợp vào `pages/DicomViewer.tsx` (radiology viewer), **không có route v2 riêng**:
+  - 3 nút toolbar loại trừ lẫn nhau: `MPR / 3D Native` (MprViewer), `Mammography 2x2`
+    (MammoViewer), `MIP / MinIP` (MipMinIpViewer) — mỗi nút mở 1 Card fullscreen.
+  - `CineControls` render dưới `CornerstoneViewer` (stack viewport), seek frame qua handle
+    `CornerstoneViewerHandle.getFrameCount/getCurrentIndex/setIndex` (mở rộng để khớp
+    `CineViewportHandle`). Tự ẩn khi stack < 2 frame.
+  - ⚠️ **Lịch sử**: MipMinIpViewer + CineControls ban đầu bị **mồ côi** (định nghĩa nhưng
+    chưa import/render). Đã wire vào DicomViewer (toolbar MIP + Cine bar) để khớp HSMT.
 
 ---
 

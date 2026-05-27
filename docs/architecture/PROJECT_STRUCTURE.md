@@ -144,7 +144,6 @@ HIS/
 ├── cloudbuild.yaml           ✅ Active build config Cloud Run
 ├── docker-compose.yml        ✅ Dev compose (SQL + Redis + Orthanc local)
 ├── vercel.json               ⚠️  CÓ THỂ DUPLICATE — xem §5
-└── NangCap*.pdf (22 file)    Tạm thời ở root, sẽ move sau (user decide)
 ```
 
 ---

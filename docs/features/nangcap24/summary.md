@@ -303,7 +303,7 @@ Không có blocker cứng cho deploy demo (đã live prod `his-api-00029-khb`).
 
 - **HSMT root:** [`../../requirements.md`](../../requirements.md)
 - **NangCap roadmap:** [`../../roadmap/nangcap-phan-tich.md`](../../roadmap/nangcap-phan-tich.md)
-- **Project structure:** [`../../PROJECT_STRUCTURE.md`](../../PROJECT_STRUCTURE.md)
+- **Project structure:** [`../../architecture/PROJECT_STRUCTURE.md`](../../architecture/PROJECT_STRUCTURE.md)
 - **NangCap23 (gói trước):** [`../nangcap23/README.md`](../nangcap23/README.md)
 
 ## Commit / Release reference
