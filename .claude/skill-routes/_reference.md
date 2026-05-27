@@ -22,7 +22,8 @@
 ## (4) Dependency map (his → core)
 
 ```
-his-fe-page-v2               → core-reusable-code, core-error-loading-state, core-architecture-follow
+his-fe-convention            → core-reusable-code, core-architecture-follow, core-architecture-consistency, core-refactor, his-qa-anti-pattern (★ kèm MỌI code-gen/refactor FE)
+his-fe-page-v2               → core-reusable-code, core-error-loading-state, core-architecture-follow, his-fe-convention
 his-fe-api-client            → core-types-contract
 his-fe-antd-v6               → core-error-loading-state, core-localization-pattern
 his-fe-webauthn-biometric    → core-types-contract, core-error-loading-state, his-fe-api-client
@@ -46,13 +47,14 @@ core-requirement-clarify     → (discipline pre-flight #1, độc lập) — d�
 core-verify-before-assert    → (discipline pre-flight #2, độc lập)
 core-impact-analysis         → core-verify-before-assert, core-architecture-follow (pre-flight #3)
 core-minimal-change          → core-reusable-code, core-refactor (lúc implement)
+core-clean-code              → core-reusable-code, core-minimal-change, core-refactor, core-types-contract (★ kèm MỌI code-gen FE+BE — clean code mức hàm/câu lệnh)
 core-execution-output        → core-verify-before-assert, his-qa-anti-pattern (luôn bật khi báo cáo kết quả)
 ```
 Nguyên tắc: `his-*` **kế thừa** nguyên tắc từ `core-*` rồi **hiện thực hoá** theo stack HIS.
 
 **Pipeline PRE-FLIGHT (mọi task code, chạy trước khi viết):**
 `core-requirement-clarify` → `core-verify-before-assert` → `core-impact-analysis` → viết theo `core-minimal-change`
-(luôn kèm `core-reusable-code` + `his-qa-anti-pattern`).
+(luôn kèm `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`).
 
 ## Ghi chú vị trí
 - Skill: `.claude/skills/<core-* | his-*>/SKILL.md` (+ `references/`, `scripts/`).

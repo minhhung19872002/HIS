@@ -7,7 +7,7 @@ metadata:
 
 # HIS Feature Documentation Set
 
-Skill chuẩn hoá cách viết bộ tài liệu cho 1 phân hệ/gói nâng cấp HIS, đặt tại `docs/features/<feature>/` (convention `docs/PROJECT_STRUCTURE.md` §4). Mẫu chuẩn: `docs/features/nangcap23/` và `docs/features/nangcap24/` — 6 file.
+Skill chuẩn hoá cách viết bộ tài liệu cho 1 phân hệ/gói nâng cấp HIS, đặt tại `docs/features/<feature>/` (convention `docs/architecture/PROJECT_STRUCTURE.md` §4). Mẫu chuẩn: `docs/features/nangcap23/` và `docs/features/nangcap24/` — 6 file.
 
 ## Khi nào dùng
 
