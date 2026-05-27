@@ -8,8 +8,8 @@ import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } fro
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Kê đơn v2 — list shell.
-   Editor đầy đủ (search BN, search thuốc, drug interactions, ký số) ở v1
-   tại route /prescription. Click "Kê đơn" chuyển sang v1. */
+   Editor đầy đủ (search BN, search thuốc, drug interactions, ký số) là native
+   v2 tại /v2/prescription/edit (PrescriptionEditor.tsx). Click "Kê đơn" mở nó. */
 
 type StatusKey = 'active' | 'dispensed' | 'expired' | 'cancelled';
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -93,7 +93,7 @@ const PrescriptionV2: React.FC = () => {
       }}
       rowActions={(r) => (
         <div className="ab-actions">
-          <ActBtn ic="eye" title="Mở v1 chi tiết" onClick={() => navigate('/prescription')} />
+          <ActBtn ic="edit" title="Mở editor kê đơn" onClick={() => navigate('/v2/prescription/edit')} />
           <ActBtn ic="print" title="In đơn" onClick={() => message.success('Đã gửi máy in')} />
         </div>
       )}
@@ -144,8 +144,8 @@ const PrescriptionV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button type="button" className="ab-btn primary" onClick={() => navigate('/prescription')}>
-                <TermIcon name="edit" size={12} /> Mở editor v1
+              <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/prescription/edit')}>
+                <TermIcon name="edit" size={12} /> Mở editor kê đơn
               </button>
               <button type="button" className="ab-btn" onClick={() => message.success('Đã gửi máy in')}>
                 <TermIcon name="print" size={12} /> In đơn
@@ -165,7 +165,7 @@ const PrescriptionV2: React.FC = () => {
       )}
       drawerSub={(r) => `${r.prescribedBy} · ${fmtDMY(r.prescribedDate)}`}
       toolbarRight={
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/prescription')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/prescription/edit')}>
           <TermIcon name="plus" size={12} /> Kê đơn mới
         </button>
       }

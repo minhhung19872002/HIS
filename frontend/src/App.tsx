@@ -21,6 +21,7 @@ const ReceptionV2 = lazy(() => import('./pages-v2/Reception'));
 const OPDV2 = lazy(() => import('./pages-v2/OPD'));
 const InpatientV2 = lazy(() => import('./pages-v2/Inpatient'));
 const PrescriptionV2 = lazy(() => import('./pages-v2/Prescription'));
+const PrescriptionEditorV2 = lazy(() => import('./pages-v2/PrescriptionEditor'));
 const PharmacyV2 = lazy(() => import('./pages-v2/Pharmacy'));
 const SurgeryV2 = lazy(() => import('./pages-v2/Surgery'));
 const BillingV2 = lazy(() => import('./pages-v2/Billing'));
@@ -486,6 +487,7 @@ const AppRoutes: React.FC = () => {
           <Route path="opd" element={<OPDV2 />} />
           <Route path="ipd" element={<InpatientV2 />} />
           <Route path="prescription" element={<PrescriptionV2 />} />
+          <Route path="prescription/edit" element={<PrescriptionEditorV2 />} />
           <Route path="pharmacy" element={<PharmacyV2 />} />
           <Route path="surgery" element={<SurgeryV2 />} />
           <Route path="billing" element={<BillingV2 />} />

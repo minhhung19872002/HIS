@@ -1,0 +1,101 @@
+/* ============================================
+   HIS Editors — Responsive tablet
+   3-col layout → 1-col + slide-in drawers (≤1180px)
+   Ported from design-system bundle (mod-editor-responsive.css).
+   Mark editor root with `.ed-root`, side panels with
+   `.ed-left-panel` / `.ed-right-panel`. Toggle FABs show below 1180px.
+   ============================================ */
+
+.ed-panel-toggles { display: none; }
+
+.ed-left-panel,
+.ed-right-panel { transition: transform .25s ease; }
+
+@media (max-width: 1180px) {
+  .ed-root { grid-template-columns: 1fr !important; }
+
+  .ed-left-panel,
+  .ed-right-panel {
+    position: fixed !important;
+    top: 0; bottom: 0;
+    width: 320px !important;
+    z-index: 200;
+    background: var(--d-1) !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,.35);
+    overflow-y: auto;
+  }
+  .ed-left-panel  { left: 0;  transform: translateX(-105%); border-right: 1px solid var(--line); }
+  .ed-right-panel { right: 0; transform: translateX(105%);  border-left:  1px solid var(--line); }
+
+  .ed-left-panel.is-open  { transform: translateX(0); }
+  .ed-right-panel.is-open { transform: translateX(0); }
+
+  .ed-panel-toggles {
+    display: flex;
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    gap: 10px;
+    z-index: 150;
+  }
+  .ed-panel-toggle {
+    background: var(--c-pri);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    width: 48px; height: 48px;
+    display: grid; place-items: center;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(37,99,235,.4);
+    position: relative;
+  }
+  .ed-panel-toggle .badge {
+    position: absolute; top: -2px; right: -2px;
+    background: var(--s-crit); color: #fff;
+    border-radius: 999px; min-width: 18px; height: 18px;
+    font-size: 10px; font-weight: 700;
+    display: grid; place-items: center;
+    padding: 0 5px;
+  }
+  .ed-panel-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 180;
+  }
+  .ab-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 720px) {
+  .ab-kpis { grid-template-columns: 1fr !important; }
+  .ed-left-panel, .ed-right-panel { width: 88vw !important; }
+}
+
+/* ── Editor inline inputs/selects (hui-inp / hui-sel) ──
+   The design pack uses these classes inside the editor grid for the drug
+   table cells, warehouse select, etc. Style them for the dark terminal
+   theme (his-ui.css default is light). Scoped to .ed-root so they don't
+   leak globally; modal search boxes use .ab-search which is already themed. */
+.ed-root .hui-inp,
+.ed-root .hui-sel {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--t-0);
+  background: var(--d-0);
+  transition: border-color .1s, box-shadow .1s;
+}
+.ed-root .hui-inp:focus,
+.ed-root .hui-sel:focus {
+  outline: none;
+  border-color: var(--a-cy, #22d3ee);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, .2);
+}
+.ed-root .hui-sel {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 22px;
+}
