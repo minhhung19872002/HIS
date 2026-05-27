@@ -14,7 +14,7 @@ import {
   KpiStrip, StatusBadge, ActBtn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
-import { examinationApi, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto } from '../api/examination';
+import { examinationApi, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import '../layouts/terminal/ed-responsive.css';
@@ -55,7 +55,8 @@ const PrescriptionEditorV2: React.FC = () => {
   const [ctx, setCtx] = useState<PrescriptionContextDto | null>(null);
   const [examinationId, setExamId] = useState<string | null>(null);
   const [type, setType] = useState<1 | 2>(1); // 1 = Ngoại trú, 2 = YHCT
-  const [warehouse, setWh] = useState('KHO-NGT');
+  const [warehouse, setWh] = useState('');
+  const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
   const [items, setItems] = useState<RxItem[]>([]);
   const [interactions, setInteractions] = useState<DrugInteractionDto[]>([]);
   const [templates, setTemplates] = useState<PrescriptionTemplateDto[]>([]);
@@ -121,6 +122,13 @@ const PrescriptionEditorV2: React.FC = () => {
     examinationApi.getPrescriptionTemplates()
       .then((r) => { if (Array.isArray(r.data)) setTemplates(r.data); })
       .catch(() => { /* templates optional */ });
+    examinationApi.getDispensaryWarehouses()
+      .then((r) => {
+        const list = Array.isArray(r.data) ? r.data : [];
+        setWarehouses(list);
+        if (list.length > 0) setWh(list[0].id);
+      })
+      .catch(() => { /* warehouses optional */ });
   }, []);
 
   // ── Drug interactions: re-check when cart changes ────────────────
@@ -162,6 +170,7 @@ const PrescriptionEditorV2: React.FC = () => {
     prescriptionType: type,
     diagnosisCode: ctx?.mainIcdCode,
     diagnosisName: ctx?.mainDiagnosis,
+    warehouseId: warehouse || undefined,
     totalDays: items.reduce((m, x) => Math.max(m, x.days), 0),
     items: items.map((it) => ({
       medicineId: it.medicineId, quantity: it.qty, days: it.days,
@@ -278,10 +287,9 @@ const PrescriptionEditorV2: React.FC = () => {
               <button key={t.v} onClick={() => setType(t.v)} style={{ background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 3, cursor: 'pointer', fontSize: 11.5, fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
             ))}
           </div>
-          <select className="hui-inp hui-sel" value={warehouse} onChange={(e) => setWh(e.target.value)} style={{ width: 180, height: 32 }}>
-            <option value="KHO-NGT">KHO-NGT — Ngoại trú</option>
-            <option value="KHO-NT">KHO-NT — Nội trú</option>
-            <option value="KHO-CC">KHO-CC — Cấp cứu</option>
+          <select className="hui-inp hui-sel" value={warehouse} onChange={(e) => setWh(e.target.value)} style={{ width: 200, height: 32 }}>
+            {warehouses.length === 0 && <option value="">(Chưa có kho)</option>}
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} — {w.name}</option>)}
           </select>
           <span className="spacer" style={{ flex: 1 }} />
           <button className="ab-btn ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</button>

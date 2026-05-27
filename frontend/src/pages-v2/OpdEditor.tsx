@@ -13,6 +13,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KpiStrip, StatusBadge, ActBtn, fmtVNDg, tk, tw, te, ti } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import BarcodeScanner from '../components/BarcodeScanner';
 import {
   examinationApi,
   type RoomDto, type RoomPatientListDto, type IcdCodeFullDto, type ServiceDto,
@@ -55,6 +56,7 @@ const OpdEditorV2: React.FC = () => {
   const [diagnoses, setDx] = useState<DxRow[]>([]);
   const [orders, setOrd] = useState<OrderRow[]>([]);
 
+  const [scanOpen, setScanOpen] = useState(false);
   const [icdQ, setIcdQ] = useState('');
   const [icdResults, setIcdResults] = useState<IcdCodeFullDto[]>([]);
   const [svcQ, setSvcQ] = useState('');
@@ -221,7 +223,7 @@ const OpdEditorV2: React.FC = () => {
             {rooms.length === 0 && <option value="">(Chưa có phòng)</option>}
             {rooms.map((r) => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}
           </select>
-          <ActBtn ic="search" title="Quét barcode" onClick={() => ti('Mở quét barcode (P2)')} />
+          <ActBtn ic="qr" title="Quét barcode BN" onClick={() => setScanOpen(true)} />
         </div>
         <div style={{ display: 'inline-flex', background: 'var(--d-0)', borderRadius: 4, padding: 2, marginBottom: 10, width: '100%' }}>
           {([{ v: 'general', l: 'Ngoại trú' }, { v: 'yhct', l: 'YHCT' }] as const).map((t) => (
@@ -400,6 +402,19 @@ const OpdEditorV2: React.FC = () => {
           <TermIcon name="check" size={18} />
         </button>
       </div>
+
+      {/* Barcode scan → find patient in current room queue */}
+      <BarcodeScanner
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onScan={(code) => {
+          setScanOpen(false);
+          const key = code.trim().toLowerCase();
+          const hit = queue.find((q) => q.patientCode?.toLowerCase() === key || q.examinationId?.toLowerCase() === key);
+          if (hit) { selectPatient(hit); tk(`Đã chọn ${hit.patientName}`); }
+          else ti(`Không thấy BN "${code}" trong hàng đợi phòng này`);
+        }}
+      />
     </div>
   );
 };
