@@ -23,7 +23,8 @@
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { message, Modal } from 'antd';
+import { message, Modal, Form, Input, InputNumber, Select, Switch, DatePicker, Radio, Checkbox, AutoComplete } from 'antd';
+import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
 
 // ─────────────────────────── KPI strip ───────────────────────────
@@ -291,6 +292,156 @@ export const ActBtn: React.FC<{
   </button>
 );
 
+// ─────────────────────────── Btn — chuẩn hoá nút ab-btn (raw <button>) ───────────────────────────
+// Giữ NGUYÊN style ab-* (terminal design): chỉ componentize, không đổi class/CSS.
+// Variant thực tế trong codebase: default | primary | ghost | ok | crit.
+export type BtnVariant = 'default' | 'primary' | 'ghost' | 'ok' | 'crit';
+export const Btn: React.FC<{
+  variant?: BtnVariant;
+  size?: 'sm';
+  icon?: string;            // tên TermIcon (bên trái)
+  iconRight?: string;       // tên TermIcon (bên phải)
+  loading?: boolean;
+  disabled?: boolean;
+  active?: boolean;
+  title?: string;
+  type?: 'button' | 'submit';
+  onClick?: (e: React.MouseEvent) => void;
+  className?: string;
+  style?: React.CSSProperties;
+  children?: React.ReactNode;
+}> = ({ variant = 'default', size, icon, iconRight, loading, disabled, active, title, type = 'button', onClick, className, style, children }) => {
+  const cls = ['ab-btn', variant !== 'default' ? variant : '', size === 'sm' ? 'sm' : '', active ? 'active' : '', className || '']
+    .filter(Boolean).join(' ');
+  return (
+    <button type={type} className={cls} title={title} disabled={disabled || loading} style={style} onClick={onClick}>
+      {loading ? <span className="ab-btn-spin"><TermIcon name="refresh" size={12} /></span>
+        : icon ? <TermIcon name={icon} size={12} /> : null}
+      {children}
+      {iconRight && !loading ? <TermIcon name={iconRight} size={12} /> : null}
+    </button>
+  );
+};
+
+// ─────────────────────────── Config-driven options (Select/Radio/Checkbox/AutoComplete) ───────────────────────────
+// Nhận datasource JSON + fieldNames linh hoạt (label/value/disabled/group/children), thay vì hard-code <Option> trong JSX.
+export interface OptItem { value: string | number; label: React.ReactNode; disabled?: boolean; group?: string; children?: OptItem[]; }
+export interface OptFieldNames { label?: string; value?: string; disabled?: string; group?: string; children?: string; }
+
+/** Chuẩn hoá mảng option thô (object/string/number) → OptItem[] theo fieldNames tuỳ biến. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeOptions(raw: any[] | undefined, fn?: OptFieldNames): OptItem[] {
+  if (!raw) return [];
+  const L = fn?.label || 'label', V = fn?.value || 'value', D = fn?.disabled || 'disabled', G = fn?.group, C = fn?.children;
+  return raw.filter((o) => o != null).map((o) => {
+    if (typeof o === 'string' || typeof o === 'number') return { value: o, label: String(o) };
+    return {
+      value: o[V], label: o[L] ?? o[V], disabled: o[D],
+      group: G ? o[G] : o.group,
+      children: C && o[C] ? normalizeOptions(o[C], fn) : undefined,
+    } as OptItem;
+  });
+}
+
+/** Select config-driven: options JSON + fieldNames + multiple + search + clearable + group + loading. */
+export const OptionsSelect: React.FC<{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value?: any; onChange?: (v: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options?: any[]; fieldNames?: OptFieldNames;
+  multiple?: boolean; showSearch?: boolean; allowClear?: boolean;
+  placeholder?: string; disabled?: boolean; loading?: boolean;
+  style?: React.CSSProperties; size?: 'small' | 'middle' | 'large';
+}> = ({ value, onChange, options, fieldNames, multiple, showSearch = true, allowClear = true, placeholder, disabled, loading, style, size }) => {
+  const opts = useMemo(() => normalizeOptions(options, fieldNames), [options, fieldNames]);
+  const grouped = useMemo(() => {
+    if (!opts.some((o) => o.group)) return undefined;
+    const map = new Map<string, OptItem[]>();
+    opts.forEach((o) => { const g = o.group || '—'; if (!map.has(g)) map.set(g, []); map.get(g)!.push(o); });
+    return Array.from(map.entries()).map(([label, options]) => ({ label, options }));
+  }, [opts]);
+  return (
+    <Select
+      value={value} onChange={onChange}
+      mode={multiple ? 'multiple' : undefined}
+      showSearch={showSearch} optionFilterProp="label" allowClear={allowClear}
+      placeholder={placeholder} disabled={disabled} loading={loading}
+      style={{ width: '100%', ...style }} size={size}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      options={(grouped as any) || (opts as any)}
+    />
+  );
+};
+
+/** Radio group config-driven. */
+export const RadioField: React.FC<{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value?: any; onChange?: (e: any) => void; options?: any[]; fieldNames?: OptFieldNames;
+  disabled?: boolean; optionType?: 'default' | 'button';
+}> = ({ value, onChange, options, fieldNames, disabled, optionType }) => {
+  const opts = useMemo(() => normalizeOptions(options, fieldNames), [options, fieldNames]);
+  return (
+    <Radio.Group value={value} onChange={onChange} disabled={disabled} optionType={optionType}
+      options={opts.map((o) => ({ label: o.label, value: o.value, disabled: o.disabled }))} />
+  );
+};
+
+/** Checkbox group config-driven (multiple). */
+export const CheckboxField: React.FC<{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value?: any[]; onChange?: (v: any[]) => void; options?: any[]; fieldNames?: OptFieldNames; disabled?: boolean;
+}> = ({ value, onChange, options, fieldNames, disabled }) => {
+  const opts = useMemo(() => normalizeOptions(options, fieldNames), [options, fieldNames]);
+  return (
+    <Checkbox.Group value={value} onChange={onChange} disabled={disabled}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      options={opts.map((o) => ({ label: o.label as any, value: o.value, disabled: o.disabled }))} />
+  );
+};
+
+/** AutoComplete config-driven + debounce search (async datasource qua onSearch). */
+export const AutoCompleteField: React.FC<{
+  value?: string; onChange?: (v: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options?: any[]; fieldNames?: OptFieldNames;
+  placeholder?: string; allowClear?: boolean; disabled?: boolean; loading?: boolean;
+  onSearch?: (kw: string) => void; debounce?: number; style?: React.CSSProperties;
+}> = ({ value, onChange, options, fieldNames, placeholder, allowClear = true, disabled, onSearch, debounce = 300, style }) => {
+  const opts = useMemo(() => normalizeOptions(options, fieldNames), [options, fieldNames]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearch = (kw: string) => {
+    if (!onSearch) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onSearch(kw), debounce);
+  };
+  return (
+    <AutoComplete
+      value={value} onChange={onChange} onSearch={onSearch ? handleSearch : undefined}
+      allowClear={allowClear} disabled={disabled} placeholder={placeholder}
+      style={{ width: '100%', ...style }}
+      options={opts.map((o) => ({ value: String(o.value), label: o.label }))}
+      filterOption={onSearch ? false : (input, opt) => String(opt?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+    />
+  );
+};
+
+/** Native select style ab-sel (giữ NGUYÊN look terminal) nhưng nhận options JSON config-driven — thay raw <select> trong form/modal. */
+export const AbSelect: React.FC<{
+  value?: string | number; onChange?: (v: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options?: any[]; fieldNames?: OptFieldNames;
+  placeholder?: string; disabled?: boolean; style?: React.CSSProperties; className?: string;
+}> = ({ value, onChange, options, fieldNames, placeholder, disabled, style, className }) => {
+  const opts = useMemo(() => normalizeOptions(options, fieldNames), [options, fieldNames]);
+  return (
+    <select className={className || 'ab-sel'} value={value as string} disabled={disabled} style={style}
+      onChange={(e) => onChange?.(e.target.value)}>
+      {placeholder != null && <option value="">{placeholder}</option>}
+      {opts.map((o) => <option key={String(o.value)} value={o.value as string} disabled={o.disabled}>{o.label as string}</option>)}
+    </select>
+  );
+};
+
 // ─────────────────────────── Drawer section / field ───────────────────────────
 
 export const DrSec: React.FC<{
@@ -485,7 +636,7 @@ export { default as Ico } from '../layouts/terminal/Icon';
 // columns, drawer renderer, and optional status tabs.
 
 import TermIconCmp from '../layouts/terminal/Icon';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface SimpleV2PageProps<T> {
   title: string;                                                   // Page title (for plus button)
@@ -504,6 +655,7 @@ export interface SimpleV2PageProps<T> {
   drawerTitle?: (row: T) => React.ReactNode;
   drawerSub?: (row: T) => string;
   toolbarRight?: React.ReactNode;
+  headerActions?: (reload: () => void) => React.ReactNode;  // nút Thêm... cần reload sau khi tạo
   emptyMessage?: string;
 }
 
@@ -515,7 +667,7 @@ export function SimpleV2Page<T>({
   kpis,
   pageSize = 16,
   rowActions, drawer, drawerTitle, drawerSub,
-  toolbarRight,
+  toolbarRight, headerActions,
   emptyMessage,
 }: SimpleV2PageProps<T>) {
   const [rows, setRows] = useState<T[]>([]);
@@ -583,6 +735,7 @@ export function SimpleV2Page<T>({
           <TermIconCmp name="refresh" size={12} /> Làm mới
         </button>
         {toolbarRight}
+        {headerActions && headerActions(reload)}
       </div>
 
       {statusTabs && (
@@ -624,3 +777,99 @@ export function SimpleV2Page<T>({
     </div>
   );
 }
+
+// ─────────────────────────── CRUD (validate + focus + lỗi BE) ───────────────────────────
+// Map lỗi validate BACKEND (authoritative) về đúng field Antd Form + cuộn/focus field lỗi.
+// Hỗ trợ ModelState `{errors:{Field:[msg]}}` lẫn custom `{field,message}`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function applyServerErrors(form: any, e: any): boolean {
+  const d = e?.response?.data;
+  if (!d) return false;
+  const raw = d.errors || (d.field ? { [d.field]: [d.message || 'Không hợp lệ'] } : null);
+  if (raw && typeof raw === 'object') {
+    const fields = Object.entries(raw).filter(([k]) => k && k.toLowerCase() !== 'dto')
+      .map(([k, v]) => ({ name: k.charAt(0).toLowerCase() + k.slice(1), errors: (Array.isArray(v) ? v : [String(v)]) as string[] }));
+    if (fields.length) { form.setFields(fields); try { form.scrollToField(fields[0].name); } catch { /* ignore */ } return true; }
+  }
+  return false;
+}
+
+export interface CrudFieldCfg {
+  key: string; label: string;
+  type?: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'radio' | 'checkbox' | 'autocomplete' | 'switch' | 'date' | 'password';
+  required?: boolean;
+  // datasource JSON (config-driven) — phần tử {value,label,disabled,group,children} hoặc tuỳ biến qua fieldNames
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options?: any[];
+  fieldNames?: OptFieldNames;
+  placeholder?: string; disabledOnEdit?: boolean;
+  showSearch?: boolean; allowClear?: boolean;        // select/multiselect
+  onSearch?: (kw: string) => void; debounce?: number; // autocomplete async datasource
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rules?: any[];
+}
+
+/** Modal CRUD tái dùng: Antd Form + validate (rules) + scrollToFirstError + map lỗi BE → field + focus.
+ *  Date field tự convert string↔dayjs; submit trả values (date dạng 'YYYY-MM-DD'). */
+export const CrudModal: React.FC<{
+  open: boolean; onClose: () => void; title: string; sub?: string;
+  fields: CrudFieldCfg[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initial?: Record<string, any> | null;   // có id = sửa; null/{} = thêm
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSubmit: (values: Record<string, any>, editing: boolean) => Promise<void>;
+}> = ({ open, onClose, title, sub, fields, initial, size = 'md', onSubmit }) => {
+  const [form] = Form.useForm();
+  const [saving, setSaving] = useState(false);
+  const editing = !!(initial && initial.id);
+  const dateKeys = useMemo(() => fields.filter((f) => f.type === 'date').map((f) => f.key), [fields]);
+  useEffect(() => {
+    if (!open) return;
+    form.resetFields();
+    if (initial && Object.keys(initial).length) {
+      const v = { ...initial };
+      dateKeys.forEach((k) => { if (v[k]) v[k] = dayjs(v[k]); });
+      form.setFieldsValue(v);
+    }
+  }, [open, initial, form, dateKeys]);
+  const submit = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let v: Record<string, any>;
+    try { v = await form.validateFields(); } catch { return; }  // client UX: hiện lỗi inline + focus field lỗi
+    dateKeys.forEach((k) => { if (v[k] && dayjs.isDayjs(v[k])) v[k] = v[k].format('YYYY-MM-DD'); });
+    if (initial?.id) v.id = initial.id;
+    setSaving(true);
+    try { await onSubmit(v, editing); onClose(); }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    catch (e: any) { if (!applyServerErrors(form, e)) message.error(e?.response?.data?.message || 'Lưu thất bại'); }
+    finally { setSaving(false); }
+  };
+  return (
+    <ModalShell open={open} onClose={onClose} title={title} sub={sub} size={size}
+      footer={<>
+        <button type="button" className="ab-btn" onClick={onClose}>Huỷ</button>
+        <button type="button" className="ab-btn primary" disabled={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</button>
+      </>}>
+      <Form form={form} layout="vertical" scrollToFirstError requiredMark>
+        {fields.map((f) => (
+          <Form.Item key={f.key} name={f.key} label={f.label}
+            valuePropName={f.type === 'switch' ? 'checked' : undefined}
+            rules={f.rules || (f.required ? [{ required: true, message: `Nhập ${f.label}` }] : undefined)}>
+            {f.type === 'select' ? <OptionsSelect options={f.options} fieldNames={f.fieldNames} showSearch={f.showSearch ?? true} allowClear={f.allowClear ?? true} placeholder={f.placeholder} />
+              : f.type === 'multiselect' ? <OptionsSelect multiple options={f.options} fieldNames={f.fieldNames} showSearch={f.showSearch ?? true} allowClear={f.allowClear ?? true} placeholder={f.placeholder} />
+              : f.type === 'radio' ? <RadioField options={f.options} fieldNames={f.fieldNames} />
+              : f.type === 'checkbox' ? <CheckboxField options={f.options} fieldNames={f.fieldNames} />
+              : f.type === 'autocomplete' ? <AutoCompleteField options={f.options} fieldNames={f.fieldNames} placeholder={f.placeholder} onSearch={f.onSearch} debounce={f.debounce} allowClear={f.allowClear ?? true} />
+              : f.type === 'number' ? <InputNumber style={{ width: '100%' }} placeholder={f.placeholder} />
+              : f.type === 'switch' ? <Switch />
+              : f.type === 'date' ? <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              : f.type === 'textarea' ? <Input.TextArea rows={3} placeholder={f.placeholder} />
+              : f.type === 'password' ? <Input.Password placeholder={f.placeholder} />
+              : <Input disabled={editing && f.disabledOnEdit} placeholder={f.placeholder} />}
+          </Form.Item>
+        ))}
+      </Form>
+    </ModalShell>
+  );
+};
