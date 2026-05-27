@@ -116,6 +116,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       message[msgType](`${notification.title}: ${notification.content}`);
     });
 
+    // AI worklist realtime push: re-uses this single connection. The badge is a
+    // separate component, so we relay via a window event instead of coupling
+    // state here. AiQueueBadge listens for 'ai-queue-updated' → refetches.
+    connection.on('ReceiveAiQueueUpdate', () => {
+      window.dispatchEvent(new CustomEvent('ai-queue-updated'));
+    });
+
     connection.onreconnected(() => {
       if (cancelled) {
         return;

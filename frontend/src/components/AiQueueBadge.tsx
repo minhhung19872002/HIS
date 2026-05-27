@@ -43,7 +43,15 @@ export default function AiQueueBadge() {
   useEffect(() => {
     fetchQueue();
     const t = window.setInterval(fetchQueue, POLL_INTERVAL_MS);
-    return () => window.clearInterval(t);
+    // Realtime: NotificationContext relays the SignalR 'ReceiveAiQueueUpdate'
+    // push as this window event so we refetch instantly. The 30s poll above
+    // stays as fallback in case the WebSocket is down.
+    const onPush = () => fetchQueue();
+    window.addEventListener('ai-queue-updated', onPush);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener('ai-queue-updated', onPush);
+    };
   }, [fetchQueue]);
 
   const popoverContent = (

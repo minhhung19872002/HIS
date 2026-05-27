@@ -126,6 +126,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 // SignalR for real-time notifications
 builder.Services.AddSignalR();
 
+// Adapter so the Infrastructure-layer AI worklist worker can push realtime
+// updates through SignalR (the Hub lives in HIS.API; Infra can't reference it).
+builder.Services.AddSingleton<HIS.Application.Services.IRealtimeNotifier, HIS.API.Realtime.SignalRRealtimeNotifier>();
+
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

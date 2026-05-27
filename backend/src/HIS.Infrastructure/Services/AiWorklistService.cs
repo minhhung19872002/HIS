@@ -1,3 +1,4 @@
+using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -136,19 +137,26 @@ public class AiWorklistService : BackgroundService
             };
             db.AiLabelingResults.Add(marker);
             created++;
-
-            // Push notification via SignalR Hub is done from the API layer
-            // (controllers have access to IHubContext<NotificationHub>). Worker
-            // only writes to DB; frontend's existing 30s polling cycle will
-            // pick up the new queue entry. If realtime push is critical, add
-            // a hook here via an `IRealtimeNotifier` adapter in HIS.Application.
-            _ = req; // suppress unused warning
+            _ = req; // req already consumed above; keep ref explicit
         }
 
         if (created > 0)
         {
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("AiWorklistService queued {N} new AI analyses", created);
+
+            // Realtime push so the frontend AI badge refetches immediately
+            // instead of waiting for its 30s poll. The Hub lives in HIS.API,
+            // which Infrastructure can't reference, so we go through the
+            // IRealtimeNotifier adapter (registered in Program.cs). Resolved
+            // optionally — if no adapter is registered the worker still works
+            // and the frontend poll picks up the change.
+            var notifier = scope.ServiceProvider.GetService<IRealtimeNotifier>();
+            if (notifier != null)
+            {
+                try { await notifier.NotifyAiQueueUpdatedAsync(created, ct); }
+                catch (Exception ex) { _logger.LogWarning(ex, "AI queue realtime push failed"); }
+            }
         }
     }
 
