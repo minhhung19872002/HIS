@@ -475,9 +475,15 @@ public class PopulateDataController : ControllerBase
                         Status = status,
                         ChiefComplaint = complaints[rng.Next(complaints.Length)],
                         IsPaid = status == "Completed",
-                        BookingFee = rng.Next(0, 2) == 0 ? 50000 : (decimal?)null,
+                        // Prod PortalAppointments has drifted columns that are NOT NULL
+                        // (e.g. BookingFee), so always write non-null values to dodge
+                        // "Cannot insert NULL" regardless of the live schema.
+                        BookingFee = status == "Completed" ? 50000m : 0m,
+                        PaymentMethod = status == "Completed" ? "Tiền mặt" : "",
+                        PaymentReference = status == "Completed" ? $"TT-{date:yyyyMMdd}-{seq:D4}" : "",
+                        QueueNumber = "",
                         CancelledAt = status == "Cancelled" ? date.AddDays(-1) : (DateTime?)null,
-                        CancellationReason = status == "Cancelled" ? "Bận việc đột xuất" : null,
+                        CancellationReason = status == "Cancelled" ? "Bận việc đột xuất" : "",
                         CreatedAt = upcoming ? ctx.Now.AddDays(-rng.Next(1, 10)) : date.AddDays(-rng.Next(1, 5)),
                         UpdatedAt = ctx.Now
                     });
