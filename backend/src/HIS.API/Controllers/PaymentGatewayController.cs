@@ -31,8 +31,16 @@ public class PaymentGatewayController : ControllerBase
     [Authorize]
     public async Task<ActionResult<PaymentUrlResponseDto>> CreateUrl([FromBody] CreatePaymentUrlDto dto)
     {
-        var result = await _service.CreatePaymentUrlAsync(dto, GetClientIp(), GetUserId());
-        return Ok(result);
+        try
+        {
+            var result = await _service.CreatePaymentUrlAsync(dto, GetClientIp(), GetUserId());
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            // Input không hợp lệ (provider/amount sai) → 400 thay vì 500
+            return BadRequest(new { error = "VALIDATION_FAILED", message = ex.Message });
+        }
     }
 
     [HttpGet("vnpay/return")]

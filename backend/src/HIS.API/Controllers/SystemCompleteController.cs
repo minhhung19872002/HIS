@@ -1349,7 +1349,11 @@ namespace HIS.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<SystemUserDto>> CreateUser([FromBody] CreateUserDto dto)
         {
+            // [ApiController] tự validate DataAnnotations (Required/Email/MinLength) -> 400 field-level.
+            // Quy tắc nghiệp vụ (trùng username) -> 400 rõ field để client focus.
             var result = await _service.CreateUserAsync(dto);
+            if (result == null)
+                return BadRequest(new { error = "VALIDATION_FAILED", field = "username", message = "Tài khoản đã tồn tại" });
             return Ok(result);
         }
 

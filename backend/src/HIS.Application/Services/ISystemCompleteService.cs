@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using HIS.Application.DTOs.System;
 
@@ -620,23 +621,34 @@ namespace HIS.Application.Services
     // User DTOs
     public class CreateUserDto
     {
+        [Required(ErrorMessage = "Nhập tài khoản")]
+        [MinLength(3, ErrorMessage = "Tài khoản tối thiểu 3 ký tự")]
         public string Username { get; set; }
+        [Required(ErrorMessage = "Nhập họ tên")]
         public string FullName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
+        // Optional: nullable để không bị implicit-required (nullable ref types) — chỉ Username/FullName/RoleIds bắt buộc.
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
         public Guid? EmployeeId { get; set; }
         public Guid? DepartmentId { get; set; }
+        [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
+        [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }
-        public string InitialPassword { get; set; }
+        public string? InitialPassword { get; set; }
     }
 
     public class UpdateUserDto
     {
+        [Required(ErrorMessage = "Nhập họ tên")]
         public string FullName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
         public Guid? EmployeeId { get; set; }
         public Guid? DepartmentId { get; set; }
+        [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
+        [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }
         public bool IsActive { get; set; }
     }

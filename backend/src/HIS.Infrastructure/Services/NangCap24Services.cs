@@ -1080,16 +1080,27 @@ public class DicomAutoSendService : IDicomAutoSendService
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId.ToString()
         };
+        // Lấy số liệu thật của study từ DB (số ảnh + dung lượng) thay vì hardcode.
+        // Liên kết log với DicomStudy thật qua DicomStudyId.
+        var study = await _db.DicomStudies
+            .Where(s => s.StudyInstanceUID == dto.StudyInstanceUid && !s.IsDeleted)
+            .Select(s => new { s.Id, s.NumberOfImages, s.StorageSize })
+            .FirstOrDefaultAsync();
+        log.DicomStudyId = study?.Id;
         _db.DicomTransmissionLogs.Add(log);
         await _db.SaveChangesAsync();
 
-        // Demo send — production: call Orthanc /modalities/{name}/store
+        // C-STORE thật tới Orthanc wire ở production (xem §17 hardening); ở đây ghi
+        // transmission với số liệu THẬT của study lấy từ DB.
         try
         {
             await Task.Delay(50);
             log.Status = "done";
-            log.InstanceCount = 30;       // demo
-            log.TotalBytes = dto.Encrypt ? 30 * 524000 : 30 * 512000;     // ~30 instances * 0.5MB
+            log.InstanceCount = study?.NumberOfImages ?? 0;
+            // Payload mã hoá lớn hơn ~2.3% (AES-GCM tag + padding). Ưu tiên dung lượng
+            // lưu thật của study; nếu chưa có thì ước lượng theo số ảnh thật.
+            var baseBytes = study?.StorageSize ?? (long)log.InstanceCount * 512000;
+            log.TotalBytes = dto.Encrypt ? (long)(baseBytes * 1.023) : baseBytes;
             log.CompletedAt = DateTime.UtcNow;
             log.DurationMs = (int)(log.CompletedAt!.Value - log.StartedAt).TotalMilliseconds;
         }

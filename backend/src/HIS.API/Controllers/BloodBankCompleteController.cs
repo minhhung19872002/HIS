@@ -38,6 +38,9 @@ namespace HIS.API.Controllers
             [FromQuery] Guid? supplierId = null,
             [FromQuery] string status = null)
         {
+            // Client omit date -> ASP.NET binds DateTime.MinValue -> SqlDateTime overflow. Default an toan.
+            if (fromDate == default) fromDate = DateTime.Today.AddDays(-30);
+            if (toDate == default) toDate = DateTime.Today;
             var result = await _bloodBankService.GetImportReceiptsAsync(fromDate, toDate, supplierId, status);
             return Ok(result);
         }
@@ -125,6 +128,8 @@ namespace HIS.API.Controllers
             [FromQuery] Guid? departmentId = null,
             [FromQuery] string status = null)
         {
+            if (fromDate == default) fromDate = DateTime.Today.AddDays(-30);
+            if (toDate == default) toDate = DateTime.Today;
             var result = await _bloodBankService.GetIssueRequestsAsync(fromDate, toDate, departmentId, status);
             return Ok(result);
         }
@@ -194,6 +199,8 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] Guid? departmentId = null)
         {
+            if (fromDate == default) fromDate = DateTime.Today.AddDays(-30);
+            if (toDate == default) toDate = DateTime.Today;
             var result = await _bloodBankService.GetIssueReceiptsAsync(fromDate, toDate, departmentId);
             return Ok(result);
         }
@@ -335,6 +342,8 @@ namespace HIS.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] string status = null)
         {
+            if (fromDate == default) fromDate = DateTime.Today.AddDays(-30);
+            if (toDate == default) toDate = DateTime.Today;
             var result = await _bloodBankService.GetInventoriesAsync(fromDate, toDate, status);
             return Ok(result);
         }
