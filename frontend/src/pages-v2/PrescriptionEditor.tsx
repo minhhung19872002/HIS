@@ -206,6 +206,36 @@ const PrescriptionEditorV2: React.FC = () => {
 
   const onClickSign = () => { if (guard()) setSignOpen(true); };
 
+  // Apply a template: resolve each item's medicine (name/price) then add to cart.
+  const applyTemplate = async (t: PrescriptionTemplateDto) => {
+    setTplOpen(false);
+    if (!t.items || t.items.length === 0) { tw('Đơn mẫu rỗng'); return; }
+    try {
+      const fetched = await Promise.all(
+        t.items.map((it) =>
+          examinationApi.getMedicineWithStock(it.medicineId, warehouse || undefined)
+            .then((r) => ({ it, med: r.data }))
+            .catch(() => ({ it, med: null as MedicineDto | null }))),
+      );
+      const newItems: RxItem[] = fetched
+        .filter((f) => f.med)
+        .map((f) => ({
+          medicineId: f.med!.id, code: f.med!.code, name: f.med!.name,
+          dose: f.it.dosage || f.med!.name.match(/\d+\s*mg/i)?.[0] || '—',
+          freq: f.it.frequency || '1 lần/ngày',
+          qty: f.it.quantity || 30, days: f.it.days || 30,
+          route: f.it.route || 'Uống', note: f.it.usageInstructions || '',
+          price: f.med!.unitPrice,
+        }));
+      setItems((p) => {
+        const existing = new Set(p.map((x) => x.medicineId));
+        return [...p, ...newItems.filter((x) => !existing.has(x.medicineId))];
+      });
+      if (newItems.length > 0) tk(`Đã áp dụng mẫu "${t.templateName}" (${newItems.length} thuốc)`);
+      else tw('Không nạp được thuốc từ mẫu (thiếu tồn kho/định danh)');
+    } catch { te('Áp dụng đơn mẫu thất bại'); }
+  };
+
   return (
     <div className="ab ed-root" style={{ display: 'grid', gridTemplateColumns: '280px 1fr 320px', gridTemplateRows: 'auto 1fr', height: '100%' }}>
       {/* KPI */}
@@ -444,7 +474,7 @@ const PrescriptionEditorV2: React.FC = () => {
                 <b>{t.templateName}</b>
                 <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 3 }}>{t.items?.length || 0} thuốc{t.description ? ` · ${t.description}` : ''}</div>
               </div>
-              <button className="ab-btn primary sm" onClick={() => { tk(`Đã áp dụng mẫu "${t.templateName}"`); setTplOpen(false); }}>Áp dụng</button>
+              <button className="ab-btn primary sm" onClick={() => applyTemplate(t)}>Áp dụng</button>
             </div>
           ))}
         </div>
