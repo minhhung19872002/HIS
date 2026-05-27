@@ -25,7 +25,7 @@ import {
   getPatientDeposits, createDeposit, type DepositDto,
   searchRefunds, createRefund, type RefundDto,
   getCashBooks, type CashBookDto,
-  getElectronicInvoices, type ElectronicInvoiceDto,
+  getElectronicInvoices, issueElectronicInvoice, type ElectronicInvoiceDto,
 } from '../api/billing';
 import '../layouts/terminal/ed-responsive.css';
 
@@ -67,6 +67,9 @@ const BillingEditorV2: React.FC = () => {
   const [createModal, setCreateModal] = useState<null | 'deposit' | 'refund'>(null);
   const [cform, setCform] = useState<{ amount: string; method: number; reason: string }>({ amount: '', method: 1, reason: '' });
   const [savingC, setSavingC] = useState(false);
+  const [einvOpen, setEinvOpen] = useState(false);
+  const [einvForm, setEinvForm] = useState<{ buyerName: string; buyerEmail: string; sendEmail: boolean }>({ buyerName: '', buyerEmail: '', sendEmail: false });
+  const [savingEinv, setSavingEinv] = useState(false);
   const [cashbooks, setCashbooks] = useState<CashBookDto[]>([]);
   const [einvoices, setEinvoices] = useState<ElectronicInvoiceDto[]>([]);
 
@@ -173,6 +176,27 @@ const BillingEditorV2: React.FC = () => {
       setCreateModal(null);
     } catch { te('Tạo phiếu thất bại'); }
     finally { setSavingC(false); }
+  };
+
+  const openEinv = () => {
+    if (!pt) { tw('Chưa chọn bệnh nhân'); return; }
+    setEinvForm({ buyerName: pt.patientName, buyerEmail: '', sendEmail: false });
+    setEinvOpen(true);
+  };
+  const issueEinv = async () => {
+    if (!pt) return;
+    setSavingEinv(true);
+    try {
+      const inv = await getPatientInvoice(pt.medicalRecordId);
+      const invoiceId = inv.data?.id;
+      if (!invoiceId) { tw('Bệnh nhân chưa có hoá đơn để phát hành'); setSavingEinv(false); return; }
+      await issueElectronicInvoice({ invoiceId, buyerName: einvForm.buyerName || undefined, buyerEmail: einvForm.buyerEmail || undefined, sendEmail: einvForm.sendEmail });
+      const r = await getElectronicInvoices();
+      setEinvoices(Array.isArray(r.data) ? r.data : []);
+      setEinvOpen(false);
+      tk('Đã phát hành hoá đơn điện tử');
+    } catch { te('Phát hành HĐĐT thất bại'); }
+    finally { setSavingEinv(false); }
   };
 
   // ── Columns for read-only tabs ───────────────────────────────────
@@ -304,7 +328,7 @@ const BillingEditorV2: React.FC = () => {
           )}
           {tab === 'einv' && (
             <div>
-              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => ti('Phát hành HĐĐT (P2)')}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</button></div>
+              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</button></div>
               <DataTable<ElectronicInvoiceDto> columns={einvCols} data={einvoices} rowKey={(r) => r.id} empty="Chưa có hoá đơn điện tử"
                 actions={(r) => <><ActBtn ic="send" title="Gửi email" onClick={() => ti('Gửi email HĐ (P2)')} /><ActBtn ic="print" title="In" onClick={() => tk('Đã gửi in')} /></>} />
             </div>
@@ -398,6 +422,28 @@ const BillingEditorV2: React.FC = () => {
           <label style={{ display: 'block', fontSize: 11.5 }}>
             <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>{createModal === 'refund' ? 'Lý do hoàn (bắt buộc)' : 'Ghi chú'}</span>
             <textarea className="ed-fld" rows={2} value={cform.reason} onChange={(e) => setCform((p) => ({ ...p, reason: e.target.value }))} />
+          </label>
+        </div>
+      </ModalShell>
+
+      {/* Issue e-invoice modal */}
+      <ModalShell open={einvOpen} onClose={() => setEinvOpen(false)} title="Phát hành hoá đơn điện tử" sub={pt?.patientName} size="sm"
+        footer={<>
+          <button className="ab-btn ghost" onClick={() => setEinvOpen(false)}>Hủy</button>
+          <button className="ab-btn primary" disabled={savingEinv} onClick={issueEinv}><TermIcon name="check" size={12} /> Phát hành</button>
+        </>}>
+        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label style={{ display: 'block', fontSize: 11.5 }}>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Tên người mua</span>
+            <input className="ed-fld" value={einvForm.buyerName} onChange={(e) => setEinvForm((p) => ({ ...p, buyerName: e.target.value }))} />
+          </label>
+          <label style={{ display: 'block', fontSize: 11.5 }}>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Email nhận hoá đơn</span>
+            <input type="email" className="ed-fld" value={einvForm.buyerEmail} onChange={(e) => setEinvForm((p) => ({ ...p, buyerEmail: e.target.value }))} placeholder="vd: benhnhan@email.com" />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <input type="checkbox" checked={einvForm.sendEmail} onChange={(e) => setEinvForm((p) => ({ ...p, sendEmail: e.target.checked }))} />
+            Gửi hoá đơn qua email sau khi phát hành
           </label>
         </div>
       </ModalShell>

@@ -15,6 +15,8 @@ import {
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import apiClient from '../api/client';
+import { generateCdaDocument } from '../api/cda';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
@@ -109,6 +111,33 @@ const EmrEditorV2: React.FC = () => {
     if (c.status === 'fulfilled' && Array.isArray(c.value.data)) setConsults(c.value.data);
     if (n.status === 'fulfilled' && Array.isArray(n.value.data)) setNursing(n.value.data);
   }, []);
+
+  const downloadBlob = (data: BlobPart, filename: string, mime: string) => {
+    const url = window.URL.createObjectURL(new Blob([data], { type: mime }));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    a.remove(); window.URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = async () => {
+    if (!examId) { tw('Chưa chọn HSBA có lần khám'); return; }
+    try {
+      const resp = await apiClient.get(`/pdf/emr/${examId}?format=pdf`, { responseType: 'blob' });
+      downloadBlob(resp.data as BlobPart, `EMR_${sel?.patientCode || examId}.pdf`, 'application/pdf');
+      tk('Đã xuất PDF');
+    } catch { te('Không thể xuất PDF — dùng In biểu mẫu để lưu'); }
+  };
+
+  const exportXml = async () => {
+    if (!sel) return;
+    try {
+      const r = await generateCdaDocument({ documentType: 1, patientId: sel.patientId, medicalRecordId: full?.id });
+      const xml = r?.cdaXml;
+      if (!xml) { ti('Đã tạo tài liệu CDA (chưa có nội dung XML để tải)'); return; }
+      downloadBlob(xml, `CDA_${sel.patientCode}.xml`, 'application/xml');
+      tk('Đã xuất CDA XML');
+    } catch { te('Không thể xuất XML CDA'); }
+  };
 
   const today = () => new Date().toISOString().slice(0, 10);
   const saveSheet = async () => {
@@ -228,8 +257,8 @@ const EmrEditorV2: React.FC = () => {
                 <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{sel.patientCode} · {sel.lastRoomName || '—'} · {sel.lastVisit ? fmtDMYg(sel.lastVisit) : '—'}{full?.medicalRecordCode ? ` · ${full.medicalRecordCode}` : ''}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button className="ab-btn ghost" onClick={() => ti('Xuất XML — dùng cổng liên thông (P2)')}><TermIcon name="download" size={12} /> XML</button>
-                <button className="ab-btn ghost" onClick={() => ti('Xuất PDF (P2)')}><TermIcon name="download" size={12} /> PDF</button>
+                <button className="ab-btn ghost" onClick={exportXml}><TermIcon name="download" size={12} /> XML</button>
+                <button className="ab-btn ghost" onClick={exportPdf}><TermIcon name="download" size={12} /> PDF</button>
                 <button className="ab-btn ghost" onClick={() => setPrintOpen(true)}><TermIcon name="print" size={12} /> In biểu mẫu</button>
                 <button className="ab-btn primary" onClick={() => setSignOpen(true)}><TermIcon name="check" size={12} /> Ký số</button>
               </div>
