@@ -5195,4 +5195,97 @@ routes with any issue: 0.** Report: `playwright-prod-design-conformance.json` (g
 - Cloud Run hiện tại: `his-api-00032-g92`. Vercel: auto-deploy từ push `b5e8d67`.
 - Chạy lại conformance: `cd frontend && npx playwright test e2e-prod/v2-design-conformance.spec.ts --config=playwright.prod.config.ts --workers=3 --reporter=list`
 
+---
+
+## Work Log - 2026-05-27 (Quick-wins + AI realtime + 4 native v2 editors + P2)
+
+Phiên dài, nhiều mốc. Tất cả FE-only commit auto-deploy Vercel; 1 lần deploy
+backend Cloud Run cho seeder + AI realtime.
+
+### 1. Cụm quick-win
+- **BloodBank date clamp** (`d79d304`): `BloodBankCompleteService.GetIssueRequestsAsync`
+  nhận `DateTime` non-null; gọi thiếu from/to → `0001-01-01` → SqlDateTime overflow → 500.
+  Clamp vào `[SqlDateTime.MinValue .. MaxValue]` (1753–9999), upper bound trống = "no limit".
+- **Patient-portal `Guid.Empty` fallback**: VERIFY thấy **đã xong từ trước** — mọi endpoint
+  browse (appointments/lab/imaging/prescriptions/invoices + NangCap19) đã có guard
+  `if (accountId/patientId != Guid.Empty)`, FE không truyền patientId → fallback trả top-30.
+  Phần "trống" còn lại là thiếu data seed, không phải lỗi code.
+- **Cleanup orphan FE** (`WrapV1.tsx`, `_GenericListPage.tsx`): VERIFY đã bị xóa từ trước.
+
+### 2. Seed PortalAppointments (A) + AI queue realtime SignalR (B) → deploy
+- **A** (`6665549` + fix `f124b80`): thêm block seeder `PortalAppointments` idempotent vào
+  `PopulateDataController.PopulatePatientPortal` (~60% upcoming/40% history, status mix).
+  **Pitfall**: prod `PortalAppointments.BookingFee` drift **NOT NULL** (BAK cũ) dù script
+  `03_extended_workflow.sql` khai NULL → seeder phải set non-null mọi cột payment string/decimal.
+- **B** (`637d2e6`): AI worklist realtime. Pattern `his-fs-realtime-signalr` vượt rào cross-project:
+  `IRealtimeNotifier` ở `HIS.Application/Services/`, adapter `SignalRRealtimeNotifier`
+  (`HIS.API/Realtime/`) bọc `IHubContext<NotificationHub>` (đăng ký Program.cs),
+  `AiWorklistService` resolve optional qua scope + push sau khi queue. FE: `NotificationContext`
+  nhận `ReceiveAiQueueUpdate` → `window.dispatchEvent('ai-queue-updated')` → `AiQueueBadge`
+  refetch (giữ poll 30s fallback).
+- **Deploy**: Cloud Run `his-api-00034-qdf` (image `20260527-110225`). Verify prod: schema-drift 0,
+  seed 39 PortalAppointments, `/api/portal/appointments` trả 30 rows, `/api/ai-labeling/queue` 200.
+  **Pitfall deploy**: 1 lần `gcloud builds submit` exit 0 nhưng **không tạo build** (footer
+  run-diagnostics) → phải `gcloud builds list` xác nhận + re-submit.
+
+### 3. 4 native v2 editor — thay hết jump v1 MainLayout (vấn đề user báo)
+User báo `/v2/prescription` click chức năng nặng lại nhảy về MainLayout (v1). Impact-analysis:
+4 page lâm sàng nặng (Prescription/OPD/EMR/Billing) là *list shell* delegate sang v1.
+User chọn "dựng editor native v2" → pull bundle Claude Design
+(`https://api.anthropic.com/v1/design/h/IIWRM9m7iq5I9OjPzcn7Gg`, gzip 5.5MB qua WebFetch →
+giải nén `design-system/bundle-editor/`, đã gitignore). Port 4 editor full-screen:
+
+| Editor | Route | Commit | API thật reuse (KHÔNG đụng backend) |
+|---|---|---|---|
+| PrescriptionEditor | `/v2/prescription/edit` | `5383c8d` | patientApi search/getById, examinationApi searchMedicines/checkDrugInteractions/createPrescription/getPrescriptionTemplates/searchExaminations, getPrescriptionContext |
+| OpdEditor | `/v2/opd/edit` | `d1e1298` | getActiveExaminationRooms, getRoomPatientList, get/updateVitalSigns, get/updateMedicalInterview, get/updatePhysicalExamination, getDiagnoses/updateDiagnosisList, searchIcdCodes, searchServices, getServiceOrders/createServiceOrders, completeExamination |
+| EmrEditor | `/v2/emr/edit` | `97d0b0f` | getEmrRecords, getPatientMedicalHistory, getMedicalRecordFull, getTreatmentSheets, getConsultationRecords, getNursingCareSheets |
+| BillingEditor | `/v2/billing/edit` | `3ec61df` | searchPatients, getUnpaidServices/Medicines, getDepositBalance, getPatientInvoice+createPayment, getPatientDeposits, searchRefunds, getCashBooks, getElectronicInvoices |
+
+- Foundation: `_v2kit` (`KpiStrip/TopTabs/StatusTabs/DataTable/DrawerShell/ModalShell/StatusBadge/ActBtn`)
+  + `ab-*` CSS + **`layouts/terminal/ed-responsive.css` mới** (3-col → slide-over panel ≤1180px;
+  `.ed-root .hui-inp/.hui-sel` + global `.ed-fld` dark theme cho input trong modal portal).
+- Wire route trong `App.tsx` (nested `/v2/*`), đổi nút list page sang editor.
+  Verify: `grep navigate('/opd|emr|prescription|billing')` trong pages-v2 = **0 jump thật** (chỉ comment).
+
+### 4. P2 — hoàn thiện 8 item (đều có API sẵn, real, không stub)
+
+| # | Item | Commit |
+|---|---|---|
+| 1 | Prescription: kho cấp phát thật (`getDispensaryWarehouses`) + gửi `warehouseId` | `c0e2afa` |
+| 2 | OPD: quét barcode BN (`BarcodeScanner` component) → chọn từ queue | `c0e2afa` |
+| 3 | EMR: create modal điều trị/hội chẩn/chăm sóc (mirror v1: id/doctorId/nurseId='' → BE tự điền user) | `9539e08` |
+| 4 | Billing: tạo tạm ứng + hoàn tiền (`createDeposit`/`createRefund`) | `7f4777c` |
+| 5 | OPD: lưu giấy nghỉ ốm (`createSickLeave`, auto-tính days) | `7f4777c` |
+| 6 | Prescription: áp đơn mẫu vào giỏ — **`getMedicineWithStock` đã có sẵn** (tưởng thiếu `getMedicineById`, verify-before-assert tránh tạo endpoint trùng) | `c0dc267` |
+| 7 | EMR: xuất XML (CDA `generateCdaDocument` → tải `cdaXml`) + PDF (`/api/pdf/emr/{id}?format=pdf` blob) | `1889e36` |
+| 8 | Billing: phát hành HĐĐT (`issueElectronicInvoice` + `getPatientInvoice`) | `1889e36` |
+
+### Pitfalls phiên này
+- **Design bundle URL cần auth phiên web** — `curl`/`WebFetch` ẩn danh 404. URL cũ hết hạn;
+  URL mới fetch được (WebFetch tải gzip 5.5MB → harness lưu `.bin` → `tar -xzf` path forward-slash
+  `/c/Users/...` chứ KHÔNG `C:\...` kẻo tar hiểu là remote host).
+- **createPrescription cần `examinationId`** → editor derive từ lần khám gần nhất; createPayment cần
+  `invoiceId` → derive từ `getPatientInvoice(medicalRecordId)`.
+- **getEmrRecords là patient-centric** (không có examinationId/status) → detail derive examId từ
+  `getPatientMedicalHistory[0].examinationId`.
+- **Modal portal ra body** → `.ed-root .hui-inp` không áp; dùng global `.ed-fld`.
+- **verify-before-assert thắng 2 lần**: `getMedicineById` (hóa ra `getMedicineWithStock` đã có),
+  endpoint `/medicines/{id}` + `/pdf/emr/{id}` đều có sẵn → không viết trùng backend.
+
+### CAN LAM TIEP (còn lại, cố ý chưa làm)
+- **Ký số PKI đầy đủ** (Prescription/EMR): cần USB Token phần cứng; hiện route `/v2/signing-workflow`.
+- **EMR partograph**: placeholder sản khoa, value thấp.
+- 11 page `/v2/*` vẫn `WrapV1` (heavy custom: DigitalSignature, CentralSigning, DicomViewer,
+  Dashboard3Cap, BhxhAudit, Finance†, HealthExchange, MedicalRecordArchive, SatisfactionSurvey,
+  SpecialtyEMR, Help) — †Finance đã có bản v2 bespoke ở session 2026-04-30, kiểm lại nếu cần.
+- Backend chưa deploy lại cho phần FE-only (không cần); nếu sau này sửa BE nhớ `gcloud builds submit`.
+
+### Commits phiên (push origin/main)
+`d79d304` blood-bank clamp · `6665549`+`f124b80` portal seeder · `637d2e6` AI realtime ·
+`5383c8d` PrescriptionEditor · `d1e1298` OpdEditor · `97d0b0f` EmrEditor · `3ec61df` BillingEditor ·
+`c0e2afa` P2 warehouse+barcode · `9539e08` P2 EMR create · `7f4777c` P2 deposit/refund+sick-leave ·
+`c0dc267` P2 template-apply · `1889e36` P2 EMR export + e-invoice.
+Cloud Run: `his-api-00034-qdf`. Vercel: auto-deploy mỗi push.
+
 
