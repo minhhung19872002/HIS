@@ -437,6 +437,57 @@ public class PopulateDataController : ControllerBase
             summary["PatientQuestions"] = questions.Count;
         }
 
+        if (!await _db.PortalAppointments.AnyAsync() && ctx.DepartmentIds.Count > 0)
+        {
+            var complaints = new[] {
+                "Tái khám huyết áp định kỳ", "Khám sức khỏe tổng quát", "Đau dạ dày kéo dài",
+                "Tư vấn kết quả xét nghiệm", "Tái khám tiểu đường", "Đau khớp gối phải",
+                "Khám tim mạch", "Ho kéo dài 2 tuần", "Khám thai định kỳ", "Tái khám sau mổ"
+            };
+            var appts = new List<PortalAppointment>();
+            int seq = 0;
+            foreach (var acc in accounts)
+            {
+                int n = rng.Next(1, 4);
+                for (int i = 0; i < n; i++)
+                {
+                    seq++;
+                    // ~60% upcoming (today..+14d) so the default upcoming view renders,
+                    // ~40% history (past 30d) for the "Lịch sử" tab.
+                    bool upcoming = rng.Next(0, 10) < 6;
+                    var date = upcoming
+                        ? ctx.Now.Date.AddDays(rng.Next(0, 15))
+                        : ctx.Now.Date.AddDays(-rng.Next(1, 31));
+                    string status = upcoming
+                        ? (rng.Next(0, 2) == 0 ? "Confirmed" : "Pending")
+                        : (rng.Next(0, 5) == 0 ? "Cancelled" : rng.Next(0, 6) == 0 ? "NoShow" : "Completed");
+                    int hour = 8 + rng.Next(0, 9);
+                    appts.Add(new PortalAppointment
+                    {
+                        Id = Guid.NewGuid(),
+                        BookingCode = $"DK-{date:yyyyMMdd}-{seq:D4}",
+                        PortalAccountId = acc,
+                        PatientId = acc,
+                        DepartmentId = ctx.DepartmentIds[rng.Next(ctx.DepartmentIds.Count)],
+                        DoctorId = ctx.DoctorIds.Count > 0 ? ctx.DoctorIds[rng.Next(ctx.DoctorIds.Count)] : (Guid?)null,
+                        AppointmentDate = date,
+                        SlotTime = new TimeSpan(hour, rng.Next(0, 2) == 0 ? 0 : 30, 0),
+                        Status = status,
+                        ChiefComplaint = complaints[rng.Next(complaints.Length)],
+                        IsPaid = status == "Completed",
+                        BookingFee = rng.Next(0, 2) == 0 ? 50000 : (decimal?)null,
+                        CancelledAt = status == "Cancelled" ? date.AddDays(-1) : (DateTime?)null,
+                        CancellationReason = status == "Cancelled" ? "Bận việc đột xuất" : null,
+                        CreatedAt = upcoming ? ctx.Now.AddDays(-rng.Next(1, 10)) : date.AddDays(-rng.Next(1, 5)),
+                        UpdatedAt = ctx.Now
+                    });
+                }
+            }
+            _db.PortalAppointments.AddRange(appts);
+            await _db.SaveChangesAsync();
+            summary["PortalAppointments"] = appts.Count;
+        }
+
         return Ok(new { success = true, module = "patient-portal", inserted = summary });
     }
 
