@@ -294,6 +294,15 @@ namespace HIS.Infrastructure.Services
         public async Task<List<BloodIssueRequestDto>> GetIssueRequestsAsync(
             DateTime fromDate, DateTime toDate, Guid? departmentId = null, string status = null)
         {
+            // Clamp into SQL Server's valid datetime range (1753-01-01 .. 9999-12-31).
+            // Callers that omit fromDate/toDate send DateTime.MinValue (0001-01-01),
+            // which overflows SqlDateTime -> 500. An empty upper bound means "no limit".
+            var sqlMin = (DateTime)System.Data.SqlTypes.SqlDateTime.MinValue;
+            var sqlMax = (DateTime)System.Data.SqlTypes.SqlDateTime.MaxValue;
+            if (fromDate < sqlMin) fromDate = sqlMin;
+            if (toDate < sqlMin) toDate = sqlMax;
+            else if (toDate > sqlMax) toDate = sqlMax;
+
             var results = new List<BloodIssueRequestDto>();
             using var connection = _context.Database.GetDbConnection();
             await connection.OpenAsync();
