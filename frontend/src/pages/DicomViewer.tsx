@@ -45,6 +45,9 @@ import DicomViewerConfig from '../components/DicomViewerConfig';
 import CornerstoneViewer, { type CornerstoneViewerHandle } from '../components/CornerstoneViewer';
 import MprViewer from '../components/MprViewer';
 import MammoViewer, { type MammoImage } from '../components/MammoViewer';
+import MipMinIpViewer from '../components/MipMinIpViewer';
+import CineControls, { type CineViewportHandle } from '../components/CineControls';
+import { dicomStudyLogApi } from '../api/nangcap24';
 
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them
@@ -103,6 +106,8 @@ const DicomViewer: React.FC = () => {
   const [useNativeMpr, setUseNativeMpr] = useState(false);
   // Phase 3: Native Mammography 2x2 hanging-protocol viewer
   const [useMammo, setUseMammo] = useState(false);
+  // NangCap24 gap #9: MIP/MinIP intensity-projection viewer
+  const [useMip, setUseMip] = useState(false);
 
   // A2: Video conference integration
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
@@ -238,6 +243,15 @@ const DicomViewer: React.FC = () => {
         // Auto-select first series
         setSelectedSeries(firstSeries);
         void loadImages(firstSeries.seriesInstanceUID);
+
+        // Ghi log THẬT (DicomStudyActivityLog gap #9): BS/KTV mở xem ca chụp.
+        // Audit log không chặn luồng xem ảnh nếu fail.
+        void dicomStudyLogApi.logActivity({
+          studyInstanceUid: studyInstanceUID,
+          action: 'viewed',
+          actionDetails: `Xem ca chụp ${firstSeries.modality || ''} trên DICOM viewer`.trim(),
+          machineName: window.location.hostname,
+        }).catch(() => { /* ignore audit failure */ });
       } else {
         // No series found - PACS may not be configured
         setPacsAvailable(false);
@@ -463,7 +477,7 @@ const DicomViewer: React.FC = () => {
                   icon={<AppstoreOutlined />}
                   onClick={() => {
                     setUseNativeMpr((v) => !v);
-                    if (!useNativeMpr) { setEmbedOhif(false); setUseMammo(false); }
+                    if (!useNativeMpr) { setEmbedOhif(false); setUseMammo(false); setUseMip(false); }
                   }}
                   data-testid="dicom-native-mpr-btn"
                   disabled={!pacsAvailable}
@@ -475,7 +489,7 @@ const DicomViewer: React.FC = () => {
                   icon={<AppstoreOutlined />}
                   onClick={() => {
                     setUseMammo((v) => !v);
-                    if (!useMammo) { setEmbedOhif(false); setUseNativeMpr(false); }
+                    if (!useMammo) { setEmbedOhif(false); setUseNativeMpr(false); setUseMip(false); }
                   }}
                   data-testid="dicom-mammo-btn"
                   disabled={!pacsAvailable || mammoImages.length === 0}
@@ -483,9 +497,21 @@ const DicomViewer: React.FC = () => {
                   {useMammo ? 'Ẩn Mammography' : 'Mammography 2x2'}
                 </Button>
                 <Button
+                  type={useMip ? 'primary' : 'default'}
+                  icon={<AppstoreOutlined />}
+                  onClick={() => {
+                    setUseMip((v) => !v);
+                    if (!useMip) { setEmbedOhif(false); setUseNativeMpr(false); setUseMammo(false); }
+                  }}
+                  data-testid="dicom-mip-btn"
+                  disabled={!pacsAvailable || cornerstoneImageIds.length < 2}
+                >
+                  {useMip ? 'Ẩn MIP/MinIP' : 'MIP / MinIP'}
+                </Button>
+                <Button
                   type={embedOhif ? 'primary' : 'default'}
                   icon={<AppstoreOutlined />}
-                  onClick={() => { setEmbedOhif((v) => !v); if (!embedOhif) setUseNativeMpr(false); }}
+                  onClick={() => { setEmbedOhif((v) => !v); if (!embedOhif) { setUseNativeMpr(false); setUseMammo(false); setUseMip(false); } }}
                   data-testid="dicom-mpr-3d-btn"
                 >
                   {embedOhif ? 'Ẩn OHIF' : 'MPR / 3D / Mamo (OHIF)'}
@@ -640,6 +666,30 @@ const DicomViewer: React.FC = () => {
           data-testid="dicom-mammo-card"
         >
           <MammoViewer images={mammoImages} height="78vh" />
+        </Card>
+      )}
+
+      {/* NangCap24 gap #9: MIP/MinIP intensity-projection viewer (Cornerstone3D volume) */}
+      {useMip && pacsAvailable && cornerstoneImageIds.length > 0 && (
+        <Card
+          title={<Space><AppstoreOutlined /> MIP / MinIP — Maximum/Minimum Intensity Projection (Cornerstone3D)</Space>}
+          extra={<Button size="small" onClick={() => setUseMip(false)}>Đóng</Button>}
+          style={{ marginBottom: 16 }}
+          styles={{ body: { padding: 8 } }}
+          data-testid="dicom-mip-card"
+        >
+          <MipMinIpViewer
+            imageIds={cornerstoneImageIds}
+            height="78vh"
+            studyInfo={{
+              patient: studyInfo?.patientName,
+              pid: studyInfo?.patientId,
+              studyDate: studyInfo?.studyDate,
+              modality: studyInfo?.modality,
+              description: studyInfo?.studyDescription,
+              seriesCount: studyInfo?.seriesCount,
+            }}
+          />
         </Card>
       )}
 
@@ -900,6 +950,7 @@ const DicomViewer: React.FC = () => {
                     )}
                   </Space>
                   {useCs && cornerstoneImageIds.length > 0 ? (
+                    <>
                     <div style={{ position: 'relative' }}>
                       <CornerstoneViewer
                         ref={csRef}
@@ -958,6 +1009,9 @@ const DicomViewer: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    {/* NangCap24 gap #10: Cine playback bar — seeks frames in the stack viewport */}
+                    <CineControls viewerRef={csRef as unknown as React.RefObject<CineViewportHandle | null>} />
+                    </>
                   ) : (
                   <div style={{ textAlign: 'center', background: '#000', padding: 8, borderRadius: 4, position: 'relative' }}>
                     <img

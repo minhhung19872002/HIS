@@ -54,7 +54,10 @@ const DicomAutoSend: React.FC = () => {
   };
   useEffect(() => { load(); }, []);
 
-  const triggerCount24h = 142;        // placeholder; backend chưa expose endpoint chuyên cho con số 24h
+  // Số ca truyền trong 24h gần nhất — tính từ stats.byDay thật trong DB (không hardcode).
+  const triggerCount24h = stats?.byDay
+    ?.filter(d => dayjs(d.date).isAfter(dayjs().subtract(24, 'hour')))
+    .reduce((sum, d) => sum + d.count, 0) ?? 0;
 
   const kpis = [
     { lbl: 'Quy tắc hoạt động', val: rules.filter(r => r.isActive).length, sub: `/ ${rules.length} tổng`, tone: 'ok' as const },

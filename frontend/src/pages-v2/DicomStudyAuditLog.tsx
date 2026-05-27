@@ -9,7 +9,7 @@ import dayjs from 'dayjs';
 import { Button } from 'antd';
 import {
   KpiStrip, DataTable, SearchBox, DrawerShell, Filter, Pager, StatusBadge,
-  tk, te, fmtDTg,
+  te, fmtDTg,
 } from './_v2kit';
 import type { ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -71,21 +71,6 @@ const DicomStudyAuditLog: React.FC = () => {
       const tl = await dicomStudyLogApi.getStudyTimeline(uid);
       setStudyDetail({ uid, timeline: tl.sort((a, b) => dayjs(a.performedAt).diff(dayjs(b.performedAt))) });
     } catch { te('Không lấy được timeline'); }
-  };
-
-  const seedDemo = async () => {
-    try {
-      const uid = `1.2.840.113619.demo.${Date.now()}`;
-      const actions = ['created_from_his', 'received_from_modality', 'viewed', 'result_drafted', 'result_approved', 'result_printed'];
-      for (const a of actions) {
-        await dicomStudyLogApi.logActivity({
-          studyInstanceUid: uid, action: a,
-          actionDetails: `Demo seed for ${a}`, machineName: 'TEST-PC',
-        });
-      }
-      tk(`Đã seed 6 log cho study ${uid.slice(-15)}`);
-      load();
-    } catch { te('Seed thất bại'); }
   };
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PER));
@@ -158,7 +143,6 @@ const DicomStudyAuditLog: React.FC = () => {
           <TermIcon name="search" size={12} /> Lọc
         </Button>
         <span className="spacer" style={{ flex: 1 }} />
-        <Button size="small" onClick={seedDemo} data-testid="seed-demo-btn">Seed demo</Button>
         <Button size="small"><TermIcon name="download" size={12} /> Xuất CSV</Button>
       </div>
 

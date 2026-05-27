@@ -50,6 +50,11 @@ export interface CornerstoneViewerHandle {
   invert: () => void;
   reset: () => void;
   setActiveTool: (t: CsToolName) => void;
+  // Cine playback (NangCap24 gap #10) — structurally matches CineViewportHandle
+  // so <CineControls> can seek frames through this same stack viewport.
+  getFrameCount: () => number;
+  getCurrentIndex: () => number;
+  setIndex: (idx: number) => void;
 }
 
 /** Bounds of the rendered DICOM image inside the canvas, in CSS pixels.
@@ -138,6 +143,10 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
   const [currentIdx, setCurrentIdx] = useState(initialIndex);
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [imageRect, setImageRect] = useState<ImageCanvasRect | null>(null);
+  // Sync mirrors of frame count + current index so the imperative handle can
+  // return them synchronously (useImperativeHandle has [] deps → closures are stale).
+  const frameCountRef = useRef(0);
+  const currentIdxRef = useRef(initialIndex);
 
   // Track viewport CSS size so overlay can match. ResizeObserver fires on
   // window resize, fullscreen toggle, and on container reflows.
@@ -246,6 +255,8 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         viewport.render();
         if (!cancelled) {
           setCurrentIdx(initialIndex);
+          frameCountRef.current = imageIds.length;
+          currentIdxRef.current = initialIndex;
           setLoading(false);
         }
       } catch (err) {
@@ -267,7 +278,10 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
     if (!el) return;
     const handler = (evt: Event) => {
       const detail = (evt as CustomEvent).detail as { imageIdIndex?: number } | undefined;
-      if (detail && typeof detail.imageIdIndex === 'number') setCurrentIdx(detail.imageIdIndex);
+      if (detail && typeof detail.imageIdIndex === 'number') {
+        setCurrentIdx(detail.imageIdIndex);
+        currentIdxRef.current = detail.imageIdIndex;
+      }
     };
     // CSE event names — string literal matches Enums.Events.STACK_NEW_IMAGE
     el.addEventListener('CORNERSTONE_STACK_NEW_IMAGE', handler);
@@ -374,6 +388,23 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
       })();
     },
     setActiveTool: (t) => switchTool(t),
+    getFrameCount: () => frameCountRef.current,
+    getCurrentIndex: () => currentIdxRef.current,
+    setIndex: (idx: number) => {
+      void (async () => {
+        try {
+          const csCore = await import('@cornerstonejs/core');
+          const engine = csCore.getRenderingEngine(RENDERING_ENGINE_ID);
+          if (!engine) return;
+          const viewport = engine.getViewport(VIEWPORT_ID) as import('@cornerstonejs/core').Types.IStackViewport;
+          const clamped = Math.max(0, Math.min(idx, frameCountRef.current - 1));
+          await viewport.setImageIdIndex(clamped);
+          viewport.render();
+          currentIdxRef.current = clamped;
+          setCurrentIdx(clamped);
+        } catch (err) { console.warn('setIndex failed:', err); }
+      })();
+    },
   }), []);
 
   const switchTool = async (t: CsToolName) => {
