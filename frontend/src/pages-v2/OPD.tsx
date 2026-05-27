@@ -116,7 +116,7 @@ const OPDV2: React.FC = () => {
       }}
       rowActions={(r) => (
         <div className="ab-actions">
-          <ActBtn ic="stethoscope" title="Khám (mở v1)" onClick={() => navigate('/opd')} />
+          <ActBtn ic="stethoscope" title="Khám" onClick={() => navigate('/v2/opd/edit')} />
           <ActBtn ic="eye" title="Xem hồ sơ" onClick={() => navigate('/emr')} />
           <ActBtn ic="print" title="In phiếu" onClick={() => message.success('Đã gửi máy in')} />
         </div>
@@ -156,13 +156,13 @@ const OPDV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button type="button" className="ab-btn primary" onClick={() => navigate('/opd')}>
+              <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/opd/edit')}>
                 <TermIcon name="stethoscope" size={12} /> Mở phòng khám
               </button>
               <button type="button" className="ab-btn" onClick={() => navigate('/emr')}>
                 <TermIcon name="eye" size={12} /> Xem HSBA
               </button>
-              <button type="button" className="ab-btn" onClick={() => navigate('/prescription')}>
+              <button type="button" className="ab-btn" onClick={() => navigate('/v2/prescription/edit')}>
                 <TermIcon name="flask" size={12} /> Kê đơn
               </button>
             </div>
